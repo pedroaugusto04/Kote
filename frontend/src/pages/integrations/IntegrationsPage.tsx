@@ -30,8 +30,8 @@ const integrationLogos: Record<string, { src: string; label: string }> = {
   ai: { src: 'https://cdn.simpleicons.org/openrouter/ffffff', label: 'OpenRouter' },
   evolution: { src: 'https://cdn.simpleicons.org/whatsapp/25D366', label: 'Evolution API' },
   github: { src: 'https://cdn.simpleicons.org/github/ffffff', label: 'GitHub' },
-  'ai-review': { src: 'https://cdn.simpleicons.org/openai/ffffff', label: 'AI Review' },
-  'ai-conversation': { src: 'https://cdn.simpleicons.org/openai/ffffff', label: 'AI Conversation' },
+  'ai-review': { src: 'https://cdn.simpleicons.org/openrouter/ffffff', label: 'IA' },
+  'ai-conversation': { src: 'https://cdn.simpleicons.org/openrouter/ffffff', label: 'IA' },
 };
 
 function integrationId(integration: DisplayIntegration) {
