@@ -3,7 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { ReminderDispatchMode } from '../../../contracts/enums.js';
 import { slugify } from '../../../domain/strings.js';
 import { currentSaoPauloDateTime } from '../../../domain/time.js';
-import { ContentQueryRepository, ReminderDispatchRepository } from '../../ports/repositories.js';
+import { ContentQueryRepository } from '../../ports/content.repository.js';
+import { ReminderDispatchRepository } from '../../ports/workflow-state.repository.js';
 
 @Injectable()
 export class BuildReminderDispatchUseCase {

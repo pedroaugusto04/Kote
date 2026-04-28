@@ -11,7 +11,7 @@ import {
   integrationProviderValues,
 } from '../contracts/enums.js';
 import type { IntegrationCredentialRecord } from './models/repository-records.models.js';
-import { CredentialRepository, ExternalIdentityRepository } from './ports/repositories.js';
+import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations.repository.js';
 
 export { IntegrationProvider };
 export const integrationProviders = integrationProviderValues;
@@ -146,7 +146,7 @@ function defaultIdentityType(provider: string): string {
 export class IntegrationCredentialService {
   constructor(
     private readonly credentials: CredentialRepository,
-    private readonly externalIdentities: ExternalIdentityRepository = credentials as unknown as ExternalIdentityRepository,
+    private readonly externalIdentities: ExternalIdentityRepository,
   ) {}
 
   async list(userId: string, workspaceSlug = 'default') {

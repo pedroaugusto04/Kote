@@ -4,7 +4,7 @@ import { readEnvironment, type RuntimeEnvironment } from '../adapters/environmen
 import { AiProvider, IntegrationProvider, IntegrationSetupStatus } from '../contracts/enums.js';
 import type { Project } from '../domain/projects.js';
 import type { Workspace } from '../domain/workspaces.js';
-import { ContentRepository } from './ports/repositories.js';
+import { ContentRepository } from './ports/content.repository.js';
 import { absoluteUrl, configuredEnv, link, missingEnv, secretConfigured, statusFromFlags, workspaceRepos } from './utils/integration-status.utils.js';
 
 export type IntegrationStatusValue = IntegrationSetupStatus;

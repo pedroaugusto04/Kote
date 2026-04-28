@@ -1,6 +1,6 @@
 import { Body, Controller, Get, NotFoundException, Post, Query, UseGuards } from '@nestjs/common';
 
-import { ExternalIdentityRepository } from '../../../application/ports/repositories.js';
+import { ExternalIdentityRepository } from '../../../application/ports/integrations.repository.js';
 import {
   BuildReminderDispatchUseCase,
   IngestEntryUseCase,

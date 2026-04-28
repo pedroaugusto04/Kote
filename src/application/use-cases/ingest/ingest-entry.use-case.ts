@@ -7,7 +7,7 @@ import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/in
 import { buildNotePaths, renderEventNote, renderReminderNote } from '../../../domain/notes.js';
 import type { Project } from '../../../domain/projects.js';
 import { slugify, trimText } from '../../../domain/strings.js';
-import { ContentRepository } from '../../ports/repositories.js';
+import { ContentRepository } from '../../ports/content.repository.js';
 
 @Injectable()
 export class IngestEntryUseCase {

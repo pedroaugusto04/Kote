@@ -2,9 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
-import { MemoryKnowledgeStore } from '../dist/application/knowledge-store.js';
+import { createMemoryRepositories } from '../dist/infrastructure/repositories/memory-repositories.js';
 import { BuildDashboardUseCase, HandleGithubPushUseCase, IngestEntryUseCase } from '../dist/application/use-cases/index.js';
-import { PostgresContentQueryRepository } from '../dist/infrastructure/repositories/postgres-content.repository.js';
 
 function configureEnv() {
   process.env.KB_GITHUB_APP_WEBHOOK_SECRET = 'github-webhook-secret';
@@ -87,14 +86,14 @@ function signedGithubInput(body) {
 
 test('new users start with an empty scoped dashboard and cannot see another user notes', async () => {
   configureEnv();
-  const store = new MemoryKnowledgeStore();
-  const ingest = new IngestEntryUseCase(store);
+  const repositories = createMemoryRepositories();
+  const ingest = new IngestEntryUseCase(repositories.contentRepository);
   const dashboard = new BuildDashboardUseCase(
-    store,
-    new PostgresContentQueryRepository(store),
+    repositories.contentRepository,
+    repositories.contentQueryRepository,
   );
-  const userA = await store.createUser({ email: 'a@example.com', displayName: 'A', passwordHash: 'hash', role: 'user' });
-  const userB = await store.createUser({ email: 'b@example.com', displayName: 'B', passwordHash: 'hash', role: 'user' });
+  const userA = await repositories.userRepository.createUser({ email: 'a@example.com', displayName: 'A', passwordHash: 'hash', role: 'user' });
+  const userB = await repositories.userRepository.createUser({ email: 'b@example.com', displayName: 'B', passwordHash: 'hash', role: 'user' });
 
   const emptyDashboard = await dashboard.execute(userB.id);
   assert.deepEqual(emptyDashboard.workspaces, []);
@@ -117,15 +116,15 @@ test('new users start with an empty scoped dashboard and cannot see another user
 
 test('github app webhook resolves user by installation id and rejects unknown identities', async () => {
   configureEnv();
-  const store = new MemoryKnowledgeStore();
-  const user = await store.createUser({ email: 'owner@example.com', displayName: 'Owner', passwordHash: 'hash', role: 'user' });
-  const ingest = new IngestEntryUseCase(store);
-  const handler = new HandleGithubPushUseCase(ingest, store);
+  const repositories = createMemoryRepositories();
+  const user = await repositories.userRepository.createUser({ email: 'owner@example.com', displayName: 'Owner', passwordHash: 'hash', role: 'user' });
+  const ingest = new IngestEntryUseCase(repositories.contentRepository);
+  const handler = new HandleGithubPushUseCase(ingest, repositories.externalIdentityRepository, repositories.webhookEventRepository);
 
   await assert.rejects(() => handler.execute(signedGithubInput(githubBody(404))), /identity_not_found/);
-  assert.equal((await store.listNotes(user.id)).length, 0);
+  assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
 
-  await store.upsertExternalIdentity({
+  await repositories.externalIdentityRepository.upsertExternalIdentity({
     userId: user.id,
     workspaceSlug: 'default',
     provider: 'github-app',
@@ -136,7 +135,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
 
   const result = await handler.execute(signedGithubInput(githubBody(42)));
   assert.equal(result.ok, true);
-  const notes = await store.listNotes(user.id);
+  const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
   assert.equal(notes[0].sourceChannel, 'github-push');
 });

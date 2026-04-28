@@ -1,13 +1,9 @@
-import { Injectable } from '@nestjs/common';
-
 import type { ReminderView } from '../../application/models/reminder.models.js';
 import type { NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../application/models/vault-note.models.js';
-import { KnowledgeStore } from '../../application/knowledge-store.js';
-import { ContentQueryRepository } from '../../application/ports/repositories.js';
 
-function noteSummary(record: NoteRecord): VaultNoteSummary {
+export function noteSummary(record: NoteRecord): VaultNoteSummary {
   return {
     id: record.id,
     path: record.path,
@@ -23,7 +19,7 @@ function noteSummary(record: NoteRecord): VaultNoteSummary {
   };
 }
 
-function noteDetail(record: NoteRecord): VaultNoteDetail {
+export function noteDetail(record: NoteRecord): VaultNoteDetail {
   return {
     ...noteSummary(record),
     markdown: record.markdown,
@@ -33,7 +29,7 @@ function noteDetail(record: NoteRecord): VaultNoteDetail {
   };
 }
 
-function reviewFromNote(record: NoteRecord): ReviewView | null {
+export function reviewFromNote(record: NoteRecord): ReviewView | null {
   if (record.type !== 'event' && record.metadata.eventType !== 'code_review') return null;
   if (record.metadata.eventType !== 'code_review' && record.sourceChannel !== 'github-push') return null;
   const findings = Array.isArray(record.metadata.reviewFindings) ? record.metadata.reviewFindings : [];
@@ -63,7 +59,7 @@ function reviewFromNote(record: NoteRecord): ReviewView | null {
   };
 }
 
-function reminderFromNote(record: NoteRecord): ReminderView | null {
+export function reminderFromNote(record: NoteRecord): ReminderView | null {
   if (record.type !== 'reminder') return null;
   return {
     id: record.id,
@@ -77,28 +73,4 @@ function reminderFromNote(record: NoteRecord): ReminderView | null {
     relativePath: record.path,
     sourceNotePath: String(record.metadata.sourceNotePath || ''),
   };
-}
-
-@Injectable()
-export class PostgresContentQueryRepository extends ContentQueryRepository {
-  constructor(private readonly store: KnowledgeStore) {
-    super();
-  }
-
-  async list(userId: string): Promise<VaultNoteSummary[]> {
-    return (await this.store.listNotes(userId)).map(noteSummary);
-  }
-
-  async getById(userId: string, id: string): Promise<VaultNoteDetail | null> {
-    const note = await this.store.getNoteById(userId, id);
-    return note ? noteDetail(note) : null;
-  }
-
-  async listReviews(userId: string): Promise<ReviewView[]> {
-    return (await this.store.listNotes(userId)).map(reviewFromNote).filter((review): review is ReviewView => Boolean(review));
-  }
-
-  async listReminders(userId: string): Promise<ReminderView[]> {
-    return (await this.store.listNotes(userId)).map(reminderFromNote).filter((reminder): reminder is ReminderView => Boolean(reminder));
-  }
 }

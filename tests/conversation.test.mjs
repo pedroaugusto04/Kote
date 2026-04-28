@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { MemoryKnowledgeStore } from '../dist/application/knowledge-store.js';
-import { PostgresContentQueryRepository } from '../dist/infrastructure/repositories/postgres-content.repository.js';
+import { createMemoryRepositories } from '../dist/infrastructure/repositories/memory-repositories.js';
 import { IngestEntryUseCase, ProcessConversationUseCase } from '../dist/application/use-cases/index.js';
 
 async function createUseCase() {
-  const store = new MemoryKnowledgeStore();
-  await store.upsertProject('user-1', {
+  const repositories = createMemoryRepositories();
+  await repositories.contentRepository.upsertProject('user-1', {
     projectSlug: 'n8n-automations',
     displayName: 'N8N Automations',
     repoFullName: '',
@@ -16,9 +15,14 @@ async function createUseCase() {
     defaultTags: [],
     enabled: true,
   });
-  const ingest = new IngestEntryUseCase(store);
-  const useCase = new ProcessConversationUseCase(store, new PostgresContentQueryRepository(store), store, ingest);
-  return { store, useCase };
+  const ingest = new IngestEntryUseCase(repositories.contentRepository);
+  const useCase = new ProcessConversationUseCase(
+    repositories.contentRepository,
+    repositories.contentQueryRepository,
+    repositories.conversationStateRepository,
+    ingest,
+  );
+  return { repositories, useCase };
 }
 
 function input(messageText, extras = {}) {
@@ -34,7 +38,7 @@ function input(messageText, extras = {}) {
 }
 
 test('conversation stores state per user/workspace and ingests on confirm', async () => {
-  const { store, useCase } = await createUseCase();
+  const { repositories, useCase } = await createUseCase();
 
   const step1 = await useCase.execute(
     input('corrigi timeout no webhook', {
@@ -63,12 +67,12 @@ test('conversation stores state per user/workspace and ingests on confirm', asyn
   assert.equal(step3.action, 'submit');
   assert.equal(step3.ingestResult.ok, true);
   assert.equal(step3.payload.event.projectSlug, 'n8n-automations');
-  assert.equal((await store.listNotes('user-1')).length, 1);
+  assert.equal((await repositories.contentRepository.listNotes('user-1')).length, 1);
 });
 
 test('conversation answers explicit knowledge queries without starting capture flow', async () => {
-  const { useCase, store } = await createUseCase();
-  await store.upsertNote('user-1', {
+  const { useCase, repositories } = await createUseCase();
+  await repositories.contentRepository.upsertNote('user-1', {
     path: '20 Inbox/n8n-automations/2026/04/deploy.md',
     type: 'event',
     title: 'Deploy checklist',

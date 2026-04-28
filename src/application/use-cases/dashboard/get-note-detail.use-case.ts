@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { ContentQueryRepository } from '../../ports/repositories.js';
+import { ContentQueryRepository } from '../../ports/content.repository.js';
 
 @Injectable()
 export class GetNoteDetailUseCase {

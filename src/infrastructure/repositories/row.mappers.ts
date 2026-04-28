@@ -1,5 +1,7 @@
 import { CredentialRecordStatus } from '../../contracts/enums.js';
 import type {
+  AttachmentRecord,
+  ConversationStateRecord,
   ExternalIdentityRecord,
   IntegrationCredentialRecord,
   KbUser,
@@ -122,6 +124,31 @@ export function webhookEventFromRow(row: Row): WebhookEventRecord {
     rawPayload: row.raw_payload || {},
     error: String(row.error || ''),
     createdAt: nowIso(row.created_at),
+    updatedAt: nowIso(row.updated_at),
+  };
+}
+
+export function attachmentFromRow(row: Row): AttachmentRecord {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    noteId: String(row.note_id || ''),
+    fileName: String(row.file_name || ''),
+    mimeType: String(row.mime_type || 'application/octet-stream'),
+    sizeBytes: Number(row.size_bytes || 0),
+    contentBase64: String(row.content_base64 || ''),
+    checksumSha256: String(row.checksum_sha256 || ''),
+    metadata: (row.metadata || {}) as Record<string, unknown>,
+    createdAt: nowIso(row.created_at),
+  };
+}
+
+export function conversationStateFromRow(row: Row): ConversationStateRecord {
+  return {
+    userId: String(row.user_id),
+    workspaceSlug: String(row.workspace_slug),
+    conversationKey: String(row.conversation_key),
+    state: row.state || {},
     updatedAt: nowIso(row.updated_at),
   };
 }

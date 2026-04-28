@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { MemoryKnowledgeStore } from '../dist/application/knowledge-store.js';
+import { createMemoryRepositories } from '../dist/infrastructure/repositories/memory-repositories.js';
 import { IngestEntryUseCase } from '../dist/application/use-cases/index.js';
 
 function payload() {
@@ -56,8 +56,8 @@ function payload() {
 }
 
 test('ingest persists event note, reminder note, attachment and workspace in repository', async () => {
-  const store = new MemoryKnowledgeStore();
-  const result = await new IngestEntryUseCase(store).execute(payload(), 'user-1', 'default');
+  const repositories = createMemoryRepositories();
+  const result = await new IngestEntryUseCase(repositories.contentRepository).execute(payload(), 'user-1', 'default');
 
   assert.equal(result.ok, true);
   assert.match(result.eventPath, /^20 Inbox\/n8n-automations\//);
@@ -65,9 +65,9 @@ test('ingest persists event note, reminder note, attachment and workspace in rep
   assert.equal(result.attachmentIds.length, 1);
   assert.ok(result.reminderNoteId);
 
-  const notes = await store.listNotes('user-1');
+  const notes = await repositories.contentRepository.listNotes('user-1');
   assert.equal(notes.filter((note) => note.type === 'event').length, 1);
   assert.equal(notes.filter((note) => note.type === 'reminder').length, 1);
-  assert.equal((await store.listAttachments('user-1', result.noteId)).length, 1);
-  assert.deepEqual((await store.listWorkspaces('user-1')).map((workspace) => workspace.workspaceSlug), ['default']);
+  assert.equal((await repositories.contentRepository.listAttachments('user-1', result.noteId)).length, 1);
+  assert.deepEqual((await repositories.contentRepository.listWorkspaces('user-1')).map((workspace) => workspace.workspaceSlug), ['default']);
 });

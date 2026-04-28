@@ -5,7 +5,7 @@ import { ConflictException, Injectable, OnModuleInit, UnauthorizedException } fr
 
 import { readEnvironment } from '../adapters/environment.js';
 import type { KbUser } from './models/repository-records.models.js';
-import { SchemaMigrator, UserRepository } from './ports/repositories.js';
+import { SchemaMigrator, UserRepository } from './ports/auth.repository.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -103,7 +103,7 @@ function toAuthenticatedUser(user: KbUser): AuthenticatedUser {
 export class AuthService implements OnModuleInit {
   constructor(
     private readonly users: UserRepository,
-    private readonly schemaMigrator: SchemaMigrator = users as unknown as SchemaMigrator,
+    private readonly schemaMigrator: SchemaMigrator,
   ) {}
 
   async onModuleInit() {

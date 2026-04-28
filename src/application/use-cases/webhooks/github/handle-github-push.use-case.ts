@@ -5,7 +5,8 @@ import { verifyGithubSignature } from '../../../../adapters/github.js';
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import { buildTelegramCodeReviewMessage } from '../../../../domain/notifications.js';
 import { buildGithubReviewEvent } from '../../../github-review.js';
-import { ExternalIdentityRepository, WebhookEventRepository } from '../../../ports/repositories.js';
+import { ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
+import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 
@@ -20,7 +21,7 @@ export class HandleGithubPushUseCase {
   constructor(
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly externalIdentities: ExternalIdentityRepository,
-    private readonly webhookEvents: WebhookEventRepository = externalIdentities as unknown as WebhookEventRepository,
+    private readonly webhookEvents: WebhookEventRepository,
   ) {}
 
   async execute(input: GithubPushWebhookRequest) {

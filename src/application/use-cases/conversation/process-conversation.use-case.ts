@@ -22,7 +22,8 @@ import {
   parseKind,
   parseKnowledgeCommand,
 } from '../../utils/conversation-flow.utils.js';
-import { ContentQueryRepository, ContentRepository, ConversationStateRepository } from '../../ports/repositories.js';
+import { ContentQueryRepository, ContentRepository } from '../../ports/content.repository.js';
+import { ConversationStateRepository } from '../../ports/workflow-state.repository.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { QueryKnowledgeUseCase } from '../query/query-knowledge.use-case.js';
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { QueryInput } from '../../../contracts/query.js';
-import { ContentQueryRepository } from '../../ports/repositories.js';
+import { ContentQueryRepository } from '../../ports/content.repository.js';
 import { rankKnowledgeMatches } from '../../utils/query.utils.js';
 
 @Injectable()

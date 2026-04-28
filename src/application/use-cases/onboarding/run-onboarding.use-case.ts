@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { readEnvironment } from '../../../adapters/environment.js';
 import { OnboardingOperation } from '../../../contracts/enums.js';
 import type { OnboardingInput } from '../../../contracts/onboarding.js';
-import { ContentRepository } from '../../ports/repositories.js';
+import { ContentRepository } from '../../ports/content.repository.js';
 
 @Injectable()
 export class RunOnboardingUseCase {

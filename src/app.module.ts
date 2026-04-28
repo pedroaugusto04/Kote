@@ -3,20 +3,22 @@ import { APP_GUARD } from '@nestjs/core';
 
 import { AuthService } from './application/auth.js';
 import { IntegrationCredentialService } from './application/credentials.js';
-import { KnowledgeStore } from './application/knowledge-store.js';
+import { SchemaMigrator, UserRepository } from './application/ports/auth.repository.js';
+import { ContentQueryRepository, ContentRepository } from './application/ports/content.repository.js';
 import {
-  ContentQueryRepository,
-  ContentRepository,
-  ConversationStateRepository,
   CredentialRepository,
   ExternalIdentityRepository,
-  ReminderDispatchRepository,
-  SchemaMigrator,
-  UserRepository,
-  WebhookEventRepository,
-} from './application/ports/repositories.js';
-import { PostgresKnowledgeStore } from './infrastructure/repositories/postgres-knowledge.store.js';
-import { PostgresContentQueryRepository } from './infrastructure/repositories/postgres-content.repository.js';
+} from './application/ports/integrations.repository.js';
+import { WebhookEventRepository } from './application/ports/webhook-events.repository.js';
+import { ConversationStateRepository, ReminderDispatchRepository } from './application/ports/workflow-state.repository.js';
+import { PostgresUserRepository } from './infrastructure/repositories/auth.repository.js';
+import { PostgresContentQueryRepository } from './infrastructure/repositories/content-query.repository.js';
+import { PostgresContentRepository } from './infrastructure/repositories/content.repository.js';
+import { PostgresDatabase } from './infrastructure/repositories/database.js';
+import { PostgresIntegrationRepository } from './infrastructure/repositories/integrations.repository.js';
+import { PostgresSchemaMigrator } from './infrastructure/repositories/schema.migrator.js';
+import { PostgresWebhookEventRepository } from './infrastructure/repositories/webhook-events.repository.js';
+import { PostgresWorkflowStateRepository } from './infrastructure/repositories/workflow-state.repository.js';
 import {
   BuildDashboardUseCase,
   BuildReminderDispatchUseCase,
@@ -53,16 +55,23 @@ import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, Interna
     MarkReminderAsSentUseCase,
     HandleGithubPushUseCase,
     HandleWhatsappWebhookUseCase,
-    { provide: KnowledgeStore, useClass: PostgresKnowledgeStore },
-    { provide: SchemaMigrator, useExisting: KnowledgeStore },
-    { provide: UserRepository, useExisting: KnowledgeStore },
-    { provide: CredentialRepository, useExisting: KnowledgeStore },
-    { provide: ExternalIdentityRepository, useExisting: KnowledgeStore },
-    { provide: ContentRepository, useExisting: KnowledgeStore },
-    { provide: WebhookEventRepository, useExisting: KnowledgeStore },
-    { provide: ConversationStateRepository, useExisting: KnowledgeStore },
-    { provide: ReminderDispatchRepository, useExisting: KnowledgeStore },
-    { provide: ContentQueryRepository, useClass: PostgresContentQueryRepository },
+    PostgresDatabase,
+    PostgresSchemaMigrator,
+    PostgresUserRepository,
+    PostgresIntegrationRepository,
+    PostgresContentRepository,
+    PostgresContentQueryRepository,
+    PostgresWorkflowStateRepository,
+    PostgresWebhookEventRepository,
+    { provide: SchemaMigrator, useExisting: PostgresSchemaMigrator },
+    { provide: UserRepository, useExisting: PostgresUserRepository },
+    { provide: CredentialRepository, useExisting: PostgresIntegrationRepository },
+    { provide: ExternalIdentityRepository, useExisting: PostgresIntegrationRepository },
+    { provide: ContentRepository, useExisting: PostgresContentRepository },
+    { provide: ContentQueryRepository, useExisting: PostgresContentQueryRepository },
+    { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
+    { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
+    { provide: WebhookEventRepository, useExisting: PostgresWebhookEventRepository },
     { provide: APP_GUARD, useClass: GlobalRateLimitGuard },
   ],
 })

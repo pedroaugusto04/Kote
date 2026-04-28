@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { MemoryKnowledgeStore } from '../dist/application/knowledge-store.js';
+import { createMemoryRepositories } from '../dist/infrastructure/repositories/memory-repositories.js';
 import { RunOnboardingUseCase } from '../dist/application/use-cases/index.js';
 
 test('onboarding upserts workspace and projects in content repository', async () => {
-  const store = new MemoryKnowledgeStore();
-  const result = await new RunOnboardingUseCase(store).execute(
+  const repositories = createMemoryRepositories();
+  const result = await new RunOnboardingUseCase(repositories.contentRepository).execute(
     {
       operation: 'upsert',
       workspaceSlug: 'acme-team',

@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 
 import { AuthService } from '../dist/application/auth.js';
 import { IntegrationCredentialService } from '../dist/application/credentials.js';
-import { MemoryKnowledgeStore } from '../dist/application/knowledge-store.js';
+import { createMemoryRepositories } from '../dist/infrastructure/repositories/memory-repositories.js';
 import { AuthController, InternalIntegrationsController, UserIntegrationsController } from '../dist/interfaces/http/controllers/index.js';
 
 function configureEnv() {
@@ -35,13 +35,13 @@ function responseMock() {
 
 async function fixture() {
   configureEnv();
-  const store = new MemoryKnowledgeStore();
-  const auth = new AuthService(store);
+  const repositories = createMemoryRepositories();
+  const auth = new AuthService(repositories.userRepository, repositories.schemaMigrator);
   await auth.onModuleInit();
   return {
-    store,
+    repositories,
     auth,
-    credentials: new IntegrationCredentialService(store),
+    credentials: new IntegrationCredentialService(repositories.credentialRepository, repositories.externalIdentityRepository),
   };
 }
 
@@ -66,7 +66,7 @@ test('login creates HttpOnly cookies and does not return tokens in JSON', async 
 });
 
 test('signup creates a user and HttpOnly cookies', async () => {
-  const { auth, store } = await fixture();
+  const { auth, repositories } = await fixture();
   const controller = new AuthController(auth);
   const response = responseMock();
 
@@ -79,7 +79,7 @@ test('signup creates a user and HttpOnly cookies', async () => {
   assert.equal(result.ok, true);
   assert.equal(result.user.email, 'new@example.com');
   assert.equal(result.user.displayName, 'New User');
-  assert.ok(await store.findUserByEmail('new@example.com'));
+  assert.ok(await repositories.userRepository.findUserByEmail('new@example.com'));
   assert.deepEqual(response.cookies.map((cookie) => cookie.name), ['kb_access_token', 'kb_refresh_token']);
 });
 
@@ -119,7 +119,7 @@ test('mutable browser endpoints reject invalid Origin', async () => {
 });
 
 test('credentials are encrypted, masked in user responses, and resolved internally by userId or external identity', async () => {
-  const { auth, store, credentials } = await fixture();
+  const { auth, repositories, credentials } = await fixture();
   const authController = new AuthController(auth);
   const userController = new UserIntegrationsController(auth, credentials);
   const internalController = new InternalIntegrationsController(credentials);
@@ -149,7 +149,7 @@ test('credentials are encrypted, masked in user responses, and resolved internal
   assert.deepEqual(saved.integration.maskedConfig, { botToken: '********', chatId: '********' });
   assert.equal(JSON.stringify(saved).includes('telegram-secret-value'), false);
 
-  const stored = await store.findCredential(login.user.id, 'default', 'telegram');
+  const stored = await repositories.credentialRepository.findCredential(login.user.id, 'default', 'telegram');
   assert.ok(stored);
   assert.equal(JSON.stringify(stored.encryptedConfig).includes('telegram-secret-value'), false);
 
@@ -172,7 +172,7 @@ test('credentials are encrypted, masked in user responses, and resolved internal
 
   const revoked = await userController.revoke({ provider: 'telegram' }, { workspaceSlug: 'default' }, login.user, request);
   assert.equal(revoked.integration.status, 'revoked');
-  const revokedStored = await store.findCredential(login.user.id, 'default', 'telegram');
+  const revokedStored = await repositories.credentialRepository.findCredential(login.user.id, 'default', 'telegram');
   assert.equal(JSON.stringify(revokedStored.encryptedConfig).includes('telegram-secret-value'), false);
 });
 
@@ -216,10 +216,10 @@ test('credential identity binding rejects hijacking and invalid provider linkage
     /external_identity_not_allowed_for_provider/,
   );
 
-  const secondStore = first.store;
-  const secondAuth = new AuthService(secondStore);
-  const secondCredentials = new IntegrationCredentialService(secondStore);
-  const secondUser = await secondStore.createUser({ email: 'user@example.com', passwordHash: firstLogin.user.id, role: 'user' });
+  const secondRepositories = first.repositories;
+  const secondAuth = new AuthService(secondRepositories.userRepository, secondRepositories.schemaMigrator);
+  const secondCredentials = new IntegrationCredentialService(secondRepositories.credentialRepository, secondRepositories.externalIdentityRepository);
+  const secondUser = await secondRepositories.userRepository.createUser({ email: 'user@example.com', passwordHash: firstLogin.user.id, role: 'user' });
   const secondController = new UserIntegrationsController(secondAuth, secondCredentials);
   const secondToken = secondAuth.issueTokens(secondUser).accessToken;
 

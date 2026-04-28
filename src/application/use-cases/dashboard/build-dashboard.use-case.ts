@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { ContentQueryRepository, ContentRepository } from '../../ports/repositories.js';
+import { ContentQueryRepository, ContentRepository } from '../../ports/content.repository.js';
 import { buildDashboardHome } from '../../utils/dashboard-home.utils.js';
 
 export { buildDashboardHome };
