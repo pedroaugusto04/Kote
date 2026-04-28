@@ -36,13 +36,13 @@ export type StoredIntegration = {
 };
 
 const providerLabels: Record<IntegrationProvider, { name: string; description: string }> = {
-  [IntegrationProvider.Telegram]: { name: 'Telegram', description: 'Bot e chat usados para notificacoes e eventos operacionais.' },
-  [IntegrationProvider.Whatsapp]: { name: 'WhatsApp', description: 'Conta ou grupo autorizado para conversa e ingestao.' },
-  [IntegrationProvider.Evolution]: { name: 'Evolution API', description: 'Instancia Evolution usada como transporte do WhatsApp.' },
-  [IntegrationProvider.AiReview]: { name: 'AI Review', description: 'Provider, modelo e chave para reviews de codigo.' },
-  [IntegrationProvider.AiConversation]: { name: 'AI Conversation', description: 'Provider, modelo e chave para conversa e respostas.' },
-  [IntegrationProvider.Github]: { name: 'GitHub Token', description: 'Token pessoal ou fine-grained para leitura de repositorios.' },
-  [IntegrationProvider.GithubApp]: { name: 'GitHub App', description: 'App, instalacao e webhook por workspace.' },
+  [IntegrationProvider.Telegram]: { name: 'Telegram', description: 'Credenciais do usuario para vincular bot, chat ou identidade externa do Telegram.' },
+  [IntegrationProvider.Whatsapp]: { name: 'WhatsApp', description: 'Credenciais do usuario para vincular numero, grupo ou identidade externa do WhatsApp.' },
+  [IntegrationProvider.Evolution]: { name: 'Evolution API', description: 'Credenciais do usuario para operar uma instancia Evolution vinculada ao seu workspace.' },
+  [IntegrationProvider.AiReview]: { name: 'AI Review', description: 'Chave, provider e modelo usados pelo usuario para reviews assistidos por IA.' },
+  [IntegrationProvider.AiConversation]: { name: 'AI Conversation', description: 'Chave, provider e modelo usados pelo usuario para fluxos de conversa assistidos por IA.' },
+  [IntegrationProvider.Github]: { name: 'GitHub Token', description: 'Token do usuario para acesso a repositorios e operacoes do GitHub.' },
+  [IntegrationProvider.GithubApp]: { name: 'GitHub App', description: 'Dados de instalacao do GitHub App vinculados ao usuario no workspace atual.' },
 };
 
 function isProvider(value: string): value is IntegrationProvider {

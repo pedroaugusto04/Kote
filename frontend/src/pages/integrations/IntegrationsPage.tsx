@@ -2,22 +2,19 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { fetchIntegrations, revokeIntegration, saveIntegration } from '../../shared/api/client';
-import type { IntegrationStatus, IntegrationStatusValue, UserIntegration } from '../../shared/api/models/integration';
+import type { UserIntegration } from '../../shared/api/models/integration';
 import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primitives';
 
-type DisplayIntegration = IntegrationStatus | UserIntegration;
-type DisplayStatus = IntegrationStatusValue | UserIntegration['status'];
+type DisplayStatus = UserIntegration['status'];
 
 const statusLabel: Record<DisplayStatus, string> = {
   connected: 'conectado',
-  partial: 'parcial',
   missing: 'pendente',
   revoked: 'revogado',
 };
 
 const statusTone: Record<DisplayStatus, string> = {
   connected: 'low',
-  partial: 'medium',
   missing: 'high',
   revoked: 'medium',
 };
@@ -34,15 +31,11 @@ const integrationLogos: Record<string, { src: string; label: string }> = {
   'ai-conversation': { src: 'https://cdn.simpleicons.org/openrouter/ffffff', label: 'IA' },
 };
 
-function integrationId(integration: DisplayIntegration) {
-  return 'id' in integration ? integration.id : integration.provider;
+function integrationId(integration: UserIntegration) {
+  return integration.provider;
 }
 
-function isLegacyIntegration(integration: DisplayIntegration): integration is IntegrationStatus {
-  return 'id' in integration;
-}
-
-function IntegrationLogo({ integration }: { integration: DisplayIntegration }) {
+function IntegrationLogo({ integration }: { integration: UserIntegration }) {
   const logo = integrationLogos[integrationId(integration)];
   if (!logo) return <div className="integration-logo-fallback">{integration.name.slice(0, 2).toUpperCase()}</div>;
   return <img alt={`${logo.label} logo`} className="integration-logo" src={logo.src} />;
@@ -112,7 +105,7 @@ function ConfigEditor({ integration, workspaceSlug }: { integration: UserIntegra
   );
 }
 
-function IntegrationDetailsModal({ integration, workspaceSlug, onClose }: { integration: DisplayIntegration; workspaceSlug: string; onClose: () => void }) {
+function IntegrationDetailsModal({ integration, workspaceSlug, onClose }: { integration: UserIntegration; workspaceSlug: string; onClose: () => void }) {
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
@@ -136,65 +129,14 @@ function IntegrationDetailsModal({ integration, workspaceSlug, onClose }: { inte
         </div>
 
         <p>{integration.description}</p>
-
-        {isLegacyIntegration(integration) ? (
-          <>
-            <div className="integration-section">
-              <h3>Checklist</h3>
-              <ul className="checklist">
-                {integration.checklist.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </div>
-
-            {integration.missingEnv.length > 0 ? (
-              <div className="integration-section">
-                <h3>Variaveis ausentes</h3>
-                <Tags items={integration.missingEnv} />
-              </div>
-            ) : null}
-
-            {integration.configuredEnv.length > 0 ? (
-              <div className="integration-section">
-                <h3>Configuradas</h3>
-                <Tags items={integration.configuredEnv} />
-              </div>
-            ) : null}
-
-            {integration.links.length > 0 ? (
-              <div className="integration-section">
-                <h3>URLs</h3>
-                <div className="integration-links">
-                  {integration.links.map((item) => (
-                    <a className="integration-link" href={item.url} key={`${item.label}:${item.url}`} rel="noreferrer" target={item.external ? '_blank' : undefined}>
-                      <span>{item.label}</span>
-                      <code>{item.url}</code>
-                    </a>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {integration.warnings.length > 0 ? (
-              <div className="integration-section">
-                <h3>Atencao</h3>
-                <ul className="warning-list">
-                  {integration.warnings.map((warning) => (
-                    <li key={warning}>{warning}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-          </>
-        ) : <ConfigEditor integration={integration} workspaceSlug={workspaceSlug} />}
+        <ConfigEditor integration={integration} workspaceSlug={workspaceSlug} />
       </section>
     </div>
   );
 }
 
-function IntegrationCard({ integration, onInfo }: { integration: DisplayIntegration; onInfo: (integration: DisplayIntegration) => void }) {
-  const pendingCount = isLegacyIntegration(integration) ? integration.missingEnv.length + integration.warnings.length : integration.status === 'connected' ? 0 : 1;
+function IntegrationCard({ integration, onInfo }: { integration: UserIntegration; onInfo: (integration: UserIntegration) => void }) {
+  const pendingCount = integration.status === 'connected' ? 0 : 1;
 
   return (
     <Panel className="integration-card">
@@ -218,7 +160,7 @@ function IntegrationCard({ integration, onInfo }: { integration: DisplayIntegrat
 
 export function IntegrationsPage() {
   const integrationsQuery = useQuery({ queryKey: ['integrations'], queryFn: fetchIntegrations });
-  const [selectedIntegration, setSelectedIntegration] = useState<DisplayIntegration | null>(null);
+  const [selectedIntegration, setSelectedIntegration] = useState<UserIntegration | null>(null);
 
   if (integrationsQuery.isLoading) return <EmptyState>Carregando integracoes...</EmptyState>;
   if (!integrationsQuery.data) return <EmptyState>Nao foi possivel carregar o status das integracoes.</EmptyState>;
@@ -227,7 +169,7 @@ export function IntegrationsPage() {
     <>
       <PageHead
         title="Integracoes"
-        subtitle={`Credenciais do workspace ${integrationsQuery.data.workspaceSlug}. Segredos sao salvos criptografados e exibidos mascarados.`}
+        subtitle={`Integracoes do usuario logado no workspace ${integrationsQuery.data.workspaceSlug}. Segredos sao salvos criptografados e exibidos mascarados.`}
       />
       <section className="grid cols-2 integrations-grid">
         {integrationsQuery.data.integrations.map((integration) => (

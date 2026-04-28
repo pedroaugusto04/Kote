@@ -95,28 +95,26 @@ function mockFetch() {
         workspaceSlug: 'default',
         integrations: [
           {
-            id: 'github-app',
+            provider: 'github-app',
             name: 'GitHub App',
-            description: 'Instalacao do app e webhook assinado.',
+            description: 'Dados de instalacao do GitHub App vinculados ao usuario no workspace atual.',
             status: 'connected',
-            requiredEnv: ['KB_GITHUB_APP_INSTALL_URL', 'KB_GITHUB_APP_WEBHOOK_SECRET'],
-            configuredEnv: ['KB_GITHUB_APP_INSTALL_URL', 'KB_GITHUB_APP_WEBHOOK_SECRET'],
-            missingEnv: [],
-            links: [{ label: 'Instalar GitHub App', url: 'https://github.com/apps/kb/installations/new', external: true }],
-            checklist: ['Instalar o GitHub App nos repositorios do workspace.'],
-            warnings: [],
+            workspaceSlug: 'default',
+            publicMetadata: { label: 'GitHub principal' },
+            maskedConfig: { token: '********' },
+            updatedAt: '2026-04-27T10:00:00.000Z',
+            revokedAt: null,
           },
           {
-            id: 'telegram',
+            provider: 'telegram',
             name: 'Telegram',
-            description: 'Bot e chat para notificacoes.',
+            description: 'Credenciais do usuario para vincular bot, chat ou identidade externa do Telegram.',
             status: 'missing',
-            requiredEnv: ['KB_TELEGRAM_BOT_TOKEN', 'KB_TELEGRAM_CHAT_ID'],
-            configuredEnv: [],
-            missingEnv: ['KB_TELEGRAM_BOT_TOKEN', 'KB_TELEGRAM_CHAT_ID'],
-            links: [],
-            checklist: ['Criar ou reutilizar um bot do Telegram.'],
-            warnings: ['Bot token do Telegram ausente.'],
+            workspaceSlug: 'default',
+            publicMetadata: {},
+            maskedConfig: {},
+            updatedAt: null,
+            revokedAt: null,
           },
         ],
       });
@@ -198,13 +196,13 @@ describe('AppShell', () => {
     expect(await screen.findByRole('heading', { name: 'GitHub App' })).toBeInTheDocument();
     expect(screen.getByAltText('GitHub logo')).toBeInTheDocument();
     expect(screen.getByAltText('Telegram logo')).toBeInTheDocument();
-    expect(screen.queryByText('KB_TELEGRAM_BOT_TOKEN')).not.toBeInTheDocument();
+    expect(screen.getByText(/usuario logado no workspace default/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalhes de Telegram' }));
 
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(await screen.findByText('KB_TELEGRAM_BOT_TOKEN')).toBeInTheDocument();
-    expect(await screen.findByText('Criar ou reutilizar um bot do Telegram.')).toBeInTheDocument();
+    expect(await screen.findByText('Nenhuma credencial salva.')).toBeInTheDocument();
+    expect(await screen.findByText('Config JSON')).toBeInTheDocument();
   });
 
   it('shows login for anonymous users and loads the dashboard after auth', async () => {

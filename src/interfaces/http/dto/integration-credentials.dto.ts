@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { IntegrationProvider } from '../../../application/credentials.js';
-import { ExternalIdentityProvider, IntegrationProvider as IntegrationProviderEnum } from '../../../contracts/enums.js';
+import { AiProvider, ExternalIdentityProvider, IntegrationProvider as IntegrationProviderEnum } from '../../../contracts/enums.js';
 
 const workspaceSlugSchema = z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9._-]+$/).default('default');
 const publicMetadataSchema = z
@@ -17,19 +17,58 @@ const externalIdentitySchema = z.object({
   externalId: z.string().trim().min(1).max(180),
 });
 
-const primitiveConfigValueSchema = z.union([z.string().min(1), z.number(), z.boolean()]);
-const baseConfigSchema = z
-  .record(primitiveConfigValueSchema)
-  .refine((config) => Object.keys(config).length > 0, { message: 'config_must_not_be_empty' });
+const secretStringSchema = z.string().trim().min(1).max(1000);
+const shortStringSchema = z.string().trim().min(1).max(200);
+const idStringSchema = z.union([z.string(), z.number()])
+  .transform((value) => String(value).trim())
+  .refine((value) => value.length > 0 && value.length <= 200, { message: 'invalid_identifier' });
+const urlSchema = z.string().trim().url().max(500);
+const aiProviderSchema = z.enum([AiProvider.OpenAi, AiProvider.OpenRouter]);
+
+const telegramConfigSchema = z.object({
+  botToken: secretStringSchema,
+  chatId: idStringSchema.optional(),
+}).strict();
+
+const whatsappConfigSchema = z.object({
+  phoneNumber: shortStringSchema.optional(),
+  groupJid: shortStringSchema.optional(),
+  webhookToken: secretStringSchema.optional(),
+}).strict().refine((config) => Boolean(config.phoneNumber || config.groupJid || config.webhookToken), {
+  message: 'whatsapp_config_requires_identifier_or_token',
+});
+
+const evolutionConfigSchema = z.object({
+  apiUrl: urlSchema,
+  apiKey: secretStringSchema,
+  instanceName: shortStringSchema,
+}).strict();
+
+const aiConfigSchema = z.object({
+  provider: aiProviderSchema,
+  apiKey: secretStringSchema,
+  model: shortStringSchema,
+  baseUrl: urlSchema.optional(),
+}).strict();
+
+const githubConfigSchema = z.object({
+  token: secretStringSchema,
+  username: shortStringSchema.optional(),
+}).strict();
+
+const githubAppConfigSchema = z.object({
+  installationId: idStringSchema,
+  accountLogin: shortStringSchema.optional(),
+}).strict();
 
 const providerConfigSchemas: Record<IntegrationProvider, z.ZodType<Record<string, string | number | boolean>>> = {
-  [IntegrationProviderEnum.Telegram]: baseConfigSchema,
-  [IntegrationProviderEnum.Whatsapp]: baseConfigSchema,
-  [IntegrationProviderEnum.Evolution]: baseConfigSchema,
-  [IntegrationProviderEnum.AiReview]: baseConfigSchema,
-  [IntegrationProviderEnum.AiConversation]: baseConfigSchema,
-  [IntegrationProviderEnum.Github]: baseConfigSchema,
-  [IntegrationProviderEnum.GithubApp]: baseConfigSchema,
+  [IntegrationProviderEnum.Telegram]: telegramConfigSchema,
+  [IntegrationProviderEnum.Whatsapp]: whatsappConfigSchema,
+  [IntegrationProviderEnum.Evolution]: evolutionConfigSchema,
+  [IntegrationProviderEnum.AiReview]: aiConfigSchema,
+  [IntegrationProviderEnum.AiConversation]: aiConfigSchema,
+  [IntegrationProviderEnum.Github]: githubConfigSchema,
+  [IntegrationProviderEnum.GithubApp]: githubAppConfigSchema,
 };
 
 export const integrationProviderSchema = z.nativeEnum(IntegrationProviderEnum);

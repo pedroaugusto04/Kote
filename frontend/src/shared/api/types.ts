@@ -8,7 +8,7 @@ export type {
   HomePriority,
   HomeProjectActivity,
 } from './models/dashboard-home';
-export type { IntegrationStatus, IntegrationStatusValue, IntegrationsResponse } from './models/integration';
+export type { IntegrationsResponse, UserIntegration } from './models/integration';
 export type { NoteDetail, NoteSummary } from './models/note';
 export type { Project } from './models/project';
 export type { QueryResponse } from './models/query';

@@ -206,7 +206,7 @@ test('credential identity binding rejects hijacking and invalid provider linkage
       { provider: 'ai-review' },
       {
         workspaceSlug: 'default',
-        config: { apiKey: 'secret', model: 'review-model' },
+        config: { provider: 'openrouter', apiKey: 'secret', model: 'review-model' },
         publicMetadata: { label: 'review' },
         externalIdentities: [{ provider: 'telegram', externalId: '456' }],
       },

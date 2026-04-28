@@ -72,29 +72,44 @@ test('integration dto rejects invalid provider and invalid resolve payload', () 
   assert.throws(() => resolveIntegrationCredentialBodySchema.parse({ workspaceSlug: 'default' }));
 });
 
-test('integration dto accepts valid save payload and keeps extra config validation deferred by provider', () => {
+test('integration dto accepts valid save payload with provider-specific config', () => {
   const parsed = saveIntegrationCredentialBodySchema.parse({
     workspaceSlug: 'default',
-    config: { token: 'secret' },
+    config: { botToken: 'secret', chatId: 123 },
     publicMetadata: { label: 'ops bot' },
     externalIdentities: [{ provider: 'telegram', externalId: '123' }],
   });
 
   assert.equal(parsed.workspaceSlug, 'default');
   assert.equal(parsed.publicMetadata.label, 'ops bot');
+  assert.deepEqual(parseSaveIntegrationCredentialBody('telegram', parsed).config, { botToken: 'secret', chatId: '123' });
 });
 
 test('integration dto rejects unexpected public metadata keys and invalid provider config', () => {
   assert.throws(() => saveIntegrationCredentialBodySchema.parse({
     workspaceSlug: 'default',
-    config: { token: 'secret' },
+    config: { botToken: 'secret' },
     publicMetadata: { label: 'ops bot', apiKey: 'must-not-be-public' },
   }));
 
-  const parsed = saveIntegrationCredentialBodySchema.parse({
+  const missingTelegramFields = saveIntegrationCredentialBodySchema.parse({
     workspaceSlug: 'default',
     config: {},
     publicMetadata: { label: 'ops bot' },
   });
-  assert.throws(() => parseSaveIntegrationCredentialBody('telegram', parsed), /invalid_integration_config/);
+  assert.throws(() => parseSaveIntegrationCredentialBody('telegram', missingTelegramFields), /invalid_integration_config/);
+
+  const invalidAiConfig = saveIntegrationCredentialBodySchema.parse({
+    workspaceSlug: 'default',
+    config: { apiKey: 'secret', model: 'review-model' },
+    publicMetadata: { label: 'review bot' },
+  });
+  assert.throws(() => parseSaveIntegrationCredentialBody('ai-review', invalidAiConfig), /invalid_integration_config/);
+
+  const githubConfig = saveIntegrationCredentialBodySchema.parse({
+    workspaceSlug: 'default',
+    config: { token: 'secret', unexpected: 'nope' },
+    publicMetadata: { label: 'github token' },
+  });
+  assert.throws(() => parseSaveIntegrationCredentialBody('github', githubConfig), /invalid_integration_config/);
 });
