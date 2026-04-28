@@ -1,0 +1,561 @@
+[
+  {
+    "name": "KB Adapter - WhatsApp",
+    "active": true,
+    "nodes": [
+      {
+        "parameters": {
+          "httpMethod": "POST",
+          "path": "whatsapp-kb-event",
+          "responseMode": "responseNode",
+          "options": {
+            "rawBody": true
+          }
+        },
+        "id": "kb-wpp-webhook",
+        "name": "WhatsApp Webhook",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first() || {};\nconst json = item.json || {};\nconst body = json.body && typeof json.body === 'object' ? json.body : json;\nlet data = body.data || body;\nif (Array.isArray(data)) data = data[0];\nconst event = String(body.event || '').trim().toUpperCase().replace(/[.-]/g, '_');\nif (event && event !== 'MESSAGES_UPSERT') {\n  return [{ json: { skip: true, reason: `unsupported_event:${event}` } }];\n}\nconst key = data?.key || {};\nconst msgContent = data?.message || {};\nconst remoteJid = String(key.remoteJid || '').trim();\nif (!remoteJid.endsWith('@g.us')) return [{ json: { skip: true, reason: 'not_group' } }];\nconst allowedGroup = String($env.WPP_KB_GROUP_JID || '').trim();\nif (allowedGroup && remoteJid !== allowedGroup) return [{ json: { skip: true, reason: 'wrong_group' } }];\nconst innerMsg = msgContent.ephemeralMessage?.message || msgContent.viewOnceMessage?.message || msgContent;\nconst mediaTypes = [\n  { key: 'imageMessage', type: 'image' },\n  { key: 'documentMessage', type: 'document' },\n  { key: 'audioMessage', type: 'audio' },\n  { key: 'videoMessage', type: 'video' }\n];\nlet mediaType = '';\nlet mediaData = null;\nlet mediaFileName = '';\nlet mediaMimeType = '';\nfor (const mt of mediaTypes) {\n  if (innerMsg[mt.key]) {\n    mediaType = mt.type;\n    mediaData = innerMsg[mt.key];\n    mediaFileName = String(mediaData.fileName || mediaData.title || `attachment.${mt.type}`).trim();\n    mediaMimeType = String(mediaData.mimetype || '').trim();\n    break;\n  }\n}\nconst messageText = String((mediaData && mediaData.caption) || innerMsg.conversation || innerMsg.extendedTextMessage?.text || '').trim();\nif (!messageText && !mediaType) return [{ json: { skip: true, reason: 'empty' } }];\nreturn [{ json: {\n  skip: false,\n  message_text: messageText || (mediaType ? `[${mediaType}: ${mediaFileName}]` : ''),\n  sender_jid: String(key.participant || key.remoteJid || '').trim(),\n  group_jid: remoteJid,\n  message_id: String(key.id || '').trim(),\n  has_media: Boolean(mediaType),\n  media_type: mediaType,\n  media_file_name: mediaFileName,\n  media_mime_type: mediaMimeType,\n  media_file_size: Number(mediaData?.fileLength || 0),\n  raw_message: JSON.stringify(key),\n} }];"
+        },
+        "id": "kb-wpp-parse",
+        "name": "Parse WhatsApp Event",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          240,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ String($json.skip) }}",
+                "rightValue": "true",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "kb-wpp-skip",
+        "name": "Should Skip?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          480,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ String($json.has_media) }}",
+                "rightValue": "true",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "kb-wpp-has-media",
+        "name": "Has Media?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          720,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.EVOLUTION_API_URL }}/chat/getBase64FromMediaMessage/{{ $env.EVOLUTION_INSTANCE_NAME }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.EVOLUTION_API_KEY }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ JSON.stringify({ message: JSON.parse($json.raw_message) }) }}"
+        },
+        "id": "kb-wpp-download-media",
+        "name": "Download Media",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          960,
+          -96
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const base = $node['Has Media?'].json;\nreturn [{ json: { ...base, media_data_b64: String($json.base64 || '').trim() } }];"
+        },
+        "id": "kb-wpp-merge-media",
+        "name": "Merge Media Data",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1200,
+          -96
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: { ...$json, media_data_b64: '' } }];"
+        },
+        "id": "kb-wpp-no-media",
+        "name": "No Media Path",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          960,
+          96
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first() || {};\nconst json = item.json || {};\nconst body = json.body && typeof json.body === 'object' ? json.body : json;\nconst payload = body.payload && typeof body.payload === 'object' ? body.payload : body;\nreturn [{ json: { ...payload, payload } }];"
+        },
+        "id": "kb-wpp-prepare",
+        "name": "Prepare Conversation Input",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1440,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{$env.KB_API_BASE_URL || 'http://knowledge-base:3000'}}/api/internal/n8n/conversation",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "=Bearer {{$env.KB_INTERNAL_SERVICE_TOKEN}}"
+              }
+            ]
+          },
+          "options": {},
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.payload || $json }}"
+        },
+        "id": "kb-wpp-run-conversation",
+        "name": "Call conversation",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1680,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: $json }];"
+        },
+        "id": "kb-wpp-parse-conversation",
+        "name": "Parse Conversation Result",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1920,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "version": 2
+            },
+            "conditions": [
+              {
+                "leftValue": "={{ $json.action }}",
+                "rightValue": "submit",
+                "operator": {
+                  "type": "string",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          }
+        },
+        "id": "kb-wpp-is-submit",
+        "name": "Is Submit?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2.2,
+        "position": [
+          2160,
+          0
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $env.EVOLUTION_INSTANCE_NAME }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.EVOLUTION_API_KEY }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "number",
+                "value": "={{ $env.WPP_KB_GROUP_JID }}"
+              },
+              {
+                "name": "text",
+                "value": "={{ '[BOT] ' + ($json.replyText || '') }}"
+              }
+            ]
+          }
+        },
+        "id": "kb-wpp-send-reply",
+        "name": "Send WhatsApp Reply",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2400,
+          -96
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "const item = $input.first() || {};\nconst json = item.json || {};\nconst body = json.body && typeof json.body === 'object' ? json.body : json;\nconst payload = body.payload && typeof body.payload === 'object' ? body.payload : body;\nreturn [{ json: { ...payload, payload } }];"
+        },
+        "id": "kb-wpp-prepare-ingest",
+        "name": "Prepare Ingest Payload",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2400,
+          96
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{$env.KB_API_BASE_URL || 'http://knowledge-base:3000'}}/api/internal/n8n/ingest",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "=Bearer {{$env.KB_INTERNAL_SERVICE_TOKEN}}"
+              }
+            ]
+          },
+          "options": {},
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={{ $json.payload || $json }}"
+        },
+        "id": "kb-wpp-run-ingest",
+        "name": "Call ingest",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          2640,
+          96
+        ]
+      },
+      {
+        "parameters": {
+          "jsCode": "return [{ json: $json }];"
+        },
+        "id": "kb-wpp-parse-ingest",
+        "name": "Parse Ingest Result",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2880,
+          96
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $env.EVOLUTION_INSTANCE_NAME }}",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "={{ $env.EVOLUTION_API_KEY }}"
+              }
+            ]
+          },
+          "sendBody": true,
+          "bodyParameters": {
+            "parameters": [
+              {
+                "name": "number",
+                "value": "={{ $env.WPP_KB_GROUP_JID }}"
+              },
+              {
+                "name": "text",
+                "value": "={{ '[BOT] ' + $json.confirmText }}"
+              }
+            ]
+          }
+        },
+        "id": "kb-wpp-send-confirmation",
+        "name": "Send Confirmation",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          3120,
+          96
+        ]
+      },
+      {
+        "parameters": {
+          "respondWith": "json",
+          "responseBody": "={\"ok\":true}",
+          "options": {
+            "responseCode": 200
+          }
+        },
+        "id": "kb-wpp-respond",
+        "name": "Respond OK",
+        "type": "n8n-nodes-base.respondToWebhook",
+        "typeVersion": 1.1,
+        "position": [
+          3360,
+          0
+        ]
+      }
+    ],
+    "connections": {
+      "WhatsApp Webhook": {
+        "main": [
+          [
+            {
+              "node": "Parse WhatsApp Event",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse WhatsApp Event": {
+        "main": [
+          [
+            {
+              "node": "Should Skip?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Should Skip?": {
+        "main": [
+          [
+            {
+              "node": "Respond OK",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Has Media?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Has Media?": {
+        "main": [
+          [
+            {
+              "node": "Download Media",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "No Media Path",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download Media": {
+        "main": [
+          [
+            {
+              "node": "Merge Media Data",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge Media Data": {
+        "main": [
+          [
+            {
+              "node": "Prepare Conversation Input",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "No Media Path": {
+        "main": [
+          [
+            {
+              "node": "Prepare Conversation Input",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Conversation Input": {
+        "main": [
+          [
+            {
+              "node": "Call conversation",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Call conversation": {
+        "main": [
+          [
+            {
+              "node": "Parse Conversation Result",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Conversation Result": {
+        "main": [
+          [
+            {
+              "node": "Is Submit?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Is Submit?": {
+        "main": [
+          [
+            {
+              "node": "Prepare Ingest Payload",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Send WhatsApp Reply",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Respond OK",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Ingest Payload": {
+        "main": [
+          [
+            {
+              "node": "Call ingest",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Call ingest": {
+        "main": [
+          [
+            {
+              "node": "Parse Ingest Result",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Ingest Result": {
+        "main": [
+          [
+            {
+              "node": "Send Confirmation",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Respond OK",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "binaryMode": "separate"
+    }
+  }
+]

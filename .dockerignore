@@ -1,0 +1,5 @@
+.env.kb-agent
+.env.kb-agent-server
+node_modules
+.git
+.DS_Store

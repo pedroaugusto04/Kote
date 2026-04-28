@@ -1,0 +1,79 @@
+{
+  "projects": [
+    {
+      "project_slug": "fe-connect",
+      "display_name": "Fe-Connect",
+      "name": "Fe-Connect",
+      "repo_full_name": "pedroaugusto04/Fe-Connect",
+      "default_branch": "main",
+      "default_tags": ["push", "node", "typescript", "fullstack"],
+      "owners": ["Pedro"],
+      "criticality": "high",
+      "status": "active",
+      "aliases": ["feconnect"],
+      "area": "product-engineering",
+      "enabled": true,
+      "notes_path": "projects/fe-connect"
+    },
+    {
+      "project_slug": "wander-rag",
+      "display_name": "Wander-RAG",
+      "name": "Wander-RAG",
+      "repo_full_name": "pedroaugusto04/Wander-RAG",
+      "default_branch": "main",
+      "default_tags": ["push", "python", "rag", "ai"],
+      "owners": ["Pedro"],
+      "criticality": "medium",
+      "status": "active",
+      "aliases": ["wander"],
+      "area": "research",
+      "enabled": true,
+      "notes_path": "projects/wander-rag"
+    },
+    {
+      "project_slug": "federated-learning-analysis",
+      "display_name": "Federated-Learning-Analysis",
+      "name": "Federated-Learning-Analysis",
+      "repo_full_name": "pedroaugusto04/Federated-Learning-Analysis",
+      "default_branch": "main",
+      "default_tags": ["push", "python", "research", "federated-learning"],
+      "owners": ["Pedro"],
+      "criticality": "medium",
+      "status": "active",
+      "aliases": ["federated-learning"],
+      "area": "research",
+      "enabled": true,
+      "notes_path": "projects/federated-learning-analysis"
+    },
+    {
+      "project_slug": "tcc-latex",
+      "display_name": "TCC-Latex",
+      "name": "TCC-Latex",
+      "repo_full_name": "pedroaugusto04/TCC-Latex",
+      "default_branch": "main",
+      "default_tags": ["push", "latex", "research", "writing"],
+      "owners": ["Pedro"],
+      "criticality": "medium",
+      "status": "active",
+      "aliases": ["tcc"],
+      "area": "writing",
+      "enabled": true,
+      "notes_path": "projects/tcc-latex"
+    },
+    {
+      "project_slug": "n8n-automations",
+      "display_name": "n8n",
+      "name": "n8n",
+      "repo_full_name": "pedroaugusto04/N8N-Automations",
+      "default_branch": "main",
+      "default_tags": ["push", "automation", "n8n"],
+      "owners": ["Pedro"],
+      "criticality": "high",
+      "status": "active",
+      "aliases": ["knowledge-base", "automations"],
+      "area": "automation",
+      "enabled": true,
+      "notes_path": "projects/n8n-automations"
+    }
+  ]
+}
