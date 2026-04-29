@@ -94,12 +94,7 @@ jobs:
           KB_ALLOWED_ORIGINS: ${{ vars.KB_ALLOWED_ORIGINS }}
           KB_ACCESS_TOKEN_TTL_SECONDS: ${{ vars.KB_ACCESS_TOKEN_TTL_SECONDS || '900' }}
           KB_REFRESH_TOKEN_TTL_SECONDS: ${{ vars.KB_REFRESH_TOKEN_TTL_SECONDS || '2592000' }}
-          KB_POSTGRES_PORT: ${{ vars.KB_POSTGRES_PORT || '5438' }}
-          KB_POSTGRES_DB: ${{ vars.KB_POSTGRES_DB || 'knowledge_base' }}
-          KB_POSTGRES_USER: ${{ secrets.KB_POSTGRES_USER || 'postgres' }}
-          KB_POSTGRES_PASSWORD: ${{ secrets.KB_POSTGRES_PASSWORD || 'postgres' }}
           KB_DATABASE_URL: ${{ secrets.KB_DATABASE_URL }}
-          KB_DATABASE_URL_DOCKER: ${{ secrets.KB_DATABASE_URL_DOCKER }}
           KB_ADMIN_EMAIL: ${{ secrets.KB_ADMIN_EMAIL }}
           KB_ADMIN_PASSWORD: ${{ secrets.KB_ADMIN_PASSWORD }}
           KB_JWT_ACCESS_SECRET: ${{ secrets.KB_JWT_ACCESS_SECRET }}
@@ -141,7 +136,6 @@ jobs:
           KB_PUBLIC_BASE_URL: ${{ vars.KB_PUBLIC_BASE_URL }}
           KB_ALLOWED_ORIGINS: ${{ vars.KB_ALLOWED_ORIGINS }}
           KB_DATABASE_URL: ${{ secrets.KB_DATABASE_URL }}
-          KB_DATABASE_URL_DOCKER: ${{ secrets.KB_DATABASE_URL_DOCKER }}
           KB_ADMIN_EMAIL: ${{ secrets.KB_ADMIN_EMAIL }}
           KB_ADMIN_PASSWORD: ${{ secrets.KB_ADMIN_PASSWORD }}
           KB_JWT_ACCESS_SECRET: ${{ secrets.KB_JWT_ACCESS_SECRET }}
@@ -159,7 +153,6 @@ jobs:
           test -n "$KB_PUBLIC_BASE_URL" || { echo "Missing variable: KB_PUBLIC_BASE_URL"; exit 1; }
           test -n "$KB_ALLOWED_ORIGINS" || { echo "Missing variable: KB_ALLOWED_ORIGINS"; exit 1; }
           test -n "$KB_DATABASE_URL" || { echo "Missing secret: KB_DATABASE_URL"; exit 1; }
-          test -n "$KB_DATABASE_URL_DOCKER" || { echo "Missing secret: KB_DATABASE_URL_DOCKER"; exit 1; }
           test -n "$KB_ADMIN_EMAIL" || { echo "Missing secret: KB_ADMIN_EMAIL"; exit 1; }
           test -n "$KB_ADMIN_PASSWORD" || { echo "Missing secret: KB_ADMIN_PASSWORD"; exit 1; }
           test -n "$KB_JWT_ACCESS_SECRET" || { echo "Missing secret: KB_JWT_ACCESS_SECRET"; exit 1; }
@@ -225,8 +218,7 @@ jobs:
             git checkout main
             git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $GITHUB_AUTH_HEADER" pull --ff-only origin main
             cp backend.env .env.prod
-            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build postgres
-            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --no-deps --remove-orphans api
+            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --remove-orphans api
             sudo docker image prune -f
 
   deploy-frontend:
@@ -254,6 +246,9 @@ jobs:
         run: npm run test:frontend
 
       - name: Build frontend
+        env:
+          VITE_KB_FRONTEND_BASE_PATH: ${{ vars.VITE_KB_FRONTEND_BASE_PATH || '/knowledge-base/' }}
+          VITE_KB_API_BASE_PATH: ${{ vars.VITE_KB_API_BASE_PATH || '/knowledge-base/api' }}
         run: npm run build:frontend
 
       - name: Ensure rsync is available on GitHub runner

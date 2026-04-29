@@ -290,7 +290,7 @@ Backend:
 - o runner executa `npm run test:api`
 - `scripts/deploy/generate-backend-env.sh` gera `.deploy/backend.env` com as variáveis e secrets do GitHub Environment
 - a VPS recebe `backend.env` e `docker-compose.prod.yml`
-- a VPS faz `git fetch/pull` usando `VPS_GITHUB_REPO_TOKEN` e sobe `postgres` + `api` com `docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build`
+- a VPS faz `git fetch/pull` usando `VPS_GITHUB_REPO_TOKEN` e sobe apenas `api` com `docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --remove-orphans api`
 
 Frontend:
 
@@ -303,14 +303,15 @@ Variáveis do GitHub Environment usadas no deploy:
 - `VPS_APP_DIR`: diretório remoto do repositório, por exemplo `/home/ubuntu/knowledge-base`
 - `FRONTEND_DEPLOY_PATH`: diretório remoto do frontend estático, por exemplo `/var/www/knowledge-base`
 - `RELOAD_NGINX`: controle opcional do reload do Nginx, `true` por padrão
-- `KB_PUBLIC_BASE_URL`, `KB_ALLOWED_ORIGINS`, `KB_API_*`, `KB_POSTGRES_*` e variáveis não secretas de integrações/IA
+- `VITE_KB_FRONTEND_BASE_PATH` e `VITE_KB_API_BASE_PATH`: paths públicos do frontend e da API, por padrão `/knowledge-base/` e `/knowledge-base/api`
+- `KB_PUBLIC_BASE_URL`, `KB_ALLOWED_ORIGINS`, `KB_API_*` e variáveis não secretas de integrações/IA
 
 Secrets do GitHub Environment usados no deploy:
 
 - acesso VPS: `VPS_HOST`, `VPS_USER`, `VPS_SSH_PORT`, `VPS_SSH_PRIVATE_KEY`
 - acesso Git privado na VPS: `VPS_GITHUB_REPO_TOKEN`
-- banco/auth/crypto: `KB_DATABASE_URL`, `KB_DATABASE_URL_DOCKER`, `KB_ADMIN_EMAIL`, `KB_ADMIN_PASSWORD`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_INTERNAL_SERVICE_TOKEN`, `KB_CREDENTIALS_ENCRYPTION_KEY`
-- credenciais opcionais: `KB_POSTGRES_USER`, `KB_POSTGRES_PASSWORD`, `KB_GITHUB_APP_*`, `EVOLUTION_API_KEY`, `KB_TELEGRAM_*`, `KB_REVIEW_AI_API_KEY`, `KB_CONVERSATION_AI_API_KEY`
+- banco/auth/crypto: `KB_DATABASE_URL`, `KB_ADMIN_EMAIL`, `KB_ADMIN_PASSWORD`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_INTERNAL_SERVICE_TOKEN`, `KB_CREDENTIALS_ENCRYPTION_KEY`
+- credenciais opcionais: `KB_GITHUB_APP_*`, `EVOLUTION_API_KEY`, `KB_TELEGRAM_*`, `KB_REVIEW_AI_API_KEY`, `KB_CONVERSATION_AI_API_KEY`
 
 Na VPS, prepare uma vez:
 

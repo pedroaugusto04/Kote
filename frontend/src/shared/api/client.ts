@@ -6,6 +6,8 @@ import type { QueryResponse } from './models/query';
 import type { CreateWorkspaceResponse } from './models/workspace';
 import { normalizeDashboard } from './normalizers/dashboard';
 
+const apiBasePath = (import.meta.env.VITE_KB_API_BASE_PATH || '').replace(/\/$/, '');
+
 async function readJson(response: Response): Promise<unknown> {
   const text = await response.text();
   if (!text) return null;
@@ -16,8 +18,13 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+function resolveApiPath(path: string) {
+  if (!apiBasePath || !path.startsWith('/api')) return path;
+  return `${apiBasePath}${path.slice('/api'.length) || '/'}`;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(path, {
+  const response = await fetch(resolveApiPath(path), {
     ...init,
     credentials: 'include',
     headers: { accept: 'application/json', ...(init.headers || {}) },

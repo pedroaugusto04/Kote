@@ -1,25 +1,4 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    env_file:
-      - .env.prod
-    environment:
-      POSTGRES_DB: ${KB_POSTGRES_DB:-knowledge_base}
-      POSTGRES_USER: ${KB_POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${KB_POSTGRES_PASSWORD:-postgres}
-    ports:
-      - "${KB_POSTGRES_PORT:-5438}:5432"
-    volumes:
-      - kb_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   api:
     build:
       context: .
@@ -30,12 +9,9 @@ services:
     environment:
       NODE_ENV: production
       KB_API_HOST: 0.0.0.0
-      KB_DATABASE_URL: ${KB_DATABASE_URL_DOCKER:-postgres://postgres:postgres@postgres:5432/knowledge_base}
+      KB_DATABASE_URL: ${KB_DATABASE_URL}
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
-    depends_on:
-      postgres:
-        condition: service_healthy
     healthcheck:
       test:
         - CMD-SHELL
@@ -44,6 +20,3 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
-
-volumes:
-  kb_postgres_data:
