@@ -147,6 +147,8 @@ jobs:
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.2
+        env:
+          VPS_GITHUB_REPO_TOKEN: ${{ secrets.VPS_GITHUB_REPO_TOKEN }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
