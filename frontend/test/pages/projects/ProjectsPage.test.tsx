@@ -21,12 +21,30 @@ const dashboard: Dashboard = {
   workspaces: [{ workspaceSlug: 'default', displayName: 'Default', githubRepos: ['acme/api'], projectSlugs: ['inbox', 'platform'] }],
   projects: [
     {
+      projectSlug: 'inbox',
+      displayName: 'Inbox',
+      repoFullName: '',
+      workspaceSlug: 'default',
+      aliases: [],
+      defaultTags: [],
+      enabled: true,
+    },
+    {
       projectSlug: 'platform',
       displayName: 'Platform',
       repoFullName: 'acme/api',
       workspaceSlug: 'default',
       aliases: ['api'],
       defaultTags: ['backend'],
+      enabled: true,
+    },
+    {
+      projectSlug: 'empty',
+      displayName: 'Empty',
+      repoFullName: 'acme/empty',
+      workspaceSlug: 'default',
+      aliases: [],
+      defaultTags: [],
       enabled: true,
     },
   ],
@@ -106,8 +124,8 @@ describe('ProjectsPage', () => {
       });
       return Response.json({
         ok: true,
-        project: { ...dashboard.projects[0], projectSlug: 'billing-api', displayName: 'Billing API', repoFullName: 'acme/api' },
-        workspace: { ...dashboard.workspaces[0], projectSlugs: ['inbox', 'platform', 'billing-api'] },
+        project: { ...dashboard.projects[1], projectSlug: 'billing-api', displayName: 'Billing API', repoFullName: 'acme/api' },
+        workspace: { ...dashboard.workspaces[0], projectSlugs: ['inbox', 'platform', 'empty', 'billing-api'] },
       });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -152,6 +170,106 @@ describe('ProjectsPage', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Nota criada com sucesso.');
     expect(openNote).toHaveBeenCalledWith('note-2');
+  });
+
+  it('loads note editor data and prefills the edit modal without opening the note row', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('/api/notes/note-1');
+      return Response.json({
+        ok: true,
+        note: {
+          ...dashboard.notes[0],
+          markdown: '# Deploy antigo',
+          frontmatter: {},
+          links: [],
+          origin: 'postgres',
+          editor: {
+            canDelete: true,
+            rawText: 'confirmar deploy',
+            reminderDate: '2026-04-29',
+            reminderTime: '09:30',
+          },
+        },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { openNote } = renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar nota Deploy antigo' }));
+
+    expect(openNote).not.toHaveBeenCalled();
+    expect(await screen.findByDisplayValue('confirmar deploy')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2026-04-29')).toBeInTheDocument();
+  });
+
+  it('updates a project and keeps the selected slug', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe('/api/projects/platform');
+      expect(init?.method).toBe('PATCH');
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        displayName: 'Platform Core',
+        repoFullName: 'acme/platform',
+        aliases: ['core'],
+        defaultTags: ['backend'],
+      });
+      return Response.json({
+        ok: true,
+        project: { ...dashboard.projects[1], displayName: 'Platform Core', repoFullName: 'acme/platform', aliases: ['core'] },
+      });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { setSelectedProject } = renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar projeto Platform' }));
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Platform Core' } });
+    fireEvent.change(screen.getByLabelText('Repositorio GitHub'), { target: { value: 'acme/platform' } });
+    fireEvent.change(screen.getByLabelText('Aliases'), { target: { value: 'core' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar projeto' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto atualizado com sucesso.');
+    expect(setSelectedProject).toHaveBeenCalledWith('platform');
+  });
+
+  it('deletes a note after confirmation and refreshes the dashboard', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe('/api/notes/note-1');
+      expect(init?.method).toBe('DELETE');
+      return Response.json({ ok: true, noteId: 'note-1', reminderNoteId: 'reminder-1' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir nota Deploy antigo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar exclusão' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Nota excluida com sucesso.');
+  });
+
+  it('blocks project deletion for inbox and projects with notes', () => {
+    renderProjects();
+
+    expect(screen.queryByRole('button', { name: 'Editar projeto Inbox' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Inbox nao pode ser alterado.' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Exclua ou mova as notas do projeto antes de remover.' })).toBeDisabled();
+  });
+
+  it('deletes an empty project after confirmation and redirects selection', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      expect(String(input)).toBe('/api/projects/empty');
+      expect(init?.method).toBe('DELETE');
+      return Response.json({ ok: true, projectSlug: 'empty' });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { setSelectedProject } = renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir projeto Empty' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar exclusão' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto excluido com sucesso.');
+    expect(setSelectedProject).toHaveBeenCalledWith('inbox');
   });
 
   it('shows backend field errors inline when project creation fails', async () => {

@@ -4,33 +4,53 @@ export type FieldRenderProps = {
   id: string;
   'aria-invalid'?: true;
   'aria-describedby'?: string;
+  'aria-required'?: true;
   'data-field': string;
+  required?: true;
 };
 
 function fieldId(name: string) {
   return name.replace(/[^a-zA-Z0-9_-]+/g, '-');
 }
 
+type FormFieldRequirementProps =
+  | {
+      required?: boolean;
+      optional?: never;
+    }
+  | {
+      required?: never;
+      optional?: boolean;
+    };
+
 export function FormField({
   name,
   label,
   error,
   children,
+  required,
+  optional,
 }: {
   name: string;
   label: string;
   error?: string;
   children: (props: FieldRenderProps) => ReactNode;
-}) {
+} & FormFieldRequirementProps) {
   const id = fieldId(name);
   const errorId = `${id}-error`;
+  const isRequired = required === true;
+  const isOptional = !isRequired && optional === true;
 
   return (
     <div className="form-field" data-field={name}>
-      <label htmlFor={id}>{label}</label>
+      <div className="form-field-label-row">
+        <label className="form-field-label" htmlFor={id}>{label}</label>
+        {isOptional ? <span className="form-field-meta">opcional</span> : null}
+      </div>
       {children({
         id,
         'data-field': name,
+        ...(isRequired ? { required: true, 'aria-required': true } : {}),
         ...(error ? { 'aria-invalid': true, 'aria-describedby': errorId } : {}),
       })}
       {error ? (

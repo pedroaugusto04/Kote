@@ -42,6 +42,7 @@ test('memory repositories share state across content query and workflow ports', 
   const reminders = await repositories.contentQueryRepository.listReminders('user-1');
   assert.equal(reminders.length, 1);
   assert.equal(reminders[0].id, note.id);
+  assert.equal((await repositories.contentRepository.findReminderBySourceNotePath('user-1', '20 Inbox/acme/2026/04/item.md'))?.id, note.id);
 
   await repositories.conversationStateRepository.upsert('user-1', 'default', 'conversation-1', { phase: 'collecting' });
   const storedState = await repositories.conversationStateRepository.get('user-1', 'default', 'conversation-1');
@@ -50,6 +51,8 @@ test('memory repositories share state across content query and workflow ports', 
   assert.equal(await repositories.reminderDispatchRepository.hasSent('user-1', 'default', 'daily', '2026-04-28', note.id), false);
   await repositories.reminderDispatchRepository.markSent('user-1', 'default', 'daily', '2026-04-28', note.id);
   assert.equal(await repositories.reminderDispatchRepository.hasSent('user-1', 'default', 'daily', '2026-04-28', note.id), true);
+  await repositories.contentRepository.deleteNote('user-1', note.id);
+  assert.equal(await repositories.contentRepository.findReminderBySourceNotePath('user-1', '20 Inbox/acme/2026/04/item.md'), null);
 });
 
 test('app module resolves repository providers without KnowledgeStore wiring', async () => {

@@ -68,9 +68,17 @@ test('projects and notes controllers delegate create requests to use cases', asy
   const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
   const projects = new ProjectsController({
     execute: async (body, userId) => ({ ok: true, project: body, userId }),
+  }, {
+    execute: async (body, userId) => ({ ok: true, project: body, userId }),
+  }, {
+    execute: async (projectSlug, userId) => ({ ok: true, projectSlug, userId }),
   });
   const notes = new NotesController({
     execute: async (body, userId) => ({ ok: true, noteId: 'note-1', body, userId }),
+  }, {
+    execute: async (body, userId) => ({ ok: true, noteId: body.id, body, userId }),
+  }, {
+    execute: async (id, userId) => ({ ok: true, noteId: id, userId }),
   });
 
   assert.deepEqual(
@@ -81,4 +89,14 @@ test('projects and notes controllers delegate create requests to use cases', asy
     await notes.create({ projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
     { ok: true, noteId: 'note-1', body: { projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },
   );
+  assert.deepEqual(
+    await projects.update({ projectSlug: 'acme-api' }, { displayName: 'Acme API', repoFullName: '', aliases: [], defaultTags: [] }, user),
+    { ok: true, project: { projectSlug: 'acme-api', displayName: 'Acme API', repoFullName: '', aliases: [], defaultTags: [] }, userId: 'user-1' },
+  );
+  assert.deepEqual(await projects.remove({ projectSlug: 'acme-api' }, user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
+  assert.deepEqual(
+    await notes.update({ id: 'note-1' }, { title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
+    { ok: true, noteId: 'note-1', body: { id: 'note-1', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },
+  );
+  assert.deepEqual(await notes.remove({ id: 'note-1' }, user), { ok: true, noteId: 'note-1', userId: 'user-1' });
 });

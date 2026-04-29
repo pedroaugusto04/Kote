@@ -5,8 +5,8 @@ import { conversationBodySchema } from '../../../dist/interfaces/http/dto/operat
 import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../../../dist/interfaces/http/dto/integration-credentials.dto.js';
 import { internalN8nIngestBodySchema } from '../../../dist/interfaces/http/dto/internal-n8n.dto.js';
 import { markRemindersBodySchema, queryRequestSchema } from '../../../dist/interfaces/http/dto/query.dto.js';
-import { createNoteBodySchema } from '../../../dist/interfaces/http/dto/note.dto.js';
-import { createProjectBodySchema } from '../../../dist/interfaces/http/dto/project.dto.js';
+import { createNoteBodySchema, noteIdParamSchema, updateNoteBodySchema } from '../../../dist/interfaces/http/dto/note.dto.js';
+import { createProjectBodySchema, projectSlugParamSchema, updateProjectBodySchema } from '../../../dist/interfaces/http/dto/project.dto.js';
 import { createWorkspaceBodySchema } from '../../../dist/interfaces/http/dto/workspace.dto.js';
 
 test('query dto normalizes limit and slugs', () => {
@@ -56,6 +56,13 @@ test('create project dto normalizes slug, aliases and default tags', () => {
     aliases: ['api'],
     defaultTags: ['backend'],
   });
+  assert.equal(projectSlugParamSchema.parse({ projectSlug: 'Acme API' }).projectSlug, 'acme-api');
+  assert.deepEqual(updateProjectBodySchema.parse({ displayName: 'Acme API', aliases: [' api '], defaultTags: [' Backend '] }), {
+    displayName: 'Acme API',
+    repoFullName: '',
+    aliases: ['api'],
+    defaultTags: ['backend'],
+  });
 });
 
 test('create note dto normalizes project, tags and reminder fields', () => {
@@ -73,6 +80,14 @@ test('create note dto normalizes project, tags and reminder fields', () => {
   assert.equal(parsed.reminderDate, '2026-04-29');
   assert.equal(parsed.reminderTime, '09:30');
   assert.throws(() => createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto', reminderTime: '09:00' }));
+  assert.equal(noteIdParamSchema.parse({ id: 'note-1' }).id, 'note-1');
+  assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', tags: [' Deploy '], reminderDate: '29/04/2026', reminderTime: '9:30' }), {
+    title: 'Deploy',
+    rawText: 'texto',
+    tags: ['deploy'],
+    reminderDate: '2026-04-29',
+    reminderTime: '09:30',
+  });
 });
 
 test('conversation dto accepts valid payloads', () => {

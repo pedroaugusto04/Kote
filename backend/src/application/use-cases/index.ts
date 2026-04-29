@@ -1,7 +1,7 @@
 export { BuildDashboardUseCase, buildDashboardHome } from './dashboard/build-dashboard.use-case.js';
 export { CreateWorkspaceUseCase } from './workspaces/create-workspace.use-case.js';
-export { CreateProjectUseCase } from './projects/create-project.use-case.js';
-export { CreateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
+export { CreateProjectUseCase, DeleteProjectUseCase, UpdateProjectUseCase } from './projects/create-project.use-case.js';
+export { CreateManualNoteUseCase, DeleteManualNoteUseCase, UpdateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
 export { GetNoteDetailUseCase } from './dashboard/get-note-detail.use-case.js';
 export { QueryKnowledgeUseCase } from './query/query-knowledge.use-case.js';
 export { IngestEntryUseCase } from './ingest/ingest-entry.use-case.js';

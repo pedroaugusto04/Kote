@@ -167,10 +167,10 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
                 (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
               )}
             >
-              <FormField name="displayName" label="Nome do workspace" error={errors.displayName?.message}>
+              <FormField name="displayName" label="Nome do workspace" error={errors.displayName?.message} required>
                 {(fieldProps) => <input {...fieldProps} {...register('displayName')} />}
               </FormField>
-              <FormField name="workspaceSlug" label="Slug do workspace" error={errors.workspaceSlug?.message}>
+              <FormField name="workspaceSlug" label="Slug do workspace" error={errors.workspaceSlug?.message} required>
                 {(fieldProps) => (
                   <input
                     {...fieldProps}

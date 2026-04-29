@@ -251,14 +251,14 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
         </div>
         <form className="auth-form" ref={formRef} noValidate onSubmit={handleSubmit((values) => mutation.mutate(values), onInvalid)}>
           {mode === 'signup' ? (
-            <FormField name="name" label="Nome" error={errors.name?.message}>
+            <FormField name="name" label="Nome" error={errors.name?.message} required>
               {(fieldProps) => <input autoComplete="name" {...fieldProps} {...register('name')} />}
             </FormField>
           ) : null}
-          <FormField name="email" label="Email" error={errors.email?.message}>
+          <FormField name="email" label="Email" error={errors.email?.message} required>
             {(fieldProps) => <input autoComplete="email" type="email" {...fieldProps} {...register('email')} />}
           </FormField>
-          <FormField name="password" label="Senha" error={errors.password?.message}>
+          <FormField name="password" label="Senha" error={errors.password?.message} required>
             {(fieldProps) => <input autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type="password" {...fieldProps} {...register('password')} />}
           </FormField>
           <button className="icon-button auth-submit" type="submit" disabled={mutation.isPending}>

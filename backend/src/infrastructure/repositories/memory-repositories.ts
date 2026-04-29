@@ -276,10 +276,18 @@ export class MemoryContentRepository extends ContentRepository {
       .map(([, project]) => project);
   }
 
+  async getProjectBySlug(userId: string, projectSlug: string) {
+    return this.state.projects.get(`${userId}:${projectSlug}`) || null;
+  }
+
   async upsertProject(userId: string, input: SaveProjectInput) {
     const project: ProjectRecord = { ...input };
     this.state.projects.set(`${userId}:${project.projectSlug}`, project);
     return project;
+  }
+
+  async deleteProject(userId: string, projectSlug: string) {
+    return this.state.projects.delete(`${userId}:${projectSlug}`);
   }
 
   async listNotes(userId: string) {
@@ -292,11 +300,32 @@ export class MemoryContentRepository extends ContentRepository {
     return this.state.notes.get(`${userId}:${id}`) || null;
   }
 
+  async getNoteByPath(userId: string, path: string) {
+    return Array.from(this.state.notes.values()).find((note) => note.path === path && this.state.notes.has(`${userId}:${note.id}`)) || null;
+  }
+
+  async findReminderBySourceNotePath(userId: string, sourceNotePath: string) {
+    return Array.from(this.state.notes.entries())
+      .filter(([key]) => key.startsWith(`${userId}:`))
+      .map(([, note]) => note)
+      .find((note) => note.type === 'reminder' && note.metadata.sourceNotePath === sourceNotePath) || null;
+  }
+
   async upsertNote(userId: string, input: SaveNoteInput) {
     const id = input.id || crypto.randomUUID();
     const note: NoteRecord = { ...input, id };
     this.state.notes.set(`${userId}:${id}`, note);
     return note;
+  }
+
+  async deleteNote(userId: string, id: string) {
+    const note = this.state.notes.get(`${userId}:${id}`);
+    if (!note) return false;
+    this.state.notes.delete(`${userId}:${id}`);
+    for (const [key, attachment] of this.state.attachments.entries()) {
+      if (attachment.userId === userId && attachment.noteId === id) this.state.attachments.delete(key);
+    }
+    return true;
   }
 
   async saveAttachment(userId: string, input: SaveAttachmentInput) {

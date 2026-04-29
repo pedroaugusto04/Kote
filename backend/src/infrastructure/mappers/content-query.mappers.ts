@@ -26,6 +26,7 @@ export function noteDetail(record: NoteRecord): VaultNoteDetail {
     frontmatter: record.frontmatter,
     links: record.links,
     origin: record.origin,
+    editor: null,
   };
 }
 

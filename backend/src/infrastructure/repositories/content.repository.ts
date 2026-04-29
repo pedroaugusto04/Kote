@@ -56,6 +56,11 @@ export class PostgresContentRepository extends ContentRepository {
     return result.rows.map(projectFromRow);
   }
 
+  async getProjectBySlug(userId: string, projectSlug: string) {
+    const result = await this.database.getPool().query('select * from kb_projects where user_id = $1 and project_slug = $2 limit 1', [userId, projectSlug]);
+    return result.rows[0] ? projectFromRow(result.rows[0]) : null;
+  }
+
   async upsertProject(userId: string, input: {
     projectSlug: string;
     displayName: string;
@@ -93,6 +98,11 @@ export class PostgresContentRepository extends ContentRepository {
     return projectFromRow(result.rows[0]);
   }
 
+  async deleteProject(userId: string, projectSlug: string) {
+    const result = await this.database.getPool().query('delete from kb_projects where user_id = $1 and project_slug = $2', [userId, projectSlug]);
+    return (result.rowCount || 0) > 0;
+  }
+
   async listNotes(userId: string) {
     const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 order by occurred_at desc, title asc', [userId]);
     return result.rows.map(noteFromRow);
@@ -100,6 +110,22 @@ export class PostgresContentRepository extends ContentRepository {
 
   async getNoteById(userId: string, id: string) {
     const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and id = $2 limit 1', [userId, id]);
+    return result.rows[0] ? noteFromRow(result.rows[0]) : null;
+  }
+
+  async getNoteByPath(userId: string, path: string) {
+    const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and path = $2 limit 1', [userId, path]);
+    return result.rows[0] ? noteFromRow(result.rows[0]) : null;
+  }
+
+  async findReminderBySourceNotePath(userId: string, sourceNotePath: string) {
+    const result = await this.database.getPool().query(
+      `select * from kb_notes
+       where user_id = $1 and type = 'reminder' and metadata ->> 'sourceNotePath' = $2
+       order by occurred_at desc
+       limit 1`,
+      [userId, sourceNotePath],
+    );
     return result.rows[0] ? noteFromRow(result.rows[0]) : null;
   }
 
@@ -169,6 +195,11 @@ export class PostgresContentRepository extends ContentRepository {
       ],
     );
     return noteFromRow(result.rows[0]);
+  }
+
+  async deleteNote(userId: string, id: string) {
+    const result = await this.database.getPool().query('delete from kb_notes where user_id = $1 and id = $2', [userId, id]);
+    return (result.rowCount || 0) > 0;
   }
 
   async saveAttachment(userId: string, input: {

@@ -17,4 +17,10 @@ export type VaultNoteDetail = VaultNoteSummary & {
   frontmatter: Record<string, unknown>;
   links: string[];
   origin: string;
+  editor: {
+    canDelete: boolean;
+    rawText: string;
+    reminderDate: string;
+    reminderTime: string;
+  } | null;
 };

@@ -30,3 +30,25 @@ export function createNote(params: CreateNoteParams) {
     body: JSON.stringify(params),
   });
 }
+
+export type UpdateNoteParams = {
+  title?: string;
+  rawText: string;
+  tags?: string[];
+  reminderDate?: string;
+  reminderTime?: string;
+};
+
+export function updateNote(id: string, params: UpdateNoteParams) {
+  return request<{ ok: true; noteId: string; reminderNoteId: string }>(`/api/notes/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+}
+
+export function deleteNote(id: string) {
+  return request<{ ok: true; noteId: string; reminderNoteId: string }>(`/api/notes/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}

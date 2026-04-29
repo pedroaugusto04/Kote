@@ -6,9 +6,14 @@ import { ProjectCard } from '../../../src/widgets/projects/ProjectCard';
 describe('ProjectCard', () => {
   it('renders project metadata and emits the selected slug', () => {
     const onOpen = vi.fn();
+    const onEdit = vi.fn();
+    const onDelete = vi.fn();
 
     render(
       <ProjectCard
+        deleteDisabled={false}
+        onDelete={onDelete}
+        onEdit={onEdit}
         onOpen={onOpen}
         project={{
           projectSlug: 'n8n-automations',
@@ -23,8 +28,12 @@ describe('ProjectCard', () => {
     );
 
     fireEvent.click(screen.getByText('N8N Automations'));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar projeto N8N Automations' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir projeto N8N Automations' }));
 
     expect(screen.getByText('acme/repo')).toBeInTheDocument();
     expect(onOpen).toHaveBeenCalledWith('n8n-automations');
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onDelete).toHaveBeenCalledTimes(1);
   });
 });

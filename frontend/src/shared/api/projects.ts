@@ -23,3 +23,24 @@ export function createProject(params: CreateProjectParams) {
     body: JSON.stringify(params),
   });
 }
+
+export type UpdateProjectParams = {
+  displayName: string;
+  repoFullName?: string;
+  aliases?: string[];
+  defaultTags?: string[];
+};
+
+export function updateProject(projectSlug: string, params: UpdateProjectParams) {
+  return request<{ ok: true; project: Project }>(`/api/projects/${encodeURIComponent(projectSlug)}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+}
+
+export function deleteProject(projectSlug: string) {
+  return request<{ ok: true; projectSlug: string }>(`/api/projects/${encodeURIComponent(projectSlug)}`, {
+    method: 'DELETE',
+  });
+}

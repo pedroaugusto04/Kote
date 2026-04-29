@@ -5,7 +5,9 @@ import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { createNote, createProject } from '../../shared/api/client';
+import { createNote, createProject, deleteNote, deleteProject, fetchNote, updateNote, updateProject } from '../../shared/api/client';
+import type { NoteDetail, NoteSummary } from '../../shared/api/models/note';
+import type { Project } from '../../shared/api/models/project';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormActions, FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
@@ -14,32 +16,82 @@ import { NoteRow } from '../../widgets/notes/NoteRow';
 import { ProjectCard } from '../../widgets/projects/ProjectCard';
 import { noteFormSchema, projectFormSchema, type NoteFormValues, type ProjectFormValues } from './projects-page.forms';
 
+type ProjectModalState =
+  | { mode: 'create' }
+  | { mode: 'edit'; project: Project };
+
+type NoteModalState =
+  | { mode: 'create'; projectSlug: string }
+  | { mode: 'edit'; note: NoteDetail };
+
+type ConfirmState =
+  | { kind: 'project'; project: Project }
+  | { kind: 'note'; note: NoteSummary };
+
 export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, openNote }: PageContext) {
   const params = useParams();
   const queryClient = useQueryClient();
-  const [projectModalOpen, setProjectModalOpen] = useState(false);
-  const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [projectModal, setProjectModal] = useState<ProjectModalState | null>(null);
+  const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const routeProject = params.projectSlug ? decodeURIComponent(params.projectSlug) : '';
   const selectedSlug = routeProject || selectedProject;
   const selected = dashboard.projects.find((project) => project.projectSlug === selectedSlug) || dashboard.projects[0];
   const notes = dashboard.notes.filter((note) => !selected || note.project === selected.projectSlug);
   const githubRepos = dashboard.workspaces[0]?.githubRepos || [];
-
-  function refreshDashboard() {
-    return queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-  }
+  const loadNoteMutation = useMutation({
+    mutationFn: (id: string) => fetchNote(id),
+    onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
+    onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel carregar a nota para edicao.'),
+  });
+  const deleteProjectMutation = useMutation({
+    mutationFn: (projectSlug: string) => deleteProject(projectSlug),
+    onSuccess: async (_, projectSlug) => {
+      const nextProjectSlug = dashboard.projects.filter((project) => project.projectSlug !== projectSlug)[0]?.projectSlug || 'inbox';
+      setConfirmState(null);
+      notifySuccess('Projeto excluido com sucesso.');
+      setSelectedProject(nextProjectSlug);
+      await refreshDashboard(queryClient);
+    },
+    onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel excluir o projeto.'),
+  });
+  const deleteNoteMutation = useMutation({
+    mutationFn: (id: string) => deleteNote(id),
+    onSuccess: async () => {
+      setConfirmState(null);
+      notifySuccess('Nota excluida com sucesso.');
+      await refreshDashboard(queryClient);
+    },
+    onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel excluir a nota.'),
+  });
 
   return (
     <>
       <PageHead
         title="Projetos"
         subtitle="Timeline de conhecimento por repositorio e atividade recente."
-        action={<button className="icon-button" type="button" onClick={() => setProjectModalOpen(true)}>Novo projeto</button>}
+        action={<button className="icon-button" type="button" onClick={() => setProjectModal({ mode: 'create' })}>Novo projeto</button>}
       />
       <section className="grid cols-3">
-        {dashboard.projects.map((project) => (
-          <ProjectCard key={project.projectSlug} project={project} onOpen={setSelectedProject} />
-        ))}
+        {dashboard.projects.map((project) => {
+          const deleteBlockedReason = project.projectSlug === 'inbox'
+            ? 'Inbox nao pode ser alterado.'
+            : dashboard.notes.some((note) => note.project === project.projectSlug)
+              ? 'Exclua ou mova as notas do projeto antes de remover.'
+              : '';
+
+          return (
+            <ProjectCard
+              key={project.projectSlug}
+              deleteDisabled={Boolean(deleteBlockedReason)}
+              deleteLabel={deleteBlockedReason}
+              onDelete={(item) => setConfirmState({ kind: 'project', project: item })}
+              onEdit={project.projectSlug === 'inbox' ? undefined : (item) => setProjectModal({ mode: 'edit', project: item })}
+              onOpen={setSelectedProject}
+              project={project}
+            />
+          );
+        })}
       </section>
       {selected ? (
         <Panel className="spaced">
@@ -50,51 +102,98 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
             </div>
             <div className="project-actions">
               <Tags items={selected.defaultTags} />
-              <button className="icon-button" type="button" onClick={() => setNoteModalOpen(true)}>Nova nota</button>
+              <button className="icon-button" type="button" onClick={() => setNoteModal({ mode: 'create', projectSlug: selected.projectSlug })}>Nova nota</button>
             </div>
           </div>
           <div className="timeline">
             {notes.map((note) => (
               <div className="timeline-item" key={note.id}>
-                <NoteRow note={note} dashboard={dashboard} onOpen={openNote} />
+                <NoteRow
+                  dashboard={dashboard}
+                  note={note}
+                  onDelete={canManageNote(note) ? (item) => setConfirmState({ kind: 'note', note: item }) : undefined}
+                  onEdit={canManageNote(note) ? (item) => loadNoteMutation.mutate(item.id) : undefined}
+                  onOpen={openNote}
+                />
               </div>
             ))}
           </div>
         </Panel>
       ) : null}
-      {projectModalOpen ? (
+      {projectModal ? (
         <ProjectModal
           githubRepos={githubRepos}
-          onClose={() => setProjectModalOpen(false)}
-          onCreated={(projectSlug) => {
-            setProjectModalOpen(false);
-            notifySuccess('Projeto criado com sucesso.');
+          mode={projectModal.mode}
+          project={projectModal.mode === 'edit' ? projectModal.project : undefined}
+          onClose={() => setProjectModal(null)}
+          onSaved={async (projectSlug, mode) => {
+            setProjectModal(null);
+            notifySuccess(mode === 'create' ? 'Projeto criado com sucesso.' : 'Projeto atualizado com sucesso.');
             setSelectedProject(projectSlug);
-            refreshDashboard();
+            await refreshDashboard(queryClient);
           }}
         />
       ) : null}
-      {noteModalOpen && selected ? (
+      {noteModal ? (
         <NoteModal
-          projectSlug={selected.projectSlug}
-          onClose={() => setNoteModalOpen(false)}
-          onCreated={(noteId) => {
-            setNoteModalOpen(false);
-            notifySuccess('Nota criada com sucesso.');
-            refreshDashboard();
+          mode={noteModal.mode}
+          note={noteModal.mode === 'edit' ? noteModal.note : undefined}
+          onClose={() => setNoteModal(null)}
+          onSaved={async (noteId, mode) => {
+            setNoteModal(null);
+            notifySuccess(mode === 'create' ? 'Nota criada com sucesso.' : 'Nota atualizada com sucesso.');
+            await refreshDashboard(queryClient);
             if (noteId) openNote(noteId);
           }}
+          projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
+        />
+      ) : null}
+      {confirmState ? (
+        <ConfirmModal
+          busy={deleteProjectMutation.isPending || deleteNoteMutation.isPending}
+          description={confirmState.kind === 'project'
+            ? `A exclusao do projeto ${confirmState.project.displayName} e definitiva.`
+            : `A exclusao da nota ${confirmState.note.title} tambem remove o lembrete vinculado, quando existir.`}
+          onClose={() => setConfirmState(null)}
+          onConfirm={() => {
+            if (confirmState.kind === 'project') {
+              deleteProjectMutation.mutate(confirmState.project.projectSlug);
+              return;
+            }
+            deleteNoteMutation.mutate(confirmState.note.id);
+          }}
+          title={confirmState.kind === 'project' ? 'Excluir projeto' : 'Excluir nota'}
         />
       ) : null}
     </>
   );
 }
 
+function canManageNote(note: NoteSummary) {
+  return note.type === 'event' && note.source === 'manual-api';
+}
+
+async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) {
+  await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+}
+
 function parseList(value: string): string[] {
   return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
 }
 
-function ProjectModal({ githubRepos, onClose, onCreated }: { githubRepos: string[]; onClose: () => void; onCreated: (projectSlug: string) => void }) {
+function ProjectModal({
+  githubRepos,
+  mode,
+  project,
+  onClose,
+  onSaved,
+}: {
+  githubRepos: string[];
+  mode: 'create' | 'edit';
+  project?: Project;
+  onClose: () => void;
+  onSaved: (projectSlug: string, mode: 'create' | 'edit') => void | Promise<void>;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const {
     formState: { errors },
@@ -104,25 +203,34 @@ function ProjectModal({ githubRepos, onClose, onCreated }: { githubRepos: string
   } = useForm<ProjectFormValues>({
     resolver: zodResolver(projectFormSchema),
     shouldFocusError: false,
-    defaultValues: { displayName: '', projectSlug: '', repoFullName: '', aliases: '', defaultTags: '' },
+    defaultValues: {
+      displayName: project?.displayName || '',
+      projectSlug: project?.projectSlug || '',
+      repoFullName: project?.repoFullName || '',
+      aliases: project?.aliases.join(', ') || '',
+      defaultTags: project?.defaultTags.join(', ') || '',
+    },
   });
   const mutation = useMutation({
-    mutationFn: (values: ProjectFormValues) =>
-      createProject({
+    mutationFn: (values: ProjectFormValues) => {
+      const payload = {
         displayName: values.displayName,
-        projectSlug: values.projectSlug || undefined,
         repoFullName: values.repoFullName || undefined,
         aliases: parseList(values.aliases),
         defaultTags: parseList(values.defaultTags),
-      }),
-    onSuccess: (result) => onCreated(result.project.projectSlug),
+      };
+      return mode === 'create'
+        ? createProject({ ...payload, projectSlug: values.projectSlug || undefined })
+        : updateProject(project?.projectSlug || '', payload);
+    },
+    onSuccess: async (result) => onSaved(result.project.projectSlug, mode),
     onError: (error) => {
       const fieldNames = applyBackendFieldErrors<ProjectFormValues>(error, setError);
       if (fieldNames.length > 0) {
         window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
         return;
       }
-      notifyGeneralFormError(error, 'Nao foi possivel criar o projeto.');
+      notifyGeneralFormError(error, mode === 'create' ? 'Nao foi possivel criar o projeto.' : 'Nao foi possivel atualizar o projeto.');
     },
   });
 
@@ -131,7 +239,7 @@ function ProjectModal({ githubRepos, onClose, onCreated }: { githubRepos: string
       <section aria-labelledby="project-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <h2 id="project-modal-title">Novo projeto</h2>
+            <h2 id="project-modal-title">{mode === 'create' ? 'Novo projeto' : 'Editar projeto'}</h2>
             <p>Cadastre o vinculo explicito com um repositorio GitHub.</p>
           </div>
           <button aria-label="Fechar detalhes" className="modal-close" type="button" onClick={onClose}>x</button>
@@ -146,37 +254,55 @@ function ProjectModal({ githubRepos, onClose, onCreated }: { githubRepos: string
           )}
         >
           <div className="form-grid">
-            <FormField name="displayName" label="Nome" error={errors.displayName?.message}>
+            <FormField name="displayName" label="Nome" error={errors.displayName?.message} required>
               {(fieldProps) => <input {...fieldProps} {...register('displayName')} />}
             </FormField>
-            <FormField name="projectSlug" label="Slug" error={errors.projectSlug?.message}>
-              {(fieldProps) => <input {...fieldProps} {...register('projectSlug')} />}
-            </FormField>
+            {mode === 'create' ? (
+              <FormField name="projectSlug" label="Slug" error={errors.projectSlug?.message} optional>
+                {(fieldProps) => <input {...fieldProps} {...register('projectSlug')} />}
+              </FormField>
+            ) : (
+              <FormField name="projectSlug" label="Slug" error={undefined} optional>
+                {(fieldProps) => <input {...fieldProps} value={project?.projectSlug || ''} disabled readOnly />}
+              </FormField>
+            )}
           </div>
-          <FormField name="repoFullName" label="Repositorio GitHub" error={errors.repoFullName?.message}>
+          <FormField name="repoFullName" label="Repositorio GitHub" error={errors.repoFullName?.message} optional>
             {(fieldProps) => <input list="project-github-repos" {...fieldProps} {...register('repoFullName')} />}
           </FormField>
-            <datalist id="project-github-repos">
-              {githubRepos.map((repo) => (
-                <option key={repo} value={repo} />
-              ))}
-            </datalist>
+          <datalist id="project-github-repos">
+            {githubRepos.map((repo) => (
+              <option key={repo} value={repo} />
+            ))}
+          </datalist>
           <div className="form-grid">
-            <FormField name="aliases" label="Aliases" error={errors.aliases?.message}>
+            <FormField name="aliases" label="Aliases" error={errors.aliases?.message} optional>
               {(fieldProps) => <input {...fieldProps} {...register('aliases')} />}
             </FormField>
-            <FormField name="defaultTags" label="Tags padrao" error={errors.defaultTags?.message}>
+            <FormField name="defaultTags" label="Tags padrao" error={errors.defaultTags?.message} optional>
               {(fieldProps) => <input {...fieldProps} {...register('defaultTags')} />}
             </FormField>
           </div>
-          <FormActions disabled={mutation.isPending} onCancel={onClose} submitLabel="Criar projeto" />
+          <FormActions disabled={mutation.isPending} onCancel={onClose} submitLabel={mode === 'create' ? 'Criar projeto' : 'Salvar projeto'} />
         </form>
       </section>
     </div>
   );
 }
 
-function NoteModal({ projectSlug, onClose, onCreated }: { projectSlug: string; onClose: () => void; onCreated: (noteId: string) => void }) {
+function NoteModal({
+  mode,
+  note,
+  onClose,
+  onSaved,
+  projectSlug,
+}: {
+  mode: 'create' | 'edit';
+  note?: NoteDetail;
+  onClose: () => void;
+  onSaved: (noteId: string, mode: 'create' | 'edit') => void | Promise<void>;
+  projectSlug: string;
+}) {
   const formRef = useRef<HTMLFormElement>(null);
   const {
     formState: { errors },
@@ -186,26 +312,35 @@ function NoteModal({ projectSlug, onClose, onCreated }: { projectSlug: string; o
   } = useForm<NoteFormValues>({
     resolver: zodResolver(noteFormSchema),
     shouldFocusError: false,
-    defaultValues: { title: '', rawText: '', tags: '', reminderDate: '', reminderTime: '' },
+    defaultValues: {
+      title: note?.title || '',
+      rawText: note?.editor?.rawText || '',
+      tags: note?.tags.join(', ') || '',
+      reminderDate: note?.editor?.reminderDate || '',
+      reminderTime: note?.editor?.reminderTime || '',
+    },
   });
   const mutation = useMutation({
-    mutationFn: (values: NoteFormValues) =>
-      createNote({
-        projectSlug,
+    mutationFn: (values: NoteFormValues) => {
+      const payload = {
         title: values.title,
         rawText: values.rawText,
         tags: parseList(values.tags),
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime,
-      }),
-    onSuccess: (result) => onCreated(result.noteId),
+      };
+      return mode === 'create'
+        ? createNote({ ...payload, projectSlug })
+        : updateNote(note?.id || '', payload);
+    },
+    onSuccess: async (result) => onSaved(result.noteId, mode),
     onError: (error) => {
       const fieldNames = applyBackendFieldErrors<NoteFormValues>(error, setError);
       if (fieldNames.length > 0) {
         window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
         return;
       }
-      notifyGeneralFormError(error, 'Nao foi possivel criar a nota.');
+      notifyGeneralFormError(error, mode === 'create' ? 'Nao foi possivel criar a nota.' : 'Nao foi possivel atualizar a nota.');
     },
   });
 
@@ -214,7 +349,7 @@ function NoteModal({ projectSlug, onClose, onCreated }: { projectSlug: string; o
       <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <h2 id="note-modal-title">Nova nota</h2>
+            <h2 id="note-modal-title">{mode === 'create' ? 'Nova nota' : 'Editar nota'}</h2>
             <p>{projectSlug}</p>
           </div>
           <button aria-label="Fechar detalhes" className="modal-close" type="button" onClick={onClose}>x</button>
@@ -228,25 +363,57 @@ function NoteModal({ projectSlug, onClose, onCreated }: { projectSlug: string; o
             (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
           )}
         >
-          <FormField name="title" label="Titulo" error={errors.title?.message}>
+          <FormField name="title" label="Titulo" error={errors.title?.message} optional>
             {(fieldProps) => <input {...fieldProps} {...register('title')} />}
           </FormField>
-          <FormField name="rawText" label="Texto" error={errors.rawText?.message}>
+          <FormField name="rawText" label="Texto" error={errors.rawText?.message} required>
             {(fieldProps) => <textarea {...fieldProps} {...register('rawText')} />}
           </FormField>
-          <FormField name="tags" label="Tags" error={errors.tags?.message}>
+          <FormField name="tags" label="Tags" error={errors.tags?.message} optional>
             {(fieldProps) => <input {...fieldProps} {...register('tags')} />}
           </FormField>
           <div className="form-grid">
-            <FormField name="reminderDate" label="Data do lembrete" error={errors.reminderDate?.message}>
+            <FormField name="reminderDate" label="Data do lembrete" error={errors.reminderDate?.message} optional>
               {(fieldProps) => <input type="date" {...fieldProps} {...register('reminderDate')} />}
             </FormField>
-            <FormField name="reminderTime" label="Hora do lembrete" error={errors.reminderTime?.message}>
+            <FormField name="reminderTime" label="Hora do lembrete" error={errors.reminderTime?.message} optional>
               {(fieldProps) => <input type="time" {...fieldProps} {...register('reminderTime')} />}
             </FormField>
           </div>
-          <FormActions disabled={mutation.isPending} onCancel={onClose} submitLabel="Criar nota" />
+          <FormActions disabled={mutation.isPending} onCancel={onClose} submitLabel={mode === 'create' ? 'Criar nota' : 'Salvar nota'} />
         </form>
+      </section>
+    </div>
+  );
+}
+
+function ConfirmModal({
+  busy,
+  description,
+  onClose,
+  onConfirm,
+  title,
+}: {
+  busy: boolean;
+  description: string;
+  onClose: () => void;
+  onConfirm: () => void;
+  title: string;
+}) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section aria-labelledby="confirm-modal-title" aria-modal="true" className="modal-panel integration-modal confirm-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <h2 id="confirm-modal-title">{title}</h2>
+            <p>{description}</p>
+          </div>
+          <button aria-label="Fechar detalhes" className="modal-close" type="button" onClick={onClose}>x</button>
+        </div>
+        <div className="form-actions">
+          <button className="filter-chip" type="button" onClick={onClose}>Cancelar</button>
+          <button className="icon-button danger-button" disabled={busy} type="button" onClick={onConfirm}>Confirmar exclusão</button>
+        </div>
       </section>
     </div>
   );

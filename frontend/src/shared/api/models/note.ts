@@ -17,4 +17,10 @@ export type NoteDetail = NoteSummary & {
   frontmatter: Record<string, unknown>;
   links: string[];
   origin: string;
+  editor: {
+    canDelete: boolean;
+    rawText: string;
+    reminderDate: string;
+    reminderTime: string;
+  } | null;
 };
