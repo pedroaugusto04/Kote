@@ -1,5 +1,5 @@
 import type { Dashboard } from '../shared/api/models/dashboard';
-import { projectName } from '../entities/format';
+import { noteStatusLabel, noteTypeLabel, projectName } from '../entities/format';
 import type { View } from '../app/routing/routes';
 
 export function Inspector({
@@ -59,11 +59,11 @@ export function Inspector({
             <dt>Projeto</dt>
             <dd>{projectName(dashboard.projects, note.project)}</dd>
             <dt>Tipo</dt>
-            <dd>{note.type}</dd>
+            <dd>{noteTypeLabel(note.type)}</dd>
             <dt>Status</dt>
-            <dd>{note.status}</dd>
-            <dt>Origem</dt>
-            <dd>{note.source}</dd>
+            <dd>{noteStatusLabel(note.status)}</dd>
+            <dt>Data</dt>
+            <dd>{note.date}</dd>
           </dl>
         </div>
       ) : null}

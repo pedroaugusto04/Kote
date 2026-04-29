@@ -200,7 +200,24 @@ function mockFetch() {
         ok: true,
         note: {
           ...dashboard.notes[0],
-          markdown: '# Deploy rollout\n\n## Resumo\n\nRevisar deploy.',
+          markdown:
+            '---\n' +
+            'id: "manual:note-1"\n' +
+            'source_system: "manual-api"\n' +
+            'project: "n8n-automations"\n' +
+            '---\n\n' +
+            '# Deploy rollout\n' +
+            'Projeto: [[10 Projects/n8n-automations|N8N Automations]]\n\n' +
+            '## Texto original\n\n' +
+            'Revisar deploy.\n\n' +
+            '## Resumo\n\n' +
+            'Revisar deploy.\n\n' +
+            '## Impacto\n\n' +
+            'No impact registered.\n\n' +
+            '## Riscos\n\n' +
+            '- none\n\n' +
+            '## Proximos passos\n\n' +
+            '- none',
           frontmatter: {},
           links: [],
           origin: 'vault',
@@ -237,7 +254,19 @@ describe('AppShell', () => {
     fireEvent.click(await screen.findByText('Deploy rollout'));
 
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
-    expect(await screen.findByText('20 Inbox/note.md')).toBeInTheDocument();
+    expect((await screen.findAllByText('N8N Automations')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Evento')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Aberta')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('deploy')).toBeInTheDocument();
+    expect(screen.getAllByText('Revisar deploy.').length).toBeGreaterThan(0);
+    expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
+    expect(screen.queryByText('test')).not.toBeInTheDocument();
+    expect(screen.queryByText(/source_system/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/manual-api/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Projeto: \[\[/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Texto original')).not.toBeInTheDocument();
+    expect(screen.queryByText('No impact registered.')).not.toBeInTheDocument();
+    expect(screen.queryByText('- none')).not.toBeInTheDocument();
   });
 
   it('opens a note directly from a route parameter', async () => {
@@ -246,7 +275,9 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/vault/note-1' });
 
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
-    expect(await screen.findByText('20 Inbox/note.md')).toBeInTheDocument();
+    expect((await screen.findAllByText('Evento')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Aberta')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
   });
 
   it('renders integration status from the settings route', async () => {

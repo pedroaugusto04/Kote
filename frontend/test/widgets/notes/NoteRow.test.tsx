@@ -41,6 +41,10 @@ describe('NoteRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Editar nota Deploy antigo' }));
     fireEvent.click(screen.getByRole('button', { name: 'Excluir nota Deploy antigo' }));
 
+    expect(screen.getByText('Evento')).toBeInTheDocument();
+    expect(screen.getByText('Ativa')).toBeInTheDocument();
+    expect(screen.queryByText('event')).not.toBeInTheDocument();
+    expect(screen.queryByText('manual-api')).not.toBeInTheDocument();
     expect(onOpen).not.toHaveBeenCalled();
     expect(onEdit).toHaveBeenCalledTimes(1);
     expect(onDelete).toHaveBeenCalledTimes(1);
