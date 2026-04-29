@@ -164,6 +164,8 @@ O backend usa login local com `kb_users`, senha via `crypto.scrypt` e JWT statel
 
 O admin inicial é criado por `KB_ADMIN_EMAIL` e `KB_ADMIN_PASSWORD`. Configure também `KB_DATABASE_URL`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_CREDENTIALS_ENCRYPTION_KEY` (base64 de 32 bytes), `KB_INTERNAL_SERVICE_TOKEN`, `KB_ALLOWED_ORIGINS`, `KB_BODY_LIMIT` e `KB_TRUST_PROXY` quando estiver atrás de proxy.
 
+Para melhorar a leitura dos logs no Portainer, habilite `KB_LOG_PRETTY_CONSOLE=true`. O padrão em `production` continua sendo JSON estruturado; com essa flag, o console passa a emitir texto com ANSI colorido por nível (`INFO` verde, `WARN` amarelo, `ERROR` vermelho e `DEBUG` ciano).
+
 Postgres é a fonte de dados da API HTTP multiusuário. Usuários novos começam sem workspaces, projetos ou notas; o primeiro workspace precisa ser criado explicitamente pelo wizard ou por `POST /api/workspaces`. As tabelas principais são `kb_users`, `kb_workspaces`, `kb_projects`, `kb_notes`, `kb_note_links`, `kb_attachments`, `kb_conversation_states`, `kb_reminder_dispatch_state`, `kb_external_identities`, `kb_integration_credentials`, `kb_integration_connection_sessions` e `kb_webhook_events`.
 
 O frontend expõe `/settings/integrations` com fluxos guiados para `github-app`, `whatsapp`, `telegram`, `ai-review` e `ai-conversation`. A tela não pede JSON, tokens, `jid`, API key, modelo de IA ou nome de instância: o backend usa `KB_GITHUB_APP_*`, `EVOLUTION_*`, `KB_TELEGRAM_*`, `KB_REVIEW_AI_*` e `KB_CONVERSATION_AI_*`, cria uma sessão curta em `kb_integration_connection_sessions` quando há pareamento por código, e grava a credencial final criptografada em `kb_integration_credentials.encrypted_config`. Ao revogar uma credencial, o backend substitui o payload criptografado por um marcador sem segredo e mantém apenas o status/histórico de revogação.
@@ -270,6 +272,7 @@ KB_POSTGRES_PASSWORD=postgres
 KB_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/knowledge_base
 KB_DATABASE_URL_DOCKER=postgres://postgres:postgres@postgres:5432/knowledge_base
 KB_ALLOWED_ORIGINS=http://127.0.0.1:4311,http://localhost:4311,http://127.0.0.1:4310,http://localhost:4310
+KB_LOG_PRETTY_CONSOLE=true
 ```
 
 Portas publicadas por padrão:
