@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { z } from 'zod';
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
@@ -18,6 +17,7 @@ import { SetupPage } from '../pages/setup/SetupPage';
 import { VaultPage } from '../pages/vault/VaultPage';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../shared/forms/errors';
 import { FormField } from '../shared/forms/fields';
+import { createAuthFormSchema, type AuthFormValues, type AuthMode } from './app-shell-auth.forms';
 import { Inspector } from './Inspector';
 
 function activeView(pathname: string): View {
@@ -188,14 +188,9 @@ export function AppShell() {
 }
 
 function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
-  const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [mode, setMode] = useState<AuthMode>('login');
   const formRef = useRef<HTMLFormElement>(null);
-  const schema = useMemo(() => z.object({
-    name: mode === 'signup' ? z.string().trim().min(1, 'Informe seu nome.') : z.string().optional(),
-    email: z.string().trim().email('Informe um email valido.'),
-    password: z.string().min(8, 'Use pelo menos 8 caracteres.'),
-  }), [mode]);
-  type AuthFormValues = z.infer<typeof schema>;
+  const schema = useMemo(() => createAuthFormSchema(mode), [mode]);
   const {
     clearErrors,
     formState: { errors },

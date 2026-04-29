@@ -232,7 +232,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    expect(await screen.findByRole('heading', { name: 'Home operacional' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Homel' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('link', { name: 'Vault' }));
     fireEvent.click(await screen.findByText('Deploy rollout'));
 
@@ -392,7 +392,7 @@ describe('AppShell', () => {
     fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(-1)!);
 
-    expect(await screen.findByRole('heading', { name: 'Home operacional' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
   });
 
   it('does not retry dashboard requests after an anonymous 401', async () => {

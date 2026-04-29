@@ -4,17 +4,9 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
 import type { IngestPayload } from '../../../contracts/ingest.js';
+import type { CreateManualNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/content.repository.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
-
-export type CreateManualNoteInput = {
-  projectSlug: string;
-  title: string;
-  rawText: string;
-  tags: string[];
-  reminderDate: string;
-  reminderTime: string;
-};
 
 @Injectable()
 export class CreateManualNoteUseCase {

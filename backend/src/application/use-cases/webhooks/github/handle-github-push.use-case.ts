@@ -5,17 +5,12 @@ import { verifyGithubSignature } from '../../../../adapters/github.js';
 import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import { buildTelegramCodeReviewMessage } from '../../../../domain/notifications.js';
 import { buildGithubReviewEvent } from '../../../github-review.js';
+import type { GithubPushWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ContentRepository } from '../../../ports/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
-
-export type GithubPushWebhookRequest = {
-  headers?: Record<string, string | string[] | undefined>;
-  body: Record<string, unknown>;
-  rawBody?: string;
-};
 
 @Injectable()
 export class HandleGithubPushUseCase {

@@ -44,6 +44,7 @@ Keep dependency injection aligned with the current framework. This project uses 
 - Avoid ad-hoc object casting/parsing for API inputs.
 - Prefer strict TypeScript types and avoid `any`; if `any` is necessary, keep it local and explain why in code or in the handoff.
 - For fixed sets with multiple string options, prefer `enum` or a reusable constant/schema pair instead of repeated raw string literals.
+- Do not keep reusable `types`, `interfaces`, `models`, `schemas`, `mappers`, `normalizers`, or similar structures embedded inside classes, controllers, services, React components, or page files just for convenience. Move them to dedicated files/folders owned by the appropriate module so those contracts can be read in isolation and the implementation files stay focused on behavior/rendering.
 - Place `types`, `models`, `mappers`, `schemas`, `normalizers`, and similar support files in the folder that matches their architectural responsibility. Do not drop these files into arbitrary feature folders or generic utility locations just because they are convenient.
 - Shared backend types should live in appropriate modules such as:
   - `knowledge-base/src/domain/**` for domain concepts
@@ -66,7 +67,7 @@ Keep dependency injection aligned with the current framework. This project uses 
   - feature-local view models, form schemas, and feature mappers belong under `knowledge-base/frontend/src/features/**`
   - reusable UI-only types and presentational helpers belong with the owning `shared`, `widgets`, or component module, not mixed into API or domain folders
 - Prefer colocating files with the module that owns them. Only promote a type/model/mapper to a broader shared folder when it is actually reused across module boundaries.
-- Keep in-file types only when they are truly private to that file and not part of a reusable contract.
+- Keep in-file types only when they are truly private to that file, small enough not to hurt readability, and not part of a reusable contract.
 
 ## Persistence
 

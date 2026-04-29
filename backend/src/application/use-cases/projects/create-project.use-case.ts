@@ -1,14 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
+import type { CreateProjectInput } from '../../models/project-input.models.js';
 import { ContentRepository } from '../../ports/content.repository.js';
-
-export type CreateProjectInput = {
-  displayName: string;
-  projectSlug: string;
-  repoFullName: string;
-  aliases: string[];
-  defaultTags: string[];
-};
 
 function sameRepo(left: string, right: string) {
   return left.trim().toLowerCase() === right.trim().toLowerCase();

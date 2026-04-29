@@ -1,12 +1,8 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 
 import { slugify } from '../../../domain/strings.js';
+import type { CreateWorkspaceInput } from '../../models/workspace-input.models.js';
 import { ContentRepository } from '../../ports/content.repository.js';
-
-export type CreateWorkspaceInput = {
-  displayName: string;
-  workspaceSlug: string;
-};
 
 @Injectable()
 export class CreateWorkspaceUseCase {

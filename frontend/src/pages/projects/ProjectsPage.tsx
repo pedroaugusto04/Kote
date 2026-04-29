@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
-import { z } from 'zod';
 
 import type { PageContext } from '../../app/page-context';
 import { createNote, createProject } from '../../shared/api/client';
@@ -13,6 +12,7 @@ import { notifySuccess } from '../../shared/ui/notifications';
 import { PageHead, Panel, Tags } from '../../shared/ui/primitives';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 import { ProjectCard } from '../../widgets/projects/ProjectCard';
+import { noteFormSchema, projectFormSchema, type NoteFormValues, type ProjectFormValues } from './projects-page.forms';
 
 export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, openNote }: PageContext) {
   const params = useParams();
@@ -93,19 +93,6 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
 function parseList(value: string): string[] {
   return [...new Set(value.split(',').map((item) => item.trim()).filter(Boolean))];
 }
-
-const optionalSlugSchema = z.string().trim().max(80, 'Use no maximo 80 caracteres.').refine((value) => !value || /^[a-z0-9._-]+$/.test(value), 'Use apenas letras minusculas, numeros, ponto, hifen ou underline.');
-const optionalRepoSchema = z.string().trim().max(180, 'Use no maximo 180 caracteres.').refine((value) => !value || /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value), 'Use o formato owner/repositorio.');
-
-const projectFormSchema = z.object({
-  displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
-  projectSlug: optionalSlugSchema,
-  repoFullName: optionalRepoSchema,
-  aliases: z.string().max(500, 'Use no maximo 500 caracteres.'),
-  defaultTags: z.string().max(500, 'Use no maximo 500 caracteres.'),
-});
-
-type ProjectFormValues = z.infer<typeof projectFormSchema>;
 
 function ProjectModal({ githubRepos, onClose, onCreated }: { githubRepos: string[]; onClose: () => void; onCreated: (projectSlug: string) => void }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -188,24 +175,6 @@ function ProjectModal({ githubRepos, onClose, onCreated }: { githubRepos: string
     </div>
   );
 }
-
-const noteFormSchema = z.object({
-  title: z.string().trim().max(160, 'Use no maximo 160 caracteres.'),
-  rawText: z.string().trim().min(1, 'Informe o texto da nota.').max(20000, 'Use no maximo 20000 caracteres.'),
-  tags: z.string().max(500, 'Use no maximo 500 caracteres.'),
-  reminderDate: z.string(),
-  reminderTime: z.string(),
-}).superRefine((values, ctx) => {
-  if (values.reminderTime && !values.reminderDate) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['reminderTime'],
-      message: 'Informe a data do lembrete antes da hora.',
-    });
-  }
-});
-
-type NoteFormValues = z.infer<typeof noteFormSchema>;
 
 function NoteModal({ projectSlug, onClose, onCreated }: { projectSlug: string; onClose: () => void; onCreated: (noteId: string) => void }) {
   const formRef = useRef<HTMLFormElement>(null);

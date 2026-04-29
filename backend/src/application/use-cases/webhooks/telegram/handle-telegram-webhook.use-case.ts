@@ -3,14 +3,10 @@ import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/co
 import { readEnvironment } from '../../../../adapters/environment.js';
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import { extractTelegramChatId, extractTelegramConnectionCode, IntegrationConnectionService } from '../../../integration-connections.js';
+import type { TelegramWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
-
-export type TelegramWebhookRequest = {
-  headers?: Record<string, string | string[] | undefined>;
-  body: Record<string, unknown>;
-};
 
 @Injectable()
 export class HandleTelegramWebhookUseCase {

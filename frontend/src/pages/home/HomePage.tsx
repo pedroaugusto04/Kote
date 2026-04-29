@@ -37,7 +37,7 @@ export function HomePage({ dashboard, openNote, openReview, setSelectedProject }
 
   return (
     <>
-      <PageHead title="Home operacional" subtitle={`Prioridades, mudancas e projetos ativos nos ultimos ${home.windowDays} dias.`} />
+      <PageHead title="Home" subtitle={`Prioridades, mudancas e projetos ativos nos ultimos ${home.windowDays} dias.`} />
       <section className="home-layout">
         {needsIntegrationSetup ? (
           <Panel className="setup-inline-banner">

@@ -1,16 +1,12 @@
 import { Body, Controller, Get, NotFoundException, Param, Post, Query, UseGuards } from '@nestjs/common';
-import { z } from 'zod';
 
 import type { AuthenticatedUser } from '../../../application/auth.js';
 import { BuildDashboardUseCase, GetNoteDetailUseCase, QueryKnowledgeUseCase } from '../../../application/use-cases/index.js';
 import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
+import { noteIdParamSchema, type NoteIdParam } from '../dto/dashboard.dto.js';
 import { queryRequestSchema, type QueryRequest } from '../dto/query.dto.js';
 import { ZodValidationPipe } from '../zod-validation.pipe.js';
-
-const noteIdParamSchema = z.object({
-  id: z.string().trim().min(1),
-});
 
 @Controller('api')
 @UseGuards(AccessTokenAuthGuard)
@@ -42,7 +38,7 @@ export class DashboardController {
   }
 
   @Get('notes/:id')
-  async note(@Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: { id: string }, @CurrentUser() user: AuthenticatedUser) {
+  async note(@Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam, @CurrentUser() user: AuthenticatedUser) {
     const note = await this.getNoteDetail.execute(user.id, params.id);
     if (!note) throw new NotFoundException('note_not_found');
     return { ok: true, note };

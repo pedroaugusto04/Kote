@@ -142,7 +142,7 @@ describe('HomePage', () => {
   it('renders operational KPIs, priorities and charts with capped lists', () => {
     renderHome();
 
-    expect(screen.getByRole('heading', { name: 'Home operacional' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
     expect(screen.getByText('Mudancas recentes')).toBeInTheDocument();
     expect(screen.getByText('Prioridade 1')).toBeInTheDocument();
     expect(screen.queryByText('Prioridade 6')).not.toBeInTheDocument();

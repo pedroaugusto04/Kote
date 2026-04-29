@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
 
 import {
   connectIntegration,
@@ -13,13 +12,12 @@ import {
   revokeIntegration,
   saveGithubRepositories,
 } from '../../shared/api/client';
+import { githubRepositoriesFormSchema, type DisplayStatus, type GithubRepositoriesFormValues } from './guided-integrations.forms';
 import type { GithubIntegrationRepository, IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormActions } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
-
-type DisplayStatus = UserIntegration['status'];
 
 const statusLabel: Record<DisplayStatus | string, string> = {
   connected: 'conectado',
@@ -69,12 +67,6 @@ function IntegrationSteps({ integration }: { integration: UserIntegration }) {
     </ol>
   );
 }
-
-const githubRepositoriesFormSchema = z.object({
-  repositories: z.array(z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'Use o formato owner/repositorio.')).max(100, 'Selecione no maximo 100 repositorios.'),
-});
-
-type GithubRepositoriesFormValues = z.infer<typeof githubRepositoriesFormSchema>;
 
 function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connection: IntegrationConnectionResponse; onClose: () => void; workspaceSlug: string }) {
   const queryClient = useQueryClient();

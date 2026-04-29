@@ -3,7 +3,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { z } from 'zod';
 
 import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
@@ -15,6 +14,7 @@ import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, not
 import { FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
+import { workspaceFormSchema, type WorkspaceFormValues } from './setup-page.forms';
 
 function slugify(input: string) {
   return input
@@ -29,13 +29,6 @@ function slugify(input: string) {
 function StepState({ complete, pendingLabel, doneLabel }: { complete: boolean; pendingLabel: string; doneLabel: string }) {
   return <span className={`setup-step-state ${complete ? 'done' : 'pending'}`}>{complete ? doneLabel : pendingLabel}</span>;
 }
-
-const workspaceFormSchema = z.object({
-  displayName: z.string().trim().min(1, 'Informe o nome do workspace.').max(120, 'Use no maximo 120 caracteres.'),
-  workspaceSlug: z.string().trim().min(1, 'Informe o slug do workspace.').max(80, 'Use no maximo 80 caracteres.').regex(/^[a-z0-9._-]+$/, 'Use apenas letras minusculas, numeros, ponto, hifen ou underline.'),
-});
-
-type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>;
 
 export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboard; refetchDashboard: () => Promise<unknown> }) {
   const navigate = useNavigate();

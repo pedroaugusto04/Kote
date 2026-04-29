@@ -4,6 +4,7 @@ import { readEnvironment } from '../../../../adapters/environment.js';
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import { conversationInputSchema } from '../../../../contracts/conversation.js';
 import { extractWhatsappConnectionCode, IntegrationConnectionService } from '../../../integration-connections.js';
+import type { WhatsappWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { WhatsappReplySender } from '../../../ports/whatsapp-reply.sender.js';
@@ -11,11 +12,6 @@ import { extractWhatsappExternalId, normalizeHeaders, parseWhatsappEvolutionMess
 import { ProcessConversationUseCase } from '../../conversation/process-conversation.use-case.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import type { IngestPayload } from '../../../../contracts/ingest.js';
-
-export type WhatsappWebhookRequest = {
-  headers?: Record<string, string | string[] | undefined>;
-  body: Record<string, unknown>;
-};
 
 @Injectable()
 export class HandleWhatsappWebhookUseCase {
