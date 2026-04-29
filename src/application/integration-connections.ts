@@ -109,6 +109,22 @@ function normalizeBrowserOrigin(value: string | undefined): string {
   }
 }
 
+function buildBrowserRedirectUrl(baseUrl: string | undefined, path: string): URL {
+  const normalizedPath = normalizeReturnToPath(path, '/settings/integrations');
+  const fallbackBase = new URL('https://knowledge-base.local');
+  const base = baseUrl ? new URL(baseUrl) : fallbackBase;
+  const basePathname = base.pathname.replace(/\/+$/, '');
+  const finalPath = normalizedPath === '/'
+    ? (basePathname || '/')
+    : basePathname && !normalizedPath.startsWith(`${basePathname}/`) && normalizedPath !== basePathname
+      ? `${basePathname}${normalizedPath}`
+      : normalizedPath;
+  base.pathname = finalPath;
+  base.search = '';
+  base.hash = '';
+  return base;
+}
+
 export function extractWhatsappConnectionCode(body: Record<string, unknown>): string {
   const data = body.data as Record<string, unknown> | undefined;
   const message = data?.message as Record<string, unknown> | undefined;
@@ -517,7 +533,7 @@ export class IntegrationConnectionService {
     const metadata = session.metadata as ConnectionSessionMetadata;
     const origin = normalizeBrowserOrigin(metadata.browserOrigin) || environment.publicBaseUrl || '';
     const returnToPath = normalizeReturnToPath(metadata.returnToPath, '/settings/integrations');
-    const base = origin ? new URL(returnToPath, origin) : new URL(returnToPath, 'https://knowledge-base.local');
+    const base = buildBrowserRedirectUrl(origin || environment.publicBaseUrl || '', returnToPath);
     base.searchParams.set('integration', IntegrationProvider.GithubApp);
     base.searchParams.set('status', status);
     base.searchParams.set('workspaceSlug', session.workspaceSlug);
@@ -527,7 +543,7 @@ export class IntegrationConnectionService {
   private fallbackGithubCallbackRedirect() {
     const environment = readEnvironment();
     const origin = environment.publicBaseUrl || '';
-    const base = origin ? new URL('/settings/integrations', origin) : new URL('/settings/integrations', 'https://knowledge-base.local');
+    const base = buildBrowserRedirectUrl(origin, '/settings/integrations');
     base.searchParams.set('integration', IntegrationProvider.GithubApp);
     base.searchParams.set('status', 'error');
     return origin ? base.toString() : `${base.pathname}${base.search}`;

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 
+import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
 import { GuidedIntegrationsSection, IntegrationCallbackNotice } from '../../features/integrations/GuidedIntegrationsSection';
 import { PageHead } from '../../shared/ui/primitives';
@@ -29,7 +30,7 @@ export function IntegrationsPage({ workspaceSlug }: { workspaceSlug: string }) {
         : null}
       <GuidedIntegrationsSection
         workspaceSlug={workspaceSlug}
-        returnToPath={routes.integrations}
+        returnToPath={withFrontendBasePath(routes.integrations)}
         defaultOpenGithubRepositories={callback.integration === 'github-app' && callback.status === 'connected' && callback.workspaceSlug === workspaceSlug}
       />
     </>

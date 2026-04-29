@@ -288,18 +288,46 @@ test('guided integrations reject missing workspace and github callback keeps bro
     userId: user.id,
     workspaceSlug: 'product-team',
     provider: 'github-app',
-    returnToPath: '/setup',
+    returnToPath: '/knowledge-base/setup',
     browserOrigin: 'https://kb.example.com',
   });
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async (url) => {
-    if (String(url).includes('/login/oauth/access_token')) return Response.json({ access_token: 'oauth-token' });
-    return Response.json({ installations: [{ id: 55, account: { login: 'acme' } }] });
-  };
+  try {
+    globalThis.fetch = async (url) => {
+      if (String(url).includes('/login/oauth/access_token')) return Response.json({ access_token: 'oauth-token' });
+      return Response.json({ installations: [{ id: 55, account: { login: 'acme' } }] });
+    };
 
-  const result = await connections.completeGithub({ userId: user.id, state: stateFromRedirect(setup), code: 'code', installationId: '55' });
-  assert.equal(result.redirectUrl, 'https://kb.example.com/setup?integration=github-app&status=connected&workspaceSlug=product-team');
-  globalThis.fetch = originalFetch;
+    const result = await connections.completeGithub({ userId: user.id, state: stateFromRedirect(setup), code: 'code', installationId: '55' });
+    assert.equal(result.redirectUrl, 'https://kb.example.com/knowledge-base/setup?integration=github-app&status=connected&workspaceSlug=product-team');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('github callback fallback redirect preserves base path from public base url', async () => {
+  const { user, connections } = await fixture();
+  const previousPublicBaseUrl = process.env.KB_PUBLIC_BASE_URL;
+  const originalFetch = globalThis.fetch;
+  try {
+    process.env.KB_PUBLIC_BASE_URL = 'https://kb.example.com/knowledge-base';
+
+    const setup = await connections.connect({
+      userId: user.id,
+      workspaceSlug: 'default',
+      provider: 'github-app',
+    });
+    globalThis.fetch = async (url) => {
+      if (String(url).includes('/login/oauth/access_token')) return Response.json({ access_token: 'oauth-token' });
+      return Response.json({ installations: [{ id: 42, account: { login: 'acme' } }] });
+    };
+
+    const result = await connections.completeGithub({ userId: user.id, state: stateFromRedirect(setup), code: 'code', installationId: '42' });
+    assert.equal(result.redirectUrl, 'https://kb.example.com/knowledge-base/settings/integrations?integration=github-app&status=connected&workspaceSlug=default');
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.KB_PUBLIC_BASE_URL = previousPublicBaseUrl;
+  }
 });
 
 test('webhook event logs redact sensitive headers and payload recursively', async () => {

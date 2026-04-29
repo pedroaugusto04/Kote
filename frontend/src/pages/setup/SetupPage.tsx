@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
 import { GuidedIntegrationsSection, IntegrationCallbackNotice } from '../../features/integrations/GuidedIntegrationsSection';
 import { createWorkspace } from '../../shared/api/client';
@@ -174,7 +175,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
                 : null}
               <GuidedIntegrationsSection
                 workspaceSlug={effectiveWorkspaceSlug}
-                returnToPath={routes.setup}
+                returnToPath={withFrontendBasePath(routes.setup)}
                 providers={['github-app']}
                 defaultOpenGithubRepositories={githubCallbackStatus.integration === 'github-app' && githubCallbackStatus.status === 'connected' && callbackMatchesWorkspace}
                 onGithubRepositoriesSaved={async () => {
@@ -199,7 +200,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
           {workspaceReady ? (
             <GuidedIntegrationsSection
               workspaceSlug={effectiveWorkspaceSlug}
-              returnToPath={routes.setup}
+              returnToPath={withFrontendBasePath(routes.setup)}
               providers={['whatsapp', 'telegram']}
               onLoaded={setChatIntegrations}
             />
