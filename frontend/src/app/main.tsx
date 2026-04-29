@@ -7,6 +7,7 @@ import { frontendBasePath } from './base-path';
 import { queryClient } from './providers/query-client';
 import { AppShell } from '../layouts/AppShell';
 import '../shared/styles/global.css';
+import { NotificationsProvider } from '../shared/ui/notifications';
 
 createRoot(document.getElementById('root') as HTMLElement).render(
   <StrictMode>
@@ -14,6 +15,7 @@ createRoot(document.getElementById('root') as HTMLElement).render(
       <BrowserRouter basename={frontendBasePath}>
         <AppShell />
       </BrowserRouter>
+      <NotificationsProvider />
     </QueryClientProvider>
   </StrictMode>,
 );

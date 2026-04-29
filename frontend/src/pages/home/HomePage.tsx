@@ -42,10 +42,10 @@ export function HomePage({ dashboard, openNote, openReview, setSelectedProject }
         {needsIntegrationSetup ? (
           <Panel className="setup-inline-banner">
             <div>
-              <strong>Finalize as integracoes do workspace</strong>
+              <strong>Finalize as integrações do workspace</strong>
               <p className="meta">Conecte GitHub para reviews de push e WhatsApp ou Telegram para capturar notas por conversa.</p>
             </div>
-            <Link className="filter-chip" to={routes.integrations}>Conectar integracoes</Link>
+            <Link className="filter-chip" to={routes.integrations}>Conectar integrações</Link>
           </Panel>
         ) : null}
 

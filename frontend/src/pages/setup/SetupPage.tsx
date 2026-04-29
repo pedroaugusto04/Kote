@@ -5,10 +5,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
 import { GuidedIntegrationsSection, IntegrationCallbackNotice } from '../../features/integrations/GuidedIntegrationsSection';
-import { createWorkspace } from '../../shared/api/client';
+import { createWorkspace, getErrorMessage } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
-import { PageHead, Panel } from '../../shared/ui/primitives';
+import { notifySuccess } from '../../shared/ui/notifications';
+import { InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 
 function slugify(input: string) {
   return input
@@ -56,6 +57,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
     mutationFn: () => createWorkspace({ displayName, workspaceSlug }),
     onSuccess: (result) => {
       setCreatedWorkspaceSlug(result.workspace.workspaceSlug);
+      notifySuccess('Workspace criado com sucesso.');
       queryClient.setQueryData<Dashboard>(['dashboard'], (current) => current
         ? {
             ...current,
@@ -93,6 +95,8 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
         return;
       }
       setContinueError('Ainda estou sincronizando o workspace. Tente novamente em alguns segundos.');
+    } catch (error) {
+      setContinueError(getErrorMessage(error, 'Nao foi possivel abrir o dashboard agora.'));
     } finally {
       setContinuePending(false);
     }
@@ -150,7 +154,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
                   required
                 />
               </label>
-              {createWorkspaceMutation.isError ? <p className="form-error">Nao foi possivel criar o workspace.</p> : null}
+              {createWorkspaceMutation.isError ? <InlineMessage tone="error">{getErrorMessage(createWorkspaceMutation.error, 'Nao foi possivel criar o workspace.')}</InlineMessage> : null}
               <button className="icon-button auth-submit" disabled={createWorkspaceMutation.isPending} type="submit">
                 Criar workspace
               </button>
@@ -216,7 +220,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
             Ir para o dashboard
           </button>
           {!activeWorkspace ? <span className="meta">Sincronizando workspace...</span> : null}
-          {continueError ? <span className="form-error">{continueError}</span> : null}
+          {continueError ? <InlineMessage tone="error">{continueError}</InlineMessage> : null}
         </section>
       ) : null}
     </main>

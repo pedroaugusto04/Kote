@@ -4,7 +4,7 @@ import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'reac
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, fetchDashboard, login, logout, signup } from '../shared/api/client';
+import { ApiClientError, fetchDashboard, getErrorMessage, login, logout, signup } from '../shared/api/client';
 import { HomePage } from '../pages/home/HomePage';
 import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
@@ -13,6 +13,7 @@ import { ReviewsPage } from '../pages/reviews/ReviewsPage';
 import { SearchPage } from '../pages/search/SearchPage';
 import { SetupPage } from '../pages/setup/SetupPage';
 import { VaultPage } from '../pages/vault/VaultPage';
+import { InlineMessage } from '../shared/ui/primitives';
 import { Inspector } from './Inspector';
 
 function activeView(pathname: string): View {
@@ -230,7 +231,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
             Senha
             <input autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type="password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required />
           </label>
-          {mutation.isError ? <p className="form-error">Nao foi possivel autenticar com esses dados.</p> : null}
+          {mutation.isError ? <InlineMessage tone="error">{getErrorMessage(mutation.error, 'Nao foi possivel autenticar com esses dados.')}</InlineMessage> : null}
           <button className="icon-button auth-submit" type="submit" disabled={mutation.isPending}>
             {mode === 'login' ? 'Entrar' : 'Criar conta'}
           </button>

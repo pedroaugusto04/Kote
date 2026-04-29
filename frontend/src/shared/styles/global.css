@@ -111,6 +111,72 @@ p { color: var(--muted); line-height: 1.6; }
 .form-field input, .form-field textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #0b1319; color: var(--text); padding: 10px 12px; }
 .form-field textarea { min-height: 140px; resize: vertical; font-family: var(--mono); line-height: 1.5; }
 .form-error { margin-bottom: 0; color: #ffd1d1; }
+.inline-message {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: rgba(148, 163, 184, 0.05);
+  color: #e6edf2;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.inline-message.error {
+  border-color: rgba(255, 122, 122, 0.35);
+  background: rgba(255, 122, 122, 0.1);
+  color: #ffd7d7;
+}
+.inline-message.warning {
+  border-color: rgba(240, 185, 90, 0.34);
+  background: rgba(240, 185, 90, 0.1);
+  color: #ffe3ac;
+}
+.inline-message.success {
+  border-color: rgba(125, 211, 165, 0.3);
+  background: rgba(125, 211, 165, 0.1);
+  color: #d3fae4;
+}
+.inline-message.info {
+  border-color: rgba(83, 199, 222, 0.34);
+  background: rgba(83, 199, 222, 0.1);
+  color: #d8f7ff;
+}
+.kb-toast {
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: rgba(15, 23, 29, 0.96);
+  color: #edf6fb;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.34);
+}
+.kb-toast-title {
+  font-family: var(--ui);
+  font-size: 13px;
+  font-weight: 600;
+}
+.kb-toast-description {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.kb-toast-close {
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--muted);
+}
+.kb-toast-success {
+  border-color: rgba(125, 211, 165, 0.32);
+}
+.kb-toast-error {
+  border-color: rgba(255, 122, 122, 0.36);
+}
+.kb-toast-info {
+  border-color: rgba(83, 199, 222, 0.36);
+}
+.kb-toast-warning {
+  border-color: rgba(240, 185, 90, 0.36);
+}
 .filters { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; }
 .filter-chip, .icon-button { min-height: 34px; padding: 6px 10px; border-radius: 7px; }
 .icon-button { background: rgba(83, 199, 222, 0.12); border-color: rgba(83, 199, 222, 0.32); color: #e9fbff; }

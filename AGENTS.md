@@ -72,7 +72,6 @@ Keep dependency injection aligned with the current framework. This project uses 
 
 - Keep persistence behind repository interfaces/ports.
 - Schema or storage contract changes must update repositories, mappers, seed/setup logic when applicable, docs, and impacted tests.
-- If Prisma is introduced later, add append-only migrations and use Prisma as the persistence contract for that affected area. Do not retrofit Prisma across unrelated modules without explicit approval.
 - Never edit old applied migration files if migrations exist.
 
 ## Frontend Architecture

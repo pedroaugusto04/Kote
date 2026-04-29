@@ -191,7 +191,7 @@
             "parameters": [
               {
                 "name": "number",
-                "value": "={{ $env.WPP_KB_GROUP_JID }}"
+                "value": "={{ $json.externalId || $json.externalIdentity?.externalId || '' }}"
               },
               {
                 "name": "text",
@@ -227,7 +227,7 @@
             "parameters": [
               {
                 "name": "number",
-                "value": "={{ $env.WPP_KB_GROUP_JID }}"
+                "value": "={{ $json.externalId || $json.externalIdentity?.externalId || '' }}"
               },
               {
                 "name": "text",

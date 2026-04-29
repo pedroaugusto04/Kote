@@ -1,4 +1,4 @@
-import type { PropsWithChildren, ReactNode } from 'react';
+import type { HTMLAttributes, PropsWithChildren, ReactNode } from 'react';
 
 export function Badge({ value, tone }: { value: ReactNode; tone?: string }) {
   return <span className={`badge ${tone || String(value)}`}>{value}</span>;
@@ -34,4 +34,21 @@ export function PageHead({ title, subtitle, action }: { title: string; subtitle:
 
 export function EmptyState({ children }: PropsWithChildren) {
   return <div className="empty-state">{children}</div>;
+}
+
+export function InlineMessage({
+  children,
+  className = '',
+  role,
+  tone,
+  ...props
+}: PropsWithChildren<HTMLAttributes<HTMLDivElement> & { tone: 'error' | 'warning' | 'success' | 'info' }>) {
+  const resolvedRole = role || (tone === 'error' ? 'alert' : 'status');
+  const classes = ['inline-message', tone, className].filter(Boolean).join(' ');
+
+  return (
+    <div {...props} className={classes} role={resolvedRole}>
+      {children}
+    </div>
+  );
 }

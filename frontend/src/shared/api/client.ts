@@ -12,4 +12,5 @@ export {
 export { fetchNote } from './notes';
 export { runQuery } from './query';
 export { ApiClientError, type AuthUser } from './request';
+export { getErrorMessage } from './error-message';
 export { createWorkspace } from './workspaces';

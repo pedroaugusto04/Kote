@@ -6,12 +6,13 @@ import {
   fetchGithubRepositories,
   fetchIntegrations,
   fetchIntegrationSession,
+  getErrorMessage,
   revokeIntegration,
   saveGithubRepositories,
-  testIntegration,
 } from '../../shared/api/client';
 import type { GithubIntegrationRepository, IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
-import { Badge, EmptyState, Panel } from '../../shared/ui/primitives';
+import { notifySuccess } from '../../shared/ui/notifications';
+import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
 
 type DisplayStatus = UserIntegration['status'];
 
@@ -43,10 +44,6 @@ const integrationLogos: Record<string, { src: string; label: string }> = {
 
 function integrationId(integration: UserIntegration) {
   return integration.provider;
-}
-
-function isAiProvider(provider: string) {
-  return provider === 'ai-review' || provider === 'ai-conversation';
 }
 
 function openExternalIntegration(url: string) {
@@ -103,7 +100,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
         {connection.pairingUrl ? <a className="integration-link" href={connection.pairingUrl} rel="noreferrer" target="_blank"><span>Abrir pairing</span><code>{connection.pairingUrl}</code></a> : null}
         {currentSession ? <Badge value={statusLabel[currentSession.status] || currentSession.status} tone={statusTone[currentSession.status] || 'medium'} /> : null}
         {currentSession?.connectedAccount ? <p className="meta">Conectado em {currentSession.connectedAccount}</p> : null}
-        {currentSession?.lastError ? <p className="form-error">{currentSession.lastError}</p> : null}
+        {currentSession?.lastError ? <InlineMessage tone="error">{currentSession.lastError}</InlineMessage> : null}
       </section>
     </div>
   );
@@ -124,6 +121,7 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      notifySuccess('Repositorios salvos com sucesso.');
       onSaved?.();
       onClose();
     },
@@ -147,7 +145,8 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
         </div>
 
         {repositoriesQuery.isLoading ? <p className="meta">Carregando repositorios...</p> : null}
-        {repositoriesQuery.isError ? <p className="form-error">Nao foi possivel carregar os repositorios.</p> : null}
+        {repositoriesQuery.isError ? <InlineMessage tone="error">{getErrorMessage(repositoriesQuery.error, 'Nao foi possivel carregar os repositorios.')}</InlineMessage> : null}
+        {saveMutation.isError ? <InlineMessage tone="error">{getErrorMessage(saveMutation.error, 'Nao foi possivel salvar os repositorios selecionados.')}</InlineMessage> : null}
         <div className="repository-picker">
           {repositories.map((repository) => (
             <label className="repository-option" key={repository.fullName}>
@@ -182,7 +181,6 @@ function IntegrationCard({
   onGithubRepositories: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [testMessage, setTestMessage] = useState('');
   const connectMutation = useMutation({
     mutationFn: () => connectIntegration({ provider: integration.provider, workspaceSlug, returnToPath }),
     onSuccess: (result) => {
@@ -191,21 +189,24 @@ function IntegrationCard({
         return;
       }
       if (result.session) onCodeConnection(result);
+      if (!result.primaryAction?.url && !result.session) notifySuccess(`${integration.name} atualizado com sucesso.`);
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
     },
-    onError: () => setTestMessage('Nao foi possivel ativar esta integracao.'),
   });
   const revokeMutation = useMutation({
     mutationFn: () => revokeIntegration(integration.provider, workspaceSlug),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] }),
-  });
-  const testMutation = useMutation({
-    mutationFn: () => testIntegration(integration.provider, workspaceSlug),
-    onSuccess: (result) => setTestMessage(result.message),
-    onError: () => setTestMessage('Nao foi possivel testar a configuracao.'),
+    onSuccess: () => {
+      notifySuccess(`${integration.name} revogado com sucesso.`);
+      queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
+    },
   });
   const connected = integration.status === 'connected';
   const actionLabel = connected ? integration.primaryAction?.label || 'Revogar' : integration.primaryAction?.label || 'Conectar';
+  const actionError = connectMutation.isError
+    ? getErrorMessage(connectMutation.error, 'Nao foi possivel ativar esta integracao.')
+    : revokeMutation.isError
+      ? getErrorMessage(revokeMutation.error, 'Nao foi possivel revogar esta integracao.')
+      : '';
 
   return (
     <Panel className="integration-card">
@@ -218,13 +219,12 @@ function IntegrationCard({
       </div>
       <IntegrationSteps integration={integration} />
       {integration.connectedAccount ? <p className="meta">Conta: {integration.connectedAccount}</p> : null}
-      {integration.lastError ? <p className="form-error">{integration.lastError}</p> : null}
-      {testMessage ? <p className={testMessage.includes('pronta') ? 'meta' : 'form-error'}>{testMessage}</p> : null}
+      {integration.lastError ? <InlineMessage tone="error">{integration.lastError}</InlineMessage> : null}
+      {actionError ? <InlineMessage tone="error">{actionError}</InlineMessage> : null}
       <div className="integration-card-foot">
         <Badge value={statusLabel[integration.status] || integration.status} tone={statusTone[integration.status] || 'medium'} />
         <div className="integration-actions">
           {integration.provider === 'github-app' && connected ? <button className="filter-chip" type="button" onClick={onGithubRepositories}>Repositorios</button> : null}
-          {isAiProvider(integration.provider) ? <button className="filter-chip" disabled={testMutation.isPending} type="button" onClick={() => testMutation.mutate()}>Testar</button> : null}
           <button
             className={connected ? 'filter-chip' : 'icon-button'}
             disabled={connectMutation.isPending || revokeMutation.isPending}
@@ -241,9 +241,9 @@ function IntegrationCard({
 
 export function IntegrationCallbackNotice({ status }: { status: 'connected' | 'error' }) {
   return (
-    <div className={`setup-inline-banner ${status === 'connected' ? 'success' : 'error'}`} role="status">
+    <InlineMessage tone={status === 'connected' ? 'success' : 'error'}>
       {status === 'connected' ? 'GitHub conectado. Falta selecionar os repositorios do workspace.' : 'Nao foi possivel concluir a conexao com o GitHub.'}
-    </div>
+    </InlineMessage>
   );
 }
 
@@ -286,8 +286,8 @@ export function GuidedIntegrationsSection({
   }, [defaultOpenGithubRepositories, integrations]);
 
   if (!workspaceSlug) return <EmptyState>Crie um workspace para continuar.</EmptyState>;
-  if (integrationsQuery.isLoading) return <EmptyState>Carregando integracoes...</EmptyState>;
-  if (!integrationsQuery.data) return <EmptyState>Nao foi possivel carregar o status das integracoes.</EmptyState>;
+  if (integrationsQuery.isLoading) return <EmptyState>Carregando integrações...</EmptyState>;
+  if (!integrationsQuery.data) return <InlineMessage tone="error">{getErrorMessage(integrationsQuery.error, 'Nao foi possivel carregar o status das integrações.')}</InlineMessage>;
 
   return (
     <>

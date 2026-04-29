@@ -23,7 +23,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first() || {};\nconst json = item.json || {};\nconst body = json.body && typeof json.body === 'object' ? json.body : json;\nlet data = body.data || body;\nif (Array.isArray(data)) data = data[0];\nconst event = String(body.event || '').trim().toUpperCase().replace(/[.-]/g, '_');\nif (event && event !== 'MESSAGES_UPSERT') {\n  return [{ json: { skip: true, reason: `unsupported_event:${event}` } }];\n}\nconst key = data?.key || {};\nconst msgContent = data?.message || {};\nconst remoteJid = String(key.remoteJid || '').trim();\nif (!remoteJid.endsWith('@g.us')) return [{ json: { skip: true, reason: 'not_group' } }];\nconst allowedGroup = String($env.WPP_KB_GROUP_JID || '').trim();\nif (allowedGroup && remoteJid !== allowedGroup) return [{ json: { skip: true, reason: 'wrong_group' } }];\nconst innerMsg = msgContent.ephemeralMessage?.message || msgContent.viewOnceMessage?.message || msgContent;\nconst mediaTypes = [\n  { key: 'imageMessage', type: 'image' },\n  { key: 'documentMessage', type: 'document' },\n  { key: 'audioMessage', type: 'audio' },\n  { key: 'videoMessage', type: 'video' }\n];\nlet mediaType = '';\nlet mediaData = null;\nlet mediaFileName = '';\nlet mediaMimeType = '';\nfor (const mt of mediaTypes) {\n  if (innerMsg[mt.key]) {\n    mediaType = mt.type;\n    mediaData = innerMsg[mt.key];\n    mediaFileName = String(mediaData.fileName || mediaData.title || `attachment.${mt.type}`).trim();\n    mediaMimeType = String(mediaData.mimetype || '').trim();\n    break;\n  }\n}\nconst messageText = String((mediaData && mediaData.caption) || innerMsg.conversation || innerMsg.extendedTextMessage?.text || '').trim();\nif (!messageText && !mediaType) return [{ json: { skip: true, reason: 'empty' } }];\nreturn [{ json: {\n  skip: false,\n  message_text: messageText || (mediaType ? `[${mediaType}: ${mediaFileName}]` : ''),\n  sender_jid: String(key.participant || key.remoteJid || '').trim(),\n  group_jid: remoteJid,\n  message_id: String(key.id || '').trim(),\n  has_media: Boolean(mediaType),\n  media_type: mediaType,\n  media_file_name: mediaFileName,\n  media_mime_type: mediaMimeType,\n  media_file_size: Number(mediaData?.fileLength || 0),\n  raw_message: JSON.stringify(key),\n} }];"
+          "jsCode": "const item = $input.first() || {};\nconst json = item.json || {};\nconst body = json.body && typeof json.body === 'object' ? json.body : json;\nlet data = body.data || body;\nif (Array.isArray(data)) data = data[0];\nconst event = String(body.event || '').trim().toUpperCase().replace(/[.-]/g, '_');\nif (event && event !== 'MESSAGES_UPSERT') {\n  return [{ json: { skip: true, reason: `unsupported_event:${event}` } }];\n}\nconst key = data?.key || {};\nconst msgContent = data?.message || {};\nconst remoteJid = String(key.remoteJid || '').trim();\nif (!remoteJid.endsWith('@g.us')) return [{ json: { skip: true, reason: 'not_group' } }];\nconst innerMsg = msgContent.ephemeralMessage?.message || msgContent.viewOnceMessage?.message || msgContent;\nconst mediaTypes = [\n  { key: 'imageMessage', type: 'image' },\n  { key: 'documentMessage', type: 'document' },\n  { key: 'audioMessage', type: 'audio' },\n  { key: 'videoMessage', type: 'video' }\n];\nlet mediaType = '';\nlet mediaData = null;\nlet mediaFileName = '';\nlet mediaMimeType = '';\nfor (const mt of mediaTypes) {\n  if (innerMsg[mt.key]) {\n    mediaType = mt.type;\n    mediaData = innerMsg[mt.key];\n    mediaFileName = String(mediaData.fileName || mediaData.title || `attachment.${mt.type}`).trim();\n    mediaMimeType = String(mediaData.mimetype || '').trim();\n    break;\n  }\n}\nconst messageText = String((mediaData && mediaData.caption) || innerMsg.conversation || innerMsg.extendedTextMessage?.text || '').trim();\nif (!messageText && !mediaType) return [{ json: { skip: true, reason: 'empty' } }];\nreturn [{ json: {\n  skip: false,\n  message_text: messageText || (mediaType ? `[${mediaType}: ${mediaFileName}]` : ''),\n  sender_jid: String(key.participant || key.remoteJid || '').trim(),\n  group_jid: remoteJid,\n  message_id: String(key.id || '').trim(),\n  has_media: Boolean(mediaType),\n  media_type: mediaType,\n  media_file_name: mediaFileName,\n  media_mime_type: mediaMimeType,\n  media_file_size: Number(mediaData?.fileLength || 0),\n  raw_message: JSON.stringify(key),\n} }];"
         },
         "id": "kb-wpp-parse",
         "name": "Parse WhatsApp Event",
@@ -241,7 +241,7 @@
             "parameters": [
               {
                 "name": "number",
-                "value": "={{ $env.WPP_KB_GROUP_JID }}"
+                "value": "={{ $json.group_jid }}"
               },
               {
                 "name": "text",
@@ -330,7 +330,7 @@
             "parameters": [
               {
                 "name": "number",
-                "value": "={{ $env.WPP_KB_GROUP_JID }}"
+                "value": "={{ $json.group_jid }}"
               },
               {
                 "name": "text",

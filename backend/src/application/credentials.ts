@@ -131,7 +131,7 @@ function defaultSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.Whatsapp) return ['Inicie a conexao.', 'Envie o codigo no grupo do WhatsApp.'];
   if (provider === IntegrationProvider.Telegram) return ['Inicie a conexao.', 'Envie o codigo no chat do Telegram.'];
   if (provider === IntegrationProvider.GithubApp) return ['Instale ou autorize o GitHub App.', 'Selecione os repositorios depois da conexao.'];
-  return ['Ative o recurso.', 'Use testar para validar a configuracao gerenciada.'];
+  return ['Ative o recurso.', 'A configuracao gerenciada do servidor sera usada automaticamente.'];
 }
 
 function connectedSteps(provider: GuidedIntegrationProvider): string[] {

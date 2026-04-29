@@ -63,10 +63,6 @@ async function processConversationInPostgres(args: {
   credentials?: CredentialRepository;
 }) {
   const environment = readEnvironment();
-  if (environment.allowedGroupId && args.input.groupId !== environment.allowedGroupId) {
-    return { action: 'ignore', replyText: '', payload: null };
-  }
-
   const key = conversationKey(args.input);
   const saved = await args.conversationStates.get(args.userId, args.workspaceSlug, key);
   const parsedState = saved ? conversationStateSchema.safeParse(saved.state) : null;

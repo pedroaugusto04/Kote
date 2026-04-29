@@ -423,7 +423,7 @@ export class IntegrationConnectionService {
         label: 'Conectar WhatsApp',
       },
       verificationCode,
-      pairingUrl: environment.whatsappPairingUrl || environment.evolutionApiPublicUrl || '',
+      pairingUrl: environment.evolutionApiPublicUrl || '',
       instruction: `/kb conectar ${verificationCode}`,
       steps: ['Envie a mensagem no grupo do WhatsApp.', 'Mantenha esta janela aberta ate o grupo aparecer como conectado.'],
     };

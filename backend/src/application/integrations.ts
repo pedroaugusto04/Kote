@@ -62,16 +62,19 @@ export function buildIntegrationStatuses(input: {
     link('Query webhook', absoluteUrl(environment.publicBaseUrl, environment.queryWebhookPath), Boolean(environment.publicBaseUrl)),
   ];
 
-  const evolutionConfigured = Boolean(environment.evolutionApiUrl && environment.evolutionInstanceName && environment.evolutionApiKey);
+  const evolutionTransportConfigured = Boolean(
+    environment.evolutionApiUrl &&
+    environment.evolutionInstanceName &&
+    environment.evolutionApiKey &&
+    environment.evolutionApiPublicUrl,
+  );
   const whatsappEnv = {
-    KB_WPP_PAIRING_URL: Boolean(environment.whatsappPairingUrl),
     EVOLUTION_API_URL: Boolean(environment.evolutionApiUrl),
     EVOLUTION_INSTANCE_NAME: Boolean(environment.evolutionInstanceName),
     EVOLUTION_API_KEY: secretConfigured(environment.evolutionApiKey),
-    WPP_KB_GROUP_JID: Boolean(environment.allowedGroupId),
+    EVOLUTION_API_PUBLIC_URL: Boolean(environment.evolutionApiPublicUrl),
   };
-  const whatsappTransport = Boolean(environment.whatsappPairingUrl) || evolutionConfigured;
-  const whatsappGroup = Boolean(environment.allowedGroupId) || workspaceWhatsappGroup;
+  const whatsappGroup = workspaceWhatsappGroup;
 
   const telegramEnv = {
     KB_TELEGRAM_BOT_TOKEN: secretConfigured(environment.telegramBotToken),
@@ -137,23 +140,22 @@ export function buildIntegrationStatuses(input: {
       {
         id: IntegrationProvider.Whatsapp,
         name: 'WhatsApp',
-        description: 'Pairing ou Evolution API para captura e resposta no grupo autorizado.',
-        status: statusFromFlags([whatsappTransport, whatsappGroup]),
+        description: 'Transporte Evolution API global com grupo vinculado por workspace para capturar notas do usuario correto.',
+        status: statusFromFlags([evolutionTransportConfigured, whatsappGroup]),
         requiredEnv: Object.keys(whatsappEnv),
         configuredEnv: configuredEnv(whatsappEnv),
         missingEnv: missingEnv(whatsappEnv),
         links: [
-          environment.whatsappPairingUrl ? link('Abrir pairing', environment.whatsappPairingUrl) : null,
           environment.evolutionApiPublicUrl ? link('Evolution API', environment.evolutionApiPublicUrl) : null,
         ].filter(Boolean) as IntegrationLink[],
         checklist: [
-          'Conectar a conta pelo pairing ou configurar Evolution API.',
-          'Autorizar o grupo do workspace por JID.',
+          'Configurar a Evolution API global do servidor.',
+          'Conectar o grupo do workspace pelo fluxo guiado para persistir o JID.',
           'Configurar o webhook do provedor para o path de WhatsApp.',
         ],
         warnings: [
-          !whatsappTransport ? 'Sem pairing URL e sem Evolution API completa.' : '',
-          !whatsappGroup ? 'Nenhum grupo autorizado em WPP_KB_GROUP_JID ou no workspace.' : '',
+          !evolutionTransportConfigured ? 'Evolution API incompleta: faltam URL, instance name, API key ou public URL.' : '',
+          !whatsappGroup ? 'Nenhum grupo WhatsApp conectado para este workspace.' : '',
         ].filter(Boolean),
       },
       {

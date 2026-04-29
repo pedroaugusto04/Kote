@@ -16,7 +16,6 @@ export type RuntimeEnvironment = {
   githubAppClientSecret: string;
   githubAppId: string;
   githubAppPrivateKey: string;
-  allowedGroupId: string;
   publicBaseUrl: string;
   allowedOrigins: string[];
   trustProxy: boolean;
@@ -25,7 +24,6 @@ export type RuntimeEnvironment = {
   whatsappWebhookPath: string;
   queryWebhookPath: string;
   githubAppInstallUrl: string;
-  whatsappPairingUrl: string;
   telegramBotToken: string;
   telegramWebhookToken: string;
   telegramChatId: string;
@@ -61,7 +59,6 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     githubAppClientSecret: String(env.KB_GITHUB_APP_CLIENT_SECRET || '').trim(),
     githubAppId: String(env.KB_GITHUB_APP_ID || '').trim(),
     githubAppPrivateKey: String(env.KB_GITHUB_APP_PRIVATE_KEY || '').trim(),
-    allowedGroupId: String(env.WPP_KB_GROUP_JID || '').trim(),
     publicBaseUrl: String(env.KB_PUBLIC_BASE_URL || env.WEBHOOK_URL || '').trim().replace(/\/$/, ''),
     allowedOrigins: String(env.KB_ALLOWED_ORIGINS || '')
       .split(',')
@@ -73,7 +70,6 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     whatsappWebhookPath: String(env.KB_WPP_WEBHOOK_PATH || '/n8n/webhook/whatsapp-kb-event').trim(),
     queryWebhookPath: String(env.KB_QUERY_WEBHOOK_PATH || '/n8n/webhook/kb-query').trim(),
     githubAppInstallUrl: String(env.KB_GITHUB_APP_INSTALL_URL || '').trim(),
-    whatsappPairingUrl: String(env.KB_WPP_PAIRING_URL || '').trim(),
     telegramBotToken: String(env.KB_TELEGRAM_BOT_TOKEN || '').trim(),
     telegramWebhookToken: String(env.KB_TELEGRAM_WEBHOOK_TOKEN || env.KB_WEBHOOK_SECRET || '').trim(),
     telegramChatId: String(env.KB_TELEGRAM_CHAT_ID || '').trim(),

@@ -144,7 +144,7 @@ function mockFetch() {
             workspaceSlug: 'default',
             publicMetadata: {},
             primaryAction: { type: 'connect', label: 'Ativar' },
-            steps: ['Ative o recurso.', 'Use testar para validar.'],
+            steps: ['Ative o recurso.', 'A configuracao gerenciada do servidor sera usada automaticamente.'],
             lastError: null,
             connectedAccount: null,
             updatedAt: null,
@@ -158,7 +158,7 @@ function mockFetch() {
             workspaceSlug: 'default',
             publicMetadata: {},
             primaryAction: { type: 'connect', label: 'Ativar' },
-            steps: ['Ative o recurso.', 'Use testar para validar.'],
+            steps: ['Ative o recurso.', 'A configuracao gerenciada do servidor sera usada automaticamente.'],
             lastError: null,
             connectedAccount: null,
             updatedAt: null,
@@ -241,7 +241,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/settings/integrations' });
 
-    expect(await screen.findByRole('heading', { name: 'Integracoes' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Integrações' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'GitHub App' })).toBeInTheDocument();
     expect(screen.getByAltText('GitHub logo')).toBeInTheDocument();
     expect(screen.getByAltText('WhatsApp logo')).toBeInTheDocument();
@@ -333,7 +333,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/settings/integrations' });
 
-    expect(await screen.findByRole('heading', { name: 'Integracoes' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Integrações' })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Conectar GitHub' }));
 
     await waitFor(() => {
@@ -409,5 +409,50 @@ describe('AppShell', () => {
     await waitFor(() => {
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === '/api/dashboard')).toHaveLength(1);
     });
+  });
+
+  it('shows the backend auth error inline when login fails', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'missing_access_token',
+            message: 'Nao autenticado.',
+            details: {},
+          },
+          requestId: 'req-auth',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-auth' },
+        });
+      }
+      if (url === '/api/auth/login') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'invalid_credentials',
+            message: 'Email ou senha invalidos.',
+            details: {},
+          },
+          requestId: 'req-login',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-login' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<AppShell />);
+
+    expect((await screen.findAllByRole('button', { name: 'Entrar' })).length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(-1)!);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Email ou senha invalidos.');
   });
 });

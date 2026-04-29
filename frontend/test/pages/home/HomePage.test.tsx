@@ -173,7 +173,7 @@ describe('HomePage', () => {
       workspaces: [{ ...dashboard.workspaces[0], githubRepos: [] }],
     });
 
-    expect(screen.getByText('Finalize as integracoes do workspace')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Conectar integracoes' })).toHaveAttribute('href', '/settings/integrations');
+    expect(screen.getByText('Finalize as integrações do workspace')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Conectar integrações' })).toHaveAttribute('href', '/settings/integrations');
   });
 });

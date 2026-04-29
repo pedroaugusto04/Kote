@@ -20,7 +20,7 @@ export function IntegrationsPage({ workspaceSlug }: { workspaceSlug: string }) {
   return (
     <>
       <PageHead
-        title="Integracoes"
+        title="Integrações"
         subtitle={`Workspace ${workspaceSlug}: conecte provedores por fluxos guiados.`}
       />
       {callback.integration === 'github-app'

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiClientError, fetchDashboard } from '../../../src/shared/api/client';
+import { ApiClientError, fetchDashboard, getErrorMessage } from '../../../src/shared/api/client';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -46,5 +46,21 @@ describe('api client', () => {
       message: 'Request failed.',
       requestId: 'req-503',
     }));
+  });
+
+  it('prefers the backend message for ApiClientError instances', () => {
+    const error = new ApiClientError({
+      status: 409,
+      code: 'workspace_exists',
+      message: 'Workspace ja existe.',
+      requestId: 'req-409',
+    });
+
+    expect(getErrorMessage(error, 'Nao foi possivel concluir a operacao.')).toBe('Workspace ja existe.');
+  });
+
+  it('uses the fallback for unknown errors', () => {
+    expect(getErrorMessage(new Error('boom'), 'Nao foi possivel concluir a operacao.')).toBe('Nao foi possivel concluir a operacao.');
+    expect(getErrorMessage('boom', 'Nao foi possivel concluir a operacao.')).toBe('Nao foi possivel concluir a operacao.');
   });
 });
