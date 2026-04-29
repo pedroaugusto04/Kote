@@ -27,6 +27,18 @@ trim() {
   printf '%s\n' "$value"
 }
 
+normalize_secret_value() {
+  local value="$1"
+
+  # Allow PEM/OpenSSH keys to be stored in single-line env files using literal
+  # "\n" separators, but restore real newlines before uploading to GitHub.
+  if [[ "$value" == *"\\n"* && "$value" == *"-----BEGIN "* ]]; then
+    value="${value//\\n/$'\n'}"
+  fi
+
+  printf '%s' "$value"
+}
+
 validate_name() {
   local name="$1"
   local source_file="$2"
@@ -95,6 +107,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   key="${line%%=*}"
   value="${line#*=}"
   key="$(trim "$key")"
+  value="$(normalize_secret_value "$value")"
 
   validate_name "$key" "$SECRETS_FILE" "$line_number" "secret"
   gh secret set "$key" --env "$ENV_NAME" --body "$value"

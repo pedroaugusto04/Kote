@@ -70,6 +70,10 @@ jobs:
           test -n "${VPS_USER}" || { echo "Missing secret: VPS_USER"; exit 1; }
           test -n "${VPS_SSH_PORT}" || { echo "Missing secret: VPS_SSH_PORT"; exit 1; }
           test -n "${VPS_SSH_PRIVATE_KEY}" || { echo "Missing secret: VPS_SSH_PRIVATE_KEY"; exit 1; }
+          printf '%s\n' "${VPS_SSH_PRIVATE_KEY}" | grep -Eq '^-----BEGIN (OPENSSH|RSA|EC|DSA) PRIVATE KEY-----$' || {
+            echo "Invalid secret: VPS_SSH_PRIVATE_KEY must be a private key with real line breaks."
+            exit 1
+          }
           test -n "${VPS_APP_DIR}" || { echo "Missing variable: VPS_APP_DIR"; exit 1; }
           test -n "${KB_PUBLIC_BASE_URL}" || { echo "Missing variable: KB_PUBLIC_BASE_URL"; exit 1; }
           test -n "${KB_ALLOWED_ORIGINS}" || { echo "Missing variable: KB_ALLOWED_ORIGINS"; exit 1; }
