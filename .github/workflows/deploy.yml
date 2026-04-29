@@ -5,15 +5,15 @@ on:
     branches:
       - main
     paths:
-      - 'src/**'
-      - 'tests/**'
+      - 'backend/src/**'
+      - 'backend/tests/**'
       - 'frontend/**'
       - 'scripts/deploy/**'
-      - 'Dockerfile'
+      - 'backend/Dockerfile'
       - 'docker-compose.prod.yml'
       - 'package.json'
       - 'package-lock.json'
-      - 'tsconfig.json'
+      - 'backend/tsconfig.json'
       - '.dockerignore'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:
@@ -44,14 +44,14 @@ jobs:
         with:
           filters: |
             backend:
-              - 'src/**'
-              - 'tests/**'
+              - 'backend/src/**'
+              - 'backend/tests/**'
               - 'scripts/deploy/**'
-              - 'Dockerfile'
+              - 'backend/Dockerfile'
               - 'docker-compose.prod.yml'
               - 'package.json'
               - 'package-lock.json'
-              - 'tsconfig.json'
+              - 'backend/tsconfig.json'
               - '.dockerignore'
               - '.github/workflows/deploy.yml'
             frontend:

@@ -4,14 +4,14 @@
 
 ## Arquitetura
 
-- `src/domain`: regras puras, tipos, renderização de notas e mensagens
-- `src/application`: casos de uso (`ingest`, `github review`, `reminders`, `conversation`, `query`, `workspaces`) e ports
-- `src/infrastructure`: repositories/adapters concretos; a API HTTP usa Postgres como unica fonte de dados do produto
-- `src/interfaces/http`: controllers e DTOs NestJS
-- `src/adapters`: AI, GitHub, IO e ambiente compartilhados
+- `backend/src/domain`: regras puras, tipos, renderização de notas e mensagens
+- `backend/src/application`: casos de uso (`ingest`, `github review`, `reminders`, `conversation`, `query`, `workspaces`) e ports
+- `backend/src/infrastructure`: repositories/adapters concretos; a API HTTP usa Postgres como unica fonte de dados do produto
+- `backend/src/interfaces/http`: controllers e DTOs NestJS
+- `backend/src/adapters`: AI, GitHub, IO e ambiente compartilhados
 - `frontend/`: aplicação React + Vite que consome a API real
 - `workflows/`: adapters opcionais do n8n via HTTP
-- `tests/`: contratos, conversa, persistência, reminders, review e smoke dos adapters
+- `backend/tests/`: contratos, conversa, persistência, reminders, review e smoke dos adapters
 
 ## Capacidades novas
 
@@ -281,7 +281,7 @@ Portas publicadas por padrão:
 
 O workflow `.github/workflows/deploy.yml` separa o deploy por paths alterados:
 
-- mudanças em `src/**`, `tests/**`, `Dockerfile`, `docker-compose.prod.yml`, `scripts/deploy/**`, `package*.json`, `tsconfig.json` ou no workflow atualizam o backend
+- mudanças em `backend/src/**`, `backend/tests/**`, `backend/Dockerfile`, `docker-compose.prod.yml`, `scripts/deploy/**`, `package*.json`, `backend/tsconfig.json` ou no workflow atualizam o backend
 - mudanças em `frontend/**`, `package*.json` ou no workflow atualizam o frontend
 - `workflow_dispatch` força os dois caminhos
 

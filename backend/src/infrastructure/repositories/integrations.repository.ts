@@ -4,8 +4,8 @@ import { Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus } from '../../contracts/enums.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from '../../application/ports/integrations.repository.js';
-import { connectionSessionFromRow, credentialFromRow, identityFromRow } from './row.mappers.js';
-import { PostgresDatabase } from './database.js';
+import { connectionSessionFromRow, credentialFromRow, identityFromRow } from '../mappers/row.mappers.js';
+import { PostgresDatabase } from '../persistence/database.js';
 
 @Injectable()
 export class PostgresIntegrationRepository extends CredentialRepository implements ExternalIdentityRepository, IntegrationConnectionSessionRepository {

@@ -3,9 +3,9 @@ import { Injectable } from '@nestjs/common';
 import type { ReminderView } from '../../application/models/reminder.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
 import { ContentQueryRepository } from '../../application/ports/content.repository.js';
-import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from './content-query.mappers.js';
-import { noteFromRow } from './row.mappers.js';
-import { PostgresDatabase } from './database.js';
+import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';
+import { noteFromRow } from '../mappers/row.mappers.js';
+import { PostgresDatabase } from '../persistence/database.js';
 
 @Injectable()
 export class PostgresContentQueryRepository extends ContentQueryRepository {

@@ -24,7 +24,7 @@ import { CredentialRepository, ExternalIdentityRepository, IntegrationConnection
 import { WebhookEventRepository } from '../../application/ports/webhook-events.repository.js';
 import { sanitizeWebhookHeaders, sanitizeWebhookValue } from '../../application/utils/webhook.utils.js';
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/workflow-state.repository.js';
-import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from './content-query.mappers.js';
+import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';
 
 export type MemoryRepositoryState = {
   users: Map<string, KbUser>;

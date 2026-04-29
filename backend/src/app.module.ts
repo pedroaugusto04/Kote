@@ -16,9 +16,9 @@ import { ConversationStateRepository, ReminderDispatchRepository } from './appli
 import { PostgresUserRepository } from './infrastructure/repositories/auth.repository.js';
 import { PostgresContentQueryRepository } from './infrastructure/repositories/content-query.repository.js';
 import { PostgresContentRepository } from './infrastructure/repositories/content.repository.js';
-import { PostgresDatabase } from './infrastructure/repositories/database.js';
+import { PostgresDatabase } from './infrastructure/persistence/database.js';
 import { PostgresIntegrationRepository } from './infrastructure/repositories/integrations.repository.js';
-import { PostgresSchemaMigrator } from './infrastructure/repositories/schema.migrator.js';
+import { PostgresSchemaMigrator } from './infrastructure/persistence/schema.migrator.js';
 import { PostgresWebhookEventRepository } from './infrastructure/repositories/webhook-events.repository.js';
 import { PostgresWorkflowStateRepository } from './infrastructure/repositories/workflow-state.repository.js';
 import {

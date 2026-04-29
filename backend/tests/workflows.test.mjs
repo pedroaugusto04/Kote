@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.dirname(__dirname);
+const repoRoot = path.dirname(path.dirname(__dirname));
 
 test('workflow adapters use internal HTTP API and avoid embedded credentials', async () => {
   const workflowsDir = path.join(repoRoot, 'workflows');

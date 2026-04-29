@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/workflow-state.repository.js';
 import type { ReminderDispatchMode } from '../../contracts/enums.js';
-import { conversationStateFromRow } from './row.mappers.js';
-import { PostgresDatabase } from './database.js';
+import { conversationStateFromRow } from '../mappers/row.mappers.js';
+import { PostgresDatabase } from '../persistence/database.js';
 
 @Injectable()
 export class PostgresWorkflowStateRepository extends ConversationStateRepository implements ReminderDispatchRepository {

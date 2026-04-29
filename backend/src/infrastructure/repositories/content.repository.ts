@@ -3,8 +3,8 @@ import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 import { ContentRepository } from '../../application/ports/content.repository.js';
-import { attachmentFromRow, noteFromRow, projectFromRow, workspaceFromRow } from './row.mappers.js';
-import { PostgresDatabase } from './database.js';
+import { attachmentFromRow, noteFromRow, projectFromRow, workspaceFromRow } from '../mappers/row.mappers.js';
+import { PostgresDatabase } from '../persistence/database.js';
 
 @Injectable()
 export class PostgresContentRepository extends ContentRepository {

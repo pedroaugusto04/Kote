@@ -4,8 +4,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 FROM deps AS build
-COPY tsconfig.json ./
-COPY src ./src
+COPY backend/tsconfig.json ./backend/tsconfig.json
+COPY backend/src ./backend/src
 RUN npm run build:api
 
 FROM node:24-alpine AS runtime
@@ -13,7 +13,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
-COPY --from=build /app/dist ./dist
+COPY --from=build /app/backend/dist ./backend/dist
 RUN mkdir -p /app/dist/frontend
 EXPOSE 4310
-CMD ["node", "dist/main.js"]
+CMD ["node", "backend/dist/main.js"]
