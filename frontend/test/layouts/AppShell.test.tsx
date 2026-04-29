@@ -4,6 +4,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithAppProviders } from '../../src/app/test-utils';
 import { AppShell } from '../../src/layouts/AppShell';
 
+const notificationSpies = vi.hoisted(() => ({
+  notifySuccess: vi.fn(),
+  notifyError: vi.fn(),
+  notifyInfo: vi.fn(),
+  notifyWarning: vi.fn(),
+}));
+
+vi.mock('../../src/shared/ui/notifications', () => ({
+  NotificationsProvider: () => null,
+  ...notificationSpies,
+}));
+
 const dashboard = {
   workspaces: [{ workspaceSlug: 'default', displayName: 'Default', githubRepos: ['acme/repo'], projectSlugs: ['n8n-automations'] }],
   projects: [
@@ -211,6 +223,7 @@ function mockFetch() {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.clearAllMocks();
 });
 
 describe('AppShell', () => {
@@ -434,7 +447,7 @@ describe('AppShell', () => {
           error: {
             code: 'invalid_credentials',
             message: 'Email ou senha invalidos.',
-            details: {},
+            details: { fieldErrors: { email: 'Email ou senha invalidos.' } },
           },
           requestId: 'req-login',
         }, {
@@ -454,5 +467,85 @@ describe('AppShell', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(-1)!);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Email ou senha invalidos.');
+    await waitFor(() => expect(screen.getByLabelText('Email')).toHaveFocus());
+  });
+
+  it('shows frontend auth validation before submitting', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'missing_access_token',
+            message: 'Nao autenticado.',
+            details: {},
+          },
+          requestId: 'req-auth',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-auth' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<AppShell />);
+
+    expect((await screen.findAllByRole('button', { name: 'Entrar' })).length).toBeGreaterThan(0);
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'email-invalido' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(-1)!);
+
+    expect(await screen.findByText('Informe um email valido.')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText('Email')).toHaveFocus());
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === '/api/auth/login')).toHaveLength(0);
+  });
+
+  it('shows duplicate signup email as a field error', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'missing_access_token',
+            message: 'Nao autenticado.',
+            details: {},
+          },
+          requestId: 'req-auth',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-auth' },
+        });
+      }
+      if (url === '/api/auth/signup') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'email_already_registered',
+            message: 'Email ja cadastrado.',
+            details: { fieldErrors: { email: 'Este email ja esta cadastrado.' } },
+          },
+          requestId: 'req-signup',
+        }, {
+          status: 409,
+          headers: { 'x-request-id': 'req-signup' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<AppShell />);
+
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Criar conta' })).at(0)!);
+    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'User' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } });
+    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Criar conta' }).at(-1)!);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Este email ja esta cadastrado.');
+    await waitFor(() => expect(screen.getByLabelText('Email')).toHaveFocus());
   });
 });

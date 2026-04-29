@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
 import {
   connectIntegration,
@@ -11,6 +14,8 @@ import {
   saveGithubRepositories,
 } from '../../shared/api/client';
 import type { GithubIntegrationRepository, IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
+import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
+import { FormActions } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
 
@@ -65,6 +70,12 @@ function IntegrationSteps({ integration }: { integration: UserIntegration }) {
   );
 }
 
+const githubRepositoriesFormSchema = z.object({
+  repositories: z.array(z.string().regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'Use o formato owner/repositorio.')).max(100, 'Selecione no maximo 100 repositorios.'),
+});
+
+type GithubRepositoriesFormValues = z.infer<typeof githubRepositoriesFormSchema>;
+
 function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connection: IntegrationConnectionResponse; onClose: () => void; workspaceSlug: string }) {
   const queryClient = useQueryClient();
   const session = connection.session;
@@ -108,16 +119,28 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
 
 function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspaceSlug: string; onClose: () => void; onSaved?: () => void }) {
   const queryClient = useQueryClient();
+  const formRef = useRef<HTMLFormElement>(null);
   const repositoriesQuery = useQuery({ queryKey: ['github-repositories', workspaceSlug], queryFn: () => fetchGithubRepositories(workspaceSlug) });
-  const [selected, setSelected] = useState<string[]>([]);
+  const {
+    formState: { errors },
+    handleSubmit,
+    setError,
+    setValue,
+    watch,
+  } = useForm<GithubRepositoriesFormValues>({
+    resolver: zodResolver(githubRepositoriesFormSchema),
+    shouldFocusError: false,
+    defaultValues: { repositories: [] },
+  });
+  const selected = watch('repositories');
   const repositories = repositoriesQuery.data?.repositories || [];
 
   useEffect(() => {
-    if (repositoriesQuery.data) setSelected(repositoriesQuery.data.repositories.filter((repo) => repo.selected).map((repo) => repo.fullName));
-  }, [repositoriesQuery.data]);
+    if (repositoriesQuery.data) setValue('repositories', repositoriesQuery.data.repositories.filter((repo) => repo.selected).map((repo) => repo.fullName));
+  }, [repositoriesQuery.data, setValue]);
 
   const saveMutation = useMutation({
-    mutationFn: () => saveGithubRepositories(workspaceSlug, selected),
+    mutationFn: (values: GithubRepositoriesFormValues) => saveGithubRepositories(workspaceSlug, values.repositories),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -125,12 +148,20 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
       onSaved?.();
       onClose();
     },
+    onError: (error) => {
+      const fieldNames = applyBackendFieldErrors<GithubRepositoriesFormValues>(error, setError);
+      if (fieldNames.length > 0) {
+        window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
+        return;
+      }
+      notifyGeneralFormError(error, 'Nao foi possivel salvar os repositorios selecionados.');
+    },
   });
 
   const toggle = (repository: GithubIntegrationRepository) => {
-    setSelected((current) => current.includes(repository.fullName)
-      ? current.filter((item) => item !== repository.fullName)
-      : [...current, repository.fullName]);
+    setValue('repositories', selected.includes(repository.fullName)
+      ? selected.filter((item) => item !== repository.fullName)
+      : [...selected, repository.fullName], { shouldValidate: true });
   };
 
   return (
@@ -146,22 +177,32 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
 
         {repositoriesQuery.isLoading ? <p className="meta">Carregando repositorios...</p> : null}
         {repositoriesQuery.isError ? <InlineMessage tone="error">{getErrorMessage(repositoriesQuery.error, 'Nao foi possivel carregar os repositorios.')}</InlineMessage> : null}
-        {saveMutation.isError ? <InlineMessage tone="error">{getErrorMessage(saveMutation.error, 'Nao foi possivel salvar os repositorios selecionados.')}</InlineMessage> : null}
-        <div className="repository-picker">
-          {repositories.map((repository) => (
-            <label className="repository-option" key={repository.fullName}>
-              <input checked={selected.includes(repository.fullName)} type="checkbox" onChange={() => toggle(repository)} />
-              <span>
-                <strong>{repository.fullName}</strong>
-                <small>{repository.private ? 'Privado' : 'Publico'}</small>
-              </span>
-            </label>
-          ))}
-        </div>
-        <div className="integration-card-foot">
-          <span className="meta">{selected.length} selecionados</span>
-          <button className="icon-button" disabled={saveMutation.isPending} type="button" onClick={() => saveMutation.mutate()}>Salvar</button>
-        </div>
+        <form
+          className="auth-form"
+          ref={formRef}
+          noValidate
+          onSubmit={handleSubmit(
+            (values) => saveMutation.mutate(values),
+            (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
+          )}
+        >
+          <div className="repository-picker" data-field="repositories">
+            {repositories.map((repository) => (
+              <label className="repository-option" key={repository.fullName}>
+                <input checked={selected.includes(repository.fullName)} name="repositories" type="checkbox" value={repository.fullName} onChange={() => toggle(repository)} />
+                <span>
+                  <strong>{repository.fullName}</strong>
+                  <small>{repository.private ? 'Privado' : 'Publico'}</small>
+                </span>
+              </label>
+            ))}
+          </div>
+          {errors.repositories?.message ? <p className="form-error" role="alert">{errors.repositories.message}</p> : null}
+          <div className="integration-card-foot">
+            <span className="meta">{selected.length} selecionados</span>
+            <FormActions disabled={saveMutation.isPending} onCancel={onClose} submitLabel="Salvar" />
+          </div>
+        </form>
       </section>
     </div>
   );

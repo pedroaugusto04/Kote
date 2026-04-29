@@ -12,7 +12,9 @@ import {
   IntegrationConnectionSessionRepository,
 } from './application/ports/integrations.repository.js';
 import { WebhookEventRepository } from './application/ports/webhook-events.repository.js';
+import { WhatsappReplySender } from './application/ports/whatsapp-reply.sender.js';
 import { ConversationStateRepository, ReminderDispatchRepository } from './application/ports/workflow-state.repository.js';
+import { EvolutionWhatsappReplySender } from './adapters/evolution.js';
 import { PostgresUserRepository } from './infrastructure/repositories/auth.repository.js';
 import { PostgresContentQueryRepository } from './infrastructure/repositories/content-query.repository.js';
 import { PostgresContentRepository } from './infrastructure/repositories/content.repository.js';
@@ -24,6 +26,8 @@ import { PostgresWorkflowStateRepository } from './infrastructure/repositories/w
 import {
   BuildDashboardUseCase,
   BuildReminderDispatchUseCase,
+  CreateManualNoteUseCase,
+  CreateProjectUseCase,
   CreateWorkspaceUseCase,
   GetNoteDetailUseCase,
   HandleGithubPushUseCase,
@@ -34,13 +38,13 @@ import {
   ProcessConversationUseCase,
   QueryKnowledgeUseCase,
 } from './application/use-cases/index.js';
-import { AuthController, DashboardController, HealthController, InternalIntegrationsController, InternalN8NController, OperationsController, UserIntegrationsController, WebhookController, WorkspacesController } from './interfaces/http/controllers/index.js';
+import { AuthController, DashboardController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WorkspacesController } from './interfaces/http/controllers/index.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, InternalServiceTokenGuard, TrustedOriginGuard, WebhookRateLimitGuard } from './interfaces/http/auth.guards.js';
 import { GlobalExceptionFilter } from './observability/global-exception.filter.js';
 import { AppLogger } from './observability/logger.js';
 
 @Module({
-  controllers: [HealthController, DashboardController, WorkspacesController, AuthController, UserIntegrationsController, InternalIntegrationsController, OperationsController, InternalN8NController, WebhookController],
+  controllers: [HealthController, DashboardController, WorkspacesController, ProjectsController, NotesController, AuthController, UserIntegrationsController, InternalIntegrationsController, OperationsController, InternalN8NController, WebhookController],
   providers: [
     AuthService,
     AccessTokenAuthGuard,
@@ -53,6 +57,8 @@ import { AppLogger } from './observability/logger.js';
     GlobalExceptionFilter,
     BuildDashboardUseCase,
     CreateWorkspaceUseCase,
+    CreateProjectUseCase,
+    CreateManualNoteUseCase,
     IntegrationConnectionService,
     IntegrationCredentialService,
     GetNoteDetailUseCase,
@@ -64,6 +70,7 @@ import { AppLogger } from './observability/logger.js';
     HandleGithubPushUseCase,
     HandleWhatsappWebhookUseCase,
     HandleTelegramWebhookUseCase,
+    EvolutionWhatsappReplySender,
     PostgresDatabase,
     PostgresSchemaMigrator,
     PostgresUserRepository,
@@ -82,6 +89,7 @@ import { AppLogger } from './observability/logger.js';
     { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: WebhookEventRepository, useExisting: PostgresWebhookEventRepository },
+    { provide: WhatsappReplySender, useExisting: EvolutionWhatsappReplySender },
     { provide: APP_GUARD, useClass: GlobalRateLimitGuard },
   ],
 })

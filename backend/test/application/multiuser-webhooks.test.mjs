@@ -139,7 +139,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
   const ingest = new IngestEntryUseCase(repositories.contentRepository);
-  const handler = new HandleGithubPushUseCase(ingest, repositories.externalIdentityRepository, repositories.webhookEventRepository);
+  const handler = new HandleGithubPushUseCase(ingest, repositories.externalIdentityRepository, repositories.webhookEventRepository, repositories.contentRepository);
 
   await assert.rejects(() => handler.execute(signedGithubInput(githubBody(404))), /identity_not_found/);
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
@@ -158,4 +158,55 @@ test('github app webhook resolves user by installation id and rejects unknown id
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
   assert.equal(notes[0].sourceChannel, 'github-push');
+  assert.equal(notes[0].projectSlug, 'inbox');
+  assert.equal(notes[0].metadata.repoFullName, 'acme/api');
+  assert.equal(notes[0].metadata.headSha, '2222222');
+  assert.deepEqual(notes[0].metadata.changedFiles, ['src/app.ts']);
+  const projects = await repositories.contentRepository.listProjects(user.id);
+  assert.equal(projects.find((project) => project.projectSlug === 'inbox')?.repoFullName, '');
+});
+
+test('github push resolves project by explicit repoFullName mapping', async () => {
+  configureEnv();
+  const repositories = createMemoryRepositories();
+  const user = await repositories.userRepository.createUser({ email: 'mapped@example.com', displayName: 'Mapped', passwordHash: 'hash', role: 'user' });
+  await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappGroupJid: '',
+    telegramChatId: '',
+    githubRepos: ['acme/api'],
+    projectSlugs: ['inbox', 'platform'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
+  await repositories.contentRepository.upsertProject(user.id, {
+    projectSlug: 'platform',
+    displayName: 'Platform',
+    repoFullName: 'acme/api',
+    workspaceSlug: 'default',
+    aliases: [],
+    defaultTags: ['backend'],
+    enabled: true,
+  });
+  await repositories.externalIdentityRepository.upsertExternalIdentity({
+    userId: user.id,
+    workspaceSlug: 'default',
+    provider: 'github-app',
+    identityType: 'installation_id',
+    externalId: '42',
+    publicMetadata: {},
+  });
+  const ingest = new IngestEntryUseCase(repositories.contentRepository);
+  const handler = new HandleGithubPushUseCase(ingest, repositories.externalIdentityRepository, repositories.webhookEventRepository, repositories.contentRepository);
+
+  const result = await handler.execute(signedGithubInput(githubBody(42)));
+
+  assert.equal(result.payload.event.projectSlug, 'platform');
+  assert.equal(result.ingestResult.project, 'platform');
+  const notes = await repositories.contentRepository.listNotes(user.id);
+  assert.equal(notes[0].projectSlug, 'platform');
+  assert.equal(notes[0].metadata.repoFullName, 'acme/api');
+  assert.equal(notes[0].metadata.headSha, '2222222');
+  assert.deepEqual(notes[0].metadata.changedFiles, ['src/app.ts']);
 });

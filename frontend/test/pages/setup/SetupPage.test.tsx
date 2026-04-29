@@ -47,7 +47,7 @@ describe('SetupPage', () => {
           error: {
             code: 'workspace_exists',
             message: 'Workspace ja existe.',
-            details: {},
+            details: { fieldErrors: { workspaceSlug: 'Workspace ja existe.' } },
           },
           requestId: 'req-workspace',
         }, {
@@ -65,6 +65,35 @@ describe('SetupPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Criar workspace' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Workspace ja existe.');
+    await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveFocus());
+  });
+
+  it('emits an error toast when workspace creation fails without field errors', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/workspaces') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'workspace_unavailable',
+            message: 'Nao foi possivel criar agora.',
+            details: {},
+          },
+          requestId: 'req-workspace',
+        }, {
+          status: 503,
+          headers: { 'x-request-id': 'req-workspace' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    }));
+
+    renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText('Nome do workspace'), { target: { value: 'Acme Team' } });
+    await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveValue('acme-team'));
+    fireEvent.click(screen.getByRole('button', { name: 'Criar workspace' }));
+
+    await waitFor(() => expect(notificationSpies.notifyError).toHaveBeenCalledWith('Nao foi possivel criar agora.'));
   });
 
   it('emits a success toast after creating a workspace', async () => {

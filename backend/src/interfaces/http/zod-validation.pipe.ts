@@ -2,12 +2,19 @@ import { BadRequestException, Injectable, type PipeTransform } from '@nestjs/com
 import type { ZodError, ZodType } from 'zod';
 
 function validationDetails(error: ZodError): Record<string, unknown> {
+  const fieldErrors: Record<string, string> = {};
+  for (const issue of error.issues) {
+    const path = issue.path.join('.');
+    if (path && !fieldErrors[path]) fieldErrors[path] = issue.message;
+  }
+
   return {
     issues: error.issues.map((issue) => ({
       code: issue.code,
       path: issue.path.join('.'),
       message: issue.message,
     })),
+    fieldErrors,
   };
 }
 

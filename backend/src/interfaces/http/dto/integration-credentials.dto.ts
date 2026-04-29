@@ -2,12 +2,12 @@ import { z } from 'zod';
 
 import { ExternalIdentityProvider, IntegrationProvider as IntegrationProviderEnum } from '../../../contracts/enums.js';
 
-const requiredWorkspaceSlugSchema = z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9._-]+$/);
-const repoFullNameSchema = z.string().trim().min(1).max(200).regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/);
+const requiredWorkspaceSlugSchema = z.string().trim().min(1, 'Informe o workspace.').max(80, 'Use no maximo 80 caracteres.').regex(/^[a-zA-Z0-9._-]+$/, 'Use apenas letras, numeros, ponto, hifen ou underline.');
+const repoFullNameSchema = z.string().trim().min(1, 'Informe o repositorio.').max(200, 'Use no maximo 200 caracteres.').regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'Use o formato owner/repositorio.');
 const returnToPathSchema = z.string().trim().optional().transform((value, ctx) => {
   if (!value) return undefined;
   if (!value.startsWith('/') || value.startsWith('//')) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'return_to_path_must_be_relative', path: ['returnToPath'] });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use um caminho relativo de retorno.', path: ['returnToPath'] });
     return z.NEVER;
   }
   try {
@@ -15,7 +15,7 @@ const returnToPathSchema = z.string().trim().optional().transform((value, ctx) =
     if (parsed.origin !== 'https://knowledge-base.local') throw new Error('invalid_origin');
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'return_to_path_must_be_relative', path: ['returnToPath'] });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use um caminho relativo de retorno.', path: ['returnToPath'] });
     return z.NEVER;
   }
 });

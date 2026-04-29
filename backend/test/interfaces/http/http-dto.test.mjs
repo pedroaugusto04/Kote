@@ -5,6 +5,8 @@ import { conversationBodySchema } from '../../../dist/interfaces/http/dto/operat
 import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../../../dist/interfaces/http/dto/integration-credentials.dto.js';
 import { internalN8nIngestBodySchema } from '../../../dist/interfaces/http/dto/internal-n8n.dto.js';
 import { markRemindersBodySchema, queryRequestSchema } from '../../../dist/interfaces/http/dto/query.dto.js';
+import { createNoteBodySchema } from '../../../dist/interfaces/http/dto/note.dto.js';
+import { createProjectBodySchema } from '../../../dist/interfaces/http/dto/project.dto.js';
 import { createWorkspaceBodySchema } from '../../../dist/interfaces/http/dto/workspace.dto.js';
 
 test('query dto normalizes limit and slugs', () => {
@@ -37,6 +39,40 @@ test('create workspace dto normalizes slug from display name', () => {
 
   assert.equal(parsed.workspaceSlug, 'acme-team');
   assert.equal(parsed.displayName, 'Acme Team');
+});
+
+test('create project dto normalizes slug, aliases and default tags', () => {
+  const parsed = createProjectBodySchema.parse({
+    displayName: 'Acme API',
+    repoFullName: 'acme/api',
+    aliases: [' api ', 'api'],
+    defaultTags: [' Backend ', 'backend'],
+  });
+
+  assert.deepEqual(parsed, {
+    displayName: 'Acme API',
+    projectSlug: 'acme-api',
+    repoFullName: 'acme/api',
+    aliases: ['api'],
+    defaultTags: ['backend'],
+  });
+});
+
+test('create note dto normalizes project, tags and reminder fields', () => {
+  const parsed = createNoteBodySchema.parse({
+    projectSlug: 'Acme API',
+    title: 'Deploy',
+    rawText: 'revisar deploy',
+    tags: [' Deploy ', 'deploy'],
+    reminderDate: '29/04/2026',
+    reminderTime: '9:30',
+  });
+
+  assert.equal(parsed.projectSlug, 'acme-api');
+  assert.deepEqual(parsed.tags, ['deploy']);
+  assert.equal(parsed.reminderDate, '2026-04-29');
+  assert.equal(parsed.reminderTime, '09:30');
+  assert.throws(() => createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto', reminderTime: '09:00' }));
 });
 
 test('conversation dto accepts valid payloads', () => {

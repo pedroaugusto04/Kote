@@ -44,6 +44,9 @@ test('zod validation pipe throws bad request with stable code', () => {
             path: 'limit',
           },
         ],
+        fieldErrors: {
+          limit: 'Expected number, received nan',
+        },
       },
     });
     return true;

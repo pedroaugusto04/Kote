@@ -10,6 +10,8 @@ export {
   testIntegration,
 } from './integrations';
 export { fetchNote } from './notes';
+export { createNote } from './notes';
+export { createProject } from './projects';
 export { runQuery } from './query';
 export { ApiClientError, type AuthUser } from './request';
 export { getErrorMessage } from './error-message';

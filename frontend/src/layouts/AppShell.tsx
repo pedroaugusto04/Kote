@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FormEvent, useMemo, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { z } from 'zod';
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, fetchDashboard, getErrorMessage, login, logout, signup } from '../shared/api/client';
+import { ApiClientError, fetchDashboard, login, logout, signup } from '../shared/api/client';
 import { HomePage } from '../pages/home/HomePage';
 import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
@@ -13,7 +16,8 @@ import { ReviewsPage } from '../pages/reviews/ReviewsPage';
 import { SearchPage } from '../pages/search/SearchPage';
 import { SetupPage } from '../pages/setup/SetupPage';
 import { VaultPage } from '../pages/vault/VaultPage';
-import { InlineMessage } from '../shared/ui/primitives';
+import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../shared/forms/errors';
+import { FormField } from '../shared/forms/fields';
 import { Inspector } from './Inspector';
 
 function activeView(pathname: string): View {
@@ -185,18 +189,52 @@ export function AppShell() {
 
 function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
+  const schema = useMemo(() => z.object({
+    name: mode === 'signup' ? z.string().trim().min(1, 'Informe seu nome.') : z.string().optional(),
+    email: z.string().trim().email('Informe um email valido.'),
+    password: z.string().min(8, 'Use pelo menos 8 caracteres.'),
+  }), [mode]);
+  type AuthFormValues = z.infer<typeof schema>;
+  const {
+    clearErrors,
+    formState: { errors },
+    getValues,
+    handleSubmit,
+    register,
+    reset,
+    setError,
+  } = useForm<AuthFormValues>({
+    resolver: zodResolver(schema),
+    shouldFocusError: false,
+    defaultValues: { name: '', email: '', password: '' },
+  });
   const mutation = useMutation({
-    mutationFn: () => (mode === 'login' ? login({ email, password }) : signup({ name, email, password })),
+    mutationFn: (values: AuthFormValues) => (
+      mode === 'login'
+        ? login({ email: values.email, password: values.password })
+        : signup({ name: values.name || '', email: values.email, password: values.password })
+    ),
     onSuccess: onAuthenticated,
+    onError: (error) => {
+      const fieldNames = applyBackendFieldErrors<AuthFormValues>(error, setError);
+      if (fieldNames.length > 0) {
+        window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
+        return;
+      }
+      notifyGeneralFormError(error, 'Nao foi possivel autenticar com esses dados.');
+    },
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    mutation.mutate();
-  }
+  useEffect(() => {
+    mutation.reset();
+    clearErrors();
+    reset({ name: '', email: getValues('email'), password: getValues('password') });
+  }, [mode]);
+
+  const onInvalid = (invalidErrors: typeof errors) => {
+    window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors)));
+  };
 
   return (
     <main className="auth-layout">
@@ -216,22 +254,18 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
             Criar conta
           </button>
         </div>
-        <form className="auth-form" onSubmit={submit}>
+        <form className="auth-form" ref={formRef} noValidate onSubmit={handleSubmit((values) => mutation.mutate(values), onInvalid)}>
           {mode === 'signup' ? (
-            <label className="form-field">
-              Nome
-              <input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} required />
-            </label>
+            <FormField name="name" label="Nome" error={errors.name?.message}>
+              {(fieldProps) => <input autoComplete="name" {...fieldProps} {...register('name')} />}
+            </FormField>
           ) : null}
-          <label className="form-field">
-            Email
-            <input autoComplete="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-          </label>
-          <label className="form-field">
-            Senha
-            <input autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type="password" minLength={8} value={password} onChange={(event) => setPassword(event.target.value)} required />
-          </label>
-          {mutation.isError ? <InlineMessage tone="error">{getErrorMessage(mutation.error, 'Nao foi possivel autenticar com esses dados.')}</InlineMessage> : null}
+          <FormField name="email" label="Email" error={errors.email?.message}>
+            {(fieldProps) => <input autoComplete="email" type="email" {...fieldProps} {...register('email')} />}
+          </FormField>
+          <FormField name="password" label="Senha" error={errors.password?.message}>
+            {(fieldProps) => <input autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type="password" {...fieldProps} {...register('password')} />}
+          </FormField>
           <button className="icon-button auth-submit" type="submit" disabled={mutation.isPending}>
             {mode === 'login' ? 'Entrar' : 'Criar conta'}
           </button>

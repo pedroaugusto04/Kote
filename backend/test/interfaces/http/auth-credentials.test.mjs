@@ -103,6 +103,24 @@ test('signup creates a user and HttpOnly cookies', async () => {
   assert.deepEqual(response.cookies.map((cookie) => cookie.name), ['kb_access_token', 'kb_refresh_token']);
 });
 
+test('signup duplicate email returns a field error', async () => {
+  const { auth } = await fixture();
+  const controller = new AuthController(auth);
+
+  await assert.rejects(
+    () => controller.signup(
+      { name: 'Admin', email: 'admin@example.com', password: 'admin-password' },
+      { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+      responseMock(),
+    ),
+    (error) => {
+      assert.equal(error.getResponse().code, 'email_already_registered');
+      assert.deepEqual(error.getResponse().details.fieldErrors, { email: 'Este email ja esta cadastrado.' });
+      return true;
+    },
+  );
+});
+
 test('refresh issues a new access cookie and logout clears browser cookies', async () => {
   const { auth } = await fixture();
   const controller = new AuthController(auth);

@@ -1,6 +1,9 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { z } from 'zod';
 
 import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
@@ -8,6 +11,8 @@ import { GuidedIntegrationsSection, IntegrationCallbackNotice } from '../../feat
 import { createWorkspace, getErrorMessage } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
+import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
+import { FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 
@@ -25,12 +30,18 @@ function StepState({ complete, pendingLabel, doneLabel }: { complete: boolean; p
   return <span className={`setup-step-state ${complete ? 'done' : 'pending'}`}>{complete ? doneLabel : pendingLabel}</span>;
 }
 
+const workspaceFormSchema = z.object({
+  displayName: z.string().trim().min(1, 'Informe o nome do workspace.').max(120, 'Use no maximo 120 caracteres.'),
+  workspaceSlug: z.string().trim().min(1, 'Informe o slug do workspace.').max(80, 'Use no maximo 80 caracteres.').regex(/^[a-z0-9._-]+$/, 'Use apenas letras minusculas, numeros, ponto, hifen ou underline.'),
+});
+
+type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>;
+
 export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboard; refetchDashboard: () => Promise<unknown> }) {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
-  const [displayName, setDisplayName] = useState('');
-  const [workspaceSlug, setWorkspaceSlug] = useState('');
+  const formRef = useRef<HTMLFormElement>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [createdWorkspaceSlug, setCreatedWorkspaceSlug] = useState('');
   const [continueError, setContinueError] = useState('');
@@ -48,13 +59,27 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
     };
   }, [location.search]);
 
+  const {
+    formState: { errors },
+    handleSubmit,
+    register,
+    setError,
+    setValue,
+    watch,
+  } = useForm<WorkspaceFormValues>({
+    resolver: zodResolver(workspaceFormSchema),
+    shouldFocusError: false,
+    defaultValues: { displayName: '', workspaceSlug: '' },
+  });
+  const displayName = watch('displayName');
+
   useEffect(() => {
     if (slugTouched) return;
-    setWorkspaceSlug(slugify(displayName));
-  }, [displayName, slugTouched]);
+    setValue('workspaceSlug', slugify(displayName));
+  }, [displayName, setValue, slugTouched]);
 
   const createWorkspaceMutation = useMutation({
-    mutationFn: () => createWorkspace({ displayName, workspaceSlug }),
+    mutationFn: (values: WorkspaceFormValues) => createWorkspace(values),
     onSuccess: (result) => {
       setCreatedWorkspaceSlug(result.workspace.workspaceSlug);
       notifySuccess('Workspace criado com sucesso.');
@@ -67,6 +92,14 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
               : [result.initialProject, ...current.projects],
           }
         : current);
+    },
+    onError: (error) => {
+      const fieldNames = applyBackendFieldErrors<WorkspaceFormValues>(error, setError);
+      if (fieldNames.length > 0) {
+        window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
+        return;
+      }
+      notifyGeneralFormError(error, 'Nao foi possivel criar o workspace.');
     },
   });
 
@@ -134,27 +167,26 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
           ) : (
             <form
               className="auth-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                createWorkspaceMutation.mutate();
-              }}
+              ref={formRef}
+              noValidate
+              onSubmit={handleSubmit(
+                (values) => createWorkspaceMutation.mutate(values),
+                (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
+              )}
             >
-              <label className="form-field">
-                Nome do workspace
-                <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
-              </label>
-              <label className="form-field">
-                Slug do workspace
-                <input
-                  value={workspaceSlug}
-                  onChange={(event) => {
-                    setSlugTouched(true);
-                    setWorkspaceSlug(event.target.value);
-                  }}
-                  required
-                />
-              </label>
-              {createWorkspaceMutation.isError ? <InlineMessage tone="error">{getErrorMessage(createWorkspaceMutation.error, 'Nao foi possivel criar o workspace.')}</InlineMessage> : null}
+              <FormField name="displayName" label="Nome do workspace" error={errors.displayName?.message}>
+                {(fieldProps) => <input {...fieldProps} {...register('displayName')} />}
+              </FormField>
+              <FormField name="workspaceSlug" label="Slug do workspace" error={errors.workspaceSlug?.message}>
+                {(fieldProps) => (
+                  <input
+                    {...fieldProps}
+                    {...register('workspaceSlug', {
+                      onChange: () => setSlugTouched(true),
+                    })}
+                  />
+                )}
+              </FormField>
               <button className="icon-button auth-submit" disabled={createWorkspaceMutation.isPending} type="submit">
                 Criar workspace
               </button>

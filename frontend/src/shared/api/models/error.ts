@@ -1,4 +1,6 @@
-export type ApiErrorDetails = Record<string, unknown>;
+export type ApiErrorDetails = Record<string, unknown> & {
+  fieldErrors?: Record<string, string>;
+};
 
 export type ApiErrorPayload = {
   code: string;

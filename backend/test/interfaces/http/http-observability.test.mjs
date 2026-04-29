@@ -157,6 +157,9 @@ test('global exception filter preserves validation details', () => {
             path: 'limit',
           },
         ],
+        fieldErrors: {
+          limit: 'Expected number, received nan',
+        },
       },
     },
     requestId: 'req-validation',

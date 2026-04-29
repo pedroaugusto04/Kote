@@ -67,17 +67,6 @@ export function Inspector({
           </dl>
         </div>
       ) : null}
-      <div className="inspector-block">
-        <h2>Acoes rapidas</h2>
-        <div className="toolbar">
-          <button className="icon-button" type="button">
-            Abrir nota
-          </button>
-          <button className="filter-chip" type="button">
-            Buscar relacionados
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

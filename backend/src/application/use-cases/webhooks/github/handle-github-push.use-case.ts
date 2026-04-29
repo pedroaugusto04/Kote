@@ -5,6 +5,7 @@ import { verifyGithubSignature } from '../../../../adapters/github.js';
 import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import { buildTelegramCodeReviewMessage } from '../../../../domain/notifications.js';
 import { buildGithubReviewEvent } from '../../../github-review.js';
+import { ContentRepository } from '../../../ports/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
@@ -22,6 +23,7 @@ export class HandleGithubPushUseCase {
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
+    private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
   ) {}
 
@@ -97,7 +99,8 @@ export class HandleGithubPushUseCase {
         : null;
       const aiEnabled = Boolean(aiCredential && aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
       const payload = await buildGithubReviewEvent(input, aiEnabled ? environment : { ...environment, reviewAiProvider: AiProvider.None, reviewAiApiKey: '' });
-      const ingestResult = await this.ingestEntryUseCase.execute(payload, identity.userId, identity.workspaceSlug);
+      const resolvedPayload = await this.resolveProjectForPayload(payload, identity.userId, identity.workspaceSlug);
+      const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug);
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
         eventType: String(headers['x-github-event'] || 'push'),
@@ -109,9 +112,9 @@ export class HandleGithubPushUseCase {
       });
       return {
         ok: true,
-        payload,
+        payload: resolvedPayload,
         ingestResult,
-        telegramMessage: buildTelegramCodeReviewMessage(payload),
+        telegramMessage: buildTelegramCodeReviewMessage(resolvedPayload),
       };
     } catch (error) {
       await this.webhookEvents.recordWebhookEvent({
@@ -126,5 +129,27 @@ export class HandleGithubPushUseCase {
       });
       throw error;
     }
+  }
+
+  private async resolveProjectForPayload<T extends Awaited<ReturnType<typeof buildGithubReviewEvent>>>(payload: T, userId: string, workspaceSlug: string): Promise<T> {
+    if (!this.contentRepository) return payload;
+    const repoFullName = String(payload.metadata.repoFullName || '').trim().toLowerCase();
+    if (!repoFullName) return payload;
+    const projects = await this.contentRepository.listProjects(userId);
+    const project = projects.find(
+      (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.repoFullName.trim().toLowerCase() === repoFullName,
+    );
+    const projectSlug = project?.projectSlug || 'inbox';
+    return {
+      ...payload,
+      event: {
+        ...payload.event,
+        projectSlug,
+      },
+      classification: {
+        ...payload.classification,
+        tags: [...new Set(['code-review', projectSlug, ...payload.classification.tags.filter((tag) => tag !== payload.event.projectSlug)])],
+      },
+    };
   }
 }

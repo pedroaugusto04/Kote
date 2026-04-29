@@ -2,10 +2,13 @@ import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/co
 
 import { readEnvironment } from '../../../../adapters/environment.js';
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { conversationInputSchema } from '../../../../contracts/conversation.js';
 import { extractWhatsappConnectionCode, IntegrationConnectionService } from '../../../integration-connections.js';
 import { ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
-import { extractWhatsappExternalId, normalizeHeaders } from '../../../utils/webhook.utils.js';
+import { WhatsappReplySender } from '../../../ports/whatsapp-reply.sender.js';
+import { extractWhatsappExternalId, normalizeHeaders, parseWhatsappEvolutionMessage } from '../../../utils/webhook.utils.js';
+import { ProcessConversationUseCase } from '../../conversation/process-conversation.use-case.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import type { IngestPayload } from '../../../../contracts/ingest.js';
 
@@ -21,6 +24,8 @@ export class HandleWhatsappWebhookUseCase {
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
     private readonly connections?: IntegrationConnectionService,
+    private readonly processConversationUseCase?: ProcessConversationUseCase,
+    private readonly whatsappReplySender?: WhatsappReplySender,
   ) {}
 
   async execute(input: WhatsappWebhookRequest) {
@@ -43,6 +48,29 @@ export class HandleWhatsappWebhookUseCase {
         error: 'invalid_webhook_token',
       });
       throw new UnauthorizedException('invalid_webhook_token');
+    }
+    const parsedMessage = parseWhatsappEvolutionMessage(body);
+    if (Number(body.schemaVersion) !== 1 && parsedMessage.kind === 'ignored') {
+      await this.webhookEvents.recordWebhookEvent({
+        provider: IntegrationProvider.Whatsapp,
+        eventType: 'message',
+        status: WebhookEventStatus.Processed,
+        externalIdentity,
+        rawHeaders: headers,
+        rawPayload: body,
+      });
+      return { ok: true, processed: false, ignored: parsedMessage.reason };
+    }
+    if (Number(body.schemaVersion) !== 1 && parsedMessage.kind === 'message' && (!parsedMessage.isGroup || parsedMessage.fromMe)) {
+      await this.webhookEvents.recordWebhookEvent({
+        provider: IntegrationProvider.Whatsapp,
+        eventType: 'message',
+        status: WebhookEventStatus.Processed,
+        externalIdentity,
+        rawHeaders: headers,
+        rawPayload: body,
+      });
+      return { ok: true, processed: false, ignored: parsedMessage.fromMe ? 'from_me' : 'not_group' };
     }
     if (!externalId) {
       await this.webhookEvents.recordWebhookEvent({
@@ -94,6 +122,66 @@ export class HandleWhatsappWebhookUseCase {
     });
     try {
       if (Number(body.schemaVersion) !== 1) {
+        if (parsedMessage.kind === 'message' && this.processConversationUseCase) {
+          if (!parsedMessage.messageText && parsedMessage.hasMedia) {
+            const replyText = 'Recebi a midia, mas ainda nao baixo anexos nesta versao. Envie uma legenda ou texto para salvar como nota.';
+            const sendResult = this.whatsappReplySender
+              ? await this.whatsappReplySender.sendText({ groupJid: parsedMessage.groupId, text: replyText })
+              : { ok: false, error: 'whatsapp_reply_sender_not_configured' };
+            await this.webhookEvents.recordWebhookEvent({
+              provider: IntegrationProvider.Whatsapp,
+              eventType: 'message',
+              status: WebhookEventStatus.Processed,
+              resolvedUserId: identity.userId,
+              externalIdentity,
+              rawHeaders: headers,
+              rawPayload: body,
+            });
+            return {
+              ok: true,
+              processed: true,
+              action: 'reply',
+              replyText,
+              replySent: sendResult.ok,
+              replyError: sendResult.ok ? undefined : sendResult.error,
+            };
+          }
+
+          const conversationResult = await this.processConversationUseCase.execute(
+            conversationInputSchema.parse({
+              messageText: parsedMessage.messageText,
+              senderId: parsedMessage.senderId,
+              groupId: parsedMessage.groupId,
+              messageId: parsedMessage.messageId,
+              hasMedia: parsedMessage.hasMedia,
+              media: {},
+            }),
+            identity.userId,
+            identity.workspaceSlug,
+          );
+          const shouldReply = conversationResult.action === 'reply' || conversationResult.action === 'submit';
+          const sendResult = shouldReply && this.whatsappReplySender
+            ? await this.whatsappReplySender.sendText({ groupJid: parsedMessage.groupId, text: conversationResult.replyText })
+            : shouldReply
+              ? { ok: false, error: 'whatsapp_reply_sender_not_configured' }
+              : { ok: false, error: 'reply_not_needed' };
+          await this.webhookEvents.recordWebhookEvent({
+            provider: IntegrationProvider.Whatsapp,
+            eventType: 'message',
+            status: WebhookEventStatus.Processed,
+            resolvedUserId: identity.userId,
+            externalIdentity,
+            rawHeaders: headers,
+            rawPayload: body,
+          });
+          return {
+            ok: true,
+            processed: true,
+            conversationResult,
+            replySent: shouldReply ? sendResult.ok : false,
+            replyError: shouldReply && !sendResult.ok ? sendResult.error : undefined,
+          };
+        }
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.Whatsapp,
           eventType: 'message',

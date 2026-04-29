@@ -85,10 +85,11 @@ Recomendação para vender o produto:
 Fluxo operacional:
 
 - mensagem chega via WhatsApp
-- adapter baixa mídia se existir
-- API interna de conversa interpreta o texto com IA gerenciada quando `ai-conversation` está ativo no workspace
+- `POST /api/webhooks/whatsapp` valida o webhook, resolve o workspace pelo `jid` do grupo e processa a conversa livre diretamente no backend
+- o backend interpreta texto puro e legenda de mídia com IA gerenciada quando `ai-conversation` está ativo no workspace
 - o core pergunta só o que falta
-- ao confirmar, o core gera o payload canonico e persiste em Postgres
+- ao confirmar, o core gera o payload canonico, persiste em Postgres e responde ao grupo via Evolution API
+- mídia sem legenda ainda não é baixada nem salva nesta versão; o backend pede um texto/legenda
 
 ### Git push do usuário
 
@@ -107,7 +108,7 @@ Isso é melhor do que pedir token manual por repositório porque:
 - facilita controle de permissões
 - evita automação por repo isolado
 
-Depois da conexão, `/settings/integrations` lista os repositórios acessíveis pela instalação e salva a seleção em `workspace.githubRepos`, criando ou atualizando projetos com `repoFullName`.
+Depois da conexão, `/settings/integrations` lista os repositórios acessíveis pela instalação e salva a seleção em `workspace.githubRepos`. O vínculo entre push do GitHub e projeto é explícito: o usuário cria o projeto em `/projects` e informa `repoFullName`; pushes de repositórios sem projeto mapeado entram em `inbox`.
 
 ### Telegram e IA
 
@@ -188,6 +189,9 @@ Endpoints principais:
 - `POST /api/integrations/:provider/test`
 - `GET /api/integrations/github-app/repositories`
 - `POST /api/integrations/github-app/repositories`
+- `POST /api/projects`
+- `POST /api/notes`
+- `GET /api/notes/:id`
 - `DELETE /api/integrations/:provider`
 - `POST /api/internal/integrations/:provider/resolve`
 - `POST /api/internal/n8n/ingest`
@@ -315,7 +319,7 @@ Secrets do GitHub Environment usados no deploy:
 - acesso VPS: `VPS_HOST`, `VPS_USER`, `VPS_SSH_PORT`, `VPS_SSH_PRIVATE_KEY`
 - acesso Git privado na VPS: `VPS_GITHUB_REPO_TOKEN`
 - banco/auth/crypto: `KB_DATABASE_URL`, `KB_ADMIN_EMAIL`, `KB_ADMIN_PASSWORD`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_INTERNAL_SERVICE_TOKEN`, `KB_CREDENTIALS_ENCRYPTION_KEY`
-- credenciais opcionais: `KB_GITHUB_APP_*`, `EVOLUTION_API_KEY`, `KB_TELEGRAM_*`, `KB_REVIEW_AI_API_KEY`, `KB_CONVERSATION_AI_API_KEY`
+- credenciais opcionais: `KB_GITHUB_APP_*`, `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE_NAME`, `KB_TELEGRAM_*`, `KB_REVIEW_AI_API_KEY`, `KB_CONVERSATION_AI_API_KEY`
 
 Na VPS, prepare uma vez:
 
@@ -333,6 +337,7 @@ Endpoints HTTP principais:
 - `GET /api/health`
 - `GET /api/dashboard`
 - `POST /api/workspaces`
+- `POST /api/projects`
 - `GET /api/integrations?workspaceSlug=...`
 - `POST /api/integrations/:provider/connect`
 - `GET /api/integrations/github-app/callback`
@@ -341,6 +346,7 @@ Endpoints HTTP principais:
 - `GET /api/integrations/github-app/repositories`
 - `POST /api/integrations/github-app/repositories`
 - `GET /api/auth/me`
+- `POST /api/notes`
 - `GET /api/notes/:id`
 - `GET|POST /api/query`
 - `POST /api/ingest`
@@ -356,7 +362,9 @@ Endpoints HTTP principais:
 
 ## Workflows opcionais
 
-Os adapters em `knowledge-base/workflows/` fazem apenas:
+Os adapters em `knowledge-base/workflows/` são opcionais/legados para integrações externas. O fluxo principal de conversa livre no WhatsApp agora roda direto no backend em `POST /api/webhooks/whatsapp`; n8n não entra nesse caminho conversacional.
+
+Quando usados, os workflows fazem apenas:
 
 - receber webhook
 - transformar payload de borda

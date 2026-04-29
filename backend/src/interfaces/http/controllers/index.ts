@@ -1,6 +1,8 @@
 export { HealthController } from './health.controller.js';
 export { DashboardController } from './dashboard.controller.js';
 export { WorkspacesController } from './workspaces.controller.js';
+export { ProjectsController } from './projects.controller.js';
+export { NotesController } from './notes.controller.js';
 export { OperationsController } from './operations.controller.js';
 export { InternalN8NController } from './internal-n8n.controller.js';
 export { WebhookController } from './webhook.controller.js';

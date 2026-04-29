@@ -137,15 +137,19 @@ function buildBrowserRedirectUrl(baseUrl: string | undefined, path: string): URL
 }
 
 export function extractWhatsappConnectionCode(body: Record<string, unknown>): string {
-  const data = body.data as Record<string, unknown> | undefined;
-  const message = data?.message as Record<string, unknown> | undefined;
+  const data = body.data && typeof body.data === 'object' && !Array.isArray(body.data) ? body.data as Record<string, unknown> : undefined;
+  const payload = data || body;
+  const message = payload.message && typeof payload.message === 'object' && !Array.isArray(payload.message) ? payload.message as Record<string, unknown> : undefined;
+  const bodyMessageText = typeof body.message === 'string' || typeof body.message === 'number' ? String(body.message) : '';
+  const extendedText = message?.extendedTextMessage as Record<string, unknown> | undefined;
   const text = String(
     body.text ||
-      body.message ||
+      bodyMessageText ||
       body.body ||
-      data?.text ||
-      data?.body ||
+      payload.text ||
+      payload.body ||
       message?.conversation ||
+      extendedText?.text ||
       '',
   ).trim();
   const match = text.match(/^\/kb\s+conectar\s+([a-z0-9-]{4,20})$/i);

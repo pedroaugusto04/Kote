@@ -14,7 +14,12 @@ export class CreateWorkspaceUseCase {
 
   async execute(input: CreateWorkspaceInput, userId: string) {
     const existing = await this.contentRepository.listWorkspaces(userId);
-    if (existing.length > 0) throw new ConflictException('workspace_already_exists');
+    if (existing.length > 0) {
+      throw new ConflictException({
+        code: 'workspace_already_exists',
+        details: { fieldErrors: { workspaceSlug: 'Este usuario ja possui um workspace.' } },
+      });
+    }
 
     const now = new Date().toISOString();
     const workspaceSlug = slugify(input.workspaceSlug) || 'inbox';

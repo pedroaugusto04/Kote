@@ -23,7 +23,7 @@ function projectFromPayload(payload: IngestPayload, workspaceSlug: string): Proj
   return {
     projectSlug,
     displayName: projectSlug === 'inbox' ? 'Inbox' : projectSlug,
-    repoFullName: String(payload.metadata.repoFullName || ''),
+    repoFullName: projectSlug === 'inbox' ? '' : String(payload.metadata.repoFullName || ''),
     workspaceSlug,
     aliases: [],
     defaultTags: [],
@@ -33,22 +33,29 @@ function projectFromPayload(payload: IngestPayload, workspaceSlug: string): Proj
 
 async function saveIngestedNote(contentRepository: ContentRepository, userId: string, input: IngestPayload, workspaceSlugOverride = '') {
   const parsed = withDerivedReminderAt(input);
+  const workspaceSlug = slugify(workspaceSlugOverride || String(parsed.metadata.workspaceSlug || 'default')) || 'default';
+  const workspace = (await contentRepository.listWorkspaces(userId)).find((item) => item.workspaceSlug === workspaceSlug);
+  if (!workspace) throw new NotFoundException('workspace_not_found');
+  const existingProject = (await contentRepository.listProjects(userId)).find(
+    (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.projectSlug === parsed.event.projectSlug,
+  );
+  const project = existingProject || projectFromPayload(parsed, workspaceSlug);
   const payload = {
     ...parsed,
+    event: {
+      ...parsed.event,
+      projectSlug: project.projectSlug,
+    },
     classification: {
       ...parsed.classification,
       status: parsed.classification.status || KnowledgeStatus.Active,
-      tags: Array.from(new Set([parsed.event.projectSlug, ...parsed.classification.tags].map((tag) => slugify(tag)).filter(Boolean))),
+      tags: Array.from(new Set([project.projectSlug, ...project.defaultTags, ...parsed.classification.tags].map((tag) => slugify(tag)).filter(Boolean))),
     },
   };
-  const workspaceSlug = slugify(workspaceSlugOverride || String(payload.metadata.workspaceSlug || 'default')) || 'default';
-  const workspace = (await contentRepository.listWorkspaces(userId)).find((item) => item.workspaceSlug === workspaceSlug);
-  if (!workspace) throw new NotFoundException('workspace_not_found');
-  const project = projectFromPayload(payload, workspaceSlug);
   const paths = buildNotePaths(project, payload);
   const markdown = renderEventNote(project, payload, paths);
   const title = trimText(payload.content.title, payload.content.rawText);
-  await contentRepository.upsertProject(userId, project);
+  if (!existingProject) await contentRepository.upsertProject(userId, project);
   const note = await contentRepository.upsertNote(userId, {
     path: paths.eventRelativePath.replace(/\\/g, '/'),
     type: CanonicalType.Event,

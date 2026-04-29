@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DashboardController, HealthController, OperationsController, WorkspacesController } from '../../../dist/interfaces/http/controllers/index.js';
+import { DashboardController, HealthController, NotesController, OperationsController, ProjectsController, WorkspacesController } from '../../../dist/interfaces/http/controllers/index.js';
 
 test('health controller exposes service status', () => {
   const controller = new HealthController();
@@ -61,5 +61,24 @@ test('workspaces controller delegates workspace creation to the use case', async
   assert.deepEqual(
     await controller.create({ displayName: 'Acme Team', workspaceSlug: 'acme-team' }, user),
     { ok: true, workspace: { displayName: 'Acme Team', workspaceSlug: 'acme-team' }, userId: 'user-1' },
+  );
+});
+
+test('projects and notes controllers delegate create requests to use cases', async () => {
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  const projects = new ProjectsController({
+    execute: async (body, userId) => ({ ok: true, project: body, userId }),
+  });
+  const notes = new NotesController({
+    execute: async (body, userId) => ({ ok: true, noteId: 'note-1', body, userId }),
+  });
+
+  assert.deepEqual(
+    await projects.create({ displayName: 'Acme API', projectSlug: 'acme-api', repoFullName: 'acme/api', aliases: [], defaultTags: [] }, user),
+    { ok: true, project: { displayName: 'Acme API', projectSlug: 'acme-api', repoFullName: 'acme/api', aliases: [], defaultTags: [] }, userId: 'user-1' },
+  );
+  assert.deepEqual(
+    await notes.create({ projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
+    { ok: true, noteId: 'note-1', body: { projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },
   );
 });

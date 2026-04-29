@@ -128,7 +128,12 @@ export class AuthService implements OnModuleInit {
     if (password.length < 8) throw new UnauthorizedException('invalid_signup');
     if (!displayName) throw new UnauthorizedException('invalid_signup');
     const existing = await this.users.findUserByEmail(email);
-    if (existing) throw new ConflictException('email_already_registered');
+    if (existing) {
+      throw new ConflictException({
+        code: 'email_already_registered',
+        details: { fieldErrors: { email: 'Este email ja esta cadastrado.' } },
+      });
+    }
     const user = await this.users.createUser({
       email,
       displayName,
