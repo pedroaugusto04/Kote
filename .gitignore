@@ -25,6 +25,7 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .github/env/production.secrets.env
+.github/env/production.variables.env
 
 # Runtime files
 pids/
