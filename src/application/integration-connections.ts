@@ -15,6 +15,14 @@ const CONNECTION_TTL_MS = 10 * 60 * 1000;
 const PENDING_STATUS = 'pending';
 const CONNECTED_STATUS = 'connected';
 
+type ConnectionSessionMetadata = {
+  browserOrigin?: string;
+  returnToPath?: string;
+  connectedAccount?: string;
+  lastError?: string;
+  installationId?: string;
+};
+
 export type ConnectionSessionView = {
   id: string;
   provider: string;
@@ -60,8 +68,8 @@ function publicSession(session: IntegrationConnectionSessionRecord): ConnectionS
     workspaceSlug: session.workspaceSlug,
     expiresAt: session.expiresAt,
     consumedAt: session.consumedAt,
-    connectedAccount: typeof session.metadata.connectedAccount === 'string' ? session.metadata.connectedAccount : undefined,
-    lastError: typeof session.metadata.lastError === 'string' ? session.metadata.lastError : undefined,
+    connectedAccount: typeof (session.metadata as ConnectionSessionMetadata).connectedAccount === 'string' ? (session.metadata as ConnectionSessionMetadata).connectedAccount : undefined,
+    lastError: typeof (session.metadata as ConnectionSessionMetadata).lastError === 'string' ? (session.metadata as ConnectionSessionMetadata).lastError : undefined,
   };
 }
 
@@ -73,6 +81,32 @@ function appendQuery(url: string, query: Record<string, string>): string {
 
 function extractGithubInstallationId(value: unknown): string {
   return String(value || '').trim();
+}
+
+function normalizeWorkspaceSlug(value: string): string {
+  return slugify(value);
+}
+
+function normalizeReturnToPath(value: string | undefined, fallback: string): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return fallback;
+  try {
+    const parsed = new URL(value, 'https://knowledge-base.local');
+    if (parsed.origin !== 'https://knowledge-base.local') return fallback;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
+}
+
+function normalizeBrowserOrigin(value: string | undefined): string {
+  try {
+    if (!value) return '';
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    return parsed.origin;
+  } catch {
+    return '';
+  }
 }
 
 export function extractWhatsappConnectionCode(body: Record<string, unknown>): string {
@@ -113,12 +147,12 @@ export class IntegrationConnectionService {
     private readonly content: ContentRepository,
   ) {}
 
-  async connect(input: { userId: string; workspaceSlug?: string; provider: string }) {
-    const workspaceSlug = input.workspaceSlug || 'default';
-    if (input.provider === IntegrationProvider.GithubApp) return this.startGithubConnection(input.userId, workspaceSlug);
-    if (input.provider === IntegrationProvider.Whatsapp) return this.startWhatsappConnection(input.userId, workspaceSlug);
-    if (input.provider === IntegrationProvider.Telegram) return this.startTelegramConnection(input.userId, workspaceSlug);
-    if (input.provider === IntegrationProvider.AiReview || input.provider === IntegrationProvider.AiConversation) return this.activateAi(input.userId, workspaceSlug, input.provider);
+  async connect(input: { userId: string; workspaceSlug: string; provider: string; returnToPath?: string; browserOrigin?: string }) {
+    const workspace = await this.requireWorkspace(input.userId, input.workspaceSlug);
+    if (input.provider === IntegrationProvider.GithubApp) return this.startGithubConnection(input.userId, workspace.workspaceSlug, input.returnToPath, input.browserOrigin);
+    if (input.provider === IntegrationProvider.Whatsapp) return this.startWhatsappConnection(input.userId, workspace.workspaceSlug);
+    if (input.provider === IntegrationProvider.Telegram) return this.startTelegramConnection(input.userId, workspace.workspaceSlug);
+    if (input.provider === IntegrationProvider.AiReview || input.provider === IntegrationProvider.AiConversation) return this.activateAi(input.userId, workspace.workspaceSlug, input.provider);
     throw new NotFoundException('provider_not_found');
   }
 
@@ -161,10 +195,28 @@ export class IntegrationConnectionService {
         publicMetadata: { accountLogin },
       });
       const consumed = await this.sessions.consumeConnectionSession(session.id, CONNECTED_STATUS, { installationId, connectedAccount: accountLogin || installationId });
-      return { ok: true as const, provider: IntegrationProvider.GithubApp, session: publicSession(consumed || session), connectedAccount: accountLogin || installationId };
+      const finalSession = consumed || session;
+      return {
+        ok: true as const,
+        provider: IntegrationProvider.GithubApp,
+        session: publicSession(finalSession),
+        connectedAccount: accountLogin || installationId,
+        redirectUrl: this.buildGithubCallbackRedirect(finalSession, 'connected'),
+      };
     } catch (error) {
       await this.sessions.consumeConnectionSession(session.id, 'error', { lastError: error instanceof Error ? error.message : String(error) });
       throw error;
+    }
+  }
+
+  async completeGithubForBrowser(input: { userId: string; state: string; code: string; installationId: string }) {
+    const session = await this.sessions.findActiveConnectionSessionByState(IntegrationProvider.GithubApp, sha256(input.state), new Date().toISOString());
+    const redirectFromSession = session ? this.buildGithubCallbackRedirect(session, 'error') : this.fallbackGithubCallbackRedirect();
+    try {
+      const result = await this.completeGithub(input);
+      return { redirectUrl: result.redirectUrl };
+    } catch {
+      return { redirectUrl: redirectFromSession };
     }
   }
 
@@ -234,8 +286,9 @@ export class IntegrationConnectionService {
     return { ok: true as const, provider: IntegrationProvider.Telegram, resolvedUserId: session.userId, workspaceSlug: session.workspaceSlug, session: publicSession(consumed || session) };
   }
 
-  async listGithubRepositories(input: { userId: string; workspaceSlug?: string }) {
-    const workspaceSlug = input.workspaceSlug || 'default';
+  async listGithubRepositories(input: { userId: string; workspaceSlug: string }) {
+    const workspace = await this.requireWorkspace(input.userId, input.workspaceSlug);
+    const workspaceSlug = workspace.workspaceSlug;
     const credential = await this.credentials.findCredential(input.userId, workspaceSlug, IntegrationProvider.GithubApp);
     if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) throw new NotFoundException('credential_not_found');
     const config = decryptConfig(credential.encryptedConfig);
@@ -247,8 +300,7 @@ export class IntegrationConnectionService {
       privateKey: environment.githubAppPrivateKey,
       installationId,
     });
-    const workspace = (await this.content.listWorkspaces(input.userId)).find((item) => item.workspaceSlug === workspaceSlug);
-    const selected = new Set(workspace?.githubRepos || []);
+    const selected = new Set(workspace.githubRepos || []);
     return {
       ok: true as const,
       workspaceSlug,
@@ -259,13 +311,13 @@ export class IntegrationConnectionService {
     };
   }
 
-  async saveGithubRepositories(input: { userId: string; workspaceSlug?: string; repositories: string[] }) {
-    const workspaceSlug = input.workspaceSlug || 'default';
+  async saveGithubRepositories(input: { userId: string; workspaceSlug: string; repositories: string[] }) {
+    const existing = await this.requireWorkspace(input.userId, input.workspaceSlug);
+    const workspaceSlug = existing.workspaceSlug;
     const credential = await this.credentials.findCredential(input.userId, workspaceSlug, IntegrationProvider.GithubApp);
     if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) throw new NotFoundException('credential_not_found');
     const selectedRepos = Array.from(new Set(input.repositories.map((repo) => String(repo || '').trim()).filter(Boolean)));
     const now = new Date().toISOString();
-    const existing = (await this.content.listWorkspaces(input.userId)).find((workspace) => workspace.workspaceSlug === workspaceSlug);
     const projectSlugs = Array.from(new Set([...(existing?.projectSlugs || []), ...selectedRepos.map((repo) => slugify(repo.split('/').pop() || repo) || 'inbox')]));
     await this.content.upsertWorkspace(input.userId, {
       workspaceSlug,
@@ -292,7 +344,7 @@ export class IntegrationConnectionService {
     return { ok: true as const, workspaceSlug, repositories: selectedRepos, projects };
   }
 
-  private async startGithubConnection(userId: string, workspaceSlug: string) {
+  private async startGithubConnection(userId: string, workspaceSlug: string, returnToPath?: string, browserOrigin?: string) {
     const environment = readEnvironment();
     if (!environment.githubAppInstallUrl) throw new BadRequestException('github_app_install_url_not_configured');
     const state = randomState();
@@ -303,7 +355,10 @@ export class IntegrationConnectionService {
       stateHash: sha256(state),
       verificationCodeHash: '',
       status: PENDING_STATUS,
-      metadata: {},
+      metadata: {
+        browserOrigin: normalizeBrowserOrigin(browserOrigin),
+        returnToPath: normalizeReturnToPath(returnToPath, '/settings/integrations'),
+      },
       expiresAt: expiresAt(),
     });
     return {
@@ -438,33 +493,43 @@ export class IntegrationConnectionService {
 
   private async upsertWorkspaceWhatsappGroup(userId: string, workspaceSlug: string, groupJid: string) {
     const now = new Date().toISOString();
-    const existing = (await this.content.listWorkspaces(userId)).find((workspace) => workspace.workspaceSlug === workspaceSlug);
-    const workspace: WorkspaceRecord = existing || {
-      workspaceSlug,
-      displayName: workspaceSlug,
-      whatsappGroupJid: '',
-      telegramChatId: '',
-      githubRepos: [],
-      projectSlugs: [],
-      createdAt: now,
-      updatedAt: now,
-    };
+    const existing = await this.requireWorkspace(userId, workspaceSlug);
+    const workspace: WorkspaceRecord = existing;
     await this.content.upsertWorkspace(userId, { ...workspace, whatsappGroupJid: groupJid, updatedAt: now });
   }
 
   private async upsertWorkspaceTelegramChat(userId: string, workspaceSlug: string, chatId: string) {
     const now = new Date().toISOString();
-    const existing = (await this.content.listWorkspaces(userId)).find((workspace) => workspace.workspaceSlug === workspaceSlug);
-    const workspace: WorkspaceRecord = existing || {
-      workspaceSlug,
-      displayName: workspaceSlug,
-      whatsappGroupJid: '',
-      telegramChatId: '',
-      githubRepos: [],
-      projectSlugs: [],
-      createdAt: now,
-      updatedAt: now,
-    };
+    const workspace: WorkspaceRecord = await this.requireWorkspace(userId, workspaceSlug);
     await this.content.upsertWorkspace(userId, { ...workspace, telegramChatId: chatId, updatedAt: now });
+  }
+
+  private async requireWorkspace(userId: string, workspaceSlug: string) {
+    const normalized = normalizeWorkspaceSlug(workspaceSlug);
+    if (!normalized) throw new BadRequestException('workspace_slug_required');
+    const workspace = (await this.content.listWorkspaces(userId)).find((item) => item.workspaceSlug === normalized);
+    if (!workspace) throw new NotFoundException('workspace_not_found');
+    return workspace;
+  }
+
+  private buildGithubCallbackRedirect(session: IntegrationConnectionSessionRecord, status: 'connected' | 'error') {
+    const environment = readEnvironment();
+    const metadata = session.metadata as ConnectionSessionMetadata;
+    const origin = normalizeBrowserOrigin(metadata.browserOrigin) || environment.publicBaseUrl || '';
+    const returnToPath = normalizeReturnToPath(metadata.returnToPath, '/settings/integrations');
+    const base = origin ? new URL(returnToPath, origin) : new URL(returnToPath, 'https://knowledge-base.local');
+    base.searchParams.set('integration', IntegrationProvider.GithubApp);
+    base.searchParams.set('status', status);
+    base.searchParams.set('workspaceSlug', session.workspaceSlug);
+    return origin ? base.toString() : `${base.pathname}${base.search}${base.hash}`;
+  }
+
+  private fallbackGithubCallbackRedirect() {
+    const environment = readEnvironment();
+    const origin = environment.publicBaseUrl || '';
+    const base = origin ? new URL('/settings/integrations', origin) : new URL('/settings/integrations', 'https://knowledge-base.local');
+    base.searchParams.set('integration', IntegrationProvider.GithubApp);
+    base.searchParams.set('status', 'error');
+    return origin ? base.toString() : `${base.pathname}${base.search}`;
   }
 }

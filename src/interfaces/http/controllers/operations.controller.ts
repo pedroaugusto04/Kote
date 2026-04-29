@@ -6,19 +6,16 @@ import {
   IngestEntryUseCase,
   MarkReminderAsSentUseCase,
   ProcessConversationUseCase,
-  RunOnboardingUseCase,
 } from '../../../application/use-cases/index.js';
 import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
 import {
   conversationBodySchema,
   ingestBodySchema,
-  onboardingBodySchema,
   reminderDispatchQuerySchema,
   workspaceQuerySchema,
   type ConversationBody,
   type IngestBody,
-  type OnboardingBody,
   type ReminderDispatchQuery,
   type WorkspaceQuery,
 } from '../dto/operations.dto.js';
@@ -30,7 +27,6 @@ import { ZodValidationPipe } from '../zod-validation.pipe.js';
 export class OperationsController {
   constructor(
     private readonly ingestEntry: IngestEntryUseCase,
-    private readonly onboarding: RunOnboardingUseCase,
     private readonly conversation: ProcessConversationUseCase,
     private readonly reminderDispatch: BuildReminderDispatchUseCase,
     private readonly markReminders: MarkReminderAsSentUseCase,
@@ -40,12 +36,6 @@ export class OperationsController {
   @UseGuards(TrustedOriginGuard)
   ingest(@Body(new ZodValidationPipe(ingestBodySchema, 'invalid_ingest_payload')) body: IngestBody, @CurrentUser() user: AuthenticatedUser) {
     return this.ingestEntry.execute(body, user.id);
-  }
-
-  @Post('onboarding')
-  @UseGuards(TrustedOriginGuard)
-  runOnboarding(@Body(new ZodValidationPipe(onboardingBodySchema, 'invalid_onboarding_payload')) body: OnboardingBody, @CurrentUser() user: AuthenticatedUser) {
-    return this.onboarding.execute(body, user.id);
   }
 
   @Post('conversation')

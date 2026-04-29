@@ -6,6 +6,16 @@ import { IngestEntryUseCase, ProcessConversationUseCase } from '../dist/applicat
 
 async function createUseCase() {
   const repositories = createMemoryRepositories();
+  await repositories.contentRepository.upsertWorkspace('user-1', {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappGroupJid: '',
+    telegramChatId: '',
+    githubRepos: [],
+    projectSlugs: ['n8n-automations'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
   await repositories.contentRepository.upsertProject('user-1', {
     projectSlug: 'n8n-automations',
     displayName: 'N8N Automations',

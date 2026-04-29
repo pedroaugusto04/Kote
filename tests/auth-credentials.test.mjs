@@ -39,6 +39,19 @@ async function fixture() {
   const repositories = createMemoryRepositories();
   const auth = new AuthService(repositories.userRepository, repositories.schemaMigrator);
   await auth.onModuleInit();
+  const admin = await repositories.userRepository.findUserByEmail('admin@example.com');
+  if (admin) {
+    await repositories.contentRepository.upsertWorkspace(admin.id, {
+      workspaceSlug: 'default',
+      displayName: 'Default',
+      whatsappGroupJid: '',
+      telegramChatId: '',
+      githubRepos: [],
+      projectSlugs: ['inbox'],
+      createdAt: '2026-04-27T00:00:00.000Z',
+      updatedAt: '2026-04-27T00:00:00.000Z',
+    });
+  }
   return {
     repositories,
     auth,
@@ -208,6 +221,16 @@ test('guided connection rejects identity hijacking', async () => {
     secondRepositories.contentRepository,
   );
   const secondUser = await secondRepositories.userRepository.createUser({ email: 'user@example.com', passwordHash: firstLogin.user.id, role: 'user' });
+  await secondRepositories.contentRepository.upsertWorkspace(secondUser.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappGroupJid: '',
+    telegramChatId: '',
+    githubRepos: [],
+    projectSlugs: ['inbox'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
   const secondController = new UserIntegrationsController(secondAuth, secondCredentials, secondConnections);
   const secondToken = secondAuth.issueTokens(secondUser).accessToken;
   const secondCurrentUser = { id: secondUser.id, email: secondUser.email, displayName: secondUser.displayName, role: secondUser.role };

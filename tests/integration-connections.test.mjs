@@ -28,6 +28,16 @@ async function fixture() {
   configureEnv();
   const repositories = createMemoryRepositories();
   const user = await repositories.userRepository.createUser({ email: 'owner@example.com', displayName: 'Owner', passwordHash: 'hash', role: 'user' });
+  await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappGroupJid: '',
+    telegramChatId: '',
+    githubRepos: [],
+    projectSlugs: ['inbox'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
   const connections = new IntegrationConnectionService(
     repositories.credentialRepository,
     repositories.externalIdentityRepository,
@@ -253,6 +263,42 @@ test('github app repositories are listed by installation token and saved into wo
   assert.deepEqual(workspaces[0].githubRepos, ['acme/api']);
   const projects = await repositories.contentRepository.listProjects(user.id);
   assert.equal(projects.find((project) => project.projectSlug === 'api').repoFullName, 'acme/api');
+  globalThis.fetch = originalFetch;
+});
+
+test('guided integrations reject missing workspace and github callback keeps browser return path', async () => {
+  const { repositories, user, connections } = await fixture();
+  await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'product-team',
+    displayName: 'Product Team',
+    whatsappGroupJid: '',
+    telegramChatId: '',
+    githubRepos: [],
+    projectSlugs: ['inbox'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
+
+  await assert.rejects(
+    () => connections.connect({ userId: user.id, workspaceSlug: 'missing-team', provider: 'whatsapp' }),
+    /workspace_not_found/,
+  );
+
+  const setup = await connections.connect({
+    userId: user.id,
+    workspaceSlug: 'product-team',
+    provider: 'github-app',
+    returnToPath: '/setup',
+    browserOrigin: 'https://kb.example.com',
+  });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/login/oauth/access_token')) return Response.json({ access_token: 'oauth-token' });
+    return Response.json({ installations: [{ id: 55, account: { login: 'acme' } }] });
+  };
+
+  const result = await connections.completeGithub({ userId: user.id, state: stateFromRedirect(setup), code: 'code', installationId: '55' });
+  assert.equal(result.redirectUrl, 'https://kb.example.com/setup?integration=github-app&status=connected&workspaceSlug=product-team');
   globalThis.fetch = originalFetch;
 });
 

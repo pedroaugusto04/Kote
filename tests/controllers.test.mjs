@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DashboardController, HealthController, OperationsController } from '../dist/interfaces/http/controllers/index.js';
+import { DashboardController, HealthController, OperationsController, WorkspacesController } from '../dist/interfaces/http/controllers/index.js';
 
 test('health controller exposes service status', () => {
   const controller = new HealthController();
@@ -36,7 +36,6 @@ test('operations controller normalizes reminder dispatch and mark-sent inputs', 
   const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
   const controller = new OperationsController(
     { execute: async (body, userId) => ({ op: 'ingest', body, userId }) },
-    { execute: async (body, userId) => ({ op: 'onboarding', body, userId }) },
     { execute: async (body, userId) => ({ op: 'conversation', body, userId }) },
     { execute: async (mode, userId, workspaceSlug) => { calls.push(['dispatch', mode, userId, workspaceSlug]); return { mode }; } },
     { execute: async (ids, userId, workspaceSlug) => { calls.push(['mark', ids, userId, workspaceSlug]); return { ids }; } },
@@ -51,4 +50,16 @@ test('operations controller normalizes reminder dispatch and mark-sent inputs', 
     ['dispatch', 'daily', 'user-1', 'default'],
     ['mark', ['one'], 'user-1', 'default'],
   ]);
+});
+
+test('workspaces controller delegates workspace creation to the use case', async () => {
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  const controller = new WorkspacesController({
+    execute: async (body, userId) => ({ ok: true, workspace: body, userId }),
+  });
+
+  assert.deepEqual(
+    await controller.create({ displayName: 'Acme Team', workspaceSlug: 'acme-team' }, user),
+    { ok: true, workspace: { displayName: 'Acme Team', workspaceSlug: 'acme-team' }, userId: 'user-1' },
+  );
 });

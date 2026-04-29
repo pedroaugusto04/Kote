@@ -25,7 +25,7 @@ export function Inspector({
         <h2>Workspace</h2>
         <dl>
           <dt>Nome</dt>
-          <dd>{dashboard.workspaces[0]?.displayName || 'Default Workspace'}</dd>
+          <dd>{dashboard.workspaces[0]?.displayName || 'Workspace atual'}</dd>
           <dt>Canais</dt>
           <dd>{dashboard.workspaces[0]?.githubRepos.join(', ') || 'local'}</dd>
         </dl>

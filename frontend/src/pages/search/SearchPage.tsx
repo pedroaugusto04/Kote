@@ -23,7 +23,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ex: riscos do ultimo push no n8n" type="search" />
         <div className="filters">
           <select>
-            <option>{dashboard.workspaces[0]?.workspaceSlug || 'default'}</option>
+            <option>{dashboard.workspaces[0]?.workspaceSlug || 'workspace-atual'}</option>
           </select>
           <select value={projectSlug} onChange={(event) => setProjectSlug(event.target.value)}>
             <option value="">Todos os projetos</option>

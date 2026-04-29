@@ -1,4 +1,5 @@
 export const routes = {
+  setup: '/setup',
   home: '/',
   projects: '/projects',
   project: (projectSlug: string) => `/projects/${encodeURIComponent(projectSlug)}`,

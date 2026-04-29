@@ -1,4 +1,5 @@
 export type { Dashboard } from './models/dashboard';
+export type { ApiErrorDetails, ApiErrorEnvelope, ApiErrorPayload } from './models/error';
 export type {
   DashboardHomeSummary,
   HomeActivityPoint,

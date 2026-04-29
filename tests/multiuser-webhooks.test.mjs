@@ -94,6 +94,16 @@ test('new users start with an empty scoped dashboard and cannot see another user
   );
   const userA = await repositories.userRepository.createUser({ email: 'a@example.com', displayName: 'A', passwordHash: 'hash', role: 'user' });
   const userB = await repositories.userRepository.createUser({ email: 'b@example.com', displayName: 'B', passwordHash: 'hash', role: 'user' });
+  await repositories.contentRepository.upsertWorkspace(userA.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappGroupJid: '',
+    telegramChatId: '',
+    githubRepos: [],
+    projectSlugs: ['inbox'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
 
   const emptyDashboard = await dashboard.execute(userB.id);
   assert.deepEqual(emptyDashboard.workspaces, []);
@@ -118,6 +128,16 @@ test('github app webhook resolves user by installation id and rejects unknown id
   configureEnv();
   const repositories = createMemoryRepositories();
   const user = await repositories.userRepository.createUser({ email: 'owner@example.com', displayName: 'Owner', passwordHash: 'hash', role: 'user' });
+  await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappGroupJid: '',
+    telegramChatId: '',
+    githubRepos: [],
+    projectSlugs: ['inbox'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
   const ingest = new IngestEntryUseCase(repositories.contentRepository);
   const handler = new HandleGithubPushUseCase(ingest, repositories.externalIdentityRepository, repositories.webhookEventRepository);
 

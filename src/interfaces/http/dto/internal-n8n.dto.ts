@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { conversationInputSchema } from '../../../contracts/conversation.js';
 import { ExternalIdentityProvider, ReminderDispatchMode } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
-import { onboardingInputSchema } from '../../../contracts/onboarding.js';
 import { queryInputSchema } from '../../../contracts/query.js';
 import { markRemindersBodySchema } from './query.dto.js';
 
@@ -50,7 +49,6 @@ function internalPayloadBodySchema<T extends z.ZodTypeAny>(payloadSchema: T) {
 }
 
 export const internalN8nIngestBodySchema = internalPayloadBodySchema(ingestPayloadSchema);
-export const internalN8nOnboardingBodySchema = internalPayloadBodySchema(onboardingInputSchema);
 export const internalN8nQueryBodySchema = internalPayloadBodySchema(queryInputSchema);
 export const internalN8nConversationBodySchema = internalPayloadBodySchema(conversationInputSchema);
 export const internalN8nMarkSentBodySchema = internalPayloadBodySchema(markRemindersBodySchema);
@@ -68,7 +66,6 @@ export const internalReminderDispatchQuerySchema = z.object({
 
 export type ExternalIdentityLookup = z.infer<typeof externalIdentityLookupSchema>;
 export type InternalN8nIngestBody = z.infer<typeof internalN8nIngestBodySchema>;
-export type InternalN8nOnboardingBody = z.infer<typeof internalN8nOnboardingBodySchema>;
 export type InternalN8nQueryBody = z.infer<typeof internalN8nQueryBodySchema>;
 export type InternalN8nConversationBody = z.infer<typeof internalN8nConversationBodySchema>;
 export type InternalN8nMarkSentBody = z.infer<typeof internalN8nMarkSentBodySchema>;

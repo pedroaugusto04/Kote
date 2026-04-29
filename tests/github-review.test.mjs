@@ -62,7 +62,6 @@ test('github push is converted to canonical code review event', async () => {
       githubPushWebhookPath: '/n8n/webhook/kb-github-push',
       ingestWebhookPath: '/n8n/webhook/kb-event',
       whatsappWebhookPath: '/n8n/webhook/whatsapp-kb-event',
-      onboardingWebhookPath: '/n8n/webhook/kb-onboarding',
       queryWebhookPath: '/n8n/webhook/kb-query',
       githubAppInstallUrl: 'https://github.com/apps/example/installations/new',
       whatsappPairingUrl: 'https://example.com/connect-whatsapp',

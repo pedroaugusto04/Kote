@@ -34,7 +34,18 @@ test('zod validation pipe throws bad request with stable code', () => {
 
   assert.throws(() => pipe.transform({ limit: 'abc' }), (error) => {
     assert.ok(error instanceof BadRequestException);
-    assert.equal(error.message, 'invalid_query_payload');
+    assert.deepEqual(error.getResponse(), {
+      code: 'invalid_query_payload',
+      details: {
+        issues: [
+          {
+            code: 'invalid_type',
+            message: 'Expected number, received nan',
+            path: 'limit',
+          },
+        ],
+      },
+    });
     return true;
   });
 });

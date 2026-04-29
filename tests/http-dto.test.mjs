@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { conversationBodySchema } from '../dist/interfaces/http/dto/operations.dto.js';
 import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../dist/interfaces/http/dto/integration-credentials.dto.js';
 import { internalN8nIngestBodySchema } from '../dist/interfaces/http/dto/internal-n8n.dto.js';
-import { onboardingBodySchema } from '../dist/interfaces/http/dto/operations.dto.js';
 import { markRemindersBodySchema, queryRequestSchema } from '../dist/interfaces/http/dto/query.dto.js';
+import { createWorkspaceBodySchema } from '../dist/interfaces/http/dto/workspace.dto.js';
 
 test('query dto normalizes limit and slugs', () => {
   const parsed = queryRequestSchema.parse({
@@ -30,15 +30,13 @@ test('mark-sent dto requires ids array', () => {
   assert.deepEqual(markRemindersBodySchema.parse({ ids: ['one', ' two '] }), { ids: ['one', 'two'] });
 });
 
-test('onboarding dto accepts valid payloads', () => {
-  const parsed = onboardingBodySchema.parse({
-    workspaceSlug: 'Acme Team',
+test('create workspace dto normalizes slug from display name', () => {
+  const parsed = createWorkspaceBodySchema.parse({
     displayName: 'Acme Team',
-    projects: [{ projectSlug: 'N8N Automations', displayName: 'N8N Automations' }],
   });
 
   assert.equal(parsed.workspaceSlug, 'acme-team');
-  assert.equal(parsed.projects[0].projectSlug, 'n8n-automations');
+  assert.equal(parsed.displayName, 'Acme Team');
 });
 
 test('conversation dto accepts valid payloads', () => {
@@ -75,11 +73,12 @@ test('integration dto rejects invalid provider and invalid resolve payload', () 
 });
 
 test('integration dto accepts guided connection payloads', () => {
-  assert.deepEqual(connectIntegrationBodySchema.parse({}), { workspaceSlug: 'default' });
-  assert.deepEqual(connectIntegrationBodySchema.parse({ workspaceSlug: 'team_1' }), { workspaceSlug: 'team_1' });
+  assert.throws(() => connectIntegrationBodySchema.parse({}));
+  assert.deepEqual(connectIntegrationBodySchema.parse({ workspaceSlug: 'team_1', returnToPath: '/setup' }), { workspaceSlug: 'team_1', returnToPath: '/setup' });
+  assert.throws(() => connectIntegrationBodySchema.parse({ workspaceSlug: 'team_1', returnToPath: 'https://evil.example.com' }));
   assert.equal(guidedIntegrationProviderSchema.parse('telegram'), 'telegram');
   assert.equal(guidedIntegrationProviderSchema.parse('ai-review'), 'ai-review');
   assert.equal(githubAppCallbackQuerySchema.parse({ state: 'state', code: 'code', installation_id: 123 }).installation_id, '123');
   assert.equal(sessionParamSchema.parse({ provider: 'whatsapp', sessionId: '00000000-0000-4000-8000-000000000000' }).provider, 'whatsapp');
-  assert.deepEqual(githubRepositoriesBodySchema.parse({ repositories: ['acme/api', 'acme/api'] }), { workspaceSlug: 'default', repositories: ['acme/api'] });
+  assert.deepEqual(githubRepositoriesBodySchema.parse({ workspaceSlug: 'team_1', repositories: ['acme/api', 'acme/api'] }), { workspaceSlug: 'team_1', repositories: ['acme/api'] });
 });

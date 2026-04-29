@@ -23,7 +23,6 @@ export type RuntimeEnvironment = {
   githubPushWebhookPath: string;
   ingestWebhookPath: string;
   whatsappWebhookPath: string;
-  onboardingWebhookPath: string;
   queryWebhookPath: string;
   githubAppInstallUrl: string;
   whatsappPairingUrl: string;
@@ -72,7 +71,6 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     githubPushWebhookPath: String(env.KB_GITHUB_WEBHOOK_PATH || '/n8n/webhook/kb-github-push').trim(),
     ingestWebhookPath: String(env.KB_INGEST_WEBHOOK_PATH || '/n8n/webhook/kb-event').trim(),
     whatsappWebhookPath: String(env.KB_WPP_WEBHOOK_PATH || '/n8n/webhook/whatsapp-kb-event').trim(),
-    onboardingWebhookPath: String(env.KB_ONBOARDING_WEBHOOK_PATH || '/n8n/webhook/kb-onboarding').trim(),
     queryWebhookPath: String(env.KB_QUERY_WEBHOOK_PATH || '/n8n/webhook/kb-query').trim(),
     githubAppInstallUrl: String(env.KB_GITHUB_APP_INSTALL_URL || '').trim(),
     whatsappPairingUrl: String(env.KB_WPP_PAIRING_URL || '').trim(),

@@ -1,8 +1,20 @@
 import type { Dashboard, DashboardPayload } from './models/dashboard';
+import { ApiClientError, isApiErrorEnvelope } from './models/error';
 import type { GithubRepositoriesResponse, IntegrationConnectionResponse, IntegrationConnectionSession, IntegrationsResponse, IntegrationTestResponse } from './models/integration';
 import type { NoteDetail } from './models/note';
 import type { QueryResponse } from './models/query';
+import type { CreateWorkspaceResponse } from './models/workspace';
 import { normalizeDashboard } from './normalizers/dashboard';
+
+async function readJson(response: Response): Promise<unknown> {
+  const text = await response.text();
+  if (!text) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(path, {
@@ -10,11 +22,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     credentials: 'include',
     headers: { accept: 'application/json', ...(init.headers || {}) },
   });
+  const payload = await readJson(response);
   if (!response.ok) {
-    throw new Error(`request_failed:${response.status}`);
+    const requestId = response.headers.get('x-request-id') || (isApiErrorEnvelope(payload) ? payload.requestId : '');
+    const code = isApiErrorEnvelope(payload) ? payload.error.code : 'request_failed';
+    const message = isApiErrorEnvelope(payload) ? payload.error.message : 'Request failed.';
+    const details = isApiErrorEnvelope(payload) ? payload.error.details : {};
+    throw new ApiClientError({ status: response.status, code, message, requestId, details });
   }
-  return (await response.json()) as T;
+  return payload as T;
 }
+
+export { ApiClientError };
 
 export type AuthUser = {
   id: string;
@@ -47,15 +66,24 @@ export function fetchDashboard(): Promise<Dashboard> {
   return request<DashboardPayload>('/api/dashboard').then(normalizeDashboard);
 }
 
-export function fetchIntegrations(): Promise<IntegrationsResponse> {
-  return request<IntegrationsResponse>('/api/integrations');
+export function createWorkspace(params: { displayName: string; workspaceSlug?: string }) {
+  return request<CreateWorkspaceResponse>('/api/workspaces', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(params),
+  });
 }
 
-export function connectIntegration(params: { provider: string; workspaceSlug: string }): Promise<IntegrationConnectionResponse> {
+export function fetchIntegrations(workspaceSlug: string): Promise<IntegrationsResponse> {
+  const search = new URLSearchParams({ workspaceSlug });
+  return request<IntegrationsResponse>(`/api/integrations?${search.toString()}`);
+}
+
+export function connectIntegration(params: { provider: string; workspaceSlug: string; returnToPath?: string }): Promise<IntegrationConnectionResponse> {
   return request<IntegrationConnectionResponse>(`/api/integrations/${encodeURIComponent(params.provider)}/connect`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ workspaceSlug: params.workspaceSlug }),
+    body: JSON.stringify({ workspaceSlug: params.workspaceSlug, returnToPath: params.returnToPath }),
   });
 }
 

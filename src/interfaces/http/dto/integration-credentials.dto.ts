@@ -2,8 +2,23 @@ import { z } from 'zod';
 
 import { ExternalIdentityProvider, IntegrationProvider as IntegrationProviderEnum } from '../../../contracts/enums.js';
 
-const workspaceSlugSchema = z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9._-]+$/).default('default');
+const requiredWorkspaceSlugSchema = z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9._-]+$/);
 const repoFullNameSchema = z.string().trim().min(1).max(200).regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/);
+const returnToPathSchema = z.string().trim().optional().transform((value, ctx) => {
+  if (!value) return undefined;
+  if (!value.startsWith('/') || value.startsWith('//')) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'return_to_path_must_be_relative', path: ['returnToPath'] });
+    return z.NEVER;
+  }
+  try {
+    const parsed = new URL(value, 'https://knowledge-base.local');
+    if (parsed.origin !== 'https://knowledge-base.local') throw new Error('invalid_origin');
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'return_to_path_must_be_relative', path: ['returnToPath'] });
+    return z.NEVER;
+  }
+});
 
 const externalIdentitySchema = z.object({
   provider: z.nativeEnum(ExternalIdentityProvider),
@@ -35,7 +50,7 @@ export const aiProviderParamSchema = z.object({
 
 export const resolveIntegrationCredentialBodySchema = z
   .object({
-    workspaceSlug: workspaceSlugSchema.optional(),
+    workspaceSlug: requiredWorkspaceSlugSchema.optional(),
     userId: z.string().uuid().optional(),
     externalIdentity: externalIdentitySchema.optional(),
   })
@@ -47,19 +62,15 @@ export const resolveIntegrationCredentialBodySchema = z
   }));
 
 export const workspaceQuerySchema = z.object({
-  workspaceSlug: workspaceSlugSchema.optional(),
-}).transform((query) => ({
-  workspaceSlug: query.workspaceSlug || 'default',
-}));
+  workspaceSlug: requiredWorkspaceSlugSchema,
+});
 
 export const connectIntegrationBodySchema = z
   .object({
-    workspaceSlug: workspaceSlugSchema.optional(),
+    workspaceSlug: requiredWorkspaceSlugSchema,
+    returnToPath: returnToPathSchema,
   })
-  .strict()
-  .transform((body) => ({
-    workspaceSlug: body.workspaceSlug || 'default',
-  }));
+  .strict();
 
 export const githubAppCallbackQuerySchema = z.object({
   state: z.string().trim().min(1).max(300),
@@ -74,12 +85,12 @@ export const sessionParamSchema = z.object({
 
 export const githubRepositoriesBodySchema = z
   .object({
-    workspaceSlug: workspaceSlugSchema.optional(),
+    workspaceSlug: requiredWorkspaceSlugSchema,
     repositories: z.array(repoFullNameSchema).max(100),
   })
   .strict()
   .transform((body) => ({
-    workspaceSlug: body.workspaceSlug || 'default',
+    workspaceSlug: body.workspaceSlug,
     repositories: Array.from(new Set(body.repositories)),
   }));
 

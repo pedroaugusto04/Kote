@@ -24,6 +24,7 @@ import { PostgresWorkflowStateRepository } from './infrastructure/repositories/w
 import {
   BuildDashboardUseCase,
   BuildReminderDispatchUseCase,
+  CreateWorkspaceUseCase,
   GetNoteDetailUseCase,
   HandleGithubPushUseCase,
   HandleTelegramWebhookUseCase,
@@ -32,13 +33,14 @@ import {
   MarkReminderAsSentUseCase,
   ProcessConversationUseCase,
   QueryKnowledgeUseCase,
-  RunOnboardingUseCase,
 } from './application/use-cases/index.js';
-import { AuthController, DashboardController, HealthController, InternalIntegrationsController, InternalN8nController, OperationsController, UserIntegrationsController, WebhookController } from './interfaces/http/controllers/index.js';
+import { AuthController, DashboardController, HealthController, InternalIntegrationsController, InternalN8NController, OperationsController, UserIntegrationsController, WebhookController, WorkspacesController } from './interfaces/http/controllers/index.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, InternalServiceTokenGuard, TrustedOriginGuard, WebhookRateLimitGuard } from './interfaces/http/auth.guards.js';
+import { GlobalExceptionFilter } from './observability/global-exception.filter.js';
+import { AppLogger } from './observability/logger.js';
 
 @Module({
-  controllers: [HealthController, DashboardController, AuthController, UserIntegrationsController, InternalIntegrationsController, OperationsController, InternalN8nController, WebhookController],
+  controllers: [HealthController, DashboardController, WorkspacesController, AuthController, UserIntegrationsController, InternalIntegrationsController, OperationsController, InternalN8NController, WebhookController],
   providers: [
     AuthService,
     AccessTokenAuthGuard,
@@ -47,13 +49,15 @@ import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, Interna
     TrustedOriginGuard,
     InternalServiceTokenGuard,
     WebhookRateLimitGuard,
+    AppLogger,
+    GlobalExceptionFilter,
     BuildDashboardUseCase,
+    CreateWorkspaceUseCase,
     IntegrationConnectionService,
     IntegrationCredentialService,
     GetNoteDetailUseCase,
     QueryKnowledgeUseCase,
     IngestEntryUseCase,
-    RunOnboardingUseCase,
     ProcessConversationUseCase,
     BuildReminderDispatchUseCase,
     MarkReminderAsSentUseCase,

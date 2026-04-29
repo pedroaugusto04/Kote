@@ -1,16 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FormEvent, useMemo, useState } from 'react';
-import { NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { fetchDashboard, login, logout, signup } from '../shared/api/client';
+import { ApiClientError, fetchDashboard, login, logout, signup } from '../shared/api/client';
 import { HomePage } from '../pages/home/HomePage';
 import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
 import { RemindersPage } from '../pages/reminders/RemindersPage';
 import { ReviewsPage } from '../pages/reviews/ReviewsPage';
 import { SearchPage } from '../pages/search/SearchPage';
+import { SetupPage } from '../pages/setup/SetupPage';
 import { VaultPage } from '../pages/vault/VaultPage';
 import { Inspector } from './Inspector';
 
@@ -36,7 +37,7 @@ export function AppShell() {
   const dashboard = dashboardQuery.data;
   const navigate = useNavigate();
   const location = useLocation();
-  const [selectedProject, setSelectedProjectState] = useState('n8n-automations');
+  const [selectedProject, setSelectedProjectState] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState('');
   const [selectedReviewId, setSelectedReviewId] = useState('');
 
@@ -44,6 +45,8 @@ export function AppShell() {
   const routeProject = routeParam(location.pathname, '/projects/');
   const routeNoteId = routeParam(location.pathname, '/vault/');
   const routeReviewId = routeParam(location.pathname, '/reviews/');
+  const activeWorkspace = dashboard?.workspaces[0] || null;
+  const isSetupRoute = location.pathname.startsWith(routes.setup);
 
   const pageContext = useMemo<PageContext | null>(() => {
     if (!dashboard) return null;
@@ -72,11 +75,13 @@ export function AppShell() {
     };
   }, [dashboard, navigate, routeNoteId, routeProject, routeReviewId, selectedNoteId, selectedProject, selectedReviewId]);
 
-  if (dashboardQuery.error instanceof Error && dashboardQuery.error.message === 'request_failed:401') {
+  if (dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401) {
     return <AuthScreen onAuthenticated={() => dashboardQuery.refetch()} />;
   }
 
   if (!dashboard || !pageContext) return <div className="boot-state">Carregando Knowledge Vault...</div>;
+  if (isSetupRoute) return <SetupPage dashboard={dashboard} refetchDashboard={() => dashboardQuery.refetch()} />;
+  if (!activeWorkspace) return <Navigate replace to={routes.setup} />;
 
   return (
     <div className="app-shell">
@@ -99,7 +104,7 @@ export function AppShell() {
           <div className="section-label">Workspace</div>
           <button className="workspace-pill" type="button">
             <span className="status-dot" />
-            {dashboard.workspaces[0]?.workspaceSlug || 'default'}
+            {activeWorkspace.workspaceSlug}
           </button>
         </section>
         <section className="sidebar-section">
@@ -152,7 +157,7 @@ export function AppShell() {
             <Route path="/reviews/:reviewId" element={<ReviewsPage {...pageContext} />} />
             <Route path="/search" element={<SearchPage {...pageContext} />} />
             <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
-            <Route path="/settings/integrations" element={<IntegrationsPage />} />
+            <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
             <Route path="*" element={<HomePage {...pageContext} />} />
           </Routes>
         </section>

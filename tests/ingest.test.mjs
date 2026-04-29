@@ -57,6 +57,16 @@ function payload() {
 
 test('ingest persists event note, reminder note, attachment and workspace in repository', async () => {
   const repositories = createMemoryRepositories();
+  await repositories.contentRepository.upsertWorkspace('user-1', {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappGroupJid: '',
+    telegramChatId: '',
+    githubRepos: [],
+    projectSlugs: ['inbox'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
   const result = await new IngestEntryUseCase(repositories.contentRepository).execute(payload(), 'user-1', 'default');
 
   assert.equal(result.ok, true);
@@ -70,4 +80,13 @@ test('ingest persists event note, reminder note, attachment and workspace in rep
   assert.equal(notes.filter((note) => note.type === 'reminder').length, 1);
   assert.equal((await repositories.contentRepository.listAttachments('user-1', result.noteId)).length, 1);
   assert.deepEqual((await repositories.contentRepository.listWorkspaces('user-1')).map((workspace) => workspace.workspaceSlug), ['default']);
+});
+
+test('ingest fails when the target workspace does not exist', async () => {
+  const repositories = createMemoryRepositories();
+
+  await assert.rejects(
+    () => new IngestEntryUseCase(repositories.contentRepository).execute(payload(), 'user-1', 'default'),
+    /workspace_not_found/,
+  );
 });

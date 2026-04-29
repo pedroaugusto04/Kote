@@ -53,14 +53,12 @@ export function buildIntegrationStatuses(input: {
     KB_GITHUB_WEBHOOK_PATH: Boolean(environment.githubPushWebhookPath),
     KB_INGEST_WEBHOOK_PATH: Boolean(environment.ingestWebhookPath),
     KB_WPP_WEBHOOK_PATH: Boolean(environment.whatsappWebhookPath),
-    KB_ONBOARDING_WEBHOOK_PATH: Boolean(environment.onboardingWebhookPath),
     KB_QUERY_WEBHOOK_PATH: Boolean(environment.queryWebhookPath),
   };
   const webhookLinks = [
     link('GitHub push webhook', absoluteUrl(environment.publicBaseUrl, environment.githubPushWebhookPath), Boolean(environment.publicBaseUrl)),
     link('Ingest webhook', absoluteUrl(environment.publicBaseUrl, environment.ingestWebhookPath), Boolean(environment.publicBaseUrl)),
     link('WhatsApp webhook', absoluteUrl(environment.publicBaseUrl, environment.whatsappWebhookPath), Boolean(environment.publicBaseUrl)),
-    link('Onboarding webhook', absoluteUrl(environment.publicBaseUrl, environment.onboardingWebhookPath), Boolean(environment.publicBaseUrl)),
     link('Query webhook', absoluteUrl(environment.publicBaseUrl, environment.queryWebhookPath), Boolean(environment.publicBaseUrl)),
   ];
 
@@ -112,7 +110,7 @@ export function buildIntegrationStatuses(input: {
         checklist: [
           'Instalar o GitHub App nos repositorios do workspace.',
           'Configurar o webhook do app para o endpoint de GitHub push.',
-          'Cadastrar repositorios no onboarding ou manifesto do workspace.',
+          'Selecionar repositorios no workspace depois da conexao.',
         ],
         warnings: [
           !environment.githubWebhookSecret ? 'Webhook do GitHub sem secret configurado.' : '',
@@ -123,7 +121,7 @@ export function buildIntegrationStatuses(input: {
       {
         id: 'webhooks',
         name: 'Webhooks',
-        description: 'URLs publicas usadas por n8n, GitHub, WhatsApp, onboarding e consulta.',
+        description: 'URLs publicas usadas por n8n, GitHub, WhatsApp e consulta.',
         status: statusFromFlags(Object.values(webhookEnv)),
         requiredEnv: Object.keys(webhookEnv),
         configuredEnv: configuredEnv(webhookEnv),

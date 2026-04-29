@@ -5,7 +5,7 @@
 ## Arquitetura
 
 - `src/domain`: regras puras, tipos, renderização de notas e mensagens
-- `src/application`: casos de uso (`ingest`, `github review`, `reminders`, `conversation`, `onboarding`, `query`) e ports
+- `src/application`: casos de uso (`ingest`, `github review`, `reminders`, `conversation`, `query`, `workspaces`) e ports
 - `src/infrastructure`: repositories/adapters concretos; a API HTTP usa Postgres como unica fonte de dados do produto
 - `src/interfaces/http`: controllers e DTOs NestJS
 - `src/adapters`: AI, GitHub, IO e ambiente compartilhados
@@ -15,42 +15,28 @@
 
 ## Capacidades novas
 
-### 1. Onboarding de workspace
+### 1. Setup wizard de workspace
 
-O produto agora tem um onboarding explícito para:
+O produto agora usa um setup explícito em `/setup`:
 
-- registrar `workspace`
-- vincular `grupo do WhatsApp`
-- declarar `repositorios GitHub`
-- cadastrar `projetos` do workspace
-- devolver links e checklist de setup
+- o usuário autenticado sem workspace é redirecionado para o wizard
+- o passo obrigatório é criar o workspace
+- ao criar o workspace, o backend também cria o projeto inicial `Inbox`
+- GitHub, WhatsApp e Telegram continuam como passos guiados opcionais
 
-Entrada padrão:
+Entrada padrão do endpoint de criação:
 
 ```json
 {
-  "operation": "upsert",
-  "workspaceSlug": "acme-team",
   "displayName": "Acme Team",
-  "whatsappGroupJid": "120363000000000@g.us",
-  "githubRepos": ["acme/api"],
-  "projects": [
-    {
-      "projectSlug": "acme-api",
-      "displayName": "Acme API",
-      "repoFullName": "acme/api",
-      "aliases": ["api"],
-      "defaultTags": ["backend"]
-    }
-  ]
+  "workspaceSlug": "acme-team"
 }
 ```
 
 Entry points:
 
-- navegador autenticado: `POST /api/onboarding`
-- n8n interno: `POST /api/internal/n8n/onboarding`
-- workflow opcional `workflows/kb-onboarding.json`
+- navegador autenticado: `POST /api/workspaces`
+- frontend: `/setup`
 
 ### 2. Consulta sobre a base
 
@@ -176,7 +162,7 @@ O backend usa login local com `kb_users`, senha via `crypto.scrypt` e JWT statel
 
 O admin inicial é criado por `KB_ADMIN_EMAIL` e `KB_ADMIN_PASSWORD`. Configure também `KB_DATABASE_URL`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_CREDENTIALS_ENCRYPTION_KEY` (base64 de 32 bytes), `KB_INTERNAL_SERVICE_TOKEN`, `KB_ALLOWED_ORIGINS`, `KB_BODY_LIMIT` e `KB_TRUST_PROXY` quando estiver atrás de proxy.
 
-Postgres é a fonte de dados da API HTTP multiusuário. Usuários novos começam sem workspaces, projetos ou notas; esses registros são criados quando o usuário configura integrações ou quando uma ingestão autenticada/webhook resolvido grava dados. As tabelas principais são `kb_users`, `kb_workspaces`, `kb_projects`, `kb_notes`, `kb_note_links`, `kb_attachments`, `kb_conversation_states`, `kb_reminder_dispatch_state`, `kb_external_identities`, `kb_integration_credentials`, `kb_integration_connection_sessions` e `kb_webhook_events`.
+Postgres é a fonte de dados da API HTTP multiusuário. Usuários novos começam sem workspaces, projetos ou notas; o primeiro workspace precisa ser criado explicitamente pelo wizard ou por `POST /api/workspaces`. As tabelas principais são `kb_users`, `kb_workspaces`, `kb_projects`, `kb_notes`, `kb_note_links`, `kb_attachments`, `kb_conversation_states`, `kb_reminder_dispatch_state`, `kb_external_identities`, `kb_integration_credentials`, `kb_integration_connection_sessions` e `kb_webhook_events`.
 
 O frontend expõe `/settings/integrations` com fluxos guiados para `github-app`, `whatsapp`, `telegram`, `ai-review` e `ai-conversation`. A tela não pede JSON, tokens, `jid`, API key, modelo de IA ou nome de instância: o backend usa `KB_GITHUB_APP_*`, `EVOLUTION_*`, `KB_TELEGRAM_*`, `KB_REVIEW_AI_*` e `KB_CONVERSATION_AI_*`, cria uma sessão curta em `kb_integration_connection_sessions` quando há pareamento por código, e grava a credencial final criptografada em `kb_integration_credentials.encrypted_config`. Ao revogar uma credencial, o backend substitui o payload criptografado por um marcador sem segredo e mantém apenas o status/histórico de revogação.
 
@@ -207,6 +193,22 @@ Endpoints principais:
 - `POST /api/internal/n8n/reminders/mark-sent`
 
 Endpoints mutáveis de navegador validam `Origin`/`Referer`. A API interna exige `Authorization: Bearer ${KB_INTERNAL_SERVICE_TOKEN}` e retorna o segredo descriptografado somente para o provider solicitado.
+
+Erros HTTP agora usam envelope comum e seguro, sem alterar os contratos de sucesso:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "invalid_query_payload",
+    "message": "Payload de consulta invalido.",
+    "details": {}
+  },
+  "requestId": "req-123"
+}
+```
+
+Toda resposta HTTP inclui `x-request-id`; a API reaproveita o valor recebido do caller ou gera um UUID quando o header nao vem.
 
 ## Persistência
 
@@ -277,7 +279,8 @@ Endpoints HTTP principais:
 
 - `GET /api/health`
 - `GET /api/dashboard`
-- `GET /api/integrations`
+- `POST /api/workspaces`
+- `GET /api/integrations?workspaceSlug=...`
 - `POST /api/integrations/:provider/connect`
 - `GET /api/integrations/github-app/callback`
 - `GET /api/integrations/:provider/sessions/:sessionId`
@@ -288,7 +291,6 @@ Endpoints HTTP principais:
 - `GET /api/notes/:id`
 - `GET|POST /api/query`
 - `POST /api/ingest`
-- `POST /api/onboarding`
 - `POST /api/conversation`
 - `POST /api/webhooks/github/push`
 - `POST /api/webhooks/whatsapp`
@@ -310,7 +312,6 @@ Os adapters em `knowledge-base/workflows/` fazem apenas:
 
 Workflows adicionais disponíveis:
 
-- `kb-onboarding.json`
 - `kb-query.json`
 
 Se você quiser remover completamente o n8n no futuro, o core já está preparado para isso.

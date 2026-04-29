@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { CanonicalType, KnowledgeStatus } from '../../../contracts/enums.js';
 import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
@@ -42,20 +42,12 @@ async function saveIngestedNote(contentRepository: ContentRepository, userId: st
     },
   };
   const workspaceSlug = slugify(workspaceSlugOverride || String(payload.metadata.workspaceSlug || 'default')) || 'default';
+  const workspace = (await contentRepository.listWorkspaces(userId)).find((item) => item.workspaceSlug === workspaceSlug);
+  if (!workspace) throw new NotFoundException('workspace_not_found');
   const project = projectFromPayload(payload, workspaceSlug);
   const paths = buildNotePaths(project, payload);
   const markdown = renderEventNote(project, payload, paths);
   const title = trimText(payload.content.title, payload.content.rawText);
-  await contentRepository.upsertWorkspace(userId, {
-    workspaceSlug,
-    displayName: workspaceSlug,
-    whatsappGroupJid: '',
-    telegramChatId: '',
-    githubRepos: project.repoFullName ? [project.repoFullName] : [],
-    projectSlugs: [project.projectSlug],
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
   await contentRepository.upsertProject(userId, project);
   const note = await contentRepository.upsertNote(userId, {
     path: paths.eventRelativePath.replace(/\\/g, '/'),

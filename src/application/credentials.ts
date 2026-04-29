@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { readEnvironment } from '../adapters/environment.js';
 import {
@@ -178,6 +178,7 @@ export class IntegrationCredentialService {
   ) {}
 
   async list(userId: string, workspaceSlug = 'default') {
+    if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
     const records = await this.credentials.listCredentials(userId, workspaceSlug);
     return {
       ok: true as const,
@@ -188,14 +189,16 @@ export class IntegrationCredentialService {
 
   async revoke(userId: string, workspaceSlug: string, provider: string) {
     if (!isGuidedProvider(provider)) throw new NotFoundException('provider_not_found');
-    const record = await this.credentials.revokeCredential(userId, workspaceSlug || 'default', provider, encryptConfig({ revoked: true }));
-    return { ok: true as const, integration: publicCredential(record, provider, workspaceSlug || 'default') };
+    if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
+    const record = await this.credentials.revokeCredential(userId, workspaceSlug, provider, encryptConfig({ revoked: true }));
+    return { ok: true as const, integration: publicCredential(record, provider, workspaceSlug) };
   }
 
   async test(userId: string, workspaceSlug: string, provider: string) {
     if (provider !== IntegrationProvider.AiReview && provider !== IntegrationProvider.AiConversation) throw new NotFoundException('provider_not_found');
+    if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
     const status = aiEnvStatus(provider);
-    const record = await this.credentials.findCredential(userId, workspaceSlug || 'default', provider);
+    const record = await this.credentials.findCredential(userId, workspaceSlug, provider);
     const active = Boolean(record && record.status === CredentialRecordStatus.Connected && !record.revokedAt);
     return {
       ok: true as const,

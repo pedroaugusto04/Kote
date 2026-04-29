@@ -4,7 +4,7 @@ import { Badge } from '../../shared/ui/primitives';
 export function ProjectCard({ project, onOpen }: { project: Dashboard['projects'][number]; onOpen: (slug: string) => void }) {
   return (
     <article className="card clickable" onClick={() => onOpen(project.projectSlug)}>
-      <div className="card-kicker">{project.workspaceSlug || 'default'}</div>
+      <div className="card-kicker">{project.workspaceSlug || 'workspace'}</div>
       <h3>{project.displayName}</h3>
       <p>{project.repoFullName}</p>
       <div className="meta-row">

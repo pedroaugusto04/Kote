@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import type { Request } from 'express';
+import type { Response } from 'express';
 
 import { AuthService, type AuthenticatedUser } from '../../../application/auth.js';
 import { IntegrationConnectionService } from '../../../application/integration-connections.js';
@@ -54,7 +55,13 @@ export class UserIntegrationsController {
   ) {
     assertTrustedBrowserOrigin(request);
     const user = currentUser || await this.auth.authenticateAccessToken(accessTokenFromRequest(request));
-    return this.connections.connect({ userId: user.id, workspaceSlug: body.workspaceSlug, provider: params.provider });
+    return this.connections.connect({
+      userId: user.id,
+      workspaceSlug: body.workspaceSlug,
+      provider: params.provider,
+      returnToPath: body.returnToPath,
+      browserOrigin: request.headers.origin,
+    });
   }
 
   @Get('github-app/callback')
@@ -62,14 +69,16 @@ export class UserIntegrationsController {
     @Query(new ZodValidationPipe(githubAppCallbackQuerySchema, 'invalid_github_app_callback')) query: GithubAppCallbackQuery,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: Request,
+    @Res() response: Response,
   ) {
     const user = currentUser || await this.auth.authenticateAccessToken(accessTokenFromRequest(request));
-    return this.connections.completeGithub({
+    const result = await this.connections.completeGithubForBrowser({
       userId: user.id,
       state: query.state,
       code: query.code,
       installationId: query.installation_id,
     });
+    return response.redirect(302, result.redirectUrl);
   }
 
   @Post(':provider/test')

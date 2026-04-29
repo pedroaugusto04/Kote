@@ -89,7 +89,7 @@ function mockFetch() {
     if (url === '/api/dashboard') {
       return Response.json(dashboard);
     }
-    if (url === '/api/integrations') {
+    if (url === '/api/integrations?workspaceSlug=default') {
       return Response.json({
         ok: true,
         workspaceSlug: 'default',
@@ -256,11 +256,44 @@ describe('AppShell', () => {
     expect(await screen.findByText('/kb conectar ABC123')).toBeInTheDocument();
   });
 
+  it('redirects authenticated users without workspace to the setup wizard', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json({
+          ...dashboard,
+          workspaces: [],
+          projects: [],
+          notes: [],
+          reviews: [],
+          reminders: [],
+        });
+      }
+      return new Response(null, { status: 404 });
+    }));
+
+    renderWithAppProviders(<AppShell />, { route: '/projects' });
+
+    expect(await screen.findByRole('heading', { name: 'Configurar workspace' })).toBeInTheDocument();
+    expect(screen.getByText(/o app so libera as rotas principais/i)).toBeInTheDocument();
+  });
+
   it('shows login for anonymous users and loads the dashboard after auth', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === '/api/dashboard' && fetchMock.mock.calls.length === 1) {
-        return new Response(null, { status: 401 });
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'missing_access_token',
+            message: 'Nao autenticado.',
+            details: {},
+          },
+          requestId: 'req-auth',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-auth' },
+        });
       }
       if (url === '/api/auth/login') {
         return Response.json({ ok: true, user: { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' } });
