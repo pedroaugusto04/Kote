@@ -44,15 +44,28 @@ Keep dependency injection aligned with the current framework. This project uses 
 - Avoid ad-hoc object casting/parsing for API inputs.
 - Prefer strict TypeScript types and avoid `any`; if `any` is necessary, keep it local and explain why in code or in the handoff.
 - For fixed sets with multiple string options, prefer `enum` or a reusable constant/schema pair instead of repeated raw string literals.
+- Place `types`, `models`, `mappers`, `schemas`, `normalizers`, and similar support files in the folder that matches their architectural responsibility. Do not drop these files into arbitrary feature folders or generic utility locations just because they are convenient.
 - Shared backend types should live in appropriate modules such as:
   - `knowledge-base/src/domain/**` for domain concepts
   - `knowledge-base/src/application/models/**` for application-facing models
   - `knowledge-base/src/contracts/**` for cross-boundary contracts
   - `knowledge-base/src/interfaces/http/dto/**` for HTTP DTOs
+- Backend placement rules:
+  - domain entities, value objects, domain enums, and pure domain mappers belong under `knowledge-base/src/domain/**`
+  - use-case input/output models, orchestration-facing types, and repository port models belong under `knowledge-base/src/application/**`
+  - transport DTOs, request/response schemas, and HTTP serialization/parsing helpers belong under `knowledge-base/src/interfaces/http/**`
+  - persistence mappers, ORM/storage serializers, and adapter-specific types belong next to the concrete repository/adapter under `knowledge-base/src/infrastructure/**` or `knowledge-base/src/adapters/**`
+  - if a mapper translates across layers, place it with the layer that owns the boundary being crossed, instead of in a generic `utils` folder
 - Shared frontend models should live in:
   - `knowledge-base/frontend/src/shared/api/models/**`
   - `knowledge-base/frontend/src/entities/**`
   - `knowledge-base/frontend/src/features/**` when feature-scoped
+- Frontend placement rules:
+  - API request/response models, endpoint payload types, and API mappers belong under `knowledge-base/frontend/src/shared/api/**`
+  - entity models, entity mappers, and entity-level normalizers belong under `knowledge-base/frontend/src/entities/**`
+  - feature-local view models, form schemas, and feature mappers belong under `knowledge-base/frontend/src/features/**`
+  - reusable UI-only types and presentational helpers belong with the owning `shared`, `widgets`, or component module, not mixed into API or domain folders
+- Prefer colocating files with the module that owns them. Only promote a type/model/mapper to a broader shared folder when it is actually reused across module boundaries.
 - Keep in-file types only when they are truly private to that file and not part of a reusable contract.
 
 ## Persistence
