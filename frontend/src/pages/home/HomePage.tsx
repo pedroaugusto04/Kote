@@ -3,9 +3,13 @@ import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models
 import { projectName } from '../../entities/format';
 import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Link } from 'react-router-dom';
+import { routes } from '../../app/routing/routes';
 
 export function HomePage({ dashboard, openNote, openReview, setSelectedProject }: PageContext) {
   const { home } = dashboard;
+  const activeWorkspace = dashboard.workspaces[0] || null;
+  const needsIntegrationSetup = activeWorkspace && activeWorkspace.githubRepos.length === 0;
 
   function openTarget(target: HomeNavigationTarget) {
     if (target.kind === 'review' && target.id) {
@@ -35,6 +39,16 @@ export function HomePage({ dashboard, openNote, openReview, setSelectedProject }
     <>
       <PageHead title="Home operacional" subtitle={`Prioridades, mudancas e projetos ativos nos ultimos ${home.windowDays} dias.`} />
       <section className="home-layout">
+        {needsIntegrationSetup ? (
+          <Panel className="setup-inline-banner">
+            <div>
+              <strong>Finalize as integracoes do workspace</strong>
+              <p className="meta">Conecte GitHub para reviews de push e WhatsApp ou Telegram para capturar notas por conversa.</p>
+            </div>
+            <Link className="filter-chip" to={routes.integrations}>Conectar integracoes</Link>
+          </Panel>
+        ) : null}
+
         <section className="home-kpis" aria-label="Indicadores operacionais">
           {home.metrics.slice(0, 4).map((metric) => (
             <article className="home-kpi" key={metric.id}>

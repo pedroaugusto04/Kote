@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../app/test-utils';
@@ -275,7 +275,16 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/projects' });
 
     expect(await screen.findByRole('heading', { name: 'Configurar workspace' })).toBeInTheDocument();
-    expect(screen.getByText(/o app so libera as rotas principais/i)).toBeInTheDocument();
+  });
+
+  it('keeps authenticated users in setup so they can finish optional integrations', async () => {
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(<AppShell />, { route: '/setup' });
+
+    expect(await screen.findByRole('heading', { name: 'Configurar workspace' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Conectar GitHub' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Conectar WhatsApp ou Telegram' })).toBeInTheDocument();
   });
 
   it('shows login for anonymous users and loads the dashboard after auth', async () => {
@@ -313,5 +322,34 @@ describe('AppShell', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(-1)!);
 
     expect(await screen.findByRole('heading', { name: 'Home operacional' })).toBeInTheDocument();
+  });
+
+  it('does not retry dashboard requests after an anonymous 401', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'missing_access_token',
+            message: 'Nao autenticado.',
+            details: {},
+          },
+          requestId: 'req-auth',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-auth' },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<AppShell />);
+
+    expect((await screen.findAllByRole('button', { name: 'Entrar' })).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === '/api/dashboard')).toHaveLength(1);
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import { HomePage } from './HomePage';
@@ -114,19 +115,25 @@ afterEach(() => {
 });
 
 function renderHome(overrides: Partial<Dashboard['home']> = {}) {
+  return renderHomeWithDashboard({ ...dashboard, home: { ...dashboard.home, ...overrides } });
+}
+
+function renderHomeWithDashboard(inputDashboard: Dashboard) {
   const openNote = vi.fn();
   const openReview = vi.fn();
   const setSelectedProject = vi.fn();
   render(
-    <HomePage
-      dashboard={{ ...dashboard, home: { ...dashboard.home, ...overrides } }}
-      selectedProject="n8n-automations"
-      selectedNoteId=""
-      selectedReviewId=""
-      openNote={openNote}
-      openReview={openReview}
-      setSelectedProject={setSelectedProject}
-    />,
+    <MemoryRouter>
+      <HomePage
+        dashboard={inputDashboard}
+        selectedProject="n8n-automations"
+        selectedNoteId=""
+        selectedReviewId=""
+        openNote={openNote}
+        openReview={openReview}
+        setSelectedProject={setSelectedProject}
+      />
+    </MemoryRouter>,
   );
   return { openNote, openReview, setSelectedProject };
 }
@@ -158,5 +165,15 @@ describe('HomePage', () => {
     renderHome({ priorities: [] });
 
     expect(screen.getByText('Nenhuma prioridade aberta nesta janela.')).toBeInTheDocument();
+  });
+
+  it('prompts users to connect integrations when GitHub repositories are not selected', () => {
+    renderHomeWithDashboard({
+      ...dashboard,
+      workspaces: [{ ...dashboard.workspaces[0], githubRepos: [] }],
+    });
+
+    expect(screen.getByText('Finalize as integracoes do workspace')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Conectar integracoes' })).toHaveAttribute('href', '/settings/integrations');
   });
 });

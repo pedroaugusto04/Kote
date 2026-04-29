@@ -33,7 +33,14 @@ function routeParam(pathname: string, prefix: string) {
 
 export function AppShell() {
   const queryClient = useQueryClient();
-  const dashboardQuery = useQuery({ queryKey: ['dashboard'], queryFn: fetchDashboard });
+  const dashboardQuery = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: fetchDashboard,
+    retry: (failureCount, error) => {
+      if (error instanceof ApiClientError && error.status === 401) return false;
+      return failureCount < 3;
+    },
+  });
   const dashboard = dashboardQuery.data;
   const navigate = useNavigate();
   const location = useLocation();

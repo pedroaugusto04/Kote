@@ -8,7 +8,7 @@
     "build:api": "tsc -p tsconfig.json",
     "build:frontend": "vite build --config frontend/vite.config.ts",
     "build": "npm run clean && npm run build:api && npm run build:frontend",
-    "dev:api": "node --watch --loader ts-node/esm src/main.ts",
+    "dev:api": "node --watch --import 'data:text/javascript,import { register } from \"node:module\"; import { pathToFileURL } from \"node:url\"; register(\"ts-node/esm\", pathToFileURL(\"./\"));' src/main.ts",
     "dev:frontend": "vite --config frontend/vite.config.ts",
     "test:api": "npm run clean && npm run build:api && node --test tests/*.test.mjs",
     "test:frontend": "vitest run --config frontend/vite.config.ts",

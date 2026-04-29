@@ -205,6 +205,7 @@ p { color: var(--muted); line-height: 1.6; }
 .setup-step-state.done { color: var(--green); }
 .setup-step-state.pending { color: var(--muted); }
 .setup-actions { display: flex; gap: 12px; align-items: center; }
+.setup-actions .icon-button { display: inline-flex; align-items: center; text-decoration: none; }
 .setup-inline-banner {
   border: 1px solid var(--line-soft);
   border-radius: 16px;

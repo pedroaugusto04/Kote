@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { routes } from '../../app/routing/routes';
 import { GuidedIntegrationsSection, IntegrationCallbackNotice } from '../../features/integrations/GuidedIntegrationsSection';
@@ -31,6 +31,8 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
   const [workspaceSlug, setWorkspaceSlug] = useState('');
   const [slugTouched, setSlugTouched] = useState(false);
   const [createdWorkspaceSlug, setCreatedWorkspaceSlug] = useState('');
+  const [continueError, setContinueError] = useState('');
+  const [continuePending, setContinuePending] = useState(false);
   const [githubIntegrations, setGithubIntegrations] = useState<UserIntegration[]>([]);
   const [chatIntegrations, setChatIntegrations] = useState<UserIntegration[]>([]);
   const activeWorkspace = dashboard.workspaces[0] || null;
@@ -51,10 +53,17 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
 
   const createWorkspaceMutation = useMutation({
     mutationFn: () => createWorkspace({ displayName, workspaceSlug }),
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       setCreatedWorkspaceSlug(result.workspace.workspaceSlug);
-      await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      await refetchDashboard();
+      queryClient.setQueryData<Dashboard>(['dashboard'], (current) => current
+        ? {
+            ...current,
+            workspaces: [result.workspace],
+            projects: current.projects.some((project) => project.projectSlug === result.initialProject.projectSlug)
+              ? current.projects
+              : [result.initialProject, ...current.projects],
+          }
+        : current);
     },
   });
 
@@ -64,7 +73,29 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
     (integration.provider === 'whatsapp' || integration.provider === 'telegram') && integration.status === 'connected'
   ));
   const workspaceReady = Boolean(activeWorkspace || createdWorkspaceSlug);
-  const callbackMatchesWorkspace = githubCallbackStatus.workspaceSlug && githubCallbackStatus.workspaceSlug === effectiveWorkspaceSlug;
+  const callbackMatchesWorkspace = Boolean(githubCallbackStatus.workspaceSlug && githubCallbackStatus.workspaceSlug === effectiveWorkspaceSlug);
+
+  async function enterDashboard() {
+    setContinueError('');
+    setContinuePending(true);
+    if (activeWorkspace || createdWorkspaceSlug) {
+      navigate(routes.home);
+      setContinuePending(false);
+      return;
+    }
+
+    try {
+      const result = await refetchDashboard();
+      const refreshedDashboard = result && typeof result === 'object' && 'data' in result ? result.data as Dashboard | undefined : undefined;
+      if (refreshedDashboard?.workspaces[0]) {
+        navigate(routes.home);
+        return;
+      }
+      setContinueError('Ainda estou sincronizando o workspace. Tente novamente em alguns segundos.');
+    } finally {
+      setContinuePending(false);
+    }
+  }
 
   return (
     <main className="setup-layout">
@@ -78,7 +109,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
         </div>
         <PageHead
           title="Configurar workspace"
-          subtitle="O app so libera as rotas principais depois que existir um workspace. GitHub, WhatsApp e Telegram continuam opcionais."
+          subtitle=""
         />
       </section>
 
@@ -180,8 +211,11 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
 
       {workspaceReady ? (
         <section className="setup-actions">
-          <button className="icon-button" type="button" onClick={() => navigate(routes.home)}>Entrar no app</button>
-          <Link className="filter-chip" to={routes.home}>Fazer depois</Link>
+          <button className="icon-button" disabled={continuePending} type="button" onClick={() => void enterDashboard()}>
+            Ir para o dashboard
+          </button>
+          {!activeWorkspace ? <span className="meta">Sincronizando workspace...</span> : null}
+          {continueError ? <span className="form-error">{continueError}</span> : null}
         </section>
       ) : null}
     </main>

@@ -13,7 +13,7 @@ export class AppLogger {
 
   info(event: string, fields: Record<string, unknown> = {}) {
     this.write('info', event, fields);
-  }
+  } 
 
   warn(event: string, fields: Record<string, unknown> = {}) {
     this.write('warn', event, fields);
