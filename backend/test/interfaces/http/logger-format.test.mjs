@@ -21,11 +21,13 @@ function withPatchedConsole(methodName, callback) {
   }
 }
 
-test('logger emits colorized pretty output when KB_LOG_PRETTY_CONSOLE is enabled', () => {
+test('logger emits colorized pretty output when LOG_PRETTY_CONSOLE is enabled', () => {
   const previousNodeEnv = process.env.NODE_ENV;
   const previousPretty = process.env.KB_LOG_PRETTY_CONSOLE;
+  const previousSharedPretty = process.env.LOG_PRETTY_CONSOLE;
   process.env.NODE_ENV = 'production';
-  process.env.KB_LOG_PRETTY_CONSOLE = 'true';
+  delete process.env.KB_LOG_PRETTY_CONSOLE;
+  process.env.LOG_PRETTY_CONSOLE = 'true';
 
   try {
     withPatchedConsole('log', (lines) => {
@@ -44,7 +46,7 @@ test('logger emits colorized pretty output when KB_LOG_PRETTY_CONSOLE is enabled
       assert.match(lines[0], ANSI_PATTERN);
       assert.match(lines[0], /http\.request\.completed/);
       assert.match(lines[0], /"durationMs":12/);
-      assert.match(lines[0].replace(ANSI_PATTERN, ''), /INFO\s+http\.request\.completed/);
+      assert.match(lines[0].replace(ANSI_PATTERN, ''), /INFO \| http\.request\.completed/);
     });
   } finally {
     process.env.NODE_ENV = previousNodeEnv;
@@ -52,6 +54,11 @@ test('logger emits colorized pretty output when KB_LOG_PRETTY_CONSOLE is enabled
       delete process.env.KB_LOG_PRETTY_CONSOLE;
     } else {
       process.env.KB_LOG_PRETTY_CONSOLE = previousPretty;
+    }
+    if (previousSharedPretty === undefined) {
+      delete process.env.LOG_PRETTY_CONSOLE;
+    } else {
+      process.env.LOG_PRETTY_CONSOLE = previousSharedPretty;
     }
   }
 });

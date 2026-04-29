@@ -26,6 +26,12 @@ const ANSI_YELLOW = '\u001B[33m';
 const ANSI_BLUE = '\u001B[34m';
 const ANSI_CYAN = '\u001B[36m';
 const ANSI_WHITE = '\u001B[37m';
+const LOG_LEVEL_LABELS: Readonly<Record<LogLevel, string>> = {
+  debug: 'DEBUG',
+  info: 'INFO',
+  warn: 'WARN',
+  error: 'ERROR',
+};
 
 function resolveBooleanEnvironmentFlag(rawValue: string | undefined, defaultValue: boolean): boolean {
   const normalizedValue = rawValue?.trim().toLowerCase();
@@ -42,11 +48,12 @@ function resolveBooleanEnvironmentFlag(rawValue: string | undefined, defaultValu
 }
 
 function isPrettyConsoleLogsEnabled() {
-  return resolveBooleanEnvironmentFlag(process.env.KB_LOG_PRETTY_CONSOLE, process.env.NODE_ENV !== 'production');
+  const configuredValue = process.env.KB_LOG_PRETTY_CONSOLE ?? process.env.LOG_PRETTY_CONSOLE;
+  return resolveBooleanEnvironmentFlag(configuredValue, true);
 }
 
 function formatLevelLabel(level: LogLevel) {
-  const label = level.toUpperCase().padEnd(5, ' ');
+  const label = LOG_LEVEL_LABELS[level];
   if (!isPrettyConsoleLogsEnabled()) {
     return label;
   }
@@ -61,13 +68,13 @@ function formatLevelLabel(level: LogLevel) {
   return `${color}${label}${ANSI_RESET}`;
 }
 
-function formatKeyValue(key: string, value: unknown) {
+function formatKeyValue(key: string, value: unknown, prettyConsoleLogsEnabled: boolean) {
   const renderedValue = String(value);
-  if (!isPrettyConsoleLogsEnabled()) {
+  if (!prettyConsoleLogsEnabled) {
     return `${key}=${renderedValue}`;
   }
   const keyColor = key === 'statusCode' ? ANSI_BLUE : ANSI_WHITE;
-  return `${ANSI_DIM}${keyColor}${key}${ANSI_RESET}${ANSI_DIM}=${ANSI_RESET}${renderedValue}`;
+  return `${keyColor}${key}${ANSI_RESET}=${renderedValue}`;
 }
 
 @Injectable()
@@ -113,27 +120,30 @@ export class AppLogger {
     const extras = Object.fromEntries(
       Object.entries(entry).filter(([key, value]) => !LOG_FIELDS_ALWAYS_INLINE.has(key) && value !== undefined),
     );
-    const line = [
-      prettyConsoleLogsEnabled ? `${ANSI_DIM}${entry.timestamp}${ANSI_RESET}` : entry.timestamp,
-      prettyConsoleLogsEnabled ? formatLevelLabel(level) : level.toUpperCase().padEnd(5, ' '),
-      prettyConsoleLogsEnabled ? `${ANSI_BLUE}${event}${ANSI_RESET}` : event,
-      formatKeyValue('requestId', entry.requestId),
-      entry.method ? formatKeyValue('method', entry.method) : '',
-      entry.path ? formatKeyValue('path', entry.path) : '',
-      entry.statusCode ? formatKeyValue('statusCode', entry.statusCode) : '',
-      entry.userId ? formatKeyValue('userId', entry.userId) : '',
-      entry.workspaceSlug ? formatKeyValue('workspaceSlug', entry.workspaceSlug) : '',
+    const message = [
+      event,
+      formatKeyValue('requestId', entry.requestId, prettyConsoleLogsEnabled),
+      entry.method ? formatKeyValue('method', entry.method, prettyConsoleLogsEnabled) : '',
+      entry.path ? formatKeyValue('path', entry.path, prettyConsoleLogsEnabled) : '',
+      entry.statusCode ? formatKeyValue('statusCode', entry.statusCode, prettyConsoleLogsEnabled) : '',
+      entry.userId ? formatKeyValue('userId', entry.userId, prettyConsoleLogsEnabled) : '',
+      entry.workspaceSlug ? formatKeyValue('workspaceSlug', entry.workspaceSlug, prettyConsoleLogsEnabled) : '',
     ].filter(Boolean).join(' ');
+    const line = [
+      entry.timestamp,
+      prettyConsoleLogsEnabled ? formatLevelLabel(level) : LOG_LEVEL_LABELS[level],
+      prettyConsoleLogsEnabled ? `${ANSI_WHITE}${message}${ANSI_RESET}` : message,
+    ];
     if (!Object.keys(extras).length) {
-      this.output(level, line);
+      this.output(level, line.join(' | '));
       return;
     }
     const extrasText = JSON.stringify(extras);
     this.output(
       level,
       prettyConsoleLogsEnabled
-        ? `${line} ${ANSI_DIM}${extrasText}${ANSI_RESET}`
-        : `${line} ${extrasText}`,
+        ? `${line.join(' | ')} | ${ANSI_DIM}${extrasText}${ANSI_RESET}`
+        : `${line.join(' | ')} | ${extrasText}`,
     );
   }
 

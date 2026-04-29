@@ -10,7 +10,8 @@ services:
       NODE_ENV: production
       KB_API_HOST: 0.0.0.0
       KB_DATABASE_URL: ${KB_DATABASE_URL}
-      KB_LOG_PRETTY_CONSOLE: ${KB_LOG_PRETTY_CONSOLE:-false}
+      LOG_PRETTY_CONSOLE: ${LOG_PRETTY_CONSOLE:-true}
+      KB_LOG_PRETTY_CONSOLE: ${KB_LOG_PRETTY_CONSOLE:-true}
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
     healthcheck:
