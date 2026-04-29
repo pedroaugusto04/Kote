@@ -79,6 +79,17 @@ function appendQuery(url: string, query: Record<string, string>): string {
   return parsed.toString();
 }
 
+function normalizeGithubAppInstallUrl(url: string): string {
+  const parsed = new URL(url);
+  const settingsAppMatch = parsed.pathname.match(/^\/settings\/apps\/([^/]+)\/?$/);
+  if (parsed.origin === 'https://github.com' && settingsAppMatch) {
+    parsed.pathname = `/apps/${settingsAppMatch[1]}/installations/new`;
+    parsed.search = '';
+    parsed.hash = '';
+  }
+  return parsed.toString();
+}
+
 function extractGithubInstallationId(value: unknown): string {
   return String(value || '').trim();
 }
@@ -384,7 +395,7 @@ export class IntegrationConnectionService {
       primaryAction: {
         type: 'external_redirect',
         label: 'Conectar GitHub',
-        url: appendQuery(environment.githubAppInstallUrl, { state }),
+        url: appendQuery(normalizeGithubAppInstallUrl(environment.githubAppInstallUrl), { state }),
       },
       steps: ['Autorize o GitHub App.', 'Aguarde o retorno para concluir o vinculo.'],
     };
