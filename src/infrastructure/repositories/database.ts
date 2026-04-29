@@ -15,9 +15,17 @@ export class PostgresDatabase {
 
   getPool(): pg.Pool {
     if (this.pool) return this.pool;
+
     const connectionString = readEnvironment().databaseUrl;
     if (!connectionString) throw new Error('KB_DATABASE_URL_not_configured');
-    this.pool = new Pool({ connectionString });
+
+    this.pool = new Pool({
+      connectionString,
+      ssl: {
+        rejectUnauthorized: false, 
+      },
+    });
+
     return this.pool;
   }
 }
