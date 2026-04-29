@@ -151,6 +151,8 @@ Todos os segredos relevantes ficam em `.env` na VPS e nunca no GitHub:
 
 Os workflows do n8n devem usar apenas `{{$env.*}}` para segredos.
 
+No GitHub Actions de deploy, o secret `VPS_GITHUB_REPO_TOKEN` tambem precisa existir no environment `production` para que a VPS consiga executar `git fetch` e `git pull` em repositórios privados sem prompt interativo. Prefira um fine-grained token com acesso de leitura ao repositório.
+
 ### Auth e integrações
 
 O backend usa login local com `kb_users`, senha via `crypto.scrypt` e JWT stateless em cookies HttpOnly:

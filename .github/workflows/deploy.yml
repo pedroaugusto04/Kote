@@ -53,6 +53,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_GITHUB_REPO_TOKEN: ${{ secrets.VPS_GITHUB_REPO_TOKEN }}
           VPS_APP_DIR: ${{ vars.VPS_APP_DIR }}
           KB_PUBLIC_BASE_URL: ${{ vars.KB_PUBLIC_BASE_URL }}
           KB_ALLOWED_ORIGINS: ${{ vars.KB_ALLOWED_ORIGINS }}
@@ -70,6 +71,7 @@ jobs:
           test -n "${VPS_USER}" || { echo "Missing secret: VPS_USER"; exit 1; }
           test -n "${VPS_SSH_PORT}" || { echo "Missing secret: VPS_SSH_PORT"; exit 1; }
           test -n "${VPS_SSH_PRIVATE_KEY}" || { echo "Missing secret: VPS_SSH_PRIVATE_KEY"; exit 1; }
+          test -n "${VPS_GITHUB_REPO_TOKEN}" || { echo "Missing secret: VPS_GITHUB_REPO_TOKEN"; exit 1; }
           printf '%s\n' "${VPS_SSH_PRIVATE_KEY}" | grep -Eq '^-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----$' || {
             echo "Invalid secret: VPS_SSH_PRIVATE_KEY must be a PEM private key with real line breaks, for example BEGIN PRIVATE KEY or BEGIN RSA PRIVATE KEY."
             exit 1
@@ -150,15 +152,17 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           port: ${{ secrets.VPS_SSH_PORT }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          envs: VPS_GITHUB_REPO_TOKEN
           script: |
             set -euo pipefail
             APP_DIR="${{ vars.VPS_APP_DIR }}"
             cd "$APP_DIR"
             mv .env.production .env
             chmod 600 .env
-            git fetch --all --prune
+            GITHUB_AUTH_HEADER="$(printf 'x-access-token:%s' "$VPS_GITHUB_REPO_TOKEN" | base64 | tr -d '\n')"
+            git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $GITHUB_AUTH_HEADER" fetch --all --prune
             git checkout main
-            git pull --ff-only origin main
+            git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $GITHUB_AUTH_HEADER" pull --ff-only origin main
             docker compose pull
             docker compose up -d --build
             docker image prune -f
