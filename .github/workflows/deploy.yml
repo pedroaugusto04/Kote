@@ -1,0 +1,160 @@
+name: CI/CD Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Test and Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run API tests
+        run: npm run test:api
+
+      - name: Run frontend tests
+        run: npm run test:frontend
+
+      - name: Build
+        run: npm run build
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Validate production environment config
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT }}
+          VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          VPS_APP_DIR: ${{ vars.VPS_APP_DIR }}
+          KB_PUBLIC_BASE_URL: ${{ vars.KB_PUBLIC_BASE_URL }}
+          KB_ALLOWED_ORIGINS: ${{ vars.KB_ALLOWED_ORIGINS }}
+          KB_DATABASE_URL: ${{ secrets.KB_DATABASE_URL }}
+          KB_DATABASE_URL_DOCKER: ${{ secrets.KB_DATABASE_URL_DOCKER }}
+          KB_ADMIN_EMAIL: ${{ secrets.KB_ADMIN_EMAIL }}
+          KB_ADMIN_PASSWORD: ${{ secrets.KB_ADMIN_PASSWORD }}
+          KB_JWT_ACCESS_SECRET: ${{ secrets.KB_JWT_ACCESS_SECRET }}
+          KB_JWT_REFRESH_SECRET: ${{ secrets.KB_JWT_REFRESH_SECRET }}
+          KB_INTERNAL_SERVICE_TOKEN: ${{ secrets.KB_INTERNAL_SERVICE_TOKEN }}
+          KB_CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.KB_CREDENTIALS_ENCRYPTION_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${VPS_HOST}" || { echo "Missing secret: VPS_HOST"; exit 1; }
+          test -n "${VPS_USER}" || { echo "Missing secret: VPS_USER"; exit 1; }
+          test -n "${VPS_SSH_PORT}" || { echo "Missing secret: VPS_SSH_PORT"; exit 1; }
+          test -n "${VPS_SSH_PRIVATE_KEY}" || { echo "Missing secret: VPS_SSH_PRIVATE_KEY"; exit 1; }
+          test -n "${VPS_APP_DIR}" || { echo "Missing variable: VPS_APP_DIR"; exit 1; }
+          test -n "${KB_PUBLIC_BASE_URL}" || { echo "Missing variable: KB_PUBLIC_BASE_URL"; exit 1; }
+          test -n "${KB_ALLOWED_ORIGINS}" || { echo "Missing variable: KB_ALLOWED_ORIGINS"; exit 1; }
+          test -n "${KB_DATABASE_URL}" || { echo "Missing secret: KB_DATABASE_URL"; exit 1; }
+          test -n "${KB_DATABASE_URL_DOCKER}" || { echo "Missing secret: KB_DATABASE_URL_DOCKER"; exit 1; }
+          test -n "${KB_ADMIN_EMAIL}" || { echo "Missing secret: KB_ADMIN_EMAIL"; exit 1; }
+          test -n "${KB_ADMIN_PASSWORD}" || { echo "Missing secret: KB_ADMIN_PASSWORD"; exit 1; }
+          test -n "${KB_JWT_ACCESS_SECRET}" || { echo "Missing secret: KB_JWT_ACCESS_SECRET"; exit 1; }
+          test -n "${KB_JWT_REFRESH_SECRET}" || { echo "Missing secret: KB_JWT_REFRESH_SECRET"; exit 1; }
+          test -n "${KB_INTERNAL_SERVICE_TOKEN}" || { echo "Missing secret: KB_INTERNAL_SERVICE_TOKEN"; exit 1; }
+          test -n "${KB_CREDENTIALS_ENCRYPTION_KEY}" || { echo "Missing secret: KB_CREDENTIALS_ENCRYPTION_KEY"; exit 1; }
+
+      - name: Generate .env for production
+        run: |
+          cat > .env.production <<'EOF'
+          NODE_ENV=production
+          KB_API_HOST=${{ vars.KB_API_HOST || '0.0.0.0' }}
+          KB_API_PORT=${{ vars.KB_API_PORT || '4310' }}
+          KB_FRONTEND_HOST=${{ vars.KB_FRONTEND_HOST || '0.0.0.0' }}
+          KB_FRONTEND_PORT=${{ vars.KB_FRONTEND_PORT || '4311' }}
+          KB_TRUST_PROXY=${{ vars.KB_TRUST_PROXY || 'true' }}
+          KB_BODY_LIMIT=${{ vars.KB_BODY_LIMIT || '1mb' }}
+          KB_PUBLIC_BASE_URL=${{ vars.KB_PUBLIC_BASE_URL }}
+          KB_ALLOWED_ORIGINS=${{ vars.KB_ALLOWED_ORIGINS }}
+          KB_ACCESS_TOKEN_TTL_SECONDS=${{ vars.KB_ACCESS_TOKEN_TTL_SECONDS || '900' }}
+          KB_REFRESH_TOKEN_TTL_SECONDS=${{ vars.KB_REFRESH_TOKEN_TTL_SECONDS || '2592000' }}
+          KB_DATABASE_URL=${{ secrets.KB_DATABASE_URL }}
+          KB_DATABASE_URL_DOCKER=${{ secrets.KB_DATABASE_URL_DOCKER }}
+          KB_ADMIN_EMAIL=${{ secrets.KB_ADMIN_EMAIL }}
+          KB_ADMIN_PASSWORD=${{ secrets.KB_ADMIN_PASSWORD }}
+          KB_JWT_ACCESS_SECRET=${{ secrets.KB_JWT_ACCESS_SECRET }}
+          KB_JWT_REFRESH_SECRET=${{ secrets.KB_JWT_REFRESH_SECRET }}
+          KB_INTERNAL_SERVICE_TOKEN=${{ secrets.KB_INTERNAL_SERVICE_TOKEN }}
+          KB_CREDENTIALS_ENCRYPTION_KEY=${{ secrets.KB_CREDENTIALS_ENCRYPTION_KEY }}
+          KB_GITHUB_APP_INSTALL_URL=${{ vars.KB_GITHUB_APP_INSTALL_URL || '' }}
+          KB_GITHUB_APP_CLIENT_ID=${{ secrets.KB_GITHUB_APP_CLIENT_ID || '' }}
+          KB_GITHUB_APP_CLIENT_SECRET=${{ secrets.KB_GITHUB_APP_CLIENT_SECRET || '' }}
+          KB_GITHUB_APP_ID=${{ secrets.KB_GITHUB_APP_ID || '' }}
+          KB_GITHUB_APP_PRIVATE_KEY=${{ secrets.KB_GITHUB_APP_PRIVATE_KEY || '' }}
+          KB_GITHUB_APP_WEBHOOK_SECRET=${{ secrets.KB_GITHUB_APP_WEBHOOK_SECRET || '' }}
+          EVOLUTION_API_URL=${{ vars.EVOLUTION_API_URL || '' }}
+          EVOLUTION_API_KEY=${{ secrets.EVOLUTION_API_KEY || '' }}
+          EVOLUTION_INSTANCE_NAME=${{ vars.EVOLUTION_INSTANCE_NAME || '' }}
+          EVOLUTION_API_PUBLIC_URL=${{ vars.EVOLUTION_API_PUBLIC_URL || '' }}
+          KB_WPP_PAIRING_URL=${{ vars.KB_WPP_PAIRING_URL || '' }}
+          KB_TELEGRAM_BOT_TOKEN=${{ secrets.KB_TELEGRAM_BOT_TOKEN || '' }}
+          KB_TELEGRAM_WEBHOOK_TOKEN=${{ secrets.KB_TELEGRAM_WEBHOOK_TOKEN || '' }}
+          KB_TELEGRAM_CHAT_ID=${{ vars.KB_TELEGRAM_CHAT_ID || '' }}
+          KB_REVIEW_AI_PROVIDER=${{ vars.KB_REVIEW_AI_PROVIDER || 'openrouter' }}
+          KB_REVIEW_AI_BASE_URL=${{ vars.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1' }}
+          KB_REVIEW_AI_MODEL=${{ vars.KB_REVIEW_AI_MODEL || 'openrouter/auto' }}
+          KB_REVIEW_AI_API_KEY=${{ secrets.KB_REVIEW_AI_API_KEY || '' }}
+          KB_CONVERSATION_AI_PROVIDER=${{ vars.KB_CONVERSATION_AI_PROVIDER || 'openrouter' }}
+          KB_CONVERSATION_AI_BASE_URL=${{ vars.KB_CONVERSATION_AI_BASE_URL || 'https://openrouter.ai/api/v1' }}
+          KB_CONVERSATION_AI_MODEL=${{ vars.KB_CONVERSATION_AI_MODEL || 'openrouter/auto' }}
+          KB_CONVERSATION_AI_API_KEY=${{ secrets.KB_CONVERSATION_AI_API_KEY || '' }}
+          EOF
+
+      - name: Upload .env to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          source: ".env.production"
+          target: "${{ vars.VPS_APP_DIR }}"
+          overwrite: true
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          port: ${{ secrets.VPS_SSH_PORT }}
+          key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          script: |
+            set -euo pipefail
+            APP_DIR="${{ vars.VPS_APP_DIR }}"
+            cd "$APP_DIR"
+            mv .env.production .env
+            chmod 600 .env
+            git fetch --all --prune
+            git checkout main
+            git pull --ff-only origin main
+            docker compose pull
+            docker compose up -d --build
+            docker image prune -f

@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${KB_POSTGRES_DB:-knowledge_base}
+      POSTGRES_USER: ${KB_POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${KB_POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${KB_POSTGRES_PORT:-5438}:5432"
+    volumes:
+      - kb_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    image: node:22-alpine
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      KB_API_HOST: 0.0.0.0
+      KB_DATABASE_URL: ${KB_DATABASE_URL_DOCKER:-postgres://postgres:postgres@postgres:5432/knowledge_base}
+    command: sh -c "npm install && npm run dev:api"
+    ports:
+      - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
+    volumes:
+      - ./:/app
+      - kb_api_node_modules:/app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- "http://127.0.0.1:${KB_API_PORT:-4310}/api/health" >/dev/null 2>&1
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: development
+      KB_FRONTEND_HOST: 0.0.0.0
+      KB_API_PROXY_TARGET: http://api:${KB_API_PORT:-4310}
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "300"
+    command: sh -c "npm install && npm run dev:frontend -- --host 0.0.0.0"
+    ports:
+      - "${KB_FRONTEND_PORT:-4311}:${KB_FRONTEND_PORT:-4311}"
+    volumes:
+      - ./:/app
+      - kb_frontend_node_modules:/app/node_modules
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  kb_postgres_data:
+  kb_api_node_modules:
+  kb_frontend_node_modules:
