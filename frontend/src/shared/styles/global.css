@@ -39,7 +39,8 @@ input[type="search"] { cursor: text; }
 .sidebar, .inspector { background: rgba(15, 23, 29, 0.88); border-color: var(--line-soft); backdrop-filter: blur(14px); }
 .sidebar { border-right: 1px solid rgba(148, 163, 184, 0.12); padding: 18px 14px; overflow: auto; }
 .inspector { border-left: 1px solid rgba(148, 163, 184, 0.12); padding: 18px; overflow: auto; }
-.brand { display: flex; align-items: center; gap: 11px; margin-bottom: 20px; }
+.brand { display: flex; align-items: center; gap: 11px; margin-bottom: 20px; cursor: pointer}
+.brand { color: inherit; text-decoration: none; }
 .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid rgba(83, 199, 222, 0.42); border-radius: 8px; background: linear-gradient(145deg, #14252d, #0e171d); color: var(--cyan); font-family: var(--mono); font-size: 13px; }
 .brand strong, .brand span { display: block; }
 .brand span, .section-label, .card-kicker, .meta, .muted { color: var(--muted); }

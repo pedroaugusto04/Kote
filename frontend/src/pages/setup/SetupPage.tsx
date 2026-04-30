@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
@@ -131,13 +131,13 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
   return (
     <main className="setup-layout">
       <section className="setup-hero">
-        <div className="brand auth-brand">
+        <Link className="brand auth-brand" to={routes.home} aria-label="Ir para Home">
           <div className="brand-mark">KV</div> 
           <div>
             <strong>Knowledge Vault</strong>
             <span>workspace setup wizard</span>
           </div>
-        </div>
+        </Link>
         <PageHead
           title="Configurar workspace"
           subtitle=""

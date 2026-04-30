@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
@@ -98,13 +98,13 @@ export function AppShell() {
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Navegacao do vault">
-        <div className="brand">
+        <Link className="brand" to={routes.home} aria-label="Ir para Home">
           <div className="brand-mark">KV</div>
           <div>
             <strong>Knowledge Vault</strong>
             <span>developer knowledge base</span>
           </div>
-        </div>
+        </Link>
         <nav className="main-nav" aria-label="Secoes principais">
           {navItems.map((item) => (
             <NavLink className={({ isActive }) => `nav-item ${isActive || view === item.view ? 'active' : ''}`} end={item.path === routes.home} key={item.view} to={item.path}>
@@ -234,13 +234,13 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   return (
     <main className="auth-layout">
       <section className="auth-panel" aria-label="Autenticacao">
-        <div className="brand auth-brand">
+        <Link className="brand auth-brand" to={routes.home} aria-label="Ir para Home">
           <div className="brand-mark">KV</div>
           <div>
             <strong>Knowledge Vault</strong>
             <span>developer knowledge base</span>
           </div>
-        </div>
+        </Link>
         <div className="segmented-control" role="tablist" aria-label="Modo de acesso">
           <button className={mode === 'login' ? 'active' : ''} type="button" onClick={() => setMode('login')}>
             Entrar

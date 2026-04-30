@@ -280,6 +280,17 @@ describe('AppShell', () => {
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
   });
 
+  it('navigates to home when clicking the brand section', async () => {
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(<AppShell />, { route: '/vault/note-1' });
+
+    expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('link', { name: 'Ir para Home' }));
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+  });
+
   it('renders integration status from the settings route', async () => {
     vi.stubGlobal('fetch', mockFetch());
 
