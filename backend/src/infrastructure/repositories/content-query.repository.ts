@@ -4,7 +4,7 @@ import type { ReminderView } from '../../application/models/reminder.models.js';
 import type { NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
 import { ContentQueryRepository } from '../../application/ports/content.repository.js';
-import { ObjectStorage } from '../../application/ports/object-storage.js';
+import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -13,15 +13,13 @@ import { PostgresDatabase } from '../persistence/database.js';
 export class PostgresContentQueryRepository extends ContentQueryRepository {
   constructor(
     private readonly database: PostgresDatabase,
-    private readonly objectStorage: ObjectStorage,
+    private readonly contentObjectStorage: ContentObjectStorageService,
   ) {
     super();
   }
 
   private async hydrateMarkdown(note: NoteRecord): Promise<NoteRecord> {
-    if (!note.markdownStorageKey) return note;
-    const markdown = await this.objectStorage.get(note.markdownStorageKey);
-    return { ...note, markdown: markdown.toString('utf8') };
+    return this.contentObjectStorage.hydrateMarkdown(note);
   }
 
   private async loadNotes(userId: string) {

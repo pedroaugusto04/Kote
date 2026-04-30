@@ -308,12 +308,15 @@ Fluxo esperado:
 - o compose carrega segredos e credenciais a partir de `knowledge-base/.env`
 - `postgres` recebe credenciais do `.env`, e a API usa `KB_DATABASE_URL_DOCKER` dentro do container para não apontar para `127.0.0.1`
 - `api` executa `npm run dev:api`, que faz `tsc --watch` do backend e reinicia o Node sobre `backend/dist`
+- `api` expõe o inspector do Node em `127.0.0.1:9229` por padrão no Docker local, pronto para o `API Docker Attach` do VS Code
 - `frontend` executa `npm run dev:frontend` com polling habilitado para funcionar bem em bind mounts Docker
 
 Para rodar em container, ajuste no `.env`:
 
 ```dotenv
 KB_API_HOST=0.0.0.0
+KB_API_INSPECT=true
+KB_API_INSPECT_PORT=9229
 KB_FRONTEND_HOST=0.0.0.0
 KB_API_PROXY_TARGET=http://api:4310
 KB_POSTGRES_PORT=5438
@@ -330,12 +333,6 @@ KB_ALLOWED_ORIGINS=http://127.0.0.1:4311,http://localhost:4311,http://127.0.0.1:
 LOG_PRETTY_CONSOLE=true
 KB_LOG_PRETTY_CONSOLE=true
 ```
-
-Portas publicadas por padrão:
-
-- API: `http://127.0.0.1:4310`
-- Frontend: `http://127.0.0.1:4311`
-
 ## Deploy em produção
 
 O workflow `.github/workflows/deploy.yml` separa o deploy por paths alterados:

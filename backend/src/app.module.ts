@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuthService } from './application/auth.js';
 import { IntegrationConnectionService } from './application/integration-connections.js';
 import { IntegrationCredentialService } from './application/credentials.js';
+import { ContentObjectStorageService } from './application/services/content-object-storage.service.js';
 import { SchemaMigrator, UserRepository } from './application/ports/auth.repository.js';
 import { ContentQueryRepository, ContentRepository } from './application/ports/content.repository.js';
 import { ObjectStorage } from './application/ports/object-storage.js';
@@ -71,6 +72,7 @@ import { AppLogger } from './observability/logger.js';
     DeleteManualNoteUseCase,
     IntegrationConnectionService,
     IntegrationCredentialService,
+    ContentObjectStorageService,
     GetNoteDetailUseCase,
     QueryKnowledgeUseCase,
     IngestEntryUseCase,

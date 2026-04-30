@@ -21,6 +21,7 @@ export async function runPostgresMigrations(database: PostgresDatabase, directio
     return await runner({
       dbClient: client,
       dir: migrationsDir,
+      ignorePattern: '.*\\.map',
       direction,
       migrationsTable,
       migrationsSchema: currentSchema,

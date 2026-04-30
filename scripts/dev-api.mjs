@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tscEntrypoint = path.join(rootDir, 'node_modules', 'typescript', 'bin', 'tsc');
 const distEntrypoint = path.join(rootDir, 'backend', 'dist', 'main.js');
+const inspectEnabled = ['1', 'true', 'yes', 'on'].includes((process.env.KB_API_INSPECT ?? '').toLowerCase());
+const inspectPort = process.env.KB_API_INSPECT_PORT ?? '9229';
 
 rmSync(path.join(rootDir, 'backend', 'dist'), { recursive: true, force: true });
 
@@ -33,7 +35,12 @@ if (initialResult.code !== 0) {
 }
 
 const compiler = run(process.execPath, [tscEntrypoint, '-p', 'backend/tsconfig.json', '--watch', '--preserveWatchOutput']);
-const server = run(process.execPath, ['--watch', distEntrypoint]);
+const serverArgs = [
+  ...(inspectEnabled ? [`--inspect=0.0.0.0:${inspectPort}`] : []),
+  '--watch',
+  distEntrypoint,
+];
+const server = run(process.execPath, serverArgs);
 
 let shuttingDown = false;
 
