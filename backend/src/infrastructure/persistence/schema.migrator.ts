@@ -125,7 +125,7 @@ export class PostgresSchemaMigrator extends SchemaMigrator {
         occurred_at text not null default '',
         source_channel text not null default '',
         summary text not null default '',
-        markdown text not null default '',
+        markdown_storage_key text not null default '',
         frontmatter jsonb not null default '{}'::jsonb,
         metadata jsonb not null default '{}'::jsonb,
         origin text not null default 'postgres',
@@ -134,6 +134,8 @@ export class PostgresSchemaMigrator extends SchemaMigrator {
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now()
       );
+      alter table kb_notes add column if not exists markdown_storage_key text not null default '';
+      alter table kb_notes drop column if exists markdown;
       create unique index if not exists kb_notes_user_path_idx on kb_notes (user_id, path);
       create index if not exists kb_notes_user_project_idx on kb_notes (user_id, project_slug);
       create index if not exists kb_notes_user_workspace_idx on kb_notes (user_id, workspace_slug);
@@ -156,13 +158,13 @@ export class PostgresSchemaMigrator extends SchemaMigrator {
         mime_type text not null default 'application/octet-stream',
         size_bytes bigint not null default 0,
         storage_key text not null default '',
-        content_base64 text not null default '',
         checksum_sha256 text not null default '',
         metadata jsonb not null default '{}'::jsonb,
         created_at timestamptz not null default now()
       );
-      alter table kb_attachments add column if not exists content_base64 text not null default '';
+      alter table kb_attachments add column if not exists storage_key text not null default '';
       alter table kb_attachments add column if not exists checksum_sha256 text not null default '';
+      alter table kb_attachments drop column if exists content_base64;
       create index if not exists kb_attachments_user_note_idx on kb_attachments (user_id, note_id);
 
       create table if not exists kb_conversation_states (

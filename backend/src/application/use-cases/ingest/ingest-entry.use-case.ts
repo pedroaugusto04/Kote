@@ -99,7 +99,7 @@ async function saveIngestedNote(contentRepository: ContentRepository, userId: st
         fileName: attachment.fileName,
         mimeType: attachment.mimeType,
         sizeBytes: attachment.sizeBytes,
-        contentBase64: attachment.dataBase64,
+        dataBase64: attachment.dataBase64,
         checksumSha256: crypto.createHash('sha256').update(attachment.dataBase64 || '', 'base64').digest('hex'),
         metadata: { sourceCorrelationId: payload.source.correlationId },
       }),

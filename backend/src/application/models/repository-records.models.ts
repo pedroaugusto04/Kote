@@ -89,6 +89,7 @@ export type NoteRecord = {
   sourceChannel: string;
   summary: string;
   markdown: string;
+  markdownStorageKey: string;
   frontmatter: Record<string, unknown>;
   metadata: Record<string, unknown>;
   origin: string;
@@ -103,7 +104,7 @@ export type AttachmentRecord = {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
-  contentBase64: string;
+  storageKey: string;
   checksumSha256: string;
   metadata: Record<string, unknown>;
   createdAt: string;
@@ -121,9 +122,13 @@ export type SaveProjectInput = ProjectRecord;
 
 export type SaveWorkspaceInput = WorkspaceRecord;
 
-export type SaveNoteInput = Omit<NoteRecord, 'id'> & { id?: string };
+export type SaveNoteInput = Omit<NoteRecord, 'id' | 'markdownStorageKey'> & { id?: string; markdownStorageKey?: string };
 
-export type SaveAttachmentInput = Omit<AttachmentRecord, 'id' | 'userId' | 'createdAt'> & { id?: string };
+export type SaveAttachmentInput = Omit<AttachmentRecord, 'id' | 'userId' | 'createdAt' | 'storageKey'> & {
+  id?: string;
+  storageKey?: string;
+  dataBase64?: string;
+};
 
 export type WebhookEventRecord = {
   id: string;

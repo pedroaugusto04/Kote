@@ -87,6 +87,8 @@ test('updates manual note content and reminder sibling', async (t) => {
   const reminder = await repositories.contentRepository.getNoteById(user.id, seededReminder.id);
   assert.equal(updated?.metadata.rawText, 'validar deploy final');
   assert.deepEqual(updated?.tags, ['release']);
+  assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /validar deploy final/);
+  assert.doesNotMatch((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /confirmar deploy/);
   assert.equal(reminder?.metadata.reminderDate, '2026-05-01');
   assert.equal(reminder?.metadata.reminderTime, '10:15');
 });
@@ -120,18 +122,25 @@ test('deletes manual note with reminder cascade and editor detail', async (t) =>
     fileName: 'evidence.txt',
     mimeType: 'text/plain',
     sizeBytes: 4,
-    contentBase64: 'dGVzdA==',
+    dataBase64: 'dGVzdA==',
     checksumSha256: 'checksum',
     metadata: {},
   });
 
   const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute(user.id, note.id);
   assert.equal(detail?.editor?.rawText, 'confirmar deploy');
+  const attachments = await repositories.contentRepository.listAttachments(user.id, note.id);
+  assert.equal(attachments.length, 1);
+  assert.equal(Object.hasOwn(attachments[0], 'contentBase64'), false);
+  assert.equal((await repositories.objectStorage.get(attachments[0].storageKey)).toString('utf8'), 'test');
 
   await new DeleteManualNoteUseCase(repositories.contentRepository).execute(note.id, user.id);
   assert.equal(await repositories.contentRepository.getNoteById(user.id, note.id), null);
   assert.equal(await repositories.contentRepository.getNoteById(user.id, reminder.id), null);
   assert.equal((await repositories.contentRepository.listAttachments(user.id, note.id)).length, 0);
+  assert.equal(repositories.objectStorage.deletedKeys.includes(note.markdownStorageKey), true);
+  assert.equal(repositories.objectStorage.deletedKeys.includes(reminder.markdownStorageKey), true);
+  assert.equal(repositories.objectStorage.deletedKeys.includes(attachments[0].storageKey), true);
 });
 
 test('rejects editing non-manual notes and blocks project deletion with notes', async (t) => {

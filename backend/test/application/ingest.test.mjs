@@ -79,8 +79,25 @@ test('ingest persists event note, reminder note, attachment and workspace in rep
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.filter((note) => note.type === 'event').length, 1);
   assert.equal(notes.filter((note) => note.type === 'reminder').length, 1);
-  assert.equal((await repositories.contentRepository.listAttachments(user.id, result.noteId)).length, 1);
+  const detail = await repositories.contentRepository.getNoteById(user.id, result.noteId);
+  assert.match(detail.markdownStorageKey, new RegExp(`^users/${user.id}/workspaces/default/notes/20 Inbox/n8n-automations/`));
+  assert.match(detail.markdown, /Deploy needs coordinated rollout/);
+  assert.match((await repositories.objectStorage.get(detail.markdownStorageKey)).toString('utf8'), /Deploy needs coordinated rollout/);
+  const attachments = await repositories.contentRepository.listAttachments(user.id, result.noteId);
+  assert.equal(attachments.length, 1);
+  assert.match(attachments[0].storageKey, new RegExp(`^users/${user.id}/workspaces/default/attachments/${result.noteId}/sample\\.txt$`));
+  assert.equal((await repositories.objectStorage.get(attachments[0].storageKey)).toString('utf8'), 'hello world');
+  assert.equal(Object.hasOwn(attachments[0], 'contentBase64'), false);
   assert.deepEqual((await repositories.contentRepository.listWorkspaces(user.id)).map((workspace) => workspace.workspaceSlug), ['default']);
+  const columns = await repositories.query(
+    `select column_name from information_schema.columns
+     where table_schema = $1 and table_name in ('kb_notes', 'kb_attachments')`,
+    [repositories.schemaName],
+  );
+  const columnNames = new Set(columns.rows.map((row) => row.column_name));
+  assert.equal(columnNames.has('markdown_storage_key'), true);
+  assert.equal(columnNames.has('markdown'), false);
+  assert.equal(columnNames.has('content_base64'), false);
 });
 
 test('ingest fails when the target workspace does not exist', async (t) => {

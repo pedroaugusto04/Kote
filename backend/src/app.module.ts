@@ -6,6 +6,7 @@ import { IntegrationConnectionService } from './application/integration-connecti
 import { IntegrationCredentialService } from './application/credentials.js';
 import { SchemaMigrator, UserRepository } from './application/ports/auth.repository.js';
 import { ContentQueryRepository, ContentRepository } from './application/ports/content.repository.js';
+import { ObjectStorage } from './application/ports/object-storage.js';
 import {
   CredentialRepository,
   ExternalIdentityRepository,
@@ -23,6 +24,7 @@ import { PostgresIntegrationRepository } from './infrastructure/repositories/int
 import { PostgresSchemaMigrator } from './infrastructure/persistence/schema.migrator.js';
 import { PostgresWebhookEventRepository } from './infrastructure/repositories/webhook-events.repository.js';
 import { PostgresWorkflowStateRepository } from './infrastructure/repositories/workflow-state.repository.js';
+import { SupabaseObjectStorage } from './infrastructure/storage/supabase-object-storage.js';
 import {
   BuildDashboardUseCase,
   BuildReminderDispatchUseCase,
@@ -87,6 +89,7 @@ import { AppLogger } from './observability/logger.js';
     PostgresContentQueryRepository,
     PostgresWorkflowStateRepository,
     PostgresWebhookEventRepository,
+    SupabaseObjectStorage,
     { provide: SchemaMigrator, useExisting: PostgresSchemaMigrator },
     { provide: UserRepository, useExisting: PostgresUserRepository },
     { provide: CredentialRepository, useExisting: PostgresIntegrationRepository },
@@ -94,6 +97,7 @@ import { AppLogger } from './observability/logger.js';
     { provide: IntegrationConnectionSessionRepository, useExisting: PostgresIntegrationRepository },
     { provide: ContentRepository, useExisting: PostgresContentRepository },
     { provide: ContentQueryRepository, useExisting: PostgresContentQueryRepository },
+    { provide: ObjectStorage, useExisting: SupabaseObjectStorage },
     { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: WebhookEventRepository, useExisting: PostgresWebhookEventRepository },

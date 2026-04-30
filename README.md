@@ -148,6 +148,7 @@ Todos os segredos relevantes ficam em `.env` na VPS e nunca no GitHub:
 - GitHub App client secret, app private key e webhook secret
 - Telegram bot token/chat
 - Evolution API key
+- Supabase URL, service-role key e bucket privado de storage
 - URL publica, secrets de assinatura, banco Postgres e credenciais criptografadas de providers
 
 Os workflows do n8n devem usar apenas `{{$env.*}}` para segredos.
@@ -163,11 +164,11 @@ O backend usa login local com `kb_users`, senha via `crypto.scrypt` e JWT statel
 - `POST /api/auth/signup`: cria usuario com `email`, `password` e `name`
 - `POST /api/auth/logout` limpa cookies, sem denylist server-side
 
-O admin inicial é criado por `KB_ADMIN_EMAIL` e `KB_ADMIN_PASSWORD`. Configure também `KB_DATABASE_URL`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_CREDENTIALS_ENCRYPTION_KEY` (base64 de 32 bytes), `KB_INTERNAL_SERVICE_TOKEN`, `KB_ALLOWED_ORIGINS`, `KB_BODY_LIMIT` e `KB_TRUST_PROXY` quando estiver atrás de proxy.
+O admin inicial é criado por `KB_ADMIN_EMAIL` e `KB_ADMIN_PASSWORD`. Configure também `KB_DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `KB_SUPABASE_STORAGE_BUCKET`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_CREDENTIALS_ENCRYPTION_KEY` (base64 de 32 bytes), `KB_INTERNAL_SERVICE_TOKEN`, `KB_ALLOWED_ORIGINS`, `KB_BODY_LIMIT` e `KB_TRUST_PROXY` quando estiver atrás de proxy.
 
 Para melhorar a leitura dos logs no Portainer, o modo pretty agora fica ativo por padrão. O backend aceita `LOG_PRETTY_CONSOLE` como nome principal, alinhado ao `feconect`, e também `KB_LOG_PRETTY_CONSOLE` como alias local. Para desligar e voltar ao JSON estruturado, defina `LOG_PRETTY_CONSOLE=false` ou `KB_LOG_PRETTY_CONSOLE=false`. Quando ativo, o console emite texto no formato `timestamp | LEVEL | mensagem | meta`, com ANSI colorido por nível (`INFO` verde, `WARN` amarelo, `ERROR` vermelho e `DEBUG` ciano).
 
-Postgres é a fonte de dados da API HTTP multiusuário. Usuários novos começam sem workspaces, projetos ou notas; o primeiro workspace precisa ser criado explicitamente pelo wizard ou por `POST /api/workspaces`. As tabelas principais são `kb_users`, `kb_workspaces`, `kb_projects`, `kb_notes`, `kb_note_links`, `kb_attachments`, `kb_conversation_states`, `kb_reminder_dispatch_state`, `kb_external_identities`, `kb_integration_credentials`, `kb_integration_connection_sessions` e `kb_webhook_events`.
+Postgres é a fonte de metadados da API HTTP multiusuário. Usuários novos começam sem workspaces, projetos ou notas; o primeiro workspace precisa ser criado explicitamente pelo wizard ou por `POST /api/workspaces`. As tabelas principais são `kb_users`, `kb_workspaces`, `kb_projects`, `kb_notes`, `kb_note_links`, `kb_attachments`, `kb_conversation_states`, `kb_reminder_dispatch_state`, `kb_external_identities`, `kb_integration_credentials`, `kb_integration_connection_sessions` e `kb_webhook_events`.
 
 O frontend expõe `/settings/integrations` com fluxos guiados para `github-app`, `whatsapp`, `telegram`, `ai-review` e `ai-conversation`. A tela não pede JSON, tokens, `jid`, API key, modelo de IA ou nome de instância: o backend usa `KB_GITHUB_APP_*`, `EVOLUTION_*`, `KB_TELEGRAM_*`, `KB_REVIEW_AI_*` e `KB_CONVERSATION_AI_*`, cria uma sessão curta em `kb_integration_connection_sessions` quando há pareamento por código, e grava a credencial final criptografada em `kb_integration_credentials.encrypted_config`. Ao revogar uma credencial, o backend substitui o payload criptografado por um marcador sem segredo e mantém apenas o status/histórico de revogação.
 
@@ -220,7 +221,7 @@ Toda resposta HTTP inclui `x-request-id`; a API reaproveita o valor recebido do 
 
 ## Persistência
 
-A persistência suportada é Postgres. O backend não importa dados antigos de markdown e não grava vault em disco. Anexos são persistidos em `kb_attachments` com conteúdo e checksum; estado de conversa fica em `kb_conversation_states`; controle de disparo de lembretes fica em `kb_reminder_dispatch_state`.
+A persistência suportada é Postgres para metadados e Supabase Storage privado para payloads. O backend não importa dados antigos de markdown e não grava vault em disco. Markdown renderizado de notas é salvo no bucket em `users/{userId}/workspaces/{workspaceSlug}/notes/{normalized-note-path}` e `kb_notes` mantém `markdown_storage_key` com título, resumo, tags, links e metadados para listagem/busca. Anexos são salvos no bucket em `users/{userId}/workspaces/{workspaceSlug}/attachments/{noteId}/{safe-file-name}` e `kb_attachments` mantém `storage_key`, metadados, tamanho e checksum; estado de conversa fica em `kb_conversation_states`; controle de disparo de lembretes fica em `kb_reminder_dispatch_state`.
 
 ## Build e testes
 
@@ -279,6 +280,10 @@ KB_POSTGRES_USER=postgres
 KB_POSTGRES_PASSWORD=postgres
 KB_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5438/knowledge_base
 KB_DATABASE_URL_DOCKER=postgres://postgres:postgres@postgres:5432/knowledge_base
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=change-me-service-role-key
+KB_SUPABASE_STORAGE_BUCKET=knowledge-base-private
+KB_SUPABASE_CACHE_CONTROL=31536000
 KB_ALLOWED_ORIGINS=http://127.0.0.1:4311,http://localhost:4311,http://127.0.0.1:4310,http://localhost:4310
 LOG_PRETTY_CONSOLE=true
 KB_LOG_PRETTY_CONSOLE=true
@@ -316,13 +321,13 @@ Variáveis do GitHub Environment usadas no deploy:
 - `FRONTEND_DEPLOY_PATH`: diretório remoto do frontend estático, por exemplo `/var/www/knowledge-base`
 - `RELOAD_NGINX`: controle opcional do reload do Nginx, `true` por padrão
 - `VITE_KB_FRONTEND_BASE_PATH` e `VITE_KB_API_BASE_PATH`: paths públicos do frontend e da API, por padrão `/knowledge-base/` e `/knowledge-base/api`
-- `KB_PUBLIC_BASE_URL`, `KB_ALLOWED_ORIGINS`, `KB_API_*` e variáveis não secretas de integrações/IA
+- `KB_PUBLIC_BASE_URL`, `KB_ALLOWED_ORIGINS`, `KB_API_*`, `SUPABASE_URL`, `KB_SUPABASE_STORAGE_BUCKET`, `KB_SUPABASE_CACHE_CONTROL` e variáveis não secretas de integrações/IA
 
 Secrets do GitHub Environment usados no deploy:
 
 - acesso VPS: `VPS_HOST`, `VPS_USER`, `VPS_SSH_PORT`, `VPS_SSH_PRIVATE_KEY`
 - acesso Git privado na VPS: `VPS_GITHUB_REPO_TOKEN`
-- banco/auth/crypto: `KB_DATABASE_URL`, `KB_ADMIN_EMAIL`, `KB_ADMIN_PASSWORD`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_INTERNAL_SERVICE_TOKEN`, `KB_CREDENTIALS_ENCRYPTION_KEY`
+- banco/auth/crypto/storage: `KB_DATABASE_URL`, `KB_ADMIN_EMAIL`, `KB_ADMIN_PASSWORD`, `KB_JWT_ACCESS_SECRET`, `KB_JWT_REFRESH_SECRET`, `KB_INTERNAL_SERVICE_TOKEN`, `KB_CREDENTIALS_ENCRYPTION_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
 - credenciais opcionais: `KB_GITHUB_APP_*`, `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`, `EVOLUTION_INSTANCE_NAME`, `KB_TELEGRAM_*`, `KB_REVIEW_AI_API_KEY`, `KB_CONVERSATION_AI_API_KEY`
 
 Na VPS, prepare uma vez:

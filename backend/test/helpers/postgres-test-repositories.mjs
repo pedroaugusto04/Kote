@@ -10,6 +10,7 @@ import { PostgresWebhookEventRepository } from '../../dist/infrastructure/reposi
 import { PostgresWorkflowStateRepository } from '../../dist/infrastructure/repositories/workflow-state.repository.js';
 import { webhookEventFromRow } from '../../dist/infrastructure/mappers/row.mappers.js';
 import { PostgresSchemaMigrator } from '../../dist/infrastructure/persistence/schema.migrator.js';
+import { ObjectStorageMissingContentError } from '../../dist/application/ports/object-storage.js';
 
 const { Pool } = pg;
 
@@ -71,6 +72,28 @@ function createDatabase(pool) {
   };
 }
 
+class InMemoryObjectStorage {
+  constructor() {
+    this.objects = new Map();
+    this.deletedKeys = [];
+  }
+
+  async put(input) {
+    this.objects.set(input.key, Buffer.isBuffer(input.body) ? Buffer.from(input.body) : Buffer.from(String(input.body)));
+  }
+
+  async get(key) {
+    const object = this.objects.get(key);
+    if (!object) throw new ObjectStorageMissingContentError(key);
+    return Buffer.from(object);
+  }
+
+  async delete(key) {
+    this.deletedKeys.push(key);
+    this.objects.delete(key);
+  }
+}
+
 async function dropSchema(targetUrl, schemaName) {
   const pool = new Pool({ connectionString: targetUrl.toString() });
   try {
@@ -97,8 +120,9 @@ export async function createPostgresTestRepositories(t) {
 
   const userRepository = new PostgresUserRepository(database);
   const integrationRepository = new PostgresIntegrationRepository(database);
-  const contentRepository = new PostgresContentRepository(database);
-  const contentQueryRepository = new PostgresContentQueryRepository(database);
+  const objectStorage = new InMemoryObjectStorage();
+  const contentRepository = new PostgresContentRepository(database, objectStorage);
+  const contentQueryRepository = new PostgresContentQueryRepository(database, objectStorage);
   const workflowStateRepository = new PostgresWorkflowStateRepository(database);
   const webhookEventRepository = new PostgresWebhookEventRepository(database);
 
@@ -151,6 +175,7 @@ export async function createPostgresTestRepositories(t) {
     countConversationStates,
     getLastWebhookEvent,
     schemaMigrator,
+    objectStorage,
     userRepository,
     credentialRepository: integrationRepository,
     externalIdentityRepository: integrationRepository,

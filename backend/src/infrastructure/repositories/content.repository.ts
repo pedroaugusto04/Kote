@@ -3,13 +3,41 @@ import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 import { ContentRepository } from '../../application/ports/content.repository.js';
+import { ObjectStorage } from '../../application/ports/object-storage.js';
+import type { NoteRecord, SaveAttachmentInput, SaveNoteInput } from '../../application/models/repository-records.models.js';
 import { attachmentFromRow, noteFromRow, projectFromRow, workspaceFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
+function normalizedObjectPath(path: string): string {
+  return path.replace(/\\/g, '/').split('/').map((segment) => segment.trim()).filter(Boolean).join('/');
+}
+
+function safeFileName(fileName: string): string {
+  const normalized = fileName.trim().replace(/[\\/\u0000-\u001f\u007f]+/g, '_');
+  return normalized || 'attachment';
+}
+
+function noteStorageKey(userId: string, workspaceSlug: string, notePath: string): string {
+  return `users/${userId}/workspaces/${workspaceSlug || 'default'}/notes/${normalizedObjectPath(notePath)}`;
+}
+
+function attachmentStorageKey(userId: string, workspaceSlug: string, noteId: string, fileName: string): string {
+  return `users/${userId}/workspaces/${workspaceSlug || 'default'}/attachments/${noteId}/${safeFileName(fileName)}`;
+}
+
 @Injectable()
 export class PostgresContentRepository extends ContentRepository {
-  constructor(private readonly database: PostgresDatabase) {
+  constructor(
+    private readonly database: PostgresDatabase,
+    private readonly objectStorage: ObjectStorage,
+  ) {
     super();
+  }
+
+  private async hydrateMarkdown(note: NoteRecord): Promise<NoteRecord> {
+    if (!note.markdownStorageKey) return note;
+    const markdown = await this.objectStorage.get(note.markdownStorageKey);
+    return { ...note, markdown: markdown.toString('utf8') };
   }
 
   async listWorkspaces(userId: string) {
@@ -110,7 +138,7 @@ export class PostgresContentRepository extends ContentRepository {
 
   async getNoteById(userId: string, id: string) {
     const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and id = $2 limit 1', [userId, id]);
-    return result.rows[0] ? noteFromRow(result.rows[0]) : null;
+    return result.rows[0] ? this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
   }
 
   async getNoteByPath(userId: string, path: string) {
@@ -126,32 +154,20 @@ export class PostgresContentRepository extends ContentRepository {
        limit 1`,
       [userId, sourceNotePath],
     );
-    return result.rows[0] ? noteFromRow(result.rows[0]) : null;
+    return result.rows[0] ? this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
   }
 
-  async upsertNote(userId: string, input: {
-    id?: string;
-    path: string;
-    type: string;
-    title: string;
-    projectSlug: string;
-    workspaceSlug: string;
-    status: string;
-    tags: string[];
-    occurredAt: string;
-    sourceChannel: string;
-    summary: string;
-    markdown: string;
-    frontmatter: Record<string, unknown>;
-    metadata: Record<string, unknown>;
-    origin: string;
-    source: string;
-    links: string[];
-  }) {
+  async upsertNote(userId: string, input: SaveNoteInput) {
+    const markdownStorageKey = input.markdownStorageKey || noteStorageKey(userId, input.workspaceSlug, input.path);
+    await this.objectStorage.put({
+      key: markdownStorageKey,
+      body: input.markdown,
+      contentType: 'text/markdown; charset=utf-8',
+    });
     const result = await this.database.getPool().query(
       `insert into kb_notes (
          id, user_id, path, type, title, project_slug, workspace_slug, status, tags, occurred_at,
-         source_channel, summary, markdown, frontmatter, metadata, origin, source, links
+         source_channel, summary, markdown_storage_key, frontmatter, metadata, origin, source, links
        )
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11, $12, $13, $14::jsonb, $15::jsonb, $16, $17, $18::jsonb)
        on conflict (user_id, path)
@@ -165,7 +181,7 @@ export class PostgresContentRepository extends ContentRepository {
          occurred_at = excluded.occurred_at,
          source_channel = excluded.source_channel,
          summary = excluded.summary,
-         markdown = excluded.markdown,
+         markdown_storage_key = excluded.markdown_storage_key,
          frontmatter = excluded.frontmatter,
          metadata = excluded.metadata,
          origin = excluded.origin,
@@ -186,7 +202,7 @@ export class PostgresContentRepository extends ContentRepository {
         input.occurredAt,
         input.sourceChannel,
         input.summary,
-        input.markdown,
+        markdownStorageKey,
         JSON.stringify(input.frontmatter),
         JSON.stringify(input.metadata),
         input.origin,
@@ -194,36 +210,46 @@ export class PostgresContentRepository extends ContentRepository {
         JSON.stringify(input.links),
       ],
     );
-    return noteFromRow(result.rows[0]);
+    return { ...noteFromRow(result.rows[0]), markdown: input.markdown };
   }
 
   async deleteNote(userId: string, id: string) {
+    const noteResult = await this.database.getPool().query('select markdown_storage_key from kb_notes where user_id = $1 and id = $2 limit 1', [userId, id]);
+    const attachmentResult = await this.database.getPool().query('select storage_key from kb_attachments where user_id = $1 and note_id = $2', [userId, id]);
     const result = await this.database.getPool().query('delete from kb_notes where user_id = $1 and id = $2', [userId, id]);
-    return (result.rowCount || 0) > 0;
+    if ((result.rowCount || 0) === 0) return false;
+    const keys = [
+      String(noteResult.rows[0]?.markdown_storage_key || ''),
+      ...attachmentResult.rows.map((row) => String(row.storage_key || '')),
+    ].filter(Boolean);
+    await Promise.all(keys.map((key) => this.objectStorage.delete(key).catch(() => undefined)));
+    return true;
   }
 
-  async saveAttachment(userId: string, input: {
-    id?: string;
-    noteId: string;
-    fileName: string;
-    mimeType: string;
-    sizeBytes: number;
-    contentBase64: string;
-    checksumSha256: string;
-    metadata: Record<string, unknown>;
-  }) {
+  async saveAttachment(userId: string, input: SaveAttachmentInput) {
+    const attachmentId = input.id || crypto.randomUUID();
+    const noteResult = await this.database.getPool().query('select workspace_slug from kb_notes where user_id = $1 and id = $2 limit 1', [userId, input.noteId]);
+    const workspaceSlug = String(noteResult.rows[0]?.workspace_slug || 'default');
+    const storageKey = input.storageKey || attachmentStorageKey(userId, workspaceSlug, input.noteId, input.fileName);
+    if (input.dataBase64 !== undefined) {
+      await this.objectStorage.put({
+        key: storageKey,
+        body: Buffer.from(input.dataBase64 || '', 'base64'),
+        contentType: input.mimeType || 'application/octet-stream',
+      });
+    }
     const result = await this.database.getPool().query(
-      `insert into kb_attachments (id, user_id, note_id, file_name, mime_type, size_bytes, storage_key, content_base64, checksum_sha256, metadata)
-       values ($1, $2, $3, $4, $5, $6, '', $7, $8, $9::jsonb)
+      `insert into kb_attachments (id, user_id, note_id, file_name, mime_type, size_bytes, storage_key, checksum_sha256, metadata)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
        returning *`,
       [
-        input.id || crypto.randomUUID(),
+        attachmentId,
         userId,
         input.noteId,
         input.fileName,
         input.mimeType,
         input.sizeBytes,
-        input.contentBase64,
+        storageKey,
         input.checksumSha256,
         JSON.stringify(input.metadata || {}),
       ],
