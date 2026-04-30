@@ -5,7 +5,7 @@ import crypto from 'node:crypto';
 import { IntegrationCredentialService } from '../../dist/application/credentials.js';
 import { IntegrationConnectionService } from '../../dist/application/integration-connections.js';
 import { HandleTelegramWebhookUseCase, HandleWhatsappWebhookUseCase, IngestEntryUseCase } from '../../dist/application/use-cases/index.js';
-import { createMemoryRepositories } from '../../dist/infrastructure/repositories/memory-repositories.js';
+import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
 function configureEnv() {
   process.env.KB_CREDENTIALS_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
@@ -24,9 +24,9 @@ function configureEnv() {
   process.env.NODE_ENV = 'test';
 }
 
-async function fixture() {
+async function fixture(t) {
   configureEnv();
-  const repositories = createMemoryRepositories();
+  const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.userRepository.createUser({ email: 'owner@example.com', displayName: 'Owner', passwordHash: 'hash', role: 'user' });
   await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'default',
@@ -93,10 +93,10 @@ function stateFromRedirect(result) {
   return url.searchParams.get('state');
 }
 
-test('connection sessions expire and can only be consumed once', async () => {
-  const { repositories, user, connections, whatsapp } = await fixture();
+test('connection sessions expire and can only be consumed once', async (t) => {
+  const { repositories, user, connections, whatsapp } = await fixture(t);
   const expired = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'whatsapp' });
-  repositories.state.connectionSessions.get(expired.session.id).expiresAt = new Date(Date.now() - 1000).toISOString();
+  await repositories.expireConnectionSession(expired.session.id);
 
   await assert.rejects(() => whatsapp.execute(whatsappInput(expired.verificationCode)), /connection_session_not_found/);
 
@@ -107,8 +107,8 @@ test('connection sessions expire and can only be consumed once', async () => {
   await assert.rejects(() => whatsapp.execute(whatsappInput(active.verificationCode)), /connection_session_not_found/);
 });
 
-test('github app callback validates state, installation ownership, conflicts and success', async () => {
-  const { repositories, user, connections } = await fixture();
+test('github app callback validates state, installation ownership, conflicts and success', async (t) => {
+  const { repositories, user, connections } = await fixture(t);
   await assert.rejects(
     () => connections.completeGithub({ userId: user.id, state: 'bad-state', code: 'code', installationId: '42' }),
     /invalid_connection_state/,
@@ -166,8 +166,8 @@ test('github app callback validates state, installation ownership, conflicts and
   globalThis.fetch = originalFetch;
 });
 
-test('github connection normalizes app settings URLs to the installation flow', async () => {
-  const { user, connections } = await fixture();
+test('github connection normalizes app settings URLs to the installation flow', async (t) => {
+  const { user, connections } = await fixture(t);
   process.env.KB_GITHUB_APP_INSTALL_URL = 'https://github.com/settings/apps/kb';
 
   const connection = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'github-app' });
@@ -178,8 +178,8 @@ test('github connection normalizes app settings URLs to the installation flow', 
   assert.ok(url.searchParams.get('state'));
 });
 
-test('whatsapp connection command binds the group without trusting userId payload and normal unknown messages stay rejected', async () => {
-  const { repositories, user, connections, whatsapp } = await fixture();
+test('whatsapp connection command binds the group without trusting userId payload and normal unknown messages stay rejected', async (t) => {
+  const { repositories, user, connections, whatsapp } = await fixture(t);
   const setup = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'whatsapp' });
 
   const result = await whatsapp.execute(whatsappInput(setup.verificationCode));
@@ -199,8 +199,8 @@ test('whatsapp connection command binds the group without trusting userId payloa
   );
 });
 
-test('telegram connection command binds the chat and rejects invalid webhook token', async () => {
-  const { repositories, user, connections, telegram } = await fixture();
+test('telegram connection command binds the chat and rejects invalid webhook token', async (t) => {
+  const { repositories, user, connections, telegram } = await fixture(t);
   const setup = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'telegram' });
 
   await assert.rejects(
@@ -225,8 +225,8 @@ test('telegram connection command binds the chat and rejects invalid webhook tok
   );
 });
 
-test('ai integrations activate only with server-managed configuration and test does not leak secrets', async () => {
-  const { repositories, user, connections } = await fixture();
+test('ai integrations activate only with server-managed configuration and test does not leak secrets', async (t) => {
+  const { repositories, user, connections } = await fixture(t);
   const review = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'ai-review' });
   assert.equal(review.integration.connectedAccount, 'openrouter');
   const service = new IntegrationCredentialService(
@@ -245,8 +245,8 @@ test('ai integrations activate only with server-managed configuration and test d
   );
 });
 
-test('github app repositories are listed by installation token and saved into workspace projects', async () => {
-  const { repositories, user, connections } = await fixture();
+test('github app repositories are listed by installation token and saved into workspace projects', async (t) => {
+  const { repositories, user, connections } = await fixture(t);
   const setup = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'github-app' });
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {
@@ -278,8 +278,8 @@ test('github app repositories are listed by installation token and saved into wo
   globalThis.fetch = originalFetch;
 });
 
-test('guided integrations reject missing workspace and github callback keeps browser return path', async () => {
-  const { repositories, user, connections } = await fixture();
+test('guided integrations reject missing workspace and github callback keeps browser return path', async (t) => {
+  const { repositories, user, connections } = await fixture(t);
   await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'product-team',
     displayName: 'Product Team',
@@ -317,8 +317,8 @@ test('guided integrations reject missing workspace and github callback keeps bro
   }
 });
 
-test('github callback fallback redirect preserves base path from public base url', async () => {
-  const { user, connections } = await fixture();
+test('github callback fallback redirect preserves base path from public base url', async (t) => {
+  const { user, connections } = await fixture(t);
   const previousPublicBaseUrl = process.env.KB_PUBLIC_BASE_URL;
   const originalFetch = globalThis.fetch;
   try {
@@ -342,12 +342,12 @@ test('github callback fallback redirect preserves base path from public base url
   }
 });
 
-test('webhook event logs redact sensitive headers and payload recursively', async () => {
-  const { repositories, user, connections, whatsapp } = await fixture();
+test('webhook event logs redact sensitive headers and payload recursively', async (t) => {
+  const { repositories, user, connections, whatsapp } = await fixture(t);
   const setup = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'whatsapp' });
   await whatsapp.execute(whatsappInput(setup.verificationCode));
 
-  const event = Array.from(repositories.state.webhookEvents.values()).at(-1);
+  const event = await repositories.getLastWebhookEvent();
   assert.equal(event.rawHeaders.authorization, '[redacted]');
   assert.equal(event.rawHeaders.cookie, '[redacted]');
   assert.equal(event.rawHeaders.apikey, '[redacted]');

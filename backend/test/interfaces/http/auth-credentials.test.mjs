@@ -5,8 +5,8 @@ import crypto from 'node:crypto';
 import { AuthService } from '../../../dist/application/auth.js';
 import { IntegrationConnectionService } from '../../../dist/application/integration-connections.js';
 import { IntegrationCredentialService } from '../../../dist/application/credentials.js';
-import { createMemoryRepositories } from '../../../dist/infrastructure/repositories/memory-repositories.js';
 import { AuthController, InternalIntegrationsController, UserIntegrationsController } from '../../../dist/interfaces/http/controllers/index.js';
+import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 function configureEnv() {
   process.env.KB_ADMIN_EMAIL = 'admin@example.com';
@@ -34,9 +34,9 @@ function responseMock() {
   };
 }
 
-async function fixture() {
+async function fixture(t) {
   configureEnv();
-  const repositories = createMemoryRepositories();
+  const repositories = await createPostgresTestRepositories(t);
   const auth = new AuthService(repositories.userRepository, repositories.schemaMigrator);
   await auth.onModuleInit();
   const admin = await repositories.userRepository.findUserByEmail('admin@example.com');
@@ -65,8 +65,8 @@ async function fixture() {
   };
 }
 
-test('login creates HttpOnly cookies and does not return tokens in JSON', async () => {
-  const { auth } = await fixture();
+test('login creates HttpOnly cookies and does not return tokens in JSON', async (t) => {
+  const { auth } = await fixture(t);
   const controller = new AuthController(auth);
   const response = responseMock();
 
@@ -85,8 +85,8 @@ test('login creates HttpOnly cookies and does not return tokens in JSON', async 
   assert.equal(response.cookies.every((cookie) => cookie.options.sameSite === 'lax'), true);
 });
 
-test('signup creates a user and HttpOnly cookies', async () => {
-  const { auth, repositories } = await fixture();
+test('signup creates a user and HttpOnly cookies', async (t) => {
+  const { auth, repositories } = await fixture(t);
   const controller = new AuthController(auth);
   const response = responseMock();
 
@@ -103,8 +103,8 @@ test('signup creates a user and HttpOnly cookies', async () => {
   assert.deepEqual(response.cookies.map((cookie) => cookie.name), ['kb_access_token', 'kb_refresh_token']);
 });
 
-test('signup duplicate email returns a field error', async () => {
-  const { auth } = await fixture();
+test('signup duplicate email returns a field error', async (t) => {
+  const { auth } = await fixture(t);
   const controller = new AuthController(auth);
 
   await assert.rejects(
@@ -121,8 +121,8 @@ test('signup duplicate email returns a field error', async () => {
   );
 });
 
-test('refresh issues a new access cookie and logout clears browser cookies', async () => {
-  const { auth } = await fixture();
+test('refresh issues a new access cookie and logout clears browser cookies', async (t) => {
+  const { auth } = await fixture(t);
   const controller = new AuthController(auth);
   const loginResponse = responseMock();
   await controller.login(
@@ -146,8 +146,8 @@ test('refresh issues a new access cookie and logout clears browser cookies', asy
   assert.deepEqual(logoutResponse.cleared.map((cookie) => cookie.name), ['kb_access_token', 'kb_refresh_token']);
 });
 
-test('mutable browser endpoints reject invalid Origin', async () => {
-  const { auth } = await fixture();
+test('mutable browser endpoints reject invalid Origin', async (t) => {
+  const { auth } = await fixture(t);
   const controller = new AuthController(auth);
 
   await assert.rejects(
@@ -156,8 +156,8 @@ test('mutable browser endpoints reject invalid Origin', async () => {
   );
 });
 
-test('guided credentials are encrypted, never returned, and resolved internally by userId or external identity', async () => {
-  const { auth, repositories, credentials, connections } = await fixture();
+test('guided credentials are encrypted, never returned, and resolved internally by userId or external identity', async (t) => {
+  const { auth, repositories, credentials, connections } = await fixture(t);
   const authController = new AuthController(auth);
   const userController = new UserIntegrationsController(auth, credentials, connections);
   const internalController = new InternalIntegrationsController(credentials);
@@ -208,8 +208,8 @@ test('guided credentials are encrypted, never returned, and resolved internally 
   assert.equal(JSON.stringify(revokedStored.encryptedConfig).includes('120363@g.us'), false);
 });
 
-test('guided connection rejects identity hijacking', async () => {
-  const first = await fixture();
+test('guided connection rejects identity hijacking', async (t) => {
+  const first = await fixture(t);
   const firstAuthController = new AuthController(first.auth);
   const firstUserController = new UserIntegrationsController(first.auth, first.credentials, first.connections);
   const firstLoginResponse = responseMock();

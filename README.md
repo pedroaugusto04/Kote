@@ -229,6 +229,10 @@ npm --prefix knowledge-base install
 npm --prefix knowledge-base test
 ```
 
+Os testes de API usam Postgres real. Antes de executar `npm run test:api`, suba o Postgres local com `docker compose up -d postgres` ou aponte `KB_TEST_DATABASE_URL` para uma instância equivalente. Por padrão o helper usa `postgres://postgres:postgres@127.0.0.1:5438/knowledge_base_db_test`, cria automaticamente o database `knowledge_base_db_test` quando ele não existe, executa as migrations em um schema isolado `kb_test_*` por teste e remove esse schema no teardown. O helper recusa qualquer URL de teste cujo database alvo não se chame exatamente `knowledge_base_db_test`.
+
+Use `KB_TEST_ADMIN_DATABASE_URL` apenas quando o usuário de `KB_TEST_DATABASE_URL` não puder criar databases. Se omitido, o helper deriva a URL administrativa trocando o database para `postgres`.
+
 ## API e frontend local
 
 ```bash

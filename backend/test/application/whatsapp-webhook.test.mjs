@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createMemoryRepositories } from '../../dist/infrastructure/repositories/memory-repositories.js';
 import { HandleWhatsappWebhookUseCase, IngestEntryUseCase, ProcessConversationUseCase } from '../../dist/application/use-cases/index.js';
+import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
 class CapturingWhatsappSender {
   constructor(ok = true) {
@@ -22,10 +22,11 @@ function configureEnv() {
   process.env.KB_CONVERSATION_AI_PROVIDER = 'none';
 }
 
-async function fixture(sender = new CapturingWhatsappSender()) {
+async function fixture(t, sender = new CapturingWhatsappSender()) {
   configureEnv();
-  const repositories = createMemoryRepositories();
-  await repositories.contentRepository.upsertWorkspace('user-1', {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'default',
     displayName: 'Default',
     whatsappGroupJid: '120363@g.us',
@@ -35,7 +36,7 @@ async function fixture(sender = new CapturingWhatsappSender()) {
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
-  await repositories.contentRepository.upsertProject('user-1', {
+  await repositories.contentRepository.upsertProject(user.id, {
     projectSlug: 'n8n-automations',
     displayName: 'N8N Automations',
     repoFullName: '',
@@ -45,7 +46,7 @@ async function fixture(sender = new CapturingWhatsappSender()) {
     enabled: true,
   });
   await repositories.externalIdentityRepository.upsertExternalIdentity({
-    userId: 'user-1',
+    userId: user.id,
     workspaceSlug: 'default',
     provider: 'whatsapp',
     identityType: 'jid',
@@ -67,7 +68,7 @@ async function fixture(sender = new CapturingWhatsappSender()) {
     conversation,
     sender,
   );
-  return { repositories, whatsapp, sender };
+  return { repositories, whatsapp, sender, user };
 }
 
 function evolutionInput(message, overrides = {}) {
@@ -133,8 +134,8 @@ function canonicalPayload() {
   };
 }
 
-test('linked whatsapp group processes free text and sends the first conversation reply', async () => {
-  const { whatsapp, sender } = await fixture();
+test('linked whatsapp group processes free text and sends the first conversation reply', async (t) => {
+  const { whatsapp, sender } = await fixture(t);
 
   const result = await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
 
@@ -147,8 +148,8 @@ test('linked whatsapp group processes free text and sends the first conversation
   assert.match(sender.sent[0].text, /Qual o tipo da nota/);
 });
 
-test('linked whatsapp group completes conversation and saves note on confirmation', async () => {
-  const { repositories, whatsapp } = await fixture();
+test('linked whatsapp group completes conversation and saves note on confirmation', async (t) => {
+  const { repositories, whatsapp, user } = await fixture(t);
 
   await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
   await whatsapp.execute(evolutionInput('2'));
@@ -157,15 +158,15 @@ test('linked whatsapp group completes conversation and saves note on confirmatio
   const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.conversationResult.action, 'submit');
-  const notes = await repositories.contentRepository.listNotes('user-1');
+  const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
   assert.equal(notes[0].projectSlug, 'n8n-automations');
   assert.equal(notes[0].sourceChannel, 'whatsapp');
 });
 
-test('whatsapp knowledge command replies to query without creating capture state', async () => {
-  const { repositories, whatsapp } = await fixture();
-  await repositories.contentRepository.upsertNote('user-1', {
+test('whatsapp knowledge command replies to query without creating capture state', async (t) => {
+  const { repositories, whatsapp, user } = await fixture(t);
+  await repositories.contentRepository.upsertNote(user.id, {
     path: '20 Inbox/n8n-automations/2026/04/deploy.md',
     type: 'event',
     title: 'Deploy checklist',
@@ -188,11 +189,11 @@ test('whatsapp knowledge command replies to query without creating capture state
 
   assert.equal(result.conversationResult.action, 'reply');
   assert.match(result.conversationResult.replyText, /deploy/i);
-  assert.equal(repositories.state.conversationStates.size, 0);
+  assert.equal(await repositories.countConversationStates(), 0);
 });
 
-test('whatsapp webhook ignores messages sent by the bot itself', async () => {
-  const { whatsapp, sender } = await fixture();
+test('whatsapp webhook ignores messages sent by the bot itself', async (t) => {
+  const { whatsapp, sender } = await fixture(t);
 
   const result = await whatsapp.execute(evolutionInput('resposta do bot', {
     data: {
@@ -206,8 +207,8 @@ test('whatsapp webhook ignores messages sent by the bot itself', async () => {
   assert.equal(sender.sent.length, 0);
 });
 
-test('unknown whatsapp group is still rejected', async () => {
-  const { whatsapp } = await fixture();
+test('unknown whatsapp group is still rejected', async (t) => {
+  const { whatsapp } = await fixture(t);
 
   await assert.rejects(
     () => whatsapp.execute(evolutionInput('mensagem normal', {
@@ -220,8 +221,8 @@ test('unknown whatsapp group is still rejected', async () => {
   );
 });
 
-test('schemaVersion 1 whatsapp payload still performs direct ingest', async () => {
-  const { repositories, whatsapp } = await fixture();
+test('schemaVersion 1 whatsapp payload still performs direct ingest', async (t) => {
+  const { repositories, whatsapp, user } = await fixture(t);
 
   const result = await whatsapp.execute({
     headers: { authorization: 'Bearer webhook-secret' },
@@ -229,12 +230,12 @@ test('schemaVersion 1 whatsapp payload still performs direct ingest', async () =
   });
 
   assert.equal(result.ingestResult.ok, true);
-  assert.equal((await repositories.contentRepository.listNotes('user-1')).length, 1);
+  assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 1);
 });
 
-test('evolution send failure returns replySent false after confirmation without duplicating note', async () => {
+test('evolution send failure returns replySent false after confirmation without duplicating note', async (t) => {
   const sender = new CapturingWhatsappSender(false);
-  const { repositories, whatsapp } = await fixture(sender);
+  const { repositories, whatsapp, user } = await fixture(t, sender);
 
   await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
   await whatsapp.execute(evolutionInput('2'));
@@ -245,11 +246,11 @@ test('evolution send failure returns replySent false after confirmation without 
   assert.equal(result.conversationResult.action, 'submit');
   assert.equal(result.replySent, false);
   assert.equal(result.replyError, 'send_failed');
-  assert.equal((await repositories.contentRepository.listNotes('user-1')).length, 1);
+  assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 1);
 });
 
-test('whatsapp media without caption asks for text and does not save attachment', async () => {
-  const { repositories, whatsapp, sender } = await fixture();
+test('whatsapp media without caption asks for text and does not save attachment', async (t) => {
+  const { repositories, whatsapp, sender, user } = await fixture(t);
 
   const result = await whatsapp.execute(evolutionInput('', {
     data: {
@@ -260,6 +261,6 @@ test('whatsapp media without caption asks for text and does not save attachment'
 
   assert.equal(result.replySent, true);
   assert.match(result.replyText, /legenda ou texto/);
-  assert.equal((await repositories.contentRepository.listNotes('user-1')).length, 0);
+  assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
   assert.equal(sender.sent.length, 1);
 });

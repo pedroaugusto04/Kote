@@ -1,13 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createMemoryRepositories } from '../../dist/infrastructure/repositories/memory-repositories.js';
 import { QueryKnowledgeUseCase } from '../../dist/application/use-cases/index.js';
+import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
-test('query returns ranked matches from the authenticated user repository scope', async () => {
-  const repositories = createMemoryRepositories();
+test('query returns ranked matches from the authenticated user repository scope', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const otherUser = await repositories.createTestUser();
   const queryRepository = repositories.contentQueryRepository;
-  await repositories.contentRepository.upsertNote('user-1', {
+  await repositories.contentRepository.upsertNote(user.id, {
     path: '20 Inbox/n8n-automations/2026/04/deploy.md',
     type: 'event',
     title: 'Deploy rollout',
@@ -25,7 +27,7 @@ test('query returns ranked matches from the authenticated user repository scope'
     source: 'test',
     links: [],
   });
-  await repositories.contentRepository.upsertNote('user-2', {
+  await repositories.contentRepository.upsertNote(otherUser.id, {
     path: '20 Inbox/other/deploy.md',
     type: 'event',
     title: 'Other Deploy',
@@ -46,7 +48,7 @@ test('query returns ranked matches from the authenticated user repository scope'
 
   const result = await new QueryKnowledgeUseCase(queryRepository).execute(
     { query: 'timeout webhook deploy', mode: 'answer', projectSlug: 'n8n-automations', limit: 3 },
-    'user-1',
+    user.id,
   );
 
   assert.equal(result.ok, true);

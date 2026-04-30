@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createMemoryRepositories } from '../../dist/infrastructure/repositories/memory-repositories.js';
 import { IngestEntryUseCase, ProcessConversationUseCase } from '../../dist/application/use-cases/index.js';
+import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
-async function createUseCase() {
-  const repositories = createMemoryRepositories();
-  await repositories.contentRepository.upsertWorkspace('user-1', {
+async function createUseCase(t) {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'default',
     displayName: 'Default',
     whatsappGroupJid: '',
@@ -16,7 +17,7 @@ async function createUseCase() {
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
-  await repositories.contentRepository.upsertProject('user-1', {
+  await repositories.contentRepository.upsertProject(user.id, {
     projectSlug: 'n8n-automations',
     displayName: 'N8N Automations',
     repoFullName: '',
@@ -32,7 +33,7 @@ async function createUseCase() {
     repositories.conversationStateRepository,
     ingest,
   );
-  return { repositories, useCase };
+  return { repositories, useCase, user };
 }
 
 function input(messageText, extras = {}) {
@@ -47,8 +48,8 @@ function input(messageText, extras = {}) {
   };
 }
 
-test('conversation stores state per user/workspace and ingests on confirm', async () => {
-  const { repositories, useCase } = await createUseCase();
+test('conversation stores state per user/workspace and ingests on confirm', async (t) => {
+  const { repositories, useCase, user } = await createUseCase(t);
 
   const step1 = await useCase.execute(
     input('corrigi timeout no webhook', {
@@ -63,26 +64,26 @@ test('conversation stores state per user/workspace and ingests on confirm', asyn
         confidence: 'high',
       },
     }),
-    'user-1',
+    user.id,
     'default',
   );
   assert.equal(step1.action, 'reply');
   assert.match(step1.replyText, /lembrete/i);
 
-  const step2 = await useCase.execute(input('9'), 'user-1', 'default');
+  const step2 = await useCase.execute(input('9'), user.id, 'default');
   assert.equal(step2.action, 'reply');
   assert.match(step2.replyText, /Resumo da nota/);
 
-  const step3 = await useCase.execute(input('sim'), 'user-1', 'default');
+  const step3 = await useCase.execute(input('sim'), user.id, 'default');
   assert.equal(step3.action, 'submit');
   assert.equal(step3.ingestResult.ok, true);
   assert.equal(step3.payload.event.projectSlug, 'n8n-automations');
-  assert.equal((await repositories.contentRepository.listNotes('user-1')).length, 1);
+  assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 1);
 });
 
-test('conversation answers explicit knowledge queries without starting capture flow', async () => {
-  const { useCase, repositories } = await createUseCase();
-  await repositories.contentRepository.upsertNote('user-1', {
+test('conversation answers explicit knowledge queries without starting capture flow', async (t) => {
+  const { useCase, repositories, user } = await createUseCase(t);
+  await repositories.contentRepository.upsertNote(user.id, {
     path: '20 Inbox/n8n-automations/2026/04/deploy.md',
     type: 'event',
     title: 'Deploy checklist',
@@ -101,7 +102,7 @@ test('conversation answers explicit knowledge queries without starting capture f
     links: [],
   });
 
-  const result = await useCase.execute(input('/buscar deploy webhook'), 'user-1', 'default');
+  const result = await useCase.execute(input('/buscar deploy webhook'), user.id, 'default');
   assert.equal(result.action, 'reply');
   assert.match(result.replyText, /deploy/i);
   assert.match(result.replyText, /20 Inbox\/n8n-automations\//);

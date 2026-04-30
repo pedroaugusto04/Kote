@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { DeleteManualNoteUseCase, DeleteProjectUseCase, GetNoteDetailUseCase, UpdateManualNoteUseCase, UpdateProjectUseCase } from '../../dist/application/use-cases/index.js';
-import { createMemoryRepositories } from '../../dist/infrastructure/repositories/memory-repositories.js';
+import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
-async function seedProject(repositories) {
-  await repositories.contentRepository.upsertWorkspace('user-1', {
+async function seedProject(repositories, userId) {
+  await repositories.contentRepository.upsertWorkspace(userId, {
     workspaceSlug: 'default',
     displayName: 'Default',
     whatsappGroupJid: '',
@@ -15,7 +15,7 @@ async function seedProject(repositories) {
     createdAt: '2026-04-27T10:00:00.000Z',
     updatedAt: '2026-04-27T10:00:00.000Z',
   });
-  await repositories.contentRepository.upsertProject('user-1', {
+  await repositories.contentRepository.upsertProject(userId, {
     projectSlug: 'platform',
     displayName: 'Platform',
     repoFullName: 'acme/api',
@@ -26,9 +26,8 @@ async function seedProject(repositories) {
   });
 }
 
-async function seedManualNote(repositories) {
-  const note = await repositories.contentRepository.upsertNote('user-1', {
-    id: 'note-1',
+async function seedManualNote(repositories, userId) {
+  const note = await repositories.contentRepository.upsertNote(userId, {
     path: '20 Inbox/platform/2026/04/note.md',
     type: 'event',
     title: 'Deploy antigo',
@@ -46,8 +45,7 @@ async function seedManualNote(repositories) {
     source: 'manual-api',
     links: ['60 Reminders/platform/2026/04/reminder.md'],
   });
-  const reminder = await repositories.contentRepository.upsertNote('user-1', {
-    id: 'reminder-1',
+  const reminder = await repositories.contentRepository.upsertNote(userId, {
     path: '60 Reminders/platform/2026/04/reminder.md',
     type: 'reminder',
     title: 'Reminder Deploy antigo',
@@ -68,53 +66,56 @@ async function seedManualNote(repositories) {
   return { note, reminder };
 }
 
-test('updates manual note content and reminder sibling', async () => {
-  const repositories = createMemoryRepositories();
-  await seedProject(repositories);
-  await seedManualNote(repositories);
+test('updates manual note content and reminder sibling', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+  const { note, reminder: seededReminder } = await seedManualNote(repositories, user.id);
 
   const useCase = new UpdateManualNoteUseCase(repositories.contentRepository);
   const result = await useCase.execute({
-    id: 'note-1',
+    id: note.id,
     title: 'Deploy revisado',
     rawText: 'validar deploy final',
     tags: ['release'],
     reminderDate: '2026-05-01',
     reminderTime: '10:15',
-  }, 'user-1');
+  }, user.id);
 
   assert.equal(result.ok, true);
-  const updated = await repositories.contentRepository.getNoteById('user-1', 'note-1');
-  const reminder = await repositories.contentRepository.getNoteById('user-1', 'reminder-1');
+  const updated = await repositories.contentRepository.getNoteById(user.id, note.id);
+  const reminder = await repositories.contentRepository.getNoteById(user.id, seededReminder.id);
   assert.equal(updated?.metadata.rawText, 'validar deploy final');
   assert.deepEqual(updated?.tags, ['release']);
   assert.equal(reminder?.metadata.reminderDate, '2026-05-01');
   assert.equal(reminder?.metadata.reminderTime, '10:15');
 });
 
-test('removes reminder sibling when manual note reminder is cleared', async () => {
-  const repositories = createMemoryRepositories();
-  await seedProject(repositories);
-  await seedManualNote(repositories);
+test('removes reminder sibling when manual note reminder is cleared', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+  const { note, reminder } = await seedManualNote(repositories, user.id);
 
   const useCase = new UpdateManualNoteUseCase(repositories.contentRepository);
   await useCase.execute({
-    id: 'note-1',
+    id: note.id,
     title: 'Deploy revisado',
     rawText: 'validar deploy final',
     tags: ['release'],
     reminderDate: '',
     reminderTime: '',
-  }, 'user-1');
+  }, user.id);
 
-  assert.equal(await repositories.contentRepository.getNoteById('user-1', 'reminder-1'), null);
+  assert.equal(await repositories.contentRepository.getNoteById(user.id, reminder.id), null);
 });
 
-test('deletes manual note with reminder cascade and editor detail', async () => {
-  const repositories = createMemoryRepositories();
-  await seedProject(repositories);
-  const { note } = await seedManualNote(repositories);
-  await repositories.contentRepository.saveAttachment('user-1', {
+test('deletes manual note with reminder cascade and editor detail', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+  const { note, reminder } = await seedManualNote(repositories, user.id);
+  await repositories.contentRepository.saveAttachment(user.id, {
     noteId: note.id,
     fileName: 'evidence.txt',
     mimeType: 'text/plain',
@@ -124,20 +125,20 @@ test('deletes manual note with reminder cascade and editor detail', async () => 
     metadata: {},
   });
 
-  const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute('user-1', note.id);
+  const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute(user.id, note.id);
   assert.equal(detail?.editor?.rawText, 'confirmar deploy');
 
-  await new DeleteManualNoteUseCase(repositories.contentRepository).execute(note.id, 'user-1');
-  assert.equal(await repositories.contentRepository.getNoteById('user-1', note.id), null);
-  assert.equal(await repositories.contentRepository.getNoteById('user-1', 'reminder-1'), null);
-  assert.equal((await repositories.contentRepository.listAttachments('user-1', note.id)).length, 0);
+  await new DeleteManualNoteUseCase(repositories.contentRepository).execute(note.id, user.id);
+  assert.equal(await repositories.contentRepository.getNoteById(user.id, note.id), null);
+  assert.equal(await repositories.contentRepository.getNoteById(user.id, reminder.id), null);
+  assert.equal((await repositories.contentRepository.listAttachments(user.id, note.id)).length, 0);
 });
 
-test('rejects editing non-manual notes and blocks project deletion with notes', async () => {
-  const repositories = createMemoryRepositories();
-  await seedProject(repositories);
-  await repositories.contentRepository.upsertNote('user-1', {
-    id: 'note-review',
+test('rejects editing non-manual notes and blocks project deletion with notes', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+  const reviewNote = await repositories.contentRepository.upsertNote(user.id, {
     path: '20 Inbox/platform/review.md',
     type: 'event',
     title: 'Review',
@@ -158,21 +159,22 @@ test('rejects editing non-manual notes and blocks project deletion with notes', 
 
   await assert.rejects(
     () => new UpdateManualNoteUseCase(repositories.contentRepository).execute({
-      id: 'note-review',
+      id: reviewNote.id,
       title: 'Review',
       rawText: 'texto',
       tags: [],
       reminderDate: '',
       reminderTime: '',
-    }, 'user-1'),
+    }, user.id),
   );
 
-  await assert.rejects(() => new DeleteProjectUseCase(repositories.contentRepository).execute('platform', 'user-1'));
+  await assert.rejects(() => new DeleteProjectUseCase(repositories.contentRepository).execute('platform', user.id));
 });
 
-test('updates project metadata while keeping slug immutable', async () => {
-  const repositories = createMemoryRepositories();
-  await seedProject(repositories);
+test('updates project metadata while keeping slug immutable', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
 
   const result = await new UpdateProjectUseCase(repositories.contentRepository).execute({
     projectSlug: 'platform',
@@ -180,7 +182,7 @@ test('updates project metadata while keeping slug immutable', async () => {
     repoFullName: 'acme/platform',
     aliases: ['core'],
     defaultTags: ['backend'],
-  }, 'user-1');
+  }, user.id);
 
   assert.equal(result.ok, true);
   assert.equal(result.project.projectSlug, 'platform');

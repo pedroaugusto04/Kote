@@ -53,7 +53,7 @@ import { AppLogger } from './observability/logger.js';
     AuthService,
     AccessTokenAuthGuard,
     AuthRateLimitGuard,
-    GlobalRateLimitGuard,
+    GlobalRateLimitGuard, // TODO: trocar pra redis em caso de multiplos servidores
     TrustedOriginGuard,
     InternalServiceTokenGuard,
     WebhookRateLimitGuard,
@@ -101,4 +101,4 @@ import { AppLogger } from './observability/logger.js';
     { provide: APP_GUARD, useClass: GlobalRateLimitGuard },
   ],
 })
-export class AppModule {}
+export class AppModule { }

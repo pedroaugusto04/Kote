@@ -11,11 +11,12 @@ import { ContentQueryRepository, ContentRepository } from '../../dist/applicatio
 import { CredentialRepository, ExternalIdentityRepository } from '../../dist/application/ports/integrations.repository.js';
 import { WebhookEventRepository } from '../../dist/application/ports/webhook-events.repository.js';
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../dist/application/ports/workflow-state.repository.js';
-import { createMemoryRepositories } from '../../dist/infrastructure/repositories/memory-repositories.js';
+import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
-test('memory repositories share state across content query and workflow ports', async () => {
-  const repositories = createMemoryRepositories();
-  const note = await repositories.contentRepository.upsertNote('user-1', {
+test('postgres repositories share state across content query and workflow ports', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const note = await repositories.contentRepository.upsertNote(user.id, {
     path: '20 Inbox/acme/2026/04/item.md',
     type: 'reminder',
     title: 'Shared state',
@@ -34,25 +35,25 @@ test('memory repositories share state across content query and workflow ports', 
       reminderAt: '2026-04-28T09:00:00-03:00',
       sourceNotePath: '20 Inbox/acme/2026/04/item.md',
     },
-    origin: 'memory',
+    origin: 'postgres',
     source: 'test',
     links: [],
   });
 
-  const reminders = await repositories.contentQueryRepository.listReminders('user-1');
+  const reminders = await repositories.contentQueryRepository.listReminders(user.id);
   assert.equal(reminders.length, 1);
   assert.equal(reminders[0].id, note.id);
-  assert.equal((await repositories.contentRepository.findReminderBySourceNotePath('user-1', '20 Inbox/acme/2026/04/item.md'))?.id, note.id);
+  assert.equal((await repositories.contentRepository.findReminderBySourceNotePath(user.id, '20 Inbox/acme/2026/04/item.md'))?.id, note.id);
 
-  await repositories.conversationStateRepository.upsert('user-1', 'default', 'conversation-1', { phase: 'collecting' });
-  const storedState = await repositories.conversationStateRepository.get('user-1', 'default', 'conversation-1');
+  await repositories.conversationStateRepository.upsert(user.id, 'default', 'conversation-1', { phase: 'collecting' });
+  const storedState = await repositories.conversationStateRepository.get(user.id, 'default', 'conversation-1');
   assert.deepEqual(storedState?.state, { phase: 'collecting' });
 
-  assert.equal(await repositories.reminderDispatchRepository.hasSent('user-1', 'default', 'daily', '2026-04-28', note.id), false);
-  await repositories.reminderDispatchRepository.markSent('user-1', 'default', 'daily', '2026-04-28', note.id);
-  assert.equal(await repositories.reminderDispatchRepository.hasSent('user-1', 'default', 'daily', '2026-04-28', note.id), true);
-  await repositories.contentRepository.deleteNote('user-1', note.id);
-  assert.equal(await repositories.contentRepository.findReminderBySourceNotePath('user-1', '20 Inbox/acme/2026/04/item.md'), null);
+  assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'daily', '2026-04-28', note.id), false);
+  await repositories.reminderDispatchRepository.markSent(user.id, 'default', 'daily', '2026-04-28', note.id);
+  assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'daily', '2026-04-28', note.id), true);
+  await repositories.contentRepository.deleteNote(user.id, note.id);
+  assert.equal(await repositories.contentRepository.findReminderBySourceNotePath(user.id, '20 Inbox/acme/2026/04/item.md'), null);
 });
 
 test('app module resolves repository providers without KnowledgeStore wiring', async () => {

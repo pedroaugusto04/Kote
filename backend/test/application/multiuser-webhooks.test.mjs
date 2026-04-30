@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
-import { createMemoryRepositories } from '../../dist/infrastructure/repositories/memory-repositories.js';
 import { BuildDashboardUseCase, HandleGithubPushUseCase, IngestEntryUseCase } from '../../dist/application/use-cases/index.js';
+import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
 function configureEnv() {
   process.env.KB_GITHUB_APP_WEBHOOK_SECRET = 'github-webhook-secret';
@@ -84,9 +84,9 @@ function signedGithubInput(body) {
   };
 }
 
-test('new users start with an empty scoped dashboard and cannot see another user notes', async () => {
+test('new users start with an empty scoped dashboard and cannot see another user notes', async (t) => {
   configureEnv();
-  const repositories = createMemoryRepositories();
+  const repositories = await createPostgresTestRepositories(t);
   const ingest = new IngestEntryUseCase(repositories.contentRepository);
   const dashboard = new BuildDashboardUseCase(
     repositories.contentRepository,
@@ -124,9 +124,9 @@ test('new users start with an empty scoped dashboard and cannot see another user
   assert.equal(dashboardB.home.metrics.every((metric) => metric.value === 0), true);
 });
 
-test('github app webhook resolves user by installation id and rejects unknown identities', async () => {
+test('github app webhook resolves user by installation id and rejects unknown identities', async (t) => {
   configureEnv();
-  const repositories = createMemoryRepositories();
+  const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.userRepository.createUser({ email: 'owner@example.com', displayName: 'Owner', passwordHash: 'hash', role: 'user' });
   await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'default',
@@ -166,9 +166,9 @@ test('github app webhook resolves user by installation id and rejects unknown id
   assert.equal(projects.find((project) => project.projectSlug === 'inbox')?.repoFullName, '');
 });
 
-test('github push resolves project by explicit repoFullName mapping', async () => {
+test('github push resolves project by explicit repoFullName mapping', async (t) => {
   configureEnv();
-  const repositories = createMemoryRepositories();
+  const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.userRepository.createUser({ email: 'mapped@example.com', displayName: 'Mapped', passwordHash: 'hash', role: 'user' });
   await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'default',
