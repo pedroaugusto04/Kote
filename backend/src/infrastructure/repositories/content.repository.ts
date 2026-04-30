@@ -195,8 +195,8 @@ export class PostgresContentRepository extends ContentRepository {
     const result = await this.database.getPool().query('delete from kb_notes where user_id = $1 and id = $2', [userId, id]);
     if ((result.rowCount || 0) === 0) return false;
     const keys = [
-      String(noteResult.rows[0]?.markdown_storage_key || ''),
-      ...attachmentResult.rows.map((row) => String(row.storage_key || '')),
+      noteResult.rows[0]?.markdown_storage_key || '',
+      ...attachmentResult.rows.map((row) => row.storage_key || ''),
     ];
     await this.contentObjectStorage.deleteObjects(keys);
     return true;
@@ -205,7 +205,7 @@ export class PostgresContentRepository extends ContentRepository {
   async saveAttachment(userId: string, input: SaveAttachmentInput) {
     const attachmentId = input.id || crypto.randomUUID();
     const noteResult = await this.database.getPool().query('select workspace_slug from kb_notes where user_id = $1 and id = $2 limit 1', [userId, input.noteId]);
-    const workspaceSlug = String(noteResult.rows[0]?.workspace_slug || 'default');
+    const workspaceSlug = noteResult.rows[0]?.workspace_slug || 'default';
     const storageKey = await this.contentObjectStorage.saveAttachmentData(userId, workspaceSlug, input);
     const result = await this.database.getPool().query(
       `insert into kb_attachments (id, user_id, note_id, file_name, mime_type, size_bytes, storage_key, checksum_sha256, metadata)

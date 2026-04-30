@@ -11,7 +11,7 @@ const OPEN_STATUSES = new Set([KnowledgeStatus.Open, KnowledgeStatus.Active, 'pe
 const INTERESTING_TYPES = [CanonicalType.Incident, CanonicalType.Decision, CanonicalType.Followup, CanonicalType.Reminder, CanonicalType.Event];
 
 function normalizeDateInput(value: string) {
-  const trimmed = String(value || '').trim();
+  const trimmed = value.trim();
   if (!trimmed) return '';
   if (/^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(trimmed)) return trimmed.replace(' ', 'T');
   return trimmed;
@@ -25,8 +25,8 @@ function parseTimestamp(value: string): number {
 }
 
 function dateKey(value: string, timeZone: string) {
-  const direct = String(value || '').match(/\d{4}-\d{2}-\d{2}/)?.[0];
-  if (direct && !String(value || '').includes('T')) return direct;
+  const direct = value.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+  if (direct && !value.includes('T')) return direct;
   const timestamp = parseTimestamp(value);
   return timestamp ? formatDateInTimeZone(new Date(timestamp), timeZone) : '';
 }
@@ -37,11 +37,11 @@ function formatDayLabel(key: string) {
 }
 
 function isOpen(status: string) {
-  return OPEN_STATUSES.has(String(status || '').toLowerCase());
+  return OPEN_STATUSES.has(status.toLowerCase());
 }
 
 function isHigh(severity: string) {
-  return ['high', 'critical'].includes(String(severity || '').toLowerCase());
+  return ['high', 'critical'].includes(severity.toLowerCase());
 }
 
 function projectLabel(projects: Project[], slug: string) {
