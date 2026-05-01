@@ -1,5 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import type { Response } from 'express';
+import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../../../application/auth.js';
 import { IntegrationConnectionService } from '../../../application/integration-connections.js';
@@ -8,7 +7,6 @@ import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
 import {
   connectIntegrationBodySchema,
-  githubAppCallbackQuerySchema,
   githubRepositoriesBodySchema,
   guidedProviderParamSchema,
   aiProviderParamSchema,
@@ -16,7 +14,6 @@ import {
   workspaceQuerySchema,
   type AiProviderParam,
   type ConnectIntegrationBody,
-  type GithubAppCallbackQuery,
   type GithubRepositoriesBody,
   type GuidedProviderParam,
   type SessionParam,
@@ -55,21 +52,6 @@ export class UserIntegrationsController {
       returnToPath: body.returnToPath,
       browserOrigin: request.headers.origin,
     });
-  }
-
-  @Get('github-app/callback')
-  async githubAppCallback(
-    @Query(new ZodValidationPipe(githubAppCallbackQuerySchema, 'invalid_github_app_callback')) query: GithubAppCallbackQuery,
-    @CurrentUser() currentUser: AuthenticatedUser,
-    @Res() response: Response,
-  ) {
-    const result = await this.connections.completeGithubForBrowser({
-      userId: currentUser.id,
-      state: query.state,
-      code: query.code,
-      installationId: query.installation_id,
-    });
-    return response.redirect(302, result.redirectUrl);
   }
 
   @Post(':provider/test')

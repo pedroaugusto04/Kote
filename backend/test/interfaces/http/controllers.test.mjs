@@ -1,12 +1,46 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { DashboardController, HealthController, NotesController, OperationsController, ProjectsController, WorkspacesController } from '../../../dist/interfaces/http/controllers/index.js';
+import { normalizeGithubAppCallbackPath } from '../../../dist/adapters/environment.js';
+import { DashboardController, GithubAppCallbackController, HealthController, NotesController, OperationsController, ProjectsController, WorkspacesController } from '../../../dist/interfaces/http/controllers/index.js';
 
 test('health controller exposes service status', () => {
   const controller = new HealthController();
 
   assert.deepEqual(controller.health(), { ok: true, service: 'knowledge-base' });
+});
+
+test('github callback path normalization supports explicit URLs and relative paths', () => {
+  assert.equal(normalizeGithubAppCallbackPath(''), '/api/integrations/github-app/callback');
+  assert.equal(normalizeGithubAppCallbackPath('api/github/callback'), '/api/github/callback');
+  assert.equal(normalizeGithubAppCallbackPath('https://kb.example.com/api/github/callback'), '/api/github/callback');
+});
+
+test('github app callback controller delegates completion and redirects the browser', async () => {
+  const calls = [];
+  const controller = new GithubAppCallbackController({
+    completeGithubForBrowser: async (input) => {
+      calls.push(input);
+      return { redirectUrl: '/settings/integrations?integration=github-app&status=connected' };
+    },
+  });
+  const response = {
+    redirectCalls: [],
+    redirect(status, url) {
+      this.redirectCalls.push([status, url]);
+      return url;
+    },
+  };
+
+  const result = await controller.githubAppCallback(
+    { state: 'state-1', code: 'code-1', installation_id: '42' },
+    { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' },
+    response,
+  );
+
+  assert.deepEqual(calls, [{ userId: 'user-1', state: 'state-1', code: 'code-1', installationId: '42' }]);
+  assert.deepEqual(response.redirectCalls, [[302, '/settings/integrations?integration=github-app&status=connected']]);
+  assert.equal(result, '/settings/integrations?integration=github-app&status=connected');
 });
 
 test('dashboard controller delegates project, workspace and note reads to use cases', async () => {
@@ -20,6 +54,9 @@ test('dashboard controller delegates project, workspace and note reads to use ca
   const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
   const controller = new DashboardController(
     { execute: async () => dashboard },
+    { execute: async () => dashboard.projects },
+    { execute: async () => dashboard.workspaces },
+    { execute: async () => dashboard.notes },
     { execute: async (_userId, id) => ({ id, title: 'Note detail' }) },
     { execute: async (query) => ({ ok: true, query }) },
   );

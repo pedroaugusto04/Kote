@@ -7,5 +7,6 @@ export { OperationsController } from './operations.controller.js';
 export { InternalN8NController } from './internal-n8n.controller.js';
 export { WebhookController } from './webhook.controller.js';
 export { AuthController } from './auth.controller.js';
+export { GithubAppCallbackController } from './github-app-callback.controller.js';
 export { UserIntegrationsController } from './user-integrations.controller.js';
 export { InternalIntegrationsController } from './internal-integrations.controller.js';

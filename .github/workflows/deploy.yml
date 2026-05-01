@@ -110,6 +110,7 @@ jobs:
           KB_GITHUB_APP_ID: ${{ secrets.KB_GITHUB_APP_ID || '' }}
           KB_GITHUB_APP_PRIVATE_KEY: ${{ secrets.KB_GITHUB_APP_PRIVATE_KEY || '' }}
           KB_GITHUB_APP_WEBHOOK_SECRET: ${{ secrets.KB_GITHUB_APP_WEBHOOK_SECRET || '' }}
+          KB_GITHUB_APP_CALLBACK_PATH: ${{ vars.KB_GITHUB_APP_CALLBACK_PATH || '' }}
           EVOLUTION_API_URL: ${{ vars.EVOLUTION_API_URL || '' }}
           EVOLUTION_API_KEY: ${{ secrets.EVOLUTION_API_KEY || '' }}
           EVOLUTION_INSTANCE_NAME: ${{ vars.EVOLUTION_INSTANCE_NAME || '' }}

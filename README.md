@@ -99,7 +99,7 @@ Recomendação para vender o produto:
 1. Criar um **GitHub App** do produto.
 2. Cada cliente instala o app nos repositórios desejados.
 3. O GitHub envia `push` para o endpoint `kb-github-push`.
-4. O callback valida `state`, troca `code` por token OAuth, confirma que a instalação aparece nas instalações do usuário GitHub autenticado e só então vincula `installation_id`.
+4. O callback em `KB_PUBLIC_BASE_URL + KB_GITHUB_APP_CALLBACK_PATH` valida `state`, troca `code` por token OAuth, confirma que a instalação aparece nas instalações do usuário GitHub autenticado e só então vincula `installation_id`.
 5. O adapter envia o review resumido no Telegram.
 
 Isso é melhor do que pedir token manual por repositório porque:

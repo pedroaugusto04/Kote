@@ -1,5 +1,19 @@
 import { AiProvider } from '../contracts/enums.js';
 
+export const defaultGithubAppCallbackPath = '/api/integrations/github-app/callback';
+
+export function normalizeGithubAppCallbackPath(value: string | undefined): string {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return defaultGithubAppCallbackPath;
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.pathname || defaultGithubAppCallbackPath;
+  } catch {
+    const withLeadingSlash = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+    return withLeadingSlash.replace(/\/{2,}/g, '/');
+  }
+}
+
 export type RuntimeEnvironment = {
   webhookSecret: string;
   githubWebhookSecret: string;
@@ -24,6 +38,7 @@ export type RuntimeEnvironment = {
   whatsappWebhookPath: string;
   queryWebhookPath: string;
   githubAppInstallUrl: string;
+  githubAppCallbackPath: string;
   telegramBotToken: string;
   telegramWebhookToken: string;
   telegramChatId: string;
@@ -70,6 +85,7 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     whatsappWebhookPath: String(env.KB_WPP_WEBHOOK_PATH || '/n8n/webhook/whatsapp-kb-event').trim(),
     queryWebhookPath: String(env.KB_QUERY_WEBHOOK_PATH || '/n8n/webhook/kb-query').trim(),
     githubAppInstallUrl: String(env.KB_GITHUB_APP_INSTALL_URL || '').trim(),
+    githubAppCallbackPath: normalizeGithubAppCallbackPath(env.KB_GITHUB_APP_CALLBACK_PATH),
     telegramBotToken: String(env.KB_TELEGRAM_BOT_TOKEN || '').trim(),
     telegramWebhookToken: String(env.KB_TELEGRAM_WEBHOOK_TOKEN || env.KB_WEBHOOK_SECRET || '').trim(),
     telegramChatId: String(env.KB_TELEGRAM_CHAT_ID || '').trim(),
