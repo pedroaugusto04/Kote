@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -8,12 +8,13 @@ import type { PageContext } from '../../app/page-context';
 import { createNote, createProject, deleteNote, deleteProject, fetchNote, updateNote, updateProject } from '../../shared/api/client';
 import { localDateTimeToUtcIso } from '../../entities/format';
 import type { NoteDetail, NoteSummary } from '../../shared/api/models/note';
-import type { Project } from '../../shared/api/models/project';
+import type { Project, Repository } from '../../shared/api/models/project';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormActions, FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
+import { fetchWorkspaceRepositories } from '../../shared/api/workspaces';
 import { PageHead, Panel, Tags } from '../../shared/ui/primitives';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 import { ProjectCard } from '../../widgets/projects/ProjectCard';
@@ -41,7 +42,12 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
   const selectedSlug = routeProject || selectedProject;
   const selected = dashboard.projects.find((project) => project.projectSlug === selectedSlug) || dashboard.projects[0];
   const notes = dashboard.notes.filter((note) => !selected || note.project === selected.projectSlug);
-  const githubRepos = Array.from(new Set(dashboard.projects.flatMap((p) => p.repositories.map((r) => r.fullName))));
+  const { data: repositoriesResponse } = useQuery({
+    queryKey: ['workspace-repositories', dashboard.workspaces[0]?.workspaceSlug],
+    queryFn: () => fetchWorkspaceRepositories(dashboard.workspaces[0]?.workspaceSlug),
+    enabled: !!dashboard.workspaces[0]?.workspaceSlug,
+  });
+  const workspaceRepositories = repositoriesResponse?.repositories || [];
   const loadNoteMutation = useMutation({
     mutationFn: (id: string) => fetchNote(id),
     onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
@@ -131,7 +137,7 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
       ) : null}
       {projectModal ? (
         <ProjectModal
-          githubRepos={githubRepos}
+          workspaceRepositories={workspaceRepositories}
           mode={projectModal.mode}
           project={projectModal.mode === 'edit' ? projectModal.project : undefined}
           onClose={() => setProjectModal(null)}
@@ -193,13 +199,13 @@ function parseList(value: string): string[] {
 }
 
 function ProjectModal({
-  githubRepos,
+  workspaceRepositories,
   mode,
   project,
   onClose,
   onSaved,
 }: {
-  githubRepos: string[];
+  workspaceRepositories: Repository[];
   mode: 'create' | 'edit';
   project?: Project;
   onClose: () => void;
@@ -217,7 +223,7 @@ function ProjectModal({
     defaultValues: {
       displayName: project?.displayName || '',
       projectSlug: project?.projectSlug || '',
-      repositories: project?.repositories.map((r) => r.fullName).join(', ') || '',
+      repositoryIds: project?.repositories.map((r) => r.id) || [],
       aliases: project?.aliases.join(', ') || '',
       defaultTags: project?.defaultTags.join(', ') || '',
     },
@@ -226,7 +232,7 @@ function ProjectModal({
     mutationFn: (values: ProjectFormValues) => {
       const payload = {
         displayName: values.displayName,
-        repositories: parseList(values.repositories).map((name) => ({ id: '0', fullName: name })),
+        repositoryIds: values.repositoryIds,
         aliases: parseList(values.aliases),
         defaultTags: parseList(values.defaultTags),
       };
@@ -265,7 +271,7 @@ function ProjectModal({
             ref={formRef}
             noValidate
             onSubmit={handleSubmit(
-              (values) => mutation.mutate(values),
+              (values: ProjectFormValues) => mutation.mutate(values),
               (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
             )}
           >
@@ -283,14 +289,15 @@ function ProjectModal({
                 </FormField>
               )}
             </div>
-            <FormField name="repositories" label="Repositorios GitHub" error={errors.repositories?.message} optional>
-              {(fieldProps) => <input list="project-github-repos" {...fieldProps} {...register('repositories')} />}
+            <FormField name="repositoryIds" label="Repositorios GitHub" error={errors.repositoryIds?.message} optional>
+              {(fieldProps) => (
+                <select multiple {...fieldProps} {...register('repositoryIds')} disabled={mutation.isPending}>
+                  {workspaceRepositories.map((repo) => (
+                    <option key={repo.id} value={repo.id}>{repo.fullName}</option>
+                  ))}
+                </select>
+              )}
             </FormField>
-            <datalist id="project-github-repos">
-              {githubRepos.map((repo) => (
-                <option key={repo} value={repo} />
-              ))}
-            </datalist>
             <div className="form-grid">
               <FormField name="aliases" label="Aliases" error={errors.aliases?.message} optional>
                 {(fieldProps) => <input {...fieldProps} {...register('aliases')} />}
@@ -393,7 +400,7 @@ function NoteModal({
             ref={formRef}
             noValidate
             onSubmit={handleSubmit(
-              (values) => mutation.mutate(values),
+              (values: NoteFormValues) => mutation.mutate(values),
               (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
             )}
           >

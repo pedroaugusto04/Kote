@@ -6,7 +6,7 @@ const optionalRepoSchema = z.string().trim().max(180, 'Use no maximo 180 caracte
 export const projectFormSchema = z.object({
   displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
   projectSlug: optionalSlugSchema,
-  repositories: z.string().max(1000, 'Use no maximo 1000 caracteres.').optional().default(''),
+  repositoryIds: z.array(z.string().uuid()),
   aliases: z.string().max(500, 'Use no maximo 500 caracteres.'),
   defaultTags: z.string().max(500, 'Use no maximo 500 caracteres.'),
 });

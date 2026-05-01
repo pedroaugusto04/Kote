@@ -109,7 +109,7 @@ Isso é melhor do que pedir token manual por repositório porque:
 - facilita controle de permissões
 - evita automação por repo isolado
 
-Depois da conexão, `/settings/integrations` lista os repositórios acessíveis pela instalação e salva a seleção em `workspace.githubRepos`. O vínculo entre push do GitHub e projeto é explícito: o usuário cria o projeto em `/projects` e informa `repoFullName`; pushes de repositórios sem projeto mapeado entram em `inbox`.
+Depois da conexão, `/settings/integrations` lista os repositórios acessíveis pela instalação e salva a seleção em `workspace.githubRepos`. O vínculo entre push do GitHub e projeto é explícito: o usuário cria o projeto em `/projects` e seleciona os repositórios vinculados via ID; pushes de repositórios sem projeto mapeado entram em `inbox`.
 
 ### Telegram e IA
 

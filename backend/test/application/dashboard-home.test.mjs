@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { buildDashboardHome } from '../../dist/application/use-cases/index.js';
 
 const projects = [
-  { projectSlug: 'alpha', displayName: 'Alpha', repoFullName: 'acme/alpha', workspaceSlug: 'default', aliases: [], defaultTags: [], enabled: true },
-  { projectSlug: 'beta', displayName: 'Beta', repoFullName: 'acme/beta', workspaceSlug: 'default', aliases: [], defaultTags: [], enabled: true },
+  { projectSlug: 'alpha', displayName: 'Alpha', repositories: [{ id: '1', workspaceSlug: 'default', externalId: '1', fullName: 'acme/alpha', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }], workspaceSlug: 'default', aliases: [], defaultTags: [], enabled: true },
+  { projectSlug: 'beta', displayName: 'Beta', repositories: [{ id: '2', workspaceSlug: 'default', externalId: '2', fullName: 'acme/beta', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }], workspaceSlug: 'default', aliases: [], defaultTags: [], enabled: true },
 ];
 
 const baseNote = {

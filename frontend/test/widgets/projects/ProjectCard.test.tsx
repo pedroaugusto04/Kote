@@ -18,7 +18,7 @@ describe('ProjectCard', () => {
         project={{
           projectSlug: 'n8n-automations',
           displayName: 'N8N Automations',
-          repoFullName: 'acme/repo',
+          repositories: [{ id: '1', workspaceSlug: 'default', externalId: '0', fullName: 'acme/repo', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
           workspaceSlug: 'default',
           aliases: ['n8n'],
           defaultTags: ['backend', 'automation'],

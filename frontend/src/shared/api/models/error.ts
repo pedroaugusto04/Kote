@@ -40,9 +40,9 @@ export function isApiErrorEnvelope(value: unknown): value is ApiErrorEnvelope {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Record<string, unknown>;
   const error = candidate.error as Record<string, unknown> | undefined;
+  if (!error) return false;
   return candidate.ok === false
     && typeof candidate.requestId === 'string'
-    && Boolean(error)
     && typeof error.code === 'string'
     && typeof error.message === 'string'
     && typeof error.details === 'object'

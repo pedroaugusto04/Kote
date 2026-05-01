@@ -110,7 +110,7 @@ describe('SetupPage', () => {
           initialProject: {
             projectSlug: 'inbox',
             displayName: 'Inbox',
-            repoFullName: '',
+            repositories: [],
             workspaceSlug: 'acme-team',
             aliases: [],
             defaultTags: [],

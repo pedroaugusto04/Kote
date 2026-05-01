@@ -159,7 +159,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
   assert.equal(projects.find((project) => project.projectSlug === 'inbox')?.repositories.length, 0);
 });
 
-test('github push resolves project by explicit repoFullName mapping', async (t) => {
+test('github push resolves project by explicit repository mapping', async (t) => {
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.userRepository.createUser({ email: 'mapped@example.com', displayName: 'Mapped', passwordHash: 'hash', role: 'user' });

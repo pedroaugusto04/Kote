@@ -5,7 +5,7 @@ import { request } from './request';
 export type CreateProjectParams = {
   displayName: string;
   projectSlug?: string;
-  repositories?: { id: string; fullName: string }[];
+  repositoryIds?: string[];
   aliases?: string[];
   defaultTags?: string[];
 };
@@ -26,7 +26,7 @@ export function createProject(params: CreateProjectParams) {
 
 export type UpdateProjectParams = {
   displayName: string;
-  repositories?: { id: string; fullName: string }[];
+  repositoryIds?: string[];
   aliases?: string[];
   defaultTags?: string[];
 };

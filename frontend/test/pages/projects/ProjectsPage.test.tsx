@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,12 +20,12 @@ vi.mock('../../../src/shared/ui/notifications', () => ({
 }));
 
 const dashboard: Dashboard = {
-  workspaces: [{ workspaceSlug: 'default', displayName: 'Default', githubRepos: ['acme/api'], projectSlugs: ['inbox', 'platform'] }],
+  workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
   projects: [
     {
       projectSlug: 'inbox',
       displayName: 'Inbox',
-      repoFullName: '',
+      repositories: [],
       workspaceSlug: 'default',
       aliases: [],
       defaultTags: [],
@@ -33,7 +34,7 @@ const dashboard: Dashboard = {
     {
       projectSlug: 'platform',
       displayName: 'Platform',
-      repoFullName: 'acme/api',
+      repositories: [{ id: '1', workspaceSlug: 'default', externalId: '0', fullName: 'acme/api', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
       workspaceSlug: 'default',
       aliases: ['api'],
       defaultTags: ['backend'],
@@ -42,7 +43,7 @@ const dashboard: Dashboard = {
     {
       projectSlug: 'empty',
       displayName: 'Empty',
-      repoFullName: 'acme/empty',
+      repositories: [{ id: '2', workspaceSlug: 'default', externalId: '0', fullName: 'acme/empty', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
       workspaceSlug: 'default',
       aliases: [],
       defaultTags: [],
@@ -189,7 +190,10 @@ describe('ProjectsPage', () => {
   });
 
   it('shows frontend validation inline and focuses the first invalid project field', async () => {
-    const fetchMock = vi.fn();
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/workspaces/default/repositories') return Response.json({ ok: true, repositories: [] });
+      return Response.error();
+    });
     vi.stubGlobal('fetch', fetchMock);
     renderProjects();
 
@@ -198,35 +202,41 @@ describe('ProjectsPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Informe o nome do projeto.');
     await waitFor(() => expect(screen.getByLabelText('Nome')).toHaveFocus());
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/projects', expect.anything());
   });
 
   it('opens the project modal and creates a project with an explicit GitHub repository', async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      expect(String(input)).toBe('/api/projects');
-      expect(JSON.parse(String(init?.body))).toMatchObject({
-        displayName: 'Billing API',
-        repoFullName: 'acme/api',
-        aliases: ['billing'],
-        defaultTags: ['finance'],
-      });
-      return Response.json({
-        ok: true,
-        project: { ...dashboard.projects[1], projectSlug: 'billing-api', displayName: 'Billing API', repoFullName: 'acme/api' },
-        workspace: { ...dashboard.workspaces[0], projectSlugs: ['inbox', 'platform', 'empty', 'billing-api'] },
-      });
+    const repoId = '11111111-1111-1111-1111-111111111111';
+    const fetchMock = vi.fn(async (input: string, init?: RequestInit) => {
+      if (input.includes('/repositories')) {
+        return Response.json({
+          ok: true,
+          repositories: [
+            { id: repoId, workspaceSlug: 'default', externalId: '101', fullName: 'acme/api', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' },
+          ]
+        });
+      }
+      if (input === '/api/projects' && init?.method === 'POST') {
+        return Response.json({
+          ok: true,
+          project: { ...dashboard.projects[1], projectSlug: 'billing-api', displayName: 'Billing API', repositories: [{ id: repoId, workspaceSlug: 'default', externalId: '101', fullName: 'acme/api', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }] },
+          workspace: { ...dashboard.workspaces[0], projectSlugs: ['inbox', 'platform', 'empty', 'billing-api'] },
+        });
+      }
+      return Response.error();
     });
     vi.stubGlobal('fetch', fetchMock);
     const { setSelectedProject } = renderProjects();
 
     fireEvent.click(screen.getByRole('button', { name: 'Novo projeto' }));
+    await screen.findByRole('option', { name: 'acme/api' });
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Billing API' } });
-    fireEvent.change(screen.getByLabelText('Repositorio GitHub'), { target: { value: 'acme/api' } });
+    fireEvent.change(screen.getByLabelText('Repositorios GitHub'), { target: { value: [repoId] } });
     fireEvent.change(screen.getByLabelText('Aliases'), { target: { value: 'billing' } });
     fireEvent.change(screen.getByLabelText('Tags padrao'), { target: { value: 'finance' } });
     fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto criado com sucesso.');
     expect(setSelectedProject).toHaveBeenCalledWith('billing-api');
   });
@@ -292,30 +302,35 @@ describe('ProjectsPage', () => {
   });
 
   it('updates a project and keeps the selected slug', async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      expect(String(input)).toBe('/api/projects/platform');
-      expect(init?.method).toBe('PATCH');
-      expect(JSON.parse(String(init?.body))).toMatchObject({
-        displayName: 'Platform Core',
-        repoFullName: 'acme/platform',
-        aliases: ['core'],
-        defaultTags: ['backend'],
-      });
-      return Response.json({
-        ok: true,
-        project: { ...dashboard.projects[1], displayName: 'Platform Core', repoFullName: 'acme/platform', aliases: ['core'] },
-      });
+    const repoId = '22222222-2222-2222-2222-222222222222';
+    const fetchMock = vi.fn(async (input: string, init?: RequestInit) => {
+      if (input.includes('/repositories')) {
+        return Response.json({
+          ok: true,
+          repositories: [
+            { id: repoId, workspaceSlug: 'default', externalId: '102', fullName: 'acme/platform', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' },
+          ]
+        });
+      }
+      if (input.includes('/api/projects/platform') && init?.method === 'PATCH') {
+        return Response.json({
+          ok: true,
+          project: { ...dashboard.projects[1], displayName: 'Platform Core', repositories: [{ id: repoId, workspaceSlug: 'default', externalId: '102', fullName: 'acme/platform', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }], aliases: ['core'] },
+        });
+      }
+      return Response.error();
     });
     vi.stubGlobal('fetch', fetchMock);
     const { setSelectedProject } = renderProjects();
 
     fireEvent.click(screen.getByRole('button', { name: 'Editar projeto Platform' }));
+    await screen.findByRole('option', { name: 'acme/platform' });
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Platform Core' } });
-    fireEvent.change(screen.getByLabelText('Repositorio GitHub'), { target: { value: 'acme/platform' } });
+    fireEvent.change(screen.getByLabelText('Repositorios GitHub'), { target: { value: [repoId] } });
     fireEvent.change(screen.getByLabelText('Aliases'), { target: { value: 'core' } });
     fireEvent.click(screen.getByRole('button', { name: 'Salvar projeto' }));
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto atualizado com sucesso.');
     expect(setSelectedProject).toHaveBeenCalledWith('platform');
   });

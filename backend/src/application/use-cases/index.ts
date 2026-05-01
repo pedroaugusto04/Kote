@@ -1,5 +1,6 @@
 export { BuildDashboardUseCase, buildDashboardHome } from './dashboard/build-dashboard.use-case.js';
 export { CreateWorkspaceUseCase } from './workspaces/create-workspace.use-case.js';
+export { ListWorkspaceRepositoriesUseCase } from './workspaces/list-workspace-repositories.use-case.js';
 export { CreateProjectUseCase, DeleteProjectUseCase, UpdateProjectUseCase } from './projects/create-project.use-case.js';
 export { CreateManualNoteUseCase, DeleteManualNoteUseCase, UpdateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
 export { GetNoteDetailUseCase } from './dashboard/get-note-detail.use-case.js';

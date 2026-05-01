@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
@@ -6,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import { HomePage } from '../../../src/pages/home/HomePage';
 import { render } from '@testing-library/react';
+import { HomePriorityType, HomeTargetKind } from '../../../src/shared/api/enums';
 
 vi.mock('recharts', () => {
   const Chart = ({ children }: { children?: ReactNode }) => <div data-testid="chart">{children}</div>;
@@ -24,12 +26,12 @@ vi.mock('recharts', () => {
 });
 
 const dashboard: Dashboard = {
-  workspaces: [{ workspaceSlug: 'default', displayName: 'Default', githubRepos: ['acme/repo'], projectSlugs: ['n8n-automations'] }],
+  workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
   projects: [
     {
       projectSlug: 'n8n-automations',
       displayName: 'N8N Automations',
-      repoFullName: 'acme/repo',
+      repositories: [{ id: '1', workspaceSlug: 'default', externalId: '0', fullName: 'acme/repo', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
       workspaceSlug: 'default',
       aliases: ['n8n'],
       defaultTags: ['backend'],
@@ -88,12 +90,12 @@ const dashboard: Dashboard = {
     activityByProject: [{ project: 'n8n-automations', label: 'N8N Automations', count: 6 }],
     priorities: Array.from({ length: 6 }, (_, index) => ({
       id: `priority-${index}`,
-      type: index === 0 ? ('finding' as const) : ('reminder' as const),
+      type: index === 0 ? HomePriorityType.Finding : HomePriorityType.Reminder,
       title: `Prioridade ${index + 1}`,
       project: 'n8n-automations',
       date: '2026-04-27',
       description: 'Resolver item aberto',
-      target: index === 0 ? { kind: 'review' as const, id: 'review-1' } : { kind: 'note' as const, id: 'note-1', path: '20 Inbox/note.md' },
+      target: index === 0 ? { kind: HomeTargetKind.Review, id: 'review-1' } : { kind: HomeTargetKind.Note, id: 'note-1', path: '20 Inbox/note.md' },
     })),
     recentInterestingEvents: [
       {
@@ -104,7 +106,7 @@ const dashboard: Dashboard = {
         date: '2026-04-27',
         summary: 'Deploy precisa de rollback.',
         status: 'open',
-        target: { kind: 'note', id: 'note-1', path: '20 Inbox/note.md' },
+        target: { kind: HomeTargetKind.Note, id: 'note-1', path: '20 Inbox/note.md' },
       },
     ],
   },
@@ -170,7 +172,7 @@ describe('HomePage', () => {
   it('prompts users to connect integrations when GitHub repositories are not selected', () => {
     renderHomeWithDashboard({
       ...dashboard,
-      workspaces: [{ ...dashboard.workspaces[0], githubRepos: [] }],
+      projects: dashboard.projects.map(p => ({ ...p, repositories: [] })),
     });
 
     expect(screen.getByText('Finalize as integrações do workspace')).toBeInTheDocument();

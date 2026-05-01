@@ -13,7 +13,7 @@ describe('NoteRow', () => {
       <NoteRow
         dashboard={{
           workspaces: [],
-          projects: [{ projectSlug: 'platform', displayName: 'Platform', repoFullName: '', workspaceSlug: 'default', aliases: [], defaultTags: [], enabled: true }],
+          projects: [{ projectSlug: 'platform', displayName: 'Platform', repositories: [], workspaceSlug: 'default', aliases: [], defaultTags: [], enabled: true }],
           notes: [],
           reviews: [],
           reminders: [],
