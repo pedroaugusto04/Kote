@@ -64,16 +64,23 @@ export type WorkspaceRecord = {
   updatedAt: string;
 };
 
-export type ProjectRepositoryRecord = {
-  externalRepoId: string;
-  repoFullName: string;
+export type RepositoryRecord = {
+  id: string;
+  workspaceSlug: string;
+  externalId: string;
+  fullName: string;
+  htmlUrl: string | null;
+  description: string | null;
+  defaultBranch: string | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ProjectRecord = {
   projectSlug: string;
   displayName: string;
   workspaceSlug: string;
-  repositories: ProjectRepositoryRecord[];
+  repositories: RepositoryRecord[];
   aliases: string[];
   defaultTags: string[];
   enabled: boolean;

@@ -45,7 +45,7 @@ test('create workspace dto normalizes slug from display name', () => {
 test('create project dto normalizes slug, aliases and default tags', () => {
   const parsed = createProjectBodySchema.parse({
     displayName: 'Acme API',
-    repoFullName: 'acme/api',
+    repositoryIds: ['00000000-0000-0000-0000-000000000000'],
     aliases: [' api ', 'api'],
     defaultTags: [' Backend ', 'backend'],
   });
@@ -53,14 +53,14 @@ test('create project dto normalizes slug, aliases and default tags', () => {
   assert.deepEqual(parsed, {
     displayName: 'Acme API',
     projectSlug: 'acme-api',
-    repoFullName: 'acme/api',
+    repositoryIds: ['00000000-0000-0000-0000-000000000000'],
     aliases: ['api'],
     defaultTags: ['backend'],
   });
   assert.equal(projectSlugParamSchema.parse({ projectSlug: 'Acme API' }).projectSlug, 'acme-api');
   assert.deepEqual(updateProjectBodySchema.parse({ displayName: 'Acme API', aliases: [' api '], defaultTags: [' Backend '] }), {
     displayName: 'Acme API',
-    repoFullName: '',
+    repositoryIds: [],
     aliases: ['api'],
     defaultTags: ['backend'],
   });

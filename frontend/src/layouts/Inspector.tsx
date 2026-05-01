@@ -27,7 +27,7 @@ export function Inspector({
           <dt>Nome</dt>
           <dd>{dashboard.workspaces[0]?.displayName || 'Workspace atual'}</dd>
           <dt>Canais</dt>
-          <dd>{Array.from(new Set(dashboard.projects.flatMap(p => p.repositories.map(r => r.repoFullName)))).join(', ') || 'local'}</dd>
+          <dd>{Array.from(new Set(dashboard.projects.flatMap(p => p.repositories.map(r => r.fullName)))).join(', ') || 'local'}</dd>
         </dl>
       </div>
       <div className="inspector-block">
@@ -36,7 +36,7 @@ export function Inspector({
           <dt>Nome</dt>
           <dd>{project?.displayName || ''}</dd>
           <dt>Repo</dt>
-          <dd>{project?.repoFullName || ''}</dd>
+          <dd>{project?.repositories.map(r => r.fullName).join(', ') || ''}</dd>
         </dl>
       </div>
       {view === 'reviews' && review ? (

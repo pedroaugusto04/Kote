@@ -15,10 +15,18 @@ async function seedProject(repositories, userId) {
     createdAt: '2026-04-27T10:00:00.000Z',
     updatedAt: '2026-04-27T10:00:00.000Z',
   });
+  const repo = await repositories.contentRepository.upsertRepository({
+    workspaceSlug: 'default',
+    externalId: '0',
+    fullName: 'acme/api',
+    htmlUrl: 'https://github.com/acme/api',
+    description: null,
+    defaultBranch: null,
+  });
   await repositories.contentRepository.upsertProject(userId, {
     projectSlug: 'platform',
     displayName: 'Platform',
-    repositories: [{ externalRepoId: '0', repoFullName: 'acme/api' }],
+    repositories: [repo],
     workspaceSlug: 'default',
     aliases: ['api'],
     defaultTags: ['backend'],
@@ -185,10 +193,19 @@ test('updates project metadata while keeping slug immutable', async (t) => {
   const user = await repositories.createTestUser();
   await seedProject(repositories, user.id);
 
+  const repo = await repositories.contentRepository.upsertRepository({
+    workspaceSlug: 'default',
+    externalId: '0',
+    fullName: 'acme/platform',
+    htmlUrl: 'https://github.com/acme/platform',
+    description: null,
+    defaultBranch: null,
+  });
+
   const result = await new UpdateProjectUseCase(repositories.contentRepository).execute({
     projectSlug: 'platform',
     displayName: 'Platform Core',
-    repositories: [{ externalRepoId: '0', repoFullName: 'acme/platform' }],
+    repositoryIds: [repo.id],
     aliases: ['core'],
     defaultTags: ['backend'],
   }, user.id);

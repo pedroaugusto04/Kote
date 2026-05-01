@@ -73,8 +73,8 @@ export function ProjectCard({
       <h3>{project.displayName}</h3>
       <div className="card-repos">
         {project.repositories.map((repo) => (
-          <span key={repo.externalRepoId} className="repo-tag">
-            {repo.repoFullName}
+          <span key={repo.externalId} className="repo-tag">
+            {repo.fullName}
           </span>
         ))}
         {project.repositories.length === 0 && <span className="repo-tag empty">No repos</span>}

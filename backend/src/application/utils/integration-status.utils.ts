@@ -33,7 +33,7 @@ export function link(label: string, url: string, external = true) {
 export function workspaceRepos(workspace: Workspace | undefined, projects: Project[]): string[] {
   const workspaceProjectRepos = projects
     .filter((project) => !workspace || project.workspaceSlug === workspace.workspaceSlug)
-    .flatMap((project) => (project.repositories || []).map((repo) => repo.repoFullName))
+    .flatMap((project) => (project.repositories || []).map((repo) => repo.fullName))
     .filter(Boolean);
   return Array.from(new Set(workspaceProjectRepos));
 }

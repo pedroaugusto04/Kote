@@ -41,10 +41,19 @@ test('create project persists metadata, updates workspace slugs and rejects dupl
   await new CreateWorkspaceUseCase(repositories.contentRepository).execute({ displayName: 'Acme Team', workspaceSlug: 'acme-team' }, user.id);
   const useCase = new CreateProjectUseCase(repositories.contentRepository);
 
+  const repo = await repositories.contentRepository.upsertRepository({
+    workspaceSlug: 'acme-team',
+    externalId: '101',
+    fullName: 'acme/api',
+    htmlUrl: 'https://github.com/acme/api',
+    description: null,
+    defaultBranch: null,
+  });
+
   const result = await useCase.execute({
     displayName: 'Acme API',
     projectSlug: 'acme-api',
-    repositories: [{ externalRepoId: '101', repoFullName: 'acme/api' }],
+    repositoryIds: [repo.id],
     aliases: ['api'],
     defaultTags: ['backend'],
   }, user.id);

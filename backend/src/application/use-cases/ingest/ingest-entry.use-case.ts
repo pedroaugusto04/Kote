@@ -23,7 +23,17 @@ function projectFromPayload(payload: IngestPayload, workspaceSlug: string): Proj
   return {
     projectSlug,
     displayName: payload.event.projectSlug || 'Inbox',
-    repositories: [{ externalRepoId: '0', repoFullName: String(payload.metadata.repoFullName || '') }],
+    repositories: [{
+      id: '',
+      workspaceSlug,
+      externalId: '0',
+      fullName: String(payload.metadata.repoFullName || ''),
+      htmlUrl: null,
+      description: null,
+      defaultBranch: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }],
     workspaceSlug,
     aliases: [],
     defaultTags: [],
@@ -55,7 +65,21 @@ async function saveIngestedNote(contentRepository: ContentRepository, userId: st
   const paths = buildNotePaths(project, payload);
   const markdown = renderEventNote(project, payload, paths);
   const title = trimText(payload.content.title, payload.content.rawText);
-  if (!existingProject) await contentRepository.upsertProject(userId, project);
+  if (!existingProject) {
+    if (project.repositories.length > 0) {
+      const repo = project.repositories[0];
+      const savedRepo = await contentRepository.upsertRepository({
+        workspaceSlug: repo.workspaceSlug,
+        externalId: repo.externalId,
+        fullName: repo.fullName,
+        htmlUrl: repo.htmlUrl,
+        description: repo.description,
+        defaultBranch: repo.defaultBranch,
+      });
+      project.repositories[0] = savedRepo;
+    }
+    await contentRepository.upsertProject(userId, project);
+  }
   const note = await contentRepository.upsertNote(userId, {
     path: paths.eventRelativePath.replace(/\\/g, '/'),
     type: CanonicalType.Event,

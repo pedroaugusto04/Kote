@@ -24,11 +24,14 @@ export class CreateProjectUseCase {
       });
     }
 
+    const workspaceRepositories = await this.contentRepository.listRepositories(userId, workspace.workspaceSlug);
+    const selectedRepositories = workspaceRepositories.filter(r => input.repositoryIds.includes(r.id));
+
     const project = await this.contentRepository.upsertProject(userId, {
       projectSlug: input.projectSlug,
       displayName: input.displayName,
       workspaceSlug: workspace.workspaceSlug,
-      repositories: input.repositories,
+      repositories: selectedRepositories,
       aliases: input.aliases,
       defaultTags: input.defaultTags,
       enabled: true,
@@ -51,10 +54,13 @@ export class UpdateProjectUseCase {
     const project = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
     if (!project || !project.enabled) throw new NotFoundException('project_not_found');
 
+    const workspaceRepositories = await this.contentRepository.listRepositories(userId, project.workspaceSlug);
+    const selectedRepositories = workspaceRepositories.filter(r => input.repositoryIds.includes(r.id));
+
     const updatedProject = await this.contentRepository.upsertProject(userId, {
       ...project,
       displayName: input.displayName,
-      repositories: input.repositories,
+      repositories: selectedRepositories,
       aliases: input.aliases,
       defaultTags: input.defaultTags,
     });

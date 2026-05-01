@@ -277,8 +277,8 @@ test('github app repositories are listed by installation token and saved into wo
   assert.equal(saved.repositories.length, 2); // It's a list now, duplicates handled by upsert logic if needed, but here we just pass what we got
   const projects = await repositories.contentRepository.listProjects(user.id);
   const apiProject = projects.find((project) => project.projectSlug === 'api');
-  assert.equal(apiProject.repositories[0].repoFullName, 'acme/api');
-  assert.equal(apiProject.repositories[0].externalRepoId, '101');
+  assert.equal(apiProject.repositories[0].fullName, 'acme/api');
+  assert.equal(apiProject.repositories[0].externalId, '101');
   globalThis.fetch = originalFetch;
 });
 

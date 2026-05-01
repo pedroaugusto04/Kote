@@ -41,7 +41,7 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
   const selectedSlug = routeProject || selectedProject;
   const selected = dashboard.projects.find((project) => project.projectSlug === selectedSlug) || dashboard.projects[0];
   const notes = dashboard.notes.filter((note) => !selected || note.project === selected.projectSlug);
-  const githubRepos = Array.from(new Set(dashboard.projects.flatMap((p) => p.repositories.map((r) => r.repoFullName))));
+  const githubRepos = Array.from(new Set(dashboard.projects.flatMap((p) => p.repositories.map((r) => r.fullName))));
   const loadNoteMutation = useMutation({
     mutationFn: (id: string) => fetchNote(id),
     onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
@@ -103,8 +103,8 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
               <h2>{selected.displayName}</h2>
               <div className="card-repos">
                 {selected.repositories.map((repo) => (
-                  <span key={repo.externalRepoId} className="repo-tag">
-                    {repo.repoFullName}
+                  <span key={repo.externalId} className="repo-tag">
+                    {repo.fullName}
                   </span>
                 ))}
               </div>
@@ -217,7 +217,7 @@ function ProjectModal({
     defaultValues: {
       displayName: project?.displayName || '',
       projectSlug: project?.projectSlug || '',
-      repositories: project?.repositories.map((r) => r.repoFullName).join(', ') || '',
+      repositories: project?.repositories.map((r) => r.fullName).join(', ') || '',
       aliases: project?.aliases.join(', ') || '',
       defaultTags: project?.defaultTags.join(', ') || '',
     },

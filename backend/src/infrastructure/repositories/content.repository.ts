@@ -4,8 +4,8 @@ import { Injectable } from '@nestjs/common';
 
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { ContentRepository } from '../../application/ports/content.repository.js';
-import type { NoteRecord, SaveAttachmentInput, SaveNoteInput, SaveWorkspaceInput } from '../../application/models/repository-records.models.js';
-import { attachmentFromRow, noteFromRow, projectFromRow, workspaceFromRow } from '../mappers/row.mappers.js';
+import type { NoteRecord, RepositoryRecord, SaveAttachmentInput, SaveNoteInput, SaveWorkspaceInput } from '../../application/models/repository-records.models.js';
+import { attachmentFromRow, noteFromRow, projectFromRow, repositoryFromRow, workspaceFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
 @Injectable()
@@ -49,12 +49,58 @@ export class PostgresContentRepository extends ContentRepository {
     return workspaceFromRow(result.rows[0]);
   }
 
+  async listRepositories(userId: string, workspaceSlug: string) {
+    const result = await this.database.getPool().query(
+      `SELECT r.* FROM kb_repositories r
+       JOIN kb_workspaces w ON w.workspace_slug = r.workspace_slug
+       WHERE w.user_id = $1 AND r.workspace_slug = $2
+       ORDER BY r.full_name`,
+      [userId, workspaceSlug]
+    );
+    return result.rows.map(repositoryFromRow);
+  }
+
+  async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
+    const result = await this.database.getPool().query(
+      `INSERT INTO kb_repositories (id, workspace_slug, external_id, full_name, html_url, description, default_branch)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       ON CONFLICT (workspace_slug, external_id)
+       DO UPDATE SET
+         full_name = EXCLUDED.full_name,
+         html_url = EXCLUDED.html_url,
+         description = EXCLUDED.description,
+         default_branch = EXCLUDED.default_branch,
+         updated_at = now()
+       RETURNING *`,
+      [
+        input.id || crypto.randomUUID(),
+        input.workspaceSlug,
+        input.externalId,
+        input.fullName,
+        input.htmlUrl,
+        input.description,
+        input.defaultBranch,
+      ]
+    );
+    return repositoryFromRow(result.rows[0]);
+  }
+
   async listProjects(userId: string) {
     const result = await this.database.getPool().query(
       `SELECT p.*,
          COALESCE((SELECT jsonb_agg(alias) FROM kb_project_aliases WHERE project_id = p.id), '[]'::jsonb) as aliases,
          COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
-         COALESCE((SELECT jsonb_agg(jsonb_build_object('external_repo_id', external_repo_id, 'repo_full_name', repo_full_name)) FROM kb_project_repositories WHERE project_id = p.id), '[]'::jsonb) as repositories
+         COALESCE((SELECT jsonb_agg(jsonb_build_object(
+           'id', r.id,
+           'workspace_slug', r.workspace_slug,
+           'external_id', r.external_id,
+           'full_name', r.full_name,
+           'html_url', r.html_url,
+           'description', r.description,
+           'default_branch', r.default_branch,
+           'created_at', r.created_at,
+           'updated_at', r.updated_at
+         )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
        FROM kb_projects p
        WHERE p.user_id = $1 AND p.enabled = true
        ORDER BY p.project_slug`,
@@ -68,7 +114,17 @@ export class PostgresContentRepository extends ContentRepository {
       `SELECT p.*,
          COALESCE((SELECT jsonb_agg(alias) FROM kb_project_aliases WHERE project_id = p.id), '[]'::jsonb) as aliases,
          COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
-         COALESCE((SELECT jsonb_agg(jsonb_build_object('external_repo_id', external_repo_id, 'repo_full_name', repo_full_name)) FROM kb_project_repositories WHERE project_id = p.id), '[]'::jsonb) as repositories
+         COALESCE((SELECT jsonb_agg(jsonb_build_object(
+           'id', r.id,
+           'workspace_slug', r.workspace_slug,
+           'external_id', r.external_id,
+           'full_name', r.full_name,
+           'html_url', r.html_url,
+           'description', r.description,
+           'default_branch', r.default_branch,
+           'created_at', r.created_at,
+           'updated_at', r.updated_at
+         )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
        FROM kb_projects p
        WHERE p.user_id = $1 AND p.project_slug = $2
        LIMIT 1`,
@@ -81,7 +137,7 @@ export class PostgresContentRepository extends ContentRepository {
     projectSlug: string;
     displayName: string;
     workspaceSlug: string;
-    repositories: { externalRepoId: string; repoFullName: string }[];
+    repositories: RepositoryRecord[];
     aliases: string[];
     defaultTags: string[];
     enabled: boolean;
@@ -128,10 +184,9 @@ export class PostgresContentRepository extends ContentRepository {
       await client.query('DELETE FROM kb_project_repositories WHERE project_id = $1', [project.id]);
       if (repositories.length > 0) {
         for (const repo of repositories) {
-          await client.query('INSERT INTO kb_project_repositories (project_id, external_repo_id, repo_full_name) VALUES ($1, $2, $3)', [
+          await client.query('INSERT INTO kb_project_repositories (project_id, repository_id) VALUES ($1, $2)', [
             project.id,
-            repo.externalRepoId || '0',
-            repo.repoFullName,
+            repo.id,
           ]);
         }
       }
@@ -141,7 +196,7 @@ export class PostgresContentRepository extends ContentRepository {
         ...project, 
         aliases, 
         default_tags: defaultTags, 
-        repositories: repositories.map(r => ({ external_repo_id: r.externalRepoId, repo_full_name: r.repoFullName })) 
+        repositories
       });
     } catch (e) {
       await client.query('ROLLBACK');

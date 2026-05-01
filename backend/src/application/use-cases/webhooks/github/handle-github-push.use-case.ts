@@ -132,7 +132,7 @@ export class HandleGithubPushUseCase {
     if (!repoFullName) return payload;
     const projects = await this.contentRepository.listProjects(userId);
     const project = projects.find(
-      (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.repositories.some(r => r.repoFullName.trim().toLowerCase() === repoFullName),
+      (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.repositories.some(r => r.fullName.trim().toLowerCase() === repoFullName),
     );
     const projectSlug = project?.projectSlug || 'inbox';
     return {

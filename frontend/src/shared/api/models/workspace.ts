@@ -1,3 +1,5 @@
+import type { Repository } from './project.js';
+
 export type Workspace = {
   workspaceSlug: string;
   displayName: string;
@@ -9,7 +11,7 @@ export type CreateWorkspaceResponse = {
   initialProject: {
     projectSlug: string;
     displayName: string;
-    repositories: { externalRepoId: string; repoFullName: string }[];
+    repositories: Repository[];
     workspaceSlug: string;
     aliases: string[];
     defaultTags: string[];

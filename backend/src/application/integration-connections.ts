@@ -311,7 +311,7 @@ export class IntegrationConnectionService {
       installationId,
     });
     const projects = await this.content.listProjects(input.userId);
-    const selected = new Set(projects.filter(p => p.workspaceSlug === workspaceSlug).flatMap(p => p.repositories.map(r => r.repoFullName)));
+    const selected = new Set(projects.filter(p => p.workspaceSlug === workspaceSlug).flatMap(p => p.repositories.map(r => r.fullName)));
     return {
       ok: true as const,
       workspaceSlug,
@@ -336,13 +336,24 @@ export class IntegrationConnectionService {
       createdAt: workspace.createdAt,
       updatedAt: now,
     });
-    const projects = await Promise.all(input.repositories.map((repo) => {
+    const savedRepositories = await Promise.all(input.repositories.map((repo) => {
+      return this.content.upsertRepository({
+        workspaceSlug,
+        externalId: repo.id,
+        fullName: repo.fullName,
+        htmlUrl: `https://github.com/${repo.fullName}`,
+        description: null,
+        defaultBranch: null,
+      });
+    }));
+
+    const projects = await Promise.all(savedRepositories.map((repo) => {
       const projectSlug = slugify(repo.fullName.split('/').pop() || repo.fullName) || 'inbox';
       return this.content.upsertProject(input.userId, {
         projectSlug,
         displayName: repo.fullName,
         workspaceSlug,
-        repositories: [{ externalRepoId: repo.id, repoFullName: repo.fullName }],
+        repositories: [repo],
         aliases: [],
         defaultTags: [],
         enabled: true,

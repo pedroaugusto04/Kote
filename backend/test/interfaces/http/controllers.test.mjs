@@ -82,16 +82,16 @@ test('projects and notes controllers delegate create requests to use cases', asy
   });
 
   assert.deepEqual(
-    await projects.create({ displayName: 'Acme API', projectSlug: 'acme-api', repoFullName: 'acme/api', aliases: [], defaultTags: [] }, user),
-    { ok: true, project: { displayName: 'Acme API', projectSlug: 'acme-api', repoFullName: 'acme/api', aliases: [], defaultTags: [] }, userId: 'user-1' },
+    await projects.create({ displayName: 'Acme API', projectSlug: 'acme-api', repositoryIds: ['101'], aliases: [], defaultTags: [] }, user),
+    { ok: true, project: { displayName: 'Acme API', projectSlug: 'acme-api', repositoryIds: ['101'], aliases: [], defaultTags: [] }, userId: 'user-1' },
   );
   assert.deepEqual(
     await notes.create({ projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
     { ok: true, noteId: 'note-1', body: { projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },
   );
   assert.deepEqual(
-    await projects.update({ projectSlug: 'acme-api' }, { displayName: 'Acme API', repoFullName: '', aliases: [], defaultTags: [] }, user),
-    { ok: true, project: { projectSlug: 'acme-api', displayName: 'Acme API', repoFullName: '', aliases: [], defaultTags: [] }, userId: 'user-1' },
+    await projects.update({ projectSlug: 'acme-api' }, { displayName: 'Acme API', repositoryIds: [], aliases: [], defaultTags: [] }, user),
+    { ok: true, project: { projectSlug: 'acme-api', displayName: 'Acme API', repositoryIds: [], aliases: [], defaultTags: [] }, userId: 'user-1' },
   );
   assert.deepEqual(await projects.remove({ projectSlug: 'acme-api' }, user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
   assert.deepEqual(

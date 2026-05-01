@@ -8,6 +8,7 @@ import type {
   KbUser,
   NoteRecord,
   ProjectRecord,
+  RepositoryRecord,
   WebhookEventRecord,
   WorkspaceRecord,
 } from '../../application/models/repository-records.models.js';
@@ -94,14 +95,35 @@ export function workspaceFromRow(row: Row): WorkspaceRecord {
   };
 }
 
+export function repositoryFromRow(row: Row): RepositoryRecord {
+  return {
+    id: String(row.id),
+    workspaceSlug: String(row.workspace_slug),
+    externalId: String(row.external_id),
+    fullName: String(row.full_name),
+    htmlUrl: row.html_url ? String(row.html_url) : null,
+    description: row.description ? String(row.description) : null,
+    defaultBranch: row.default_branch ? String(row.default_branch) : null,
+    createdAt: nowIso(row.created_at),
+    updatedAt: nowIso(row.updated_at),
+  };
+}
+
 export function projectFromRow(row: Row): ProjectRecord {
   return {
     projectSlug: String(row.project_slug),
     displayName: String(row.display_name || row.project_slug),
     workspaceSlug: String(row.workspace_slug || ''),
     repositories: (Array.isArray(row.repositories) ? row.repositories : []).map((r: any) => ({
-      externalRepoId: String(r.external_repo_id ?? '0'),
-      repoFullName: String(r.repo_full_name ?? ''),
+      id: String(r.id),
+      workspaceSlug: String(r.workspace_slug || row.workspace_slug || ''),
+      externalId: String(r.external_id ?? '0'),
+      fullName: String(r.full_name ?? ''),
+      htmlUrl: r.html_url ? String(r.html_url) : null,
+      description: r.description ? String(r.description) : null,
+      defaultBranch: r.default_branch ? String(r.default_branch) : null,
+      createdAt: nowIso(r.created_at || new Date().toISOString()),
+      updatedAt: nowIso(r.updated_at || new Date().toISOString()),
     })),
     aliases: stringArray(row.aliases),
     defaultTags: stringArray(row.default_tags),

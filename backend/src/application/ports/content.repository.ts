@@ -6,6 +6,7 @@ import type {
   SaveNoteInput,
   SaveProjectInput,
   SaveWorkspaceInput,
+  RepositoryRecord,
 } from '../models/repository-records.models.js';
 import type { ReviewView } from '../models/review.models.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../models/vault-note.models.js';
@@ -13,6 +14,8 @@ import type { VaultNoteDetail, VaultNoteSummary } from '../models/vault-note.mod
 export abstract class ContentRepository {
   abstract listWorkspaces(userId: string): Promise<SaveWorkspaceInput[]>;
   abstract upsertWorkspace(userId: string, input: SaveWorkspaceInput): Promise<SaveWorkspaceInput>;
+  abstract listRepositories(userId: string, workspaceSlug: string): Promise<RepositoryRecord[]>;
+  abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<RepositoryRecord>;
   abstract listProjects(userId: string): Promise<SaveProjectInput[]>;
   abstract getProjectBySlug(userId: string, projectSlug: string): Promise<SaveProjectInput | null>;
   abstract upsertProject(userId: string, input: SaveProjectInput): Promise<SaveProjectInput>;

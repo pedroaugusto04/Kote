@@ -173,10 +173,18 @@ test('github push resolves project by explicit repoFullName mapping', async (t) 
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
+  const repo = await repositories.contentRepository.upsertRepository({
+    workspaceSlug: 'default',
+    externalId: '0',
+    fullName: 'acme/api',
+    htmlUrl: 'https://github.com/acme/api',
+    description: null,
+    defaultBranch: null,
+  });
   await repositories.contentRepository.upsertProject(user.id, {
     projectSlug: 'platform',
     displayName: 'Platform',
-    repositories: [{ externalRepoId: '0', repoFullName: 'acme/api' }],
+    repositories: [repo],
     workspaceSlug: 'default',
     aliases: [],
     defaultTags: ['backend'],
