@@ -2,7 +2,7 @@ import type { MigrationBuilder } from 'node-pg-migrate';
 
 export async function up(pgm: MigrationBuilder) {
   pgm.sql(`
-    create table kb_users (
+    create table if not exists kb_users (
       id uuid primary key,
       email text not null,
       display_name text not null default '',
@@ -11,9 +11,9 @@ export async function up(pgm: MigrationBuilder) {
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
-    create unique index kb_users_email_lower_idx on kb_users (lower(email));
+    create unique index if not exists kb_users_email_lower_idx on kb_users (lower(email));
 
-    create table kb_integration_credentials (
+    create table if not exists kb_integration_credentials (
       id uuid primary key,
       user_id uuid not null references kb_users(id) on delete cascade,
       workspace_slug text not null,
@@ -25,10 +25,10 @@ export async function up(pgm: MigrationBuilder) {
       updated_at timestamptz not null default now(),
       revoked_at timestamptz
     );
-    create unique index kb_integration_credentials_scope_idx
+    create unique index if not exists kb_integration_credentials_scope_idx
       on kb_integration_credentials (user_id, workspace_slug, provider);
 
-    create table kb_external_identities (
+    create table if not exists kb_external_identities (
       id uuid primary key,
       user_id uuid not null references kb_users(id) on delete cascade,
       workspace_slug text not null default 'default',
@@ -42,10 +42,10 @@ export async function up(pgm: MigrationBuilder) {
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
-    create unique index kb_external_identities_provider_type_external_idx
+    create unique index if not exists kb_external_identities_provider_type_external_idx
       on kb_external_identities (provider, identity_type, external_id);
 
-    create table kb_integration_connection_sessions (
+    create table if not exists kb_integration_connection_sessions (
       id uuid primary key,
       user_id uuid not null references kb_users(id) on delete cascade,
       workspace_slug text not null default 'default',
@@ -59,14 +59,14 @@ export async function up(pgm: MigrationBuilder) {
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
-    create index kb_integration_connection_sessions_state_idx
+    create index if not exists kb_integration_connection_sessions_state_idx
       on kb_integration_connection_sessions (provider, state_hash, status, expires_at);
-    create index kb_integration_connection_sessions_code_idx
+    create index if not exists kb_integration_connection_sessions_code_idx
       on kb_integration_connection_sessions (provider, verification_code_hash, status, expires_at);
-    create index kb_integration_connection_sessions_user_idx
+    create index if not exists kb_integration_connection_sessions_user_idx
       on kb_integration_connection_sessions (user_id, workspace_slug, provider, created_at desc);
 
-    create table kb_workspaces (
+    create table if not exists kb_workspaces (
       id uuid primary key,
       user_id uuid not null references kb_users(id) on delete cascade,
       workspace_slug text not null,
@@ -78,9 +78,9 @@ export async function up(pgm: MigrationBuilder) {
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
-    create unique index kb_workspaces_user_slug_idx on kb_workspaces (user_id, workspace_slug);
+    create unique index if not exists kb_workspaces_user_slug_idx on kb_workspaces (user_id, workspace_slug);
 
-    create table kb_projects (
+    create table if not exists kb_projects (
       id uuid primary key,
       user_id uuid not null references kb_users(id) on delete cascade,
       project_slug text not null,
@@ -93,9 +93,9 @@ export async function up(pgm: MigrationBuilder) {
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
-    create unique index kb_projects_user_slug_idx on kb_projects (user_id, project_slug);
+    create unique index if not exists kb_projects_user_slug_idx on kb_projects (user_id, project_slug);
 
-    create table kb_notes (
+    create table if not exists kb_notes (
       id uuid primary key,
       user_id uuid not null references kb_users(id) on delete cascade,
       path text not null,
@@ -117,11 +117,11 @@ export async function up(pgm: MigrationBuilder) {
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
-    create unique index kb_notes_user_path_idx on kb_notes (user_id, path);
-    create index kb_notes_user_project_idx on kb_notes (user_id, project_slug);
-    create index kb_notes_user_workspace_idx on kb_notes (user_id, workspace_slug);
+    create unique index if not exists kb_notes_user_path_idx on kb_notes (user_id, path);
+    create index if not exists kb_notes_user_project_idx on kb_notes (user_id, project_slug);
+    create index if not exists kb_notes_user_workspace_idx on kb_notes (user_id, workspace_slug);
 
-    create table kb_note_links (
+    create table if not exists kb_note_links (
       id uuid primary key,
       user_id uuid not null references kb_users(id) on delete cascade,
       note_id uuid not null references kb_notes(id) on delete cascade,
@@ -129,9 +129,9 @@ export async function up(pgm: MigrationBuilder) {
       metadata jsonb not null default '{}'::jsonb,
       created_at timestamptz not null default now()
     );
-    create index kb_note_links_user_note_idx on kb_note_links (user_id, note_id);
+    create index if not exists kb_note_links_user_note_idx on kb_note_links (user_id, note_id);
 
-    create table kb_attachments (
+    create table if not exists kb_attachments (
       id uuid primary key,
       user_id uuid not null references kb_users(id) on delete cascade,
       note_id uuid references kb_notes(id) on delete cascade,
@@ -143,9 +143,9 @@ export async function up(pgm: MigrationBuilder) {
       metadata jsonb not null default '{}'::jsonb,
       created_at timestamptz not null default now()
     );
-    create index kb_attachments_user_note_idx on kb_attachments (user_id, note_id);
+    create index if not exists kb_attachments_user_note_idx on kb_attachments (user_id, note_id);
 
-    create table kb_conversation_states (
+    create table if not exists kb_conversation_states (
       user_id uuid not null references kb_users(id) on delete cascade,
       workspace_slug text not null,
       conversation_key text not null,
@@ -154,7 +154,7 @@ export async function up(pgm: MigrationBuilder) {
       primary key (user_id, workspace_slug, conversation_key)
     );
 
-    create table kb_reminder_dispatch_state (
+    create table if not exists kb_reminder_dispatch_state (
       user_id uuid not null references kb_users(id) on delete cascade,
       workspace_slug text not null,
       mode text not null,
@@ -164,7 +164,7 @@ export async function up(pgm: MigrationBuilder) {
       primary key (user_id, workspace_slug, mode, dispatch_key, reminder_id)
     );
 
-    create table kb_webhook_events (
+    create table if not exists kb_webhook_events (
       id uuid primary key,
       provider text not null,
       event_type text not null default '',
@@ -177,23 +177,23 @@ export async function up(pgm: MigrationBuilder) {
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     );
-    create index kb_webhook_events_provider_status_idx on kb_webhook_events (provider, status, created_at desc);
+    create index if not exists kb_webhook_events_provider_status_idx on kb_webhook_events (provider, status, created_at desc);
   `);
 }
 
 export async function down(pgm: MigrationBuilder) {
   pgm.sql(`
-    drop table kb_webhook_events;
-    drop table kb_reminder_dispatch_state;
-    drop table kb_conversation_states;
-    drop table kb_attachments;
-    drop table kb_note_links;
-    drop table kb_notes;
-    drop table kb_projects;
-    drop table kb_workspaces;
-    drop table kb_integration_connection_sessions;
-    drop table kb_external_identities;
-    drop table kb_integration_credentials;
-    drop table kb_users;
+    drop table if exists kb_webhook_events;
+    drop table if exists kb_reminder_dispatch_state;
+    drop table if exists kb_conversation_states;
+    drop table if exists kb_attachments;
+    drop table if exists kb_note_links;
+    drop table if exists kb_notes;
+    drop table if exists kb_projects;
+    drop table if exists kb_workspaces;
+    drop table if exists kb_integration_connection_sessions;
+    drop table if exists kb_external_identities;
+    drop table if exists kb_integration_credentials;
+    drop table if exists kb_users;
   `);
 }
