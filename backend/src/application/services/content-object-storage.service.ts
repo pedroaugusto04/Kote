@@ -35,7 +35,7 @@ export class ContentObjectStorageService {
     await this.objectStorage.put({
       key: markdownStorageKey,
       body: input.markdown,
-      contentType: 'text/markdown; charset=utf-8',
+      contentType: 'text/markdown',
     });
     return markdownStorageKey;
   }

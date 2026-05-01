@@ -68,7 +68,7 @@ test('supabase storage uploads with bucket config, cache control and upsert', as
   await new SupabaseObjectStorage(double.factory).put({
     key: 'users/user 1/workspaces/default/notes/20 Inbox/a#b.md',
     body: 'markdown',
-    contentType: 'text/markdown; charset=utf-8',
+    contentType: 'text/markdown',
   });
 
   assert.deepEqual(double.factoryCalls, [{
@@ -83,7 +83,7 @@ test('supabase storage uploads with bucket config, cache control and upsert', as
   assert.equal(double.calls[0].args[1], 'markdown');
   assert.deepEqual(double.calls[0].args[2], {
     cacheControl: '60',
-    contentType: 'text/markdown; charset=utf-8',
+    contentType: 'text/markdown',
     upsert: true,
   });
 });
