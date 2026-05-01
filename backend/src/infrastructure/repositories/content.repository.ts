@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { ContentRepository } from '../../application/ports/content.repository.js';
-import type { NoteRecord, SaveAttachmentInput, SaveNoteInput } from '../../application/models/repository-records.models.js';
+import type { NoteRecord, SaveAttachmentInput, SaveNoteInput, SaveWorkspaceInput } from '../../application/models/repository-records.models.js';
 import { attachmentFromRow, noteFromRow, projectFromRow, workspaceFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
@@ -26,12 +26,7 @@ export class PostgresContentRepository extends ContentRepository {
     return result.rows.map(workspaceFromRow);
   }
 
-  async upsertWorkspace(userId: string, input: {
-    workspaceSlug: string;
-    displayName: string;
-    whatsappGroupJid: string;
-    telegramChatId: string;
-  }) {
+  async upsertWorkspace(userId: string, input: SaveWorkspaceInput) {
     const result = await this.database.getPool().query(
       `insert into kb_workspaces (id, user_id, workspace_slug, display_name, whatsapp_group_jid, telegram_chat_id)
        values ($1, $2, $3, $4, $5, $6)

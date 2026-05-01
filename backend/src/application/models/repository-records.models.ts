@@ -60,8 +60,6 @@ export type WorkspaceRecord = {
   displayName: string;
   whatsappGroupJid: string;
   telegramChatId: string;
-  githubRepos: string[];
-  projectSlugs: string[];
   createdAt: string;
   updatedAt: string;
 };
