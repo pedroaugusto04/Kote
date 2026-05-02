@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../../../application/auth.js';
-import { CreateManualNoteUseCase, DeleteManualNoteUseCase, UpdateManualNoteUseCase } from '../../../application/use-cases/notes/create-manual-note.use-case.js';
+import { CreateManualNoteUseCase, DeleteManualNoteUseCase, UpdateManualNoteUseCase } from '../../../application/use-cases/index.js';
 import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
 import { createNoteBodySchema, noteIdParamSchema, updateNoteBodySchema, type CreateNoteBody, type NoteIdParam, type UpdateNoteBody } from '../dto/note.dto.js';

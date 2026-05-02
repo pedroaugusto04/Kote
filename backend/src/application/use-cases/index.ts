@@ -1,8 +1,12 @@
 export { BuildDashboardUseCase, buildDashboardHome } from './dashboard/build-dashboard.use-case.js';
 export { CreateWorkspaceUseCase } from './workspaces/create-workspace.use-case.js';
 export { ListWorkspaceRepositoriesUseCase } from './workspaces/list-workspace-repositories.use-case.js';
-export { CreateProjectUseCase, DeleteProjectUseCase, UpdateProjectUseCase } from './projects/create-project.use-case.js';
-export { CreateManualNoteUseCase, DeleteManualNoteUseCase, UpdateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
+export { CreateProjectUseCase } from './projects/create-project.use-case.js';
+export { DeleteProjectUseCase } from './projects/delete-project.use-case.js';
+export { UpdateProjectUseCase } from './projects/update-project.use-case.js';
+export { CreateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
+export { DeleteManualNoteUseCase } from './notes/delete-manual-note.use-case.js';
+export { UpdateManualNoteUseCase } from './notes/update-manual-note.use-case.js';
 export { GetNoteDetailUseCase } from './dashboard/get-note-detail.use-case.js';
 export { QueryKnowledgeUseCase } from './query/query-knowledge.use-case.js';
 export { IngestEntryUseCase } from './ingest/ingest-entry.use-case.js';
@@ -12,4 +16,6 @@ export { MarkReminderAsSentUseCase } from './reminders/mark-reminder-as-sent.use
 export { HandleGithubPushUseCase } from './webhooks/github/handle-github-push.use-case.js';
 export { HandleWhatsappWebhookUseCase } from './webhooks/whatsapp/handle-whatsapp-webhook.use-case.js';
 export { HandleTelegramWebhookUseCase } from './webhooks/telegram/handle-telegram-webhook.use-case.js';
-export { ListProjectsUseCase, ListWorkspacesUseCase, ListNotesUseCase } from './dashboard/list-dashboard-resources.use-case.js';
+export { ListProjectsUseCase } from './dashboard/list-projects.use-case.js';
+export { ListWorkspacesUseCase } from './dashboard/list-workspaces.use-case.js';
+export { ListNotesUseCase } from './dashboard/list-notes.use-case.js';

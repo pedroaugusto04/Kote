@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { buildManualEditorState } from '../notes/create-manual-note.use-case.js';
+import { buildManualEditorState } from '../notes/manual-note.helpers.js';
 import { noteDetail } from '../../../infrastructure/mappers/content-query.mappers.js';
 import { ContentRepository } from '../../ports/content.repository.js';
 

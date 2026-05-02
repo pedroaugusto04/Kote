@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../../../application/auth.js';
-import { CreateProjectUseCase, DeleteProjectUseCase, UpdateProjectUseCase } from '../../../application/use-cases/projects/create-project.use-case.js';
+import { CreateProjectUseCase, DeleteProjectUseCase, UpdateProjectUseCase } from '../../../application/use-cases/index.js';
 import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
 import { createProjectBodySchema, projectSlugParamSchema, updateProjectBodySchema, type CreateProjectBody, type ProjectSlugParam, type UpdateProjectBody } from '../dto/project.dto.js';

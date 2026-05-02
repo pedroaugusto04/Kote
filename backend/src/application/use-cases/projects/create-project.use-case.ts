@@ -1,6 +1,6 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 
-import type { CreateProjectInput, UpdateProjectInput } from '../../models/project-input.models.js';
+import type { CreateProjectInput } from '../../models/project-input.models.js';
 import { ContentRepository } from '../../ports/content.repository.js';
 import { GithubRepositoryResolutionService } from '../../services/github-repository-resolution.service.js';
 
@@ -45,57 +45,5 @@ export class CreateProjectUseCase {
       project,
       workspace,
     };
-  }
-}
-
-@Injectable()
-export class UpdateProjectUseCase {
-  constructor(
-    private readonly contentRepository: ContentRepository,
-    private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
-  ) { }
-
-  async execute(input: UpdateProjectInput, userId: string) {
-
-    const project = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-
-    const selectedRepositories = await this.githubRepositoryResolution.resolveSelectedRepositories({
-      userId,
-      workspaceSlug: project.workspaceSlug,
-      repositoryIds: input.repositoryIds,
-    });
-
-    const updatedProject = await this.contentRepository.upsertProject(userId, {
-      ...project,
-      displayName: input.displayName,
-      repositories: selectedRepositories,
-      aliases: input.aliases,
-      defaultTags: input.defaultTags,
-    });
-
-    return { ok: true as const, project: updatedProject };
-  }
-}
-
-@Injectable()
-export class DeleteProjectUseCase {
-  constructor(private readonly contentRepository: ContentRepository) { }
-
-  async execute(projectSlug: string, userId: string) {
-
-    const project = await this.contentRepository.getProjectBySlug(userId, projectSlug);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-
-    const notes = await this.contentRepository.listNotes(userId);
-    if (notes.some((note) => note.projectSlug === projectSlug)) {
-      throw new BadRequestException('project_has_notes');
-    }
-
-    await this.contentRepository.deleteProject(userId, projectSlug);
-
-    const workspace = (await this.contentRepository.listWorkspaces(userId)).find((item) => item.workspaceSlug === project.workspaceSlug);
-
-    return { ok: true as const, projectSlug, workspace };
   }
 }
