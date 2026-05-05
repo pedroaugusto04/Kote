@@ -1,19 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
 import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
 import { GuidedIntegrationsSection, IntegrationCallbackNotice, useIntegrationCallback } from '../../features/integrations/GuidedIntegrationsSection';
-import { createWorkspace, getErrorMessage } from '../../shared/api/client';
+import { createWorkspace } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
-import { InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
+import { PageHead, Panel } from '../../shared/ui/primitives';
 import { workspaceFormSchema, type WorkspaceFormValues } from './setup-page.forms';
 
 function slugify(input: string) {
@@ -31,13 +31,10 @@ function StepState({ complete, pendingLabel, doneLabel }: { complete: boolean; p
 }
 
 export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboard; refetchDashboard: () => Promise<unknown> }) {
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const formRef = useRef<HTMLFormElement>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [createdWorkspaceSlug, setCreatedWorkspaceSlug] = useState('');
-  const [continueError, setContinueError] = useState('');
-  const [continuePending, setContinuePending] = useState(false);
   const [githubIntegrations, setGithubIntegrations] = useState<UserIntegration[]>([]);
   const [chatIntegrations, setChatIntegrations] = useState<UserIntegration[]>([]);
   const activeWorkspace = dashboard.workspaces[0] || null;
@@ -95,30 +92,6 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
   ));
   const workspaceReady = Boolean(activeWorkspace || createdWorkspaceSlug);
   const callbackMatchesWorkspace = Boolean(githubCallbackStatus.workspaceSlug && githubCallbackStatus.workspaceSlug === effectiveWorkspaceSlug);
-
-  async function enterDashboard() {
-    setContinueError('');
-    setContinuePending(true);
-    if (activeWorkspace || createdWorkspaceSlug) {
-      navigate(routes.home);
-      setContinuePending(false);
-      return;
-    }
-
-    try {
-      const result = await refetchDashboard();
-      const refreshedDashboard = result && typeof result === 'object' && 'data' in result ? result.data as Dashboard | undefined : undefined;
-      if (refreshedDashboard?.workspaces[0]) {
-        navigate(routes.home);
-        return;
-      }
-      setContinueError('Ainda estou sincronizando o workspace. Tente novamente em alguns segundos.');
-    } catch (error) {
-      setContinueError(getErrorMessage(error, 'Nao foi possivel abrir o dashboard agora.'));
-    } finally {
-      setContinuePending(false);
-    }
-  }
 
   return (
     <main className="setup-layout">
@@ -233,11 +206,10 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
 
       {workspaceReady ? (
         <section className="setup-actions">
-          <button className="icon-button" disabled={continuePending} type="button" onClick={() => void enterDashboard()}>
+          <a className="icon-button" href={withFrontendBasePath(routes.home)}>
             Ir para o dashboard
-          </button>
+          </a>
           {!activeWorkspace ? <span className="meta">Sincronizando workspace...</span> : null}
-          {continueError ? <InlineMessage tone="error">{continueError}</InlineMessage> : null}
         </section>
       ) : null}
     </main>

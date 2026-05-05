@@ -135,4 +135,18 @@ describe('SetupPage', () => {
       workspaceSlug: 'acme-team',
     });
   });
+
+  it('renders the dashboard CTA as a direct home link after the workspace exists', () => {
+    renderWithAppProviders(
+      <SetupPage
+        dashboard={{
+          ...emptyDashboard,
+          workspaces: [{ workspaceSlug: 'acme-team', displayName: 'Acme Team' }],
+        }}
+        refetchDashboard={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('link', { name: 'Ir para o dashboard' })).toHaveAttribute('href', '/');
+  });
 });
