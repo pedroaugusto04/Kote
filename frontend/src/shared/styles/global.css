@@ -327,6 +327,11 @@ p { color: var(--muted); line-height: 1.6; }
   padding: 12px 14px;
   margin-bottom: 16px;
 }
+.setup-inline-banner .icon-button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
 .setup-inline-banner.success { border-color: rgba(125, 211, 165, 0.3); }
 .setup-inline-banner.error { border-color: rgba(255, 122, 122, 0.35); }
 

@@ -47,7 +47,7 @@ export function HomePage({ dashboard, openNote, openReview, setSelectedProject }
               <strong>Finalize as integrações do workspace</strong>
               <p className="meta">Conecte GitHub para reviews de push e WhatsApp ou Telegram para capturar notas por conversa.</p>
             </div>
-            <Link className="filter-chip" to={routes.integrations}>Conectar integrações</Link>
+            <Link className="icon-button" to={routes.integrations}>Conectar integrações</Link>
           </Panel>
         ) : null}
 
