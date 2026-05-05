@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -64,7 +65,7 @@ describe('SetupPage', () => {
       return new Response(null, { status: 404 });
     }));
 
-    renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn()} />);
+    renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn().mockResolvedValue(undefined)} />);
 
     fireEvent.change(screen.getByLabelText('Nome do workspace'), { target: { value: 'Acme Team' } });
     await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveValue('acme-team'));
@@ -93,7 +94,7 @@ describe('SetupPage', () => {
       return new Response(null, { status: 404 });
     }));
 
-    renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn()} />);
+    renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn().mockResolvedValue(undefined)} />);
 
     fireEvent.change(screen.getByLabelText('Nome do workspace'), { target: { value: 'Acme Team' } });
     await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveValue('acme-team'));
@@ -103,7 +104,7 @@ describe('SetupPage', () => {
   });
 
   it('emits a success toast after creating a workspace', async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       if (String(input) === '/api/workspaces') {
         return Response.json({
           ok: true,
@@ -128,15 +129,18 @@ describe('SetupPage', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn()} />);
+    renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn().mockResolvedValue(undefined)} />);
 
     fireEvent.change(screen.getByLabelText('Nome do workspace'), { target: { value: 'Acme Team' } });
     await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveValue('acme-team'));
     fireEvent.click(screen.getByRole('button', { name: 'Criar workspace' }));
 
     await waitFor(() => expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Workspace criado com sucesso.'));
-    const [, requestInit] = fetchMock.mock.calls.find(([input]) => String(input) === '/api/workspaces') || [];
-    expect(JSON.parse(String((requestInit as RequestInit).body))).toEqual({
+    const createWorkspaceCall = fetchMock.mock.calls.find(([input]) => String(input) === '/api/workspaces');
+    expect(createWorkspaceCall).toBeDefined();
+    const requestInit = createWorkspaceCall?.[1];
+    expect(requestInit).toBeDefined();
+    expect(JSON.parse(String((requestInit as RequestInit | undefined)?.body))).toEqual({
       displayName: 'Acme Team',
       workspaceSlug: 'acme-team',
     });
@@ -149,7 +153,7 @@ describe('SetupPage', () => {
           ...emptyDashboard,
           workspaces: [{ workspaceSlug: 'acme-team', displayName: 'Acme Team' }],
         }}
-        refetchDashboard={vi.fn()}
+        refetchDashboard={vi.fn().mockResolvedValue(undefined)}
       />,
     );
 
