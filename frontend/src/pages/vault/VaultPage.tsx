@@ -46,7 +46,7 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, openNote
           {notes.map((note) => (
             <NoteRow key={note.id} note={note} dashboard={dashboard} onOpen={openNote} />
           ))}
-          {pagination ? <Pagination pagination={pagination} onPageChange={setPage} /> : null}
+          {pagination ? <Pagination pagination={pagination} onPageChange={setPage} compact /> : null}
         </aside>
         <article className="note-reader">
           {noteQuery.data ? (

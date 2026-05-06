@@ -47,7 +47,7 @@ export function ReviewsPage({ dashboard, selectedReviewId, openReview }: PageCon
           {(reviewsQuery.data?.reviews || []).map((review) => (
             <ReviewRow key={review.id} review={review} dashboard={dashboard} onOpen={openReview} />
           ))}
-          {reviewsQuery.data ? <Pagination pagination={reviewsQuery.data.pagination} onPageChange={setPage} /> : null}
+          {reviewsQuery.data ? <Pagination pagination={reviewsQuery.data.pagination} onPageChange={setPage} compact /> : null}
         </aside>
         <Panel>
           {selected ? (
