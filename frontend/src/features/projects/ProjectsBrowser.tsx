@@ -6,6 +6,7 @@ import { Pagination } from '../../shared/ui/pagination';
 import { EmptyState, Panel, Tags } from '../../shared/ui/primitives';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 import { FolderTree } from './FolderTree';
+import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
 import { canManageNote } from './projects.helpers';
 
 type ProjectsBrowserProps = {
@@ -26,7 +27,6 @@ type ProjectsBrowserProps = {
   onFolderSelect: (folderId: string) => void;
   onCreateNote: () => void;
   onCreateFolder: () => void;
-  onCreateSubfolder: () => void;
   onEditFolder: () => void;
   onDeleteFolder: () => void;
   onEditNote: (note: NoteSummary) => void;
@@ -46,7 +46,6 @@ export function ProjectsBrowser({
   onFolderSelect,
   onCreateNote,
   onCreateFolder,
-  onCreateSubfolder,
   onEditFolder,
   onDeleteFolder,
   onEditNote,
@@ -70,20 +69,24 @@ export function ProjectsBrowser({
         <div className="project-actions">
           <Tags items={project.defaultTags} />
           <button className="icon-button" type="button" onClick={onCreateNote}>Nova nota</button>
-          <button className="icon-button" type="button" onClick={onCreateFolder}>Nova pasta</button>
-          {selectedFolder ? (
-            <>
-              <button className="icon-button" type="button" onClick={onCreateSubfolder}>Nova subpasta</button>
-              <button className="icon-button" type="button" onClick={onEditFolder}>Editar pasta</button>
-              <button className="icon-button danger" type="button" onClick={onDeleteFolder}>Excluir pasta</button>
-            </>
-          ) : null}
         </div>
       </div>
       <div className="project-browser">
         <aside className="folder-browser">
           <div className="folder-browser-head">
-            <strong>Pastas</strong>
+            <div className="folder-browser-head-top">
+              <strong>Pastas</strong>
+              <div className="folder-browser-actions">
+                <button className="filter-chip" type="button" onClick={onCreateFolder}>Nova pasta</button>
+                {selectedFolder ? (
+                  <ProjectFolderActionsMenu
+                    folderName={selectedFolder.displayName}
+                    onDelete={onDeleteFolder}
+                    onRename={onEditFolder}
+                  />
+                ) : null}
+              </div>
+            </div>
             <span className="meta">{selectedFolder ? selectedFolder.displayName : 'Raiz'}</span>
           </div>
           <FolderTree

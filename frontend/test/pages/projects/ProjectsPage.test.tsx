@@ -347,7 +347,47 @@ describe('ProjectsPage', () => {
     expect(screen.getByDisplayValue('2026-04-29')).toBeInTheDocument();
   });
 
-  it('renders folder actions from the project tree and opens the edit folder modal', async () => {
+  it('opens the folder modal from root with Raiz as the default parent', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (url === '/api/projects/platform/folders') {
+        return Response.json({
+          ok: true,
+          projectSlug: 'platform',
+          folders: [
+            {
+              id: 'folder-1',
+              projectSlug: 'platform',
+              workspaceSlug: 'default',
+              parentFolderId: null,
+              displayName: 'Specs',
+              folderSlug: 'specs',
+              fullSlugPath: 'specs',
+              children: [],
+            },
+          ],
+        });
+      }
+      if (url.startsWith('/api/notes?')) {
+        return Response.json({
+          ok: true,
+          notes: [],
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
+      return Response.error();
+    }));
+    renderProjects();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Nova pasta' }));
+
+    const modal = await screen.findByRole('dialog', { name: 'Nova pasta' });
+    expect(within(modal).getByLabelText('Pasta pai')).toHaveValue('');
+  });
+
+  it('uses the selected folder as the default parent and exposes folder actions in a secondary menu', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
@@ -383,8 +423,15 @@ describe('ProjectsPage', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Specs' }));
 
-    expect(await screen.findByRole('button', { name: 'Nova subpasta' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Editar pasta' }));
+    expect(screen.queryByRole('button', { name: 'Nova subpasta' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Nova pasta' }));
+
+    const createModal = await screen.findByRole('dialog', { name: 'Nova pasta' });
+    expect(within(createModal).getByLabelText('Pasta pai')).toHaveValue('folder-1');
+    fireEvent.click(within(createModal).getByRole('button', { name: 'Cancelar' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Acoes da pasta' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Renomear Specs' }));
 
     expect(await screen.findByRole('dialog', { name: 'Editar pasta' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Specs')).toBeInTheDocument();

@@ -197,8 +197,7 @@ export function ProjectsWorkspace({
           notesPagination={notesQuery.data?.pagination}
           onFolderSelect={setSelectedFolderId}
           onCreateNote={() => setNoteModal({ mode: 'create', projectSlug: selected.projectSlug, folderId: selectedFolderId || undefined })}
-          onCreateFolder={() => setFolderModal({ mode: 'create', projectSlug: selected.projectSlug })}
-          onCreateSubfolder={() => selectedFolder ? setFolderModal({ mode: 'create', projectSlug: selected.projectSlug, parentFolderId: selectedFolder.id }) : undefined}
+          onCreateFolder={() => setFolderModal({ mode: 'create', projectSlug: selected.projectSlug, parentFolderId: selectedFolder?.id })}
           onEditFolder={() => selectedFolder ? setFolderModal({ mode: 'edit', projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
           onDeleteFolder={() => selectedFolder ? setConfirmState({ kind: 'folder', projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
           onEditNote={(note) => loadNoteMutation.mutate(note.id)}
