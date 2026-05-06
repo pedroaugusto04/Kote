@@ -9,6 +9,8 @@ export function Pagination({
   onPageChange: (page: number) => void;
   compact?: boolean;
 }) {
+  if (pagination.totalPages <= 1) return null;
+
   const start = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.pageSize + 1;
   const end = pagination.total === 0 ? 0 : Math.min(pagination.total, pagination.page * pagination.pageSize);
   const pages = visiblePages(pagination.page, pagination.totalPages, compact ? 3 : 5);
