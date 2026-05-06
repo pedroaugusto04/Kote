@@ -9,3 +9,8 @@ export type PageContext = {
   openNote: (id: string) => void;
   openReview: (id: string) => void;
 };
+
+export type ProjectsPageContext = Pick<
+  PageContext,
+  'dashboard' | 'selectedProject' | 'setSelectedProject' | 'openNote'
+>;

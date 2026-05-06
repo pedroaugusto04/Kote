@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-import type { PageContext } from '../../app/page-context';
+import type { ProjectsPageContext } from '../../app/page-context';
 import {
   deleteNote,
   deleteProject,
@@ -28,7 +28,7 @@ import { ProjectsBrowser } from './ProjectsBrowser';
 import { flattenFolders } from './projects.helpers';
 import type { ConfirmState, FolderModalState, NoteModalState, ProjectModalState } from './projects.types';
 
-type ProjectsWorkspaceProps = PageContext;
+type ProjectsWorkspaceProps = ProjectsPageContext;
 
 export function ProjectsWorkspace({
   dashboard,
