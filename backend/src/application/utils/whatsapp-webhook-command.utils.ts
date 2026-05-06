@@ -3,6 +3,7 @@ import { extractWhatsappConnectionCode } from '../integration-connections.js';
 import { conversationInputSchema, type ConversationInput } from '../../contracts/conversation.js';
 
 type WhatsappWebhookIgnoreReason = 'unsupported_event' | 'missing_payload' | 'from_me' | 'not_group';
+const BOT_MESSAGE_PREFIX = '[BOT]';
 
 export type WhatsappWebhookCommand =
   | {
@@ -29,8 +30,11 @@ export function buildWhatsappWebhookCommand(body: Record<string, unknown>): What
   if (parsedMessage.kind === 'ignored') {
     return { kind: 'ignore', reason: parsedMessage.reason };
   }
-  if (!parsedMessage.isGroup || parsedMessage.fromMe) {
-    return { kind: 'ignore', reason: parsedMessage.fromMe ? 'from_me' : 'not_group' };
+  if (!parsedMessage.isGroup) {
+    return { kind: 'ignore', reason: 'not_group' };
+  }
+  if (parsedMessage.fromMe && parsedMessage.messageText.startsWith(BOT_MESSAGE_PREFIX)) {
+    return { kind: 'ignore', reason: 'from_me' };
   }
 
   const externalId = extractWhatsappExternalId(body);

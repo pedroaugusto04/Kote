@@ -178,11 +178,16 @@ test('github connection normalizes app settings URLs to the installation flow', 
   assert.ok(url.searchParams.get('state'));
 });
 
-test('whatsapp connection command binds the group without trusting userId payload and normal unknown messages stay rejected', async (t) => {
+test('whatsapp connection command binds the group even when authored by the connected number and normal unknown messages stay rejected', async (t) => {
   const { repositories, user, connections, whatsapp } = await fixture(t);
   const setup = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'whatsapp' });
 
-  const result = await whatsapp.execute(whatsappInput(setup.verificationCode));
+  const result = await whatsapp.execute(whatsappInput(setup.verificationCode, {
+    data: {
+      key: { remoteJid: '120363@g.us', fromMe: true, id: 'connect-msg', participant: '5511999999999@s.whatsapp.net' },
+      message: { conversation: `/kb conectar ${setup.verificationCode}` },
+    },
+  }));
   assert.equal(result.resolvedUserId, user.id);
 
   const identity = await repositories.externalIdentityRepository.findExternalIdentity('whatsapp', 'jid', '120363@g.us');

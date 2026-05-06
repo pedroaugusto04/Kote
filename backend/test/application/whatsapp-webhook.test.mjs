@@ -147,19 +147,36 @@ test('whatsapp knowledge command replies to query without creating capture state
   assert.equal(await repositories.countConversationStates(), 0);
 });
 
-test('whatsapp webhook ignores messages sent by the bot itself', async (t) => {
+test('whatsapp webhook ignores only bot-prefixed self messages', async (t) => {
   const { whatsapp, sender } = await fixture(t);
 
-  const result = await whatsapp.execute(evolutionInput('resposta do bot', {
+  const result = await whatsapp.execute(evolutionInput('[BOT] resposta do bot', {
     data: {
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'from-me', fromMe: true },
-      message: { conversation: 'resposta do bot' },
+      message: { conversation: '[BOT] resposta do bot' },
     },
   }));
 
   assert.equal(result.processed, false);
   assert.equal(result.ignored, 'from_me');
   assert.equal(sender.sent.length, 0);
+});
+
+test('whatsapp webhook processes self-authored messages without bot prefix', async (t) => {
+  const { whatsapp, sender } = await fixture(t);
+
+  const result = await whatsapp.execute(evolutionInput('corrigi timeout no webhook', {
+    data: {
+      key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'from-me-user', fromMe: true },
+      message: { conversation: 'corrigi timeout no webhook' },
+    },
+  }));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.processed, true);
+  assert.equal(result.replySent, true);
+  assert.equal(sender.sent.length, 1);
+  assert.match(sender.sent[0].text, /Qual o tipo da nota/);
 });
 
 test('unknown whatsapp group is still rejected', async (t) => {
