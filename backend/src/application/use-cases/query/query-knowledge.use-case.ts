@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { QueryInput } from '../../../contracts/query.js';
+import { buildPaginationMeta } from '../../../contracts/pagination.js';
 import { ContentQueryRepository } from '../../ports/content.repository.js';
 import { rankKnowledgeMatches } from '../../utils/query.utils.js';
 
@@ -11,11 +12,14 @@ export class QueryKnowledgeUseCase {
   async execute(input: QueryInput, userId: string) {
     const notes = await this.contentQueryRepository.list(userId);
     const matches = rankKnowledgeMatches(notes, input);
+    const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || 10 }, matches.length);
+    const start = (pagination.page - 1) * pagination.pageSize;
     return {
       ok: true,
       mode: input.mode,
       query: input.query,
-      matches,
+      matches: matches.slice(start, start + pagination.pageSize),
+      pagination,
       answer: matches.length
         ? {
             answer: `Encontrei ${matches.length} nota(s) relevante(s) para "${input.query}".`,

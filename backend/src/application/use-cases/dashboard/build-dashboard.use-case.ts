@@ -20,6 +20,6 @@ export class BuildDashboardUseCase {
       this.contentQueryRepository.listReviews(userId),
       this.contentQueryRepository.listReminders(userId),
     ]);
-    return { workspaces, projects, notes, reviews, reminders, home: buildDashboardHome(projects, notes, reviews, reminders) };
+    return { workspaces, projects, home: buildDashboardHome(projects, notes, reviews, reminders) };
   }
 }

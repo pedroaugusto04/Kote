@@ -1,6 +1,9 @@
-import type { Dashboard } from '../shared/api/models/dashboard';
+import { useQuery } from '@tanstack/react-query';
+
 import { formatUsDate, noteStatusLabel, noteTypeLabel, projectName } from '../entities/format';
 import type { View } from '../app/routing/routes';
+import { fetchNote, fetchReview } from '../shared/api/client';
+import type { Dashboard } from '../shared/api/models/dashboard';
 
 export function Inspector({
   dashboard,
@@ -15,8 +18,18 @@ export function Inspector({
   selectedReviewId: string;
   view: View;
 }) {
-  const note = dashboard.notes.find((item) => item.id === selectedNoteId);
-  const review = dashboard.reviews.find((item) => item.id === selectedReviewId);
+  const noteQuery = useQuery({
+    queryKey: ['note', selectedNoteId],
+    queryFn: () => fetchNote(selectedNoteId),
+    enabled: Boolean(selectedNoteId),
+  });
+  const reviewQuery = useQuery({
+    queryKey: ['review', selectedReviewId],
+    queryFn: () => fetchReview(selectedReviewId),
+    enabled: Boolean(selectedReviewId),
+  });
+  const note = noteQuery.data;
+  const review = reviewQuery.data;
   const project = dashboard.projects.find((item) => item.projectSlug === selectedProject);
 
   return (

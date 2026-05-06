@@ -23,14 +23,22 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<Quer
     .map((note) => {
       const score = scoreKnowledgeNote(note, tokens);
       return {
+        id: note.id,
         path: note.path,
         title: note.title,
+        type: note.type,
+        project: note.project,
+        workspace: note.workspace,
+        tags: note.tags,
+        date: note.date,
+        status: note.status,
+        summary: note.summary,
+        source: note.source,
         projectSlug: note.project,
         score,
         snippet: note.summary || note.title,
       };
     })
     .filter((match) => match.score > 0)
-    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
-    .slice(0, query.limit);
+    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path));
 }

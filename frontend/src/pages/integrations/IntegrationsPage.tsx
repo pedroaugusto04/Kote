@@ -10,7 +10,7 @@ export function IntegrationsPage({ workspaceSlug }: { workspaceSlug: string }) {
     <>
       <PageHead
         title="Integrações"
-        subtitle={`Workspace ${workspaceSlug}: conecte provedores por fluxos guiados.`}
+        subtitle=""
       />
       {callback.integration === 'github-app'
         && callback.workspaceSlug === workspaceSlug

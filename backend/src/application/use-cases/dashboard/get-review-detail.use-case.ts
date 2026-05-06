@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
+
 import { ContentQueryRepository } from '../../ports/content.repository.js';
 
 @Injectable()
-export class ListNotesUseCase {
+export class GetReviewDetailUseCase {
   constructor(private readonly contentQueryRepository: ContentQueryRepository) {}
 
-  async execute(userId: string) {
-    return this.contentQueryRepository.list(userId);
+  execute(userId: string, id: string) {
+    return this.contentQueryRepository.getReviewById(userId, id);
   }
 }

@@ -3,8 +3,10 @@ import { useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { formatUsDate, noteStatusLabel, noteTypeLabel, projectName } from '../../entities/format';
-import { fetchNote } from '../../shared/api/client';
+import { fetchNote, fetchNotes } from '../../shared/api/client';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
+import { Pagination } from '../../shared/ui/pagination';
+import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { MarkdownView } from '../../widgets/markdown/MarkdownView';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 
@@ -12,18 +14,39 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, openNote
   const params = useParams();
   const routeNoteId = params.noteId ? decodeURIComponent(params.noteId) : '';
   const noteId = routeNoteId || selectedNoteId;
-  const notes = dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject);
+  const { page, setPage } = usePaginationState(`${selectedProject}:${noteId}`);
+  const notesQuery = useQuery({
+    queryKey: ['notes', 'vault', selectedProject, noteId, page],
+    queryFn: () => fetchNotes({ page, projectSlug: selectedProject, selectedId: noteId }),
+    initialData: dashboard.notes
+      ? {
+          ok: true as const,
+          notes: dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject).slice(0, 10),
+          pagination: {
+            page: 1,
+            pageSize: 10,
+            total: dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject).length,
+            totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject).length / 10)),
+            hasNext: dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject).length > 10,
+            hasPrevious: false,
+          },
+        }
+      : undefined,
+  });
   const noteQuery = useQuery({ queryKey: ['note', noteId], queryFn: () => fetchNote(noteId), enabled: Boolean(noteId) });
   const visibleTags = noteQuery.data ? noteQuery.data.tags.filter((tag) => tag !== noteQuery.data?.project) : [];
+  const notes = notesQuery.data?.notes || [];
+  const pagination = notesQuery.data?.pagination;
 
   return (
     <>
-      <PageHead title="Vault Explorer" subtitle="Arvore de arquivos, lista de documentos e leitor Markdown para exploracao rapida." />
+      <PageHead title="Vault Explorer" subtitle="" />
       <div className="split">
         <aside className="document-list">
           {notes.map((note) => (
             <NoteRow key={note.id} note={note} dashboard={dashboard} onOpen={openNote} />
           ))}
+          {pagination ? <Pagination pagination={pagination} onPageChange={setPage} /> : null}
         </aside>
         <article className="note-reader">
           {noteQuery.data ? (

@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { createNote, createProject, deleteNote, deleteProject, fetchNote, updateNote, updateProject } from '../../shared/api/client';
+import { createNote, createProject, deleteNote, deleteProject, fetchNote, fetchNotes, fetchProjects, updateNote, updateProject } from '../../shared/api/client';
 import { localDateTimeToUtcIso } from '../../entities/format';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
 import type { GithubIntegrationRepository } from '../../shared/api/models/integration';
@@ -16,7 +16,9 @@ import { FormActions, FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
+import { Pagination } from '../../shared/ui/pagination';
 import { PageHead, Panel, Tags } from '../../shared/ui/primitives';
+import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 import { ProjectCard } from '../../widgets/projects/ProjectCard';
 import { noteFormSchema, projectFormSchema, type NoteFormValues, type ProjectFormValues } from './projects-page.forms';
@@ -41,8 +43,48 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const routeProject = params.projectSlug ? decodeURIComponent(params.projectSlug) : '';
   const selectedSlug = routeProject || selectedProject;
-  const selected = dashboard.projects.find((project) => project.projectSlug === selectedSlug) || dashboard.projects[0];
-  const notes = dashboard.notes.filter((note) => !selected || note.project === selected.projectSlug);
+  const projectPagination = usePaginationState(selectedSlug);
+  const projectsQuery = useQuery({
+    queryKey: ['projects', selectedSlug, projectPagination.page],
+    queryFn: () => fetchProjects({ page: projectPagination.page, selectedSlug }),
+    initialData: {
+      ok: true as const,
+      projects: dashboard.projects.slice(0, 10),
+      pagination: {
+        page: 1,
+        pageSize: 10,
+        total: dashboard.projects.length,
+        totalPages: Math.max(1, Math.ceil(dashboard.projects.length / 10)),
+        hasNext: dashboard.projects.length > 10,
+        hasPrevious: false,
+      },
+    },
+  });
+  const selected = projectsQuery.data?.projects.find((project) => project.projectSlug === selectedSlug)
+    || projectsQuery.data?.projects[0]
+    || dashboard.projects.find((project) => project.projectSlug === selectedSlug)
+    || dashboard.projects[0];
+  const notesPagination = usePaginationState(selected?.projectSlug || '');
+  const notesQuery = useQuery({
+    queryKey: ['notes', 'projects-page', selected?.projectSlug || '', notesPagination.page],
+    queryFn: () => fetchNotes({ page: notesPagination.page, projectSlug: selected?.projectSlug || '' }),
+    enabled: Boolean(selected?.projectSlug),
+    initialData: dashboard.notes
+      ? {
+          ok: true as const,
+          notes: dashboard.notes.filter((note) => note.project === (selected?.projectSlug || '')).slice(0, 10),
+          pagination: {
+            page: 1,
+            pageSize: 10,
+            total: dashboard.notes.filter((note) => note.project === (selected?.projectSlug || '')).length,
+            totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) => note.project === (selected?.projectSlug || '')).length / 10)),
+            hasNext: dashboard.notes.filter((note) => note.project === (selected?.projectSlug || '')).length > 10,
+            hasPrevious: false,
+          },
+        }
+      : undefined,
+  });
+  const notes = notesQuery.data?.notes || [];
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug;
   const { data: integrationsResponse } = useQuery({
     queryKey: ['integrations', workspaceSlug],
@@ -66,7 +108,7 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
   const deleteProjectMutation = useMutation({
     mutationFn: (projectSlug: string) => deleteProject(projectSlug),
     onSuccess: async (_, projectSlug) => {
-      const nextProjectSlug = dashboard.projects.filter((project) => project.projectSlug !== projectSlug)[0]?.projectSlug || 'inbox';
+      const nextProjectSlug = (projectsQuery.data?.projects || dashboard.projects).filter((project) => project.projectSlug !== projectSlug)[0]?.projectSlug || 'inbox';
       setConfirmState(null);
       notifySuccess('Projeto excluido com sucesso.');
       setSelectedProject(nextProjectSlug);
@@ -88,14 +130,14 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
     <>
       <PageHead
         title="Projetos"
-        subtitle="Timeline de conhecimento por repositorio e atividade recente."
+        subtitle=""
         action={<button className="icon-button" type="button" onClick={() => setProjectModal({ mode: 'create' })}>Novo projeto</button>}
       />
       <section className="grid cols-3">
-        {dashboard.projects.map((project) => {
+        {(projectsQuery.data?.projects || []).map((project) => {
           const deleteBlockedReason = project.projectSlug === 'inbox'
             ? 'Inbox nao pode ser alterado.'
-            : dashboard.notes.some((note) => note.project === project.projectSlug)
+            : project.projectSlug === selected?.projectSlug && (notesQuery.data?.pagination.total || 0) > 0
               ? 'Exclua ou mova as notas do projeto antes de remover.'
               : '';
 
@@ -112,6 +154,7 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
           );
         })}
       </section>
+      {projectsQuery.data ? <Pagination pagination={projectsQuery.data.pagination} onPageChange={projectPagination.setPage} /> : null}
       {selected ? (
         <Panel className="spaced">
           <div className="page-head">
@@ -143,6 +186,7 @@ export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, o
               </div>
             ))}
           </div>
+          {notesQuery.data ? <Pagination pagination={notesQuery.data.pagination} onPageChange={notesPagination.setPage} /> : null}
         </Panel>
       ) : null}
       {projectModal ? (
@@ -203,6 +247,8 @@ function canManageNote(note: NoteSummary) {
 
 async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) {
   await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  await queryClient.invalidateQueries({ queryKey: ['projects'] });
+  await queryClient.invalidateQueries({ queryKey: ['notes'] });
 }
 
 function parseList(value: string): string[] {

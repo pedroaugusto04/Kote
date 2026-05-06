@@ -81,7 +81,15 @@ async function processConversationInPostgres(args: ProcessConversationArgs) {
   }
 
   if (command) {
-    const result = await new QueryKnowledgeUseCase(args.contentQueryRepository).execute({ query: command.query, mode: QueryMode.Answer, workspaceSlug: args.workspaceSlug, projectSlug: '', limit: 5 }, args.userId);
+    const result = await new QueryKnowledgeUseCase(args.contentQueryRepository).execute({
+      query: command.query,
+      mode: QueryMode.Answer,
+      workspaceSlug: args.workspaceSlug,
+      projectSlug: '',
+      limit: 5,
+      page: 1,
+      pageSize: 10,
+    }, args.userId);
     const lines = [
       result.answer.answer,
       '',

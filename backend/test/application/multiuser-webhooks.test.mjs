@@ -107,18 +107,13 @@ test('new users start with an empty scoped dashboard and cannot see another user
   const emptyDashboard = await dashboard.execute(userB.id);
   assert.deepEqual(emptyDashboard.workspaces, []);
   assert.deepEqual(emptyDashboard.projects, []);
-  assert.deepEqual(emptyDashboard.notes, []);
-  assert.deepEqual(emptyDashboard.reviews, []);
-  assert.deepEqual(emptyDashboard.reminders, []);
   assert.equal(emptyDashboard.home.metrics.every((metric) => metric.value === 0), true);
 
   await ingest.execute(canonicalPayload('acme-api'), userA.id, 'default');
 
   const dashboardA = await dashboard.execute(userA.id);
   const dashboardB = await dashboard.execute(userB.id);
-  assert.equal(dashboardA.notes.length, 1);
   assert.equal(dashboardA.projects[0].projectSlug, 'acme-api');
-  assert.equal(dashboardB.notes.length, 0);
   assert.equal(dashboardB.projects.length, 0);
   assert.equal(dashboardB.home.metrics.every((metric) => metric.value === 0), true);
 });

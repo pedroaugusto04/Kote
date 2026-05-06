@@ -24,10 +24,7 @@ export function HomePage({ dashboard, openNote, openReview, setSelectedProject }
     }
     if (target.id) {
       openNote(target.id);
-      return;
     }
-    const note = target.path ? dashboard.notes.find((candidate) => candidate.path === target.path || candidate.path.endsWith(target.path || '')) : undefined;
-    if (note) openNote(note.id);
   }
 
   function priorityTone(priority: HomePriority) {
@@ -39,7 +36,7 @@ export function HomePage({ dashboard, openNote, openReview, setSelectedProject }
 
   return (
     <>
-      <PageHead title="Home" subtitle={`Prioridades, mudancas e projetos ativos nos ultimos ${home.windowDays} dias.`} />
+      <PageHead title="Home" subtitle={`Informações relevantes dos últimos ${home.windowDays} dias.`} />
       <section className="home-layout">
         {needsIntegrationSetup ? (
           <Panel className="setup-inline-banner">

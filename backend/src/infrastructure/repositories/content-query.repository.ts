@@ -43,6 +43,11 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     return (await this.loadNotes(userId)).map(reviewFromNote).filter((review): review is ReviewView => Boolean(review));
   }
 
+  async getReviewById(userId: string, id: string) {
+    const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and id = $2 limit 1', [userId, id]);
+    return result.rows[0] ? reviewFromNote(noteFromRow(result.rows[0])) : null;
+  }
+
   async listReminders(userId: string) {
     return (await this.loadNotes(userId)).map(reminderFromNote).filter((reminder): reminder is ReminderView => Boolean(reminder));
   }

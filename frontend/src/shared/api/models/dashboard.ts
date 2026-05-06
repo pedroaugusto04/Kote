@@ -8,9 +8,9 @@ import type { Workspace } from './workspace';
 export type Dashboard = {
   workspaces: Workspace[];
   projects: Project[];
-  notes: NoteSummary[];
-  reviews: Review[];
-  reminders: Reminder[];
+  notes?: NoteSummary[];
+  reviews?: Review[];
+  reminders?: Reminder[];
   home: DashboardHomeSummary;
 };
 

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { paginationInputSchema } from '../../../contracts/pagination.js';
 import { queryInputSchema } from '../../../contracts/query.js';
 
 export const queryRequestSchema = z.object({
@@ -8,7 +9,7 @@ export const queryRequestSchema = z.object({
   workspaceSlug: z.string().default(''),
   projectSlug: z.string().default(''),
   limit: z.coerce.number().default(5),
-}).pipe(queryInputSchema);
+}).merge(paginationInputSchema).pipe(queryInputSchema);
 
 export const markRemindersBodySchema = z
   .object({

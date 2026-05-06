@@ -2,9 +2,13 @@ import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 
+import type { ListNotesInput } from '../../application/models/note-list.models.js';
+import type { ListProjectsInput } from '../../application/models/project-list.models.js';
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { ContentRepository } from '../../application/ports/content.repository.js';
 import type { NoteRecord, RepositoryRecord, SaveAttachmentInput, SaveNoteInput, SaveWorkspaceInput } from '../../application/models/repository-records.models.js';
+import { buildPaginationMeta } from '../../contracts/pagination.js';
+import { noteSummary } from '../mappers/content-query.mappers.js';
 import { attachmentFromRow, noteFromRow, projectFromRow, repositoryFromRow, workspaceFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
@@ -107,6 +111,40 @@ export class PostgresContentRepository extends ContentRepository {
       [userId],
     );
     return result.rows.map(projectFromRow);
+  }
+
+  async listProjectsPage(userId: string, input: ListProjectsInput) {
+    const totalResult = await this.database.getPool().query(
+      'select count(*)::int as total from kb_projects where user_id = $1 and enabled = true',
+      [userId],
+    );
+    const total = Number(totalResult.rows[0]?.total || 0);
+    const selectedPage = input.selectedSlug ? await this.resolveProjectPage(userId, input.selectedSlug, input.pageSize) : input.page;
+    const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    const result = await this.database.getPool().query(
+      `SELECT p.*,
+         COALESCE((SELECT jsonb_agg(alias) FROM kb_project_aliases WHERE project_id = p.id), '[]'::jsonb) as aliases,
+         COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
+         COALESCE((SELECT jsonb_agg(jsonb_build_object(
+           'id', r.id,
+           'workspace_slug', r.workspace_slug,
+           'external_id', r.external_id,
+           'full_name', r.full_name,
+           'html_url', r.html_url,
+           'description', r.description,
+           'default_branch', r.default_branch,
+           'created_at', r.created_at,
+           'updated_at', r.updated_at
+         )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
+       FROM kb_projects p
+       WHERE p.user_id = $1 AND p.enabled = true
+       ORDER BY p.project_slug
+       LIMIT $2 OFFSET $3`,
+      [userId, pagination.pageSize, offset],
+    );
+
+    return { items: result.rows.map(projectFromRow), pagination };
   }
 
   async getProjectBySlug(userId: string, projectSlug: string) {
@@ -216,6 +254,35 @@ export class PostgresContentRepository extends ContentRepository {
     return result.rows.map(noteFromRow);
   }
 
+  async listNotesPage(userId: string, input: ListNotesInput) {
+    const clauses = ['user_id = $1'];
+    const values: unknown[] = [userId];
+
+    if (input.workspaceSlug) {
+      values.push(input.workspaceSlug);
+      clauses.push(`workspace_slug = $${values.length}`);
+    }
+    if (input.projectSlug) {
+      values.push(input.projectSlug);
+      clauses.push(`project_slug = $${values.length}`);
+    }
+
+    const where = clauses.join(' and ');
+    const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes where ${where}`, values);
+    const total = Number(totalResult.rows[0]?.total || 0);
+    const selectedPage = input.selectedId ? await this.resolveNotePage(input, where, values) : input.page;
+    const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
+    const result = await this.database.getPool().query(
+      `select * from kb_notes
+       where ${where}
+       order by occurred_at desc, title asc
+       limit $${values.length + 1} offset $${values.length + 2}`,
+      [...values, pagination.pageSize, (pagination.page - 1) * pagination.pageSize],
+    );
+
+    return { items: result.rows.map((row) => noteSummary(noteFromRow(row))), pagination };
+  }
+
   async getNoteById(userId: string, id: string) {
     const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and id = $2 limit 1', [userId, id]);
     return result.rows[0] ? this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
@@ -317,5 +384,43 @@ export class PostgresContentRepository extends ContentRepository {
   async listAttachments(userId: string, noteId: string) {
     const result = await this.database.getPool().query('select * from kb_attachments where user_id = $1 and note_id = $2 order by created_at', [userId, noteId]);
     return result.rows.map(attachmentFromRow);
+  }
+
+  private async resolveProjectPage(userId: string, selectedSlug: string, pageSize: number) {
+    const result = await this.database.getPool().query(
+      `select count(*)::int as idx
+       from kb_projects
+       where user_id = $1
+         and enabled = true
+         and project_slug <= $2`,
+      [userId, selectedSlug],
+    );
+    const index = Number(result.rows[0]?.idx || 0);
+    return index > 0 ? Math.ceil(index / pageSize) : 1;
+  }
+
+  private async resolveNotePage(input: ListNotesInput, where: string, values: unknown[]) {
+    const selected = await this.database.getPool().query(
+      `select occurred_at, title
+       from kb_notes
+       where ${where} and id = $${values.length + 1}
+       limit 1`,
+      [...values, input.selectedId],
+    );
+    const note = selected.rows[0];
+    if (!note) return input.page;
+
+    const result = await this.database.getPool().query(
+      `select count(*)::int as idx
+       from kb_notes
+       where ${where}
+         and (
+           occurred_at > $${values.length + 1}
+           or (occurred_at = $${values.length + 1} and title <= $${values.length + 2})
+         )`,
+      [...values, note.occurred_at, note.title],
+    );
+    const index = Number(result.rows[0]?.idx || 0);
+    return index > 0 ? Math.ceil(index / input.pageSize) : 1;
   }
 }

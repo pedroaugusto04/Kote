@@ -64,8 +64,8 @@ export function AppShell() {
     if (!dashboard) return null;
 
     const currentProject = routeProject || selectedProject || dashboard.projects[0]?.projectSlug || '';
-    const currentNote = routeNoteId || selectedNoteId || dashboard.notes[0]?.id || '';
-    const currentReview = routeReviewId || selectedReviewId || dashboard.reviews[0]?.id || '';
+    const currentNote = routeNoteId || selectedNoteId || '';
+    const currentReview = routeReviewId || selectedReviewId || '';
 
     return {
       dashboard,

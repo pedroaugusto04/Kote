@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { runQuery } from '../../shared/api/client';
+import { fetchNotes, runQuery } from '../../shared/api/client';
 import { EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
+import { Pagination } from '../../shared/ui/pagination';
+import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 
 export function SearchPage({ dashboard, openNote }: PageContext) {
@@ -22,21 +24,44 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
     }, { replace: true });
   };
   const [projectSlug, setProjectSlug] = useState('');
-  const result = useQuery({
-    queryKey: ['search', query, projectSlug],
-    queryFn: () => runQuery({ query, projectSlug, limit: 8 }),
-    enabled: Boolean(query.trim()),
+  const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
+  const { page, setPage } = usePaginationState(`${query}:${projectSlug}:${workspaceSlug}`);
+  const hasQuery = Boolean(query.trim());
+  const queryResult = useQuery({
+    queryKey: ['search', query, projectSlug, workspaceSlug, page],
+    queryFn: () => runQuery({ query, projectSlug, workspaceSlug, limit: 50, page, pageSize: 10 }),
+    enabled: hasQuery,
   });
-  const noteByPath = new Map(dashboard.notes.map((note) => [note.path, note]));
+  const notesResult = useQuery({
+    queryKey: ['search-notes', projectSlug, workspaceSlug, page],
+    queryFn: () => fetchNotes({ page, workspaceSlug, projectSlug }),
+    enabled: !hasQuery,
+    initialData: !hasQuery && dashboard.notes
+      ? {
+          ok: true as const,
+          notes: dashboard.notes
+            .filter((note) => (!workspaceSlug || note.workspace === workspaceSlug) && (!projectSlug || note.project === projectSlug))
+            .slice(0, 10),
+          pagination: {
+            page: 1,
+            pageSize: 10,
+            total: dashboard.notes.filter((note) => (!workspaceSlug || note.workspace === workspaceSlug) && (!projectSlug || note.project === projectSlug)).length,
+            totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) => (!workspaceSlug || note.workspace === workspaceSlug) && (!projectSlug || note.project === projectSlug)).length / 10)),
+            hasNext: dashboard.notes.filter((note) => (!workspaceSlug || note.workspace === workspaceSlug) && (!projectSlug || note.project === projectSlug)).length > 10,
+            hasPrevious: false,
+          },
+        }
+      : undefined,
+  });
 
   return (
     <>
-      <PageHead title="Busca" subtitle="Consulta semântica sobre notas e paths citados" />
+      <PageHead title="Busca" subtitle="" />
       <section className="search-box">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Ex: riscos do ultimo push no n8n" type="search" />
+        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Informe o que você está buscando..." type="search" />
         <div className="filters">
           <select>
-            <option>{dashboard.workspaces[0]?.workspaceSlug || 'workspace-atual'}</option>
+            <option>{workspaceSlug || 'workspace-atual'}</option>
           </select>
           <select value={projectSlug} onChange={(event) => setProjectSlug(event.target.value)}>
             <option value="">Todos os projetos</option>
@@ -46,7 +71,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
               </option>
             ))}
           </select>
-          <button className="icon-button" type="button" onClick={() => void result.refetch()}>
+          <button className="icon-button" type="button" onClick={() => void (hasQuery ? queryResult.refetch() : notesResult.refetch())}>
             Buscar
           </button>
         </div>
@@ -54,29 +79,36 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
       <section className="grid cols-2">
         <Panel>
           <h2>Resposta</h2>
-          <p>{result.data?.answer.answer || 'Digite uma busca para consultar o vault.'}</p>
-          <div className="list">
-            {result.data?.answer.citedPaths.slice(0, 3).map((path) => (
-              <div className="path" key={path}>
-                {path}
+          {hasQuery ? (
+            <>
+              <p>{queryResult.data?.answer.answer || 'Consultando o vault...'}</p>
+              <div className="list">
+                {queryResult.data?.answer.citedPaths.slice(0, 3).map((path) => (
+                  <div className="path" key={path}>
+                    {path}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          ) : (
+            <EmptyState>Selecione filtros ou digite uma busca para consultar o vault.</EmptyState>
+          )}
         </Panel>
         <Panel>
           <h2>Resultados</h2>
           <div className="list">
-            {result.data?.matches.map((match) => {
-              const note = noteByPath.get(match.path);
-              return note ? (
-                <NoteRow key={match.path} note={note} dashboard={dashboard} onOpen={openNote} />
-              ) : (
-                <div className="path clickable" key={match.path}>
-                  {match.path} / score {match.score}
-                </div>
-              );
-            }) || <EmptyState>Tente outro termo ou remova filtros.</EmptyState>}
+            {hasQuery
+              ? queryResult.data?.matches.map((match) => (
+                <NoteRow key={match.id} note={match} dashboard={dashboard} onOpen={openNote} />
+              ))
+              : notesResult.data?.notes.map((note) => (
+                <NoteRow key={note.id} note={note} dashboard={dashboard} onOpen={openNote} />
+              ))}
           </div>
+          {hasQuery && queryResult.data ? <Pagination pagination={queryResult.data.pagination} onPageChange={setPage} /> : null}
+          {!hasQuery && notesResult.data ? <Pagination pagination={notesResult.data.pagination} onPageChange={setPage} /> : null}
+          {hasQuery && !queryResult.data?.matches.length ? <EmptyState>Tente outro termo ou remova filtros.</EmptyState> : null}
+          {!hasQuery && !notesResult.data?.notes.length ? <EmptyState>Nenhuma nota encontrada com esses filtros.</EmptyState> : null}
         </Panel>
       </section>
     </>

@@ -9,8 +9,10 @@ export {
   saveGithubRepositories,
   testIntegration,
 } from './integrations';
-export { createNote, deleteNote, fetchNote, updateNote } from './notes';
-export { createProject, deleteProject, updateProject } from './projects';
+export { createNote, deleteNote, fetchNote, fetchNotes, updateNote } from './notes';
+export { createProject, deleteProject, fetchProjects, updateProject } from './projects';
+export { fetchReminders } from './reminders';
+export { fetchReview, fetchReviews } from './reviews';
 export { runQuery } from './query';
 export { ApiClientError, type AuthUser } from './request';
 export { getErrorMessage } from './error-message';

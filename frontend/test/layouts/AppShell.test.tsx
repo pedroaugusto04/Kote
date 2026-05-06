@@ -306,7 +306,7 @@ describe('AppShell', () => {
     expect(screen.getByAltText('Telegram logo')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'IA de Review' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'IA de Conversa' })).toBeInTheDocument();
-    expect(screen.getByText(/workspace default/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'default' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Conectar WhatsApp' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();

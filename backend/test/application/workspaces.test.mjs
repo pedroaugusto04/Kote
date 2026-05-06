@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 
 import { encryptConfig } from '../../dist/application/credentials.js';
 import { GithubRepositoryResolutionService } from '../../dist/application/services/github-repository-resolution.service.js';
@@ -38,6 +39,7 @@ test('create workspace rejects a second workspace for the same user in this rele
 });
 
 test('create project persists metadata, updates workspace slugs and rejects duplicate slug or repo', async (t) => {
+  process.env.KB_CREDENTIALS_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
   await new CreateWorkspaceUseCase(repositories.contentRepository).execute({ displayName: 'Acme Team', workspaceSlug: 'acme-team' }, user.id);

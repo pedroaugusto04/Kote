@@ -1,4 +1,5 @@
 import type { Project } from './models/project';
+import type { PaginatedResponse } from './models/pagination';
 import type { Workspace } from './models/workspace';
 import { request } from './request';
 
@@ -15,6 +16,15 @@ export type CreateProjectResponse = {
   project: Project;
   workspace: Workspace;
 };
+
+export function fetchProjects(params: { page?: number; pageSize?: number; selectedSlug?: string }) {
+  const search = new URLSearchParams({
+    page: String(params.page || 1),
+    pageSize: String(params.pageSize || 10),
+    selectedSlug: params.selectedSlug || '',
+  });
+  return request<PaginatedResponse<Project, 'projects'>>(`/api/projects?${search.toString()}`);
+}
 
 export function createProject(params: CreateProjectParams) {
   return request<CreateProjectResponse>('/api/projects', {
