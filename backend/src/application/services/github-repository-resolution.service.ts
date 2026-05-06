@@ -1,18 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
-import { readEnvironment } from '../../adapters/environment.js';
-import { fetchGithubInstallationRepositories, type GithubInstallationRepository } from '../../adapters/github.js';
 import { CredentialRecordStatus, IntegrationProvider } from '../../contracts/enums.js';
 import { decryptConfig } from '../credentials.js';
 import type { RepositoryRecord } from '../models/repository-records.models.js';
 import { ContentRepository } from '../ports/content.repository.js';
+import { GithubIntegrationGateway, type GithubInstallationRepository } from '../ports/github-integration.port.js';
 import { CredentialRepository } from '../ports/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../ports/runtime-environment.port.js';
 
 @Injectable()
 export class GithubRepositoryResolutionService {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly credentialRepository: CredentialRepository,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly githubIntegrationGateway: GithubIntegrationGateway,
   ) {}
 
   async listAccessibleRepositories(input: { userId: string; workspaceSlug: string; missingCredentialError: 'not_found' | 'connection_required' }) {
@@ -25,14 +27,14 @@ export class GithubRepositoryResolutionService {
       });
     }
 
-    const environment = readEnvironment();
-    const config = decryptConfig(credential.encryptedConfig) as { installationId?: string };
+    const environment = this.environmentProvider.read();
+    const config = decryptConfig(credential.encryptedConfig, this.environmentProvider) as { installationId?: string };
     const installationId = String(config.installationId || '').trim();
     if (!environment.githubAppId || !environment.githubAppPrivateKey || !installationId) {
       throw new BadRequestException('github_app_installation_not_configured');
     }
 
-    return fetchGithubInstallationRepositories({
+    return this.githubIntegrationGateway.fetchInstallationRepositories({
       appId: environment.githubAppId,
       privateKey: environment.githubAppPrivateKey,
       installationId,

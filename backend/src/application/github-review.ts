@@ -1,10 +1,10 @@
-import { generateReviewAnalysis } from '../adapters/ai.js';
-import type { RuntimeEnvironment } from '../adapters/environment.js';
-import { fetchComparePayload, fetchGithubInstallationToken, verifyGithubSignature } from '../adapters/github.js';
 import { CanonicalType, EventType, KnowledgeKind, KnowledgeStatus, SourceChannel } from '../contracts/enums.js';
 import { ingestPayloadSchema } from '../contracts/ingest.js';
 import { defaultImportance } from '../domain/classification.js';
 import { slugify, trimText } from '../domain/strings.js';
+import { GithubIntegrationGateway } from './ports/github-integration.port.js';
+import { ReviewAnalysisGateway } from './ports/review-analysis.port.js';
+import type { RuntimeEnvironment } from './ports/runtime-environment.port.js';
 
 type GithubPushPayload = {
   ref?: string;
@@ -44,11 +44,19 @@ function normalizeProjectSlug(payload: GithubPushPayload): string {
 export async function buildGithubReviewEvent(
   rawInput: unknown,
   environment: RuntimeEnvironment,
+  dependencies: {
+    githubIntegrationGateway: GithubIntegrationGateway;
+    reviewAnalysisGateway: ReviewAnalysisGateway;
+  },
 ): Promise<ReturnType<typeof ingestPayloadSchema.parse>> {
   const input = rawInput as { headers?: Record<string, string>; body?: GithubPushPayload; rawBody?: string };
   const headers = input.headers || {};
   const body = input.body || {};
-  verifyGithubSignature(environment.githubWebhookSecret, String(input.rawBody || ''), String(headers['x-hub-signature-256'] || ''));
+  dependencies.githubIntegrationGateway.verifyWebhookSignature(
+    environment.githubWebhookSecret,
+    String(input.rawBody || ''),
+    String(headers['x-hub-signature-256'] || ''),
+  );
 
   if (body.deleted || /^0+$/.test(String(body.after || ''))) {
     throw new Error('deleted_ref_event');
@@ -57,13 +65,18 @@ export async function buildGithubReviewEvent(
   const repoFullName = String(body.repository?.full_name || '').trim();
   const installationId = String(body.installation?.id || '').trim();
   const githubToken = installationId
-    ? await fetchGithubInstallationToken({
+    ? await dependencies.githubIntegrationGateway.fetchInstallationToken({
       appId: environment.githubAppId,
       privateKey: environment.githubAppPrivateKey,
       installationId,
     })
     : '';
-  const compare = await fetchComparePayload(repoFullName, String(body.before || ''), String(body.after || ''), githubToken);
+  const compare = await dependencies.githubIntegrationGateway.fetchComparePayload(
+    repoFullName,
+    String(body.before || ''),
+    String(body.after || ''),
+    githubToken,
+  );
   const changedFiles = Array.from(
     new Set(
       (body.commits || []).flatMap((commit) => [
@@ -97,7 +110,7 @@ export async function buildGithubReviewEvent(
         })),
   };
 
-  const analysis = await generateReviewAnalysis(
+  const analysis = await dependencies.reviewAnalysisGateway.generate(
     {
       provider: environment.reviewAiProvider,
       baseUrl: environment.reviewAiBaseUrl,

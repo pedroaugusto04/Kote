@@ -4,6 +4,10 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuthService } from './application/auth.js';
 import { IntegrationConnectionService } from './application/integration-connections.js';
 import { IntegrationCredentialService } from './application/credentials.js';
+import { ConversationExtractionGateway } from './application/ports/conversation-extraction.port.js';
+import { GithubIntegrationGateway } from './application/ports/github-integration.port.js';
+import { ReviewAnalysisGateway } from './application/ports/review-analysis.port.js';
+import { RuntimeEnvironmentProvider } from './application/ports/runtime-environment.port.js';
 import { ContentObjectStorageService } from './application/services/content-object-storage.service.js';
 import { GithubRepositoryResolutionService } from './application/services/github-repository-resolution.service.js';
 import { SchemaMigrator, UserRepository } from './application/ports/auth.repository.js';
@@ -20,6 +24,9 @@ import { WhatsappReplySender } from './application/ports/whatsapp-reply.sender.j
 import { ConversationStateRepository, ReminderDispatchRepository } from './application/ports/workflow-state.repository.js';
 import { TelegramHttpMessageSender } from './adapters/telegram.js';
 import { EvolutionWhatsappReplySender } from './adapters/evolution.js';
+import { DefaultConversationExtractionGateway } from './infrastructure/ai/conversation-extraction.gateway.js';
+import { DefaultReviewAnalysisGateway } from './infrastructure/ai/review-analysis.gateway.js';
+import { DefaultGithubIntegrationGateway } from './infrastructure/integrations/github-integration.gateway.js';
 import { PostgresUserRepository } from './infrastructure/repositories/auth.repository.js';
 import { PostgresContentQueryRepository } from './infrastructure/repositories/content-query.repository.js';
 import { PostgresContentRepository } from './infrastructure/repositories/content.repository.js';
@@ -28,6 +35,7 @@ import { PostgresIntegrationRepository } from './infrastructure/repositories/int
 import { PostgresSchemaMigrator } from './infrastructure/persistence/schema.migrator.js';
 import { PostgresWebhookEventRepository } from './infrastructure/repositories/webhook-events.repository.js';
 import { PostgresWorkflowStateRepository } from './infrastructure/repositories/workflow-state.repository.js';
+import { ProcessRuntimeEnvironmentProvider } from './infrastructure/runtime/runtime-environment.provider.js';
 import { SupabaseObjectStorage } from './infrastructure/storage/supabase-object-storage.js';
 import {
   BuildDashboardUseCase,
@@ -106,6 +114,10 @@ import { AppLogger } from './observability/logger.js';
     TelegramReminderDispatchWorker,
     EvolutionWhatsappReplySender,
     TelegramHttpMessageSender,
+    DefaultConversationExtractionGateway,
+    DefaultReviewAnalysisGateway,
+    DefaultGithubIntegrationGateway,
+    ProcessRuntimeEnvironmentProvider,
     PostgresDatabase,
     PostgresSchemaMigrator,
     PostgresUserRepository,
@@ -117,9 +129,13 @@ import { AppLogger } from './observability/logger.js';
     SupabaseObjectStorage,
     { provide: SchemaMigrator, useExisting: PostgresSchemaMigrator },
     { provide: UserRepository, useExisting: PostgresUserRepository },
+    { provide: RuntimeEnvironmentProvider, useExisting: ProcessRuntimeEnvironmentProvider },
+    { provide: ConversationExtractionGateway, useExisting: DefaultConversationExtractionGateway },
     { provide: CredentialRepository, useExisting: PostgresIntegrationRepository },
     { provide: ExternalIdentityRepository, useExisting: PostgresIntegrationRepository },
     { provide: IntegrationConnectionSessionRepository, useExisting: PostgresIntegrationRepository },
+    { provide: GithubIntegrationGateway, useExisting: DefaultGithubIntegrationGateway },
+    { provide: ReviewAnalysisGateway, useExisting: DefaultReviewAnalysisGateway },
     { provide: ContentRepository, useExisting: PostgresContentRepository },
     { provide: ContentQueryRepository, useExisting: PostgresContentQueryRepository },
     { provide: ObjectStorage, useExisting: SupabaseObjectStorage },

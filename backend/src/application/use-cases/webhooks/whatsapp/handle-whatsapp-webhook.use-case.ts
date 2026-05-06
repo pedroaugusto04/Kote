@@ -1,16 +1,16 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { readEnvironment } from '../../../../adapters/environment.js';
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import type { ConversationInput } from '../../../../contracts/conversation.js';
 import { IntegrationConnectionService } from '../../../integration-connections.js';
 import type { WhatsappWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../../../ports/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { WhatsappReplySender } from '../../../ports/whatsapp-reply.sender.js';
 import { buildWhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { ProcessConversationUseCase } from '../../conversation/process-conversation.use-case.js';
-import type { ConversationInput } from '../../../../contracts/conversation.js';
 
 type WhatsappWebhookContext = {
   headers: Record<string, string>;
@@ -23,6 +23,7 @@ export class HandleWhatsappWebhookUseCase {
   constructor(
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly connections?: IntegrationConnectionService,
     private readonly processConversationUseCase?: ProcessConversationUseCase,
     private readonly whatsappReplySender?: WhatsappReplySender,
@@ -88,7 +89,7 @@ export class HandleWhatsappWebhookUseCase {
   }
 
   private async assertWebhookToken(context: WhatsappWebhookContext) {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     const token = String(context.headers.authorization || '').startsWith('Bearer ')
       ? String(context.headers.authorization).slice('Bearer '.length)
       : String(context.headers['x-kb-webhook-token'] || '');

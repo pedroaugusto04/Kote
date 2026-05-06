@@ -2,7 +2,6 @@ import crypto from 'node:crypto';
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
-import { readEnvironment } from '../adapters/environment.js';
 import {
   CredentialRecordStatus,
   ExternalIdentityProvider,
@@ -11,6 +10,7 @@ import {
 } from '../contracts/enums.js';
 import type { IntegrationCredentialRecord } from './models/repository-records.models.js';
 import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
 
 export { IntegrationProvider };
 export const guidedProviders = [
@@ -56,15 +56,15 @@ function isGuidedProvider(value: string): value is GuidedIntegrationProvider {
   return guidedProviders.includes(value as GuidedIntegrationProvider);
 }
 
-function encryptionKey(): Buffer {
-  const key = Buffer.from(readEnvironment().credentialsEncryptionKey, 'base64');
+function encryptionKey(environmentProvider: RuntimeEnvironmentProvider): Buffer {
+  const key = Buffer.from(environmentProvider.read().credentialsEncryptionKey, 'base64');
   if (key.length !== 32) throw new Error('credentials_encryption_key_must_be_32_bytes_base64');
   return key;
 }
 
-export function encryptConfig(config: Record<string, unknown>): EncryptedConfig {
+export function encryptConfig(config: Record<string, unknown>, environmentProvider: RuntimeEnvironmentProvider): EncryptedConfig {
   const iv = crypto.randomBytes(12);
-  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(), iv);
+  const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(environmentProvider), iv);
   const ciphertext = Buffer.concat([cipher.update(JSON.stringify(config), 'utf8'), cipher.final()]);
   return {
     iv: iv.toString('base64'),
@@ -74,10 +74,10 @@ export function encryptConfig(config: Record<string, unknown>): EncryptedConfig 
   };
 }
 
-export function decryptConfig(encrypted: unknown): Record<string, unknown> {
+export function decryptConfig(encrypted: unknown, environmentProvider: RuntimeEnvironmentProvider): Record<string, unknown> {
   const payload = encrypted as EncryptedConfig;
   if (!payload?.iv || !payload.authTag || !payload.ciphertext) throw new Error('invalid_encrypted_config');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(), Buffer.from(payload.iv, 'base64'));
+  const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(environmentProvider), Buffer.from(payload.iv, 'base64'));
   decipher.setAuthTag(Buffer.from(payload.authTag, 'base64'));
   const cleartext = Buffer.concat([decipher.update(Buffer.from(payload.ciphertext, 'base64')), decipher.final()]).toString('utf8');
   return JSON.parse(cleartext) as Record<string, unknown>;
@@ -141,8 +141,8 @@ function connectedSteps(provider: GuidedIntegrationProvider): string[] {
   return ['Integracao conectada.'];
 }
 
-function aiEnvStatus(provider: string) {
-  const environment = readEnvironment();
+function aiEnvStatus(provider: string, environmentProvider: RuntimeEnvironmentProvider) {
+  const environment = environmentProvider.read();
   const review = provider === IntegrationProvider.AiReview;
   const flags = review
     ? {
@@ -175,6 +175,7 @@ export class IntegrationCredentialService {
   constructor(
     private readonly credentials: CredentialRepository,
     private readonly externalIdentities: ExternalIdentityRepository,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {}
 
   async list(userId: string, workspaceSlug = 'default') {
@@ -190,14 +191,14 @@ export class IntegrationCredentialService {
   async revoke(userId: string, workspaceSlug: string, provider: string) {
     if (!isGuidedProvider(provider)) throw new NotFoundException('provider_not_found');
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
-    const record = await this.credentials.revokeCredential(userId, workspaceSlug, provider, encryptConfig({ revoked: true }));
+    const record = await this.credentials.revokeCredential(userId, workspaceSlug, provider, encryptConfig({ revoked: true }, this.environmentProvider));
     return { ok: true as const, integration: publicCredential(record, provider, workspaceSlug) };
   }
 
   async test(userId: string, workspaceSlug: string, provider: string) {
     if (provider !== IntegrationProvider.AiReview && provider !== IntegrationProvider.AiConversation) throw new NotFoundException('provider_not_found');
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
-    const status = aiEnvStatus(provider);
+    const status = aiEnvStatus(provider, this.environmentProvider);
     const record = await this.credentials.findCredential(userId, workspaceSlug, provider);
     const active = Boolean(record && record.status === CredentialRecordStatus.Connected && !record.revokedAt);
     return {
@@ -229,7 +230,7 @@ export class IntegrationCredentialService {
       userId,
       workspaceSlug: record.workspaceSlug,
       provider: input.provider,
-      config: decryptConfig(record.encryptedConfig),
+      config: decryptConfig(record.encryptedConfig, this.environmentProvider),
       publicMetadata: record.publicMetadata,
     };
   }

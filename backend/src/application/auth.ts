@@ -3,9 +3,9 @@ import { promisify } from 'node:util';
 
 import { ConflictException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 
-import { readEnvironment } from '../adapters/environment.js';
 import type { KbUser } from './models/repository-records.models.js';
 import { SchemaMigrator, UserRepository } from './ports/auth.repository.js';
+import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -104,11 +104,12 @@ export class AuthService implements OnModuleInit {
   constructor(
     private readonly users: UserRepository,
     private readonly schemaMigrator: SchemaMigrator,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {}
 
   async onModuleInit() {
     await this.schemaMigrator.migrate();
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     if (!environment.adminEmail || !environment.adminPassword) return;
     const existing = await this.users.findUserByEmail(environment.adminEmail);
     if (existing) return;
@@ -152,7 +153,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async refresh(refreshToken: string): Promise<{ user: AuthenticatedUser; tokens: TokenPair }> {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     const payload = verifyJwt(refreshToken, environment.jwtRefreshSecret, 'refresh');
     const user = await this.users.findUserById(payload.sub);
     if (!user) throw new UnauthorizedException('user_not_found');
@@ -161,7 +162,7 @@ export class AuthService implements OnModuleInit {
 
   async authenticateAccessToken(accessToken: string | undefined): Promise<AuthenticatedUser> {
     if (!accessToken) throw new UnauthorizedException('missing_access_token');
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     const payload = verifyJwt(accessToken, environment.jwtAccessSecret, 'access');
     const user = await this.users.findUserById(payload.sub);
     if (!user) throw new UnauthorizedException('user_not_found');
@@ -169,7 +170,7 @@ export class AuthService implements OnModuleInit {
   }
 
   issueTokens(user: KbUser): TokenPair {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     return {
       accessToken: signJwt({ sub: user.id, email: user.email, role: user.role, typ: 'access' }, environment.jwtAccessSecret, environment.accessTokenTtlSeconds),
       refreshToken: signJwt({ sub: user.id, email: user.email, role: user.role, typ: 'refresh' }, environment.jwtRefreshSecret, environment.refreshTokenTtlSeconds),

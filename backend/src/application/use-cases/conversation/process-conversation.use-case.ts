@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { extractConversationFields } from '../../../adapters/ai.js';
-import { readEnvironment } from '../../../adapters/environment.js';
 import { type ConversationInput, conversationStateSchema, type ConversationState } from '../../../contracts/conversation.js';
 import { CredentialRecordStatus, ConversationConfidence, ConversationPhase, IntegrationProvider, KnowledgeKind, QueryMode } from '../../../contracts/enums.js';
 import { slugify } from '../../../domain/strings.js';
 import { normalizeDate, normalizeTime, nowIso } from '../../../domain/time.js';
+import { ConversationExtractionGateway } from '../../ports/conversation-extraction.port.js';
 import {
   buildConversationPayload,
   confirmationPrompt,
@@ -24,6 +23,7 @@ import {
 } from '../../utils/conversation-flow.utils.js';
 import { ContentQueryRepository, ContentRepository } from '../../ports/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations.repository.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/runtime-environment.port.js';
 import { ConversationStateRepository } from '../../ports/workflow-state.repository.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { QueryKnowledgeUseCase } from '../query/query-knowledge.use-case.js';
@@ -35,6 +35,8 @@ export class ProcessConversationUseCase {
     private readonly contentQueryRepository: ContentQueryRepository,
     private readonly conversationStates: ConversationStateRepository,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly conversationExtractionGateway: ConversationExtractionGateway,
     private readonly credentials?: CredentialRepository,
   ) {}
 
@@ -47,6 +49,8 @@ export class ProcessConversationUseCase {
       contentQueryRepository: this.contentQueryRepository,
       conversationStates: this.conversationStates,
       ingestEntryUseCase: this.ingestEntryUseCase,
+      environmentProvider: this.environmentProvider,
+      conversationExtractionGateway: this.conversationExtractionGateway,
       credentials: this.credentials,
     });
   }
@@ -60,6 +64,8 @@ type ProcessConversationArgs = {
   contentQueryRepository: ContentQueryRepository;
   conversationStates: ConversationStateRepository;
   ingestEntryUseCase: IngestEntryUseCase;
+  environmentProvider: RuntimeEnvironmentProvider;
+  conversationExtractionGateway: ConversationExtractionGateway;
   credentials?: CredentialRepository;
 };
 
@@ -71,7 +77,7 @@ type ConversationContext = {
 };
 
 async function processConversationInPostgres(args: ProcessConversationArgs) {
-  const environment = readEnvironment();
+  const environment = args.environmentProvider.read();
   const context = await loadConversationContext(args, environment.conversationTimeoutMs);
   const command = context.current.phase === ConversationPhase.Idle ? parseKnowledgeCommand(context.message) : null;
 
@@ -120,7 +126,7 @@ async function loadConversationContext(args: ProcessConversationArgs, timeoutMs:
   };
 }
 
-function dispatchConversationPhase(args: ProcessConversationArgs, context: ConversationContext, environment: ReturnType<typeof readEnvironment>) {
+function dispatchConversationPhase(args: ProcessConversationArgs, context: ConversationContext, environment: RuntimeEnvironment) {
   switch (context.current.phase) {
     case ConversationPhase.Idle:
       return handleIdlePhase(args, context, environment);
@@ -139,7 +145,7 @@ function dispatchConversationPhase(args: ProcessConversationArgs, context: Conve
   }
 }
 
-async function handleIdlePhase(args: ProcessConversationArgs, context: ConversationContext, environment: ReturnType<typeof readEnvironment>) {
+async function handleIdlePhase(args: ProcessConversationArgs, context: ConversationContext, environment: RuntimeEnvironment) {
   const aiExtracted = await resolveAiExtraction(args, context, environment);
   const nextState: ConversationState = {
     ...emptyConversationState,
@@ -237,7 +243,7 @@ async function handleAwaitingConfirmationPhase(args: ProcessConversationArgs, co
 async function resolveAiExtraction(
   args: ProcessConversationArgs,
   context: ConversationContext,
-  environment: ReturnType<typeof readEnvironment>,
+  environment: RuntimeEnvironment,
 ) {
   if (args.input.agentResult?.extracted) return args.input.agentResult.extracted;
   if (!args.credentials) return {};
@@ -245,7 +251,7 @@ async function resolveAiExtraction(
   const aiEnabled = Boolean(aiCredential && aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
   if (!aiEnabled) return {};
   const projects = await args.contentRepository.listProjects(args.userId);
-  return (await extractConversationFields(
+  return (await args.conversationExtractionGateway.extract(
     {
       provider: environment.conversationAiProvider,
       baseUrl: environment.conversationAiBaseUrl,

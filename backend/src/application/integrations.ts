@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { readEnvironment, type RuntimeEnvironment } from '../adapters/environment.js';
 import { AiProvider, IntegrationProvider, IntegrationSetupStatus } from '../contracts/enums.js';
 import type { Project } from '../domain/projects.js';
 import type { Workspace } from '../domain/workspaces.js';
 import { ContentRepository } from './ports/content.repository.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/runtime-environment.port.js';
 import { absoluteUrl, configuredEnv, link, missingEnv, secretConfigured, statusFromFlags, workspaceRepos } from './utils/integration-status.utils.js';
 
 export type IntegrationStatusValue = IntegrationSetupStatus;
@@ -221,10 +221,13 @@ export function buildIntegrationStatuses(input: {
 
 @Injectable()
 export class BuildIntegrationsUseCase {
-  constructor(private readonly contentRepository: ContentRepository) {}
+  constructor(
+    private readonly contentRepository: ContentRepository,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
+  ) {}
 
   async execute(userId = '') {
     const [workspaces, projects] = await Promise.all([this.contentRepository.listWorkspaces(userId), this.contentRepository.listProjects(userId)]);
-    return buildIntegrationStatuses({ environment: readEnvironment(), workspaces, projects });
+    return buildIntegrationStatuses({ environment: this.environmentProvider.read(), workspaces, projects });
   }
 }

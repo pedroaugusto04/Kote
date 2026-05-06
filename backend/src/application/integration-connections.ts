@@ -2,13 +2,13 @@ import crypto from 'node:crypto';
 
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { readEnvironment } from '../adapters/environment.js';
 import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider } from '../contracts/enums.js';
 import { slugify } from '../domain/strings.js';
 import { encryptConfig } from './credentials.js';
 import type { IntegrationConnectionSessionRecord, WorkspaceRecord } from './models/repository-records.models.js';
 import { ContentRepository } from './ports/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
 import { GithubRepositoryResolutionService } from './services/github-repository-resolution.service.js';
 
 const CONNECTION_TTL_MS = 10 * 60 * 1000;
@@ -195,6 +195,7 @@ export class IntegrationConnectionService {
     private readonly sessions: IntegrationConnectionSessionRepository,
     private readonly content: ContentRepository,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {}
 
   async connect(input: { userId: string; workspaceSlug: string; provider: string; returnToPath?: string; browserOrigin?: string }) {
@@ -354,7 +355,7 @@ export class IntegrationConnectionService {
   }
 
   private async startGithubConnection(userId: string, workspaceSlug: string, returnToPath?: string, browserOrigin?: string) {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     if (!environment.githubAppInstallUrl) throw new BadRequestException('github_app_install_url_not_configured');
     const state = randomState();
     const session = await this.createConnectionSession({
@@ -393,7 +394,7 @@ export class IntegrationConnectionService {
   }
 
   private async startTelegramConnection(userId: string, workspaceSlug: string) {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     if (!environment.telegramBotToken) throw new BadRequestException('telegram_bot_token_not_configured');
     return this.startCodeBasedConnection({
       userId,
@@ -405,7 +406,7 @@ export class IntegrationConnectionService {
   }
 
   private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation) {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     const review = provider === IntegrationProvider.AiReview;
     const configured = review
       ? environment.reviewAiProvider !== 'none' && environment.reviewAiBaseUrl && environment.reviewAiModel && environment.reviewAiApiKey
@@ -417,7 +418,7 @@ export class IntegrationConnectionService {
       workspaceSlug,
       provider,
       status: CredentialRecordStatus.Connected,
-      encryptedConfig: encryptConfig({ enabled: true }),
+      encryptedConfig: encryptConfig({ enabled: true }, this.environmentProvider),
       publicMetadata: {
         label: review ? 'IA de Review' : 'IA de Conversa',
         connectedAccount: runtimeProvider,
@@ -437,7 +438,7 @@ export class IntegrationConnectionService {
   }
 
   private async verifyGithubInstallation(code: string, installationId: string): Promise<GithubInstallation> {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     if (!environment.githubAppClientId || !environment.githubAppClientSecret) throw new BadRequestException('github_app_oauth_not_configured');
     const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
       method: 'POST',
@@ -562,7 +563,7 @@ export class IntegrationConnectionService {
       workspaceSlug: input.workspaceSlug,
       provider: input.provider,
       status: CredentialRecordStatus.Connected,
-      encryptedConfig: encryptConfig(input.encryptedConfig),
+      encryptedConfig: encryptConfig(input.encryptedConfig, this.environmentProvider),
       publicMetadata: input.publicMetadata,
     });
   }
@@ -620,7 +621,7 @@ export class IntegrationConnectionService {
   }
 
   private buildGithubCallbackRedirect(session: IntegrationConnectionSessionRecord, status: 'connected' | 'error') {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     const metadata = session.metadata as ConnectionSessionMetadata;
     const origin = normalizeBrowserOrigin(metadata.browserOrigin) || environment.publicBaseUrl || '';
     const returnToPath = normalizeReturnToPath(metadata.returnToPath, '/settings/integrations');
@@ -632,7 +633,7 @@ export class IntegrationConnectionService {
   }
 
   private fallbackGithubCallbackRedirect() {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     const origin = environment.publicBaseUrl || '';
     const base = buildBrowserRedirectUrl(origin, '/settings/integrations');
     base.searchParams.set('integration', IntegrationProvider.GithubApp);

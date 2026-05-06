@@ -1,13 +1,14 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { readEnvironment } from '../../../../adapters/environment.js';
-import { verifyGithubSignature } from '../../../../adapters/github.js';
 import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import { buildTelegramCodeReviewMessage } from '../../../../domain/notifications.js';
 import { buildGithubReviewEvent } from '../../../github-review.js';
 import type { GithubPushWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ContentRepository } from '../../../ports/content.repository.js';
+import { GithubIntegrationGateway } from '../../../ports/github-integration.port.js';
 import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
+import { ReviewAnalysisGateway } from '../../../ports/review-analysis.port.js';
+import { RuntimeEnvironmentProvider } from '../../../ports/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
@@ -18,12 +19,15 @@ export class HandleGithubPushUseCase {
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly githubIntegrationGateway: GithubIntegrationGateway,
+    private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
   ) {}
 
   async execute(input: GithubPushWebhookRequest) {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     const headers = normalizeHeaders(input.headers || {});
     const body = input.body || {};
     const installationId = String((body.installation as { id?: unknown } | undefined)?.id || '').trim();
@@ -41,7 +45,11 @@ export class HandleGithubPushUseCase {
       throw new UnauthorizedException('github_webhook_secret_not_configured');
     }
     try {
-      verifyGithubSignature(environment.githubWebhookSecret, String(input.rawBody || ''), String(headers['x-hub-signature-256'] || ''));
+      this.githubIntegrationGateway.verifyWebhookSignature(
+        environment.githubWebhookSecret,
+        String(input.rawBody || ''),
+        String(headers['x-hub-signature-256'] || ''),
+      );
     } catch (error) {
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
@@ -93,7 +101,14 @@ export class HandleGithubPushUseCase {
         ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug, IntegrationProvider.AiReview)
         : null;
       const aiEnabled = Boolean(aiCredential && aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
-      const payload = await buildGithubReviewEvent(input, aiEnabled ? environment : { ...environment, reviewAiProvider: AiProvider.None, reviewAiApiKey: '' });
+      const payload = await buildGithubReviewEvent(
+        input,
+        aiEnabled ? environment : { ...environment, reviewAiProvider: AiProvider.None, reviewAiApiKey: '' },
+        {
+          githubIntegrationGateway: this.githubIntegrationGateway,
+          reviewAnalysisGateway: this.reviewAnalysisGateway,
+        },
+      );
       const resolvedPayload = await this.resolveProjectForPayload(payload, identity.userId, identity.workspaceSlug);
       const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug);
       await this.webhookEvents.recordWebhookEvent({

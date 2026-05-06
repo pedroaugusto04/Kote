@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { readEnvironment } from '../../../../adapters/environment.js';
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import { extractTelegramChatId, extractTelegramConnectionCode, IntegrationConnectionService } from '../../../integration-connections.js';
 import type { TelegramWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../../../ports/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 
@@ -13,11 +13,12 @@ export class HandleTelegramWebhookUseCase {
   constructor(
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly connections?: IntegrationConnectionService,
   ) {}
 
   async execute(input: TelegramWebhookRequest) {
-    const environment = readEnvironment();
+    const environment = this.environmentProvider.read();
     const headers = normalizeHeaders(input.headers || {});
     const body = input.body || {};
     const token = String(headers['x-telegram-bot-api-secret-token'] || headers['x-kb-webhook-token'] || '');
