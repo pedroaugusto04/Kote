@@ -77,7 +77,12 @@ export function ProjectsBrowser({
             <div className="folder-browser-head-top">
               <strong>Pastas</strong>
               <div className="folder-browser-actions">
-                <button className="filter-chip" type="button" onClick={onCreateFolder}>Nova pasta</button>
+                <button aria-label="Nova pasta" className="row-action-button" title="Nova pasta" type="button" onClick={onCreateFolder}>
+                  <svg aria-hidden="true" viewBox="0 0 16 16">
+                    <path d="M8 3v10" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
+                    <path d="M3 8h10" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
+                  </svg>
+                </button>
                 {selectedFolder ? (
                   <ProjectFolderActionsMenu
                     folderName={selectedFolder.displayName}

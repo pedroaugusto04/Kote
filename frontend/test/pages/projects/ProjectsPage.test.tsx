@@ -430,8 +430,7 @@ describe('ProjectsPage', () => {
     expect(within(createModal).getByLabelText('Pasta pai')).toHaveValue('folder-1');
     fireEvent.click(within(createModal).getByRole('button', { name: 'Cancelar' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Acoes da pasta' }));
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Renomear Specs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar pasta Specs' }));
 
     expect(await screen.findByRole('dialog', { name: 'Editar pasta' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Specs')).toBeInTheDocument();
