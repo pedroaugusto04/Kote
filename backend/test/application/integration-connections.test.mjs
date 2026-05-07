@@ -22,7 +22,7 @@ function configureEnv() {
   process.env.KB_REVIEW_AI_API_KEY = 'review-key';
   process.env.KB_CONVERSATION_AI_PROVIDER = 'openai';
   process.env.KB_CONVERSATION_AI_API_KEY = 'conversation-key';
-  process.env.EVOLUTION_API_KEY = 'provider-key';
+  process.env.KB_WPP_WEBHOOK_API_KEY = 'provider-key';
   process.env.NODE_ENV = 'test';
 }
 
@@ -49,7 +49,7 @@ async function fixture(t) {
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
-    { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
+    { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
     undefined,
     connections,
   );

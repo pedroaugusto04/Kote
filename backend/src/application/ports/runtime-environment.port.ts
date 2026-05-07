@@ -28,6 +28,7 @@ export type RuntimeEnvironment = {
   telegramBotToken: string;
   telegramWebhookToken: string;
   telegramChatId: string;
+  whatsappWebhookApiKey: string;
   evolutionApiKey: string;
   evolutionApiUrl: string;
   evolutionApiPublicUrl: string;

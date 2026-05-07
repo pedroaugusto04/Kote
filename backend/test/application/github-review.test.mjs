@@ -61,6 +61,7 @@ test('github push is converted to canonical code review event', async () => {
       telegramBotToken: '',
       telegramWebhookToken: '',
       telegramChatId: '',
+      whatsappWebhookApiKey: '',
       evolutionApiKey: '',
       evolutionApiUrl: '',
       evolutionApiPublicUrl: '',

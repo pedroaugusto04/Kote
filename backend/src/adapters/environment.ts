@@ -42,6 +42,7 @@ export type RuntimeEnvironment = {
   telegramBotToken: string;
   telegramWebhookToken: string;
   telegramChatId: string;
+  whatsappWebhookApiKey: string;
   evolutionApiKey: string;
   evolutionApiUrl: string;
   evolutionApiPublicUrl: string;
@@ -89,6 +90,7 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     telegramBotToken: String(env.KB_TELEGRAM_BOT_TOKEN || '').trim(),
     telegramWebhookToken: String(env.KB_TELEGRAM_WEBHOOK_TOKEN || env.KB_WEBHOOK_SECRET || '').trim(),
     telegramChatId: String(env.KB_TELEGRAM_CHAT_ID || '').trim(),
+    whatsappWebhookApiKey: String(env.KB_WPP_WEBHOOK_API_KEY || '').trim(),
     evolutionApiKey: String(env.EVOLUTION_API_KEY || '').trim(),
     evolutionApiUrl: String(env.EVOLUTION_API_URL || '').trim(),
     evolutionApiPublicUrl: String(env.EVOLUTION_API_PUBLIC_URL || '').trim(),

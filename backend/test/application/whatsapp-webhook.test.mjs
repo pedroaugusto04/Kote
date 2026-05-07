@@ -18,6 +18,7 @@ class CapturingWhatsappSender {
 
 function configureEnv() {
   process.env.KB_WEBHOOK_SECRET = 'webhook-secret';
+  process.env.KB_WPP_WEBHOOK_API_KEY = 'provider-key';
   process.env.KB_REVIEW_AI_PROVIDER = 'none';
   process.env.KB_CONVERSATION_AI_PROVIDER = 'none';
 }
@@ -63,8 +64,7 @@ async function fixture(t, sender = new CapturingWhatsappSender()) {
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
-    { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
-    undefined,
+    { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
     undefined,
     conversation,
     sender,
@@ -74,7 +74,7 @@ async function fixture(t, sender = new CapturingWhatsappSender()) {
 
 function evolutionInput(message, overrides = {}) {
   return {
-    headers: { authorization: 'Bearer webhook-secret' },
+    headers: { apikey: 'provider-key' },
     body: {
       event: 'MESSAGES_UPSERT',
       data: {
