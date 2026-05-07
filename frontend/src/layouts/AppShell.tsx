@@ -183,13 +183,16 @@ export function AppShell() {
         <header className="topbar">
           <div className="topbar-leading">
             <button
+              aria-label="menu"
               aria-controls="app-sidebar"
               aria-expanded={isMobileNavOpen}
               className="mobile-nav-toggle"
               onClick={() => setIsMobileNavOpen((current) => !current)}
               type="button"
             >
-              menu
+              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+              </svg>
             </button>
             <div className="topbar-context" aria-live="polite">
               <strong>{activeNavItem?.label || 'Home'}</strong>

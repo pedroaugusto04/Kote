@@ -492,6 +492,10 @@ p { color: var(--muted); line-height: 1.6; }
     border-color: rgba(83, 199, 222, 0.34);
     background: rgba(83, 199, 222, 0.1);
   }
+  .mobile-nav-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
   .topbar-leading { justify-content: space-between; }
   .topbar-leading,
   .topbar-meta {
