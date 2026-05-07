@@ -321,6 +321,31 @@ describe('AppShell', () => {
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
   });
 
+  it('opens and closes the mobile navigation drawer without breaking routing', async () => {
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(<AppShell />);
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+
+    const menuButton = screen.getByRole('button', { name: 'menu' });
+    expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(menuButton);
+    expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fechar navegacao' }));
+    expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.click(menuButton);
+    fireEvent.click(screen.getByRole('link', { name: 'Vault' }));
+
+    expect(await screen.findByRole('heading', { name: 'Vault Explorer' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(menuButton).toHaveAttribute('aria-expanded', 'false');
+    });
+  });
+
   it('renders integration status from the settings route', async () => {
     vi.stubGlobal('fetch', mockFetch());
 
@@ -333,7 +358,7 @@ describe('AppShell', () => {
     expect(screen.getByAltText('Telegram logo')).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'IA de Review' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'IA de Conversa' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'default' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Workspace atual: default' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Conectar WhatsApp' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();

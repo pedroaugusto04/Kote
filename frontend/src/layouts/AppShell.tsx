@@ -52,6 +52,7 @@ export function AppShell() {
   const [selectedProject, setSelectedProjectState] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState('');
   const [selectedReviewId, setSelectedReviewId] = useState('');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   const view = activeView(location.pathname);
   const routeProject = routeParam(location.pathname, '/projects/');
@@ -59,6 +60,28 @@ export function AppShell() {
   const routeReviewId = routeParam(location.pathname, '/reviews/');
   const activeWorkspace = dashboard?.workspaces[0] || null;
   const isSetupRoute = location.pathname.startsWith(routes.setup);
+  const activeNavItem = navItems.find((item) => item.view === view);
+
+  useEffect(() => {
+    setIsMobileNavOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isMobileNavOpen) return undefined;
+
+    const originalOverflow = document.body.style.overflow;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileNavOpen(false);
+    };
+
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isMobileNavOpen]);
 
   const pageContext = useMemo<PageContext | null>(() => {
     if (!dashboard) return null;
@@ -97,7 +120,15 @@ export function AppShell() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar" aria-label="Navegacao do vault">
+      <button
+        aria-label="Fechar navegacao"
+        aria-hidden={!isMobileNavOpen}
+        className={`mobile-nav-backdrop ${isMobileNavOpen ? 'visible' : ''}`}
+        onClick={() => setIsMobileNavOpen(false)}
+        tabIndex={isMobileNavOpen ? 0 : -1}
+        type="button"
+      />
+      <aside className={`sidebar ${isMobileNavOpen ? 'open' : ''}`} aria-label="Navegacao do vault" id="app-sidebar">
         <Link className="brand" to={routes.home} aria-label="Ir para Home">
           <div className="brand-mark">KV</div>
           <div>
@@ -107,17 +138,26 @@ export function AppShell() {
         </Link>
         <nav className="main-nav" aria-label="Secoes principais">
           {navItems.map((item) => (
-            <NavLink className={({ isActive }) => `nav-item ${isActive || view === item.view ? 'active' : ''}`} end={item.path === routes.home} key={item.view} to={item.path}>
+            <NavLink
+              className={({ isActive }) => `nav-item ${isActive || view === item.view ? 'active' : ''}`}
+              end={item.path === routes.home}
+              key={item.view}
+              onClick={() => setIsMobileNavOpen(false)}
+              to={item.path}
+            >
               {item.label}
             </NavLink>
           ))}
         </nav>
         <section className="sidebar-section">
           <div className="section-label">Workspace</div>
-          <button className="workspace-pill" type="button">
+          <div className="workspace-pill workspace-pill-static" aria-label={`Workspace atual: ${activeWorkspace.workspaceSlug}`} role="status">
             <span className="status-dot" />
-            {activeWorkspace.workspaceSlug}
-          </button>
+            <span className="workspace-pill-copy">
+              <strong>{activeWorkspace.displayName}</strong>
+              <small>{activeWorkspace.workspaceSlug}</small>
+            </span>
+          </div>
         </section>
         <section className="sidebar-section">
           <div className="section-label">Projetos</div>
@@ -127,7 +167,10 @@ export function AppShell() {
                 className={`tree-item ${project.projectSlug === pageContext.selectedProject ? 'active' : ''}`}
                 type="button"
                 key={project.projectSlug}
-                onClick={() => pageContext.setSelectedProject(project.projectSlug)}
+                onClick={() => {
+                  pageContext.setSelectedProject(project.projectSlug);
+                  setIsMobileNavOpen(false);
+                }}
               >
                 <span className="file-icon">P</span>
                 <span>{project.displayName}</span>
@@ -138,6 +181,21 @@ export function AppShell() {
       </aside>
       <main className="content">
         <header className="topbar">
+          <div className="topbar-leading">
+            <button
+              aria-controls="app-sidebar"
+              aria-expanded={isMobileNavOpen}
+              className="mobile-nav-toggle"
+              onClick={() => setIsMobileNavOpen((current) => !current)}
+              type="button"
+            >
+              menu
+            </button>
+            <div className="topbar-context" aria-live="polite">
+              <strong>{activeNavItem?.label || 'Home'}</strong>
+              <span>{activeWorkspace.displayName}</span>
+            </div>
+          </div>
           <label className="command-bar">
             <span>&gt;_</span>
             <input type="search" placeholder="Buscar notas, reviews, paths ou tags" onKeyDown={(event) => { 
