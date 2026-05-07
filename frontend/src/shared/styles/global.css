@@ -436,10 +436,6 @@ p { color: var(--muted); line-height: 1.6; }
 
 @media (max-width: 860px) {
   .app-shell { grid-template-columns: 1fr; }
-  .content {
-    width: 100vw;
-    max-width: 100vw;
-  }
   .mobile-nav-backdrop {
     display: block;
     position: fixed;
@@ -524,11 +520,16 @@ p { color: var(--muted); line-height: 1.6; }
   .topbar, .page-head, .list-row, .finding-top, .project-actions { align-items: stretch; flex-direction: column; }
   .topbar {
     display: grid;
-    width: 100%;
-    max-width: 100vw;
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
     padding: 14px 16px;
     z-index: 15;
+  }
+  .topbar-leading,
+  .command-bar,
+  .topbar-meta {
+    width: 100%;
+    min-width: 0;
   }
   .command-bar { width: 100%; }
   .topbar-meta { justify-content: flex-end; }
