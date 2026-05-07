@@ -144,7 +144,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const item = $input.first() || {};\nconst json = item.json || {};\nconst body = json.body && typeof json.body === 'object' ? json.body : json;\nconst payload = body.payload && typeof body.payload === 'object' ? body.payload : body;\nreturn [{ json: { ...payload, payload } }];"
+          "jsCode": "const item = $input.first() || {};\nconst json = item.json || {};\nconst payload = {\n  externalIdentity: {\n    provider: 'whatsapp',\n    identityType: 'jid',\n    externalId: String(json.group_jid || '').trim(),\n  },\n  payload: {\n    messageText: String(json.message_text || '').trim(),\n    senderId: String(json.sender_jid || '').trim(),\n    groupId: String(json.group_jid || '').trim(),\n    messageId: String(json.message_id || '').trim(),\n    hasMedia: Boolean(json.has_media),\n    media: {\n      fileName: String(json.media_file_name || '').trim(),\n      mimeType: String(json.media_mime_type || 'application/octet-stream').trim(),\n      sizeBytes: Number(json.media_file_size || 0),\n      dataBase64: String(json.media_data_b64 || '').trim(),\n    },\n  },\n  group_jid: String(json.group_jid || '').trim(),\n};\nreturn [{ json: payload }];"
         },
         "id": "kb-wpp-prepare",
         "name": "Prepare Conversation Input",
@@ -184,7 +184,7 @@
       },
       {
         "parameters": {
-          "jsCode": "return [{ json: $json }];"
+          "jsCode": "const input = $node['Prepare Conversation Input']?.json || {};\nconst result = $json && typeof $json === 'object' ? $json : {};\nconst replyText = String(result.replyText || result.conversationResult?.replyText || '').trim();\nreturn [{ json: { ...result, group_jid: String(input.group_jid || result.groupId || '').trim(), replyText } }];"
         },
         "id": "kb-wpp-parse-conversation",
         "name": "Parse Conversation Result",
@@ -495,13 +495,6 @@
         "main": [
           [
             {
-              "node": "Prepare Ingest Payload",
-              "type": "main",
-              "index": 0
-            }
-          ],
-          [
-            {
               "node": "Send WhatsApp Reply",
               "type": "main",
               "index": 0
@@ -511,36 +504,10 @@
               "type": "main",
               "index": 0
             }
-          ]
-        ]
-      },
-      "Prepare Ingest Payload": {
-        "main": [
+          ],
           [
             {
-              "node": "Call ingest",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Call ingest": {
-        "main": [
-          [
-            {
-              "node": "Parse Ingest Result",
-              "type": "main",
-              "index": 0
-            }
-          ]
-        ]
-      },
-      "Parse Ingest Result": {
-        "main": [
-          [
-            {
-              "node": "Send Confirmation",
+              "node": "Send WhatsApp Reply",
               "type": "main",
               "index": 0
             },

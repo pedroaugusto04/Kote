@@ -11,6 +11,7 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
       return { ok: false, error: 'evolution_api_not_configured' };
     }
 
+    const normalizedText = String(input.text || '').trim() || 'Nao consegui montar a resposta. Tente novamente.';
     const baseUrl = environment.evolutionApiUrl.replace(/\/+$/, '');
     const url = `${baseUrl}/message/sendText/${encodeURIComponent(environment.evolutionInstanceName)}`;
     try {
@@ -22,7 +23,7 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
         },
         body: JSON.stringify({
           number: input.groupJid,
-          text: `[BOT] ${input.text}`,
+          text: `[BOT] ${normalizedText}`,
         }),
       });
       if (!response.ok) return { ok: false, error: `evolution_api_http_${response.status}` };
