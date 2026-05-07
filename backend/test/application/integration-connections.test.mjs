@@ -50,8 +50,8 @@ async function fixture(t) {
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
     { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
-    undefined,
     connections,
+    undefined,
   );
   const telegram = new HandleTelegramWebhookUseCase(repositories.externalIdentityRepository, repositories.webhookEventRepository, connections);
   return { repositories, user, connections, whatsapp, telegram };

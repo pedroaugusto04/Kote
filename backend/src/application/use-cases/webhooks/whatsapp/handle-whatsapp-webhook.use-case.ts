@@ -9,8 +9,10 @@ import { RuntimeEnvironmentProvider } from '../../../ports/runtime-environment.p
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { WhatsappReplySender } from '../../../ports/whatsapp-reply.sender.js';
 import { buildWhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
+import { parseKnowledgeCommand } from '../../../utils/conversation-flow.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { ProcessConversationUseCase } from '../../conversation/process-conversation.use-case.js';
+import { ProcessAgentConversationUseCase } from '../../conversation/process-agent-conversation.use-case.js';
 import { AppLogger } from '../../../../observability/logger.js';
 
 type WhatsappWebhookContext = {
@@ -26,6 +28,7 @@ export class HandleWhatsappWebhookUseCase {
     private readonly webhookEvents: WebhookEventRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly connections?: IntegrationConnectionService,
+    private readonly processAgentConversationUseCase?: ProcessAgentConversationUseCase,
     private readonly processConversationUseCase?: ProcessConversationUseCase,
     private readonly whatsappReplySender?: WhatsappReplySender,
     private readonly logger?: AppLogger,
@@ -106,7 +109,11 @@ export class HandleWhatsappWebhookUseCase {
     workspaceSlug: string,
     input: ConversationInput,
   ) {
-    if (!this.processConversationUseCase) {
+    const isKnowledgeQuery = Boolean(parseKnowledgeCommand(input.messageText || ''));
+    const conversationUseCase = isKnowledgeQuery
+      ? this.processConversationUseCase
+      : this.processAgentConversationUseCase;
+    if (!conversationUseCase) {
       return this.processed(context, { ok: true, resolvedUserId: userId, processed: false }, userId);
     }
     if (!input.messageText && input.hasMedia) {
@@ -122,7 +129,7 @@ export class HandleWhatsappWebhookUseCase {
       }, userId);
     }
 
-    const conversationResult = await this.processConversationUseCase.execute(
+    const conversationResult = await conversationUseCase.execute(
       input,
       userId,
       workspaceSlug,
@@ -136,7 +143,7 @@ export class HandleWhatsappWebhookUseCase {
       action: conversationResult.action,
       replyText: conversationResult.replyText,
     });
-    const shouldReply = conversationResult.action === 'reply' || conversationResult.action === 'submit';
+    const shouldReply = conversationResult.action !== 'cancel';
     const sendResult = shouldReply
       ? await this.sendReply(input.groupId, conversationResult.replyText)
       : { ok: false as const, error: 'reply_not_needed' };

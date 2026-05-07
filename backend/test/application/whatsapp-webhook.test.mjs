@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { HandleWhatsappWebhookUseCase, IngestEntryUseCase, ProcessConversationUseCase } from '../../dist/application/use-cases/index.js';
+import {
+  CreateProjectFolderUseCase,
+  HandleWhatsappWebhookUseCase,
+  IngestEntryUseCase,
+  ProcessAgentConversationUseCase,
+} from '../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
 class CapturingWhatsappSender {
@@ -13,6 +18,52 @@ class CapturingWhatsappSender {
   async sendText(input) {
     this.sent.push(input);
     return this.ok ? { ok: true } : { ok: false, error: 'send_failed' };
+  }
+}
+
+class StubConversationAgentGateway {
+  async decide(_config, payload) {
+    const message = String(payload.messageText || '').trim().toLowerCase();
+    if (message === 'corrigi timeout no webhook') {
+      return {
+        replyText: 'Sugestao de pasta para n8n-automations: Webhooks / Operacao. Posso criar essa estrutura antes de salvar a nota?',
+        resolvedDraft: {
+          rawText: 'corrigi timeout no webhook',
+          title: '',
+          kind: 'bug',
+          canonicalType: 'incident',
+          importance: 'high',
+          tags: ['n8n'],
+          reminderDate: '',
+          reminderTime: '',
+        },
+        selectedProjectSlug: 'n8n-automations',
+        selectedFolderId: '',
+        suggestedFolderPath: ['Webhooks', 'Operacao'],
+        pendingApproval: 'folder_create',
+        confidence: 'high',
+        action: 'confirm',
+      };
+    }
+    return {
+      replyText: 'Qual projeto devo usar?',
+      resolvedDraft: {
+        rawText: String(payload.messageText || '').trim(),
+        title: '',
+        kind: 'note',
+        canonicalType: 'event',
+        importance: 'low',
+        tags: [],
+        reminderDate: '',
+        reminderTime: '',
+      },
+      selectedProjectSlug: '',
+      selectedFolderId: '',
+      suggestedFolderPath: [],
+      pendingApproval: 'none',
+      confidence: 'low',
+      action: 'ask',
+    };
   }
 }
 
@@ -54,12 +105,23 @@ async function fixture(t, sender = new CapturingWhatsappSender()) {
     externalId: '120363@g.us',
     publicMetadata: {},
   });
+  await repositories.credentialRepository.upsertCredential({
+    userId: user.id,
+    workspaceSlug: 'default',
+    provider: 'ai-conversation',
+    status: 'connected',
+    encryptedConfig: {},
+    publicMetadata: {},
+  });
   const ingest = new IngestEntryUseCase(repositories.contentRepository);
-  const conversation = new ProcessConversationUseCase(
+  const conversation = new ProcessAgentConversationUseCase(
     repositories.contentRepository,
-    repositories.contentQueryRepository,
     repositories.conversationStateRepository,
     ingest,
+    new CreateProjectFolderUseCase(repositories.contentRepository),
+    { read: () => ({ conversationAiProvider: 'openrouter', conversationAiBaseUrl: 'https://example.com', conversationAiModel: 'test-model', conversationAiApiKey: 'test-key' }) },
+    new StubConversationAgentGateway(),
+    repositories.credentialRepository,
   );
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
@@ -98,26 +160,24 @@ test('linked whatsapp group processes free text and sends the first conversation
 
   assert.equal(result.ok, true);
   assert.equal(result.processed, true);
-  assert.equal(result.action, 'reply');
-  assert.match(result.replyText, /Qual o tipo da nota/);
+  assert.equal(result.action, 'confirm');
+  assert.match(result.replyText, /Sugestao de pasta/);
   assert.equal(result.replySent, true);
-  assert.match(result.conversationResult.replyText, /Qual o tipo da nota/);
+  assert.match(result.conversationResult.replyText, /Sugestao de pasta/);
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].groupJid, '120363@g.us');
-  assert.match(sender.sent[0].text, /Qual o tipo da nota/);
+  assert.match(sender.sent[0].text, /Sugestao de pasta/);
 });
 
 test('linked whatsapp group completes conversation and saves note on confirmation', async (t) => {
   const { repositories, whatsapp, user } = await fixture(t);
 
   await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
-  await whatsapp.execute(evolutionInput('2'));
-  await whatsapp.execute(evolutionInput('n8n'));
-  await whatsapp.execute(evolutionInput('9'));
+  await whatsapp.execute(evolutionInput('sim'));
   const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.action, 'submit');
-  assert.equal(result.replyText, 'Nota ingerida.');
+  assert.equal(result.replyText, 'Nota salva com sucesso.');
   assert.equal(result.conversationResult.action, 'submit');
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
@@ -184,7 +244,7 @@ test('whatsapp webhook processes self-authored messages without bot prefix', asy
   assert.equal(result.processed, true);
   assert.equal(result.replySent, true);
   assert.equal(sender.sent.length, 1);
-  assert.match(sender.sent[0].text, /Qual o tipo da nota/);
+  assert.match(sender.sent[0].text, /Sugestao de pasta/);
 });
 
 test('unknown whatsapp group is still rejected', async (t) => {
@@ -206,9 +266,7 @@ test('evolution send failure returns replySent false after confirmation without 
   const { repositories, whatsapp, user } = await fixture(t, sender);
 
   await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
-  await whatsapp.execute(evolutionInput('2'));
-  await whatsapp.execute(evolutionInput('n8n'));
-  await whatsapp.execute(evolutionInput('9'));
+  await whatsapp.execute(evolutionInput('sim'));
   const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.conversationResult.action, 'submit');
