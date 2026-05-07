@@ -96,10 +96,10 @@ export class HandleWhatsappWebhookUseCase {
     const validEvolutionApiKey = Boolean(environment.evolutionApiKey) && evolutionApiKey === environment.evolutionApiKey;
     if (!validEvolutionApiKey) {
       this.logger?.warn('whatsapp.webhook.auth_failed', {
-        receivedApiKey: maskSecret(evolutionApiKey),
-        expectedApiKey: maskSecret(environment.evolutionApiKey),
-        bodyApiKeyPresent: Boolean(context.body.apikey),
-        headerApiKeyPresent: Boolean(context.headers.apikey),
+        receivedMask: maskSecret(evolutionApiKey),
+        expectedMask: maskSecret(environment.evolutionApiKey),
+        bodyKeyPresent: Boolean(context.body.apikey),
+        headerKeyPresent: Boolean(context.headers.apikey),
         event: String(context.body.event || ''),
         instance: String(context.body.instance || ''),
         bodyKeys: Object.keys(context.body || {}),
