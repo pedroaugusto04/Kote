@@ -81,6 +81,20 @@ export function kindPrompt(): string {
   ].join('\n');
 }
 
+export function projectPrompt(projects: Array<{ projectSlug: string; displayName: string; aliases: string[] }>): string {
+  const lines = [
+    'Qual o projeto? Responda com o slug ou alias. Envie "inbox" para geral.',
+    '',
+    'Projetos do workspace:',
+    '0. inbox',
+    ...projects.map((project, index) => {
+      const aliases = project.aliases.length ? ` (aliases: ${project.aliases.join(', ')})` : '';
+      return `${index + 1}. ${project.projectSlug} - ${project.displayName}${aliases}`;
+    }),
+  ];
+  return lines.join('\n');
+}
+
 export function confirmationPrompt(state: ConversationState): string {
   return [
     'Resumo da nota:',

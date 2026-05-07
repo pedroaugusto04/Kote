@@ -20,6 +20,7 @@ import {
   normalizeConversationTags,
   parseKind,
   parseKnowledgeCommand,
+  projectPrompt,
 } from '../../utils/conversation-flow.utils.js';
 import { ContentQueryRepository, ContentRepository } from '../../ports/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations.repository.js';
@@ -74,6 +75,7 @@ type ConversationContext = {
   message: string;
   current: ConversationState;
   findProjectSlug: (value: string) => string;
+  availableProjects: Array<{ projectSlug: string; displayName: string; aliases: string[] }>;
 };
 
 async function processConversationInPostgres(args: ProcessConversationArgs) {
@@ -123,6 +125,11 @@ async function loadConversationContext(args: ProcessConversationArgs, timeoutMs:
       const normalized = slugify(value);
       return projects.find((project) => project.projectSlug === normalized || project.aliases.includes(normalized))?.projectSlug || normalized;
     },
+    availableProjects: projects.map((project) => ({
+      projectSlug: project.projectSlug,
+      displayName: project.displayName,
+      aliases: project.aliases,
+    })),
   };
 }
 
@@ -170,7 +177,7 @@ async function handleIdlePhase(args: ProcessConversationArgs, context: Conversat
   }
   await persistConversationState(args, context.key, nextState);
   if (!aiExtracted.kind) return { action: 'reply', replyText: `Nova nota recebida:\n"${nextState.rawText}"\n\n${kindPrompt()}`, payload: null };
-  if (!nextState.projectSlug) return { action: 'reply', replyText: `Tipo detectado: ${nextState.kind}\n\nQual o projeto? Responda com o slug ou alias. Envie "inbox" para geral.`, payload: null };
+  if (!nextState.projectSlug) return { action: 'reply', replyText: `Tipo detectado: ${nextState.kind}\n\n${projectPrompt(context.availableProjects)}`, payload: null };
   if (!nextState.reminderDate) return { action: 'reply', replyText: 'Deseja agendar um lembrete? Envie a data (DD/MM/AAAA, hoje, amanhã) ou 9 para pular.', payload: null };
   return { action: 'reply', replyText: confirmationPrompt(nextState), payload: null };
 }
@@ -187,7 +194,7 @@ async function handleAwaitingKindPhase(args: ProcessConversationArgs, context: C
     updatedAt: nowIso(),
   };
   await persistConversationState(args, context.key, nextState);
-  return { action: 'reply', replyText: 'Qual o projeto? Responda com o slug ou alias. Envie "inbox" para geral.', payload: null };
+  return { action: 'reply', replyText: projectPrompt(context.availableProjects), payload: null };
 }
 
 async function handleAwaitingProjectPhase(args: ProcessConversationArgs, context: ConversationContext) {

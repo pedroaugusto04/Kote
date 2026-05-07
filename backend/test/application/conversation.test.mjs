@@ -107,3 +107,20 @@ test('conversation answers explicit knowledge queries without starting capture f
   assert.match(result.replyText, /deploy/i);
   assert.match(result.replyText, /20 Inbox\/n8n-automations\//);
 });
+
+test('conversation lists workspace projects when asking for project selection', async (t) => {
+  const { useCase, user } = await createUseCase(t);
+
+  const result = await useCase.execute(input('corrigi timeout no webhook'), user.id, 'default');
+
+  assert.equal(result.action, 'reply');
+  assert.match(result.replyText, /Qual o tipo da nota/);
+
+  const next = await useCase.execute(input('2'), user.id, 'default');
+
+  assert.equal(next.action, 'reply');
+  assert.match(next.replyText, /Projetos do workspace:/);
+  assert.match(next.replyText, /0\. inbox/);
+  assert.match(next.replyText, /1\. n8n-automations - N8N Automations/);
+  assert.match(next.replyText, /aliases: n8n/);
+});
