@@ -98,6 +98,8 @@ test('linked whatsapp group processes free text and sends the first conversation
 
   assert.equal(result.ok, true);
   assert.equal(result.processed, true);
+  assert.equal(result.action, 'reply');
+  assert.match(result.replyText, /Qual o tipo da nota/);
   assert.equal(result.replySent, true);
   assert.match(result.conversationResult.replyText, /Qual o tipo da nota/);
   assert.equal(sender.sent.length, 1);
@@ -114,6 +116,8 @@ test('linked whatsapp group completes conversation and saves note on confirmatio
   await whatsapp.execute(evolutionInput('9'));
   const result = await whatsapp.execute(evolutionInput('sim'));
 
+  assert.equal(result.action, 'submit');
+  assert.equal(result.replyText, 'Nota ingerida.');
   assert.equal(result.conversationResult.action, 'submit');
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
@@ -144,6 +148,8 @@ test('whatsapp knowledge command replies to query without creating capture state
 
   const result = await whatsapp.execute(evolutionInput('/buscar deploy webhook'));
 
+  assert.equal(result.action, 'reply');
+  assert.match(result.replyText, /deploy/i);
   assert.equal(result.conversationResult.action, 'reply');
   assert.match(result.conversationResult.replyText, /deploy/i);
   assert.equal(await repositories.countConversationStates(), 0);

@@ -184,7 +184,7 @@
       },
       {
         "parameters": {
-          "jsCode": "const input = $node['Prepare Conversation Input']?.json || {};\nconst result = $json && typeof $json === 'object' ? $json : {};\nconst replyText = String(result.replyText || result.conversationResult?.replyText || '').trim();\nreturn [{ json: { ...result, group_jid: String(input.group_jid || result.groupId || '').trim(), replyText } }];"
+          "jsCode": "const input = $node['Prepare Conversation Input']?.json || {};\nconst result = $json && typeof $json === 'object' ? $json : {};\nconst nested = result.conversationResult && typeof result.conversationResult === 'object' ? result.conversationResult : {};\nconst action = String(result.action || nested.action || '').trim();\nconst replyText = String(result.replyText || nested.replyText || '').trim();\nconst confirmText = String(result.confirmText || replyText || '').trim();\nreturn [{ json: { ...result, action, group_jid: String(input.group_jid || result.groupId || '').trim(), replyText, confirmText } }];"
         },
         "id": "kb-wpp-parse-conversation",
         "name": "Parse Conversation Result",

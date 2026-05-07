@@ -132,6 +132,10 @@ export class HandleWhatsappWebhookUseCase {
     return this.processed(context, {
       ok: true,
       processed: true,
+      action: conversationResult.action,
+      replyText: conversationResult.replyText,
+      payload: conversationResult.payload ?? null,
+      ingestResult: 'ingestResult' in conversationResult ? conversationResult.ingestResult : undefined,
       conversationResult,
       replySent: shouldReply ? sendResult.ok : false,
       replyError: shouldReply && !sendResult.ok ? sendResult.error : undefined,
