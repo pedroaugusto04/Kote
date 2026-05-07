@@ -90,10 +90,9 @@ export class HandleWhatsappWebhookUseCase {
 
   private async assertWebhookToken(context: WhatsappWebhookContext) {
     const environment = this.environmentProvider.read();
-    const token = String(context.headers.authorization || '').startsWith('Bearer ')
-      ? String(context.headers.authorization).slice('Bearer '.length)
-      : String(context.headers['x-kb-webhook-token'] || '');
-    if (!environment.webhookSecret || token !== environment.webhookSecret) {
+    const evolutionApiKey = String(context.headers.apikey || context.body.apikey || '').trim();
+    const validEvolutionApiKey = Boolean(environment.evolutionApiKey) && evolutionApiKey === environment.evolutionApiKey;
+    if (!validEvolutionApiKey) {
       await this.rejected(context, 'invalid_webhook_token');
       throw new UnauthorizedException('invalid_webhook_token');
     }

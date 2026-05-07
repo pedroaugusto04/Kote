@@ -22,6 +22,7 @@ function configureEnv() {
   process.env.KB_REVIEW_AI_API_KEY = 'review-key';
   process.env.KB_CONVERSATION_AI_PROVIDER = 'openai';
   process.env.KB_CONVERSATION_AI_API_KEY = 'conversation-key';
+  process.env.EVOLUTION_API_KEY = 'provider-key';
   process.env.NODE_ENV = 'test';
 }
 
@@ -53,7 +54,6 @@ async function fixture(t) {
 function whatsappInput(code, overrides = {}) {
   return {
     headers: {
-      authorization: 'Bearer webhook-secret',
       cookie: 'kb_access_token=secret-cookie',
       apikey: 'provider-key',
     },
@@ -197,7 +197,7 @@ test('whatsapp connection command binds the group even when authored by the conn
 
   await assert.rejects(
     () => whatsapp.execute({
-      headers: { authorization: 'Bearer webhook-secret' },
+      headers: { apikey: 'provider-key' },
       body: { data: { key: { remoteJid: 'unknown@g.us' }, message: { conversation: 'mensagem normal' } } },
     }),
     /identity_not_found/,
