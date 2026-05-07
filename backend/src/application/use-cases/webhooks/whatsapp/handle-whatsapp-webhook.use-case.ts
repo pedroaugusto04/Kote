@@ -11,6 +11,7 @@ import { WhatsappReplySender } from '../../../ports/whatsapp-reply.sender.js';
 import { buildWhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { ProcessConversationUseCase } from '../../conversation/process-conversation.use-case.js';
+import { AppLogger } from '../../../../observability/logger.js';
 
 type WhatsappWebhookContext = {
   headers: Record<string, string>;
@@ -24,6 +25,7 @@ export class HandleWhatsappWebhookUseCase {
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly logger?: AppLogger,
     private readonly connections?: IntegrationConnectionService,
     private readonly processConversationUseCase?: ProcessConversationUseCase,
     private readonly whatsappReplySender?: WhatsappReplySender,
@@ -93,6 +95,15 @@ export class HandleWhatsappWebhookUseCase {
     const evolutionApiKey = String(context.headers.apikey || context.body.apikey || '').trim();
     const validEvolutionApiKey = Boolean(environment.evolutionApiKey) && evolutionApiKey === environment.evolutionApiKey;
     if (!validEvolutionApiKey) {
+      this.logger?.warn('whatsapp.webhook.auth_failed', {
+        receivedApiKey: maskSecret(evolutionApiKey),
+        expectedApiKey: maskSecret(environment.evolutionApiKey),
+        bodyApiKeyPresent: Boolean(context.body.apikey),
+        headerApiKeyPresent: Boolean(context.headers.apikey),
+        event: String(context.body.event || ''),
+        instance: String(context.body.instance || ''),
+        bodyKeys: Object.keys(context.body || {}),
+      });
       await this.rejected(context, 'invalid_webhook_token');
       throw new UnauthorizedException('invalid_webhook_token');
     }
@@ -189,4 +200,11 @@ export class HandleWhatsappWebhookUseCase {
       error: event.error,
     });
   }
+}
+
+function maskSecret(value: string) {
+  const normalized = String(value || '').trim();
+  if (!normalized) return '[empty]';
+  if (normalized.length <= 8) return `${normalized.slice(0, 2)}...${normalized.length}`;
+  return `${normalized.slice(0, 4)}...${normalized.slice(-4)} (len=${normalized.length})`;
 }

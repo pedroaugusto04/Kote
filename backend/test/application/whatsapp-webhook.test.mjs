@@ -63,6 +63,8 @@ async function fixture(t, sender = new CapturingWhatsappSender()) {
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
+    { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
+    undefined,
     undefined,
     conversation,
     sender,

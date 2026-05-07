@@ -46,7 +46,13 @@ async function fixture(t) {
     repositories.contentRepository,
     githubRepositoryResolution,
   );
-  const whatsapp = new HandleWhatsappWebhookUseCase(repositories.externalIdentityRepository, repositories.webhookEventRepository, connections);
+  const whatsapp = new HandleWhatsappWebhookUseCase(
+    repositories.externalIdentityRepository,
+    repositories.webhookEventRepository,
+    { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
+    undefined,
+    connections,
+  );
   const telegram = new HandleTelegramWebhookUseCase(repositories.externalIdentityRepository, repositories.webhookEventRepository, connections);
   return { repositories, user, connections, whatsapp, telegram };
 }
