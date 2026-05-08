@@ -44,22 +44,6 @@ const dashboard = {
       source: 'test',
     },
   ],
-  reviews: [
-    {
-      id: 'review-1',
-      title: 'Review do push',
-      repo: 'acme/repo',
-      project: 'n8n-automations',
-      branch: 'main',
-      date: '2026-04-27',
-      status: 'open',
-      summary: 'Sem regressao critica.',
-      impact: 'Baixo',
-      changedFiles: ['src/app.ts'],
-      generatedNotePath: 'reviews/review.md',
-      findings: [{ severity: 'low', file: 'src/app.ts', line: 3, summary: 'Ajuste menor', recommendation: 'Revisar', status: 'open' }],
-    },
-  ],
   reminders: [],
   home: {
     windowDays: 7,
@@ -375,7 +359,6 @@ describe('AppShell', () => {
           workspaces: [],
           projects: [],
           notes: [],
-          reviews: [],
           reminders: [],
         });
       }

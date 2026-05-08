@@ -21,7 +21,6 @@ export {
   updateProjectFolder,
 } from './projects';
 export { fetchReminders } from './reminders';
-export { fetchReview, fetchReviews } from './reviews';
 export { runQuery } from './query';
 export { ApiClientError, type AuthUser } from './request';
 export { getErrorMessage } from './error-message';

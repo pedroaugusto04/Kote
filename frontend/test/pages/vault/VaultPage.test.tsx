@@ -45,7 +45,6 @@ const dashboard: Dashboard = {
       source: 'manual-api',
     },
   ],
-  reviews: [],
   reminders: [],
   home: {
     windowDays: 7,
@@ -85,10 +84,8 @@ describe('VaultPage', () => {
         dashboard={dashboard}
         selectedProject="platform"
         selectedNoteId="note-1"
-        selectedReviewId=""
         setSelectedProject={vi.fn()}
         openNote={vi.fn()}
-        openReview={vi.fn()}
         editNote={vi.fn()}
         deleteNote={vi.fn()}
       />,

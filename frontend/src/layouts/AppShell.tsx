@@ -12,7 +12,6 @@ import { HomePage } from '../pages/home/HomePage';
 import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
 import { RemindersPage } from '../pages/reminders/RemindersPage';
-import { ReviewsPage } from '../pages/reviews/ReviewsPage';
 import { SearchPage } from '../pages/search/SearchPage';
 import { SetupPage } from '../pages/setup/SetupPage';
 import { VaultPage } from '../pages/vault/VaultPage';
@@ -29,7 +28,6 @@ import { Inspector } from './Inspector';
 function activeView(pathname: string): View {
   if (pathname.startsWith('/projects')) return 'projects';
   if (pathname.startsWith('/vault')) return 'vault';
-  if (pathname.startsWith('/reviews')) return 'reviews';
   if (pathname.startsWith('/search')) return 'search';
   if (pathname.startsWith('/reminders')) return 'reminders';
   if (pathname.startsWith('/settings/integrations')) return 'integrations';
@@ -57,7 +55,6 @@ export function AppShell() {
   const location = useLocation();
   const [selectedProject, setSelectedProjectState] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState('');
-  const [selectedReviewId, setSelectedReviewId] = useState('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
@@ -65,7 +62,6 @@ export function AppShell() {
   const view = activeView(location.pathname);
   const routeProject = routeParam(location.pathname, '/projects/');
   const routeNoteId = routeParam(location.pathname, '/vault/');
-  const routeReviewId = routeParam(location.pathname, '/reviews/');
   const activeWorkspace = dashboard?.workspaces[0] || null;
   const isSetupRoute = location.pathname.startsWith(routes.setup);
   const activeNavItem = navItems.find((item) => item.view === view);
@@ -124,13 +120,11 @@ export function AppShell() {
 
     const currentProject = routeProject || selectedProject || dashboard.projects[0]?.projectSlug || '';
     const currentNote = routeNoteId || selectedNoteId || '';
-    const currentReview = routeReviewId || selectedReviewId || '';
 
     return {
       dashboard,
       selectedProject: currentProject,
       selectedNoteId: currentNote,
-      selectedReviewId: currentReview,
       setSelectedProject: (slug: string) => {
         setSelectedProjectState(slug);
         navigate(routes.project(slug));
@@ -139,10 +133,6 @@ export function AppShell() {
         setSelectedNoteId(id);
         navigate(routes.note(id));
       },
-      openReview: (id: string) => {
-        setSelectedReviewId(id);
-        navigate(routes.review(id));
-      },
       editNote: (noteId: string) => {
         loadNoteMutation.mutate(noteId);
       },
@@ -150,7 +140,7 @@ export function AppShell() {
         setConfirmState({ kind: 'note', note: { ...note } as NoteSummary });
       },
     };
-  }, [dashboard, navigate, routeNoteId, routeProject, routeReviewId, selectedNoteId, selectedProject, selectedReviewId]);
+  }, [dashboard, navigate, routeNoteId, routeProject, selectedNoteId, selectedProject]);
 
   if (dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401) {
     return <AuthScreen onAuthenticated={() => dashboardQuery.refetch()} />;
@@ -243,7 +233,7 @@ export function AppShell() {
           </div>
           <label className="command-bar">
             <span>&gt;_</span>
-            <input type="search" placeholder="Buscar notas, reviews, paths ou tags" onKeyDown={(event) => { 
+            <input type="search" placeholder="Buscar notas, paths ou tags" onKeyDown={(event) => { 
               if (event.key === 'Enter') {
                 const q = event.currentTarget.value.trim();
                 navigate(q ? `${routes.search}?q=${encodeURIComponent(q)}` : routes.search); 
@@ -272,8 +262,6 @@ export function AppShell() {
             <Route path="/projects/:projectSlug" element={<ProjectsPage {...pageContext} />} />
             <Route path="/vault" element={<VaultPage {...pageContext} />} />
             <Route path="/vault/:noteId" element={<VaultPage {...pageContext} />} />
-            <Route path="/reviews" element={<ReviewsPage {...pageContext} />} />
-            <Route path="/reviews/:reviewId" element={<ReviewsPage {...pageContext} />} />
             <Route path="/search" element={<SearchPage {...pageContext} />} />
             <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
             <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
@@ -286,8 +274,6 @@ export function AppShell() {
           dashboard={dashboard}
           selectedProject={pageContext.selectedProject}
           selectedNoteId={pageContext.selectedNoteId}
-          selectedReviewId={pageContext.selectedReviewId}
-          view={view}
         />
       </aside>
       {noteModal ? (

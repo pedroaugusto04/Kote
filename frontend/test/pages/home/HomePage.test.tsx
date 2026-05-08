@@ -53,22 +53,6 @@ const dashboard: Dashboard = {
       source: 'test',
     },
   ],
-  reviews: [
-    {
-      id: 'review-1',
-      title: 'Review critico',
-      repo: 'acme/repo',
-      project: 'n8n-automations',
-      branch: 'main',
-      date: '2026-04-27',
-      status: 'open',
-      summary: 'Review com finding.',
-      impact: 'Alto',
-      changedFiles: ['src/app.ts'],
-      generatedNotePath: 'reviews/review.md',
-      findings: [{ severity: 'high', file: 'src/app.ts', line: 10, summary: 'Corrigir validacao', recommendation: 'Ajustar', status: 'open' }],
-    },
-  ],
   reminders: [],
   home: {
     windowDays: 7,
@@ -95,7 +79,7 @@ const dashboard: Dashboard = {
       project: 'n8n-automations',
       date: '2026-04-27',
       description: 'Resolver item aberto',
-      target: index === 0 ? { kind: HomeTargetKind.Review, id: 'review-1' } : { kind: HomeTargetKind.Note, id: 'note-1', path: '20 Inbox/note.md' },
+      target: index === 0 ? { kind: HomeTargetKind.Note, id: 'review-1', path: 'reviews/review.md' } : { kind: HomeTargetKind.Note, id: 'note-1', path: '20 Inbox/note.md' },
     })),
     recentInterestingEvents: [
       {
@@ -122,7 +106,6 @@ function renderHome(overrides: Partial<Dashboard['home']> = {}) {
 
 function renderHomeWithDashboard(inputDashboard: Dashboard) {
   const openNote = vi.fn();
-  const openReview = vi.fn();
   const setSelectedProject = vi.fn();
   render(
     <MemoryRouter>
@@ -130,14 +113,14 @@ function renderHomeWithDashboard(inputDashboard: Dashboard) {
         dashboard={inputDashboard}
         selectedProject="n8n-automations"
         selectedNoteId=""
-        selectedReviewId=""
         openNote={openNote}
-        openReview={openReview}
         setSelectedProject={setSelectedProject}
+        editNote={vi.fn()}
+        deleteNote={vi.fn()}
       />
     </MemoryRouter>,
   );
-  return { openNote, openReview, setSelectedProject };
+  return { openNote, setSelectedProject };
 }
 
 describe('HomePage', () => {
@@ -152,13 +135,13 @@ describe('HomePage', () => {
   });
 
   it('navigates from review, note and project entries', () => {
-    const { openNote, openReview, setSelectedProject } = renderHome();
+    const { openNote, setSelectedProject } = renderHome();
 
     fireEvent.click(screen.getByText('Prioridade 1'));
     fireEvent.click(screen.getByText('Falha no deploy'));
     fireEvent.click(screen.getByRole('button', { name: /N8N Automations/i }));
 
-    expect(openReview).toHaveBeenCalledWith('review-1');
+    expect(openNote).toHaveBeenCalledWith('review-1');
     expect(openNote).toHaveBeenCalledWith('note-1');
     expect(setSelectedProject).toHaveBeenCalledWith('n8n-automations');
   });

@@ -15,5 +15,4 @@ export type { ProjectFolder } from './models/project-folder';
 export type { Project } from './models/project';
 export type { QueryResponse } from './models/query';
 export type { Reminder } from './models/reminder';
-export type { Review, ReviewFinding } from './models/review';
 export type { Workspace } from './models/workspace';

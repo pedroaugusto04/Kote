@@ -15,7 +15,6 @@ describe('NoteRow', () => {
           workspaces: [],
           projects: [{ projectSlug: 'platform', displayName: 'Platform', repositories: [], workspaceSlug: 'default', aliases: [], defaultTags: [], enabled: true }],
           notes: [],
-          reviews: [],
           reminders: [],
           home: { windowDays: 7, metrics: [], activityByDay: [], activityByProject: [], priorities: [], recentInterestingEvents: [] },
         }}

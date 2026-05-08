@@ -145,7 +145,7 @@ export function buildDashboardHome(
       description: finding.file ? `${finding.summary} (${finding.file})` : finding.summary,
       severity: finding.severity,
       status: finding.status,
-      target: { kind: HomeTargetKind.Review, id: review.id, path: review.generatedNotePath },
+      target: { kind: HomeTargetKind.Note, id: review.id, path: review.generatedNotePath },
       rank: 2,
       timestamp: parseTimestamp(review.date) || Number.MAX_SAFE_INTEGER,
     })),

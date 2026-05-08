@@ -27,7 +27,6 @@ const emptyDashboard = {
   workspaces: [],
   projects: [],
   notes: [],
-  reviews: [],
   reminders: [],
   home: {
     windowDays: 7,

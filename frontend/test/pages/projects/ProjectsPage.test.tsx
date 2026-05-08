@@ -88,7 +88,6 @@ const dashboard: Dashboard = {
       source: 'manual-api',
     },
   ],
-  reviews: [],
   reminders: [],
   home: {
     windowDays: 7,
@@ -114,11 +113,8 @@ function renderProjects(options?: { selectedProject?: string; route?: string }) 
     <ProjectsPage
       dashboard={dashboard}
       selectedProject={selectedProject}
-      selectedNoteId=""
-      selectedReviewId=""
       setSelectedProject={setSelectedProject}
       openNote={openNote}
-      openReview={vi.fn()}
     />,
     { route: options?.route || `/projects/${selectedProject}` },
   );

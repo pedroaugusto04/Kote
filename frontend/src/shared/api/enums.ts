@@ -15,7 +15,6 @@ export enum StoredIntegrationStatus {
 
 export enum HomeTargetKind {
   Note = 'note',
-  Review = 'review',
   Project = 'project',
 }
 

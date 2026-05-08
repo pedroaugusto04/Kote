@@ -48,7 +48,6 @@ test('dashboard controller delegates project, workspace and note reads to use ca
     workspaces: [{ workspaceSlug: 'default' }],
     projects: [{ projectSlug: 'n8n-automations' }],
     notes: [{ id: 'note-1' }],
-    reviews: [],
     reminders: [],
   };
   const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };

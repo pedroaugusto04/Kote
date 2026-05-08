@@ -6,7 +6,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Too
 import { Link } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
 
-export function HomePage({ dashboard, openNote, openReview, setSelectedProject }: PageContext) {
+export function HomePage({ dashboard, openNote, setSelectedProject }: PageContext) {
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
   const hasRepositories = dashboard.projects.some((p) => p.repositories.length > 0);
@@ -14,10 +14,6 @@ export function HomePage({ dashboard, openNote, openReview, setSelectedProject }
   const activityByDay = home.activityByDay.map((point) => ({ ...point, label: formatUsDate(point.date) }));
 
   function openTarget(target: HomeNavigationTarget) {
-    if (target.kind === 'review' && target.id) {
-      openReview(target.id);
-      return;
-    }
     if (target.kind === 'project' && target.slug) {
       setSelectedProject(target.slug);
       return;

@@ -132,7 +132,6 @@ export enum ReminderDispatchMode {
 
 export enum HomeTargetKind {
   Note = 'note',
-  Review = 'review',
   Project = 'project',
 }
 

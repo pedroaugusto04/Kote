@@ -5,10 +5,8 @@ export type PageContext = {
   dashboard: Dashboard;
   selectedProject: string;
   selectedNoteId: string;
-  selectedReviewId: string;
   setSelectedProject: (slug: string) => void;
   openNote: (id: string) => void;
-  openReview: (id: string) => void;
   editNote: (noteId: string) => void;
   deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => void;
 };
