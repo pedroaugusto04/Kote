@@ -31,6 +31,13 @@ export type KnowledgeAnswer = {
   bullets: string[];
 };
 
+type ConversationAgentPromptFolder = {
+  id: string;
+  displayName: string;
+  fullSlugPath: string;
+  children: ConversationAgentPromptFolder[];
+};
+
 export type ConversationAgentTurnPayload = {
   messageText: string;
   currentState: unknown;
@@ -41,12 +48,7 @@ export type ConversationAgentTurnPayload = {
     defaultTags: string[];
   }>;
   candidateProjectSlug: string;
-  candidateFolders: Array<{
-    id: string;
-    displayName: string;
-    fullSlugPath: string;
-    children: unknown[];
-  }>;
+  candidateFolders: ConversationAgentPromptFolder[];
 };
 
 type ChatConfig = {
@@ -169,21 +171,78 @@ export async function decideConversationAgentTurn(
   config: ChatConfig,
   payload: ConversationAgentTurnPayload,
 ): Promise<ConversationAgentDecision | null> {
+  const systemPrompt = [
+    'You orchestrate a multi-turn note capture flow in Brazilian Portuguese.',
+    'Your job is to move the conversation forward with autonomy, while keeping a final human confirmation before any persistence.',
+    'Return strict JSON with keys replyText, resolvedDraft, selectedProjectSlug, selectedFolderId, suggestedFolderPath, pendingApproval, confidence, action.',
+    'selectedProjectSlug must be one of the provided project slugs or "inbox". Never invent a new project.',
+    'suggestedFolderPath must be an array of human-readable folder names.',
+    'Use the currentState as conversation memory. Reuse previously selected project, draft, and folder context unless the new user message clearly changes them.',
+    'Prefer making a reasonable assumption when the user intent is clear enough. Do not repeat the same meta-question if the new message already narrows the uncertainty from the previous turn.',
+    'When the user gives a short answer that appears to resolve the previous question, treat it as a continuation of that context instead of restarting the flow.',
+    'If the project can be inferred with high confidence from the current message plus the available projects and prior context, select it instead of asking again.',
+    'If the user shows no strong preference about save location, prefer the project root or the most sensible existing folder instead of asking another location question.',
+    'Use pendingApproval="folder_create" only when you are explicitly proposing a new folder structure that does not exist yet and that folder creation itself should be approved.',
+    'Use pendingApproval="final_confirmation" when the draft is ready and the note can be summarized for final confirmation before saving.',
+    'Use action="ask" only for genuine ambiguity or missing information that blocks a sensible assumption.',
+    'Use action="confirm" for folder approval or final confirmation. Use action="submit" only when the user is clearly confirming the final summary. Use action="cancel" only when the user clearly wants to discard the flow.',
+    'Do not mention internal JSON or implementation details.',
+  ].join(' ');
   return runStructuredChatCompletion(
     config,
-    [
-      'You orchestrate a multi-turn note capture flow in Brazilian Portuguese.',
-      'Return strict JSON with keys replyText, resolvedDraft, selectedProjectSlug, selectedFolderId, suggestedFolderPath, pendingApproval, confidence, action.',
-      'selectedProjectSlug must be one of the provided project slugs or "inbox". Never invent a new project.',
-      'Use pendingApproval="folder_create" only when you are suggesting a folder path that still needs explicit approval before creation.',
-      'Use pendingApproval="final_confirmation" only when the draft is ready and the user should confirm before persistence.',
-      'Use action="ask" for missing or ambiguous information, "confirm" for approval questions, "submit" only when the user is clearly confirming a final summary, and "cancel" only when the user clearly wants to discard the flow.',
-      'suggestedFolderPath must be an array of human-readable folder names.',
-      'Do not mention internal JSON or implementation details.',
-    ].join(' '),
-    JSON.stringify(payload),
+    systemPrompt,
+    buildConversationAgentTurnPrompt(payload),
     (parsed) => conversationAgentDecisionSchema.parse(parsed),
   );
+}
+
+function buildConversationAgentTurnPrompt(payload: ConversationAgentTurnPayload): string {
+  const availableProjects = payload.availableProjects.length
+    ? payload.availableProjects
+      .map((project) => {
+        const aliases = project.aliases.length ? ` aliases=${project.aliases.join(', ')}` : '';
+        const defaultTags = project.defaultTags.length ? ` defaultTags=${project.defaultTags.join(', ')}` : '';
+        return `- slug=${project.projectSlug}; displayName=${project.displayName};${aliases}${defaultTags}`;
+      })
+      .join('\n')
+    : '- none';
+  const candidateFolders = payload.candidateFolders.length
+    ? formatFolderContext(payload.candidateFolders)
+    : '- none';
+  const currentState = JSON.stringify(payload.currentState, null, 2);
+
+  return [
+    'Decide the next turn for this capture conversation.',
+    '',
+    'New user message:',
+    payload.messageText || '(empty)',
+    '',
+    'Current state:',
+    currentState || '{}',
+    '',
+    `Candidate project from current state: ${payload.candidateProjectSlug || '(none)'}`,
+    '',
+    'Available projects:',
+    availableProjects,
+    '',
+    'Existing folders for the candidate project:',
+    candidateFolders,
+    '',
+    'Decision policy:',
+    '- Prefer progress over repeated clarification when the intent is sufficiently clear.',
+    '- Keep the user in control by requiring final confirmation before persistence.',
+    '- If you propose a new folder, ask for folder approval first; otherwise go straight to final confirmation when ready.',
+  ].join('\n');
+}
+
+function formatFolderContext(folders: ConversationAgentTurnPayload['candidateFolders'], depth = 0): string {
+  return folders
+    .map((folder) => {
+      const line = `${'  '.repeat(depth)}- ${folder.displayName} (${folder.fullSlugPath})`;
+      if (!folder.children.length) return line;
+      return `${line}\n${formatFolderContext(folder.children, depth + 1)}`;
+    })
+    .join('\n');
 }
 
 export async function answerKnowledgeQuery(
