@@ -22,6 +22,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
+function selectRepositories(listbox: HTMLElement, repositoryIds: string[]) {
+  const select = listbox as HTMLSelectElement;
+  for (const option of Array.from(select.options)) {
+    option.selected = repositoryIds.includes(option.value);
+  }
+  fireEvent.change(select);
+}
+
 describe('GuidedIntegrationsSection', () => {
   it('auto-opens the repositories modal after returning connected from the github callback flow', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
@@ -161,7 +169,8 @@ describe('GuidedIntegrationsSection', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Repositorios' }));
     const modal = await screen.findByRole('dialog', { name: 'Selecionar repositorios' });
-    fireEvent.click(await within(modal).findByRole('checkbox'));
+    const listbox = await within(modal).findByRole('listbox');
+    selectRepositories(listbox, ['101']);
     fireEvent.click(within(modal).getByRole('button', { name: 'Fechar detalhes' }));
 
     expect(screen.getByRole('dialog', { name: 'Descartar alterações?' })).toBeInTheDocument();
@@ -211,15 +220,15 @@ describe('GuidedIntegrationsSection', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Repositorios' }));
     const modal = await screen.findByRole('dialog', { name: 'Selecionar repositorios' });
-    const checkbox = await within(modal).findByRole('checkbox');
-    fireEvent.click(checkbox);
+    const listbox = await within(modal).findByRole('listbox');
+    selectRepositories(listbox, ['101']);
     fireEvent.click(screen.getByRole('presentation'));
 
     expect(screen.getByRole('dialog', { name: 'Descartar alterações?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Continuar editando' }));
 
     expect(screen.getByRole('dialog', { name: 'Selecionar repositorios' })).toBeInTheDocument();
-    expect(screen.getByRole('checkbox')).toBeChecked();
+    expect((screen.getByRole('option', { name: 'acme/repo • Privado' }) as HTMLOptionElement).selected).toBe(true);
   });
 
   it('shows the backend message inline when an integration activation fails', async () => {
@@ -363,7 +372,7 @@ describe('GuidedIntegrationsSection', () => {
     renderWithAppProviders(<GuidedIntegrationsSection returnToPath="/setup" workspaceSlug="default" providers={['github-app']} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Repositorios' }));
-    fireEvent.click(await screen.findByRole('checkbox'));
+    selectRepositories(await screen.findByRole('listbox'), ['101']);
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     await waitFor(() => expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Repositorios salvos com sucesso.'));
@@ -425,11 +434,11 @@ describe('GuidedIntegrationsSection', () => {
     renderWithAppProviders(<GuidedIntegrationsSection returnToPath="/setup" workspaceSlug="default" providers={['github-app']} />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Repositorios' }));
-    const checkbox = await screen.findByRole('checkbox');
-    fireEvent.click(checkbox);
+    const listbox = await screen.findByRole('listbox');
+    selectRepositories(listbox, ['101']);
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Selecione repositorios validos.');
-    await waitFor(() => expect(checkbox).toHaveFocus());
+    await waitFor(() => expect(listbox).toHaveFocus());
   });
 });
