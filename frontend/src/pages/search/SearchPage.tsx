@@ -77,39 +77,29 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           </button>
         </div>
       </section>
-      <section className="grid cols-2">
-        <Panel>
-          <h2>Resposta</h2>
-          {hasQuery ? (
-            <p>{queryResult.data?.answer.answer || 'Consultando o vault...'}</p>
-          ) : (
-            <EmptyState>Selecione filtros ou digite uma busca para consultar o vault.</EmptyState>
-          )}
-        </Panel>
-        <Panel>
-          <h2>Resultados</h2>
-          <div className="list">
-            {hasQuery
-              ? queryResult.data?.matches.map((match) => (
-                <NoteRow
-                  key={match.id}
-                  note={{ ...match, folderId: null }}
-                  dashboard={dashboard}
-                  onDelete={() => deleteNote({ id: match.id, title: match.title })}
-                  onEdit={() => editNote(match.id)}
-                  onOpen={openNote}
-                />
-              ))
-              : notesResult.data?.notes.map((note) => (
-                <NoteRow key={note.id} note={note} dashboard={dashboard} onDelete={() => deleteNote(note)} onEdit={() => editNote(note.id)} onOpen={openNote} />
-              ))}
-          </div>
-          {hasQuery && queryResult.data ? <Pagination pagination={queryResult.data.pagination} onPageChange={setPage} /> : null}
-          {!hasQuery && notesResult.data ? <Pagination pagination={notesResult.data.pagination} onPageChange={setPage} /> : null}
-          {hasQuery && !queryResult.data?.matches.length ? <EmptyState>Tente outro termo ou remova filtros.</EmptyState> : null}
-          {!hasQuery && !notesResult.data?.notes.length ? <EmptyState>Nenhuma nota encontrada com esses filtros.</EmptyState> : null}
-        </Panel>
-      </section>
+      <Panel>
+        <h2>Resultados</h2>
+        <div className="list">
+          {hasQuery
+            ? queryResult.data?.matches.map((match) => (
+              <NoteRow
+                key={match.id}
+                note={{ ...match, folderId: null }}
+                dashboard={dashboard}
+                onDelete={() => deleteNote({ id: match.id, title: match.title })}
+                onEdit={() => editNote(match.id)}
+                onOpen={openNote}
+              />
+            ))
+            : notesResult.data?.notes.map((note) => (
+              <NoteRow key={note.id} note={note} dashboard={dashboard} onDelete={() => deleteNote(note)} onEdit={() => editNote(note.id)} onOpen={openNote} />
+            ))}
+        </div>
+        {hasQuery && queryResult.data ? <Pagination pagination={queryResult.data.pagination} onPageChange={setPage} /> : null}
+        {!hasQuery && notesResult.data ? <Pagination pagination={notesResult.data.pagination} onPageChange={setPage} /> : null}
+        {hasQuery && !queryResult.data?.matches.length ? <EmptyState>Tente outro termo ou remova filtros.</EmptyState> : null}
+        {!hasQuery && !notesResult.data?.notes.length ? <EmptyState>Nenhuma nota encontrada com esses filtros.</EmptyState> : null}
+      </Panel>
     </>
   );
 }

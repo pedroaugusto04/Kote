@@ -189,6 +189,7 @@ p { color: var(--muted); line-height: 1.6; }
 .section-spaced { margin-top: 18px; }
 .search-box { display: grid; gap: 12px; margin-bottom: 14px; }
 .search-box input, .search-box select { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 8px; background: #0b1319; color: var(--text); padding: 0 12px; }
+.vault-project-picker .filters { grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .form-field { display: grid; gap: 6px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
 .form-field label { cursor: pointer; }

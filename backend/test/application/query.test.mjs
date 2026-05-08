@@ -47,7 +47,7 @@ test('query returns ranked matches from the authenticated user repository scope'
   });
 
   const result = await new QueryKnowledgeUseCase(queryRepository).execute(
-    { query: 'timeout webhook deploy', mode: 'answer', projectSlug: 'n8n-automations', limit: 3 },
+    { query: 'timeout webhook deploy', projectSlug: 'n8n-automations', limit: 3 },
     user.id,
   );
 

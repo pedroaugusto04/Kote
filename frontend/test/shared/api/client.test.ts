@@ -67,7 +67,6 @@ describe('api client', () => {
   it('clamps query limit to the backend maximum', async () => {
     const fetchMock = vi.fn(async () => Response.json({
       ok: true,
-      answer: { answer: '', bullets: [] },
       matches: [],
       pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
     }));
@@ -76,7 +75,7 @@ describe('api client', () => {
     await runQuery({ query: 'Nota1', workspaceSlug: 'workspace1', limit: 50, page: 1, pageSize: 5 });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/api/query?query=Nota1&mode=answer&projectSlug=&workspaceSlug=workspace1&limit=10&page=1&pageSize=5'),
+      expect.stringContaining('/api/query?query=Nota1&projectSlug=&workspaceSlug=workspace1&limit=10&page=1&pageSize=5'),
       expect.any(Object),
     );
   });

@@ -6,6 +6,8 @@ export type PageContext = {
   selectedProject: string;
   selectedNoteId: string;
   setSelectedProject: (slug: string) => void;
+  openProject: (slug: string) => void;
+  showVaultProject: (slug: string) => void;
   openNote: (id: string) => void;
   editNote: (noteId: string) => void;
   deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => void;
@@ -13,5 +15,5 @@ export type PageContext = {
 
 export type ProjectsPageContext = Pick<
   PageContext,
-  'dashboard' | 'selectedProject' | 'setSelectedProject' | 'openNote' | 'editNote' | 'deleteNote'
+  'dashboard' | 'selectedProject' | 'openProject' | 'openNote' | 'editNote' | 'deleteNote'
 >;

@@ -228,7 +228,6 @@ function mockFetch() {
     if (url.startsWith('/api/query?')) {
       return Response.json({
         ok: true,
-        mode: 'answer',
         query: 'deploy',
         pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
         matches: [{
@@ -247,7 +246,6 @@ function mockFetch() {
           score: 10,
           snippet: 'deploy',
         }],
-        answer: { answer: 'Encontrei 1 nota.', bullets: [] },
       });
     }
     return new Response(null, { status: 404 });
@@ -329,13 +327,13 @@ describe('AppShell', () => {
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
   });
 
-  it('does not expose cited note paths in the search answer UI', async () => {
+  it('shows only the search results list without the old answer panel', async () => {
     vi.stubGlobal('fetch', mockFetch());
 
     renderWithAppProviders(<AppShell />, { route: '/search?q=deploy' });
 
     expect(await screen.findByRole('heading', { name: 'Busca' })).toBeInTheDocument();
-    expect(await screen.findByText('Encontrei 1 nota.')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Resposta' })).not.toBeInTheDocument();
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
     expect(screen.getByText('Deploy rollout')).toBeInTheDocument();
   });

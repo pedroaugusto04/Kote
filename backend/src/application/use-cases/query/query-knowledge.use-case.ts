@@ -16,7 +16,6 @@ export class QueryKnowledgeUseCase {
     const start = (pagination.page - 1) * pagination.pageSize;
     return {
       ok: true,
-      mode: input.mode,
       query: input.query,
       matches: matches.slice(start, start + pagination.pageSize),
       pagination,

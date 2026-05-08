@@ -71,11 +71,6 @@ export enum ConversationConfidence {
   Low = 'low',
 }
 
-export enum QueryMode {
-  Search = 'search',
-  Answer = 'answer',
-}
-
 export enum OnboardingOperation {
   Upsert = 'upsert',
   Status = 'status',

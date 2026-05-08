@@ -32,7 +32,7 @@ type ProjectsWorkspaceProps = ProjectsPageContext;
 export function ProjectsWorkspace({
   dashboard,
   selectedProject,
-  setSelectedProject,
+  openProject,
   openNote,
 }: ProjectsWorkspaceProps) {
   const params = useParams();
@@ -118,7 +118,7 @@ export function ProjectsWorkspace({
       const nextProjectSlug = dashboard.projects.filter((project) => project.projectSlug !== projectSlug)[0]?.projectSlug || 'inbox';
       setConfirmState(null);
       notifySuccess('Projeto excluido com sucesso.');
-      setSelectedProject(nextProjectSlug);
+      openProject(nextProjectSlug);
       await refreshDashboard(queryClient);
     },
     onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel excluir o projeto.'),
@@ -183,7 +183,7 @@ export function ProjectsWorkspace({
           onSaved={async (projectSlug, mode) => {
             setProjectModal(null);
             notifySuccess(mode === 'create' ? 'Projeto criado com sucesso.' : 'Projeto atualizado com sucesso.');
-            setSelectedProject(projectSlug);
+            openProject(projectSlug);
             await refreshDashboard(queryClient);
           }}
         />

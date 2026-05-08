@@ -1,12 +1,12 @@
 import type { ProjectsPageContext } from '../../app/page-context';
 import { ProjectsWorkspace } from '../../features/projects/ProjectsWorkspace';
 
-export function ProjectsPage({ dashboard, selectedProject, setSelectedProject, openNote }: ProjectsPageContext) {
+export function ProjectsPage({ dashboard, selectedProject, openProject, openNote }: ProjectsPageContext) {
   return (
     <ProjectsWorkspace
       dashboard={dashboard}
       selectedProject={selectedProject}
-      setSelectedProject={setSelectedProject}
+      openProject={openProject}
       openNote={openNote}
     />
   );

@@ -9,12 +9,11 @@ import { ZodValidationPipe } from '../../../dist/interfaces/http/zod-validation.
 test('zod validation pipe parses successful payloads', () => {
   const pipe = new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload');
 
-  const parsed = pipe.transform({ query: 'deploy', limit: '3', mode: 'answer' });
+  const parsed = pipe.transform({ query: 'deploy', limit: '3' });
 
   assert.deepEqual(parsed, {
     query: 'deploy',
     limit: 3,
-    mode: 'answer',
     workspaceSlug: '',
     projectSlug: '',
   });
@@ -26,7 +25,7 @@ test('zod validation pipe returns normalized defaults', () => {
   const parsed = pipe.transform({ query: 'deploy' });
 
   assert.equal(parsed.limit, 5);
-  assert.equal(parsed.mode, 'answer');
+  assert.equal(parsed.workspaceSlug, '');
 });
 
 test('zod validation pipe throws bad request with stable code', () => {

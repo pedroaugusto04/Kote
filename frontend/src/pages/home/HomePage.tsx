@@ -6,7 +6,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Too
 import { Link } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
 
-export function HomePage({ dashboard, openNote, setSelectedProject }: PageContext) {
+export function HomePage({ dashboard, openNote, openProject }: PageContext) {
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
   const hasRepositories = dashboard.projects.some((p) => p.repositories.length > 0);
@@ -15,7 +15,7 @@ export function HomePage({ dashboard, openNote, setSelectedProject }: PageContex
 
   function openTarget(target: HomeNavigationTarget) {
     if (target.kind === 'project' && target.slug) {
-      setSelectedProject(target.slug);
+      openProject(target.slug);
       return;
     }
     if (target.id) {
@@ -122,7 +122,7 @@ export function HomePage({ dashboard, openNote, setSelectedProject }: PageContex
             )}
             <div className="compact-links spaced">
               {home.activityByProject.slice(0, 5).map((project) => (
-                <button className="home-project-link" type="button" key={project.project} onClick={() => setSelectedProject(project.project)}>
+                <button className="home-project-link" type="button" key={project.project} onClick={() => openProject(project.project)}>
                   <span>{project.label}</span>
                   <Badge value={project.count} tone="active" />
                 </button>

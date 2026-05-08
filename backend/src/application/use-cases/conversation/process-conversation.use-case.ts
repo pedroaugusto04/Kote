@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { readEnvironment } from '../../../adapters/environment.js';
 import { type ConversationInput, conversationStateSchema, type ConversationState } from '../../../contracts/conversation.js';
 import { DEFAULT_PAGE_SIZE } from '../../../contracts/pagination.js';
-import { CredentialRecordStatus, ConversationConfidence, ConversationPhase, IntegrationProvider, KnowledgeKind, QueryMode } from '../../../contracts/enums.js';
+import { CredentialRecordStatus, ConversationConfidence, ConversationPhase, IntegrationProvider, KnowledgeKind } from '../../../contracts/enums.js';
 import { slugify } from '../../../domain/strings.js';
 import { normalizeDate, normalizeTime, nowIso } from '../../../domain/time.js';
 import { ConversationExtractionGateway } from '../../ports/conversation-extraction.port.js';
@@ -93,7 +93,6 @@ async function processConversationInPostgres(args: ProcessConversationArgs) {
   if (command) {
     const result = await new QueryKnowledgeUseCase(args.contentQueryRepository).execute({
       query: command.query,
-      mode: QueryMode.Answer,
       workspaceSlug: args.workspaceSlug,
       projectSlug: '',
       limit: 5,

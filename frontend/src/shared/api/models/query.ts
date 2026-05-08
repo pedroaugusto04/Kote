@@ -2,7 +2,6 @@ import type { PaginationMeta } from './pagination';
 
 export type QueryResponse = {
   ok: boolean;
-  mode: string;
   query: string;
   pagination: PaginationMeta;
   matches: Array<{
@@ -21,8 +20,4 @@ export type QueryResponse = {
     score: number;
     snippet: string;
   }>;
-  answer: {
-    answer: string;
-    bullets: string[];
-  };
 };

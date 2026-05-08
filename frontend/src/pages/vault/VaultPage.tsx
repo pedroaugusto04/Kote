@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
+import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
@@ -13,12 +14,16 @@ import { MarkdownView } from '../../widgets/markdown/MarkdownView';
 
 type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
 
-export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelectedProject, openNote }: PageContext) {
+export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelectedProject, showVaultProject, openNote }: PageContext) {
   const params = useParams();
   const routeNoteId = params.noteId ? decodeURIComponent(params.noteId) : '';
   const noteId = routeNoteId || selectedNoteId;
   const noteQuery = useQuery({ queryKey: ['note', noteId], queryFn: () => fetchNote(noteId), enabled: Boolean(noteId) });
   const effectiveProject = noteQuery.data?.project || selectedProject;
+  const selectedProjectDetails = useMemo(
+    () => dashboard.projects.find((project) => project.projectSlug === effectiveProject) || null,
+    [dashboard.projects, effectiveProject],
+  );
   const { page } = usePaginationState(`${effectiveProject}:${noteId}`);
   const notesQuery = useQuery({
     queryKey: ['notes', 'vault', effectiveProject, noteId, page],
@@ -72,6 +77,31 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
   return (
     <>
       <PageHead title="Vault Explorer" subtitle="" />
+      <section className="search-box vault-project-picker">
+        <div className="filters">
+          <select
+            aria-label="Projeto das notas detalhadas"
+            value={effectiveProject}
+            onChange={(event) => {
+              const nextProject = event.target.value;
+              showVaultProject(nextProject);
+            }}
+          >
+            {dashboard.projects.map((project) => (
+              <option key={project.projectSlug} value={project.projectSlug}>
+                {project.displayName}
+              </option>
+            ))}
+          </select>
+          <div className="workspace-pill workspace-pill-static" role="status" aria-label={`Projeto atual: ${selectedProjectDetails?.displayName || effectiveProject || 'nenhum'}`}>
+            <span className="file-icon">P</span>
+            <span className="workspace-pill-copy">
+              <strong>{selectedProjectDetails?.displayName || 'Selecione um projeto'}</strong>
+              <small>{selectedProjectDetails?.projectSlug || 'sem-projeto'}</small>
+            </span>
+          </div>
+        </div>
+      </section>
       <article className="note-reader vault-reader">
         {noteQuery.data ? (
           <>
@@ -98,7 +128,7 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
             <MarkdownView markdown={readerMarkdown(noteQuery.data.markdown, noteQuery.data.title, noteQuery.data.summary)} />
           </>
         ) : (
-          <EmptyState>Selecione uma nota para abrir o leitor.</EmptyState>
+          <EmptyState>{selectedProjectDetails ? `Projeto ativo: ${selectedProjectDetails.displayName}. Abra uma nota para iniciar a leitura detalhada.` : 'Selecione um projeto e abra uma nota para iniciar a leitura detalhada.'}</EmptyState>
         )}
       </article>
     </>

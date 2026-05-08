@@ -137,7 +137,15 @@ export function AppShell() {
       selectedNoteId: currentNote,
       setSelectedProject: (slug: string) => {
         setSelectedProjectState(slug);
+      },
+      openProject: (slug: string) => {
+        setSelectedProjectState(slug);
         navigate(routes.project(slug));
+      },
+      showVaultProject: (slug: string) => {
+        setSelectedProjectState(slug);
+        setSelectedNoteId('');
+        navigate(routes.vault);
       },
       openNote: (id: string) => {
         setSelectedNoteId(id);
@@ -210,7 +218,7 @@ export function AppShell() {
                 type="button"
                 key={project.projectSlug}
                 onClick={() => {
-                  pageContext.setSelectedProject(project.projectSlug);
+                  pageContext.openProject(project.projectSlug);
                   setIsMobileNavOpen(false);
                 }}
               >

@@ -14,7 +14,6 @@ test('query dto normalizes limit and slugs', () => {
   const parsed = queryRequestSchema.parse({
     query: 'deploy',
     limit: '7',
-    mode: 'answer',
     workspaceSlug: 'My Workspace',
     projectSlug: 'N8N Automations',
   });
@@ -22,7 +21,6 @@ test('query dto normalizes limit and slugs', () => {
   assert.deepEqual(parsed, {
     query: 'deploy',
     limit: 7,
-    mode: 'answer',
     workspaceSlug: 'my-workspace',
     projectSlug: 'n8n-automations',
   });

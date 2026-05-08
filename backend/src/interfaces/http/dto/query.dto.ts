@@ -5,7 +5,6 @@ import { queryInputSchema } from '../../../contracts/query.js';
 
 export const queryRequestSchema = z.object({
   query: z.string().default(''),
-  mode: z.string().default('answer'),
   workspaceSlug: z.string().default(''),
   projectSlug: z.string().default(''),
   limit: z.coerce.number().default(5),
