@@ -58,17 +58,28 @@ export function RemindersPage({ dashboard }: PageContext) {
 
   return (
     <>
-      <PageHead title="Lembretes" subtitle="" />
-      <section className="filters">
-        <select aria-label="Filtrar por situação" value={status} onChange={(event) => setStatus(event.target.value)}>
-          <option value="">Todas as situações</option>
-          <option value="active">Ativos</option>
-          <option value="expired">Vencidos</option>
-          <option value="sent">Enviados</option>
-          <option value="resolved">Resolvidos</option>
-          <option value="archived">Arquivados</option>
-        </select>
-      </section>
+      <PageHead
+        title={(
+          <div className="page-head-title-row">
+            <h1>Lembretes</h1>
+            <label className="sr-only" htmlFor="reminders-page-status-select">Filtrar por situação</label>
+            <select
+              id="reminders-page-status-select"
+              className="page-head-select"
+              value={status}
+              onChange={(event) => setStatus(event.target.value)}
+            >
+              <option value="">Todas as situações</option>
+              <option value="active">Ativos</option>
+              <option value="expired">Vencidos</option>
+              <option value="sent">Enviados</option>
+              <option value="resolved">Resolvidos</option>
+              <option value="archived">Arquivados</option>
+            </select>
+          </div>
+        )}
+        subtitle=""
+      />
       <div className="grid">
         {Object.entries(grouped).map(([date, reminders]) => (
           <Panel key={date}>
