@@ -1,40 +1,40 @@
 # Knowledge Vault
 
-O Knowledge Vault ajuda equipes a registrar, organizar e recuperar contexto importante do dia a dia sem depender da memoria de poucas pessoas. Em vez de perder decisoes, pendencias, aprendizados e combinados em conversas soltas, o time passa a ter um lugar unico para consultar o que aconteceu, o que mudou e o que precisa acontecer a seguir.
+O Knowledge Vault ajuda equipes a registrar, organizar e recuperar contexto importante do dia a dia sem depender da memória de poucas pessoas. Em vez de perder decisões, pendências, aprendizados e combinados em conversas soltas, o time passa a ter um lugar único para consultar o que aconteceu, o que mudou e o que precisa acontecer a seguir.
 
-![Visao geral do Knowledge Vault](docs/screenshots/home-overview.png)
+![Visão geral do Knowledge Vault](docs/screenshots/home-overview.png)
 
 ## O que este produto faz
 
-O produto centraliza conhecimento operacional em uma experiencia simples de usar:
+O produto centraliza conhecimento operacional em uma experiência simples de usar:
 
 - registra notas e contexto por workspace e por projeto
-- transforma informacoes espalhadas em uma base consultavel
+- transforma informações espalhadas em uma base consultável
 - destaca prioridades, lembretes e eventos recentes
 - facilita encontrar respostas sem depender de repasses manuais
 - captura conhecimento automaticamente via fluxos integrados como WhatsApp e GitHub Push
 
-Na pratica, ele funciona como uma memoria compartilhada para a operacao.
+Na prática, ele funciona como uma memória compartilhada para a operação.
 
 ## Principais funcionalidades
 
-### 1. Organizacao por projeto
+### 1. Organização por projeto
 
-Cada projeto pode concentrar notas, rotinas, incidentes, aprendizados e combinados relevantes. Isso ajuda a manter o contexto no lugar certo e reduz a sensacao de que tudo esta “solto” entre varias ferramentas.
+Cada projeto pode concentrar notas, rotinas, incidentes, aprendizados e combinados relevantes. Isso ajuda a manter o contexto no lugar certo e reduz a sensação de que tudo está “solto” entre várias ferramentas.
 
 ### 2. Busca contextual
 
-Quando alguem precisa encontrar uma resposta, o time nao precisa voltar para tras em conversas interminaveis. A busca permite localizar rapidamente notas, assuntos, termos recorrentes e historicos importantes.
+Quando alguém precisa encontrar uma resposta, o time não precisa voltar para trás em conversas intermináveis. A busca permite localizar rapidamente notas, assuntos, termos recorrentes e históricos importantes.
 
-![Busca e recuperacao de contexto](docs/screenshots/search-context.png)
+![Busca e recuperação de contexto](docs/screenshots/search-context.png)
 
 ### 3. Lembretes e prioridades
 
-Itens que exigem acompanhamento nao ficam escondidos. O produto destaca o que esta aberto, o que precisa de atencao e o que deve ser retomado no momento certo.
+Itens que exigem acompanhamento não ficam escondidos. O produto destaca o que está aberto, o que precisa de atenção e o que deve ser retomado no momento certo.
 
 ### 4. Visao operacional do que importa
 
-A Home resume atividade recente, projetos em movimento, prioridades e eventos relevantes. Isso ajuda liderancas e equipes a entender rapidamente onde esta o foco sem precisar montar esse panorama manualmente.
+A Home resume atividade recente, projetos em movimento, prioridades e eventos relevantes. Isso ajuda lideranças e equipes a entender rapidamente onde esta o foco sem precisar montar esse panorama manualmente.
 
 ### 5. Fluxos de Captura Contínua: WhatsApp e GitHub Push
 
@@ -47,7 +47,7 @@ O Knowledge Vault se integra naturalmente onde o time já trabalha, capturando c
   4. A informação passa a ficar disponível imediatamente na Home e na busca para o restante do time, sem que ninguém tenha precisado preencher formulários ou abrir o sistema.
 
 - **Como funciona o fluxo via GitHub Push:**
-  1. O desenvolvedor termina uma alteração técnica e faz o envio do código (`git push`) para o repositório principal no GitHub.
+  1. O desenvolvedor envia o código (`git push`) para o repositório.
   2. O Knowledge Vault captura esse evento automaticamente em background.
   3. O sistema analisa as mensagens de commit e o escopo das mudanças (diff), gerando uma nota técnica de atualização.
   4. Decisões de arquitetura e correções que antes ficavam "escondidas" no código se tornam contexto acessível a todos no projeto, sem criar trabalho manual extra de documentação.
@@ -63,23 +63,23 @@ O Knowledge Vault se integra naturalmente onde o time já trabalha, capturando c
 - cria historico consultavel de decisoes, rotinas e excecoes
 - ajuda o time a agir com mais clareza e menos dependencia de memoria individual
 
-## Como funciona na pratica
+## Como funciona na prática
 
 1. O time cria um workspace e organiza os projetos principais.
-2. As informacoes importantes passam a ser registradas em notas simples e consultaveis.
-3. Lembretes e pendencias ganham visibilidade na Home.
-4. Quando surge uma duvida, a busca encontra o contexto mais relevante em poucos segundos.
+2. As informações importantes passam a ser registradas em notas simples e consultáveis.
+3. Lembretes e pendências ganham visibilidade na Home.
+4. Quando surge uma dúvida, a busca encontra o contexto mais relevante em poucos segundos.
 5. Os fluxos naturais de comunicação no WhatsApp e envios de código (GitHub Push) alimentam o contexto automaticamente, evitando trabalho de documentação manual.
 
 ## Comece em 2 minutos
 
 1. Crie seu workspace.
-2. Cadastre os projetos que fazem parte da sua operacao.
+2. Cadastre os projetos que fazem parte da sua operação.
 3. Conecte os canais que fazem sentido para o seu fluxo.
 4. Comece a registrar notas, combinados, incidentes, rotinas e proximos passos.
 5. Use a busca e a Home para acompanhar o que esta acontecendo e recuperar contexto quando precisar.
 
-## Para quem e indicado
+## Para quem é indicado
 
 O Knowledge Vault faz mais sentido para equipes que lidam com muita troca de contexto, acompanhamento operacional e necessidade de continuidade:
 
@@ -88,6 +88,6 @@ O Knowledge Vault faz mais sentido para equipes que lidam com muita troca de con
 - produto
 - plataforma
 - financeiro
-- times tecnicos que precisam preservar historico e contexto de execucao
+- times técnicos que precisam preservar histórico e contexto de execução
 
-Se o seu time sofre com informacao espalhada, dependencias excessivas de pessoas-chave e dificuldade para recuperar decisoes antigas, este produto foi desenhado para resolver exatamente isso.
+Se o seu time sofre com informação espalhada, dependências excessivas de pessoas-chave e dificuldade para recuperar decisões antigas, este produto foi desenhado para resolver exatamente isso.
