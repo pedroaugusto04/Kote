@@ -60,17 +60,22 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
         <section className="home-kpis" aria-label="Indicadores operacionais">
           {home.metrics.slice(0, 4).map((metric) => (
             <article className="home-kpi" key={metric.id}>
-              <span className="card-kicker">{metric.label}</span>
-              <strong>{metric.value}</strong>
-              <span className={`home-kpi-meta ${metric.tone || ''}`}>{metric.meta}</span>
+              <div className="home-kpi-head">
+                <span className="card-kicker">{metric.label}</span>
+              </div>
+              <div className="home-kpi-body">
+                <strong>{metric.value}</strong>
+                <span className={`home-kpi-meta ${metric.tone || ''}`}>{metric.meta}</span>
+              </div>
             </article>
           ))}
         </section>
 
-        <section className="grid cols-2 home-main-grid">
-          <Panel className="home-priorities">
+        <section className="home-main-grid" aria-label="Resumo operacional">
+          <Panel className="home-panel home-panel-priorities">
             <div className="panel-head">
               <h2>Prioridades</h2>
+              <span className="meta">top 5</span>
             </div>
             {home.priorities.length ? (
               <div className="list">
@@ -93,7 +98,7 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
             )}
           </Panel>
 
-          <Panel>
+          <Panel className="home-panel home-panel-activity">
             <div className="panel-head">
               <h2>Atividade dos ultimos 7 dias</h2>
               <span className="meta">{home.activityByDay.reduce((total, point) => total + point.count, 0)} notas</span>
@@ -111,7 +116,7 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
             </div>
           </Panel>
 
-          <Panel>
+          <Panel className="home-panel home-panel-projects">
             <div className="panel-head">
               <h2>Projetos em movimento</h2>
               <span className="meta">top 5</span>
@@ -141,9 +146,10 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
             </div>
           </Panel>
 
-          <Panel>
+          <Panel className="home-panel home-panel-events">
             <div className="panel-head">
               <h2>Eventos recentes relevantes</h2>
+              <span className="meta">top 5</span>
             </div>
             {home.recentInterestingEvents.length ? (
               <div className="list">

@@ -350,18 +350,60 @@ p { color: var(--muted); line-height: 1.6; }
 .inspector dd { margin: 0; min-width: 0; color: var(--text); word-break: break-word; }
 .empty-state { padding: 24px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); background: rgba(148, 163, 184, 0.04); }
 .compact-grid, .compact-links { display: grid; gap: 10px; }
-.home-layout { display: grid; gap: 16px; }
+.home-layout { display: grid; gap: 18px; }
 .home-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.home-kpi { display: grid; min-height: 116px; align-content: space-between; padding: 16px; border: 1px solid var(--line-soft); border-radius: 8px; background: rgba(15, 23, 29, 0.78); }
-.home-kpi strong { color: #ecf6fa; font-size: 34px; line-height: 1; }
+.home-kpi {
+  display: grid;
+  gap: 18px;
+  min-height: 132px;
+  padding: 18px;
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(18, 29, 36, 0.92), rgba(15, 23, 29, 0.82)),
+    rgba(15, 23, 29, 0.78);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+.home-kpi-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; min-width: 0; }
+.home-kpi-body { display: grid; gap: 8px; align-content: end; }
+.home-kpi strong { color: #ecf6fa; font-size: clamp(30px, 3vw, 38px); line-height: 1; }
 .home-kpi-meta { color: var(--muted); font-family: var(--mono); font-size: 12px; }
 .home-kpi-meta.high { color: #ffd1d1; }
 .home-kpi-meta.active { color: #c7f8dd; }
-.home-main-grid { align-items: start; }
+.home-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 16px;
+  align-items: start;
+  grid-template-areas:
+    "priorities activity"
+    "events projects";
+}
+.home-panel {
+  min-height: 100%;
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 29, 0.9), rgba(15, 23, 29, 0.78)),
+    rgba(15, 23, 29, 0.78);
+}
+.home-panel-priorities { grid-area: priorities; }
+.home-panel-activity { grid-area: activity; }
+.home-panel-projects { grid-area: projects; }
+.home-panel-events { grid-area: events; }
 .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .panel-head h2 { margin-bottom: 0; }
-.chart-box { width: 100%; height: 260px; min-height: 260px; }
-.chart-box.compact { height: 210px; min-height: 210px; }
+.chart-box { width: 100%; height: 280px; min-height: 280px; }
+.chart-box.compact { height: 232px; min-height: 232px; }
+.home-priorities .list,
+.home-panel-events .list { gap: 4px; }
+.home-priority-row,
+.home-panel-events .list-row {
+  padding: 16px 6px;
+}
+.home-priority-row h3,
+.home-panel-events .list-row h3 {
+  line-height: 1.4;
+}
 .home-priority-row p { margin-bottom: 0; }
 .home-project-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 38px; padding: 7px 9px; border: 1px solid var(--line-soft); border-radius: 7px; color: var(--text); background: rgba(148, 163, 184, 0.04); text-align: left; }
 .home-project-link:hover { border-color: rgba(83, 199, 222, 0.34); background: rgba(83, 199, 222, 0.08); }
@@ -595,6 +637,14 @@ p { color: var(--muted); line-height: 1.6; }
   .pagination-bar { align-items: stretch; flex-direction: column; }
   .pagination-bar-compact .pagination-controls { grid-template-columns: minmax(0, auto) minmax(0, 1fr) minmax(0, auto); }
   .home-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-main-grid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "priorities"
+      "activity"
+      "projects"
+      "events";
+  }
   .folder-browser-head-top, .folder-browser-actions { align-items: stretch; flex-direction: column; }
   .note-reader-top { flex-direction: column; }
   .note-reader-actions { justify-content: flex-start; }
@@ -602,6 +652,9 @@ p { color: var(--muted); line-height: 1.6; }
 
 @media (max-width: 560px) {
   .home-kpis { grid-template-columns: 1fr; }
+  .home-kpi { min-height: auto; gap: 14px; padding: 16px; }
+  .chart-box { height: 240px; min-height: 240px; }
+  .chart-box.compact { height: 220px; min-height: 220px; }
   .topbar { padding: 12px 14px; }
   .view { padding: 16px 14px 24px; }
   .panel, .card, .note-reader, .search-box, .folder-browser { padding: 14px; }
