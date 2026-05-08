@@ -4,50 +4,59 @@ import { CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from
 
 const agentApprovalSchema = z.enum(['none', 'folder_create', 'final_confirmation']);
 const agentActionSchema = z.enum(['ask', 'confirm', 'create_and_confirm', 'cancel', 'submit']);
+const nullishToUndefined = (value: unknown) => value == null ? undefined : value;
+const defaultStringSchema = z.preprocess(nullishToUndefined, z.string().default(''));
+const defaultStringArraySchema = z.preprocess(nullishToUndefined, z.array(defaultStringSchema).default([]));
+const defaultKnowledgeKindSchema = z.preprocess(nullishToUndefined, z.nativeEnum(KnowledgeKind).default(KnowledgeKind.Note));
+const defaultCanonicalTypeSchema = z.preprocess(nullishToUndefined, z.nativeEnum(CanonicalType).default(CanonicalType.Event));
+const defaultImportanceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(Importance).default(Importance.Low));
+const defaultApprovalSchema = z.preprocess(nullishToUndefined, agentApprovalSchema.default('none'));
+const defaultActionSchema = z.preprocess(nullishToUndefined, agentActionSchema.default('ask'));
+const defaultConfidenceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(ConversationConfidence).default(ConversationConfidence.Low));
 
 export const agentConversationDraftSchema = z.object({
-  rawText: z.string().default(''),
-  title: z.string().default(''),
-  kind: z.nativeEnum(KnowledgeKind).default(KnowledgeKind.Note),
-  canonicalType: z.nativeEnum(CanonicalType).default(CanonicalType.Event),
-  importance: z.nativeEnum(Importance).default(Importance.Low),
-  tags: z.array(z.string()).default([]),
-  reminderDate: z.string().default(''),
-  reminderTime: z.string().default(''),
+  rawText: defaultStringSchema,
+  title: defaultStringSchema,
+  kind: defaultKnowledgeKindSchema,
+  canonicalType: defaultCanonicalTypeSchema,
+  importance: defaultImportanceSchema,
+  tags: defaultStringArraySchema,
+  reminderDate: defaultStringSchema,
+  reminderTime: defaultStringSchema,
 });
 
 export const agentConversationProjectDecisionSchema = z.object({
-  selectedProjectSlug: z.string().default(''),
+  selectedProjectSlug: defaultStringSchema,
 });
 
 export const agentConversationFolderDecisionSchema = z.object({
-  selectedFolderId: z.string().default(''),
-  suggestedFolderPath: z.array(z.string()).default([]),
-  placeInRoot: z.boolean().default(false),
-  folderApproved: z.boolean().default(false),
+  selectedFolderId: defaultStringSchema,
+  suggestedFolderPath: defaultStringArraySchema,
+  placeInRoot: z.preprocess(nullishToUndefined, z.boolean().default(false)),
+  folderApproved: z.preprocess(nullishToUndefined, z.boolean().default(false)),
 });
 
 export const agentConversationStateSchema = z.object({
   draft: agentConversationDraftSchema.default({}),
   project: agentConversationProjectDecisionSchema.default({}),
   folder: agentConversationFolderDecisionSchema.default({}),
-  pendingApproval: agentApprovalSchema.default('none'),
-  lastQuestion: z.string().default(''),
-  lastUserMessage: z.string().default(''),
-  lastAgentAction: agentActionSchema.default('ask'),
-  confidence: z.nativeEnum(ConversationConfidence).default(ConversationConfidence.Low),
-  updatedAt: z.string().default(''),
+  pendingApproval: defaultApprovalSchema,
+  lastQuestion: defaultStringSchema,
+  lastUserMessage: defaultStringSchema,
+  lastAgentAction: defaultActionSchema,
+  confidence: defaultConfidenceSchema,
+  updatedAt: defaultStringSchema,
 });
 
 export const conversationAgentDecisionSchema = z.object({
-  replyText: z.string().default(''),
+  replyText: defaultStringSchema,
   resolvedDraft: agentConversationDraftSchema.default({}),
-  selectedProjectSlug: z.string().default(''),
-  selectedFolderId: z.string().default(''),
-  suggestedFolderPath: z.array(z.string()).default([]),
-  pendingApproval: agentApprovalSchema.default('none'),
-  confidence: z.nativeEnum(ConversationConfidence).default(ConversationConfidence.Low),
-  action: agentActionSchema.default('ask'),
+  selectedProjectSlug: defaultStringSchema,
+  selectedFolderId: defaultStringSchema,
+  suggestedFolderPath: defaultStringArraySchema,
+  pendingApproval: defaultApprovalSchema,
+  confidence: defaultConfidenceSchema,
+  action: defaultActionSchema,
 });
 
 export type AgentConversationApproval = z.infer<typeof agentApprovalSchema>;
