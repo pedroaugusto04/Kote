@@ -244,6 +244,36 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
+  it('shows the global loading overlay during the initial blocking dashboard bootstrap', async () => {
+    const deferred = (() => {
+      let resolve!: (value: Response) => void;
+      const promise = new Promise<Response>((resolver) => {
+        resolve = resolver;
+      });
+      return { promise, resolve };
+    })();
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === '/api/dashboard') {
+        return deferred.promise;
+      }
+      return Promise.resolve(new Response(null, { status: 404 }));
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<AppShell />);
+
+    const overlay = await screen.findByRole('status');
+    expect(overlay).toHaveClass('global-loading-overlay');
+    expect(screen.getByText('Carregando')).toHaveClass('sr-only');
+
+    deferred.resolve(Response.json(dashboard));
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(document.querySelector('.global-loading-overlay')).toBeNull();
+    });
+  });
+
   it('renders dashboard data from the API and navigates with real routes', async () => {
     vi.stubGlobal('fetch', mockFetch());
 

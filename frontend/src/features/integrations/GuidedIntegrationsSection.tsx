@@ -21,6 +21,7 @@ import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
+import { useGlobalLoading } from '../../app/global-loading';
 
 const statusLabel: Record<DisplayStatus | string, string> = {
   connected: 'conectado',
@@ -147,6 +148,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
 
 function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspaceSlug: string; onClose: () => void; onSaved?: () => void }) {
   const queryClient = useQueryClient();
+  const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
   const repositoriesQuery = useQuery({ queryKey: ['github-repositories', workspaceSlug], queryFn: () => fetchGithubRepositories(workspaceSlug) });
   const {
@@ -174,10 +176,10 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
   }, [repositoriesQuery.data, reset]);
 
   const saveMutation = useMutation({
-    mutationFn: (values: GithubRepositoriesFormValues) => saveGithubRepositories(
+    mutationFn: (values: GithubRepositoriesFormValues) => globalLoading.trackPromise(saveGithubRepositories(
       workspaceSlug,
       repositories.filter((repo) => values.repositories.includes(repo.id)).map((repo) => ({ id: repo.id, fullName: repo.fullName })),
-    ),
+    )),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -280,8 +282,9 @@ function IntegrationCard({
   onGithubRepositories: () => void;
 }) {
   const queryClient = useQueryClient();
+  const globalLoading = useGlobalLoading();
   const connectMutation = useMutation({
-    mutationFn: () => connectIntegration({ provider: integration.provider, workspaceSlug, returnToPath }),
+    mutationFn: () => globalLoading.trackPromise(connectIntegration({ provider: integration.provider, workspaceSlug, returnToPath })),
     onSuccess: (result) => {
       if (result.primaryAction?.url) {
         openExternalIntegration(result.primaryAction.url, integration.provider === 'github-app' ? '_self' : '_blank');
@@ -293,7 +296,7 @@ function IntegrationCard({
     },
   });
   const revokeMutation = useMutation({
-    mutationFn: () => revokeIntegration(integration.provider, workspaceSlug),
+    mutationFn: () => globalLoading.trackPromise(revokeIntegration(integration.provider, workspaceSlug)),
     onSuccess: () => {
       notifySuccess(`${integration.name} revogado com sucesso.`);
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });

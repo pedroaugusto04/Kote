@@ -9,6 +9,7 @@ import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, not
 import { FormActions, FormField } from '../../../shared/forms/fields';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
+import { useGlobalLoading } from '../../../app/global-loading';
 import { collectFolderAndDescendantIds } from '../projects.helpers';
 import { folderFormSchema, type FolderFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
@@ -32,6 +33,7 @@ export function ProjectFolderModal({
   onSaved,
   projectSlug,
 }: ProjectFolderModalProps) {
+  const globalLoading = useGlobalLoading();
   const excludedIds = folder ? new Set(collectFolderAndDescendantIds(folder)) : new Set<string>();
   const parentOptions = folders.filter((item) => !excludedIds.has(item.id));
   const formRef = useRef<HTMLFormElement>(null);
@@ -55,9 +57,9 @@ export function ProjectFolderModal({
         displayName: values.displayName,
         parentFolderId: values.parentFolderId || undefined,
       };
-      return mode === 'create'
+      return globalLoading.trackPromise(mode === 'create'
         ? createProjectFolder(projectSlug, payload)
-        : updateProjectFolder(projectSlug, folder?.id || '', payload);
+        : updateProjectFolder(projectSlug, folder?.id || '', payload));
     },
     onSuccess: async (result) => {
       closeGuard.resetCloseGuard();

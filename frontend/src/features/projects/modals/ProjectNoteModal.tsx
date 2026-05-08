@@ -10,6 +10,7 @@ import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, not
 import { FormActions, FormField } from '../../../shared/forms/fields';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
+import { useGlobalLoading } from '../../../app/global-loading';
 import { parseList } from '../projects.helpers';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
@@ -33,6 +34,7 @@ export function ProjectNoteModal({
   projectSlug,
   initialFolderId,
 }: ProjectNoteModalProps) {
+  const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
   const {
     formState: { errors, isDirty },
@@ -63,9 +65,9 @@ export function ProjectNoteModal({
         reminderTime: values.reminderTime,
         reminderAt: localDateTimeToUtcIso(values.reminderDate, values.reminderTime),
       };
-      return mode === 'create'
+      return globalLoading.trackPromise(mode === 'create'
         ? createNote({ ...payload, projectSlug })
-        : updateNote(note?.id || '', payload);
+        : updateNote(note?.id || '', payload));
     },
     onSuccess: async (result) => {
       closeGuard.resetCloseGuard();

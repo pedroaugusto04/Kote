@@ -22,6 +22,7 @@ import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, not
 import { FormField } from '../shared/forms/fields';
 import { ConfirmationModal } from '../shared/ui/confirmation-modal';
 import { notifySuccess } from '../shared/ui/notifications';
+import { useGlobalLoading } from '../app/global-loading';
 import { createAuthFormSchema, type AuthFormValues, type AuthMode } from './app-shell-auth.forms';
 import { Inspector } from './Inspector';
 
@@ -42,6 +43,7 @@ function routeParam(pathname: string, prefix: string) {
 
 export function AppShell() {
   const queryClient = useQueryClient();
+  const globalLoading = useGlobalLoading();
   const dashboardQuery = useQuery({
     queryKey: ['dashboard'],
     queryFn: fetchDashboard,
@@ -67,6 +69,14 @@ export function AppShell() {
   const activeNavItem = navItems.find((item) => item.view === view);
 
   useEffect(() => {
+    if (dashboardQuery.isLoading && !dashboardQuery.data) {
+      globalLoading.start();
+      return () => globalLoading.stop();
+    }
+    return undefined;
+  }, [dashboardQuery.data, dashboardQuery.isLoading, globalLoading]);
+
+  useEffect(() => {
     setIsMobileNavOpen(false);
   }, [location.pathname]);
 
@@ -80,12 +90,12 @@ export function AppShell() {
     [noteFoldersQuery.data?.folders],
   );
   const loadNoteMutation = useMutation({
-    mutationFn: (id: string) => fetchNote(id),
+    mutationFn: (id: string) => globalLoading.trackPromise(fetchNote(id)),
     onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
     onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel carregar a nota para edicao.'),
   });
   const deleteNoteMutation = useMutation({
-    mutationFn: (id: string) => deleteNote(id),
+    mutationFn: (id: string) => globalLoading.trackPromise(deleteNote(id)),
     onSuccess: async (_, noteId) => {
       setConfirmState(null);
       setSelectedNoteId((current) => (current === noteId ? '' : current));
@@ -247,7 +257,7 @@ export function AppShell() {
               className="topbar-link"
               type="button"
               onClick={() => {
-                logout().finally(() => {
+                void globalLoading.trackPromise(logout()).finally(() => {
                   queryClient.clear();
                   dashboardQuery.refetch();
                 });
@@ -320,6 +330,7 @@ async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) 
 }
 
 function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const globalLoading = useGlobalLoading();
   const [mode, setMode] = useState<AuthMode>('login');
   const formRef = useRef<HTMLFormElement>(null);
   const schema = useMemo(() => createAuthFormSchema(mode), [mode]);
@@ -337,10 +348,10 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
     defaultValues: { name: '', email: '', password: '' },
   });
   const mutation = useMutation({
-    mutationFn: (values: AuthFormValues) => (
+    mutationFn: (values: AuthFormValues) => globalLoading.trackPromise(
       mode === 'login'
         ? login({ email: values.email, password: values.password })
-        : signup({ name: values.name || '', email: values.email, password: values.password })
+        : signup({ name: values.name || '', email: values.email, password: values.password }),
     ),
     onSuccess: onAuthenticated,
     onError: (error) => {

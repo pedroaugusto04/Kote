@@ -10,6 +10,7 @@ import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, not
 import { FormActions, FormField } from '../../../shared/forms/fields';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
+import { useGlobalLoading } from '../../../app/global-loading';
 import { parseList } from '../projects.helpers';
 import { projectFormSchema, type ProjectFormValues } from '../projects.forms';
 
@@ -30,6 +31,7 @@ export function ProjectModal({
   onClose,
   onSaved,
 }: ProjectModalProps) {
+  const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
   const {
     control,
@@ -57,9 +59,9 @@ export function ProjectModal({
         aliases: parseList(values.aliases),
         defaultTags: parseList(values.defaultTags),
       };
-      return mode === 'create'
+      return globalLoading.trackPromise(mode === 'create'
         ? createProject({ ...payload, projectSlug: values.projectSlug || undefined })
-        : updateProject(project?.projectSlug || '', payload);
+        : updateProject(project?.projectSlug || '', payload));
     },
     onSuccess: async (result) => {
       closeGuard.resetCloseGuard();

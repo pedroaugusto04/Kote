@@ -18,6 +18,7 @@ import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { PageHead } from '../../shared/ui/primitives';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
+import { useGlobalLoading } from '../../app/global-loading';
 import { ROOT_FOLDER_ID } from './projects.constants';
 import { ProjectFolderModal } from './modals/ProjectFolderModal';
 import { ProjectNoteModal } from './modals/ProjectNoteModal';
@@ -36,6 +37,7 @@ export function ProjectsWorkspace({
 }: ProjectsWorkspaceProps) {
   const params = useParams();
   const queryClient = useQueryClient();
+  const globalLoading = useGlobalLoading();
   const [projectModal, setProjectModal] = useState<ProjectModalState | null>(null);
   const [folderModal, setFolderModal] = useState<FolderModalState | null>(null);
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
@@ -106,12 +108,12 @@ export function ProjectsWorkspace({
   });
   const workspaceRepositories = repositoriesResponse?.repositories || [];
   const loadNoteMutation = useMutation({
-    mutationFn: (id: string) => fetchNote(id),
+    mutationFn: (id: string) => globalLoading.trackPromise(fetchNote(id)),
     onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
     onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel carregar a nota para edicao.'),
   });
   const deleteProjectMutation = useMutation({
-    mutationFn: (projectSlug: string) => deleteProject(projectSlug),
+    mutationFn: (projectSlug: string) => globalLoading.trackPromise(deleteProject(projectSlug)),
     onSuccess: async (_, projectSlug) => {
       const nextProjectSlug = dashboard.projects.filter((project) => project.projectSlug !== projectSlug)[0]?.projectSlug || 'inbox';
       setConfirmState(null);
@@ -122,7 +124,7 @@ export function ProjectsWorkspace({
     onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel excluir o projeto.'),
   });
   const deleteFolderMutation = useMutation({
-    mutationFn: ({ projectSlug, folderId }: { projectSlug: string; folderId: string }) => deleteProjectFolder(projectSlug, folderId),
+    mutationFn: ({ projectSlug, folderId }: { projectSlug: string; folderId: string }) => globalLoading.trackPromise(deleteProjectFolder(projectSlug, folderId)),
     onSuccess: async () => {
       setConfirmState(null);
       setSelectedFolderId(ROOT_FOLDER_ID);
@@ -132,7 +134,7 @@ export function ProjectsWorkspace({
     onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel excluir a pasta.'),
   });
   const deleteNoteMutation = useMutation({
-    mutationFn: (id: string) => deleteNote(id),
+    mutationFn: (id: string) => globalLoading.trackPromise(deleteNote(id)),
     onSuccess: async () => {
       setConfirmState(null);
       notifySuccess('Nota excluida com sucesso.');

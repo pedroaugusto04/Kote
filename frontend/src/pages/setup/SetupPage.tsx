@@ -14,6 +14,7 @@ import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, not
 import { FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { PageHead, Panel } from '../../shared/ui/primitives';
+import { useGlobalLoading } from '../../app/global-loading';
 import { workspaceFormSchema, type WorkspaceFormValues } from './setup-page.forms';
 
 function slugify(input: string) {
@@ -32,6 +33,7 @@ function StepState({ complete, pendingLabel, doneLabel }: { complete: boolean; p
 
 export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboard; refetchDashboard: () => Promise<unknown> }) {
   const queryClient = useQueryClient();
+  const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [createdWorkspaceSlug, setCreatedWorkspaceSlug] = useState('');
@@ -61,7 +63,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
   }, [displayName, setValue, slugTouched]);
 
   const createWorkspaceMutation = useMutation({
-    mutationFn: (values: WorkspaceFormValues) => createWorkspace(values),
+    mutationFn: (values: WorkspaceFormValues) => globalLoading.trackPromise(createWorkspace(values)),
     onSuccess: (result) => {
       setCreatedWorkspaceSlug(result.workspace.workspaceSlug);
       notifySuccess('Workspace criado com sucesso.');
