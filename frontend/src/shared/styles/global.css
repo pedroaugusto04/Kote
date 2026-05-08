@@ -369,10 +369,12 @@ p { color: var(--muted); line-height: 1.6; }
 .integration-link:hover { border-color: rgba(83, 199, 222, 0.34); background: rgba(83, 199, 222, 0.08); }
 .integration-link span { color: #e9fbff; font-size: 13px; }
 .integration-link code { color: var(--muted); font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.form-field select[multiple],
-.auth-form select[multiple] { min-height: 168px; padding: 8px; }
-.form-field select[multiple] option,
-.auth-form select[multiple] option { padding: 8px 10px; }
+.repository-picker { display: grid; gap: 8px; max-height: 320px; overflow: auto; padding-right: 4px; }
+.repository-option { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; min-height: 46px; padding: 9px 10px; border: 1px solid var(--line-soft); border-radius: 7px; background: rgba(148, 163, 184, 0.04); }
+.repository-option input { margin: 0; }
+.repository-option span { display: grid; gap: 2px; min-width: 0; }
+.repository-option strong, .repository-option small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.repository-option small { color: var(--muted); }
 .modal-backdrop { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 24px; background: rgba(3, 7, 10, 0.72); backdrop-filter: blur(10px); }
 .modal-panel { width: min(720px, 100%); max-height: min(760px, calc(100vh - 48px)); overflow: auto; border: 1px solid var(--line-soft); border-radius: 8px; background: #0f171d; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.42); }
 .integration-modal { display: grid; gap: 14px; padding: 18px; }

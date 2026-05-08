@@ -14,7 +14,7 @@ import {
   saveGithubRepositories,
 } from '../../shared/api/client';
 import { githubRepositoriesFormSchema, type DisplayStatus, type GithubRepositoriesFormValues } from './guided-integrations.forms';
-import type { IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
+import type { GithubIntegrationRepository, IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormActions } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
@@ -152,9 +152,9 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
   const {
     formState: { errors, isDirty },
     handleSubmit,
-    register,
     reset,
     setError,
+    setValue,
     watch,
   } = useForm<GithubRepositoriesFormValues>({
     resolver: zodResolver(githubRepositoriesFormSchema),
@@ -196,6 +196,12 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
     },
   });
 
+  const toggle = (repository: GithubIntegrationRepository) => {
+    setValue('repositories', selected.includes(repository.id)
+      ? selected.filter((item) => item !== repository.id)
+      : [...selected, repository.id], { shouldDirty: true, shouldValidate: true });
+  };
+
   return (
     <>
       <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
@@ -219,19 +225,24 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
             (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
           )}
         >
-          <select
-            data-field="repositories"
-            multiple
-            size={Math.min(Math.max(repositories.length, 4), 10)}
-            {...register('repositories')}
-            disabled={saveMutation.isPending || repositories.length === 0}
-          >
+          <div className="repository-picker" data-field="repositories" aria-label="Lista de repositorios GitHub">
             {repositories.map((repository) => (
-              <option key={repository.id} value={repository.id}>
-                {repository.fullName}{repository.private ? ' • Privado' : ' • Publico'}
-              </option>
+              <label className="repository-option" key={repository.id}>
+                <input
+                  checked={selected.includes(repository.id)}
+                  disabled={saveMutation.isPending}
+                  name="repositories"
+                  type="checkbox"
+                  value={repository.id}
+                  onChange={() => toggle(repository)}
+                />
+                <span>
+                  <strong>{repository.fullName}</strong>
+                  <small>{repository.private ? 'Privado' : 'Publico'}</small>
+                </span>
+              </label>
             ))}
-          </select>
+          </div>
           {errors.repositories?.message ? <p className="form-error" role="alert">{errors.repositories.message}</p> : null}
           <div className="integration-card-foot">
             <span className="meta">{selected.length} selecionados</span>
