@@ -345,6 +345,55 @@ describe('ProjectsPage', () => {
     expect(screen.getByDisplayValue('2026-04-29')).toBeInTheDocument();
   });
 
+  it('updates a note without opening it after save', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (String(input) === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (String(input) === '/api/notes/note-1' && !init?.method) {
+        return Response.json({
+          ok: true,
+          note: {
+            ...dashboard.notes[0],
+            markdown: '# Deploy antigo',
+            frontmatter: {},
+            links: [],
+            origin: 'postgres',
+            editor: {
+              canDelete: true,
+              rawText: 'confirmar deploy',
+              reminderDate: '2026-04-29',
+              reminderTime: '09:30',
+            },
+          },
+        });
+      }
+      if (String(input) === '/api/notes/note-1' && init?.method === 'PATCH') {
+        expect(JSON.parse(String(init.body))).toMatchObject({
+          title: 'Deploy revisado',
+          rawText: 'confirmar deploy atualizado',
+          reminderDate: '2026-04-29',
+          reminderTime: '09:30',
+          reminderAt: localDateTimeToUtcIso('2026-04-29', '09:30'),
+        });
+        return Response.json({ ok: true, noteId: 'note-1' });
+      }
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { openNote } = renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar nota Deploy antigo' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Editar nota' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Titulo'), { target: { value: 'Deploy revisado' } });
+    fireEvent.change(screen.getByLabelText('Texto'), { target: { value: 'confirmar deploy atualizado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar nota' }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/notes/note-1', expect.objectContaining({ method: 'PATCH' })));
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Nota atualizada com sucesso.');
+    expect(openNote).not.toHaveBeenCalled();
+  });
+
   it('opens the folder modal from root with Raiz as the default parent', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

@@ -296,7 +296,7 @@ export function AppShell() {
             setNoteModal(null);
             notifySuccess(mode === 'create' ? 'Nota criada com sucesso.' : 'Nota atualizada com sucesso.');
             await refreshDashboard(queryClient);
-            if (noteId) {
+            if (mode === 'create' && noteId) {
               pageContext.openNote(noteId);
             }
           }}
