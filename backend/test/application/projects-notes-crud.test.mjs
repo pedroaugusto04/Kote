@@ -194,8 +194,37 @@ test('updates any note type and still blocks project deletion while notes exist'
     tags: [],
     occurredAt: '2026-04-27T10:00:00.000Z',
     sourceChannel: 'github-push',
-    summary: 'review',
-    markdown: '',
+    summary: 'Push recebido sem analise de IA configurada.',
+    markdown: [
+      '# Review',
+      '',
+      'Projeto: [[10 Projects/platform|Platform]]',
+      '',
+      '## Texto original',
+      '',
+      'Push recebido sem analise de IA configurada.',
+      '',
+      '## Resumo',
+      '',
+      'Push recebido sem analise de IA configurada.',
+      '',
+      '## Impacto',
+      '',
+      'Nenhum impacto adicional foi resumido.',
+      '',
+      '## Riscos',
+      '',
+      '- none',
+      '',
+      '## Proximos passos',
+      '',
+      '- none',
+      '',
+      '## Findings de review',
+      '',
+      'No findings registered.',
+      '',
+    ].join('\n'),
     frontmatter: { id: 'review:1' },
     metadata: { manual: false },
     origin: 'postgres',
@@ -220,6 +249,9 @@ test('updates any note type and still blocks project deletion while notes exist'
   assert.equal(updated?.metadata.rawText, 'texto atualizado');
   assert.equal(updated?.metadata.reminderDate, '2026-05-02');
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /texto atualizado/);
+  assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /## Resumo/);
+  assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /## Findings de review/);
+  assert.equal(updated?.summary, 'Push recebido sem analise de IA configurada.');
   const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute(user.id, reviewNote.id);
   assert.equal(detail?.editor?.canDelete, true);
   assert.equal(detail?.editor?.rawText, 'texto atualizado');
