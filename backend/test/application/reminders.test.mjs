@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BuildReminderDispatchUseCase, DispatchDueTelegramRemindersUseCase, MarkReminderAsSentUseCase } from '../../dist/application/use-cases/index.js';
+import { BuildReminderDispatchUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, MarkReminderAsSentUseCase } from '../../dist/application/use-cases/index.js';
+import { ReminderDispatchMode } from '../../dist/contracts/enums.js';
+import { reminderDispatchKey } from '../../dist/application/use-cases/reminders/reminder-schedule.js';
 import { TelegramReminderDispatchWorker } from '../../dist/application/services/telegram-reminder-dispatch.worker.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
@@ -92,6 +94,50 @@ test('markRemindersAsSent updates exact reminder state', async (t) => {
   assert.equal(result.ok, true);
   assert.equal(result.marked, 1);
   assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'exact', '2099-12-31T12:00', '11111111-1111-1111-1111-111111111111'), true);
+});
+
+test('paginated reminders expose backend reminder status for expired and sent items', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, repositories.reminderDispatchRepository);
+
+  const expiredReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/expired.md',
+    title: 'Expired reminder',
+    metadata: {
+      reminderDate: '2026-05-05',
+      reminderTime: '09:00',
+      reminderAt: '2026-05-05T09:00:00.000Z',
+    },
+  });
+
+  const sentReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/sent.md',
+    title: 'Sent reminder',
+    metadata: {
+      reminderDate: '2026-05-08',
+      reminderTime: '11:00',
+      reminderAt: '2026-05-08T11:00:00.000Z',
+    },
+  });
+
+  await repositories.reminderDispatchRepository.markSent(
+    user.id,
+    'default',
+    ReminderDispatchMode.Exact,
+    reminderDispatchKey('2026-05-08T11:00:00.000Z'),
+    sentReminder.id,
+  );
+
+  const listed = await listReminders.execute(user.id, { page: 1, pageSize: 10 });
+  const expired = listed.items.find((item) => item.id === expiredReminder.id);
+  const sent = listed.items.find((item) => item.id === sentReminder.id);
+
+  assert.equal(expired?.status, 'expired');
+  assert.equal(sent?.status, 'sent');
+
+  const sentOnly = await listReminders.execute(user.id, { page: 1, pageSize: 10, status: 'sent' });
+  assert.deepEqual(sentOnly.items.map((item) => item.id), [sentReminder.id]);
 });
 
 test('global due reminder read model includes only due reminders with telegram workspace chat', async (t) => {

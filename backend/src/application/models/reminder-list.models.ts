@@ -5,6 +5,7 @@ export type ListRemindersInput = {
   page: number;
   pageSize: number;
   workspaceSlug?: string;
+  status?: string;
 };
 
 export type PaginatedReminders = {

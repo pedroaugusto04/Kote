@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
 import { formatUsDate } from '../../entities/format';
@@ -12,20 +13,38 @@ import { ReminderRow } from '../../widgets/reminders/ReminderRow';
 
 export function RemindersPage({ dashboard }: PageContext) {
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
-  const { page, setPage } = usePaginationState(workspaceSlug);
+  const [status, setStatus] = useState('');
+  const { page, setPage } = usePaginationState(`${workspaceSlug}:${status}`);
   const remindersQuery = useQuery({
-    queryKey: ['reminders', workspaceSlug, page],
-    queryFn: () => fetchReminders({ page, workspaceSlug }),
+    queryKey: ['reminders', workspaceSlug, status, page],
+    queryFn: () => fetchReminders({ page, workspaceSlug, status }),
     initialData: dashboard.reminders
       ? {
           ok: true as const,
-          reminders: dashboard.reminders.filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug).slice(0, DEFAULT_PAGE_SIZE),
+          reminders: dashboard.reminders
+            .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
+            .filter((reminder) => !status || reminder.status === status)
+            .slice(0, DEFAULT_PAGE_SIZE),
           pagination: {
             page: 1,
             pageSize: DEFAULT_PAGE_SIZE,
-            total: dashboard.reminders.filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug).length,
-            totalPages: Math.max(1, Math.ceil(dashboard.reminders.filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug).length / DEFAULT_PAGE_SIZE)),
-            hasNext: dashboard.reminders.filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug).length > DEFAULT_PAGE_SIZE,
+            total: dashboard.reminders
+              .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
+              .filter((reminder) => !status || reminder.status === status)
+              .length,
+            totalPages: Math.max(
+              1,
+              Math.ceil(
+                dashboard.reminders
+                  .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
+                  .filter((reminder) => !status || reminder.status === status)
+                  .length / DEFAULT_PAGE_SIZE,
+              ),
+            ),
+            hasNext: dashboard.reminders
+              .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
+              .filter((reminder) => !status || reminder.status === status)
+              .length > DEFAULT_PAGE_SIZE,
             hasPrevious: false,
           },
         }
@@ -40,6 +59,16 @@ export function RemindersPage({ dashboard }: PageContext) {
   return (
     <>
       <PageHead title="Lembretes" subtitle="" />
+      <section className="filters">
+        <select aria-label="Filtrar por situação" value={status} onChange={(event) => setStatus(event.target.value)}>
+          <option value="">Todas as situações</option>
+          <option value="active">Ativos</option>
+          <option value="expired">Vencidos</option>
+          <option value="sent">Enviados</option>
+          <option value="resolved">Resolvidos</option>
+          <option value="archived">Arquivados</option>
+        </select>
+      </section>
       <div className="grid">
         {Object.entries(grouped).map(([date, reminders]) => (
           <Panel key={date}>

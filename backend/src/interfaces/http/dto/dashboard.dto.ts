@@ -44,9 +44,11 @@ export const reviewsListQuerySchema = paginationInputSchema.extend({
 
 export const remindersListQuerySchema = paginationInputSchema.extend({
   workspaceSlug: z.string().default(''),
+  status: z.enum(['', 'active', 'expired', 'sent', 'resolved', 'archived']).default(''),
 }).transform((input) => ({
   ...input,
   workspaceSlug: slugify(input.workspaceSlug),
+  status: input.status.trim().toLowerCase(),
 }));
 
 export type NoteIdParam = z.infer<typeof noteIdParamSchema>;
