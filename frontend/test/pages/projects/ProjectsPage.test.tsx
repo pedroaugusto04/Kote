@@ -106,19 +106,19 @@ afterEach(() => {
 });
 
 function renderProjects(options?: { selectedProject?: string; route?: string }) {
-  const setSelectedProject = vi.fn();
+  const openProject = vi.fn();
   const openNote = vi.fn();
   const selectedProject = options?.selectedProject || 'platform';
   renderWithAppProviders(
     <ProjectsPage
       dashboard={dashboard}
       selectedProject={selectedProject}
-      setSelectedProject={setSelectedProject}
+      openProject={openProject}
       openNote={openNote}
     />,
     { route: options?.route || `/projects/${selectedProject}` },
   );
-  return { setSelectedProject, openNote };
+  return { openProject, openNote };
 }
 
 describe('ProjectsPage', () => {
@@ -249,7 +249,7 @@ describe('ProjectsPage', () => {
       return Response.error();
     });
     vi.stubGlobal('fetch', fetchMock);
-    const { setSelectedProject } = renderProjects();
+    const { openProject } = renderProjects();
 
     fireEvent.click(screen.getByRole('button', { name: 'Novo projeto' }));
     const repositoryCheckbox = await screen.findByRole('checkbox', { name: 'acme/api Privado' });
@@ -262,7 +262,7 @@ describe('ProjectsPage', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/projects', expect.objectContaining({ method: 'POST' })));
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto criado com sucesso.');
-    expect(setSelectedProject).toHaveBeenCalledWith('billing-api');
+    expect(openProject).toHaveBeenCalledWith('billing-api');
   });
 
   it('shows a GitHub connection hint when repositories are unavailable because the integration is not connected', async () => {
@@ -505,7 +505,7 @@ describe('ProjectsPage', () => {
       return Response.error();
     });
     vi.stubGlobal('fetch', fetchMock);
-    const { setSelectedProject } = renderProjects();
+    const { openProject } = renderProjects();
 
     fireEvent.click(screen.getByRole('button', { name: 'Editar projeto Platform' }));
     const repositoryCheckbox = await screen.findByRole('checkbox', { name: 'acme/platform Privado' });
@@ -516,7 +516,7 @@ describe('ProjectsPage', () => {
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/projects/platform', expect.objectContaining({ method: 'PATCH' })));
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto atualizado com sucesso.');
-    expect(setSelectedProject).toHaveBeenCalledWith('platform');
+    expect(openProject).toHaveBeenCalledWith('platform');
   });
 
   it('deletes a note after confirmation and refreshes the dashboard', async () => {
@@ -575,14 +575,14 @@ describe('ProjectsPage', () => {
       return Response.json({ ok: true, projectSlug: 'empty' });
     });
     vi.stubGlobal('fetch', fetchMock);
-    const { setSelectedProject } = renderProjects({ selectedProject: 'empty' });
+    const { openProject } = renderProjects({ selectedProject: 'empty' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Excluir projeto Empty' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar exclusão' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/projects/empty', expect.objectContaining({ method: 'DELETE' })));
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto excluido com sucesso.');
-    expect(setSelectedProject).toHaveBeenCalledWith('inbox');
+    expect(openProject).toHaveBeenCalledWith('inbox');
   });
 
   it('shows backend field errors inline when project creation fails', async () => {
