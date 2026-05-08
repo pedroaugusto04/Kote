@@ -107,6 +107,7 @@ function renderHome(overrides: Partial<Dashboard['home']> = {}) {
 function renderHomeWithDashboard(inputDashboard: Dashboard) {
   const openNote = vi.fn();
   const setSelectedProject = vi.fn();
+  const openProject = vi.fn();
   render(
     <MemoryRouter>
       <HomePage
@@ -115,12 +116,14 @@ function renderHomeWithDashboard(inputDashboard: Dashboard) {
         selectedNoteId=""
         openNote={openNote}
         setSelectedProject={setSelectedProject}
+        openProject={openProject}
+        showVaultProject={vi.fn()}
         editNote={vi.fn()}
         deleteNote={vi.fn()}
       />
     </MemoryRouter>,
   );
-  return { openNote, setSelectedProject };
+  return { openNote, openProject };
 }
 
 describe('HomePage', () => {
@@ -135,7 +138,7 @@ describe('HomePage', () => {
   });
 
   it('navigates from review, note and project entries', () => {
-    const { openNote, setSelectedProject } = renderHome();
+    const { openNote, openProject } = renderHome();
 
     fireEvent.click(screen.getByText('Prioridade 1'));
     fireEvent.click(screen.getByText('Falha no deploy'));
@@ -143,7 +146,7 @@ describe('HomePage', () => {
 
     expect(openNote).toHaveBeenCalledWith('review-1');
     expect(openNote).toHaveBeenCalledWith('note-1');
-    expect(setSelectedProject).toHaveBeenCalledWith('n8n-automations');
+    expect(openProject).toHaveBeenCalledWith('n8n-automations');
   });
 
   it('renders an empty state when there are no priorities', () => {
