@@ -20,11 +20,11 @@ export function Panel({ children, className = '' }: PropsWithChildren<{ classNam
   return <section className={`panel ${className}`}>{children}</section>;
 }
 
-export function PageHead({ title, subtitle, action }: { title: string; subtitle: string; action?: ReactNode }) {
+export function PageHead({ title, subtitle, action }: { title: ReactNode; subtitle: string; action?: ReactNode }) {
   return (
     <div className="page-head">
       <div>
-        <h1>{title}</h1>
+        {typeof title === 'string' ? <h1>{title}</h1> : title}
         <p>{subtitle}</p>
       </div>
       {action}

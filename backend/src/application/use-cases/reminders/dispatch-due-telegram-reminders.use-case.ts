@@ -86,7 +86,6 @@ export class DispatchDueTelegramRemindersUseCase {
       `Projeto: ${reminder.project || '-'}`,
       `Nota: ${reminder.title}`,
       `Agendado para: ${formatReminderScheduledAtLabel(reminder.scheduledAt)}`,
-      `Path: ${reminder.relativePath}`,
     ].join('\n');
   }
 }

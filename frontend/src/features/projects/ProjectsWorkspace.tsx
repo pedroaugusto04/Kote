@@ -146,7 +146,24 @@ export function ProjectsWorkspace({
   return (
     <>
       <PageHead
-        title="Projetos"
+        title={(
+          <div className="page-head-title-row">
+            <h1>Projetos</h1>
+            <label className="sr-only" htmlFor="projects-page-project-select">Selecionar projeto</label>
+            <select
+              id="projects-page-project-select"
+              className="page-head-select"
+              value={selected?.projectSlug || ''}
+              onChange={(event) => openProject(event.target.value)}
+            >
+              {dashboard.projects.map((project) => (
+                <option key={project.projectSlug} value={project.projectSlug}>
+                  {project.displayName}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         subtitle=""
         action={<button className="icon-button" type="button" onClick={() => setProjectModal({ mode: 'create' })}>Novo projeto</button>}
       />

@@ -208,7 +208,7 @@ test('direct telegram dispatch sends a due reminder and marks it as sent', async
   assert.equal(result.sent, 1);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].chatId, 'telegram-chat-1');
-  assert.match(sent[0].text, /^Lembrete\nProjeto: n8n-automations\nNota: Deploy\nAgendado para: 2099-12-31 12:00 UTC\nPath: 20 Inbox\/n8n-automations\/deploy\.md$/);
+  assert.match(sent[0].text, /^Lembrete\nProjeto: n8n-automations\nNota: Deploy\nAgendado para: 2099-12-31 12:00 UTC$/);
   assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'exact', '2099-12-31T12:00', '11111111-1111-1111-1111-111111111111'), true);
 });
 

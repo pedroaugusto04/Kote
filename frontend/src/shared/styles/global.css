@@ -89,6 +89,16 @@ input[type="search"] { cursor: text; }
 .topbar-link:hover { color: var(--text); }
 .view { min-width: 0; padding: 24px; overflow: auto; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.page-head-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.page-head-select {
+  min-width: min(280px, 100%);
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0b1319;
+  color: var(--text);
+  padding: 0 12px;
+}
 h1, h2, h3, p { margin-top: 0; }
 h1 { margin-bottom: 7px; font-size: clamp(27px, 3vw, 40px); line-height: 1.04; }
 h2 { margin-bottom: 12px; font-size: 18px; }

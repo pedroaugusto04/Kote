@@ -122,6 +122,14 @@ function renderProjects(options?: { selectedProject?: string; route?: string }) 
 }
 
 describe('ProjectsPage', () => {
+  it('allows selecting another project from the header select', () => {
+    const { openProject } = renderProjects();
+
+    fireEvent.change(screen.getByLabelText('Selecionar projeto'), { target: { value: 'empty' } });
+
+    expect(openProject).toHaveBeenCalledWith('empty');
+  });
+
   it('closes the new project modal immediately when nothing changed', () => {
     renderProjects();
 
