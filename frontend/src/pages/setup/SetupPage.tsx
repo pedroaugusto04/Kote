@@ -12,20 +12,11 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormField } from '../../shared/forms/fields';
+import { slugifyInput } from '../../shared/forms/normalizers';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { PageHead, Panel } from '../../shared/ui/primitives';
 import { useGlobalLoading } from '../../app/global-loading';
 import { workspaceFormSchema, type WorkspaceFormValues } from './setup-page.forms';
-
-function slugify(input: string) {
-  return input
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
 
 function StepState({ complete, pendingLabel, doneLabel }: { complete: boolean; pendingLabel: string; doneLabel: string }) {
   return <span className={`setup-step-state ${complete ? 'done' : 'pending'}`}>{complete ? doneLabel : pendingLabel}</span>;
@@ -59,7 +50,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
 
   useEffect(() => {
     if (slugTouched) return;
-    setValue('workspaceSlug', slugify(displayName));
+    setValue('workspaceSlug', slugifyInput(displayName));
   }, [displayName, setValue, slugTouched]);
 
   const createWorkspaceMutation = useMutation({

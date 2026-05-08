@@ -8,10 +8,10 @@ import { createNote, updateNote } from '../../../shared/api/client';
 import type { NoteDetail } from '../../../shared/api/models/note';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
 import { FormActions, FormField } from '../../../shared/forms/fields';
+import { parseCommaSeparatedList } from '../../../shared/forms/normalizers';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
-import { parseList } from '../projects.helpers';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
 
@@ -60,7 +60,7 @@ export function ProjectNoteModal({
         folderId: values.folderId || undefined,
         title: values.title,
         rawText: values.rawText,
-        tags: parseList(values.tags),
+        tags: parseCommaSeparatedList(values.tags),
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime,
         reminderAt: localDateTimeToUtcIso(values.reminderDate, values.reminderTime),

@@ -1,18 +1,20 @@
 import { z } from 'zod';
 
 import { slugify } from '../../../domain/strings.js';
-
-function normalizedStringList(value: string[]): string[] {
-  return [...new Set(value.map((item) => item.trim()).filter(Boolean))];
-}
+import {
+  normalizedSlugList,
+  normalizedStringList,
+  optionalStringArraySchema,
+  repositoryIdsSchema,
+} from './dto-normalizers.js';
 
 export const createProjectBodySchema = z
   .object({
     displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
     projectSlug: z.string().trim().max(80, 'Use no maximo 80 caracteres.').optional(),
-    repositoryIds: z.array(z.union([z.string(), z.number()]).transform((value) => String(value).trim()).pipe(z.string().min(1, 'Selecione um repositorio valido do GitHub.'))).optional().default([]),
-    aliases: z.array(z.string().trim().max(80, 'Use no maximo 80 caracteres.')).optional().default([]),
-    defaultTags: z.array(z.string().trim().max(60, 'Use no maximo 60 caracteres.')).optional().default([]),
+    repositoryIds: repositoryIdsSchema,
+    aliases: optionalStringArraySchema(80, 'Use no maximo 80 caracteres.'),
+    defaultTags: optionalStringArraySchema(60, 'Use no maximo 60 caracteres.'),
   })
   .strict()
   .transform((body) => {
@@ -22,17 +24,11 @@ export const createProjectBodySchema = z
       projectSlug,
       repositoryIds: body.repositoryIds,
       aliases: normalizedStringList(body.aliases),
-      defaultTags: normalizedStringList(body.defaultTags.map((tag) => slugify(tag)).filter(Boolean)),
+      defaultTags: normalizedSlugList(body.defaultTags),
     };
   });
 
-export type CreateProjectBody = {
-  displayName: string;
-  projectSlug: string;
-  repositoryIds: string[];
-  aliases: string[];
-  defaultTags: string[];
-};
+export type CreateProjectBody = z.infer<typeof createProjectBodySchema>;
 
 export const projectSlugParamSchema = z.object({
   projectSlug: z.string().trim().min(1).transform((value) => slugify(value)),
@@ -41,27 +37,20 @@ export const projectSlugParamSchema = z.object({
 export const updateProjectBodySchema = z
   .object({
     displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
-    repositoryIds: z.array(z.union([z.string(), z.number()]).transform((value) => String(value).trim()).pipe(z.string().min(1, 'Selecione um repositorio valido do GitHub.'))).optional().default([]),
-    aliases: z.array(z.string().trim().max(80, 'Use no maximo 80 caracteres.')).optional().default([]),
-    defaultTags: z.array(z.string().trim().max(60, 'Use no maximo 60 caracteres.')).optional().default([]),
+    repositoryIds: repositoryIdsSchema,
+    aliases: optionalStringArraySchema(80, 'Use no maximo 80 caracteres.'),
+    defaultTags: optionalStringArraySchema(60, 'Use no maximo 60 caracteres.'),
   })
   .strict()
-  .transform((body) => {
-    return {
-      displayName: body.displayName,
-      repositoryIds: body.repositoryIds,
-      aliases: normalizedStringList(body.aliases),
-      defaultTags: normalizedStringList(body.defaultTags.map((tag) => slugify(tag)).filter(Boolean)),
-    };
-  });
+  .transform((body) => ({
+    displayName: body.displayName,
+    repositoryIds: body.repositoryIds,
+    aliases: normalizedStringList(body.aliases),
+    defaultTags: normalizedSlugList(body.defaultTags),
+  }));
 
 export type ProjectSlugParam = z.infer<typeof projectSlugParamSchema>;
-export type UpdateProjectBody = {
-  displayName: string;
-  repositoryIds: string[];
-  aliases: string[];
-  defaultTags: string[];
-};
+export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
 
 export const projectFolderIdParamSchema = z.object({
   projectSlug: z.string().trim().min(1).transform((value) => slugify(value)),

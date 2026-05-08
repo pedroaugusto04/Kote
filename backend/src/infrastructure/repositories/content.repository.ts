@@ -19,6 +19,22 @@ import { noteSummary } from '../mappers/content-query.mappers.js';
 import { attachmentFromRow, noteFromRow, projectFolderFromRow, projectFromRow, repositoryFromRow, workspaceFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
+const PROJECT_WITH_METADATA_SELECT = `SELECT p.*,
+  COALESCE((SELECT jsonb_agg(alias) FROM kb_project_aliases WHERE project_id = p.id), '[]'::jsonb) as aliases,
+  COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
+  COALESCE((SELECT jsonb_agg(jsonb_build_object(
+    'id', r.id,
+    'workspace_slug', r.workspace_slug,
+    'external_id', r.external_id,
+    'full_name', r.full_name,
+    'html_url', r.html_url,
+    'description', r.description,
+    'default_branch', r.default_branch,
+    'created_at', r.created_at,
+    'updated_at', r.updated_at
+  )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
+FROM kb_projects p`;
+
 @Injectable()
 export class PostgresContentRepository extends ContentRepository {
   constructor(
@@ -98,21 +114,7 @@ export class PostgresContentRepository extends ContentRepository {
 
   async listProjects(userId: string) {
     const result = await this.database.getPool().query(
-      `SELECT p.*,
-         COALESCE((SELECT jsonb_agg(alias) FROM kb_project_aliases WHERE project_id = p.id), '[]'::jsonb) as aliases,
-         COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
-         COALESCE((SELECT jsonb_agg(jsonb_build_object(
-           'id', r.id,
-           'workspace_slug', r.workspace_slug,
-           'external_id', r.external_id,
-           'full_name', r.full_name,
-           'html_url', r.html_url,
-           'description', r.description,
-           'default_branch', r.default_branch,
-           'created_at', r.created_at,
-           'updated_at', r.updated_at
-         )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
-       FROM kb_projects p
+      `${PROJECT_WITH_METADATA_SELECT}
        WHERE p.user_id = $1 AND p.enabled = true
        ORDER BY p.project_slug`,
       [userId],
@@ -130,21 +132,7 @@ export class PostgresContentRepository extends ContentRepository {
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
     const offset = (pagination.page - 1) * pagination.pageSize;
     const result = await this.database.getPool().query(
-      `SELECT p.*,
-         COALESCE((SELECT jsonb_agg(alias) FROM kb_project_aliases WHERE project_id = p.id), '[]'::jsonb) as aliases,
-         COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
-         COALESCE((SELECT jsonb_agg(jsonb_build_object(
-           'id', r.id,
-           'workspace_slug', r.workspace_slug,
-           'external_id', r.external_id,
-           'full_name', r.full_name,
-           'html_url', r.html_url,
-           'description', r.description,
-           'default_branch', r.default_branch,
-           'created_at', r.created_at,
-           'updated_at', r.updated_at
-         )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
-       FROM kb_projects p
+      `${PROJECT_WITH_METADATA_SELECT}
        WHERE p.user_id = $1 AND p.enabled = true
        ORDER BY p.project_slug
        LIMIT $2 OFFSET $3`,
@@ -156,21 +144,7 @@ export class PostgresContentRepository extends ContentRepository {
 
   async getProjectBySlug(userId: string, projectSlug: string) {
     const result = await this.database.getPool().query(
-      `SELECT p.*,
-         COALESCE((SELECT jsonb_agg(alias) FROM kb_project_aliases WHERE project_id = p.id), '[]'::jsonb) as aliases,
-         COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
-         COALESCE((SELECT jsonb_agg(jsonb_build_object(
-           'id', r.id,
-           'workspace_slug', r.workspace_slug,
-           'external_id', r.external_id,
-           'full_name', r.full_name,
-           'html_url', r.html_url,
-           'description', r.description,
-           'default_branch', r.default_branch,
-           'created_at', r.created_at,
-           'updated_at', r.updated_at
-         )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
-       FROM kb_projects p
+      `${PROJECT_WITH_METADATA_SELECT}
        WHERE p.user_id = $1 AND p.project_slug = $2
        LIMIT 1`,
       [userId, projectSlug],

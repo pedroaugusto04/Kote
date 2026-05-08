@@ -6,6 +6,15 @@ import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { queryInputSchema } from '../../../contracts/query.js';
 import { markRemindersBodySchema } from './query.dto.js';
 
+const externalIdentitySchema = z.object({
+  provider: z.string().optional(),
+  identityType: z.string().optional(),
+  identity_type: z.string().optional(),
+  externalId: z.string().optional(),
+  external_id: z.string().optional(),
+  workspaceSlug: z.string().optional(),
+});
+
 const externalIdentityLookupSchema = z.object({
   provider: z.string().default(ExternalIdentityProvider.Whatsapp),
   identityType: z.string().default('jid'),
@@ -18,26 +27,8 @@ const tenantBodyBaseSchema = z.object({
   identityType: z.string().optional(),
   externalId: z.string().optional(),
   workspaceSlug: z.string().optional(),
-  externalIdentity: z
-    .object({
-      provider: z.string().optional(),
-      identityType: z.string().optional(),
-      identity_type: z.string().optional(),
-      externalId: z.string().optional(),
-      external_id: z.string().optional(),
-      workspaceSlug: z.string().optional(),
-    })
-    .optional(),
-  external_identity: z
-    .object({
-      provider: z.string().optional(),
-      identityType: z.string().optional(),
-      identity_type: z.string().optional(),
-      externalId: z.string().optional(),
-      external_id: z.string().optional(),
-      workspaceSlug: z.string().optional(),
-    })
-    .optional(),
+  externalIdentity: externalIdentitySchema.optional(),
+  external_identity: externalIdentitySchema.optional(),
 }).passthrough();
 
 function internalPayloadBodySchema<T extends z.ZodTypeAny>(payloadSchema: T) {

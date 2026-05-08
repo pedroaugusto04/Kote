@@ -8,10 +8,10 @@ import type { GithubIntegrationRepository } from '../../../shared/api/models/int
 import type { Project } from '../../../shared/api/models/project';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
 import { FormActions, FormField } from '../../../shared/forms/fields';
+import { parseCommaSeparatedList } from '../../../shared/forms/normalizers';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
-import { parseList } from '../projects.helpers';
 import { projectFormSchema, type ProjectFormValues } from '../projects.forms';
 
 type ProjectModalProps = {
@@ -56,8 +56,8 @@ export function ProjectModal({
       const payload = {
         displayName: values.displayName,
         repositoryIds: values.repositoryIds,
-        aliases: parseList(values.aliases),
-        defaultTags: parseList(values.defaultTags),
+        aliases: parseCommaSeparatedList(values.aliases),
+        defaultTags: parseCommaSeparatedList(values.defaultTags),
       };
       return globalLoading.trackPromise(mode === 'create'
         ? createProject({ ...payload, projectSlug: values.projectSlug || undefined })
