@@ -163,6 +163,13 @@ function mockFetch() {
         ],
       });
     }
+    if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') {
+      return Response.json({
+        ok: true,
+        workspaceSlug: 'default',
+        repositories: dashboard.projects[0].repositories,
+      });
+    }
     if (url === '/api/integrations/whatsapp/connect') {
       return Response.json({
         ok: true,
@@ -206,6 +213,16 @@ function mockFetch() {
           links: [],
           origin: 'vault',
         },
+      });
+    }
+    if (url === '/api/projects/n8n-automations/folders') {
+      return Response.json({ ok: true, projectSlug: 'n8n-automations', folders: [] });
+    }
+    if (url === '/api/notes?page=1&pageSize=5&workspaceSlug=&projectSlug=n8n-automations&folderId=&rootOnly=false&selectedId=') {
+      return Response.json({
+        ok: true,
+        notes: dashboard.notes,
+        pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       });
     }
     if (url.startsWith('/api/query?')) {
@@ -321,6 +338,19 @@ describe('AppShell', () => {
     expect(await screen.findByText('Encontrei 1 nota.')).toBeInTheDocument();
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
     expect(screen.getByText('Deploy rollout')).toBeInTheDocument();
+  });
+
+  it('switches to the projects menu when selecting a project from another section', async () => {
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(<AppShell />, { route: '/search?q=deploy' });
+
+    expect(await screen.findByRole('heading', { name: 'Busca' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /N8N Automations/ }));
+
+    expect(await screen.findByRole('heading', { name: 'Projetos' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Projetos' })).toHaveClass('active');
   });
 
   it('navigates to home when clicking the brand section', async () => {

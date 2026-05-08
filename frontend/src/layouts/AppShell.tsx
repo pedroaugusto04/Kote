@@ -137,9 +137,7 @@ export function AppShell() {
       selectedNoteId: currentNote,
       setSelectedProject: (slug: string) => {
         setSelectedProjectState(slug);
-        if (view === 'projects' || view === 'home') {
-          navigate(routes.project(slug));
-        }
+        navigate(routes.project(slug));
       },
       openNote: (id: string) => {
         setSelectedNoteId(id);
