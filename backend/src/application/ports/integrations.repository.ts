@@ -11,6 +11,11 @@ export abstract class CredentialRepository {
 
 export abstract class ExternalIdentityRepository {
   abstract findExternalIdentity(provider: string, identityType: string, externalId: string): Promise<ExternalIdentityRecord | null>;
+  abstract deleteExternalIdentities(input: {
+    userId: string;
+    workspaceSlug: string;
+    provider: string;
+  }): Promise<number>;
   abstract upsertExternalIdentity(input: {
     userId: string;
     workspaceSlug: string;

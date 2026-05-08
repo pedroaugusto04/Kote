@@ -10,6 +10,7 @@ import {
   StoredIntegrationStatus,
 } from '../contracts/enums.js';
 import type { IntegrationCredentialRecord } from './models/repository-records.models.js';
+import { ContentRepository } from './ports/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
 
@@ -132,6 +133,13 @@ function defaultIdentityType(provider: string): string {
   return 'external_id';
 }
 
+function externalIdentityProviderForIntegration(provider: GuidedIntegrationProvider): ExternalIdentityProvider | null {
+  if (provider === IntegrationProvider.Telegram) return ExternalIdentityProvider.Telegram;
+  if (provider === IntegrationProvider.Whatsapp) return ExternalIdentityProvider.Whatsapp;
+  if (provider === IntegrationProvider.GithubApp) return ExternalIdentityProvider.GithubApp;
+  return null;
+}
+
 function defaultSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.Whatsapp) return ['Inicie a conexao.', 'Envie o codigo no grupo do WhatsApp.'];
   if (provider === IntegrationProvider.Telegram) return ['Inicie a conexao.', 'Envie o codigo no chat do Telegram.'];
@@ -181,6 +189,7 @@ export class IntegrationCredentialService {
     private readonly credentials: CredentialRepository,
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly contentRepository?: ContentRepository,
   ) {}
 
   async list(userId: string, workspaceSlug = 'default') {
@@ -196,6 +205,17 @@ export class IntegrationCredentialService {
   async revoke(userId: string, workspaceSlug: string, provider: string) {
     if (!isGuidedProvider(provider)) throw new NotFoundException('provider_not_found');
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
+    if (provider === IntegrationProvider.Telegram || provider === IntegrationProvider.Whatsapp) {
+      await this.clearWorkspaceBinding(userId, workspaceSlug, provider);
+    }
+    const identityProvider = externalIdentityProviderForIntegration(provider);
+    if (identityProvider) {
+      await this.externalIdentities.deleteExternalIdentities({
+        userId,
+        workspaceSlug,
+        provider: identityProvider,
+      });
+    }
     const record = await this.credentials.revokeCredential(userId, workspaceSlug, provider, encryptConfig({ revoked: true }, this.environmentProvider));
     return { ok: true as const, integration: publicCredential(record, provider, workspaceSlug) };
   }
@@ -250,5 +270,18 @@ export class IntegrationCredentialService {
     const identity = await this.externalIdentities.findExternalIdentity(externalIdentity.provider, identityType, externalIdentity.externalId);
     if (!identity) throw new NotFoundException('identity_not_found');
     return identity.userId;
+  }
+
+  private async clearWorkspaceBinding(userId: string, workspaceSlug: string, provider: IntegrationProvider.Telegram | IntegrationProvider.Whatsapp) {
+    if (!this.contentRepository) return;
+    const workspaces = await this.contentRepository.listWorkspaces(userId);
+    const workspace = workspaces.find((item) => item.workspaceSlug === workspaceSlug);
+    if (!workspace) return;
+    await this.contentRepository.upsertWorkspace(userId, {
+      ...workspace,
+      whatsappGroupJid: provider === IntegrationProvider.Whatsapp ? '' : workspace.whatsappGroupJid,
+      telegramChatId: provider === IntegrationProvider.Telegram ? '' : workspace.telegramChatId,
+      updatedAt: new Date().toISOString(),
+    });
   }
 }

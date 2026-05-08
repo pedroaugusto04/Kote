@@ -107,7 +107,12 @@ async function fixture(t) {
   return {
     repositories,
     auth,
-    credentials: new IntegrationCredentialService(repositories.credentialRepository, repositories.externalIdentityRepository),
+    credentials: new IntegrationCredentialService(
+      repositories.credentialRepository,
+      repositories.externalIdentityRepository,
+      environmentProvider,
+      repositories.contentRepository,
+    ),
     connections: new IntegrationConnectionService(
       repositories.credentialRepository,
       repositories.externalIdentityRepository,
@@ -262,6 +267,52 @@ test('guided credentials are encrypted, never returned, and resolved internally 
   assert.equal(revoked.integration.status, 'revoked');
   const revokedStored = await repositories.credentialRepository.findCredential(login.user.id, 'default', 'whatsapp');
   assert.equal(JSON.stringify(revokedStored.encryptedConfig).includes('120363@g.us'), false);
+  const revokedIdentity = await repositories.externalIdentityRepository.findExternalIdentity('whatsapp', 'jid', '120363@g.us');
+  assert.equal(revokedIdentity, null);
+  const revokedWorkspace = await repositories.contentRepository.listWorkspaces(login.user.id);
+  assert.equal(revokedWorkspace[0].whatsappGroupJid, '');
+});
+
+test('telegram can reconnect after revoke because revoke clears the previous binding state', async (t) => {
+  const { auth, repositories, credentials, connections } = await fixture(t);
+  const authController = new AuthController(auth);
+  const userController = new UserIntegrationsController(credentials, connections);
+
+  const loginResponse = responseMock();
+  const login = await authController.login(
+    { email: 'admin@example.com', password: 'admin-password' },
+    { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+    loginResponse,
+  );
+  const accessToken = loginResponse.cookies.find((cookie) => cookie.name === 'kb_access_token').value;
+  const request = { headers: { origin: 'https://kb.example.com', host: 'kb.example.com', cookie: `kb_access_token=${accessToken}` }, protocol: 'https' };
+
+  const firstSetup = await userController.connect(
+    { provider: 'telegram' },
+    { workspaceSlug: 'default' },
+    login.user,
+    request,
+  );
+  await connections.completeTelegramFromWebhook({ code: firstSetup.verificationCode, chatId: '987654321' });
+
+  const revoked = await userController.revoke({ provider: 'telegram' }, { workspaceSlug: 'default' }, login.user);
+  assert.equal(revoked.integration.status, 'revoked');
+  assert.equal(await repositories.externalIdentityRepository.findExternalIdentity('telegram', 'chat_id', '987654321'), null);
+  const revokedWorkspaces = await repositories.contentRepository.listWorkspaces(login.user.id);
+  assert.equal(revokedWorkspaces[0].telegramChatId, '');
+
+  const secondSetup = await userController.connect(
+    { provider: 'telegram' },
+    { workspaceSlug: 'default' },
+    login.user,
+    request,
+  );
+  const reconnected = await connections.completeTelegramFromWebhook({ code: secondSetup.verificationCode, chatId: '987654321' });
+  assert.equal(reconnected.session.status, 'connected');
+  const restoredIdentity = await repositories.externalIdentityRepository.findExternalIdentity('telegram', 'chat_id', '987654321');
+  assert.equal(restoredIdentity?.userId, login.user.id);
+  const restoredWorkspaces = await repositories.contentRepository.listWorkspaces(login.user.id);
+  assert.equal(restoredWorkspaces[0].telegramChatId, '987654321');
 });
 
 test('guided connection rejects identity hijacking', async (t) => {
@@ -287,8 +338,13 @@ test('guided connection rejects identity hijacking', async (t) => {
 
   const secondRepositories = first.repositories;
   const secondAuth = new AuthService(secondRepositories.userRepository, secondRepositories.schemaMigrator);
-  const secondCredentials = new IntegrationCredentialService(secondRepositories.credentialRepository, secondRepositories.externalIdentityRepository);
   const secondEnvironmentProvider = runtimeEnvironmentProvider();
+  const secondCredentials = new IntegrationCredentialService(
+    secondRepositories.credentialRepository,
+    secondRepositories.externalIdentityRepository,
+    secondEnvironmentProvider,
+    secondRepositories.contentRepository,
+  );
   const secondGithubGateway = githubIntegrationGateway();
   const secondGithubRepositoryResolution = new GithubRepositoryResolutionService(
     secondRepositories.contentRepository,

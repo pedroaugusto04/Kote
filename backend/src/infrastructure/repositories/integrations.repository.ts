@@ -73,6 +73,14 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
     return result.rows[0] ? identityFromRow(result.rows[0]) : null;
   }
 
+  async deleteExternalIdentities(input: { userId: string; workspaceSlug: string; provider: string }) {
+    const result = await this.database.getPool().query(
+      'delete from kb_external_identities where user_id = $1 and workspace_slug = $2 and provider = $3',
+      [input.userId, input.workspaceSlug, input.provider],
+    );
+    return result.rowCount || 0;
+  }
+
   async upsertExternalIdentity(input: {
     userId: string;
     workspaceSlug: string;
