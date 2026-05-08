@@ -336,7 +336,7 @@ function IntegrationCard({
 export function IntegrationCallbackNotice({ status }: { status: 'connected' | 'error' }) {
   return (
     <InlineMessage tone={status === 'connected' ? 'success' : 'error'}>
-      {status === 'connected' ? 'GitHub conectado. Falta selecionar os repositorios do workspace.' : 'Nao foi possivel concluir a conexao com o GitHub.'}
+      {status === 'connected' ? 'GitHub conectado. Selecione os repositorios do workspace.' : 'Não foi possível concluir a conexão com o GitHub.'}
     </InlineMessage>
   );
 }
