@@ -195,7 +195,7 @@
               },
               {
                 "name": "text",
-                "value": "={{ '[BOT] ' + $json.text }}"
+                "value": "={{ $json.text || '' }}"
               }
             ]
           }
@@ -231,7 +231,7 @@
               },
               {
                 "name": "text",
-                "value": "={{ '[BOT] ' + $json.text }}"
+                "value": "={{ $json.text || '' }}"
               }
             ]
           }

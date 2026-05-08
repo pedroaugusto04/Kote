@@ -23,7 +23,7 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
         },
         body: JSON.stringify({
           number: input.groupJid,
-          text: `[BOT] ${normalizedText}`,
+          text: normalizedText,
         }),
       });
       if (!response.ok) return { ok: false, error: `evolution_api_http_${response.status}` };

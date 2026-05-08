@@ -245,7 +245,7 @@
               },
               {
                 "name": "text",
-                "value": "={{ '[BOT] ' + ($json.replyText || '') }}"
+                "value": "={{ $json.replyText || '' }}"
               }
             ]
           }
@@ -334,7 +334,7 @@
               },
               {
                 "name": "text",
-                "value": "={{ '[BOT] ' + $json.confirmText }}"
+                "value": "={{ $json.confirmText || '' }}"
               }
             ]
           }
