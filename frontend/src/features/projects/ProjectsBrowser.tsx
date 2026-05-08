@@ -7,7 +7,6 @@ import { EmptyState, Panel, Tags } from '../../shared/ui/primitives';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
-import { canManageNote } from './projects.helpers';
 
 type ProjectsBrowserProps = {
   dashboard: Dashboard;
@@ -112,8 +111,8 @@ export function ProjectsBrowser({
                   <NoteRow
                     dashboard={dashboard}
                     note={note}
-                    onDelete={canManageNote(note) ? onDeleteNote : undefined}
-                    onEdit={canManageNote(note) ? onEditNote : undefined}
+                    onDelete={onDeleteNote}
+                    onEdit={onEditNote}
                     onOpen={onOpenNote}
                   />
                 </div>

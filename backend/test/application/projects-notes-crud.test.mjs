@@ -6,11 +6,11 @@ import { encryptConfig } from '../../dist/application/credentials.js';
 import { GithubRepositoryResolutionService } from '../../dist/application/services/github-repository-resolution.service.js';
 import {
   CreateProjectFolderUseCase,
-  DeleteManualNoteUseCase,
+  DeleteNoteUseCase,
   DeleteProjectFolderUseCase,
   DeleteProjectUseCase,
   GetNoteDetailUseCase,
-  UpdateManualNoteUseCase,
+  UpdateNoteUseCase,
   UpdateProjectFolderUseCase,
   UpdateProjectUseCase,
 } from '../../dist/application/use-cases/index.js';
@@ -105,7 +105,7 @@ test('updates manual note content and reminder metadata only', async (t) => {
   await seedProject(repositories, user.id);
   const { note } = await seedManualNote(repositories, user.id);
 
-  const useCase = new UpdateManualNoteUseCase(repositories.contentRepository);
+  const useCase = new UpdateNoteUseCase(repositories.contentRepository);
   const result = await useCase.execute({
     id: note.id,
     title: 'Deploy revisado',
@@ -132,7 +132,7 @@ test('clears manual note reminder metadata', async (t) => {
   await seedProject(repositories, user.id);
   const { note } = await seedManualNote(repositories, user.id);
 
-  const useCase = new UpdateManualNoteUseCase(repositories.contentRepository);
+  const useCase = new UpdateNoteUseCase(repositories.contentRepository);
   await useCase.execute({
     id: note.id,
     title: 'Deploy revisado',
@@ -171,7 +171,7 @@ test('deletes manual note and attachments', async (t) => {
   assert.equal(Object.hasOwn(attachments[0], 'contentBase64'), false);
   assert.equal((await repositories.objectStorage.get(attachments[0].storageKey)).toString('utf8'), 'test');
 
-  await new DeleteManualNoteUseCase(repositories.contentRepository).execute(note.id, user.id);
+  await new DeleteNoteUseCase(repositories.contentRepository).execute(note.id, user.id);
   assert.equal(await repositories.contentRepository.getNoteById(user.id, note.id), null);
   assert.equal((await repositories.contentRepository.listAttachments(user.id, note.id)).length, 0);
   assert.equal(repositories.objectStorage.deletedKeys.includes(note.markdownStorageKey), true);
@@ -179,7 +179,7 @@ test('deletes manual note and attachments', async (t) => {
   assert.equal((await repositories.contentQueryRepository.listReminders(user.id)).length, 0);
 });
 
-test('rejects editing non-manual notes and blocks project deletion with notes', async (t) => {
+test('updates any note type and still blocks project deletion while notes exist', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
   await seedProject(repositories, user.id);
@@ -203,18 +203,30 @@ test('rejects editing non-manual notes and blocks project deletion with notes', 
     links: [],
   });
 
-  await assert.rejects(
-    () => new UpdateManualNoteUseCase(repositories.contentRepository).execute({
-      id: reviewNote.id,
-      title: 'Review',
-      rawText: 'texto',
-      tags: [],
-      reminderDate: '',
-      reminderTime: '',
-    }, user.id),
-  );
+  const result = await new UpdateNoteUseCase(repositories.contentRepository).execute({
+    id: reviewNote.id,
+    title: 'Review atualizada',
+    rawText: 'texto atualizado',
+    tags: ['review'],
+    reminderDate: '2026-05-02',
+    reminderTime: '08:45',
+    reminderAt: '2026-05-02T08:45:00.000Z',
+  }, user.id);
+
+  assert.equal(result.ok, true);
+  const updated = await repositories.contentRepository.getNoteById(user.id, reviewNote.id);
+  assert.equal(updated?.title, 'Review atualizada');
+  assert.deepEqual(updated?.tags, ['review']);
+  assert.equal(updated?.metadata.rawText, 'texto atualizado');
+  assert.equal(updated?.metadata.reminderDate, '2026-05-02');
+  assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /texto atualizado/);
+  const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute(user.id, reviewNote.id);
+  assert.equal(detail?.editor?.canDelete, true);
+  assert.equal(detail?.editor?.rawText, 'texto atualizado');
 
   await assert.rejects(() => new DeleteProjectUseCase(repositories.contentRepository).execute('platform', user.id));
+  await new DeleteNoteUseCase(repositories.contentRepository).execute(reviewNote.id, user.id);
+  assert.equal(await repositories.contentRepository.getNoteById(user.id, reviewNote.id), null);
 });
 
 test('updates project metadata while keeping slug immutable', async (t) => {
@@ -280,7 +292,7 @@ test('folders organize manual notes and update derived note paths on rename', as
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const updateFolder = new UpdateProjectFolderUseCase(repositories.contentRepository);
   const deleteFolder = new DeleteProjectFolderUseCase(repositories.contentRepository);
-  const updateNote = new UpdateManualNoteUseCase(repositories.contentRepository);
+  const updateNote = new UpdateNoteUseCase(repositories.contentRepository);
 
   const opsFolder = (await createFolder.execute({ projectSlug: 'platform', displayName: 'Ops' }, user.id)).folder;
   const runbooksFolder = (await createFolder.execute({ projectSlug: 'platform', displayName: 'Runbooks', parentFolderId: opsFolder.id }, user.id)).folder;

@@ -6,7 +6,8 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, fetchDashboard, login, logout, signup } from '../shared/api/client';
+import { ApiClientError, deleteNote, fetchDashboard, fetchNote, fetchProjectFolders, login, logout, signup } from '../shared/api/client';
+import type { NoteSummary } from '../shared/api/models/note';
 import { HomePage } from '../pages/home/HomePage';
 import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
@@ -15,8 +16,13 @@ import { ReviewsPage } from '../pages/reviews/ReviewsPage';
 import { SearchPage } from '../pages/search/SearchPage';
 import { SetupPage } from '../pages/setup/SetupPage';
 import { VaultPage } from '../pages/vault/VaultPage';
+import { flattenFolders } from '../features/projects/projects.helpers';
+import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
+import type { ConfirmState, NoteModalState } from '../features/projects/projects.types';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../shared/forms/errors';
 import { FormField } from '../shared/forms/fields';
+import { ConfirmationModal } from '../shared/ui/confirmation-modal';
+import { notifySuccess } from '../shared/ui/notifications';
 import { createAuthFormSchema, type AuthFormValues, type AuthMode } from './app-shell-auth.forms';
 import { Inspector } from './Inspector';
 
@@ -53,6 +59,8 @@ export function AppShell() {
   const [selectedNoteId, setSelectedNoteId] = useState('');
   const [selectedReviewId, setSelectedReviewId] = useState('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
   const view = activeView(location.pathname);
   const routeProject = routeParam(location.pathname, '/projects/');
@@ -65,6 +73,34 @@ export function AppShell() {
   useEffect(() => {
     setIsMobileNavOpen(false);
   }, [location.pathname]);
+
+  const noteFoldersQuery = useQuery({
+    queryKey: ['project-folders', 'app-shell-note-modal', noteModal?.mode === 'edit' ? noteModal.note.project : ''],
+    queryFn: () => fetchProjectFolders(noteModal?.mode === 'edit' ? noteModal.note.project : ''),
+    enabled: noteModal?.mode === 'edit',
+  });
+  const noteModalFolders = useMemo(
+    () => flattenFolders(noteFoldersQuery.data?.folders || []),
+    [noteFoldersQuery.data?.folders],
+  );
+  const loadNoteMutation = useMutation({
+    mutationFn: (id: string) => fetchNote(id),
+    onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
+    onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel carregar a nota para edicao.'),
+  });
+  const deleteNoteMutation = useMutation({
+    mutationFn: (id: string) => deleteNote(id),
+    onSuccess: async (_, noteId) => {
+      setConfirmState(null);
+      setSelectedNoteId((current) => (current === noteId ? '' : current));
+      if (routeNoteId === noteId) {
+        navigate(routes.vault);
+      }
+      notifySuccess('Nota excluida com sucesso.');
+      await refreshDashboard(queryClient);
+    },
+    onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel excluir a nota.'),
+  });
 
   useEffect(() => {
     if (!isMobileNavOpen) return undefined;
@@ -106,6 +142,12 @@ export function AppShell() {
       openReview: (id: string) => {
         setSelectedReviewId(id);
         navigate(routes.review(id));
+      },
+      editNote: (noteId: string) => {
+        loadNoteMutation.mutate(noteId);
+      },
+      deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => {
+        setConfirmState({ kind: 'note', note: { ...note } as NoteSummary });
       },
     };
   }, [dashboard, navigate, routeNoteId, routeProject, routeReviewId, selectedNoteId, selectedProject, selectedReviewId]);
@@ -248,8 +290,45 @@ export function AppShell() {
           view={view}
         />
       </aside>
+      {noteModal ? (
+        <ProjectNoteModal
+          folders={noteModalFolders}
+          mode={noteModal.mode}
+          note={noteModal.mode === 'edit' ? noteModal.note : undefined}
+          onClose={() => setNoteModal(null)}
+          onSaved={async (noteId, mode) => {
+            setNoteModal(null);
+            notifySuccess(mode === 'create' ? 'Nota criada com sucesso.' : 'Nota atualizada com sucesso.');
+            await refreshDashboard(queryClient);
+            if (noteId) {
+              pageContext.openNote(noteId);
+            }
+          }}
+          projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : ''}
+          initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : undefined}
+        />
+      ) : null}
+      {confirmState?.kind === 'note' ? (
+        <ConfirmationModal
+          busy={deleteNoteMutation.isPending}
+          cancelLabel="Cancelar"
+          confirmLabel="Confirmar exclusão"
+          description={`A exclusao da nota ${confirmState.note.title} tambem remove o lembrete vinculado, quando existir.`}
+          onCancel={() => setConfirmState(null)}
+          onConfirm={() => deleteNoteMutation.mutate(confirmState.note.id)}
+          title="Excluir nota"
+        />
+      ) : null}
     </div>
   );
+}
+
+async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) {
+  await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  await queryClient.invalidateQueries({ queryKey: ['notes'] });
+  await queryClient.invalidateQueries({ queryKey: ['search'] });
+  await queryClient.invalidateQueries({ queryKey: ['search-notes'] });
+  await queryClient.invalidateQueries({ queryKey: ['project-folders'] });
 }
 
 function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {

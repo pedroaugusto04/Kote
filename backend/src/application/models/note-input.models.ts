@@ -9,7 +9,7 @@ export type CreateManualNoteInput = {
   reminderAt?: string;
 };
 
-export type UpdateManualNoteInput = {
+export type UpdateNoteInput = {
   id: string;
   folderId?: string;
   title: string;

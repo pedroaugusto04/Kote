@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { buildManualEditorState } from '../notes/manual-note.helpers.js';
+import { buildNoteEditorState } from '../notes/note-editor.helpers.js';
 import { noteDetail } from '../../../infrastructure/mappers/content-query.mappers.js';
 import { ContentRepository } from '../../ports/content.repository.js';
 
@@ -13,7 +13,7 @@ export class GetNoteDetailUseCase {
     if (!note) return null;
     return {
       ...noteDetail(note),
-      editor: buildManualEditorState(note),
+      editor: buildNoteEditorState(note),
     };
   }
 }

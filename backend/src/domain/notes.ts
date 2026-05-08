@@ -45,6 +45,15 @@ export function rewriteNotePathForFolder(
   previousFolderSlugPath: string,
   nextFolderSlugPath: string,
 ): string {
+  return relocateNotePath(notePath, projectSlug, previousFolderSlugPath, nextFolderSlugPath);
+}
+
+export function relocateNotePath(
+  notePath: string,
+  projectSlug: string,
+  previousFolderSlugPath = '',
+  nextFolderSlugPath = '',
+): string {
   const normalizedPath = notePath.replace(/\\/g, '/');
   const previousPrefix = `${noteProjectPathPrefix(projectSlug, previousFolderSlugPath)}/`;
   const nextPrefix = `${noteProjectPathPrefix(projectSlug, nextFolderSlugPath)}/`;

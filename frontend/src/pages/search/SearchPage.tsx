@@ -11,7 +11,7 @@ import { Pagination } from '../../shared/ui/pagination';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 
-export function SearchPage({ dashboard, openNote }: PageContext) {
+export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageContext) {
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
   const setQuery = (newQuery: string) => {
@@ -91,10 +91,17 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
           <div className="list">
             {hasQuery
               ? queryResult.data?.matches.map((match) => (
-                <NoteRow key={match.id} note={match} dashboard={dashboard} onOpen={openNote} />
+                <NoteRow
+                  key={match.id}
+                  note={{ ...match, folderId: null }}
+                  dashboard={dashboard}
+                  onDelete={() => deleteNote({ id: match.id, title: match.title })}
+                  onEdit={() => editNote(match.id)}
+                  onOpen={openNote}
+                />
               ))
               : notesResult.data?.notes.map((note) => (
-                <NoteRow key={note.id} note={note} dashboard={dashboard} onOpen={openNote} />
+                <NoteRow key={note.id} note={note} dashboard={dashboard} onDelete={() => deleteNote(note)} onEdit={() => editNote(note.id)} onOpen={openNote} />
               ))}
           </div>
           {hasQuery && queryResult.data ? <Pagination pagination={queryResult.data.pagination} onPageChange={setPage} /> : null}

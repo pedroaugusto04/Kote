@@ -11,7 +11,7 @@ import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { MarkdownView } from '../../widgets/markdown/MarkdownView';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 
-export function VaultPage({ dashboard, selectedProject, selectedNoteId, openNote }: PageContext) {
+export function VaultPage({ dashboard, selectedProject, selectedNoteId, openNote, editNote, deleteNote }: PageContext) {
   const params = useParams();
   const routeNoteId = params.noteId ? decodeURIComponent(params.noteId) : '';
   const noteId = routeNoteId || selectedNoteId;
@@ -45,7 +45,7 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, openNote
       <div className="split">
         <aside className="document-list">
           {notes.map((note) => (
-            <NoteRow key={note.id} note={note} dashboard={dashboard} onOpen={openNote} />
+            <NoteRow key={note.id} note={note} dashboard={dashboard} onDelete={() => deleteNote(note)} onEdit={() => editNote(note.id)} onOpen={openNote} />
           ))}
           {pagination ? <Pagination pagination={pagination} onPageChange={setPage} compact /> : null}
         </aside>
@@ -59,6 +59,10 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, openNote
                   <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
                   <Badge value={noteStatusLabel(noteQuery.data.status)} tone={noteQuery.data.status} />
                   <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
+                </div>
+                <div className="toolbar">
+                  <button className="icon-button" type="button" onClick={() => editNote(noteQuery.data.id)}>Editar nota</button>
+                  <button className="icon-button danger-button" type="button" onClick={() => deleteNote(noteQuery.data)}>Excluir nota</button>
                 </div>
                 {visibleTags.length ? <Tags items={visibleTags} /> : null}
               </header>
