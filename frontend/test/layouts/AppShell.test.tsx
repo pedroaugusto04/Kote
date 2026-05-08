@@ -335,7 +335,7 @@ describe('AppShell', () => {
     expect(await screen.findByRole('heading', { name: 'Busca' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Resposta' })).not.toBeInTheDocument();
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
-    expect(screen.getByText('Deploy rollout')).toBeInTheDocument();
+    expect(await screen.findByText('Deploy rollout')).toBeInTheDocument();
   });
 
   it('switches to the projects menu when selecting a project from another section', async () => {
