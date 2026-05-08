@@ -250,7 +250,6 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />);
 
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('link', { name: 'Vault' }));
     fireEvent.click(await screen.findByText('Deploy rollout'));
 
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);

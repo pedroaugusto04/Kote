@@ -127,7 +127,9 @@ export function AppShell() {
       selectedNoteId: currentNote,
       setSelectedProject: (slug: string) => {
         setSelectedProjectState(slug);
-        navigate(routes.project(slug));
+        if (view === 'projects' || view === 'home') {
+          navigate(routes.project(slug));
+        }
       },
       openNote: (id: string) => {
         setSelectedNoteId(id);
@@ -140,7 +142,7 @@ export function AppShell() {
         setConfirmState({ kind: 'note', note: { ...note } as NoteSummary });
       },
     };
-  }, [dashboard, navigate, routeNoteId, routeProject, selectedNoteId, selectedProject]);
+  }, [dashboard, navigate, routeNoteId, routeProject, selectedNoteId, selectedProject, view]);
 
   if (dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401) {
     return <AuthScreen onAuthenticated={() => dashboardQuery.refetch()} />;

@@ -1,76 +1,120 @@
 import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { formatUsDate, noteStatusLabel, noteTypeLabel, projectName } from '../../entities/format';
 import { fetchNote, fetchNotes } from '../../shared/api/client';
+import type { NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
-import { Pagination } from '../../shared/ui/pagination';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { MarkdownView } from '../../widgets/markdown/MarkdownView';
-import { NoteRow } from '../../widgets/notes/NoteRow';
 
-export function VaultPage({ dashboard, selectedProject, selectedNoteId, openNote, editNote, deleteNote }: PageContext) {
+type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
+
+export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelectedProject, openNote }: PageContext) {
   const params = useParams();
   const routeNoteId = params.noteId ? decodeURIComponent(params.noteId) : '';
   const noteId = routeNoteId || selectedNoteId;
-  const { page, setPage } = usePaginationState(`${selectedProject}:${noteId}`);
+  const noteQuery = useQuery({ queryKey: ['note', noteId], queryFn: () => fetchNote(noteId), enabled: Boolean(noteId) });
+  const effectiveProject = noteQuery.data?.project || selectedProject;
+  const { page } = usePaginationState(`${effectiveProject}:${noteId}`);
   const notesQuery = useQuery({
-    queryKey: ['notes', 'vault', selectedProject, noteId, page],
-    queryFn: () => fetchNotes({ page, projectSlug: selectedProject, selectedId: noteId }),
-    initialData: dashboard.notes
+    queryKey: ['notes', 'vault', effectiveProject, noteId, page],
+    queryFn: () => fetchNotes({ page, projectSlug: effectiveProject, selectedId: noteId }),
+    enabled: Boolean(noteId && effectiveProject),
+    initialData: noteId && dashboard.notes
       ? {
           ok: true as const,
-          notes: dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject).slice(0, DEFAULT_PAGE_SIZE),
+          notes: dashboard.notes.filter((note) => note.project === effectiveProject).slice(0, DEFAULT_PAGE_SIZE),
           pagination: {
             page: 1,
             pageSize: DEFAULT_PAGE_SIZE,
-            total: dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject).length,
-            totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject).length / DEFAULT_PAGE_SIZE)),
-            hasNext: dashboard.notes.filter((note) => !selectedProject || note.project === selectedProject).length > DEFAULT_PAGE_SIZE,
+            total: dashboard.notes.filter((note) => note.project === effectiveProject).length,
+            totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) => note.project === effectiveProject).length / DEFAULT_PAGE_SIZE)),
+            hasNext: dashboard.notes.filter((note) => note.project === effectiveProject).length > DEFAULT_PAGE_SIZE,
             hasPrevious: false,
           },
         }
       : undefined,
   });
-  const noteQuery = useQuery({ queryKey: ['note', noteId], queryFn: () => fetchNote(noteId), enabled: Boolean(noteId) });
-  const visibleTags = noteQuery.data ? noteQuery.data.tags.filter((tag) => tag !== noteQuery.data?.project) : [];
+
+  useEffect(() => {
+    if (noteQuery.data?.project && noteQuery.data.project !== selectedProject) {
+      setSelectedProject(noteQuery.data.project);
+    }
+  }, [noteQuery.data?.project, selectedProject, setSelectedProject]);
+
+  const visibleTags = noteQuery.data ? noteQuery.data.tags.filter((tag) => tag !== noteQuery.data.project) : [];
   const notes = notesQuery.data?.notes || [];
   const pagination = notesQuery.data?.pagination;
+  const currentNoteIndex = notes.findIndex((note) => note.id === noteId);
+  const currentPage = pagination?.page || page;
+  const currentNote = currentNoteIndex >= 0 ? notes[currentNoteIndex] : null;
+  const previousNoteOnPage = currentNoteIndex > 0 ? toNavigationNote(notes[currentNoteIndex - 1]) : null;
+  const nextNoteOnPage = currentNoteIndex >= 0 && currentNoteIndex < notes.length - 1 ? toNavigationNote(notes[currentNoteIndex + 1]) : null;
+  const needsPreviousPage = Boolean(currentNote && currentNoteIndex === 0 && pagination?.hasPrevious && currentPage > 1);
+  const needsNextPage = Boolean(currentNote && currentNoteIndex === notes.length - 1 && pagination?.hasNext);
+  const previousPageQuery = useQuery({
+    queryKey: ['notes', 'vault', effectiveProject, 'previous-page', currentPage],
+    queryFn: () => fetchNotes({ page: currentPage - 1, projectSlug: effectiveProject }),
+    enabled: Boolean(effectiveProject && needsPreviousPage),
+  });
+  const nextPageQuery = useQuery({
+    queryKey: ['notes', 'vault', effectiveProject, 'next-page', currentPage],
+    queryFn: () => fetchNotes({ page: currentPage + 1, projectSlug: effectiveProject }),
+    enabled: Boolean(effectiveProject && needsNextPage),
+  });
+  const previousNote = previousNoteOnPage || lastNavigationNote(previousPageQuery.data?.notes);
+  const nextNote = nextNoteOnPage || firstNavigationNote(nextPageQuery.data?.notes);
 
   return (
     <>
       <PageHead title="Vault Explorer" subtitle="" />
-      <div className="split">
-        <aside className="document-list">
-          {notes.map((note) => (
-            <NoteRow key={note.id} note={note} dashboard={dashboard} onDelete={() => deleteNote(note)} onEdit={() => editNote(note.id)} onOpen={openNote} />
-          ))}
-          {pagination ? <Pagination pagination={pagination} onPageChange={setPage} compact /> : null}
-        </aside>
-        <article className="note-reader">
-          {noteQuery.data ? (
-            <>
-              <header className="note-reader-head">
+      <article className="note-reader vault-reader">
+        {noteQuery.data ? (
+          <>
+            <header className="note-reader-head">
+              <div className="note-reader-top">
                 <h1 className="note-title">{noteQuery.data.title}</h1>
-                <div className="note-meta-row">
-                  <Badge value={projectName(dashboard.projects, noteQuery.data.project)} tone="project" />
-                  <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
-                  <Badge value={noteStatusLabel(noteQuery.data.status)} tone={noteQuery.data.status} />
-                  <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
+                <div className="note-reader-actions" aria-label="Navegacao entre notas">
+                  <button className="icon-button" disabled={!previousNote} type="button" onClick={() => previousNote && openNote(previousNote.id)}>
+                    Anterior
+                  </button>
+                  <button className="icon-button" disabled={!nextNote} type="button" onClick={() => nextNote && openNote(nextNote.id)}>
+                    Próxima
+                  </button>
                 </div>
-                {visibleTags.length ? <Tags items={visibleTags} /> : null}
-              </header>
-              <MarkdownView markdown={readerMarkdown(noteQuery.data.markdown, noteQuery.data.title, noteQuery.data.summary)} />
-            </>
-          ) : (
-            <EmptyState>Selecione uma nota para abrir o leitor.</EmptyState>
-          )}
-        </article>
-      </div>
+              </div>
+              <div className="note-meta-row">
+                <Badge value={projectName(dashboard.projects, noteQuery.data.project)} tone="project" />
+                <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
+                <Badge value={noteStatusLabel(noteQuery.data.status)} tone={noteQuery.data.status} />
+                <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
+              </div>
+              {visibleTags.length ? <Tags items={visibleTags} /> : null}
+            </header>
+            <MarkdownView markdown={readerMarkdown(noteQuery.data.markdown, noteQuery.data.title, noteQuery.data.summary)} />
+          </>
+        ) : (
+          <EmptyState>Selecione uma nota para abrir o leitor.</EmptyState>
+        )}
+      </article>
     </>
   );
+}
+
+function toNavigationNote(note: NoteSummary | undefined): NavigationNote | null {
+  return note ? { id: note.id, title: note.title } : null;
+}
+
+function firstNavigationNote(notes: NoteSummary[] | undefined): NavigationNote | null {
+  return toNavigationNote(notes?.[0]);
+}
+
+function lastNavigationNote(notes: NoteSummary[] | undefined): NavigationNote | null {
+  return toNavigationNote(notes?.at(-1));
 }
 
 function readerMarkdown(markdown: string, title: string, summary: string) {
