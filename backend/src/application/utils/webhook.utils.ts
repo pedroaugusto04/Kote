@@ -15,7 +15,7 @@ export function sanitizeWebhookHeaders(headers: Record<string, unknown> = {}): R
 
 export function extractWhatsappExternalId(body: Record<string, unknown>): string {
   const payload = whatsappPayload(body);
-  const data = body.data as Record<string, unknown> | undefined;
+  const data = firstObjectValue(body.data);
   const key = payload.key as Record<string, unknown> | undefined;
   return String(
     body.jid ||
@@ -46,14 +46,18 @@ export type ParsedWhatsappEvolutionMessage =
     };
 
 function whatsappPayload(body: Record<string, unknown>): Record<string, unknown> {
-  const data = body.data;
-  return data && typeof data === 'object' && !Array.isArray(data)
-    ? data as Record<string, unknown>
-    : body;
+  return firstObjectValue(body.data) || body;
 }
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
   return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
+
+function firstObjectValue(value: unknown): Record<string, unknown> | undefined {
+  if (Array.isArray(value)) {
+    return value.find((entry) => entry && typeof entry === 'object' && !Array.isArray(entry)) as Record<string, unknown> | undefined;
+  }
+  return objectValue(value);
 }
 
 function stringValue(value: unknown): string {
@@ -84,7 +88,10 @@ export function parseWhatsappEvolutionMessage(body: Record<string, unknown>): Pa
   if (event && event !== 'MESSAGES_UPSERT') return { kind: 'ignored', reason: 'unsupported_event' };
 
   const key = objectValue(payload.key);
-  const message = objectValue(payload.message) || objectValue(body.message);
+  const rawMessage = objectValue(payload.message) || objectValue(body.message);
+  const message = objectValue(objectValue(rawMessage?.ephemeralMessage)?.message)
+    || objectValue(objectValue(rawMessage?.viewOnceMessage)?.message)
+    || rawMessage;
   if (!key || !message) return { kind: 'ignored', reason: 'missing_payload' };
 
   const groupId = stringValue(key.remoteJid || payload.remoteJid || payload.chatId || body.remoteJid || body.chatId);
