@@ -6,6 +6,7 @@ RUN npm ci
 FROM deps AS build
 COPY backend/tsconfig.json ./backend/tsconfig.json
 COPY backend/src ./backend/src
+COPY scripts ./scripts
 RUN npm run build:api
 
 FROM node:24-alpine AS runtime
