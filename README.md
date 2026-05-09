@@ -2,7 +2,9 @@
 
 O Knowledge Vault centraliza o conhecimento operacional da sua equipe em um único lugar, evitando a perda de contexto e decisões importantes.
 
-<img src="docs/screenshots/home-overview.png" alt="Visão geral do Knowledge Vault" width="800">
+<p align="center">
+  <img src="docs/screenshots/home-overview.png" alt="Visão geral do Knowledge Vault" width="650">
+</p>
 
 ## Visão Geral
 Transforma informações espalhadas em uma base consultável, capturando automaticamente aprendizados, decisões e pendências do dia a dia.
@@ -34,9 +36,14 @@ Captura de conhecimento onde o trabalho já acontece:
 
 ### Extras
 
-<img src="docs/screenshots/search-context.png" alt="Busca e recuperação de contexto" width="700">
-<br><em>Interface de busca e recuperação de contexto.</em>
+<p align="center">
+  <img src="docs/screenshots/search-context.png" alt="Busca e recuperação de contexto" width="600">
+  <br><em>Interface de busca e recuperação de contexto.</em>
+</p>
 
-<img src="docs/screenshots/integrations-setup.png" alt="Tela de integracoes guiadas" width="700">
-<br><em>Painel de configuração de integrações.</em>
+<p align="center">
+  <img src="docs/screenshots/integrations-setup.png" alt="Tela de integracoes guiadas" width="600">
+  <br><em>Painel de configuração de integrações.</em>
+</p>
+
 
