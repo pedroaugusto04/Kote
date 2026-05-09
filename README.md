@@ -13,7 +13,7 @@ Transforma informações espalhadas em uma base consultável, capturando automat
 - **Dashboard Operacional:** Resumo de atividades recentes, prioridades e lembretes.
 - **Captura Contínua:** Integração direta com as ferramentas que o time já usa.
 
-## Integrações Inteligentes
+## Integrações 
 Captura de conhecimento onde o trabalho já acontece:
 
 - **WhatsApp:** Envie mensagens ou áudios diretamente para o Vault. O sistema identifica o projeto automaticamente e gera notas estruturadas sem esforço manual.
@@ -30,3 +30,12 @@ Captura de conhecimento onde o trabalho já acontece:
 3. Conecte os canais (**WhatsApp/GitHub**).
 4. Comece a registrar e consultar!
 
+---
+
+### Extras
+
+![Busca e recuperação de contexto](docs/screenshots/search-context.png)
+*Interface de busca e recuperação de contexto.*
+
+![Tela de integracoes guiadas](docs/screenshots/integrations-setup.png)
+*Painel de configuração de integrações.*
