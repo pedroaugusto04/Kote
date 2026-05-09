@@ -19,7 +19,8 @@ export class DeleteProjectFolderUseCase {
     const notes = await this.contentRepository.listNotes(userId);
     const hasNestedFolders = descendantIds.length > 1;
     const hasNotes = notes.some((note) => note.projectSlug === projectSlug && note.folderId && descendantIds.includes(note.folderId));
-    if (hasNestedFolders || hasNotes) throw new BadRequestException('folder_not_empty');
+    if (hasNotes) throw new BadRequestException('folder_has_notes');
+    if (hasNestedFolders) throw new BadRequestException('folder_not_empty');
 
     await this.contentRepository.deleteProjectFolder(userId, projectSlug, folderId);
     return { ok: true as const, folderId, projectSlug };

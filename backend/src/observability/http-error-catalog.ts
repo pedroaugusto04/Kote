@@ -69,6 +69,8 @@ export const httpErrorCatalog = {
   project_repo_already_mapped: { statusCode: HttpStatus.CONFLICT, safeMessage: 'Repositorio ja vinculado a outro projeto.', logLevel: 'info' },
   project_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Projeto nao encontrado.', logLevel: 'info' },
   project_has_notes: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Exclua ou mova as notas do projeto antes de remover.', logLevel: 'info' },
+  folder_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Pasta nao encontrada.', logLevel: 'info' },
+  folder_has_notes: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Exclua ou mova as notas da pasta antes de remover.', logLevel: 'info' },
   return_to_path_must_be_relative: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Destino de retorno invalido.', logLevel: 'warn' },
   credential_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Credencial nao encontrada.', logLevel: 'warn' },
   github_app_installation_not_configured: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Instalacao do GitHub App nao configurada.', logLevel: 'warn' },
