@@ -1,44 +1,45 @@
 # Knowledge Vault
 
-O Knowledge Vault centraliza o conhecimento operacional da sua equipe em um único lugar, evitando a perda de contexto e decisões importantes.
+Knowledge Vault centralizes your team's operational knowledge in one place, preventing the loss of critical context and decisions.
 
-![Visão geral do Knowledge Vault](docs/screenshots/home-overview.png)
+![Knowledge Vault Overview](docs/screenshots/home-overview.png)
 
-## Visão Geral
-Transforma informações espalhadas em uma base consultável, capturando automaticamente aprendizados, decisões e pendências do dia a dia.
+## Overview
+Transform scattered information into a searchable knowledge base by automatically capturing daily learnings, decisions, and pending tasks.
 
-## Funcionalidades Principais
-- **Organização por Projeto:** Notas, rotinas e decisões centralizadas por contexto.
-- **Busca Contextual:** Encontre respostas rapidamente em todo o histórico do time.
-- **Dashboard Operacional:** Resumo de atividades recentes, prioridades e lembretes.
-- **Captura Contínua:** Integração direta com as ferramentas que o time já usa.
+## Key Features
+- **Project Organization:** Notes, routines, and decisions centralized by context.
+- **Contextual Search:** Instantly find answers across the team's entire history.
+- **Operational Dashboard:** A quick summary of recent activities, priorities, and reminders.
+- **Continuous Capture:** Direct integration with the tools your team already uses.
 
-## Integrações 
-Captura de conhecimento onde o trabalho já acontece:
+## Smart Integrations
+We simplify knowledge capture where the work already happens:
 
-- **WhatsApp:** Envie mensagens ou áudios diretamente para o Vault. O sistema identifica o projeto automaticamente e gera notas estruturadas sem esforço manual.
-- **GitHub Push:** Captura eventos de `git push`, analisa commits e diffs, e transforma atualizações técnicas em contexto acessível para todos, não apenas desenvolvedores.
+- **WhatsApp:** Send texts or audio directly to the Vault. The system automatically identifies the project and generates structured notes without manual effort.
+- **GitHub Push:** Captures `git push` events, analyzes commits and diffs, and transforms technical updates into accessible context for everyone, not just developers.
 
-## Por que usar?
-- **Zero perda de contexto:** Ideal para trocas de turno ou novos projetos.
-- **Onboarding acelerado:** Novos membros encontram o histórico completo em segundos.
-- **Histórico Confiável:** Uma única fonte da verdade para decisões e exceções.
+## Why Knowledge Vault?
+- **Zero context loss:** Perfect for shift handovers or new projects.
+- **Accelerated onboarding:** New members can find the complete history in seconds.
+- **Single source of truth:** A reliable record of decisions and operational exceptions.
 
-## Comece em 2 minutos
-1. Crie seu **Workspace**.
-2. Cadastre seus **Projetos**.
-3. Conecte os canais (**WhatsApp/GitHub**).
-4. Comece a registrar e consultar!
+## Quick Start (2 Minutes)
+1. Create your **Workspace**.
+2. Register your **Projects**.
+3. Connect your channels (**WhatsApp/GitHub**).
+4. Start capturing and searching!
 
 ---
 
 ### Extras
 
-![Busca e recuperação de contexto](docs/screenshots/search-context.png)
-*Interface de busca e recuperação de contexto.*
+![Search and Context Recovery](docs/screenshots/search-context.png)
+*Search interface and context recovery.*
 
-![Tela de integracoes guiadas](docs/screenshots/integrations-setup.png)
-*Painel de configuração de integrações.*
+![Guided Integrations Setup](docs/screenshots/integrations-setup.png)
+*Integration setup and configuration panel.*
+
 
 
 
