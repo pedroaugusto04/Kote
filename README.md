@@ -13,7 +13,7 @@ Transform scattered information into a searchable knowledge base by automaticall
 - **Operational Dashboard:** A quick summary of recent activities, priorities, and reminders.
 - **Continuous Capture:** Direct integration with the tools your team already uses.
 
-## Smart Integrations
+## Integrations
 We simplify knowledge capture where the work already happens:
 
 - **WhatsApp:** Send texts or audio directly to the Vault. The system automatically identifies the project and generates structured notes without manual effort.
@@ -29,13 +29,6 @@ We simplify knowledge capture where the work already happens:
 2. Register your **Projects**.
 3. Connect your channels (**WhatsApp/GitHub**).
 4. Start capturing and searching!
-
-## Reminder Time Zone
-Reminder interpretation is controlled by `KB_REMINDER_TIMEZONE` and defaults to `America/Sao_Paulo`.
-
-- Inputs such as WhatsApp reminder dates/times are interpreted in this timezone.
-- `reminderAt` is persisted in UTC.
-- Reminder dispatch uses this timezone as the local reference for daily reminder delivery.
 
 ---
 
