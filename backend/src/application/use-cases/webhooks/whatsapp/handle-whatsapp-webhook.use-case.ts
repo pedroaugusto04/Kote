@@ -21,6 +21,10 @@ type WhatsappWebhookContext = {
   externalIdentity: { provider: ExternalIdentityProvider.Whatsapp; identityType: 'jid'; externalId: string };
 };
 
+type WhatsappWebhookReplyResult = Record<string, unknown> & {
+  replyText?: unknown;
+};
+
 @Injectable()
 export class HandleWhatsappWebhookUseCase {
   constructor(
@@ -119,14 +123,14 @@ export class HandleWhatsappWebhookUseCase {
     if (!input.messageText && input.hasMedia) {
       const replyText = 'Recebi a midia, mas ainda nao baixo anexos nesta versao. Envie uma legenda ou texto para salvar como nota.';
       const sendResult = await this.sendReply(input.groupId, replyText);
-      return this.processed(context, {
+      return this.processed(context, this.withReplyAliases({
         ok: true,
         processed: true,
         action: 'reply',
         replyText,
         replySent: sendResult.ok,
         replyError: sendResult.ok ? undefined : sendResult.error,
-      }, userId);
+      }), userId);
     }
 
     const conversationResult = await conversationUseCase.execute(
@@ -134,6 +138,7 @@ export class HandleWhatsappWebhookUseCase {
       userId,
       workspaceSlug,
     );
+    const replyText = normalizeReplyText(conversationResult.replyText);
     this.logger?.info('whatsapp.conversation.result', {
       externalId: context.externalIdentity.externalId,
       senderId: input.senderId,
@@ -141,36 +146,48 @@ export class HandleWhatsappWebhookUseCase {
       messageId: input.messageId,
       messageText: input.messageText,
       action: conversationResult.action,
-      replyText: conversationResult.replyText,
+      replyText,
     });
     const shouldReply = conversationResult.action !== 'cancel';
     const sendResult = shouldReply
-      ? await this.sendReply(input.groupId, conversationResult.replyText)
+      ? await this.sendReply(input.groupId, replyText)
       : { ok: false as const, error: 'reply_not_needed' };
     this.logger?.info('whatsapp.reply.dispatch', {
       externalId: context.externalIdentity.externalId,
       groupId: input.groupId,
       shouldReply,
-      replyText: shouldReply ? conversationResult.replyText : '',
+      replyText: shouldReply ? replyText : '',
       sendOk: sendResult.ok,
       sendError: sendResult.ok ? '' : sendResult.error,
     });
-    return this.processed(context, {
+    return this.processed(context, this.withReplyAliases({
       ok: true,
       processed: true,
       action: conversationResult.action,
-      replyText: conversationResult.replyText,
+      replyText,
       payload: conversationResult.payload ?? null,
       ingestResult: 'ingestResult' in conversationResult ? conversationResult.ingestResult : undefined,
-      conversationResult,
+      conversationResult: { ...conversationResult, replyText },
       replySent: shouldReply ? sendResult.ok : false,
       replyError: shouldReply && !sendResult.ok ? sendResult.error : undefined,
-    }, userId);
+    }), userId);
   }
 
   private async sendReply(groupJid: string, text: string) {
     if (!this.whatsappReplySender) return { ok: false as const, error: 'whatsapp_reply_sender_not_configured' };
     return this.whatsappReplySender.sendText({ groupJid, text });
+  }
+
+  private withReplyAliases<T extends WhatsappWebhookReplyResult>(result: T): T & { message: string; text: string; reply: string; confirmText: string } {
+    const replyText = normalizeReplyText(result.replyText);
+    return {
+      ...result,
+      replyText,
+      message: replyText,
+      text: replyText,
+      reply: replyText,
+      confirmText: replyText,
+    };
   }
 
   private async processed<T>(context: WhatsappWebhookContext, result: T, resolvedUserId?: string) {
@@ -219,4 +236,8 @@ export class HandleWhatsappWebhookUseCase {
       error: event.error,
     });
   }
+}
+
+function normalizeReplyText(value: unknown) {
+  return String(value || '').trim() || 'Nao consegui montar a resposta. Tente novamente.';
 }

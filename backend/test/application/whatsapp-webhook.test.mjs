@@ -6,6 +6,7 @@ import {
   HandleWhatsappWebhookUseCase,
   IngestEntryUseCase,
   ProcessAgentConversationUseCase,
+  ProcessConversationUseCase,
 } from '../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
@@ -67,6 +68,12 @@ class StubConversationAgentGateway {
   }
 }
 
+class StubConversationExtractionGateway {
+  async extract() {
+    return {};
+  }
+}
+
 function configureEnv() {
   process.env.KB_WEBHOOK_SECRET = 'webhook-secret';
   process.env.KB_WPP_WEBHOOK_API_KEY = 'provider-key';
@@ -123,12 +130,22 @@ async function fixture(t, sender = new CapturingWhatsappSender()) {
     new StubConversationAgentGateway(),
     repositories.credentialRepository,
   );
+  const legacyConversation = new ProcessConversationUseCase(
+    repositories.contentRepository,
+    repositories.contentQueryRepository,
+    repositories.conversationStateRepository,
+    ingest,
+    { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', conversationTimeoutMs: 600000 }) },
+    new StubConversationExtractionGateway(),
+    repositories.credentialRepository,
+  );
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
     { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
     undefined,
     conversation,
+    legacyConversation,
     sender,
   );
   return { repositories, whatsapp, sender, user };
@@ -164,6 +181,10 @@ test('linked whatsapp group processes free text and sends the first conversation
   assert.match(result.replyText, /Sugestao de pasta/);
   assert.equal(result.replySent, true);
   assert.match(result.conversationResult.replyText, /Sugestao de pasta/);
+  assert.equal(result.message, result.replyText);
+  assert.equal(result.text, result.replyText);
+  assert.equal(result.reply, result.replyText);
+  assert.equal(result.confirmText, result.replyText);
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].groupJid, '120363@g.us');
   assert.match(sender.sent[0].text, /Sugestao de pasta/);
