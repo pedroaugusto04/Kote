@@ -11,8 +11,9 @@ export class GetNoteDetailUseCase {
   async execute(userId: string, id: string) {
     const note = await this.contentRepository.getNoteById(userId, id);
     if (!note) return null;
+    const attachments = await this.contentRepository.listAttachments(userId, id);
     return {
-      ...noteDetail(note),
+      ...noteDetail(note, attachments),
       editor: buildNoteEditorState(note),
     };
   }

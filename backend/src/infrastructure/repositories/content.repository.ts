@@ -341,7 +341,15 @@ export class PostgresContentRepository extends ContentRepository {
   }
 
   async listNotes(userId: string) {
-    const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 order by occurred_at desc, title asc', [userId]);
+    const result = await this.database.getPool().query(
+      `select n.*, count(a.id)::int as attachment_count
+       from kb_notes n
+       left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
+       where n.user_id = $1
+       group by n.id
+       order by n.occurred_at desc, n.title asc`,
+      [userId],
+    );
     return result.rows.map(noteFromRow);
   }
 
@@ -365,14 +373,22 @@ export class PostgresContentRepository extends ContentRepository {
     }
 
     const where = clauses.join(' and ');
+    const dataWhere = where
+      .replace(/\buser_id\b/g, 'n.user_id')
+      .replace(/\bworkspace_slug\b/g, 'n.workspace_slug')
+      .replace(/\bproject_slug\b/g, 'n.project_slug')
+      .replace(/\bfolder_id\b/g, 'n.folder_id');
     const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes where ${where}`, values);
     const total = Number(totalResult.rows[0]?.total || 0);
     const selectedPage = input.selectedId ? await this.resolveNotePage(input, where, values) : input.page;
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
     const result = await this.database.getPool().query(
-      `select * from kb_notes
-       where ${where}
-       order by occurred_at desc, title asc
+      `select n.*, count(a.id)::int as attachment_count
+       from kb_notes n
+       left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
+       where ${dataWhere}
+       group by n.id
+       order by n.occurred_at desc, n.title asc
        limit $${values.length + 1} offset $${values.length + 2}`,
       [...values, pagination.pageSize, (pagination.page - 1) * pagination.pageSize],
     );

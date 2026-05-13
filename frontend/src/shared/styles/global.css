@@ -140,6 +140,8 @@ p { color: var(--muted); line-height: 1.6; }
 .folder-tree-item:hover { color: var(--text); background: rgba(148, 163, 184, 0.08); border-color: var(--line-soft); }
 .folder-tree-item.active { color: #e9fbff; background: rgba(83, 199, 222, 0.13); border-color: rgba(83, 199, 222, 0.34); }
 .tag, .badge { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 7px; border: 1px solid var(--line-soft); border-radius: 999px; color: var(--muted); background: rgba(148, 163, 184, 0.06); }
+.attachment-indicator { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 3px 7px; border: 1px solid rgba(83, 199, 222, 0.3); border-radius: 999px; color: #cceff7; background: rgba(83, 199, 222, 0.09); font-family: var(--mono); font-size: 12px; }
+.attachment-indicator svg { width: 13px; height: 13px; }
 .badge.high, .badge.critical { color: #ffd1d1; border-color: rgba(255, 122, 122, 0.34); background: rgba(255, 122, 122, 0.1); }
 .badge.medium { color: #ffe3ac; border-color: rgba(240, 185, 90, 0.34); background: rgba(240, 185, 90, 0.1); }
 .badge.low, .badge.active { color: #c7f8dd; border-color: rgba(125, 211, 165, 0.34); background: rgba(125, 211, 165, 0.1); }
@@ -192,6 +194,17 @@ p { color: var(--muted); line-height: 1.6; }
 .note-title { margin-bottom: 0; }
 .note-summary { max-width: 760px; margin-bottom: 0; color: #b4c3ce; }
 .note-meta-row { row-gap: 8px; }
+.note-attachments { display: grid; gap: 12px; margin: 0 0 22px; padding-bottom: 18px; border-bottom: 1px solid var(--line-soft); }
+.note-attachment-images { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 360px)); gap: 12px; }
+.note-attachment-image-link { display: block; overflow: hidden; border: 1px solid var(--line-soft); border-radius: 8px; background: rgba(9, 15, 20, 0.45); }
+.note-attachment-image-link img { display: block; width: 100%; max-height: 360px; object-fit: contain; background: #05090d; }
+.note-attachment-files { display: grid; gap: 8px; }
+.note-attachment-file { display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 9px 11px; border: 1px solid var(--line-soft); border-radius: 8px; color: var(--text); background: rgba(148, 163, 184, 0.05); text-decoration: none; }
+.note-attachment-file:hover { border-color: rgba(83, 199, 222, 0.34); background: rgba(83, 199, 222, 0.09); }
+.note-attachment-file span:last-child { display: grid; gap: 2px; min-width: 0; }
+.note-attachment-file strong, .note-attachment-file small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-attachment-file strong { font-size: 13px; font-weight: 600; }
+.note-attachment-file small { color: var(--muted); font-family: var(--mono); font-size: 11px; }
 .markdown { color: #cdd7de; line-height: 1.7; }
 .markdown h2 { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--line-soft); color: #ecf6fa; }
 .finding { display: grid; gap: 8px; padding: 13px; }

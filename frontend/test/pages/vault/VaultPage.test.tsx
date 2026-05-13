@@ -176,6 +176,38 @@ describe('VaultPage', () => {
       expect(apiSpies.fetchNotes).toHaveBeenCalledWith({ page: 1, projectSlug: 'mobile', selectedId: foreignNote.id });
     });
   });
+
+  it('renders image attachments inline and file attachments as links', async () => {
+    const note = buildNoteSummary({ id: 'note-attachments', title: 'Nota com anexos', attachmentCount: 2 });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(note),
+      attachments: [
+        {
+          id: 'image-1',
+          fileName: 'erro.png',
+          mimeType: 'image/png',
+          sizeBytes: 2048,
+          url: '/api/notes/note-attachments/attachments/image-1/content',
+        },
+        {
+          id: 'file-1',
+          fileName: 'relatorio.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 4096,
+          url: '/api/notes/note-attachments/attachments/file-1/content',
+        },
+      ],
+    });
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
+    expect(screen.getByLabelText('2 anexos')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'erro.png' })).toHaveAttribute('src', '/api/notes/note-attachments/attachments/image-1/content');
+    expect(screen.getByRole('link', { name: /relatorio.pdf/i })).toHaveAttribute('href', '/api/notes/note-attachments/attachments/file-1/content');
+    expect(screen.getByText('application/pdf / 4.0 KB')).toBeInTheDocument();
+  });
 });
 
 function renderVaultPage({
@@ -220,6 +252,7 @@ function buildNoteSummary(overrides: Partial<NoteSummary> = {}): NoteSummary {
     status: 'active',
     summary: 'Resumo',
     source: 'manual-api',
+    attachmentCount: 0,
     ...overrides,
   };
 }
@@ -231,6 +264,7 @@ function buildNoteDetail(note: NoteSummary): NoteDetail {
     frontmatter: {},
     links: [],
     origin: 'manual-api',
+    attachments: [],
     editor: null,
   };
 }

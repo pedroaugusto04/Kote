@@ -11,6 +11,15 @@ export type VaultNoteSummary = {
   status: string;
   summary: string;
   source: string;
+  attachmentCount: number;
+};
+
+export type VaultNoteAttachment = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string;
 };
 
 export type VaultNoteDetail = VaultNoteSummary & {
@@ -18,6 +27,7 @@ export type VaultNoteDetail = VaultNoteSummary & {
   frontmatter: Record<string, unknown>;
   links: string[];
   origin: string;
+  attachments: VaultNoteAttachment[];
   editor: {
     canDelete: boolean;
     rawText: string;

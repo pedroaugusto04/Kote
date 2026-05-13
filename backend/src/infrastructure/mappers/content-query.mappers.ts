@@ -1,5 +1,5 @@
 import type { ReminderView } from '../../application/models/reminder.models.js';
-import type { NoteRecord } from '../../application/models/repository-records.models.js';
+import type { AttachmentRecord, NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../application/models/vault-note.models.js';
 
@@ -17,16 +17,28 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     status: record.status,
     summary: record.summary,
     source: record.source || record.sourceChannel,
+    attachmentCount: record.attachmentCount || 0,
   };
 }
 
-export function noteDetail(record: NoteRecord): VaultNoteDetail {
+export function noteAttachment(noteId: string, attachment: AttachmentRecord) {
   return {
-    ...noteSummary(record),
+    id: attachment.id,
+    fileName: attachment.fileName,
+    mimeType: attachment.mimeType,
+    sizeBytes: attachment.sizeBytes,
+    url: `/api/notes/${encodeURIComponent(noteId)}/attachments/${encodeURIComponent(attachment.id)}/content`,
+  };
+}
+
+export function noteDetail(record: NoteRecord, attachments: AttachmentRecord[] = []): VaultNoteDetail {
+  return {
+    ...noteSummary({ ...record, attachmentCount: attachments.length || record.attachmentCount || 0 }),
     markdown: record.markdown,
     frontmatter: record.frontmatter,
     links: record.links,
     origin: record.origin,
+    attachments: attachments.map((attachment) => noteAttachment(record.id, attachment)),
     editor: null,
   };
 }

@@ -42,6 +42,11 @@ export const noteIdParamSchema = z.object({
   id: z.string().trim().min(1),
 });
 
+export const noteAttachmentContentParamSchema = z.object({
+  noteId: z.string().trim().min(1),
+  attachmentId: z.string().trim().min(1),
+});
+
 export const updateNoteBodySchema = z
   .object({
     folderId: z.string().trim().optional().default(''),
@@ -73,4 +78,5 @@ export const updateNoteBodySchema = z
   });
 
 export type NoteIdParam = z.infer<typeof noteIdParamSchema>;
+export type NoteAttachmentContentParam = z.infer<typeof noteAttachmentContentParamSchema>;
 export type UpdateNoteBody = z.infer<typeof updateNoteBodySchema>;

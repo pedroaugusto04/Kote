@@ -2,6 +2,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { formatUsDate, noteStatusLabel, noteTypeLabel, projectName, typeIcon } from '../../entities/format';
 import { Badge } from '../../shared/ui/primitives';
+import { AttachmentIndicator } from './AttachmentIndicator';
 
 function PencilIcon() {
   return (
@@ -44,6 +45,7 @@ export function NoteRow({
           <span className="meta">
             {projectName(dashboard.projects, note.project)} / {formatUsDate(note.date)}
           </span>
+          <AttachmentIndicator count={note.attachmentCount || 0} />
         </div>
         <h3>{note.title}</h3>
         <p>{note.summary}</p>

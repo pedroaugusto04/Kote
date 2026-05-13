@@ -118,6 +118,7 @@ export type NoteRecord = {
   origin: string;
   source: string;
   links: string[];
+  attachmentCount?: number;
 };
 
 export type AttachmentRecord = {

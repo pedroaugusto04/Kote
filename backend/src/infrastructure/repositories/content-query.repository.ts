@@ -26,7 +26,15 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
   }
 
   private async loadNotes(userId: string) {
-    const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 order by occurred_at desc, title asc', [userId]);
+    const result = await this.database.getPool().query(
+      `select n.*, count(a.id)::int as attachment_count
+       from kb_notes n
+       left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
+       where n.user_id = $1
+       group by n.id
+       order by n.occurred_at desc, n.title asc`,
+      [userId],
+    );
     return result.rows.map(noteFromRow);
   }
 
@@ -35,7 +43,15 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
   }
 
   async getById(userId: string, id: string) {
-    const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and id = $2 limit 1', [userId, id]);
+    const result = await this.database.getPool().query(
+      `select n.*, count(a.id)::int as attachment_count
+       from kb_notes n
+       left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
+       where n.user_id = $1 and n.id = $2
+       group by n.id
+       limit 1`,
+      [userId, id],
+    );
     const note = result.rows[0] ? await this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
     return note ? noteDetail(note) : null;
   }

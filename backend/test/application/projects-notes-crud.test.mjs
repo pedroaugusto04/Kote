@@ -9,6 +9,7 @@ import {
   DeleteNoteUseCase,
   DeleteProjectFolderUseCase,
   DeleteProjectUseCase,
+  GetNoteAttachmentContentUseCase,
   GetNoteDetailUseCase,
   UpdateNoteUseCase,
   UpdateProjectFolderUseCase,
@@ -177,6 +178,131 @@ test('deletes manual note and attachments', async (t) => {
   assert.equal(repositories.objectStorage.deletedKeys.includes(note.markdownStorageKey), true);
   assert.equal(repositories.objectStorage.deletedKeys.includes(attachments[0].storageKey), true);
   assert.equal((await repositories.contentQueryRepository.listReminders(user.id)).length, 0);
+});
+
+test('note list and detail expose attachment metadata without storage internals', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+  const { note } = await seedManualNote(repositories, user.id);
+  const second = await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/platform/2026/04/note-2.md',
+    type: 'event',
+    title: 'Nota com um anexo',
+    projectSlug: 'platform',
+    workspaceSlug: 'default',
+    folderId: null,
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-28T10:00:00.000Z',
+    sourceChannel: 'external',
+    summary: 'um anexo',
+    markdown: '# Nota com um anexo',
+    frontmatter: {},
+    metadata: {},
+    origin: 'postgres',
+    source: 'manual-api',
+    links: [],
+  });
+  const third = await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/platform/2026/04/note-3.md',
+    type: 'event',
+    title: 'Nota sem anexo',
+    projectSlug: 'platform',
+    workspaceSlug: 'default',
+    folderId: null,
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-29T10:00:00.000Z',
+    sourceChannel: 'external',
+    summary: 'sem anexo',
+    markdown: '# Nota sem anexo',
+    frontmatter: {},
+    metadata: {},
+    origin: 'postgres',
+    source: 'manual-api',
+    links: [],
+  });
+
+  await repositories.contentRepository.saveAttachment(user.id, {
+    noteId: note.id,
+    fileName: 'image.png',
+    mimeType: 'image/png',
+    sizeBytes: 5,
+    dataBase64: Buffer.from('image').toString('base64'),
+    checksumSha256: 'checksum-1',
+    metadata: {},
+  });
+  await repositories.contentRepository.saveAttachment(user.id, {
+    noteId: note.id,
+    fileName: 'doc.pdf',
+    mimeType: 'application/pdf',
+    sizeBytes: 3,
+    dataBase64: Buffer.from('pdf').toString('base64'),
+    checksumSha256: 'checksum-2',
+    metadata: {},
+  });
+  await repositories.contentRepository.saveAttachment(user.id, {
+    noteId: second.id,
+    fileName: 'one.txt',
+    mimeType: 'text/plain',
+    sizeBytes: 3,
+    dataBase64: Buffer.from('one').toString('base64'),
+    checksumSha256: 'checksum-3',
+    metadata: {},
+  });
+
+  const page = await repositories.contentRepository.listNotesPage(user.id, { page: 1, pageSize: 10, projectSlug: 'platform' });
+  const counts = new Map(page.items.map((item) => [item.id, item.attachmentCount]));
+  assert.equal(counts.get(note.id), 2);
+  assert.equal(counts.get(second.id), 1);
+  assert.equal(counts.get(third.id), 0);
+
+  const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute(user.id, note.id);
+  assert.equal(detail.attachmentCount, 2);
+  assert.equal(detail.attachments.length, 2);
+  assert.deepEqual(Object.keys(detail.attachments[0]).sort(), ['fileName', 'id', 'mimeType', 'sizeBytes', 'url']);
+  assert.match(detail.attachments[0].url, new RegExp(`/api/notes/${note.id}/attachments/.+/content$`));
+  assert.equal(Object.hasOwn(detail.attachments[0], 'storageKey'), false);
+  assert.equal(Object.hasOwn(detail.attachments[0], 'dataBase64'), false);
+});
+
+test('note attachment content use case returns bytes and blocks unrelated attachments', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const otherUser = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+  await seedProject(repositories, otherUser.id);
+  const { note } = await seedManualNote(repositories, user.id);
+  const { note: otherNote } = await seedManualNote(repositories, otherUser.id);
+  const attachment = await repositories.contentRepository.saveAttachment(user.id, {
+    noteId: note.id,
+    fileName: 'evidence.txt',
+    mimeType: 'text/plain',
+    sizeBytes: 11,
+    dataBase64: Buffer.from('hello world').toString('base64'),
+    checksumSha256: 'checksum',
+    metadata: {},
+  });
+  const otherAttachment = await repositories.contentRepository.saveAttachment(otherUser.id, {
+    noteId: otherNote.id,
+    fileName: 'other.txt',
+    mimeType: 'text/plain',
+    sizeBytes: 5,
+    dataBase64: Buffer.from('other').toString('base64'),
+    checksumSha256: 'other-checksum',
+    metadata: {},
+  });
+  const useCase = new GetNoteAttachmentContentUseCase(repositories.contentRepository, repositories.objectStorage);
+
+  const content = await useCase.execute(user.id, note.id, attachment.id);
+
+  assert.equal(content.fileName, 'evidence.txt');
+  assert.equal(content.mimeType, 'text/plain');
+  assert.equal(content.sizeBytes, 11);
+  assert.equal(content.body.toString('utf8'), 'hello world');
+  assert.equal(await useCase.execute(user.id, note.id, otherAttachment.id), null);
+  assert.equal(await useCase.execute(user.id, otherNote.id, otherAttachment.id), null);
 });
 
 test('updates any note type and still blocks project deletion while notes exist', async (t) => {

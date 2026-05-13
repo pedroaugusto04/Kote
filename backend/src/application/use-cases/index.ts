@@ -10,6 +10,7 @@ export { DeleteProjectFolderUseCase } from './projects/delete-project-folder.use
 export { UpdateProjectUseCase } from './projects/update-project.use-case.js';
 export { CreateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
 export { DeleteNoteUseCase } from './notes/delete-manual-note.use-case.js';
+export { GetNoteAttachmentContentUseCase } from './notes/get-note-attachment-content.use-case.js';
 export { UpdateNoteUseCase } from './notes/update-manual-note.use-case.js';
 export { GetNoteDetailUseCase } from './dashboard/get-note-detail.use-case.js';
 export { GetReviewDetailUseCase } from './dashboard/get-review-detail.use-case.js';

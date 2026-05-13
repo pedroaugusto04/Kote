@@ -167,6 +167,7 @@ export function noteFromRow(row: Row): NoteRecord {
     origin: String(row.origin || 'postgres'),
     source: String(row.source || row.source_channel || ''),
     links: stringArray(row.links),
+    attachmentCount: Number(row.attachment_count || 0),
   };
 }
 

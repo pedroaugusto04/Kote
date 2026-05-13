@@ -6,11 +6,12 @@ import { useParams } from 'react-router-dom';
 import type { PageContext } from '../../app/page-context';
 import { formatUsDate, noteStatusLabel, noteTypeLabel, projectName } from '../../entities/format';
 import { fetchNote, fetchNotes } from '../../shared/api/client';
-import type { NoteSummary } from '../../shared/api/models/note';
+import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { MarkdownView } from '../../widgets/markdown/MarkdownView';
+import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 
 type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
 
@@ -97,9 +98,11 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
                 <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
                 <Badge value={noteStatusLabel(noteQuery.data.status)} tone={noteQuery.data.status} />
                 <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
+                <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
               </div>
               {visibleTags.length ? <Tags items={visibleTags} /> : null}
             </header>
+            <NoteAttachments attachments={noteQuery.data.attachments} />
             <MarkdownView markdown={readerMarkdown(noteQuery.data.markdown, noteQuery.data.title, noteQuery.data.summary)} />
           </>
         ) : (
@@ -107,6 +110,40 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
         )}
       </article>
     </>
+  );
+}
+
+function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {
+  if (!attachments?.length) return null;
+
+  const images = attachments.filter((attachment) => attachment.mimeType.startsWith('image/'));
+  const files = attachments.filter((attachment) => !attachment.mimeType.startsWith('image/'));
+
+  return (
+    <section className="note-attachments" aria-label="Anexos">
+      {images.length ? (
+        <div className="note-attachment-images">
+          {images.map((attachment) => (
+            <a key={attachment.id} className="note-attachment-image-link" href={attachment.url} target="_blank" rel="noreferrer">
+              <img src={attachment.url} alt={attachment.fileName} loading="lazy" />
+            </a>
+          ))}
+        </div>
+      ) : null}
+      {files.length ? (
+        <div className="note-attachment-files">
+          {files.map((attachment) => (
+            <a key={attachment.id} className="note-attachment-file" href={attachment.url} target="_blank" rel="noreferrer">
+              <span className="file-icon" aria-hidden="true">&gt;</span>
+              <span>
+                <strong>{attachment.fileName}</strong>
+                <small>{attachment.mimeType} / {formatFileSize(attachment.sizeBytes)}</small>
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -186,4 +223,10 @@ function normalizeReaderText(value: string) {
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLocaleLowerCase();
+}
+
+function formatFileSize(sizeBytes: number) {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }

@@ -119,6 +119,8 @@ test('projects and notes controllers delegate create requests to use cases', asy
     execute: async (body, userId) => ({ ok: true, noteId: body.id, body, userId }),
   }, {
     execute: async (id, userId) => ({ ok: true, noteId: id, userId }),
+  }, {
+    execute: async () => null,
   });
 
   assert.deepEqual(
@@ -139,4 +141,41 @@ test('projects and notes controllers delegate create requests to use cases', asy
     { ok: true, noteId: 'note-1', body: { id: 'note-1', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },
   );
   assert.deepEqual(await notes.remove({ id: 'note-1' }, user), { ok: true, noteId: 'note-1', userId: 'user-1' });
+});
+
+test('notes controller serves attachment content with inline headers', async () => {
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  const notes = new NotesController({
+    execute: async () => null,
+  }, {
+    execute: async () => null,
+  }, {
+    execute: async () => null,
+  }, {
+    execute: async (userId, noteId, attachmentId) => ({
+      fileName: `${userId}-${noteId}-${attachmentId}.txt`,
+      mimeType: 'text/plain',
+      sizeBytes: 5,
+      body: Buffer.from('hello'),
+    }),
+  });
+  const response = {
+    headers: {},
+    sent: null,
+    setHeader(name, value) {
+      this.headers[name] = value;
+    },
+    send(body) {
+      this.sent = body;
+      return this;
+    },
+  };
+
+  const result = await notes.attachmentContent({ noteId: 'note-1', attachmentId: 'att-1' }, user, response);
+
+  assert.equal(result, response);
+  assert.equal(response.headers['Content-Type'], 'text/plain');
+  assert.equal(response.headers['Content-Length'], '5');
+  assert.match(response.headers['Content-Disposition'], /^inline; filename="user-1-note-1-att-1\.txt"/);
+  assert.equal(response.sent.toString('utf8'), 'hello');
 });
