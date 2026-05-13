@@ -341,6 +341,7 @@ test('telegram reminder worker delegates to direct dispatch use case', async () 
   const worker = new TelegramReminderDispatchWorker(
     { execute: async () => { calls += 1; return { ok: true, sent: 0 }; } },
     createLoggerStub(),
+    { read: () => ({ databaseUrl: 'postgres://test' }) },
   );
 
   const result = await worker.runOnce();

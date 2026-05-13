@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 
-import { readEnvironment } from '../../../adapters/environment.js';
 import { type ConversationInput, conversationStateSchema, type ConversationState } from '../../../contracts/conversation.js';
 import { DEFAULT_PAGE_SIZE } from '../../../contracts/pagination.js';
 import { CredentialRecordStatus, ConversationConfidence, ConversationPhase, IntegrationProvider, KnowledgeKind } from '../../../contracts/enums.js';
@@ -81,7 +80,7 @@ type ConversationContext = {
 };
 
 async function processConversationInPostgres(args: ProcessConversationArgs) {
-  const environment = args.environmentProvider?.read ? args.environmentProvider.read() : readEnvironment();
+  const environment = args.environmentProvider.read();
   const context = await loadConversationContext(args, environment.conversationTimeoutMs);
   const command = context.current.phase === ConversationPhase.Idle ? parseKnowledgeCommand(context.message) : null;
 

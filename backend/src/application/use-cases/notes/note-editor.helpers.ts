@@ -1,4 +1,3 @@
-import { readEnvironment } from '../../../adapters/environment.js';
 import { buildReminderAt } from '../../../domain/time.js';
 import { renderFrontmatter } from '../../../domain/frontmatter.js';
 import { relocateNotePath } from '../../../domain/notes.js';
@@ -15,7 +14,13 @@ export function buildNoteEditorState(note: NoteRecord) {
   };
 }
 
-export function buildUpdatedNote(note: NoteRecord, previousFolder: ProjectFolderRecord | null, nextFolder: ProjectFolderRecord | null, input: UpdateNoteInput) {
+export function buildUpdatedNote(
+  note: NoteRecord,
+  previousFolder: ProjectFolderRecord | null,
+  nextFolder: ProjectFolderRecord | null,
+  input: UpdateNoteInput,
+  reminderTimeZone: string,
+) {
   const title = trimText(input.title, note.title || input.rawText);
   const rawText = normalizeMultiline(input.rawText);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
@@ -34,7 +39,7 @@ export function buildUpdatedNote(note: NoteRecord, previousFolder: ProjectFolder
     rawText,
     reminderDate: input.reminderDate,
     reminderTime: input.reminderTime,
-    reminderAt: input.reminderAt || buildReminderAt(input.reminderDate, input.reminderTime, readEnvironment().reminderTimeZone),
+    reminderAt: input.reminderAt || buildReminderAt(input.reminderDate, input.reminderTime, reminderTimeZone),
   };
 
   return {

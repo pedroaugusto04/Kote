@@ -2,15 +2,15 @@ import type { ConversationInput, ConversationState } from '../../contracts/conve
 import {
   CanonicalType,
   ConversationPhase,
-  EventType,
   Importance,
   KnowledgeKind,
   KnowledgeStatus,
-  SourceChannel,
 } from '../../contracts/enums.js';
-import { ingestPayloadSchema, type IngestPayload } from '../../contracts/ingest.js';
+import type { IngestPayload } from '../../contracts/ingest.js';
 import { slugify } from '../../domain/strings.js';
-import { buildReminderAt, nowIso } from '../../domain/time.js';
+import { buildConversationIngestPayload } from './conversation-payload.utils.js';
+
+export { isCancel, isConfirm, isSkip } from './conversation-command.utils.js';
 
 export const emptyConversationState: ConversationState = {
   phase: ConversationPhase.Idle,
@@ -38,18 +38,6 @@ export function conversationKey(input: ConversationInput): string {
 export function isExpired(state: ConversationState, timeoutMs: number): boolean {
   if (!state.updatedAt || state.phase === ConversationPhase.Idle) return false;
   return Date.now() - new Date(state.updatedAt).getTime() > timeoutMs;
-}
-
-export function isCancel(text: string): boolean {
-  return ['cancelar', 'cancel', 'cancela', 'sair', '0'].includes(text.toLowerCase().trim());
-}
-
-export function isConfirm(text: string): boolean {
-  return ['sim', 's', 'confirmar', '1', 'ok', 'enviar'].includes(text.toLowerCase().trim());
-}
-
-export function isSkip(text: string): boolean {
-  return ['pular', 'skip', 'nao', 'não', 'n', '9', 'sem'].includes(text.toLowerCase().trim());
 }
 
 export function parseKnowledgeCommand(text: string): { query: string } | null {
@@ -129,46 +117,19 @@ export function normalizeConversationTags(tags: unknown): string[] {
 }
 
 export function buildConversationPayload(input: ConversationInput, state: ConversationState, reminderTimeZone = 'America/Sao_Paulo'): IngestPayload {
-  return ingestPayloadSchema.parse({
-    source: {
-      channel: SourceChannel.Whatsapp,
-      system: 'evolution-api',
-      actor: input.senderId,
-      conversationId: input.groupId,
-      correlationId: `wpp:${input.messageId || Date.now().toString()}`,
-    },
-    event: {
-      type: EventType.ManualNote,
-      occurredAt: nowIso(),
-      projectSlug: state.projectSlug || 'inbox',
-    },
-    content: {
-      rawText: state.rawText,
-      title: '',
-      attachments: state.media.fileName ? [state.media] : [],
-      sections: {
-        summary: state.rawText,
-        impact: '',
-        risks: [],
-        nextSteps: [],
-        reviewFindings: [],
-      },
-    },
-    classification: {
-      kind: state.kind,
-      canonicalType: state.canonicalType,
-      importance: state.importance,
-      status: state.canonicalType === CanonicalType.Event ? KnowledgeStatus.Active : KnowledgeStatus.Open,
-      tags: state.tags,
-      decisionFlag: state.canonicalType === CanonicalType.Decision,
-    },
-    actions: {
-      reminderDate: state.reminderDate,
-      reminderTime: state.reminderTime,
-      followUpBy: '',
-    },
-    metadata: {
-      reminderAt: buildReminderAt(state.reminderDate, state.reminderTime, reminderTimeZone),
-    },
+  return buildConversationIngestPayload({
+    input,
+    correlationPrefix: 'wpp',
+    projectSlug: state.projectSlug || 'inbox',
+    rawText: state.rawText,
+    media: state.media,
+    kind: state.kind,
+    canonicalType: state.canonicalType,
+    importance: state.importance,
+    status: state.canonicalType === CanonicalType.Event ? KnowledgeStatus.Active : KnowledgeStatus.Open,
+    tags: state.tags,
+    reminderDate: state.reminderDate,
+    reminderTime: state.reminderTime,
+    reminderTimeZone,
   });
 }

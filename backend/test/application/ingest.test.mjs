@@ -67,7 +67,7 @@ test('ingest persists one event note with derived reminder, attachment and works
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
-  const result = await new IngestEntryUseCase(repositories.contentRepository).execute(payload(), user.id, 'default');
+  const result = await new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider).execute(payload(), user.id, 'default');
 
   assert.equal(result.ok, true);
   assert.match(result.eventPath, /^20 Inbox\/n8n-automations\//);
@@ -107,7 +107,7 @@ test('ingest fails when the target workspace does not exist', async (t) => {
   const user = await repositories.createTestUser();
 
   await assert.rejects(
-    () => new IngestEntryUseCase(repositories.contentRepository).execute(payload(), user.id, 'default'),
+    () => new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider).execute(payload(), user.id, 'default'),
     /workspace_not_found/,
   );
 });
@@ -136,7 +136,8 @@ test('manual note creation uses ingest and derives optional reminder from the no
   });
   const useCase = new CreateManualNoteUseCase(
     repositories.contentRepository,
-    new IngestEntryUseCase(repositories.contentRepository),
+    new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider),
+    repositories.runtimeEnvironmentProvider,
   );
 
   const withoutReminder = await useCase.execute({

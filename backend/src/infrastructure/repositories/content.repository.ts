@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import type { PoolClient } from 'pg';
 
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectsInput } from '../../application/models/project-list.models.js';
@@ -34,6 +35,28 @@ const PROJECT_WITH_METADATA_SELECT = `SELECT p.*,
     'updated_at', r.updated_at
   )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
 FROM kb_projects p`;
+
+function noteMutableValues(input: SaveNoteInput, markdownStorageKey: string): unknown[] {
+  return [
+    input.path,
+    input.type,
+    input.title,
+    input.projectSlug,
+    input.workspaceSlug,
+    input.folderId,
+    input.status,
+    JSON.stringify(input.tags),
+    input.occurredAt,
+    input.sourceChannel,
+    input.summary,
+    markdownStorageKey,
+    JSON.stringify(input.frontmatter),
+    JSON.stringify(input.metadata),
+    input.origin,
+    input.source,
+    JSON.stringify(input.links),
+  ];
+}
 
 @Injectable()
 export class PostgresContentRepository extends ContentRepository {
@@ -280,6 +303,35 @@ export class PostgresContentRepository extends ContentRepository {
     return projectFolderFromRow(result.rows[0]);
   }
 
+  async updateProjectFolderTree(userId: string, input: { folders: SaveProjectFolderInput[]; notes: SaveNoteInput[] }) {
+    const noteWrites = await Promise.all(input.notes.map(async (note) => ({
+      note,
+      previousMarkdownStorageKey: note.markdownStorageKey || '',
+      markdownStorageKey: await this.contentObjectStorage.saveNoteMarkdown(userId, { ...note, markdownStorageKey: undefined }),
+    })));
+    const client = await this.database.getPool().connect();
+    try {
+      await client.query('BEGIN');
+      for (const folder of input.folders) {
+        await this.upsertProjectFolderWithClient(client, userId, folder);
+      }
+      for (const write of noteWrites) {
+        await this.updateNoteWithClient(client, userId, write.note, write.markdownStorageKey);
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    await this.contentObjectStorage.deleteObjects(
+      noteWrites
+        .filter((write) => write.previousMarkdownStorageKey && write.previousMarkdownStorageKey !== write.markdownStorageKey)
+        .map((write) => write.previousMarkdownStorageKey),
+    );
+  }
+
   async deleteProjectFolder(userId: string, projectSlug: string, folderId: string) {
     const result = await this.database.getPool().query(
       'delete from kb_project_folders where user_id = $1 and project_slug = $2 and id = $3',
@@ -365,28 +417,8 @@ export class PostgresContentRepository extends ContentRepository {
          source = excluded.source,
          links = excluded.links,
          updated_at = now()
-       returning *`,
-      [
-        input.id || crypto.randomUUID(),
-        userId,
-        input.path,
-        input.type,
-        input.title,
-        input.projectSlug,
-        input.workspaceSlug,
-        input.folderId,
-        input.status,
-        JSON.stringify(input.tags),
-        input.occurredAt,
-        input.sourceChannel,
-        input.summary,
-        markdownStorageKey,
-        JSON.stringify(input.frontmatter),
-        JSON.stringify(input.metadata),
-        input.origin,
-        input.source,
-        JSON.stringify(input.links),
-      ],
+      returning *`,
+      [input.id || crypto.randomUUID(), userId, ...noteMutableValues(input, markdownStorageKey)],
     );
     return { ...noteFromRow(result.rows[0]), markdown: input.markdown };
   }
@@ -394,7 +426,44 @@ export class PostgresContentRepository extends ContentRepository {
   async updateNote(userId: string, input: SaveNoteInput) {
     const existing = await this.getNoteById(userId, String(input.id || ''));
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
-    const result = await this.database.getPool().query(
+    const result = await this.updateNoteWithClient(this.database.getPool(), userId, input, markdownStorageKey);
+    if (existing?.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
+      await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
+    }
+    return { ...noteFromRow(result.rows[0]), markdown: input.markdown };
+  }
+
+  private async upsertProjectFolderWithClient(client: PoolClient, userId: string, input: SaveProjectFolderInput) {
+    return client.query(
+      `insert into kb_project_folders (
+         id, user_id, workspace_slug, project_slug, parent_folder_id, display_name, folder_slug, full_slug_path
+       )
+       values ($1, $2, $3, $4, $5, $6, $7, $8)
+       on conflict (id)
+       do update set
+         workspace_slug = excluded.workspace_slug,
+         project_slug = excluded.project_slug,
+         parent_folder_id = excluded.parent_folder_id,
+         display_name = excluded.display_name,
+         folder_slug = excluded.folder_slug,
+         full_slug_path = excluded.full_slug_path,
+         updated_at = now()
+       returning *`,
+      [
+        input.id || crypto.randomUUID(),
+        userId,
+        input.workspaceSlug,
+        input.projectSlug,
+        input.parentFolderId,
+        input.displayName,
+        input.folderSlug,
+        input.fullSlugPath,
+      ],
+    );
+  }
+
+  private async updateNoteWithClient(client: Pick<PoolClient, 'query'>, userId: string, input: SaveNoteInput, markdownStorageKey: string) {
+    return client.query(
       `update kb_notes
        set path = $3,
            type = $4,
@@ -416,32 +485,8 @@ export class PostgresContentRepository extends ContentRepository {
            updated_at = now()
        where user_id = $1 and id = $2
        returning *`,
-      [
-        userId,
-        input.id,
-        input.path,
-        input.type,
-        input.title,
-        input.projectSlug,
-        input.workspaceSlug,
-        input.folderId,
-        input.status,
-        JSON.stringify(input.tags),
-        input.occurredAt,
-        input.sourceChannel,
-        input.summary,
-        markdownStorageKey,
-        JSON.stringify(input.frontmatter),
-        JSON.stringify(input.metadata),
-        input.origin,
-        input.source,
-        JSON.stringify(input.links),
-      ],
+      [userId, input.id, ...noteMutableValues(input, markdownStorageKey)],
     );
-    if (existing?.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
-      await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
-    }
-    return { ...noteFromRow(result.rows[0]), markdown: input.markdown };
   }
 
   async deleteNote(userId: string, id: string) {

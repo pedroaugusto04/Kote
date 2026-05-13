@@ -8,4 +8,4 @@ export const githubRepositoriesFormSchema = z.object({
   repositories: z.array(z.string().trim().min(1, 'Selecione um repositorio valido.')).max(100, 'Selecione no maximo 100 repositorios.'),
 });
 
-export type GithubRepositoriesFormValues = z.infer<typeof githubRepositoriesFormSchema>; 
+export type GithubRepositoriesFormValues = z.infer<typeof githubRepositoriesFormSchema>;

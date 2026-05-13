@@ -10,6 +10,7 @@ import { PostgresWebhookEventRepository } from '../../dist/infrastructure/reposi
 import { PostgresWorkflowStateRepository } from '../../dist/infrastructure/repositories/workflow-state.repository.js';
 import { webhookEventFromRow } from '../../dist/infrastructure/mappers/row.mappers.js';
 import { PostgresSchemaMigrator } from '../../dist/infrastructure/persistence/schema.migrator.js';
+import { readEnvironment } from '../../dist/adapters/environment.js';
 import { ContentObjectStorageService } from '../../dist/application/services/content-object-storage.service.js';
 import { ObjectStorageMissingContentError } from '../../dist/application/ports/object-storage.js';
 
@@ -127,6 +128,12 @@ export async function createPostgresTestRepositories(t) {
   const contentQueryRepository = new PostgresContentQueryRepository(database, contentObjectStorage);
   const workflowStateRepository = new PostgresWorkflowStateRepository(database);
   const webhookEventRepository = new PostgresWebhookEventRepository(database);
+  const runtimeEnvironmentProvider = {
+    read: () => ({
+      ...readEnvironment(),
+      databaseUrl: targetUrl.toString(),
+    }),
+  };
 
   let closed = false;
   async function close() {
@@ -187,5 +194,6 @@ export async function createPostgresTestRepositories(t) {
     conversationStateRepository: workflowStateRepository,
     reminderDispatchRepository: workflowStateRepository,
     webhookEventRepository,
+    runtimeEnvironmentProvider,
   };
 }

@@ -28,6 +28,7 @@ export abstract class ContentRepository {
   abstract listProjectFolders(userId: string, projectSlug: string): Promise<ProjectFolderRecord[]>;
   abstract getProjectFolderById(userId: string, projectSlug: string, folderId: string): Promise<ProjectFolderRecord | null>;
   abstract upsertProjectFolder(userId: string, input: SaveProjectFolderInput): Promise<ProjectFolderRecord>;
+  abstract updateProjectFolderTree(userId: string, input: { folders: SaveProjectFolderInput[]; notes: SaveNoteInput[] }): Promise<void>;
   abstract deleteProjectFolder(userId: string, projectSlug: string, folderId: string): Promise<boolean>;
   abstract listNotes(userId: string): Promise<NoteRecord[]>;
   abstract listNotesPage(userId: string, input: ListNotesInput): Promise<PaginatedNotes>;

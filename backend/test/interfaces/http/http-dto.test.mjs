@@ -66,7 +66,7 @@ test('create project dto normalizes slug, aliases and default tags', () => {
   });
 });
 
-test('create note dto normalizes project, tags and reminder fields', () => {
+test('create note dto normalizes project, tags and keeps reminder date as transport input', () => {
   const parsed = createNoteBodySchema.parse({
     projectSlug: 'Acme API',
     title: 'Deploy',
@@ -78,7 +78,7 @@ test('create note dto normalizes project, tags and reminder fields', () => {
 
   assert.equal(parsed.projectSlug, 'acme-api');
   assert.deepEqual(parsed.tags, ['deploy']);
-  assert.equal(parsed.reminderDate, '2026-04-29');
+  assert.equal(parsed.reminderDate, '29/04/2026');
   assert.equal(parsed.reminderTime, '09:30');
   assert.throws(() => createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto', reminderTime: '09:00' }));
   assert.equal(noteIdParamSchema.parse({ id: 'note-1' }).id, 'note-1');
@@ -86,7 +86,7 @@ test('create note dto normalizes project, tags and reminder fields', () => {
     title: 'Deploy',
     rawText: 'texto',
     tags: ['deploy'],
-    reminderDate: '2026-04-29',
+    reminderDate: '29/04/2026',
     reminderTime: '09:30',
     reminderAt: '',
     folderId: undefined,

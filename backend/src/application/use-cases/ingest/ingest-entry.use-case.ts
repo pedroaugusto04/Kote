@@ -2,13 +2,13 @@ import crypto from 'node:crypto';
 
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { readEnvironment } from '../../../adapters/environment.js';
 import { CanonicalType, KnowledgeStatus } from '../../../contracts/enums.js';
-import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
+import { ingestPayloadSchema, withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
 import { buildNotePaths, renderEventNote } from '../../../domain/notes.js';
 import type { Project } from '../../../domain/projects.js';
 import { slugify, trimText } from '../../../domain/strings.js';
 import { ContentRepository } from '../../ports/content.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
 
 type IngestExecutionOptions = {
   folderId?: string;
@@ -16,29 +16,43 @@ type IngestExecutionOptions = {
 
 @Injectable()
 export class IngestEntryUseCase {
-  constructor(private readonly contentRepository: ContentRepository) {}
+  constructor(
+    private readonly contentRepository: ContentRepository,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
+  ) {}
 
   async execute(input: IngestPayload, userId: string, workspaceSlug = '', options: IngestExecutionOptions = {}) {
-    return saveIngestedNote(this.contentRepository, userId, input, workspaceSlug, options);
+    return saveIngestedNote(
+      this.contentRepository,
+      userId,
+      input,
+      this.environmentProvider.read().reminderTimeZone,
+      workspaceSlug,
+      options,
+    );
   }
 }
 
 function projectFromPayload(payload: IngestPayload, workspaceSlug: string): Project {
   const projectSlug = slugify(payload.event.projectSlug) || 'inbox';
+  const repoFullName = String(payload.metadata.repoFullName || '').trim();
+  const repositories = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repoFullName)
+    ? [{
+        id: '',
+        workspaceSlug,
+        externalId: '0',
+        fullName: repoFullName,
+        htmlUrl: null,
+        description: null,
+        defaultBranch: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }]
+    : [];
   return {
     projectSlug,
     displayName: payload.event.projectSlug || 'Inbox',
-    repositories: [{
-      id: '',
-      workspaceSlug,
-      externalId: '0',
-      fullName: String(payload.metadata.repoFullName || ''),
-      htmlUrl: null,
-      description: null,
-      defaultBranch: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }],
+    repositories,
     workspaceSlug,
     aliases: [],
     defaultTags: [],
@@ -50,10 +64,11 @@ async function saveIngestedNote(
   contentRepository: ContentRepository,
   userId: string,
   input: IngestPayload,
+  reminderTimeZone: string,
   workspaceSlugOverride = '',
   options: IngestExecutionOptions = {},
 ) {
-  const parsed = withDerivedReminderAt(input, readEnvironment().reminderTimeZone);
+  const parsed = withDerivedReminderAt(ingestPayloadSchema.parse(input), reminderTimeZone);
   const workspaceSlug = slugify(workspaceSlugOverride || String(parsed.metadata.workspaceSlug || 'default')) || 'default';
   const workspace = (await contentRepository.listWorkspaces(userId)).find((item) => item.workspaceSlug === workspaceSlug);
   if (!workspace) throw new NotFoundException('workspace_not_found');

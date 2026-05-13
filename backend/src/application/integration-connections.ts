@@ -2,7 +2,6 @@ import crypto from 'node:crypto';
 
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { readEnvironment } from '../adapters/environment.js';
 import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider } from '../contracts/enums.js';
 import { slugify } from '../domain/strings.js';
 import { encryptConfig } from './credentials.js';
@@ -202,7 +201,7 @@ export class IntegrationConnectionService {
   ) {}
 
   private environment() {
-    return this.environmentProvider?.read ? this.environmentProvider.read() : readEnvironment();
+    return this.environmentProvider.read();
   }
 
   async connect(input: { userId: string; workspaceSlug: string; provider: string; returnToPath?: string; browserOrigin?: string }) {

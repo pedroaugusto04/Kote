@@ -105,7 +105,7 @@ test('updates manual note content and reminder metadata only', async (t) => {
   await seedProject(repositories, user.id);
   const { note } = await seedManualNote(repositories, user.id);
 
-  const useCase = new UpdateNoteUseCase(repositories.contentRepository);
+  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   const result = await useCase.execute({
     id: note.id,
     title: 'Deploy revisado',
@@ -132,7 +132,7 @@ test('clears manual note reminder metadata', async (t) => {
   await seedProject(repositories, user.id);
   const { note } = await seedManualNote(repositories, user.id);
 
-  const useCase = new UpdateNoteUseCase(repositories.contentRepository);
+  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   await useCase.execute({
     id: note.id,
     title: 'Deploy revisado',
@@ -232,7 +232,7 @@ test('updates any note type and still blocks project deletion while notes exist'
     links: [],
   });
 
-  const result = await new UpdateNoteUseCase(repositories.contentRepository).execute({
+  const result = await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider).execute({
     id: reviewNote.id,
     title: 'Review atualizada',
     rawText: 'texto atualizado',
@@ -271,7 +271,7 @@ test('updates project metadata while keeping slug immutable', async (t) => {
     workspaceSlug: 'default',
     provider: 'github-app',
     status: 'connected',
-    encryptedConfig: encryptConfig({ installationId: '42', accountLogin: 'acme' }),
+    encryptedConfig: encryptConfig({ installationId: '42', accountLogin: 'acme' }, repositories.runtimeEnvironmentProvider),
     publicMetadata: { connectedAccount: 'acme' },
   });
   const originalFetch = globalThis.fetch;
@@ -324,7 +324,7 @@ test('folders organize manual notes and update derived note paths on rename', as
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const updateFolder = new UpdateProjectFolderUseCase(repositories.contentRepository);
   const deleteFolder = new DeleteProjectFolderUseCase(repositories.contentRepository);
-  const updateNote = new UpdateNoteUseCase(repositories.contentRepository);
+  const updateNote = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
 
   const opsFolder = (await createFolder.execute({ projectSlug: 'platform', displayName: 'Ops' }, user.id)).folder;
   const runbooksFolder = (await createFolder.execute({ projectSlug: 'platform', displayName: 'Runbooks', parentFolderId: opsFolder.id }, user.id)).folder;

@@ -26,12 +26,14 @@ async function createUseCase(t) {
     defaultTags: [],
     enabled: true,
   });
-  const ingest = new IngestEntryUseCase(repositories.contentRepository);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   const useCase = new ProcessConversationUseCase(
     repositories.contentRepository,
     repositories.contentQueryRepository,
     repositories.conversationStateRepository,
     ingest,
+    repositories.runtimeEnvironmentProvider,
+    { extract: async () => null },
   );
   return { repositories, useCase, user };
 }

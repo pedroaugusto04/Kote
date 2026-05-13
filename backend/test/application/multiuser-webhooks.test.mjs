@@ -83,10 +83,32 @@ function signedGithubInput(body) {
   };
 }
 
+const githubGateway = {
+  verifyWebhookSignature() {},
+  async fetchInstallationToken() {
+    return 'github-token';
+  },
+  async fetchComparePayload() {
+    return { commits: [], files: [] };
+  },
+};
+
+const reviewGateway = {
+  async generate() {
+    return {
+      summary: 'Resumo do push.',
+      impact: '',
+      risks: [],
+      nextSteps: [],
+      reviewFindings: [],
+    };
+  },
+};
+
 test('new users start with an empty scoped dashboard and cannot see another user notes', async (t) => {
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
-  const ingest = new IngestEntryUseCase(repositories.contentRepository);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   const dashboard = new BuildDashboardUseCase(
     repositories.contentRepository,
     repositories.contentQueryRepository,
@@ -126,8 +148,16 @@ test('github app webhook resolves user by installation id and rejects unknown id
     displayName: 'Default',
     workspaceSlug: 'default',
   }, user.id);
-  const ingest = new IngestEntryUseCase(repositories.contentRepository);
-  const handler = new HandleGithubPushUseCase(ingest, repositories.externalIdentityRepository, repositories.webhookEventRepository, repositories.contentRepository);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const handler = new HandleGithubPushUseCase(
+    ingest,
+    repositories.externalIdentityRepository,
+    repositories.webhookEventRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubGateway,
+    reviewGateway,
+    repositories.contentRepository,
+  );
 
   await assert.rejects(() => handler.execute(signedGithubInput(githubBody(404))), /identity_not_found/);
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
@@ -193,8 +223,16 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     externalId: '42',
     publicMetadata: {},
   });
-  const ingest = new IngestEntryUseCase(repositories.contentRepository);
-  const handler = new HandleGithubPushUseCase(ingest, repositories.externalIdentityRepository, repositories.webhookEventRepository, repositories.contentRepository);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const handler = new HandleGithubPushUseCase(
+    ingest,
+    repositories.externalIdentityRepository,
+    repositories.webhookEventRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubGateway,
+    reviewGateway,
+    repositories.contentRepository,
+  );
 
   const result = await handler.execute(signedGithubInput(githubBody(42)));
 

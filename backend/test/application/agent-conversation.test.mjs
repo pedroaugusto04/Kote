@@ -70,7 +70,7 @@ async function createFixture(t, turns) {
     }),
   };
 
-  const ingest = new IngestEntryUseCase(repositories.contentRepository);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const agentUseCase = new ProcessAgentConversationUseCase(
     repositories.contentRepository,

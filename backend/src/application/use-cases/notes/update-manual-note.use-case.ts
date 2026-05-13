@@ -1,15 +1,29 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { UpdateNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/content.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
+import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
 
 @Injectable()
 export class UpdateNoteUseCase {
-  constructor(private readonly contentRepository: ContentRepository) {}
+  constructor(
+    private readonly contentRepository: ContentRepository,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
+  ) {}
 
   async execute(input: UpdateNoteInput, userId: string) {
     const { note, previousFolder, nextFolder } = await this.loadEditableNote(userId, input.id, input.folderId);
-    const updated = await this.contentRepository.updateNote(userId, buildUpdatedNote(note, previousFolder, nextFolder, input));
+    const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
+    const normalizedInput = {
+      ...input,
+      reminderDate: normalizeDate(input.reminderDate, reminderTimeZone),
+      reminderTime: normalizeTime(input.reminderTime),
+    };
+    const updated = await this.contentRepository.updateNote(
+      userId,
+      buildUpdatedNote(note, previousFolder, nextFolder, normalizedInput, reminderTimeZone),
+    );
     return { ok: true as const, noteId: updated.id };
   }
 

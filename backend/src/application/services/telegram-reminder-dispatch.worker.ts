@@ -1,7 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
-import { readEnvironment } from '../../adapters/environment.js';
 import { AppLogger } from '../../observability/logger.js';
+import { RuntimeEnvironmentProvider } from '../ports/runtime-environment.port.js';
 import { DispatchDueTelegramRemindersUseCase } from '../use-cases/reminders/dispatch-due-telegram-reminders.use-case.js';
 
 const ONE_MINUTE_MS = 60_000;
@@ -13,6 +13,7 @@ export class TelegramReminderDispatchWorker implements OnModuleInit, OnModuleDes
   constructor(
     private readonly dispatchDueTelegramReminders: DispatchDueTelegramRemindersUseCase,
     private readonly logger: AppLogger,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {}
 
   onModuleInit() {
@@ -42,6 +43,6 @@ export class TelegramReminderDispatchWorker implements OnModuleInit, OnModuleDes
 
   private shouldStart() {
     if (String(process.env.KB_DISABLE_REMINDER_WORKER || '').trim().toLowerCase() === 'true') return false;
-    return Boolean(readEnvironment().databaseUrl);
+    return Boolean(this.environmentProvider.read().databaseUrl);
   }
 }

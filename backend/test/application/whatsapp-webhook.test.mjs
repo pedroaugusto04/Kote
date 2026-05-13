@@ -114,7 +114,7 @@ async function fixture(t, sender = new CapturingWhatsappSender()) {
     encryptedConfig: {},
     publicMetadata: {},
   });
-  const ingest = new IngestEntryUseCase(repositories.contentRepository);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   const conversation = new ProcessAgentConversationUseCase(
     repositories.contentRepository,
     repositories.conversationStateRepository,

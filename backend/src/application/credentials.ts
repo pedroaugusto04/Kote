@@ -2,7 +2,6 @@ import crypto from 'node:crypto';
 
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
-import { readEnvironment } from '../adapters/environment.js';
 import {
   CredentialRecordStatus,
   ExternalIdentityProvider,
@@ -58,17 +57,13 @@ function isGuidedProvider(value: string): value is GuidedIntegrationProvider {
   return guidedProviders.includes(value as GuidedIntegrationProvider);
 }
 
-function readCredentialEnvironment(environmentProvider?: RuntimeEnvironmentProvider) {
-  return environmentProvider?.read ? environmentProvider.read() : readEnvironment();
-}
-
-function encryptionKey(environmentProvider?: RuntimeEnvironmentProvider): Buffer {
-  const key = Buffer.from(readCredentialEnvironment(environmentProvider).credentialsEncryptionKey, 'base64');
+function encryptionKey(environmentProvider: RuntimeEnvironmentProvider): Buffer {
+  const key = Buffer.from(environmentProvider.read().credentialsEncryptionKey, 'base64');
   if (key.length !== 32) throw new Error('credentials_encryption_key_must_be_32_bytes_base64');
   return key;
 }
 
-export function encryptConfig(config: Record<string, unknown>, environmentProvider?: RuntimeEnvironmentProvider): EncryptedConfig {
+export function encryptConfig(config: Record<string, unknown>, environmentProvider: RuntimeEnvironmentProvider): EncryptedConfig {
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey(environmentProvider), iv);
   const ciphertext = Buffer.concat([cipher.update(JSON.stringify(config), 'utf8'), cipher.final()]);
@@ -80,7 +75,7 @@ export function encryptConfig(config: Record<string, unknown>, environmentProvid
   };
 }
 
-export function decryptConfig(encrypted: unknown, environmentProvider?: RuntimeEnvironmentProvider): Record<string, unknown> {
+export function decryptConfig(encrypted: unknown, environmentProvider: RuntimeEnvironmentProvider): Record<string, unknown> {
   const payload = encrypted as EncryptedConfig;
   if (!payload?.iv || !payload.authTag || !payload.ciphertext) throw new Error('invalid_encrypted_config');
   const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey(environmentProvider), Buffer.from(payload.iv, 'base64'));
@@ -155,7 +150,7 @@ function connectedSteps(provider: GuidedIntegrationProvider): string[] {
 }
 
 function aiEnvStatus(provider: string, environmentProvider: RuntimeEnvironmentProvider) {
-  const environment = readCredentialEnvironment(environmentProvider);
+  const environment = environmentProvider.read();
   const review = provider === IntegrationProvider.AiReview;
   const flags = review
     ? {

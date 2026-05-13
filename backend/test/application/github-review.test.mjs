@@ -76,6 +76,28 @@ test('github push is converted to canonical code review event', async () => {
       credentialsEncryptionKey: '',
       internalServiceToken: '',
     },
+    {
+      githubIntegrationGateway: {
+        verifyWebhookSignature() {},
+        async fetchInstallationToken() {
+          return '';
+        },
+        async fetchComparePayload() {
+          return { commits: [], files: [] };
+        },
+      },
+      reviewAnalysisGateway: {
+        async generate() {
+          return {
+            summary: 'refactor knowledge base',
+            impact: '',
+            risks: [],
+            nextSteps: [],
+            reviewFindings: [],
+          };
+        },
+      },
+    },
   );
 
   assert.equal(event.event.type, 'code_review');

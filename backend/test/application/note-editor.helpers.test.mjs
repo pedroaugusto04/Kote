@@ -72,14 +72,20 @@ test('extracts only the original text from structured notes', () => {
 
 test('preserves structured markdown sections when updating a structured note', () => {
   const note = structuredReviewNote();
-  const updated = buildUpdatedNote(note, null, null, {
-    id: note.id,
-    title: 'Review pedroaugusto04/Knowledge-Base 3882c230',
-    rawText: 'Push revisado manualmente pelo editor.',
-    tags: ['review'],
-    reminderDate: '',
-    reminderTime: '',
-  });
+  const updated = buildUpdatedNote(
+    note,
+    null,
+    null,
+    {
+      id: note.id,
+      title: 'Review pedroaugusto04/Knowledge-Base 3882c230',
+      rawText: 'Push revisado manualmente pelo editor.',
+      tags: ['review'],
+      reminderDate: '',
+      reminderTime: '',
+    },
+    'America/Sao_Paulo',
+  );
 
   assert.equal(updated.summary, 'Push recebido sem analise de IA configurada.');
   assert.match(updated.markdown, /## Texto original/);

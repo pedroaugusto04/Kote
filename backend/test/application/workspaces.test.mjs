@@ -85,7 +85,7 @@ test('create project persists metadata, updates workspace slugs and rejects dupl
     workspaceSlug: 'acme-team',
     provider: 'github-app',
     status: 'connected',
-    encryptedConfig: encryptConfig({ installationId: '42', accountLogin: 'acme' }),
+    encryptedConfig: encryptConfig({ installationId: '42', accountLogin: 'acme' }, repositories.runtimeEnvironmentProvider),
     publicMetadata: { connectedAccount: 'acme' },
   });
   const originalFetch = globalThis.fetch;

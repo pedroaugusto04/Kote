@@ -6,7 +6,7 @@ import {
   type AgentConversationState,
 } from '../../../contracts/agent-conversation.js';
 import { type ConversationInput } from '../../../contracts/conversation.js';
-import { CredentialRecordStatus, IntegrationProvider, SourceChannel } from '../../../contracts/enums.js';
+import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { slugify, trimText } from '../../../domain/strings.js';
 import { normalizeDate, normalizeTime, nowIso } from '../../../domain/time.js';
@@ -16,6 +16,8 @@ import { ContentRepository } from '../../ports/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
 import { ConversationStateRepository } from '../../ports/workflow-state.repository.js';
+import { isCancel, isConfirm, isReject } from '../../utils/conversation-command.utils.js';
+import { buildConversationIngestPayload } from '../../utils/conversation-payload.utils.js';
 import { buildProjectFolderTree, folderSlugFromDisplayName } from '../../utils/project-folder.utils.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { CreateProjectFolderUseCase } from '../projects/create-project-folder.use-case.js';
@@ -198,7 +200,7 @@ export class ProcessAgentConversationUseCase {
     }
 
     const folderId = await this.resolveFolderIdForSubmission(userId, state);
-    const payload = buildAgentConversationPayload(input, state);
+    const payload = buildAgentConversationPayload(input, state, this.environmentProvider.read().reminderTimeZone);
     const ingestResult = await this.ingestEntryUseCase.execute(payload, userId, workspaceSlug, { folderId: folderId || undefined });
     await this.conversationStates.clear(userId, workspaceSlug, key);
     return this.reply(
@@ -398,44 +400,21 @@ function sanitizeProjectSlug(value: string, projects: ProjectRecord[]) {
   return projects.some((project) => project.projectSlug === normalized) ? normalized : '';
 }
 
-function buildAgentConversationPayload(input: ConversationInput, state: AgentConversationState) {
-  return ingestPayloadSchema.parse({
-    source: {
-      channel: SourceChannel.Whatsapp,
-      system: 'evolution-api',
-      actor: input.senderId,
-      conversationId: input.groupId,
-      correlationId: `wpp-agent:${input.messageId || Date.now().toString()}`,
-    },
-    event: {
-      type: 'manual_note',
-      occurredAt: nowIso(),
-      projectSlug: state.project.selectedProjectSlug || 'inbox',
-    },
-    content: {
-      rawText: state.draft.rawText,
-      title: state.draft.title || '',
-      attachments: input.hasMedia && input.media.fileName ? [input.media] : [],
-      sections: {
-        summary: state.draft.rawText,
-        impact: '',
-        risks: [],
-        nextSteps: [],
-        reviewFindings: [],
-      },
-    },
-    classification: {
-      kind: state.draft.kind,
-      canonicalType: state.draft.canonicalType,
-      importance: state.draft.importance,
-      tags: state.draft.tags,
-      decisionFlag: state.draft.canonicalType === 'decision',
-    },
-    actions: {
-      reminderDate: state.draft.reminderDate,
-      reminderTime: state.draft.reminderTime,
-      followUpBy: '',
-    },
+function buildAgentConversationPayload(input: ConversationInput, state: AgentConversationState, reminderTimeZone: string) {
+  return buildConversationIngestPayload({
+    input,
+    correlationPrefix: 'wpp-agent',
+    projectSlug: state.project.selectedProjectSlug || 'inbox',
+    rawText: state.draft.rawText,
+    title: state.draft.title || '',
+    media: input.hasMedia ? input.media : undefined,
+    kind: state.draft.kind,
+    canonicalType: state.draft.canonicalType,
+    importance: state.draft.importance,
+    tags: state.draft.tags,
+    reminderDate: state.draft.reminderDate,
+    reminderTime: state.draft.reminderTime,
+    reminderTimeZone,
     metadata: {},
   });
 }
@@ -444,14 +423,3 @@ function samePath(left: string[], right: string[]) {
   return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
-function isConfirm(text: string) {
-  return ['sim', 's', 'ok', 'confirmar', 'enviar', '1'].includes(String(text || '').trim().toLowerCase());
-}
-
-function isReject(text: string) {
-  return ['nao', 'não', 'n', 'rejeitar', '2', 'descartar'].includes(String(text || '').trim().toLowerCase());
-}
-
-function isCancel(text: string) {
-  return ['cancelar', 'cancel', 'cancela', 'sair', '0'].includes(String(text || '').trim().toLowerCase());
-}

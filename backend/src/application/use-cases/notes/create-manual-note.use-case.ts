@@ -2,11 +2,12 @@ import crypto from 'node:crypto';
 
 import { NotFoundException, Injectable } from '@nestjs/common';
 
-import { readEnvironment } from '../../../adapters/environment.js';
 import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
 import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
+import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import type { CreateManualNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/content.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class CreateManualNoteUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {}
 
   async execute(input: CreateManualNoteInput, userId: string) {
@@ -25,6 +27,9 @@ export class CreateManualNoteUseCase {
     const project = projects.find((item) => item.enabled && item.workspaceSlug === workspace.workspaceSlug && item.projectSlug === input.projectSlug);
     if (!project) throw new NotFoundException('project_not_found');
 
+    const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
+    const reminderDate = normalizeDate(input.reminderDate, reminderTimeZone);
+    const reminderTime = normalizeTime(input.reminderTime);
     const occurredAt = new Date().toISOString();
     const payload: IngestPayload = {
       source: {
@@ -60,8 +65,8 @@ export class CreateManualNoteUseCase {
         decisionFlag: false,
       },
       actions: {
-        reminderDate: input.reminderDate,
-        reminderTime: input.reminderTime,
+        reminderDate,
+        reminderTime,
         reminderAt: input.reminderAt || '',
         followUpBy: '',
       },
@@ -72,7 +77,7 @@ export class CreateManualNoteUseCase {
       },
     };
 
-    return this.ingestEntryUseCase.execute(withDerivedReminderAt(payload, readEnvironment().reminderTimeZone), userId, workspace.workspaceSlug, {
+    return this.ingestEntryUseCase.execute(withDerivedReminderAt(payload, reminderTimeZone), userId, workspace.workspaceSlug, {
       folderId: input.folderId,
     });
   }

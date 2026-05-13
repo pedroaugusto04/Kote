@@ -61,25 +61,26 @@ export class UpdateProjectFolderUseCase {
         };
       });
 
-    for (const rewrite of rewrites) {
-      await this.contentRepository.upsertProjectFolder(userId, rewrite.next);
-    }
-
     const notes = await this.contentRepository.listNotes(userId);
     const rewrittenByFolderId = new Map(rewrites.map((rewrite) => [rewrite.previous.id, rewrite]));
     const affectedNotes = notes.filter((note) => note.projectSlug === project.projectSlug && note.folderId && descendantIds.has(note.folderId));
-
+    const updatedNotes = [];
     for (const note of affectedNotes) {
       const loadedNote = await this.contentRepository.getNoteById(userId, note.id);
       const rewrite = note.folderId ? rewrittenByFolderId.get(note.folderId) : null;
       if (!loadedNote || !rewrite) continue;
-      await this.contentRepository.updateNote(userId, noteInputWithPath(loadedNote, rewriteNotePathForFolder(
+      updatedNotes.push(noteInputWithPath(loadedNote, rewriteNotePathForFolder(
         loadedNote.path,
         project.projectSlug,
         rewrite.previous.fullSlugPath,
         rewrite.next.fullSlugPath,
       )));
     }
+
+    await this.contentRepository.updateProjectFolderTree(userId, {
+      folders: rewrites.map((rewrite) => rewrite.next),
+      notes: updatedNotes,
+    });
 
     return { ok: true as const, folder: rewrites[0]?.next || currentFolder };
   }
@@ -100,6 +101,7 @@ function noteInputWithPath(note: NoteRecord, path: string) {
     sourceChannel: note.sourceChannel,
     summary: note.summary,
     markdown: note.markdown,
+    markdownStorageKey: note.markdownStorageKey,
     frontmatter: note.frontmatter,
     metadata: note.metadata,
     origin: note.origin,
