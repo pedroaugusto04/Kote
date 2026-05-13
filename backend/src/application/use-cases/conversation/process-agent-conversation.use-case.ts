@@ -128,7 +128,7 @@ export class ProcessAgentConversationUseCase {
     });
 
     if (!nextState.draft.rawText) {
-      return this.reply('ask', 'Nao consegui entender a nota ainda. Reenvie a mensagem com mais contexto.', null, nextState);
+      return this.reply('ask', 'Nao consegui entender a nota ainda. Reenvie a mensagem com mais informações.', null, nextState);
     }
     if (!nextState.project.selectedProjectSlug) {
       return this.reply('ask', buildProjectPrompt(decision.replyText, projects), null, nextState);
