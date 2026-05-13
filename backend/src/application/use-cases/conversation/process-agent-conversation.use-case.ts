@@ -78,7 +78,7 @@ export class ProcessAgentConversationUseCase {
       const nextState = agentConversationStateSchema.parse({
         ...state,
         media: mediaFromInput(input, state),
-        lastQuestion: 'Recebi a midia. Me diga o que e ou em qual projeto devo salvar.',
+        lastQuestion: 'Recebi a midia. Me diga o que e em qual projeto devo salvar.',
         lastUserMessage: '',
         lastAgentAction: 'ask',
         updatedAt: nowIso(),
