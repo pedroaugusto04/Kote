@@ -82,7 +82,7 @@ export class HandleWhatsappWebhookUseCase {
     });
 
     try {
-      return this.handleEvolutionMessage(context, identity.userId, identity.workspaceSlug, command.input);
+      return await this.handleEvolutionMessage(context, identity.userId, identity.workspaceSlug, command.input);
     } catch (error) {
       await this.failed(context, identity.userId, error);
       throw error;
@@ -275,6 +275,11 @@ export class HandleWhatsappWebhookUseCase {
   }
 
   private async failed(context: WhatsappWebhookContext, resolvedUserId: string, error: unknown) {
+    this.logger?.error('whatsapp.webhook.failed', {
+      externalId: context.externalIdentity.externalId,
+      resolvedUserId,
+      error: error instanceof Error ? error.message : String(error),
+    });
     await this.recordWebhookEvent(context, {
       eventType: 'message',
       status: WebhookEventStatus.Failed,

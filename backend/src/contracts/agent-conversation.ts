@@ -4,6 +4,7 @@ import { CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from
 
 const agentApprovalSchema = z.enum(['none', 'folder_create', 'final_confirmation']);
 const agentActionSchema = z.enum(['ask', 'confirm', 'create_and_confirm', 'cancel', 'submit']);
+const agentApprovalIntentSchema = z.enum(['none', 'approve', 'reject', 'cancel', 'unclear']);
 const nullishToUndefined = (value: unknown) => value == null ? undefined : value;
 const defaultStringSchema = z.preprocess(nullishToUndefined, z.string().default(''));
 const defaultStringArraySchema = z.preprocess(nullishToUndefined, z.array(defaultStringSchema).default([]));
@@ -54,13 +55,16 @@ export const conversationAgentDecisionSchema = z.object({
   selectedProjectSlug: defaultStringSchema,
   selectedFolderId: defaultStringSchema,
   suggestedFolderPath: defaultStringArraySchema,
+  placeInRoot: z.preprocess(nullishToUndefined, z.boolean().default(false)),
   pendingApproval: defaultApprovalSchema,
+  approvalIntent: z.preprocess(nullishToUndefined, agentApprovalIntentSchema.default('none')),
   confidence: defaultConfidenceSchema,
   action: defaultActionSchema,
 });
 
 export type AgentConversationApproval = z.infer<typeof agentApprovalSchema>;
 export type AgentConversationAction = z.infer<typeof agentActionSchema>;
+export type AgentConversationApprovalIntent = z.infer<typeof agentApprovalIntentSchema>;
 export type AgentConversationDraft = z.infer<typeof agentConversationDraftSchema>;
 export type AgentConversationState = z.infer<typeof agentConversationStateSchema>;
 export type ConversationAgentDecision = z.infer<typeof conversationAgentDecisionSchema>;

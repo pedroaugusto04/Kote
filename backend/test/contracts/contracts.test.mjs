@@ -116,7 +116,9 @@ test('agent conversation contract normalizes null AI fields to safe defaults', (
 
   assert.equal(parsed.selectedFolderId, '');
   assert.deepEqual(parsed.suggestedFolderPath, []);
+  assert.equal(parsed.placeInRoot, false);
   assert.equal(parsed.pendingApproval, 'none');
+  assert.equal(parsed.approvalIntent, 'none');
   assert.equal(parsed.resolvedDraft.title, '');
   assert.deepEqual(parsed.resolvedDraft.tags, []);
   assert.equal(parsed.resolvedDraft.reminderDate, '');

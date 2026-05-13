@@ -21,6 +21,9 @@ export type ConversationAgentRequest = {
   availableProjects: ConversationAgentProjectContext[];
   candidateProjectSlug: string;
   candidateFolders: ConversationAgentFolderContext[];
+  timeZone: string;
+  currentLocalDate: string;
+  currentLocalTime: string;
 };
 
 export type ConversationAgentResponse = ConversationAgentDecision & {

@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { type ConversationInput, conversationStateSchema, type ConversationState } from '../../../contracts/conversation.js';
 import { DEFAULT_PAGE_SIZE } from '../../../contracts/pagination.js';
 import { CredentialRecordStatus, ConversationConfidence, ConversationPhase, IntegrationProvider, KnowledgeKind } from '../../../contracts/enums.js';
+import { defaultImportance, inferCanonicalType } from '../../../domain/classification.js';
 import { slugify } from '../../../domain/strings.js';
 import { normalizeDate, normalizeTime, nowIso } from '../../../domain/time.js';
 import { ConversationExtractionGateway } from '../../ports/conversation-extraction.port.js';
@@ -10,9 +11,7 @@ import {
   buildConversationPayload,
   confirmationPrompt,
   conversationKey,
-  defaultImportanceForKind,
   emptyConversationState,
-  inferInteractiveCanonicalType,
   isCancel,
   isConfirm,
   isExpired,
@@ -160,8 +159,8 @@ async function handleIdlePhase(args: ProcessConversationArgs, context: Conversat
     rawText: aiExtracted.rawText || context.message,
     projectSlug: aiExtracted.projectSlug ? context.findProjectSlug(aiExtracted.projectSlug) : '',
     kind: aiExtracted.kind || KnowledgeKind.Note,
-    canonicalType: aiExtracted.canonicalType || inferInteractiveCanonicalType(aiExtracted.kind || KnowledgeKind.Note),
-    importance: aiExtracted.importance || defaultImportanceForKind(aiExtracted.kind || KnowledgeKind.Note),
+    canonicalType: aiExtracted.canonicalType || inferCanonicalType(aiExtracted.kind || KnowledgeKind.Note),
+    importance: aiExtracted.importance || defaultImportance(aiExtracted.kind || KnowledgeKind.Note),
     tags: normalizeConversationTags(aiExtracted.tags),
     reminderDate: normalizeDate(aiExtracted.reminderDate || '', reminderTimeZone),
     reminderTime: normalizeTime(aiExtracted.reminderTime || ''),
@@ -189,8 +188,8 @@ async function handleAwaitingKindPhase(args: ProcessConversationArgs, context: C
   const nextState = {
     ...context.current,
     kind,
-    canonicalType: inferInteractiveCanonicalType(kind),
-    importance: defaultImportanceForKind(kind),
+    canonicalType: inferCanonicalType(kind),
+    importance: defaultImportance(kind),
     phase: ConversationPhase.AwaitingProject,
     updatedAt: nowIso(),
   };

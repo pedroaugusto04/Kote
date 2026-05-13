@@ -4,9 +4,9 @@ import {
   ConversationPhase,
   Importance,
   KnowledgeKind,
-  KnowledgeStatus,
 } from '../../contracts/enums.js';
 import type { IngestPayload } from '../../contracts/ingest.js';
+import { defaultStatus } from '../../domain/classification.js';
 import { slugify } from '../../domain/strings.js';
 import { buildConversationIngestPayload } from './conversation-payload.utils.js';
 
@@ -100,18 +100,6 @@ export function confirmationPrompt(state: ConversationState): string {
     .join('\n');
 }
 
-export function inferInteractiveCanonicalType(kind: ConversationState['kind']): ConversationState['canonicalType'] {
-  if (kind === KnowledgeKind.Bug) return CanonicalType.Incident;
-  if (kind === KnowledgeKind.Summary || kind === KnowledgeKind.Article) return CanonicalType.Knowledge;
-  return CanonicalType.Event;
-}
-
-export function defaultImportanceForKind(kind: ConversationState['kind']): ConversationState['importance'] {
-  if (kind === KnowledgeKind.Bug) return Importance.High;
-  if (kind === KnowledgeKind.Summary || kind === KnowledgeKind.Article) return Importance.Medium;
-  return Importance.Low;
-}
-
 export function normalizeConversationTags(tags: unknown): string[] {
   return Array.isArray(tags) ? tags.map((item) => slugify(item)).filter(Boolean) : [];
 }
@@ -126,7 +114,7 @@ export function buildConversationPayload(input: ConversationInput, state: Conver
     kind: state.kind,
     canonicalType: state.canonicalType,
     importance: state.importance,
-    status: state.canonicalType === CanonicalType.Event ? KnowledgeStatus.Active : KnowledgeStatus.Open,
+    status: defaultStatus(state.canonicalType),
     tags: state.tags,
     reminderDate: state.reminderDate,
     reminderTime: state.reminderTime,

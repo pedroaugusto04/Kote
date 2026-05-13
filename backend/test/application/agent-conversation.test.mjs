@@ -240,6 +240,56 @@ test('agent conversation clears state when final confirmation is denied', async 
   assert.equal(await repositories.countConversationStates(), 0);
 });
 
+test('agent conversation uses agent approval intent for natural final confirmation wording', async (t) => {
+  const turns = new Map([
+    ['resumo da reuniao', decision({
+      selectedProjectSlug: 'platform',
+      selectedFolderId: '',
+      suggestedFolderPath: [],
+      pendingApproval: 'final_confirmation',
+      action: 'confirm',
+      replyText: 'Vamos confirmar.',
+      resolvedDraft: {
+        rawText: 'Resumo da reuniao',
+        title: '',
+        kind: 'summary',
+        canonicalType: 'knowledge',
+        importance: 'medium',
+        tags: ['meeting'],
+        reminderDate: '',
+        reminderTime: '',
+      },
+    })],
+    ['pode salvar', decision({
+      selectedProjectSlug: 'platform',
+      selectedFolderId: '',
+      suggestedFolderPath: [],
+      pendingApproval: 'final_confirmation',
+      approvalIntent: 'approve',
+      action: 'submit',
+      replyText: '',
+      resolvedDraft: {
+        rawText: 'Resumo da reuniao',
+        title: '',
+        kind: 'summary',
+        canonicalType: 'knowledge',
+        importance: 'medium',
+        tags: ['meeting'],
+        reminderDate: '',
+        reminderTime: '',
+      },
+    })],
+  ]);
+  const { repositories, agentUseCase, user } = await createFixture(t, turns);
+
+  await agentUseCase.execute(input('resumo da reuniao'), user.id, 'default');
+  const saved = await agentUseCase.execute(input('pode salvar'), user.id, 'default');
+
+  assert.equal(saved.action, 'submit');
+  assert.equal(saved.ingestResult.ok, true);
+  assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 1);
+});
+
 test('agent conversation persists multi-turn state and resumes from the right approval step', async (t) => {
   const turns = new Map([
     ['alinhei o runbook do api gateway', decision()],
