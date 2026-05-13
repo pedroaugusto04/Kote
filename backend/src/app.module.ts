@@ -5,7 +5,6 @@ import { AuthService } from './application/auth.js';
 import { IntegrationConnectionService } from './application/integration-connections.js';
 import { IntegrationCredentialService } from './application/credentials.js';
 import { ConversationAgentGateway } from './application/ports/conversation-agent.gateway.js';
-import { ConversationExtractionGateway } from './application/ports/conversation-extraction.port.js';
 import { GithubIntegrationGateway } from './application/ports/github-integration.port.js';
 import { ReviewAnalysisGateway } from './application/ports/review-analysis.port.js';
 import { RuntimeEnvironmentProvider } from './application/ports/runtime-environment.port.js';
@@ -27,7 +26,6 @@ import { ConversationStateRepository, ReminderDispatchRepository } from './appli
 import { TelegramHttpMessageSender } from './adapters/telegram.js';
 import { EvolutionWhatsappMediaDownloader, EvolutionWhatsappReplySender } from './adapters/evolution.js';
 import { DefaultConversationAgentGateway } from './infrastructure/ai/conversation-agent.gateway.js';
-import { DefaultConversationExtractionGateway } from './infrastructure/ai/conversation-extraction.gateway.js';
 import { DefaultReviewAnalysisGateway } from './infrastructure/ai/review-analysis.gateway.js';
 import { DefaultGithubIntegrationGateway } from './infrastructure/integrations/github-integration.gateway.js';
 import { PostgresUserRepository } from './infrastructure/repositories/auth.repository.js';
@@ -64,7 +62,6 @@ import {
   ListPaginatedReviewsUseCase,
   MarkReminderAsSentUseCase,
   ProcessAgentConversationUseCase,
-  ProcessConversationUseCase,
   QueryKnowledgeUseCase,
   ListProjectFoldersUseCase,
   UpdateNoteUseCase,
@@ -118,7 +115,6 @@ import { AppLogger } from './observability/logger.js';
     GetReviewDetailUseCase,
     QueryKnowledgeUseCase,
     IngestEntryUseCase,
-    ProcessConversationUseCase,
     ProcessAgentConversationUseCase,
     BuildReminderDispatchUseCase,
     DispatchDueTelegramRemindersUseCase,
@@ -131,7 +127,6 @@ import { AppLogger } from './observability/logger.js';
     EvolutionWhatsappMediaDownloader,
     TelegramHttpMessageSender,
     DefaultConversationAgentGateway,
-    DefaultConversationExtractionGateway,
     DefaultReviewAnalysisGateway,
     DefaultGithubIntegrationGateway,
     ProcessRuntimeEnvironmentProvider,
@@ -148,7 +143,6 @@ import { AppLogger } from './observability/logger.js';
     { provide: UserRepository, useExisting: PostgresUserRepository },
     { provide: RuntimeEnvironmentProvider, useExisting: ProcessRuntimeEnvironmentProvider },
     { provide: ConversationAgentGateway, useExisting: DefaultConversationAgentGateway },
-    { provide: ConversationExtractionGateway, useExisting: DefaultConversationExtractionGateway },
     { provide: CredentialRepository, useExisting: PostgresIntegrationRepository },
     { provide: ExternalIdentityRepository, useExisting: PostgresIntegrationRepository },
     { provide: IntegrationConnectionSessionRepository, useExisting: PostgresIntegrationRepository },

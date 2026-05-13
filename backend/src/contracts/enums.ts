@@ -47,24 +47,6 @@ export enum ReviewFindingSeverity {
   High = 'high',
 }
 
-export enum ConversationPhase {
-  Idle = 'idle',
-  AwaitingKind = 'awaiting_kind',
-  AwaitingProject = 'awaiting_project',
-  AwaitingReminderDate = 'awaiting_reminder_date',
-  AwaitingReminderTime = 'awaiting_reminder_time',
-  AwaitingConfirmation = 'awaiting_confirmation',
-}
-
-export enum ConversationMissingField {
-  ProjectSlug = 'projectSlug',
-  Kind = 'kind',
-  RawText = 'rawText',
-  ReminderDate = 'reminderDate',
-  ReminderTime = 'reminderTime',
-  Confirmation = 'confirmation',
-}
-
 export enum ConversationConfidence {
   High = 'high',
   Medium = 'medium',

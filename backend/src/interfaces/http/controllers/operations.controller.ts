@@ -6,18 +6,15 @@ import {
   IngestEntryUseCase,
   MarkReminderAsSentUseCase,
   ProcessAgentConversationUseCase,
-  ProcessConversationUseCase,
 } from '../../../application/use-cases/index.js';
 import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
 import {
   agentConversationBodySchema,
-  conversationBodySchema,
   ingestBodySchema,
   reminderDispatchQuerySchema,
   workspaceQuerySchema,
   type AgentConversationBody,
-  type ConversationBody,
   type IngestBody,
   type ReminderDispatchQuery,
   type WorkspaceQuery,
@@ -30,7 +27,6 @@ import { ZodValidationPipe } from '../zod-validation.pipe.js';
 export class OperationsController {
   constructor(
     private readonly ingestEntry: IngestEntryUseCase,
-    private readonly conversation: ProcessConversationUseCase,
     private readonly agentConversation: ProcessAgentConversationUseCase,
     private readonly reminderDispatch: BuildReminderDispatchUseCase,
     private readonly markReminders: MarkReminderAsSentUseCase,
@@ -40,16 +36,6 @@ export class OperationsController {
   @UseGuards(TrustedOriginGuard)
   ingest(@Body(new ZodValidationPipe(ingestBodySchema, 'invalid_ingest_payload')) body: IngestBody, @CurrentUser() user: AuthenticatedUser) {
     return this.ingestEntry.execute(body, user.id);
-  }
-
-  @Post('conversation')
-  @UseGuards(TrustedOriginGuard)
-  processConversation(
-    @Body(new ZodValidationPipe(conversationBodySchema, 'invalid_conversation_payload')) body: ConversationBody,
-    @CurrentUser() user: AuthenticatedUser,
-    @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
-  ) {
-    return this.conversation.execute(body, user.id, query.workspaceSlug);
   }
 
   @Post('conversation/agent')

@@ -39,7 +39,7 @@ class StubConversationAgentGateway {
     const message = String(payload.messageText || '').trim().toLowerCase();
     if (message === 'corrigi timeout no webhook') {
       return {
-        replyText: 'Sugestao de pasta para n8n-automations: Webhooks / Operacao. Posso criar essa estrutura antes de salvar a nota?',
+        replyText: 'Confirme o salvamento da nota.',
         resolvedDraft: {
           rawText: 'corrigi timeout no webhook',
           title: '',
@@ -53,7 +53,7 @@ class StubConversationAgentGateway {
         selectedProjectSlug: 'n8n-automations',
         selectedFolderId: '',
         suggestedFolderPath: ['Webhooks', 'Operacao'],
-        pendingApproval: 'folder_create',
+        pendingApproval: 'final_confirmation',
         confidence: 'high',
         action: 'confirm',
       };
@@ -179,23 +179,23 @@ test('linked whatsapp group processes free text and sends the first conversation
   assert.equal(result.ok, true);
   assert.equal(result.processed, true);
   assert.equal(result.action, 'confirm');
-  assert.match(result.message, /Sugestao de pasta/);
+  assert.match(result.message, /Confirme o salvamento da nota/);
+  assert.match(result.message, /nova, sera criada ao salvar/);
   assert.equal(result.replySent, true);
-  assert.match(result.conversationResult.replyText, /Sugestao de pasta/);
+  assert.match(result.conversationResult.replyText, /Confirme o salvamento da nota/);
   assert.equal(result.replyText, undefined);
   assert.equal(result.text, undefined);
   assert.equal(result.reply, undefined);
   assert.equal(result.confirmText, undefined);
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].groupJid, '120363@g.us');
-  assert.match(sender.sent[0].text, /Sugestao de pasta/);
+  assert.match(sender.sent[0].text, /Confirme o salvamento da nota/);
 });
 
 test('linked whatsapp group completes conversation and saves note on confirmation', async (t) => {
   const { repositories, whatsapp, user } = await fixture(t);
 
   await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
-  await whatsapp.execute(evolutionInput('sim'));
   const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.action, 'submit');
@@ -248,7 +248,6 @@ test('linked whatsapp group saves captioned media as a Supabase-backed attachmen
       dataBase64: Buffer.from('hello image').toString('base64'),
     },
   }));
-  await whatsapp.execute(evolutionInput('sim'));
   const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.action, 'submit');
@@ -279,7 +278,6 @@ test('direct whatsapp webhook downloads media when Evolution payload has metadat
       },
     },
   }));
-  await whatsapp.execute(evolutionInput('sim'));
   const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(downloader.calls.length, 1);
@@ -349,7 +347,7 @@ test('whatsapp webhook processes self-authored messages without bot prefix', asy
   assert.equal(result.processed, true);
   assert.equal(result.replySent, true);
   assert.equal(sender.sent.length, 1);
-  assert.match(sender.sent[0].text, /Sugestao de pasta/);
+  assert.match(sender.sent[0].text, /Confirme o salvamento da nota/);
 });
 
 test('unknown whatsapp group is still rejected', async (t) => {
@@ -371,7 +369,6 @@ test('evolution send failure returns replySent false after confirmation without 
   const { repositories, whatsapp, user } = await fixture(t, sender);
 
   await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
-  await whatsapp.execute(evolutionInput('sim'));
   const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.conversationResult.action, 'submit');

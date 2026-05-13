@@ -5,7 +5,6 @@ import {
   CreateProjectFolderUseCase,
   IngestEntryUseCase,
   ProcessAgentConversationUseCase,
-  ProcessConversationUseCase,
 } from '../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
@@ -81,16 +80,7 @@ async function createFixture(t, turns) {
     new StubConversationAgentGateway(turns),
     repositories.credentialRepository,
   );
-  const legacyUseCase = new ProcessConversationUseCase(
-    repositories.contentRepository,
-    repositories.contentQueryRepository,
-    repositories.conversationStateRepository,
-    ingest,
-    environment,
-    { extract: async () => null },
-    repositories.credentialRepository,
-  );
-  return { repositories, user, agentUseCase, legacyUseCase };
+  return { repositories, user, agentUseCase };
 }
 
 function input(messageText) {
@@ -133,14 +123,14 @@ function decision(overrides = {}) {
     selectedProjectSlug: 'platform',
     selectedFolderId: '',
     suggestedFolderPath: ['Runbooks', 'API'],
-    pendingApproval: 'folder_create',
+    pendingApproval: 'final_confirmation',
     confidence: 'high',
     action: 'confirm',
     ...overrides,
   };
 }
 
-test('agent conversation happy path suggests folder, gets approval, asks final confirmation and saves with folderId', async (t) => {
+test('agent conversation happy path suggests folder, asks final confirmation and saves with created folderId', async (t) => {
   const turns = new Map([
     ['corrigi timeout do endpoint de webhook', decision()],
   ]);
@@ -148,17 +138,14 @@ test('agent conversation happy path suggests folder, gets approval, asks final c
 
   const first = await agentUseCase.execute(input('corrigi timeout do endpoint de webhook'), user.id, 'default');
   assert.equal(first.action, 'confirm');
-  assert.equal(first.agent.pendingApproval, 'folder_create');
+  assert.equal(first.agent.pendingApproval, 'final_confirmation');
   assert.deepEqual(first.agent.suggestedFolderPath, ['Runbooks', 'API']);
+  assert.match(first.replyText, /Confirme o salvamento da nota/);
+  assert.match(first.replyText, /nova, sera criada ao salvar/);
 
   const second = await agentUseCase.execute(input('sim'), user.id, 'default');
-  assert.equal(second.action, 'create_and_confirm');
-  assert.equal(second.agent.pendingApproval, 'final_confirmation');
-  assert.match(second.replyText, /Confirme o salvamento da nota/);
-
-  const third = await agentUseCase.execute(input('sim'), user.id, 'default');
-  assert.equal(third.action, 'submit');
-  assert.equal(third.ingestResult.ok, true);
+  assert.equal(second.action, 'submit');
+  assert.equal(second.ingestResult.ok, true);
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
   const folders = await repositories.contentRepository.listProjectFolders(user.id, 'platform');
@@ -174,7 +161,6 @@ test('agent conversation preserves media from the first message and saves it on 
   const { repositories, agentUseCase, user } = await createFixture(t, turns);
 
   await agentUseCase.execute(mediaInput('corrigi timeout do endpoint de webhook'), user.id, 'default');
-  await agentUseCase.execute(input('sim'), user.id, 'default');
   const saved = await agentUseCase.execute(input('sim'), user.id, 'default');
 
   assert.equal(saved.action, 'submit');
@@ -195,11 +181,10 @@ test('agent conversation asks for context when the first message is only media',
 
   const first = await agentUseCase.execute(mediaInput(''), user.id, 'default');
   assert.equal(first.action, 'ask');
-  assert.match(first.replyText, /Me diga o que e ou em qual projeto devo salvar/);
+  assert.match(first.replyText, /Me diga o que e.*projeto devo salvar/);
   assert.equal(await repositories.countConversationStates(), 1);
 
   await agentUseCase.execute(input('corrigi timeout do endpoint de webhook'), user.id, 'default');
-  await agentUseCase.execute(input('sim'), user.id, 'default');
   const saved = await agentUseCase.execute(input('sim'), user.id, 'default');
 
   assert.equal(saved.action, 'submit');
@@ -220,9 +205,28 @@ test('agent conversation asks for project when project choice is ambiguous', asy
   assert.match(result.replyText, /Projetos disponiveis/);
 });
 
-test('agent conversation rejected folder suggestion falls back to project root on final confirmation', async (t) => {
+test('agent conversation allows changing the suggested folder to project root before final confirmation', async (t) => {
   const turns = new Map([
     ['documentei o checklist de deploy', decision({
+      resolvedDraft: {
+        rawText: 'Documentei o checklist de deploy',
+        title: '',
+        kind: 'summary',
+        canonicalType: 'knowledge',
+        importance: 'medium',
+        tags: ['deploy'],
+        reminderDate: '',
+        reminderTime: '',
+      },
+    })],
+    ['salva na raiz', decision({
+      selectedProjectSlug: 'platform',
+      selectedFolderId: '',
+      suggestedFolderPath: [],
+      placeInRoot: true,
+      pendingApproval: 'final_confirmation',
+      approvalIntent: 'unclear',
+      action: 'confirm',
       resolvedDraft: {
         rawText: 'Documentei o checklist de deploy',
         title: '',
@@ -238,9 +242,9 @@ test('agent conversation rejected folder suggestion falls back to project root o
   const { repositories, agentUseCase, user } = await createFixture(t, turns);
 
   await agentUseCase.execute(input('documentei o checklist de deploy'), user.id, 'default');
-  const rejectFolder = await agentUseCase.execute(input('nao'), user.id, 'default');
-  assert.equal(rejectFolder.action, 'confirm');
-  assert.match(rejectFolder.replyText, /raiz do projeto/);
+  const rootConfirmation = await agentUseCase.execute(input('salva na raiz'), user.id, 'default');
+  assert.equal(rootConfirmation.action, 'confirm');
+  assert.match(rootConfirmation.replyText, /raiz do projeto/);
 
   const saved = await agentUseCase.execute(input('sim'), user.id, 'default');
   assert.equal(saved.action, 'submit');
@@ -344,7 +348,7 @@ test('agent conversation uses agent approval intent for natural final confirmati
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 1);
 });
 
-test('agent conversation persists multi-turn state and resumes from the right approval step', async (t) => {
+test('agent conversation persists multi-turn state and submits from final confirmation', async (t) => {
   const turns = new Map([
     ['alinhei o runbook do api gateway', decision()],
   ]);
@@ -354,22 +358,6 @@ test('agent conversation persists multi-turn state and resumes from the right ap
   assert.equal(await repositories.countConversationStates(), 1);
 
   const resume = await agentUseCase.execute(input('sim'), user.id, 'default');
-  assert.equal(resume.agent.pendingApproval, 'final_confirmation');
-  assert.match(resume.replyText, /Confirme o salvamento/);
-});
-
-test('legacy conversation flow still works unchanged alongside agent flow', async (t) => {
-  const { repositories, legacyUseCase, user } = await createFixture(t, new Map());
-
-  const step1 = await legacyUseCase.execute(input('corrigi timeout no webhook'), user.id, 'default');
-  assert.equal(step1.action, 'reply');
-  assert.match(step1.replyText, /Qual o tipo da nota/);
-
-  await legacyUseCase.execute(input('2'), user.id, 'default');
-  await legacyUseCase.execute(input('platform'), user.id, 'default');
-  await legacyUseCase.execute(input('9'), user.id, 'default');
-  const step5 = await legacyUseCase.execute(input('sim'), user.id, 'default');
-
-  assert.equal(step5.action, 'submit');
-  assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 1);
+  assert.equal(resume.action, 'submit');
+  assert.equal(await repositories.countConversationStates(), 0);
 });

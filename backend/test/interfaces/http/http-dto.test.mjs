@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { conversationBodySchema } from '../../../dist/interfaces/http/dto/operations.dto.js';
+import { agentConversationBodySchema } from '../../../dist/interfaces/http/dto/operations.dto.js';
 import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../../../dist/interfaces/http/dto/integration-credentials.dto.js';
 import { internalN8nIngestBodySchema } from '../../../dist/interfaces/http/dto/internal-n8n.dto.js';
 import { markRemindersBodySchema, queryRequestSchema } from '../../../dist/interfaces/http/dto/query.dto.js';
@@ -93,8 +93,8 @@ test('create note dto normalizes project, tags and keeps reminder date as transp
   });
 });
 
-test('conversation dto accepts valid payloads', () => {
-  const parsed = conversationBodySchema.parse({
+test('agent conversation dto accepts valid payloads', () => {
+  const parsed = agentConversationBodySchema.parse({
     senderId: 'sender-1',
     groupId: 'group-1',
     messageText: 'deploy pronto',

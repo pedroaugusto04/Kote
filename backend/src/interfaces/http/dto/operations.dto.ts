@@ -5,7 +5,6 @@ import { ReminderDispatchMode } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 
 export const ingestBodySchema = ingestPayloadSchema;
-export const conversationBodySchema = conversationInputSchema;
 export const agentConversationBodySchema = conversationInputSchema;
 
 export const workspaceQuerySchema = z.object({
@@ -23,7 +22,6 @@ export const reminderDispatchQuerySchema = z.object({
 }));
 
 export type IngestBody = z.infer<typeof ingestBodySchema>;
-export type ConversationBody = z.infer<typeof conversationBodySchema>;
 export type AgentConversationBody = z.infer<typeof agentConversationBodySchema>;
 export type WorkspaceQuery = z.infer<typeof workspaceQuerySchema>;
 export type ReminderDispatchQuery = z.infer<typeof reminderDispatchQuerySchema>;

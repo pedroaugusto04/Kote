@@ -10,8 +10,8 @@ import { RuntimeEnvironmentProvider } from '../../../ports/runtime-environment.p
 import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
 import { WhatsappMediaDownloader } from '../../../ports/whatsapp-media.downloader.js';
 import { WhatsappReplySender } from '../../../ports/whatsapp-reply.sender.js';
+import { parseKnowledgeCommand } from '../../../utils/conversation-command.utils.js';
 import { buildWhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
-import { parseKnowledgeCommand } from '../../../utils/conversation-flow.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { ProcessAgentConversationUseCase } from '../../conversation/process-agent-conversation.use-case.js';
 import { QueryKnowledgeUseCase } from '../../query/query-knowledge.use-case.js';

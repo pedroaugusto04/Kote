@@ -1,4 +1,4 @@
-import { AiProvider, CanonicalType, Importance, KnowledgeKind, ReviewFindingSeverity } from '../contracts/enums.js';
+import { AiProvider, ReviewFindingSeverity } from '../contracts/enums.js';
 import { conversationAgentDecisionSchema, type ConversationAgentDecision } from '../contracts/agent-conversation.js';
 import { stripMarkdownFences } from '../domain/strings.js';
 
@@ -13,17 +13,6 @@ export type ReviewAnalysis = {
     summary: string;
     recommendation: string;
   }>;
-};
-
-export type ConversationExtraction = {
-  rawText?: string;
-  projectSlug?: string;
-  kind?: KnowledgeKind;
-  canonicalType?: CanonicalType;
-  importance?: Importance;
-  tags?: string[];
-  reminderDate?: string;
-  reminderTime?: string;
 };
 
 export type KnowledgeAnswer = {
@@ -147,29 +136,6 @@ export async function generateReviewAnalysis(
   };
 }
 
-export async function extractConversationFields(
-  config: ChatConfig,
-  payload: {
-    messageText: string;
-    projectSlugs: string[];
-  },
-): Promise<ConversationExtraction | null> {
-  return runStructuredChatCompletion(
-    config,
-    [
-      'Extract structured fields from a WhatsApp knowledge-capture message written in Brazilian Portuguese.',
-      `Use projectSlug only from this list when confident: ${payload.projectSlugs.join(', ') || 'inbox'}.`,
-      'Return strict JSON with optional keys rawText, projectSlug, kind, canonicalType, importance, tags, reminderDate, reminderTime.',
-      'Valid kind values: note, bug, summary, article, daily.',
-      'Valid canonicalType values: event, knowledge, decision, incident.',
-      'Dates must be YYYY-MM-DD and times HH:mm when explicit.',
-      'Do not invent missing information.',
-    ].join(' '),
-    payload.messageText,
-    (parsed) => (parsed && typeof parsed === 'object' ? (parsed as ConversationExtraction) : null),
-  );
-}
-
 export async function decideConversationAgentTurn(
   config: ChatConfig,
   payload: ConversationAgentTurnPayload,
@@ -187,13 +153,13 @@ export async function decideConversationAgentTurn(
     'When the user gives a short answer that appears to resolve the previous question, treat it as a continuation of that context instead of restarting the flow.',
     'If the project can be inferred with high confidence from the current message plus the available projects and prior context, select it instead of asking again.',
     'If the user shows no strong preference about save location, prefer the project root or the most sensible existing folder instead of asking another location question.',
-    'Use pendingApproval="folder_create" only when you are explicitly proposing a new folder structure that does not exist yet and that folder creation itself should be approved.',
-    'Use pendingApproval="final_confirmation" when the draft is ready and the note can be summarized for final confirmation before saving.',
-    'If currentState.pendingApproval is "folder_create" or "final_confirmation", interpret the new user message as an answer to the pending approval. Set approvalIntent to approve, reject, cancel, or unclear.',
-    'For final_confirmation, approvalIntent="approve" means the backend may save; approvalIntent="reject" means discard. For folder_create, approvalIntent="reject" means save in the project root.',
+    'Use pendingApproval="final_confirmation" when the draft is ready and the note can be summarized for final confirmation before saving. Do not create a separate folder approval step.',
+    'If you suggest a new folder structure, include it in suggestedFolderPath and proceed to final confirmation; the backend will create it only after the user approves saving.',
+    'If currentState.pendingApproval is "final_confirmation", interpret the new user message as an answer to the pending approval or as a requested change to the draft/project/folder. Set approvalIntent to approve, reject, cancel, or unclear.',
+    'For final_confirmation, approvalIntent="approve" means the backend may save; approvalIntent="reject" means discard.',
     'Never claim that a note was saved, registered, created, or persisted. Only the backend may send a success message after persistence.',
     'Use action="ask" only for genuine ambiguity or missing information that blocks a sensible assumption.',
-    'Use action="confirm" for folder approval or final confirmation. Use action="submit" only when currentState.pendingApproval is "final_confirmation" and approvalIntent is "approve". Use action="cancel" only when the user clearly wants to discard the flow.',
+    'Use action="confirm" for final confirmation. Use action="submit" only when currentState.pendingApproval is "final_confirmation" and approvalIntent is "approve". Use action="cancel" only when the user clearly wants to discard the flow.',
     'Classification rules: reminders require reminderDate when a date is implied; use reminderTime only when explicit. Documentation, runbooks, procedures, and how-to content should be kind="article" or "summary" and canonicalType="knowledge". Bugs and incidents should be kind="bug", canonicalType="incident", and usually importance="high". Decisions should use canonicalType="decision". General notes should use kind="note" and canonicalType="event".',
     'Do not mention internal JSON or implementation details.',
   ].join(' ');
@@ -242,7 +208,7 @@ function buildConversationAgentTurnPrompt(payload: ConversationAgentTurnPayload)
     'Decision policy:',
     '- Prefer progress over repeated clarification when the intent is sufficiently clear.',
     '- Keep the user in control by requiring final confirmation before persistence.',
-    '- If you propose a new folder, ask for folder approval first; otherwise go straight to final confirmation when ready.',
+    '- If you propose a new folder, include it in the final confirmation; do not ask for separate folder approval.',
     '- Never say that the note was saved. If ready, ask for final confirmation.',
   ].join('\n');
 }

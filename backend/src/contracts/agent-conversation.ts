@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from './enums.js';
 import { conversationMediaSchema } from './conversation.js';
 
-const agentApprovalSchema = z.enum(['none', 'folder_create', 'final_confirmation']);
-const agentActionSchema = z.enum(['ask', 'confirm', 'create_and_confirm', 'cancel', 'submit']);
+const agentApprovalSchema = z.enum(['none', 'final_confirmation']);
+const agentActionSchema = z.enum(['ask', 'confirm', 'cancel', 'submit']);
 const agentApprovalIntentSchema = z.enum(['none', 'approve', 'reject', 'cancel', 'unclear']);
 const nullishToUndefined = (value: unknown) => value == null ? undefined : value;
 const defaultStringSchema = z.preprocess(nullishToUndefined, z.string().default(''));
@@ -35,7 +35,6 @@ export const agentConversationFolderDecisionSchema = z.object({
   selectedFolderId: defaultStringSchema,
   suggestedFolderPath: defaultStringArraySchema,
   placeInRoot: z.preprocess(nullishToUndefined, z.boolean().default(false)),
-  folderApproved: z.preprocess(nullishToUndefined, z.boolean().default(false)),
 });
 
 export const agentConversationStateSchema = z.object({

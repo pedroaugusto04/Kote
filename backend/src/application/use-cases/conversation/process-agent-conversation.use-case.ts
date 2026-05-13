@@ -25,7 +25,7 @@ import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { CreateProjectFolderUseCase } from '../projects/create-project-folder.use-case.js';
 
 type AgentConversationResult = {
-  action: 'ask' | 'confirm' | 'create_and_confirm' | 'cancel' | 'submit';
+  action: 'ask' | 'confirm' | 'cancel' | 'submit';
   replyText: string;
   payload: ReturnType<typeof ingestPayloadSchema.parse> | null;
   ingestResult?: Awaited<ReturnType<IngestEntryUseCase['execute']>>;
@@ -37,6 +37,13 @@ type AgentConversationResult = {
     suggestedFolderPath: string[];
     confidence: AgentConversationState['confidence'];
   };
+};
+
+type AgentDecisionTurn = {
+  projects: ProjectRecord[];
+  candidateProjectSlug: string;
+  candidateFolders: ProjectFolderRecord[];
+  decision: ConversationAgentResponse;
 };
 
 const emptyAgentConversationState: AgentConversationState = agentConversationStateSchema.parse({});
@@ -90,9 +97,6 @@ export class ProcessAgentConversationUseCase {
       await this.conversationStates.clear(userId, normalizedWorkspaceSlug, key);
       return this.reply('cancel', 'Captura cancelada. Envie uma nova nota quando quiser.', null, emptyAgentConversationState);
     }
-    if (state.pendingApproval === 'folder_create') {
-      return this.handleFolderApproval(input, userId, normalizedWorkspaceSlug, key, state);
-    }
     if (state.pendingApproval === 'final_confirmation') {
       return this.handleFinalConfirmation(input, userId, normalizedWorkspaceSlug, key, state);
     }
@@ -133,9 +137,6 @@ export class ProcessAgentConversationUseCase {
     if (!nextState.project.selectedProjectSlug) {
       return this.reply('ask', buildProjectPrompt(decision.replyText, projects), null, nextState);
     }
-    if (nextState.pendingApproval === 'folder_create') {
-      return this.reply('confirm', decision.replyText || buildFolderApprovalPrompt(nextState), null, nextState);
-    }
     if (nextState.pendingApproval === 'final_confirmation') {
       const finalState = {
         ...nextState,
@@ -168,7 +169,7 @@ export class ProcessAgentConversationUseCase {
     userId: string,
     workspaceSlug: string,
     state: AgentConversationState,
-  ) {
+  ): Promise<AgentDecisionTurn> {
     const projects = (await this.contentRepository.listProjects(userId))
       .filter((project) => project.enabled && project.workspaceSlug === workspaceSlug);
     const candidateProjectSlug = sanitizeProjectSlug(state.project.selectedProjectSlug, projects);
@@ -229,54 +230,6 @@ export class ProcessAgentConversationUseCase {
     }
   }
 
-  private async handleFolderApproval(
-    input: ConversationInput,
-    userId: string,
-    workspaceSlug: string,
-    key: string,
-    state: AgentConversationState,
-  ): Promise<AgentConversationResult> {
-    const intent = await this.resolveApprovalIntent(input, userId, workspaceSlug, state);
-    this.logger?.info('conversation.agent.approval', {
-      userId,
-      workspaceSlug,
-      conversationKey: key,
-      pendingApproval: state.pendingApproval,
-      approvalIntent: intent,
-    });
-    if (intent === 'approve') {
-      const nextState = agentConversationStateSchema.parse({
-        ...state,
-        folder: { ...state.folder, folderApproved: true },
-        pendingApproval: 'final_confirmation',
-        lastUserMessage: input.messageText,
-        updatedAt: nowIso(),
-      });
-      const summary = buildFinalConfirmationPrompt(nextState);
-      const persisted = { ...nextState, lastQuestion: summary, lastAgentAction: 'confirm' as const, updatedAt: nowIso() };
-      await this.conversationStates.upsert(userId, workspaceSlug, key, persisted);
-      return this.reply('create_and_confirm', summary, null, persisted);
-    }
-    if (intent === 'reject') {
-      const nextState = agentConversationStateSchema.parse({
-        ...state,
-        folder: { ...state.folder, selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true, folderApproved: false },
-        pendingApproval: 'final_confirmation',
-        lastUserMessage: input.messageText,
-        updatedAt: nowIso(),
-      });
-      const summary = buildFinalConfirmationPrompt(nextState);
-      const persisted = { ...nextState, lastQuestion: summary, lastAgentAction: 'confirm' as const, updatedAt: nowIso() };
-      await this.conversationStates.upsert(userId, workspaceSlug, key, persisted);
-      return this.reply('confirm', summary, null, persisted);
-    }
-    if (intent === 'cancel') {
-      await this.conversationStates.clear(userId, workspaceSlug, key);
-      return this.reply('cancel', 'Captura cancelada. Envie uma nova nota quando quiser.', null, emptyAgentConversationState);
-    }
-    return this.reply('confirm', `${buildFolderApprovalPrompt(state)}\n\nResponda "sim" para aprovar a pasta ou "nao" para salvar na raiz do projeto.`, null, state);
-  }
-
   private async handleFinalConfirmation(
     input: ConversationInput,
     userId: string,
@@ -284,7 +237,8 @@ export class ProcessAgentConversationUseCase {
     key: string,
     state: AgentConversationState,
   ): Promise<AgentConversationResult> {
-    const intent = await this.resolveApprovalIntent(input, userId, workspaceSlug, state);
+    const approval = await this.resolveApprovalTurn(input, userId, workspaceSlug, state);
+    const intent = approval.intent;
     this.logger?.info('conversation.agent.approval', {
       userId,
       workspaceSlug,
@@ -297,6 +251,43 @@ export class ProcessAgentConversationUseCase {
       return this.reply('cancel', 'Nota descartada. Nenhum registro foi criado.', null, emptyAgentConversationState);
     }
     if (intent !== 'approve') {
+      if (approval.turn) {
+        const messageText = String(input.messageText || '').trim();
+        const environment = this.environmentProvider.read();
+        const selectedProjectSlug = resolveSelectedProjectSlug(approval.turn.decision.selectedProjectSlug, state, approval.turn.projects);
+        const foldersForDecision = selectedProjectSlug && selectedProjectSlug !== 'inbox'
+          ? selectedProjectSlug === approval.turn.candidateProjectSlug
+            ? approval.turn.candidateFolders
+            : await this.contentRepository.listProjectFolders(userId, selectedProjectSlug)
+          : [];
+        const nextState = buildNextState(
+          state,
+          messageText,
+          mediaFromInput(input, state),
+          approval.turn.decision,
+          approval.turn.projects,
+          foldersForDecision,
+          environment.reminderTimeZone,
+        );
+        await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
+        if (!nextState.draft.rawText) {
+          return this.reply('ask', 'Nao consegui entender a nota ainda. Reenvie a mensagem com mais informações.', null, nextState);
+        }
+        if (!nextState.project.selectedProjectSlug) {
+          return this.reply('ask', buildProjectPrompt(approval.turn.decision.replyText, approval.turn.projects), null, nextState);
+        }
+        if (nextState.pendingApproval === 'final_confirmation') {
+          const finalState = {
+            ...nextState,
+            lastQuestion: buildFinalConfirmationPrompt(nextState),
+            lastAgentAction: 'confirm' as const,
+            updatedAt: nowIso(),
+          };
+          await this.conversationStates.upsert(userId, workspaceSlug, key, finalState);
+          return this.reply('confirm', finalState.lastQuestion, null, finalState);
+        }
+        return this.reply('ask', approval.turn.decision.replyText || 'Preciso de mais um detalhe antes de salvar.', null, nextState);
+      }
       return this.reply('confirm', buildFinalConfirmationPrompt(state), null, state);
     }
 
@@ -329,18 +320,22 @@ export class ProcessAgentConversationUseCase {
     );
   }
 
-  private async resolveApprovalIntent(
+  private async resolveApprovalTurn(
     input: ConversationInput,
     userId: string,
     workspaceSlug: string,
     state: AgentConversationState,
-  ): Promise<AgentConversationApprovalIntent> {
+  ): Promise<{
+    intent: AgentConversationApprovalIntent;
+    turn?: AgentDecisionTurn;
+  }> {
     try {
-      const decision = await this.requestAgentDecision(input, userId, workspaceSlug, state)
-        .then((result) => result.decision);
-      if (decision.approvalIntent && decision.approvalIntent !== 'none') return decision.approvalIntent;
-      if (decision.action === 'cancel') return 'cancel';
-      if (state.pendingApproval === 'final_confirmation' && decision.action === 'submit') return 'approve';
+      const turn = await this.requestAgentDecision(input, userId, workspaceSlug, state);
+      const decision = turn.decision;
+      if (decision.approvalIntent && decision.approvalIntent !== 'none') return { intent: decision.approvalIntent, turn };
+      if (decision.action === 'cancel') return { intent: 'cancel', turn };
+      if (state.pendingApproval === 'final_confirmation' && decision.action === 'submit') return { intent: 'approve', turn };
+      return { intent: parserApprovalIntent(input.messageText), turn };
     } catch (error) {
       this.logger?.warn('conversation.agent.approval_fallback', {
         userId,
@@ -349,14 +344,13 @@ export class ProcessAgentConversationUseCase {
         error: error instanceof Error ? error.message : String(error),
       });
     }
-    return parserApprovalIntent(input.messageText);
+    return { intent: parserApprovalIntent(input.messageText) };
   }
 
   private async resolveFolderIdForSubmission(userId: string, state: AgentConversationState) {
     if (!state.project.selectedProjectSlug || state.project.selectedProjectSlug === 'inbox') return '';
     if (state.folder.placeInRoot || state.folder.suggestedFolderPath.length === 0) return state.folder.selectedFolderId;
     if (state.folder.selectedFolderId) return state.folder.selectedFolderId;
-    if (!state.folder.folderApproved) return '';
 
     let parentFolderId = '';
     let lastFolderId = '';
@@ -442,13 +436,10 @@ function buildNextState(
       selectedFolderId: folderResolution.selectedFolderId,
       suggestedFolderPath: folderResolution.suggestedFolderPath,
       placeInRoot: folderResolution.placeInRoot,
-      folderApproved: current.folder.folderApproved && samePath(current.folder.suggestedFolderPath, folderResolution.suggestedFolderPath),
     },
     pendingApproval: !selectedProjectSlug
       ? 'none'
-      : folderResolution.needsApproval
-        ? 'folder_create'
-        : decision.pendingApproval === 'final_confirmation' || decision.action === 'submit' || readyForFinalConfirmation
+      : decision.pendingApproval === 'final_confirmation' || decision.action === 'submit' || readyForFinalConfirmation
           ? 'final_confirmation'
           : 'none',
     lastQuestion: decision.replyText || current.lastQuestion,
@@ -473,17 +464,13 @@ function buildProjectPrompt(replyText: string, projects: ProjectRecord[]) {
   return `${replyText || 'Qual projeto devo usar para esta nota?'}\n\nProjetos disponiveis: ${options.join(', ')}`;
 }
 
-function buildFolderApprovalPrompt(state: AgentConversationState) {
-  return `Sugestao de pasta para ${state.project.selectedProjectSlug}: ${state.folder.suggestedFolderPath.join(' / ')}. Posso criar essa estrutura antes de salvar a nota?`;
-}
-
 function buildFinalConfirmationPrompt(state: AgentConversationState) {
   const folderText = state.folder.placeInRoot
     ? 'raiz do projeto'
     : state.folder.selectedFolderId
       ? 'pasta existente selecionada'
       : state.folder.suggestedFolderPath.length
-        ? state.folder.suggestedFolderPath.join(' / ')
+        ? `${state.folder.suggestedFolderPath.join(' / ')} (nova, sera criada ao salvar)`
         : 'raiz do projeto';
   return [
     'Confirme o salvamento da nota:',
@@ -506,10 +493,10 @@ function resolveFolderSelection(input: {
   folders: ProjectFolderRecord[];
 }) {
   if (!input.selectedProjectSlug || input.selectedProjectSlug === 'inbox') {
-    return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true, needsApproval: false };
+    return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true };
   }
   if (input.placeInRoot) {
-    return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true, needsApproval: false };
+    return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true };
   }
   const folderById = input.selectedFolderId
     ? input.folders.find((folder) => folder.id === input.selectedFolderId) || null
@@ -519,19 +506,18 @@ function resolveFolderSelection(input: {
       selectedFolderId: folderById.id,
       suggestedFolderPath: folderById.fullSlugPath.split('/').filter(Boolean),
       placeInRoot: false,
-      needsApproval: false,
     };
   }
 
   const path = input.suggestedFolderPath.map((segment) => trimText(segment)).filter(Boolean);
-  if (path.length === 0) return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true, needsApproval: false };
+  if (path.length === 0) return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true };
 
   const fullSlugPath = path.map((segment) => folderSlugFromDisplayName(segment)).join('/');
   const exactMatch = input.folders.find((folder) => folder.fullSlugPath === fullSlugPath);
   if (exactMatch) {
-    return { selectedFolderId: exactMatch.id, suggestedFolderPath: path, placeInRoot: false, needsApproval: false };
+    return { selectedFolderId: exactMatch.id, suggestedFolderPath: path, placeInRoot: false };
   }
-  return { selectedFolderId: '', suggestedFolderPath: path, placeInRoot: false, needsApproval: true };
+  return { selectedFolderId: '', suggestedFolderPath: path, placeInRoot: false };
 }
 
 function sanitizeProjectSlug(value: string, projects: ProjectRecord[]) {
@@ -596,8 +582,4 @@ function mediaFromInput(input: ConversationInput, state: AgentConversationState)
 
 function mediaForAttachment(state: AgentConversationState) {
   return Boolean(state.media.fileName && state.media.dataBase64);
-}
-
-function samePath(left: string[], right: string[]) {
-  return left.length === right.length && left.every((item, index) => item === right[index]);
 }

@@ -16,7 +16,6 @@ export { GetNoteDetailUseCase } from './dashboard/get-note-detail.use-case.js';
 export { GetReviewDetailUseCase } from './dashboard/get-review-detail.use-case.js';
 export { QueryKnowledgeUseCase } from './query/query-knowledge.use-case.js';
 export { IngestEntryUseCase } from './ingest/ingest-entry.use-case.js';
-export { ProcessConversationUseCase, processConversationInPostgres } from './conversation/process-conversation.use-case.js';
 export { ProcessAgentConversationUseCase } from './conversation/process-agent-conversation.use-case.js';
 export { BuildReminderDispatchUseCase } from './reminders/build-reminder-dispatch.use-case.js';
 export { DispatchDueTelegramRemindersUseCase } from './reminders/dispatch-due-telegram-reminders.use-case.js';
