@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { slugify } from '../../domain/strings.js';
 import type { NoteRecord, SaveAttachmentInput, SaveNoteInput } from '../models/repository-records.models.js';
 import { ObjectStorage } from '../ports/object-storage.js';
 
@@ -8,8 +9,15 @@ function normalizedObjectPath(path: string): string {
 }
 
 function safeFileName(fileName: string): string {
-  const normalized = fileName.trim().replace(/[\\/\u0000-\u001f\u007f]+/g, '_');
-  return normalized || 'attachment';
+  const normalized = String(fileName || '').trim().replace(/[\\/\u0000-\u001f\u007f]+/g, '_');
+  if (!normalized) return 'attachment';
+  const extensionIndex = normalized.lastIndexOf('.');
+  if (extensionIndex <= 0 || extensionIndex === normalized.length - 1) return slugify(normalized) || 'attachment';
+  const stem = normalized.slice(0, extensionIndex);
+  const extension = normalized.slice(extensionIndex + 1);
+  const safeStem = slugify(stem) || 'attachment';
+  const safeExtension = slugify(extension).replace(/-/g, '');
+  return safeExtension ? `${safeStem}.${safeExtension}` : safeStem;
 }
 
 function noteStorageKey(userId: string, workspaceSlug: string, notePath: string): string {

@@ -261,6 +261,38 @@ test('linked whatsapp group saves captioned media as a Supabase-backed attachmen
   assert.equal((await repositories.objectStorage.get(attachments[0].storageKey)).toString('utf8'), 'hello image');
 });
 
+test('linked whatsapp group normalizes attachment storage keys for accented filenames', async (t) => {
+  const { repositories, whatsapp, user } = await fixture(t);
+
+  await whatsapp.execute(evolutionInput('', {
+    data: {
+      key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'media-accented-name', fromMe: false },
+      message: {
+        documentMessage: {
+          caption: 'corrigi timeout no webhook',
+          mimetype: 'application/pdf',
+          fileLength: 11,
+          fileName: 'FéConect-52e25237-dd8a-4511-ba6b-1e394674930f (11).pdf',
+        },
+      },
+      dataBase64: Buffer.from('hello pdf').toString('base64'),
+    },
+  }));
+  const result = await whatsapp.execute(evolutionInput('sim'));
+
+  assert.equal(result.action, 'submit');
+  assert.equal(result.ingestResult.attachmentIds.length, 1);
+  const attachments = await repositories.contentRepository.listAttachments(user.id, result.ingestResult.noteId);
+  assert.equal(attachments.length, 1);
+  assert.equal(attachments[0].fileName, 'FéConect-52e25237-dd8a-4511-ba6b-1e394674930f (11).pdf');
+  assert.equal(attachments[0].mimeType, 'application/pdf');
+  assert.match(
+    attachments[0].storageKey,
+    new RegExp(`^users/${user.id}/workspaces/default/attachments/${result.ingestResult.noteId}/feconect-52e25237-dd8a-4511-ba6b-1e394674930f-11\\.pdf$`),
+  );
+  assert.equal((await repositories.objectStorage.get(attachments[0].storageKey)).toString('utf8'), 'hello pdf');
+});
+
 test('direct whatsapp webhook downloads media when Evolution payload has metadata without base64', async (t) => {
   const downloader = new StubWhatsappMediaDownloader(Buffer.from('downloaded image').toString('base64'));
   const { repositories, whatsapp, user } = await fixture(t, new CapturingWhatsappSender(), downloader);
