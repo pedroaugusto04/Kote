@@ -124,3 +124,30 @@ test('agent conversation contract normalizes null AI fields to safe defaults', (
   assert.equal(parsed.resolvedDraft.reminderDate, '');
   assert.equal(parsed.resolvedDraft.reminderTime, '');
 });
+
+test('agent conversation contract normalizes blank enum AI fields to safe defaults', () => {
+  const parsed = conversationAgentDecisionSchema.parse({
+    replyText: 'Ok',
+    resolvedDraft: {
+      rawText: 'teste',
+      title: '',
+      kind: 'note',
+      canonicalType: 'event',
+      importance: 'low',
+      tags: [],
+      reminderDate: '',
+      reminderTime: '',
+    },
+    selectedProjectSlug: 'inbox',
+    selectedFolderId: '',
+    suggestedFolderPath: [],
+    pendingApproval: '',
+    approvalIntent: '',
+    confidence: 'low',
+    action: '',
+  });
+
+  assert.equal(parsed.pendingApproval, 'none');
+  assert.equal(parsed.approvalIntent, 'none');
+  assert.equal(parsed.action, 'ask');
+});

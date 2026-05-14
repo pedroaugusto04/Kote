@@ -7,13 +7,18 @@ const agentApprovalSchema = z.enum(['none', 'final_confirmation']);
 const agentActionSchema = z.enum(['ask', 'confirm', 'cancel', 'submit']);
 const agentApprovalIntentSchema = z.enum(['none', 'approve', 'reject', 'cancel', 'unclear']);
 const nullishToUndefined = (value: unknown) => value == null ? undefined : value;
+const blankishToUndefined = (value: unknown) => {
+  if (value == null) return undefined;
+  if (typeof value === 'string' && !value.trim()) return undefined;
+  return value;
+};
 const defaultStringSchema = z.preprocess(nullishToUndefined, z.string().default(''));
 const defaultStringArraySchema = z.preprocess(nullishToUndefined, z.array(defaultStringSchema).default([]));
 const defaultKnowledgeKindSchema = z.preprocess(nullishToUndefined, z.nativeEnum(KnowledgeKind).default(KnowledgeKind.Note));
 const defaultCanonicalTypeSchema = z.preprocess(nullishToUndefined, z.nativeEnum(CanonicalType).default(CanonicalType.Event));
 const defaultImportanceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(Importance).default(Importance.Low));
-const defaultApprovalSchema = z.preprocess(nullishToUndefined, agentApprovalSchema.default('none'));
-const defaultActionSchema = z.preprocess(nullishToUndefined, agentActionSchema.default('ask'));
+const defaultApprovalSchema = z.preprocess(blankishToUndefined, agentApprovalSchema.default('none'));
+const defaultActionSchema = z.preprocess(blankishToUndefined, agentActionSchema.default('ask'));
 const defaultConfidenceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(ConversationConfidence).default(ConversationConfidence.Low));
 
 export const agentConversationDraftSchema = z.object({
@@ -58,7 +63,7 @@ export const conversationAgentDecisionSchema = z.object({
   suggestedFolderPath: defaultStringArraySchema,
   placeInRoot: z.preprocess(nullishToUndefined, z.boolean().default(false)),
   pendingApproval: defaultApprovalSchema,
-  approvalIntent: z.preprocess(nullishToUndefined, agentApprovalIntentSchema.default('none')),
+  approvalIntent: z.preprocess(blankishToUndefined, agentApprovalIntentSchema.default('none')),
   confidence: defaultConfidenceSchema,
   action: defaultActionSchema,
 });
