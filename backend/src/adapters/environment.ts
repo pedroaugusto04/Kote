@@ -49,6 +49,8 @@ export type RuntimeEnvironment = {
   evolutionApiPublicUrl: string;
   evolutionInstanceName: string;
   databaseUrl: string;
+  databaseSslMode: string;
+  databaseSslRejectUnauthorized: boolean | null;
   adminEmail: string;
   adminPassword: string;
   jwtAccessSecret: string;
@@ -96,6 +98,10 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     evolutionApiPublicUrl: String(env.EVOLUTION_API_PUBLIC_URL || '').trim(),
     evolutionInstanceName: String(env.EVOLUTION_INSTANCE_NAME || '').trim(),
     databaseUrl: String(env.KB_DATABASE_URL || '').trim(),
+    databaseSslMode: String(env.KB_DATABASE_SSL_MODE || '').trim().toLowerCase(),
+    databaseSslRejectUnauthorized: String(env.KB_DATABASE_SSL_REJECT_UNAUTHORIZED || '').trim() === ''
+      ? null
+      : String(env.KB_DATABASE_SSL_REJECT_UNAUTHORIZED || '').trim().toLowerCase() === 'true',
     adminEmail: String(env.KB_ADMIN_EMAIL || '').trim().toLowerCase(),
     adminPassword: String(env.KB_ADMIN_PASSWORD || '').trim(),
     jwtAccessSecret: String(env.KB_JWT_ACCESS_SECRET || '').trim(),

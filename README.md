@@ -39,6 +39,3 @@ We simplify knowledge capture where the work already happens:
 
 ![Guided Integrations Setup](docs/screenshots/integrations-setup.png)
 *Integration setup and configuration panel.*
-
-
-
