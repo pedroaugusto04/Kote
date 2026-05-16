@@ -11,6 +11,26 @@ import { PageHead, Panel } from '../../shared/ui/primitives';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { ReminderRow } from '../../widgets/reminders/ReminderRow';
 
+function reminderTimestamp(reminder: Reminder) {
+  const direct = Date.parse(reminder.reminderAt || '');
+  if (!Number.isNaN(direct)) return direct;
+  const fallback = Date.parse(`${reminder.reminderDate || ''}T${reminder.reminderTime || '00:00'}:00.000Z`);
+  if (!Number.isNaN(fallback)) return fallback;
+  return Number.MAX_SAFE_INTEGER;
+}
+
+function sortRemindersForList(reminders: Reminder[], statusFilter: string) {
+  if (statusFilter) return reminders;
+  return [...reminders].sort((left, right) => {
+    const leftPendingRank = left.status === 'pending' ? 0 : 1;
+    const rightPendingRank = right.status === 'pending' ? 0 : 1;
+    return leftPendingRank - rightPendingRank
+      || reminderTimestamp(left) - reminderTimestamp(right)
+      || left.title.localeCompare(right.title)
+      || left.id.localeCompare(right.id);
+  });
+}
+
 export function RemindersPage({ dashboard, openNote }: PageContext) {
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
   const [status, setStatus] = useState('');
@@ -19,35 +39,29 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
     queryKey: ['reminders', workspaceSlug, status, page],
     queryFn: () => fetchReminders({ page, workspaceSlug, status }),
     initialData: dashboard.reminders
-      ? {
+      ? (() => {
+          const filteredReminders = sortRemindersForList(
+            dashboard.reminders
+              .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
+              .filter((reminder) => !status || reminder.status === status),
+            status,
+          );
+          return {
           ok: true as const,
-          reminders: dashboard.reminders
-            .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
-            .filter((reminder) => !status || reminder.status === status)
-            .slice(0, DEFAULT_PAGE_SIZE),
+          reminders: filteredReminders.slice(0, DEFAULT_PAGE_SIZE),
           pagination: {
             page: 1,
             pageSize: DEFAULT_PAGE_SIZE,
-            total: dashboard.reminders
-              .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
-              .filter((reminder) => !status || reminder.status === status)
-              .length,
+            total: filteredReminders.length,
             totalPages: Math.max(
               1,
-              Math.ceil(
-                dashboard.reminders
-                  .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
-                  .filter((reminder) => !status || reminder.status === status)
-                  .length / DEFAULT_PAGE_SIZE,
-              ),
+              Math.ceil(filteredReminders.length / DEFAULT_PAGE_SIZE),
             ),
-            hasNext: dashboard.reminders
-              .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
-              .filter((reminder) => !status || reminder.status === status)
-              .length > DEFAULT_PAGE_SIZE,
+            hasNext: filteredReminders.length > DEFAULT_PAGE_SIZE,
             hasPrevious: false,
           },
-        }
+        };
+        })()
       : undefined,
   });
   const grouped = (remindersQuery.data?.reminders || []).reduce<Record<string, Reminder[]>>((acc, reminder) => {

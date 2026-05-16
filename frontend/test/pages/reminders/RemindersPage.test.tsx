@@ -101,4 +101,70 @@ describe('RemindersPage', () => {
     expect(await screen.findByText('Follow up')).toBeInTheDocument();
     expect(screen.getByText('sent')).toBeInTheDocument();
   });
+
+  it('keeps pending reminders first in all situations and breaks ties by ascending date', () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, reminders: [], pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false } }), { status: 200 }),
+    );
+
+    renderWithAppProviders(
+      <RemindersPage
+        dashboard={{
+          ...dashboard,
+          reminders: [
+            {
+              id: 'sent-earlier',
+              title: 'Sent earlier',
+              project: 'n8n-automations',
+              workspace: 'default',
+              status: 'sent',
+              isOverdue: false,
+              reminderDate: '2026-05-01',
+              reminderTime: '08:00',
+              reminderAt: '2026-05-01T08:00:00.000Z',
+              relativePath: '20 Inbox/sent-earlier.md',
+            },
+            {
+              id: 'pending-later',
+              title: 'Pending later',
+              project: 'n8n-automations',
+              workspace: 'default',
+              status: 'pending',
+              isOverdue: false,
+              reminderDate: '2026-05-03',
+              reminderTime: '09:00',
+              reminderAt: '2026-05-03T09:00:00.000Z',
+              relativePath: '20 Inbox/pending-later.md',
+            },
+            {
+              id: 'pending-earlier',
+              title: 'Pending earlier',
+              project: 'n8n-automations',
+              workspace: 'default',
+              status: 'pending',
+              isOverdue: false,
+              reminderDate: '2026-05-02',
+              reminderTime: '09:00',
+              reminderAt: '2026-05-02T09:00:00.000Z',
+              relativePath: '20 Inbox/pending-earlier.md',
+            },
+          ],
+        }}
+        selectedProject=""
+        selectedNoteId=""
+        setSelectedProject={() => undefined}
+        openProject={() => undefined}
+        openNote={() => undefined}
+        editNote={() => undefined}
+        deleteNote={() => undefined}
+      />,
+    );
+
+    const pendingEarlier = screen.getByText('Pending earlier');
+    const pendingLater = screen.getByText('Pending later');
+    const sentEarlier = screen.getByText('Sent earlier');
+
+    expect(pendingEarlier.compareDocumentPosition(pendingLater) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pendingLater.compareDocumentPosition(sentEarlier) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

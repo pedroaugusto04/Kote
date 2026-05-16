@@ -146,6 +146,70 @@ test('paginated reminders expose backend reminder status for expired and sent it
   assert.deepEqual(sentOnly.items.map((item) => item.id), [sentReminder.id]);
 });
 
+test('paginated reminders sort all statuses with pending first and date ascending', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, repositories.reminderDispatchRepository, environmentProvider());
+
+  const sentReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/sent-later.md',
+    title: 'Sent later',
+    metadata: {
+      reminderDate: '2026-05-08',
+      reminderTime: '11:00',
+      reminderAt: '2026-05-08T11:00:00.000Z',
+    },
+  });
+  await repositories.reminderDispatchRepository.markSent(
+    user.id,
+    'default',
+    ReminderDispatchMode.Exact,
+    reminderDispatchKey('2026-05-08T11:00:00.000Z'),
+    sentReminder.id,
+  );
+
+  await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/pending-earlier.md',
+    title: 'Pending earlier',
+    metadata: {
+      reminderDate: '2099-12-30',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-30T09:00:00.000Z',
+    },
+  });
+  await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/pending-later.md',
+    title: 'Pending later',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-31T09:00:00.000Z',
+    },
+  });
+  const archivedReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/archived-earliest.md',
+    title: 'Archived earliest',
+    status: 'archived',
+    metadata: {
+      reminderDate: '2026-05-01',
+      reminderTime: '08:00',
+      reminderAt: '2026-05-01T08:00:00.000Z',
+    },
+  });
+
+  const listed = await listReminders.execute(user.id, { page: 1, pageSize: 10 });
+
+  assert.deepEqual(
+    listed.items.map((item) => ({ title: item.title, status: item.status })),
+    [
+      { title: 'Pending earlier', status: 'pending' },
+      { title: 'Pending later', status: 'pending' },
+      { title: archivedReminder.title, status: 'archived' },
+      { title: sentReminder.title, status: 'sent' },
+    ],
+  );
+});
+
 test('global due reminder read model includes only due reminders with telegram workspace chat', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
