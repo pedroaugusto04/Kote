@@ -1,6 +1,6 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatUsDate, projectName } from '../../entities/format';
+import { formatUsDate, noteStatusLabel, projectName } from '../../entities/format';
 import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
@@ -31,7 +31,7 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
   }
 
   function priorityLabel(priority: HomePriority) {
-    if (priority.type === 'reminder') return priority.status || priority.type;
+    if (priority.status) return noteStatusLabel(priority.status);
     return priority.type;
   }
 
