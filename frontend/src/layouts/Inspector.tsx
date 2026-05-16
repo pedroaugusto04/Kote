@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { formatUsDate, noteStatusLabel, noteTypeLabel, projectName } from '../entities/format';
-import { fetchNote } from '../shared/api/client';
 import type { Dashboard } from '../shared/api/models/dashboard';
+import { noteDetailQueryOptions } from '../shared/api/note-query';
 
 export function Inspector({
   dashboard,
@@ -13,11 +13,7 @@ export function Inspector({
   selectedProject: string;
   selectedNoteId: string;
 }) {
-  const noteQuery = useQuery({
-    queryKey: ['note', selectedNoteId],
-    queryFn: () => fetchNote(selectedNoteId),
-    enabled: Boolean(selectedNoteId),
-  });
+  const noteQuery = useQuery(noteDetailQueryOptions(selectedNoteId));
   const note = noteQuery.data;
   const project = dashboard.projects.find((item) => item.projectSlug === selectedProject);
 

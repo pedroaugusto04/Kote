@@ -8,6 +8,7 @@ import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
 import { ApiClientError, deleteNote, fetchDashboard, fetchNote, fetchProjectFolders, login, logout, signup } from '../shared/api/client';
 import type { NoteSummary } from '../shared/api/models/note';
+import { ensureNoteDetail, getCachedNoteDetail, noteDetailQueryOptions } from '../shared/api/note-query';
 import { HomePage } from '../pages/home/HomePage';
 import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
@@ -68,6 +69,10 @@ export function AppShell() {
   const isSetupRoute = location.pathname.startsWith(routes.setup);
   const activeNavItem = navItems.find((item) => item.view === view);
   const topbarTitle = view === 'note' ? 'Detalhe da Nota' : activeNavItem?.label || 'Home';
+  const routeNoteQuery = useQuery(noteDetailQueryOptions(routeNoteId));
+  const cachedRouteNote = getCachedNoteDetail(queryClient, routeNoteId);
+  const activeRouteNote = routeNoteQuery.data || cachedRouteNote;
+  const shouldBlockNoteRoute = Boolean(routeNoteId) && routeNoteQuery.isLoading && !activeRouteNote;
 
   useEffect(() => {
     if (dashboardQuery.isLoading && !dashboardQuery.data) {
@@ -76,6 +81,14 @@ export function AppShell() {
     }
     return undefined;
   }, [dashboardQuery.data, dashboardQuery.isLoading, globalLoading]);
+
+  useEffect(() => {
+    if (shouldBlockNoteRoute) {
+      globalLoading.start();
+      return () => globalLoading.stop();
+    }
+    return undefined;
+  }, [globalLoading, shouldBlockNoteRoute]);
 
   useEffect(() => {
     setIsMobileNavOpen(false);
@@ -129,7 +142,7 @@ export function AppShell() {
   const pageContext = useMemo<PageContext | null>(() => {
     if (!dashboard) return null;
 
-    const currentProject = routeProject || selectedProject || dashboard.projects[0]?.projectSlug || '';
+    const currentProject = routeProject || activeRouteNote?.project || selectedProject || dashboard.projects[0]?.projectSlug || '';
     const currentNote = routeNoteId || selectedNoteId || '';
 
     return {
@@ -144,8 +157,15 @@ export function AppShell() {
         navigate(routes.project(slug));
       },
       openNote: (id: string) => {
-        setSelectedNoteId(id);
-        navigate(routes.note(id));
+        void globalLoading.trackPromise(
+          ensureNoteDetail(queryClient, id),
+        ).then((note) => {
+          setSelectedProjectState(note.project);
+          setSelectedNoteId(id);
+          navigate(routes.note(id));
+        }).catch((error) => {
+          notifyGeneralFormError(error, 'Nao foi possivel abrir a nota.');
+        });
       },
       editNote: (noteId: string) => {
         loadNoteMutation.mutate(noteId);
@@ -154,7 +174,7 @@ export function AppShell() {
         setConfirmState({ kind: 'note', note: { ...note } as NoteSummary });
       },
     };
-  }, [dashboard, navigate, routeNoteId, routeProject, selectedNoteId, selectedProject, view]);
+  }, [activeRouteNote?.project, dashboard, globalLoading, navigate, queryClient, routeNoteId, routeProject, selectedNoteId, selectedProject, view]);
 
   if (dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401) {
     return <AuthScreen onAuthenticated={() => dashboardQuery.refetch()} />;
@@ -275,7 +295,7 @@ export function AppShell() {
             <Route path="/projects" element={<ProjectsPage {...pageContext} />} />
             <Route path="/projects/:projectSlug" element={<ProjectsPage {...pageContext} />} />
             <Route path="/vault" element={<Navigate replace to={routes.projects} />} />
-            <Route path="/vault/:noteId" element={<VaultPage {...pageContext} />} />
+            <Route path="/vault/:noteId" element={shouldBlockNoteRoute ? null : <VaultPage {...pageContext} />} />
             <Route path="/search" element={<SearchPage {...pageContext} />} />
             <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
             <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />

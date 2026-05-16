@@ -277,7 +277,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    const overlay = await screen.findByRole('status');
+    const overlay = (await screen.findByText('Carregando')).closest('.global-loading-overlay');
     expect(overlay).toHaveClass('global-loading-overlay');
     expect(screen.getByText('Carregando')).toHaveClass('sr-only');
 
@@ -314,6 +314,59 @@ describe('AppShell', () => {
     expect(screen.queryByText('Texto original')).not.toBeInTheDocument();
     expect(screen.queryByText('No impact registered.')).not.toBeInTheDocument();
     expect(screen.queryByText('- none')).not.toBeInTheDocument();
+  });
+
+  it('blocks note navigation with the global loading overlay until the note detail is ready', async () => {
+    const deferred = (() => {
+      let resolve!: (value: Response) => void;
+      const promise = new Promise<Response>((resolver) => {
+        resolve = resolver;
+      });
+      return { promise, resolve };
+    })();
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Promise.resolve(Response.json(dashboard));
+      }
+      if (url === '/api/notes/note-1') {
+        return deferred.promise;
+      }
+      if (url === '/api/integrations?workspaceSlug=default') {
+        return Promise.resolve(Response.json({ ok: true, workspaceSlug: 'default', integrations: [] }));
+      }
+      return Promise.resolve(new Response(null, { status: 404 }));
+    }));
+
+    renderWithAppProviders(<AppShell />);
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByText('Deploy rollout'));
+
+    const overlay = (await screen.findByText('Carregando')).closest('.global-loading-overlay');
+    expect(overlay).toHaveClass('global-loading-overlay');
+    expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(document.querySelector('.note-reader')).toBeNull();
+
+    deferred.resolve(Response.json({
+      ok: true,
+      note: {
+        ...dashboard.notes[0],
+        folderId: null,
+        attachmentCount: 0,
+        markdown: '# Deploy rollout\n\nRevisar deploy.',
+        frontmatter: {},
+        links: [],
+        origin: 'vault',
+        attachments: [],
+        editor: null,
+      },
+    }));
+
+    expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(document.querySelector('.global-loading-overlay')).toBeNull();
+    });
   });
 
   it('opens a note directly from a route parameter', async () => {

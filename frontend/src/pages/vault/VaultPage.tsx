@@ -5,9 +5,10 @@ import { useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { formatUsDate, noteStatusLabel, noteTypeLabel, projectName } from '../../entities/format';
-import { fetchNote, fetchNotes } from '../../shared/api/client';
+import { fetchNotes } from '../../shared/api/client';
 import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
+import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { MarkdownView } from '../../widgets/markdown/MarkdownView';
@@ -19,7 +20,7 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
   const params = useParams();
   const routeNoteId = params.noteId ? decodeURIComponent(params.noteId) : '';
   const noteId = routeNoteId || selectedNoteId;
-  const noteQuery = useQuery({ queryKey: ['note', noteId], queryFn: () => fetchNote(noteId), enabled: Boolean(noteId) });
+  const noteQuery = useQuery(noteDetailQueryOptions(noteId));
   const effectiveProject = noteQuery.data?.project || selectedProject;
   const selectedProjectDetails = useMemo(
     () => dashboard.projects.find((project) => project.projectSlug === effectiveProject) || null,

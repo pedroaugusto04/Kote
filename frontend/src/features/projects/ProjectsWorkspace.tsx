@@ -7,12 +7,12 @@ import {
   deleteNote,
   deleteProject,
   deleteProjectFolder,
-  fetchNote,
   fetchNotes,
   fetchProjectFolders,
 } from '../../shared/api/client';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
+import { ensureNoteDetail } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
@@ -108,7 +108,7 @@ export function ProjectsWorkspace({
   });
   const workspaceRepositories = repositoriesResponse?.repositories || [];
   const loadNoteMutation = useMutation({
-    mutationFn: (id: string) => globalLoading.trackPromise(fetchNote(id)),
+    mutationFn: (id: string) => globalLoading.trackPromise(ensureNoteDetail(queryClient, id)),
     onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
     onError: (error) => notifyGeneralFormError(error, 'Nao foi possivel carregar a nota para edicao.'),
   });
