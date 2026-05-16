@@ -34,7 +34,6 @@ button, a, select, summary, label, .clickable, .nav-item, .tree-item, .workspace
 button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 input[type="search"] { cursor: text; }
 
-.boot-state { display: grid; min-height: 100vh; place-items: center; color: var(--muted); font-family: var(--mono); }
 .app-shell { display: grid; grid-template-columns: 280px minmax(0, 1fr) 320px; min-height: 100vh; }
 .sidebar, .inspector { background: rgba(15, 23, 29, 0.88); border-color: var(--line-soft); backdrop-filter: blur(14px); }
 .sidebar { border-right: 1px solid rgba(148, 163, 184, 0.12); padding: 18px 14px; overflow: auto; }

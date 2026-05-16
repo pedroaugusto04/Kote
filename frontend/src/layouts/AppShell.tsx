@@ -180,7 +180,7 @@ export function AppShell() {
     return <AuthScreen onAuthenticated={() => dashboardQuery.refetch()} />;
   }
 
-  if (!dashboard || !pageContext) return <div className="boot-state">Carregando Knowledge Vault...</div>;
+  if (!dashboard || !pageContext) return null;
   if (isSetupRoute) return <SetupPage dashboard={dashboard} refetchDashboard={() => dashboardQuery.refetch()} />;
   if (!activeWorkspace) return <Navigate replace to={routes.setup} />;
 
