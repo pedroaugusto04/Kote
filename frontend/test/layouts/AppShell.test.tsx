@@ -613,6 +613,23 @@ describe('AppShell', () => {
           headers: { 'x-request-id': 'req-auth' },
         });
       }
+      if (url === '/api/auth/refresh') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'invalid_refresh_token',
+            message: 'Refresh expirado.',
+            details: {},
+          },
+          requestId: 'req-refresh',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-refresh' },
+        });
+      }
+      if (url === '/api/auth/logout') {
+        return Response.json({ ok: true });
+      }
       if (url === '/api/auth/login') {
         return Response.json({ ok: true, user: { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' } });
       }
@@ -664,6 +681,23 @@ describe('AppShell', () => {
           headers: { 'x-request-id': 'req-auth' },
         });
       }
+      if (url === '/api/auth/refresh') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'invalid_refresh_token',
+            message: 'Refresh expirado.',
+            details: {},
+          },
+          requestId: 'req-refresh',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-refresh' },
+        });
+      }
+      if (url === '/api/auth/logout') {
+        return Response.json({ ok: true });
+      }
       return new Response(null, { status: 404 });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -674,6 +708,7 @@ describe('AppShell', () => {
     await waitFor(() => {
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === '/api/dashboard')).toHaveLength(1);
     });
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === '/api/auth/refresh')).toHaveLength(1);
   });
 
   it('shows the backend auth error inline when login fails', async () => {
@@ -692,6 +727,23 @@ describe('AppShell', () => {
           status: 401,
           headers: { 'x-request-id': 'req-auth' },
         });
+      }
+      if (url === '/api/auth/refresh') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'invalid_refresh_token',
+            message: 'Refresh expirado.',
+            details: {},
+          },
+          requestId: 'req-refresh',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-refresh' },
+        });
+      }
+      if (url === '/api/auth/logout') {
+        return Response.json({ ok: true });
       }
       if (url === '/api/auth/login') {
         return Response.json({
@@ -739,6 +791,23 @@ describe('AppShell', () => {
           headers: { 'x-request-id': 'req-auth' },
         });
       }
+      if (url === '/api/auth/refresh') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'invalid_refresh_token',
+            message: 'Refresh expirado.',
+            details: {},
+          },
+          requestId: 'req-refresh',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-refresh' },
+        });
+      }
+      if (url === '/api/auth/logout') {
+        return Response.json({ ok: true });
+      }
       return new Response(null, { status: 404 });
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -770,6 +839,23 @@ describe('AppShell', () => {
           status: 401,
           headers: { 'x-request-id': 'req-auth' },
         });
+      }
+      if (url === '/api/auth/refresh') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'invalid_refresh_token',
+            message: 'Refresh expirado.',
+            details: {},
+          },
+          requestId: 'req-refresh',
+        }, {
+          status: 401,
+          headers: { 'x-request-id': 'req-refresh' },
+        });
+      }
+      if (url === '/api/auth/logout') {
+        return Response.json({ ok: true });
       }
       if (url === '/api/auth/signup') {
         return Response.json({
