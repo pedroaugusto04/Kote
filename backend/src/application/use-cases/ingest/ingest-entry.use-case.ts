@@ -54,7 +54,6 @@ function projectFromPayload(payload: IngestPayload, workspaceSlug: string): Proj
     displayName: payload.event.projectSlug || 'Inbox',
     repositories,
     workspaceSlug,
-    aliases: [],
     defaultTags: [],
     enabled: true,
   };

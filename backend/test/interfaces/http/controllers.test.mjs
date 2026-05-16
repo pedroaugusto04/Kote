@@ -75,13 +75,16 @@ test('operations controller normalizes reminder dispatch and mark-sent inputs', 
   const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
   const controller = new OperationsController(
     { execute: async (body, userId) => ({ op: 'ingest', body, userId }) },
-    { execute: async (body, userId) => ({ op: 'conversation', body, userId }) },
     { execute: async (body, userId) => ({ op: 'agent-conversation', body, userId }) },
     { execute: async (mode, userId, workspaceSlug) => { calls.push(['dispatch', mode, userId, workspaceSlug]); return { mode }; } },
     { execute: async (ids, userId, workspaceSlug) => { calls.push(['mark', ids, userId, workspaceSlug]); return { ids }; } },
   );
 
   assert.deepEqual(await controller.ingest({ source: { correlationId: 'corr-1' } }, user), { op: 'ingest', body: { source: { correlationId: 'corr-1' } }, userId: 'user-1' });
+  assert.deepEqual(
+    await controller.processAgentConversation({ senderId: 'sender-1', groupId: 'group-1', messageText: 'deploy' }, user, { workspaceSlug: 'default' }),
+    { op: 'agent-conversation', body: { senderId: 'sender-1', groupId: 'group-1', messageText: 'deploy' }, userId: 'user-1' },
+  );
   assert.deepEqual(await controller.remindersDispatch(user, { workspaceSlug: 'default', mode: 'exact' }), { mode: 'exact' });
   assert.deepEqual(await controller.remindersDispatch(user, { workspaceSlug: 'default', mode: 'daily' }), { mode: 'daily' });
   assert.deepEqual(await controller.remindersMarkSent({ ids: ['one'] }, user, { workspaceSlug: 'default' }), { ids: ['one'] });
@@ -124,16 +127,16 @@ test('projects and notes controllers delegate create requests to use cases', asy
   });
 
   assert.deepEqual(
-    await projects.create({ displayName: 'Acme API', projectSlug: 'acme-api', repositoryIds: ['101'], aliases: [], defaultTags: [] }, user),
-    { ok: true, project: { displayName: 'Acme API', projectSlug: 'acme-api', repositoryIds: ['101'], aliases: [], defaultTags: [] }, userId: 'user-1' },
+    await projects.create({ displayName: 'Acme API', projectSlug: 'acme-api', repositoryIds: ['101'], defaultTags: [] }, user),
+    { ok: true, project: { displayName: 'Acme API', projectSlug: 'acme-api', repositoryIds: ['101'], defaultTags: [] }, userId: 'user-1' },
   );
   assert.deepEqual(
     await notes.create({ projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
     { ok: true, noteId: 'note-1', body: { projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },
   );
   assert.deepEqual(
-    await projects.update({ projectSlug: 'acme-api' }, { displayName: 'Acme API', repositoryIds: [], aliases: [], defaultTags: [] }, user),
-    { ok: true, project: { projectSlug: 'acme-api', displayName: 'Acme API', repositoryIds: [], aliases: [], defaultTags: [] }, userId: 'user-1' },
+    await projects.update({ projectSlug: 'acme-api' }, { displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, user),
+    { ok: true, project: { projectSlug: 'acme-api', displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
   );
   assert.deepEqual(await projects.remove({ projectSlug: 'acme-api' }, user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
   assert.deepEqual(

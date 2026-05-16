@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { slugify } from '../../../domain/strings.js';
 import {
   normalizedSlugList,
-  normalizedStringList,
   optionalStringArraySchema,
   repositoryIdsSchema,
 } from './dto-normalizers.js';
@@ -13,7 +12,6 @@ export const createProjectBodySchema = z
     displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
     projectSlug: z.string().trim().max(80, 'Use no maximo 80 caracteres.').optional(),
     repositoryIds: repositoryIdsSchema,
-    aliases: optionalStringArraySchema(80, 'Use no maximo 80 caracteres.'),
     defaultTags: optionalStringArraySchema(60, 'Use no maximo 60 caracteres.'),
   })
   .strict()
@@ -23,7 +21,6 @@ export const createProjectBodySchema = z
       displayName: body.displayName,
       projectSlug,
       repositoryIds: body.repositoryIds,
-      aliases: normalizedStringList(body.aliases),
       defaultTags: normalizedSlugList(body.defaultTags),
     };
   });
@@ -38,14 +35,12 @@ export const updateProjectBodySchema = z
   .object({
     displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
     repositoryIds: repositoryIdsSchema,
-    aliases: optionalStringArraySchema(80, 'Use no maximo 80 caracteres.'),
     defaultTags: optionalStringArraySchema(60, 'Use no maximo 60 caracteres.'),
   })
   .strict()
   .transform((body) => ({
     displayName: body.displayName,
     repositoryIds: body.repositoryIds,
-    aliases: normalizedStringList(body.aliases),
     defaultTags: normalizedSlugList(body.defaultTags),
   }));
 

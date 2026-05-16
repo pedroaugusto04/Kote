@@ -346,7 +346,6 @@ export class IntegrationConnectionService {
         displayName: repo.fullName,
         workspaceSlug,
         repositories: [repo],
-        aliases: [],
         defaultTags: [],
         enabled: true,
       });

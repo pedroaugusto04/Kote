@@ -37,7 +37,6 @@ async function createFixture(t, turns) {
     displayName: 'Platform',
     repositories: [],
     workspaceSlug: 'default',
-    aliases: ['plataforma'],
     defaultTags: ['backend'],
     enabled: true,
   });
@@ -46,7 +45,6 @@ async function createFixture(t, turns) {
     displayName: 'Mobile App',
     repositories: [],
     workspaceSlug: 'default',
-    aliases: ['mobile'],
     defaultTags: ['app'],
     enabled: true,
   });

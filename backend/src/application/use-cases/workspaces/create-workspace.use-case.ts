@@ -32,7 +32,6 @@ export class CreateWorkspaceUseCase {
       displayName: 'Inbox',
       repositories: [],
       workspaceSlug,
-      aliases: [],
       defaultTags: [],
       enabled: true,
     });

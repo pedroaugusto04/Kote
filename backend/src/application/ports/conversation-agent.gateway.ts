@@ -4,7 +4,6 @@ import type { RuntimeEnvironment } from './runtime-environment.port.js';
 export type ConversationAgentProjectContext = {
   projectSlug: string;
   displayName: string;
-  aliases: string[];
   defaultTags: string[];
 };
 

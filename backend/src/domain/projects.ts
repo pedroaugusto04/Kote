@@ -15,7 +15,6 @@ export type Project = {
   displayName: string;
   workspaceSlug: string;
   repositories: Repository[];
-  aliases: string[];
   defaultTags: string[];
   enabled: boolean;
 };

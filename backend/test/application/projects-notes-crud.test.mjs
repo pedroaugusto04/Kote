@@ -71,7 +71,6 @@ async function seedProject(repositories, userId) {
     displayName: 'Platform',
     repositories: [repo],
     workspaceSlug: 'default',
-    aliases: ['api'],
     defaultTags: ['backend'],
     enabled: true,
   });
@@ -438,7 +437,6 @@ test('updates project metadata while keeping slug immutable', async (t) => {
     projectSlug: 'platform',
     displayName: 'Platform Core',
     repositoryIds: ['102'],
-    aliases: ['core'],
     defaultTags: ['backend'],
   }, user.id);
 

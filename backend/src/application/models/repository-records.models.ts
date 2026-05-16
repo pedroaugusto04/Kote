@@ -81,7 +81,6 @@ export type ProjectRecord = {
   displayName: string;
   workspaceSlug: string;
   repositories: RepositoryRecord[];
-  aliases: string[];
   defaultTags: string[];
   enabled: boolean;
 };

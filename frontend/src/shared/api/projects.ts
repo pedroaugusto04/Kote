@@ -8,7 +8,6 @@ export type CreateProjectParams = {
   displayName: string;
   projectSlug?: string;
   repositoryIds?: string[];
-  aliases?: string[];
   defaultTags?: string[];
 };
 
@@ -38,7 +37,6 @@ export function createProject(params: CreateProjectParams) {
 export type UpdateProjectParams = {
   displayName: string;
   repositoryIds?: string[];
-  aliases?: string[];
   defaultTags?: string[];
 };
 

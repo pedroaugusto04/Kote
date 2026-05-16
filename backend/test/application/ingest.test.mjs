@@ -130,7 +130,6 @@ test('manual note creation uses ingest and derives optional reminder from the no
     displayName: 'Acme API',
     repositories: [],
     workspaceSlug: 'default',
-    aliases: [],
     defaultTags: ['backend'],
     enabled: true,
   });

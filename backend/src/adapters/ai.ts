@@ -33,7 +33,6 @@ export type ConversationAgentTurnPayload = {
   availableProjects: Array<{
     projectSlug: string;
     displayName: string;
-    aliases: string[];
     defaultTags: string[];
   }>;
   candidateProjectSlug: string;
@@ -175,9 +174,8 @@ function buildConversationAgentTurnPrompt(payload: ConversationAgentTurnPayload)
   const availableProjects = payload.availableProjects.length
     ? payload.availableProjects
       .map((project) => {
-        const aliases = project.aliases.length ? ` aliases=${project.aliases.join(', ')}` : '';
         const defaultTags = project.defaultTags.length ? ` defaultTags=${project.defaultTags.join(', ')}` : '';
-        return `- slug=${project.projectSlug}; displayName=${project.displayName};${aliases}${defaultTags}`;
+        return `- slug=${project.projectSlug}; displayName=${project.displayName};${defaultTags}`;
       })
       .join('\n')
     : '- none';

@@ -126,7 +126,6 @@ export function projectFromRow(row: Row): ProjectRecord {
       createdAt: nowIso(r.created_at || new Date().toISOString()),
       updatedAt: nowIso(r.updated_at || new Date().toISOString()),
     })),
-    aliases: stringArray(row.aliases),
     defaultTags: stringArray(row.default_tags),
     enabled: row.enabled !== false,
   };

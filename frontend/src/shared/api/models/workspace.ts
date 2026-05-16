@@ -13,7 +13,6 @@ export type CreateWorkspaceResponse = {
     displayName: string;
     repositories: Repository[];
     workspaceSlug: string;
-    aliases: string[];
     defaultTags: string[];
     enabled: boolean;
   };

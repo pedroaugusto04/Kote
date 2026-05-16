@@ -33,7 +33,6 @@ const dashboard: Dashboard = {
       displayName: 'N8N Automations',
       repositories: [{ id: '1', workspaceSlug: 'default', externalId: '0', fullName: 'acme/repo', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
       workspaceSlug: 'default',
-      aliases: ['n8n'],
       defaultTags: ['backend'],
       enabled: true,
     },

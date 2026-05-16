@@ -110,7 +110,6 @@ test('create project persists metadata, updates workspace slugs and rejects dupl
     displayName: 'Acme API',
     projectSlug: 'acme-api',
     repositoryIds: ['101'],
-    aliases: ['api'],
     defaultTags: ['backend'],
   }, user.id);
 
@@ -119,7 +118,7 @@ test('create project persists metadata, updates workspace slugs and rejects dupl
   assert.equal(result.project.repositories[0].fullName, 'acme/api');
 
   await assert.rejects(
-    () => useCase.execute({ displayName: 'Other API', projectSlug: 'acme-api', repositoryIds: [], aliases: [], defaultTags: [] }, user.id),
+    () => useCase.execute({ displayName: 'Other API', projectSlug: 'acme-api', repositoryIds: [], defaultTags: [] }, user.id),
     (error) => {
       assert.equal(error.getResponse().code, 'project_slug_already_exists');
       assert.deepEqual(error.getResponse().details.fieldErrors, { projectSlug: 'Este slug de projeto ja existe.' });

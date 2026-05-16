@@ -106,7 +106,6 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     displayName: 'N8N Automations',
     repositories: [],
     workspaceSlug: 'default',
-    aliases: ['n8n'],
     defaultTags: [],
     enabled: true,
   });

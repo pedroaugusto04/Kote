@@ -14,7 +14,6 @@ const dashboard: Dashboard = {
       displayName: 'N8N Automations',
       repositories: [],
       workspaceSlug: 'default',
-      aliases: [],
       defaultTags: [],
       enabled: true,
     },

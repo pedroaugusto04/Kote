@@ -7,7 +7,6 @@ export const projectFormSchema = z.object({
   displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
   projectSlug: optionalSlugSchema,
   repositoryIds: z.array(z.string().trim().min(1, 'Selecione um repositorio valido do GitHub.')),
-  aliases: z.string().max(500, 'Use no maximo 500 caracteres.'),
   defaultTags: z.string().max(500, 'Use no maximo 500 caracteres.'),
 });
 

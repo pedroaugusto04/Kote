@@ -46,7 +46,6 @@ export function ProjectModal({
       displayName: project?.displayName || '',
       projectSlug: project?.projectSlug || '',
       repositoryIds: project?.repositories.map((repository) => repository.externalId) || [],
-      aliases: project?.aliases.join(', ') || '',
       defaultTags: project?.defaultTags.join(', ') || '',
     },
   });
@@ -56,7 +55,6 @@ export function ProjectModal({
       const payload = {
         displayName: values.displayName,
         repositoryIds: values.repositoryIds,
-        aliases: parseCommaSeparatedList(values.aliases),
         defaultTags: parseCommaSeparatedList(values.defaultTags),
       };
       return globalLoading.trackPromise(mode === 'create'
@@ -168,9 +166,6 @@ export function ProjectModal({
             </FormField>
             {hasRepositoryOptions ? <p className="meta">{repositoryHint}</p> : null}
             <div className="form-grid">
-              <FormField name="aliases" label="Aliases" error={errors.aliases?.message} optional>
-                {(fieldProps) => <input {...fieldProps} {...register('aliases')} />}
-              </FormField>
               <FormField name="defaultTags" label="Tags" error={errors.defaultTags?.message} optional>
                 {(fieldProps) => <input {...fieldProps} {...register('defaultTags')} />}
               </FormField>

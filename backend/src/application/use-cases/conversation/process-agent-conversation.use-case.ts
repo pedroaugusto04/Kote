@@ -193,7 +193,6 @@ export class ProcessAgentConversationUseCase {
           availableProjects: projects.map((project) => ({
             projectSlug: project.projectSlug,
             displayName: project.displayName,
-            aliases: project.aliases,
             defaultTags: project.defaultTags,
           })),
           candidateProjectSlug,

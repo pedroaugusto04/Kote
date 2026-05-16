@@ -21,7 +21,6 @@ import { attachmentFromRow, noteFromRow, projectFolderFromRow, projectFromRow, r
 import { PostgresDatabase } from '../persistence/database.js';
 
 const PROJECT_WITH_METADATA_SELECT = `SELECT p.*,
-  COALESCE((SELECT jsonb_agg(alias) FROM kb_project_aliases WHERE project_id = p.id), '[]'::jsonb) as aliases,
   COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
   COALESCE((SELECT jsonb_agg(jsonb_build_object(
     'id', r.id,
@@ -180,7 +179,6 @@ export class PostgresContentRepository extends ContentRepository {
     displayName: string;
     workspaceSlug: string;
     repositories: RepositoryRecord[];
-    aliases: string[];
     defaultTags: string[];
     enabled: boolean;
   }) {
@@ -207,14 +205,7 @@ export class PostgresContentRepository extends ContentRepository {
         ],
       );
       const project = result.rows[0];
-      const { aliases, defaultTags, repositories } = input;
-
-      await client.query('DELETE FROM kb_project_aliases WHERE project_id = $1', [project.id]);
-      if (aliases.length > 0) {
-        for (const alias of aliases) {
-          await client.query('INSERT INTO kb_project_aliases (project_id, alias) VALUES ($1, $2)', [project.id, alias]);
-        }
-      }
+      const { defaultTags, repositories } = input;
 
       await client.query('DELETE FROM kb_project_default_tags WHERE project_id = $1', [project.id]);
       if (defaultTags.length > 0) {
@@ -236,7 +227,6 @@ export class PostgresContentRepository extends ContentRepository {
       await client.query('COMMIT');
       return projectFromRow({ 
         ...project, 
-        aliases, 
         default_tags: defaultTags, 
         repositories
       });

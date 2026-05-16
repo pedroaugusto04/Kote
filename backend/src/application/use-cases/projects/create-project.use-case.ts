@@ -35,7 +35,6 @@ export class CreateProjectUseCase {
       displayName: input.displayName,
       workspaceSlug: workspace.workspaceSlug,
       repositories: selectedRepositories,
-      aliases: input.aliases,
       defaultTags: input.defaultTags,
       enabled: true,
     });

@@ -20,7 +20,6 @@ const baseProjects = [
       updatedAt: ''
     }],
     workspaceSlug: 'default',
-    aliases: [],
     defaultTags: [],
     enabled: true,
   },

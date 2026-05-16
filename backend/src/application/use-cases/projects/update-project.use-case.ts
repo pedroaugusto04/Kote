@@ -25,7 +25,6 @@ export class UpdateProjectUseCase {
       ...project,
       displayName: input.displayName,
       repositories: selectedRepositories,
-      aliases: input.aliases,
       defaultTags: input.defaultTags,
     });
 

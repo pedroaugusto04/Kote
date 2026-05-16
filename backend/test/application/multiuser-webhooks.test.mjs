@@ -211,7 +211,6 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     displayName: 'Platform',
     repositories: [repo],
     workspaceSlug: 'default',
-    aliases: [],
     defaultTags: ['backend'],
     enabled: true,
   });

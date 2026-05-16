@@ -17,7 +17,7 @@ describe('NoteRow', () => {
       <NoteRow
         dashboard={{
           workspaces: [],
-          projects: [{ projectSlug: 'platform', displayName: 'Platform', repositories: [], workspaceSlug: 'default', aliases: [], defaultTags: [], enabled: true }],
+          projects: [{ projectSlug: 'platform', displayName: 'Platform', repositories: [], workspaceSlug: 'default', defaultTags: [], enabled: true }],
           notes: [],
           reminders: [],
           home: { windowDays: 7, metrics: [], activityByDay: [], activityByProject: [], priorities: [], recentInterestingEvents: [] },

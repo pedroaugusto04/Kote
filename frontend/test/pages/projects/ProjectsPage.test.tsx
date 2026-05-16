@@ -49,7 +49,6 @@ const dashboard: Dashboard = {
       displayName: 'Inbox',
       repositories: [],
       workspaceSlug: 'default',
-      aliases: [],
       defaultTags: [],
       enabled: true,
     },
@@ -58,7 +57,6 @@ const dashboard: Dashboard = {
       displayName: 'Platform',
       repositories: [{ id: '1', workspaceSlug: 'default', externalId: '0', fullName: 'acme/api', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
       workspaceSlug: 'default',
-      aliases: ['api'],
       defaultTags: ['backend'],
       enabled: true,
     },
@@ -67,7 +65,6 @@ const dashboard: Dashboard = {
       displayName: 'Empty',
       repositories: [{ id: '2', workspaceSlug: 'default', externalId: '0', fullName: 'acme/empty', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
       workspaceSlug: 'default',
-      aliases: [],
       defaultTags: [],
       enabled: true,
     },
@@ -266,7 +263,6 @@ describe('ProjectsPage', () => {
     expect(repositoryCheckbox).not.toBeChecked();
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Billing API' } });
     fireEvent.click(repositoryCheckbox);
-    fireEvent.change(screen.getByLabelText('Aliases'), { target: { value: 'billing' } });
     fireEvent.change(screen.getByLabelText('Tags'), { target: { value: 'finance' } });
     fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }));
 
@@ -507,7 +503,7 @@ describe('ProjectsPage', () => {
       if (input.includes('/api/projects/platform') && init?.method === 'PATCH') {
         return Response.json({
           ok: true,
-          project: { ...dashboard.projects[1], displayName: 'Platform Core', repositories: [{ id: repoId, workspaceSlug: 'default', externalId: '102', fullName: 'acme/platform', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }], aliases: ['core'] },
+          project: { ...dashboard.projects[1], displayName: 'Platform Core', repositories: [{ id: repoId, workspaceSlug: 'default', externalId: '102', fullName: 'acme/platform', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }] },
         });
       }
       return Response.error();
@@ -519,7 +515,6 @@ describe('ProjectsPage', () => {
     const repositoryCheckbox = await screen.findByRole('checkbox', { name: 'acme/platform Privado' });
     fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Platform Core' } });
     fireEvent.click(repositoryCheckbox);
-    fireEvent.change(screen.getByLabelText('Aliases'), { target: { value: 'core' } });
     fireEvent.click(screen.getByRole('button', { name: 'Salvar projeto' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/projects/platform', expect.objectContaining({ method: 'PATCH' })));

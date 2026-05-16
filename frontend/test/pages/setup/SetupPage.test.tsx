@@ -118,7 +118,6 @@ describe('SetupPage', () => {
             displayName: 'Inbox',
             repositories: [],
             workspaceSlug: 'acme-team',
-            aliases: [],
             defaultTags: [],
             enabled: true,
           },
