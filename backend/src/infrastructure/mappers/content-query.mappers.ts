@@ -11,6 +11,13 @@ function attachmentContentPath(noteId: string, attachmentId: string): string {
   return `/notes/${encodedNoteId}/attachments/${encodedAttachmentId}/content`;
 }
 
+function reminderNoteText(record: Pick<NoteRecord, 'metadata' | 'summary' | 'title'>) {
+  const rawText = String(record.metadata.rawText || '').trim();
+  if (rawText) return rawText;
+  const summary = String(record.summary || '').trim();
+  return summary || String(record.title || '').trim();
+}
+
 export function noteSummary(record: NoteRecord): VaultNoteSummary {
   return {
     id: record.id,
@@ -89,6 +96,7 @@ export function reminderFromNote(record: NoteRecord): ReminderView | null {
   return {
     id: record.id,
     title: record.title,
+    noteText: reminderNoteText(record),
     project: record.projectSlug,
     workspace: record.workspaceSlug,
     status: record.status,

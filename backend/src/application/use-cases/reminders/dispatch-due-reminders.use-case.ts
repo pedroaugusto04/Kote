@@ -95,6 +95,10 @@ export class DispatchDueRemindersUseCase {
       'Lembrete',
       `Projeto: ${reminder.project || '-'}`,
       `Nota: ${reminder.title}`,
+      '',
+      'Texto da nota:',
+      reminder.noteText,
+      '',
       `Agendado para: ${formatReminderScheduledAtLabel(reminder.scheduledAt)}`,
     ].join('\n');
   }

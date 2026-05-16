@@ -74,7 +74,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     const reminderTimeZone = readEnvironment().reminderTimeZone;
     const recipientField = channel === ReminderDeliveryChannel.Telegram ? 'w.telegram_chat_id' : 'w.whatsapp_group_jid';
     const result = await this.database.getPool().query(
-      `select n.user_id, n.workspace_slug, n.id as reminder_id, n.title, n.project_slug, n.path, n.status, n.metadata, ${recipientField} as recipient_id
+      `select n.user_id, n.workspace_slug, n.id as reminder_id, n.title, n.project_slug, n.path, n.status, n.summary, n.metadata, ${recipientField} as recipient_id
        from kb_notes n
        join kb_workspaces w on w.user_id = n.user_id and w.workspace_slug = n.workspace_slug
        where n.status = any($1::text[])
@@ -86,6 +86,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     return result.rows
       .map((row) => {
         const metadata = (row.metadata || {}) as Record<string, unknown>;
+        const noteText = String(metadata.rawText || '').trim() || String(row.summary || '').trim() || String(row.title || '').trim();
         const scheduledAt = resolveReminderScheduledAt({
           reminderDate: metadata.reminderDate,
           reminderTime: metadata.reminderTime,
@@ -99,6 +100,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
           recipientId: String(row.recipient_id || ''),
           reminderId: String(row.reminder_id || ''),
           title: String(row.title || ''),
+          noteText,
           project: String(row.project_slug || ''),
           relativePath: String(row.path || ''),
           status: String(row.status || ''),

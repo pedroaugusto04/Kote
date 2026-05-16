@@ -32,7 +32,16 @@ export class BuildReminderDispatchUseCase {
         if (!(await this.reminderDispatchRepository.hasSent(userId, workspace, ReminderDispatchMode.Daily, now.date, reminder.id))) pending.push(reminder);
       }
       if (!pending.length) return { ok: true, shouldSend: false, message: 'no_pending_daily_reminders' };
-      const text = ['Lembretes ativos', `Data: ${now.date}`, '', ...pending.map((item) => `- [${item.project}] ${item.title} (${item.reminderDate}${item.reminderTime ? ` ${item.reminderTime}` : ''})`)].join('\n');
+      const text = [
+        'Lembretes ativos',
+        `Data: ${now.date}`,
+        '',
+        ...pending.flatMap((item, index) => [
+          `- [${item.project}] ${item.title} (${item.reminderDate}${item.reminderTime ? ` ${item.reminderTime}` : ''})`,
+          `Texto: ${item.noteText}`,
+          ...(index === pending.length - 1 ? [] : ['']),
+        ]),
+      ].join('\n');
       await Promise.all(pending.map((item) => this.reminderDispatchRepository.markSent(userId, workspace, ReminderDispatchMode.Daily, now.date, item.id)));
       return {
         ok: true,
@@ -54,7 +63,16 @@ export class BuildReminderDispatchUseCase {
       if (!(await this.reminderDispatchRepository.hasSent(userId, workspace, ReminderDispatchMode.Exact, dispatchKey, reminder.id))) pending.push(reminder);
     }
     if (!pending.length) return { ok: true, shouldSend: false, message: 'no_due_reminders' };
-    const text = ['Lembrete do momento', `Agora: ${now.date} ${now.time}`, '', ...pending.map((item) => `- [${item.project}] ${item.title}`)].join('\n');
+    const text = [
+      'Lembrete do momento',
+      `Agora: ${now.date} ${now.time}`,
+      '',
+      ...pending.flatMap((item, index) => [
+        `- [${item.project}] ${item.title}`,
+        `Texto: ${item.noteText}`,
+        ...(index === pending.length - 1 ? [] : ['']),
+      ]),
+    ].join('\n');
     return {
       ok: true,
       shouldSend: true,

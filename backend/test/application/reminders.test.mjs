@@ -30,10 +30,11 @@ async function createStoreWithReminder(t) {
     tags: [],
     occurredAt: '2099-12-31T12:00:00.000Z',
     sourceChannel: 'test',
-    summary: 'Deploy',
+    summary: 'Validar rollout antes da janela de deploy.',
     markdown: '',
     frontmatter: {},
     metadata: {
+      rawText: 'Validar rollout antes da janela de deploy.',
       reminderDate: '2099-12-31',
       reminderTime: '09:00',
       reminderAt: '2099-12-31T12:00:00.000Z',
@@ -46,6 +47,7 @@ async function createStoreWithReminder(t) {
 }
 
 async function insertReminder(repositories, userId, input) {
+  const rawText = input.rawText || input.title;
   return repositories.contentRepository.upsertNote(userId, {
     path: input.path,
     type: 'event',
@@ -56,10 +58,13 @@ async function insertReminder(repositories, userId, input) {
     tags: [],
     occurredAt: input.occurredAt || input.metadata.reminderAt || `${input.metadata.reminderDate}T00:00:00.000Z`,
     sourceChannel: 'test',
-    summary: input.title,
+    summary: rawText,
     markdown: '',
     frontmatter: {},
-    metadata: input.metadata,
+    metadata: {
+      rawText,
+      ...input.metadata,
+    },
     origin: 'postgres',
     source: 'test',
     links: [],
@@ -339,6 +344,7 @@ test('daily reminder dispatch ignores resolved and archived reminders even when 
   await insertReminder(repositories, user.id, {
     path: '20 Inbox/n8n-automations/pending.md',
     title: 'Pending reminder',
+    rawText: 'Conferir a pendencia antes do fechamento.',
     status: 'pending',
     metadata: {
       reminderDate: '2026-05-04',
@@ -377,6 +383,7 @@ test('daily reminder dispatch ignores resolved and archived reminders even when 
   assert.equal(result.ok, true);
   assert.equal(result.shouldSend, true);
   assert.match(result.text, /Pending reminder/);
+  assert.match(result.text, /Texto: Conferir a pendencia antes do fechamento\./);
   assert.doesNotMatch(result.text, /Resolved overdue/);
   assert.doesNotMatch(result.text, /Archived overdue/);
 });
@@ -402,7 +409,7 @@ test('default reminder dispatch sends a due WhatsApp reminder and marks it as se
   assert.equal(sent[0].recipientId, '120363-default@g.us');
   assert.equal(sent[0].workspaceSlug, 'default');
   assert.equal(sent[0].userId, user.id);
-  assert.match(sent[0].text, /^Lembrete\nProjeto: n8n-automations\nNota: Deploy\nAgendado para: 2099-12-31 12:00 UTC$/);
+  assert.match(sent[0].text, /^Lembrete\nProjeto: n8n-automations\nNota: Deploy\n\nTexto da nota:\nValidar rollout antes da janela de deploy\.\n\nAgendado para: 2099-12-31 12:00 UTC$/);
   assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'exact', '2099-12-31T12:00', '11111111-1111-1111-1111-111111111111'), true);
   assert.equal((await repositories.contentRepository.getNoteById(user.id, '11111111-1111-1111-1111-111111111111'))?.status, 'sent');
 });

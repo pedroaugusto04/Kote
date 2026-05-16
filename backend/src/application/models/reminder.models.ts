@@ -3,6 +3,7 @@ import type { ReminderDeliveryChannel } from '../../contracts/enums.js';
 export type ReminderView = {
   id: string;
   title: string;
+  noteText: string;
   project: string;
   workspace: string;
   status: string;
@@ -20,6 +21,7 @@ export type DueReminderView = {
   recipientId: string;
   reminderId: string;
   title: string;
+  noteText: string;
   project: string;
   relativePath: string;
   status: string;
