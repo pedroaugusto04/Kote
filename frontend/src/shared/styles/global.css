@@ -140,6 +140,7 @@ body {
 button, input, select { font: inherit; }
 textarea { font: inherit; }
 button, a, select, summary, label, .clickable, .nav-item, .tree-item, .workspace-pill, .filter-chip, .icon-button, .integration-info-button, .modal-close { cursor: pointer; }
+option { cursor: pointer; }
 button:disabled, [aria-disabled="true"] { cursor: not-allowed; }
 input[type="search"] { cursor: text; }
 select:not([multiple]) {
