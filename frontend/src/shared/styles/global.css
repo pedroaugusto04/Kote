@@ -222,7 +222,7 @@ select:not([multiple]) {
   padding: 6px;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
-  background: linear-gradient(180deg, var(--surface-2), var(--surface-1));
+  background: var(--panel);
   box-shadow: var(--shadow-strong);
 }
 .kb-select-listbox {
@@ -239,7 +239,7 @@ select:not([multiple]) {
   min-height: 40px;
   border: 1px solid transparent;
   border-radius: 8px;
-  background: transparent;
+  background: var(--panel);
   color: var(--muted);
   padding: 9px 10px;
   text-align: left;
@@ -249,12 +249,12 @@ select:not([multiple]) {
 .kb-select-option.active {
   color: var(--text);
   border-color: var(--line-soft);
-  background: var(--surface-hover);
+  background: var(--surface-3);
 }
 .kb-select-option.selected {
   color: var(--active-text);
   border-color: var(--accent-border);
-  background: var(--surface-active);
+  background: var(--surface-2);
 }
 .kb-select-option:disabled {
   opacity: 0.5;
