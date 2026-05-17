@@ -1,13 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 
 import { createProjectFolder, updateProjectFolder } from '../../../shared/api/client';
 import type { ProjectFolder } from '../../../shared/api/models/project-folder';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
 import { FormActions, FormField } from '../../../shared/forms/fields';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
+import { Select } from '../../../shared/ui/select';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
 import { collectFolderAndDescendantIds } from '../projects.helpers';
@@ -39,6 +40,7 @@ export function ProjectFolderModal({
   const formRef = useRef<HTMLFormElement>(null);
   const {
     formState: { errors, isDirty },
+    control,
     handleSubmit,
     register,
     setError,
@@ -100,14 +102,31 @@ export function ProjectFolderModal({
             </FormField>
             <FormField name="parentFolderId" label="Pasta pai" error={errors.parentFolderId?.message} optional>
               {(fieldProps) => (
-                <select {...fieldProps} {...register('parentFolderId')}>
-                  <option value="">Raiz</option>
-                  {parentOptions.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {'  '.repeat(option.depth)}{option.displayName}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  control={control}
+                  name="parentFolderId"
+                  render={({ field }) => (
+                    <Select
+                      ariaDescribedBy={fieldProps['aria-describedby']}
+                      ariaInvalid={fieldProps['aria-invalid']}
+                      ariaRequired={fieldProps['aria-required']}
+                      dataField={fieldProps['data-field']}
+                      id={fieldProps.id}
+                      options={[
+                        { value: '', label: 'Raiz' },
+                        ...parentOptions.map((option) => ({
+                          value: option.id,
+                          label: option.displayName,
+                          depth: option.depth,
+                        })),
+                      ]}
+                      required={fieldProps.required}
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
               )}
             </FormField>
             <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === 'create' ? 'Criar pasta' : 'Salvar pasta'} />

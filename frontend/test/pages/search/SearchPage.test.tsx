@@ -64,7 +64,8 @@ describe('SearchPage', () => {
 
     renderSearchPage('/search?q=deploy');
 
-    fireEvent.change(screen.getByLabelText('Filtrar por status'), { target: { value: 'resolved' } });
+    fireEvent.click(screen.getByLabelText('Filtrar por status'));
+    fireEvent.click(screen.getByRole('option', { name: 'Resolved' }));
 
     await waitFor(() => {
       expect(apiSpies.runQuery).toHaveBeenLastCalledWith({
@@ -89,7 +90,8 @@ describe('SearchPage', () => {
 
     renderSearchPage('/search');
 
-    fireEvent.change(screen.getByLabelText('Filtrar por status'), { target: { value: 'resolved' } });
+    fireEvent.click(screen.getByLabelText('Filtrar por status'));
+    fireEvent.click(screen.getByRole('option', { name: 'Resolved' }));
 
     await waitFor(() => {
       expect(apiSpies.fetchNotes).toHaveBeenLastCalledWith({

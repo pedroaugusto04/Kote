@@ -9,6 +9,7 @@ import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { type NoteStatus } from '../../shared/api/models/note-status';
 import { EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
+import { Select } from '../../shared/ui/select';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 
@@ -88,24 +89,31 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
       <section className="search-box">
         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Informe o que você está buscando..." type="search" />
         <div className="filters">
-          <select>
-            <option>{workspaceSlug || 'workspace-atual'}</option>
-          </select>
-          <select value={projectSlug} onChange={(event) => setProjectSlug(event.target.value)}>
-            <option value="">Todos os projetos</option>
-            {dashboard.projects.map((project) => (
-              <option value={project.projectSlug} key={project.projectSlug}>
-                {project.displayName}
-              </option>
-            ))}
-          </select>
-          <select aria-label="Filtrar por status" value={status} onChange={(event) => setStatus(event.target.value as '' | NoteStatus)}>
-            {statusOptions.map((option) => (
-              <option key={option.value || 'all'} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <Select
+            ariaLabel="Workspace atual"
+            disabled
+            options={[{ value: workspaceSlug || 'workspace-atual', label: workspaceSlug || 'workspace-atual' }]}
+            value={workspaceSlug || 'workspace-atual'}
+            onChange={() => undefined}
+          />
+          <Select
+            ariaLabel="Filtrar por projeto"
+            options={[
+              { value: '', label: 'Todos os projetos' },
+              ...dashboard.projects.map((project) => ({
+                value: project.projectSlug,
+                label: project.displayName,
+              })),
+            ]}
+            value={projectSlug}
+            onChange={setProjectSlug}
+          />
+          <Select
+            ariaLabel="Filtrar por status"
+            options={statusOptions}
+            value={status}
+            onChange={(nextValue) => setStatus(nextValue as '' | NoteStatus)}
+          />
           <button className="icon-button" type="button" onClick={() => void (hasQuery ? queryResult.refetch() : notesResult.refetch())}>
             Buscar
           </button>

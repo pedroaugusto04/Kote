@@ -17,6 +17,7 @@ import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { PageHead } from '../../shared/ui/primitives';
+import { Select } from '../../shared/ui/select';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useGlobalLoading } from '../../app/global-loading';
 import { ROOT_FOLDER_ID } from './projects.constants';
@@ -150,18 +151,17 @@ export function ProjectsWorkspace({
           <div className="page-head-title-row">
             <h1>Projetos</h1>
             <label className="sr-only" htmlFor="projects-page-project-select">Selecionar projeto</label>
-            <select
-              id="projects-page-project-select"
+            <Select
+              ariaLabel="Selecionar projeto"
               className="page-head-select"
+              id="projects-page-project-select"
+              options={dashboard.projects.map((project) => ({
+                value: project.projectSlug,
+                label: project.displayName,
+              }))}
               value={selected?.projectSlug || ''}
-              onChange={(event) => openProject(event.target.value)}
-            >
-              {dashboard.projects.map((project) => (
-                <option key={project.projectSlug} value={project.projectSlug}>
-                  {project.displayName}
-                </option>
-              ))}
-            </select>
+              onChange={openProject}
+            />
           </div>
         )}
         subtitle=""

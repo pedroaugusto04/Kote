@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 
 import { createNote, updateNote } from '../../../shared/api/client';
 import type { NoteDetail } from '../../../shared/api/models/note';
@@ -9,6 +9,7 @@ import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, not
 import { FormActions, FormField } from '../../../shared/forms/fields';
 import { parseCommaSeparatedList } from '../../../shared/forms/normalizers';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
+import { Select } from '../../../shared/ui/select';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
@@ -37,6 +38,7 @@ export function ProjectNoteModal({
   const formRef = useRef<HTMLFormElement>(null);
   const {
     formState: { errors, isDirty },
+    control,
     handleSubmit,
     register,
     setError,
@@ -103,14 +105,31 @@ export function ProjectNoteModal({
           >
             <FormField name="folderId" label="Pasta" error={errors.folderId?.message} optional>
               {(fieldProps) => (
-                <select {...fieldProps} {...register('folderId')}>
-                  <option value="">Raiz</option>
-                  {folders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {'  '.repeat(folder.depth)}{folder.displayName}
-                    </option>
-                  ))}
-                </select>
+                <Controller
+                  control={control}
+                  name="folderId"
+                  render={({ field }) => (
+                    <Select
+                      ariaDescribedBy={fieldProps['aria-describedby']}
+                      ariaInvalid={fieldProps['aria-invalid']}
+                      ariaRequired={fieldProps['aria-required']}
+                      dataField={fieldProps['data-field']}
+                      id={fieldProps.id}
+                      options={[
+                        { value: '', label: 'Raiz' },
+                        ...folders.map((folder) => ({
+                          value: folder.id,
+                          label: folder.displayName,
+                          depth: folder.depth,
+                        })),
+                      ]}
+                      required={fieldProps.required}
+                      value={field.value}
+                      onBlur={field.onBlur}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
               )}
             </FormField>
             <FormField name="title" label="Titulo" error={errors.title?.message} optional>

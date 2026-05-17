@@ -124,7 +124,8 @@ describe('ProjectsPage', () => {
   it('allows selecting another project from the header select', () => {
     const { openProject } = renderProjects();
 
-    fireEvent.change(screen.getByLabelText('Selecionar projeto'), { target: { value: 'empty' } });
+    fireEvent.click(screen.getByLabelText('Selecionar projeto'));
+    fireEvent.click(screen.getByRole('option', { name: 'Empty' }));
 
     expect(openProject).toHaveBeenCalledWith('empty');
   });
@@ -435,7 +436,7 @@ describe('ProjectsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Nova pasta' }));
 
     const modal = await screen.findByRole('dialog', { name: 'Nova pasta' });
-    expect(within(modal).getByLabelText('Pasta pai')).toHaveValue('');
+    expect(within(modal).getByLabelText('Pasta pai')).toHaveTextContent('Raiz');
   });
 
   it('uses the selected folder as the default parent and exposes folder actions in a secondary menu', async () => {
@@ -478,7 +479,7 @@ describe('ProjectsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Nova pasta' }));
 
     const createModal = await screen.findByRole('dialog', { name: 'Nova pasta' });
-    expect(within(createModal).getByLabelText('Pasta pai')).toHaveValue('folder-1');
+    expect(within(createModal).getByLabelText('Pasta pai')).toHaveTextContent('Specs');
     fireEvent.click(within(createModal).getByRole('button', { name: 'Cancelar' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Editar pasta Specs' }));

@@ -8,6 +8,7 @@ import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
 import { Pagination } from '../../shared/ui/pagination';
 import { PageHead, Panel } from '../../shared/ui/primitives';
+import { Select } from '../../shared/ui/select';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { ReminderRow } from '../../widgets/reminders/ReminderRow';
 
@@ -77,18 +78,20 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
           <div className="page-head-title-row">
             <h1>Lembretes</h1>
             <label className="sr-only" htmlFor="reminders-page-status-select">Filtrar por situacao</label>
-            <select
-              id="reminders-page-status-select"
+            <Select
+              ariaLabel="Filtrar por situacao"
               className="page-head-select"
+              id="reminders-page-status-select"
+              options={[
+                { value: '', label: 'Todas as situacoes' },
+                { value: 'pending', label: 'Pendentes' },
+                { value: 'sent', label: 'Enviados' },
+                { value: 'resolved', label: 'Resolvidos' },
+                { value: 'archived', label: 'Arquivados' },
+              ]}
               value={status}
-              onChange={(event) => setStatus(event.target.value)}
-            >
-              <option value="">Todas as situacoes</option>
-              <option value="pending">Pendentes</option>
-              <option value="sent">Enviados</option>
-              <option value="resolved">Resolvidos</option>
-              <option value="archived">Arquivados</option>
-            </select>
+              onChange={setStatus}
+            />
           </div>
         )}
         subtitle=""
