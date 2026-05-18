@@ -807,18 +807,18 @@ p { color: var(--muted); line-height: 1.6; }
   min-height: 100vh;
   padding: 36px;
   background:
-    radial-gradient(circle at 12% 8%, rgba(125, 211, 165, 0.13), transparent 28%),
-    radial-gradient(circle at 88% 12%, rgba(83, 199, 222, 0.12), transparent 24%),
-    linear-gradient(135deg, rgba(240, 185, 90, 0.06), transparent 36%),
+    radial-gradient(circle at 12% 8%, var(--surface-success), transparent 28%),
+    radial-gradient(circle at 88% 12%, var(--surface-info), transparent 24%),
+    linear-gradient(135deg, var(--surface-warning), transparent 36%),
     var(--body-overlay);
 }
 .landing-layout {
   min-height: 100vh;
   padding: 32px;
   background:
-    radial-gradient(circle at 10% 8%, rgba(125, 211, 165, 0.13), transparent 26%),
-    radial-gradient(circle at 88% 10%, rgba(83, 199, 222, 0.11), transparent 22%),
-    linear-gradient(180deg, rgba(240, 185, 90, 0.05), transparent 24%),
+    radial-gradient(circle at 10% 8%, var(--surface-success), transparent 26%),
+    radial-gradient(circle at 88% 10%, var(--surface-info), transparent 22%),
+    linear-gradient(180deg, var(--surface-warning), transparent 24%),
     var(--body-overlay);
 }
 .landing-shell {
@@ -869,7 +869,7 @@ p { color: var(--muted); line-height: 1.6; }
   gap: 18px;
   padding: 32px;
   background:
-    linear-gradient(140deg, rgba(83, 199, 222, 0.12), transparent 44%),
+    linear-gradient(140deg, var(--surface-info), transparent 44%),
     linear-gradient(180deg, var(--surface-2), var(--surface-1));
 }
 .landing-hero-copy {
@@ -908,7 +908,7 @@ p { color: var(--muted); line-height: 1.6; }
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(148, 163, 184, 0.07), transparent 46%),
+    linear-gradient(135deg, var(--surface-hover), transparent 46%),
     var(--surface-4);
 }
 .landing-story-copy {
@@ -943,9 +943,9 @@ p { color: var(--muted); line-height: 1.6; }
   gap: 11px;
   min-width: 0;
   padding: 14px;
-  border: 1px solid rgba(83, 199, 222, 0.18);
+  border: 1px solid var(--info-border);
   border-radius: 8px;
-  background: rgba(15, 23, 29, 0.3);
+  background: var(--surface-3);
 }
 .landing-story-detail strong {
   color: var(--text-strong);
@@ -973,7 +973,7 @@ p { color: var(--muted); line-height: 1.6; }
   padding: 28px;
   overflow: hidden;
   background:
-    linear-gradient(150deg, rgba(83, 199, 222, 0.12), transparent 42%),
+    linear-gradient(150deg, var(--surface-info), transparent 42%),
     linear-gradient(180deg, var(--surface-2), var(--surface-1));
 }
 .auth-hero-main {
@@ -1035,7 +1035,7 @@ p { color: var(--muted); line-height: 1.6; }
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   background:
-    linear-gradient(135deg, rgba(148, 163, 184, 0.07), transparent 46%),
+    linear-gradient(135deg, var(--surface-hover), transparent 46%),
     var(--surface-4);
 }
 .auth-story-copy {
@@ -1105,7 +1105,7 @@ p { color: var(--muted); line-height: 1.6; }
   gap: 18px;
   padding: 26px;
   background:
-    linear-gradient(180deg, rgba(125, 211, 165, 0.08), transparent 34%),
+    linear-gradient(180deg, var(--surface-success), transparent 34%),
     linear-gradient(180deg, var(--surface-2), var(--surface-1)),
     var(--surface-1);
 }
@@ -1133,7 +1133,7 @@ p { color: var(--muted); line-height: 1.6; }
   min-height: 100vh;
   padding: 48px 32px 64px;
   background:
-    radial-gradient(circle at top left, rgba(240, 185, 90, 0.14), transparent 32%),
+    radial-gradient(circle at top left, var(--surface-warning), transparent 32%),
     var(--body-overlay);
   display: grid;
   place-items: start center;
