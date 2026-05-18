@@ -2,8 +2,11 @@ import { Link } from 'react-router-dom';
 
 import { routes } from '../../app/routing/routes';
 import { authLandingContent } from '../../layouts/auth-landing.content';
+import { useTypewriterWord } from '../../layouts/use-typewriter-word';
 
 export function LandingPage() {
+  const animatedWord = useTypewriterWord(authLandingContent.typewriterWords);
+
   return (
     <main className="landing-layout">
       <section className="landing-shell" aria-label="Knowledge Vault landing page">
@@ -26,7 +29,10 @@ export function LandingPage() {
             <span className="card-kicker">Connected technical memory</span>
             <h1 id="landing-title" aria-label={authLandingContent.title.accessible}>
               <span>{authLandingContent.title.prefix}</span>
-              <span className="landing-highlight">capture</span>
+              <span className="landing-highlight auth-typewriter-word">
+                {animatedWord}
+                <span className="auth-typewriter-cursor" aria-hidden="true" />
+              </span>
               <span>{authLandingContent.title.suffix}</span>
             </h1>
             <p>{authLandingContent.lead}</p>
