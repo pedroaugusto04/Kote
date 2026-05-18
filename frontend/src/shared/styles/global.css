@@ -847,6 +847,11 @@ p { color: var(--muted); line-height: 1.6; }
 .landing-link {
   margin-left: 0;
 }
+.landing-button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 .landing-hero,
 .auth-landing {
   width: min(1180px, 100%);

@@ -16,8 +16,8 @@ export function LandingPage() {
             </div>
           </div>
           <div className="landing-topbar-actions">
-            <Link className="topbar-link landing-link" to={routes.auth}>Sign in</Link>
-            <Link className="icon-button" to={`${routes.auth}?mode=signup`}>Create account</Link>
+            <Link className="filter-chip landing-button-link" to={routes.auth}>Sign in</Link>
+            <Link className="icon-button landing-button-link" to={`${routes.auth}?mode=signup`}>Create account</Link>
           </div>
         </header>
 
@@ -32,8 +32,8 @@ export function LandingPage() {
             <p>{authLandingContent.lead}</p>
           </div>
           <div className="landing-actions">
-            <Link className="icon-button" to={routes.auth}>Enter workspace</Link>
-            <Link className="topbar-link landing-link" to={`${routes.auth}?mode=signup`}>Start with a new account</Link>
+            <Link className="icon-button landing-button-link" to={routes.auth}>Enter workspace</Link>
+            <Link className="filter-chip landing-button-link" to={`${routes.auth}?mode=signup`}>Start with a new account</Link>
           </div>
         </section>
 
