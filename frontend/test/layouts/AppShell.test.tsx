@@ -785,7 +785,6 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />);
 
     expect(await screen.findByRole('heading', { name: 'Knowledge Vault helps you capture technical context.' })).toBeInTheDocument();
-    expect(screen.getByText('Personal knowledge base for technical work')).toBeInTheDocument();
     expect(screen.getByText('Keep notes, chats, GitHub activity, decisions, and reminders connected to the projects that need them next.')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Save project memory where work already happens.' })).toBeInTheDocument();
     expect(screen.getByText('Search "retry policy"')).toBeInTheDocument();

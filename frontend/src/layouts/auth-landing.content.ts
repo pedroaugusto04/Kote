@@ -1,5 +1,4 @@
 export const authLandingContent = {
-  eyebrow: 'Personal knowledge base for technical work',
   title: {
     prefix: 'Knowledge Vault helps you',
     suffix: 'technical context.',
