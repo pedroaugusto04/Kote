@@ -784,17 +784,20 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    expect(await screen.findByRole('heading', { name: 'Information and context in one place.' })).toBeInTheDocument();
-    expect(screen.getByText('Capture decisions and learnings in the real flow of work')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Your technical memory, always searchable.' })).toBeInTheDocument();
+    expect(screen.getByText('Personal knowledge base for technical work')).toBeInTheDocument();
+    expect(screen.getByText('Search "retry policy"')).toBeInTheDocument();
+    expect(screen.getByText('Capture')).toBeInTheDocument();
+    expect(screen.getByText('Connect your workspace and core integrations.')).toBeInTheDocument();
     expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('button', { name: 'Create account' }).length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
-    expect(screen.getByText('Access your history, projects, and active integrations.')).toBeInTheDocument();
+    expect(screen.getByText('Open your searchable technical memory and continue from your latest context.')).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Create account' }).at(0)!);
 
-    expect(await screen.findByRole('heading', { name: 'Create an account to get started' })).toBeInTheDocument();
-    expect(screen.getByText('Set up your access and start centralizing knowledge.')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Create your knowledge base' })).toBeInTheDocument();
+    expect(screen.getByText('Start capturing the technical context your future self will need.')).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(0)!);
 

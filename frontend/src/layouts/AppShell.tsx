@@ -26,6 +26,7 @@ import { notifySuccess } from '../shared/ui/notifications';
 import { useGlobalLoading } from '../app/global-loading';
 import { useTheme } from '../app/providers/theme';
 import { createAuthFormSchema, type AuthFormValues, type AuthMode } from './app-shell-auth.forms';
+import { authCopy, authLandingContent } from './auth-landing.content';
 
 
 function activeView(pathname: string): View {
@@ -364,26 +365,6 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   const globalLoading = useGlobalLoading();
   const [mode, setMode] = useState<AuthMode>('login');
   const formRef = useRef<HTMLFormElement>(null);
-  const authBenefits = [
-    'Capture decisions and learnings in the real flow of work',
-    'Turn events and conversations into searchable history',
-    'Speed up onboarding and reduce context loss across people',
-  ];
-  const authSteps = [
-    'Connect your workspace',
-    'Capture knowledge through integrations and daily usage',
-    'Recover context by project, note, and search',
-  ];
-  const authCopy = {
-    login: {
-      title: 'Sign in to your workspace',
-      description: 'Access your history, projects, and active integrations.',
-    },
-    signup: {
-      title: 'Create an account to get started',
-      description: 'Set up your access and start centralizing knowledge.',
-    },
-  } satisfies Record<AuthMode, { title: string; description: string }>;
   const schema = useMemo(() => createAuthFormSchema(mode), [mode]);
   const {
     clearErrors,
@@ -429,27 +410,53 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
     <main className="auth-layout">
       <section className="auth-landing" aria-label="Knowledge Vault entry">
         <section className="auth-hero" aria-labelledby="auth-hero-title">
-          <div className="auth-hero-copy">
-            <h1 id="auth-hero-title">Information and context in one place.</h1>
-            <p className="auth-lead">
-              Continuously capture decisions, conversations, and operational signals. Find them later with clear search and recover context quickly.
-            </p>
+          <div className="auth-hero-main">
+            <div className="auth-hero-copy">
+              <p className="auth-eyebrow">{authLandingContent.eyebrow}</p>
+              <h1 id="auth-hero-title">{authLandingContent.title}</h1>
+              <p className="auth-lead">{authLandingContent.lead}</p>
+            </div>
+            <div className="auth-product-preview" aria-label="Product preview">
+              <div className="auth-preview-search">
+                <span />
+                <strong>{authLandingContent.preview.search}</strong>
+              </div>
+              <div className="auth-preview-list">
+                {authLandingContent.preview.items.map((item) => (
+                  <article className="auth-preview-item" key={item.title}>
+                    <div>
+                      <span>{item.label}</span>
+                      <strong>{item.title}</strong>
+                    </div>
+                    <p>{item.meta}</p>
+                  </article>
+                ))}
+              </div>
+              <div className="auth-preview-context">
+                <strong>{authLandingContent.preview.context}</strong>
+                <div>
+                  {authLandingContent.preview.projectFacts.map((fact) => (
+                    <span key={fact}>{fact}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="auth-benefits-card">
-            <h2>Why start here</h2>
-            <ul className="auth-benefits-list">
-              {authBenefits.map((benefit) => (
-                <li key={benefit}>{benefit}</li>
-              ))}
-            </ul>
+          <div className="auth-pillars" aria-label="Knowledge base workflow">
+            {authLandingContent.pillars.map((pillar) => (
+              <article className="auth-pillar" key={pillar.title}>
+                <span>{pillar.title}</span>
+                <p>{pillar.description}</p>
+              </article>
+            ))}
           </div>
           <div className="auth-flow-card">
             <div className="auth-flow-head">
               <h2>How it works</h2>
-              <p>From daily capture to context recovery in a few steps.</p>
+              <p>From daily capture to context recovery in a few focused steps.</p>
             </div>
             <ol className="auth-steps-list">
-              {authSteps.map((step, index) => (
+              {authLandingContent.steps.map((step, index) => (
                 <li key={step}>
                   <span className="auth-step-index">0{index + 1}</span>
                   <span>{step}</span>
@@ -491,7 +498,7 @@ function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
               {(fieldProps) => <input autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type="password" {...fieldProps} {...register('password')} />}
             </FormField>
             <button className="icon-button auth-submit" type="submit" disabled={mutation.isPending}>
-              {mode === 'login' ? 'Sign in' : 'Create account'}
+              {authCopy[mode].submit}
             </button>
           </form>
         </section>
