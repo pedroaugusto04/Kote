@@ -60,7 +60,7 @@ function ManualLoadingHarness({ promise }: { promise: Promise<string> }) {
         void globalLoading.trackPromise(promise);
       }}
     >
-      Executar
+      Run
     </button>
   );
 }
@@ -75,7 +75,7 @@ function ImmediateLoadingHarness() {
         globalLoading.startImmediate();
       }}
     >
-      Executar imediato
+      Run immediately
     </button>
   );
 }
@@ -116,7 +116,7 @@ describe('GlobalLoadingProvider', () => {
 
     renderWithLoadingProvider(<ManualLoadingHarness promise={deferred.promise} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Executar' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run' }));
 
     const overlay = await screen.findByRole('status');
     expect(overlay).toHaveClass('global-loading-overlay');
@@ -124,7 +124,7 @@ describe('GlobalLoadingProvider', () => {
     expect(overlay).toHaveAttribute('aria-busy', 'true');
     expect(document.body.style.overflow).toBe('hidden');
     expect(document.querySelector('.global-loading-spinner')).not.toBeNull();
-    expect(screen.getByText('Carregando')).toHaveClass('sr-only');
+    expect(screen.getByText('Loading')).toHaveClass('sr-only');
 
     await act(async () => {
       deferred.resolve('done');
@@ -163,9 +163,9 @@ describe('GlobalLoadingProvider', () => {
   it('shows the overlay immediately for blocking loads even when the default delay is enabled', () => {
     renderWithDelayedLoadingProvider(<ImmediateLoadingHarness />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Executar imediato' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run immediately' }));
 
     expect(document.querySelector('.global-loading-overlay')).not.toBeNull();
-    expect(screen.getByText('Carregando')).toHaveClass('sr-only');
+    expect(screen.getByText('Loading')).toHaveClass('sr-only');
   });
 });

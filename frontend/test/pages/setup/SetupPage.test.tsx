@@ -52,8 +52,8 @@ describe('SetupPage', () => {
           ok: false,
           error: {
             code: 'workspace_exists',
-            message: 'Workspace ja existe.',
-            details: { fieldErrors: { workspaceSlug: 'Workspace ja existe.' } },
+            message: 'Workspace already exists.',
+            details: { fieldErrors: { workspaceSlug: 'Workspace already exists.' } },
           },
           requestId: 'req-workspace',
         }, {
@@ -66,12 +66,12 @@ describe('SetupPage', () => {
 
     renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn().mockResolvedValue(undefined)} />);
 
-    fireEvent.change(screen.getByLabelText('Nome do workspace'), { target: { value: 'Acme Team' } });
-    await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveValue('acme-team'));
-    fireEvent.click(screen.getByRole('button', { name: 'Criar workspace' }));
+    fireEvent.change(screen.getByLabelText('Workspace name'), { target: { value: 'Acme Team' } });
+    await waitFor(() => expect(screen.getByLabelText('Workspace slug')).toHaveValue('acme-team'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create workspace' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Workspace ja existe.');
-    await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveFocus());
+    expect(await screen.findByRole('alert')).toHaveTextContent('Workspace already exists.');
+    await waitFor(() => expect(screen.getByLabelText('Workspace slug')).toHaveFocus());
   });
 
   it('emits an error toast when workspace creation fails without field errors', async () => {
@@ -95,9 +95,9 @@ describe('SetupPage', () => {
 
     renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn().mockResolvedValue(undefined)} />);
 
-    fireEvent.change(screen.getByLabelText('Nome do workspace'), { target: { value: 'Acme Team' } });
-    await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveValue('acme-team'));
-    fireEvent.click(screen.getByRole('button', { name: 'Criar workspace' }));
+    fireEvent.change(screen.getByLabelText('Workspace name'), { target: { value: 'Acme Team' } });
+    await waitFor(() => expect(screen.getByLabelText('Workspace slug')).toHaveValue('acme-team'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create workspace' }));
 
     await waitFor(() => expect(notificationSpies.notifyError).toHaveBeenCalledWith('Could not create it right now.'));
   });
@@ -129,9 +129,9 @@ describe('SetupPage', () => {
 
     renderWithAppProviders(<SetupPage dashboard={emptyDashboard} refetchDashboard={vi.fn().mockResolvedValue(undefined)} />);
 
-    fireEvent.change(screen.getByLabelText('Nome do workspace'), { target: { value: 'Acme Team' } });
-    await waitFor(() => expect(screen.getByLabelText('Slug do workspace')).toHaveValue('acme-team'));
-    fireEvent.click(screen.getByRole('button', { name: 'Criar workspace' }));
+    fireEvent.change(screen.getByLabelText('Workspace name'), { target: { value: 'Acme Team' } });
+    await waitFor(() => expect(screen.getByLabelText('Workspace slug')).toHaveValue('acme-team'));
+    fireEvent.click(screen.getByRole('button', { name: 'Create workspace' }));
 
     await waitFor(() => expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Workspace created successfully.'));
     const createWorkspaceCall = fetchMock.mock.calls.find(([input]) => String(input) === '/api/workspaces');
@@ -155,6 +155,6 @@ describe('SetupPage', () => {
       />,
     );
 
-    expect(screen.getByRole('link', { name: 'Ir para o dashboard' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Go to dashboard' })).toHaveAttribute('href', '/');
   });
 });

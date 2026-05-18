@@ -93,7 +93,7 @@ describe('RemindersPage', () => {
     expect(screen.getByText('pending')).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenNthCalledWith(1, '/api/reminders?page=1&pageSize=5&workspaceSlug=default&status=', expect.any(Object));
 
-    fireEvent.click(screen.getByLabelText('Filtrar por situacao'));
+    fireEvent.click(screen.getByLabelText('Filter by status'));
     fireEvent.click(screen.getByRole('option', { name: 'Sent' }));
 
     await waitFor(() => {

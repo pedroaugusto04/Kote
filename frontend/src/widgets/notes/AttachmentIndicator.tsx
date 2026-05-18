@@ -2,7 +2,7 @@ export function AttachmentIndicator({ count }: { count: number }) {
   if (count <= 0) return null;
 
   return (
-    <span className="attachment-indicator" aria-label={`${count} ${count === 1 ? 'anexo' : 'anexos'}`}>
+    <span className="attachment-indicator" aria-label={`${count} ${count === 1 ? 'attachment' : 'attachments'}`}>
       <PaperclipIcon />
       <span>{count}</span>
     </span>

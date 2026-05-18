@@ -10,8 +10,8 @@ export type AuthFormValues = {
 
 const authFormBaseSchema = z.object({
   name: z.string().trim(),
-  email: z.string().trim().email('Informe um email valido.'),
-  password: z.string().min(8, 'Use pelo menos 8 caracteres.'),
+  email: z.string().trim().email('Enter a valid email.'),
+  password: z.string().min(8, 'Use at least 8 characters.'),
 });
 
 export function createAuthFormSchema(mode: AuthMode) {
@@ -20,7 +20,7 @@ export function createAuthFormSchema(mode: AuthMode) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ['name'],
-        message: 'Informe seu nome.',
+        message: 'Enter your name.',
       });
     }
   });

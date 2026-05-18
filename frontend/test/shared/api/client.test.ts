@@ -65,7 +65,7 @@ describe('api client', () => {
     const error = new ApiClientError({
       status: 409,
       code: 'workspace_exists',
-      message: 'Workspace ja existe.',
+      message: 'Workspace already exists.',
       requestId: 'req-409',
     });
 

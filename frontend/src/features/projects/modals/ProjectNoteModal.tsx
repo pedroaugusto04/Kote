@@ -92,7 +92,7 @@ export function ProjectNoteModal({
               <h2 id="note-modal-title">{mode === 'create' ? 'New note' : 'Edit note'}</h2>
               <p>{projectSlug}</p>
             </div>
-            <button aria-label="Fechar detalhes" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
+            <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
           <form
             className="auth-form"

@@ -149,7 +149,7 @@ describe('ProjectsPage', () => {
     const modal = screen.getByRole('dialog', { name: 'New project' });
     fireEvent.change(within(modal).getByLabelText('Name'), { target: { value: 'Billing API' } });
 
-    fireEvent.click(within(modal).getByRole('button', { name: 'Fechar detalhes' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Close details' }));
 
     expect(screen.getByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close without saving' }));
@@ -193,7 +193,7 @@ describe('ProjectsPage', () => {
     const modal = screen.getByRole('dialog', { name: 'New note' });
     fireEvent.change(within(modal).getByLabelText('Text'), { target: { value: 'confirmar deploy' } });
 
-    fireEvent.click(within(modal).getByRole('button', { name: 'Fechar detalhes' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Close details' }));
 
     expect(screen.getByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close without saving' }));
@@ -226,11 +226,11 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Novo projeto' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New project' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Informe o nome do projeto.');
-    await waitFor(() => expect(screen.getByLabelText('Nome')).toHaveFocus());
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter the project name.');
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveFocus());
     expect(fetchMock).not.toHaveBeenCalledWith('/api/projects', expect.anything());
   });
 
@@ -259,16 +259,16 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { openProject } = renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Novo projeto' }));
-    const repositoryCheckbox = await screen.findByRole('checkbox', { name: 'acme/api Privado' });
+    fireEvent.click(screen.getByRole('button', { name: 'New project' }));
+    const repositoryCheckbox = await screen.findByRole('checkbox', { name: 'acme/api Private' });
     expect(repositoryCheckbox).not.toBeChecked();
-    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Billing API' } });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Billing API' } });
     fireEvent.click(repositoryCheckbox);
     fireEvent.change(screen.getByLabelText('Tags'), { target: { value: 'finance' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/projects', expect.objectContaining({ method: 'POST' })));
-    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto criado com sucesso.');
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Project created successfully.');
     expect(openProject).toHaveBeenCalledWith('billing-api');
   });
 
@@ -280,11 +280,11 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Novo projeto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New project' }));
 
-    const repositoryInput = await screen.findByDisplayValue('Conecte o GitHub em Integrações para listar e selecionar repositórios.');
+    const repositoryInput = await screen.findByDisplayValue('Connect GitHub in Integrations to list and select repositories.');
     expect(repositoryInput).toBeDisabled();
-    expect(screen.getByText('Repositorios GitHub')).toBeInTheDocument();
+    expect(screen.getByText('GitHub repositories')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
@@ -306,16 +306,16 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { openNote } = renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Nova nota' }));
-    fireEvent.change(screen.getByLabelText('Titulo'), { target: { value: 'Revisar rollout' } });
-    fireEvent.change(screen.getByLabelText('Texto'), { target: { value: 'confirmar deploy' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New note' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Revisar rollout' } });
+    fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'confirmar deploy' } });
     fireEvent.change(screen.getByLabelText('Tags'), { target: { value: 'deploy' } });
-    fireEvent.change(screen.getByLabelText('Data do lembrete'), { target: { value: '2026-04-29' } });
-    fireEvent.change(screen.getByLabelText('Hora do lembrete'), { target: { value: '09:30' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Criar nota' }));
+    fireEvent.change(screen.getByLabelText('Reminder date'), { target: { value: '2026-04-29' } });
+    fireEvent.change(screen.getByLabelText('Reminder time'), { target: { value: '09:30' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/notes', expect.objectContaining({ method: 'POST' })));
-    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Nota criada com sucesso.');
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Note created successfully.');
     expect(openNote).toHaveBeenCalledWith('note-2');
   });
 
@@ -344,7 +344,7 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { openNote } = renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar nota Deploy antigo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit note Deploy antigo' }));
 
     expect(openNote).not.toHaveBeenCalled();
     expect(await screen.findByDisplayValue('confirmar deploy')).toBeInTheDocument();
@@ -387,19 +387,19 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { openNote } = renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar nota Deploy antigo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit note Deploy antigo' }));
 
-    expect(await screen.findByRole('dialog', { name: 'Editar nota' })).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText('Titulo'), { target: { value: 'Deploy revisado' } });
-    fireEvent.change(screen.getByLabelText('Texto'), { target: { value: 'confirmar deploy atualizado' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Salvar nota' }));
+    expect(await screen.findByRole('dialog', { name: 'Edit note' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Deploy revisado' } });
+    fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'confirmar deploy atualizado' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save note' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/notes/note-1', expect.objectContaining({ method: 'PATCH' })));
-    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Nota atualizada com sucesso.');
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Note updated successfully.');
     expect(openNote).not.toHaveBeenCalled();
   });
 
-  it('opens the folder modal from root with Raiz as the default parent', async () => {
+  it('opens the folder modal from root with Root as the default parent', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       if (url === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
@@ -433,10 +433,10 @@ describe('ProjectsPage', () => {
     }));
     renderProjects();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Nova pasta' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'New folder' }));
 
-    const modal = await screen.findByRole('dialog', { name: 'Nova pasta' });
-    expect(within(modal).getByLabelText('Pasta pai')).toHaveTextContent('Raiz');
+    const modal = await screen.findByRole('dialog', { name: 'New folder' });
+    expect(within(modal).getByLabelText('Parent folder')).toHaveTextContent('Root');
   });
 
   it('uses the selected folder as the default parent and exposes folder actions in a secondary menu', async () => {
@@ -476,15 +476,15 @@ describe('ProjectsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Specs' }));
 
     expect(screen.queryByRole('button', { name: 'Nova subpasta' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Nova pasta' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New folder' }));
 
-    const createModal = await screen.findByRole('dialog', { name: 'Nova pasta' });
-    expect(within(createModal).getByLabelText('Pasta pai')).toHaveTextContent('Specs');
-    fireEvent.click(within(createModal).getByRole('button', { name: 'Cancelar' }));
+    const createModal = await screen.findByRole('dialog', { name: 'New folder' });
+    expect(within(createModal).getByLabelText('Parent folder')).toHaveTextContent('Specs');
+    fireEvent.click(within(createModal).getByRole('button', { name: 'Cancel' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar pasta Specs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit folder Specs' }));
 
-    expect(await screen.findByRole('dialog', { name: 'Editar pasta' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Edit folder' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('Specs')).toBeInTheDocument();
   });
 
@@ -512,14 +512,14 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { openProject } = renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Editar projeto Platform' }));
-    const repositoryCheckbox = await screen.findByRole('checkbox', { name: 'acme/platform Privado' });
-    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Platform Core' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Edit project Platform' }));
+    const repositoryCheckbox = await screen.findByRole('checkbox', { name: 'acme/platform Private' });
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Platform Core' } });
     fireEvent.click(repositoryCheckbox);
-    fireEvent.click(screen.getByRole('button', { name: 'Salvar projeto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save project' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/projects/platform', expect.objectContaining({ method: 'PATCH' })));
-    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto atualizado com sucesso.');
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Project updated successfully.');
     expect(openProject).toHaveBeenCalledWith('platform');
   });
 
@@ -534,23 +534,23 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Excluir nota Deploy antigo' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar exclusão' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete note Deploy antigo' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm deletion' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/notes/note-1', expect.objectContaining({ method: 'DELETE' })));
-    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Nota excluida com sucesso.');
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Note deleted successfully.');
   });
 
   it('blocks project deletion for inbox and projects with notes', () => {
     renderProjects({ selectedProject: 'inbox' });
 
-    expect(screen.queryByRole('button', { name: 'Editar projeto Inbox' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Inbox nao pode ser alterado.' })).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Edit project Inbox' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Inbox cannot be changed.' })).toBeDisabled();
 
     cleanup();
     renderProjects({ selectedProject: 'platform' });
 
-    expect(screen.getByRole('button', { name: 'Exclua ou mova as notas do projeto antes de remover.' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Delete or move the project notes before removing it.' })).toBeDisabled();
   });
 
   it('shows only the focused project workspace without requesting the paginated project list', async () => {
@@ -581,11 +581,11 @@ describe('ProjectsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
     const { openProject } = renderProjects({ selectedProject: 'empty' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Excluir projeto Empty' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Confirmar exclusão' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete project Empty' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm deletion' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/projects/empty', expect.objectContaining({ method: 'DELETE' })));
-    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Projeto excluido com sucesso.');
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Project deleted successfully.');
     expect(openProject).toHaveBeenCalledWith('inbox');
   });
 
@@ -597,8 +597,8 @@ describe('ProjectsPage', () => {
         ok: false,
         error: {
           code: 'project_slug_already_exists',
-          message: 'Slug de projeto ja cadastrado.',
-          details: { fieldErrors: { projectSlug: 'Este slug de projeto ja existe.' } },
+          message: 'Project slug is already registered.',
+          details: { fieldErrors: { projectSlug: 'This project slug already exists.' } },
         },
         requestId: 'req-project',
       }, {
@@ -608,12 +608,12 @@ describe('ProjectsPage', () => {
     }));
     renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Novo projeto' }));
-    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Billing API' } });
+    fireEvent.click(screen.getByRole('button', { name: 'New project' }));
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Billing API' } });
     fireEvent.change(screen.getByLabelText('Slug'), { target: { value: 'platform' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Criar projeto' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Este slug de projeto ja existe.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('This project slug already exists.');
     await waitFor(() => expect(screen.getByLabelText('Slug')).toHaveFocus());
   });
 
@@ -625,8 +625,8 @@ describe('ProjectsPage', () => {
         ok: false,
         error: {
           code: 'invalid_create_note_payload',
-          message: 'Payload de nota invalido.',
-          details: { fieldErrors: { rawText: 'Informe o texto da nota.' } },
+          message: 'Invalid note payload.',
+          details: { fieldErrors: { rawText: 'Enter the note text.' } },
         },
         requestId: 'req-note',
       }, {
@@ -636,11 +636,11 @@ describe('ProjectsPage', () => {
     }));
     renderProjects();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Nova nota' }));
-    fireEvent.change(screen.getByLabelText('Texto'), { target: { value: 'confirmar deploy' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Criar nota' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New note' }));
+    fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'confirmar deploy' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Informe o texto da nota.');
-    await waitFor(() => expect(screen.getByLabelText('Texto')).toHaveFocus());
+    expect(await screen.findByRole('alert')).toHaveTextContent('Enter the note text.');
+    await waitFor(() => expect(screen.getByLabelText('Text')).toHaveFocus());
   });
 });

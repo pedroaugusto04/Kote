@@ -86,7 +86,7 @@ export function ProjectFolderModal({
               <h2 id="folder-modal-title">{mode === 'create' ? 'New folder' : 'Edit folder'}</h2>
               <p>{projectSlug}</p>
             </div>
-            <button aria-label="Fechar detalhes" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
+            <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
           <form
             className="auth-form"

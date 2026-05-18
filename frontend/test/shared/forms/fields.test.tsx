@@ -17,7 +17,7 @@ describe('FormField', () => {
 
     const input = screen.getByRole('textbox', { name: /tags/i });
 
-    expect(screen.getByText('opcional')).toBeInTheDocument();
+    expect(screen.getByText('optional')).toBeInTheDocument();
     expect(input).not.toBeRequired();
     expect(input).not.toHaveAttribute('aria-required');
   });
@@ -33,7 +33,7 @@ describe('FormField', () => {
 
     expect(input).toBeRequired();
     expect(input).toHaveAttribute('aria-required', 'true');
-    expect(screen.queryByText('opcional')).not.toBeInTheDocument();
+    expect(screen.queryByText('optional')).not.toBeInTheDocument();
   });
 
   it('keeps the error accessibility contract intact', () => {
@@ -43,7 +43,7 @@ describe('FormField', () => {
       </FormField>,
     );
 
-    const textarea = screen.getByRole('textbox', { name: 'Texto' });
+    const textarea = screen.getByRole('textbox', { name: 'Text' });
     const error = screen.getByRole('alert');
 
     expect(textarea).toHaveAttribute('aria-invalid', 'true');

@@ -30,8 +30,8 @@ const dashboard: Dashboard = {
     },
   ],
   notes: [
-    buildNote({ id: 'active-1', title: 'Nota ativa', status: 'active' }),
-    buildNote({ id: 'resolved-1', title: 'Nota resolvida', status: 'resolved', path: '20 Inbox/platform/resolved.md' }),
+    buildNote({ id: 'active-1', title: 'Active note', status: 'active' }),
+    buildNote({ id: 'resolved-1', title: 'Resolved note', status: 'resolved', path: '20 Inbox/platform/resolved.md' }),
   ],
   reminders: [],
   home: {
@@ -57,14 +57,14 @@ describe('SearchPage', () => {
   it('passes the selected status to text search requests', async () => {
     apiSpies.runQuery.mockResolvedValue({
       ok: true,
-      matches: [buildNote({ id: 'resolved-2', title: 'Deploy resolvido', status: 'resolved' })],
+      matches: [buildNote({ id: 'resolved-2', title: 'Resolved deploy', status: 'resolved' })],
       pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       answer: { answer: 'ok', bullets: [] },
     });
 
     renderSearchPage('/search?q=deploy');
 
-    fireEvent.click(screen.getByLabelText('Filtrar por status'));
+    fireEvent.click(screen.getByLabelText('Filter by status'));
     fireEvent.click(screen.getByRole('option', { name: 'Resolved' }));
 
     await waitFor(() => {
@@ -78,19 +78,19 @@ describe('SearchPage', () => {
         pageSize: 5,
       });
     });
-    expect(await screen.findByText('Deploy resolvido')).toBeInTheDocument();
+    expect(await screen.findByText('Resolved deploy')).toBeInTheDocument();
   });
 
   it('filters the note list by status when there is no search text', async () => {
     apiSpies.fetchNotes.mockResolvedValue({
       ok: true,
-      notes: [buildNote({ id: 'resolved-2', title: 'Follow-up resolvido', status: 'resolved' })],
+      notes: [buildNote({ id: 'resolved-2', title: 'Resolved follow-up', status: 'resolved' })],
       pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
     });
 
     renderSearchPage('/search');
 
-    fireEvent.click(screen.getByLabelText('Filtrar por status'));
+    fireEvent.click(screen.getByLabelText('Filter by status'));
     fireEvent.click(screen.getByRole('option', { name: 'Resolved' }));
 
     await waitFor(() => {
@@ -101,7 +101,7 @@ describe('SearchPage', () => {
         status: 'resolved',
       });
     });
-    expect(await screen.findByText('Follow-up resolvido')).toBeInTheDocument();
+    expect(await screen.findByText('Resolved follow-up')).toBeInTheDocument();
   });
 });
 
@@ -126,14 +126,14 @@ function buildNote(overrides: Partial<NoteSummary> = {}): NoteSummary {
     id: 'note-1',
     path: '20 Inbox/platform/note.md',
     type: 'event',
-    title: 'Nota',
+    title: 'Note',
     project: 'platform',
     workspace: 'default',
     folderId: null,
     tags: [],
     date: '2026-05-01',
     status: 'active',
-    summary: 'Resumo',
+    summary: 'Summary',
     source: 'manual-api',
     attachmentCount: 0,
     ...overrides,

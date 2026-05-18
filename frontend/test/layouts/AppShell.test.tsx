@@ -93,12 +93,12 @@ function mockFetch() {
           {
             provider: 'github-app',
             name: 'GitHub App',
-            description: 'Dados de instalacao do GitHub App vinculados ao usuario no workspace atual.',
+            description: 'GitHub App installation data linked to the current workspace user.',
             status: 'connected',
             workspaceSlug: 'default',
-            publicMetadata: { label: 'GitHub principal' },
-            primaryAction: { type: 'revoke', label: 'Revogar' },
-            steps: ['Integracao conectada.'],
+            publicMetadata: { label: 'Primary GitHub' },
+            primaryAction: { type: 'revoke', label: 'Revoke' },
+            steps: ['Integration connected.'],
             lastError: null,
             connectedAccount: 'acme',
             updatedAt: '2026-04-27T10:00:00.000Z',
@@ -107,12 +107,12 @@ function mockFetch() {
           {
             provider: 'whatsapp',
             name: 'WhatsApp',
-            description: 'Chat autorizado para captura e conversa.',
+            description: 'Authorized chat for capture and conversation.',
             status: 'missing',
             workspaceSlug: 'default',
             publicMetadata: {},
-            primaryAction: { type: 'connect', label: 'Conectar WhatsApp' },
-            steps: ['Inicie a conexao.', 'Envie o codigo no chat do WhatsApp.'],
+            primaryAction: { type: 'connect', label: 'Connect WhatsApp' },
+            steps: ['Start the connection.', 'Send the code in the WhatsApp chat.'],
             lastError: null,
             connectedAccount: null,
             updatedAt: null,
@@ -121,12 +121,12 @@ function mockFetch() {
           {
             provider: 'telegram',
             name: 'Telegram',
-            description: 'Chat vinculado ao bot gerenciado.',
+            description: 'Chat linked to the managed bot.',
             status: 'missing',
             workspaceSlug: 'default',
             publicMetadata: {},
-            primaryAction: { type: 'connect', label: 'Conectar Telegram' },
-            steps: ['Inicie a conexao.', 'Envie o codigo no chat do Telegram.'],
+            primaryAction: { type: 'connect', label: 'Connect Telegram' },
+            steps: ['Start the connection.', 'Send the code in the Telegram chat.'],
             lastError: null,
             connectedAccount: null,
             updatedAt: null,
@@ -134,13 +134,13 @@ function mockFetch() {
           },
           {
             provider: 'ai-review',
-            name: 'IA de Review',
-            description: 'Analise gerenciada de pushes.',
+            name: 'AI Review',
+            description: 'Managed push analysis.',
             status: 'missing',
             workspaceSlug: 'default',
             publicMetadata: {},
-            primaryAction: { type: 'connect', label: 'Ativar' },
-            steps: ['Ative o recurso.', 'A configuracao gerenciada do servidor sera usada automaticamente.'],
+            primaryAction: { type: 'connect', label: 'Enable' },
+            steps: ['Enable the feature.', 'The managed server configuration will be used automatically.'],
             lastError: null,
             connectedAccount: null,
             updatedAt: null,
@@ -148,13 +148,13 @@ function mockFetch() {
           },
           {
             provider: 'ai-conversation',
-            name: 'IA de Conversa',
-            description: 'Extracao gerenciada de conversa.',
+            name: 'AI Conversation',
+            description: 'Managed conversation extraction.',
             status: 'missing',
             workspaceSlug: 'default',
             publicMetadata: {},
-            primaryAction: { type: 'connect', label: 'Ativar' },
-            steps: ['Ative o recurso.', 'A configuracao gerenciada do servidor sera usada automaticamente.'],
+            primaryAction: { type: 'connect', label: 'Enable' },
+            steps: ['Enable the feature.', 'The managed server configuration will be used automatically.'],
             lastError: null,
             connectedAccount: null,
             updatedAt: null,
@@ -176,7 +176,7 @@ function mockFetch() {
         provider: 'whatsapp',
         session: { id: '11111111-1111-4111-8111-111111111111', provider: 'whatsapp', status: 'pending', workspaceSlug: 'default', expiresAt: '2026-04-27T10:10:00.000Z', consumedAt: null },
         verificationCode: 'ABC123',
-        instruction: '/kb conectar ABC123',
+        instruction: '/kb connect ABC123',
         steps: ['Envie a mensagem no chat.'],
       });
     }
@@ -340,9 +340,9 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    const overlay = (await screen.findByText('Carregando')).closest('.global-loading-overlay');
+    const overlay = (await screen.findByText('Loading')).closest('.global-loading-overlay');
     expect(overlay).toHaveClass('global-loading-overlay');
-    expect(screen.getByText('Carregando')).toHaveClass('sr-only');
+    expect(screen.getByText('Loading')).toHaveClass('sr-only');
 
     deferred.resolve(Response.json(dashboard));
 
@@ -363,7 +363,7 @@ describe('AppShell', () => {
 
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('N8N Automations')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('Evento')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Event')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('active')).length).toBeGreaterThan(0);
     expect(await screen.findByText('deploy')).toBeInTheDocument();
     expect(screen.getAllByText('Revisar deploy.').length).toBeGreaterThan(0);
@@ -406,7 +406,7 @@ describe('AppShell', () => {
     expect(storage.getItem(THEME_STORAGE_KEY)).toBeNull();
   });
 
-  it('renders the theme toggle immediately before the sair button', async () => {
+  it('renders the theme toggle immediately before the sign out button', async () => {
     stubLocalStorage();
     stubMatchMedia(true);
     vi.stubGlobal('fetch', mockFetch());
@@ -420,8 +420,8 @@ describe('AppShell', () => {
 
     const buttons = topbarMeta ? Array.from(topbarMeta.querySelectorAll('button')) : [];
     expect(buttons).toHaveLength(2);
-    expect(buttons[0]).toHaveAttribute('aria-label', 'Ativar modo claro');
-    expect(buttons[1]).toHaveTextContent('sair');
+    expect(buttons[0]).toHaveAttribute('aria-label', 'Enable light mode');
+    expect(buttons[1]).toHaveTextContent('Sign out');
   });
 
   it('persists the selected theme and reapplies it on a new render', async () => {
@@ -433,11 +433,11 @@ describe('AppShell', () => {
 
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Ativar modo claro' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enable light mode' }));
 
     expect(storage.getItem(THEME_STORAGE_KEY)).toBe('light');
     expect(document.documentElement.dataset.theme).toBe('light');
-    expect(screen.getByRole('button', { name: 'Ativar modo escuro' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enable dark mode' })).toBeInTheDocument();
 
     firstRender.unmount();
 
@@ -446,7 +446,7 @@ describe('AppShell', () => {
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
     expect(storage.getItem(THEME_STORAGE_KEY)).toBe('light');
     expect(document.documentElement.dataset.theme).toBe('light');
-    expect(screen.getByRole('button', { name: 'Ativar modo escuro' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Enable dark mode' })).toBeInTheDocument();
   });
 
   it('blocks note navigation with the global loading overlay until the note detail is ready', async () => {
@@ -477,7 +477,7 @@ describe('AppShell', () => {
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
     fireEvent.click(await screen.findByText('Deploy rollout'));
 
-    const overlay = (await screen.findByText('Carregando')).closest('.global-loading-overlay');
+    const overlay = (await screen.findByText('Loading')).closest('.global-loading-overlay');
     expect(overlay).toHaveClass('global-loading-overlay');
     expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
     expect(document.querySelector('.note-reader')).toBeNull();
@@ -510,7 +510,7 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/vault/note-1' });
 
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('Evento')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Event')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('active')).length).toBeGreaterThan(0);
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
   });
@@ -521,8 +521,8 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/search?q=deploy' });
 
-    expect(await screen.findByRole('heading', { name: 'Busca' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Resposta' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Search' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Answer' })).not.toBeInTheDocument();
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
     expect(await screen.findByText('Deploy rollout')).toBeInTheDocument();
   });
@@ -533,12 +533,12 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/search?q=deploy' });
 
-    expect(await screen.findByRole('heading', { name: 'Busca' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Search' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /N8N Automations/ }));
 
-    expect(await screen.findByRole('heading', { name: 'Projetos' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Projetos' })).toHaveClass('active');
+    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Projects' })).toHaveClass('active');
   });
 
   it('navigates to home when clicking the brand section', async () => {
@@ -548,7 +548,7 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/vault/note-1' });
 
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole('link', { name: 'Ir para Home' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Go to Home' }));
 
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
   });
@@ -567,13 +567,13 @@ describe('AppShell', () => {
     fireEvent.click(menuButton);
     expect(menuButton).toHaveAttribute('aria-expanded', 'true');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Fechar navegacao' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
     expect(menuButton).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(menuButton);
-    fireEvent.click(screen.getByRole('link', { name: 'Projetos' }));
+    fireEvent.click(screen.getByRole('link', { name: 'Projects' }));
 
-    expect(await screen.findByRole('heading', { name: 'Projetos' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument();
     await waitFor(() => {
       expect(menuButton).toHaveAttribute('aria-expanded', 'false');
     });
@@ -590,14 +590,14 @@ describe('AppShell', () => {
     expect(screen.getByAltText('GitHub logo')).toBeInTheDocument();
     expect(screen.getByAltText('WhatsApp logo')).toBeInTheDocument();
     expect(screen.getByAltText('Telegram logo')).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'IA de Review' })).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'IA de Conversa' })).toBeInTheDocument();
-    expect(screen.getByRole('status', { name: 'Workspace atual: default' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'AI Review' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'AI Conversation' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Current workspace: default' })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Conectar WhatsApp' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
-    expect(await screen.findByLabelText('Codigo de conexao')).toHaveTextContent('ABC123');
-    expect(await screen.findByText('/kb conectar ABC123')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Connection code')).toHaveTextContent('ABC123');
+    expect(await screen.findByText('/kb connect ABC123')).toBeInTheDocument();
   });
 
   it('redirects authenticated users without workspace to the setup wizard', async () => {
@@ -618,7 +618,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/projects' });
 
-    expect(await screen.findByRole('heading', { name: 'Configurar workspace' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Set up workspace' })).toBeInTheDocument();
   });
 
   it('renders projects routes even when dashboard notes are omitted', async () => {
@@ -660,7 +660,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/projects' });
 
-    expect(await screen.findByRole('heading', { name: 'Projetos' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument();
     expect((await screen.findAllByRole('heading', { name: 'N8N Automations' })).length).toBeGreaterThan(0);
   });
 
@@ -669,9 +669,9 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/setup' });
 
-    expect(await screen.findByRole('heading', { name: 'Configurar workspace' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Conectar GitHub' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Conectar WhatsApp ou Telegram' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Set up workspace' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Connect GitHub' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Connect WhatsApp or Telegram' })).toBeInTheDocument();
   });
 
   it('opens the GitHub installation flow in the same tab', async () => {
@@ -688,12 +688,12 @@ describe('AppShell', () => {
             {
               provider: 'github-app',
               name: 'GitHub App',
-              description: 'Dados de instalacao do GitHub App vinculados ao usuario no workspace atual.',
+              description: 'GitHub App installation data linked to the current workspace user.',
               status: 'missing',
               workspaceSlug: 'default',
               publicMetadata: {},
-              primaryAction: { type: 'connect', label: 'Conectar GitHub' },
-              steps: ['Instale o app.'],
+              primaryAction: { type: 'connect', label: 'Connect GitHub' },
+              steps: ['Install the app.'],
               lastError: null,
               connectedAccount: null,
               updatedAt: null,
@@ -708,7 +708,7 @@ describe('AppShell', () => {
           provider: 'github-app',
           primaryAction: {
             type: 'external_redirect',
-            label: 'Conectar GitHub',
+            label: 'Connect GitHub',
             url: 'https://github.com/apps/kb/installations/new?state=test-state',
           },
         });
@@ -726,7 +726,7 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/settings/integrations' });
 
     expect(await screen.findByRole('heading', { name: 'Integrations' })).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: 'Conectar GitHub' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Connect GitHub' }));
 
     await waitFor(() => {
       expect(assignSpy).toHaveBeenCalledWith('https://github.com/apps/kb/installations/new?state=test-state');
@@ -746,7 +746,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'missing_access_token',
-            message: 'Nao autenticado.',
+            message: 'Not authenticated.',
             details: {},
           },
           requestId: 'req-auth',
@@ -760,7 +760,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'invalid_refresh_token',
-            message: 'Refresh expirado.',
+            message: 'Refresh expired.',
             details: {},
           },
           requestId: 'req-refresh',
@@ -786,22 +786,22 @@ describe('AppShell', () => {
 
     expect(await screen.findByRole('heading', { name: 'Information and context in one place.' })).toBeInTheDocument();
     expect(screen.getByText('Capture decisions and learnings in the real flow of work')).toBeInTheDocument();
-    expect((await screen.findAllByRole('button', { name: 'Entrar' })).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: 'Criar conta' }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('heading', { name: 'Entrar no seu workspace' })).toBeInTheDocument();
+    expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'Create account' }).length).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
     expect(screen.getByText('Access your history, projects, and active integrations.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Criar conta' }).at(0)!);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Create account' }).at(0)!);
 
     expect(await screen.findByRole('heading', { name: 'Create an account to get started' })).toBeInTheDocument();
-    expect(screen.getByText('Configure seu acesso e comece a centralizar o conhecimento.')).toBeInTheDocument();
+    expect(screen.getByText('Set up your access and start centralizing knowledge.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(0)!);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(0)!);
 
-    expect(await screen.findByRole('heading', { name: 'Entrar no seu workspace' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(-1)!);
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(-1)!);
 
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
   });
@@ -814,7 +814,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'missing_access_token',
-            message: 'Nao autenticado.',
+            message: 'Not authenticated.',
             details: {},
           },
           requestId: 'req-auth',
@@ -828,7 +828,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'invalid_refresh_token',
-            message: 'Refresh expirado.',
+            message: 'Refresh expired.',
             details: {},
           },
           requestId: 'req-refresh',
@@ -846,7 +846,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    expect((await screen.findAllByRole('button', { name: 'Entrar' })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === '/api/dashboard')).toHaveLength(1);
     });
@@ -861,7 +861,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'missing_access_token',
-            message: 'Nao autenticado.',
+            message: 'Not authenticated.',
             details: {},
           },
           requestId: 'req-auth',
@@ -875,7 +875,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'invalid_refresh_token',
-            message: 'Refresh expirado.',
+            message: 'Refresh expired.',
             details: {},
           },
           requestId: 'req-refresh',
@@ -892,8 +892,8 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'invalid_credentials',
-            message: 'Email ou senha invalidos.',
-            details: { fieldErrors: { email: 'Email ou senha invalidos.' } },
+            message: 'Invalid email or password.',
+            details: { fieldErrors: { email: 'Invalid email or password.' } },
           },
           requestId: 'req-login',
         }, {
@@ -907,12 +907,12 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    expect((await screen.findAllByRole('button', { name: 'Entrar' })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(-1)!);
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(-1)!);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Email ou senha invalidos.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Invalid email or password.');
     await waitFor(() => expect(screen.getByLabelText('Email')).toHaveFocus());
   });
 
@@ -924,7 +924,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'missing_access_token',
-            message: 'Nao autenticado.',
+            message: 'Not authenticated.',
             details: {},
           },
           requestId: 'req-auth',
@@ -938,7 +938,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'invalid_refresh_token',
-            message: 'Refresh expirado.',
+            message: 'Refresh expired.',
             details: {},
           },
           requestId: 'req-refresh',
@@ -956,9 +956,9 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    expect((await screen.findAllByRole('button', { name: 'Entrar' })).length).toBeGreaterThan(0);
+    expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'email-invalido' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Entrar' }).at(-1)!);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(-1)!);
 
     expect(await screen.findByText('Enter a valid email.')).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText('Email')).toHaveFocus());
@@ -973,7 +973,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'missing_access_token',
-            message: 'Nao autenticado.',
+            message: 'Not authenticated.',
             details: {},
           },
           requestId: 'req-auth',
@@ -987,7 +987,7 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'invalid_refresh_token',
-            message: 'Refresh expirado.',
+            message: 'Refresh expired.',
             details: {},
           },
           requestId: 'req-refresh',
@@ -1004,8 +1004,8 @@ describe('AppShell', () => {
           ok: false,
           error: {
             code: 'email_already_registered',
-            message: 'Email ja cadastrado.',
-            details: { fieldErrors: { email: 'Este email ja esta cadastrado.' } },
+            message: 'Email already registered.',
+            details: { fieldErrors: { email: 'This email is already registered.' } },
           },
           requestId: 'req-signup',
         }, {
@@ -1019,13 +1019,13 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Criar conta' })).at(0)!);
-    fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'User' } });
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Create account' })).at(0)!);
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'User' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } });
-    fireEvent.change(screen.getByLabelText('Senha'), { target: { value: 'password123' } });
-    fireEvent.click(screen.getAllByRole('button', { name: 'Criar conta' }).at(-1)!);
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Create account' }).at(-1)!);
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Este email ja esta cadastrado.');
+    expect(await screen.findByRole('alert')).toHaveTextContent('This email is already registered.');
     await waitFor(() => expect(screen.getByLabelText('Email')).toHaveFocus());
   });
 });

@@ -47,24 +47,24 @@ describe('NoteRow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Edit note Deploy antigo' }));
     fireEvent.click(screen.getByRole('button', { name: 'Delete note Deploy antigo' }));
 
-    const resolveButton = screen.getByRole('button', { name: 'Resolver nota Deploy antigo' });
-    const archiveButton = screen.getByRole('button', { name: 'Arquivar nota Deploy antigo' });
+    const resolveButton = screen.getByRole('button', { name: 'Resolve note Deploy antigo' });
+    const archiveButton = screen.getByRole('button', { name: 'Archive note Deploy antigo' });
     const editButton = screen.getByRole('button', { name: 'Edit note Deploy antigo' });
     const deleteButton = screen.getByRole('button', { name: 'Delete note Deploy antigo' });
 
-    expect(screen.getByText('Evento')).toBeInTheDocument();
+    expect(screen.getByText('Event')).toBeInTheDocument();
     expect(screen.getByText('active')).toBeInTheDocument();
     expect(resolveButton).toBeInTheDocument();
     expect(archiveButton).toBeInTheDocument();
-    expect(editButton).toHaveAttribute('title', 'Editar');
-    expect(deleteButton).toHaveAttribute('title', 'Excluir');
-    expect(resolveButton).toHaveAttribute('title', 'Resolver');
-    expect(archiveButton).toHaveAttribute('title', 'Arquivar');
+    expect(editButton).toHaveAttribute('title', 'Edit');
+    expect(deleteButton).toHaveAttribute('title', 'Delete');
+    expect(resolveButton).toHaveAttribute('title', 'Resolve');
+    expect(archiveButton).toHaveAttribute('title', 'Archive');
     expect(resolveButton.querySelector('svg')).not.toBeNull();
     expect(archiveButton.querySelector('svg')).not.toBeNull();
     expect(editButton.querySelector('svg')).not.toBeNull();
     expect(deleteButton.querySelector('svg')).not.toBeNull();
-    expect(screen.getByLabelText('2 anexos')).toBeInTheDocument();
+    expect(screen.getByLabelText('2 attachments')).toBeInTheDocument();
     expect(screen.queryByText('event')).not.toBeInTheDocument();
     expect(screen.queryByText('manual-api')).not.toBeInTheDocument();
     expect(onOpen).not.toHaveBeenCalled();
@@ -101,6 +101,6 @@ describe('NoteRow', () => {
       />,
     );
 
-    expect(screen.queryByLabelText(/^\d+ anexos?$/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/^\d+ attachments?$/)).not.toBeInTheDocument();
   });
 });

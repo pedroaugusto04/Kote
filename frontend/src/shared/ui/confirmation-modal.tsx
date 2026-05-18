@@ -35,7 +35,7 @@ export function ConfirmationModal({
             <h2 id={titleId}>{title}</h2>
             <p>{description}</p>
           </div>
-          <button aria-label="Fechar detalhes" className="modal-close" type="button" onClick={onCancel}>x</button>
+          <button aria-label="Close details" className="modal-close" type="button" onClick={onCancel}>x</button>
         </div>
         <div className="form-actions">
           <button className="filter-chip" type="button" onClick={onCancel}>

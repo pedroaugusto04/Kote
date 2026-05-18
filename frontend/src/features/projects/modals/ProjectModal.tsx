@@ -89,7 +89,7 @@ export function ProjectModal({
               <h2 id="project-modal-title">{mode === 'create' ? 'New project' : 'Edit project'}</h2>
               <p>Define the explicit link to a GitHub repository.</p>
             </div>
-            <button aria-label="Fechar detalhes" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
+            <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
           <form
             className="auth-form"

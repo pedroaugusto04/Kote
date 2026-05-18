@@ -305,7 +305,7 @@ export function AppShell() {
                 });
               }}
             >
-              sign out
+              Sign out
             </button>
           </div>
         </header>

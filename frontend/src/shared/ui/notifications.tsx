@@ -19,7 +19,7 @@ export function NotificationsProvider() {
   return (
     <Toaster
       closeButton
-      containerAriaLabel="Notificacoes"
+      containerAriaLabel="Notifications"
       duration={3200}
       offset={16}
       position="top-right"

@@ -34,12 +34,12 @@ describe('GuidedIntegrationsSection', () => {
             {
               provider: 'github-app',
               name: 'GitHub App',
-              description: 'Dados de instalacao do GitHub App.',
+              description: 'GitHub App installation data.',
               status: 'connected',
               workspaceSlug: 'default',
               publicMetadata: {},
-              primaryAction: { type: 'revoke', label: 'Revogar' },
-              steps: ['Integracao conectada.'],
+              primaryAction: { type: 'revoke', label: 'Revoke' },
+              steps: ['Integration connected.'],
               lastError: null,
               connectedAccount: 'acme',
               updatedAt: '2026-04-27T10:00:00.000Z',
@@ -114,7 +114,7 @@ describe('GuidedIntegrationsSection', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Repositories' }));
     const modal = await screen.findByRole('dialog', { name: 'Select repositories' });
-    fireEvent.click(within(modal).getByRole('button', { name: 'Cancelar' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Cancel' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Select repositories' })).not.toBeInTheDocument());
     expect(screen.queryByRole('dialog', { name: 'Discard changes?' })).not.toBeInTheDocument();
@@ -131,12 +131,12 @@ describe('GuidedIntegrationsSection', () => {
             {
               provider: 'github-app',
               name: 'GitHub App',
-              description: 'Dados de instalacao do GitHub App.',
+              description: 'GitHub App installation data.',
               status: 'connected',
               workspaceSlug: 'default',
               publicMetadata: {},
-              primaryAction: { type: 'revoke', label: 'Revogar' },
-              steps: ['Integracao conectada.'],
+              primaryAction: { type: 'revoke', label: 'Revoke' },
+              steps: ['Integration connected.'],
               lastError: null,
               connectedAccount: 'acme',
               updatedAt: '2026-04-27T10:00:00.000Z',
@@ -162,7 +162,7 @@ describe('GuidedIntegrationsSection', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Repositories' }));
     const modal = await screen.findByRole('dialog', { name: 'Select repositories' });
     fireEvent.click(await within(modal).findByRole('checkbox'));
-    fireEvent.click(within(modal).getByRole('button', { name: 'Fechar detalhes' }));
+    fireEvent.click(within(modal).getByRole('button', { name: 'Close details' }));
 
     expect(screen.getByRole('dialog', { name: 'Discard changes?' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Close without saving' }));
