@@ -62,7 +62,39 @@ export function ProjectsBrowser({
     <Panel className="spaced">
       <div className="page-head">
         <div>
-          <h2>{project.displayName}</h2>
+          <div className="project-title-row">
+            <h2>{project.displayName}</h2>
+            <div className="project-title-actions" aria-label="Project actions">
+              {onEditProject ? (
+                <button
+                  aria-label={`Edit project ${project.displayName}`}
+                  className="row-action-button"
+                  title={`Edit project ${project.displayName}`}
+                  type="button"
+                  onClick={onEditProject}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 16 16">
+                    <path d="M10.8 2.6l2.6 2.6-7.2 7.2-3.1.5.5-3.1 7.2-7.2z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.2" />
+                    <path d="M9.8 3.6l2.6 2.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
+                  </svg>
+                </button>
+              ) : null}
+              <button
+                aria-label={onDeleteProject ? `Delete project ${project.displayName}` : deleteProjectLabel}
+                className="row-action-button danger"
+                disabled={!onDeleteProject}
+                title={deleteProjectLabel}
+                type="button"
+                onClick={onDeleteProject}
+              >
+                <svg aria-hidden="true" viewBox="0 0 16 16">
+                  <path d="M3.5 4.5h9" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
+                  <path d="M6.5 4.5V3.2h3v1.3" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                  <path d="M5 6.4l.5 6.4h5l.5-6.4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" />
+                </svg>
+              </button>
+            </div>
+          </div>
           <div className="card-repos">
             {project.repositories.map((repo) => (
               <span key={repo.externalId} className="repo-tag">
@@ -73,26 +105,6 @@ export function ProjectsBrowser({
         </div>
         <div className="project-actions">
           <Tags items={project.defaultTags} />
-          {onEditProject ? (
-            <button
-              aria-label={`Edit project ${project.displayName}`}
-              className="icon-button"
-              type="button"
-              onClick={onEditProject}
-            >
-              Edit project
-            </button>
-          ) : null}
-          <button
-            aria-label={onDeleteProject ? `Delete project ${project.displayName}` : deleteProjectLabel}
-            className="icon-button"
-            disabled={!onDeleteProject}
-            title={deleteProjectLabel}
-            type="button"
-            onClick={onDeleteProject}
-          >
-            Delete project
-          </button>
           <button className="icon-button" type="button" onClick={onCreateNote}>New note</button>
         </div>
       </div>

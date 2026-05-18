@@ -399,6 +399,9 @@ p { color: var(--muted); line-height: 1.6; }
 .card-kicker, .meta, .path, .tag, .badge { font-family: var(--mono); font-size: 12px; }
 .path { color: var(--faint); word-break: break-word; }
 .tag-row, .toolbar, .meta-row, .note-meta-row { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; }
+.project-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.project-title-row h2 { margin-bottom: 0; }
+.project-title-actions { display: flex; align-items: center; gap: 6px; }
 .project-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
 .project-browser { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
 .folder-browser, .folder-notes { display: grid; gap: 12px; }
@@ -528,6 +531,7 @@ p { color: var(--muted); line-height: 1.6; }
 .search-box { display: grid; gap: 12px; margin-bottom: 14px; }
 .search-box input, .search-box select { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 8px; background: var(--input-bg); color: var(--text); padding: 0 12px; }
 .search-box select { padding-right: 42px; }
+.search-box .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .search-box .kb-select-sizer,
 .search-box .kb-select-trigger { min-height: 48px; padding: 0 14px 0 12px; }
 .vault-project-picker .filters { grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); }

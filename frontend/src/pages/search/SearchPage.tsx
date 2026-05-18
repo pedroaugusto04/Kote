@@ -10,8 +10,11 @@ import { type NoteStatus } from '../../shared/api/models/note-status';
 import { EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { Select } from '../../shared/ui/select';
+import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { NoteRow } from '../../widgets/notes/NoteRow';
+
+const SEARCH_DEBOUNCE_MS = 350;
 
 const statusOptions: Array<{ value: '' | NoteStatus; label: string }> = [
   { value: '', label: 'All' },
@@ -27,27 +30,39 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
   const query = searchParams.get('q') || '';
   const setQuery = (newQuery: string) => {
     setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
       if (newQuery) {
-        prev.set('q', newQuery);
+        next.set('q', newQuery);
       } else {
-        prev.delete('q');
+        next.delete('q');
       }
-      return prev;
+      return next;
     }, { replace: true });
   };
   const [projectSlug, setProjectSlug] = useState('');
   const [status, setStatus] = useState<'' | NoteStatus>('');
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
-  const { page, setPage } = usePaginationState(`${query}:${projectSlug}:${workspaceSlug}:${status}`);
-  const hasQuery = Boolean(query.trim());
+  const debouncedQuery = useDebouncedValue(query, SEARCH_DEBOUNCE_MS);
+  const debouncedProjectSlug = useDebouncedValue(projectSlug, SEARCH_DEBOUNCE_MS);
+  const debouncedStatus = useDebouncedValue(status, SEARCH_DEBOUNCE_MS);
+  const { page, setPage } = usePaginationState(`${debouncedQuery}:${debouncedProjectSlug}:${workspaceSlug}:${debouncedStatus}`);
+  const hasQuery = Boolean(debouncedQuery.trim());
   const queryResult = useQuery({
-    queryKey: ['search', query, projectSlug, workspaceSlug, status, page],
-    queryFn: () => runQuery({ query, projectSlug, workspaceSlug, status, limit: 10, page, pageSize: DEFAULT_PAGE_SIZE }),
+    queryKey: ['search', debouncedQuery, debouncedProjectSlug, workspaceSlug, debouncedStatus, page],
+    queryFn: () => runQuery({
+      query: debouncedQuery,
+      projectSlug: debouncedProjectSlug,
+      workspaceSlug,
+      status: debouncedStatus,
+      limit: 10,
+      page,
+      pageSize: DEFAULT_PAGE_SIZE,
+    }),
     enabled: hasQuery,
   });
   const notesResult = useQuery({
-    queryKey: ['search-notes', projectSlug, workspaceSlug, status, page],
-    queryFn: () => fetchNotes({ page, workspaceSlug, projectSlug, status }),
+    queryKey: ['search-notes', debouncedProjectSlug, workspaceSlug, debouncedStatus, page],
+    queryFn: () => fetchNotes({ page, workspaceSlug, projectSlug: debouncedProjectSlug, status: debouncedStatus }),
     enabled: !hasQuery,
     initialData: !hasQuery && dashboard.notes
       ? {
@@ -55,8 +70,8 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           notes: dashboard.notes
             .filter((note) =>
               (!workspaceSlug || note.workspace === workspaceSlug)
-              && (!projectSlug || note.project === projectSlug)
-              && (!status || note.status === status),
+              && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
+              && (!debouncedStatus || note.status === debouncedStatus),
             )
             .slice(0, DEFAULT_PAGE_SIZE),
           pagination: {
@@ -64,18 +79,18 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
             pageSize: DEFAULT_PAGE_SIZE,
             total: dashboard.notes.filter((note) =>
               (!workspaceSlug || note.workspace === workspaceSlug)
-              && (!projectSlug || note.project === projectSlug)
-              && (!status || note.status === status),
+              && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
+              && (!debouncedStatus || note.status === debouncedStatus),
             ).length,
             totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) =>
               (!workspaceSlug || note.workspace === workspaceSlug)
-              && (!projectSlug || note.project === projectSlug)
-              && (!status || note.status === status),
+              && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
+              && (!debouncedStatus || note.status === debouncedStatus),
             ).length / DEFAULT_PAGE_SIZE)),
             hasNext: dashboard.notes.filter((note) =>
               (!workspaceSlug || note.workspace === workspaceSlug)
-              && (!projectSlug || note.project === projectSlug)
-              && (!status || note.status === status),
+              && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
+              && (!debouncedStatus || note.status === debouncedStatus),
             ).length > DEFAULT_PAGE_SIZE,
             hasPrevious: false,
           },
@@ -114,9 +129,6 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
             value={status}
             onChange={(nextValue) => setStatus(nextValue as '' | NoteStatus)}
           />
-          <button className="icon-button" type="button" onClick={() => void (hasQuery ? queryResult.refetch() : notesResult.refetch())}>
-            Search
-          </button>
         </div>
       </section>
       <Panel>

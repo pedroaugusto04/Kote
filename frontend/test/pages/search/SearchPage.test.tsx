@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../../../src/app/test-utils';
@@ -50,10 +50,56 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   cleanup();
 });
 
 describe('SearchPage', () => {
+  it('debounces backend search requests while the user types', async () => {
+    vi.useFakeTimers();
+    apiSpies.fetchNotes.mockResolvedValue({
+      ok: true,
+      notes: dashboard.notes,
+      pagination: { page: 1, pageSize: 5, total: dashboard.notes.length, totalPages: 1, hasNext: false, hasPrevious: false },
+    });
+    apiSpies.runQuery.mockResolvedValue({
+      ok: true,
+      matches: [buildNote({ id: 'deploy-1', title: 'Deploy rollout' })],
+      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      answer: { answer: 'ok', bullets: [] },
+    });
+
+    renderSearchPage('/search');
+
+    const input = screen.getByPlaceholderText('Enter what you are looking for...');
+    fireEvent.change(input, { target: { value: 'd' } });
+    fireEvent.change(input, { target: { value: 'de' } });
+    fireEvent.change(input, { target: { value: 'dep' } });
+
+    await act(async () => {
+      vi.advanceTimersByTime(349);
+      await Promise.resolve();
+    });
+
+    expect(apiSpies.runQuery).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+      await Promise.resolve();
+    });
+
+    expect(apiSpies.runQuery).toHaveBeenCalledTimes(1);
+    expect(apiSpies.runQuery).toHaveBeenLastCalledWith({
+      query: 'dep',
+      projectSlug: '',
+      workspaceSlug: 'default',
+      status: '',
+      limit: 10,
+      page: 1,
+      pageSize: 5,
+    });
+  });
+
   it('passes the selected status to text search requests', async () => {
     apiSpies.runQuery.mockResolvedValue({
       ok: true,
