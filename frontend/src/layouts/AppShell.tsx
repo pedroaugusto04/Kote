@@ -1,12 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, deleteNote, fetchDashboard, fetchNote, fetchProjectFolders, login, logout, signup } from '../shared/api/client';
+import { ApiClientError, deleteNote, fetchDashboard, fetchNote, fetchProjectFolders, logout } from '../shared/api/client';
 import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { HomePage } from '../pages/home/HomePage';
@@ -16,18 +14,16 @@ import { RemindersPage } from '../pages/reminders/RemindersPage';
 import { SearchPage } from '../pages/search/SearchPage';
 import { SetupPage } from '../pages/setup/SetupPage';
 import { VaultPage } from '../pages/vault/VaultPage';
+import { LandingPage } from '../pages/landing/LandingPage';
+import { AuthPage } from '../pages/auth/AuthPage';
 import { flattenFolders } from '../features/projects/projects.helpers';
 import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
 import type { ConfirmState, NoteModalState } from '../features/projects/projects.types';
-import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../shared/forms/errors';
-import { FormField } from '../shared/forms/fields';
+import { notifyGeneralFormError } from '../shared/forms/errors';
 import { ConfirmationModal } from '../shared/ui/confirmation-modal';
 import { notifySuccess } from '../shared/ui/notifications';
 import { useGlobalLoading } from '../app/global-loading';
 import { useTheme } from '../app/providers/theme';
-import { createAuthFormSchema, type AuthFormValues, type AuthMode } from './app-shell-auth.forms';
-import { authCopy, authLandingContent } from './auth-landing.content';
-import { useTypewriterWord } from './use-typewriter-word';
 
 
 function activeView(pathname: string): View {
@@ -77,6 +73,7 @@ export function AppShell() {
   const cachedRouteNote = getCachedNoteDetail(queryClient, routeNoteId);
   const activeRouteNote = routeNoteQuery.data || cachedRouteNote;
   const shouldBlockNoteRoute = Boolean(routeNoteId) && routeNoteQuery.isLoading && !activeRouteNote;
+  const isUnauthorized = dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401;
 
   useLayoutEffect(() => {
     if (dashboardQuery.isLoading && !dashboardQuery.data) {
@@ -180,13 +177,20 @@ export function AppShell() {
     };
   }, [activeRouteNote?.project, dashboard, globalLoading, navigate, queryClient, routeNoteId, routeProject, selectedNoteId, selectedProject, view]);
 
-  if (dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401) {
-    return <AuthScreen onAuthenticated={() => dashboardQuery.refetch()} />;
+  if (isUnauthorized) {
+    return (
+      <Routes>
+        <Route path={routes.home} element={<LandingPage />} />
+        <Route path={routes.auth} element={<AuthPage onAuthenticated={() => dashboardQuery.refetch()} />} />
+        <Route path="*" element={<Navigate replace to={routes.auth} />} />
+      </Routes>
+    );
   }
 
   if (!dashboard || !pageContext) return null;
   if (isSetupRoute) return <SetupPage dashboard={dashboard} refetchDashboard={() => dashboardQuery.refetch()} />;
   if (!activeWorkspace) return <Navigate replace to={routes.setup} />;
+  if (location.pathname === routes.auth) return <Navigate replace to={routes.home} />;
 
   return (
     <div className="app-shell">
@@ -360,131 +364,4 @@ export function AppShell() {
 
 async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) {
   await invalidateNoteRelatedQueries(queryClient);
-}
-
-function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
-  const globalLoading = useGlobalLoading();
-  const [mode, setMode] = useState<AuthMode>('login');
-  const typewriterWord = useTypewriterWord(authLandingContent.typewriterWords);
-  const formRef = useRef<HTMLFormElement>(null);
-  const schema = useMemo(() => createAuthFormSchema(mode), [mode]);
-  const {
-    clearErrors,
-    formState: { errors },
-    getValues,
-    handleSubmit,
-    register,
-    reset,
-    setError,
-  } = useForm<AuthFormValues>({
-    resolver: zodResolver(schema),
-    shouldFocusError: false,
-    defaultValues: { name: '', email: '', password: '' },
-  });
-  const mutation = useMutation({
-    mutationFn: (values: AuthFormValues) => globalLoading.trackPromise(
-      mode === 'login'
-        ? login({ email: values.email, password: values.password })
-        : signup({ name: values.name || '', email: values.email, password: values.password }),
-    ),
-    onSuccess: onAuthenticated,
-    onError: (error) => {
-      const fieldNames = applyBackendFieldErrors<AuthFormValues>(error, setError);
-      if (fieldNames.length > 0) {
-        window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
-        return;
-      }
-      notifyGeneralFormError(error, 'Could not authenticate with these details.');
-    },
-  });
-
-  useEffect(() => {
-    mutation.reset();
-    clearErrors();
-    reset({ name: '', email: getValues('email'), password: getValues('password') });
-  }, [mode]);
-
-  const onInvalid = (invalidErrors: typeof errors) => {
-    window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors)));
-  };
-
-  return (
-    <main className="auth-layout">
-      <section className="auth-landing" aria-label="Knowledge Vault entry">
-        <section className="auth-hero" aria-labelledby="auth-hero-title">
-          <div className="auth-hero-main">
-            <div className="auth-hero-copy">
-              <p className="auth-eyebrow">{authLandingContent.eyebrow}</p>
-              <h1 id="auth-hero-title" aria-label={authLandingContent.title.accessible}>
-                <span>{authLandingContent.title.prefix}</span>
-                <span className="auth-typewriter-word" aria-hidden="true">
-                  {typewriterWord}
-                  <span className="auth-typewriter-cursor" />
-                </span>
-                <span>{authLandingContent.title.suffix}</span>
-              </h1>
-              <p className="auth-lead">{authLandingContent.lead}</p>
-            </div>
-          </div>
-          <div className="auth-story-list" aria-label="Knowledge base workflow">
-            {authLandingContent.storyCards.map((card) => (
-              <article className="auth-story-card" key={card.title}>
-                <div className="auth-story-copy">
-                  <span>{card.title}</span>
-                  <h2>{card.heading}</h2>
-                  <p>{card.description}</p>
-                </div>
-                <div className="auth-story-detail">
-                  <span>{card.detailLabel}</span>
-                  <strong>{card.detail}</strong>
-                  <div>
-                    {card.tags.map((tag) => (
-                      <span key={tag}>{tag}</span>
-                    ))}
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-        <section className="auth-panel" aria-label="Authentication">
-          <Link className="brand auth-brand" to={routes.home} aria-label="Go to Home">
-            <div className="brand-mark">KV</div>
-            <div>
-              <strong>Knowledge Vault</strong>
-              <span>developer knowledge base</span>
-            </div>
-          </Link>
-          <div className="segmented-control" role="tablist" aria-label="Access mode">
-            <button className={mode === 'login' ? 'active' : ''} type="button" onClick={() => setMode('login')}>
-              Sign in
-            </button>
-            <button className={mode === 'signup' ? 'active' : ''} type="button" onClick={() => setMode('signup')}>
-              Create account
-            </button>
-          </div>
-          <div className="auth-panel-copy">
-            <h2>{authCopy[mode].title}</h2>
-            <p>{authCopy[mode].description}</p>
-          </div>
-          <form className="auth-form" ref={formRef} noValidate onSubmit={handleSubmit((values) => mutation.mutate(values), onInvalid)}>
-            {mode === 'signup' ? (
-              <FormField name="name" label="Name" error={errors.name?.message} required>
-                {(fieldProps) => <input autoComplete="name" {...fieldProps} {...register('name')} />}
-              </FormField>
-            ) : null}
-            <FormField name="email" label="Email" error={errors.email?.message} required>
-              {(fieldProps) => <input autoComplete="email" type="email" {...fieldProps} {...register('email')} />}
-            </FormField>
-            <FormField name="password" label="Password" error={errors.password?.message} required>
-              {(fieldProps) => <input autoComplete={mode === 'login' ? 'current-password' : 'new-password'} type="password" {...fieldProps} {...register('password')} />}
-            </FormField>
-            <button className="icon-button auth-submit" type="submit" disabled={mutation.isPending}>
-              {authCopy[mode].submit}
-            </button>
-          </form>
-        </section>
-      </section>
-    </main>
-  );
 }

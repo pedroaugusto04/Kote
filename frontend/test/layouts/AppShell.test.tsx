@@ -252,6 +252,15 @@ function mockFetch() {
   });
 }
 
+function mockUnauthorizedDashboardFetch() {
+  return vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input) === '/api/dashboard') {
+      return Response.json({ message: 'Unauthorized' }, { status: 401 });
+    }
+    return new Response(null, { status: 404 });
+  });
+}
+
 function stubMatchMedia(initialMatches: boolean) {
   let matches = initialMatches;
   const listeners = new Set<(event: MediaQueryListEvent) => void>();
@@ -513,6 +522,37 @@ describe('AppShell', () => {
     expect((await screen.findAllByText('Event')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('active')).length).toBeGreaterThan(0);
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
+  });
+
+  it('shows the public landing page at the root route when the session is missing', async () => {
+    stubLocalStorage();
+    vi.stubGlobal('fetch', mockUnauthorizedDashboardFetch());
+
+    renderWithAppProviders(<AppShell />);
+
+    expect(await screen.findByRole('heading', { name: 'Knowledge Vault helps you capture technical context.' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Enter workspace' })).toHaveAttribute('href', '/auth');
+    expect(screen.queryByLabelText('Authentication')).not.toBeInTheDocument();
+  });
+
+  it('shows the auth page directly on /auth when the session is missing', async () => {
+    stubLocalStorage();
+    vi.stubGlobal('fetch', mockUnauthorizedDashboardFetch());
+
+    renderWithAppProviders(<AppShell />, { route: '/auth?mode=signup' });
+
+    expect(await screen.findByRole('heading', { name: 'Create your knowledge base' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toBeInTheDocument();
+  });
+
+  it('redirects protected routes to /auth when the session is missing', async () => {
+    stubLocalStorage();
+    vi.stubGlobal('fetch', mockUnauthorizedDashboardFetch());
+
+    renderWithAppProviders(<AppShell />, { route: '/projects' });
+
+    expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Back to landing' })).toHaveAttribute('href', '/');
   });
 
   it('shows only the search results list without the old answer panel', async () => {
@@ -790,17 +830,15 @@ describe('AppShell', () => {
     expect(screen.getByText('Search "retry policy"')).toBeInTheDocument();
     expect(screen.getByText('Capture')).toBeInTheDocument();
     expect(screen.getByText('follow up on webhook backfill')).toBeInTheDocument();
-    expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
-    expect(screen.getAllByRole('button', { name: 'Create account' }).length).toBeGreaterThan(0);
-    expect(screen.getByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
-    expect(screen.getByText('Open your searchable technical memory and continue from your latest context.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/auth');
+    expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/auth?mode=signup');
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Create account' }).at(0)!);
+    fireEvent.click(screen.getByRole('link', { name: 'Create account' }));
 
     expect(await screen.findByRole('heading', { name: 'Create your knowledge base' })).toBeInTheDocument();
     expect(screen.getByText('Start capturing the technical context your future self will need.')).toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(0)!);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(-1)!);
 
     expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } });
@@ -848,9 +886,9 @@ describe('AppShell', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    renderWithAppProviders(<AppShell />);
+    renderWithAppProviders(<AppShell />, { route: '/auth' });
 
-    expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
     await waitFor(() => {
       expect(fetchMock.mock.calls.filter(([input]) => String(input) === '/api/dashboard')).toHaveLength(1);
     });
@@ -909,9 +947,9 @@ describe('AppShell', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    renderWithAppProviders(<AppShell />);
+    renderWithAppProviders(<AppShell />, { route: '/auth' });
 
-    expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(-1)!);
@@ -958,9 +996,9 @@ describe('AppShell', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    renderWithAppProviders(<AppShell />);
+    renderWithAppProviders(<AppShell />, { route: '/auth' });
 
-    expect((await screen.findAllByRole('button', { name: 'Sign in' })).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'email-invalido' } });
     fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(-1)!);
 
@@ -1021,9 +1059,10 @@ describe('AppShell', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    renderWithAppProviders(<AppShell />);
+    renderWithAppProviders(<AppShell />, { route: '/auth' });
 
-    fireEvent.click((await screen.findAllByRole('button', { name: 'Create account' })).at(0)!);
+    expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Create account' }).at(-1)!);
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'User' } });
     fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'user@example.com' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } });
