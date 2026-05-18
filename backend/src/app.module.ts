@@ -13,7 +13,7 @@ import { ContentObjectStorageService } from './application/services/content-obje
 import { GithubRepositoryResolutionService } from './application/services/github-repository-resolution.service.js';
 import { SchemaMigrator, UserRepository } from './application/ports/auth.repository.js';
 import { ContentQueryRepository, ContentRepository } from './application/ports/content.repository.js';
-import { ObjectStorage } from './application/ports/object-storage.js';
+import { ObjectStorage } from './application/ports/object-storage.js'; 
 import {
   CredentialRepository,
   ExternalIdentityRepository,
