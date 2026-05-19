@@ -74,3 +74,5 @@ export type AgentConversationApprovalIntent = z.infer<typeof agentApprovalIntent
 export type AgentConversationDraft = z.infer<typeof agentConversationDraftSchema>;
 export type AgentConversationState = z.infer<typeof agentConversationStateSchema>;
 export type ConversationAgentDecision = z.infer<typeof conversationAgentDecisionSchema>;
+
+export { normalizeConversationAgentDecisionInput } from './agent-conversation-normalizer.js';

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { conversationAgentDecisionSchema } from '../../dist/contracts/agent-conversation.js';
+import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput } from '../../dist/contracts/agent-conversation.js';
 import { ingestPayloadSchema, withDerivedReminderAt } from '../../dist/contracts/ingest.js';
 
 test('normalizes canonical ingest payload and derives reminderAt', () => {
@@ -149,5 +149,86 @@ test('agent conversation contract normalizes blank enum AI fields to safe defaul
 
   assert.equal(parsed.pendingApproval, 'none');
   assert.equal(parsed.approvalIntent, 'none');
+  assert.equal(parsed.action, 'ask');
+});
+
+test('agent conversation AI decision normalizer maps reminder kind to note', () => {
+  const parsed = conversationAgentDecisionSchema.parse(normalizeConversationAgentDecisionInput({
+    replyText: 'Vou confirmar o lembrete.',
+    resolvedDraft: {
+      rawText: 'Lembrar de revisar o deploy',
+      title: '',
+      kind: 'reminder',
+      canonicalType: 'followup',
+      importance: 'low',
+      tags: [],
+      reminderDate: '2026-04-27',
+      reminderTime: '',
+    },
+    selectedProjectSlug: 'inbox',
+    selectedFolderId: '',
+    suggestedFolderPath: [],
+    pendingApproval: 'final_confirmation',
+    confidence: 'high',
+    action: 'confirm',
+  }));
+
+  assert.equal(parsed.resolvedDraft.kind, 'note');
+  assert.equal(parsed.resolvedDraft.canonicalType, 'followup');
+});
+
+test('agent conversation AI decision normalizer maps dated event reminders to followup', () => {
+  const parsed = conversationAgentDecisionSchema.parse(normalizeConversationAgentDecisionInput({
+    replyText: 'Vou confirmar o lembrete.',
+    resolvedDraft: {
+      rawText: 'Lembrar de revisar o deploy',
+      title: '',
+      kind: 'note',
+      canonicalType: 'event',
+      importance: 'low',
+      tags: [],
+      reminderDate: '2026-04-27',
+      reminderTime: '',
+    },
+    selectedProjectSlug: 'inbox',
+    selectedFolderId: '',
+    suggestedFolderPath: [],
+    pendingApproval: 'final_confirmation',
+    confidence: 'high',
+    action: 'confirm',
+  }));
+
+  assert.equal(parsed.resolvedDraft.kind, 'note');
+  assert.equal(parsed.resolvedDraft.canonicalType, 'followup');
+});
+
+test('agent conversation AI decision normalizer lets unknown enum values fall to schema defaults', () => {
+  const parsed = conversationAgentDecisionSchema.parse(normalizeConversationAgentDecisionInput({
+    replyText: 'Ok',
+    resolvedDraft: {
+      rawText: 'Texto',
+      title: '',
+      kind: 'task',
+      canonicalType: 'todo',
+      importance: 'urgent',
+      tags: [],
+      reminderDate: '',
+      reminderTime: '',
+    },
+    selectedProjectSlug: 'inbox',
+    selectedFolderId: '',
+    suggestedFolderPath: [],
+    pendingApproval: 'waiting',
+    approvalIntent: 'maybe',
+    confidence: 'certain',
+    action: 'save',
+  }));
+
+  assert.equal(parsed.resolvedDraft.kind, 'note');
+  assert.equal(parsed.resolvedDraft.canonicalType, 'event');
+  assert.equal(parsed.resolvedDraft.importance, 'low');
+  assert.equal(parsed.pendingApproval, 'none');
+  assert.equal(parsed.approvalIntent, 'none');
+  assert.equal(parsed.confidence, 'low');
   assert.equal(parsed.action, 'ask');
 });

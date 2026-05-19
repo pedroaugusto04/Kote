@@ -6,6 +6,7 @@ import {
   IngestEntryUseCase,
   ProcessAgentConversationUseCase,
 } from '../../dist/application/use-cases/index.js';
+import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput } from '../../dist/contracts/agent-conversation.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
 class StubConversationAgentGateway {
@@ -17,7 +18,7 @@ class StubConversationAgentGateway {
     const key = String(payload.messageText || '').trim().toLowerCase();
     const decision = this.turns.get(key);
     if (!decision) throw new Error(`missing_agent_decision:${key}`);
-    return structuredClone(decision);
+    return conversationAgentDecisionSchema.parse(normalizeConversationAgentDecisionInput(structuredClone(decision)));
   }
 }
 
@@ -358,4 +359,34 @@ test('agent conversation persists multi-turn state and submits from final confir
   const resume = await agentUseCase.execute(input('sim'), user.id, 'default');
   assert.equal(resume.action, 'submit');
   assert.equal(await repositories.countConversationStates(), 0);
+});
+
+test('agent conversation accepts AI reminder kind alias and reaches final confirmation', async (t) => {
+  const turns = new Map([
+    ['me lembra de revisar o deploy amanha', decision({
+      replyText: 'Vou confirmar o lembrete.',
+      selectedProjectSlug: 'platform',
+      selectedFolderId: '',
+      suggestedFolderPath: [],
+      pendingApproval: 'final_confirmation',
+      action: 'confirm',
+      resolvedDraft: {
+        rawText: 'Revisar o deploy',
+        title: '',
+        kind: 'reminder',
+        canonicalType: 'event',
+        importance: 'low',
+        tags: ['deploy'],
+        reminderDate: '2026-05-20',
+        reminderTime: '',
+      },
+    })],
+  ]);
+  const { agentUseCase, user } = await createFixture(t, turns);
+
+  const result = await agentUseCase.execute(input('me lembra de revisar o deploy amanha'), user.id, 'default');
+
+  assert.equal(result.action, 'confirm');
+  assert.equal(result.agent.pendingApproval, 'final_confirmation');
+  assert.match(result.replyText, /Confirme o salvamento da nota/);
 });

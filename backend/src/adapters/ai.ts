@@ -1,5 +1,5 @@
 import { AiProvider, ReviewFindingSeverity } from '../contracts/enums.js';
-import { conversationAgentDecisionSchema, type ConversationAgentDecision } from '../contracts/agent-conversation.js';
+import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput, type ConversationAgentDecision } from '../contracts/agent-conversation.js';
 import { stripMarkdownFences } from '../domain/strings.js';
 
 export type ReviewAnalysis = {
@@ -236,14 +236,14 @@ export async function decideConversationAgentTurn(
     'Never claim that a note was saved, registered, created, or persisted. Only the backend may send a success message after persistence.',
     'Use action="ask" only for genuine ambiguity or missing information that blocks a sensible assumption.',
     'Use action="confirm" for final confirmation. Use action="submit" only when currentState.pendingApproval is "final_confirmation" and approvalIntent is "approve". Use action="cancel" only when the user clearly wants to discard the flow.',
-    'Classification rules: reminders require reminderDate when a date is implied; use reminderTime only when explicit. Documentation, runbooks, procedures, and how-to content should be kind="article" or "summary" and canonicalType="knowledge". Bugs and incidents should be kind="bug", canonicalType="incident", and usually importance="high". Decisions should use canonicalType="decision". General notes should use kind="note" and canonicalType="event".',
+    'Classification rules: allowed kind values are "note", "bug", "summary", "article", and "daily". A reminder is kind="note", canonicalType="followup", and must include reminderDate when a date is implied; use reminderTime only when explicit. Documentation, runbooks, procedures, and how-to content should be kind="article" or "summary" and canonicalType="knowledge". Bugs and incidents should be kind="bug", canonicalType="incident", and usually importance="high". Decisions should use canonicalType="decision". General notes should use kind="note" and canonicalType="event".',
     'Do not mention internal JSON or implementation details.',
   ].join(' ');
   return runStructuredChatCompletion(
     config,
     systemPrompt,
     buildConversationAgentTurnPrompt(payload),
-    (parsed) => conversationAgentDecisionSchema.parse(parsed),
+    (parsed) => conversationAgentDecisionSchema.parse(normalizeConversationAgentDecisionInput(parsed)),
   );
 }
 
