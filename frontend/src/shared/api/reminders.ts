@@ -21,8 +21,8 @@ export function fetchReminderBoard(params: { workspaceSlug?: string; projectSlug
   return request<ReminderBoardResponse>(`/api/reminders/board?${search.toString()}`);
 }
 
-export function updateReminderStatus(id: string, status: 'pending' | 'resolved' | 'archived') {
-  return request<{ ok: true; id: string; status: 'pending' | 'resolved' | 'archived' }>(`/api/reminders/${encodeURIComponent(id)}/status`, {
+export function updateReminderStatus(id: string, status: 'pending' | 'overdue' | 'resolved' | 'archived') {
+  return request<{ ok: true; id: string; status: 'pending' | 'overdue' | 'resolved' | 'archived' }>(`/api/reminders/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ status }),

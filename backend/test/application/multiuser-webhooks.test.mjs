@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
-import { BuildDashboardUseCase, CreateWorkspaceUseCase, HandleGithubPushUseCase, IngestEntryUseCase } from '../../dist/application/use-cases/index.js';
+import { BuildDashboardUseCase, CreateWorkspaceUseCase, HandleGithubPushUseCase, IngestEntryUseCase, RefreshReminderStatusesUseCase } from '../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
 function configureEnv() {
@@ -112,6 +112,11 @@ test('new users start with an empty scoped dashboard and cannot see another user
   const dashboard = new BuildDashboardUseCase(
     repositories.contentRepository,
     repositories.contentQueryRepository,
+    new RefreshReminderStatusesUseCase(
+      repositories.contentRepository,
+      repositories.reminderDispatchRepository,
+      repositories.runtimeEnvironmentProvider,
+    ),
   );
   const userA = await repositories.userRepository.createUser({ email: 'a@example.com', displayName: 'A', passwordHash: 'hash', role: 'user' });
   const userB = await repositories.userRepository.createUser({ email: 'b@example.com', displayName: 'B', passwordHash: 'hash', role: 'user' });

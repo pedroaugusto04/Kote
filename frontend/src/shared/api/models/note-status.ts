@@ -1,4 +1,4 @@
-export const noteStatusValues = ['active', 'pending', 'sent', 'resolved', 'archived'] as const;
+export const noteStatusValues = ['active', 'pending', 'overdue', 'sent', 'resolved', 'archived'] as const;
 
 export type NoteStatus = (typeof noteStatusValues)[number];
 

@@ -39,6 +39,7 @@ export enum KnowledgeStatus {
   Resolved = 'resolved',
   Archived = 'archived',
   Pending = 'pending',
+  Overdue = 'overdue',
   Sent = 'sent',
 }
 

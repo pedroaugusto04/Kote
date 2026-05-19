@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ContentQueryRepository, ContentRepository } from '../../ports/content.repository.js';
 import { buildDashboardHome } from '../../utils/dashboard-home.utils.js';
-import { enrichReminderStatus } from '../reminders/reminder-status.js';
+import { RefreshReminderStatusesUseCase } from '../reminders/refresh-reminder-statuses.use-case.js';
 
 export { buildDashboardHome };
 
@@ -10,6 +10,7 @@ export class BuildDashboardUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly contentQueryRepository: ContentQueryRepository,
+    private readonly refreshReminderStatuses: RefreshReminderStatusesUseCase,
   ) {}
 
   async execute(userId: string) {
@@ -20,7 +21,7 @@ export class BuildDashboardUseCase {
       this.contentQueryRepository.listReviews(userId),
       this.contentQueryRepository.listReminders(userId),
     ]);
-    const reminders = rawReminders.map((reminder) => enrichReminderStatus(reminder));
+    const reminders = await this.refreshReminderStatuses.execute(userId, rawReminders);
     return { workspaces, projects, home: buildDashboardHome(projects, notes, reviews, reminders) };
   }
 }

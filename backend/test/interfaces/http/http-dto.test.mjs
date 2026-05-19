@@ -50,6 +50,7 @@ test('reminder board dto normalizes filters and status updates', () => {
     limitPerColumn: 25,
   });
   assert.throws(() => reminderBoardQuerySchema.parse({ limitPerColumn: '100' }));
+  assert.deepEqual(updateReminderStatusBodySchema.parse({ status: 'overdue' }), { status: 'overdue' });
   assert.deepEqual(updateReminderStatusBodySchema.parse({ status: 'resolved' }), { status: 'resolved' });
   assert.throws(() => updateReminderStatusBodySchema.parse({ status: 'sent' }));
   assert.throws(() => updateReminderStatusBodySchema.parse({ status: 'active' }));

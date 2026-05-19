@@ -1,47 +1,25 @@
 import { Injectable } from '@nestjs/common';
 
-import { KnowledgeStatus, ReminderDispatchMode } from '../../../contracts/enums.js';
+import { KnowledgeStatus } from '../../../contracts/enums.js';
 import type { ReminderBoardInput } from '../../models/reminder-board.models.js';
 import { reminderBoardColumnKeys } from '../../models/reminder-board.models.js';
 import type { ReminderBoardCard, ReminderBoardColumnKey, ReminderBoardResponse } from '../../models/reminder.models.js';
 import { ContentQueryRepository } from '../../ports/content.repository.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
-import { ReminderDispatchRepository } from '../../ports/workflow-state.repository.js';
 import { sortRemindersBySchedule } from './reminder-list.helpers.js';
-import { reminderDispatchKey, resolveReminderScheduledAt } from './reminder-schedule.js';
-import { enrichReminderStatus } from './reminder-status.js';
+import { RefreshReminderStatusesUseCase } from './refresh-reminder-statuses.use-case.js';
 
 @Injectable()
 export class ListReminderBoardUseCase {
   constructor(
     private readonly contentQueryRepository: ContentQueryRepository,
-    private readonly reminderDispatchRepository: ReminderDispatchRepository,
-    private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly refreshReminderStatuses: RefreshReminderStatusesUseCase,
   ) {}
 
   async execute(userId: string, input: ReminderBoardInput): Promise<ReminderBoardResponse> {
-    const now = new Date();
-    const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
     const columns = emptyColumns();
-    const reminders = await Promise.all((await this.contentQueryRepository.listReminders(userId))
+    const reminders = await this.refreshReminderStatuses.execute(userId, (await this.contentQueryRepository.listReminders(userId))
       .filter((reminder) => !input.workspaceSlug || reminder.workspace === input.workspaceSlug)
-      .filter((reminder) => !input.projectSlug || reminder.project === input.projectSlug)
-      .map(async (reminder): Promise<ReminderBoardCard> => {
-        const normalized = enrichReminderStatus(reminder, now);
-        if (normalized.status !== KnowledgeStatus.Pending) return normalized;
-
-        const scheduledAt = resolveReminderScheduledAt(normalized, reminderTimeZone);
-        if (!scheduledAt) return normalized;
-
-        const sent = await this.reminderDispatchRepository.hasSent(
-          userId,
-          normalized.workspace || input.workspaceSlug || 'default',
-          ReminderDispatchMode.Exact,
-          reminderDispatchKey(scheduledAt),
-          normalized.id,
-        );
-        return sent ? { ...normalized, status: KnowledgeStatus.Sent, isOverdue: false } : normalized;
-      }));
+      .filter((reminder) => !input.projectSlug || reminder.project === input.projectSlug), { workspaceSlug: input.workspaceSlug });
 
     for (const reminder of sortRemindersBySchedule(reminders)) {
       const columnKey = boardColumnKey(reminder);
@@ -65,5 +43,5 @@ function emptyColumns(): ReminderBoardResponse['columns'] {
 function boardColumnKey(reminder: Pick<ReminderBoardCard, 'status' | 'isOverdue'>): ReminderBoardColumnKey {
   if (reminder.status === KnowledgeStatus.Resolved) return 'resolved';
   if (reminder.status === KnowledgeStatus.Archived) return 'archived';
-  return reminder.isOverdue ? 'overdue' : 'upcoming';
+  return reminder.status === KnowledgeStatus.Overdue || reminder.isOverdue ? 'overdue' : 'upcoming';
 }

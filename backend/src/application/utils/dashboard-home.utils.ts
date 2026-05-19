@@ -7,7 +7,7 @@ import type { ReviewView } from '../models/review.models.js';
 import type { VaultNoteSummary } from '../models/vault-note.models.js';
 
 const HOME_WINDOW_DAYS = 7;
-const OPEN_REMINDER_STATUSES = new Set<string>([KnowledgeStatus.Pending]);
+const OPEN_REMINDER_STATUSES = new Set<string>([KnowledgeStatus.Pending, KnowledgeStatus.Overdue]);
 const ACTIVE_NOTE_STATUS = KnowledgeStatus.Active;
 const INTERESTING_TYPES = [CanonicalType.Incident, CanonicalType.Decision, CanonicalType.Followup, CanonicalType.Event];
 

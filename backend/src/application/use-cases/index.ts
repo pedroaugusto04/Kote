@@ -23,6 +23,7 @@ export { DispatchDueTelegramRemindersUseCase } from './reminders/dispatch-due-te
 export { ListReminderBoardUseCase } from './reminders/list-reminder-board.use-case.js';
 export { ListPaginatedRemindersUseCase } from './reminders/list-paginated-reminders.use-case.js';
 export { MarkReminderAsSentUseCase } from './reminders/mark-reminder-as-sent.use-case.js';
+export { RefreshReminderStatusesUseCase } from './reminders/refresh-reminder-statuses.use-case.js';
 export { UpdateReminderStatusUseCase } from './reminders/update-reminder-status.use-case.js';
 export { HandleGithubPushUseCase } from './webhooks/github/handle-github-push.use-case.js';
 export { HandleWhatsappWebhookUseCase } from './webhooks/whatsapp/handle-whatsapp-webhook.use-case.js';

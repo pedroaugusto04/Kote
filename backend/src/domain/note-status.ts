@@ -5,6 +5,7 @@ export const noteStatusValues = [
   KnowledgeStatus.Resolved,
   KnowledgeStatus.Archived,
   KnowledgeStatus.Pending,
+  KnowledgeStatus.Overdue,
   KnowledgeStatus.Sent,
 ] as const;
 
@@ -12,6 +13,7 @@ export type NoteStatus = (typeof noteStatusValues)[number];
 
 export const reminderNoteStatusValues = [
   KnowledgeStatus.Pending,
+  KnowledgeStatus.Overdue,
   KnowledgeStatus.Sent,
   KnowledgeStatus.Resolved,
   KnowledgeStatus.Archived,
@@ -19,6 +21,7 @@ export const reminderNoteStatusValues = [
 
 export const reminderDispatchEligibleStatuses = [
   KnowledgeStatus.Pending,
+  KnowledgeStatus.Overdue,
 ] as const;
 
 export function hasReminder(input: { reminderDate?: string; reminderAt?: string } | null | undefined) {
@@ -30,7 +33,8 @@ export function isTerminalNoteStatus(status: string | null | undefined) {
 }
 
 export function isReminderDispatchEligibleStatus(status: string | null | undefined) {
-  return String(status || '').trim().toLowerCase() === KnowledgeStatus.Pending;
+  const normalized = String(status || '').trim().toLowerCase();
+  return normalized === KnowledgeStatus.Pending || normalized === KnowledgeStatus.Overdue;
 }
 
 export function normalizeManualNoteStatus(input: {
@@ -47,9 +51,10 @@ export function normalizeManualNoteStatus(input: {
   }
 
   if (input.hasReminder) {
-    if (requestedStatus === KnowledgeStatus.Pending || requestedStatus === KnowledgeStatus.Sent) return requestedStatus;
+    if (requestedStatus === KnowledgeStatus.Pending || requestedStatus === KnowledgeStatus.Overdue || requestedStatus === KnowledgeStatus.Sent) return requestedStatus;
     if (!input.hadReminder) return KnowledgeStatus.Pending;
     if (currentStatus === KnowledgeStatus.Sent) return KnowledgeStatus.Sent;
+    if (currentStatus === KnowledgeStatus.Overdue) return KnowledgeStatus.Overdue;
     return KnowledgeStatus.Pending;
   }
 
@@ -72,7 +77,7 @@ export function isReminderOverdue(input: {
   now?: Date;
 }) {
   const status = String(input.status || '').trim().toLowerCase();
-  if (status !== KnowledgeStatus.Pending) return false;
+  if (status !== KnowledgeStatus.Pending && status !== KnowledgeStatus.Overdue) return false;
 
   const now = input.now || new Date();
   const reminderAt = String(input.reminderAt || '').trim();

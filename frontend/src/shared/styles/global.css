@@ -425,7 +425,7 @@ p { color: var(--muted); line-height: 1.6; }
 .tag, .badge { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 7px; border: 1px solid var(--line-soft); border-radius: 999px; color: var(--muted); background: var(--surface-6); }
 .attachment-indicator { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 3px 7px; border: 1px solid var(--success-border-soft); border-radius: 999px; color: var(--attachment-text); background: var(--surface-hover-strong); font-family: var(--mono); font-size: 12px; }
 .attachment-indicator svg { width: 13px; height: 13px; }
-.badge.high, .badge.critical { color: var(--danger-text-soft); border-color: var(--danger-border); background: var(--surface-danger); }
+.badge.high, .badge.critical, .badge.overdue { color: var(--danger-text-soft); border-color: var(--danger-border); background: var(--surface-danger); }
 .badge.medium, .badge.pending { color: var(--warning-text); border-color: var(--warning-border); background: var(--surface-warning); }
 .badge.low, .badge.active { color: var(--success-text-soft); border-color: var(--success-border); background: var(--surface-success); }
 .badge.resolved { color: var(--success-text-soft); border-color: var(--success-border); background: var(--surface-success); }

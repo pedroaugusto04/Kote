@@ -11,8 +11,8 @@ import { Select } from '../../shared/ui/select';
 
 const BOARD_LIMIT = 50;
 
-const columns: Array<{ key: ReminderBoardColumnKey; title: string; empty: string; targetStatus: 'pending' | 'resolved' | 'archived' }> = [
-  { key: 'overdue', title: 'Overdue', empty: 'No overdue reminders.', targetStatus: 'pending' },
+const columns: Array<{ key: ReminderBoardColumnKey; title: string; empty: string; targetStatus: 'pending' | 'overdue' | 'resolved' | 'archived' }> = [
+  { key: 'overdue', title: 'Overdue', empty: 'No overdue reminders.', targetStatus: 'overdue' },
   { key: 'upcoming', title: 'Upcoming', empty: 'No upcoming reminders.', targetStatus: 'pending' },
   { key: 'resolved', title: 'Resolved', empty: 'No resolved reminders.', targetStatus: 'resolved' },
   { key: 'archived', title: 'Archived', empty: 'No archived reminders.', targetStatus: 'archived' },
@@ -36,7 +36,7 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'pending' | 'resolved' | 'archived' }) => updateReminderStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: 'pending' | 'overdue' | 'resolved' | 'archived' }) => updateReminderStatus(id, status),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['reminder-board'] }),

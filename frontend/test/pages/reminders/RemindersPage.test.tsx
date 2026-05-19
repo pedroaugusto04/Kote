@@ -103,7 +103,7 @@ describe('RemindersPage', () => {
     expect(screen.getByText('sent')).toBeInTheDocument();
   });
 
-  it('keeps pending reminders first in all situations and breaks ties by ascending date', () => {
+  it('keeps open reminders first and breaks ties by ascending date', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ ok: true, reminders: [], pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false } }), { status: 200 }),
     );

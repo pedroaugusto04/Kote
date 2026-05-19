@@ -196,6 +196,7 @@ test('dashboard home normalizes reminder statuses with the same model used by re
   const useCase = new BuildDashboardUseCase(
     contentRepository,
     contentQueryRepository,
+    { execute: async (_userId, reminders) => reminders },
   );
   const dashboard = await useCase.execute(userId);
   const statuses = dashboard.home.priorities

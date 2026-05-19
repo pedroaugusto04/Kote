@@ -8,7 +8,7 @@ export type ReminderBoardInput = {
 
 export type UpdateReminderStatusInput = {
   id: string;
-  status: 'pending' | 'resolved' | 'archived';
+  status: 'pending' | 'overdue' | 'resolved' | 'archived';
 };
 
 export const reminderBoardColumnKeys: ReminderBoardColumnKey[] = ['overdue', 'upcoming', 'resolved', 'archived'];

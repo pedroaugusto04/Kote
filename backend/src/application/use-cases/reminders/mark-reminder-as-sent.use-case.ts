@@ -20,7 +20,7 @@ export class MarkReminderAsSentUseCase {
       await this.reminderDispatchRepository.markSent(userId, workspace, mode, dispatchKey, id);
       const note = await this.contentRepository.getNoteById(userId, id);
       if (!note || !String(note.metadata.reminderDate || '').trim()) return;
-      if (note.status !== KnowledgeStatus.Pending && note.status !== KnowledgeStatus.Sent) return;
+      if (note.status !== KnowledgeStatus.Pending && note.status !== KnowledgeStatus.Overdue && note.status !== KnowledgeStatus.Sent) return;
       await this.contentRepository.updateNote(userId, {
         ...note,
         status: KnowledgeStatus.Sent,

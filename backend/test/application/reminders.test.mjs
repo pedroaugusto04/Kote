@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, ListReminderBoardUseCase, MarkReminderAsSentUseCase, UpdateReminderStatusUseCase } from '../../dist/application/use-cases/index.js';
+import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, ListReminderBoardUseCase, MarkReminderAsSentUseCase, RefreshReminderStatusesUseCase, UpdateReminderStatusUseCase } from '../../dist/application/use-cases/index.js';
 import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../dist/contracts/enums.js';
 import { reminderDispatchKey } from '../../dist/application/use-cases/reminders/reminder-schedule.js';
 import { ReminderDispatchWorker } from '../../dist/application/services/reminder-dispatch.worker.js';
@@ -86,6 +86,14 @@ function environmentProvider(reminderTimeZone = 'America/Sao_Paulo') {
   };
 }
 
+function createRefreshReminderStatuses(repositories) {
+  return new RefreshReminderStatusesUseCase(
+    repositories.contentRepository,
+    repositories.reminderDispatchRepository,
+    environmentProvider(),
+  );
+}
+
 test('daily reminders are aggregated once per date by user and workspace', async (t) => {
   const { repositories, user } = await createStoreWithReminder(t);
   const useCase = new BuildReminderDispatchUseCase(repositories.contentQueryRepository, repositories.reminderDispatchRepository, environmentProvider());
@@ -112,7 +120,7 @@ test('markRemindersAsSent updates exact reminder state', async (t) => {
 test('paginated reminders expose derived sent state and overdue flag', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, repositories.reminderDispatchRepository, environmentProvider());
+  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
 
   const expiredReminder = await insertReminder(repositories, user.id, {
     path: '20 Inbox/n8n-automations/expired.md',
@@ -146,19 +154,21 @@ test('paginated reminders expose derived sent state and overdue flag', async (t)
   const expired = listed.items.find((item) => item.id === expiredReminder.id);
   const sent = listed.items.find((item) => item.id === sentReminder.id);
 
-  assert.equal(expired?.status, 'pending');
+  assert.equal(expired?.status, 'overdue');
   assert.equal(expired?.isOverdue, true);
+  assert.equal((await repositories.contentRepository.getNoteById(user.id, expiredReminder.id))?.status, 'overdue');
   assert.equal(sent?.status, 'sent');
   assert.equal(sent?.isOverdue, false);
+  assert.equal((await repositories.contentRepository.getNoteById(user.id, sentReminder.id))?.status, 'sent');
 
   const sentOnly = await listReminders.execute(user.id, { page: 1, pageSize: 10, status: 'sent' });
   assert.deepEqual(sentOnly.items.map((item) => item.id), [sentReminder.id]);
 });
 
-test('paginated reminders sort all statuses with pending first and date ascending', async (t) => {
+test('paginated reminders sort all statuses with overdue and pending first then date ascending', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, repositories.reminderDispatchRepository, environmentProvider());
+  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
 
   const sentReminder = await insertReminder(repositories, user.id, {
     path: '20 Inbox/n8n-automations/sent-later.md',
@@ -223,7 +233,7 @@ test('reminder board groups reminders by due state and terminal status with per-
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
   const otherUser = await repositories.createTestUser();
-  const listBoard = new ListReminderBoardUseCase(repositories.contentQueryRepository, repositories.reminderDispatchRepository, environmentProvider());
+  const listBoard = new ListReminderBoardUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
 
   const overdue = await insertReminder(repositories, user.id, {
     path: '20 Inbox/n8n-automations/overdue.md',
@@ -303,6 +313,8 @@ test('reminder board groups reminders by due state and terminal status with per-
 
   assert.equal(board.columns.overdue.total, 1);
   assert.deepEqual(board.columns.overdue.items.map((item) => item.id), [overdue.id]);
+  assert.equal(board.columns.overdue.items[0].status, 'overdue');
+  assert.equal((await repositories.contentRepository.getNoteById(user.id, overdue.id))?.status, 'overdue');
   assert.equal(board.columns.upcoming.total, 2);
   assert.deepEqual(board.columns.upcoming.items.map((item) => item.id), [sent.id]);
   assert.equal(board.columns.upcoming.items[0].status, 'sent');

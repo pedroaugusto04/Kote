@@ -20,11 +20,17 @@ export function sortRemindersForList<T extends { id: string; title: string; stat
 ) {
   if (statusFilter) return reminders;
   return [...reminders].sort((left, right) => {
-    const leftPendingRank = left.status === 'pending' ? 0 : 1;
-    const rightPendingRank = right.status === 'pending' ? 0 : 1;
-    return leftPendingRank - rightPendingRank
+    const leftOpenRank = reminderOpenRank(left.status);
+    const rightOpenRank = reminderOpenRank(right.status);
+    return leftOpenRank - rightOpenRank
       || reminderTimestamp(left) - reminderTimestamp(right)
       || left.title.localeCompare(right.title)
       || left.id.localeCompare(right.id);
   });
+}
+
+function reminderOpenRank(status: string) {
+  if (status === 'overdue') return 0;
+  if (status === 'pending') return 1;
+  return 2;
 }
