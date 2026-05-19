@@ -90,6 +90,7 @@ describe('KanbanPage', () => {
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenCalledWith('/api/reminders/r1/status', expect.objectContaining({
         method: 'PATCH',
+        headers: expect.objectContaining({ 'content-type': 'application/json' }),
         body: JSON.stringify({ status: 'resolved' }),
       }));
     });

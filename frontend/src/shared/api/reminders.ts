@@ -24,6 +24,7 @@ export function fetchReminderBoard(params: { workspaceSlug?: string; projectSlug
 export function updateReminderStatus(id: string, status: 'pending' | 'resolved' | 'archived') {
   return request<{ ok: true; id: string; status: 'pending' | 'resolved' | 'archived' }>(`/api/reminders/${encodeURIComponent(id)}/status`, {
     method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ status }),
   });
 }
