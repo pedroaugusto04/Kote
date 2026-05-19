@@ -1,16 +1,18 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 
 import type { AuthenticatedUser } from '../../../application/auth.js';
 import {
   BuildDashboardUseCase,
   GetReviewDetailUseCase,
   GetNoteDetailUseCase,
+  ListReminderBoardUseCase,
   ListPaginatedNotesUseCase,
   ListPaginatedProjectsUseCase,
   ListPaginatedRemindersUseCase,
   ListPaginatedReviewsUseCase,
   ListWorkspacesUseCase,
   QueryKnowledgeUseCase,
+  UpdateReminderStatusUseCase,
 } from '../../../application/use-cases/index.js';
 import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
@@ -18,15 +20,21 @@ import {
   noteIdParamSchema,
   notesListQuerySchema,
   projectsListQuerySchema,
+  reminderBoardQuerySchema,
+  reminderIdParamSchema,
   remindersListQuerySchema,
   reviewIdParamSchema,
   reviewsListQuerySchema,
+  updateReminderStatusBodySchema,
+  type ReminderBoardQuery,
+  type ReminderIdParam,
   type NoteIdParam,
   type NotesListQuery,
   type ProjectsListQuery,
   type RemindersListQuery,
   type ReviewIdParam,
   type ReviewsListQuery,
+  type UpdateReminderStatusBody,
 } from '../dto/dashboard.dto.js';
 import { queryRequestSchema, type QueryRequest } from '../dto/query.dto.js';
 import { ZodValidationPipe } from '../zod-validation.pipe.js';
@@ -41,6 +49,8 @@ export class DashboardController {
     private readonly listNotesUseCase: ListPaginatedNotesUseCase,
     private readonly listReviewsUseCase: ListPaginatedReviewsUseCase,
     private readonly listRemindersUseCase: ListPaginatedRemindersUseCase,
+    private readonly listReminderBoardUseCase: ListReminderBoardUseCase,
+    private readonly updateReminderStatusUseCase: UpdateReminderStatusUseCase,
     private readonly getNoteDetail: GetNoteDetailUseCase,
     private readonly getReviewDetail: GetReviewDetailUseCase,
     private readonly queryKnowledge: QueryKnowledgeUseCase,
@@ -100,6 +110,25 @@ export class DashboardController {
     @Query(new ZodValidationPipe(remindersListQuerySchema, 'invalid_reminders_query')) query: RemindersListQuery,
   ) {
     return { ok: true, ...paginatedResponse('reminders', await this.listRemindersUseCase.execute(user.id, query)) };
+  }
+
+  @Get('reminders/board')
+  async reminderBoard(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query(new ZodValidationPipe(reminderBoardQuerySchema, 'invalid_reminder_board_query')) query: ReminderBoardQuery,
+  ) {
+    return { ok: true, ...(await this.listReminderBoardUseCase.execute(user.id, query)) };
+  }
+
+  @Patch('reminders/:id/status')
+  async updateReminderStatus(
+    @Param(new ZodValidationPipe(reminderIdParamSchema, 'invalid_reminder_id')) params: ReminderIdParam,
+    @Body(new ZodValidationPipe(updateReminderStatusBodySchema, 'invalid_reminder_status_payload')) body: UpdateReminderStatusBody,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.updateReminderStatusUseCase.execute(user.id, { id: params.id, status: body.status });
+    if (!result.ok) throw new NotFoundException(result.reason);
+    return result;
   }
 
   @Get('query')

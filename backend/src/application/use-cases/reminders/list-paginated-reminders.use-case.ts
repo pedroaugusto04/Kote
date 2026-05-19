@@ -6,31 +6,9 @@ import { KnowledgeStatus, ReminderDispatchMode } from '../../../contracts/enums.
 import type { ListRemindersInput } from '../../models/reminder-list.models.js';
 import { ContentQueryRepository } from '../../ports/content.repository.js';
 import { ReminderDispatchRepository } from '../../ports/workflow-state.repository.js';
+import { sortRemindersForList } from './reminder-list.helpers.js';
 import { enrichReminderStatus } from './reminder-status.js';
 import { reminderDispatchKey, resolveReminderScheduledAt } from './reminder-schedule.js';
-
-function reminderTimestamp(reminder: { reminderAt?: string; reminderDate?: string; reminderTime?: string }) {
-  const direct = Date.parse(reminder.reminderAt || '');
-  if (!Number.isNaN(direct)) return direct;
-  const fallback = Date.parse(`${reminder.reminderDate || ''}T${reminder.reminderTime || '00:00'}:00.000Z`);
-  if (!Number.isNaN(fallback)) return fallback;
-  return Number.MAX_SAFE_INTEGER;
-}
-
-function sortRemindersForList<T extends { id: string; title: string; status: string; reminderAt?: string; reminderDate?: string; reminderTime?: string }>(
-  reminders: T[],
-  statusFilter?: string,
-) {
-  if (statusFilter) return reminders;
-  return [...reminders].sort((left, right) => {
-    const leftPendingRank = left.status === 'pending' ? 0 : 1;
-    const rightPendingRank = right.status === 'pending' ? 0 : 1;
-    return leftPendingRank - rightPendingRank
-      || reminderTimestamp(left) - reminderTimestamp(right)
-      || left.title.localeCompare(right.title)
-      || left.id.localeCompare(right.id);
-  });
-}
 
 @Injectable()
 export class ListPaginatedRemindersUseCase {

@@ -20,7 +20,7 @@ export {
   updateProject,
   updateProjectFolder,
 } from './projects';
-export { fetchReminders } from './reminders';
+export { fetchReminderBoard, fetchReminders, updateReminderStatus } from './reminders';
 export { runQuery } from './query';
 export { ApiClientError, type AuthUser } from './request';
 export { getErrorMessage } from './error-message';

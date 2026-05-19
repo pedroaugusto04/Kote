@@ -58,6 +58,8 @@ test('dashboard controller delegates project, workspace and note reads to use ca
     { execute: async () => ({ items: dashboard.notes, pagination: {} }) },
     { execute: async () => ({ items: [], pagination: {} }) },
     { execute: async () => ({ items: [], pagination: {} }) },
+    { execute: async (_userId, query) => ({ columns: { overdue: { items: [query], total: 1 }, upcoming: { items: [], total: 0 }, resolved: { items: [], total: 0 }, archived: { items: [], total: 0 } } }) },
+    { execute: async (_userId, input) => ({ ok: true, ...input }) },
     { execute: async (_userId, id) => ({ id, title: 'Note detail' }) },
     { execute: async (_userId, id) => ({ id, title: 'Review detail' }) },
     { execute: async (query) => ({ ok: true, query }) },
@@ -67,6 +69,16 @@ test('dashboard controller delegates project, workspace and note reads to use ca
   assert.deepEqual(await controller.workspaces(user), { ok: true, workspaces: dashboard.workspaces });
   assert.deepEqual(await controller.notes(user, {}), { ok: true, notes: dashboard.notes, pagination: {} });
   assert.deepEqual(await controller.note({ id: 'note-1' }, user), { ok: true, note: { id: 'note-1', title: 'Note detail' } });
+  assert.deepEqual(await controller.reminderBoard(user, { workspaceSlug: 'default', projectSlug: 'n8n-automations', limitPerColumn: 50 }), {
+    ok: true,
+    columns: {
+      overdue: { items: [{ workspaceSlug: 'default', projectSlug: 'n8n-automations', limitPerColumn: 50 }], total: 1 },
+      upcoming: { items: [], total: 0 },
+      resolved: { items: [], total: 0 },
+      archived: { items: [], total: 0 },
+    },
+  });
+  assert.deepEqual(await controller.updateReminderStatus({ id: 'note-1' }, { status: 'resolved' }, user), { ok: true, id: 'note-1', status: 'resolved' });
   assert.deepEqual(await controller.query({ query: 'deploy', limit: 7, workspaceSlug: '', projectSlug: '', status: '', page: 1, pageSize: 5 }, user), { ok: true, query: { query: 'deploy', limit: 7, workspaceSlug: '', projectSlug: '', status: '', page: 1, pageSize: 5 } });
 });
 

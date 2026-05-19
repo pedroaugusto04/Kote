@@ -9,6 +9,7 @@ import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { HomePage } from '../pages/home/HomePage';
 import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
+import { KanbanPage } from '../pages/kanban/KanbanPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
 import { RemindersPage } from '../pages/reminders/RemindersPage';
 import { SearchPage } from '../pages/search/SearchPage';
@@ -30,6 +31,7 @@ function activeView(pathname: string): View {
   if (pathname.startsWith('/projects')) return 'projects';
   if (pathname.startsWith('/vault')) return 'note';
   if (pathname.startsWith('/search')) return 'search';
+  if (pathname.startsWith('/kanban')) return 'kanban';
   if (pathname.startsWith('/reminders')) return 'reminders';
   if (pathname.startsWith('/settings/integrations')) return 'integrations';
   return 'home';
@@ -323,6 +325,7 @@ export function AppShell() {
             <Route path="/vault" element={<Navigate replace to={routes.projects} />} />
             <Route path="/vault/:noteId" element={shouldBlockNoteRoute ? null : <VaultPage {...pageContext} />} />
             <Route path="/search" element={<SearchPage {...pageContext} />} />
+            <Route path="/kanban" element={<KanbanPage {...pageContext} />} />
             <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
             <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
             <Route path="*" element={<HomePage {...pageContext} />} />

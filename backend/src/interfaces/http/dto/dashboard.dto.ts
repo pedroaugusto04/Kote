@@ -56,9 +56,30 @@ export const remindersListQuerySchema = paginationInputSchema.extend({
   status: input.status.trim().toLowerCase(),
 }));
 
+export const reminderBoardQuerySchema = z.object({
+  workspaceSlug: z.string().default(''),
+  projectSlug: z.string().default(''),
+  limitPerColumn: z.coerce.number().int().min(1).max(50).default(50),
+}).transform((input) => ({
+  ...input,
+  workspaceSlug: slugify(input.workspaceSlug),
+  projectSlug: slugify(input.projectSlug),
+}));
+
+export const reminderIdParamSchema = z.object({
+  id: z.string().trim().min(1),
+});
+
+export const updateReminderStatusBodySchema = z.object({
+  status: z.enum(['pending', 'resolved', 'archived']),
+});
+
 export type NoteIdParam = z.infer<typeof noteIdParamSchema>;
+export type ReminderBoardQuery = z.infer<typeof reminderBoardQuerySchema>;
+export type ReminderIdParam = z.infer<typeof reminderIdParamSchema>;
 export type ReviewIdParam = z.infer<typeof reviewIdParamSchema>;
 export type ProjectsListQuery = z.infer<typeof projectsListQuerySchema>;
 export type NotesListQuery = z.infer<typeof notesListQuerySchema>;
 export type ReviewsListQuery = z.infer<typeof reviewsListQuerySchema>;
 export type RemindersListQuery = z.infer<typeof remindersListQuerySchema>;
+export type UpdateReminderStatusBody = z.infer<typeof updateReminderStatusBodySchema>;

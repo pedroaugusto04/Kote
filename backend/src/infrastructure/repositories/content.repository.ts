@@ -397,6 +397,22 @@ export class PostgresContentRepository extends ContentRepository {
     return { ...noteFromRow(result.rows[0]), markdown: input.markdown };
   }
 
+  async updateReminderStatus(userId: string, id: string, status: string) {
+    const result = await this.database.getPool().query(
+      `update kb_notes
+       set status = $3,
+           updated_at = now()
+       where user_id = $1 and id = $2
+         and (
+           coalesce(metadata->>'reminderDate', '') <> ''
+           or coalesce(metadata->>'reminderAt', '') <> ''
+         )
+       returning *`,
+      [userId, id, status],
+    );
+    return result.rows[0] ? noteFromRow(result.rows[0]) : null;
+  }
+
   private async upsertProjectFolderWithClient(client: PoolClient, userId: string, input: SaveProjectFolderInput) {
     return client.query(
       UPSERT_PROJECT_FOLDER_SQL,

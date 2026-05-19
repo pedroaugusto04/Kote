@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, MarkReminderAsSentUseCase } from '../../dist/application/use-cases/index.js';
+import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, ListReminderBoardUseCase, MarkReminderAsSentUseCase, UpdateReminderStatusUseCase } from '../../dist/application/use-cases/index.js';
 import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../dist/contracts/enums.js';
 import { reminderDispatchKey } from '../../dist/application/use-cases/reminders/reminder-schedule.js';
 import { ReminderDispatchWorker } from '../../dist/application/services/reminder-dispatch.worker.js';
@@ -217,6 +217,138 @@ test('paginated reminders sort all statuses with pending first and date ascendin
       { title: sentReminder.title, status: 'sent' },
     ],
   );
+});
+
+test('reminder board groups reminders by due state and terminal status with per-column limits', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const otherUser = await repositories.createTestUser();
+  const listBoard = new ListReminderBoardUseCase(repositories.contentQueryRepository, repositories.reminderDispatchRepository, environmentProvider());
+
+  const overdue = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/overdue.md',
+    title: 'Overdue reminder',
+    metadata: {
+      reminderDate: '2026-05-05',
+      reminderTime: '09:00',
+      reminderAt: '2026-05-05T09:00:00.000Z',
+    },
+  });
+  const sent = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/sent.md',
+    title: 'Sent reminder',
+    metadata: {
+      reminderDate: '2099-12-30',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-30T09:00:00.000Z',
+    },
+  });
+  await repositories.reminderDispatchRepository.markSent(
+    user.id,
+    'default',
+    ReminderDispatchMode.Exact,
+    reminderDispatchKey('2099-12-30T09:00:00.000Z'),
+    sent.id,
+  );
+  const upcomingA = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/upcoming-a.md',
+    title: 'Upcoming A',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-31T09:00:00.000Z',
+    },
+  });
+  await insertReminder(repositories, user.id, {
+    path: '20 Inbox/other-project/upcoming-b.md',
+    title: 'Upcoming B',
+    projectSlug: 'other-project',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '10:00',
+      reminderAt: '2099-12-31T10:00:00.000Z',
+    },
+  });
+  const resolved = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/resolved.md',
+    title: 'Resolved reminder',
+    status: 'resolved',
+    metadata: {
+      reminderDate: '2026-05-05',
+      reminderTime: '08:00',
+      reminderAt: '2026-05-05T08:00:00.000Z',
+    },
+  });
+  const archived = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/archived.md',
+    title: 'Archived reminder',
+    status: 'archived',
+    metadata: {
+      reminderDate: '2026-05-05',
+      reminderTime: '08:30',
+      reminderAt: '2026-05-05T08:30:00.000Z',
+    },
+  });
+  await insertReminder(repositories, otherUser.id, {
+    path: '20 Inbox/n8n-automations/other-user.md',
+    title: 'Other user reminder',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-31T09:00:00.000Z',
+    },
+  });
+
+  const board = await listBoard.execute(user.id, { workspaceSlug: 'default', projectSlug: 'n8n-automations', limitPerColumn: 1 });
+
+  assert.equal(board.columns.overdue.total, 1);
+  assert.deepEqual(board.columns.overdue.items.map((item) => item.id), [overdue.id]);
+  assert.equal(board.columns.upcoming.total, 2);
+  assert.deepEqual(board.columns.upcoming.items.map((item) => item.id), [sent.id]);
+  assert.equal(board.columns.upcoming.items[0].status, 'sent');
+  assert.equal(board.columns.upcoming.items.some((item) => item.id === upcomingA.id), false);
+  assert.deepEqual(board.columns.resolved.items.map((item) => item.id), [resolved.id]);
+  assert.deepEqual(board.columns.archived.items.map((item) => item.id), [archived.id]);
+});
+
+test('reminder status update reopens terminal reminders and remains isolated by user', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const otherUser = await repositories.createTestUser();
+  const updateStatus = new UpdateReminderStatusUseCase(repositories.contentRepository);
+  const reminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/resolved.md',
+    title: 'Resolved reminder',
+    status: 'resolved',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-31T09:00:00.000Z',
+    },
+  });
+  const plainNote = await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/plain.md',
+    type: 'event',
+    title: 'Plain',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2099-12-31T12:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Plain note',
+    markdown: '',
+    frontmatter: {},
+    metadata: {},
+    origin: 'postgres',
+    source: 'test',
+    links: [],
+  });
+
+  assert.deepEqual(await updateStatus.execute(otherUser.id, { id: reminder.id, status: 'archived' }), { ok: false, reason: 'reminder_not_found' });
+  assert.deepEqual(await updateStatus.execute(user.id, { id: plainNote.id, status: 'archived' }), { ok: false, reason: 'reminder_not_found' });
+  assert.deepEqual(await updateStatus.execute(user.id, { id: reminder.id, status: 'pending' }), { ok: true, id: reminder.id, status: 'pending' });
+  assert.equal((await repositories.contentRepository.getNoteById(user.id, reminder.id))?.status, 'pending');
 });
 
 test('global due reminder read model filters reminders by requested channel recipient', async (t) => {

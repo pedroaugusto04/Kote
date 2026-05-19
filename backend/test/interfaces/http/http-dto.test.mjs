@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { agentConversationBodySchema } from '../../../dist/interfaces/http/dto/operations.dto.js';
 import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../../../dist/interfaces/http/dto/integration-credentials.dto.js';
 import { internalN8nIngestBodySchema } from '../../../dist/interfaces/http/dto/internal-n8n.dto.js';
+import { reminderBoardQuerySchema, updateReminderStatusBodySchema } from '../../../dist/interfaces/http/dto/dashboard.dto.js';
 import { markRemindersBodySchema, queryRequestSchema } from '../../../dist/interfaces/http/dto/query.dto.js';
 import { createNoteBodySchema, noteIdParamSchema, updateNoteBodySchema } from '../../../dist/interfaces/http/dto/note.dto.js';
 import { createProjectBodySchema, projectSlugParamSchema, updateProjectBodySchema } from '../../../dist/interfaces/http/dto/project.dto.js';
@@ -36,6 +37,22 @@ test('mark-sent dto requires ids array', () => {
     mode: 'exact',
     dispatchKey: '2026-05-08T11:00',
   });
+});
+
+test('reminder board dto normalizes filters and status updates', () => {
+  assert.deepEqual(reminderBoardQuerySchema.parse({
+    workspaceSlug: 'Default Workspace',
+    projectSlug: 'N8N Automations',
+    limitPerColumn: '25',
+  }), {
+    workspaceSlug: 'default-workspace',
+    projectSlug: 'n8n-automations',
+    limitPerColumn: 25,
+  });
+  assert.throws(() => reminderBoardQuerySchema.parse({ limitPerColumn: '100' }));
+  assert.deepEqual(updateReminderStatusBodySchema.parse({ status: 'resolved' }), { status: 'resolved' });
+  assert.throws(() => updateReminderStatusBodySchema.parse({ status: 'sent' }));
+  assert.throws(() => updateReminderStatusBodySchema.parse({ status: 'active' }));
 });
 
 test('create workspace dto normalizes slug from display name', () => {

@@ -14,6 +14,19 @@ export type ReminderView = {
   relativePath: string;
 };
 
+export type ReminderBoardColumnKey = 'overdue' | 'upcoming' | 'resolved' | 'archived';
+
+export type ReminderBoardCard = ReminderView;
+
+export type ReminderBoardColumn = {
+  items: ReminderBoardCard[];
+  total: number;
+};
+
+export type ReminderBoardResponse = {
+  columns: Record<ReminderBoardColumnKey, ReminderBoardColumn>;
+};
+
 export type DueReminderView = {
   userId: string;
   workspaceSlug: string;

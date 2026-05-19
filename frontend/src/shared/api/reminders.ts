@@ -1,5 +1,5 @@
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
-import type { Reminder } from './models/reminder';
+import type { Reminder, ReminderBoardResponse } from './models/reminder';
 import { request } from './request';
 
 export function fetchReminders(params: { page?: number; pageSize?: number; workspaceSlug?: string; status?: string }) {
@@ -10,4 +10,20 @@ export function fetchReminders(params: { page?: number; pageSize?: number; works
     status: params.status || '',
   });
   return request<PaginatedResponse<Reminder, 'reminders'>>(`/api/reminders?${search.toString()}`);
+}
+
+export function fetchReminderBoard(params: { workspaceSlug?: string; projectSlug?: string; limitPerColumn?: number }) {
+  const search = new URLSearchParams({
+    workspaceSlug: params.workspaceSlug || '',
+    projectSlug: params.projectSlug || '',
+    limitPerColumn: String(params.limitPerColumn || 50),
+  });
+  return request<ReminderBoardResponse>(`/api/reminders/board?${search.toString()}`);
+}
+
+export function updateReminderStatus(id: string, status: 'pending' | 'resolved' | 'archived') {
+  return request<{ ok: true; id: string; status: 'pending' | 'resolved' | 'archived' }>(`/api/reminders/${encodeURIComponent(id)}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
 }

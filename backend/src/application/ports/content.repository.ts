@@ -37,6 +37,7 @@ export abstract class ContentRepository {
   abstract getNoteByPath(userId: string, path: string): Promise<NoteRecord | null>;
   abstract upsertNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;
   abstract updateNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;
+  abstract updateReminderStatus(userId: string, id: string, status: string): Promise<NoteRecord | null>;
   abstract deleteNote(userId: string, id: string): Promise<boolean>;
   abstract saveAttachment(userId: string, input: SaveAttachmentInput): Promise<AttachmentRecord>;
   abstract listAttachments(userId: string, noteId: string): Promise<AttachmentRecord[]>;

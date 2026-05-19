@@ -11,6 +11,7 @@ Transform scattered information into a searchable knowledge base by automaticall
 - **Project Organization:** Notes, routines, and decisions centralized by context.
 - **Contextual Search:** Instantly find answers across the team's entire history.
 - **Operational Dashboard:** A quick summary of recent activities, priorities, and reminders.
+- **Reminder Kanban:** Operational board for overdue, upcoming, resolved, and archived pending work.
 - **Continuous Capture:** Direct integration with the tools your team already uses.
 
 ## Integrations
