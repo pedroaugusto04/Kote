@@ -35,8 +35,11 @@ We simplify knowledge capture where the work already happens:
 
 ### Extras
 
-![Search and Context Recovery](docs/screenshots/search-context.png)
-*Search interface and context recovery.*
+![Operational Dashboard](docs/screenshots/dashboard-overview.png)
+*Operational dashboard with recent activity, priorities, and active projects.*
 
 ![Guided Integrations Setup](docs/screenshots/integrations-setup.png)
 *Integration setup and configuration panel.*
+
+![Projects Overview](docs/screenshots/projects-overview.png)
+*Project and notes organization view inside the workspace.*
