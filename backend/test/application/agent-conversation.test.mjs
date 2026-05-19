@@ -139,8 +139,8 @@ test('agent conversation happy path suggests folder, asks final confirmation and
   assert.equal(first.action, 'confirm');
   assert.equal(first.agent.pendingApproval, 'final_confirmation');
   assert.deepEqual(first.agent.suggestedFolderPath, ['Runbooks', 'API']);
-  assert.match(first.replyText, /Confirme o salvamento da nota/);
-  assert.match(first.replyText, /nova, sera criada ao salvar/);
+  assert.match(first.replyText, /Confirm note saving/);
+  assert.match(first.replyText, /new, will be created when saved/);
 
   const second = await agentUseCase.execute(input('sim'), user.id, 'default');
   assert.equal(second.action, 'submit');
@@ -180,7 +180,7 @@ test('agent conversation asks for context when the first message is only media',
 
   const first = await agentUseCase.execute(mediaInput(''), user.id, 'default');
   assert.equal(first.action, 'ask');
-  assert.match(first.replyText, /Me diga o que e.*projeto devo salvar/);
+  assert.match(first.replyText, /Tell me what it is.*which project I should save it to/);
   assert.equal(await repositories.countConversationStates(), 1);
 
   await agentUseCase.execute(input('corrigi timeout do endpoint de webhook'), user.id, 'default');
@@ -201,7 +201,7 @@ test('agent conversation asks for project when project choice is ambiguous', asy
   const result = await agentUseCase.execute(input('ajustei a pipeline'), user.id, 'default');
   assert.equal(result.action, 'ask');
   assert.equal(result.agent.selectedProjectSlug, '');
-  assert.match(result.replyText, /Projetos disponiveis/);
+  assert.match(result.replyText, /Available projects/);
 });
 
 test('agent conversation allows changing the suggested folder to project root before final confirmation', async (t) => {
@@ -243,7 +243,7 @@ test('agent conversation allows changing the suggested folder to project root be
   await agentUseCase.execute(input('documentei o checklist de deploy'), user.id, 'default');
   const rootConfirmation = await agentUseCase.execute(input('salva na raiz'), user.id, 'default');
   assert.equal(rootConfirmation.action, 'confirm');
-  assert.match(rootConfirmation.replyText, /raiz do projeto/);
+  assert.match(rootConfirmation.replyText, /project root/);
 
   const saved = await agentUseCase.execute(input('sim'), user.id, 'default');
   assert.equal(saved.action, 'submit');
@@ -261,7 +261,7 @@ test('agent conversation refuses nonexistent project and asks for an existing pr
   const result = await agentUseCase.execute(input('fiz algo no projeto x'), user.id, 'default');
   assert.equal(result.action, 'ask');
   assert.equal(result.agent.selectedProjectSlug, '');
-  assert.match(result.replyText, /Projetos disponiveis/);
+  assert.match(result.replyText, /Available projects/);
   assert.doesNotMatch(result.replyText, /projeto-x/);
 });
 
@@ -388,7 +388,7 @@ test('agent conversation accepts AI reminder kind alias and reaches final confir
 
   assert.equal(result.action, 'confirm');
   assert.equal(result.agent.pendingApproval, 'final_confirmation');
-  assert.match(result.replyText, /Confirme o salvamento da nota/);
+  assert.match(result.replyText, /Confirm note saving/);
 });
 
 test('agent conversation saves reminders as pending on submission', async (t) => {

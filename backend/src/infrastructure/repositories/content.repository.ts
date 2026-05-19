@@ -19,43 +19,10 @@ import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { noteSummary } from '../mappers/content-query.mappers.js';
 import { attachmentFromRow, noteFromRow, projectFolderFromRow, projectFromRow, repositoryFromRow, workspaceFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-
-const PROJECT_WITH_METADATA_SELECT = `SELECT p.*,
-  COALESCE((SELECT jsonb_agg(tag) FROM kb_project_default_tags WHERE project_id = p.id), '[]'::jsonb) as default_tags,
-  COALESCE((SELECT jsonb_agg(jsonb_build_object(
-    'id', r.id,
-    'workspace_slug', r.workspace_slug,
-    'external_id', r.external_id,
-    'full_name', r.full_name,
-    'html_url', r.html_url,
-    'description', r.description,
-    'default_branch', r.default_branch,
-    'created_at', r.created_at,
-    'updated_at', r.updated_at
-  )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id WHERE pr.project_id = p.id), '[]'::jsonb) as repositories
-FROM kb_projects p`;
-
-function noteMutableValues(input: SaveNoteInput, markdownStorageKey: string): unknown[] {
-  return [
-    input.path,
-    input.type,
-    input.title,
-    input.projectSlug,
-    input.workspaceSlug,
-    input.folderId,
-    input.status,
-    JSON.stringify(input.tags),
-    input.occurredAt,
-    input.sourceChannel,
-    input.summary,
-    markdownStorageKey,
-    JSON.stringify(input.frontmatter),
-    JSON.stringify(input.metadata),
-    input.origin,
-    input.source,
-    JSON.stringify(input.links),
-  ];
-}
+import { INSERT_ATTACHMENT_SQL } from './content/attachment.queries.js';
+import { UPSERT_PROJECT_FOLDER_SQL } from './content/folder.queries.js';
+import { buildNoteMutableValues } from './content/note.queries.js';
+import { PROJECT_WITH_METADATA_SELECT_SQL } from './content/project-workspace.queries.js';
 
 @Injectable()
 export class PostgresContentRepository extends ContentRepository {
@@ -136,7 +103,7 @@ export class PostgresContentRepository extends ContentRepository {
 
   async listProjects(userId: string) {
     const result = await this.database.getPool().query(
-      `${PROJECT_WITH_METADATA_SELECT}
+      `${PROJECT_WITH_METADATA_SELECT_SQL}
        WHERE p.user_id = $1 AND p.enabled = true
        ORDER BY p.project_slug`,
       [userId],
@@ -154,7 +121,7 @@ export class PostgresContentRepository extends ContentRepository {
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
     const offset = (pagination.page - 1) * pagination.pageSize;
     const result = await this.database.getPool().query(
-      `${PROJECT_WITH_METADATA_SELECT}
+      `${PROJECT_WITH_METADATA_SELECT_SQL}
        WHERE p.user_id = $1 AND p.enabled = true
        ORDER BY p.project_slug
        LIMIT $2 OFFSET $3`,
@@ -166,7 +133,7 @@ export class PostgresContentRepository extends ContentRepository {
 
   async getProjectBySlug(userId: string, projectSlug: string) {
     const result = await this.database.getPool().query(
-      `${PROJECT_WITH_METADATA_SELECT}
+      `${PROJECT_WITH_METADATA_SELECT_SQL}
        WHERE p.user_id = $1 AND p.project_slug = $2
        LIMIT 1`,
       [userId, projectSlug],
@@ -265,20 +232,7 @@ export class PostgresContentRepository extends ContentRepository {
 
   async upsertProjectFolder(userId: string, input: SaveProjectFolderInput) {
     const result = await this.database.getPool().query(
-      `insert into kb_project_folders (
-         id, user_id, workspace_slug, project_slug, parent_folder_id, display_name, folder_slug, full_slug_path
-       )
-       values ($1, $2, $3, $4, $5, $6, $7, $8)
-       on conflict (id)
-       do update set
-         workspace_slug = excluded.workspace_slug,
-         project_slug = excluded.project_slug,
-         parent_folder_id = excluded.parent_folder_id,
-         display_name = excluded.display_name,
-         folder_slug = excluded.folder_slug,
-         full_slug_path = excluded.full_slug_path,
-         updated_at = now()
-       returning *`,
+      UPSERT_PROJECT_FOLDER_SQL,
       [
         input.id || crypto.randomUUID(),
         userId,
@@ -428,7 +382,7 @@ export class PostgresContentRepository extends ContentRepository {
          links = excluded.links,
          updated_at = now()
       returning *`,
-      [input.id || crypto.randomUUID(), userId, ...noteMutableValues(input, markdownStorageKey)],
+      [input.id || crypto.randomUUID(), userId, ...buildNoteMutableValues(input, markdownStorageKey)],
     );
     return { ...noteFromRow(result.rows[0]), markdown: input.markdown };
   }
@@ -445,20 +399,7 @@ export class PostgresContentRepository extends ContentRepository {
 
   private async upsertProjectFolderWithClient(client: PoolClient, userId: string, input: SaveProjectFolderInput) {
     return client.query(
-      `insert into kb_project_folders (
-         id, user_id, workspace_slug, project_slug, parent_folder_id, display_name, folder_slug, full_slug_path
-       )
-       values ($1, $2, $3, $4, $5, $6, $7, $8)
-       on conflict (id)
-       do update set
-         workspace_slug = excluded.workspace_slug,
-         project_slug = excluded.project_slug,
-         parent_folder_id = excluded.parent_folder_id,
-         display_name = excluded.display_name,
-         folder_slug = excluded.folder_slug,
-         full_slug_path = excluded.full_slug_path,
-         updated_at = now()
-       returning *`,
+      UPSERT_PROJECT_FOLDER_SQL,
       [
         input.id || crypto.randomUUID(),
         userId,
@@ -495,7 +436,7 @@ export class PostgresContentRepository extends ContentRepository {
            updated_at = now()
        where user_id = $1 and id = $2
        returning *`,
-      [userId, input.id, ...noteMutableValues(input, markdownStorageKey)],
+      [userId, input.id, ...buildNoteMutableValues(input, markdownStorageKey)],
     );
   }
 
@@ -518,9 +459,7 @@ export class PostgresContentRepository extends ContentRepository {
     const workspaceSlug = noteResult.rows[0]?.workspace_slug || 'default';
     const storageKey = await this.contentObjectStorage.saveAttachmentData(userId, workspaceSlug, input);
     const result = await this.database.getPool().query(
-      `insert into kb_attachments (id, user_id, note_id, file_name, mime_type, size_bytes, storage_key, checksum_sha256, metadata)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
-       returning *`,
+      INSERT_ATTACHMENT_SQL,
       [
         attachmentId,
         userId,

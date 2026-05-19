@@ -39,7 +39,7 @@ class StubConversationAgentGateway {
     const message = String(payload.messageText || '').trim().toLowerCase();
     if (message === 'corrigi timeout no webhook') {
       return {
-        replyText: 'Confirme o salvamento da nota.',
+        replyText: 'Confirm note saving.',
         resolvedDraft: {
           rawText: 'corrigi timeout no webhook',
           title: '',
@@ -216,17 +216,17 @@ test('linked whatsapp chat processes free text and sends the first conversation 
   assert.equal(result.ok, true);
   assert.equal(result.processed, true);
   assert.equal(result.action, 'confirm');
-  assert.match(result.message, /Confirme o salvamento da nota/);
-  assert.match(result.message, /nova, sera criada ao salvar/);
+  assert.match(result.message, /Confirm note saving/);
+  assert.match(result.message, /new, will be created when saved/);
   assert.equal(result.replySent, true);
-  assert.match(result.conversationResult.replyText, /Confirme o salvamento da nota/);
+  assert.match(result.conversationResult.replyText, /Confirm note saving/);
   assert.equal(result.replyText, undefined);
   assert.equal(result.text, undefined);
   assert.equal(result.reply, undefined);
   assert.equal(result.confirmText, undefined);
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].chatJid, '120363@g.us');
-  assert.match(sender.sent[0].text, /Confirme o salvamento da nota/);
+  assert.match(sender.sent[0].text, /Confirm note saving/);
 });
 
 test('linked whatsapp private chat processes free text and replies to the private jid', async (t) => {
@@ -245,7 +245,7 @@ test('linked whatsapp private chat processes free text and replies to the privat
   assert.equal(result.replySent, true);
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].chatJid, privateJid);
-  assert.match(sender.sent[0].text, /Confirme o salvamento da nota/);
+  assert.match(sender.sent[0].text, /Confirm note saving/);
 });
 
 test('linked whatsapp private chats keep users and workspaces isolated', async (t) => {
@@ -296,7 +296,7 @@ test('linked whatsapp chat completes conversation and saves note on confirmation
   const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.action, 'submit');
-  assert.equal(result.message, 'Nota salva com sucesso.');
+  assert.equal(result.message, 'Note saved successfully.');
   assert.equal(result.conversationResult.action, 'submit');
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
@@ -476,7 +476,7 @@ test('whatsapp webhook processes self-authored messages without bot prefix', asy
   assert.equal(result.processed, true);
   assert.equal(result.replySent, true);
   assert.equal(sender.sent.length, 1);
-  assert.match(sender.sent[0].text, /Confirme o salvamento da nota/);
+  assert.match(sender.sent[0].text, /Confirm note saving/);
 });
 
 test('unknown whatsapp chat is still rejected', async (t) => {
@@ -517,7 +517,7 @@ test('whatsapp media without caption asks for text and does not save attachment'
   }));
 
   assert.equal(result.replySent, true);
-  assert.match(result.message, /Me diga o que e ou em qual projeto devo salvar/);
+  assert.match(result.message, /Tell me what it is and which project I should save it to/);
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
   assert.equal(await repositories.countConversationStates(), 1);
   assert.equal(sender.sent.length, 1);

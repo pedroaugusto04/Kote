@@ -307,8 +307,8 @@ test('whatsapp connection command binds a private chat jid to the workspace', as
   const setup = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'whatsapp' });
 
   assert.deepEqual(setup.steps, [
-    'Envie a mensagem no chat do WhatsApp.',
-    'Mantenha esta janela aberta ate a conversa aparecer como conectada.',
+    'Send the message in the WhatsApp chat.',
+    'Keep this window open until the conversation appears as connected.',
   ]);
 
   const result = await whatsapp.execute(whatsappInput(setup.verificationCode, {

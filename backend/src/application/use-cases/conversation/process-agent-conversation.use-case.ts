@@ -1,7 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import {
-  agentConversationDraftSchema,
   agentConversationStateSchema,
   type AgentConversationApprovalIntent,
   type AgentConversationState,
@@ -9,20 +8,31 @@ import {
 import { type ConversationInput } from '../../../contracts/conversation.js';
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
-import { slugify, trimText } from '../../../domain/strings.js';
-import { currentDateTimeInTimeZone, normalizeDate, normalizeTime, nowIso } from '../../../domain/time.js';
+import { slugify } from '../../../domain/strings.js';
+import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
 import { AppLogger } from '../../../observability/logger.js';
 import type { ProjectFolderRecord, ProjectRecord } from '../../models/repository-records.models.js';
-import { ConversationAgentGateway, type ConversationAgentFolderContext, type ConversationAgentResponse } from '../../ports/conversation-agent.gateway.js';
+import { ConversationAgentGateway, type ConversationAgentResponse } from '../../ports/conversation-agent.gateway.js';
 import { ContentRepository } from '../../ports/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
 import { ConversationStateRepository } from '../../ports/workflow-state.repository.js';
-import { isCancel, isConfirm, isReject } from '../../utils/conversation-command.utils.js';
-import { buildConversationIngestPayload } from '../../utils/conversation-payload.utils.js';
-import { buildProjectFolderTree, folderSlugFromDisplayName } from '../../utils/project-folder.utils.js';
+import { isCancel } from '../../utils/conversation-command.utils.js';
+import { buildProjectFolderTree } from '../../utils/project-folder.utils.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { CreateProjectFolderUseCase } from '../projects/create-project-folder.use-case.js';
+import { ConversationAgentPresenter } from './services/conversation-agent.presenter.js';
+import { ConversationFolderResolutionService } from './services/conversation-folder-resolution.service.js';
+import {
+  buildAgentConversationPayload as buildAgentPayload,
+  buildNextAgentConversationState,
+  emptyAgentConversationState as EMPTY_AGENT_CONVERSATION_STATE,
+  mediaFromInput as mediaFromConversationInput,
+  parseApprovalIntent,
+  resolveSelectedProjectSlug as resolveAgentSelectedProjectSlug,
+  sanitizeProjectSlug as sanitizeAgentProjectSlug,
+  serializeFolderTreeNode as serializeAgentFolderTreeNode,
+} from './services/conversation-agent-state-machine.js';
 
 type AgentConversationResult = {
   action: 'ask' | 'confirm' | 'cancel' | 'submit';
@@ -46,10 +56,11 @@ type AgentDecisionTurn = {
   decision: ConversationAgentResponse;
 };
 
-const emptyAgentConversationState: AgentConversationState = agentConversationStateSchema.parse({});
-
 @Injectable()
 export class ProcessAgentConversationUseCase {
+  private readonly presenter = new ConversationAgentPresenter();
+  private readonly folderResolutionService: ConversationFolderResolutionService;
+
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly conversationStates: ConversationStateRepository,
@@ -59,7 +70,9 @@ export class ProcessAgentConversationUseCase {
     private readonly conversationAgentGateway: ConversationAgentGateway,
     private readonly credentials?: CredentialRepository,
     private readonly logger?: AppLogger,
-  ) {}
+  ) {
+    this.folderResolutionService = new ConversationFolderResolutionService(contentRepository, createProjectFolderUseCase);
+  }
 
   async execute(input: ConversationInput, userId: string, workspaceSlug = 'default'): Promise<AgentConversationResult> {
     const normalizedWorkspaceSlug = slugify(workspaceSlug) || 'default';
@@ -79,13 +92,13 @@ export class ProcessAgentConversationUseCase {
     });
 
     if (!messageText && !input.hasMedia) {
-      return this.reply('ask', 'Send the note text so I can organize the project and folder before saving.', null, state);
+      return this.reply('ask', this.presenter.emptyTextPrompt(), null, state);
     }
     if (!messageText && input.hasMedia) {
       const nextState = agentConversationStateSchema.parse({
         ...state,
-        media: mediaFromInput(input, state),
-        lastQuestion: 'I received the media. Tell me what it is and which project I should save it to.',
+        media: mediaFromConversationInput(input, state),
+        lastQuestion: this.presenter.mediaContextPrompt(),
         lastUserMessage: '',
         lastAgentAction: 'ask',
         updatedAt: nowIso(),
@@ -95,7 +108,7 @@ export class ProcessAgentConversationUseCase {
     }
     if (isCancel(messageText)) {
       await this.conversationStates.clear(userId, normalizedWorkspaceSlug, key);
-      return this.reply('cancel', 'Capture canceled. Send a new note whenever you want.', null, emptyAgentConversationState);
+      return this.reply('cancel', this.presenter.captureCanceled(), null, EMPTY_AGENT_CONVERSATION_STATE);
     }
     if (state.pendingApproval === 'final_confirmation') {
       return this.handleFinalConfirmation(input, userId, normalizedWorkspaceSlug, key, state);
@@ -109,13 +122,21 @@ export class ProcessAgentConversationUseCase {
       state,
     );
 
-    const selectedProjectSlug = resolveSelectedProjectSlug(decision.selectedProjectSlug, state, projects);
+    const selectedProjectSlug = resolveAgentSelectedProjectSlug(decision.selectedProjectSlug, state, projects);
     const foldersForDecision = selectedProjectSlug && selectedProjectSlug !== 'inbox'
       ? selectedProjectSlug === candidateProjectSlug
         ? candidateFolders
         : await this.contentRepository.listProjectFolders(userId, selectedProjectSlug)
       : [];
-    const nextState = buildNextState(state, messageText, mediaFromInput(input, state), decision, projects, foldersForDecision, environment.reminderTimeZone);
+    const nextState = buildNextAgentConversationState({
+      current: state,
+      messageText,
+      media: mediaFromConversationInput(input, state),
+      decision,
+      projects,
+      candidateFolders: foldersForDecision,
+      reminderTimeZone: environment.reminderTimeZone,
+    });
     await this.conversationStates.upsert(userId, normalizedWorkspaceSlug, key, nextState);
     this.logger?.info('conversation.agent.state.updated', {
       userId,
@@ -132,15 +153,15 @@ export class ProcessAgentConversationUseCase {
     });
 
     if (!nextState.draft.rawText) {
-      return this.reply('ask', 'I could not understand the note yet. Please resend the message with more information.', null, nextState);
+      return this.reply('ask', this.presenter.couldNotUnderstand(), null, nextState);
     }
     if (!nextState.project.selectedProjectSlug) {
-      return this.reply('ask', buildProjectPrompt(decision.replyText, projects), null, nextState);
+      return this.reply('ask', this.presenter.projectPrompt(decision.replyText, projects), null, nextState);
     }
     if (nextState.pendingApproval === 'final_confirmation') {
       const finalState = {
         ...nextState,
-        lastQuestion: buildFinalConfirmationPrompt(nextState),
+        lastQuestion: this.presenter.finalConfirmationPrompt(nextState),
         lastAgentAction: 'confirm' as const,
         updatedAt: nowIso(),
       };
@@ -148,7 +169,7 @@ export class ProcessAgentConversationUseCase {
       return this.reply('confirm', finalState.lastQuestion, null, finalState);
     }
 
-    return this.reply('ask', decision.replyText || 'I need one more detail before saving.', null, nextState);
+    return this.reply('ask', decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
   }
 
   private async assertAgentEnabled(userId: string, workspaceSlug: string) {
@@ -161,7 +182,7 @@ export class ProcessAgentConversationUseCase {
   private async loadState(userId: string, workspaceSlug: string, key: string) {
     const saved = await this.conversationStates.get(userId, workspaceSlug, key);
     const parsed = saved ? agentConversationStateSchema.safeParse(saved.state) : null;
-    return parsed?.success ? parsed.data : emptyAgentConversationState;
+    return parsed?.success ? parsed.data : EMPTY_AGENT_CONVERSATION_STATE;
   }
 
   private async requestAgentDecision(
@@ -172,7 +193,7 @@ export class ProcessAgentConversationUseCase {
   ): Promise<AgentDecisionTurn> {
     const projects = (await this.contentRepository.listProjects(userId))
       .filter((project) => project.enabled && project.workspaceSlug === workspaceSlug);
-    const candidateProjectSlug = sanitizeProjectSlug(state.project.selectedProjectSlug, projects);
+    const candidateProjectSlug = sanitizeAgentProjectSlug(state.project.selectedProjectSlug, projects);
     const candidateFolders = candidateProjectSlug && candidateProjectSlug !== 'inbox'
       ? await this.contentRepository.listProjectFolders(userId, candidateProjectSlug)
       : [];
@@ -196,7 +217,7 @@ export class ProcessAgentConversationUseCase {
             defaultTags: project.defaultTags,
           })),
           candidateProjectSlug,
-          candidateFolders: buildProjectFolderTree(candidateFolders).map(serializeFolderTreeNode),
+          candidateFolders: buildProjectFolderTree(candidateFolders).map(serializeAgentFolderTreeNode),
           timeZone: environment.reminderTimeZone,
           currentLocalDate: localDateTime.date,
           currentLocalTime: localDateTime.time,
@@ -247,51 +268,51 @@ export class ProcessAgentConversationUseCase {
     });
     if (intent === 'reject' || intent === 'cancel') {
       await this.conversationStates.clear(userId, workspaceSlug, key);
-      return this.reply('cancel', 'Note discarded. No record was created.', null, emptyAgentConversationState);
+      return this.reply('cancel', this.presenter.noteDiscarded(), null, EMPTY_AGENT_CONVERSATION_STATE);
     }
     if (intent !== 'approve') {
       if (approval.turn) {
         const messageText = String(input.messageText || '').trim();
         const environment = this.environmentProvider.read();
-        const selectedProjectSlug = resolveSelectedProjectSlug(approval.turn.decision.selectedProjectSlug, state, approval.turn.projects);
+        const selectedProjectSlug = resolveAgentSelectedProjectSlug(approval.turn.decision.selectedProjectSlug, state, approval.turn.projects);
         const foldersForDecision = selectedProjectSlug && selectedProjectSlug !== 'inbox'
           ? selectedProjectSlug === approval.turn.candidateProjectSlug
             ? approval.turn.candidateFolders
             : await this.contentRepository.listProjectFolders(userId, selectedProjectSlug)
           : [];
-        const nextState = buildNextState(
-          state,
+        const nextState = buildNextAgentConversationState({
+          current: state,
           messageText,
-          mediaFromInput(input, state),
-          approval.turn.decision,
-          approval.turn.projects,
-          foldersForDecision,
-          environment.reminderTimeZone,
-        );
+          media: mediaFromConversationInput(input, state),
+          decision: approval.turn.decision,
+          projects: approval.turn.projects,
+          candidateFolders: foldersForDecision,
+          reminderTimeZone: environment.reminderTimeZone,
+        });
         await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
         if (!nextState.draft.rawText) {
-          return this.reply('ask', 'I could not understand the note yet. Please resend the message with more information.', null, nextState);
+          return this.reply('ask', this.presenter.couldNotUnderstand(), null, nextState);
         }
         if (!nextState.project.selectedProjectSlug) {
-          return this.reply('ask', buildProjectPrompt(approval.turn.decision.replyText, approval.turn.projects), null, nextState);
+          return this.reply('ask', this.presenter.projectPrompt(approval.turn.decision.replyText, approval.turn.projects), null, nextState);
         }
         if (nextState.pendingApproval === 'final_confirmation') {
           const finalState = {
             ...nextState,
-            lastQuestion: buildFinalConfirmationPrompt(nextState),
+            lastQuestion: this.presenter.finalConfirmationPrompt(nextState),
             lastAgentAction: 'confirm' as const,
             updatedAt: nowIso(),
           };
           await this.conversationStates.upsert(userId, workspaceSlug, key, finalState);
           return this.reply('confirm', finalState.lastQuestion, null, finalState);
         }
-        return this.reply('ask', approval.turn.decision.replyText || 'I need one more detail before saving.', null, nextState);
+        return this.reply('ask', approval.turn.decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
       }
-      return this.reply('confirm', buildFinalConfirmationPrompt(state), null, state);
+      return this.reply('confirm', this.presenter.finalConfirmationPrompt(state), null, state);
     }
 
-    const folderId = await this.resolveFolderIdForSubmission(userId, state);
-    const payload = buildAgentConversationPayload(input, state, this.environmentProvider.read().reminderTimeZone);
+    const folderId = await this.folderResolutionService.resolveFolderIdForSubmission(userId, state);
+    const payload = buildAgentPayload(input, state, this.environmentProvider.read().reminderTimeZone);
     const ingestResult = await this.ingestEntryUseCase.execute(payload, userId, workspaceSlug, { folderId: folderId || undefined });
     await this.conversationStates.clear(userId, workspaceSlug, key);
     this.logger?.info('conversation.agent.submit.saved', {
@@ -305,9 +326,9 @@ export class ProcessAgentConversationUseCase {
     });
     return this.reply(
       'submit',
-      'Note saved successfully.',
+      this.presenter.noteSaved(),
       payload,
-      emptyAgentConversationState,
+      EMPTY_AGENT_CONVERSATION_STATE,
       ingestResult,
       {
         pendingApproval: 'none',
@@ -334,7 +355,7 @@ export class ProcessAgentConversationUseCase {
       if (decision.approvalIntent && decision.approvalIntent !== 'none') return { intent: decision.approvalIntent, turn };
       if (decision.action === 'cancel') return { intent: 'cancel', turn };
       if (state.pendingApproval === 'final_confirmation' && decision.action === 'submit') return { intent: 'approve', turn };
-      return { intent: parserApprovalIntent(input.messageText), turn };
+      return { intent: parseApprovalIntent(input.messageText), turn };
     } catch (error) {
       this.logger?.warn('conversation.agent.approval_fallback', {
         userId,
@@ -343,36 +364,7 @@ export class ProcessAgentConversationUseCase {
         ...serializeErrorForLog(error),
       });
     }
-    return { intent: parserApprovalIntent(input.messageText) };
-  }
-
-  private async resolveFolderIdForSubmission(userId: string, state: AgentConversationState) {
-    if (!state.project.selectedProjectSlug || state.project.selectedProjectSlug === 'inbox') return '';
-    if (state.folder.placeInRoot || state.folder.suggestedFolderPath.length === 0) return state.folder.selectedFolderId;
-    if (state.folder.selectedFolderId) return state.folder.selectedFolderId;
-
-    let parentFolderId = '';
-    let lastFolderId = '';
-    for (const segment of state.folder.suggestedFolderPath) {
-      const displayName = trimText(segment);
-      if (!displayName) continue;
-      const folders = await this.contentRepository.listProjectFolders(userId, state.project.selectedProjectSlug);
-      const folderSlug = folderSlugFromDisplayName(displayName);
-      const existing = folders.find((folder) => folder.parentFolderId === (parentFolderId || null) && folder.folderSlug === folderSlug);
-      if (existing) {
-        parentFolderId = existing.id;
-        lastFolderId = existing.id;
-        continue;
-      }
-      const created = await this.createProjectFolderUseCase.execute({
-        projectSlug: state.project.selectedProjectSlug,
-        displayName,
-        parentFolderId: parentFolderId || undefined,
-      }, userId);
-      parentFolderId = created.folder.id;
-      lastFolderId = created.folder.id;
-    }
-    return lastFolderId;
+    return { intent: parseApprovalIntent(input.messageText) };
   }
 
   private reply(
@@ -398,189 +390,6 @@ export class ProcessAgentConversationUseCase {
       },
     };
   }
-}
-
-function buildNextState(
-  current: AgentConversationState,
-  messageText: string,
-  media: AgentConversationState['media'],
-  decision: ConversationAgentResponse,
-  projects: ProjectRecord[],
-  candidateFolders: ProjectFolderRecord[],
-  reminderTimeZone: string,
-) {
-  const selectedProjectSlug = resolveSelectedProjectSlug(decision.selectedProjectSlug, current, projects);
-  const draft = agentConversationDraftSchema.parse({
-    ...current.draft,
-    ...decision.resolvedDraft,
-    rawText: trimText(decision.resolvedDraft.rawText, trimText(current.draft.rawText, messageText)),
-    reminderDate: normalizeDate(decision.resolvedDraft.reminderDate || current.draft.reminderDate || '', reminderTimeZone),
-    reminderTime: normalizeTime(decision.resolvedDraft.reminderTime || current.draft.reminderTime || ''),
-    tags: [...new Set([...(current.draft.tags || []), ...(decision.resolvedDraft.tags || [])].map((tag) => slugify(tag)).filter(Boolean))],
-  });
-  const folderResolution = resolveFolderSelection({
-    selectedProjectSlug,
-    selectedFolderId: resolveSelectedFolderId(decision, current, selectedProjectSlug),
-    suggestedFolderPath: resolveSuggestedFolderPath(decision, current, selectedProjectSlug),
-    placeInRoot: decision.placeInRoot,
-    folders: selectedProjectSlug && selectedProjectSlug !== 'inbox' ? candidateFolders : [],
-  });
-  const readyForFinalConfirmation = Boolean(draft.rawText && selectedProjectSlug && decision.action !== 'ask');
-
-  return agentConversationStateSchema.parse({
-    draft,
-    media,
-    project: { selectedProjectSlug },
-    folder: {
-      selectedFolderId: folderResolution.selectedFolderId,
-      suggestedFolderPath: folderResolution.suggestedFolderPath,
-      placeInRoot: folderResolution.placeInRoot,
-    },
-    pendingApproval: !selectedProjectSlug
-      ? 'none'
-      : decision.pendingApproval === 'final_confirmation' || decision.action === 'submit' || readyForFinalConfirmation
-          ? 'final_confirmation'
-          : 'none',
-    lastQuestion: decision.replyText || current.lastQuestion,
-    lastUserMessage: messageText,
-    lastAgentAction: decision.action,
-    confidence: decision.confidence,
-    updatedAt: nowIso(),
-  });
-}
-
-function serializeFolderTreeNode(folder: Awaited<ReturnType<typeof buildProjectFolderTree>>[number]): ConversationAgentFolderContext {
-  return {
-    id: folder.id,
-    displayName: folder.displayName,
-    fullSlugPath: folder.fullSlugPath,
-    children: folder.children.map(serializeFolderTreeNode),
-  };
-}
-
-function buildProjectPrompt(replyText: string, projects: ProjectRecord[]) {
-  const options = ['inbox', ...projects.map((project) => `${project.projectSlug} (${project.displayName})`)];
-  return `${replyText || 'Which project should I use for this note?'}\n\nAvailable projects: ${options.join(', ')}`;
-}
-
-function buildFinalConfirmationPrompt(state: AgentConversationState) {
-  const folderText = state.folder.placeInRoot
-    ? 'project root'
-    : state.folder.selectedFolderId
-      ? 'selected existing folder'
-      : state.folder.suggestedFolderPath.length
-        ? `${state.folder.suggestedFolderPath.join(' / ')} (new, will be created when saved)`
-        : 'project root';
-  return [
-    'Confirm note saving:',
-    `Text: ${state.draft.rawText}`,
-    `Project: ${state.project.selectedProjectSlug || 'inbox'}`,
-    `Folder: ${folderText}`,
-    `Type: ${state.draft.kind}`,
-    `Reminder: ${state.draft.reminderDate ? `${state.draft.reminderDate}${state.draft.reminderTime ? ` ${state.draft.reminderTime}` : ''}` : 'no reminder'}`,
-    state.draft.tags.length ? `Tags: ${state.draft.tags.join(', ')}` : '',
-    '',
-    'Reply "yes" to save or "no" to discard.',
-  ].filter(Boolean).join('\n');
-}
-
-function resolveFolderSelection(input: {
-  selectedProjectSlug: string;
-  selectedFolderId: string;
-  suggestedFolderPath: string[];
-  placeInRoot: boolean;
-  folders: ProjectFolderRecord[];
-}) {
-  if (!input.selectedProjectSlug || input.selectedProjectSlug === 'inbox') {
-    return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true };
-  }
-  if (input.placeInRoot) {
-    return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true };
-  }
-  const folderById = input.selectedFolderId
-    ? input.folders.find((folder) => folder.id === input.selectedFolderId) || null
-    : null;
-  if (folderById) {
-    return {
-      selectedFolderId: folderById.id,
-      suggestedFolderPath: folderById.fullSlugPath.split('/').filter(Boolean),
-      placeInRoot: false,
-    };
-  }
-
-  const path = input.suggestedFolderPath.map((segment) => trimText(segment)).filter(Boolean);
-  if (path.length === 0) return { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true };
-
-  const fullSlugPath = path.map((segment) => folderSlugFromDisplayName(segment)).join('/');
-  const exactMatch = input.folders.find((folder) => folder.fullSlugPath === fullSlugPath);
-  if (exactMatch) {
-    return { selectedFolderId: exactMatch.id, suggestedFolderPath: path, placeInRoot: false };
-  }
-  return { selectedFolderId: '', suggestedFolderPath: path, placeInRoot: false };
-}
-
-function sanitizeProjectSlug(value: string, projects: ProjectRecord[]) {
-  const normalized = slugify(value);
-  if (!normalized) return '';
-  if (normalized === 'inbox') return 'inbox';
-  return projects.some((project) => project.projectSlug === normalized) ? normalized : '';
-}
-
-function resolveSelectedProjectSlug(value: string, current: AgentConversationState, projects: ProjectRecord[]) {
-  const selected = sanitizeProjectSlug(value, projects);
-  if (selected) return selected;
-  if (String(value || '').trim()) return '';
-  return sanitizeProjectSlug(current.project.selectedProjectSlug, projects);
-}
-
-function resolveSelectedFolderId(decision: ConversationAgentResponse, current: AgentConversationState, selectedProjectSlug: string) {
-  if (decision.selectedFolderId || decision.placeInRoot) return decision.selectedFolderId;
-  if (selectedProjectSlug !== current.project.selectedProjectSlug) return '';
-  if (decision.suggestedFolderPath.length > 0) return '';
-  return current.folder.selectedFolderId;
-}
-
-function resolveSuggestedFolderPath(decision: ConversationAgentResponse, current: AgentConversationState, selectedProjectSlug: string) {
-  if (decision.placeInRoot) return [];
-  if (decision.suggestedFolderPath.length > 0) return decision.suggestedFolderPath;
-  if (selectedProjectSlug !== current.project.selectedProjectSlug) return [];
-  if (decision.selectedFolderId) return [];
-  return current.folder.suggestedFolderPath;
-}
-
-function parserApprovalIntent(value: string): AgentConversationApprovalIntent {
-  if (isCancel(value)) return 'cancel';
-  if (isConfirm(value)) return 'approve';
-  if (isReject(value)) return 'reject';
-  return 'unclear';
-}
-
-function buildAgentConversationPayload(input: ConversationInput, state: AgentConversationState, reminderTimeZone: string) {
-  return buildConversationIngestPayload({
-    input,
-    correlationPrefix: 'wpp-agent',
-    projectSlug: state.project.selectedProjectSlug || 'inbox',
-    rawText: state.draft.rawText,
-    title: state.draft.title || '',
-    media: mediaForAttachment(state) ? state.media : undefined,
-    kind: state.draft.kind,
-    canonicalType: state.draft.canonicalType,
-    importance: state.draft.importance,
-    tags: state.draft.tags,
-    reminderDate: state.draft.reminderDate,
-    reminderTime: state.draft.reminderTime,
-    reminderTimeZone,
-    metadata: {},
-  });
-}
-
-function mediaFromInput(input: ConversationInput, state: AgentConversationState) {
-  if (input.hasMedia && input.media.fileName) return input.media;
-  return state.media;
-}
-
-function mediaForAttachment(state: AgentConversationState) {
-  return Boolean(state.media.fileName && state.media.dataBase64);
 }
 
 function serializeErrorForLog(error: unknown) {
