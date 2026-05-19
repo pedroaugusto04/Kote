@@ -106,6 +106,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
         <div className="filters">
           <Select
             ariaLabel="Current workspace"
+            className="search-filter search-filter-workspace"
             disabled
             options={[{ value: workspaceSlug || 'current-workspace', label: workspaceSlug || 'current-workspace' }]}
             value={workspaceSlug || 'current-workspace'}
@@ -113,6 +114,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           />
           <Select
             ariaLabel="Filter by project"
+            className="search-filter search-filter-project"
             options={[
               { value: '', label: 'All projects' },
               ...dashboard.projects.map((project) => ({
@@ -125,6 +127,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           />
           <Select
             ariaLabel="Filter by status"
+            className="search-filter search-filter-status"
             options={statusOptions}
             value={status}
             onChange={(nextValue) => setStatus(nextValue as '' | NoteStatus)}

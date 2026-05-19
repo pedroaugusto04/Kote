@@ -532,6 +532,10 @@ p { color: var(--muted); line-height: 1.6; }
 .search-box input, .search-box select { width: 100%; min-height: 48px; border: 1px solid var(--line); border-radius: 8px; background: var(--input-bg); color: var(--text); padding: 0 12px; }
 .search-box select { padding-right: 42px; }
 .search-box .filters { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.search-box .filters > * { min-width: 0; }
+.search-box .search-filter-workspace,
+.search-box .search-filter-project,
+.search-box .search-filter-status { grid-column: span 1; }
 .search-box .kb-select-sizer,
 .search-box .kb-select-trigger { min-height: 48px; padding: 0 14px 0 12px; }
 .vault-project-picker .filters { grid-template-columns: minmax(240px, 320px) minmax(0, 1fr); }
@@ -1472,6 +1476,13 @@ p { color: var(--muted); line-height: 1.6; }
   .topbar { padding: 12px 14px; }
   .view { padding: 16px 14px 24px; }
   .panel, .card, .note-reader, .search-box, .folder-browser { padding: 14px; }
+  .search-box { gap: 10px; }
+  .search-box input { min-height: 52px; }
+  .search-box .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .search-box .search-filter-workspace { grid-column: 1 / -1; }
   .setup-layout { padding: 32px 20px 48px; }
   .setup-shell { gap: 20px; }
   .setup-step-card {
@@ -1522,4 +1533,8 @@ p { color: var(--muted); line-height: 1.6; }
   .auth-hero,
   .auth-panel { padding: 18px; border-radius: 20px; }
   .auth-hero-copy h1 { max-width: 13ch; font-size: clamp(32px, 10vw, 38px); }
+}
+
+@media (max-width: 420px) {
+  .search-box .filters { grid-template-columns: 1fr; }
 }
