@@ -600,7 +600,9 @@ p { color: var(--muted); line-height: 1.6; }
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   background: var(--surface-1);
+  transition: background 140ms ease, border-color 140ms ease;
 }
+.project-timeline-item:hover .project-timeline-card { background: var(--surface-hover); border-color: var(--line-soft); }
 .project-timeline-meta,
 .project-timeline-body {
   display: flex;

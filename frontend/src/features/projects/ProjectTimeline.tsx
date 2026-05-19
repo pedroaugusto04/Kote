@@ -23,6 +23,25 @@ const categoryLabels: Record<ProjectTimelineItem['category'], string> = {
   decision: 'Decision',
 };
 
+function PencilIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16">
+      <path d="M11.9 1.6a1.5 1.5 0 0 1 2.1 2.1l-7.7 7.7-3.3.9.9-3.3z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.2" />
+      <path d="M9.8 3.7l2.5 2.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16">
+      <path d="M2.8 4.2h10.4" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
+      <path d="M6.2 2.7h3.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
+      <path d="M4.1 4.2l.6 8.1h6.6l.6-8.1" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.2" />
+    </svg>
+  );
+}
+
 export function ProjectTimeline({
   dashboard,
   items,
@@ -62,7 +81,7 @@ export function ProjectTimeline({
       {items.length > 0 ? (
         <div className="project-timeline-list">
           {items.map((item) => (
-            <article className="project-timeline-item" key={item.id}>
+            <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)}>
               <div className="project-timeline-marker" aria-hidden="true" />
               <div className="project-timeline-card">
                 <div className="project-timeline-meta">
@@ -85,9 +104,12 @@ export function ProjectTimeline({
                         className="row-action-button"
                         title="Edit"
                         type="button"
-                        onClick={() => onEditNote(item)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onEditNote(item);
+                        }}
                       >
-                        E
+                        <PencilIcon />
                       </button>
                     ) : null}
                     {onDeleteNote ? (
@@ -96,14 +118,14 @@ export function ProjectTimeline({
                         className="row-action-button danger"
                         title="Delete"
                         type="button"
-                        onClick={() => onDeleteNote(item)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onDeleteNote(item);
+                        }}
                       >
-                        D
+                        <TrashIcon />
                       </button>
                     ) : null}
-                    <button className="icon-button" type="button" onClick={() => onOpenNote(item.noteId)}>
-                      Open note
-                    </button>
                   </div>
                 </div>
               </div>
