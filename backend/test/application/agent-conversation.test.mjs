@@ -390,3 +390,36 @@ test('agent conversation accepts AI reminder kind alias and reaches final confir
   assert.equal(result.agent.pendingApproval, 'final_confirmation');
   assert.match(result.replyText, /Confirme o salvamento da nota/);
 });
+
+test('agent conversation saves reminders as pending on submission', async (t) => {
+  const turns = new Map([
+    ['me lembra de revisar o deploy amanha', decision({
+      replyText: 'Vou confirmar o lembrete.',
+      selectedProjectSlug: 'platform',
+      selectedFolderId: '',
+      suggestedFolderPath: [],
+      pendingApproval: 'final_confirmation',
+      action: 'confirm',
+      resolvedDraft: {
+        rawText: 'Revisar o deploy',
+        title: '',
+        kind: 'reminder',
+        canonicalType: 'event',
+        importance: 'low',
+        tags: ['deploy'],
+        reminderDate: '2026-05-20',
+        reminderTime: '',
+      },
+    })],
+  ]);
+  const { repositories, agentUseCase, user } = await createFixture(t, turns);
+
+  await agentUseCase.execute(input('me lembra de revisar o deploy amanha'), user.id, 'default');
+  const saved = await agentUseCase.execute(input('sim'), user.id, 'default');
+
+  assert.equal(saved.action, 'submit');
+  const notes = await repositories.contentRepository.listNotes(user.id);
+  assert.equal(notes.length, 1);
+  assert.equal(notes[0].status, 'pending');
+  assert.equal(notes[0].metadata.reminderDate, '2026-05-20');
+});
