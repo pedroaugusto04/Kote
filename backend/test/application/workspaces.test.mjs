@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
-import { encryptConfig } from '../../dist/application/credentials.js';
+import { decryptConfig, encryptConfig } from '../../dist/application/credentials.js';
 import { GithubRepositoryResolutionService } from '../../dist/application/services/github-repository-resolution.service.js';
 import { CreateProjectUseCase, CreateWorkspaceUseCase } from '../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
@@ -13,6 +13,8 @@ function runtimeEnvironmentProvider() {
       credentialsEncryptionKey: process.env.KB_CREDENTIALS_ENCRYPTION_KEY || '',
       githubAppId: process.env.KB_GITHUB_APP_ID || '',
       githubAppPrivateKey: process.env.KB_GITHUB_APP_PRIVATE_KEY || '',
+      reviewAiProvider: process.env.KB_REVIEW_AI_PROVIDER || 'none',
+      conversationAiProvider: process.env.KB_CONVERSATION_AI_PROVIDER || 'none',
     }),
   };
 }
@@ -38,9 +40,16 @@ function githubIntegrationGateway() {
 }
 
 test('create workspace persists the workspace and the initial Inbox project', async (t) => {
+  process.env.KB_CREDENTIALS_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
+  process.env.KB_REVIEW_AI_PROVIDER = 'openrouter';
+  process.env.KB_CONVERSATION_AI_PROVIDER = 'openai';
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  const useCase = new CreateWorkspaceUseCase(repositories.contentRepository);
+  const useCase = new CreateWorkspaceUseCase(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+  );
 
   const result = await useCase.execute({ displayName: 'Acme Team', workspaceSlug: 'Acme Team' }, user.id);
 
@@ -49,12 +58,33 @@ test('create workspace persists the workspace and the initial Inbox project', as
   assert.equal(result.initialProject.projectSlug, 'inbox');
   assert.deepEqual((await repositories.contentRepository.listWorkspaces(user.id)).map((workspace) => workspace.workspaceSlug), ['acme-team']);
   assert.deepEqual((await repositories.contentRepository.listProjects(user.id)).map((project) => project.projectSlug), ['inbox']);
+  const credentials = await repositories.credentialRepository.listCredentials(user.id, 'acme-team');
+  assert.deepEqual(credentials.map((credential) => credential.provider).sort(), ['ai-conversation', 'ai-review']);
+  assert.equal(credentials.every((credential) => credential.status === 'connected' && credential.revokedAt === null), true);
+  assert.deepEqual(
+    credentials
+      .map((credential) => ({
+        provider: credential.provider,
+        connectedAccount: credential.publicMetadata.connectedAccount,
+        enabled: decryptConfig(credential.encryptedConfig, repositories.runtimeEnvironmentProvider).enabled,
+      }))
+      .sort((left, right) => left.provider.localeCompare(right.provider)),
+    [
+      { provider: 'ai-conversation', connectedAccount: 'openai', enabled: true },
+      { provider: 'ai-review', connectedAccount: 'openrouter', enabled: true },
+    ],
+  );
 });
 
 test('create workspace rejects a second workspace for the same user in this release', async (t) => {
+  process.env.KB_CREDENTIALS_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  const useCase = new CreateWorkspaceUseCase(repositories.contentRepository);
+  const useCase = new CreateWorkspaceUseCase(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+  );
 
   await useCase.execute({ displayName: 'Acme Team', workspaceSlug: 'acme-team' }, user.id);
 
@@ -72,7 +102,11 @@ test('create project persists metadata, updates workspace slugs and rejects dupl
   process.env.KB_CREDENTIALS_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  await new CreateWorkspaceUseCase(repositories.contentRepository).execute({ displayName: 'Acme Team', workspaceSlug: 'acme-team' }, user.id);
+  await new CreateWorkspaceUseCase(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+  ).execute({ displayName: 'Acme Team', workspaceSlug: 'acme-team' }, user.id);
   const githubRepositoryResolution = new GithubRepositoryResolutionService(
     repositories.contentRepository,
     repositories.credentialRepository,

@@ -144,7 +144,11 @@ test('github app webhook resolves user by installation id and rejects unknown id
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.userRepository.createUser({ email: 'owner@example.com', displayName: 'Owner', passwordHash: 'hash', role: 'user' });
-  await new CreateWorkspaceUseCase(repositories.contentRepository).execute({
+  await new CreateWorkspaceUseCase(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+  ).execute({
     displayName: 'Default',
     workspaceSlug: 'default',
   }, user.id);

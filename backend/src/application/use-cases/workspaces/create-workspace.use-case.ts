@@ -1,12 +1,20 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 
+import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { slugify } from '../../../domain/strings.js';
+import { encryptConfig } from '../../credentials.js';
 import type { CreateWorkspaceInput } from '../../models/workspace-input.models.js';
 import { ContentRepository } from '../../ports/content.repository.js';
+import { CredentialRepository } from '../../ports/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
 
 @Injectable()
 export class CreateWorkspaceUseCase {
-  constructor(private readonly contentRepository: ContentRepository) {}
+  constructor(
+    private readonly contentRepository: ContentRepository,
+    private readonly credentialRepository: CredentialRepository,
+    private readonly runtimeEnvironmentProvider: RuntimeEnvironmentProvider,
+  ) {}
 
   async execute(input: CreateWorkspaceInput, userId: string) {
     const existing = await this.contentRepository.listWorkspaces(userId);
@@ -36,10 +44,38 @@ export class CreateWorkspaceUseCase {
       enabled: true,
     });
 
+    await Promise.all([
+      this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.AiReview),
+      this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.AiConversation),
+    ]);
+
     return {
       ok: true as const,
       workspace,
       initialProject,
     };
+  }
+
+  private async provisionManagedAiIntegration(
+    userId: string,
+    workspaceSlug: string,
+    provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation,
+  ) {
+    const environment = this.runtimeEnvironmentProvider.read();
+    const runtimeProvider = provider === IntegrationProvider.AiReview
+      ? environment.reviewAiProvider
+      : environment.conversationAiProvider;
+
+    await this.credentialRepository.upsertCredential({
+      userId,
+      workspaceSlug,
+      provider,
+      status: CredentialRecordStatus.Connected,
+      encryptedConfig: encryptConfig({ enabled: true }, this.runtimeEnvironmentProvider),
+      publicMetadata: {
+        label: provider === IntegrationProvider.AiReview ? 'Review AI' : 'Conversation AI',
+        connectedAccount: runtimeProvider && runtimeProvider !== 'none' ? runtimeProvider : null,
+      },
+    });
   }
 }
