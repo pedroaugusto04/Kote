@@ -552,7 +552,7 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/projects' });
 
     expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View product overview' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/');
   });
 
   it('shows only the search results list without the old answer panel', async () => {

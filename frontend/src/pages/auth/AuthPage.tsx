@@ -79,7 +79,7 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: () => void }) {
               <span>developer knowledge base</span>
             </div>
           </Link>
-          <Link className="topbar-link landing-link" to={routes.home}>View product overview</Link>
+          <Link className="topbar-link landing-link" to={routes.home}>Overview</Link>
         </div>
         <div className="segmented-control" role="tablist" aria-label="Access mode">
           <button className={mode === 'login' ? 'active' : ''} type="button" onClick={() => switchMode('login')}>
