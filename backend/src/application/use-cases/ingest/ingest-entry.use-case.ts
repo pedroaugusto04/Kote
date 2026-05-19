@@ -4,6 +4,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { CanonicalType, KnowledgeStatus } from '../../../contracts/enums.js';
 import { ingestPayloadSchema, withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
+import { hasReminder, normalizeManualNoteStatus } from '../../../domain/note-status.js';
 import { buildNotePaths, renderEventNote } from '../../../domain/notes.js';
 import type { Project } from '../../../domain/projects.js';
 import { slugify, trimText } from '../../../domain/strings.js';
@@ -75,6 +76,15 @@ async function saveIngestedNote(
     (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.projectSlug === parsed.event.projectSlug,
   );
   const project = existingProject || projectFromPayload(parsed, workspaceSlug);
+  const normalizedStatus = normalizeManualNoteStatus({
+    requestedStatus: parsed.classification.status,
+    currentStatus: KnowledgeStatus.Active,
+    hadReminder: false,
+    hasReminder: hasReminder({
+      reminderDate: parsed.actions.reminderDate,
+      reminderAt: parsed.actions.reminderAt,
+    }),
+  });
   const payload = {
     ...parsed,
     event: {
@@ -83,7 +93,7 @@ async function saveIngestedNote(
     },
     classification: {
       ...parsed.classification,
-      status: parsed.classification.status || KnowledgeStatus.Active,
+      status: normalizedStatus,
       tags: Array.from(new Set([project.projectSlug, ...project.defaultTags, ...parsed.classification.tags].map((tag) => slugify(tag)).filter(Boolean))),
     },
   };
@@ -116,7 +126,7 @@ async function saveIngestedNote(
     projectSlug: project.projectSlug,
     workspaceSlug,
     folderId: folder?.id || null,
-    status: payload.classification.status || KnowledgeStatus.Active,
+    status: payload.classification.status,
     tags: payload.classification.tags,
     occurredAt: payload.event.occurredAt,
     sourceChannel: payload.source.channel,
