@@ -206,6 +206,53 @@ describe('VaultPage', () => {
     expect(screen.getByRole('link', { name: /relatorio.pdf/i })).toHaveAttribute('href', '/api/notes/note-attachments/attachments/file-1/content');
     expect(screen.getByText('application/pdf / 4.0 KB')).toBeInTheDocument();
   });
+
+  it('does not render a duplicated original text block from structured note preamble', async () => {
+    const note = buildNoteSummary({ id: 'note-structured', title: 'TCC reminder', summary: 'lembrar de chamar banca para o TCC amanha nesse horario' });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(note),
+      markdown: [
+        '# TCC reminder',
+        '',
+        'Project: [[10 Projects/tcc-latex|pedroaugusto04/TCC-Latex]]',
+        '',
+        '## Original text',
+        '',
+        'lembrar de chamar banca para o TCC amanha nesse horario',
+        '',
+        '## Summary',
+        '',
+        'lembrar de chamar banca para o TCC amanha nesse horario',
+        '',
+        '## Impact',
+        '',
+        'No impact registered.',
+        '',
+        '## Risks',
+        '',
+        '- none',
+        '',
+        '## Next steps',
+        '',
+        '- none',
+      ].join('\n'),
+      summary: 'lembrar de chamar banca para o TCC amanha nesse horario',
+      editor: {
+        canDelete: true,
+        rawText: 'lembrar de chamar banca para o TCC amanha nesse horario',
+        reminderDate: '',
+        reminderTime: '',
+      },
+    });
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
+    expect(screen.getAllByText('lembrar de chamar banca para o TCC amanha nesse horario')).toHaveLength(1);
+    expect(screen.queryByText('Project: [[10 Projects/tcc-latex|pedroaugusto04/TCC-Latex]]')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'AI summary' })).not.toBeInTheDocument();
+  });
 });
 
 function renderVaultPage({

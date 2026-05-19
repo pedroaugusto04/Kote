@@ -195,10 +195,13 @@ function NoteBody({ markdown, rawText, summary, title }: { markdown: string; raw
 function readerExtraSections(markdown: string, title: string) {
   const withoutFrontmatter = markdown.replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '');
   const lines = withoutFrontmatter.split('\n');
+  const firstSectionIndex = lines.findIndex((line) => line.startsWith('## '));
+  if (firstSectionIndex === -1) return '';
+
   const sections: string[][] = [];
   let current: string[] = [];
 
-  for (const line of lines) {
+  for (const line of lines.slice(firstSectionIndex)) {
     if (line.startsWith('## ') && current.length) {
       sections.push(current);
       current = [];
