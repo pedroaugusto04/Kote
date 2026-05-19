@@ -1,6 +1,9 @@
+import { Injectable } from '@nestjs/common';
+
 import type { AgentConversationState } from '../../../../contracts/agent-conversation.js';
 import type { ProjectRecord } from '../../../models/repository-records.models.js';
 
+@Injectable()
 export class ConversationAgentPresenter {
   emptyTextPrompt() {
     return 'Send the note text so I can organize the project and folder before saving.';

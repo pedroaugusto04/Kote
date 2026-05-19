@@ -6,6 +6,8 @@ import {
   IngestEntryUseCase,
   ProcessAgentConversationUseCase,
 } from '../../dist/application/use-cases/index.js';
+import { ConversationAgentPresenter } from '../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
+import { ConversationFolderResolutionService } from '../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
 import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput } from '../../dist/contracts/agent-conversation.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
@@ -70,13 +72,16 @@ async function createFixture(t, turns) {
 
   const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
+  const presenter = new ConversationAgentPresenter();
+  const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
   const agentUseCase = new ProcessAgentConversationUseCase(
     repositories.contentRepository,
     repositories.conversationStateRepository,
     ingest,
-    createFolder,
     environment,
     new StubConversationAgentGateway(turns),
+    presenter,
+    folderResolution,
     repositories.credentialRepository,
   );
   return { repositories, user, agentUseCase };

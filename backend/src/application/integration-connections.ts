@@ -234,10 +234,11 @@ export class IntegrationConnectionService {
     });
 
     const projects = await Promise.all(savedRepositories.map((repo) => {
-      const projectSlug = slugify(repo.fullName.split('/').pop() || repo.fullName) || 'inbox';
+      const repositoryName = repo.fullName.split('/').pop() || repo.fullName;
+      const projectSlug = slugify(repositoryName) || 'inbox';
       return this.content.upsertProject(input.userId, {
         projectSlug,
-        displayName: repo.fullName,
+        displayName: repositoryName,
         workspaceSlug,
         repositories: [repo],
         defaultTags: [],

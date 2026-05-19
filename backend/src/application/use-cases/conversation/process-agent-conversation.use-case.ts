@@ -20,7 +20,6 @@ import { ConversationStateRepository } from '../../ports/workflow-state.reposito
 import { isCancel } from '../../utils/conversation-command.utils.js';
 import { buildProjectFolderTree } from '../../utils/project-folder.utils.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
-import { CreateProjectFolderUseCase } from '../projects/create-project-folder.use-case.js';
 import { ConversationAgentPresenter } from './services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './services/conversation-folder-resolution.service.js';
 import {
@@ -58,21 +57,17 @@ type AgentDecisionTurn = {
 
 @Injectable()
 export class ProcessAgentConversationUseCase {
-  private readonly presenter = new ConversationAgentPresenter();
-  private readonly folderResolutionService: ConversationFolderResolutionService;
-
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly conversationStates: ConversationStateRepository,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
-    private readonly createProjectFolderUseCase: CreateProjectFolderUseCase,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly conversationAgentGateway: ConversationAgentGateway,
+    private readonly presenter: ConversationAgentPresenter,
+    private readonly folderResolutionService: ConversationFolderResolutionService,
     private readonly credentials?: CredentialRepository,
     private readonly logger?: AppLogger,
-  ) {
-    this.folderResolutionService = new ConversationFolderResolutionService(contentRepository, createProjectFolderUseCase);
-  }
+  ) {}
 
   async execute(input: ConversationInput, userId: string, workspaceSlug = 'default'): Promise<AgentConversationResult> {
     const normalizedWorkspaceSlug = slugify(workspaceSlug) || 'default';

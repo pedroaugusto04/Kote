@@ -8,6 +8,8 @@ import {
   ProcessAgentConversationUseCase,
   QueryKnowledgeUseCase,
 } from '../../dist/application/use-cases/index.js';
+import { ConversationAgentPresenter } from '../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
+import { ConversationFolderResolutionService } from '../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
 class CapturingWhatsappSender {
@@ -127,13 +129,17 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     publicMetadata: {},
   });
   const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
+  const presenter = new ConversationAgentPresenter();
+  const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
   const conversation = new ProcessAgentConversationUseCase(
     repositories.contentRepository,
     repositories.conversationStateRepository,
     ingest,
-    new CreateProjectFolderUseCase(repositories.contentRepository),
     { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', conversationAiProvider: 'openrouter', conversationAiBaseUrl: 'https://example.com', conversationAiModel: 'test-model', conversationAiApiKey: 'test-key' }) },
     new StubConversationAgentGateway(),
+    presenter,
+    folderResolution,
     repositories.credentialRepository,
   );
   const queryKnowledge = new QueryKnowledgeUseCase(

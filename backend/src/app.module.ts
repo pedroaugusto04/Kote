@@ -73,6 +73,8 @@ import {
   ListWorkspaceRepositoriesUseCase,
 } from './application/use-cases/index.js';
 import { ReminderDispatchWorker } from './application/services/reminder-dispatch.worker.js';
+import { ConversationAgentPresenter } from './application/use-cases/conversation/services/conversation-agent.presenter.js';
+import { ConversationFolderResolutionService } from './application/use-cases/conversation/services/conversation-folder-resolution.service.js';
 import { AuthController, DashboardController, GithubAppCallbackController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WorkspacesController } from './interfaces/http/controllers/index.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, InternalServiceTokenGuard, TrustedOriginGuard, WebhookRateLimitGuard } from './interfaces/http/auth.guards.js';
 import { GlobalExceptionFilter } from './observability/global-exception.filter.js';
@@ -118,6 +120,8 @@ import { AppLogger } from './observability/logger.js';
     QueryKnowledgeUseCase,
     IngestEntryUseCase,
     ProcessAgentConversationUseCase,
+    ConversationAgentPresenter,
+    ConversationFolderResolutionService,
     BuildReminderDispatchUseCase,
     DispatchDueRemindersUseCase,
     DispatchDueTelegramRemindersUseCase,
