@@ -9,6 +9,15 @@ import {
   emptyAgentConversationState,
   parseApprovalIntent,
 } from '../../dist/application/use-cases/conversation/services/conversation-agent-state-machine.js';
+import { buildConversationAgentSystemPrompt } from '../../dist/infrastructure/ai/prompts/conversation-agent.prompt.js';
+
+test('conversation agent prompt prefers organized folders over project root fallback', () => {
+  const prompt = buildConversationAgentSystemPrompt();
+
+  assert.match(prompt, /prefer the most sensible existing folder/);
+  assert.match(prompt, /suggest a short new folder path/);
+  assert.match(prompt, /Use placeInRoot=true only when the user explicitly chooses the project root/);
+});
 
 test('conversation agent presenter formats final confirmation in English', () => {
   const presenter = new ConversationAgentPresenter();
