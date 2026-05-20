@@ -687,7 +687,27 @@ p { color: var(--muted); line-height: 1.6; }
 }
 .note-ai-summary .markdown { color: var(--muted); }
 .markdown { color: var(--text-soft); line-height: 1.7; }
+.markdown strong { color: var(--text-strong); font-weight: 700; }
 .markdown h2 { margin-top: 24px; padding-top: 14px; border-top: 1px solid var(--line-soft); color: var(--text-strong); }
+.markdown-severity {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  vertical-align: 1px;
+}
+.markdown-severity-info { border-color: var(--info-border); background: var(--surface-info); color: var(--info-text); }
+.markdown-severity-low { border-color: var(--success-border); background: var(--surface-success); color: var(--success-text); }
+.markdown-severity-medium { border-color: var(--warning-border); background: var(--surface-warning); color: var(--warning-text); }
+.markdown-severity-high,
+.markdown-severity-critical { border-color: var(--danger-border); background: var(--surface-danger); color: var(--danger-text); }
+.markdown-severity-critical { box-shadow: inset 0 0 0 1px var(--danger-border); }
 .finding { display: grid; gap: 8px; padding: 13px; }
 .finding-top { display: flex; justify-content: space-between; gap: 12px; }
 .section-spaced { margin-top: 18px; }
