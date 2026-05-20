@@ -15,6 +15,7 @@ export {
   createProjectFolder,
   deleteProject,
   deleteProjectFolder,
+  fetchAllProjectsTimeline,
   fetchProjectFolders,
   fetchProjectTimeline,
   fetchProjects,

@@ -73,6 +73,15 @@ export class ProjectsController {
     return this.deleteProjectUseCase.execute(params.projectSlug, user.id);
   }
 
+  @Get('timeline')
+  async allProjectsTimeline(
+    @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.listProjectTimelineUseCase.execute(user.id, query);
+    return { ok: true, timeline: result.items, pagination: result.pagination };
+  }
+
   @Get(':projectSlug/timeline')
   async timeline(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,

@@ -66,6 +66,7 @@ export function AppShell() {
 
   const view = activeView(location.pathname);
   const routeProject = routeParam(location.pathname, '/projects/');
+  const isProjectsRoot = location.pathname === routes.projects;
   const routeNoteId = routeParam(location.pathname, '/vault/');
   const activeWorkspace = dashboard?.workspaces[0] || null;
   const isSetupRoute = location.pathname.startsWith(routes.setup);
@@ -145,7 +146,7 @@ export function AppShell() {
   const pageContext = useMemo<PageContext | null>(() => {
     if (!dashboard) return null;
 
-    const currentProject = routeProject || activeRouteNote?.project || selectedProject || dashboard.projects[0]?.projectSlug || '';
+    const currentProject = isProjectsRoot ? '' : routeProject || activeRouteNote?.project || selectedProject || dashboard.projects[0]?.projectSlug || '';
     const currentNote = routeNoteId || selectedNoteId || '';
 
     return {
@@ -157,7 +158,7 @@ export function AppShell() {
       },
       openProject: (slug: string) => {
         setSelectedProjectState(slug);
-        navigate(routes.project(slug));
+        navigate(slug ? routes.project(slug) : routes.projects);
       },
       openNote: (id: string) => {
         void globalLoading.trackPromise(
@@ -177,7 +178,7 @@ export function AppShell() {
         setConfirmState({ kind: 'note', note: { ...note } as NoteSummary });
       },
     };
-  }, [activeRouteNote?.project, dashboard, globalLoading, navigate, queryClient, routeNoteId, routeProject, selectedNoteId, selectedProject, view]);
+  }, [activeRouteNote?.project, dashboard, globalLoading, isProjectsRoot, navigate, queryClient, routeNoteId, routeProject, selectedNoteId, selectedProject, view]);
 
   if (isUnauthorized) {
     return (

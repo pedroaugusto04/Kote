@@ -349,8 +349,12 @@ export class PostgresContentRepository extends ContentRepository {
   }
 
   async listProjectTimeline(userId: string, input: ListProjectTimelineInput) {
-    const values: unknown[] = [userId, input.projectSlug];
-    const clauses = ['user_id = $1', 'project_slug = $2'];
+    const values: unknown[] = [userId];
+    const clauses = ['user_id = $1'];
+    if (input.projectSlug) {
+      values.push(input.projectSlug);
+      clauses.push(`project_slug = $${values.length}`);
+    }
     appendTimelineFolderClause(clauses, values, input.folderId);
     appendTimelineCategoryClause(clauses, values, input.category);
     const where = clauses.join(' and ');

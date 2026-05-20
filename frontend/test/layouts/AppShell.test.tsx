@@ -218,6 +218,20 @@ function mockFetch() {
     if (url === '/api/projects/n8n-automations/folders') {
       return Response.json({ ok: true, projectSlug: 'n8n-automations', folders: [] });
     }
+    if (url === '/api/projects/timeline?page=1&pageSize=5&category=all') {
+      return Response.json({
+        ok: true,
+        timeline: dashboard.notes.map((note) => ({
+          ...note,
+          folderId: null,
+          attachmentCount: 0,
+          noteId: note.id,
+          category: 'manual',
+          sourceChannel: note.source,
+        })),
+        pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      });
+    }
     if (url === '/api/notes?page=1&pageSize=5&workspaceSlug=&projectSlug=n8n-automations&folderId=&status=&rootOnly=false&selectedId=') {
       return Response.json({
         ok: true,
@@ -581,6 +595,77 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Projects' })).toHaveClass('active');
   });
 
+  it('shows All in the projects select and lists notes from every project', async () => {
+    stubLocalStorage();
+    const allProjectsDashboard = {
+      ...dashboard,
+      projects: [
+        dashboard.projects[0],
+        {
+          projectSlug: 'platform',
+          displayName: 'Platform',
+          repositories: [],
+          workspaceSlug: 'default',
+          defaultTags: ['platform'],
+          enabled: true,
+        },
+      ],
+      notes: [
+        {
+          ...dashboard.notes[0],
+          folderId: null,
+          attachmentCount: 0,
+        },
+        {
+          id: 'note-2',
+          path: '20 Inbox/platform.md',
+          type: 'knowledge',
+          title: 'Platform decision',
+          project: 'platform',
+          workspace: 'default',
+          folderId: null,
+          tags: ['platform'],
+          date: '2026-04-28',
+          status: 'active',
+          summary: 'Document platform rollout.',
+          source: 'manual',
+          attachmentCount: 0,
+        },
+      ],
+    };
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json(allProjectsDashboard);
+      }
+      if (url === '/api/integrations?workspaceSlug=default') {
+        return Response.json({ ok: true, workspaceSlug: 'default', integrations: [] });
+      }
+      if (url === '/api/projects/timeline?page=1&pageSize=5&category=all') {
+        return Response.json({
+          ok: true,
+          timeline: allProjectsDashboard.notes.map((note) => ({
+            ...note,
+            noteId: note.id,
+            category: 'manual',
+            sourceChannel: note.source,
+          })),
+          pagination: { page: 1, pageSize: 5, total: 2, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
+      return new Response(null, { status: 404 });
+    }));
+
+    renderWithAppProviders(<AppShell />, { route: '/projects' });
+
+    expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Select project')).toHaveTextContent('All');
+    fireEvent.click(screen.getByLabelText('Select project'));
+    expect(screen.getByRole('option', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByText('Deploy rollout')).toBeInTheDocument();
+    expect(screen.getByText('Platform decision')).toBeInTheDocument();
+  });
+
   it('navigates to home when clicking the brand section', async () => {
     stubLocalStorage();
     vi.stubGlobal('fetch', mockFetch());
@@ -681,6 +766,13 @@ describe('AppShell', () => {
       if (url === '/api/projects/n8n-automations/folders') {
         return Response.json({ ok: true, projectSlug: 'n8n-automations', folders: [] });
       }
+      if (url === '/api/projects/timeline?page=1&pageSize=5&category=all') {
+        return Response.json({
+          ok: true,
+          timeline: [],
+          pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
       if (url === '/api/notes?page=1&pageSize=5&workspaceSlug=&projectSlug=n8n-automations&folderId=&status=&rootOnly=false&selectedId=') {
         return Response.json({
           ok: true,
@@ -701,7 +793,7 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/projects' });
 
     expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument();
-    expect((await screen.findAllByRole('heading', { name: 'N8N Automations' })).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('Select project')).toHaveTextContent('All');
   });
 
   it('keeps authenticated users in setup so they can finish optional integrations', async () => {

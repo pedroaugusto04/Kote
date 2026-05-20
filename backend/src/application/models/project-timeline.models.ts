@@ -25,7 +25,7 @@ export type ProjectTimelineItem = {
 };
 
 export type ListProjectTimelineInput = {
-  projectSlug: string;
+  projectSlug?: string;
   folderId?: string;
   page: number;
   pageSize: number;

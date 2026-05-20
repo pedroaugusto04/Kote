@@ -69,6 +69,15 @@ export function fetchProjectTimeline(projectSlug: string, params: { page?: numbe
   return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`/api/projects/${encodeURIComponent(projectSlug)}/timeline?${search.toString()}`);
 }
 
+export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory }) {
+  const search = new URLSearchParams({
+    page: String(params.page || 1),
+    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
+    category: params.category || 'all',
+  });
+  return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`/api/projects/timeline?${search.toString()}`);
+}
+
 export function createProjectFolder(projectSlug: string, params: { displayName: string; parentFolderId?: string }) {
   return request<{ ok: true; folder: ProjectFolder }>(`/api/projects/${encodeURIComponent(projectSlug)}/folders`, {
     method: 'POST',

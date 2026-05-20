@@ -7,17 +7,17 @@ import {
   deleteNote,
   deleteProject,
   deleteProjectFolder,
+  fetchAllProjectsTimeline,
   fetchProjectFolders,
   fetchProjectTimeline,
 } from '../../shared/api/client';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
-import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { ProjectTimelineCategory } from '../../shared/api/models/project-timeline';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
-import { PageHead } from '../../shared/ui/primitives';
+import { PageHead, Panel } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useGlobalLoading } from '../../app/global-loading';
@@ -28,6 +28,7 @@ import { ProjectModal } from './modals/ProjectModal';
 import { ProjectsBrowser } from './ProjectsBrowser';
 import { flattenFolders } from './projects.helpers';
 import type { ConfirmState, FolderModalState, NoteModalState, ProjectModalState } from './projects.types';
+import { ProjectTimeline } from './ProjectTimeline';
 
 type ProjectsWorkspaceProps = ProjectsPageContext;
 
@@ -49,7 +50,10 @@ export function ProjectsWorkspace({
   const routeProject = params.projectSlug ? decodeURIComponent(params.projectSlug) : '';
   const selectedSlug = routeProject || selectedProject;
   const dashboardNotes = dashboard.notes || [];
-  const selected = dashboard.projects.find((project) => project.projectSlug === selectedSlug) || dashboard.projects[0];
+  const selected = routeProject
+    ? dashboard.projects.find((project) => project.projectSlug === selectedSlug) || dashboard.projects[0]
+    : undefined;
+  const isAllProjectsSelected = !routeProject;
 
   useEffect(() => {
     setSelectedFolderId(ROOT_FOLDER_ID);
@@ -64,10 +68,16 @@ export function ProjectsWorkspace({
   const folderTree = foldersQuery.data?.folders || [];
   const flatFolders = useMemo(() => flattenFolders(folderTree), [folderTree]);
   const selectedFolder = flatFolders.find((folder) => folder.id === selectedFolderId) || null;
-  const timelinePagination = usePaginationState(`${selected?.projectSlug || ''}:${selectedFolderId}:${timelineCategory}:timeline`);
-  const dashboardTimelineNotes = selected
-    ? dashboardNotes.filter((note) => note.project === selected.projectSlug && (selectedFolderId ? note.folderId === selectedFolderId : !note.folderId))
-    : [];
+  const timelinePagination = usePaginationState(`${selected?.projectSlug || 'all'}:${selectedFolderId}:${timelineCategory}:timeline`);
+  const allProjectsTimelineQuery = useQuery({
+    queryKey: ['project-timeline', 'all-projects', timelineCategory, timelinePagination.page],
+    queryFn: () => fetchAllProjectsTimeline({
+      page: timelinePagination.page,
+      category: timelineCategory,
+    }),
+    enabled: isAllProjectsSelected,
+    staleTime: timelineCategory === 'all' ? 30_000 : 0,
+  });
   const timelineQuery = useQuery({
     queryKey: ['project-timeline', selected?.projectSlug || '', selectedFolderId, timelineCategory, timelinePagination.page],
     queryFn: () => fetchProjectTimeline(selected?.projectSlug || '', {
@@ -77,27 +87,6 @@ export function ProjectsWorkspace({
     }),
     enabled: Boolean(selected?.projectSlug),
     staleTime: timelineCategory === 'all' ? 30_000 : 0,
-    placeholderData: selected && timelineCategory === 'all'
-      ? {
-          ok: true as const,
-          timeline: dashboardTimelineNotes
-            .slice(0, DEFAULT_PAGE_SIZE)
-            .map((note) => ({
-              ...note,
-              noteId: note.id,
-              category: note.type === 'decision' ? 'decision' as const : 'manual' as const,
-              sourceChannel: note.source,
-            })),
-          pagination: {
-            page: 1,
-            pageSize: DEFAULT_PAGE_SIZE,
-            total: dashboardTimelineNotes.length,
-            totalPages: Math.max(1, Math.ceil(dashboardTimelineNotes.length / DEFAULT_PAGE_SIZE)),
-            hasNext: dashboardTimelineNotes.length > DEFAULT_PAGE_SIZE,
-            hasPrevious: false,
-          },
-        }
-      : undefined,
   });
   const timelineItems = timelineQuery.data?.timeline || [];
   const selectedProjectDeleteBlockedReason = selected?.projectSlug === 'inbox'
@@ -167,10 +156,13 @@ export function ProjectsWorkspace({
               ariaLabel="Select project"
               className="page-head-select"
               id="projects-page-project-select"
-              options={dashboard.projects.map((project) => ({
-                value: project.projectSlug,
-                label: project.displayName,
-              }))}
+              options={[
+                { value: '', label: 'All' },
+                ...dashboard.projects.map((project) => ({
+                  value: project.projectSlug,
+                  label: project.displayName,
+                })),
+              ]}
               value={selected?.projectSlug || ''}
               onChange={openProject}
             />
@@ -179,7 +171,30 @@ export function ProjectsWorkspace({
         subtitle=""
         action={<button className="icon-button" type="button" onClick={() => setProjectModal({ mode: 'create' })}>New project</button>}
       />
-      {selected ? (
+      {isAllProjectsSelected ? (
+        <Panel className="spaced">
+          <div className="page-head">
+            <div>
+              <h2>All</h2>
+              <p>Notes from all projects</p>
+            </div>
+          </div>
+          <ProjectTimeline
+            dashboard={dashboard}
+            items={allProjectsTimelineQuery.data?.timeline || []}
+            pagination={allProjectsTimelineQuery.data?.pagination}
+            category={timelineCategory}
+            onCategoryChange={(category) => {
+              setTimelineCategory(category);
+              timelinePagination.setPage(1);
+            }}
+            onDeleteNote={(note) => setConfirmState({ kind: 'note', note })}
+            onEditNote={(note) => loadNoteMutation.mutate(note.id)}
+            onOpenNote={openNote}
+            onPageChange={timelinePagination.setPage}
+          />
+        </Panel>
+      ) : selected ? (
         <ProjectsBrowser
           dashboard={dashboard}
           project={selected}

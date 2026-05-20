@@ -282,6 +282,9 @@ test('lists project timeline by derived category without raw webhook events', as
   const all = await useCase.execute(user.id, { projectSlug: 'platform', page: 1, pageSize: 10, category: 'all' });
   assert.deepEqual(all.items.map((item) => item.category), ['whatsapp', 'github-push', 'manual', 'reminder', 'decision']);
 
+  const allProjects = await useCase.execute(user.id, { page: 1, pageSize: 10, category: 'all' });
+  assert.deepEqual(allProjects.items.map((item) => item.category), ['whatsapp', 'github-push', 'manual', 'reminder', 'decision']);
+
   const root = await useCase.execute(user.id, { projectSlug: 'platform', folderId: '', page: 1, pageSize: 10, category: 'all' });
   assert.deepEqual(root.items.map((item) => item.title), ['WhatsApp update', 'Manual note', 'Reminder note', 'Decision note']);
 
