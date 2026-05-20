@@ -59,6 +59,48 @@ test('whatsapp command parser accepts private chats as external identities', () 
   assert.equal(command.input.chatId, '5511999999999@s.whatsapp.net');
 });
 
+test('whatsapp command parser ignores group messages without /kb prefix', () => {
+  const command = buildWhatsappWebhookCommand({
+    event: 'MESSAGES_UPSERT',
+    data: {
+      key: {
+        remoteJid: '120363@g.us',
+        participant: '5511999999999@s.whatsapp.net',
+        id: 'group-msg-no-prefix',
+        fromMe: false,
+      },
+      message: {
+        conversation: 'corrigi timeout no webhook',
+      },
+    },
+  });
+
+  assert.equal(command.kind, 'ignore');
+  assert.equal(command.reason, 'group_missing_prefix');
+});
+
+test('whatsapp command parser accepts group messages with /kb prefix and strips it', () => {
+  const command = buildWhatsappWebhookCommand({
+    event: 'MESSAGES_UPSERT',
+    data: {
+      key: {
+        remoteJid: '120363@g.us',
+        participant: '5511999999999@s.whatsapp.net',
+        id: 'group-msg-prefix',
+        fromMe: false,
+      },
+      message: {
+        conversation: '/kb corrigi timeout no webhook',
+      },
+    },
+  });
+
+  assert.equal(command.kind, 'conversation');
+  assert.equal(command.externalId, '120363@g.us');
+  assert.equal(command.input.chatId, '120363@g.us');
+  assert.equal(command.input.messageText, 'corrigi timeout no webhook');
+});
+
 test('whatsapp parser unwraps ephemeral and view-once messages', () => {
   const ephemeral = parseWhatsappEvolutionMessage({
     event: 'MESSAGES_UPSERT',
