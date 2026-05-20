@@ -2,6 +2,7 @@ import { CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from
 
 const approvalValues = new Set(['none', 'final_confirmation']);
 const approvalIntentValues = new Set(['none', 'approve', 'reject', 'cancel', 'unclear']);
+const turnIntentValues = new Set(['modify_current', 'new_capture', 'unrelated', 'unclear']);
 const actionValues = new Set(['ask', 'confirm', 'cancel', 'submit']);
 const canonicalTypeValues = new Set(Object.values(CanonicalType));
 const confidenceValues = new Set(Object.values(ConversationConfidence));
@@ -50,6 +51,7 @@ export function normalizeConversationAgentDecisionInput(input: unknown): unknown
     resolvedDraft: normalizeDraft(input.resolvedDraft),
     pendingApproval: enumValueOrUndefined(input.pendingApproval, approvalValues),
     approvalIntent: enumValueOrUndefined(input.approvalIntent, approvalIntentValues),
+    turnIntent: enumValueOrUndefined(input.turnIntent, turnIntentValues),
     confidence: enumValueOrUndefined(input.confidence, confidenceValues),
     action: enumValueOrUndefined(input.action, actionValues),
   };

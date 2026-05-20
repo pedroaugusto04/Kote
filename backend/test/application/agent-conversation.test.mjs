@@ -241,7 +241,7 @@ test('agent conversation explains how to use it when the message is not useful t
   assert.match(result.replyText, /ask for confirmation before saving/);
 });
 
-test('agent conversation allows changing the suggested folder to project root before final confirmation', async (t) => {
+test('agent conversation edits pending confirmation when the agent identifies a modification', async (t) => {
   const turns = new Map([
     ['documentei o checklist de deploy', decision({
       resolvedDraft: {
@@ -262,6 +262,7 @@ test('agent conversation allows changing the suggested folder to project root be
       placeInRoot: true,
       pendingApproval: 'final_confirmation',
       approvalIntent: 'unclear',
+      turnIntent: 'modify_current',
       action: 'confirm',
       resolvedDraft: {
         rawText: 'Documentei o checklist de deploy',
@@ -281,12 +282,63 @@ test('agent conversation allows changing the suggested folder to project root be
   const rootConfirmation = await agentUseCase.execute(input('salva na raiz'), user.id, 'default');
   assert.equal(rootConfirmation.action, 'confirm');
   assert.match(rootConfirmation.replyText, /project root/);
+  assert.match(rootConfirmation.replyText, /Documentei o checklist de deploy/);
 
   const saved = await agentUseCase.execute(input('sim'), user.id, 'default');
   assert.equal(saved.action, 'submit');
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
   assert.equal(notes[0].folderId, null);
+});
+
+test('agent conversation replaces pending confirmation when the agent identifies a new note', async (t) => {
+  const turns = new Map([
+    ['resumo antigo da reuniao', decision({
+      resolvedDraft: {
+        rawText: 'Resumo antigo da reuniao',
+        title: '',
+        kind: 'summary',
+        canonicalType: 'knowledge',
+        importance: 'medium',
+        tags: ['meeting'],
+        reminderDate: '',
+        reminderTime: '',
+      },
+    })],
+    ['corrigi o timeout do webhook novo', decision({
+      selectedProjectSlug: 'platform',
+      selectedFolderId: '',
+      suggestedFolderPath: ['Runbooks', 'API'],
+      placeInRoot: false,
+      pendingApproval: 'final_confirmation',
+      approvalIntent: 'unclear',
+      turnIntent: 'new_capture',
+      action: 'confirm',
+      resolvedDraft: {
+        rawText: 'Corrigi o timeout do webhook novo',
+        title: '',
+        kind: 'bug',
+        canonicalType: 'incident',
+        importance: 'high',
+        tags: ['backend'],
+        reminderDate: '',
+        reminderTime: '',
+      },
+    })],
+  ]);
+  const { repositories, agentUseCase, user } = await createFixture(t, turns);
+
+  await agentUseCase.execute(input('resumo antigo da reuniao'), user.id, 'default');
+  const replacementConfirmation = await agentUseCase.execute(input('corrigi o timeout do webhook novo'), user.id, 'default');
+  assert.equal(replacementConfirmation.action, 'confirm');
+  assert.match(replacementConfirmation.replyText, /Corrigi o timeout do webhook novo/);
+  assert.doesNotMatch(replacementConfirmation.replyText, /Resumo antigo da reuniao/);
+
+  const saved = await agentUseCase.execute(input('sim'), user.id, 'default');
+  assert.equal(saved.action, 'submit');
+  const notes = await repositories.contentRepository.listNotes(user.id);
+  assert.equal(notes.length, 1);
+  assert.equal(notes[0].summary, 'Corrigi o timeout do webhook novo');
 });
 
 test('agent conversation keeps nonexistent project, confirms creation and saves the note', async (t) => {

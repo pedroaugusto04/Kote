@@ -6,6 +6,7 @@ import { conversationMediaSchema } from './conversation.js';
 const agentApprovalSchema = z.enum(['none', 'final_confirmation']);
 const agentActionSchema = z.enum(['ask', 'confirm', 'cancel', 'submit']);
 const agentApprovalIntentSchema = z.enum(['none', 'approve', 'reject', 'cancel', 'unclear']);
+const agentTurnIntentSchema = z.enum(['modify_current', 'new_capture', 'unrelated', 'unclear']);
 const nullishToUndefined = (value: unknown) => value == null ? undefined : value;
 const blankishToUndefined = (value: unknown) => {
   if (value == null) return undefined;
@@ -64,6 +65,7 @@ export const conversationAgentDecisionSchema = z.object({
   placeInRoot: z.preprocess(nullishToUndefined, z.boolean().default(false)),
   pendingApproval: defaultApprovalSchema,
   approvalIntent: z.preprocess(blankishToUndefined, agentApprovalIntentSchema.default('none')),
+  turnIntent: z.preprocess(blankishToUndefined, agentTurnIntentSchema.default('unclear')),
   confidence: defaultConfidenceSchema,
   action: defaultActionSchema,
 });
@@ -71,6 +73,7 @@ export const conversationAgentDecisionSchema = z.object({
 export type AgentConversationApproval = z.infer<typeof agentApprovalSchema>;
 export type AgentConversationAction = z.infer<typeof agentActionSchema>;
 export type AgentConversationApprovalIntent = z.infer<typeof agentApprovalIntentSchema>;
+export type AgentConversationTurnIntent = z.infer<typeof agentTurnIntentSchema>;
 export type AgentConversationDraft = z.infer<typeof agentConversationDraftSchema>;
 export type AgentConversationState = z.infer<typeof agentConversationStateSchema>;
 export type ConversationAgentDecision = z.infer<typeof conversationAgentDecisionSchema>;

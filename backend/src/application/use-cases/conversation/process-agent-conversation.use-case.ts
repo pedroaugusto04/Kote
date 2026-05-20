@@ -76,7 +76,7 @@ export class ProcessAgentConversationUseCase {
     await this.assertAgentEnabled(userId, normalizedWorkspaceSlug);
 
     const key = `agent:${input.chatId}:${input.senderId}`;
-    const state = await this.loadState(userId, normalizedWorkspaceSlug, key);
+    let state = await this.loadState(userId, normalizedWorkspaceSlug, key);
     const messageText = String(input.messageText || '').trim();
     this.logger?.info('conversation.agent.turn.start', {
       userId,
@@ -114,11 +114,22 @@ export class ProcessAgentConversationUseCase {
       return this.handleFinalConfirmation(input, userId, normalizedWorkspaceSlug, key, state);
     }
 
+    return this.processNewTurn(input, userId, normalizedWorkspaceSlug, key, state);
+  }
+
+  private async processNewTurn(
+    input: ConversationInput,
+    userId: string,
+    workspaceSlug: string,
+    key: string,
+    state: AgentConversationState,
+  ): Promise<AgentConversationResult> {
+    const messageText = String(input.messageText || '').trim();
     const environment = this.environmentProvider.read();
     const { projects, candidateProjectSlug, candidateFolders, decision } = await this.requestAgentDecision(
       input,
       userId,
-      normalizedWorkspaceSlug,
+      workspaceSlug,
       state,
     );
     if (this.isEmptyAgentDraftAsk(decision)) {
@@ -140,10 +151,10 @@ export class ProcessAgentConversationUseCase {
       candidateFolders: foldersForDecision,
       reminderTimeZone: environment.reminderTimeZone,
     });
-    await this.conversationStates.upsert(userId, normalizedWorkspaceSlug, key, nextState);
+    await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
     this.logger?.info('conversation.agent.state.updated', {
       userId,
-      workspaceSlug: normalizedWorkspaceSlug,
+      workspaceSlug,
       conversationKey: key,
       action: decision.action,
       approvalIntent: decision.approvalIntent,
@@ -171,7 +182,7 @@ export class ProcessAgentConversationUseCase {
         lastAgentAction: 'confirm' as const,
         updatedAt: nowIso(),
       };
-      await this.conversationStates.upsert(userId, normalizedWorkspaceSlug, key, finalState);
+      await this.conversationStates.upsert(userId, workspaceSlug, key, finalState);
       return this.reply('confirm', finalConfirmation, null, finalState);
     }
 
@@ -306,51 +317,17 @@ export class ProcessAgentConversationUseCase {
       return this.reply('cancel', this.presenter.noteDiscarded(), null, EMPTY_AGENT_CONVERSATION_STATE);
     }
     if (intent !== 'approve') {
-      if (approval.turn) {
-        const messageText = String(input.messageText || '').trim();
-        const environment = this.environmentProvider.read();
-        const selectedProjectSlug = resolveAgentSelectedProjectSlug(approval.turn.decision.selectedProjectSlug, state, approval.turn.projects);
-        const foldersForDecision = selectedProjectSlug && selectedProjectSlug !== 'inbox'
-          ? selectedProjectSlug === approval.turn.candidateProjectSlug
-            ? approval.turn.candidateFolders
-            : await this.contentRepository.listProjectFolders(userId, selectedProjectSlug)
-          : [];
-        const nextState = buildNextAgentConversationState({
-          current: state,
-          messageText,
-          media: mediaFromConversationInput(input, state),
-          decision: approval.turn.decision,
-          projects: approval.turn.projects,
-          candidateFolders: foldersForDecision,
-          reminderTimeZone: environment.reminderTimeZone,
-        });
-        await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
-        if (!nextState.draft.rawText) {
-          return this.reply('ask', this.presenter.couldNotUnderstand(), null, nextState);
-        }
-        if (!nextState.project.selectedProjectSlug) {
-          return this.reply('ask', this.presenter.projectPrompt(approval.turn.decision.replyText, approval.turn.projects), null, nextState);
-        }
-        if (nextState.pendingApproval === 'final_confirmation') {
-          const finalConfirmation = this.presenter.finalConfirmationPrompt(nextState, {
-            willCreateProject: this.shouldCreateProject(nextState.project.selectedProjectSlug, approval.turn.projects),
-          });
-          const finalState = {
-            ...nextState,
-            lastQuestion: finalConfirmation,
-            lastAgentAction: 'confirm' as const,
-            updatedAt: nowIso(),
-          };
-          await this.conversationStates.upsert(userId, workspaceSlug, key, finalState);
-          return this.reply('confirm', finalConfirmation, null, finalState);
-        }
-        return this.reply('ask', approval.turn.decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
+      if (approval.turn && !this.shouldReplacePendingConfirmation(approval.turn.decision)) {
+        return this.applyPendingConfirmationEdit(input, userId, workspaceSlug, key, state, approval.turn);
       }
-      const projects = (await this.contentRepository.listProjects(userId))
-        .filter((project) => project.enabled && project.workspaceSlug === workspaceSlug);
-      return this.reply('confirm', this.presenter.finalConfirmationPrompt(state, {
-        willCreateProject: this.shouldCreateProject(state.project.selectedProjectSlug, projects),
-      }), null, state);
+      await this.conversationStates.clear(userId, workspaceSlug, key);
+      this.logger?.info('conversation.agent.pending_replaced', {
+        userId,
+        workspaceSlug,
+        conversationKey: key,
+        messageId: input.messageId,
+      });
+      return this.processNewTurn(input, userId, workspaceSlug, key, EMPTY_AGENT_CONVERSATION_STATE);
     }
 
     await this.ensureProjectExistsForSubmission(userId, workspaceSlug, state.project.selectedProjectSlug);
@@ -381,6 +358,58 @@ export class ProcessAgentConversationUseCase {
         confidence: state.confidence,
       },
     );
+  }
+
+  private async applyPendingConfirmationEdit(
+    input: ConversationInput,
+    userId: string,
+    workspaceSlug: string,
+    key: string,
+    state: AgentConversationState,
+    turn: AgentDecisionTurn,
+  ): Promise<AgentConversationResult> {
+    const messageText = String(input.messageText || '').trim();
+    const environment = this.environmentProvider.read();
+    const selectedProjectSlug = resolveAgentSelectedProjectSlug(turn.decision.selectedProjectSlug, state, turn.projects);
+    const foldersForDecision = selectedProjectSlug && selectedProjectSlug !== 'inbox'
+      ? selectedProjectSlug === turn.candidateProjectSlug
+        ? turn.candidateFolders
+        : await this.contentRepository.listProjectFolders(userId, selectedProjectSlug)
+      : [];
+    const nextState = buildNextAgentConversationState({
+      current: state,
+      messageText,
+      media: mediaFromConversationInput(input, state),
+      decision: turn.decision,
+      projects: turn.projects,
+      candidateFolders: foldersForDecision,
+      reminderTimeZone: environment.reminderTimeZone,
+    });
+    await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
+    if (!nextState.draft.rawText) {
+      return this.reply('ask', this.presenter.couldNotUnderstand(), null, nextState);
+    }
+    if (!nextState.project.selectedProjectSlug) {
+      return this.reply('ask', this.presenter.projectPrompt(turn.decision.replyText, turn.projects), null, nextState);
+    }
+    if (nextState.pendingApproval === 'final_confirmation') {
+      const finalConfirmation = this.presenter.finalConfirmationPrompt(nextState, {
+        willCreateProject: this.shouldCreateProject(nextState.project.selectedProjectSlug, turn.projects),
+      });
+      const finalState = {
+        ...nextState,
+        lastQuestion: finalConfirmation,
+        lastAgentAction: 'confirm' as const,
+        updatedAt: nowIso(),
+      };
+      await this.conversationStates.upsert(userId, workspaceSlug, key, finalState);
+      return this.reply('confirm', finalConfirmation, null, finalState);
+    }
+    return this.reply('ask', turn.decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
+  }
+
+  private shouldReplacePendingConfirmation(decision: ConversationAgentResponse) {
+    return decision.turnIntent === 'new_capture' || decision.turnIntent === 'unrelated';
   }
 
   private shouldCreateProject(projectSlug: string, projects: ProjectRecord[]) {
