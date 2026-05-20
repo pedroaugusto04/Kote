@@ -209,6 +209,38 @@ test('agent conversation asks for project when project choice is ambiguous', asy
   assert.match(result.replyText, /Available projects/);
 });
 
+test('agent conversation explains how to use it when the message is not useful to save', async (t) => {
+  const turns = new Map([
+    ['???', decision({
+      replyText: 'Nao entendi.',
+      resolvedDraft: {
+        rawText: '',
+        title: '',
+        kind: 'note',
+        canonicalType: 'event',
+        importance: 'low',
+        tags: [],
+        reminderDate: '',
+        reminderTime: '',
+      },
+      selectedProjectSlug: '',
+      selectedFolderId: '',
+      suggestedFolderPath: [],
+      pendingApproval: 'none',
+      action: 'ask',
+      confidence: 'low',
+    })],
+  ]);
+  const { agentUseCase, user } = await createFixture(t, turns);
+
+  const result = await agentUseCase.execute(input('???'), user.id, 'default');
+
+  assert.equal(result.action, 'ask');
+  assert.match(result.replyText, /I could not identify something useful to save yet/);
+  assert.match(result.replyText, /notes, decisions, bugs, reminders, summaries, links, or media/);
+  assert.match(result.replyText, /ask for confirmation before saving/);
+});
+
 test('agent conversation allows changing the suggested folder to project root before final confirmation', async (t) => {
   const turns = new Map([
     ['documentei o checklist de deploy', decision({

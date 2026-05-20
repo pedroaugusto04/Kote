@@ -26,7 +26,11 @@ export class ConversationAgentPresenter {
   }
 
   couldNotUnderstand() {
-    return 'I could not understand the note yet. Please resend the message with more information.';
+    return [
+      'I could not identify something useful to save yet.',
+      'Use this chat to capture notes, decisions, bugs, reminders, summaries, links, or media with context. I will organize the content into the right project and folder, then ask for confirmation before saving.',
+      'Examples: "save to project platform: fixed the webhook timeout" or "remind me tomorrow to review the deploy".',
+    ].join('\n');
   }
 
   needsOneMoreDetail() {

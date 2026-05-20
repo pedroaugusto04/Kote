@@ -63,6 +63,16 @@ test('conversation agent presenter marks a new project in the final confirmation
   assert.match(message, /Project: projeto-x \(new, will be created when saved\)/);
 });
 
+test('conversation agent presenter explains usage for messages that are not useful to save', () => {
+  const presenter = new ConversationAgentPresenter();
+
+  const message = presenter.couldNotUnderstand();
+
+  assert.match(message, /I could not identify something useful to save yet/);
+  assert.match(message, /notes, decisions, bugs, reminders, summaries, links, or media/);
+  assert.match(message, /ask for confirmation before saving/);
+});
+
 test('conversation agent state machine keeps valid project and prepares final confirmation', () => {
   const next = buildNextAgentConversationState({
     current: emptyAgentConversationState,
