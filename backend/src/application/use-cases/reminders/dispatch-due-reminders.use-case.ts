@@ -9,6 +9,7 @@ import { ReminderDeliveryGateway } from '../../ports/reminder-delivery.gateway.j
 import { ReminderDispatchRepository } from '../../ports/workflow-state.repository.js';
 import { formatReminderScheduledAtLabel, reminderDispatchKey } from './reminder-schedule.js';
 import { MarkReminderAsSentUseCase } from './mark-reminder-as-sent.use-case.js';
+import { MAX_REMINDER_DELIVERY_ATTEMPTS, nextReminderRetryAt } from './reminder-retry-policy.js';
 
 @Injectable()
 export class DispatchDueRemindersUseCase {
@@ -25,6 +26,8 @@ export class DispatchDueRemindersUseCase {
     let sent = 0;
     let skipped = 0;
     let failed = 0;
+    let delayed = 0;
+    let exhausted = 0;
 
     for (const reminder of dueReminders) {
       const dispatchKey = reminderDispatchKey(reminder.scheduledAt);
@@ -46,6 +49,26 @@ export class DispatchDueRemindersUseCase {
         continue;
       }
 
+      const retryKey = {
+        userId: reminder.userId,
+        workspaceSlug: reminder.workspaceSlug,
+        mode: ReminderDispatchMode.Exact,
+        dispatchKey,
+        reminderId: reminder.reminderId,
+        channel,
+      };
+      const retryState = await this.reminderDispatchRepository.getRetryState(retryKey);
+      if (retryState && retryState.attemptCount >= MAX_REMINDER_DELIVERY_ATTEMPTS) {
+        exhausted += 1;
+        skipped += 1;
+        continue;
+      }
+      if (retryState?.nextRetryAt && isFutureRetry(retryState.nextRetryAt, referenceNowIso)) {
+        delayed += 1;
+        skipped += 1;
+        continue;
+      }
+
       const result = await this.reminderDeliveryGateway.sendText({
         channel: reminder.channel,
         recipientId: reminder.recipientId,
@@ -60,12 +83,24 @@ export class DispatchDueRemindersUseCase {
 
       if (!result.ok) {
         failed += 1;
+        const failedAttemptCount = (retryState?.attemptCount || 0) + 1;
+        const nextRetryAt = failedAttemptCount >= MAX_REMINDER_DELIVERY_ATTEMPTS
+          ? ''
+          : nextReminderRetryAt(referenceNowIso, failedAttemptCount);
+        const failureState = await this.reminderDispatchRepository.recordFailure({
+          ...retryKey,
+          nextRetryAt,
+          error: result.error || 'unknown_error',
+        });
         this.logger.error('reminder.dispatch_failed', {
           channel: reminder.channel,
           userId: reminder.userId,
           workspaceSlug: reminder.workspaceSlug,
           reminderId: reminder.reminderId,
           scheduledAt: reminder.scheduledAt,
+          attemptCount: failureState.attemptCount,
+          maxAttempts: MAX_REMINDER_DELIVERY_ATTEMPTS,
+          nextRetryAt: failureState.nextRetryAt,
           error: result.error || 'unknown_error',
         });
         continue;
@@ -78,6 +113,7 @@ export class DispatchDueRemindersUseCase {
         ReminderDispatchMode.Exact,
         dispatchKey,
       );
+      await this.reminderDispatchRepository.clearFailure(retryKey);
       sent += 1;
     }
 
@@ -87,6 +123,8 @@ export class DispatchDueRemindersUseCase {
       sent,
       skipped,
       failed,
+      delayed,
+      exhausted,
     };
   }
 
@@ -102,4 +140,10 @@ export class DispatchDueRemindersUseCase {
       `Scheduled for: ${formatReminderScheduledAtLabel(reminder.scheduledAt)}`,
     ].join('\n');
   }
+}
+
+function isFutureRetry(nextRetryAt: string, referenceNowIso: string): boolean {
+  const retryAtMs = Date.parse(nextRetryAt);
+  const nowMs = Date.parse(referenceNowIso);
+  return !Number.isNaN(retryAtMs) && !Number.isNaN(nowMs) && retryAtMs > nowMs;
 }

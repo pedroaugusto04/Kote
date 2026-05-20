@@ -1,4 +1,5 @@
 import type { ReminderDispatchMode } from '../../contracts/enums.js';
+import type { RecordReminderDispatchFailureInput, ReminderDispatchRetryKey, ReminderDispatchRetryState } from '../models/reminder-dispatch.models.js';
 import type { ConversationStateRecord } from '../models/repository-records.models.js';
 
 export abstract class ConversationStateRepository {
@@ -10,4 +11,7 @@ export abstract class ConversationStateRepository {
 export abstract class ReminderDispatchRepository {
   abstract hasSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string): Promise<boolean>;
   abstract markSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string): Promise<void>;
+  abstract getRetryState(input: ReminderDispatchRetryKey): Promise<ReminderDispatchRetryState | null>;
+  abstract recordFailure(input: RecordReminderDispatchFailureInput): Promise<ReminderDispatchRetryState>;
+  abstract clearFailure(input: ReminderDispatchRetryKey): Promise<void>;
 }

@@ -12,7 +12,7 @@ import { CredentialRepository, ExternalIdentityRepository } from '../../dist/app
 import { ReminderDeliveryGateway } from '../../dist/application/ports/reminder-delivery.gateway.js';
 import { WebhookEventRepository } from '../../dist/application/ports/webhook-events.repository.js';
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../dist/application/ports/workflow-state.repository.js';
-import { ReminderDeliveryChannel } from '../../dist/contracts/enums.js';
+import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../dist/contracts/enums.js';
 import { EvolutionReminderDeliveryGateway } from '../../dist/adapters/evolution.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
 
@@ -71,6 +71,24 @@ test('postgres repositories share state across content query and workflow ports'
   assert.deepEqual(storedState?.state, { phase: 'collecting' });
 
   assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'daily', '2026-04-28', note.id), false);
+  const retryKey = {
+    userId: user.id,
+    workspaceSlug: 'default',
+    mode: ReminderDispatchMode.Exact,
+    dispatchKey: '2026-04-28T12:00',
+    reminderId: note.id,
+    channel: ReminderDeliveryChannel.Whatsapp,
+  };
+  assert.equal(await repositories.reminderDispatchRepository.getRetryState(retryKey), null);
+  const failureState = await repositories.reminderDispatchRepository.recordFailure({
+    ...retryKey,
+    nextRetryAt: '2026-04-28T12:01:00.000Z',
+    error: 'evolution_api_http_500',
+  });
+  assert.equal(failureState.attemptCount, 1);
+  assert.equal((await repositories.reminderDispatchRepository.getRetryState(retryKey))?.nextRetryAt, '2026-04-28T12:01:00.000Z');
+  await repositories.reminderDispatchRepository.clearFailure(retryKey);
+  assert.equal(await repositories.reminderDispatchRepository.getRetryState(retryKey), null);
   await repositories.reminderDispatchRepository.markSent(user.id, 'default', 'daily', '2026-04-28', note.id);
   assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'daily', '2026-04-28', note.id), true);
   await repositories.contentRepository.deleteNote(user.id, note.id);

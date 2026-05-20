@@ -659,6 +659,82 @@ test('default reminder dispatch does not mark reminder as sent when Evolution de
   assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'exact', '2099-12-31T12:00', '11111111-1111-1111-1111-111111111111'), false);
 });
 
+test('default reminder dispatch backs off failed deliveries before retrying', async (t) => {
+  const { repositories, user } = await createStoreWithReminder(t);
+  let deliveryCalls = 0;
+  const markReminderAsSent = new MarkReminderAsSentUseCase(repositories.reminderDispatchRepository, repositories.contentRepository);
+  const useCase = new DispatchDueRemindersUseCase(
+    repositories.contentQueryRepository,
+    repositories.reminderDispatchRepository,
+    markReminderAsSent,
+    { sendText: async () => { deliveryCalls += 1; return { ok: false, error: 'evolution_api_http_500' }; } },
+    createLoggerStub(),
+  );
+
+  const first = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2099-12-31T12:00:00.000Z');
+  const second = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2099-12-31T12:00:30.000Z');
+  const retryState = await repositories.reminderDispatchRepository.getRetryState({
+    userId: user.id,
+    workspaceSlug: 'default',
+    mode: ReminderDispatchMode.Exact,
+    dispatchKey: '2099-12-31T12:00',
+    reminderId: '11111111-1111-1111-1111-111111111111',
+    channel: ReminderDeliveryChannel.Whatsapp,
+  });
+
+  assert.equal(first.failed, 1);
+  assert.equal(second.sent, 0);
+  assert.equal(second.failed, 0);
+  assert.equal(second.delayed, 1);
+  assert.equal(deliveryCalls, 1);
+  assert.ok(retryState);
+  assert.equal(retryState?.attemptCount, 1);
+  assert.ok(Date.parse(retryState.nextRetryAt) > Date.parse('2099-12-31T12:00:30.000Z'));
+});
+
+test('default reminder dispatch stops retrying after five failed attempts', async (t) => {
+  const { repositories, user } = await createStoreWithReminder(t);
+  const retryKey = {
+    userId: user.id,
+    workspaceSlug: 'default',
+    mode: ReminderDispatchMode.Exact,
+    dispatchKey: '2099-12-31T12:00',
+    reminderId: '11111111-1111-1111-1111-111111111111',
+    channel: ReminderDeliveryChannel.Whatsapp,
+  };
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    await repositories.reminderDispatchRepository.recordFailure({
+      ...retryKey,
+      nextRetryAt: '2099-12-31T12:00:00.000Z',
+      error: 'evolution_api_http_500',
+    });
+  }
+
+  let deliveryCalls = 0;
+  const markReminderAsSent = new MarkReminderAsSentUseCase(repositories.reminderDispatchRepository, repositories.contentRepository);
+  const useCase = new DispatchDueRemindersUseCase(
+    repositories.contentQueryRepository,
+    repositories.reminderDispatchRepository,
+    markReminderAsSent,
+    { sendText: async () => { deliveryCalls += 1; return { ok: false, error: 'evolution_api_http_500' }; } },
+    createLoggerStub(),
+  );
+
+  const fifthAttempt = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2099-12-31T12:01:00.000Z');
+  const afterLimit = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2099-12-31T13:01:00.000Z');
+  const retryState = await repositories.reminderDispatchRepository.getRetryState(retryKey);
+
+  assert.equal(fifthAttempt.failed, 1);
+  assert.equal(afterLimit.failed, 0);
+  assert.equal(afterLimit.exhausted, 1);
+  assert.equal(afterLimit.skipped, 1);
+  assert.equal(deliveryCalls, 1);
+  assert.ok(retryState);
+  assert.equal(retryState?.attemptCount, 5);
+  assert.equal(retryState?.nextRetryAt, '');
+  assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'exact', '2099-12-31T12:00', '11111111-1111-1111-1111-111111111111'), false);
+});
+
 test('default reminder worker delegates to WhatsApp dispatch channel', async () => {
   const calls = [];
   const worker = new ReminderDispatchWorker(
