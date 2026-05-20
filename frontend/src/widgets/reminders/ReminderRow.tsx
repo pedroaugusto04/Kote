@@ -1,6 +1,6 @@
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { Reminder } from '../../shared/api/models/reminder';
-import { formatUsDate, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, projectName } from '../../entities/format';
 import { Badge } from '../../shared/ui/primitives';
 import { QuickNoteStatusActions } from '../notes/QuickNoteStatusActions';
 
@@ -9,7 +9,7 @@ export function ReminderRow({ reminder, dashboard, onOpenPath }: { reminder: Rem
     <article className="list-row clickable" onClick={() => onOpenPath(reminder.relativePath)}>
       <div className="list-row-body reminder-row-body">
         <div className="meta-row">
-          <Badge value={reminder.status} tone={reminder.isOverdue ? 'high' : reminder.status} />
+          <Badge value={formatDisplayToken(reminder.status)} tone={reminder.isOverdue ? 'high' : reminder.status} />
           <span className="meta">
             {projectName(dashboard.projects, reminder.project)} / {formatUsDate(reminder.reminderDate)} {reminder.reminderTime}
           </span>

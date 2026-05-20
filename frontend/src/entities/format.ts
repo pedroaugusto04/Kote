@@ -58,8 +58,8 @@ export function typeIcon(type: string) {
   );
 }
 
-export function formatDisplayToken(value: string) {
-  return value
+export function formatDisplayToken(value: string | null | undefined) {
+  return String(value || '')
     .trim()
     .split(/[-_]/)
     .filter(Boolean)

@@ -75,7 +75,7 @@ export function ProjectTimeline({
                 <div className="project-timeline-meta">
                   <Badge value={formatDisplayToken(item.category)} tone={item.category} />
                   <Badge value={noteTypeLabel(item.type)} tone={item.type} />
-                  <Badge value={item.status} tone={item.status} />
+                  <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                   <span className="meta">{formatUsDateTime(item.date)}</span>
                   <span className="meta">{projectName(dashboard.projects, item.project)}</span>
                   <span className="meta">{item.source || item.sourceChannel}</span>

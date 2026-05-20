@@ -373,8 +373,8 @@ describe('AppShell', () => {
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('N8N Automations')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Event')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('active')).length).toBeGreaterThan(0);
-    expect(await screen.findByText('deploy')).toBeInTheDocument();
+    expect((await screen.findAllByText('Active')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('Deploy')).toBeInTheDocument();
     expect(screen.getAllByText('Revisar deploy.').length).toBeGreaterThan(0);
     const noteReader = document.querySelector('.note-reader');
     expect(noteReader).not.toBeNull();
@@ -520,7 +520,7 @@ describe('AppShell', () => {
 
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Event')).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText('active')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Active')).length).toBeGreaterThan(0);
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
   });
 

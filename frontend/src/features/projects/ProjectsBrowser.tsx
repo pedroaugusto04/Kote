@@ -3,6 +3,7 @@ import type { NoteSummary } from '../../shared/api/models/note';
 import type { ProjectTimelineCategory, ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { ProjectFolder } from '../../shared/api/models/project-folder';
 import type { Project } from '../../shared/api/models/project';
+import { formatDisplayToken } from '../../entities/format';
 import { Panel, Tags } from '../../shared/ui/primitives';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
@@ -108,7 +109,7 @@ export function ProjectsBrowser({
           </div>
         </div>
         <div className="project-actions">
-          <Tags items={project.defaultTags} />
+          <Tags items={project.defaultTags.map(formatDisplayToken)} />
           <button className="icon-button" type="button" onClick={onCreateNote}>New note</button>
         </div>
       </div>

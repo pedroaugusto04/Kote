@@ -1,6 +1,6 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatUsDate, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, projectName } from '../../entities/format';
 import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
@@ -86,7 +86,7 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
                   <article className="list-row clickable home-priority-row" key={priority.id} onClick={() => openTarget(priority.target)}>
                     <div className="list-row-body">
                       <div className="meta-row">
-                        <Badge value={priorityLabel(priority)} tone={priorityTone(priority)} />
+                        <Badge value={formatDisplayToken(priorityLabel(priority))} tone={priorityTone(priority)} />
                         <span className="meta">{priorityMeta(priority)}</span>
                       </div>
                       <h3>{priority.title}</h3>
@@ -160,9 +160,9 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
                   <article className="list-row clickable" key={event.id} onClick={() => openTarget(event.target)}>
                     <div className="list-row-body">
                       <div className="meta-row">
-                        <Badge value={event.category} tone={event.category} />
-                        <Badge value={event.type} tone={event.type} />
-                        <Badge value={event.status} tone={event.status} />
+                        <Badge value={formatDisplayToken(event.category)} tone={event.category} />
+                        <Badge value={formatDisplayToken(event.type)} tone={event.type} />
+                        <Badge value={formatDisplayToken(event.status)} tone={event.status} />
                         <span className="meta">
                           {projectName(dashboard.projects, event.project)} / {formatUsDate(event.date)}
                         </span>

@@ -1,4 +1,5 @@
 import type { Dashboard } from '../../shared/api/models/dashboard';
+import { formatDisplayToken } from '../../entities/format';
 import { Badge } from '../../shared/ui/primitives';
 
 function PencilIcon() {
@@ -80,7 +81,7 @@ export function ProjectCard({
         {project.repositories.length === 0 && <span className="repo-tag empty">No repos</span>}
       </div>
       <div className="meta-row">
-        <Badge value={project.enabled ? 'active' : 'archived'} tone={project.enabled ? 'active' : 'archived'} />
+        <Badge value={formatDisplayToken(project.enabled ? 'active' : 'archived')} tone={project.enabled ? 'active' : 'archived'} />
         <span className="meta">{project.defaultTags.slice(0, 2).join(' / ')}</span>
       </div>
     </article>

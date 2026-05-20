@@ -139,11 +139,11 @@ describe('HomePage', () => {
     expect(screen.getByText('Recent changes')).toBeInTheDocument();
     expect(screen.getByText('Prioridade 1')).toBeInTheDocument();
     const eventsPanel = screen.getByRole('heading', { name: 'Relevant recent events' }).closest('.home-panel-events') as HTMLElement;
-    expect(eventsPanel).toHaveTextContent('manual');
-    expect(eventsPanel).toHaveTextContent('incident');
-    expect(eventsPanel).toHaveTextContent('active');
-    expect(screen.getAllByText('pending').length).toBeGreaterThan(0);
-    expect(screen.getByText('high')).toBeInTheDocument();
+    expect(eventsPanel).toHaveTextContent('Manual');
+    expect(eventsPanel).toHaveTextContent('Incident');
+    expect(eventsPanel).toHaveTextContent('Active');
+    expect(screen.getAllByText('Pending').length).toBeGreaterThan(0);
+    expect(screen.getByText('High')).toBeInTheDocument();
     expect(screen.getAllByText(/N8N Automations \/ 04\/27\/2026 09:30/i).length).toBeGreaterThan(0);
     expect(screen.queryByText('Prioridade 6')).not.toBeInTheDocument();
     expect(screen.getAllByTestId('chart')).toHaveLength(4);
@@ -181,7 +181,7 @@ describe('HomePage', () => {
       }],
     });
 
-    expect(screen.getByText('high')).toBeInTheDocument();
+    expect(screen.getByText('High')).toBeInTheDocument();
     expect(screen.queryByText('open')).not.toBeInTheDocument();
   });
 

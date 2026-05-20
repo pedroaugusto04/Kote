@@ -1,6 +1,6 @@
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
-import { formatUsDate, noteTypeLabel, projectName, typeIcon } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon } from '../../entities/format';
 import { Badge } from '../../shared/ui/primitives';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { QuickNoteStatusActions } from './QuickNoteStatusActions';
@@ -42,7 +42,7 @@ export function NoteRow({
       <div className="list-row-body note-row-body">
         <div className="meta-row">
           <Badge value={noteTypeLabel(note.type)} tone={note.type} />
-          <Badge value={note.status} tone={note.status} />
+          <Badge value={formatDisplayToken(note.status)} tone={note.status} />
           <span className="meta">
             {projectName(dashboard.projects, note.project)} / {formatUsDate(note.date)}
           </span>

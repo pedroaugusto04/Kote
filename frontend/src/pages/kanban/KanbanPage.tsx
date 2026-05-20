@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { formatUsDate, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, projectName } from '../../entities/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
 import type { ReminderBoardCard, ReminderBoardColumnKey } from '../../shared/api/models/reminder';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
@@ -151,7 +151,7 @@ function KanbanCard({
       }}
     >
       <div className="meta-row">
-        <Badge value={card.status} tone={card.isOverdue ? 'high' : card.status} />
+        <Badge value={formatDisplayToken(card.status)} tone={card.isOverdue ? 'high' : card.status} />
         <span className="meta">{projectLabel}</span>
       </div>
       <h3>{card.title}</h3>

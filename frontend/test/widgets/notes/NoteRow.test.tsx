@@ -53,7 +53,7 @@ describe('NoteRow', () => {
     const deleteButton = screen.getByRole('button', { name: 'Delete note Deploy antigo' });
 
     expect(screen.getByText('Event')).toBeInTheDocument();
-    expect(screen.getByText('active')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
     expect(resolveButton).toBeInTheDocument();
     expect(archiveButton).toBeInTheDocument();
     expect(editButton).toHaveAttribute('title', 'Edit');
