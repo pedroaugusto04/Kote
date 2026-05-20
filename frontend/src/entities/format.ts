@@ -38,21 +38,7 @@ export function formatUsDateTime(value: string | null | undefined) {
 }
 
 export function noteTypeLabel(type: string) {
-  return (
-    {
-      note: 'Note',
-      event: 'Event',
-      knowledge: 'Knowledge',
-      decision: 'Decision',
-      incident: 'Incident',
-      bug: 'Bug',
-      review: 'Review',
-      reminder: 'Reminder',
-      article: 'Article',
-      asset: 'Asset',
-      followup: 'Follow-up',
-    }[type] || humanizeToken(type)
-  );
+  return formatDisplayToken(type);
 }
 
 export function typeIcon(type: string) {
@@ -72,10 +58,11 @@ export function typeIcon(type: string) {
   );
 }
 
-function humanizeToken(value: string) {
+export function formatDisplayToken(value: string) {
   return value
+    .trim()
     .split(/[-_]/)
     .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
 }

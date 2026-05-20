@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
+import { formatDisplayToken } from '../../entities/format';
 import { fetchNotes, runQuery } from '../../shared/api/client';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { type NoteStatus } from '../../shared/api/models/note-status';
@@ -18,11 +19,10 @@ const SEARCH_DEBOUNCE_MS = 350;
 
 const statusOptions: Array<{ value: '' | NoteStatus; label: string }> = [
   { value: '', label: 'All' },
-  { value: 'active', label: 'Active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'sent', label: 'Sent' },
-  { value: 'resolved', label: 'Resolved' },
-  { value: 'archived', label: 'Archived' },
+  ...(['active', 'pending', 'sent', 'resolved', 'archived'] as NoteStatus[]).map((value) => ({
+    value,
+    label: formatDisplayToken(value),
+  })),
 ];
 
 export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageContext) {

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 
+import { formatDisplayToken } from '../../entities/format';
 import {
   connectIntegration,
   fetchGithubRepositories,
@@ -22,16 +23,6 @@ import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
 import { useGlobalLoading } from '../../app/global-loading';
-
-const statusLabel: Record<DisplayStatus | string, string> = {
-  connected: 'connected',
-  missing: 'pending',
-  revoked: 'revoked',
-  pending: 'waiting',
-  expired: 'expired',
-  error: 'error',
-  disabled: 'disabled',
-};
 
 const statusTone: Record<DisplayStatus | string, string> = {
   connected: 'low',
@@ -116,7 +107,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
             <div className="card-kicker">{connection.provider}</div>
             <div className="integration-modal-title">
               <h2 id="connection-title">Connect {providerLabel}</h2>
-              {currentSession ? <Badge value={statusLabel[currentSession.status] || currentSession.status} tone={statusTone[currentSession.status] || 'medium'} /> : null}
+              {currentSession ? <Badge value={formatDisplayToken(currentSession.status)} tone={statusTone[currentSession.status] || 'medium'} /> : null}
             </div>
           </div>
           <button aria-label="Close details" className="modal-close" type="button" onClick={onClose}>x</button>
@@ -329,7 +320,7 @@ function IntegrationCard({
         {actionError ? <InlineMessage tone="error">{actionError}</InlineMessage> : null}
       </div>
       <div className="integration-card-foot">
-        <Badge value={statusLabel[integration.status] || integration.status} tone={statusTone[integration.status] || 'medium'} />
+        <Badge value={formatDisplayToken(integration.status)} tone={statusTone[integration.status] || 'medium'} />
         <div className="integration-actions">
           {integration.provider === 'github-app' && connected ? <button className="filter-chip" type="button" onClick={onGithubRepositories}>Repositories</button> : null}
           <button

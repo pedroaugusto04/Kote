@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { formatDisplayToken } from '../../../entities/format';
 import { createNote, updateNote } from '../../../shared/api/client';
 import type { NoteDetail } from '../../../shared/api/models/note';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
@@ -14,6 +15,11 @@ import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../sha
 import { useGlobalLoading } from '../../../app/global-loading';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
+
+const canonicalTypeOptions = ['event', 'decision', 'followup', 'incident', 'knowledge'].map((value) => ({
+  value,
+  label: formatDisplayToken(value),
+}));
 
 type ProjectNoteModalProps = {
   folders: FlatProjectFolder[];
@@ -146,13 +152,7 @@ export function ProjectNoteModal({
                       ariaRequired={fieldProps['aria-required']}
                       dataField={fieldProps['data-field']}
                       id={fieldProps.id}
-                      options={[
-                        { value: 'event', label: 'Note/Event' },
-                        { value: 'decision', label: 'Decision' },
-                        { value: 'followup', label: 'Follow-up' },
-                        { value: 'incident', label: 'Incident' },
-                        { value: 'knowledge', label: 'Knowledge' },
-                      ]}
+                      options={canonicalTypeOptions}
                       required={fieldProps.required}
                       value={field.value}
                       onBlur={field.onBlur}

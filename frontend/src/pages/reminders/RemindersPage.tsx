@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { formatUsDate } from '../../entities/format';
+import { formatDisplayToken, formatUsDate } from '../../entities/format';
 import { fetchReminders } from '../../shared/api/client';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
@@ -11,6 +11,11 @@ import { PageHead, Panel } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { ReminderRow } from '../../widgets/reminders/ReminderRow';
+
+const reminderStatusOptions = ['', 'pending', 'overdue', 'sent', 'resolved', 'archived'].map((value) => ({
+  value,
+  label: value ? formatDisplayToken(value) : 'All statuses',
+}));
 
 function reminderTimestamp(reminder: Reminder) {
   const direct = Date.parse(reminder.reminderAt || '');
@@ -88,14 +93,7 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
               ariaLabel="Filter by status"
               className="page-head-select"
               id="reminders-page-status-select"
-              options={[
-                { value: '', label: 'All statuses' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'overdue', label: 'Overdue' },
-                { value: 'sent', label: 'Sent' },
-                { value: 'resolved', label: 'Resolved' },
-                { value: 'archived', label: 'Archived' },
-              ]}
+              options={reminderStatusOptions}
               value={status}
               onChange={setStatus}
             />

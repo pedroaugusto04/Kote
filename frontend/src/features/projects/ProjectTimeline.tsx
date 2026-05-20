@@ -1,27 +1,15 @@
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
-import type { ProjectTimelineCategory, ProjectTimelineItem } from '../../shared/api/models/project-timeline';
+import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
-import { formatUsDateTime, noteTypeLabel, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDateTime, noteTypeLabel, projectName } from '../../entities/format';
 import { Badge, EmptyState } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 
-const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'github-push', label: 'GitHub' },
-  { value: 'manual', label: 'Manual' },
-  { value: 'reminder', label: 'Reminder' },
-  { value: 'decision', label: 'Decision' },
-];
-
-const categoryLabels: Record<ProjectTimelineItem['category'], string> = {
-  whatsapp: 'WhatsApp',
-  'github-push': 'GitHub',
-  manual: 'Manual',
-  reminder: 'Reminder',
-  decision: 'Decision',
-};
+const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
+  value,
+  label: formatDisplayToken(value),
+}));
 
 function PencilIcon() {
   return (
@@ -85,7 +73,7 @@ export function ProjectTimeline({
               <div className="project-timeline-marker" aria-hidden="true" />
               <div className="project-timeline-card">
                 <div className="project-timeline-meta">
-                  <Badge value={categoryLabels[item.category]} tone={item.category} />
+                  <Badge value={formatDisplayToken(item.category)} tone={item.category} />
                   <Badge value={noteTypeLabel(item.type)} tone={item.type} />
                   <Badge value={item.status} tone={item.status} />
                   <span className="meta">{formatUsDateTime(item.date)}</span>
