@@ -27,7 +27,7 @@ test('builds dashboard home metrics and keeps dashboard arrays independent', () 
     { ...baseNote, id: 'review-note-1', path: '30 Reviews/review.md', title: 'Review ativa', summary: 'Review ativa', type: 'knowledge' },
     { ...baseNote, id: 'review-note-2', path: '30 Reviews/review-resolved.md', title: 'Review resolvida', summary: 'Review resolvida', type: 'knowledge', status: 'resolved' },
     { ...baseNote, id: 'review-note-3', path: '30 Reviews/review-archived.md', title: 'Review arquivada', summary: 'Review arquivada', type: 'knowledge', status: 'archived' },
-    { ...baseNote, id: 'incident-1', path: '20 Inbox/incident.md', type: 'incident', title: 'Incidente aberto', summary: 'Investigar incidente.' },
+    { ...baseNote, id: 'incident-1', path: '20 Inbox/incident.md', type: 'incident', title: 'Incidente aberto', summary: 'Investigar incidente.', source: 'manual-api' },
     { ...baseNote, id: 'followup-1', path: '20 Inbox/followup.md', type: 'followup', title: 'Follow-up aberto', date: '2026-04-26' },
     { ...baseNote, id: 'decision-1', path: '20 Inbox/decision.md', type: 'decision', title: 'Decisao recente', project: 'beta', date: '2026-04-25' },
     { ...baseNote, id: 'event-1', path: '20 Inbox/event.md', type: 'event', title: 'Evento recente', project: 'beta', date: '2026-04-24' },
@@ -142,6 +142,17 @@ test('builds dashboard home metrics and keeps dashboard arrays independent', () 
     'note:followup-1',
   ]);
   assert.deepEqual(home.recentInterestingEvents.map((event) => event.id), ['incident-1', 'decision-1', 'followup-1', 'event-1']);
+  assert.deepEqual(home.recentInterestingEvents.find((event) => event.id === 'incident-1'), {
+    id: 'incident-1',
+    category: 'manual',
+    type: 'incident',
+    title: 'Incidente aberto',
+    project: 'alpha',
+    date: '2026-04-27',
+    summary: 'Investigar incidente.',
+    status: 'active',
+    target: { kind: 'note', id: 'incident-1', path: '20 Inbox/incident.md' },
+  });
 });
 
 test('dashboard home normalizes reminder statuses with the same model used by reminders page', async (t) => {

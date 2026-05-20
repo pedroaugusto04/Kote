@@ -42,6 +42,7 @@ export type HomePriority = {
 
 export type HomeInterestingEvent = {
   id: string;
+  category: string;
   type: string;
   title: string;
   project: string;

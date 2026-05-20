@@ -459,6 +459,9 @@ p { color: var(--muted); line-height: 1.6; }
   border-radius: 8px;
   background: var(--surface-3);
 }
+.kanban-column-blocked-drop {
+  border-style: dashed;
+}
 .kanban-column-header {
   display: flex;
   align-items: center;

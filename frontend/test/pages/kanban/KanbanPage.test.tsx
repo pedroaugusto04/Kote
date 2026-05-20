@@ -1,10 +1,25 @@
 import '@testing-library/jest-dom/vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { KanbanPage } from '../../../src/pages/kanban/KanbanPage';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
+
+const notificationSpies = vi.hoisted(() => ({
+  notifyError: vi.fn(),
+  notifySuccess: vi.fn(),
+  notifyInfo: vi.fn(),
+  notifyWarning: vi.fn(),
+}));
+
+vi.mock('../../../src/shared/ui/notifications', async () => {
+  const actual = await vi.importActual<typeof import('../../../src/shared/ui/notifications')>('../../../src/shared/ui/notifications');
+  return {
+    ...actual,
+    ...notificationSpies,
+  };
+});
 
 const dashboard: Dashboard = {
   workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
@@ -37,7 +52,9 @@ const dashboard: Dashboard = {
 };
 
 afterEach(() => {
+  cleanup();
   vi.restoreAllMocks();
+  Object.values(notificationSpies).forEach((spy) => spy.mockReset());
 });
 
 describe('KanbanPage', () => {
@@ -94,6 +111,35 @@ describe('KanbanPage', () => {
         body: JSON.stringify({ status: 'resolved' }),
       }));
     });
+  });
+
+  it('blocks drops into the derived overdue column and shows a warning', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValue(boardResponse('Future deploy'));
+
+    renderWithAppProviders(
+      <KanbanPage
+        dashboard={dashboard}
+        selectedProject=""
+        selectedNoteId=""
+        setSelectedProject={() => undefined}
+        openProject={() => undefined}
+        openNote={() => undefined}
+        editNote={() => undefined}
+        deleteNote={() => undefined}
+      />,
+    );
+
+    const card = await screen.findByText('Already sent');
+    fireEvent.dragStart(card.closest('.kanban-card') as HTMLElement, {
+      dataTransfer: dataTransferStub(),
+    });
+    fireEvent.drop(screen.getByLabelText('Overdue'), {
+      dataTransfer: dataTransferStub(),
+    });
+
+    expect(notificationSpies.notifyWarning).toHaveBeenCalledWith('Reminders cannot be manually set to overdue.');
+    expect(fetchSpy).not.toHaveBeenCalledWith('/api/reminders/r2/status', expect.anything());
   });
 });
 

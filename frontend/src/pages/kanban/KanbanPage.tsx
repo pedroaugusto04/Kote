@@ -6,17 +6,12 @@ import { formatUsDate, projectName } from '../../entities/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
 import type { ReminderBoardCard, ReminderBoardColumnKey } from '../../shared/api/models/reminder';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
+import { notifyWarning } from '../../shared/ui/notifications';
 import { Badge, PageHead } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
+import { kanbanBoardColumns, type ReminderBoardTargetStatus } from './kanban-board.columns';
 
 const BOARD_LIMIT = 50;
-
-const columns: Array<{ key: ReminderBoardColumnKey; title: string; empty: string; targetStatus: 'pending' | 'overdue' | 'resolved' | 'archived' }> = [
-  { key: 'overdue', title: 'Overdue', empty: 'No overdue reminders.', targetStatus: 'overdue' },
-  { key: 'upcoming', title: 'Upcoming', empty: 'No upcoming reminders.', targetStatus: 'pending' },
-  { key: 'resolved', title: 'Resolved', empty: 'No resolved reminders.', targetStatus: 'resolved' },
-  { key: 'archived', title: 'Archived', empty: 'No archived reminders.', targetStatus: 'archived' },
-];
 
 export function KanbanPage({ dashboard, openNote }: PageContext) {
   const queryClient = useQueryClient();
@@ -36,7 +31,7 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: 'pending' | 'overdue' | 'resolved' | 'archived' }) => updateReminderStatus(id, status),
+    mutationFn: ({ id, status }: { id: string; status: ReminderBoardTargetStatus }) => updateReminderStatus(id, status),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['reminder-board'] }),
@@ -51,9 +46,13 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
 
   function handleDrop(columnKey: ReminderBoardColumnKey) {
     if (!draggedId) return;
-    const column = columns.find((item) => item.key === columnKey);
+    const column = kanbanBoardColumns.find((item) => item.key === columnKey);
     setDraggedId('');
     if (!column) return;
+    if (!column.targetStatus) {
+      if (column.blockedDropMessage) notifyWarning(column.blockedDropMessage);
+      return;
+    }
     statusMutation.mutate({ id: draggedId, status: column.targetStatus });
   }
 
@@ -77,13 +76,14 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
         subtitle=""
       />
       <div className="kanban-board" aria-busy={boardQuery.isFetching || statusMutation.isPending}>
-        {columns.map((column) => {
+        {kanbanBoardColumns.map((column) => {
           const data = board?.[column.key] || { items: [], total: 0 };
           const hiddenCount = Math.max(0, data.total - data.items.length);
           return (
             <section
               aria-label={column.title}
-              className="kanban-column"
+              aria-disabled={!column.targetStatus}
+              className={`kanban-column${column.targetStatus ? '' : ' kanban-column-blocked-drop'}`}
               key={column.key}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {

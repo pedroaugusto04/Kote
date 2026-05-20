@@ -89,6 +89,7 @@ const dashboard: Dashboard = {
     recentInterestingEvents: [
       {
         id: 'note-1',
+        category: 'manual',
         type: 'incident',
         title: 'Falha no deploy',
         project: 'n8n-automations',
@@ -137,6 +138,10 @@ describe('HomePage', () => {
     expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
     expect(screen.getByText('Recent changes')).toBeInTheDocument();
     expect(screen.getByText('Prioridade 1')).toBeInTheDocument();
+    const eventsPanel = screen.getByRole('heading', { name: 'Relevant recent events' }).closest('.home-panel-events') as HTMLElement;
+    expect(eventsPanel).toHaveTextContent('manual');
+    expect(eventsPanel).toHaveTextContent('incident');
+    expect(eventsPanel).toHaveTextContent('active');
     expect(screen.getAllByText('pending').length).toBeGreaterThan(0);
     expect(screen.getByText('high')).toBeInTheDocument();
     expect(screen.getAllByText(/N8N Automations \/ 04\/27\/2026 09:30/i).length).toBeGreaterThan(0);

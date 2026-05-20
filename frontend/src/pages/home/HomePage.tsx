@@ -160,7 +160,9 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
                   <article className="list-row clickable" key={event.id} onClick={() => openTarget(event.target)}>
                     <div className="list-row-body">
                       <div className="meta-row">
+                        <Badge value={event.category} tone={event.category} />
                         <Badge value={event.type} tone={event.type} />
+                        <Badge value={event.status} tone={event.status} />
                         <span className="meta">
                           {projectName(dashboard.projects, event.project)} / {formatUsDate(event.date)}
                         </span>

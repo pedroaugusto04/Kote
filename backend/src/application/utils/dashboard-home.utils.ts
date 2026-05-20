@@ -83,6 +83,14 @@ function sortPriorities(left: HomePriority & { rank?: number; timestamp?: number
   return (left.rank || 0) - (right.rank || 0) || (left.timestamp || 0) - (right.timestamp || 0) || left.title.localeCompare(right.title);
 }
 
+function homeEventCategory(note: VaultNoteSummary) {
+  const source = String(note.source || '').toLowerCase();
+  if (note.type === CanonicalType.Decision) return 'decision';
+  if (source.includes('github')) return 'github-push';
+  if (source.includes('whatsapp')) return 'whatsapp';
+  return 'manual';
+}
+
 export function buildDashboardHome(
   projects: Project[],
   notes: VaultNoteSummary[],
@@ -169,6 +177,7 @@ export function buildDashboardHome(
     .slice(0, 5)
     .map((note) => ({
       id: note.id,
+      category: homeEventCategory(note),
       type: note.type,
       title: note.title,
       project: note.project,
