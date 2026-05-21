@@ -42,7 +42,7 @@ class StubConversationAgentGateway {
     const message = String(payload.messageText || '').trim().toLowerCase();
     if (message === 'corrigi timeout no webhook') {
       return {
-        replyText: 'Confirm note saving.',
+        replyText: 'Ready to save.',
         resolvedDraft: {
           rawText: 'corrigi timeout no webhook',
           title: '',
@@ -56,7 +56,6 @@ class StubConversationAgentGateway {
         selectedProjectSlug: 'n8n-automations',
         selectedFolderId: '',
         suggestedFolderPath: ['Webhooks', 'Operacao'],
-        pendingApproval: 'final_confirmation',
         confidence: 'high',
         action: 'confirm',
       };
@@ -76,7 +75,6 @@ class StubConversationAgentGateway {
       selectedProjectSlug: '',
       selectedFolderId: '',
       suggestedFolderPath: [],
-      pendingApproval: 'none',
       confidence: 'low',
       action: 'ask',
     };
@@ -239,18 +237,17 @@ test('linked whatsapp chat processes free text and sends the first conversation 
 
   assert.equal(result.ok, true);
   assert.equal(result.processed, true);
-  assert.equal(result.action, 'confirm');
-  assert.match(result.message, /Confirm note saving/);
-  assert.match(result.message, /new, will be created when saved/);
+  assert.equal(result.action, 'submit');
+  assert.equal(result.message, 'Note saved successfully.');
   assert.equal(result.replySent, true);
-  assert.match(result.conversationResult.replyText, /Confirm note saving/);
+  assert.equal(result.conversationResult.replyText, 'Note saved successfully.');
   assert.equal(result.replyText, undefined);
   assert.equal(result.text, undefined);
   assert.equal(result.reply, undefined);
   assert.equal(result.confirmText, undefined);
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].chatJid, '120363@g.us');
-  assert.match(sender.sent[0].text, /Confirm note saving/);
+  assert.equal(sender.sent[0].text, 'Note saved successfully.');
 });
 
 test('linked whatsapp private chat processes free text and replies to the private jid', async (t) => {
@@ -269,7 +266,7 @@ test('linked whatsapp private chat processes free text and replies to the privat
   assert.equal(result.replySent, true);
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].chatJid, privateJid);
-  assert.match(sender.sent[0].text, /Confirm note saving/);
+  assert.equal(sender.sent[0].text, 'Note saved successfully.');
 });
 
 test('linked whatsapp private chats keep users and workspaces isolated', async (t) => {
@@ -291,33 +288,19 @@ test('linked whatsapp private chats keep users and workspaces isolated', async (
       message: { conversation: 'corrigi timeout no webhook' },
     },
   }));
-  await whatsapp.execute(evolutionInput('sim', {
-    data: {
-      key: { remoteJid: privateJidA, id: 'private-a-confirm', fromMe: false },
-      message: { conversation: 'sim' },
-    },
-  }));
-  await whatsapp.execute(evolutionInput('sim', {
-    data: {
-      key: { remoteJid: privateJidB, id: 'private-b-confirm', fromMe: false },
-      message: { conversation: 'sim' },
-    },
-  }));
-
   const ownerNotes = await repositories.contentRepository.listNotes(user.id);
   const otherNotes = await repositories.contentRepository.listNotes(otherUser.id);
   assert.equal(ownerNotes.length, 1);
   assert.equal(ownerNotes[0].workspaceSlug, 'default');
   assert.equal(otherNotes.length, 1);
   assert.equal(otherNotes[0].workspaceSlug, 'default');
-  assert.deepEqual(sender.sent.map((item) => item.chatJid), [privateJidA, privateJidB, privateJidA, privateJidB]);
+  assert.deepEqual(sender.sent.map((item) => item.chatJid), [privateJidA, privateJidB]);
 });
 
-test('linked whatsapp chat completes conversation and saves note on confirmation', async (t) => {
+test('linked whatsapp chat saves note without explicit confirmation', async (t) => {
   const { repositories, whatsapp, user } = await fixture(t);
 
-  await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
-  const result = await whatsapp.execute(evolutionInput('sim'));
+  const result = await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
 
   assert.equal(result.action, 'submit');
   assert.equal(result.message, 'Note saved successfully.');
@@ -418,10 +401,10 @@ test('whatsapp conversation task queue serializes work for the same conversation
   assert.deepEqual(events, ['first:start', 'first:end', 'second:start']);
 });
 
-test('linked whatsapp chat saves captioned media as a Supabase-backed attachment after confirmation', async (t) => {
+test('linked whatsapp chat saves captioned media as a Supabase-backed attachment immediately', async (t) => {
   const { repositories, whatsapp, user } = await fixture(t);
 
-  await whatsapp.execute(evolutionInput('', {
+  const result = await whatsapp.execute(evolutionInput('', {
     data: {
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'media-caption', fromMe: false },
       message: {
@@ -435,7 +418,6 @@ test('linked whatsapp chat saves captioned media as a Supabase-backed attachment
       dataBase64: Buffer.from('hello image').toString('base64'),
     },
   }));
-  const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.action, 'submit');
   assert.equal(result.ingestResult.attachmentIds.length, 1);
@@ -451,7 +433,7 @@ test('linked whatsapp chat saves captioned media as a Supabase-backed attachment
 test('linked whatsapp chat normalizes attachment storage keys for accented filenames', async (t) => {
   const { repositories, whatsapp, user } = await fixture(t);
 
-  await whatsapp.execute(evolutionInput('', {
+  const result = await whatsapp.execute(evolutionInput('', {
     data: {
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'media-accented-name', fromMe: false },
       message: {
@@ -465,7 +447,6 @@ test('linked whatsapp chat normalizes attachment storage keys for accented filen
       dataBase64: Buffer.from('hello pdf').toString('base64'),
     },
   }));
-  const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(result.action, 'submit');
   assert.equal(result.ingestResult.attachmentIds.length, 1);
@@ -484,7 +465,7 @@ test('direct whatsapp webhook downloads media when Evolution payload has metadat
   const downloader = new StubWhatsappMediaDownloader(Buffer.from('downloaded image').toString('base64'));
   const { repositories, whatsapp, user } = await fixture(t, new CapturingWhatsappSender(), downloader);
 
-  await whatsapp.execute(evolutionInput('', {
+  const result = await whatsapp.execute(evolutionInput('', {
     data: {
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'media-download', fromMe: false },
       message: {
@@ -497,7 +478,6 @@ test('direct whatsapp webhook downloads media when Evolution payload has metadat
       },
     },
   }));
-  const result = await whatsapp.execute(evolutionInput('sim'));
 
   assert.equal(downloader.calls.length, 1);
   assert.equal(result.action, 'submit');
@@ -566,7 +546,7 @@ test('whatsapp webhook processes self-authored messages without bot prefix', asy
   assert.equal(result.processed, true);
   assert.equal(result.replySent, true);
   assert.equal(sender.sent.length, 1);
-  assert.match(sender.sent[0].text, /Confirm note saving/);
+  assert.equal(sender.sent[0].text, 'Note saved successfully.');
 });
 
 test('unknown whatsapp chat is still rejected', async (t) => {
@@ -583,12 +563,11 @@ test('unknown whatsapp chat is still rejected', async (t) => {
   );
 });
 
-test('evolution send failure returns replySent false after confirmation without duplicating note', async (t) => {
+test('evolution send failure returns replySent false after saving without duplicating note', async (t) => {
   const sender = new CapturingWhatsappSender(false);
   const { repositories, whatsapp, user } = await fixture(t, sender);
 
-  await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
-  const result = await whatsapp.execute(evolutionInput('sim'));
+  const result = await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
 
   assert.equal(result.conversationResult.action, 'submit');
   assert.equal(result.replySent, false);
@@ -607,7 +586,7 @@ test('whatsapp media without caption asks for text and does not save attachment'
   }));
 
   assert.equal(result.replySent, true);
-  assert.match(result.message, /Tell me what it is and which project I should save it to/);
+  assert.match(result.message, /Send the context so I can organize and save it/);
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
   assert.equal(await repositories.countConversationStates(), 1);
   assert.equal(sender.sent.length, 1);

@@ -2,7 +2,6 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 
 import {
   agentConversationStateSchema,
-  type AgentConversationApprovalIntent,
   type AgentConversationState,
 } from '../../../contracts/agent-conversation.js';
 import { type ConversationInput } from '../../../contracts/conversation.js';
@@ -27,7 +26,6 @@ import {
   buildNextAgentConversationState,
   emptyAgentConversationState as EMPTY_AGENT_CONVERSATION_STATE,
   mediaFromInput as mediaFromConversationInput,
-  parseApprovalIntent,
   resolveSelectedProjectSlug as resolveAgentSelectedProjectSlug,
   sanitizeExistingProjectSlug as sanitizeExistingAgentProjectSlug,
   serializeFolderTreeNode as serializeAgentFolderTreeNode,
@@ -40,7 +38,6 @@ type AgentConversationResult = {
   ingestResult?: Awaited<ReturnType<IngestEntryUseCase['execute']>>;
   agent: {
     mode: 'agent';
-    pendingApproval: AgentConversationState['pendingApproval'];
     selectedProjectSlug: string;
     selectedFolderId: string;
     suggestedFolderPath: string[];
@@ -85,7 +82,6 @@ export class ProcessAgentConversationUseCase {
       messageId: input.messageId,
       messageLength: messageText.length,
       hasMedia: input.hasMedia,
-      pendingApproval: state.pendingApproval,
     });
 
     if (!messageText && !input.hasMedia) {
@@ -106,12 +102,6 @@ export class ProcessAgentConversationUseCase {
     if (isCancel(messageText)) {
       await this.conversationStates.clear(userId, normalizedWorkspaceSlug, key);
       return this.reply('cancel', this.presenter.captureCanceled(), null, EMPTY_AGENT_CONVERSATION_STATE);
-    }
-    if (this.isApprovalWithoutPendingState(messageText, state)) {
-      return this.reply('ask', this.presenter.noPendingConfirmation(), null, state);
-    }
-    if (state.pendingApproval === 'final_confirmation') {
-      return this.handleFinalConfirmation(input, userId, normalizedWorkspaceSlug, key, state);
     }
 
     return this.processNewTurn(input, userId, normalizedWorkspaceSlug, key, state);
@@ -157,8 +147,6 @@ export class ProcessAgentConversationUseCase {
       workspaceSlug,
       conversationKey: key,
       action: decision.action,
-      approvalIntent: decision.approvalIntent,
-      pendingApproval: nextState.pendingApproval,
       selectedProjectSlug: nextState.project.selectedProjectSlug,
       selectedFolderId: nextState.folder.selectedFolderId,
       suggestedFolderPath: nextState.folder.suggestedFolderPath,
@@ -169,21 +157,8 @@ export class ProcessAgentConversationUseCase {
     if (!nextState.draft.rawText) {
       return this.reply('ask', this.presenter.couldNotUnderstand(), null, nextState);
     }
-    if (!nextState.project.selectedProjectSlug) {
-      return this.reply('ask', this.presenter.projectPrompt(decision.replyText, projects), null, nextState);
-    }
-    if (nextState.pendingApproval === 'final_confirmation') {
-      const finalConfirmation = this.presenter.finalConfirmationPrompt(nextState, {
-        willCreateProject: this.shouldCreateProject(nextState.project.selectedProjectSlug, projects),
-      });
-      const finalState = {
-        ...nextState,
-        lastQuestion: finalConfirmation,
-        lastAgentAction: 'confirm' as const,
-        updatedAt: nowIso(),
-      };
-      await this.conversationStates.upsert(userId, workspaceSlug, key, finalState);
-      return this.reply('confirm', finalConfirmation, null, finalState);
+    if (decision.action !== 'cancel') {
+      return this.submitState(input, userId, workspaceSlug, key, nextState);
     }
 
     return this.reply('ask', decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
@@ -217,12 +192,6 @@ export class ProcessAgentConversationUseCase {
     const updatedAt = Date.parse(state.updatedAt || recordUpdatedAt || '');
     if (!Number.isFinite(updatedAt)) return false;
     return Date.now() - updatedAt > AGENT_CONVERSATION_STATE_TTL_MS;
-  }
-
-  private isApprovalWithoutPendingState(messageText: string, state: AgentConversationState) {
-    if (state.pendingApproval !== 'none' || state.draft.rawText) return false;
-    const intent = parseApprovalIntent(messageText);
-    return intent === 'approve' || intent === 'reject';
   }
 
   private isEmptyAgentDraftAsk(decision: ConversationAgentResponse) {
@@ -274,8 +243,6 @@ export class ProcessAgentConversationUseCase {
         userId,
         workspaceSlug,
         action: decision.action,
-        approvalIntent: decision.approvalIntent,
-        pendingApproval: decision.pendingApproval,
         selectedProjectSlug: decision.selectedProjectSlug,
         selectedFolderId: decision.selectedFolderId,
         suggestedFolderPath: decision.suggestedFolderPath,
@@ -288,7 +255,6 @@ export class ProcessAgentConversationUseCase {
       this.logger?.error('conversation.agent.decision_failed', {
         userId,
         workspaceSlug,
-        pendingApproval: state.pendingApproval,
         messageId: input.messageId,
         ...serializeErrorForLog(error),
       });
@@ -296,40 +262,13 @@ export class ProcessAgentConversationUseCase {
     }
   }
 
-  private async handleFinalConfirmation(
+  private async submitState(
     input: ConversationInput,
     userId: string,
     workspaceSlug: string,
     key: string,
     state: AgentConversationState,
   ): Promise<AgentConversationResult> {
-    const approval = await this.resolveApprovalTurn(input, userId, workspaceSlug, state);
-    const intent = approval.intent;
-    this.logger?.info('conversation.agent.approval', {
-      userId,
-      workspaceSlug,
-      conversationKey: key,
-      pendingApproval: state.pendingApproval,
-      approvalIntent: intent,
-    });
-    if (intent === 'reject' || intent === 'cancel') {
-      await this.conversationStates.clear(userId, workspaceSlug, key);
-      return this.reply('cancel', this.presenter.noteDiscarded(), null, EMPTY_AGENT_CONVERSATION_STATE);
-    }
-    if (intent !== 'approve') {
-      if (approval.turn && !this.shouldReplacePendingConfirmation(approval.turn.decision)) {
-        return this.applyPendingConfirmationEdit(input, userId, workspaceSlug, key, state, approval.turn);
-      }
-      await this.conversationStates.clear(userId, workspaceSlug, key);
-      this.logger?.info('conversation.agent.pending_replaced', {
-        userId,
-        workspaceSlug,
-        conversationKey: key,
-        messageId: input.messageId,
-      });
-      return this.processNewTurn(input, userId, workspaceSlug, key, EMPTY_AGENT_CONVERSATION_STATE);
-    }
-
     await this.ensureProjectExistsForSubmission(userId, workspaceSlug, state.project.selectedProjectSlug);
     const folderId = await this.folderResolutionService.resolveFolderIdForSubmission(userId, state);
     const payload = buildAgentPayload(input, state, this.environmentProvider.read().reminderTimeZone);
@@ -351,71 +290,12 @@ export class ProcessAgentConversationUseCase {
       EMPTY_AGENT_CONVERSATION_STATE,
       ingestResult,
       {
-        pendingApproval: 'none',
         selectedProjectSlug: state.project.selectedProjectSlug,
         selectedFolderId: folderId,
         suggestedFolderPath: state.folder.suggestedFolderPath,
         confidence: state.confidence,
       },
     );
-  }
-
-  private async applyPendingConfirmationEdit(
-    input: ConversationInput,
-    userId: string,
-    workspaceSlug: string,
-    key: string,
-    state: AgentConversationState,
-    turn: AgentDecisionTurn,
-  ): Promise<AgentConversationResult> {
-    const messageText = String(input.messageText || '').trim();
-    const environment = this.environmentProvider.read();
-    const selectedProjectSlug = resolveAgentSelectedProjectSlug(turn.decision.selectedProjectSlug, state, turn.projects);
-    const foldersForDecision = selectedProjectSlug && selectedProjectSlug !== 'inbox'
-      ? selectedProjectSlug === turn.candidateProjectSlug
-        ? turn.candidateFolders
-        : await this.contentRepository.listProjectFolders(userId, selectedProjectSlug)
-      : [];
-    const nextState = buildNextAgentConversationState({
-      current: state,
-      messageText,
-      media: mediaFromConversationInput(input, state),
-      decision: turn.decision,
-      projects: turn.projects,
-      candidateFolders: foldersForDecision,
-      reminderTimeZone: environment.reminderTimeZone,
-    });
-    await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
-    if (!nextState.draft.rawText) {
-      return this.reply('ask', this.presenter.couldNotUnderstand(), null, nextState);
-    }
-    if (!nextState.project.selectedProjectSlug) {
-      return this.reply('ask', this.presenter.projectPrompt(turn.decision.replyText, turn.projects), null, nextState);
-    }
-    if (nextState.pendingApproval === 'final_confirmation') {
-      const finalConfirmation = this.presenter.finalConfirmationPrompt(nextState, {
-        willCreateProject: this.shouldCreateProject(nextState.project.selectedProjectSlug, turn.projects),
-      });
-      const finalState = {
-        ...nextState,
-        lastQuestion: finalConfirmation,
-        lastAgentAction: 'confirm' as const,
-        updatedAt: nowIso(),
-      };
-      await this.conversationStates.upsert(userId, workspaceSlug, key, finalState);
-      return this.reply('confirm', finalConfirmation, null, finalState);
-    }
-    return this.reply('ask', turn.decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
-  }
-
-  private shouldReplacePendingConfirmation(decision: ConversationAgentResponse) {
-    return decision.turnIntent === 'new_capture' || decision.turnIntent === 'unrelated';
-  }
-
-  private shouldCreateProject(projectSlug: string, projects: ProjectRecord[]) {
-    const normalized = slugify(projectSlug);
-    if (!normalized || normalized === 'inbox') return false;
-    return !projects.some((project) => project.projectSlug === normalized);
   }
 
   private async ensureProjectExistsForSubmission(userId: string, workspaceSlug: string, projectSlug: string) {
@@ -435,33 +315,6 @@ export class ProcessAgentConversationUseCase {
     });
   }
 
-  private async resolveApprovalTurn(
-    input: ConversationInput,
-    userId: string,
-    workspaceSlug: string,
-    state: AgentConversationState,
-  ): Promise<{
-    intent: AgentConversationApprovalIntent;
-    turn?: AgentDecisionTurn;
-  }> {
-    try {
-      const turn = await this.requestAgentDecision(input, userId, workspaceSlug, state);
-      const decision = turn.decision;
-      if (decision.approvalIntent && decision.approvalIntent !== 'none') return { intent: decision.approvalIntent, turn };
-      if (decision.action === 'cancel') return { intent: 'cancel', turn };
-      if (state.pendingApproval === 'final_confirmation' && decision.action === 'submit') return { intent: 'approve', turn };
-      return { intent: parseApprovalIntent(input.messageText), turn };
-    } catch (error) {
-      this.logger?.warn('conversation.agent.approval_fallback', {
-        userId,
-        workspaceSlug,
-        pendingApproval: state.pendingApproval,
-        ...serializeErrorForLog(error),
-      });
-    }
-    return { intent: parseApprovalIntent(input.messageText) };
-  }
-
   private reply(
     action: AgentConversationResult['action'],
     replyText: string,
@@ -477,7 +330,6 @@ export class ProcessAgentConversationUseCase {
       ingestResult,
       agent: {
         mode: 'agent',
-        pendingApproval: overrides?.pendingApproval || state.pendingApproval,
         selectedProjectSlug: overrides?.selectedProjectSlug || state.project.selectedProjectSlug,
         selectedFolderId: overrides?.selectedFolderId || state.folder.selectedFolderId,
         suggestedFolderPath: overrides?.suggestedFolderPath || state.folder.suggestedFolderPath,

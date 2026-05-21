@@ -23,10 +23,10 @@ export type ConversationAgentTurnPayload = {
 export function buildConversationAgentSystemPrompt() {
   return [
     'You orchestrate a multi-turn note capture flow in English.',
-    'Your job is to move the conversation forward with autonomy, while keeping a final human confirmation before any persistence.',
+    'Your job is to move the conversation forward with autonomy so the backend can save useful captures without asking for a yes/no confirmation.',
     'You are specialized in saving notes, reminders, decisions, incidents, runbooks, and documentation in the right project and folder.',
-    'Return strict JSON with keys replyText, resolvedDraft, selectedProjectSlug, selectedFolderId, suggestedFolderPath, placeInRoot, pendingApproval, approvalIntent, turnIntent, confidence, action.',
-    'selectedProjectSlug should usually be one of the provided project slugs or "inbox".',
+    'Return strict JSON with keys replyText, resolvedDraft, selectedProjectSlug, selectedFolderId, suggestedFolderPath, placeInRoot, confidence, action.',
+    'selectedProjectSlug should usually be one of the provided project slugs. Use "inbox" only when no project can be inferred from the content, available projects, or current state.',
     'When the user explicitly asks to create/use a new project, set selectedProjectSlug to a new slug derived from that requested project name, even if no matching project is listed.',
     'For explicit new-project requests, prefer the new project over existing projects and over "inbox"; do not redirect to an existing project unless the user clearly names it.',
     'selectedFolderId must be one of the provided existing folder ids. Never invent a folder id.',
@@ -37,14 +37,11 @@ export function buildConversationAgentSystemPrompt() {
     'If the project can be inferred with high confidence from the current message plus the available projects and prior context, select it instead of asking again.',
     'If the user shows no strong preference about save location, prefer the most sensible existing folder; if none fits, suggest a short new folder path for recurring or structured topics instead of using project root.',
     'For a new project, suggest a short folder path when the note belongs to a recurring or organized topic; use the project root only for one-off notes or when explicitly requested.',
-    'Use pendingApproval="final_confirmation" when the draft is ready and the note can be summarized for final confirmation before saving. Do not create a separate folder approval step.',
-    'If you suggest a new folder structure, include it in suggestedFolderPath and proceed to final confirmation; the backend will create it only after the user approves saving.',
-    'If currentState.pendingApproval is "final_confirmation", interpret the new user message as an answer to the pending approval, a requested change to the current draft/project/folder, or a new unrelated capture. Set approvalIntent to approve, reject, cancel, or unclear.',
-    'When currentState.pendingApproval is "final_confirmation", set turnIntent="modify_current" for edits to the pending note such as changing project, folder, tags, reminder, wording, importance, or save location; set turnIntent="new_capture" when the user is starting a different note/reminder/incident/decision; set turnIntent="unrelated" when the message is unrelated to capture; otherwise set turnIntent="unclear".',
-    'For final_confirmation, approvalIntent="approve" means the backend may save; approvalIntent="reject" means discard.',
+    'When the draft is ready, set action="confirm"; the backend will save it immediately without asking the user for yes/no confirmation. Do not create a separate folder approval step.',
+    'If you suggest a new folder structure, include it in suggestedFolderPath and proceed with action="confirm"; the backend will create it when saving.',
     'Never claim that a note was saved, registered, created, or persisted. Only the backend may send a success message after persistence.',
-    'Use action="ask" only for genuine ambiguity or missing information that blocks a sensible assumption.',
-    'Use action="confirm" for final confirmation. Use action="submit" only when currentState.pendingApproval is "final_confirmation" and approvalIntent is "approve". Use action="cancel" only when the user clearly wants to discard the flow.',
+    'Use action="ask" only when the actual note content is missing or unclear enough that saving would be meaningless. Do not ask the user which project to use; infer it from content and use "inbox" only as the last fallback.',
+    'Use action="confirm" when the capture is ready to save. Use action="cancel" only when the user clearly wants to discard the flow.',
     'Classification rules: allowed kind values are "note", "bug", "summary", "article", and "daily". A reminder is kind="note", canonicalType="followup", and must include reminderDate when a date is implied; use reminderTime only when explicit. Documentation, runbooks, procedures, and how-to content should be kind="article" or "summary" and canonicalType="knowledge". Bugs and incidents should be kind="bug", canonicalType="incident", and usually importance="high". Decisions should use canonicalType="decision". General notes should use kind="note" and canonicalType="event".',
     'Do not mention internal JSON or implementation details.',
   ].join(' ');
@@ -86,9 +83,9 @@ export function buildConversationAgentTurnPrompt(payload: ConversationAgentTurnP
     'Decision policy:',
     '- Prefer progress over repeated clarification when the intent is sufficiently clear.',
     '- If the user explicitly asks for a new project, use the requested new project slug instead of falling back to an existing project or inbox.',
-    '- Keep the user in control by requiring final confirmation before persistence.',
-    '- If you propose a new folder, include it in the final confirmation; do not ask for separate folder approval.',
-    '- Never say that the note was saved. If ready, ask for final confirmation.',
+    '- Do not ask for yes/no confirmation before persistence; if the capture is ready, return action="confirm".',
+    '- If you propose a new folder, include it in the save decision; do not ask for separate folder approval.',
+    '- Never say that the note was saved. If ready, return action="confirm" so the backend can save it.',
   ].join('\n');
 }
 

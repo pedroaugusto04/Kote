@@ -109,7 +109,6 @@ test('agent conversation contract normalizes null AI fields to safe defaults', (
     selectedProjectSlug: 'inbox',
     selectedFolderId: null,
     suggestedFolderPath: null,
-    pendingApproval: null,
     confidence: 'low',
     action: 'ask',
   });
@@ -117,8 +116,6 @@ test('agent conversation contract normalizes null AI fields to safe defaults', (
   assert.equal(parsed.selectedFolderId, '');
   assert.deepEqual(parsed.suggestedFolderPath, []);
   assert.equal(parsed.placeInRoot, false);
-  assert.equal(parsed.pendingApproval, 'none');
-  assert.equal(parsed.approvalIntent, 'none');
   assert.equal(parsed.resolvedDraft.title, '');
   assert.deepEqual(parsed.resolvedDraft.tags, []);
   assert.equal(parsed.resolvedDraft.reminderDate, '');
@@ -141,14 +138,10 @@ test('agent conversation contract normalizes blank enum AI fields to safe defaul
     selectedProjectSlug: 'inbox',
     selectedFolderId: '',
     suggestedFolderPath: [],
-    pendingApproval: '',
-    approvalIntent: '',
     confidence: 'low',
     action: '',
   });
 
-  assert.equal(parsed.pendingApproval, 'none');
-  assert.equal(parsed.approvalIntent, 'none');
   assert.equal(parsed.action, 'ask');
 });
 
@@ -168,7 +161,6 @@ test('agent conversation AI decision normalizer maps reminder kind to note', () 
     selectedProjectSlug: 'inbox',
     selectedFolderId: '',
     suggestedFolderPath: [],
-    pendingApproval: 'final_confirmation',
     confidence: 'high',
     action: 'confirm',
   }));
@@ -193,7 +185,6 @@ test('agent conversation AI decision normalizer maps dated event reminders to fo
     selectedProjectSlug: 'inbox',
     selectedFolderId: '',
     suggestedFolderPath: [],
-    pendingApproval: 'final_confirmation',
     confidence: 'high',
     action: 'confirm',
   }));
@@ -218,8 +209,6 @@ test('agent conversation AI decision normalizer lets unknown enum values fall to
     selectedProjectSlug: 'inbox',
     selectedFolderId: '',
     suggestedFolderPath: [],
-    pendingApproval: 'waiting',
-    approvalIntent: 'maybe',
     confidence: 'certain',
     action: 'save',
   }));
@@ -227,8 +216,6 @@ test('agent conversation AI decision normalizer lets unknown enum values fall to
   assert.equal(parsed.resolvedDraft.kind, 'note');
   assert.equal(parsed.resolvedDraft.canonicalType, 'event');
   assert.equal(parsed.resolvedDraft.importance, 'low');
-  assert.equal(parsed.pendingApproval, 'none');
-  assert.equal(parsed.approvalIntent, 'none');
   assert.equal(parsed.confidence, 'low');
   assert.equal(parsed.action, 'ask');
 });

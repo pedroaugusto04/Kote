@@ -1,7 +1,6 @@
 import {
   agentConversationDraftSchema,
   agentConversationStateSchema,
-  type AgentConversationApprovalIntent,
   type AgentConversationState,
 } from '../../../../contracts/agent-conversation.js';
 import type { ConversationInput } from '../../../../contracts/conversation.js';
@@ -10,7 +9,6 @@ import { slugify, trimText } from '../../../../domain/strings.js';
 import { normalizeDate, normalizeTime, nowIso } from '../../../../domain/time.js';
 import type { ProjectFolderRecord, ProjectRecord } from '../../../models/repository-records.models.js';
 import type { ConversationAgentFolderContext, ConversationAgentResponse } from '../../../ports/conversation-agent.gateway.js';
-import { isCancel, isConfirm, isReject } from '../../../utils/conversation-command.utils.js';
 import { buildConversationIngestPayload } from '../../../utils/conversation-payload.utils.js';
 import { buildProjectFolderTree, folderSlugFromDisplayName } from '../../../utils/project-folder.utils.js';
 
@@ -25,7 +23,7 @@ export function buildNextAgentConversationState(input: {
   candidateFolders: ProjectFolderRecord[];
   reminderTimeZone: string;
 }) {
-  const selectedProjectSlug = resolveSelectedProjectSlug(input.decision.selectedProjectSlug, input.current, input.projects);
+  const selectedProjectSlugFromDecision = resolveSelectedProjectSlug(input.decision.selectedProjectSlug, input.current, input.projects);
   const draft = agentConversationDraftSchema.parse({
     ...input.current.draft,
     ...input.decision.resolvedDraft,
@@ -34,6 +32,7 @@ export function buildNextAgentConversationState(input: {
     reminderTime: normalizeTime(input.decision.resolvedDraft.reminderTime || input.current.draft.reminderTime || ''),
     tags: [...new Set([...(input.current.draft.tags || []), ...(input.decision.resolvedDraft.tags || [])].map((tag) => slugify(tag)).filter(Boolean))],
   });
+  const selectedProjectSlug = selectedProjectSlugFromDecision || (draft.rawText ? 'inbox' : '');
   const folderResolution = resolveFolderSelection({
     selectedProjectSlug,
     selectedFolderId: resolveSelectedFolderId(input.decision, input.current, selectedProjectSlug),
@@ -41,8 +40,6 @@ export function buildNextAgentConversationState(input: {
     placeInRoot: input.decision.placeInRoot,
     folders: selectedProjectSlug && selectedProjectSlug !== 'inbox' ? input.candidateFolders : [],
   });
-  const readyForFinalConfirmation = Boolean(draft.rawText && selectedProjectSlug && input.decision.action !== 'ask');
-
   return agentConversationStateSchema.parse({
     draft,
     media: input.media,
@@ -52,11 +49,6 @@ export function buildNextAgentConversationState(input: {
       suggestedFolderPath: folderResolution.suggestedFolderPath,
       placeInRoot: folderResolution.placeInRoot,
     },
-    pendingApproval: !selectedProjectSlug
-      ? 'none'
-      : input.decision.pendingApproval === 'final_confirmation' || input.decision.action === 'submit' || readyForFinalConfirmation
-          ? 'final_confirmation'
-          : 'none',
     lastQuestion: input.decision.replyText || input.current.lastQuestion,
     lastUserMessage: input.messageText,
     lastAgentAction: input.decision.action,
@@ -92,13 +84,6 @@ export function resolveSelectedProjectSlug(value: string, current: AgentConversa
   if (selected) return selected;
   if (String(value || '').trim()) return '';
   return sanitizeProjectSlug(current.project.selectedProjectSlug);
-}
-
-export function parseApprovalIntent(value: string): AgentConversationApprovalIntent {
-  if (isCancel(value)) return 'cancel';
-  if (isConfirm(value)) return 'approve';
-  if (isReject(value)) return 'reject';
-  return 'unclear';
 }
 
 export function buildAgentConversationPayload(input: ConversationInput, state: AgentConversationState, reminderTimeZone: string) {

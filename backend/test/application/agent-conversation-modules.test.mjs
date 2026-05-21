@@ -7,7 +7,6 @@ import { ConversationFolderResolutionService } from '../../dist/application/use-
 import {
   buildNextAgentConversationState,
   emptyAgentConversationState,
-  parseApprovalIntent,
 } from '../../dist/application/use-cases/conversation/services/conversation-agent-state-machine.js';
 import {
   buildConversationAgentSystemPrompt,
@@ -40,7 +39,7 @@ test('conversation agent prompt prioritizes explicit new project requests', () =
   assert.match(turnPrompt, /use the requested new project slug instead of falling back to an existing project or inbox/);
 });
 
-test('conversation agent presenter formats final confirmation in English', () => {
+test('conversation agent presenter formats save summary in English', () => {
   const presenter = new ConversationAgentPresenter();
   const state = {
     ...emptyAgentConversationState,
@@ -58,12 +57,12 @@ test('conversation agent presenter formats final confirmation in English', () =>
 
   const message = presenter.finalConfirmationPrompt(state);
 
-  assert.match(message, /Confirm note saving/);
+  assert.match(message, /Note saving summary/);
   assert.match(message, /Runbooks \(new, will be created when saved\)/);
-  assert.match(message, /Reply "yes" to save or "no" to discard/);
+  assert.doesNotMatch(message, /Reply "yes" to save or "no" to discard/);
 });
 
-test('conversation agent presenter marks a new project in the final confirmation', () => {
+test('conversation agent presenter marks a new project in the save summary', () => {
   const presenter = new ConversationAgentPresenter();
   const state = {
     ...emptyAgentConversationState,
@@ -91,16 +90,16 @@ test('conversation agent presenter explains usage for messages that are not usef
 
   assert.match(message, /I could not identify something useful to save yet/);
   assert.match(message, /notes, decisions, bugs, reminders, summaries, links, or media/);
-  assert.match(message, /ask for confirmation before saving/);
+  assert.match(message, /infer the right project and folder/);
 });
 
-test('conversation agent state machine keeps valid project and prepares final confirmation', () => {
+test('conversation agent state machine keeps valid project and prepares submission state', () => {
   const next = buildNextAgentConversationState({
     current: emptyAgentConversationState,
     messageText: 'documented the API deploy checklist',
     media: emptyAgentConversationState.media,
     decision: {
-      replyText: 'Confirm note saving.',
+      replyText: 'Ready to save.',
       resolvedDraft: {
         rawText: 'Documented the API deploy checklist',
         title: '',
@@ -115,8 +114,6 @@ test('conversation agent state machine keeps valid project and prepares final co
       selectedFolderId: '',
       suggestedFolderPath: ['Runbooks', 'API'],
       placeInRoot: false,
-      pendingApproval: 'final_confirmation',
-      approvalIntent: 'none',
       confidence: 'high',
       action: 'confirm',
     },
@@ -125,19 +122,18 @@ test('conversation agent state machine keeps valid project and prepares final co
     reminderTimeZone: 'UTC',
   });
 
-  assert.equal(next.pendingApproval, 'final_confirmation');
   assert.equal(next.project.selectedProjectSlug, 'platform');
   assert.deepEqual(next.folder.suggestedFolderPath, ['Runbooks', 'API']);
   assert.deepEqual(next.draft.tags, ['deploy']);
 });
 
-test('conversation agent state machine preserves a new project slug for final confirmation', () => {
+test('conversation agent state machine preserves a new project slug for submission state', () => {
   const next = buildNextAgentConversationState({
     current: emptyAgentConversationState,
     messageText: 'anote no projeto x',
     media: emptyAgentConversationState.media,
     decision: {
-      replyText: 'Confirm note saving.',
+      replyText: 'Ready to save.',
       resolvedDraft: {
         rawText: 'Anote no projeto x',
         title: '',
@@ -152,8 +148,6 @@ test('conversation agent state machine preserves a new project slug for final co
       selectedFolderId: '',
       suggestedFolderPath: [],
       placeInRoot: true,
-      pendingApproval: 'final_confirmation',
-      approvalIntent: 'none',
       confidence: 'high',
       action: 'confirm',
     },
@@ -162,7 +156,6 @@ test('conversation agent state machine preserves a new project slug for final co
     reminderTimeZone: 'UTC',
   });
 
-  assert.equal(next.pendingApproval, 'final_confirmation');
   assert.equal(next.project.selectedProjectSlug, 'projeto-x');
 });
 
@@ -200,13 +193,6 @@ test('conversation folder resolution creates missing nested folders in order', a
   assert.deepEqual(folders.map((folder) => folder.fullSlugPath), ['runbooks', 'runbooks/api']);
 });
 
-test('conversation approval parser accepts English and legacy Portuguese commands', () => {
-  assert.equal(parseApprovalIntent('yes'), 'approve');
-  assert.equal(parseApprovalIntent('sim'), 'approve');
-  assert.equal(parseApprovalIntent('no'), 'reject');
-  assert.equal(parseApprovalIntent('cancel'), 'cancel');
-});
-
 test('process agent conversation auto-creates a missing project before submitting the note', async () => {
   const savedStates = new Map();
   const createdProjects = [];
@@ -221,6 +207,9 @@ test('process agent conversation auto-creates a missing project before submittin
     async upsertProject(_userId, input) {
       createdProjects.push(input);
       return input;
+    },
+    async listProjectFolders() {
+      return [];
     },
   };
   const conversationStates = {
@@ -247,7 +236,7 @@ test('process agent conversation auto-creates a missing project before submittin
     },
   };
   const presenter = new ConversationAgentPresenter();
-  const useCase = new ProcessAgentConversationUseCase(
+  const useCaseWithDecision = new ProcessAgentConversationUseCase(
     contentRepository,
     conversationStates,
     ingestEntryUseCase,
@@ -262,7 +251,25 @@ test('process agent conversation auto-creates a missing project before submittin
     },
     {
       async decide() {
-        throw new Error('approval-parser-fallback');
+        return {
+          replyText: 'Ready to save.',
+          resolvedDraft: {
+            rawText: 'Fiz algo no projeto x',
+            title: '',
+            kind: 'note',
+            canonicalType: 'event',
+            importance: 'medium',
+            tags: [],
+            reminderDate: '',
+            reminderTime: '',
+          },
+          selectedProjectSlug: 'projeto-x',
+          selectedFolderId: '',
+          suggestedFolderPath: [],
+          placeInRoot: true,
+          confidence: 'high',
+          action: 'confirm',
+        };
       },
     },
     presenter,
@@ -274,22 +281,8 @@ test('process agent conversation auto-creates a missing project before submittin
     credentials,
   );
 
-  savedStates.set('agent:group@g.us:5511999999999@s.whatsapp.net', {
-    ...emptyAgentConversationState,
-    draft: {
-      ...emptyAgentConversationState.draft,
-      rawText: 'Fiz algo no projeto x',
-      kind: 'note',
-      canonicalType: 'event',
-      importance: 'medium',
-    },
-    project: { selectedProjectSlug: 'projeto-x' },
-    folder: { selectedFolderId: '', suggestedFolderPath: [], placeInRoot: true },
-    pendingApproval: 'final_confirmation',
-  });
-
-  const result = await useCase.execute({
-    messageText: 'sim',
+  const result = await useCaseWithDecision.execute({
+    messageText: 'Fiz algo no projeto x',
     senderId: '5511999999999@s.whatsapp.net',
     chatId: 'group@g.us',
     messageId: 'msg-1',

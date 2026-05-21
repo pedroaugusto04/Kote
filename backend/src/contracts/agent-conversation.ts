@@ -3,10 +3,7 @@ import { z } from 'zod';
 import { CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from './enums.js';
 import { conversationMediaSchema } from './conversation.js';
 
-const agentApprovalSchema = z.enum(['none', 'final_confirmation']);
 const agentActionSchema = z.enum(['ask', 'confirm', 'cancel', 'submit']);
-const agentApprovalIntentSchema = z.enum(['none', 'approve', 'reject', 'cancel', 'unclear']);
-const agentTurnIntentSchema = z.enum(['modify_current', 'new_capture', 'unrelated', 'unclear']);
 const nullishToUndefined = (value: unknown) => value == null ? undefined : value;
 const blankishToUndefined = (value: unknown) => {
   if (value == null) return undefined;
@@ -18,7 +15,6 @@ const defaultStringArraySchema = z.preprocess(nullishToUndefined, z.array(defaul
 const defaultKnowledgeKindSchema = z.preprocess(nullishToUndefined, z.nativeEnum(KnowledgeKind).default(KnowledgeKind.Note));
 const defaultCanonicalTypeSchema = z.preprocess(nullishToUndefined, z.nativeEnum(CanonicalType).default(CanonicalType.Event));
 const defaultImportanceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(Importance).default(Importance.Low));
-const defaultApprovalSchema = z.preprocess(blankishToUndefined, agentApprovalSchema.default('none'));
 const defaultActionSchema = z.preprocess(blankishToUndefined, agentActionSchema.default('ask'));
 const defaultConfidenceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(ConversationConfidence).default(ConversationConfidence.Low));
 
@@ -48,7 +44,6 @@ export const agentConversationStateSchema = z.object({
   media: conversationMediaSchema.default({}),
   project: agentConversationProjectDecisionSchema.default({}),
   folder: agentConversationFolderDecisionSchema.default({}),
-  pendingApproval: defaultApprovalSchema,
   lastQuestion: defaultStringSchema,
   lastUserMessage: defaultStringSchema,
   lastAgentAction: defaultActionSchema,
@@ -63,17 +58,11 @@ export const conversationAgentDecisionSchema = z.object({
   selectedFolderId: defaultStringSchema,
   suggestedFolderPath: defaultStringArraySchema,
   placeInRoot: z.preprocess(nullishToUndefined, z.boolean().default(false)),
-  pendingApproval: defaultApprovalSchema,
-  approvalIntent: z.preprocess(blankishToUndefined, agentApprovalIntentSchema.default('none')),
-  turnIntent: z.preprocess(blankishToUndefined, agentTurnIntentSchema.default('unclear')),
   confidence: defaultConfidenceSchema,
   action: defaultActionSchema,
 });
 
-export type AgentConversationApproval = z.infer<typeof agentApprovalSchema>;
 export type AgentConversationAction = z.infer<typeof agentActionSchema>;
-export type AgentConversationApprovalIntent = z.infer<typeof agentApprovalIntentSchema>;
-export type AgentConversationTurnIntent = z.infer<typeof agentTurnIntentSchema>;
 export type AgentConversationDraft = z.infer<typeof agentConversationDraftSchema>;
 export type AgentConversationState = z.infer<typeof agentConversationStateSchema>;
 export type ConversationAgentDecision = z.infer<typeof conversationAgentDecisionSchema>;
