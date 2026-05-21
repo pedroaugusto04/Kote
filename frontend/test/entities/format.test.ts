@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { formatUsDate, reminderDisplayDateTime } from '../../src/entities/format';
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('formatUsDate', () => {
   it('formats plain ISO dates as MM/DD/YYYY', () => {
@@ -20,6 +24,13 @@ describe('formatUsDate', () => {
 
 describe('reminderDisplayDateTime', () => {
   it('formats UTC reminder timestamps using the user time zone display pattern', () => {
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+      calendar: 'gregory',
+      locale: 'en-US',
+      numberingSystem: 'latn',
+      timeZone: 'America/Sao_Paulo',
+    });
+
     expect(reminderDisplayDateTime({ reminderAt: '2026-04-27T12:30:00.000Z' })).toBe('2026-04-27 09:30:00');
   });
 });

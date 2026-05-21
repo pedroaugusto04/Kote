@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -103,8 +103,18 @@ const dashboard: Dashboard = {
   },
 };
 
+beforeEach(() => {
+  vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+    calendar: 'gregory',
+    locale: 'en-US',
+    numberingSystem: 'latn',
+    timeZone: 'America/Sao_Paulo',
+  });
+});
+
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
 });
 
 function renderHome(overrides: Partial<Dashboard['home']> = {}) {
