@@ -146,6 +146,11 @@ export function formatTimeInTimeZone(date: Date, timeZone = 'UTC'): string {
   return `${parts.hour}:${parts.minute}`;
 }
 
+export function formatDateTimeInTimeZone(date: Date, timeZone = 'UTC'): string {
+  const parts = dateTimeParts(date, timeZone);
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
 export function currentDateTimeInTimeZone(timeZone = 'UTC', now = new Date()): { date: string; time: string } {
   return {
     date: formatDateInTimeZone(now, timeZone),

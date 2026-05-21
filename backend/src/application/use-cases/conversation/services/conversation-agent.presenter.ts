@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import type { AgentConversationState } from '../../../../contracts/agent-conversation.js';
+import { formatDateTimeInTimeZone } from '../../../../domain/time.js';
 import type { SaveNoteResult } from '../../../models/note-save-result.models.js';
+
+const REMINDER_DISPLAY_TIME_ZONE = 'America/Sao_Paulo';
 
 @Injectable()
 export class ConversationAgentPresenter {
@@ -75,6 +78,13 @@ function formatDisplayToken(value: string | null | undefined) {
 }
 
 function formatReminder(note: SaveNoteResult['note']) {
-  if (note.reminderAt) return note.reminderAt;
-  return [note.reminderDate, note.reminderTime].filter(Boolean).join(' ');
+  if (note.reminderAt) {
+    const timestamp = Date.parse(note.reminderAt);
+    if (Number.isFinite(timestamp)) {
+      return formatDateTimeInTimeZone(new Date(timestamp), REMINDER_DISPLAY_TIME_ZONE);
+    }
+  }
+  if (!note.reminderDate) return '';
+  const reminderTime = note.reminderTime || '00:00';
+  return `${note.reminderDate} ${reminderTime}:00`;
 }

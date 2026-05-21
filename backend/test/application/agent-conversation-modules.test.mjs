@@ -83,6 +83,44 @@ test('conversation agent presenter marks a new project in the save summary', () 
   assert.match(message, /Project: projeto-x \(new, will be created when saved\)/);
 });
 
+test('conversation agent presenter formats saved reminder timestamp in Sao Paulo time', () => {
+  const presenter = new ConversationAgentPresenter();
+
+  const message = presenter.noteSaved({
+    ok: true,
+    noteId: 'note-1',
+    project: 'inbox',
+    eventPath: '20 Inbox/inbox/note.md',
+    canonicalPath: '',
+    followupPath: '',
+    dailyPath: '',
+    attachmentIds: [],
+    assetPaths: [],
+    gitStatus: 'test',
+    note: {
+      id: 'note-1',
+      title: 'Pedir documento ao Eduardo',
+      type: 'reminder',
+      status: 'pending',
+      projectSlug: 'inbox',
+      projectName: 'Inbox',
+      workspaceSlug: 'default',
+      folderId: null,
+      folderName: 'Project root',
+      folderPath: 'Project root',
+      eventPath: '20 Inbox/inbox/note.md',
+      reminderDate: '2026-05-21',
+      reminderTime: '14:30',
+      reminderAt: '2026-05-21T17:30:00.000Z',
+      hasReminder: true,
+      attachmentCount: 0,
+    },
+  });
+
+  assert.match(message, /Reminder: 2026-05-21 14:30:00/);
+  assert.doesNotMatch(message, /T17:30:00.000Z/);
+});
+
 test('conversation agent presenter explains usage for messages that are not useful to save', () => {
   const presenter = new ConversationAgentPresenter();
 
