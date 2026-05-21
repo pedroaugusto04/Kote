@@ -92,7 +92,8 @@ export function reviewFromNote(record: NoteRecord): ReviewView | null {
 
 export function reminderFromNote(record: NoteRecord): ReminderView | null {
   const reminderDate = String(record.metadata.reminderDate || '');
-  if (!reminderDate) return null;
+  const reminderAt = String(record.metadata.reminderAt || '');
+  if (!reminderDate && !reminderAt) return null;
   return {
     id: record.id,
     title: record.title,
@@ -103,7 +104,7 @@ export function reminderFromNote(record: NoteRecord): ReminderView | null {
     isOverdue: false,
     reminderDate,
     reminderTime: String(record.metadata.reminderTime || ''),
-    reminderAt: String(record.metadata.reminderAt || ''),
+    reminderAt,
     relativePath: record.path,
   };
 }

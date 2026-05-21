@@ -78,7 +78,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
        from kb_notes n
        join kb_workspaces w on w.user_id = n.user_id and w.workspace_slug = n.workspace_slug
        where n.status = any($1::text[])
-         and coalesce(n.metadata->>'reminderDate', '') <> ''
+         and (coalesce(n.metadata->>'reminderAt', '') <> '' or coalesce(n.metadata->>'reminderDate', '') <> '')
          and coalesce(${recipientField}, '') <> ''`,
       [reminderDispatchEligibleStatuses],
     );

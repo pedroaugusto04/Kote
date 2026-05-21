@@ -1,6 +1,6 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatDisplayToken, formatUsDate, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, projectName, reminderDisplayDateTime } from '../../entities/format';
 import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
@@ -39,9 +39,8 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
   }
 
   function priorityMeta(priority: HomePriority) {
-    if (priority.type === 'reminder' && priority.reminderDate) {
-      const time = priority.reminderTime ? ` ${priority.reminderTime}` : '';
-      return `${projectName(dashboard.projects, priority.project)} / ${formatUsDate(priority.reminderDate)}${time}`;
+    if (priority.type === 'reminder' && (priority.reminderAt || priority.reminderDate)) {
+      return `${projectName(dashboard.projects, priority.project)} / ${reminderDisplayDateTime(priority)}`;
     }
     return `${projectName(dashboard.projects, priority.project)} / ${formatUsDate(priority.date)}`;
   }

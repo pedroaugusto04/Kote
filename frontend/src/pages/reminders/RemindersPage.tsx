@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../entities/format';
 import { fetchReminders } from '../../shared/api/client';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
@@ -77,8 +77,9 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
       : undefined,
   });
   const grouped = (remindersQuery.data?.reminders || []).reduce<Record<string, Reminder[]>>((acc, reminder) => {
-    acc[reminder.reminderDate || 'no-date'] ||= [];
-    acc[reminder.reminderDate || 'no-date'].push(reminder);
+    const groupDate = reminder.reminderAt ? formatDateInUserTimeZone(reminder.reminderAt) : reminder.reminderDate;
+    acc[groupDate || 'no-date'] ||= [];
+    acc[groupDate || 'no-date'].push(reminder);
     return acc;
   }, {});
 

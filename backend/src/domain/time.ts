@@ -123,6 +123,45 @@ export function buildReminderAt(date: string, time: string, timeZone = 'UTC'): s
   return new Date(timestamp).toISOString();
 }
 
+export function dateTimePartsInUtc(value: string): { date: string; time: string; iso: string } {
+  const timestamp = Date.parse(String(value || '').trim());
+  if (!Number.isFinite(timestamp)) return { date: '', time: '', iso: '' };
+  const parsed = new Date(timestamp);
+  return {
+    date: `${String(parsed.getUTCFullYear()).padStart(4, '0')}-${String(parsed.getUTCMonth() + 1).padStart(2, '0')}-${String(parsed.getUTCDate()).padStart(2, '0')}`,
+    time: `${String(parsed.getUTCHours()).padStart(2, '0')}:${String(parsed.getUTCMinutes()).padStart(2, '0')}`,
+    iso: parsed.toISOString(),
+  };
+}
+
+export function buildUtcReminderFields(input: {
+  reminderDate?: string;
+  reminderTime?: string;
+  reminderAt?: string;
+  timeZone?: string;
+  defaultTime?: string;
+}): { reminderDate: string; reminderTime: string; reminderAt: string } {
+  const existing = dateTimePartsInUtc(input.reminderAt || '');
+  if (existing.iso) {
+    return {
+      reminderDate: existing.date,
+      reminderTime: existing.time,
+      reminderAt: existing.iso,
+    };
+  }
+
+  const reminderDate = normalizeDate(input.reminderDate || '', input.timeZone || 'UTC');
+  if (!reminderDate) return { reminderDate: '', reminderTime: '', reminderAt: '' };
+
+  const reminderTime = normalizeTime(input.reminderTime || '') || normalizeTime(input.defaultTime || '') || '09:00';
+  const utc = dateTimePartsInUtc(buildReminderAt(reminderDate, reminderTime, input.timeZone || 'UTC'));
+  return {
+    reminderDate: utc.date,
+    reminderTime: utc.time,
+    reminderAt: utc.iso,
+  };
+}
+
 export function getUtcParts(date = new Date()): {
   year: string;
   month: string;

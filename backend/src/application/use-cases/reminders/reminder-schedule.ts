@@ -1,4 +1,4 @@
-import { buildReminderAt, normalizeDate, normalizeTime } from '../../../domain/time.js';
+import { buildUtcReminderFields, formatDateTimeInTimeZone, normalizeDate, normalizeTime } from '../../../domain/time.js';
 
 export const DEFAULT_REMINDER_TIME = '09:00';
 
@@ -7,13 +7,13 @@ export function resolveReminderScheduledAt(
   timeZone = 'America/Sao_Paulo',
 ): string {
   const reminderAt = String(input.reminderAt || '').trim();
-  if (reminderAt) return reminderAt;
+  if (reminderAt) return buildUtcReminderFields({ reminderAt }).reminderAt;
 
-  const reminderDate = normalizeDate(String(input.reminderDate || ''), timeZone);
+  const reminderDate = normalizeDate(String(input.reminderDate || ''), 'UTC');
   if (!reminderDate) return '';
 
   const reminderTime = normalizeTime(String(input.reminderTime || '')) || DEFAULT_REMINDER_TIME;
-  return buildReminderAt(reminderDate, reminderTime, timeZone);
+  return buildUtcReminderFields({ reminderDate, reminderTime, timeZone: 'UTC' }).reminderAt;
 }
 
 export function reminderDispatchKey(scheduledAt: string): string {
@@ -23,5 +23,7 @@ export function reminderDispatchKey(scheduledAt: string): string {
 export function formatReminderScheduledAtLabel(scheduledAt: string): string {
   const value = String(scheduledAt || '').trim();
   if (!value) return '';
-  return `${value.slice(0, 10)} ${value.slice(11, 16)} UTC`;
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return '';
+  return formatDateTimeInTimeZone(new Date(timestamp), 'America/Sao_Paulo');
 }

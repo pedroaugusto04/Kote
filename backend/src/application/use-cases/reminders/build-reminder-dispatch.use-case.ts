@@ -7,7 +7,7 @@ import { currentDateTimeInTimeZone } from '../../../domain/time.js';
 import { ContentQueryRepository } from '../../ports/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
 import { ReminderDispatchRepository } from '../../ports/workflow-state.repository.js';
-import { resolveReminderScheduledAt } from './reminder-schedule.js';
+import { formatReminderScheduledAtLabel, resolveReminderScheduledAt } from './reminder-schedule.js';
 
 @Injectable()
 export class BuildReminderDispatchUseCase {
@@ -37,7 +37,7 @@ export class BuildReminderDispatchUseCase {
         `Date: ${now.date}`,
         '',
         ...pending.flatMap((item, index) => [
-          `- [${item.project}] ${item.title} (${item.reminderDate}${item.reminderTime ? ` ${item.reminderTime}` : ''})`,
+          `- [${item.project}] ${item.title} (${formatReminderScheduledAtLabel(resolveReminderScheduledAt(item, reminderTimeZone))})`,
           `Text: ${item.noteText}`,
           ...(index === pending.length - 1 ? [] : ['']),
         ]),
@@ -65,7 +65,7 @@ export class BuildReminderDispatchUseCase {
     if (!pending.length) return { ok: true, shouldSend: false, message: 'no_due_reminders' };
     const text = [
       'Reminder due now',
-      `Now: ${now.date} ${now.time}`,
+      `Now: ${now.date} ${now.time}:00`,
       '',
       ...pending.flatMap((item, index) => [
         `- [${item.project}] ${item.title}`,

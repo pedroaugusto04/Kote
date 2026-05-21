@@ -1,7 +1,39 @@
 import type { Project } from '../shared/api/models/project';
 
+const DEFAULT_USER_TIME_ZONE = 'America/Sao_Paulo';
+
 export function projectName(projects: Project[], slug: string) {
   return projects.find((project) => project.projectSlug === slug)?.displayName || slug;
+}
+
+export function userTimeZone() {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_USER_TIME_ZONE;
+}
+
+function dateTimePartsInUserTimeZone(value: string | null | undefined, timeZone = userTimeZone()) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(parsed);
+  const read = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || '';
+  return {
+    year: read('year'),
+    month: read('month'),
+    day: read('day'),
+    hour: read('hour'),
+    minute: read('minute'),
+    second: read('second'),
+  };
 }
 
 function buildUsDate(parsed: Date) {
@@ -35,6 +67,38 @@ export function formatUsDateTime(value: string | null | undefined) {
   const hours = String(parsed.getHours()).padStart(2, '0');
   const minutes = String(parsed.getMinutes()).padStart(2, '0');
   return `${datePart} ${hours}:${minutes}`;
+}
+
+export function formatDateTimeInUserTimeZone(value: string | null | undefined) {
+  const parts = dateTimePartsInUserTimeZone(value);
+  if (!parts) return value || '';
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
+}
+
+export function formatDateInUserTimeZone(value: string | null | undefined) {
+  const parts = dateTimePartsInUserTimeZone(value);
+  if (!parts) return value || '';
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function formatTimeInUserTimeZone(value: string | null | undefined) {
+  const parts = dateTimePartsInUserTimeZone(value);
+  if (!parts) return '';
+  return `${parts.hour}:${parts.minute}`;
+}
+
+export function reminderDisplayDateTime(input: { reminderAt?: string; reminderDate?: string; reminderTime?: string }) {
+  if (input.reminderAt) return formatDateTimeInUserTimeZone(input.reminderAt);
+  if (!input.reminderDate) return '';
+  return `${input.reminderDate} ${input.reminderTime || '00:00'}:00`;
+}
+
+export function reminderInputDate(input: { reminderAt?: string; reminderDate?: string }) {
+  return input.reminderAt ? formatDateInUserTimeZone(input.reminderAt) : input.reminderDate || '';
+}
+
+export function reminderInputTime(input: { reminderAt?: string; reminderTime?: string }) {
+  return input.reminderAt ? formatTimeInUserTimeZone(input.reminderAt) : input.reminderTime || '';
 }
 
 export function noteTypeLabel(type: string) {

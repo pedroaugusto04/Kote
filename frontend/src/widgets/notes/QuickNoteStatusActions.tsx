@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { updateNote } from '../../shared/api/client';
+import { reminderInputDate, reminderInputTime } from '../../entities/format';
 import type { NoteDetail, NoteSummary } from '../../shared/api/models/note';
 import type { QuickNoteStatus } from '../../shared/api/models/note-status';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
@@ -46,8 +47,8 @@ export function QuickNoteStatusActions({
         title: detail.title,
         rawText: detail.editor?.rawText || detail.title,
         tags: detail.tags,
-        reminderDate: detail.editor?.reminderDate || '',
-        reminderTime: detail.editor?.reminderTime || '',
+        reminderDate: detail.editor ? reminderInputDate(detail.editor) : '',
+        reminderTime: detail.editor ? reminderInputTime(detail.editor) : '',
         status,
       });
     },

@@ -137,6 +137,7 @@ export function buildDashboardHome(
         isOverdue: overdue,
         reminderDate: reminder.reminderDate,
         reminderTime: reminder.reminderTime,
+        reminderAt: reminder.reminderAt,
         target: relatedNote ? noteTarget(relatedNote) : { kind: HomeTargetKind.Note, path: reminder.relativePath },
         rank: overdue ? 0 : 1,
         timestamp: timestamp || Date.parse(`${reminder.reminderDate}T${reminder.reminderTime || '00:00'}Z`) || Number.MAX_SAFE_INTEGER,

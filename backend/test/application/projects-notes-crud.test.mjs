@@ -126,7 +126,8 @@ test('updates manual note content and reminder metadata only', async (t) => {
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /validar deploy final/);
   assert.doesNotMatch((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /confirmar deploy/);
   assert.equal(updated?.metadata.reminderDate, '2026-05-01');
-  assert.equal(updated?.metadata.reminderTime, '10:15');
+  assert.equal(updated?.metadata.reminderTime, '13:15');
+  assert.equal(updated?.metadata.reminderAt, '2026-05-01T13:15:00.000Z');
 });
 
 test('creates and updates manual decisions as canonical note types', async (t) => {

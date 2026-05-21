@@ -1,6 +1,6 @@
 import { normalizeManualNoteStatus } from '../../../domain/note-status.js';
 import { CanonicalType } from '../../../contracts/enums.js';
-import { buildReminderAt } from '../../../domain/time.js';
+import { buildUtcReminderFields } from '../../../domain/time.js';
 import { renderFrontmatter } from '../../../domain/frontmatter.js';
 import { relocateNotePath } from '../../../domain/notes.js';
 import { normalizeMultiline, trimText } from '../../../domain/strings.js';
@@ -13,6 +13,7 @@ export function buildNoteEditorState(note: NoteRecord) {
     rawText: extractEditableRawText(note),
     reminderDate: String(note.metadata.reminderDate || '').trim(),
     reminderTime: String(note.metadata.reminderTime || '').trim(),
+    reminderAt: String(note.metadata.reminderAt || '').trim(),
   };
 }
 
@@ -27,12 +28,17 @@ export function buildUpdatedNote(
   const rawText = normalizeMultiline(input.rawText);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
   const noteType = normalizeCanonicalType(input.canonicalType, note.type);
-  const reminderAt = input.reminderAt || buildReminderAt(input.reminderDate, input.reminderTime, reminderTimeZone);
+  const reminderFields = buildUtcReminderFields({
+    reminderDate: input.reminderDate,
+    reminderTime: input.reminderTime,
+    reminderAt: input.reminderAt,
+    timeZone: reminderTimeZone,
+  });
   const nextStatus = normalizeManualNoteStatus({
     requestedStatus: input.status,
     currentStatus: note.status,
     hadReminder: Boolean(String(note.metadata.reminderDate || '').trim() || String(note.metadata.reminderAt || '').trim()),
-    hasReminder: Boolean(input.reminderDate || reminderAt),
+    hasReminder: Boolean(reminderFields.reminderDate || reminderFields.reminderAt),
   });
   const structuredNote = parseStructuredNoteMarkdown(note.markdown, note.title);
   const frontmatter = {
@@ -47,9 +53,9 @@ export function buildUpdatedNote(
   const metadata = {
     ...note.metadata,
     rawText,
-    reminderDate: input.reminderDate,
-    reminderTime: input.reminderTime,
-    reminderAt,
+    reminderDate: reminderFields.reminderDate,
+    reminderTime: reminderFields.reminderTime,
+    reminderAt: reminderFields.reminderAt,
   };
 
   return {

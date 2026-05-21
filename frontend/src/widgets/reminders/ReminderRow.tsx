@@ -1,6 +1,6 @@
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { Reminder } from '../../shared/api/models/reminder';
-import { formatDisplayToken, formatUsDate, projectName } from '../../entities/format';
+import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../entities/format';
 import { Badge } from '../../shared/ui/primitives';
 import { QuickNoteStatusActions } from '../notes/QuickNoteStatusActions';
 
@@ -11,7 +11,7 @@ export function ReminderRow({ reminder, dashboard, onOpenPath }: { reminder: Rem
         <div className="meta-row">
           <Badge value={formatDisplayToken(reminder.status)} tone={reminder.isOverdue ? 'high' : reminder.status} />
           <span className="meta">
-            {projectName(dashboard.projects, reminder.project)} / {formatUsDate(reminder.reminderDate)} {reminder.reminderTime}
+            {projectName(dashboard.projects, reminder.project)} / {reminderDisplayDateTime(reminder)}
           </span>
         </div>
         <h3>{reminder.title}</h3>

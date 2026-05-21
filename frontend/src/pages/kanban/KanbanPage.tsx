@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, projectName } from '../../entities/format';
+import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../entities/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
 import type { ReminderBoardCard, ReminderBoardColumnKey } from '../../shared/api/models/reminder';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
@@ -130,7 +130,7 @@ function KanbanCard({
   onOpen: (id: string) => void;
   projectLabel: string;
 }) {
-  const schedule = [formatUsDate(card.reminderDate), card.reminderTime].filter(Boolean).join(' ');
+  const schedule = reminderDisplayDateTime(card);
   return (
     <article
       className="kanban-card"

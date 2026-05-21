@@ -33,5 +33,6 @@ export type VaultNoteDetail = VaultNoteSummary & {
     rawText: string;
     reminderDate: string;
     reminderTime: string;
+    reminderAt: string;
   } | null;
 };

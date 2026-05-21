@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, ListReminderBoardUseCase, MarkReminderAsSentUseCase, RefreshReminderStatusesUseCase, UpdateReminderStatusUseCase } from '../../dist/application/use-cases/index.js';
 import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../dist/contracts/enums.js';
-import { reminderDispatchKey } from '../../dist/application/use-cases/reminders/reminder-schedule.js';
+import { formatReminderScheduledAtLabel, reminderDispatchKey } from '../../dist/application/use-cases/reminders/reminder-schedule.js';
 import { ReminderDispatchWorker } from '../../dist/application/services/reminder-dispatch.worker.js';
 import { TelegramReminderDispatchWorker } from '../../dist/application/services/telegram-reminder-dispatch.worker.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';
@@ -93,6 +93,10 @@ function createRefreshReminderStatuses(repositories) {
     environmentProvider(),
   );
 }
+
+test('reminder scheduled label is displayed in Sao Paulo date-time format', () => {
+  assert.equal(formatReminderScheduledAtLabel('2026-05-21T17:30:00.000Z'), '2026-05-21 14:30:00');
+});
 
 test('daily reminders are aggregated once per date by user and workspace', async (t) => {
   const { repositories, user } = await createStoreWithReminder(t);
@@ -553,7 +557,7 @@ test('default reminder dispatch sends a due WhatsApp reminder and marks it as se
   assert.equal(sent[0].recipientId, '120363-default@g.us');
   assert.equal(sent[0].workspaceSlug, 'default');
   assert.equal(sent[0].userId, user.id);
-  assert.match(sent[0].text, /^Reminder\nProject: n8n-automations\nNote: Deploy\n\nNote text:\nValidar rollout antes da janela de deploy\.\n\nScheduled for: 2099-12-31 12:00 UTC$/);
+  assert.match(sent[0].text, /^Reminder\nProject: n8n-automations\nNote: Deploy\n\nNote text:\nValidar rollout antes da janela de deploy\.\n\nScheduled for: 2099-12-31 09:00:00$/);
   assert.equal(await repositories.reminderDispatchRepository.hasSent(user.id, 'default', 'exact', '2099-12-31T12:00', '11111111-1111-1111-1111-111111111111'), true);
   assert.equal((await repositories.contentRepository.getNoteById(user.id, '11111111-1111-1111-1111-111111111111'))?.status, 'sent');
 });
@@ -634,7 +638,7 @@ test('default reminder dispatch applies 09:00 fallback when reminder has only da
 
   assert.equal(before.sent, 0);
   assert.equal(after.sent, 1);
-  assert.match(sent[0].text, /Scheduled for: 2026-05-05 12:00 UTC/);
+  assert.match(sent[0].text, /Scheduled for: 2026-05-05 09:00:00/);
 });
 
 test('default reminder dispatch does not mark reminder as sent when Evolution delivery fails', async (t) => {

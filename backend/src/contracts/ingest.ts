@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { slugify } from '../domain/strings.js';
-import { buildReminderAt, normalizeDate, normalizeTime } from '../domain/time.js';
+import { buildUtcReminderFields, normalizeDate, normalizeTime } from '../domain/time.js';
 import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, ReviewFindingSeverity, SourceChannel } from './enums.js';
 
 export const sourceChannelSchema = z.nativeEnum(SourceChannel);
@@ -105,12 +105,17 @@ export function withDerivedReminderAt(
   payload: IngestPayload,
   timeZone = 'America/Sao_Paulo',
 ): IngestPayload & { actions: IngestPayload['actions'] & { reminderAt: string } } {
-  const existingReminderAt = 'reminderAt' in payload.actions ? String((payload.actions as Record<string, unknown>).reminderAt || '') : '';
+  const reminderFields = buildUtcReminderFields({
+    reminderDate: payload.actions.reminderDate || '',
+    reminderTime: payload.actions.reminderTime || '',
+    reminderAt: 'reminderAt' in payload.actions ? String((payload.actions as Record<string, unknown>).reminderAt || '') : '',
+    timeZone,
+  });
   return {
     ...payload,
     actions: {
       ...payload.actions,
-      reminderAt: existingReminderAt || buildReminderAt(payload.actions.reminderDate || '', payload.actions.reminderTime || '', timeZone),
+      ...reminderFields,
     },
   };
 }

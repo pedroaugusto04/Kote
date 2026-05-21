@@ -40,5 +40,6 @@ export type NoteDetail = NoteSummary & {
     rawText: string;
     reminderDate: string;
     reminderTime: string;
+    reminderAt: string;
   } | null;
 };
