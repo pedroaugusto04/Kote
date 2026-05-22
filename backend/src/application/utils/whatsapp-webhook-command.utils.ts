@@ -2,7 +2,7 @@ import { extractWhatsappExternalId, parseWhatsappEvolutionMessage } from './webh
 import { extractWhatsappConnectionCode } from '../integration-connections.js';
 import { conversationInputSchema, type ConversationInput } from '../../contracts/conversation.js';
 
-type WhatsappWebhookIgnoreReason = 'unsupported_event' | 'missing_payload' | 'from_me';
+type WhatsappWebhookIgnoreReason = 'unsupported_event' | 'missing_payload' | 'from_me' | 'missing_group_prefix';
 const BOT_MESSAGE_PREFIX = '[BOT]';
 const GROUP_INVOCATION_PREFIX = '/kb';
 
@@ -34,6 +34,9 @@ export function buildWhatsappWebhookCommand(body: Record<string, unknown>): What
   if (parsedMessage.fromMe && parsedMessage.messageText.startsWith(BOT_MESSAGE_PREFIX)) {
     return { kind: 'ignore', reason: 'from_me' };
   }
+  if (parsedMessage.isGroup && !hasGroupInvocationPrefix(parsedMessage.messageText)) {
+    return { kind: 'ignore', reason: 'missing_group_prefix' };
+  }
   const messageText = parsedMessage.isGroup
     ? stripGroupInvocationPrefix(parsedMessage.messageText)
     : parsedMessage.messageText;
@@ -64,6 +67,14 @@ export function buildWhatsappWebhookCommand(body: Record<string, unknown>): What
 
 function stripGroupInvocationPrefix(text: string): string {
   const trimmed = String(text || '').trim();
-  const prefixPattern = new RegExp(`^${GROUP_INVOCATION_PREFIX}(?:\\s+|$)`, 'i');
+  const prefixPattern = groupInvocationPrefixPattern();
   return prefixPattern.test(trimmed) ? trimmed.replace(prefixPattern, '').trim() : trimmed;
+}
+
+function hasGroupInvocationPrefix(text: string): boolean {
+  return groupInvocationPrefixPattern().test(String(text || '').trim());
+}
+
+function groupInvocationPrefixPattern() {
+  return new RegExp(`^${GROUP_INVOCATION_PREFIX}(?:\\s+|$)`, 'i');
 }

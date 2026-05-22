@@ -59,7 +59,7 @@ test('whatsapp command parser accepts private chats as external identities', () 
   assert.equal(command.input.chatId, '5511999999999@s.whatsapp.net');
 });
 
-test('whatsapp command parser accepts group messages without /kb prefix', () => {
+test('whatsapp command parser ignores group messages without /kb prefix', () => {
   const command = buildWhatsappWebhookCommand({
     event: 'MESSAGES_UPSERT',
     data: {
@@ -75,10 +75,7 @@ test('whatsapp command parser accepts group messages without /kb prefix', () => 
     },
   });
 
-  assert.equal(command.kind, 'conversation');
-  assert.equal(command.externalId, '120363@g.us');
-  assert.equal(command.input.chatId, '120363@g.us');
-  assert.equal(command.input.messageText, 'corrigi timeout no webhook');
+  assert.deepEqual(command, { kind: 'ignore', reason: 'missing_group_prefix' });
 });
 
 test('whatsapp command parser accepts group messages with /kb prefix and strips it', () => {
