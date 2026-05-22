@@ -375,8 +375,33 @@ select:not([multiple]) {
 }
 .theme-toggle svg { width: 15px; height: 15px; }
 .topbar-icon svg { width: 16px; height: 16px; }
-.user-avatar { display: inline-grid; place-items: center; overflow: hidden; flex: 0 0 auto; border: 1px solid var(--line-soft); border-radius: 999px; background: var(--surface-6); color: var(--active-text); font-family: var(--mono); font-weight: 700; }
-.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.user-avatar {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  flex: 0 0 auto;
+  aspect-ratio: 1;
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 35% 25%, var(--surface-2), transparent 56%),
+    var(--surface-6);
+  color: var(--active-text);
+  font-family: var(--mono);
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  user-select: none;
+}
+.user-avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: cover;
+  object-position: center center;
+}
 .topbar-avatar { width: 30px; height: 30px; font-size: 11px; }
 .profile-menu { position: relative; display: inline-flex; }
 .profile-menu-popover {

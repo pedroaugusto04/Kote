@@ -20,7 +20,7 @@ export function UserAvatar({ avatarUrl, className = '', displayName, email }: Us
   if (avatarUrl && !imageFailed) {
     return (
       <span className={`user-avatar ${className}`.trim()} aria-label={`${displayName || email || 'User'} avatar`}>
-        <img alt="" src={avatarUrl} onError={() => setImageFailed(true)} />
+        <img alt="" draggable={false} src={avatarUrl} onError={() => setImageFailed(true)} />
       </span>
     );
   }
