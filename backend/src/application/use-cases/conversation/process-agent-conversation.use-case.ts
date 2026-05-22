@@ -10,7 +10,7 @@ import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
 import { AppLogger } from '../../../observability/logger.js';
-import type { ProjectFolderRecord, ProjectRecord } from '../../models/repository-records.models.js';
+import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import { ConversationAgentGateway, type ConversationAgentResponse } from '../../ports/conversation-agent.gateway.js';
 import { ContentRepository } from '../../ports/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations.repository.js';
@@ -46,7 +46,6 @@ type AgentConversationResult = {
 };
 
 type AgentDecisionTurn = {
-  projects: ProjectRecord[];
   candidateProjectSlug: string;
   candidateFolders: ProjectFolderRecord[];
   decision: ConversationAgentResponse;
@@ -116,7 +115,7 @@ export class ProcessAgentConversationUseCase {
   ): Promise<AgentConversationResult> {
     const messageText = String(input.messageText || '').trim();
     const environment = this.environmentProvider.read();
-    const { projects, candidateProjectSlug, candidateFolders, decision } = await this.requestAgentDecision(
+    const { candidateProjectSlug, candidateFolders, decision } = await this.requestAgentDecision(
       input,
       userId,
       workspaceSlug,
@@ -126,7 +125,7 @@ export class ProcessAgentConversationUseCase {
       return this.reply('ask', this.presenter.couldNotUnderstand(), null, state);
     }
 
-    const selectedProjectSlug = resolveAgentSelectedProjectSlug(decision.selectedProjectSlug, state, projects);
+    const selectedProjectSlug = resolveAgentSelectedProjectSlug(decision.selectedProjectSlug, state);
     const foldersForDecision = selectedProjectSlug && selectedProjectSlug !== 'inbox'
       ? selectedProjectSlug === candidateProjectSlug
         ? candidateFolders
@@ -137,7 +136,6 @@ export class ProcessAgentConversationUseCase {
       messageText,
       media: mediaFromConversationInput(input, state),
       decision,
-      projects,
       candidateFolders: foldersForDecision,
       reminderTimeZone: environment.reminderTimeZone,
     });
@@ -250,7 +248,7 @@ export class ProcessAgentConversationUseCase {
         rawTextLength: decision.resolvedDraft.rawText.length,
         confidence: decision.confidence,
       });
-      return { projects, candidateProjectSlug, candidateFolders, decision };
+      return { candidateProjectSlug, candidateFolders, decision };
     } catch (error) {
       this.logger?.error('conversation.agent.decision_failed', {
         userId,

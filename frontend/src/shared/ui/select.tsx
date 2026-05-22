@@ -71,6 +71,7 @@ export function Select({
     () => options.findIndex((option) => option.value === selectedOption?.value),
     [options, selectedOption?.value],
   );
+  const isRequired = required === true || ariaRequired === true;
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(selectedIndex >= 0 ? selectedIndex : firstEnabledOptionIndex(options));
 
@@ -94,7 +95,7 @@ export function Select({
         setIsOpen(false);
       }
     };
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleEscape = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsOpen(false);
       }
@@ -172,7 +173,7 @@ export function Select({
         aria-haspopup="listbox"
         aria-invalid={ariaInvalid || undefined}
         aria-label={ariaLabel}
-        aria-required={ariaRequired || undefined}
+        aria-required={isRequired || undefined}
         className="kb-select-trigger"
         data-field={dataField}
         disabled={disabled}

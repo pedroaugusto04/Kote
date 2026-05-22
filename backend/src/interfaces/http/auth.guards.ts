@@ -5,6 +5,7 @@ import { readEnvironment } from '../../adapters/environment.js';
 import { AuthService } from '../../application/auth.js';
 import type { AuthenticatedRequest } from './auth.decorators.js';
 import { accessTokenFromRequest, assertTrustedBrowserOrigin } from './http-security.js';
+import { requestIp } from './request-ip.js';
 
 type RateLimitBucket = {
   resetAt: number;
@@ -12,11 +13,6 @@ type RateLimitBucket = {
 };
 
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
-
-function requestIp(request: Request): string {
-  const forwardedFor = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  return forwardedFor || request.ip || request.socket.remoteAddress || 'unknown';
-}
 
 function assertRateLimit(request: Request, namespace: string, limit: number, windowMs: number) {
   const now = Date.now();

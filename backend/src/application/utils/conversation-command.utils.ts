@@ -6,18 +6,6 @@ export function isCancel(text: string): boolean {
   return ['cancelar', 'cancel', 'cancela', 'sair', 'exit', 'stop', '0'].includes(normalizedCommandText(text));
 }
 
-export function isConfirm(text: string): boolean {
-  return ['yes', 'y', 'save', 'confirm', 'send', 'sim', 's', 'confirmar', '1', 'ok', 'enviar'].includes(normalizedCommandText(text));
-}
-
-export function isReject(text: string): boolean {
-  return ['no', 'n', 'reject', 'discard', 'nao', 'n\u00e3o', 'n\u00c3\u00a3o', 'rejeitar', '2', 'descartar'].includes(normalizedCommandText(text));
-}
-
-export function isSkip(text: string): boolean {
-  return ['skip', 'none', 'without', 'pular', 'nao', 'n\u00e3o', 'n\u00c3\u00a3o', 'n', '9', 'sem'].includes(normalizedCommandText(text));
-}
-
 export function parseKnowledgeCommand(text: string): { query: string } | null {
   const commandMatch = String(text || '').trim().match(/^\/(buscar|consultar|perguntar|ask)\s+(.+)$/i);
   const query = String(commandMatch?.[2] || '').trim();

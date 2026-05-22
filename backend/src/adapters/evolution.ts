@@ -110,13 +110,7 @@ function extractBase64(json: Record<string, unknown>): string {
   const response = objectValue(json.response);
   return base64Value(
     json.base64 ||
-      json.dataBase64 ||
-      json.media_data_b64 ||
       data?.base64 ||
-      data?.dataBase64 ||
-      data?.media_data_b64 ||
-      response?.base64 ||
-      response?.dataBase64 ||
-      response?.media_data_b64,
+      response?.base64,
   );
 }

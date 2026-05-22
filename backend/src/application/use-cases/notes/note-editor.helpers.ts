@@ -3,7 +3,7 @@ import { CanonicalType } from '../../../contracts/enums.js';
 import { buildUtcReminderFields } from '../../../domain/time.js';
 import { renderFrontmatter } from '../../../domain/frontmatter.js';
 import { relocateNotePath } from '../../../domain/notes.js';
-import { normalizeMultiline, trimText } from '../../../domain/strings.js';
+import { normalizeComparableText, normalizeMultiline, trimText } from '../../../domain/strings.js';
 import type { UpdateNoteInput } from '../../models/note-input.models.js';
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
 
@@ -147,14 +147,6 @@ function summarizeRawText(rawText: string, fallbackTitle: string) {
 
 function sameText(left: string, right: string) {
   return normalizeComparableText(left) === normalizeComparableText(right);
-}
-
-function normalizeComparableText(value: string) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLocaleLowerCase();
 }
 
 type StructuredNoteSection = {

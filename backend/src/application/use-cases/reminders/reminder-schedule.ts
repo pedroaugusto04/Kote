@@ -9,11 +9,11 @@ export function resolveReminderScheduledAt(
   const reminderAt = String(input.reminderAt || '').trim();
   if (reminderAt) return buildUtcReminderFields({ reminderAt }).reminderAt;
 
-  const reminderDate = normalizeDate(String(input.reminderDate || ''), 'UTC');
+  const reminderDate = normalizeDate(String(input.reminderDate || ''), timeZone);
   if (!reminderDate) return '';
 
   const reminderTime = normalizeTime(String(input.reminderTime || '')) || DEFAULT_REMINDER_TIME;
-  return buildUtcReminderFields({ reminderDate, reminderTime, timeZone: 'UTC' }).reminderAt;
+  return buildUtcReminderFields({ reminderDate, reminderTime, timeZone }).reminderAt;
 }
 
 export function reminderDispatchKey(scheduledAt: string): string {

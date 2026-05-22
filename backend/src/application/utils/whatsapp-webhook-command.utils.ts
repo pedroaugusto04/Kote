@@ -2,7 +2,7 @@ import { extractWhatsappExternalId, parseWhatsappEvolutionMessage } from './webh
 import { extractWhatsappConnectionCode } from '../integration-connections.js';
 import { conversationInputSchema, type ConversationInput } from '../../contracts/conversation.js';
 
-type WhatsappWebhookIgnoreReason = 'unsupported_event' | 'missing_payload' | 'from_me' | 'group_missing_prefix';
+type WhatsappWebhookIgnoreReason = 'unsupported_event' | 'missing_payload' | 'from_me';
 const BOT_MESSAGE_PREFIX = '[BOT]';
 const GROUP_INVOCATION_PREFIX = '/kb';
 
@@ -37,9 +37,6 @@ export function buildWhatsappWebhookCommand(body: Record<string, unknown>): What
   const messageText = parsedMessage.isGroup
     ? stripGroupInvocationPrefix(parsedMessage.messageText)
     : parsedMessage.messageText;
-  if (parsedMessage.isGroup && messageText === parsedMessage.messageText) {
-    return { kind: 'ignore', reason: 'group_missing_prefix' };
-  }
 
   const externalId = extractWhatsappExternalId(body);
   if (!externalId) {

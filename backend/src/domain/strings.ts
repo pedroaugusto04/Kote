@@ -21,6 +21,14 @@ export function trimText(value: string, fallback = ''): string {
   return normalized || fallback;
 }
 
+export function normalizeComparableText(value: string): string {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLocaleLowerCase();
+}
+
 export function normalizeMultiline(value: string): string {
   return String(value || '')
     .replace(/\r\n/g, '\n')

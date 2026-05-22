@@ -356,7 +356,7 @@ export class PostgresContentRepository extends ContentRepository {
       clauses.push(`project_slug = $${values.length}`);
     }
     appendTimelineFolderClause(clauses, values, input.folderId);
-    appendTimelineCategoryClause(clauses, values, input.category);
+    appendTimelineCategoryClause(clauses, input.category);
     const where = clauses.join(' and ');
     const dataWhere = where
       .replace(/\buser_id\b/g, 'n.user_id')
@@ -610,7 +610,7 @@ function appendTimelineFolderClause(clauses: string[], values: unknown[], folder
   clauses.push(`folder_id = $${values.length}`);
 }
 
-function appendTimelineCategoryClause(clauses: string[], values: unknown[], category: ListProjectTimelineInput['category']) {
+function appendTimelineCategoryClause(clauses: string[], category: ListProjectTimelineInput['category']) {
   const notDecision = "type <> 'decision'";
   const noReminder = "(coalesce(metadata->>'reminderDate', '') = '' and coalesce(metadata->>'reminderAt', '') = '')";
   if (category === 'all') return;

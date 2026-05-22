@@ -1,4 +1,5 @@
 import type { PaginationMeta } from './pagination';
+import type { NoteStatus } from './note-status';
 
 export type QueryResponse = {
   ok: boolean;
@@ -13,7 +14,7 @@ export type QueryResponse = {
     workspace: string;
     tags: string[];
     date: string;
-    status: string;
+    status: NoteStatus;
     summary: string;
     source: string;
     projectSlug: string;

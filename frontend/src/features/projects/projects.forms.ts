@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { canonicalNoteTypeValues } from '../../shared/api/models/note';
 
 const optionalSlugSchema = z.string().trim().max(80, 'Use at most 80 characters.').refine((value) => !value || /^[a-z0-9._-]+$/.test(value), 'Use only lowercase letters, numbers, dots, hyphens, or underscores.');
-const optionalRepoSchema = z.string().trim().max(180, 'Use at most 180 characters.').refine((value) => !value || /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value), 'Use the owner/repository format.');
 
 export const projectFormSchema = z.object({
   displayName: z.string().trim().min(1, 'Enter the project name.').max(120, 'Use at most 120 characters.'),

@@ -23,7 +23,6 @@ const ANSI_DIM = '\u001B[2m';
 const ANSI_RED = '\u001B[31m';
 const ANSI_GREEN = '\u001B[32m';
 const ANSI_YELLOW = '\u001B[33m';
-const ANSI_BLUE = '\u001B[34m';
 const ANSI_BRIGHT_GREEN = '\u001B[92m';
 const ANSI_BRIGHT_YELLOW = '\u001B[93m';
 const ANSI_BRIGHT_RED = '\u001B[91m';

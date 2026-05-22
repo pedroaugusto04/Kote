@@ -5,6 +5,7 @@ import { useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName } from '../../entities/format';
+import { normalizeComparableText } from '../../entities/text';
 import { fetchNotes } from '../../shared/api/client';
 import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
@@ -250,15 +251,11 @@ function listHasOnlyNone(lines: string[]) {
 }
 
 function sameText(left: string, right: string) {
-  return normalizeReaderText(left) === normalizeReaderText(right);
+  return normalizeComparableText(left) === normalizeComparableText(right);
 }
 
 function normalizeReaderText(value: string) {
-  return value
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .trim()
-    .toLocaleLowerCase();
+  return normalizeComparableText(value);
 }
 
 function formatFileSize(sizeBytes: number) {

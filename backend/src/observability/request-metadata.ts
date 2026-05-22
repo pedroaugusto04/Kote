@@ -1,5 +1,7 @@
 import type { Request } from 'express';
 
+import { requestIp } from '../interfaces/http/request-ip.js';
+
 type RequestWithUser = Request & {
   user?: {
     id?: string;
@@ -9,11 +11,6 @@ type RequestWithUser = Request & {
 function readRecordValue(record: unknown, key: string): unknown {
   if (!record || typeof record !== 'object') return undefined;
   return (record as Record<string, unknown>)[key];
-}
-
-function requestIp(request: Request): string {
-  const forwardedFor = String(request.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  return forwardedFor || request.ip || request.socket.remoteAddress || 'unknown';
 }
 
 function requestPath(request: Request): string {

@@ -107,38 +107,15 @@ function hasWhatsappMedia(message: Record<string, unknown>): boolean {
   return whatsappMediaTypes.some(({ key }) => Boolean(objectValue(message[key])));
 }
 
-function mediaBase64(body: Record<string, unknown>, payload: Record<string, unknown>, media: Record<string, unknown>): string {
-  const bodyMedia = objectValue(body.media);
-  const payloadMedia = objectValue(payload.media);
-  const bodyData = objectValue(body.data);
+function mediaBase64(payload: Record<string, unknown>): string {
   const payloadData = objectValue(payload.data);
   return base64Value(
-    body.media_data_b64 ||
-      body.mediaDataBase64 ||
-      body.dataBase64 ||
-      body.base64 ||
-      bodyData?.media_data_b64 ||
-      bodyData?.mediaDataBase64 ||
-      bodyData?.dataBase64 ||
-      bodyData?.base64 ||
-      payload.media_data_b64 ||
-      payload.mediaDataBase64 ||
-      payload.dataBase64 ||
-      payload.base64 ||
-      payloadData?.media_data_b64 ||
-      payloadData?.mediaDataBase64 ||
-      payloadData?.dataBase64 ||
-      payloadData?.base64 ||
-      bodyMedia?.dataBase64 ||
-      bodyMedia?.base64 ||
-      payloadMedia?.dataBase64 ||
-      payloadMedia?.base64 ||
-      media.dataBase64 ||
-      media.base64,
+    payload.dataBase64 ||
+      payloadData?.base64,
   );
 }
 
-function parseWhatsappMedia(body: Record<string, unknown>, payload: Record<string, unknown>, message: Record<string, unknown>) {
+function parseWhatsappMedia(payload: Record<string, unknown>, message: Record<string, unknown>) {
   for (const { key, type, fallbackMimeType } of whatsappMediaTypes) {
     const media = objectValue(message[key]);
     if (!media) continue;
@@ -147,7 +124,7 @@ function parseWhatsappMedia(body: Record<string, unknown>, payload: Record<strin
       fileName: stringValue(media.fileName || media.title || `attachment.${type}`),
       mimeType,
       sizeBytes: numberValue(media.fileLength || media.fileSize || media.sizeBytes),
-      dataBase64: mediaBase64(body, payload, media),
+      dataBase64: mediaBase64(payload),
     };
   }
   return {
@@ -185,7 +162,7 @@ export function parseWhatsappEvolutionMessage(body: Record<string, unknown>): Pa
       body.body,
   );
 
-  const media = parseWhatsappMedia(body, payload, message);
+  const media = parseWhatsappMedia(payload, message);
 
   return {
     kind: 'message',

@@ -141,7 +141,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
             ? queryResult.data?.matches.map((match) => (
               <NoteRow
                 key={match.id}
-                note={{ ...match, folderId: null }}
+                note={{ ...match, attachmentCount: 0, folderId: null }}
                 dashboard={dashboard}
                 onDelete={() => deleteNote({ id: match.id, title: match.title })}
                 onEdit={() => editNote(match.id)}

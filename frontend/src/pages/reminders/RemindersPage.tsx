@@ -3,6 +3,7 @@ import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../entities/format';
+import { sortRemindersForList } from '../../entities/reminders';
 import { fetchReminders } from '../../shared/api/client';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
@@ -16,32 +17,6 @@ const reminderStatusOptions = ['', 'pending', 'overdue', 'sent', 'resolved', 'ar
   value,
   label: value ? formatDisplayToken(value) : 'All statuses',
 }));
-
-function reminderTimestamp(reminder: Reminder) {
-  const direct = Date.parse(reminder.reminderAt || '');
-  if (!Number.isNaN(direct)) return direct;
-  const fallback = Date.parse(`${reminder.reminderDate || ''}T${reminder.reminderTime || '00:00'}:00.000Z`);
-  if (!Number.isNaN(fallback)) return fallback;
-  return Number.MAX_SAFE_INTEGER;
-}
-
-function sortRemindersForList(reminders: Reminder[], statusFilter: string) {
-  if (statusFilter) return reminders;
-  return [...reminders].sort((left, right) => {
-    const leftOpenRank = reminderOpenRank(left.status);
-    const rightOpenRank = reminderOpenRank(right.status);
-    return leftOpenRank - rightOpenRank
-      || reminderTimestamp(left) - reminderTimestamp(right)
-      || left.title.localeCompare(right.title)
-      || left.id.localeCompare(right.id);
-  });
-}
-
-function reminderOpenRank(status: string) {
-  if (status === 'overdue') return 0;
-  if (status === 'pending') return 1;
-  return 2;
-}
 
 export function RemindersPage({ dashboard, openNote }: PageContext) {
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';

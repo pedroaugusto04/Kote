@@ -4,7 +4,6 @@ import {
   type AgentConversationState,
 } from '../../../../contracts/agent-conversation.js';
 import type { ConversationInput } from '../../../../contracts/conversation.js';
-import { ingestPayloadSchema } from '../../../../contracts/ingest.js';
 import { slugify, trimText } from '../../../../domain/strings.js';
 import { normalizeDate, normalizeTime, nowIso } from '../../../../domain/time.js';
 import type { ProjectFolderRecord, ProjectRecord } from '../../../models/repository-records.models.js';
@@ -19,11 +18,10 @@ export function buildNextAgentConversationState(input: {
   messageText: string;
   media: AgentConversationState['media'];
   decision: ConversationAgentResponse;
-  projects: ProjectRecord[];
   candidateFolders: ProjectFolderRecord[];
   reminderTimeZone: string;
 }) {
-  const selectedProjectSlugFromDecision = resolveSelectedProjectSlug(input.decision.selectedProjectSlug, input.current, input.projects);
+  const selectedProjectSlugFromDecision = resolveSelectedProjectSlug(input.decision.selectedProjectSlug, input.current);
   const draft = agentConversationDraftSchema.parse({
     ...input.current.draft,
     ...input.decision.resolvedDraft,
@@ -79,7 +77,7 @@ export function sanitizeExistingProjectSlug(value: string, projects: ProjectReco
   return projects.some((project) => project.projectSlug === normalized) ? normalized : '';
 }
 
-export function resolveSelectedProjectSlug(value: string, current: AgentConversationState, projects: ProjectRecord[]) {
+export function resolveSelectedProjectSlug(value: string, current: AgentConversationState) {
   const selected = sanitizeProjectSlug(value);
   if (selected) return selected;
   if (String(value || '').trim()) return '';
@@ -108,10 +106,6 @@ export function buildAgentConversationPayload(input: ConversationInput, state: A
 export function mediaFromInput(input: ConversationInput, state: AgentConversationState) {
   if (input.hasMedia && input.media.fileName) return input.media;
   return state.media;
-}
-
-export function parseAgentPayload(payload: ReturnType<typeof buildAgentConversationPayload>) {
-  return ingestPayloadSchema.parse(payload);
 }
 
 function resolveFolderSelection(input: {
