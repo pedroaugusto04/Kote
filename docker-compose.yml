@@ -74,7 +74,25 @@ services:
       api:
         condition: service_healthy
 
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    ports:
+      - "${KB_RABBITMQ_PORT:-5672}:5672"
+      - "${KB_RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${KB_RABBITMQ_USER:-kb}
+      RABBITMQ_DEFAULT_PASS: ${KB_RABBITMQ_PASSWORD:-kb_dev}
+    volumes:
+      - kb_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 volumes:
   kb_postgres_data:
   kb_api_node_modules:
   kb_frontend_node_modules:
+  kb_rabbitmq_data:

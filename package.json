@@ -22,6 +22,7 @@
     "@nestjs/platform-express": "^11.1.19",
     "@supabase/supabase-js": "^2.105.1",
     "@tanstack/react-query": "^5.62.8",
+    "amqplib": "^2.0.1",
     "google-auth-library": "^10.6.2",
     "node-pg-migrate": "^8.0.4",
     "pg": "^8.20.0",
@@ -38,6 +39,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
+    "@types/amqplib": "^0.10.8",
     "@types/express": "^5.0.0",
     "@types/node": "^24.3.0",
     "@types/pg": "^8.20.0",

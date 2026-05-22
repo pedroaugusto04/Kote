@@ -9,6 +9,7 @@ import { buildNotePaths, renderEventNote } from '../../../domain/notes.js';
 import type { Project } from '../../../domain/projects.js';
 import { slugify, trimText } from '../../../domain/strings.js';
 import { ContentRepository } from '../../ports/content.repository.js';
+import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
 import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import type { SaveNoteResult } from '../../models/note-save-result.models.js';
@@ -22,10 +23,11 @@ export class IngestEntryUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly embeddingQueue: EmbeddingQueuePublisher,
   ) {}
 
   async execute(input: IngestPayload, userId: string, workspaceSlug = '', options: IngestExecutionOptions = {}) {
-    return saveIngestedNote(
+    const result = await saveIngestedNote(
       this.contentRepository,
       userId,
       input,
@@ -33,6 +35,12 @@ export class IngestEntryUseCase {
       workspaceSlug,
       options,
     );
+
+    try {
+      await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: result.noteId });
+    } catch { /* embedding queue failure must never block note save */ }
+
+    return result;
   }
 }
 

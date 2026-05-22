@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { UpdateNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/content.repository.js';
+import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
@@ -10,6 +11,7 @@ export class UpdateNoteUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly embeddingQueue: EmbeddingQueuePublisher,
   ) {}
 
   async execute(input: UpdateNoteInput, userId: string) {
@@ -24,6 +26,11 @@ export class UpdateNoteUseCase {
       userId,
       buildUpdatedNote(note, previousFolder, nextFolder, normalizedInput, reminderTimeZone),
     );
+
+    try {
+      await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: updated.id });
+    } catch { /* embedding queue failure must never block note update */ }
+
     return { ok: true as const, noteId: updated.id };
   }
 

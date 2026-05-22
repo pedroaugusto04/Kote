@@ -9,6 +9,7 @@ import { GithubIntegrationGateway } from './application/ports/github-integration
 import { GoogleOAuthGateway } from './application/ports/google-oauth.gateway.js';
 import { ProjectBriefAiGateway } from './application/ports/project-brief-ai.gateway.js';
 import { NoteEmbeddingRepository } from './application/ports/note-embedding.repository.js';
+import { EmbeddingQueuePublisher } from './application/ports/embedding-queue.publisher.js';
 import { ProjectBriefHistoryRepository } from './application/ports/project-brief-history.repository.js';
 import { ReminderDeliveryGateway } from './application/ports/reminder-delivery.gateway.js';
 import { ReviewAnalysisGateway } from './application/ports/review-analysis.port.js';
@@ -47,6 +48,7 @@ import { PostgresWebhookEventRepository } from './infrastructure/repositories/we
 import { PostgresWorkflowStateRepository } from './infrastructure/repositories/workflow-state.repository.js';
 import { ProcessRuntimeEnvironmentProvider } from './infrastructure/runtime/runtime-environment.provider.js';
 import { SupabaseObjectStorage } from './infrastructure/storage/supabase-object-storage.js';
+import { RabbitMqEmbeddingQueuePublisher } from './infrastructure/queue/rabbitmq-embedding-queue.publisher.js';
 import {
   BuildDashboardUseCase,
   BuildReminderDispatchUseCase,
@@ -172,6 +174,7 @@ import { AppLogger } from './observability/logger.js';
     PostgresWorkflowStateRepository,
     PostgresWebhookEventRepository,
     SupabaseObjectStorage,
+    RabbitMqEmbeddingQueuePublisher,
     { provide: SchemaMigrator, useExisting: PostgresSchemaMigrator },
     { provide: UserRepository, useExisting: PostgresUserRepository },
     { provide: RuntimeEnvironmentProvider, useExisting: ProcessRuntimeEnvironmentProvider },
@@ -187,6 +190,7 @@ import { AppLogger } from './observability/logger.js';
     { provide: ContentRepository, useExisting: PostgresContentRepository },
     { provide: ContentQueryRepository, useExisting: PostgresContentQueryRepository },
     { provide: NoteEmbeddingRepository, useExisting: PostgresNoteEmbeddingRepository },
+    { provide: EmbeddingQueuePublisher, useExisting: RabbitMqEmbeddingQueuePublisher },
     { provide: ObjectStorage, useExisting: SupabaseObjectStorage },
     { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
