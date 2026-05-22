@@ -1,6 +1,6 @@
 import { ApiClientError, isApiErrorEnvelope } from './models/error';
+import { resolveApiPath } from './api-path';
 
-const apiBasePath = (import.meta.env.VITE_KB_API_BASE_PATH || '').replace(/\/$/, '');
 const sessionErrorCodes = new Set([
   'missing_access_token',
   'token_expired',
@@ -33,11 +33,6 @@ async function readJson(response: Response): Promise<unknown> {
   } catch {
     return null;
   }
-}
-
-function resolveApiPath(path: string) {
-  if (!apiBasePath || !path.startsWith('/api')) return path;
-  return `${apiBasePath}${path.slice('/api'.length) || '/'}`;
 }
 
 function buildInit(init: RequestInit = {}): RequestInit {

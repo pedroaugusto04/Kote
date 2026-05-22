@@ -1,47 +1,55 @@
 import { request, type AuthUser } from './request';
+import { resolveApiPath } from './api-path';
 
-const apiBasePath = (import.meta.env.VITE_KB_API_BASE_PATH || '').replace(/\/$/, '');
-
-function resolveApiPath(path: string) {
-  if (!apiBasePath || !path.startsWith('/api')) return path;
-  return `${apiBasePath}${path.slice('/api'.length) || '/'}`;
+function normalizeAuthUser(user: AuthUser): AuthUser {
+  return {
+    ...user,
+    avatarUrl: user.avatarUrl ? resolveApiPath(user.avatarUrl) : null,
+  };
 }
 
-export function login(params: { email: string; password: string }) {
-  return request<{ ok: true; user: AuthUser }>('/api/auth/login', {
+function normalizeAuthResponse(response: { ok: true; user: AuthUser }) {
+  return {
+    ...response,
+    user: normalizeAuthUser(response.user),
+  };
+}
+
+export async function login(params: { email: string; password: string }) {
+  return normalizeAuthResponse(await request<{ ok: true; user: AuthUser }>('/api/auth/login', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(params),
-  });
+  }));
 }
 
-export function signup(params: { name: string; email: string; password: string }) {
-  return request<{ ok: true; user: AuthUser }>('/api/auth/signup', {
+export async function signup(params: { name: string; email: string; password: string }) {
+  return normalizeAuthResponse(await request<{ ok: true; user: AuthUser }>('/api/auth/signup', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(params),
-  });
+  }));
 }
 
 export function logout() {
   return request<{ ok: true }>('/api/auth/logout', { method: 'POST' });
 }
 
-export function fetchCurrentUser() {
-  return request<{ ok: true; user: AuthUser }>('/api/auth/me');
+export async function fetchCurrentUser() {
+  return normalizeAuthResponse(await request<{ ok: true; user: AuthUser }>('/api/auth/me'));
 }
 
-export function uploadCurrentUserAvatar(file: File) {
+export async function uploadCurrentUserAvatar(file: File) {
   const body = new FormData();
   body.append('file', file);
-  return request<{ ok: true; user: AuthUser }>('/api/auth/avatar', {
+  return normalizeAuthResponse(await request<{ ok: true; user: AuthUser }>('/api/auth/avatar', {
     method: 'PUT',
     body,
-  });
+  }));
 }
 
-export function deleteCurrentUserAvatar() {
-  return request<{ ok: true; user: AuthUser }>('/api/auth/avatar', { method: 'DELETE' });
+export async function deleteCurrentUserAvatar() {
+  return normalizeAuthResponse(await request<{ ok: true; user: AuthUser }>('/api/auth/avatar', { method: 'DELETE' }));
 }
 
 export function buildGoogleAuthStartUrl(returnTo: string) {

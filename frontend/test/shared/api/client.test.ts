@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiClientError, fetchCurrentUser, fetchDashboard, getErrorMessage, runQuery } from '../../../src/shared/api/client';
+import { resolveApiPath } from '../../../src/shared/api/api-path';
 import { request, resetRequestStateForTests } from '../../../src/shared/api/request';
 
 function apiErrorResponse(status: number, code: string, message = 'Request failed.', requestId = `req-${code}`, details: Record<string, unknown> = {}) {
@@ -108,18 +109,23 @@ describe('api client', () => {
   it('fetches the current authenticated user from /api/auth/me', async () => {
     const fetchMock = vi.fn(async () => Response.json({
       ok: true,
-      user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner' },
+      user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl: null },
     }));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(fetchCurrentUser()).resolves.toEqual({
       ok: true,
-      user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner' },
+      user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl: null },
     });
     expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({
       credentials: 'include',
       headers: { accept: 'application/json' },
     }));
+  });
+
+  it('resolves API asset paths under the configured API base path', () => {
+    expect(resolveApiPath('/api/auth/avatar/content?v=1', '/knowledge-base/api')).toBe('/knowledge-base/api/auth/avatar/content?v=1');
+    expect(resolveApiPath('https://cdn.example.com/avatar.png', '/knowledge-base/api')).toBe('https://cdn.example.com/avatar.png');
   });
 
   it('refreshes once after a session 401 and retries the original request', async () => {
