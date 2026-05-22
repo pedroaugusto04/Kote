@@ -19,6 +19,7 @@ function runtimeEnvironmentProvider() {
       githubAppInstallUrl: process.env.KB_GITHUB_APP_INSTALL_URL || '',
       githubAppId: process.env.KB_GITHUB_APP_ID || '',
       githubAppPrivateKey: process.env.KB_GITHUB_APP_PRIVATE_KEY || '',
+      telegramBotToken: process.env.KB_TELEGRAM_BOT_TOKEN || '',
     }),
   };
 }
@@ -63,6 +64,10 @@ function configureEnv() {
   process.env.KB_CREDENTIALS_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
   process.env.KB_INTERNAL_SERVICE_TOKEN = 'internal-token';
   process.env.KB_PUBLIC_BASE_URL = 'https://kb.example.com';
+  process.env.KB_TELEGRAM_BOT_TOKEN = 'telegram-bot-token';
+  process.env.KB_GOOGLE_OAUTH_CLIENT_ID = 'google-client-id';
+  process.env.KB_GOOGLE_OAUTH_CLIENT_SECRET = 'google-client-secret';
+  process.env.KB_GOOGLE_OAUTH_REDIRECT_URI = 'https://kb.example.com/api/auth/google/callback';
   process.env.NODE_ENV = 'test';
 }
 
@@ -70,19 +75,23 @@ function responseMock() {
   return {
     cookies: [],
     cleared: [],
+    redirectedTo: '',
     cookie(name, value, options) {
       this.cookies.push({ name, value, options });
     },
     clearCookie(name, options) {
       this.cleared.push({ name, options });
     },
+    redirect(url) {
+      this.redirectedTo = url;
+    },
   };
 }
 
-async function fixture(t) {
+async function fixture(t, options = {}) {
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
-  const auth = new AuthService(repositories.userRepository, repositories.schemaMigrator);
+  const auth = new AuthService(repositories.userRepository, repositories.schemaMigrator, undefined, options.googleGateway);
   await auth.onModuleInit();
   const admin = await repositories.userRepository.findUserByEmail('admin@example.com');
   if (admin) {
@@ -123,6 +132,23 @@ async function fixture(t) {
       environmentProvider,
       githubGateway,
     ),
+  };
+}
+
+function googleGateway(profile = {}) {
+  return {
+    buildAuthorizationUrl(input) {
+      return `https://accounts.google.com/o/oauth2/v2/auth?state=${encodeURIComponent(input.state)}&code_challenge=${encodeURIComponent(input.codeChallenge)}`;
+    },
+    async authenticate() {
+      return {
+        providerUserId: profile.providerUserId || 'google-user-1',
+        email: profile.email || 'google.user@example.com',
+        emailVerified: profile.emailVerified ?? true,
+        displayName: profile.displayName || 'Google User',
+        pictureUrl: profile.pictureUrl || 'https://lh3.googleusercontent.com/user',
+      };
+    },
   };
 }
 
@@ -205,6 +231,108 @@ test('refresh issues a new access cookie and logout clears browser cookies', asy
   const logoutResponse = responseMock();
   assert.deepEqual(controller.logout({ headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' }, logoutResponse), { ok: true });
   assert.deepEqual(logoutResponse.cleared.map((cookie) => cookie.name), ['kb_access_token', 'kb_refresh_token']);
+});
+
+test('google callback creates a user, identity, and HttpOnly auth cookies', async (t) => {
+  const { auth, repositories } = await fixture(t, { googleGateway: googleGateway() });
+  const controller = new AuthController(auth);
+  const startResponse = responseMock();
+  controller.startGoogle('/auth?mode=signup', startResponse);
+
+  const stateCookie = startResponse.cookies.find((cookie) => cookie.name === 'kb_google_oauth_state');
+  const state = new URL(startResponse.redirectedTo).searchParams.get('state');
+  const callbackResponse = responseMock();
+  await controller.googleCallback(
+    'google-code',
+    state,
+    { headers: { cookie: `kb_google_oauth_state=${encodeURIComponent(stateCookie.value)}` } },
+    callbackResponse,
+  );
+
+  const user = await repositories.userRepository.findUserByEmail('google.user@example.com');
+  assert.ok(user);
+  assert.equal(user.passwordHash, null);
+  assert.ok(await repositories.userRepository.findAuthIdentity('google', 'google-user-1'));
+  assert.deepEqual(callbackResponse.cookies.map((cookie) => cookie.name), ['kb_access_token', 'kb_refresh_token']);
+  assert.equal(callbackResponse.cookies.every((cookie) => cookie.options.httpOnly), true);
+  assert.equal(callbackResponse.cleared.some((cookie) => cookie.name === 'kb_google_oauth_state'), true);
+  assert.equal(callbackResponse.redirectedTo, '/auth?mode=signup');
+});
+
+test('google callback reuses an existing identity', async (t) => {
+  const { auth, repositories } = await fixture(t, { googleGateway: googleGateway({ email: 'repeat@example.com' }) });
+  const controller = new AuthController(auth);
+  const firstStart = responseMock();
+  controller.startGoogle('/auth', firstStart);
+  await controller.googleCallback(
+    'google-code-1',
+    new URL(firstStart.redirectedTo).searchParams.get('state'),
+    { headers: { cookie: `kb_google_oauth_state=${encodeURIComponent(firstStart.cookies.find((cookie) => cookie.name === 'kb_google_oauth_state').value)}` } },
+    responseMock(),
+  );
+  const user = await repositories.userRepository.findUserByEmail('repeat@example.com');
+
+  const secondStart = responseMock();
+  controller.startGoogle('/auth', secondStart);
+  const secondResponse = responseMock();
+  await controller.googleCallback(
+    'google-code-2',
+    new URL(secondStart.redirectedTo).searchParams.get('state'),
+    { headers: { cookie: `kb_google_oauth_state=${encodeURIComponent(secondStart.cookies.find((cookie) => cookie.name === 'kb_google_oauth_state').value)}` } },
+    secondResponse,
+  );
+
+  assert.equal((await repositories.userRepository.findUserByEmail('repeat@example.com')).id, user.id);
+  assert.deepEqual(secondResponse.cookies.map((cookie) => cookie.name), ['kb_access_token', 'kb_refresh_token']);
+});
+
+test('google callback redirects with conflict when email has no google identity', async (t) => {
+  const { auth, repositories } = await fixture(t, { googleGateway: googleGateway({ email: 'password-user@example.com' }) });
+  await repositories.createTestUser({ email: 'password-user@example.com', passwordHash: 'scrypt$salt$hash' });
+  const controller = new AuthController(auth);
+  const startResponse = responseMock();
+  controller.startGoogle('/auth', startResponse);
+  const callbackResponse = responseMock();
+
+  await controller.googleCallback(
+    'google-code',
+    new URL(startResponse.redirectedTo).searchParams.get('state'),
+    { headers: { cookie: `kb_google_oauth_state=${encodeURIComponent(startResponse.cookies.find((cookie) => cookie.name === 'kb_google_oauth_state').value)}` } },
+    callbackResponse,
+  );
+
+  assert.equal(callbackResponse.redirectedTo, '/auth?error=email_already_registered');
+  assert.equal(await repositories.userRepository.findAuthIdentity('google', 'google-user-1'), null);
+});
+
+test('google callback with invalid state redirects without creating a session', async (t) => {
+  const { auth, repositories } = await fixture(t, { googleGateway: googleGateway() });
+  const controller = new AuthController(auth);
+  const callbackResponse = responseMock();
+
+  await controller.googleCallback('google-code', 'wrong-state', { headers: {} }, callbackResponse);
+
+  assert.equal(callbackResponse.redirectedTo, '/auth?error=google_auth_failed');
+  assert.equal(callbackResponse.cookies.length, 0);
+  assert.equal(await repositories.userRepository.findUserByEmail('google.user@example.com'), null);
+});
+
+test('google-created user cannot login with password', async (t) => {
+  const { auth } = await fixture(t, { googleGateway: googleGateway({ email: 'no-password@example.com' }) });
+  const controller = new AuthController(auth);
+  const startResponse = responseMock();
+  controller.startGoogle('/auth', startResponse);
+  await controller.googleCallback(
+    'google-code',
+    new URL(startResponse.redirectedTo).searchParams.get('state'),
+    { headers: { cookie: `kb_google_oauth_state=${encodeURIComponent(startResponse.cookies.find((cookie) => cookie.name === 'kb_google_oauth_state').value)}` } },
+    responseMock(),
+  );
+
+  await assert.rejects(
+    () => auth.login('no-password@example.com', 'password123'),
+    /invalid_credentials/,
+  );
 });
 
 test('trusted origin guard rejects invalid Origin for mutable browser endpoints', async () => {

@@ -7,6 +7,7 @@ import { parseCookies } from '../../application/auth.js';
 
 const accessCookieName = 'kb_access_token';
 const refreshCookieName = 'kb_refresh_token';
+const googleOAuthStateCookieName = 'kb_google_oauth_state';
 
 export function accessTokenFromRequest(request: Request): string | undefined {
   return parseCookies(request.headers.cookie)[accessCookieName];
@@ -14,6 +15,10 @@ export function accessTokenFromRequest(request: Request): string | undefined {
 
 export function refreshTokenFromRequest(request: Request): string | undefined {
   return parseCookies(request.headers.cookie)[refreshCookieName];
+}
+
+export function googleOAuthStateFromRequest(request: Request): string | undefined {
+  return parseCookies(request.headers.cookie)[googleOAuthStateCookieName];
 }
 
 export function setAuthCookies(response: Response, tokens: TokenPair) {
@@ -39,6 +44,22 @@ export function clearAuthCookies(response: Response) {
   for (const name of [accessCookieName, refreshCookieName]) {
     response.clearCookie(name, { httpOnly: true, secure, sameSite: 'lax', path: '/' });
   }
+}
+
+export function setGoogleOAuthStateCookie(response: Response, value: string, maxAgeSeconds: number) {
+  const secure = process.env.NODE_ENV === 'production';
+  response.cookie(googleOAuthStateCookieName, value, {
+    httpOnly: true,
+    secure,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: maxAgeSeconds * 1000,
+  });
+}
+
+export function clearGoogleOAuthStateCookie(response: Response) {
+  const secure = process.env.NODE_ENV === 'production';
+  response.clearCookie(googleOAuthStateCookieName, { httpOnly: true, secure, sameSite: 'lax', path: '/' });
 }
 
 export function assertTrustedBrowserOrigin(request: Request) {

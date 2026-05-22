@@ -58,6 +58,9 @@ export type RuntimeEnvironment = {
   jwtRefreshSecret: string;
   accessTokenTtlSeconds: number;
   refreshTokenTtlSeconds: number;
+  googleOAuthClientId: string;
+  googleOAuthClientSecret: string;
+  googleOAuthRedirectUri: string;
   credentialsEncryptionKey: string;
   internalServiceToken: string;
 };
@@ -110,6 +113,9 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     jwtRefreshSecret: String(env.KB_JWT_REFRESH_SECRET || '').trim(),
     accessTokenTtlSeconds: Number(env.KB_ACCESS_TOKEN_TTL_SECONDS || 15 * 60),
     refreshTokenTtlSeconds: Number(env.KB_REFRESH_TOKEN_TTL_SECONDS || 30 * 24 * 60 * 60),
+    googleOAuthClientId: String(env.KB_GOOGLE_OAUTH_CLIENT_ID || '').trim(),
+    googleOAuthClientSecret: String(env.KB_GOOGLE_OAUTH_CLIENT_SECRET || '').trim(),
+    googleOAuthRedirectUri: String(env.KB_GOOGLE_OAUTH_REDIRECT_URI || '').trim(),
     credentialsEncryptionKey: String(env.KB_CREDENTIALS_ENCRYPTION_KEY || '').trim(),
     internalServiceToken: String(env.KB_INTERNAL_SERVICE_TOKEN || '').trim(),
   };

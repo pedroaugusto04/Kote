@@ -6,6 +6,7 @@ import { IntegrationConnectionService } from './application/integration-connecti
 import { IntegrationCredentialService } from './application/credentials.js';
 import { ConversationAgentGateway } from './application/ports/conversation-agent.gateway.js'; 
 import { GithubIntegrationGateway } from './application/ports/github-integration.port.js';
+import { GoogleOAuthGateway } from './application/ports/google-oauth.gateway.js';
 import { ReminderDeliveryGateway } from './application/ports/reminder-delivery.gateway.js';
 import { ReviewAnalysisGateway } from './application/ports/review-analysis.port.js';
 import { RuntimeEnvironmentProvider } from './application/ports/runtime-environment.port.js';
@@ -29,6 +30,7 @@ import { EvolutionReminderDeliveryGateway, EvolutionWhatsappMediaDownloader, Evo
 import { DefaultConversationAgentGateway } from './infrastructure/ai/conversation-agent.gateway.js';
 import { DefaultReviewAnalysisGateway } from './infrastructure/ai/review-analysis.gateway.js';
 import { DefaultGithubIntegrationGateway } from './infrastructure/integrations/github-integration.gateway.js';
+import { GoogleAuthLibraryOAuthGateway } from './infrastructure/auth/google-oauth.gateway.js';
 import { PostgresUserRepository } from './infrastructure/repositories/auth.repository.js';
 import { PostgresContentQueryRepository } from './infrastructure/repositories/content-query.repository.js';
 import { PostgresContentRepository } from './infrastructure/repositories/content.repository.js';
@@ -146,6 +148,7 @@ import { AppLogger } from './observability/logger.js';
     DefaultConversationAgentGateway,
     DefaultReviewAnalysisGateway,
     DefaultGithubIntegrationGateway,
+    GoogleAuthLibraryOAuthGateway,
     ProcessRuntimeEnvironmentProvider,
     PostgresDatabase,
     PostgresSchemaMigrator,
@@ -164,6 +167,7 @@ import { AppLogger } from './observability/logger.js';
     { provide: ExternalIdentityRepository, useExisting: PostgresIntegrationRepository },
     { provide: IntegrationConnectionSessionRepository, useExisting: PostgresIntegrationRepository },
     { provide: GithubIntegrationGateway, useExisting: DefaultGithubIntegrationGateway },
+    { provide: GoogleOAuthGateway, useExisting: GoogleAuthLibraryOAuthGateway },
     { provide: ReviewAnalysisGateway, useExisting: DefaultReviewAnalysisGateway },
     { provide: ContentRepository, useExisting: PostgresContentRepository },
     { provide: ContentQueryRepository, useExisting: PostgresContentQueryRepository },

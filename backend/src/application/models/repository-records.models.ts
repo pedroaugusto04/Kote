@@ -6,8 +6,21 @@ export type KbUser = {
   id: string;
   email: string;
   displayName: string;
-  passwordHash: string;
+  passwordHash: string | null;
   role: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type AuthIdentityRecord = {
+  id: string;
+  provider: string;
+  providerUserId: string;
+  userId: string;
+  email: string;
+  emailVerified: boolean;
+  displayName: string;
+  metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
 };

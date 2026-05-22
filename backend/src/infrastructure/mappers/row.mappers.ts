@@ -1,5 +1,6 @@
 import { CredentialRecordStatus } from '../../contracts/enums.js';
 import type {
+  AuthIdentityRecord,
   AttachmentRecord,
   ConversationStateRecord,
   ExternalIdentityRecord,
@@ -29,8 +30,23 @@ export function userFromRow(row: Row): KbUser {
     id: String(row.id),
     email: String(row.email),
     displayName: String(row.display_name || row.email),
-    passwordHash: String(row.password_hash),
+    passwordHash: row.password_hash == null ? null : String(row.password_hash),
     role: String(row.role),
+    createdAt: nowIso(row.created_at),
+    updatedAt: nowIso(row.updated_at),
+  };
+}
+
+export function authIdentityFromRow(row: Row): AuthIdentityRecord {
+  return {
+    id: String(row.id),
+    provider: String(row.provider),
+    providerUserId: String(row.provider_user_id),
+    userId: String(row.user_id),
+    email: String(row.email || ''),
+    emailVerified: row.email_verified === true,
+    displayName: String(row.display_name || ''),
+    metadata: (row.metadata || {}) as Record<string, unknown>,
     createdAt: nowIso(row.created_at),
     updatedAt: nowIso(row.updated_at),
   };

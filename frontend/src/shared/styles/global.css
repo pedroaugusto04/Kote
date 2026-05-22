@@ -1354,6 +1354,10 @@ p { color: var(--muted); line-height: 1.6; }
 .segmented-control button.active { color: var(--active-text); border-color: var(--accent-border); background: var(--surface-active); }
 .auth-form { display: grid; gap: 12px; }
 .auth-submit { justify-content: center; width: 100%; min-height: 42px; margin-top: 4px; }
+.auth-google-button { justify-content: center; width: 100%; min-height: 42px; }
+.auth-provider-error { margin: 0; }
+.auth-divider { display: flex; align-items: center; min-height: 16px; }
+.auth-divider span { display: block; width: 100%; border-top: 1px solid var(--line-soft); }
 .setup-layout {
   min-height: 100vh;
   padding: 48px 32px 64px;

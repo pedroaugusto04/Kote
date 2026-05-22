@@ -2,18 +2,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 
 import { routes } from '../../app/routing/routes';
 import { useGlobalLoading } from '../../app/global-loading';
 import { createAuthFormSchema, type AuthFormValues, type AuthMode } from '../../layouts/app-shell-auth.forms';
 import { authCopy } from '../../layouts/auth-landing.content';
-import { login, signup } from '../../shared/api/client';
+import { buildGoogleAuthStartUrl, login, signup } from '../../shared/api/client';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormField } from '../../shared/forms/fields';
 
 export function AuthPage({ onAuthenticated }: { onAuthenticated: () => void }) {
   const globalLoading = useGlobalLoading();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialMode = searchParams.get('mode') === 'signup' ? 'signup' : 'login';
   const [mode, setMode] = useState<AuthMode>(initialMode);
@@ -68,6 +69,17 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: () => void }) {
     setSearchParams(nextMode === 'signup' ? { mode: 'signup' } : {});
   };
 
+  const googleError = searchParams.get('error') || '';
+  const googleErrorMessage = googleError === 'email_already_registered'
+    ? 'This email already has a password account. Sign in with password first.'
+    : googleError === 'google_auth_failed'
+      ? 'Could not finish Google sign-in. Try again.'
+      : '';
+  const startGoogleAuth = () => {
+    const returnTo = `${location.pathname}${location.search || ''}` || '/auth';
+    window.location.assign(buildGoogleAuthStartUrl(returnTo));
+  };
+
   return (
     <main className="auth-layout">
       <section className="auth-panel auth-panel-standalone" aria-label="Authentication">
@@ -93,6 +105,11 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: () => void }) {
           <h1>{authCopy[mode].title}</h1>
           <p>{authCopy[mode].description}</p>
         </div>
+        {googleErrorMessage ? <p className="form-error auth-provider-error" role="alert">{googleErrorMessage}</p> : null}
+        <button className="icon-button auth-google-button" type="button" onClick={startGoogleAuth}>
+          Continue with Google
+        </button>
+        <div className="auth-divider" aria-hidden="true"><span /></div>
         <form className="auth-form" ref={formRef} noValidate onSubmit={handleSubmit((values) => mutation.mutate(values), onInvalid)}>
           {mode === 'signup' ? (
             <FormField name="name" label="Name" error={errors.name?.message} required>

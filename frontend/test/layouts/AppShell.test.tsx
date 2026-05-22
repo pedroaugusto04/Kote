@@ -1099,6 +1099,72 @@ describe('AppShell', () => {
     expect(fetchMock.mock.calls.filter(([input]) => String(input) === '/api/auth/login')).toHaveLength(0);
   });
 
+  it('starts Google auth with a top-level redirect to the API start endpoint', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json({
+          ok: false,
+          error: { code: 'missing_access_token', message: 'Not authenticated.', details: {} },
+          requestId: 'req-auth',
+        }, { status: 401 });
+      }
+      if (url === '/api/auth/refresh') {
+        return Response.json({
+          ok: false,
+          error: { code: 'invalid_refresh_token', message: 'Refresh expired.', details: {} },
+          requestId: 'req-refresh',
+        }, { status: 401 });
+      }
+      if (url === '/api/auth/logout') return Response.json({ ok: true });
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const originalLocation = window.location;
+    const assignSpy = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, assign: assignSpy },
+    });
+
+    renderWithAppProviders(<AppShell />, { route: '/auth?mode=signup' });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Continue with Google' }));
+
+    expect(assignSpy).toHaveBeenCalledWith('/api/auth/google/start?returnTo=%2Fauth%3Fmode%3Dsignup');
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
+
+  it('shows Google callback errors on the auth page', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json({
+          ok: false,
+          error: { code: 'missing_access_token', message: 'Not authenticated.', details: {} },
+          requestId: 'req-auth',
+        }, { status: 401 });
+      }
+      if (url === '/api/auth/refresh') {
+        return Response.json({
+          ok: false,
+          error: { code: 'invalid_refresh_token', message: 'Refresh expired.', details: {} },
+          requestId: 'req-refresh',
+        }, { status: 401 });
+      }
+      if (url === '/api/auth/logout') return Response.json({ ok: true });
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<AppShell />, { route: '/auth?error=google_auth_failed' });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not finish Google sign-in. Try again.');
+  });
+
   it('shows duplicate signup email as a field error', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);

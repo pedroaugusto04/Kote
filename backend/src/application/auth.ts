@@ -1,11 +1,13 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 
-import { ConflictException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 
 import type { KbUser } from './models/repository-records.models.js';
+import { GoogleOAuthGateway, type GoogleOAuthProfile } from './ports/google-oauth.gateway.js';
 import { SchemaMigrator, UserRepository } from './ports/auth.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
+import { readEnvironment } from '../adapters/environment.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -31,6 +33,16 @@ type JwtPayload = {
   iat: number;
   exp: number;
 };
+
+type GoogleOAuthStatePayload = {
+  state: string;
+  codeVerifier: string;
+  returnTo: string;
+  expiresAt: number;
+};
+
+const googleAuthProvider = 'google';
+const googleOAuthStateTtlMs = 10 * 60 * 1000;
 
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64url');
@@ -80,6 +92,46 @@ function verifyJwt(token: string, secret: string, expectedType: JwtPayload['typ'
   return payload;
 }
 
+function sha256Base64url(value: string): string {
+  return crypto.createHash('sha256').update(value).digest('base64url');
+}
+
+function normalizeReturnTo(value: string | undefined): string {
+  const trimmed = String(value || '/').trim() || '/';
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.includes('\\')) {
+    throw new BadRequestException('return_to_path_must_be_relative');
+  }
+  return trimmed;
+}
+
+function stateSigningSecret(environment: { jwtAccessSecret: string; jwtRefreshSecret: string }): string {
+  return environment.jwtAccessSecret || environment.jwtRefreshSecret;
+}
+
+function signGoogleOAuthState(payload: GoogleOAuthStatePayload, secret: string): string {
+  if (!secret) throw new Error('jwt_secret_not_configured');
+  const encoded = base64url(JSON.stringify(payload));
+  const signature = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  return `${encoded}.${signature}`;
+}
+
+function verifyGoogleOAuthState(cookieValue: string | undefined, secret: string): GoogleOAuthStatePayload {
+  if (!secret) throw new Error('jwt_secret_not_configured');
+  if (!cookieValue) throw new UnauthorizedException('invalid_google_oauth_state');
+  const [encoded, signature] = cookieValue.split('.');
+  if (!encoded || !signature) throw new UnauthorizedException('invalid_google_oauth_state');
+  const expected = crypto.createHmac('sha256', secret).update(encoded).digest('base64url');
+  if (signature.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    throw new UnauthorizedException('invalid_google_oauth_state');
+  }
+  const payload = parseBase64urlJson(encoded) as GoogleOAuthStatePayload;
+  if (!payload.state || !payload.codeVerifier || !payload.returnTo || !payload.expiresAt) {
+    throw new UnauthorizedException('invalid_google_oauth_state');
+  }
+  if (payload.expiresAt <= Date.now()) throw new UnauthorizedException('invalid_google_oauth_state');
+  return payload;
+}
+
 export function parseCookies(cookieHeader: string | undefined): Record<string, string> {
   if (!cookieHeader) return {};
   return Object.fromEntries(
@@ -104,7 +156,8 @@ export class AuthService implements OnModuleInit {
   constructor(
     private readonly users: UserRepository,
     private readonly schemaMigrator: SchemaMigrator,
-    private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => readEnvironment() },
+    private readonly googleOAuth?: GoogleOAuthGateway,
   ) {}
 
   async onModuleInit() {
@@ -146,10 +199,55 @@ export class AuthService implements OnModuleInit {
 
   async login(email: string, password: string): Promise<{ user: AuthenticatedUser; tokens: TokenPair }> {
     const user = await this.users.findUserByEmail(String(email || '').trim().toLowerCase());
-    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+    if (!user?.passwordHash || !(await verifyPassword(password, user.passwordHash))) {
       throw new UnauthorizedException('invalid_credentials');
     }
     return { user: toAuthenticatedUser(user), tokens: this.issueTokens(user) };
+  }
+
+  startGoogleOAuth(input: { returnTo?: string }): { authorizationUrl: string; stateCookie: string; stateCookieMaxAgeSeconds: number } {
+    const environment = this.environmentProvider.read();
+    if (!this.googleOAuth || !environment.googleOAuthClientId || !environment.googleOAuthClientSecret || !environment.googleOAuthRedirectUri) {
+      throw new BadRequestException('google_oauth_not_configured');
+    }
+    const state = crypto.randomBytes(32).toString('base64url');
+    const codeVerifier = crypto.randomBytes(64).toString('base64url');
+    const returnTo = normalizeReturnTo(input.returnTo);
+    const stateCookie = signGoogleOAuthState({
+      state,
+      codeVerifier,
+      returnTo,
+      expiresAt: Date.now() + googleOAuthStateTtlMs,
+    }, stateSigningSecret(environment));
+    return {
+      stateCookie,
+      stateCookieMaxAgeSeconds: googleOAuthStateTtlMs / 1000,
+      authorizationUrl: this.googleOAuth.buildAuthorizationUrl({
+        clientId: environment.googleOAuthClientId,
+        redirectUri: environment.googleOAuthRedirectUri,
+        state,
+        codeChallenge: sha256Base64url(codeVerifier),
+      }),
+    };
+  }
+
+  async completeGoogleOAuth(input: { code?: string; state?: string; stateCookie?: string }): Promise<{ user: AuthenticatedUser; tokens: TokenPair; returnTo: string }> {
+    const environment = this.environmentProvider.read();
+    if (!this.googleOAuth || !environment.googleOAuthClientId || !environment.googleOAuthClientSecret || !environment.googleOAuthRedirectUri) {
+      throw new BadRequestException('google_oauth_not_configured');
+    }
+    if (!input.code || !input.state) throw new UnauthorizedException('invalid_google_oauth_state');
+    const statePayload = verifyGoogleOAuthState(input.stateCookie, stateSigningSecret(environment));
+    if (statePayload.state !== input.state) throw new UnauthorizedException('invalid_google_oauth_state');
+    const profile = await this.googleOAuth.authenticate({
+      clientId: environment.googleOAuthClientId,
+      clientSecret: environment.googleOAuthClientSecret,
+      redirectUri: environment.googleOAuthRedirectUri,
+      code: input.code,
+      codeVerifier: statePayload.codeVerifier,
+    });
+    const user = await this.findOrCreateGoogleUser(profile);
+    return { user: toAuthenticatedUser(user), tokens: this.issueTokens(user), returnTo: statePayload.returnTo };
   }
 
   async refresh(refreshToken: string): Promise<{ user: AuthenticatedUser; tokens: TokenPair }> {
@@ -177,6 +275,41 @@ export class AuthService implements OnModuleInit {
       accessTokenMaxAgeSeconds: environment.accessTokenTtlSeconds,
       refreshTokenMaxAgeSeconds: environment.refreshTokenTtlSeconds,
     };
+  }
+
+  private async findOrCreateGoogleUser(profile: GoogleOAuthProfile): Promise<KbUser> {
+    if (!profile.email || !profile.emailVerified) throw new UnauthorizedException('google_email_not_verified');
+    const identity = await this.users.findAuthIdentity(googleAuthProvider, profile.providerUserId);
+    if (identity) {
+      const user = await this.users.findUserById(identity.userId);
+      if (!user) throw new UnauthorizedException('user_not_found');
+      return user;
+    }
+    const existing = await this.users.findUserByEmail(profile.email);
+    if (existing) {
+      const existingGoogleIdentity = await this.users.findUserAuthIdentity(existing.id, googleAuthProvider);
+      if (existingGoogleIdentity) return existing;
+      throw new ConflictException({
+        code: 'email_already_registered',
+        details: { fieldErrors: { email: 'Este email ja esta cadastrado. Entre com senha e vincule o Google depois.' } },
+      });
+    }
+    const user = await this.users.createUser({
+      email: profile.email,
+      displayName: profile.displayName,
+      passwordHash: null,
+      role: 'user',
+    });
+    await this.users.createAuthIdentity({
+      provider: googleAuthProvider,
+      providerUserId: profile.providerUserId,
+      userId: user.id,
+      email: profile.email,
+      emailVerified: profile.emailVerified,
+      displayName: profile.displayName,
+      metadata: { pictureUrl: profile.pictureUrl },
+    });
+    return user;
   }
 }
 

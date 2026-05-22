@@ -40,6 +40,9 @@ export type RuntimeEnvironment = {
   jwtRefreshSecret: string;
   accessTokenTtlSeconds: number;
   refreshTokenTtlSeconds: number;
+  googleOAuthClientId: string;
+  googleOAuthClientSecret: string;
+  googleOAuthRedirectUri: string;
   credentialsEncryptionKey: string;
   internalServiceToken: string;
 };

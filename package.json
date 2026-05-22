@@ -22,6 +22,7 @@
     "@nestjs/platform-express": "^11.1.19",
     "@supabase/supabase-js": "^2.105.1",
     "@tanstack/react-query": "^5.62.8",
+    "google-auth-library": "^10.6.2",
     "node-pg-migrate": "^8.0.4",
     "pg": "^8.20.0",
     "react": "^19.0.0",
