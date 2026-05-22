@@ -24,6 +24,7 @@ import type { ConfirmState, NoteModalState } from '../features/projects/projects
 import { notifyGeneralFormError } from '../shared/forms/errors';
 import { ConfirmationModal } from '../shared/ui/confirmation-modal';
 import { notifySuccess } from '../shared/ui/notifications';
+import { UserAvatar } from '../shared/ui/user-avatar';
 import { useGlobalLoading } from '../app/global-loading';
 import { useTheme } from '../app/providers/theme';
 
@@ -320,16 +321,26 @@ export function AppShell() {
                 title="User menu"
                 type="button"
               >
-                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
-                  <circle cx="12" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.8" />
-                  <path d="M5.75 19.25c.7-3.2 2.9-5 6.25-5s5.55 1.8 6.25 5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
-                </svg>
+                <UserAvatar
+                  avatarUrl={currentUser?.avatarUrl}
+                  className="topbar-avatar"
+                  displayName={currentUser?.displayName}
+                  email={currentUser?.email}
+                />
               </button>
               {isProfileMenuOpen ? (
                 <div className="profile-menu-popover" role="menu">
                   <div className="profile-menu-user">
-                    <strong>{currentUser?.displayName || 'Loading user...'}</strong>
-                    <span>{currentUser?.email || 'Loading email...'}</span>
+                    <UserAvatar
+                      avatarUrl={currentUser?.avatarUrl}
+                      className="profile-menu-avatar"
+                      displayName={currentUser?.displayName}
+                      email={currentUser?.email}
+                    />
+                    <div className="profile-menu-copy">
+                      <strong>{currentUser?.displayName || 'Loading user...'}</strong>
+                      <span>{currentUser?.email || 'Loading email...'}</span>
+                    </div>
                   </div>
                   <Link className="profile-menu-link" role="menuitem" to={routes.profile}>
                     My Profile

@@ -131,4 +131,5 @@ export type AuthUser = {
   email: string;
   displayName: string;
   role: string;
+  avatarUrl: string | null;
 };

@@ -38,6 +38,36 @@ export class PostgresUserRepository extends UserRepository {
     return userFromRow(result.rows[0]);
   }
 
+  async updateUserAvatar(input: { userId: string; storageKey: string; mimeType: string; sizeBytes: number }) {
+    const result = await this.database.getPool().query(
+      `update kb_users
+       set avatar_storage_key = $2,
+           avatar_mime_type = $3,
+           avatar_size_bytes = $4,
+           avatar_updated_at = now(),
+           updated_at = now()
+       where id = $1
+       returning *`,
+      [input.userId, input.storageKey, input.mimeType, input.sizeBytes],
+    );
+    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+  }
+
+  async clearUserAvatar(userId: string) {
+    const result = await this.database.getPool().query(
+      `update kb_users
+       set avatar_storage_key = null,
+           avatar_mime_type = null,
+           avatar_size_bytes = null,
+           avatar_updated_at = null,
+           updated_at = now()
+       where id = $1
+       returning *`,
+      [userId],
+    );
+    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+  }
+
   async findAuthIdentity(provider: string, providerUserId: string) {
     const result = await this.database.getPool().query(
       `select * from kb_auth_identities

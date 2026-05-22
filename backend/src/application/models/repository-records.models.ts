@@ -8,6 +8,10 @@ export type KbUser = {
   displayName: string;
   passwordHash: string | null;
   role: string;
+  avatarStorageKey: string | null;
+  avatarMimeType: string | null;
+  avatarSizeBytes: number | null;
+  avatarUpdatedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

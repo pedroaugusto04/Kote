@@ -375,6 +375,9 @@ select:not([multiple]) {
 }
 .theme-toggle svg { width: 15px; height: 15px; }
 .topbar-icon svg { width: 16px; height: 16px; }
+.user-avatar { display: inline-grid; place-items: center; overflow: hidden; flex: 0 0 auto; border: 1px solid var(--line-soft); border-radius: 999px; background: var(--surface-6); color: var(--active-text); font-family: var(--mono); font-weight: 700; }
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.topbar-avatar { width: 30px; height: 30px; font-size: 11px; }
 .profile-menu { position: relative; display: inline-flex; }
 .profile-menu-popover {
   position: absolute;
@@ -390,7 +393,9 @@ select:not([multiple]) {
   background: var(--panel);
   box-shadow: var(--shadow-strong);
 }
-.profile-menu-user { display: grid; gap: 3px; min-width: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); }
+.profile-menu-user { display: grid; grid-template-columns: 38px minmax(0, 1fr); align-items: center; gap: 10px; min-width: 0; padding-bottom: 10px; border-bottom: 1px solid var(--border-subtle); }
+.profile-menu-avatar { width: 38px; height: 38px; font-size: 13px; }
+.profile-menu-copy { display: grid; gap: 3px; min-width: 0; }
 .profile-menu-user strong { overflow: hidden; color: var(--text-strong); font-family: var(--ui); font-size: 14px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
 .profile-menu-user span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .profile-menu-link { display: flex; align-items: center; min-height: 36px; padding: 0 10px; border: 1px solid var(--line-soft); border-radius: 7px; color: var(--text); background: var(--surface-4); text-decoration: none; }
@@ -952,8 +957,15 @@ p { color: var(--muted); line-height: 1.6; }
 .home-project-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 38px; padding: 7px 9px; border: 1px solid var(--line-soft); border-radius: 7px; color: var(--text); background: var(--surface-4); text-align: left; }
 .home-project-link:hover { border-color: var(--accent-border); background: var(--surface-hover-strong); }
 .home-project-link span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.profile-panel { max-width: 720px; }
+.profile-panel { width: min(100%, 760px); margin: 0 auto; }
 .profile-state { color: var(--muted); font-family: var(--mono); font-size: 12px; }
+.profile-card { display: grid; gap: 26px; }
+.profile-avatar-section { display: grid; justify-items: center; gap: 12px; padding-bottom: 24px; border-bottom: 1px solid var(--border-subtle); text-align: center; }
+.profile-avatar { width: 112px; height: 112px; font-size: 34px; }
+.profile-avatar-actions { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.profile-avatar-upload { position: relative; overflow: hidden; }
+.profile-avatar-upload input { position: absolute; inset: 0; opacity: 0; pointer-events: none; }
+.profile-avatar-upload.disabled { opacity: 0.55; cursor: not-allowed; }
 .profile-details { display: grid; gap: 0; margin: 0; }
 .profile-detail-row { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 18px; padding: 16px 0; border-bottom: 1px solid var(--border-subtle); }
 .profile-detail-row:first-child { padding-top: 0; }

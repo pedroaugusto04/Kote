@@ -1,10 +1,11 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 
-import { BadRequestException, ConflictException, Injectable, OnModuleInit, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 
 import type { KbUser } from './models/repository-records.models.js';
 import { GoogleOAuthGateway, type GoogleOAuthProfile } from './ports/google-oauth.gateway.js';
+import { ObjectStorage, ObjectStorageMissingContentError } from './ports/object-storage.js';
 import { SchemaMigrator, UserRepository } from './ports/auth.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
 import { readEnvironment } from '../adapters/environment.js';
@@ -16,6 +17,12 @@ export type AuthenticatedUser = {
   email: string;
   displayName: string;
   role: string;
+  avatarUrl: string | null;
+};
+
+export type AvatarContent = {
+  body: Buffer;
+  mimeType: string;
 };
 
 export type TokenPair = {
@@ -43,6 +50,12 @@ type GoogleOAuthStatePayload = {
 
 const googleAuthProvider = 'google';
 const googleOAuthStateTtlMs = 10 * 60 * 1000;
+export const avatarMaxSizeBytes = 2 * 1024 * 1024;
+const avatarMimeTypes = new Map([
+  ['image/png', 'png'],
+  ['image/jpeg', 'jpg'],
+  ['image/webp', 'webp'],
+]);
 
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64url');
@@ -157,7 +170,26 @@ export function parseCookies(cookieHeader: string | undefined): Record<string, s
 }
 
 function toAuthenticatedUser(user: KbUser): AuthenticatedUser {
-  return { id: user.id, email: user.email, displayName: user.displayName, role: user.role };
+  return {
+    id: user.id,
+    email: user.email,
+    displayName: user.displayName,
+    role: user.role,
+    avatarUrl: user.avatarStorageKey && user.avatarUpdatedAt
+      ? `/api/auth/avatar/content?v=${encodeURIComponent(user.avatarUpdatedAt)}`
+      : null,
+  };
+}
+
+function requireAvatarStorage(storage: ObjectStorage | undefined): ObjectStorage {
+  if (!storage) throw new Error('avatar_storage_not_configured');
+  return storage;
+}
+
+function avatarStorageKey(userId: string, mimeType: string): string {
+  const extension = avatarMimeTypes.get(mimeType);
+  if (!extension) throw new BadRequestException('unsupported_avatar_type');
+  return `users/${userId}/profile/avatar-${Date.now()}.${extension}`;
 }
 
 @Injectable()
@@ -167,6 +199,7 @@ export class AuthService implements OnModuleInit {
     private readonly schemaMigrator: SchemaMigrator,
     private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => readEnvironment() },
     private readonly googleOAuth?: GoogleOAuthGateway,
+    private readonly objectStorage?: ObjectStorage,
   ) {}
 
   async onModuleInit() {
@@ -285,6 +318,54 @@ export class AuthService implements OnModuleInit {
     const user = await this.users.findUserById(payload.sub);
     if (!user) throw new UnauthorizedException('user_not_found');
     return toAuthenticatedUser(user);
+  }
+
+  async uploadAvatar(input: { userId: string; buffer: Buffer; mimeType: string; sizeBytes: number }): Promise<AuthenticatedUser> {
+    const user = await this.users.findUserById(input.userId);
+    if (!user) throw new UnauthorizedException('user_not_found');
+    if (!avatarMimeTypes.has(input.mimeType)) throw new BadRequestException('unsupported_avatar_type');
+    if (!input.buffer.length || input.sizeBytes <= 0) throw new BadRequestException('avatar_file_required');
+    if (input.sizeBytes > avatarMaxSizeBytes || input.buffer.length > avatarMaxSizeBytes) throw new BadRequestException('avatar_file_too_large');
+
+    const storage = requireAvatarStorage(this.objectStorage);
+    const previousStorageKey = user.avatarStorageKey;
+    const storageKey = avatarStorageKey(user.id, input.mimeType);
+    await storage.put({ key: storageKey, body: input.buffer, contentType: input.mimeType });
+    const updated = await this.users.updateUserAvatar({
+      userId: user.id,
+      storageKey,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+    });
+    if (!updated) throw new UnauthorizedException('user_not_found');
+    if (previousStorageKey && previousStorageKey !== storageKey) {
+      await storage.delete(previousStorageKey).catch(() => undefined);
+    }
+    return toAuthenticatedUser(updated);
+  }
+
+  async deleteAvatar(userId: string): Promise<AuthenticatedUser> {
+    const user = await this.users.findUserById(userId);
+    if (!user) throw new UnauthorizedException('user_not_found');
+    const updated = await this.users.clearUserAvatar(user.id);
+    if (!updated) throw new UnauthorizedException('user_not_found');
+    if (user.avatarStorageKey) {
+      await requireAvatarStorage(this.objectStorage).delete(user.avatarStorageKey).catch(() => undefined);
+    }
+    return toAuthenticatedUser(updated);
+  }
+
+  async getAvatarContent(userId: string): Promise<AvatarContent> {
+    const user = await this.users.findUserById(userId);
+    if (!user) throw new UnauthorizedException('user_not_found');
+    if (!user.avatarStorageKey || !user.avatarMimeType) throw new NotFoundException('avatar_not_found');
+    try {
+      const body = await requireAvatarStorage(this.objectStorage).get(user.avatarStorageKey);
+      return { body, mimeType: user.avatarMimeType };
+    } catch (error) {
+      if (error instanceof ObjectStorageMissingContentError) throw new NotFoundException('avatar_not_found');
+      throw error;
+    }
   }
 
   issueTokens(user: KbUser): TokenPair {

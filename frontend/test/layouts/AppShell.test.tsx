@@ -88,7 +88,7 @@ function mockFetch() {
     if (url === '/api/auth/me') {
       return Response.json({
         ok: true,
-        user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner' },
+        user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl: null },
       });
     }
     if (url === '/api/integrations?workspaceSlug=default') {
@@ -598,6 +598,45 @@ describe('AppShell', () => {
     expect(screen.getAllByText('default').length).toBeGreaterThan(0);
   });
 
+  it('updates the topbar avatar after changing the profile photo', async () => {
+    stubLocalStorage();
+    let avatarUrl: string | null = null;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/dashboard') {
+        return Response.json(dashboard);
+      }
+      if (url === '/api/auth/me') {
+        return Response.json({
+          ok: true,
+          user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl },
+        });
+      }
+      if (url === '/api/auth/avatar' && init?.method === 'PUT') {
+        avatarUrl = '/api/auth/avatar/content?v=2';
+        return Response.json({
+          ok: true,
+          user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<AppShell />, { route: '/profile' });
+
+    expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'User menu' })).toHaveTextContent('AL');
+
+    const file = new File(['avatar'], 'avatar.webp', { type: 'image/webp' });
+    fireEvent.change(screen.getByLabelText('Change photo'), { target: { files: [file] } });
+
+    await waitFor(() => {
+      const image = screen.getByRole('button', { name: 'User menu' }).querySelector('img');
+      expect(image).toHaveAttribute('src', '/api/auth/avatar/content?v=2');
+    });
+  });
+
   it('shows only the search results list without the old answer panel', async () => {
     stubLocalStorage();
     vi.stubGlobal('fetch', mockFetch());
@@ -934,7 +973,7 @@ describe('AppShell', () => {
         return Response.json({ ok: true });
       }
       if (url === '/api/auth/login') {
-        return Response.json({ ok: true, user: { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' } });
+        return Response.json({ ok: true, user: { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user', avatarUrl: null } });
       }
       if (url === '/api/dashboard') {
         return Response.json(dashboard);

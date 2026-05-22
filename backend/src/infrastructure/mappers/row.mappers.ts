@@ -32,6 +32,10 @@ export function userFromRow(row: Row): KbUser {
     displayName: String(row.display_name || row.email),
     passwordHash: row.password_hash == null ? null : String(row.password_hash),
     role: String(row.role),
+    avatarStorageKey: row.avatar_storage_key == null ? null : String(row.avatar_storage_key),
+    avatarMimeType: row.avatar_mime_type == null ? null : String(row.avatar_mime_type),
+    avatarSizeBytes: row.avatar_size_bytes == null ? null : Number(row.avatar_size_bytes),
+    avatarUpdatedAt: row.avatar_updated_at ? nowIso(row.avatar_updated_at) : null,
     createdAt: nowIso(row.created_at),
     updatedAt: nowIso(row.updated_at),
   };

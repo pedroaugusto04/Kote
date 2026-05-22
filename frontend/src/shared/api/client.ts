@@ -1,4 +1,4 @@
-export { buildGoogleAuthStartUrl, fetchCurrentUser, login, logout, signup } from './auth';
+export { buildGoogleAuthStartUrl, deleteCurrentUserAvatar, fetchCurrentUser, login, logout, signup, uploadCurrentUserAvatar } from './auth';
 export { fetchDashboard } from './dashboard';
 export {
   connectIntegration,

@@ -75,12 +75,20 @@ function responseMock() {
   return {
     cookies: [],
     cleared: [],
+    headers: {},
+    body: undefined,
     redirectedTo: '',
     cookie(name, value, options) {
       this.cookies.push({ name, value, options });
     },
     clearCookie(name, options) {
       this.cleared.push({ name, options });
+    },
+    setHeader(name, value) {
+      this.headers[name.toLowerCase()] = value;
+    },
+    send(body) {
+      this.body = body;
     },
     redirect(url) {
       this.redirectedTo = url;
@@ -91,7 +99,7 @@ function responseMock() {
 async function fixture(t, options = {}) {
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
-  const auth = new AuthService(repositories.userRepository, repositories.schemaMigrator, undefined, options.googleGateway);
+  const auth = new AuthService(repositories.userRepository, repositories.schemaMigrator, undefined, options.googleGateway, repositories.objectStorage);
   await auth.onModuleInit();
   const admin = await repositories.userRepository.findUserByEmail('admin@example.com');
   if (admin) {
@@ -165,11 +173,146 @@ test('login creates HttpOnly cookies and does not return tokens in JSON', async 
 
   assert.equal(result.ok, true);
   assert.equal(result.user.email, 'admin@example.com');
+  assert.equal(result.user.avatarUrl, null);
   assert.equal(JSON.stringify(result).includes('accessToken'), false);
   assert.equal(JSON.stringify(result).includes('refreshToken'), false);
   assert.deepEqual(response.cookies.map((cookie) => cookie.name), ['kb_access_token', 'kb_refresh_token']);
   assert.equal(response.cookies.every((cookie) => cookie.options.httpOnly), true);
   assert.equal(response.cookies.every((cookie) => cookie.options.sameSite === 'lax'), true);
+});
+
+test('current authenticated user shape includes avatarUrl', async (t) => {
+  const { auth } = await fixture(t);
+  const controller = new AuthController(auth);
+  const response = responseMock();
+  const login = await controller.login(
+    { email: 'admin@example.com', password: 'admin-password' },
+    { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+    response,
+  );
+
+  assert.deepEqual(controller.me(login.user), { ok: true, user: { ...login.user, avatarUrl: null } });
+});
+
+test('avatar upload rejects unsupported MIME types', async (t) => {
+  const { auth } = await fixture(t);
+  const controller = new AuthController(auth);
+  const login = await controller.login(
+    { email: 'admin@example.com', password: 'admin-password' },
+    { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+    responseMock(),
+  );
+
+  await assert.rejects(
+    () => controller.uploadAvatar(login.user, {
+      buffer: Buffer.from('not an image'),
+      mimetype: 'text/plain',
+      size: 12,
+      originalname: 'avatar.txt',
+    }),
+    /unsupported_avatar_type/,
+  );
+});
+
+test('avatar upload rejects files over 2MB', async (t) => {
+  const { auth } = await fixture(t);
+  const controller = new AuthController(auth);
+  const login = await controller.login(
+    { email: 'admin@example.com', password: 'admin-password' },
+    { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+    responseMock(),
+  );
+
+  await assert.rejects(
+    () => controller.uploadAvatar(login.user, {
+      buffer: Buffer.alloc((2 * 1024 * 1024) + 1),
+      mimetype: 'image/png',
+      size: (2 * 1024 * 1024) + 1,
+      originalname: 'avatar.png',
+    }),
+    /avatar_file_too_large/,
+  );
+});
+
+test('avatar upload stores bytes and returns the updated user', async (t) => {
+  const { auth, repositories } = await fixture(t);
+  const controller = new AuthController(auth);
+  const login = await controller.login(
+    { email: 'admin@example.com', password: 'admin-password' },
+    { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+    responseMock(),
+  );
+  const image = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
+
+  const result = await controller.uploadAvatar(login.user, {
+    buffer: image,
+    mimetype: 'image/png',
+    size: image.length,
+    originalname: 'avatar.png',
+  });
+
+  const storedUser = await repositories.userRepository.findUserById(login.user.id);
+  assert.equal(result.ok, true);
+  assert.match(result.user.avatarUrl, /^\/api\/auth\/avatar\/content\?v=/);
+  assert.equal(storedUser.avatarMimeType, 'image/png');
+  assert.equal(storedUser.avatarSizeBytes, image.length);
+  assert.match(storedUser.avatarStorageKey, new RegExp(`^users/${login.user.id}/profile/avatar-\\d+\\.png$`));
+  assert.deepEqual(repositories.objectStorage.objects.get(storedUser.avatarStorageKey), image);
+});
+
+test('avatar remove clears fields and deletes the previous storage key best-effort', async (t) => {
+  const { auth, repositories } = await fixture(t);
+  const controller = new AuthController(auth);
+  const login = await controller.login(
+    { email: 'admin@example.com', password: 'admin-password' },
+    { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+    responseMock(),
+  );
+  await controller.uploadAvatar(login.user, {
+    buffer: Buffer.from('webp-image'),
+    mimetype: 'image/webp',
+    size: 10,
+    originalname: 'avatar.webp',
+  });
+  const uploaded = await repositories.userRepository.findUserById(login.user.id);
+
+  const removed = await controller.deleteAvatar(login.user);
+  const storedUser = await repositories.userRepository.findUserById(login.user.id);
+
+  assert.equal(removed.user.avatarUrl, null);
+  assert.equal(storedUser.avatarStorageKey, null);
+  assert.equal(storedUser.avatarMimeType, null);
+  assert.equal(storedUser.avatarSizeBytes, null);
+  assert.equal(storedUser.avatarUpdatedAt, null);
+  assert.equal(repositories.objectStorage.objects.has(uploaded.avatarStorageKey), false);
+  assert.equal(repositories.objectStorage.deletedKeys.includes(uploaded.avatarStorageKey), true);
+});
+
+test('avatar content endpoint returns bytes and blocks missing avatars', async (t) => {
+  const { auth } = await fixture(t);
+  const controller = new AuthController(auth);
+  const login = await controller.login(
+    { email: 'admin@example.com', password: 'admin-password' },
+    { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+    responseMock(),
+  );
+
+  await assert.rejects(() => controller.avatarContent(login.user, responseMock()), /avatar_not_found/);
+
+  const image = Buffer.from('jpeg-image');
+  await controller.uploadAvatar(login.user, {
+    buffer: image,
+    mimetype: 'image/jpeg',
+    size: image.length,
+    originalname: 'avatar.jpg',
+  });
+  const response = responseMock();
+
+  await controller.avatarContent(login.user, response);
+
+  assert.equal(response.headers['content-type'], 'image/jpeg');
+  assert.equal(response.headers['cache-control'], 'private, max-age=3600');
+  assert.deepEqual(response.body, image);
 });
 
 test('signup creates a user and HttpOnly cookies', async (t) => {

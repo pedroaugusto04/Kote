@@ -31,6 +31,19 @@ export function fetchCurrentUser() {
   return request<{ ok: true; user: AuthUser }>('/api/auth/me');
 }
 
+export function uploadCurrentUserAvatar(file: File) {
+  const body = new FormData();
+  body.append('file', file);
+  return request<{ ok: true; user: AuthUser }>('/api/auth/avatar', {
+    method: 'PUT',
+    body,
+  });
+}
+
+export function deleteCurrentUserAvatar() {
+  return request<{ ok: true; user: AuthUser }>('/api/auth/avatar', { method: 'DELETE' });
+}
+
 export function buildGoogleAuthStartUrl(returnTo: string) {
   const params = new URLSearchParams({ returnTo });
   return `${resolveApiPath('/api/auth/google/start')}?${params.toString()}`;
