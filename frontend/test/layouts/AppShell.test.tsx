@@ -85,6 +85,12 @@ function mockFetch() {
     if (url === '/api/dashboard') {
       return Response.json(dashboard);
     }
+    if (url === '/api/auth/me') {
+      return Response.json({
+        ok: true,
+        user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner' },
+      });
+    }
     if (url === '/api/integrations?workspaceSlug=default') {
       return Response.json({
         ok: true,
@@ -442,9 +448,10 @@ describe('AppShell', () => {
     expect(topbarMeta).not.toBeNull();
 
     const buttons = topbarMeta ? Array.from(topbarMeta.querySelectorAll('button')) : [];
-    expect(buttons).toHaveLength(2);
-    expect(buttons[0]).toHaveAttribute('aria-label', 'Enable light mode');
-    expect(buttons[1]).toHaveTextContent('Sign out');
+    expect(buttons).toHaveLength(3);
+    expect(buttons[0]).toHaveAttribute('aria-label', 'User menu');
+    expect(buttons[1]).toHaveAttribute('aria-label', 'Enable light mode');
+    expect(buttons[2]).toHaveTextContent('Sign out');
   });
 
   it('persists the selected theme and reapplies it on a new render', async () => {
@@ -567,6 +574,28 @@ describe('AppShell', () => {
 
     expect(await screen.findByRole('heading', { name: 'Sign in to your workspace' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Overview' })).toHaveAttribute('href', '/');
+  });
+
+  it('opens the protected profile route from the user menu', async () => {
+    stubLocalStorage();
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(<AppShell />);
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
+
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('ada@example.com')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'My Profile' }));
+
+    expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'User menu' })).toHaveClass('active');
+    expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+    expect(screen.getByText('ada@example.com')).toBeInTheDocument();
+    expect(screen.getByText('owner')).toBeInTheDocument();
+    expect(screen.getAllByText('Default').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('default').length).toBeGreaterThan(0);
   });
 
   it('shows only the search results list without the old answer panel', async () => {

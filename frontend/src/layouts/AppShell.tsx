@@ -4,13 +4,14 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, deleteNote, fetchDashboard, fetchNote, fetchProjectFolders, logout } from '../shared/api/client';
+import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout } from '../shared/api/client';
 import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { HomePage } from '../pages/home/HomePage';
 import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
 import { KanbanPage } from '../pages/kanban/KanbanPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
+import { ProfilePage } from '../pages/profile/ProfilePage';
 import { RemindersPage } from '../pages/reminders/RemindersPage';
 import { SearchPage } from '../pages/search/SearchPage';
 import { SetupPage } from '../pages/setup/SetupPage';
@@ -33,6 +34,7 @@ function activeView(pathname: string): View {
   if (pathname.startsWith('/search')) return 'search';
   if (pathname.startsWith('/kanban')) return 'kanban';
   if (pathname.startsWith('/reminders')) return 'reminders';
+  if (pathname.startsWith('/profile')) return 'profile';
   if (pathname.startsWith('/settings/integrations')) return 'integrations';
   return 'home';
 }
@@ -61,6 +63,7 @@ export function AppShell() {
   const [selectedProject, setSelectedProjectState] = useState('');
   const [selectedNoteId, setSelectedNoteId] = useState('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
@@ -71,12 +74,18 @@ export function AppShell() {
   const activeWorkspace = dashboard?.workspaces[0] || null;
   const isSetupRoute = location.pathname.startsWith(routes.setup);
   const activeNavItem = navItems.find((item) => item.view === view);
-  const topbarTitle = view === 'note' ? 'Note details' : activeNavItem?.label || 'Home';
+  const topbarTitle = view === 'note' ? 'Note details' : view === 'profile' ? 'Profile' : activeNavItem?.label || 'Home';
   const routeNoteQuery = useQuery(noteDetailQueryOptions(routeNoteId));
   const cachedRouteNote = getCachedNoteDetail(queryClient, routeNoteId);
   const activeRouteNote = routeNoteQuery.data || cachedRouteNote;
   const shouldBlockNoteRoute = Boolean(routeNoteId) && routeNoteQuery.isLoading && !activeRouteNote;
   const isUnauthorized = dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401;
+  const currentUserQuery = useQuery({
+    queryKey: ['auth', 'me'],
+    queryFn: fetchCurrentUser,
+    enabled: Boolean(dashboard && activeWorkspace && !isSetupRoute),
+  });
+  const currentUser = currentUserQuery.data?.user;
 
   useLayoutEffect(() => {
     if (dashboardQuery.isLoading && !dashboardQuery.data) {
@@ -96,7 +105,22 @@ export function AppShell() {
 
   useEffect(() => {
     setIsMobileNavOpen(false);
+    setIsProfileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (!isProfileMenuOpen) return undefined;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsProfileMenuOpen(false);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isProfileMenuOpen]);
 
   const noteFoldersQuery = useQuery({
     queryKey: ['project-folders', 'app-shell-note-modal', noteModal?.mode === 'edit' ? noteModal.note.project : ''],
@@ -286,6 +310,33 @@ export function AppShell() {
             }} />
           </label>
           <div className="topbar-meta">
+            <div className="profile-menu">
+              <button
+                aria-expanded={isProfileMenuOpen}
+                aria-haspopup="menu"
+                aria-label="User menu"
+                className={`topbar-link topbar-icon ${view === 'profile' ? 'active' : ''}`}
+                onClick={() => setIsProfileMenuOpen((current) => !current)}
+                title="User menu"
+                type="button"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.8" />
+                  <path d="M5.75 19.25c.7-3.2 2.9-5 6.25-5s5.55 1.8 6.25 5" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
+                </svg>
+              </button>
+              {isProfileMenuOpen ? (
+                <div className="profile-menu-popover" role="menu">
+                  <div className="profile-menu-user">
+                    <strong>{currentUser?.displayName || 'Loading user...'}</strong>
+                    <span>{currentUser?.email || 'Loading email...'}</span>
+                  </div>
+                  <Link className="profile-menu-link" role="menuitem" to={routes.profile}>
+                    My Profile
+                  </Link>
+                </div>
+              ) : null}
+            </div>
             <button
               aria-label={effectiveTheme === 'dark' ? 'Enable light mode' : 'Enable dark mode'}
               className="topbar-link theme-toggle"
@@ -328,6 +379,7 @@ export function AppShell() {
             <Route path="/search" element={<SearchPage {...pageContext} />} />
             <Route path="/kanban" element={<KanbanPage {...pageContext} />} />
             <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
+            <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
             <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
             <Route path="*" element={<HomePage {...pageContext} />} />
           </Routes>

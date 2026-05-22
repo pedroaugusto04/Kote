@@ -9,10 +9,11 @@ export const routes = {
   search: '/search',
   kanban: '/kanban',
   reminders: '/reminders',
+  profile: '/profile',
   integrations: '/settings/integrations',
 } as const;
 
-export type View = 'home' | 'projects' | 'note' | 'search' | 'kanban' | 'reminders' | 'integrations';
+export type View = 'home' | 'projects' | 'note' | 'search' | 'kanban' | 'reminders' | 'profile' | 'integrations';
 
 export const navItems: Array<{ view: View; label: string; path: string }> = [
   { view: 'home', label: 'Home', path: routes.home },

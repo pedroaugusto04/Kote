@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { ApiClientError, fetchDashboard, getErrorMessage, runQuery } from '../../../src/shared/api/client';
+import { ApiClientError, fetchCurrentUser, fetchDashboard, getErrorMessage, runQuery } from '../../../src/shared/api/client';
 import { request, resetRequestStateForTests } from '../../../src/shared/api/request';
 
 function apiErrorResponse(status: number, code: string, message = 'Request failed.', requestId = `req-${code}`, details: Record<string, unknown> = {}) {
@@ -100,6 +100,23 @@ describe('api client', () => {
     await expect(fetchDashboard()).resolves.toEqual({ ok: true, projects: [], workspaces: [] });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledWith('/api/dashboard', expect.objectContaining({
+      credentials: 'include',
+      headers: { accept: 'application/json' },
+    }));
+  });
+
+  it('fetches the current authenticated user from /api/auth/me', async () => {
+    const fetchMock = vi.fn(async () => Response.json({
+      ok: true,
+      user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner' },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(fetchCurrentUser()).resolves.toEqual({
+      ok: true,
+      user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner' },
+    });
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({
       credentials: 'include',
       headers: { accept: 'application/json' },
     }));

@@ -27,6 +27,10 @@ export function logout() {
   return request<{ ok: true }>('/api/auth/logout', { method: 'POST' });
 }
 
+export function fetchCurrentUser() {
+  return request<{ ok: true; user: AuthUser }>('/api/auth/me');
+}
+
 export function buildGoogleAuthStartUrl(returnTo: string) {
   const params = new URLSearchParams({ returnTo });
   return `${resolveApiPath('/api/auth/google/start')}?${params.toString()}`;
