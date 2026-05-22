@@ -8,6 +8,7 @@ import { ConversationAgentGateway } from './application/ports/conversation-agent
 import { GithubIntegrationGateway } from './application/ports/github-integration.port.js';
 import { GoogleOAuthGateway } from './application/ports/google-oauth.gateway.js';
 import { ProjectBriefAiGateway } from './application/ports/project-brief-ai.gateway.js';
+import { NoteEmbeddingRepository } from './application/ports/note-embedding.repository.js';
 import { ProjectBriefHistoryRepository } from './application/ports/project-brief-history.repository.js';
 import { ReminderDeliveryGateway } from './application/ports/reminder-delivery.gateway.js';
 import { ReviewAnalysisGateway } from './application/ports/review-analysis.port.js';
@@ -39,6 +40,7 @@ import { PostgresContentQueryRepository } from './infrastructure/repositories/co
 import { PostgresContentRepository } from './infrastructure/repositories/content.repository.js';
 import { PostgresDatabase } from './infrastructure/persistence/database.js';
 import { PostgresIntegrationRepository } from './infrastructure/repositories/integrations.repository.js';
+import { PostgresNoteEmbeddingRepository } from './infrastructure/repositories/note-embedding.repository.js';
 import { PostgresProjectBriefHistoryRepository } from './infrastructure/repositories/project-brief-history.repository.js';
 import { PostgresSchemaMigrator } from './infrastructure/persistence/schema.migrator.js';
 import { PostgresWebhookEventRepository } from './infrastructure/repositories/webhook-events.repository.js';
@@ -166,6 +168,7 @@ import { AppLogger } from './observability/logger.js';
     PostgresProjectBriefHistoryRepository,
     PostgresContentRepository,
     PostgresContentQueryRepository,
+    PostgresNoteEmbeddingRepository,
     PostgresWorkflowStateRepository,
     PostgresWebhookEventRepository,
     SupabaseObjectStorage,
@@ -183,6 +186,7 @@ import { AppLogger } from './observability/logger.js';
     { provide: ReviewAnalysisGateway, useExisting: DefaultReviewAnalysisGateway },
     { provide: ContentRepository, useExisting: PostgresContentRepository },
     { provide: ContentQueryRepository, useExisting: PostgresContentQueryRepository },
+    { provide: NoteEmbeddingRepository, useExisting: PostgresNoteEmbeddingRepository },
     { provide: ObjectStorage, useExisting: SupabaseObjectStorage },
     { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
