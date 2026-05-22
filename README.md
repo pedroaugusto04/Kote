@@ -11,6 +11,7 @@ Transform scattered information into a searchable knowledge base by automaticall
 - **Project Organization:** Notes, routines, and decisions centralized by context.
 - **Contextual Search:** Instantly find answers across the team's entire history.
 - **Operational Dashboard:** A quick summary of recent activities, priorities, and reminders.
+- **Project Briefs:** Manual AI-generated technical briefs per project, with saved history and fallback to the last successful brief.
 - **Reminder Kanban:** Operational board for overdue, upcoming, resolved, and archived pending work.
 - **Continuous Capture:** Direct integration with the tools your team already uses.
 
@@ -20,6 +21,7 @@ We simplify knowledge capture where the work already happens:
 - **WhatsApp:** Send texts or audio directly to the Vault. The system automatically identifies the project and generates structured notes without manual effort.
 - **WhatsApp Reminders:** Backend reminder dispatch uses the workspace `whatsappChatJid` through Evolution API as the default delivery channel. It can store either a group JID or a private chat JID.
 - **GitHub Push:** Captures `git push` events, analyzes commits and diffs, and transforms technical updates into accessible context for everyone, not just developers.
+- **Project Brief AI:** Generates an English operational technical brief from the latest 30 project items.
 
 ## Why Knowledge Vault?
 - **Zero context loss:** Perfect for shift handovers or new projects.

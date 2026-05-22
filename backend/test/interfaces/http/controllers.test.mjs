@@ -127,6 +127,18 @@ test('projects and notes controllers delegate create requests to use cases', asy
     execute: async (body, userId) => ({ ok: true, project: body, userId }),
   }, {
     execute: async (projectSlug, userId) => ({ ok: true, projectSlug, userId }),
+  }, {
+    execute: async (userId, projectSlug) => ({ ok: true, fallback: false, brief: { projectSlug, userId } }),
+  }, {
+    execute: async () => ({ items: [], pagination: {} }),
+  }, {
+    execute: async () => ({ ok: true, folders: [] }),
+  }, {
+    execute: async () => ({ ok: true, folder: {} }),
+  }, {
+    execute: async () => ({ ok: true, folder: {} }),
+  }, {
+    execute: async () => ({ ok: true }),
   });
   const notes = new NotesController({
     execute: async (body, userId) => ({ ok: true, noteId: 'note-1', body, userId }),
@@ -151,6 +163,7 @@ test('projects and notes controllers delegate create requests to use cases', asy
     { ok: true, project: { projectSlug: 'acme-api', displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
   );
   assert.deepEqual(await projects.remove({ projectSlug: 'acme-api' }, user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
+  assert.deepEqual(await projects.generateBrief({ projectSlug: 'acme-api' }, user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1' } });
   assert.deepEqual(
     await notes.update({ id: 'note-1' }, { title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
     { ok: true, noteId: 'note-1', body: { id: 'note-1', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },

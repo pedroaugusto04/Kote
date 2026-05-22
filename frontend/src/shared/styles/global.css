@@ -458,6 +458,66 @@ p { color: var(--muted); line-height: 1.6; }
 .project-title-row h2 { margin-bottom: 0; }
 .project-title-actions { display: flex; align-items: center; gap: 6px; }
 .project-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.project-brief-panel {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-3);
+}
+.project-brief-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.project-brief-head h3,
+.project-brief-head p,
+.project-brief-section p { margin-bottom: 0; }
+.project-brief-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.project-brief-section {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+.project-brief-section ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text-soft);
+}
+.project-brief-section li { overflow-wrap: anywhere; }
+.project-brief-source {
+  display: inline;
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--active-text);
+  text-align: left;
+  text-decoration: underline;
+}
+.project-brief-fallback,
+.project-brief-error {
+  padding: 9px 10px;
+  border: 1px solid var(--warning-border);
+  border-radius: 7px;
+  background: var(--surface-warning);
+  color: var(--warning-text);
+}
+.project-brief-error {
+  border-color: var(--danger-border);
+  background: var(--surface-danger);
+  color: var(--danger-text);
+}
 .project-browser { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 16px; align-items: start; }
 .folder-browser, .folder-notes { display: grid; gap: 12px; }
 .folder-browser { padding: 14px; border: 1px solid var(--line-soft); border-radius: 8px; background: var(--surface-3); }
@@ -1696,7 +1756,7 @@ p { color: var(--muted); line-height: 1.6; }
   .workspace-pill, .tree-item { min-height: 44px; }
   .integration-card-foot { align-items: stretch; flex-direction: column; }
   .integration-actions { justify-content: flex-start; margin-left: 0; }
-  .grid.cols-2, .grid.cols-3, .filters, .form-grid, .project-browser { grid-template-columns: 1fr; }
+  .grid.cols-2, .grid.cols-3, .filters, .form-grid, .project-browser, .project-brief-grid { grid-template-columns: 1fr; }
   .kanban-board { grid-template-columns: 1fr; }
   .kanban-column { min-height: 280px; }
   .pagination-bar { align-items: stretch; flex-direction: column; }

@@ -85,6 +85,7 @@ export function buildIntegrationStatuses(input: {
 
   const reviewAiActive = environment.reviewAiProvider !== AiProvider.None;
   const conversationAiActive = environment.conversationAiProvider !== AiProvider.None;
+  const projectBriefAiActive = environment.projectBriefAiProvider !== AiProvider.None;
   const reviewAiEnv = {
     KB_REVIEW_AI_PROVIDER: reviewAiActive,
     KB_REVIEW_AI_BASE_URL: reviewAiActive ? Boolean(environment.reviewAiBaseUrl) : true,
@@ -96,6 +97,12 @@ export function buildIntegrationStatuses(input: {
     KB_CONVERSATION_AI_BASE_URL: conversationAiActive ? Boolean(environment.conversationAiBaseUrl) : true,
     KB_CONVERSATION_AI_MODEL: conversationAiActive ? Boolean(environment.conversationAiModel) : true,
     KB_CONVERSATION_AI_API_KEY: conversationAiActive ? secretConfigured(environment.conversationAiApiKey) : true,
+  };
+  const projectBriefAiEnv = {
+    KB_PROJECT_BRIEF_AI_PROVIDER: projectBriefAiActive,
+    KB_PROJECT_BRIEF_AI_BASE_URL: projectBriefAiActive ? Boolean(environment.projectBriefAiBaseUrl) : true,
+    KB_PROJECT_BRIEF_AI_MODEL: projectBriefAiActive ? Boolean(environment.projectBriefAiModel) : true,
+    KB_PROJECT_BRIEF_AI_API_KEY: projectBriefAiActive ? secretConfigured(environment.projectBriefAiApiKey) : true,
   };
 
   return {
@@ -214,6 +221,25 @@ export function buildIntegrationStatuses(input: {
         warnings: [
           !conversationAiActive ? 'Conversation provider is set to none.' : '',
           conversationAiActive && !environment.conversationAiApiKey ? 'Conversation AI is active without an API key.' : '',
+        ].filter(Boolean),
+      },
+      {
+        id: IntegrationProvider.ProjectBriefAi,
+        name: 'Project Brief AI',
+        description: 'Server-managed provider and model for manual project brief generation.',
+        status: statusFromFlags([projectBriefAiActive, ...Object.values(projectBriefAiEnv)]),
+        requiredEnv: Object.keys(projectBriefAiEnv),
+        configuredEnv: configuredEnv(projectBriefAiEnv),
+        missingEnv: missingEnv(projectBriefAiEnv),
+        links: [],
+        checklist: [
+          'Choose a provider other than none when project brief AI is enabled.',
+          'Define the project brief model and base URL, or inherit Conversation AI settings.',
+          'Configure the corresponding API key.',
+        ],
+        warnings: [
+          !projectBriefAiActive ? 'Project Brief provider is set to none.' : '',
+          projectBriefAiActive && !environment.projectBriefAiApiKey ? 'Project Brief AI is active without an API key.' : '',
         ].filter(Boolean),
       },
     ],

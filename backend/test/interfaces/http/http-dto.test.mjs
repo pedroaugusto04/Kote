@@ -182,6 +182,7 @@ test('integration dto accepts guided connection payloads', () => {
   assert.throws(() => connectIntegrationBodySchema.parse({ workspaceSlug: 'team_1', returnToPath: 'https://evil.example.com' }));
   assert.equal(guidedIntegrationProviderSchema.parse('telegram'), 'telegram');
   assert.equal(guidedIntegrationProviderSchema.parse('ai-review'), 'ai-review');
+  assert.equal(guidedIntegrationProviderSchema.parse('project-brief-ai'), 'project-brief-ai');
   assert.equal(githubAppCallbackQuerySchema.parse({ state: 'state', installation_id: 123, setup_action: 'install' }).installation_id, '123');
   assert.equal(sessionParamSchema.parse({ provider: 'whatsapp', sessionId: '00000000-0000-4000-8000-000000000000' }).provider, 'whatsapp');
   assert.deepEqual(githubRepositoriesBodySchema.parse({ workspaceSlug: 'team_1', repositories: [{ id: '1', fullName: 'acme/api' }] }), { workspaceSlug: 'team_1', repositories: [{ id: '1', fullName: 'acme/api' }] });

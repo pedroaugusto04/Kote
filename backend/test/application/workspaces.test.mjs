@@ -43,6 +43,7 @@ test('create workspace persists the workspace and the initial Inbox project', as
   process.env.KB_CREDENTIALS_ENCRYPTION_KEY = crypto.randomBytes(32).toString('base64');
   process.env.KB_REVIEW_AI_PROVIDER = 'openrouter';
   process.env.KB_CONVERSATION_AI_PROVIDER = 'openai';
+  process.env.KB_PROJECT_BRIEF_AI_PROVIDER = 'openai';
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
   const useCase = new CreateWorkspaceUseCase(
@@ -59,7 +60,7 @@ test('create workspace persists the workspace and the initial Inbox project', as
   assert.deepEqual((await repositories.contentRepository.listWorkspaces(user.id)).map((workspace) => workspace.workspaceSlug), ['acme-team']);
   assert.deepEqual((await repositories.contentRepository.listProjects(user.id)).map((project) => project.projectSlug), ['inbox']);
   const credentials = await repositories.credentialRepository.listCredentials(user.id, 'acme-team');
-  assert.deepEqual(credentials.map((credential) => credential.provider).sort(), ['ai-conversation', 'ai-review']);
+  assert.deepEqual(credentials.map((credential) => credential.provider).sort(), ['ai-conversation', 'ai-review', 'project-brief-ai']);
   assert.equal(credentials.every((credential) => credential.status === 'connected' && credential.revokedAt === null), true);
   assert.deepEqual(
     credentials
@@ -72,6 +73,7 @@ test('create workspace persists the workspace and the initial Inbox project', as
     [
       { provider: 'ai-conversation', connectedAccount: 'openai', enabled: true },
       { provider: 'ai-review', connectedAccount: 'openrouter', enabled: true },
+      { provider: 'project-brief-ai', connectedAccount: 'openai', enabled: true },
     ],
   );
 });

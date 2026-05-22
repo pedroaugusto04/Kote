@@ -138,6 +138,10 @@ jobs:
           KB_CONVERSATION_AI_BASE_URL: ${{ vars.KB_CONVERSATION_AI_BASE_URL || 'https://openrouter.ai/api/v1' }}
           KB_CONVERSATION_AI_MODEL: ${{ vars.KB_CONVERSATION_AI_MODEL || 'openrouter/auto' }}
           KB_CONVERSATION_AI_API_KEY: ${{ secrets.KB_CONVERSATION_AI_API_KEY || '' }}
+          KB_PROJECT_BRIEF_AI_PROVIDER: ${{ vars.KB_PROJECT_BRIEF_AI_PROVIDER || '' }}
+          KB_PROJECT_BRIEF_AI_BASE_URL: ${{ vars.KB_PROJECT_BRIEF_AI_BASE_URL || '' }}
+          KB_PROJECT_BRIEF_AI_MODEL: ${{ vars.KB_PROJECT_BRIEF_AI_MODEL || '' }}
+          KB_PROJECT_BRIEF_AI_API_KEY: ${{ secrets.KB_PROJECT_BRIEF_AI_API_KEY || '' }}
         run: bash scripts/deploy/generate-backend-env.sh .deploy/backend.env
 
       - name: Validate production environment config

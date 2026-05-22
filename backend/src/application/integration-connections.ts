@@ -7,7 +7,7 @@ import type { IntegrationConnectionSessionRecord, WorkspaceRecord } from './mode
 import { GithubIntegrationGateway } from './ports/github-integration.port.js';
 import { ContentRepository } from './ports/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations.repository.js';
-import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/runtime-environment.port.js';
 import { GithubRepositoryResolutionService } from './services/github-repository-resolution.service.js';
 import {
   appendQuery as appendConnectionQuery,
@@ -103,7 +103,7 @@ export class IntegrationConnectionService {
     if (input.provider === IntegrationProvider.GithubApp) return this.startGithubConnection(input.userId, workspace.workspaceSlug, input.returnToPath, input.browserOrigin);
     if (input.provider === IntegrationProvider.Whatsapp) return this.startWhatsappConnection(input.userId, workspace.workspaceSlug);
     if (input.provider === IntegrationProvider.Telegram) return this.startTelegramConnection(input.userId, workspace.workspaceSlug);
-    if (input.provider === IntegrationProvider.AiReview || input.provider === IntegrationProvider.AiConversation) return this.activateAi(input.userId, workspace.workspaceSlug, input.provider);
+    if (input.provider === IntegrationProvider.AiReview || input.provider === IntegrationProvider.AiConversation || input.provider === IntegrationProvider.ProjectBriefAi) return this.activateAi(input.userId, workspace.workspaceSlug, input.provider);
     throw new NotFoundException('provider_not_found');
   }
 
@@ -304,14 +304,11 @@ export class IntegrationConnectionService {
     });
   }
 
-  private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation) {
+  private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi) {
     const environment = this.environment();
-    const review = provider === IntegrationProvider.AiReview;
-    const configured = review
-      ? environment.reviewAiProvider !== 'none' && environment.reviewAiBaseUrl && environment.reviewAiModel && environment.reviewAiApiKey
-      : environment.conversationAiProvider !== 'none' && environment.conversationAiBaseUrl && environment.conversationAiModel && environment.conversationAiApiKey;
-    if (!configured) throw new BadRequestException(review ? 'review_ai_not_configured' : 'conversation_ai_not_configured');
-    const runtimeProvider = review ? environment.reviewAiProvider : environment.conversationAiProvider;
+    const config = aiRuntimeConfig(environment, provider);
+    const configured = config.provider !== 'none' && config.baseUrl && config.model && config.apiKey;
+    if (!configured) throw new BadRequestException(config.errorCode);
     const credential = await this.credentials.upsertCredential({
       userId,
       workspaceSlug,
@@ -319,8 +316,8 @@ export class IntegrationConnectionService {
       status: CredentialRecordStatus.Connected,
       encryptedConfig: encryptConfig({ enabled: true }, this.environmentProvider),
       publicMetadata: {
-        label: review ? 'Review AI' : 'Conversation AI',
-        connectedAccount: runtimeProvider,
+        label: config.label,
+        connectedAccount: config.provider,
       },
     });
     return {
@@ -329,7 +326,7 @@ export class IntegrationConnectionService {
       integration: {
         provider,
         status: credential.status,
-        connectedAccount: runtimeProvider,
+        connectedAccount: config.provider,
         updatedAt: credential.updatedAt,
       },
       steps: ['This feature is active for this workspace.'],
@@ -532,4 +529,38 @@ export class IntegrationConnectionService {
     base.searchParams.set('status', 'error');
     return origin ? base.toString() : `${base.pathname}${base.search}`;
   }
+}
+
+function aiRuntimeConfig(
+  environment: RuntimeEnvironment,
+  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi,
+) {
+  if (provider === IntegrationProvider.AiReview) {
+    return {
+      provider: environment.reviewAiProvider,
+      baseUrl: environment.reviewAiBaseUrl,
+      model: environment.reviewAiModel,
+      apiKey: environment.reviewAiApiKey,
+      label: 'Review AI',
+      errorCode: 'review_ai_not_configured',
+    };
+  }
+  if (provider === IntegrationProvider.ProjectBriefAi) {
+    return {
+      provider: environment.projectBriefAiProvider,
+      baseUrl: environment.projectBriefAiBaseUrl,
+      model: environment.projectBriefAiModel,
+      apiKey: environment.projectBriefAiApiKey,
+      label: 'Project Brief AI',
+      errorCode: 'project_brief_ai_not_configured',
+    };
+  }
+  return {
+    provider: environment.conversationAiProvider,
+    baseUrl: environment.conversationAiBaseUrl,
+    model: environment.conversationAiModel,
+    apiKey: environment.conversationAiApiKey,
+    label: 'Conversation AI',
+    errorCode: 'conversation_ai_not_configured',
+  };
 }

@@ -277,7 +277,7 @@ test('github connection normalizes app settings URLs to the installation flow', 
   assert.ok(url.searchParams.get('state'));
 });
 
-test('whatsapp connection command binds the chat even when authored by the connected number and normal unknown messages stay rejected', async (t) => {
+test('whatsapp connection command binds the chat even when authored by the connected number and normal unknown group messages are ignored', async (t) => {
   const { repositories, user, connections, whatsapp } = await fixture(t);
   const setup = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'whatsapp' });
 
@@ -294,13 +294,11 @@ test('whatsapp connection command binds the chat even when authored by the conne
   const workspaces = await repositories.contentRepository.listWorkspaces(user.id);
   assert.equal(workspaces[0].whatsappChatJid, '120363@g.us');
 
-  await assert.rejects(
-    () => whatsapp.execute({
-      headers: { apikey: 'provider-key' },
-      body: { data: { key: { remoteJid: 'unknown@g.us' }, message: { conversation: 'mensagem normal' } } },
-    }),
-    /identity_not_found/,
-  );
+  const unknown = await whatsapp.execute({
+    headers: { apikey: 'provider-key' },
+    body: { data: { key: { remoteJid: 'unknown@g.us' }, message: { conversation: 'mensagem normal' } } },
+  });
+  assert.deepEqual(unknown, { ok: true, processed: false, ignored: 'missing_group_prefix' });
 });
 
 test('whatsapp connection command binds a private chat jid to the workspace', async (t) => {

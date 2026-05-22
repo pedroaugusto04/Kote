@@ -20,6 +20,7 @@ export const guidedProviders = [
   IntegrationProvider.Telegram,
   IntegrationProvider.AiReview,
   IntegrationProvider.AiConversation,
+  IntegrationProvider.ProjectBriefAi,
 ] as const;
 type GuidedIntegrationProvider = typeof guidedProviders[number];
 
@@ -51,6 +52,7 @@ const providerLabels: Record<GuidedIntegrationProvider, { name: string; descript
   [IntegrationProvider.Telegram]: { name: 'Telegram', description: 'Chat linked to the managed bot for notifications and commands.' },
   [IntegrationProvider.AiReview]: { name: 'Review AI', description: 'Push analysis with a server-managed provider and model.' },
   [IntegrationProvider.AiConversation]: { name: 'Conversation AI', description: 'Assisted extraction from chat messages with managed configuration.' },
+  [IntegrationProvider.ProjectBriefAi]: { name: 'Project Brief AI', description: 'Manual operational project brief generation with managed configuration.' },
 };
 
 function isGuidedProvider(value: string): value is GuidedIntegrationProvider {
@@ -151,15 +153,21 @@ function connectedSteps(provider: GuidedIntegrationProvider): string[] {
 
 function aiEnvStatus(provider: string, environmentProvider: RuntimeEnvironmentProvider) {
   const environment = environmentProvider.read();
-  const review = provider === IntegrationProvider.AiReview;
-  const flags = review
+  const flags = provider === IntegrationProvider.AiReview
     ? {
         provider: environment.reviewAiProvider,
         baseUrl: environment.reviewAiBaseUrl,
         model: environment.reviewAiModel,
         apiKey: environment.reviewAiApiKey,
       }
-    : {
+    : provider === IntegrationProvider.ProjectBriefAi
+      ? {
+          provider: environment.projectBriefAiProvider,
+          baseUrl: environment.projectBriefAiBaseUrl,
+          model: environment.projectBriefAiModel,
+          apiKey: environment.projectBriefAiApiKey,
+        }
+      : {
         provider: environment.conversationAiProvider,
         baseUrl: environment.conversationAiBaseUrl,
         model: environment.conversationAiModel,
@@ -216,7 +224,7 @@ export class IntegrationCredentialService {
   }
 
   async test(userId: string, workspaceSlug: string, provider: string) {
-    if (provider !== IntegrationProvider.AiReview && provider !== IntegrationProvider.AiConversation) throw new NotFoundException('provider_not_found');
+    if (provider !== IntegrationProvider.AiReview && provider !== IntegrationProvider.AiConversation && provider !== IntegrationProvider.ProjectBriefAi) throw new NotFoundException('provider_not_found');
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
     const status = aiEnvStatus(provider, this.environmentProvider);
     const record = await this.credentials.findCredential(userId, workspaceSlug, provider);

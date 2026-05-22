@@ -10,8 +10,11 @@ import {
   fetchAllProjectsTimeline,
   fetchProjectFolders,
   fetchProjectTimeline,
+  generateProjectBrief,
 } from '../../shared/api/client';
+import type { ProjectBriefResponse } from '../../shared/api/models/project-brief';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
+import { getErrorMessage } from '../../shared/api/error-message';
 import type { ProjectTimelineCategory } from '../../shared/api/models/project-timeline';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
@@ -47,6 +50,7 @@ export function ProjectsWorkspace({
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState(ROOT_FOLDER_ID);
   const [timelineCategory, setTimelineCategory] = useState<ProjectTimelineCategory>('all');
+  const [briefByProject, setBriefByProject] = useState<Record<string, ProjectBriefResponse>>({});
   const routeProject = params.projectSlug ? decodeURIComponent(params.projectSlug) : '';
   const selectedSlug = routeProject || selectedProject;
   const dashboardNotes = dashboard.notes || [];
@@ -144,6 +148,13 @@ export function ProjectsWorkspace({
     },
     onError: (error) => notifyGeneralFormError(error, 'Could not delete the note.'),
   });
+  const generateBriefMutation = useMutation({
+    mutationFn: (projectSlug: string) => generateProjectBrief(projectSlug),
+    onSuccess: (response, projectSlug) => {
+      setBriefByProject((current) => ({ ...current, [projectSlug]: response }));
+    },
+    onError: (error) => notifyGeneralFormError(error, 'Could not generate the project brief.'),
+  });
 
   return (
     <>
@@ -202,6 +213,11 @@ export function ProjectsWorkspace({
           selectedFolderId={selectedFolderId}
           selectedFolder={selectedFolder}
           timelineItems={timelineItems}
+          briefResponse={briefByProject[selected.projectSlug]}
+          briefLoading={generateBriefMutation.isPending && generateBriefMutation.variables === selected.projectSlug}
+          briefError={generateBriefMutation.isError && generateBriefMutation.variables === selected.projectSlug
+            ? getErrorMessage(generateBriefMutation.error, 'Could not generate the project brief.')
+            : ''}
           timelineCategory={timelineCategory}
           timelinePagination={timelineQuery.data?.pagination}
           onTimelineCategoryChange={(category) => {
@@ -213,6 +229,7 @@ export function ProjectsWorkspace({
             setSelectedFolderId(folderId);
             timelinePagination.setPage(1);
           }}
+          onGenerateBrief={() => generateBriefMutation.mutate(selected.projectSlug)}
           onCreateNote={() => setNoteModal({ mode: 'create', projectSlug: selected.projectSlug, folderId: selectedFolderId || undefined })}
           onCreateFolder={() => setFolderModal({ mode: 'create', projectSlug: selected.projectSlug, parentFolderId: selectedFolder?.id })}
           onEditFolder={() => selectedFolder ? setFolderModal({ mode: 'edit', projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}

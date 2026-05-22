@@ -6,6 +6,7 @@ import {
   CreateProjectUseCase,
   DeleteProjectFolderUseCase,
   DeleteProjectUseCase,
+  GenerateProjectBriefUseCase,
   ListProjectFoldersUseCase,
   ListProjectTimelineUseCase,
   UpdateProjectFolderUseCase,
@@ -38,6 +39,7 @@ export class ProjectsController {
     private readonly createProject: CreateProjectUseCase,
     private readonly updateProject: UpdateProjectUseCase,
     private readonly deleteProjectUseCase: DeleteProjectUseCase,
+    private readonly generateProjectBriefUseCase: GenerateProjectBriefUseCase,
     private readonly listProjectTimelineUseCase: ListProjectTimelineUseCase,
     private readonly listProjectFoldersUseCase: ListProjectFoldersUseCase,
     private readonly createProjectFolderUseCase: CreateProjectFolderUseCase,
@@ -90,6 +92,15 @@ export class ProjectsController {
   ) {
     const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectSlug: params.projectSlug });
     return { ok: true, timeline: result.items, pagination: result.pagination };
+  }
+
+  @Post(':projectSlug/brief')
+  @UseGuards(TrustedOriginGuard)
+  generateBrief(
+    @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.generateProjectBriefUseCase.execute(user.id, params.projectSlug);
   }
 
   @Get(':projectSlug/folders')

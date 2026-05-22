@@ -22,3 +22,17 @@ test('readEnvironment leaves Postgres SSL settings unset when omitted', () => {
   assert.equal(environment.databaseSslMode, '');
   assert.equal(environment.databaseSslRejectUnauthorized, null);
 });
+
+test('readEnvironment lets Project Brief AI inherit Conversation AI settings', () => {
+  const environment = readEnvironment({
+    KB_CONVERSATION_AI_PROVIDER: 'openai',
+    KB_CONVERSATION_AI_BASE_URL: 'https://ai.example.com/v1',
+    KB_CONVERSATION_AI_MODEL: 'conversation-model',
+    KB_CONVERSATION_AI_API_KEY: 'conversation-key',
+  });
+
+  assert.equal(environment.projectBriefAiProvider, 'openai');
+  assert.equal(environment.projectBriefAiBaseUrl, 'https://ai.example.com/v1');
+  assert.equal(environment.projectBriefAiModel, 'conversation-model');
+  assert.equal(environment.projectBriefAiApiKey, 'conversation-key');
+});

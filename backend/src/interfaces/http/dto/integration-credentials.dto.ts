@@ -37,8 +37,9 @@ export const guidedIntegrationProviderSchema = z.enum([
   IntegrationProviderEnum.Telegram,
   IntegrationProviderEnum.AiReview,
   IntegrationProviderEnum.AiConversation,
+  IntegrationProviderEnum.ProjectBriefAi,
 ]);
-export const aiIntegrationProviderSchema = z.enum([IntegrationProviderEnum.AiReview, IntegrationProviderEnum.AiConversation]);
+export const aiIntegrationProviderSchema = z.enum([IntegrationProviderEnum.AiReview, IntegrationProviderEnum.AiConversation, IntegrationProviderEnum.ProjectBriefAi]);
 
 export const providerParamSchema = z.object({
   provider: integrationProviderSchema,

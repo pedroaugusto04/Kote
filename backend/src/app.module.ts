@@ -7,6 +7,8 @@ import { IntegrationCredentialService } from './application/credentials.js';
 import { ConversationAgentGateway } from './application/ports/conversation-agent.gateway.js'; 
 import { GithubIntegrationGateway } from './application/ports/github-integration.port.js';
 import { GoogleOAuthGateway } from './application/ports/google-oauth.gateway.js';
+import { ProjectBriefAiGateway } from './application/ports/project-brief-ai.gateway.js';
+import { ProjectBriefHistoryRepository } from './application/ports/project-brief-history.repository.js';
 import { ReminderDeliveryGateway } from './application/ports/reminder-delivery.gateway.js';
 import { ReviewAnalysisGateway } from './application/ports/review-analysis.port.js';
 import { RuntimeEnvironmentProvider } from './application/ports/runtime-environment.port.js';
@@ -28,6 +30,7 @@ import { ConversationStateRepository, ReminderDispatchRepository } from './appli
 import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from './adapters/telegram.js';
 import { EvolutionReminderDeliveryGateway, EvolutionWhatsappMediaDownloader, EvolutionWhatsappReplySender } from './adapters/evolution.js';
 import { DefaultConversationAgentGateway } from './infrastructure/ai/conversation-agent.gateway.js';
+import { DefaultProjectBriefAiGateway } from './infrastructure/ai/project-brief.gateway.js';
 import { DefaultReviewAnalysisGateway } from './infrastructure/ai/review-analysis.gateway.js';
 import { DefaultGithubIntegrationGateway } from './infrastructure/integrations/github-integration.gateway.js';
 import { GoogleAuthLibraryOAuthGateway } from './infrastructure/auth/google-oauth.gateway.js';
@@ -36,6 +39,7 @@ import { PostgresContentQueryRepository } from './infrastructure/repositories/co
 import { PostgresContentRepository } from './infrastructure/repositories/content.repository.js';
 import { PostgresDatabase } from './infrastructure/persistence/database.js';
 import { PostgresIntegrationRepository } from './infrastructure/repositories/integrations.repository.js';
+import { PostgresProjectBriefHistoryRepository } from './infrastructure/repositories/project-brief-history.repository.js';
 import { PostgresSchemaMigrator } from './infrastructure/persistence/schema.migrator.js';
 import { PostgresWebhookEventRepository } from './infrastructure/repositories/webhook-events.repository.js';
 import { PostgresWorkflowStateRepository } from './infrastructure/repositories/workflow-state.repository.js';
@@ -56,6 +60,7 @@ import {
   GetNoteAttachmentContentUseCase,
   GetNoteDetailUseCase,
   GetReviewDetailUseCase,
+  GenerateProjectBriefUseCase,
   HandleGithubPushUseCase,
   HandleTelegramWebhookUseCase,
   HandleWhatsappWebhookUseCase,
@@ -126,6 +131,7 @@ import { AppLogger } from './observability/logger.js';
     GetNoteDetailUseCase,
     GetReviewDetailUseCase,
     QueryKnowledgeUseCase,
+    GenerateProjectBriefUseCase,
     IngestEntryUseCase,
     ProcessAgentConversationUseCase,
     ConversationAgentPresenter,
@@ -146,6 +152,7 @@ import { AppLogger } from './observability/logger.js';
     TelegramHttpMessageSender,
     TelegramReminderDeliveryGateway,
     DefaultConversationAgentGateway,
+    DefaultProjectBriefAiGateway,
     DefaultReviewAnalysisGateway,
     DefaultGithubIntegrationGateway,
     GoogleAuthLibraryOAuthGateway,
@@ -154,6 +161,7 @@ import { AppLogger } from './observability/logger.js';
     PostgresSchemaMigrator,
     PostgresUserRepository,
     PostgresIntegrationRepository,
+    PostgresProjectBriefHistoryRepository,
     PostgresContentRepository,
     PostgresContentQueryRepository,
     PostgresWorkflowStateRepository,
@@ -163,6 +171,8 @@ import { AppLogger } from './observability/logger.js';
     { provide: UserRepository, useExisting: PostgresUserRepository },
     { provide: RuntimeEnvironmentProvider, useExisting: ProcessRuntimeEnvironmentProvider },
     { provide: ConversationAgentGateway, useExisting: DefaultConversationAgentGateway },
+    { provide: ProjectBriefAiGateway, useExisting: DefaultProjectBriefAiGateway },
+    { provide: ProjectBriefHistoryRepository, useExisting: PostgresProjectBriefHistoryRepository },
     { provide: CredentialRepository, useExisting: PostgresIntegrationRepository },
     { provide: ExternalIdentityRepository, useExisting: PostgresIntegrationRepository },
     { provide: IntegrationConnectionSessionRepository, useExisting: PostgresIntegrationRepository },

@@ -13,6 +13,10 @@ export type RuntimeEnvironment = {
   conversationAiBaseUrl: string;
   conversationAiModel: string;
   conversationAiApiKey: string;
+  projectBriefAiProvider: AiProvider;
+  projectBriefAiBaseUrl: string;
+  projectBriefAiModel: string;
+  projectBriefAiApiKey: string;
   githubAppId: string;
   githubAppPrivateKey: string;
   publicBaseUrl: string;

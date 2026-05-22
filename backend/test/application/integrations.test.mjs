@@ -56,6 +56,8 @@ function env(overrides = {}) {
     KB_REVIEW_AI_API_KEY: 'review-key-value',
     KB_CONVERSATION_AI_PROVIDER: 'openai',
     KB_CONVERSATION_AI_API_KEY: 'conversation-key-value',
+    KB_PROJECT_BRIEF_AI_PROVIDER: 'openai',
+    KB_PROJECT_BRIEF_AI_API_KEY: 'project-brief-key-value',
     ...overrides,
   });
 }
@@ -78,6 +80,8 @@ test('integration status reports connected services without leaking secrets', ()
   assert.equal(json.includes('github-private-key-value'), false);
   assert.equal(json.includes('telegram-token-value'), false);
   assert.equal(json.includes('review-key-value'), false);
+  assert.equal(json.includes('conversation-key-value'), false);
+  assert.equal(json.includes('project-brief-key-value'), false);
 });
 
 test('integration status distinguishes partial and missing configuration', () => {
@@ -90,6 +94,7 @@ test('integration status distinguishes partial and missing configuration', () =>
       KB_TELEGRAM_BOT_TOKEN: '',
       KB_REVIEW_AI_API_KEY: '',
       KB_CONVERSATION_AI_API_KEY: '',
+      KB_PROJECT_BRIEF_AI_API_KEY: '',
     }),
     workspaces: baseWorkspaces,
     projects: baseProjects,
@@ -100,6 +105,7 @@ test('integration status distinguishes partial and missing configuration', () =>
   assert.equal(byId(partial, 'telegram').status, 'partial');
   assert.equal(byId(partial, 'ai-review').status, 'partial');
   assert.equal(byId(partial, 'ai-conversation').status, 'partial');
+  assert.equal(byId(partial, 'project-brief-ai').status, 'partial');
   assert.deepEqual(byId(partial, 'webhooks').missingEnv, ['KB_API_PUBLIC_BASE_URL']);
   assert.equal(byId(partial, 'webhooks').links[0].url, '/n8n/webhook/kb-github-push');
 

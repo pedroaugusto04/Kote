@@ -143,6 +143,26 @@ function timelineFromDashboardNotes(projectSlug = 'platform') {
   };
 }
 
+function projectBriefResponse(fallback = false) {
+  return {
+    ok: true,
+    fallback,
+    fallbackReason: fallback ? 'generation_failed' : undefined,
+    brief: {
+      projectSlug: 'platform',
+      generatedAt: '2026-05-22T12:00:00.000Z',
+      summary: 'Platform is actively processing deployment work.',
+      status: 'Active with one open rollout item.',
+      recentChanges: ['Deployment note was captured.'],
+      decisions: ['Keep the current rollout path.'],
+      openItems: ['Confirm production rollout.'],
+      risks: ['Release validation is still pending.'],
+      nextSteps: ['Open the deployment note and close the rollout item.'],
+      sources: [{ noteId: 'note-1', title: 'Deploy antigo', path: '20 Inbox/platform/note.md', date: '2026-04-27T00:00:00.000Z' }],
+    },
+  } as const;
+}
+
 describe('ProjectsPage', () => {
   it('allows selecting another project from the header select', () => {
     const { openProject } = renderProjects();
@@ -238,6 +258,104 @@ describe('ProjectsPage', () => {
 
     expect(screen.getByRole('dialog', { name: 'New note' })).toBeInTheDocument();
     expect(screen.getByDisplayValue('confirmar deploy')).toBeInTheDocument();
+  });
+
+  it('renders the project brief panel before generation without calling the brief endpoint', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (url.startsWith('/api/projects/platform/timeline?')) return Response.json(timelineFromDashboardNotes());
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderProjects();
+
+    expect(screen.getByRole('region', { name: 'Project brief' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate brief' })).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock.mock.calls.some(([input]) => String(input) === '/api/projects/platform/brief')).toBe(false));
+  });
+
+  it('generates and displays a project brief with clickable sources', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (url.startsWith('/api/projects/platform/timeline?')) return Response.json(timelineFromDashboardNotes());
+      if (url === '/api/projects/platform/brief' && init?.method === 'POST') return Response.json(projectBriefResponse());
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const { openNote } = renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+
+    expect(await screen.findByText('Platform is actively processing deployment work.')).toBeInTheDocument();
+    expect(screen.getByText('Active with one open rollout item.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Deploy antigo' }));
+    expect(openNote).toHaveBeenCalledWith('note-1');
+  });
+
+  it('shows loading while generating the project brief', async () => {
+    let resolveBrief: (response: Response) => void = () => undefined;
+    const briefPromise = new Promise<Response>((resolve) => {
+      resolveBrief = resolve;
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (url.startsWith('/api/projects/platform/timeline?')) return Response.json(timelineFromDashboardNotes());
+      if (url === '/api/projects/platform/brief' && init?.method === 'POST') return briefPromise;
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+
+    expect(await screen.findByRole('button', { name: 'Generating...' })).toBeDisabled();
+    resolveBrief(Response.json(projectBriefResponse()));
+    expect(await screen.findByRole('button', { name: 'Generate brief' })).toBeInTheDocument();
+  });
+
+  it('shows stale fallback state when brief generation returns a fallback', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (url.startsWith('/api/projects/platform/timeline?')) return Response.json(timelineFromDashboardNotes());
+      if (url === '/api/projects/platform/brief' && init?.method === 'POST') return Response.json(projectBriefResponse(true));
+      return Response.error();
+    }));
+    renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Showing the latest saved brief because generation failed.');
+  });
+
+  it('shows a friendly project brief error when there is no fallback', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (url.startsWith('/api/projects/platform/timeline?')) return Response.json(timelineFromDashboardNotes());
+      if (url === '/api/projects/platform/brief' && init?.method === 'POST') {
+        return Response.json({
+          ok: false,
+          error: { code: 'project_brief_generation_failed', message: 'Project brief generation failed.', details: {} },
+          requestId: 'req-brief',
+        }, { status: 503, headers: { 'x-request-id': 'req-brief' } });
+      }
+      return Response.error();
+    }));
+    renderProjects();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Project brief generation failed.');
   });
 
   it('shows frontend validation inline and focuses the first invalid project field', async () => {

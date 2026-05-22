@@ -29,6 +29,10 @@ export type RuntimeEnvironment = {
   conversationAiBaseUrl: string;
   conversationAiModel: string;
   conversationAiApiKey: string;
+  projectBriefAiProvider: AiProvider;
+  projectBriefAiBaseUrl: string;
+  projectBriefAiModel: string;
+  projectBriefAiApiKey: string;
   githubAppId: string;
   githubAppPrivateKey: string;
   publicBaseUrl: string;
@@ -79,6 +83,10 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     conversationAiBaseUrl: String(env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
     conversationAiModel: String(env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
     conversationAiApiKey: String(env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
+    projectBriefAiProvider: (String(env.KB_PROJECT_BRIEF_AI_PROVIDER || env.KB_CONVERSATION_AI_PROVIDER || env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['projectBriefAiProvider']),
+    projectBriefAiBaseUrl: String(env.KB_PROJECT_BRIEF_AI_BASE_URL || env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
+    projectBriefAiModel: String(env.KB_PROJECT_BRIEF_AI_MODEL || env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
+    projectBriefAiApiKey: String(env.KB_PROJECT_BRIEF_AI_API_KEY || env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
     githubAppId: String(env.KB_GITHUB_APP_ID || '').trim(),
     githubAppPrivateKey: String(env.KB_GITHUB_APP_PRIVATE_KEY || '').trim(),
     publicBaseUrl: String(env.KB_PUBLIC_BASE_URL || env.WEBHOOK_URL || '').trim().replace(/\/$/, ''),

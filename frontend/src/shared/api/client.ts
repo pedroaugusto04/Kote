@@ -19,6 +19,7 @@ export {
   fetchProjectFolders,
   fetchProjectTimeline,
   fetchProjects,
+  generateProjectBrief,
   updateProject,
   updateProjectFolder,
 } from './projects';

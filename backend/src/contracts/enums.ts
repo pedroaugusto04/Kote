@@ -65,6 +65,7 @@ export enum IntegrationProvider {
   Whatsapp = 'whatsapp',
   AiReview = 'ai-review',
   AiConversation = 'ai-conversation',
+  ProjectBriefAi = 'project-brief-ai',
   GithubApp = 'github-app',
 }
 
