@@ -132,6 +132,15 @@ function verifyGoogleOAuthState(cookieValue: string | undefined, secret: string)
   return payload;
 }
 
+function appendQueryParam(path: string, key: string, value: string): string {
+  const [pathnameWithQuery, hash = ''] = path.split('#', 2);
+  const [pathname, query = ''] = pathnameWithQuery.split('?', 2);
+  const params = new URLSearchParams(query);
+  params.set(key, value);
+  const nextQuery = params.toString();
+  return `${pathname}${nextQuery ? `?${nextQuery}` : ''}${hash ? `#${hash}` : ''}`;
+}
+
 export function parseCookies(cookieHeader: string | undefined): Record<string, string> {
   if (!cookieHeader) return {};
   return Object.fromEntries(
@@ -248,6 +257,17 @@ export class AuthService implements OnModuleInit {
     });
     const user = await this.findOrCreateGoogleUser(profile);
     return { user: toAuthenticatedUser(user), tokens: this.issueTokens(user), returnTo: statePayload.returnTo };
+  }
+
+  googleOAuthErrorReturnTo(input: { state?: string; stateCookie?: string; errorCode: string; fallback?: string }): string {
+    const environment = this.environmentProvider.read();
+    try {
+      const statePayload = verifyGoogleOAuthState(input.stateCookie, stateSigningSecret(environment));
+      if (input.state && statePayload.state !== input.state) throw new UnauthorizedException('invalid_google_oauth_state');
+      return appendQueryParam(statePayload.returnTo, 'error', input.errorCode);
+    } catch {
+      return appendQueryParam(normalizeReturnTo(input.fallback || '/auth'), 'error', input.errorCode);
+    }
   }
 
   async refresh(refreshToken: string): Promise<{ user: AuthenticatedUser; tokens: TokenPair }> {

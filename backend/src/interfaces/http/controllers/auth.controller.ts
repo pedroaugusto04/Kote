@@ -87,7 +87,11 @@ export class AuthController {
     } catch (error) {
       clearGoogleOAuthStateCookie(response);
       const codeParam = error instanceof ConflictException ? 'email_already_registered' : 'google_auth_failed';
-      response.redirect(`/auth?error=${encodeURIComponent(codeParam)}`);
+      response.redirect(this.auth.googleOAuthErrorReturnTo({
+        state,
+        stateCookie: googleOAuthStateFromRequest(request),
+        errorCode: codeParam,
+      }));
     }
   }
 }
