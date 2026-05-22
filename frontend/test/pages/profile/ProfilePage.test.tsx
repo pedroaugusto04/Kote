@@ -82,6 +82,38 @@ describe('ProfilePage', () => {
     expect(document.querySelector('.profile-avatar img')).toHaveAttribute('src', '/api/auth/avatar/content?v=1');
   });
 
+  it('shows the backend message when the profile photo is too large', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/auth/me') {
+        return Response.json({
+          ok: true,
+          user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl: null },
+        });
+      }
+      if (url === '/api/auth/avatar' && init?.method === 'PUT') {
+        return Response.json({
+          ok: false,
+          error: {
+            code: 'avatar_file_too_large',
+            message: 'Profile photo must be 2 MB or smaller.',
+            details: {},
+          },
+          requestId: 'req-avatar',
+        }, { status: 413 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<ProfilePage workspace={workspace} />);
+
+    const file = new File(['large-avatar'], 'avatar.png', { type: 'image/png' });
+    fireEvent.change(await screen.findByLabelText('Change photo'), { target: { files: [file] } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Profile photo must be 2 MB or smaller.');
+  });
+
   it('removes a profile photo and returns to initials fallback', async () => {
     let avatarUrl: string | null = '/api/auth/avatar/content?v=1';
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {

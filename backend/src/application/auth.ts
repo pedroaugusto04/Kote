@@ -56,6 +56,8 @@ const avatarMimeTypes = new Map([
   ['image/jpeg', 'jpg'],
   ['image/webp', 'webp'],
 ]);
+const avatarStorageReadAttempts = 5;
+const avatarStorageReadDelayMs = 150;
 
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64url');
@@ -190,6 +192,24 @@ function avatarStorageKey(userId: string, mimeType: string): string {
   const extension = avatarMimeTypes.get(mimeType);
   if (!extension) throw new BadRequestException('unsupported_avatar_type');
   return `users/${userId}/profile/avatar-${Date.now()}.${extension}`;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getStoredAvatarWithRetry(storage: ObjectStorage, storageKey: string): Promise<Buffer> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= avatarStorageReadAttempts; attempt += 1) {
+    try {
+      return await storage.get(storageKey);
+    } catch (error) {
+      lastError = error;
+      if (!(error instanceof ObjectStorageMissingContentError) || attempt === avatarStorageReadAttempts) break;
+      await delay(avatarStorageReadDelayMs);
+    }
+  }
+  throw lastError;
 }
 
 @Injectable()
@@ -331,6 +351,7 @@ export class AuthService implements OnModuleInit {
     const previousStorageKey = user.avatarStorageKey;
     const storageKey = avatarStorageKey(user.id, input.mimeType);
     await storage.put({ key: storageKey, body: input.buffer, contentType: input.mimeType });
+    await getStoredAvatarWithRetry(storage, storageKey);
     const updated = await this.users.updateUserAvatar({
       userId: user.id,
       storageKey,
@@ -360,7 +381,7 @@ export class AuthService implements OnModuleInit {
     if (!user) throw new UnauthorizedException('user_not_found');
     if (!user.avatarStorageKey || !user.avatarMimeType) throw new NotFoundException('avatar_not_found');
     try {
-      const body = await requireAvatarStorage(this.objectStorage).get(user.avatarStorageKey);
+      const body = await getStoredAvatarWithRetry(requireAvatarStorage(this.objectStorage), user.avatarStorageKey);
       return { body, mimeType: user.avatarMimeType };
     } catch (error) {
       if (error instanceof ObjectStorageMissingContentError) throw new NotFoundException('avatar_not_found');

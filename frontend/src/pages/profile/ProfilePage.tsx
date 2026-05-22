@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { deleteCurrentUserAvatar, fetchCurrentUser, uploadCurrentUserAvatar } from '../../shared/api/client';
+import { getErrorMessage } from '../../shared/api/error-message';
 import type { Workspace } from '../../shared/api/models/workspace';
 import { InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { UserAvatar } from '../../shared/ui/user-avatar';
@@ -78,8 +79,16 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
                 ) : null}
               </div>
               {avatarBusy ? <div className="profile-state" role="status">Updating photo...</div> : null}
-              {uploadAvatarMutation.isError ? <InlineMessage tone="error">Could not update your profile photo.</InlineMessage> : null}
-              {deleteAvatarMutation.isError ? <InlineMessage tone="error">Could not remove your profile photo.</InlineMessage> : null}
+              {uploadAvatarMutation.isError ? (
+                <InlineMessage tone="error">
+                  {getErrorMessage(uploadAvatarMutation.error, 'Could not update your profile photo.')}
+                </InlineMessage>
+              ) : null}
+              {deleteAvatarMutation.isError ? (
+                <InlineMessage tone="error">
+                  {getErrorMessage(deleteAvatarMutation.error, 'Could not remove your profile photo.')}
+                </InlineMessage>
+              ) : null}
             </div>
             <dl className="profile-details" aria-label="Profile details">
               <div className="profile-detail-row">

@@ -626,7 +626,9 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/profile' });
 
     expect(await screen.findByRole('heading', { name: 'Profile' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'User menu' })).toHaveTextContent('AL');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'User menu' })).toHaveTextContent('AL');
+    });
 
     const file = new File(['avatar'], 'avatar.webp', { type: 'image/webp' });
     fireEvent.change(screen.getByLabelText('Change photo'), { target: { files: [file] } });

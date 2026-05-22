@@ -34,6 +34,10 @@ export const httpErrorCatalog = {
   invalid_google_oauth_state: { statusCode: HttpStatus.UNAUTHORIZED, safeMessage: 'Google authentication session expired.', logLevel: 'warn' },
   invalid_login_payload: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid login payload.', logLevel: 'warn' },
   invalid_signup_payload: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid signup payload.', logLevel: 'warn' },
+  avatar_file_required: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Choose a profile photo to upload.', logLevel: 'warn' },
+  unsupported_avatar_type: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Profile photo must be a PNG, JPEG, or WebP image.', logLevel: 'warn' },
+  avatar_file_too_large: { statusCode: HttpStatus.PAYLOAD_TOO_LARGE, safeMessage: 'Profile photo must be 2 MB or smaller.', logLevel: 'warn' },
+  avatar_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Profile photo not found.', logLevel: 'info' },
   invalid_query_payload: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid query payload.', logLevel: 'warn' },
   invalid_workspace_query: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid workspace.', logLevel: 'warn' },
   invalid_create_workspace_payload: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid workspace creation payload.', logLevel: 'warn' },
@@ -101,6 +105,7 @@ const statusFallbackCode: Record<number, HttpErrorCode> = {
   [HttpStatus.FORBIDDEN]: 'forbidden',
   [HttpStatus.NOT_FOUND]: 'not_found',
   [HttpStatus.CONFLICT]: 'conflict',
+  [HttpStatus.PAYLOAD_TOO_LARGE]: 'avatar_file_too_large',
   [HttpStatus.TOO_MANY_REQUESTS]: 'rate_limited',
   [HttpStatus.INTERNAL_SERVER_ERROR]: 'internal_server_error',
 };

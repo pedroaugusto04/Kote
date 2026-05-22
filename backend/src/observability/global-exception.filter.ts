@@ -58,7 +58,22 @@ export function normalizeException(error: unknown): { code: string; statusCode: 
     };
   }
   if (error instanceof Error) {
-    const code = resolveHttpErrorCode({ code: error.message, statusCode: HttpStatus.INTERNAL_SERVER_ERROR });
+    const maybeMulterError = error as Error & { code?: unknown; status?: unknown; statusCode?: unknown };
+    if (maybeMulterError.name === 'MulterError' && maybeMulterError.code === 'LIMIT_FILE_SIZE') {
+      return {
+        code: 'avatar_file_too_large',
+        statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
+        details: {},
+        safeMessage: httpErrorCatalog.avatar_file_too_large.safeMessage,
+        logLevel: httpErrorCatalog.avatar_file_too_large.logLevel,
+      };
+    }
+    const explicitStatusCode = typeof maybeMulterError.statusCode === 'number'
+      ? maybeMulterError.statusCode
+      : typeof maybeMulterError.status === 'number'
+        ? maybeMulterError.status
+        : HttpStatus.INTERNAL_SERVER_ERROR;
+    const code = resolveHttpErrorCode({ code: error.message, statusCode: explicitStatusCode });
     return {
       code,
       statusCode: httpErrorCatalog[code].statusCode,
