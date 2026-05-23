@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { useSearchParams } from 'react-router-dom';
@@ -62,11 +62,13 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
       pageSize: DEFAULT_PAGE_SIZE,
     }),
     enabled: hasQuery,
+    placeholderData: keepPreviousData,
   });
   const notesResult = useQuery({
     queryKey: ['search-notes', debouncedProjectSlug, workspaceSlug, debouncedStatus, page],
     queryFn: () => fetchNotes({ page, workspaceSlug, projectSlug: debouncedProjectSlug, status: debouncedStatus }),
     enabled: !hasQuery,
+    placeholderData: keepPreviousData,
     initialData: !hasQuery && dashboard.notes
       ? {
           ok: true as const,
@@ -160,7 +162,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           </section>
           <Panel>
             <h2>Results</h2>
-            <div className="list">
+            <div className={`list ${hasQuery ? (queryResult.isPlaceholderData ? 'stale-data' : '') : (notesResult.isPlaceholderData ? 'stale-data' : '')}`}>
               {hasQuery
                 ? queryResult.data?.matches.map((match) => (
                   <NoteRow

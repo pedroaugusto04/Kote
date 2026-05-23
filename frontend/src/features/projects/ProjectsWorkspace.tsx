@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -82,6 +82,7 @@ export function ProjectsWorkspace({
     }),
     enabled: isAllProjectsSelected,
     staleTime: timelineCategory === 'all' ? 30_000 : 0,
+    placeholderData: keepPreviousData,
   });
   const timelineQuery = useQuery({
     queryKey: ['project-timeline', selected?.projectSlug || '', selectedFolderId, timelineCategory, timelinePagination.page],
@@ -92,6 +93,7 @@ export function ProjectsWorkspace({
     }),
     enabled: Boolean(selected?.projectSlug),
     staleTime: timelineCategory === 'all' ? 30_000 : 0,
+    placeholderData: keepPreviousData,
   });
   const briefQueryKey = ['project-brief', selected?.projectSlug || ''];
   const latestBriefQuery = useQuery<ProjectBriefPanelResponse>({
@@ -225,6 +227,7 @@ export function ProjectsWorkspace({
             onEditNote={(note) => loadNoteMutation.mutate(note.id)}
             onOpenNote={openNote}
             onPageChange={timelinePagination.setPage}
+            isStale={allProjectsTimelineQuery.isPlaceholderData}
           />
         </Panel>
       ) : selected ? (
@@ -267,6 +270,7 @@ export function ProjectsWorkspace({
           onEditProject={selected.projectSlug === 'inbox' ? undefined : () => setProjectModal({ mode: 'edit', project: selected })}
           onDeleteProject={selectedProjectDeleteBlockedReason ? undefined : () => setConfirmState({ kind: 'project', project: selected })}
           deleteProjectLabel={selectedProjectDeleteBlockedReason || 'Delete project'}
+          isStale={timelineQuery.isPlaceholderData}
         />
       ) : null}
       {projectModal ? (

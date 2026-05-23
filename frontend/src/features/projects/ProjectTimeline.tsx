@@ -5,30 +5,14 @@ import type { PaginationMeta } from '../../shared/api/models/pagination';
 import { formatDisplayToken, formatUsDateTime, noteTypeLabel, projectName } from '../../entities/format';
 import { Badge, EmptyState } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
+import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 
 const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
   value,
   label: formatDisplayToken(value),
 }));
 
-function PencilIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 16 16">
-      <path d="M11.9 1.6a1.5 1.5 0 0 1 2.1 2.1l-7.7 7.7-3.3.9.9-3.3z" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.2" />
-      <path d="M9.8 3.7l2.5 2.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
-    </svg>
-  );
-}
 
-function TrashIcon() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 16 16">
-      <path d="M2.8 4.2h10.4" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
-      <path d="M6.2 2.7h3.6" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
-      <path d="M4.1 4.2l.6 8.1h6.6l.6-8.1" fill="none" stroke="currentColor" strokeLinejoin="round" strokeWidth="1.2" />
-    </svg>
-  );
-}
 
 export function ProjectTimeline({
   dashboard,
@@ -40,6 +24,7 @@ export function ProjectTimeline({
   onEditNote,
   onDeleteNote,
   onPageChange,
+  isStale = false,
 }: {
   dashboard: Dashboard;
   items: ProjectTimelineItem[];
@@ -50,6 +35,7 @@ export function ProjectTimeline({
   onEditNote?: (note: NoteSummary) => void;
   onDeleteNote?: (note: NoteSummary) => void;
   onPageChange: (page: number) => void;
+  isStale?: boolean;
 }) {
   return (
     <div className="project-timeline">
@@ -67,7 +53,7 @@ export function ProjectTimeline({
         ))}
       </div>
       {items.length > 0 ? (
-        <div className="project-timeline-list">
+        <div className={`project-timeline-list ${isStale ? 'stale-data' : ''}`}>
           {items.map((item) => (
             <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)}>
               <div className="project-timeline-marker" aria-hidden="true" />

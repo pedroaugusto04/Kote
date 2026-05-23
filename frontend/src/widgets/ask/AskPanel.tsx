@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useRef, useEffect } from 'react';
 
 import { fetchAskHistory, runAsk } from '../../shared/api/client';
@@ -39,6 +39,7 @@ export function AskPanel({ openNote, projects }: { openNote: (id: string) => voi
     queryKey: ['ask-history', projectSlug, page],
     queryFn: () => fetchAskHistory({ projectSlug, page, pageSize: DEFAULT_PAGE_SIZE }),
     enabled: showHistory,
+    placeholderData: keepPreviousData,
   });
   const history = historyQuery.data?.history || [];
 
@@ -160,7 +161,7 @@ export function AskPanel({ openNote, projects }: { openNote: (id: string) => voi
       )}
 
       {showHistory && history.length > 0 && (
-        <div className="ask-history-list">
+        <div className={`ask-history-list ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`}>
           {history.map((item) => (
             <AskAnswerCard key={item.id} item={item} openNote={openNote} projects={projects} />
           ))}

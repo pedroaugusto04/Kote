@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
@@ -25,6 +25,7 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
   const remindersQuery = useQuery({
     queryKey: ['reminders', workspaceSlug, status, page],
     queryFn: () => fetchReminders({ page, workspaceSlug, status }),
+    placeholderData: keepPreviousData,
     initialData: dashboard.reminders
       ? (() => {
           const filteredReminders = sortRemindersForList(
@@ -77,7 +78,7 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
         )}
         subtitle=""
       />
-      <div className="grid">
+      <div className={`grid ${remindersQuery.isPlaceholderData ? 'stale-data' : ''}`}>
         {Object.entries(grouped).map(([date, reminders]) => (
           <Panel key={date}>
             <h2>{date === 'no-date' ? 'No date' : formatUsDate(date)}</h2>

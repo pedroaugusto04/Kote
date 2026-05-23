@@ -2028,3 +2028,10 @@ p { color: var(--muted); line-height: 1.6; }
 @media (max-width: 420px) {
   .search-box .filters { grid-template-columns: 1fr; }
 }
+
+.stale-data {
+  opacity: 0.55;
+  pointer-events: none;
+  transition: opacity 140ms ease;
+}
+

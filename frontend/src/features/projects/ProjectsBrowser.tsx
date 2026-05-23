@@ -46,6 +46,7 @@ type ProjectsBrowserProps = {
   onEditProject?: () => void;
   onDeleteProject?: () => void;
   deleteProjectLabel?: string;
+  isStale?: boolean;
 };
 
 export function ProjectsBrowser({
@@ -77,6 +78,7 @@ export function ProjectsBrowser({
   onEditProject,
   onDeleteProject,
   deleteProjectLabel,
+  isStale = false,
 }: ProjectsBrowserProps) {
   return (
     <Panel className="spaced">
@@ -177,6 +179,7 @@ export function ProjectsBrowser({
           onEditNote={onEditNote}
           onOpenNote={onOpenNote}
           onPageChange={onTimelinePageChange}
+          isStale={isStale}
         />
       </div>
     </Panel>
