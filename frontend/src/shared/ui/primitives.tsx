@@ -26,7 +26,7 @@ export function PageHead({ title, subtitle, action, onBack, backLabel = 'Back' }
       <div>
         {onBack ? (
           <button type="button" onClick={onBack} className="icon-button secondary page-head-back" aria-label={backLabel}>
-            &larr; {backLabel}
+            &larr;
           </button>
         ) : null}
         {typeof title === 'string' ? <h1>{title}</h1> : title}
