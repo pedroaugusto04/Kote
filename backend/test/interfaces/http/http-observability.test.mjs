@@ -112,7 +112,7 @@ test('global exception filter returns catalog envelope for HttpException', () =>
     ok: false,
     error: {
       code: 'invalid_origin',
-      message: 'Origem nao permitida.',
+      message: 'Origin not allowed.',
       details: {},
     },
     requestId: 'req-http',
@@ -141,7 +141,7 @@ test('global exception filter preserves known project deletion error code', () =
     ok: false,
     error: {
       code: 'project_has_notes',
-      message: 'Exclua ou mova as notas do projeto antes de remover.',
+      message: 'Delete or move the project notes before removing it.',
       details: {},
     },
     requestId: 'req-project-delete',
@@ -177,7 +177,7 @@ test('global exception filter preserves validation details', () => {
     ok: false,
     error: {
       code: 'invalid_query_payload',
-      message: 'Payload de consulta invalido.',
+      message: 'Invalid query payload.',
       details: {
         issues: [
           {
@@ -216,7 +216,7 @@ test('global exception filter hides unexpected errors behind internal_server_err
     ok: false,
     error: {
       code: 'internal_server_error',
-      message: 'Erro interno do servidor.',
+      message: 'Internal server error.',
       details: {},
     },
     requestId: 'req-unexpected',
@@ -272,7 +272,7 @@ test('request ids are propagated by the lifecycle middleware and reused by the e
     ok: false,
     error: {
       code: 'invalid_origin',
-      message: 'Origem nao permitida.',
+      message: 'Origin not allowed.',
       details: {},
     },
     requestId: 'req-denied',

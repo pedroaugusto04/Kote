@@ -108,6 +108,7 @@ export class DefaultEmbeddingGateway extends EmbeddingGateway {
           model: `models/${config.model}`,
           content: { parts: [{ text }] },
           taskType: 'RETRIEVAL_DOCUMENT',
+          outputDimensionality: 768,
         })),
       };
 
