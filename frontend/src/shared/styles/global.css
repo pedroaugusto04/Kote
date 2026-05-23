@@ -1073,11 +1073,21 @@ p { color: var(--muted); line-height: 1.6; }
 .home-panel-events .list { gap: 4px; }
 .home-priority-row,
 .home-panel-events .list-row {
+  min-width: 0;
   padding: 16px 6px;
+}
+.home-priority-row .meta-row,
+.home-priority-row .list-row-body {
+  min-width: 0;
 }
 .home-priority-row h3,
 .home-panel-events .list-row h3 {
   line-height: 1.4;
+}
+.home-priority-row h3,
+.home-priority-row p,
+.home-priority-row .meta {
+  overflow-wrap: anywhere;
 }
 .home-priority-row p { margin-bottom: 0; }
 .home-project-link { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 38px; padding: 7px 9px; border: 1px solid var(--line-soft); border-radius: 7px; color: var(--text); background: var(--surface-4); text-align: left; }
@@ -1809,6 +1819,12 @@ p { color: var(--muted); line-height: 1.6; }
       "activity"
       "projects"
       "events";
+  }
+  .home-priority-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .home-priority-row > .file-icon {
+    justify-self: start;
   }
   .profile-detail-row { grid-template-columns: 1fr; gap: 6px; }
   .folder-browser-head-top, .folder-browser-actions { align-items: stretch; flex-direction: column; }
