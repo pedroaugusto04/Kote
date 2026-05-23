@@ -324,7 +324,7 @@ function pageResult(notes: NoteSummary[], overrides: Partial<{ page: number; tot
     notes,
     pagination: {
       page,
-      pageSize: 5,
+      pageSize: 10,
       total,
       totalPages,
       hasNext: overrides.hasNext ?? page < totalPages,

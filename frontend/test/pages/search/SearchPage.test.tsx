@@ -56,12 +56,12 @@ beforeEach(() => {
   apiSpies.fetchAskHistory.mockResolvedValue({
     ok: true,
     history: [],
-    pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+    pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
   });
   apiSpies.fetchNotes.mockResolvedValue({
     ok: true,
     notes: dashboard.notes,
-    pagination: { page: 1, pageSize: 5, total: dashboard.notes.length, totalPages: 1, hasNext: false, hasPrevious: false },
+    pagination: { page: 1, pageSize: 10, total: dashboard.notes.length, totalPages: 1, hasNext: false, hasPrevious: false },
   });
   Element.prototype.scrollIntoView = vi.fn();
 });
@@ -77,12 +77,12 @@ describe('SearchPage', () => {
     apiSpies.fetchNotes.mockResolvedValue({
       ok: true,
       notes: dashboard.notes,
-      pagination: { page: 1, pageSize: 5, total: dashboard.notes.length, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: dashboard.notes.length, totalPages: 1, hasNext: false, hasPrevious: false },
     });
     apiSpies.runQuery.mockResolvedValue({
       ok: true,
       matches: [buildNote({ id: 'deploy-1', title: 'Deploy rollout' })],
-      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       answer: { answer: 'ok', bullets: [] },
     });
 
@@ -113,7 +113,7 @@ describe('SearchPage', () => {
       status: '',
       limit: 10,
       page: 1,
-      pageSize: 5,
+      pageSize: 10,
     });
   });
 
@@ -121,7 +121,7 @@ describe('SearchPage', () => {
     apiSpies.runQuery.mockResolvedValue({
       ok: true,
       matches: [buildNote({ id: 'resolved-2', title: 'Resolved deploy', status: 'resolved' })],
-      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       answer: { answer: 'ok', bullets: [] },
     });
 
@@ -138,7 +138,7 @@ describe('SearchPage', () => {
         status: 'resolved',
         limit: 10,
         page: 1,
-        pageSize: 5,
+        pageSize: 10,
       });
     });
     expect(await screen.findByText('Resolved deploy')).toBeInTheDocument();
@@ -148,7 +148,7 @@ describe('SearchPage', () => {
     apiSpies.fetchNotes.mockResolvedValue({
       ok: true,
       notes: [buildNote({ id: 'resolved-2', title: 'Resolved follow-up', status: 'resolved' })],
-      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
     });
 
     renderSearchPage('/search');
@@ -209,7 +209,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
     }).mockResolvedValueOnce({
       ok: true,
       history: [{
@@ -222,7 +222,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T11:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
     });
 
     renderSearchPage('/search');
@@ -237,8 +237,8 @@ describe('SearchPage', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Platform' }));
 
     expect(await screen.findByText('Deploy platform from staging.')).toBeInTheDocument();
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: '' });
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: 'platform' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 10, projectSlug: '' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 10, projectSlug: 'platform' });
   });
 
   it('uses Ask AI history pagination controls', async () => {
@@ -254,7 +254,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
     }).mockResolvedValueOnce({
       ok: true,
       history: [{
@@ -267,7 +267,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T09:00:00.000Z',
       }],
-      pagination: { page: 2, pageSize: 5, total: 6, totalPages: 2, hasNext: false, hasPrevious: true },
+      pagination: { page: 2, pageSize: 10, total: 6, totalPages: 2, hasNext: false, hasPrevious: true },
     });
 
     renderSearchPage('/search');
@@ -278,7 +278,7 @@ describe('SearchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
 
     expect(await screen.findByText('Second answer.')).toBeInTheDocument();
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 2, pageSize: 5, projectSlug: '' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 2, pageSize: 10, projectSlug: '' });
   });
 });
 

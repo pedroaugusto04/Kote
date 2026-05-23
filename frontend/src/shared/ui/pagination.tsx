@@ -18,9 +18,16 @@ export function Pagination({
 
   const handlePageChange = (newPage: number, event: React.MouseEvent) => {
     const target = event.currentTarget as HTMLElement;
-    const scrollContainer = target.closest('.view, .modal-panel, .sidebar, .repository-picker');
+    let scrollContainer: Element | Window = target.closest('.view, .modal-panel, .sidebar, .repository-picker') || window;
     
-    animateScrollToTop(scrollContainer || window);
+    if (scrollContainer !== window) {
+      const el = scrollContainer as HTMLElement;
+      if (el.scrollHeight <= el.clientHeight) {
+        scrollContainer = window;
+      }
+    }
+
+    animateScrollToTop(scrollContainer);
     onPageChange(newPage);
   };
 

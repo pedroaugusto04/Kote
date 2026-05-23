@@ -224,7 +224,7 @@ function mockFetch() {
     if (url === '/api/projects/n8n-automations/folders') {
       return Response.json({ ok: true, projectSlug: 'n8n-automations', folders: [] });
     }
-    if (url === '/api/projects/timeline?page=1&pageSize=5&category=all') {
+    if (url === '/api/projects/timeline?page=1&pageSize=10&category=all') {
       return Response.json({
         ok: true,
         timeline: dashboard.notes.map((note) => ({
@@ -235,21 +235,21 @@ function mockFetch() {
           category: 'manual',
           sourceChannel: note.source,
         })),
-        pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+        pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       });
     }
-    if (url === '/api/notes?page=1&pageSize=5&workspaceSlug=&projectSlug=n8n-automations&folderId=&status=&rootOnly=false&selectedId=') {
+    if (url === '/api/notes?page=1&pageSize=10&workspaceSlug=&projectSlug=n8n-automations&folderId=&status=&rootOnly=false&selectedId=') {
       return Response.json({
         ok: true,
         notes: dashboard.notes,
-        pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+        pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       });
     }
     if (url.startsWith('/api/query?')) {
       return Response.json({
         ok: true,
         query: 'deploy',
-        pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+        pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
         matches: [{
           id: 'note-1',
           path: '20 Inbox/note.md',
@@ -711,7 +711,7 @@ describe('AppShell', () => {
       if (url === '/api/integrations?workspaceSlug=default') {
         return Response.json({ ok: true, workspaceSlug: 'default', integrations: [] });
       }
-      if (url === '/api/projects/timeline?page=1&pageSize=5&category=all') {
+      if (url === '/api/projects/timeline?page=1&pageSize=10&category=all') {
         return Response.json({
           ok: true,
           timeline: allProjectsDashboard.notes.map((note) => ({
@@ -720,7 +720,7 @@ describe('AppShell', () => {
             category: 'manual',
             sourceChannel: note.source,
           })),
-          pagination: { page: 1, pageSize: 5, total: 2, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       return new Response(null, { status: 404 });
@@ -826,28 +826,28 @@ describe('AppShell', () => {
           notes: undefined,
         });
       }
-      if (url === '/api/projects?page=1&pageSize=5&selectedSlug=n8n-automations') {
+      if (url === '/api/projects?page=1&pageSize=10&selectedSlug=n8n-automations') {
         return Response.json({
           ok: true,
           projects: dashboard.projects,
-          pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       if (url === '/api/projects/n8n-automations/folders') {
         return Response.json({ ok: true, projectSlug: 'n8n-automations', folders: [] });
       }
-      if (url === '/api/projects/timeline?page=1&pageSize=5&category=all') {
+      if (url === '/api/projects/timeline?page=1&pageSize=10&category=all') {
         return Response.json({
           ok: true,
           timeline: [],
-          pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
-      if (url === '/api/notes?page=1&pageSize=5&workspaceSlug=&projectSlug=n8n-automations&folderId=&status=&rootOnly=false&selectedId=') {
+      if (url === '/api/notes?page=1&pageSize=10&workspaceSlug=&projectSlug=n8n-automations&folderId=&status=&rootOnly=false&selectedId=') {
         return Response.json({
           ok: true,
           notes: [],
-          pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       if (url === '/api/integrations?workspaceSlug=default') {

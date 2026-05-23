@@ -134,7 +134,7 @@ function timelineFromDashboardNotes(projectSlug = 'platform') {
     })),
     pagination: {
       page: 1,
-      pageSize: 5,
+      pageSize: 10,
       total: notes.length,
       totalPages: 1,
       hasNext: false,
@@ -622,7 +622,7 @@ describe('ProjectsPage', () => {
         return Response.json({
           ok: true,
           notes: [],
-          pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       return Response.error();
@@ -662,7 +662,7 @@ describe('ProjectsPage', () => {
         return Response.json({
           ok: true,
           notes: [],
-          pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       return Response.error();
@@ -759,7 +759,7 @@ describe('ProjectsPage', () => {
         return Response.json({
           ok: true,
           timeline: [],
-          pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       throw new Error(`unexpected fetch ${url}`);
@@ -802,7 +802,7 @@ describe('ProjectsPage', () => {
               attachmentCount: 0,
             },
           ],
-          pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       return Response.error();
@@ -862,14 +862,14 @@ describe('ProjectsPage', () => {
               attachmentCount: 0,
             },
           ],
-          pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       if (url.startsWith('/api/projects/platform/timeline?')) {
         return Response.json({
           ok: true,
           timeline: [],
-          pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       return Response.error();

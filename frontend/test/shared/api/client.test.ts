@@ -82,14 +82,14 @@ describe('api client', () => {
     const fetchMock = vi.fn(async () => Response.json({
       ok: true,
       matches: [],
-      pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
     }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await runQuery({ query: 'Nota1', workspaceSlug: 'workspace1', status: 'resolved', limit: 50, page: 1, pageSize: 5 });
+    await runQuery({ query: 'Nota1', workspaceSlug: 'workspace1', status: 'resolved', limit: 50, page: 1, pageSize: 10 });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/api/query?query=Nota1&projectSlug=&workspaceSlug=workspace1&status=resolved&limit=10&page=1&pageSize=5'),
+      expect.stringContaining('/api/query?query=Nota1&projectSlug=&workspaceSlug=workspace1&status=resolved&limit=10&page=1&pageSize=10'),
       expect.any(Object),
     );
   });
@@ -98,14 +98,14 @@ describe('api client', () => {
     const fetchMock = vi.fn(async () => Response.json({
       ok: true,
       history: [],
-      pagination: { page: 2, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: true },
+      pagination: { page: 2, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: true },
     }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await fetchAskHistory({ page: 2, pageSize: 5, projectSlug: 'platform' });
+    await fetchAskHistory({ page: 2, pageSize: 10, projectSlug: 'platform' });
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/api/ask/history?page=2&pageSize=5&projectSlug=platform'),
+      expect.stringContaining('/api/ask/history?page=2&pageSize=10&projectSlug=platform'),
       expect.any(Object),
     );
   });
@@ -187,7 +187,7 @@ describe('api client', () => {
         return Response.json({
           ok: true,
           matches: [],
-          pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
         });
       }
       if (url === '/api/auth/refresh') {
@@ -208,7 +208,7 @@ describe('api client', () => {
       {
         ok: true,
         matches: [],
-        pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
       },
     ]);
     expect(refreshCalls).toBe(1);

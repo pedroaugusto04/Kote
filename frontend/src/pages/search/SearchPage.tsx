@@ -71,35 +71,35 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
     placeholderData: keepPreviousData,
     initialData: !hasQuery && dashboard.notes
       ? {
-          ok: true as const,
-          notes: dashboard.notes
-            .filter((note) =>
-              (!workspaceSlug || note.workspace === workspaceSlug)
-              && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
-              && (!debouncedStatus || note.status === debouncedStatus),
-            )
-            .slice(0, DEFAULT_PAGE_SIZE),
-          pagination: {
-            page: 1,
-            pageSize: DEFAULT_PAGE_SIZE,
-            total: dashboard.notes.filter((note) =>
-              (!workspaceSlug || note.workspace === workspaceSlug)
-              && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
-              && (!debouncedStatus || note.status === debouncedStatus),
-            ).length,
-            totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) =>
-              (!workspaceSlug || note.workspace === workspaceSlug)
-              && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
-              && (!debouncedStatus || note.status === debouncedStatus),
-            ).length / DEFAULT_PAGE_SIZE)),
-            hasNext: dashboard.notes.filter((note) =>
-              (!workspaceSlug || note.workspace === workspaceSlug)
-              && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
-              && (!debouncedStatus || note.status === debouncedStatus),
-            ).length > DEFAULT_PAGE_SIZE,
-            hasPrevious: false,
-          },
-        }
+        ok: true as const,
+        notes: dashboard.notes
+          .filter((note) =>
+            (!workspaceSlug || note.workspace === workspaceSlug)
+            && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
+            && (!debouncedStatus || note.status === debouncedStatus),
+          )
+          .slice(0, DEFAULT_PAGE_SIZE),
+        pagination: {
+          page: 1,
+          pageSize: DEFAULT_PAGE_SIZE,
+          total: dashboard.notes.filter((note) =>
+            (!workspaceSlug || note.workspace === workspaceSlug)
+            && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
+            && (!debouncedStatus || note.status === debouncedStatus),
+          ).length,
+          totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) =>
+            (!workspaceSlug || note.workspace === workspaceSlug)
+            && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
+            && (!debouncedStatus || note.status === debouncedStatus),
+          ).length / DEFAULT_PAGE_SIZE)),
+          hasNext: dashboard.notes.filter((note) =>
+            (!workspaceSlug || note.workspace === workspaceSlug)
+            && (!debouncedProjectSlug || note.project === debouncedProjectSlug)
+            && (!debouncedStatus || note.status === debouncedStatus),
+          ).length > DEFAULT_PAGE_SIZE,
+          hasPrevious: false,
+        },
+      }
       : undefined,
   });
 

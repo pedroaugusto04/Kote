@@ -91,13 +91,13 @@ describe('RemindersPage', () => {
 
     expect(await screen.findByText('Deploy')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, '/api/reminders?page=1&pageSize=5&workspaceSlug=default&status=', expect.any(Object));
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, '/api/reminders?page=1&pageSize=10&workspaceSlug=default&status=', expect.any(Object));
 
     fireEvent.click(screen.getByLabelText('Filter by status'));
     fireEvent.click(screen.getByRole('option', { name: 'Sent' }));
 
     await waitFor(() => {
-      expect(fetchSpy).toHaveBeenNthCalledWith(2, '/api/reminders?page=1&pageSize=5&workspaceSlug=default&status=sent', expect.any(Object));
+      expect(fetchSpy).toHaveBeenNthCalledWith(2, '/api/reminders?page=1&pageSize=10&workspaceSlug=default&status=sent', expect.any(Object));
     });
     expect(await screen.findByText('Follow up')).toBeInTheDocument();
     expect(screen.getAllByText('Sent').length).toBeGreaterThan(0);
@@ -105,7 +105,7 @@ describe('RemindersPage', () => {
 
   it('keeps open reminders first and breaks ties by ascending date', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ ok: true, reminders: [], pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false } }), { status: 200 }),
+      new Response(JSON.stringify({ ok: true, reminders: [], pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false } }), { status: 200 }),
     );
 
     renderWithAppProviders(

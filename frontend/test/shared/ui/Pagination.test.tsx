@@ -8,7 +8,7 @@ describe('Pagination', () => {
   it('oculta os controles quando existe apenas uma pagina', () => {
     renderWithAppProviders(
       <Pagination
-        pagination={{ page: 1, pageSize: 5, total: 3, totalPages: 1, hasNext: false, hasPrevious: false }}
+        pagination={{ page: 1, pageSize: 10, total: 3, totalPages: 1, hasNext: false, hasPrevious: false }}
         onPageChange={vi.fn()}
       />,
     );
@@ -19,7 +19,7 @@ describe('Pagination', () => {
   it('exibe os controles quando existe mais de uma pagina', () => {
     renderWithAppProviders(
       <Pagination
-        pagination={{ page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false }}
+        pagination={{ page: 1, pageSize: 10, total: 6, totalPages: 2, hasNext: true, hasPrevious: false }}
         onPageChange={vi.fn()}
       />,
     );
