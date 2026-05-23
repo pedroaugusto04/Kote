@@ -14,6 +14,7 @@ import { Select } from '../../shared/ui/select';
 import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { NoteRow } from '../../widgets/notes/NoteRow';
+import { AskPanel } from '../../widgets/ask/AskPanel';
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -26,6 +27,7 @@ const statusOptions: Array<{ value: '' | NoteStatus; label: string }> = [
 ];
 
 export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageContext) {
+  const [activeTab, setActiveTab] = useState<'search' | 'ask'>('search');
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
   const setQuery = (newQuery: string) => {
@@ -98,65 +100,109 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
       : undefined,
   });
 
+  const getTabStyle = (tab: 'search' | 'ask') => {
+    const isActive = activeTab === tab;
+    return {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      minHeight: '36px',
+      padding: '0 16px',
+      border: '1px solid transparent',
+      borderRadius: '20px',
+      color: isActive ? 'var(--active-text)' : 'var(--muted)',
+      background: isActive ? 'var(--surface-active)' : 'transparent',
+      borderColor: isActive ? 'var(--accent-border)' : 'transparent',
+      fontWeight: 600,
+      transition: 'all 0.15s ease',
+    };
+  };
+
   return (
     <>
       <PageHead title="Search" subtitle="" />
-      <section className="search-box">
-        <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Enter what you are looking for..." type="search" />
-        <div className="filters">
-          <Select
-            ariaLabel="Current workspace"
-            className="search-filter search-filter-workspace"
-            disabled
-            options={[{ value: workspaceSlug || 'current-workspace', label: workspaceSlug || 'current-workspace' }]}
-            value={workspaceSlug || 'current-workspace'}
-            onChange={() => undefined}
-          />
-          <Select
-            ariaLabel="Filter by project"
-            className="search-filter search-filter-project"
-            options={[
-              { value: '', label: 'All projects' },
-              ...dashboard.projects.map((project) => ({
-                value: project.projectSlug,
-                label: project.displayName,
-              })),
-            ]}
-            value={projectSlug}
-            onChange={setProjectSlug}
-          />
-          <Select
-            ariaLabel="Filter by status"
-            className="search-filter search-filter-status"
-            options={statusOptions}
-            value={status}
-            onChange={(nextValue) => setStatus(nextValue as '' | NoteStatus)}
-          />
-        </div>
-      </section>
-      <Panel>
-        <h2>Results</h2>
-        <div className="list">
-          {hasQuery
-            ? queryResult.data?.matches.map((match) => (
-              <NoteRow
-                key={match.id}
-                note={{ ...match, attachmentCount: 0, folderId: null }}
-                dashboard={dashboard}
-                onDelete={() => deleteNote({ id: match.id, title: match.title })}
-                onEdit={() => editNote(match.id)}
-                onOpen={openNote}
+
+      <div className="search-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
+        <button
+          className={`search-tab ${activeTab === 'search' ? 'active' : ''}`}
+          style={getTabStyle('search')}
+          type="button"
+          onClick={() => setActiveTab('search')}
+        >
+          🔍 Search Notes
+        </button>
+        <button
+          className={`search-tab ${activeTab === 'ask' ? 'active' : ''}`}
+          style={getTabStyle('ask')}
+          type="button"
+          onClick={() => setActiveTab('ask')}
+        >
+          ✨ Ask AI
+        </button>
+      </div>
+
+      {activeTab === 'search' ? (
+        <>
+          <section className="search-box">
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Enter what you are looking for..." type="search" />
+            <div className="filters">
+              <Select
+                ariaLabel="Current workspace"
+                className="search-filter search-filter-workspace"
+                disabled
+                options={[{ value: workspaceSlug || 'current-workspace', label: workspaceSlug || 'current-workspace' }]}
+                value={workspaceSlug || 'current-workspace'}
+                onChange={() => undefined}
               />
-            ))
-            : notesResult.data?.notes.map((note) => (
-              <NoteRow key={note.id} note={note} dashboard={dashboard} onDelete={() => deleteNote(note)} onEdit={() => editNote(note.id)} onOpen={openNote} />
-            ))}
-        </div>
-        {hasQuery && queryResult.data ? <Pagination pagination={queryResult.data.pagination} onPageChange={setPage} /> : null}
-        {!hasQuery && notesResult.data ? <Pagination pagination={notesResult.data.pagination} onPageChange={setPage} /> : null}
-        {hasQuery && !queryResult.data?.matches.length ? <EmptyState>Try another term or remove some filters.</EmptyState> : null}
-        {!hasQuery && !notesResult.data?.notes.length ? <EmptyState>No notes found with these filters.</EmptyState> : null}
-      </Panel>
+              <Select
+                ariaLabel="Filter by project"
+                className="search-filter search-filter-project"
+                options={[
+                  { value: '', label: 'All projects' },
+                  ...dashboard.projects.map((project) => ({
+                    value: project.projectSlug,
+                    label: project.displayName,
+                  })),
+                ]}
+                value={projectSlug}
+                onChange={setProjectSlug}
+              />
+              <Select
+                ariaLabel="Filter by status"
+                className="search-filter search-filter-status"
+                options={statusOptions}
+                value={status}
+                onChange={(nextValue) => setStatus(nextValue as '' | NoteStatus)}
+              />
+            </div>
+          </section>
+          <Panel>
+            <h2>Results</h2>
+            <div className="list">
+              {hasQuery
+                ? queryResult.data?.matches.map((match) => (
+                  <NoteRow
+                    key={match.id}
+                    note={{ ...match, attachmentCount: 0, folderId: null }}
+                    dashboard={dashboard}
+                    onDelete={() => deleteNote({ id: match.id, title: match.title })}
+                    onEdit={() => editNote(match.id)}
+                    onOpen={openNote}
+                  />
+                ))
+                : notesResult.data?.notes.map((note) => (
+                  <NoteRow key={note.id} note={note} dashboard={dashboard} onDelete={() => deleteNote(note)} onEdit={() => editNote(note.id)} onOpen={openNote} />
+                ))}
+            </div>
+            {hasQuery && queryResult.data ? <Pagination pagination={queryResult.data.pagination} onPageChange={setPage} /> : null}
+            {!hasQuery && notesResult.data ? <Pagination pagination={notesResult.data.pagination} onPageChange={setPage} /> : null}
+            {hasQuery && !queryResult.data?.matches.length ? <EmptyState>Try another term or remove some filters.</EmptyState> : null}
+            {!hasQuery && !notesResult.data?.notes.length ? <EmptyState>No notes found with these filters.</EmptyState> : null}
+          </Panel>
+        </>
+      ) : (
+        <AskPanel openNote={openNote} />
+      )}
     </>
   );
 }

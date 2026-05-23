@@ -33,6 +33,10 @@ export type RuntimeEnvironment = {
   projectBriefAiBaseUrl: string;
   projectBriefAiModel: string;
   projectBriefAiApiKey: string;
+  embeddingAiProvider: AiProvider;
+  embeddingAiBaseUrl: string;
+  embeddingAiModel: string;
+  embeddingAiApiKey: string;
   githubAppId: string;
   githubAppPrivateKey: string;
   publicBaseUrl: string;
@@ -67,6 +71,7 @@ export type RuntimeEnvironment = {
   googleOAuthRedirectUri: string;
   credentialsEncryptionKey: string;
   internalServiceToken: string;
+  disableEmbeddingWorker: boolean;
 };
 
 export function readEnvironment(env = process.env): RuntimeEnvironment {
@@ -87,6 +92,10 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     projectBriefAiBaseUrl: String(env.KB_PROJECT_BRIEF_AI_BASE_URL || env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
     projectBriefAiModel: String(env.KB_PROJECT_BRIEF_AI_MODEL || env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
     projectBriefAiApiKey: String(env.KB_PROJECT_BRIEF_AI_API_KEY || env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
+    embeddingAiProvider: (String(env.KB_EMBEDDING_AI_PROVIDER || 'gemini').trim().toLowerCase() as RuntimeEnvironment['embeddingAiProvider']),
+    embeddingAiBaseUrl: String(env.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
+    embeddingAiModel: String(env.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001').trim(),
+    embeddingAiApiKey: String(env.KB_EMBEDDING_AI_API_KEY || '').trim(),
     githubAppId: String(env.KB_GITHUB_APP_ID || '').trim(),
     githubAppPrivateKey: String(env.KB_GITHUB_APP_PRIVATE_KEY || '').trim(),
     publicBaseUrl: String(env.KB_PUBLIC_BASE_URL || env.WEBHOOK_URL || '').trim().replace(/\/$/, ''),
@@ -126,5 +135,6 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     googleOAuthRedirectUri: String(env.KB_GOOGLE_OAUTH_REDIRECT_URI || '').trim(),
     credentialsEncryptionKey: String(env.KB_CREDENTIALS_ENCRYPTION_KEY || '').trim(),
     internalServiceToken: String(env.KB_INTERNAL_SERVICE_TOKEN || '').trim(),
+    disableEmbeddingWorker: String(env.KB_DISABLE_EMBEDDING_WORKER || 'false').trim().toLowerCase() === 'true',
   };
 }

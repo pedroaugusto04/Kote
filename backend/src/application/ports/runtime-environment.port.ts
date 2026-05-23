@@ -17,6 +17,10 @@ export type RuntimeEnvironment = {
   projectBriefAiBaseUrl: string;
   projectBriefAiModel: string;
   projectBriefAiApiKey: string;
+  embeddingAiProvider: AiProvider;
+  embeddingAiBaseUrl: string;
+  embeddingAiModel: string;
+  embeddingAiApiKey: string;
   githubAppId: string;
   githubAppPrivateKey: string;
   publicBaseUrl: string;
@@ -49,6 +53,7 @@ export type RuntimeEnvironment = {
   googleOAuthRedirectUri: string;
   credentialsEncryptionKey: string;
   internalServiceToken: string;
+  disableEmbeddingWorker: boolean;
 };
 
 export abstract class RuntimeEnvironmentProvider {

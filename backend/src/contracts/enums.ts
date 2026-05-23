@@ -130,6 +130,7 @@ export enum HomePriorityType {
 export enum AiProvider {
   OpenRouter = 'openrouter',
   OpenAi = 'openai',
+  Gemini = 'gemini',
   None = 'none',
 }
 

@@ -6,6 +6,7 @@ import {
   IngestEntryUseCase,
   MarkReminderAsSentUseCase,
   ProcessAgentConversationUseCase,
+  ReindexAllEmbeddingsUseCase,
 } from '../../../application/use-cases/index.js';
 import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
@@ -30,6 +31,7 @@ export class OperationsController {
     private readonly agentConversation: ProcessAgentConversationUseCase,
     private readonly reminderDispatch: BuildReminderDispatchUseCase,
     private readonly markReminders: MarkReminderAsSentUseCase,
+    private readonly reindexEmbeddings: ReindexAllEmbeddingsUseCase,
   ) {}
 
   @Post('ingest')
@@ -64,5 +66,11 @@ export class OperationsController {
     @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
   ) {
     return this.markReminders.execute(body.ids, user.id, query.workspaceSlug);
+  }
+
+  @Post('operations/reindex-embeddings')
+  @UseGuards(TrustedOriginGuard)
+  reindexAllEmbeddings(@CurrentUser() user: AuthenticatedUser) {
+    return this.reindexEmbeddings.execute(user.id);
   }
 }

@@ -13,6 +13,7 @@ import {
   ListWorkspacesUseCase,
   QueryKnowledgeUseCase,
   UpdateReminderStatusUseCase,
+  AskKnowledgeUseCase,
 } from '../../../application/use-cases/index.js';
 import { CurrentUser } from '../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../auth.guards.js';
@@ -37,6 +38,7 @@ import {
   type UpdateReminderStatusBody,
 } from '../dto/dashboard.dto.js';
 import { queryRequestSchema, type QueryRequest } from '../dto/query.dto.js';
+import { askRequestSchema, type AskRequest } from '../dto/ask.dto.js';
 import { ZodValidationPipe } from '../zod-validation.pipe.js';
 
 @Controller('api')
@@ -54,6 +56,7 @@ export class DashboardController {
     private readonly getNoteDetail: GetNoteDetailUseCase,
     private readonly getReviewDetail: GetReviewDetailUseCase,
     private readonly queryKnowledge: QueryKnowledgeUseCase,
+    private readonly askKnowledge: AskKnowledgeUseCase,
   ) {}
 
   @Get('dashboard')
@@ -140,6 +143,15 @@ export class DashboardController {
   @UseGuards(TrustedOriginGuard)
   queryPost(@Body(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) body: QueryRequest, @CurrentUser() user: AuthenticatedUser) {
     return this.queryKnowledge.execute(body, user.id);
+  }
+
+  @Post('ask')
+  @UseGuards(TrustedOriginGuard)
+  ask(
+    @Body(new ZodValidationPipe(askRequestSchema, 'invalid_ask_payload')) body: AskRequest,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.askKnowledge.execute(body.question, user.id);
   }
 }
 

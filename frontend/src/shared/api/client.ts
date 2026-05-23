@@ -26,6 +26,7 @@ export {
 } from './projects';
 export { fetchReminderBoard, fetchReminders, updateReminderStatus } from './reminders';
 export { runQuery } from './query';
+export { runAsk } from './ask';
 export { ApiClientError, type AuthUser } from './request';
 export { getErrorMessage } from './error-message';
 export { createWorkspace } from './workspaces';

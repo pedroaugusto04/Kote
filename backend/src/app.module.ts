@@ -9,6 +9,8 @@ import { GithubIntegrationGateway } from './application/ports/github-integration
 import { GoogleOAuthGateway } from './application/ports/google-oauth.gateway.js';
 import { ProjectBriefAiGateway } from './application/ports/project-brief-ai.gateway.js';
 import { NoteEmbeddingRepository } from './application/ports/note-embedding.repository.js';
+import { EmbeddingGateway } from './application/ports/embedding.gateway.js';
+import { AnswerGenerationGateway } from './application/ports/answer-generation.gateway.js';
 import { EmbeddingQueuePublisher } from './application/ports/embedding-queue.publisher.js';
 import { ProjectBriefHistoryRepository } from './application/ports/project-brief-history.repository.js';
 import { ReminderDeliveryGateway } from './application/ports/reminder-delivery.gateway.js';
@@ -34,6 +36,8 @@ import { EvolutionReminderDeliveryGateway, EvolutionWhatsappMediaDownloader, Evo
 import { DefaultConversationAgentGateway } from './infrastructure/ai/conversation-agent.gateway.js';
 import { DefaultProjectBriefAiGateway } from './infrastructure/ai/project-brief.gateway.js';
 import { DefaultReviewAnalysisGateway } from './infrastructure/ai/review-analysis.gateway.js';
+import { DefaultEmbeddingGateway } from './infrastructure/ai/embedding.gateway.js';
+import { DefaultAnswerGenerationGateway } from './infrastructure/ai/answer-generation.gateway.js';
 import { DefaultGithubIntegrationGateway } from './infrastructure/integrations/github-integration.gateway.js';
 import { GoogleAuthLibraryOAuthGateway } from './infrastructure/auth/google-oauth.gateway.js';
 import { PostgresUserRepository } from './infrastructure/repositories/auth.repository.js';
@@ -79,6 +83,7 @@ import {
   MarkReminderAsSentUseCase,
   ProcessAgentConversationUseCase,
   QueryKnowledgeUseCase,
+  AskKnowledgeUseCase,
   RefreshReminderStatusesUseCase,
   ListProjectFoldersUseCase,
   UpdateNoteUseCase,
@@ -87,8 +92,11 @@ import {
   UpdateProjectUseCase,
   ListWorkspacesUseCase,
   ListWorkspaceRepositoriesUseCase,
+  ReindexAllEmbeddingsUseCase,
 } from './application/use-cases/index.js';
 import { ReminderDispatchWorker } from './application/services/reminder-dispatch.worker.js';
+import { EmbeddingWorker } from './application/services/embedding.worker.js';
+import { NoteChunkingService } from './application/services/note-chunking.service.js';
 import { ConversationAgentPresenter } from './application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './application/use-cases/conversation/services/conversation-folder-resolution.service.js';
 import { AuthController, DashboardController, GithubAppCallbackController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WorkspacesController } from './interfaces/http/controllers/index.js';
@@ -152,6 +160,10 @@ import { AppLogger } from './observability/logger.js';
     HandleWhatsappWebhookUseCase,
     HandleTelegramWebhookUseCase,
     ReminderDispatchWorker,
+    EmbeddingWorker,
+    NoteChunkingService,
+    ReindexAllEmbeddingsUseCase,
+    AskKnowledgeUseCase,
     EvolutionWhatsappReplySender,
     EvolutionReminderDeliveryGateway,
     EvolutionWhatsappMediaDownloader,
@@ -160,6 +172,8 @@ import { AppLogger } from './observability/logger.js';
     DefaultConversationAgentGateway,
     DefaultProjectBriefAiGateway,
     DefaultReviewAnalysisGateway,
+    DefaultEmbeddingGateway,
+    DefaultAnswerGenerationGateway,
     DefaultGithubIntegrationGateway,
     GoogleAuthLibraryOAuthGateway,
     ProcessRuntimeEnvironmentProvider,
@@ -191,6 +205,8 @@ import { AppLogger } from './observability/logger.js';
     { provide: ContentQueryRepository, useExisting: PostgresContentQueryRepository },
     { provide: NoteEmbeddingRepository, useExisting: PostgresNoteEmbeddingRepository },
     { provide: EmbeddingQueuePublisher, useExisting: RabbitMqEmbeddingQueuePublisher },
+    { provide: EmbeddingGateway, useExisting: DefaultEmbeddingGateway },
+    { provide: AnswerGenerationGateway, useExisting: DefaultAnswerGenerationGateway },
     { provide: ObjectStorage, useExisting: SupabaseObjectStorage },
     { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
