@@ -16,6 +16,12 @@ services:
       KB_SUPABASE_CACHE_CONTROL: ${KB_SUPABASE_CACHE_CONTROL:-31536000}
       LOG_PRETTY_CONSOLE: ${LOG_PRETTY_CONSOLE:-true}
       KB_LOG_PRETTY_CONSOLE: ${KB_LOG_PRETTY_CONSOLE:-true}
+      KB_EMBEDDING_AI_PROVIDER: ${KB_EMBEDDING_AI_PROVIDER:-gemini}
+      KB_EMBEDDING_AI_BASE_URL: ${KB_EMBEDDING_AI_BASE_URL}
+      KB_EMBEDDING_AI_MODEL: ${KB_EMBEDDING_AI_MODEL}
+      KB_EMBEDDING_AI_API_KEY: ${KB_EMBEDDING_AI_API_KEY}
+      KB_RABBITMQ_URL: ${KB_RABBITMQ_URL}
+      KB_DISABLE_EMBEDDING_WORKER: ${KB_DISABLE_EMBEDDING_WORKER:-false}
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
     healthcheck:
@@ -26,3 +32,23 @@ services:
       timeout: 5s
       retries: 12
       start_period: 20s
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${KB_RABBITMQ_USER:-kb}
+      RABBITMQ_DEFAULT_PASS: ${KB_RABBITMQ_PASSWORD:-kb_dev}
+    volumes:
+      - kb_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  kb_rabbitmq_data:

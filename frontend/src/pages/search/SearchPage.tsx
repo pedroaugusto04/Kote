@@ -129,7 +129,11 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           type="button"
           onClick={() => setActiveTab('search')}
         >
-          🔍 Search Notes
+          <svg aria-hidden="true" viewBox="0 0 16 16" style={{ width: '14px', height: '14px', flexShrink: 0 }}>
+            <circle cx="6.5" cy="6.5" r="4.25" stroke="currentColor" strokeWidth="1.5" fill="none" />
+            <path d="M9.5 9.5l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          Search Notes
         </button>
         <button
           className={`search-tab ${activeTab === 'ask' ? 'active' : ''}`}
@@ -137,7 +141,10 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           type="button"
           onClick={() => setActiveTab('ask')}
         >
-          ✨ Ask AI
+          <svg aria-hidden="true" viewBox="0 0 16 16" style={{ width: '14px', height: '14px', flexShrink: 0 }}>
+            <path d="M2.5 3.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-6.5l-3.5 2.5v-2.5h-1a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
+          </svg>
+          Ask AI
         </button>
       </div>
 
