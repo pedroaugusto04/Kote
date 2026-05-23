@@ -2,12 +2,12 @@ import { useState, useRef, useEffect } from 'react';
 
 import { runAsk } from '../../shared/api/client';
 import { MarkdownView } from '../markdown/MarkdownView';
+import { AskAiIcon } from './AskAiIcon';
 import './AskPanel.css';
 
 type HistoryItem = {
   question: string;
   answer: string;
-  confidence: 'high' | 'medium' | 'low';
   sources: Array<{
     noteId: string;
     title: string;
@@ -48,7 +48,6 @@ export function AskPanel({ openNote }: { openNote: (id: string) => void }) {
           {
             question: queryText,
             answer: result.answer,
-            confidence: result.confidence,
             sources: result.sources || [],
           },
         ]);
@@ -73,11 +72,14 @@ export function AskPanel({ openNote }: { openNote: (id: string) => void }) {
 
   return (
     <div className="ask-panel-container">
-      {/* Welcome / Suggestions when no history */}
       {history.length === 0 && !isLoading && (
         <div className="ask-welcome">
-          <div className="ask-welcome-icon">✨</div>
-          <h3>Ask your Knowledge Base</h3>
+          <div className="ask-welcome-title">
+            <span className="ask-ai-mark">
+              <AskAiIcon className="ask-ai-mark-icon" />
+            </span>
+            <h3>Ask your Knowledge Base</h3>
+          </div>
           <p>
             Get answers compiled directly from your notes using semantic search.
           </p>
@@ -107,24 +109,19 @@ export function AskPanel({ openNote }: { openNote: (id: string) => void }) {
         </div>
       )}
 
-      {/* Q&A History List */}
       {history.length > 0 && (
         <div className="ask-history-list">
           {history.map((item, index) => (
             <div className="ask-qa-card" key={index}>
               <div className="ask-question-bubble">
-                <span className="user-icon">👤</span>
                 <span className="question-text">{item.question}</span>
               </div>
               <div className="ask-answer-container">
                 <div className="ask-answer-header">
                   <div className="ask-ai-identity">
-                    <span className="ai-icon">✨</span>
+                    <AskAiIcon className="ask-ai-identity-icon" />
                     <strong>Assistant</strong>
                   </div>
-                  <span className={`badge ${item.confidence}`}>
-                    {item.confidence.toUpperCase()} CONFIDENCE
-                  </span>
                 </div>
                 <div className="ask-answer-body">
                   <MarkdownView markdown={item.answer} />
@@ -140,7 +137,7 @@ export function AskPanel({ openNote }: { openNote: (id: string) => void }) {
                           type="button"
                           onClick={() => openNote(source.noteId)}
                         >
-                          📄 {source.title || source.path}
+                          {source.title || source.path}
                         </button>
                       ))}
                     </div>
@@ -152,17 +149,15 @@ export function AskPanel({ openNote }: { openNote: (id: string) => void }) {
         </div>
       )}
 
-      {/* Loading Skeleton */}
       {isLoading && (
         <div className="ask-qa-card skeleton-card">
           <div className="ask-question-bubble">
-            <span className="user-icon">👤</span>
             <span className="question-text">{question}</span>
           </div>
           <div className="ask-answer-container">
             <div className="ask-answer-header">
               <div className="ask-ai-identity">
-                <span className="ai-icon pulsing">✨</span>
+                <AskAiIcon className="ask-ai-identity-icon" />
                 <strong>Thinking...</strong>
               </div>
             </div>
@@ -177,10 +172,8 @@ export function AskPanel({ openNote }: { openNote: (id: string) => void }) {
 
       <div ref={bottomRef} />
 
-      {/* Error message */}
-      {error && <div className="ask-error-alert">⚠️ {error}</div>}
+      {error && <div className="inline-message error">{error}</div>}
 
-      {/* Floating/Bottom Input Form */}
       <form className="ask-input-form" onSubmit={handleSubmit}>
         <input
           disabled={isLoading}
@@ -189,7 +182,7 @@ export function AskPanel({ openNote }: { openNote: (id: string) => void }) {
           placeholder="Ask a question about your knowledge..."
           type="text"
         />
-        <button disabled={isLoading || !question.trim()} type="submit">
+        <button className="icon-button" disabled={isLoading || !question.trim()} type="submit">
           {isLoading ? '...' : 'Ask'}
         </button>
       </form>

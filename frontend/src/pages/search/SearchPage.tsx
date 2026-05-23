@@ -15,6 +15,7 @@ import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 import { AskPanel } from '../../widgets/ask/AskPanel';
+import { AskAiIcon } from '../../widgets/ask/AskAiIcon';
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -100,50 +101,24 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
       : undefined,
   });
 
-  const getTabStyle = (tab: 'search' | 'ask') => {
-    const isActive = activeTab === tab;
-    return {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      minHeight: '36px',
-      padding: '0 16px',
-      border: '1px solid transparent',
-      borderRadius: '20px',
-      color: isActive ? 'var(--active-text)' : 'var(--muted)',
-      background: isActive ? 'var(--surface-active)' : 'transparent',
-      borderColor: isActive ? 'var(--accent-border)' : 'transparent',
-      fontWeight: 600,
-      transition: 'all 0.15s ease',
-    };
-  };
-
   return (
     <>
       <PageHead title="Search" subtitle="" />
 
-      <div className="search-tabs" style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-subtle)', paddingBottom: '12px' }}>
+      <div className="search-tabs segmented-control">
         <button
           className={`search-tab ${activeTab === 'search' ? 'active' : ''}`}
-          style={getTabStyle('search')}
           type="button"
           onClick={() => setActiveTab('search')}
         >
-          <svg aria-hidden="true" viewBox="0 0 16 16" style={{ width: '14px', height: '14px', flexShrink: 0 }}>
-            <circle cx="6.5" cy="6.5" r="4.25" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            <path d="M9.5 9.5l4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
           Search Notes
         </button>
         <button
           className={`search-tab ${activeTab === 'ask' ? 'active' : ''}`}
-          style={getTabStyle('ask')}
           type="button"
           onClick={() => setActiveTab('ask')}
         >
-          <svg aria-hidden="true" viewBox="0 0 16 16" style={{ width: '14px', height: '14px', flexShrink: 0 }}>
-            <path d="M2.5 3.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1h-6.5l-3.5 2.5v-2.5h-1a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" fill="none" />
-          </svg>
+          <AskAiIcon className="search-tab-icon" />
           Ask AI
         </button>
       </div>
