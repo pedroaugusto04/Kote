@@ -22,7 +22,13 @@ export function AskPanel({ openNote }: { openNote: (id: string) => void }) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const isFirstRender = useRef(true);
+
   useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [history, isLoading]);
 
