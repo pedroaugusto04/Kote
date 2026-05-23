@@ -20,4 +20,14 @@ describe('MarkdownView', () => {
     expect(screen.getByText('[HIGH]')).toHaveClass('markdown-severity-high');
     expect(screen.getByText('[CRITICAL]')).toHaveClass('markdown-severity-critical');
   });
+
+  it('renders bold review finding headers with nested severities correctly', () => {
+    const { container } = render(<MarkdownView markdown="- **[MEDIUM] The filtering logic is repeated**" />);
+
+    const badge = container.querySelector('.markdown-severity-medium');
+    expect(badge).toBeInTheDocument();
+    expect(badge?.textContent).toBe('[MEDIUM]');
+    expect(badge?.closest('strong')).toBeInTheDocument();
+    expect(container.querySelector('strong')?.textContent).toContain('The filtering logic is repeated');
+  });
 });

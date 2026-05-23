@@ -104,7 +104,7 @@ function renderReviewFindings(findings: NonNullable<IngestPayload['content']['se
   if (!findings.length) return 'No findings registered.';
   return findings
     .map((finding) => {
-      const parts = [`- [${finding.severity.toUpperCase()}] ${finding.summary}`];
+      const parts = [`- **[${finding.severity.toUpperCase()}] ${finding.summary}**`];
       if (finding.file) parts.push(`  file: ${finding.file}`);
       if (finding.recommendation) parts.push(`  recommendation: ${finding.recommendation}`);
       return parts.join('\n');

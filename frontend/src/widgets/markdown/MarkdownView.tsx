@@ -16,6 +16,7 @@ export function MarkdownView({ markdown }: { markdown: string }) {
         if (line.startsWith('## ')) return <h2 key={index}>{renderInlineMarkdown(line.slice(3))}</h2>;
         if (line.startsWith('- ')) return <p key={index}>- {renderInlineMarkdown(line.slice(2))}</p>;
         if (!line.trim()) return null;
+
         return <p key={index}>{renderInlineMarkdown(line)}</p>;
       })}
     </div>
