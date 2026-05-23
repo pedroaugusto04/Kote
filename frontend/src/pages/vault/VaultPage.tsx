@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName } from '../../entities/format';
@@ -19,6 +19,7 @@ import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActio
 type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
 
 export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelectedProject, openNote }: PageContext) {
+  const navigate = useNavigate();
   const params = useParams();
   const routeNoteId = params.noteId ? decodeURIComponent(params.noteId) : '';
   const noteId = routeNoteId || selectedNoteId;
@@ -80,7 +81,7 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
 
   return (
     <>
-      <PageHead title="Note details" subtitle={selectedProjectDetails?.displayName || ''} />
+      <PageHead title="Note details" subtitle={selectedProjectDetails?.displayName || ''} onBack={() => navigate(-1)} />
       <article className="note-reader vault-reader">
         {noteQuery.data ? (
           <>

@@ -20,10 +20,15 @@ export function Panel({ children, className = '' }: PropsWithChildren<{ classNam
   return <section className={`panel ${className}`}>{children}</section>;
 }
 
-export function PageHead({ title, subtitle, action }: { title: ReactNode; subtitle: string; action?: ReactNode }) {
+export function PageHead({ title, subtitle, action, onBack, backLabel = 'Back' }: { title: ReactNode; subtitle: string; action?: ReactNode; onBack?: () => void; backLabel?: string }) {
   return (
     <div className="page-head">
       <div>
+        {onBack ? (
+          <button type="button" onClick={onBack} className="icon-button secondary page-head-back" aria-label={backLabel}>
+            &larr; {backLabel}
+          </button>
+        ) : null}
         {typeof title === 'string' ? <h1>{title}</h1> : title}
         <p>{subtitle}</p>
       </div>

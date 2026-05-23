@@ -467,6 +467,7 @@ select:not([multiple]) {
 .profile-menu-link:hover { border-color: var(--accent-border); background: var(--surface-hover-strong); color: var(--active-text); }
 .view { min-width: 0; padding: 24px; overflow: auto; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin-bottom: 18px; }
+.page-head-back { margin-bottom: 12px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 4px 10px; min-height: 28px; }
 .page-head-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .page-head-select {
   min-width: min(280px, 100%);
