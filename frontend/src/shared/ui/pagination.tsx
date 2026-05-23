@@ -16,8 +16,6 @@ export function Pagination({
   const pages = visiblePages(pagination.page, pagination.totalPages, compact ? 3 : 5);
 
   const handlePageChange = (newPage: number, event: React.MouseEvent) => {
-    onPageChange(newPage);
-    
     const target = event.currentTarget as HTMLElement;
     const scrollContainer = target.closest('.view, .modal-panel, .sidebar, .repository-picker');
     
@@ -26,6 +24,12 @@ export function Pagination({
     } else {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+
+    // Defer the state change slightly so the smooth scroll animation can run
+    // before the DOM content swaps out and forces a scroll jump.
+    setTimeout(() => {
+      onPageChange(newPage);
+    }, 300);
   };
 
   return (
