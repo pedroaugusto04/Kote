@@ -108,11 +108,14 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
             <div className="chart-box" aria-label="Activity chart by day">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={activityByDay} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
-                  <CartesianGrid stroke="rgba(148, 163, 184, 0.14)" vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="#8da0ae" fontSize={12} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="#8da0ae" fontSize={12} width={28} />
-                  <Tooltip contentStyle={{ background: '#0f171d', border: '1px solid rgba(148, 163, 184, 0.22)', borderRadius: 8 }} labelStyle={{ color: '#d8e2ea' }} />
-                  <Area type="monotone" dataKey="count" name="Notes" stroke="#53c7de" fill="rgba(83, 199, 222, 0.22)" strokeWidth={2} />
+                  <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
+                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                    labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                  />
+                  <Area type="monotone" dataKey="count" name="Notes" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -127,11 +130,14 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
               <div className="chart-box compact" aria-label="Activity chart by project">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={home.activityByProject} layout="vertical" margin={{ left: 4, right: 18, top: 8, bottom: 8 }}>
-                    <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" horizontal={false} />
+                    <CartesianGrid stroke="var(--chart-grid)" horizontal={false} />
                     <XAxis type="number" hide allowDecimals={false} />
-                    <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={116} stroke="#8da0ae" fontSize={12} />
-                    <Tooltip contentStyle={{ background: '#0f171d', border: '1px solid rgba(148, 163, 184, 0.22)', borderRadius: 8 }} labelStyle={{ color: '#d8e2ea' }} />
-                    <Bar dataKey="count" name="Notes" fill="#7dd3a5" radius={[0, 6, 6, 0]} />
+                    <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={116} stroke="var(--chart-axis)" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                    />
+                    <Bar dataKey="count" name="Notes" fill="var(--chart-bar-fill)" radius={[0, 6, 6, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
