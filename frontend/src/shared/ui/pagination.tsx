@@ -1,4 +1,5 @@
 import type { PaginationMeta } from '../api/models/pagination';
+import { animateScrollToTop } from './smooth-scroll';
 
 export function Pagination({
   pagination,
@@ -19,17 +20,8 @@ export function Pagination({
     const target = event.currentTarget as HTMLElement;
     const scrollContainer = target.closest('.view, .modal-panel, .sidebar, .repository-picker');
     
-    if (scrollContainer) {
-      scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    // Defer the state change slightly so the smooth scroll animation can run
-    // before the DOM content swaps out and forces a scroll jump.
-    setTimeout(() => {
-      onPageChange(newPage);
-    }, 300);
+    animateScrollToTop(scrollContainer || window);
+    onPageChange(newPage);
   };
 
   return (
