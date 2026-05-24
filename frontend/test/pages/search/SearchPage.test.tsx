@@ -197,8 +197,6 @@ describe('SearchPage', () => {
     expect(screen.getByRole('button', { name: 'Active note' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Hide answer' }));
     expect(view.container.querySelector('.ask-answer-body')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Show last answer' }));
-    expect(view.container.querySelector('.ask-answer-body strong')).toHaveTextContent('platform');
     expect(apiSpies.fetchAskHistory).not.toHaveBeenCalled();
   });
 

@@ -236,14 +236,6 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
         </Panel>
       ) : null}
 
-      {!isAsking && askAnswer && isAnswerHidden ? (
-        <div className="show-last-answer-row">
-          <button className="link-button" type="button" onClick={() => setIsAnswerHidden(false)}>
-            Show last answer
-          </button>
-        </div>
-      ) : null}
-
       {askError ? <InlineMessage className="ask-error-message" tone="error">{askError}</InlineMessage> : null}
 
       <Panel className="matching-notes-panel">
