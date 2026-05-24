@@ -47,6 +47,7 @@ test('logger emits colorized pretty output when LOG_PRETTY_CONSOLE is enabled', 
       assert.match(lines[0], /http\.request\.completed/);
       assert.match(lines[0], /"durationMs":12/);
       assert.match(lines[0].replace(ANSI_PATTERN, ''), /INFO \| http\.request\.completed/);
+      assert.match(lines[0].replace(ANSI_PATTERN, ''), /ip=127\.0\.0\.1/);
       assert.match(lines[0], /\u001B\[96mstatusCode\u001B\[0m=\u001B\[92m201\u001B\[0m/);
     });
   } finally {

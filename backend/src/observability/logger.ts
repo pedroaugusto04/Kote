@@ -139,6 +139,7 @@ export class AppLogger {
       formatKeyValue('requestId', entry.requestId, prettyConsoleLogsEnabled),
       entry.method ? formatKeyValue('method', entry.method, prettyConsoleLogsEnabled) : '',
       entry.path ? formatKeyValue('path', entry.path, prettyConsoleLogsEnabled) : '',
+      entry.ip ? formatKeyValue('ip', entry.ip, prettyConsoleLogsEnabled) : '',
       entry.statusCode ? formatKeyValue('statusCode', entry.statusCode, prettyConsoleLogsEnabled) : '',
       entry.userId ? formatKeyValue('userId', entry.userId, prettyConsoleLogsEnabled) : '',
       entry.workspaceSlug ? formatKeyValue('workspaceSlug', entry.workspaceSlug, prettyConsoleLogsEnabled) : '',
