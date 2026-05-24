@@ -22,5 +22,4 @@ export const navItems: Array<{ view: View; label: string; path: string }> = [
   { view: 'search', label: 'Search', path: routes.search },
   { view: 'kanban', label: 'Kanban', path: routes.kanban },
   { view: 'reminders', label: 'Reminders', path: routes.reminders },
-  { view: 'integrations', label: 'Integrations', path: routes.integrations },
 ];

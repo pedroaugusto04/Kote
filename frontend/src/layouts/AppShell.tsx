@@ -76,7 +76,13 @@ export function AppShell() {
   const activeWorkspace = dashboard?.workspaces[0] || null;
   const isSetupRoute = location.pathname.startsWith(routes.setup);
   const activeNavItem = navItems.find((item) => item.view === view);
-  const topbarTitle = view === 'note' ? 'Note details' : view === 'profile' ? 'Profile' : activeNavItem?.label || 'Home';
+  const topbarTitle = view === 'note'
+    ? 'Note details'
+    : view === 'profile'
+      ? 'Profile'
+      : view === 'integrations'
+        ? 'Integrations'
+        : activeNavItem?.label || 'Home';
   const routeNoteQuery = useQuery(noteDetailQueryOptions(routeNoteId));
   const cachedRouteNote = getCachedNoteDetail(queryClient, routeNoteId);
   const activeRouteNote = routeNoteQuery.data || cachedRouteNote;
@@ -317,7 +323,7 @@ export function AppShell() {
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="menu"
                 aria-label="User menu"
-                className={`topbar-link topbar-icon ${view === 'profile' ? 'active' : ''}`}
+                className={`topbar-link topbar-icon ${view === 'profile' || view === 'integrations' ? 'active' : ''}`}
                 onClick={() => setIsProfileMenuOpen((current) => !current)}
                 title="User menu"
                 type="button"
@@ -345,6 +351,9 @@ export function AppShell() {
                   </div>
                   <Link className="profile-menu-link" role="menuitem" to={routes.profile}>
                     My Profile
+                  </Link>
+                  <Link className="profile-menu-link" role="menuitem" to={routes.integrations}>
+                    Integrations
                   </Link>
                 </div>
               ) : null}

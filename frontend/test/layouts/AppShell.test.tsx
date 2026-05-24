@@ -598,6 +598,25 @@ describe('AppShell', () => {
     expect(screen.getAllByText('default').length).toBeGreaterThan(0);
   });
 
+  it('moves integrations from the sidebar into the user menu', async () => {
+    stubLocalStorage();
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(<AppShell />);
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(within(screen.getByRole('navigation', { name: 'Main sections' })).queryByRole('link', { name: 'Integrations' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
+    const integrationsLink = await screen.findByRole('menuitem', { name: 'Integrations' });
+    expect(integrationsLink).toHaveAttribute('href', '/settings/integrations');
+
+    fireEvent.click(integrationsLink);
+
+    expect(await screen.findByRole('heading', { name: 'Integrations' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'User menu' })).toHaveClass('active');
+  });
+
   it('updates the topbar avatar after changing the profile photo', async () => {
     stubLocalStorage();
     let avatarUrl: string | null = null;
