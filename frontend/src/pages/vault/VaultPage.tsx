@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect } from 'react';
-import { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
@@ -124,36 +123,105 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
 }
 
 function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {
+  const [activeAttachment, setActiveAttachment] = useState<NoteAttachment | null>(null);
+
   if (!attachments?.length) return null;
 
   const images = attachments.filter((attachment) => attachment.mimeType.startsWith('image/'));
   const files = attachments.filter((attachment) => !attachment.mimeType.startsWith('image/'));
 
+  const isPreviewable = (attachment: NoteAttachment) => {
+    return attachment.mimeType.startsWith('image/') || attachment.mimeType === 'application/pdf';
+  };
+
+  const handleAttachmentClick = (e: React.MouseEvent, attachment: NoteAttachment) => {
+    if (isPreviewable(attachment)) {
+      e.preventDefault();
+      setActiveAttachment(attachment);
+    }
+  };
+
   return (
-    <section className="note-attachments" aria-label="Attachments">
-      {images.length ? (
-        <div className="note-attachment-images">
-          {images.map((attachment) => (
-            <a key={attachment.id} className="note-attachment-image-link" href={attachment.url} target="_blank" rel="noreferrer">
-              <img src={attachment.url} alt={attachment.fileName} loading="lazy" />
-            </a>
-          ))}
+    <>
+      <section className="note-attachments" aria-label="Attachments">
+        {images.length ? (
+          <div className="note-attachment-images">
+            {images.map((attachment) => (
+              <a
+                key={attachment.id}
+                className="note-attachment-image-link"
+                href={attachment.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => handleAttachmentClick(e, attachment)}
+              >
+                <img src={attachment.url} alt={attachment.fileName} loading="lazy" />
+              </a>
+            ))}
+          </div>
+        ) : null}
+        {files.length ? (
+          <div className="note-attachment-files">
+            {files.map((attachment) => (
+              <a
+                key={attachment.id}
+                className="note-attachment-file"
+                href={attachment.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => handleAttachmentClick(e, attachment)}
+              >
+                <span className="file-icon" aria-hidden="true">&gt;</span>
+                <span>
+                  <strong>{attachment.fileName}</strong>
+                  <small>{attachment.mimeType} / {formatFileSize(attachment.sizeBytes)}</small>
+                </span>
+              </a>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      {activeAttachment && (
+        <div className="modal-backdrop attachment-viewer-backdrop" role="presentation" onClick={() => setActiveAttachment(null)}>
+          <div
+            className={`attachment-viewer-panel ${activeAttachment.mimeType.startsWith('image/') ? 'image-mode' : 'pdf-mode'}`}
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="attachment-viewer-header">
+              <h3>{activeAttachment.fileName}</h3>
+              <div className="attachment-viewer-actions">
+                <a
+                  href={activeAttachment.url}
+                  className="filter-chip"
+                  title="Open in new tab / download"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open Original
+                </a>
+                <button
+                  className="icon-button danger-button"
+                  type="button"
+                  onClick={() => setActiveAttachment(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="attachment-viewer-content">
+              {activeAttachment.mimeType.startsWith('image/') ? (
+                <img src={activeAttachment.url} alt={activeAttachment.fileName} className="attachment-viewer-image" />
+              ) : (
+                <iframe src={activeAttachment.url} title={activeAttachment.fileName} className="attachment-viewer-iframe" />
+              )}
+            </div>
+          </div>
         </div>
-      ) : null}
-      {files.length ? (
-        <div className="note-attachment-files">
-          {files.map((attachment) => (
-            <a key={attachment.id} className="note-attachment-file" href={attachment.url} target="_blank" rel="noreferrer">
-              <span className="file-icon" aria-hidden="true">&gt;</span>
-              <span>
-                <strong>{attachment.fileName}</strong>
-                <small>{attachment.mimeType} / {formatFileSize(attachment.sizeBytes)}</small>
-              </span>
-            </a>
-          ))}
-        </div>
-      ) : null}
-    </section>
+      )}
+    </>
   );
 }
 
