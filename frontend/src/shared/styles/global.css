@@ -2200,9 +2200,7 @@ p { color: var(--muted); line-height: 1.6; }
     var(--surface-1);
 }
 :root[data-theme="light"] .auth-panel {
-  background:
-    linear-gradient(180deg, var(--surface-2), var(--surface-1)),
-    var(--surface-1);
+  background: var(--panel);
 }
 .auth-brand { margin-bottom: 0; }
 .auth-panel-head {
@@ -2482,10 +2480,19 @@ p { color: var(--muted); line-height: 1.6; }
 }
 :root[data-theme="light"] .segmented-control {
   border-color: var(--line-soft);
-  background: var(--surface-2);
+  background: var(--panel);
+}
+:root[data-theme="light"] .segmented-control button {
+  background: var(--panel);
+  color: var(--text-soft);
+}
+:root[data-theme="light"] .segmented-control button:hover:not(:disabled) {
+  background: var(--surface-4);
+  border-color: var(--border-strong);
+  color: var(--text);
 }
 :root[data-theme="light"] .segmented-control button.active {
-  background: var(--surface-active);
+  background: var(--panel);
   border-color: var(--accent-border);
   color: var(--active-text);
 }
