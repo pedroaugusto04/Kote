@@ -68,7 +68,7 @@ test('evolution whatsapp sender posts media payload', async () => {
       number: '120363@g.us',
       mediatype: 'document',
       mimetype: 'application/pdf',
-      media: Buffer.from('deploy pdf').toString('base64'),
+      media: 'data:application/pdf;base64,' + Buffer.from('deploy pdf').toString('base64'),
       fileName: 'deploy.pdf',
       caption: 'Deploy',
     });

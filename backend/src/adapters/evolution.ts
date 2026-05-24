@@ -42,14 +42,31 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
       return { ok: false, error: 'evolution_api_not_configured' };
     }
 
+    let mediaValue = input.mediaBase64;
+    const isUrl = /^(https?|ftp):\/\//i.test(mediaValue);
+    const hasPrefix = mediaValue.startsWith('data:');
+    if (!isUrl && !hasPrefix) {
+      mediaValue = `data:${input.mimeType || 'application/octet-stream'};base64,${mediaValue}`;
+    }
+
+    let fileName = input.fileName || 'attachment';
+    if (!fileName.includes('.')) {
+      const parts = (input.mimeType || '').split('/');
+      if (parts.length === 2) {
+        const ext = parts[1].toLowerCase();
+        const suffix = ext === 'jpeg' ? 'jpg' : ext;
+        fileName = `${fileName}.${suffix}`;
+      }
+    }
+
     const baseUrl = environment.evolutionApiUrl.replace(/\/+$/, '');
     const url = `${baseUrl}/message/sendMedia/${encodeURIComponent(environment.evolutionInstanceName)}`;
     const payload: Record<string, unknown> = {
       number: input.chatJid,
       mediatype: input.mediaType,
       mimetype: input.mimeType || 'application/octet-stream',
-      media: input.mediaBase64,
-      fileName: input.fileName || 'attachment',
+      media: mediaValue,
+      fileName,
     };
     const caption = String(input.caption || '').trim();
     if (caption) payload.caption = caption;
