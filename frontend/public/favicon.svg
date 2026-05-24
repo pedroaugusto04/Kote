@@ -1,23 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title>Knowledge Vault mark</title>
+  <desc>Stylized KV monogram with a folder-shaped vault mark.</desc>
   <defs>
-    <linearGradient id="frame" x1="10" y1="7" x2="54" y2="57" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#18313a"/>
-      <stop offset="1" stop-color="#0a1218"/>
+    <linearGradient id="navy" x1="245" y1="275" x2="610" y2="730" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#00345c"/>
+      <stop offset="0.56" stop-color="#003b63"/>
+      <stop offset="1" stop-color="#002b51"/>
     </linearGradient>
-    <linearGradient id="thread" x1="17" y1="16" x2="49" y2="48" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#7dd3a5"/>
-      <stop offset="0.52" stop-color="#53c7de"/>
-      <stop offset="1" stop-color="#9be7f4"/>
+    <linearGradient id="cyan" x1="590" y1="318" x2="768" y2="756" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#10b8bf"/>
+      <stop offset="0.5" stop-color="#08aeb8"/>
+      <stop offset="1" stop-color="#0cb4bd"/>
     </linearGradient>
+    <filter id="soft-shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#022a46" flood-opacity=".16"/>
+    </filter>
   </defs>
-  <rect width="64" height="64" rx="14" fill="url(#frame)"/>
-  <rect x="5" y="5" width="54" height="54" rx="11" fill="none" stroke="#53c7de" stroke-opacity=".38" stroke-width="1.5"/>
-  <path d="M18 18h13c4.2 0 7.6 3.4 7.6 7.6V31" fill="none" stroke="url(#thread)" stroke-width="4" stroke-linecap="round"/>
-  <path d="M16 32h20.7c3.9 0 7.3 2.7 8.2 6.5" fill="none" stroke="url(#thread)" stroke-width="4" stroke-linecap="round"/>
-  <path d="M19 46h10.5c5.2 0 9.4-4.2 9.4-9.4V31" fill="none" stroke="url(#thread)" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="18" cy="18" r="4.1" fill="#0d1b22" stroke="#7dd3a5" stroke-width="2"/>
-  <circle cx="16" cy="32" r="4.1" fill="#0d1b22" stroke="#53c7de" stroke-width="2"/>
-  <circle cx="19" cy="46" r="4.1" fill="#0d1b22" stroke="#9be7f4" stroke-width="2"/>
-  <circle cx="45" cy="38.5" r="7.5" fill="#53c7de" fill-opacity=".18" stroke="#9be7f4" stroke-width="2"/>
-  <circle cx="45" cy="38.5" r="2.6" fill="#e9fbff"/>
+  <g filter="url(#soft-shadow)">
+    <path fill="url(#navy)" d="M226 277c0-7 5-12 12-12h75c7 0 12 5 12 12v470c0 7-5 12-12 12h-75c-7 0-12-5-12-12V277Z"/>
+    <path fill="url(#navy)" d="M325 508 490 291c13-17 25-26 42-26h61L431 462c-7 9-7 14 0 23l139 181-51 93L325 508Z"/>
+    <path fill="url(#cyan)" d="M625 293h108c8 0 15 7 15 15v3c0 8 7 15 15 15h50c8 0 15 7 15 15v39H626v-87Z"/>
+    <path fill="url(#cyan)" d="M591 398h116c8 0 15 7 15 15v2h93c8 0 15 7 15 15v48H591v-80Z"/>
+    <path fill="url(#cyan)" d="M566 452h181L600 642 510 541l50-80c1-3 3-6 6-9Z"/>
+    <path fill="url(#cyan)" d="M734 504h94c10 0 16 11 11 20L670 741c-8 11-19 18-33 18h-98l91-154 88-88c4-5 10-9 16-13Z"/>
+    <path fill="#ffffff" d="M763 423H606v-23h157c8 0 15 7 15 15v8h-15Zm-40 82 25-27H604v-23h163c14 0 22 17 12 27l-178 192-104-115 17-18 87 96 122-132Z"/>
+  </g>
 </svg>
