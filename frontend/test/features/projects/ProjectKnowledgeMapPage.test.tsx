@@ -93,9 +93,9 @@ afterEach(() => {
 function renderMap(openNote = vi.fn()) {
   renderWithAppProviders(
     <Routes>
-      <Route path="/projects/:projectSlug/map" element={<ProjectKnowledgeMapPage dashboard={dashboard} openNote={openNote} />} />
+      <Route path="/map/:projectSlug" element={<ProjectKnowledgeMapPage dashboard={dashboard} openNote={openNote} selectedProject="platform" />} />
     </Routes>,
-    { route: '/projects/platform/map' },
+    { route: '/map/platform' },
   );
   return { openNote };
 }
@@ -115,6 +115,7 @@ describe('ProjectKnowledgeMapPage', () => {
     const nodeTypes = screen.getByLabelText('Knowledge map node types');
     expect(within(nodeTypes).getByLabelText('Tag')).not.toBeChecked();
     expect(within(nodeTypes).getByLabelText('Category')).not.toBeChecked();
+    expect(within(nodeTypes).getByLabelText('Review notes')).toBeChecked();
     expect(screen.getByLabelText('Knowledge map stats')).toHaveTextContent('1 notes');
     expect(screen.getByLabelText('Knowledge map stats')).toHaveTextContent('1 folders');
     expect(screen.getByLabelText('Knowledge map legend')).toHaveTextContent('Project');
@@ -188,5 +189,25 @@ describe('filterKnowledgeMapDataset', () => {
       'contains:project:platform->note:note-1',
       'filed-in:folder:folder-1->note:note-1',
     ]);
+  });
+
+  it('can hide review note nodes and their links', () => {
+    const dataset = graphResponse({
+      nodes: [
+        ...graphResponse().nodes,
+        { id: 'note:review-1', type: 'note', label: 'Review', noteId: 'review-1', projectSlug: 'platform', category: 'github-push', isReview: true },
+      ],
+      links: [
+        ...graphResponse().links,
+        { id: 'contains:project:platform->note:review-1', source: 'project:platform', target: 'note:review-1', type: 'contains' },
+        { id: 'classified-as:note:review-1->category:manual', source: 'note:review-1', target: 'category:manual', type: 'classified-as' },
+      ],
+    });
+
+    const filtered = filterKnowledgeMapDataset(dataset, new Set(['project', 'folder', 'note', 'tag', 'category']), { includeReviewNotes: false });
+
+    expect(filtered.nodes.map((node) => node.id)).not.toContain('note:review-1');
+    expect(filtered.links.map((link) => link.id)).not.toContain('contains:project:platform->note:review-1');
+    expect(filtered.links.map((link) => link.id)).not.toContain('classified-as:note:review-1->category:manual');
   });
 });

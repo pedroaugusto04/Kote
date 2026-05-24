@@ -41,6 +41,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const [category, setCategory] = useState<ProjectTimelineCategory>('all');
   const [folderId, setFolderId] = useState('');
   const [limit, setLimit] = useState<number>(80);
+  const [includeReviewNotes, setIncludeReviewNotes] = useState(true);
   const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapNodeType>>(() => new Set(defaultVisibleKnowledgeMapNodeTypes));
   const query = useQuery({
     queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit],
@@ -62,8 +63,8 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const graph = query.data;
   const flatFolders = useMemo(() => flattenFolders(foldersQuery.data?.folders || []), [foldersQuery.data?.folders]);
   const filteredGraph = useMemo(
-    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes) : null,
-    [graph, visibleTypes],
+    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes, { includeReviewNotes }) : null,
+    [graph, includeReviewNotes, visibleTypes],
   );
 
   useEffect(() => {
@@ -129,10 +130,12 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
             category={category}
             folderId={folderId}
             folders={flatFolders}
+            includeReviewNotes={includeReviewNotes}
             limit={limit}
             visibleTypes={visibleTypes}
             onCategoryChange={setCategory}
             onFolderChange={setFolderId}
+            onIncludeReviewNotesChange={setIncludeReviewNotes}
             onLimitChange={setLimit}
             onTypeToggle={(type) => {
               setVisibleTypes((current) => {
@@ -163,10 +166,12 @@ type KnowledgeMapControlsProps = {
   category: ProjectTimelineCategory;
   folderId: string;
   folders: ReturnType<typeof flattenFolders>;
+  includeReviewNotes: boolean;
   limit: number;
   visibleTypes: Set<KnowledgeMapNodeType>;
   onCategoryChange: (category: ProjectTimelineCategory) => void;
   onFolderChange: (folderId: string) => void;
+  onIncludeReviewNotesChange: (include: boolean) => void;
   onLimitChange: (limit: number) => void;
   onTypeToggle: (type: KnowledgeMapNodeType) => void;
 };
@@ -175,10 +180,12 @@ function KnowledgeMapControls({
   category,
   folderId,
   folders,
+  includeReviewNotes,
   limit,
   visibleTypes,
   onCategoryChange,
   onFolderChange,
+  onIncludeReviewNotesChange,
   onLimitChange,
   onTypeToggle,
 }: KnowledgeMapControlsProps) {
@@ -216,6 +223,14 @@ function KnowledgeMapControls({
             <span>{knowledgeMapNodeStyles[type].label}</span>
           </label>
         ))}
+        <label>
+          <input
+            checked={includeReviewNotes}
+            type="checkbox"
+            onChange={(event) => onIncludeReviewNotesChange(event.target.checked)}
+          />
+          <span>Review notes</span>
+        </label>
       </div>
     </div>
   );

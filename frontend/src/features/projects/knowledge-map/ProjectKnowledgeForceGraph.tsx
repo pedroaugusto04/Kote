@@ -267,7 +267,7 @@ function collisionRadius(item: GraphNode) {
 function shouldShowLabel(item: GraphNode, zoomScale: number, activeNodeId: string) {
   if (item.id === activeNodeId) return true;
   if (isReviewNote(item)) return zoomScale >= 1.55;
-  if (item.type === 'project' || item.type === 'repository' || item.type === 'folder' || item.type === 'category' || item.type === 'note') return true;
+  if (item.type === 'project' || item.type === 'repository' || item.type === 'folder' || item.type === 'category' || item.type === 'tag' || item.type === 'note') return true;
   return zoomScale >= (item.type === 'note' ? 1.25 : 1.7);
 }
 
