@@ -1,18 +1,8 @@
 import type { Project } from '../../shared/api/models/project';
 import { MarkdownView } from '../markdown/MarkdownView';
+import type { AskAnswerCardItem } from './ask-answer-card.models';
 import { AskAiIcon } from './AskAiIcon';
-import './AskPanel.css';
-
-export type AskAnswerCardItem = {
-  question: string;
-  answer: string;
-  projectSlug: string;
-  sources: Array<{
-    noteId: string;
-    title: string;
-    path: string;
-  }>;
-};
+import './AskAnswerCard.css';
 
 export function AskAnswerCard({
   item,

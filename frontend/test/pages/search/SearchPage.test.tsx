@@ -58,7 +58,7 @@ beforeEach(() => {
   apiSpies.fetchAskHistory.mockResolvedValue({
     ok: true,
     history: [],
-    pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+    pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
   });
   apiSpies.fetchNotes.mockResolvedValue({
     ok: true,
@@ -174,17 +174,17 @@ describe('SearchPage', () => {
   it('passes the selected project to Ask AI requests', async () => {
     apiSpies.runAsk.mockResolvedValue({
       ok: true,
-      answer: 'Use the platform rollout notes.',
+      answer: 'Use the **platform** rollout notes.',
       confidence: 'high',
       sources: [{ noteId: 'active-1', title: 'Active note', path: '20 Inbox/platform/note.md' }],
       relatedNotes: [],
     });
 
-    renderSearchPage('/search?q=How%20should%20I%20deploy%3F');
+    const view = renderSearchPage('/search?q=How%20should%20I%20deploy%3F');
 
     fireEvent.click(screen.getByLabelText('Filter by project'));
     fireEvent.click(screen.getByRole('option', { name: 'Platform' }));
-    fireEvent.click(screen.getByRole('button', { name: /ask ai about this/i }));
+    fireEvent.click(screen.getByRole('button', { name: /ask ai/i }));
 
     await waitFor(() => {
       expect(apiSpies.runAsk).toHaveBeenCalledWith({
@@ -192,9 +192,42 @@ describe('SearchPage', () => {
         projectSlug: 'platform',
       });
     });
-    expect(await screen.findByText('Use the platform rollout notes.')).toBeInTheDocument();
+    await screen.findByText('Based on 1 source');
+    expect(view.container.querySelector('.ask-answer-body strong')).toHaveTextContent('platform');
     expect(screen.getByRole('button', { name: 'Active note' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide answer' }));
+    expect(view.container.querySelector('.ask-answer-body')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Show last answer' }));
+    expect(view.container.querySelector('.ask-answer-body strong')).toHaveTextContent('platform');
     expect(apiSpies.fetchAskHistory).not.toHaveBeenCalled();
+  });
+
+  it('disables Ask AI until there is a query', () => {
+    renderSearchPage('/search');
+
+    expect(screen.getByRole('button', { name: /ask ai/i })).toBeDisabled();
+
+    fireEvent.change(screen.getByPlaceholderText('Search or ask anything...'), { target: { value: 'deploy' } });
+
+    expect(screen.getByRole('button', { name: /ask ai/i })).toBeEnabled();
+  });
+
+  it('shows Ask AI errors without clearing matching notes', async () => {
+    apiSpies.runQuery.mockResolvedValue({
+      ok: true,
+      matches: [buildNote({ id: 'deploy-1', title: 'Deploy rollout' })],
+      pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      answer: { answer: 'ok', bullets: [] },
+    });
+    apiSpies.runAsk.mockRejectedValue(new Error('AI unavailable'));
+
+    renderSearchPage('/search?q=deploy');
+
+    expect(await screen.findByText('Deploy rollout')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /ask ai/i }));
+
+    expect(await screen.findByText('AI unavailable')).toBeInTheDocument();
+    expect(screen.getByText('Deploy rollout')).toBeInTheDocument();
   });
 
   it('opens paginated Ask AI history from a button and filters it by selected project', async () => {
@@ -210,7 +243,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 10, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
+      pagination: { page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
     }).mockResolvedValueOnce({
       ok: true,
       history: [{
@@ -223,22 +256,22 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T11:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
     });
 
     renderSearchPage('/search');
 
+    expect(apiSpies.fetchAskHistory).not.toHaveBeenCalled();
     expect(screen.queryByText('Use the rollout notes.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'History' }));
 
     expect(await screen.findByText('Use the rollout notes.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Active note' })).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Filter by project'));
     fireEvent.click(screen.getByRole('option', { name: 'Platform' }));
 
     expect(await screen.findByText('Deploy platform from staging.')).toBeInTheDocument();
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 10, projectSlug: '' });
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 10, projectSlug: 'platform' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: '' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: 'platform' });
   });
 
   it('uses Ask AI history pagination controls', async () => {
@@ -254,7 +287,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 10, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
+      pagination: { page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
     }).mockResolvedValueOnce({
       ok: true,
       history: [{
@@ -267,7 +300,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T09:00:00.000Z',
       }],
-      pagination: { page: 2, pageSize: 10, total: 6, totalPages: 2, hasNext: false, hasPrevious: true },
+      pagination: { page: 2, pageSize: 5, total: 6, totalPages: 2, hasNext: false, hasPrevious: true },
     });
 
     renderSearchPage('/search');
@@ -277,7 +310,34 @@ describe('SearchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
 
     expect(await screen.findByText('Second answer.')).toBeInTheDocument();
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 2, pageSize: 10, projectSlug: '' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 2, pageSize: 5, projectSlug: '' });
+  });
+
+  it('selects a history item as the current answer and closes the popover', async () => {
+    apiSpies.fetchAskHistory.mockResolvedValueOnce({
+      ok: true,
+      history: [{
+        id: 'ask-1',
+        question: 'How should I deploy?',
+        answer: 'Use the selected history answer.',
+        confidence: 'high',
+        projectSlug: '',
+        sources: [{ noteId: 'active-1', title: 'Active note', path: '20 Inbox/platform/note.md' }],
+        relatedNotes: [],
+        createdAt: '2026-05-23T10:00:00.000Z',
+      }],
+      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+    });
+
+    renderSearchPage('/search');
+
+    fireEvent.click(screen.getByRole('button', { name: 'History' }));
+    fireEvent.click(await screen.findByRole('button', { name: /how should i deploy/i }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.getByText('Use the selected history answer.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Active note' })).toBeInTheDocument();
+    expect(screen.getByText('Based on 1 source')).toBeInTheDocument();
   });
 });
 

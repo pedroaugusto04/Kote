@@ -7,7 +7,7 @@ import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken } from '../../entities/format';
 import { fetchAskHistory, fetchNotes, runAsk, runQuery } from '../../shared/api/client';
 import type { AskHistoryResponse } from '../../shared/api/models/ask';
-import type { AskAnswerCardItem } from '../../widgets/ask/AskAnswerCard';
+import type { AskAnswerCardItem } from '../../widgets/ask/ask-answer-card.models';
 import { AskAnswerCard, projectLabel } from '../../widgets/ask/AskAnswerCard';
 import { AskAiIcon } from '../../widgets/ask/AskAiIcon';
 import type { NoteSummary } from '../../shared/api/models/note';
@@ -22,6 +22,7 @@ import { NoteRow } from '../../widgets/notes/NoteRow';
 import './SearchPage.css';
 
 const SEARCH_DEBOUNCE_MS = 350;
+const ASK_HISTORY_PAGE_SIZE = 5;
 
 const statusOptions: Array<{ value: '' | NoteStatus; label: string }> = [
   { value: '', label: 'All' },
@@ -31,11 +32,6 @@ const statusOptions: Array<{ value: '' | NoteStatus; label: string }> = [
   })),
 ];
 
-const askSuggestions = [
-  'What are the main decisions recently?',
-  'Summarize the deployment rollout status.',
-];
-
 export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageContext) {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,6 +39,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
   const [projectSlug, setProjectSlug] = useState('');
   const [status, setStatus] = useState<'' | NoteStatus>('');
   const [askAnswer, setAskAnswer] = useState<AskAnswerCardItem | null>(null);
+  const [isAnswerHidden, setIsAnswerHidden] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
@@ -96,7 +93,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
   });
   const historyQuery = useQuery({
     queryKey: ['ask-history', projectSlug, historyPage],
-    queryFn: () => fetchAskHistory({ projectSlug, page: historyPage, pageSize: DEFAULT_PAGE_SIZE }),
+    queryFn: () => fetchAskHistory({ projectSlug, page: historyPage, pageSize: ASK_HISTORY_PAGE_SIZE }),
     enabled: showHistory,
     placeholderData: keepPreviousData,
   });
@@ -116,6 +113,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
     setIsAsking(true);
     setAskError(null);
     setAskAnswer(null);
+    setIsAnswerHidden(false);
     setShowHistory(false);
 
     try {
@@ -127,6 +125,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           projectSlug,
           sources: result.sources || [],
         });
+        setIsAnswerHidden(false);
         setHistoryPage(1);
         await queryClient.invalidateQueries({ queryKey: ['ask-history'] });
       } else {
@@ -144,13 +143,49 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
       <PageHead title="Search" subtitle="Search notes and ask AI from the same evidence." />
 
       <section className="search-box unified-search-box">
-        <input
-          aria-label="Search query"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search or ask anything..."
-          type="search"
-        />
+        <div className="search-input-row">
+          <input
+            aria-label="Search query"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search or ask anything..."
+            type="search"
+          />
+          <div className="search-actions">
+            <button className="icon-button" disabled={!hasQueryInput || isAsking} type="button" onClick={handleAsk}>
+              <AskAiIcon className="ai-answer-action-icon" />
+              {isAsking ? 'Asking...' : 'Ask AI'}
+            </button>
+            <div className="history-popover-anchor">
+              <button
+                aria-expanded={showHistory}
+                className="icon-button secondary"
+                type="button"
+                onClick={() => setShowHistory((current) => !current)}
+              >
+                History
+              </button>
+              {showHistory ? (
+                <AskHistoryPopover
+                  historyQuery={historyQuery}
+                  projects={dashboard.projects}
+                  setPage={setHistoryPage}
+                  onSelect={(item) => {
+                    setAskAnswer({
+                      question: item.question,
+                      answer: item.answer,
+                      projectSlug: item.projectSlug,
+                      sources: item.sources,
+                    });
+                    setIsAnswerHidden(false);
+                    setAskError(null);
+                    setShowHistory(false);
+                  }}
+                />
+              ) : null}
+            </div>
+          </div>
+        </div>
         <div className="filters">
           <Select
             ariaLabel="Current workspace"
@@ -174,6 +209,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
             onChange={(nextProjectSlug) => {
               setProjectSlug(nextProjectSlug);
               setAskAnswer(null);
+              setIsAnswerHidden(false);
               setAskError(null);
             }}
           />
@@ -187,53 +223,28 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
         </div>
       </section>
 
-      <Panel className="ai-answer-panel">
-        <div className="ai-answer-heading">
-          <div>
-            <h2>AI Answer</h2>
-            <p>Uses the current query and selected project.</p>
-          </div>
-          <div className="ai-answer-actions">
-            <button className="icon-button secondary" type="button" onClick={() => setShowHistory((current) => !current)}>
-              {showHistory ? 'Answer' : 'History'}
-            </button>
-            <button className="icon-button" disabled={!hasQueryInput || isAsking} type="button" onClick={handleAsk}>
-              <AskAiIcon className="ai-answer-action-icon" />
-              {isAsking ? 'Asking...' : 'Ask AI about this'}
+      {isAsking ? <AskAnswerSkeleton question={query.trim()} projectLabel={selectedProjectLabel} /> : null}
+
+      {!isAsking && askAnswer && !isAnswerHidden ? (
+        <Panel className="ai-answer-card-panel">
+          <div className="ai-answer-toolbar">
+            <button className="icon-button secondary" type="button" onClick={() => setIsAnswerHidden(true)}>
+              Hide answer
             </button>
           </div>
-        </div>
-
-        {!showHistory && !askAnswer && !isAsking && !askError ? (
-          <div className="ask-inline-empty">
-            <div className="ask-suggestions">
-              <span className="suggestion-title">Try asking:</span>
-              {askSuggestions.map((suggestion) => (
-                <button className="suggestion-btn" key={suggestion} type="button" onClick={() => setQuery(suggestion)}>
-                  "{suggestion}"
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {!showHistory && isAsking ? <AskAnswerSkeleton question={query.trim()} projectLabel={selectedProjectLabel} /> : null}
-
-        {!showHistory && askAnswer ? (
           <AskAnswerCard item={askAnswer} openNote={openNote} projects={dashboard.projects} />
-        ) : null}
+        </Panel>
+      ) : null}
 
-        {!showHistory && askError ? <InlineMessage tone="error">{askError}</InlineMessage> : null}
+      {!isAsking && askAnswer && isAnswerHidden ? (
+        <div className="show-last-answer-row">
+          <button className="link-button" type="button" onClick={() => setIsAnswerHidden(false)}>
+            Show last answer
+          </button>
+        </div>
+      ) : null}
 
-        {showHistory ? (
-          <AskHistorySection
-            historyQuery={historyQuery}
-            openNote={openNote}
-            projects={dashboard.projects}
-            setPage={setHistoryPage}
-          />
-        ) : null}
-      </Panel>
+      {askError ? <InlineMessage className="ask-error-message" tone="error">{askError}</InlineMessage> : null}
 
       <Panel className="matching-notes-panel">
         <div className="matching-notes-heading">
@@ -284,36 +295,46 @@ function AskAnswerSkeleton({ question, projectLabel: selectedProjectLabel }: { q
   );
 }
 
-function AskHistorySection({
+function AskHistoryPopover({
   historyQuery,
-  openNote,
   projects,
   setPage,
+  onSelect,
 }: {
   historyQuery: UseQueryResult<AskHistoryResponse>;
-  openNote: (id: string) => void;
   projects: PageContext['dashboard']['projects'];
   setPage: (page: number) => void;
+  onSelect: (item: AskAnswerCardItem) => void;
 }) {
   const history = historyQuery.data?.history || [];
 
   if (historyQuery.isLoading) {
-    return <div className="inline-message">Loading history...</div>;
+    return <div className="ask-history-popover" role="dialog"><div className="inline-message">Loading history...</div></div>;
   }
 
   if (historyQuery.isError) {
-    return <InlineMessage tone="error">Could not load Ask AI history.</InlineMessage>;
+    return (
+      <div className="ask-history-popover" role="dialog">
+        <InlineMessage tone="error">Could not load Ask AI history.</InlineMessage>
+      </div>
+    );
   }
 
   if (history.length === 0) {
-    return <div className="inline-message">No Ask AI history for this filter.</div>;
+    return <div className="ask-history-popover" role="dialog"><div className="inline-message">No Ask AI history for this filter.</div></div>;
   }
 
   return (
-    <div className={`ask-history-list ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`}>
+    <div className={`ask-history-popover ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`} role="dialog">
+      <div className="ask-history-popover-list">
       {history.map((item) => (
-        <AskAnswerCard key={item.id} item={item} openNote={openNote} projects={projects} />
+        <button className="ask-history-item" key={item.id} type="button" onClick={() => onSelect(item)}>
+          <span className="ask-history-question">{item.question}</span>
+          <span className="ask-history-project">{projectLabel(item.projectSlug, projects)}</span>
+          <span className="ask-history-answer">{item.answer}</span>
+        </button>
       ))}
+      </div>
       {historyQuery.data?.pagination ? (
         <Pagination compact pagination={historyQuery.data.pagination} onPageChange={setPage} />
       ) : null}
