@@ -1,5 +1,9 @@
 import type { KnowledgeMapLinkType, KnowledgeMapNodeType } from '../../../shared/api/models/project-knowledge-map';
 
+export const visibleKnowledgeMapNodeTypes: KnowledgeMapNodeType[] = ['project', 'repository', 'folder', 'note', 'tag', 'category'];
+export const defaultVisibleKnowledgeMapNodeTypes = new Set<KnowledgeMapNodeType>(['project', 'repository', 'folder', 'note']);
+export const knowledgeMapLimitOptions = [40, 80, 120, 150] as const;
+
 export const knowledgeMapNodeStyles: Record<KnowledgeMapNodeType, { label: string; color: string; radius: number }> = {
   project: { label: 'Project', color: '#f7c948', radius: 22 },
   repository: { label: 'Repository', color: '#7dd3fc', radius: 15 },

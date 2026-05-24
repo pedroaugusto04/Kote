@@ -1,16 +1,29 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ProjectsPageContext } from '../../../app/page-context';
 import { routes } from '../../../app/routing/routes';
-import { fetchProjectKnowledgeMap } from '../../../shared/api/client';
+import { formatDisplayToken } from '../../../entities/format';
+import { fetchProjectFolders, fetchProjectKnowledgeMap } from '../../../shared/api/client';
 import type { KnowledgeMapNodeType, ProjectKnowledgeMapResponse } from '../../../shared/api/models/project-knowledge-map';
+import { projectTimelineCategoryValues, type ProjectTimelineCategory } from '../../../shared/api/models/project-timeline';
 import { EmptyState, InlineMessage, PageHead } from '../../../shared/ui/primitives';
+import { flattenFolders } from '../projects.helpers';
 import { ProjectKnowledgeForceGraph } from './ProjectKnowledgeForceGraph';
-import { knowledgeMapNodeStyles } from './knowledge-map.constants';
+import {
+  defaultVisibleKnowledgeMapNodeTypes,
+  knowledgeMapLimitOptions,
+  knowledgeMapNodeStyles,
+  visibleKnowledgeMapNodeTypes,
+} from './knowledge-map.constants';
+import { filterKnowledgeMapDataset } from './knowledge-map.helpers';
 
 type ProjectKnowledgeMapPageProps = Pick<ProjectsPageContext, 'dashboard' | 'openNote'>;
+const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
+  value,
+  label: formatDisplayToken(value),
+}));
 
 export function ProjectKnowledgeMapPage({ dashboard, openNote }: ProjectKnowledgeMapPageProps) {
   const params = useParams();
@@ -22,13 +35,33 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote }: ProjectKnowledg
   );
   const [paused, setPaused] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
+  const [category, setCategory] = useState<ProjectTimelineCategory>('all');
+  const [folderId, setFolderId] = useState('');
+  const [limit, setLimit] = useState<number>(80);
+  const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapNodeType>>(() => new Set(defaultVisibleKnowledgeMapNodeTypes));
   const query = useQuery({
-    queryKey: ['project-knowledge-map', projectSlug],
-    queryFn: () => fetchProjectKnowledgeMap(projectSlug),
+    queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit],
+    queryFn: () => fetchProjectKnowledgeMap(projectSlug, {
+      category,
+      folderId: folderId || undefined,
+      limit,
+    }),
+    enabled: Boolean(projectSlug),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  });
+  const foldersQuery = useQuery({
+    queryKey: ['project-folders', projectSlug],
+    queryFn: () => fetchProjectFolders(projectSlug),
     enabled: Boolean(projectSlug),
     staleTime: 30_000,
   });
   const graph = query.data;
+  const flatFolders = useMemo(() => flattenFolders(foldersQuery.data?.folders || []), [foldersQuery.data?.folders]);
+  const filteredGraph = useMemo(
+    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes) : null,
+    [graph, visibleTypes],
+  );
 
   if (!project) {
     return (
@@ -73,17 +106,98 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote }: ProjectKnowledg
         <EmptyState>No recent project notes to map yet.</EmptyState>
       ) : graph ? (
         <>
+          <KnowledgeMapControls
+            category={category}
+            folderId={folderId}
+            folders={flatFolders}
+            limit={limit}
+            visibleTypes={visibleTypes}
+            onCategoryChange={setCategory}
+            onFolderChange={setFolderId}
+            onLimitChange={setLimit}
+            onTypeToggle={(type) => {
+              setVisibleTypes((current) => {
+                const next = new Set(current);
+                if (next.has(type)) next.delete(type);
+                else next.add(type);
+                next.add('project');
+                return next;
+              });
+            }}
+          />
           <KnowledgeMapStats stats={graph.stats} />
-          <KnowledgeMapLegend presentTypes={new Set(graph.nodes.map((node) => node.type))} />
+          <KnowledgeMapLegend presentTypes={new Set(filteredGraph?.nodes.map((node) => node.type) || [])} />
           <ProjectKnowledgeForceGraph
-            links={graph.links}
-            nodes={graph.nodes}
+            links={filteredGraph?.links || []}
+            nodes={filteredGraph?.nodes || []}
             onOpenNote={openNote}
             paused={paused}
             resetSignal={resetSignal}
           />
         </>
       ) : null}
+    </div>
+  );
+}
+
+type KnowledgeMapControlsProps = {
+  category: ProjectTimelineCategory;
+  folderId: string;
+  folders: ReturnType<typeof flattenFolders>;
+  limit: number;
+  visibleTypes: Set<KnowledgeMapNodeType>;
+  onCategoryChange: (category: ProjectTimelineCategory) => void;
+  onFolderChange: (folderId: string) => void;
+  onLimitChange: (limit: number) => void;
+  onTypeToggle: (type: KnowledgeMapNodeType) => void;
+};
+
+function KnowledgeMapControls({
+  category,
+  folderId,
+  folders,
+  limit,
+  visibleTypes,
+  onCategoryChange,
+  onFolderChange,
+  onLimitChange,
+  onTypeToggle,
+}: KnowledgeMapControlsProps) {
+  return (
+    <div className="knowledge-map-controls" aria-label="Knowledge map filters">
+      <label>
+        <span>Category</span>
+        <select aria-label="Knowledge map category" value={category} onChange={(event) => onCategoryChange(event.target.value as ProjectTimelineCategory)}>
+          {categoryOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </select>
+      </label>
+      <label>
+        <span>Folder</span>
+        <select aria-label="Knowledge map folder" value={folderId} onChange={(event) => onFolderChange(event.target.value)}>
+          <option value="">All folders</option>
+          {folders.map((folder) => (
+            <option key={folder.id} value={folder.id}>{`${'  '.repeat(folder.depth)}${folder.displayName}`}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span>Volume</span>
+        <select aria-label="Knowledge map volume" value={limit} onChange={(event) => onLimitChange(Number(event.target.value))}>
+          {knowledgeMapLimitOptions.map((option) => <option key={option} value={option}>{option}</option>)}
+        </select>
+      </label>
+      <div className="knowledge-map-type-toggles" aria-label="Knowledge map node types">
+        {visibleKnowledgeMapNodeTypes.filter((type) => type !== 'project').map((type) => (
+          <label key={type}>
+            <input
+              checked={visibleTypes.has(type)}
+              type="checkbox"
+              onChange={() => onTypeToggle(type)}
+            />
+            <span>{knowledgeMapNodeStyles[type].label}</span>
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

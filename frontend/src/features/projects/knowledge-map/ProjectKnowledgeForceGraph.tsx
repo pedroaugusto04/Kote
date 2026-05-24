@@ -28,12 +28,19 @@ export function ProjectKnowledgeForceGraph({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const simulationRef = useRef<d3.Simulation<GraphNode, GraphLink> | null>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const renderFrameRef = useRef<number | null>(null);
+  const startDriftRef = useRef<(() => void) | null>(null);
+  const pausedRef = useRef(paused);
   const [size, setSize] = useState(DEFAULT_SIZE);
 
   const graph = useMemo(() => ({
     nodes: nodes.map((node) => ({ ...node })),
     links: links.map((link) => ({ ...link })),
   }), [links, nodes]);
+
+  useEffect(() => {
+    pausedRef.current = paused;
+  }, [paused]);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -61,6 +68,8 @@ export function ProjectKnowledgeForceGraph({
     if (!svgElement) return undefined;
 
     simulationRef.current?.stop();
+    if (renderFrameRef.current) window.cancelAnimationFrame(renderFrameRef.current);
+    renderFrameRef.current = null;
     const svg = d3.select(svgElement);
     svg.selectAll('*').remove();
     svg.attr('viewBox', `0 0 ${size.width} ${size.height}`);
@@ -68,18 +77,26 @@ export function ProjectKnowledgeForceGraph({
     const viewport = svg.append('g').attr('class', 'knowledge-map-viewport');
     const linkLayer = viewport.append('g').attr('class', 'knowledge-map-links');
     const nodeLayer = viewport.append('g').attr('class', 'knowledge-map-nodes');
+    const graphNodes = graph.nodes as GraphNode[];
+    const graphLinks = graph.links as GraphLink[];
+    const denseMap = graphNodes.length > 90;
+    const reducedMotion = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      : true;
+    let zoomScale = 1;
+    let activeNodeId = '';
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .extent([[0, 0], [size.width, size.height]])
       .scaleExtent([0.25, 3])
       .on('zoom', (event) => {
         viewport.attr('transform', event.transform.toString());
+        zoomScale = event.transform.k;
+        updateLabels();
       });
     zoomRef.current = zoom;
     svg.call(zoom);
 
-    const graphNodes = graph.nodes as GraphNode[];
-    const graphLinks = graph.links as GraphLink[];
     const link = linkLayer
       .selectAll<SVGLineElement, GraphLink>('line')
       .data(graphLinks)
@@ -96,7 +113,17 @@ export function ProjectKnowledgeForceGraph({
       .attr('role', (item) => (item.type === 'note' && item.noteId ? 'button' : 'img'))
       .attr('tabindex', (item) => (item.type === 'note' && item.noteId ? 0 : -1))
       .attr('aria-label', (item) => (item.type === 'note' && item.noteId ? `Open note ${item.label}` : `${knowledgeMapNodeStyles[item.type].label} ${item.label}`))
+      .on('mouseenter focus', (_event, item) => {
+        activeNodeId = item.id;
+        updateLabels();
+      })
+      .on('mouseleave blur', () => {
+        activeNodeId = '';
+        updateLabels();
+      })
       .on('click', (_event, item) => {
+        activeNodeId = item.id;
+        updateLabels();
         if (item.type === 'note' && item.noteId) onOpenNote(item.noteId);
       })
       .on('keydown', (event, item) => {
@@ -113,7 +140,7 @@ export function ProjectKnowledgeForceGraph({
       .attr('stroke', 'rgba(255,255,255,0.74)')
       .attr('stroke-width', 1.2);
 
-    node
+    const labels = node
       .append('text')
       .attr('class', 'knowledge-map-node-label')
       .attr('x', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) + 6)
@@ -123,18 +150,11 @@ export function ProjectKnowledgeForceGraph({
     node.append('title').text((item) => [item.label, item.subtitle, item.date].filter(Boolean).join('\n'));
 
     const simulation = d3.forceSimulation<GraphNode>(graphNodes)
-      .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength((item) => item.strength || 0.2).distance(105))
-      .force('charge', d3.forceManyBody().strength(-260))
+      .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength((item) => item.strength || 0.2).distance(linkDistance))
+      .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap)))
       .force('center', d3.forceCenter(size.width / 2, size.height / 2))
-      .force('collide', d3.forceCollide<GraphNode>().radius((item) => (item.size || knowledgeMapNodeStyles[item.type].radius) + 18))
-      .on('tick', () => {
-        link
-          .attr('x1', (item) => graphLinkNode(item.source).x || 0)
-          .attr('y1', (item) => graphLinkNode(item.source).y || 0)
-          .attr('x2', (item) => graphLinkNode(item.target).x || 0)
-          .attr('y2', (item) => graphLinkNode(item.target).y || 0);
-        node.attr('transform', (item) => `translate(${item.x || 0},${item.y || 0})`);
-      });
+      .force('collide', d3.forceCollide<GraphNode>().radius(collisionRadius))
+      .on('tick', () => renderGraph(performance.now()));
     simulationRef.current = simulation;
 
     const drag = d3.drag<SVGGElement, GraphNode>()
@@ -153,9 +173,42 @@ export function ProjectKnowledgeForceGraph({
         item.fy = null;
       });
     node.call(drag);
+    updateLabels();
+
+    function updateLabels() {
+      labels
+        .attr('opacity', (item) => shouldShowLabel(item, zoomScale, activeNodeId) ? 1 : 0)
+        .attr('display', (item) => shouldShowLabel(item, zoomScale, activeNodeId) ? null : 'none');
+    }
+
+    function renderGraph(time: number) {
+      link
+        .attr('x1', (item) => graphNodePosition(graphLinkNode(item.source), time, reducedMotion || pausedRef.current).x)
+        .attr('y1', (item) => graphNodePosition(graphLinkNode(item.source), time, reducedMotion || pausedRef.current).y)
+        .attr('x2', (item) => graphNodePosition(graphLinkNode(item.target), time, reducedMotion || pausedRef.current).x)
+        .attr('y2', (item) => graphNodePosition(graphLinkNode(item.target), time, reducedMotion || pausedRef.current).y);
+      node.attr('transform', (item) => {
+        const position = graphNodePosition(item, time, reducedMotion || pausedRef.current);
+        return `translate(${position.x},${position.y})`;
+      });
+    }
+
+    function animate(time: number) {
+      renderGraph(time);
+      renderFrameRef.current = reducedMotion || pausedRef.current ? null : window.requestAnimationFrame(animate);
+    }
+    function startDrift() {
+      if (reducedMotion || pausedRef.current || renderFrameRef.current) return;
+      renderFrameRef.current = window.requestAnimationFrame(animate);
+    }
+    startDriftRef.current = startDrift;
+    startDrift();
 
     return () => {
       simulation.stop();
+      if (renderFrameRef.current) window.cancelAnimationFrame(renderFrameRef.current);
+      renderFrameRef.current = null;
+      startDriftRef.current = null;
     };
   }, [graph, onOpenNote, size.height, size.width]);
 
@@ -164,9 +217,12 @@ export function ProjectKnowledgeForceGraph({
     if (!simulation) return;
     if (paused) {
       simulation.stop();
+      if (renderFrameRef.current) window.cancelAnimationFrame(renderFrameRef.current);
+      renderFrameRef.current = null;
       return;
     }
     simulation.alphaTarget(0.12).restart();
+    startDriftRef.current?.();
     window.setTimeout(() => simulation.alphaTarget(0), 450);
   }, [paused]);
 
@@ -187,4 +243,48 @@ export function ProjectKnowledgeForceGraph({
 
 function graphLinkNode(value: string | number | GraphNode) {
   return typeof value === 'object' ? value : ({ x: 0, y: 0 } as GraphNode);
+}
+
+function linkDistance(item: GraphLink) {
+  if (item.type === 'contains') return 145;
+  if (item.type === 'filed-in' || item.type === 'from-repository') return 130;
+  return 112;
+}
+
+function chargeStrength(item: GraphNode, denseMap: boolean) {
+  const base = item.type === 'project' ? -520 : item.type === 'note' ? -310 : -360;
+  return denseMap ? base * 1.28 : base;
+}
+
+function collisionRadius(item: GraphNode) {
+  const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
+  const labelAllowance = item.type === 'note' || item.type === 'tag' ? 24 : 34;
+  return radius + labelAllowance;
+}
+
+function shouldShowLabel(item: GraphNode, zoomScale: number, activeNodeId: string) {
+  if (item.type === 'project' || item.type === 'repository' || item.type === 'folder' || item.type === 'category') return true;
+  if (item.id === activeNodeId) return true;
+  return zoomScale >= (item.type === 'note' ? 1.25 : 1.7);
+}
+
+function graphNodePosition(item: GraphNode, time: number, staticPosition: boolean) {
+  const x = item.x || 0;
+  const y = item.y || 0;
+  if (staticPosition) return { x, y };
+  const phase = hashNodeId(item.id) % 628;
+  const amplitude = item.type === 'project' ? 0.8 : 1.7;
+  const t = time / 1600;
+  return {
+    x: x + Math.sin(t + phase) * amplitude,
+    y: y + Math.cos(t * 0.85 + phase) * amplitude,
+  };
+}
+
+function hashNodeId(id: string) {
+  let hash = 0;
+  for (let index = 0; index < id.length; index += 1) {
+    hash = (hash * 31 + id.charCodeAt(index)) >>> 0;
+  }
+  return hash;
 }
