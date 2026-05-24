@@ -97,19 +97,20 @@ import {
   ListWorkspacesUseCase,
   ListWorkspaceRepositoriesUseCase,
   ReindexAllEmbeddingsUseCase,
+  LogApplicationAccessUseCase,
 } from './application/use-cases/index.js';
 import { ReminderDispatchWorker } from './application/services/reminder-dispatch.worker.js';
 import { EmbeddingWorker } from './application/services/embedding.worker.js';
 import { NoteChunkingService } from './application/services/note-chunking.service.js';
 import { ConversationAgentPresenter } from './application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './application/use-cases/conversation/services/conversation-folder-resolution.service.js';
-import { AuthController, DashboardController, GithubAppCallbackController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WorkspacesController } from './interfaces/http/controllers/index.js';
+import { ApplicationAccessController, AuthController, DashboardController, GithubAppCallbackController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WorkspacesController } from './interfaces/http/controllers/index.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, InternalServiceTokenGuard, TrustedOriginGuard, WebhookRateLimitGuard } from './interfaces/http/auth.guards.js';
 import { GlobalExceptionFilter } from './observability/global-exception.filter.js';
 import { AppLogger } from './observability/logger.js';
 
 @Module({
-  controllers: [HealthController, DashboardController, WorkspacesController, ProjectsController, NotesController, AuthController, UserIntegrationsController, GithubAppCallbackController, InternalIntegrationsController, OperationsController, InternalN8NController, WebhookController],
+  controllers: [HealthController, ApplicationAccessController, DashboardController, WorkspacesController, ProjectsController, NotesController, AuthController, UserIntegrationsController, GithubAppCallbackController, InternalIntegrationsController, OperationsController, InternalN8NController, WebhookController],
   providers: [
     AuthService,
     AccessTokenAuthGuard,
@@ -120,6 +121,7 @@ import { AppLogger } from './observability/logger.js';
     WebhookRateLimitGuard,
     AppLogger,
     GlobalExceptionFilter,
+    LogApplicationAccessUseCase,
     BuildDashboardUseCase,
     ListPaginatedProjectsUseCase,
     ListWorkspacesUseCase,

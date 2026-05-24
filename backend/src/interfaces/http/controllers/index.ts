@@ -1,4 +1,5 @@
 export { HealthController } from './health.controller.js';
+export { ApplicationAccessController } from './application-access.controller.js';
 export { DashboardController } from './dashboard.controller.js';
 export { WorkspacesController } from './workspaces.controller.js';
 export { ProjectsController } from './projects.controller.js';

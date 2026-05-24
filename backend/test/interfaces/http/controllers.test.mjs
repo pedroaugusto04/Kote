@@ -2,12 +2,42 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { normalizeGithubAppCallbackPath } from '../../../dist/adapters/environment.js';
-import { DashboardController, GithubAppCallbackController, HealthController, NotesController, OperationsController, ProjectsController, WorkspacesController } from '../../../dist/interfaces/http/controllers/index.js';
+import { ApplicationAccessController, DashboardController, GithubAppCallbackController, HealthController, NotesController, OperationsController, ProjectsController, WorkspacesController } from '../../../dist/interfaces/http/controllers/index.js';
 
 test('health controller exposes service status', () => {
   const controller = new HealthController();
 
   assert.deepEqual(controller.health(), { ok: true, service: 'knowledge-base' });
+});
+
+test('application access controller logs landing page visits through the use case', async () => {
+  const calls = [];
+  const controller = new ApplicationAccessController({
+    execute: async (input) => {
+      calls.push(input);
+    },
+  });
+
+  const result = await controller.logAccess(
+    { page: 'landing' },
+    {
+      headers: {
+        'x-forwarded-for': '203.0.113.10, 10.0.0.1',
+        'user-agent': 'Vitest',
+        referer: 'https://kb.example.com/',
+      },
+      ip: '127.0.0.1',
+      socket: { remoteAddress: '127.0.0.2' },
+    },
+  );
+
+  assert.deepEqual(result, { ok: true });
+  assert.deepEqual(calls, [{
+    page: 'landing',
+    ip: '203.0.113.10',
+    userAgent: 'Vitest',
+    referrer: 'https://kb.example.com/',
+  }]);
 });
 
 test('github callback path normalization supports explicit URLs and relative paths', () => {
