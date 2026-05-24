@@ -6,7 +6,7 @@ import type { ProjectsPageContext } from '../../../app/page-context';
 import { routes } from '../../../app/routing/routes';
 import { formatDisplayToken } from '../../../entities/format';
 import { fetchProjectFolders, fetchProjectKnowledgeMap } from '../../../shared/api/client';
-import type { KnowledgeMapNodeType, ProjectKnowledgeMapResponse } from '../../../shared/api/models/project-knowledge-map';
+import type { KnowledgeMapNode, ProjectKnowledgeMapResponse } from '../../../shared/api/models/project-knowledge-map';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory } from '../../../shared/api/models/project-timeline';
 import { EmptyState, InlineMessage, PageHead } from '../../../shared/ui/primitives';
 import { Select } from '../../../shared/ui/select';
@@ -16,6 +16,7 @@ import {
   defaultVisibleKnowledgeMapNodeTypes,
   knowledgeMapLimitOptions,
   knowledgeMapNodeStyles,
+  knowledgeMapReviewNodeStyle,
   knowledgeMapVisibleNodeLabels,
   type KnowledgeMapVisibleNodeType,
   visibleKnowledgeMapNodeTypes,
@@ -149,7 +150,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
             <EmptyState>No notes match the current map filters.</EmptyState>
           ) : (
             <>
-              <KnowledgeMapLegend presentTypes={new Set(filteredGraph?.nodes.map((node) => node.type) || [])} />
+              <KnowledgeMapLegend presentTypes={new Set(filteredGraph?.nodes.map(knowledgeMapVisibleTypeFromNode) || [])} />
               <ProjectKnowledgeForceGraph
                 links={filteredGraph?.links || []}
                 nodes={filteredGraph?.nodes || []}
@@ -238,16 +239,24 @@ function KnowledgeMapStats({ stats }: { stats: ProjectKnowledgeMapResponse['stat
   );
 }
 
-function KnowledgeMapLegend({ presentTypes }: { presentTypes: Set<KnowledgeMapNodeType> }) {
-  const types = Object.keys(knowledgeMapNodeStyles) as KnowledgeMapNodeType[];
+function KnowledgeMapLegend({ presentTypes }: { presentTypes: Set<KnowledgeMapVisibleNodeType> }) {
+  const types = Object.keys(knowledgeMapVisibleNodeLabels) as KnowledgeMapVisibleNodeType[];
   return (
     <div className="knowledge-map-legend" aria-label="Knowledge map legend">
       {types.filter((type) => presentTypes.has(type)).map((type) => (
         <span key={type}>
-          <i style={{ background: knowledgeMapNodeStyles[type].color }} />
-          {knowledgeMapNodeStyles[type].label}
+          <i style={{ background: knowledgeMapLegendStyle(type).color }} />
+          {knowledgeMapVisibleNodeLabels[type]}
         </span>
       ))}
     </div>
   );
+}
+
+function knowledgeMapVisibleTypeFromNode(node: KnowledgeMapNode): KnowledgeMapVisibleNodeType {
+  return node.type === 'note' && node.isReview ? 'review-note' : node.type;
+}
+
+function knowledgeMapLegendStyle(type: KnowledgeMapVisibleNodeType) {
+  return type === 'review-note' ? knowledgeMapReviewNodeStyle : knowledgeMapNodeStyles[type];
 }

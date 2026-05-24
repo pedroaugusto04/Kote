@@ -15,12 +15,14 @@ export const knowledgeMapNodeStyles: Record<KnowledgeMapNodeType, { label: strin
   category: { label: 'Category', color: '#fdba74', radius: 10 },
 };
 
+export const knowledgeMapReviewNodeStyle = { label: 'Review notes', color: '#e879f9', radius: knowledgeMapNodeStyles.note.radius };
+
 export const knowledgeMapVisibleNodeLabels: Record<KnowledgeMapVisibleNodeType, string> = {
   project: knowledgeMapNodeStyles.project.label,
   repository: knowledgeMapNodeStyles.repository.label,
   folder: knowledgeMapNodeStyles.folder.label,
   note: knowledgeMapNodeStyles.note.label,
-  'review-note': 'Review notes',
+  'review-note': knowledgeMapReviewNodeStyle.label,
   tag: knowledgeMapNodeStyles.tag.label,
   category: knowledgeMapNodeStyles.category.label,
 };

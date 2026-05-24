@@ -930,7 +930,7 @@ p { color: var(--muted); line-height: 1.6; }
   stroke-width: 2px;
 }
 .knowledge-map-node.review-note circle {
-  stroke: rgba(125, 211, 252, 0.88);
+  stroke: rgba(232, 121, 249, 0.88);
 }
 .knowledge-map-node-label {
   fill: var(--text);

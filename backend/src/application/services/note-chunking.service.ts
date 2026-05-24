@@ -5,6 +5,12 @@ export type NoteChunk = {
   chunkText: string;
 };
 
+export type NoteChunkAttachment = {
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
 /**
  * Approximate token count: ~1 token per 4 characters (conservative estimate).
  */
@@ -44,17 +50,18 @@ export class NoteChunkingService {
     title: string;
     body: string;
     projectSlug: string;
+    attachments?: NoteChunkAttachment[];
   }): NoteChunk[] {
-    const { title, body, projectSlug } = params;
+    const { title, body, projectSlug, attachments = [] } = params;
 
     if (!body || body.trim().length < MIN_CHUNK_CHARS) {
       // Single chunk for very short notes
-      const text = this.buildPrefix(title, projectSlug) + (body || '').trim();
+      const text = this.buildPrefix(title, projectSlug, attachments) + (body || '').trim();
       if (text.trim().length < MIN_CHUNK_CHARS) return [];
       return [{ chunkIndex: 0, chunkText: text }];
     }
 
-    const prefix = this.buildPrefix(title, projectSlug);
+    const prefix = this.buildPrefix(title, projectSlug, attachments);
     const paragraphs = body.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
     const rawChunks = this.mergeParagraphs(paragraphs, prefix);
@@ -67,10 +74,12 @@ export class NoteChunkingService {
 
   // ---------------------------------------------------------------------------
 
-  private buildPrefix(title: string, projectSlug: string): string {
+  private buildPrefix(title: string, projectSlug: string, attachments: NoteChunkAttachment[] = []): string {
     const parts: string[] = [];
     if (title) parts.push(`Title: ${title}`);
     if (projectSlug) parts.push(`Project: ${projectSlug}`);
+    const attachmentSummary = formatAttachmentSummary(attachments);
+    if (attachmentSummary) parts.push(`Attachments: ${attachmentSummary}`);
     return parts.length ? parts.join(' | ') + '\n\n' : '';
   }
 
@@ -183,4 +192,26 @@ export class NoteChunkingService {
 
     return result.join(' ');
   }
+}
+
+function formatAttachmentSummary(attachments: NoteChunkAttachment[]): string {
+  return attachments
+    .map((attachment) => {
+      const fileName = String(attachment.fileName || '').trim();
+      if (!fileName) return '';
+      const details = [
+        String(attachment.mimeType || '').trim(),
+        formatSizeBytes(attachment.sizeBytes),
+      ].filter(Boolean);
+      return details.length ? `${fileName} (${details.join(', ')})` : fileName;
+    })
+    .filter(Boolean)
+    .join('; ');
+}
+
+function formatSizeBytes(sizeBytes: number): string {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return '';
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
+  return `${Math.round(sizeBytes / (1024 * 1024))} MB`;
 }

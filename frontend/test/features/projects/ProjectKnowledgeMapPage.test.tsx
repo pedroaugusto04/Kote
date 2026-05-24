@@ -154,6 +154,31 @@ describe('ProjectKnowledgeMapPage', () => {
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
   });
 
+  it('renders review notes with their own legend color', async () => {
+    stubMapFetch(graphResponse({
+      nodes: [
+        ...graphResponse().nodes,
+        { id: 'repository:101', type: 'repository', label: 'acme/api', projectSlug: 'platform' },
+        { id: 'note:review-1', type: 'note', label: 'Review', noteId: 'review-1', projectSlug: 'platform', category: 'github-push', isReview: true },
+      ],
+      links: [
+        ...graphResponse().links,
+        { id: 'contains:project:platform->repository:101', source: 'project:platform', target: 'repository:101', type: 'contains' },
+        { id: 'contains:project:platform->note:review-1', source: 'project:platform', target: 'note:review-1', type: 'contains' },
+      ],
+    }));
+
+    renderMap();
+
+    const legend = await screen.findByLabelText('Knowledge map legend');
+    const reviewLegendItem = within(legend).getByText('Review notes').closest('span');
+    const repositoryLegendItem = within(legend).queryByText('Repository')?.closest('span');
+
+    expect(reviewLegendItem?.querySelector('i')).toHaveStyle({ background: '#e879f9' });
+    expect(reviewLegendItem?.querySelector('i')).not.toHaveStyle({ background: '#7dd3fc' });
+    expect(repositoryLegendItem?.querySelector('i')).not.toHaveStyle({ background: '#e879f9' });
+  });
+
   it('opens note nodes from the map', async () => {
     stubMapFetch();
     const { openNote } = renderMap();

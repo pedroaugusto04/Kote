@@ -234,11 +234,17 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
       model: env.embeddingAiModel,
       apiKey: env.embeddingAiApiKey,
     };
+    const attachments = await this.contentRepository.listAttachments(userId, noteId);
 
     const chunks = this.chunkingService.chunkNote({
       title: note.title,
       body: note.markdown,
       projectSlug: note.projectSlug,
+      attachments: attachments.map((attachment) => ({
+        fileName: attachment.fileName,
+        mimeType: attachment.mimeType,
+        sizeBytes: attachment.sizeBytes,
+      })),
     });
 
     if (chunks.length === 0) {

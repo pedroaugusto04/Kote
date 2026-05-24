@@ -2,7 +2,7 @@ import * as d3 from 'd3';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { KnowledgeMapLink, KnowledgeMapNode } from '../../../shared/api/models/project-knowledge-map';
-import { knowledgeMapLinkStyles, knowledgeMapNodeStyles } from './knowledge-map.constants';
+import { knowledgeMapLinkStyles, knowledgeMapNodeStyles, knowledgeMapReviewNodeStyle } from './knowledge-map.constants';
 
 type GraphNode = KnowledgeMapNode & d3.SimulationNodeDatum;
 type GraphLink = Omit<KnowledgeMapLink, 'source' | 'target'> & d3.SimulationLinkDatum<GraphNode>;
@@ -272,7 +272,7 @@ function shouldShowLabel(item: GraphNode, zoomScale: number, activeNodeId: strin
 }
 
 function nodeColor(item: GraphNode) {
-  return isReviewNote(item) ? '#38bdf8' : knowledgeMapNodeStyles[item.type].color;
+  return isReviewNote(item) ? knowledgeMapReviewNodeStyle.color : knowledgeMapNodeStyles[item.type].color;
 }
 
 function isReviewNote(item: GraphNode) {
