@@ -5,6 +5,7 @@ import { routes } from '../../app/routing/routes';
 import { withFrontendBasePath } from '../../app/base-path';
 import { useTypewriterWord } from '../../layouts/use-typewriter-word';
 import { BrandMark } from '../../shared/ui/brand-mark';
+import { ThemeToggle } from '../../shared/ui/theme-toggle';
 
 const typewriterWords = ['capture', 'organize', 'retrieve', 'connect'];
 
@@ -56,6 +57,7 @@ export function LandingPage() {
             </div>
           </Link>
           <div className="landing-topbar-actions">
+            <ThemeToggle className="theme-toggle landing-theme-toggle" />
             <Link className="landing-button-link" to={routes.auth}>Sign in</Link>
             <Link className="landing-button-link primary" to={`${routes.auth}?mode=signup`}>Create account</Link>
           </div>

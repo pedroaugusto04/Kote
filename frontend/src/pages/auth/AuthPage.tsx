@@ -13,6 +13,7 @@ import { buildGoogleAuthStartUrl, login, signup } from '../../shared/api/client'
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormField } from '../../shared/forms/fields';
 import { BrandMark } from '../../shared/ui/brand-mark';
+import { ThemeToggle } from '../../shared/ui/theme-toggle';
 
 function GoogleIcon() {
   return (
@@ -107,7 +108,10 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: () => void }) {
               <span>developer knowledge base</span>
             </div>
           </Link>
-          <Link className="topbar-link landing-link" to={routes.home}>Overview</Link>
+          <div className="auth-panel-head-actions">
+            <ThemeToggle className="theme-toggle auth-theme-toggle" />
+            <Link className="topbar-link landing-link" to={routes.home}>Overview</Link>
+          </div>
         </div>
         <div className="segmented-control" role="tablist" aria-label="Access mode">
           <button className={mode === 'login' ? 'active' : ''} type="button" onClick={() => switchMode('login')}>
