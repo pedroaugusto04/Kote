@@ -5,9 +5,13 @@ import { readEnvironment } from './environment.js';
 import { ReminderDeliveryGateway, type ReminderDeliveryResult, type ReminderSendTextInput } from '../application/ports/reminders/reminder-delivery.gateway.js';
 import { WhatsappMediaDownloader, type WhatsappMediaDownloadResult } from '../application/ports/integrations/whatsapp-media.downloader.js';
 import { WhatsappReplySender, type WhatsappSendMediaInput, type WhatsappSendTextResult } from '../application/ports/integrations/whatsapp-reply.sender.js';
+import { AppLogger } from '../observability/logger.js';
 
 @Injectable()
 export class EvolutionWhatsappReplySender extends WhatsappReplySender {
+  constructor(private readonly logger?: AppLogger) {
+    super();
+  }
   async sendText(input: { chatJid: string; text: string }): Promise<WhatsappSendTextResult> {
     const environment = readEnvironment();
     if (!environment.evolutionApiUrl || !environment.evolutionApiKey || !environment.evolutionInstanceName) {
@@ -89,7 +93,19 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
         },
         body: JSON.stringify(payload),
       });
-      if (!response.ok) return { ok: false, error: `evolution_api_http_${response.status}` };
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        this.logger?.error('whatsapp.send_media.failed', {
+          status: response.status,
+          errorBody,
+          chatJid: payload.number,
+          mediaType: payload.mediatype,
+          mimeType: payload.mimetype,
+          fileName: payload.fileName,
+          mediaPrefix: typeof payload.media === 'string' ? payload.media.slice(0, 100) : ''
+        });
+        return { ok: false, error: `evolution_api_http_${response.status}` };
+      }
       return { ok: true };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error.message : String(error) };
