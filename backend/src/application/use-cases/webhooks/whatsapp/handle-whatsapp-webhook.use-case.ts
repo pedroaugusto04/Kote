@@ -14,9 +14,11 @@ import { buildWhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-com
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { ProcessAgentConversationUseCase } from '../../conversation/process-agent-conversation.use-case.js';
 import { AskKnowledgeUseCase } from '../../query/ask-knowledge.use-case.js';
+import { ResolveWhatsappAskAttachmentsUseCase } from '../../query/resolve-whatsapp-ask-attachments.use-case.js';
 import { AppLogger } from '../../../../observability/logger.js';
 import { parseWhatsappEvolutionMessage } from '../../../utils/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
+import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
 
 type WhatsappWebhookContext = {
   headers: Record<string, string>;
@@ -40,6 +42,7 @@ export class HandleWhatsappWebhookUseCase {
     private readonly whatsappReplySender?: WhatsappReplySender,
     private readonly whatsappMediaDownloader?: WhatsappMediaDownloader,
     private readonly logger?: AppLogger,
+    private readonly resolveWhatsappAskAttachmentsUseCase?: ResolveWhatsappAskAttachmentsUseCase,
   ) {}
 
   async execute(input: WhatsappWebhookRequest) {
@@ -208,8 +211,10 @@ export class HandleWhatsappWebhookUseCase {
       return this.processed(context, { ok: true, resolvedUserId: userId, processed: false }, userId);
     }
     const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceSlug });
-    const replyText = formatAskReply(result);
+    const attachmentResolution = await this.resolveAskAttachments(userId, workspaceSlug, question, result);
+    const replyText = formatAskReply(result, attachmentResolution);
     const sendResult = await this.sendReply(input.chatId, replyText);
+    const mediaDispatch = await this.sendAskAttachments(input.chatId, attachmentResolution);
     this.logger?.info('whatsapp.ask.reply', {
       externalId: context.externalIdentity.externalId,
       chatId: input.chatId,
@@ -218,6 +223,11 @@ export class HandleWhatsappWebhookUseCase {
       sourceCount: result.sources.length,
       sendOk: sendResult.ok,
       sendError: sendResult.ok ? '' : sendResult.error,
+      attachmentRequested: attachmentResolution.requested,
+      attachmentCount: attachmentResolution.attachmentCount,
+      attachmentSentCount: mediaDispatch.sentCount,
+      attachmentOversizedCount: attachmentResolution.oversizedCount,
+      attachmentFailedCount: mediaDispatch.failedCount,
     });
     return this.processed(context, {
       ok: true,
@@ -229,12 +239,64 @@ export class HandleWhatsappWebhookUseCase {
       conversationResult: { action: 'ask', replyText, payload: null },
       replySent: sendResult.ok,
       replyError: sendResult.ok ? undefined : sendResult.error,
+      mediaSent: mediaDispatch.sentCount,
+      mediaFailed: mediaDispatch.failedCount,
+      mediaOversized: attachmentResolution.oversizedCount,
+      mediaMissingContent: attachmentResolution.missingContentCount,
     }, userId);
   }
 
   private async sendReply(chatJid: string, text: string) {
     if (!this.whatsappReplySender) return { ok: false as const, error: 'whatsapp_reply_sender_not_configured' };
     return this.whatsappReplySender.sendText({ chatJid, text });
+  }
+
+  private async resolveAskAttachments(
+    userId: string,
+    workspaceSlug: string,
+    question: string,
+    result: Awaited<ReturnType<AskKnowledgeUseCase['execute']>>,
+  ): Promise<WhatsappAskAttachmentResolution> {
+    if (!this.resolveWhatsappAskAttachmentsUseCase) {
+      return { requested: false, noteCount: 0, attachmentCount: 0, media: [], oversizedCount: 0, missingContentCount: 0 };
+    }
+    return this.resolveWhatsappAskAttachmentsUseCase.execute({
+      userId,
+      workspaceSlug,
+      question,
+      sources: result.sources,
+      relatedNotes: result.relatedNotes,
+    });
+  }
+
+  private async sendAskAttachments(chatJid: string, attachmentResolution: WhatsappAskAttachmentResolution) {
+    let sentCount = 0;
+    let failedCount = 0;
+    if (!attachmentResolution.requested || !this.whatsappReplySender) return { sentCount, failedCount };
+
+    for (const media of attachmentResolution.media) {
+      const result = await this.whatsappReplySender.sendMedia({
+        chatJid,
+        mediaType: media.mediaType,
+        mimeType: media.mimeType,
+        fileName: media.fileName,
+        mediaBase64: media.mediaBase64,
+      });
+      if (result.ok) {
+        sentCount += 1;
+      } else {
+        failedCount += 1;
+        this.logger?.warn('whatsapp.ask.media_send_failed', {
+          chatJid,
+          noteId: media.noteId,
+          attachmentId: media.attachmentId,
+          fileName: media.fileName,
+          error: result.error || 'unknown_error',
+        });
+      }
+    }
+
+    return { sentCount, failedCount };
   }
 
   private async handleRateLimitedMessage(
@@ -386,12 +448,28 @@ function normalizeReplyText(value: unknown) {
   return String(value || '').trim() || 'I could not build the reply. Please try again.';
 }
 
-function formatAskReply(result: Awaited<ReturnType<AskKnowledgeUseCase['execute']>>) {
+function formatAskReply(
+  result: Awaited<ReturnType<AskKnowledgeUseCase['execute']>>,
+  attachmentResolution?: WhatsappAskAttachmentResolution,
+) {
   const lines = [
     String(result.answer || '').trim() || 'I could not build the answer. Please try again.',
+    ...formatAskAttachmentNotices(attachmentResolution),
     '',
     `Confidence: ${result.confidence}`,
     ...result.sources.slice(0, 3).map((source) => `Source: ${source.title} (${source.path})`),
   ];
   return lines.filter(Boolean).join('\n');
+}
+
+function formatAskAttachmentNotices(attachmentResolution?: WhatsappAskAttachmentResolution) {
+  if (!attachmentResolution?.requested) return [];
+  const notices: string[] = [];
+  if (attachmentResolution.noteCount > 0 && attachmentResolution.attachmentCount === 0) {
+    notices.push('Não encontrei arquivo anexado nas notas encontradas.');
+  }
+  if (attachmentResolution.oversizedCount > 0) {
+    notices.push(`Encontrei ${attachmentResolution.oversizedCount} arquivo(s) acima de 15 MB e não enviei por tamanho.`);
+  }
+  return notices;
 }

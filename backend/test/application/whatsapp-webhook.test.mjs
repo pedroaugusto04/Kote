@@ -6,6 +6,7 @@ import {
   HandleWhatsappWebhookUseCase,
   IngestEntryUseCase,
   ProcessAgentConversationUseCase,
+  ResolveWhatsappAskAttachmentsUseCase,
 } from '../../dist/application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
@@ -16,10 +17,16 @@ class CapturingWhatsappSender {
   constructor(ok = true) {
     this.ok = ok;
     this.sent = [];
+    this.media = [];
   }
 
   async sendText(input) {
     this.sent.push(input);
+    return this.ok ? { ok: true } : { ok: false, error: 'send_failed' };
+  }
+
+  async sendMedia(input) {
+    this.media.push(input);
     return this.ok ? { ok: true } : { ok: false, error: 'send_failed' };
   }
 }
@@ -177,6 +184,8 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     options.askKnowledge,
     sender,
     mediaDownloader,
+    undefined,
+    options.askAttachments === false ? undefined : new ResolveWhatsappAskAttachmentsUseCase(repositories.contentRepository, repositories.objectStorage),
   );
   return { repositories, whatsapp, sender, user, mediaDownloader };
 }
@@ -243,6 +252,41 @@ async function linkWhatsappWorkspace(repositories, userId, workspaceSlug, whatsa
     encryptedConfig: {},
     publicMetadata: {},
   });
+}
+
+async function seedAskNoteWithAttachment(repositories, userId, input = {}) {
+  const note = await repositories.contentRepository.upsertNote(userId, {
+    path: input.path || `20 Inbox/n8n-automations/2026/04/${input.title || 'deploy'}.md`,
+    type: 'event',
+    title: input.title || 'Deploy checklist',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: input.workspaceSlug || 'default',
+    folderId: null,
+    status: 'active',
+    tags: ['deploy'],
+    occurredAt: '2026-04-27T10:00:00.000Z',
+    sourceChannel: 'external',
+    summary: 'Deploy checklist',
+    markdown: '# Deploy checklist\n',
+    frontmatter: {},
+    metadata: {},
+    origin: 'postgres',
+    source: 'manual-api',
+    links: [],
+  });
+  const fileName = input.fileName || 'checklist.pdf';
+  const body = input.body || 'hello pdf';
+  const sizeBytes = input.sizeBytes ?? Buffer.byteLength(body);
+  const attachment = await repositories.contentRepository.saveAttachment(userId, {
+    noteId: note.id,
+    fileName,
+    mimeType: input.mimeType || 'application/pdf',
+    sizeBytes,
+    dataBase64: Buffer.from(body).toString('base64'),
+    checksumSha256: input.checksumSha256 || `${fileName}-checksum`,
+    metadata: {},
+  });
+  return { note, attachment };
 }
 
 test('linked whatsapp chat processes free text and sends the first conversation reply', async (t) => {
@@ -528,6 +572,140 @@ test('whatsapp /ask command replies with semantic AI answer scoped to the worksp
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].chatJid, '120363@g.us');
   assert.equal(sender.sent[0].text, result.message);
+  assert.equal(sender.media.length, 0);
+});
+
+test('whatsapp /ask command sends related note attachments only when requested', async (t) => {
+  const askKnowledge = new StubAskKnowledgeUseCase();
+  const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
+  const { note, attachment } = await seedAskNoteWithAttachment(repositories, user.id, {
+    fileName: 'deploy.pdf',
+    mimeType: 'application/pdf',
+    body: 'deploy pdf',
+  });
+  askKnowledge.result.sources = [{ noteId: note.id, title: note.title, path: note.path }];
+  askKnowledge.result.relatedNotes = [{ id: note.id, title: note.title, path: note.path, workspaceSlug: note.workspaceSlug }];
+
+  const result = await whatsapp.execute(evolutionInput('/kb /ask me manda o PDF do deploy'));
+
+  assert.equal(result.action, 'ask');
+  assert.equal(result.replySent, true);
+  assert.equal(result.mediaSent, 1);
+  assert.equal(result.mediaFailed, 0);
+  assert.equal(sender.sent.length, 1);
+  assert.equal(sender.media.length, 1);
+  assert.deepEqual(sender.media[0], {
+    chatJid: '120363@g.us',
+    mediaType: 'document',
+    mimeType: 'application/pdf',
+    fileName: 'deploy.pdf',
+    mediaBase64: Buffer.from('deploy pdf').toString('base64'),
+  });
+  assert.equal(sender.media[0].fileName, attachment.fileName);
+});
+
+test('whatsapp /ask command limits media replies to 3 attachments', async (t) => {
+  const askKnowledge = new StubAskKnowledgeUseCase();
+  const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
+  const seeded = [];
+  for (let index = 0; index < 4; index += 1) {
+    seeded.push(await seedAskNoteWithAttachment(repositories, user.id, {
+      title: `Deploy ${index}`,
+      fileName: `deploy-${index}.pdf`,
+      body: `pdf-${index}`,
+    }));
+  }
+  askKnowledge.result.sources = seeded.map(({ note }) => ({ noteId: note.id, title: note.title, path: note.path }));
+  askKnowledge.result.relatedNotes = seeded.map(({ note }) => ({ id: note.id, workspaceSlug: note.workspaceSlug }));
+
+  const result = await whatsapp.execute(evolutionInput('/kb /ask envia os anexos do deploy'));
+
+  assert.equal(result.mediaSent, 3);
+  assert.equal(sender.media.length, 3);
+  assert.deepEqual(sender.media.map((item) => item.fileName), ['deploy-0.pdf', 'deploy-1.pdf', 'deploy-2.pdf']);
+});
+
+test('whatsapp /ask command skips attachments over 15 MB and mentions the size limit', async (t) => {
+  const askKnowledge = new StubAskKnowledgeUseCase();
+  const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
+  const { note } = await seedAskNoteWithAttachment(repositories, user.id, {
+    fileName: 'large.pdf',
+    sizeBytes: 15 * 1024 * 1024 + 1,
+    body: 'large placeholder',
+  });
+  askKnowledge.result.sources = [{ noteId: note.id, title: note.title, path: note.path }];
+  askKnowledge.result.relatedNotes = [{ id: note.id, workspaceSlug: note.workspaceSlug }];
+
+  const result = await whatsapp.execute(evolutionInput('/kb /ask envia o arquivo do deploy'));
+
+  assert.equal(result.mediaSent, 0);
+  assert.equal(result.mediaOversized, 1);
+  assert.equal(sender.media.length, 0);
+  assert.match(result.message, /acima de 15 MB/);
+});
+
+test('whatsapp /ask command reports no attachments when related notes have none', async (t) => {
+  const askKnowledge = new StubAskKnowledgeUseCase();
+  const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
+  const { note } = await seedAskNoteWithAttachment(repositories, user.id, {
+    fileName: 'temporary.pdf',
+  });
+  await repositories.contentRepository.deleteNote(user.id, note.id);
+  const emptyNote = await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/empty.md',
+    type: 'event',
+    title: 'Empty deploy note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    folderId: null,
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-27T10:00:00.000Z',
+    sourceChannel: 'external',
+    summary: 'No attachment here',
+    markdown: '# Empty\n',
+    frontmatter: {},
+    metadata: {},
+    origin: 'postgres',
+    source: 'manual-api',
+    links: [],
+  });
+  askKnowledge.result.sources = [{ noteId: emptyNote.id, title: emptyNote.title, path: emptyNote.path }];
+  askKnowledge.result.relatedNotes = [{ id: emptyNote.id, workspaceSlug: emptyNote.workspaceSlug }];
+
+  const result = await whatsapp.execute(evolutionInput('/kb /ask manda o arquivo do deploy'));
+
+  assert.equal(result.mediaSent, 0);
+  assert.equal(sender.media.length, 0);
+  assert.match(result.message, /Não encontrei arquivo anexado/);
+});
+
+test('whatsapp /ask attachments stay scoped to the linked workspace', async (t) => {
+  const askKnowledge = new StubAskKnowledgeUseCase();
+  const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
+  await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'other',
+    displayName: 'Other',
+    whatsappChatJid: '',
+    telegramChatId: '',
+    githubRepos: [],
+    projectSlugs: ['n8n-automations'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
+  const { note } = await seedAskNoteWithAttachment(repositories, user.id, {
+    workspaceSlug: 'other',
+    path: '20 Inbox/n8n-automations/other.md',
+    fileName: 'other-workspace.pdf',
+    body: 'other workspace',
+  });
+  askKnowledge.result.sources = [{ noteId: note.id, title: note.title, path: note.path }];
+  askKnowledge.result.relatedNotes = [{ id: note.id, workspaceSlug: note.workspaceSlug }];
+
+  const result = await whatsapp.execute(evolutionInput('/kb /ask envia o arquivo do deploy'));
+
+  assert.equal(result.mediaSent, 0);
+  assert.equal(sender.media.length, 0);
 });
 
 test('whatsapp webhook ignores only bot-prefixed self messages', async (t) => {

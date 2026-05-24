@@ -35,9 +35,52 @@ test('evolution whatsapp sender posts plain text without bot prefix', async () =
   }
 });
 
+test('evolution whatsapp sender posts media payload', async () => {
+  process.env.EVOLUTION_API_URL = 'https://evolution.example';
+  process.env.EVOLUTION_API_KEY = 'evolution-key';
+  process.env.EVOLUTION_INSTANCE_NAME = 'kb-instance';
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, options });
+    return { ok: true, status: 200 };
+  };
+
+  try {
+    const sender = new EvolutionWhatsappReplySender();
+    const result = await sender.sendMedia({
+      chatJid: '120363@g.us',
+      mediaType: 'document',
+      mimeType: 'application/pdf',
+      fileName: 'deploy.pdf',
+      mediaBase64: Buffer.from('deploy pdf').toString('base64'),
+      caption: 'Deploy',
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, 'https://evolution.example/message/sendMedia/kb-instance');
+    assert.equal(calls[0].options.method, 'POST');
+    assert.equal(calls[0].options.headers['content-type'], 'application/json');
+    assert.equal(calls[0].options.headers.apikey, 'evolution-key');
+    assert.deepEqual(JSON.parse(calls[0].options.body), {
+      number: '120363@g.us',
+      mediatype: 'document',
+      mimetype: 'application/pdf',
+      media: Buffer.from('deploy pdf').toString('base64'),
+      fileName: 'deploy.pdf',
+      caption: 'Deploy',
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test('evolution reminder delivery gateway maps unified reminder payload to whatsapp sender', async () => {
   const gateway = new EvolutionReminderDeliveryGateway({
     sendText: async (input) => ({ ok: input.chatJid === '120363@g.us', error: input.chatJid ? undefined : 'missing_chat' }),
+    sendMedia: async () => ({ ok: false, error: 'not_used' }),
   });
 
   const result = await gateway.sendText({

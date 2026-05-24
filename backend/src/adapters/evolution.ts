@@ -4,7 +4,7 @@ import { ReminderDeliveryChannel } from '../contracts/enums.js';
 import { readEnvironment } from './environment.js';
 import { ReminderDeliveryGateway, type ReminderDeliveryResult, type ReminderSendTextInput } from '../application/ports/reminder-delivery.gateway.js';
 import { WhatsappMediaDownloader, type WhatsappMediaDownloadResult } from '../application/ports/whatsapp-media.downloader.js';
-import { WhatsappReplySender, type WhatsappSendTextResult } from '../application/ports/whatsapp-reply.sender.js';
+import { WhatsappReplySender, type WhatsappSendMediaInput, type WhatsappSendTextResult } from '../application/ports/whatsapp-reply.sender.js';
 
 @Injectable()
 export class EvolutionWhatsappReplySender extends WhatsappReplySender {
@@ -28,6 +28,40 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
           number: input.chatJid,
           text: normalizedText,
         }),
+      });
+      if (!response.ok) return { ok: false, error: `evolution_api_http_${response.status}` };
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  async sendMedia(input: WhatsappSendMediaInput): Promise<WhatsappSendTextResult> {
+    const environment = readEnvironment();
+    if (!environment.evolutionApiUrl || !environment.evolutionApiKey || !environment.evolutionInstanceName) {
+      return { ok: false, error: 'evolution_api_not_configured' };
+    }
+
+    const baseUrl = environment.evolutionApiUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}/message/sendMedia/${encodeURIComponent(environment.evolutionInstanceName)}`;
+    const payload: Record<string, unknown> = {
+      number: input.chatJid,
+      mediatype: input.mediaType,
+      mimetype: input.mimeType || 'application/octet-stream',
+      media: input.mediaBase64,
+      fileName: input.fileName || 'attachment',
+    };
+    const caption = String(input.caption || '').trim();
+    if (caption) payload.caption = caption;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          apikey: environment.evolutionApiKey,
+        },
+        body: JSON.stringify(payload),
       });
       if (!response.ok) return { ok: false, error: `evolution_api_http_${response.status}` };
       return { ok: true };
