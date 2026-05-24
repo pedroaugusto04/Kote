@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { UpdateProjectInput } from '../../models/project-input.models.js';
-import { ContentRepository } from '../../ports/content.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { GithubRepositoryResolutionService } from '../../services/github-repository-resolution.service.js';
 
 @Injectable()

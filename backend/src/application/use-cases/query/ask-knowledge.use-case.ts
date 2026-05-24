@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
-import { ContentRepository } from '../../ports/content.repository.js';
-import { EmbeddingGateway } from '../../ports/embedding.gateway.js';
-import { NoteEmbeddingRepository } from '../../ports/note-embedding.repository.js';
-import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/answer-generation.gateway.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { EmbeddingGateway } from '../../ports/notes/embedding.gateway.js';
+import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
+import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/query/answer-generation.gateway.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
 
 @Injectable()
@@ -108,6 +108,7 @@ export class AskKnowledgeUseCase {
       answer: result.answer,
       confidence: result.confidence,
       requestedAttachments: result.requestedAttachments,
+      requestedAttachmentPattern: result.requestedAttachmentPattern,
       sources: result.sources,
       relatedNotes: notes
         .filter((n): n is NoteRecord => !!n)

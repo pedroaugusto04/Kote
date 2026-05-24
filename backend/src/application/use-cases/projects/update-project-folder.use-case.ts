@@ -4,7 +4,7 @@ import { rewriteNotePathForFolder } from '../../../domain/notes.js';
 import type { UpdateProjectFolderInput } from '../../models/project-folder-input.models.js';
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
 import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/project-folder.utils.js';
-import { ContentRepository } from '../../ports/content.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 type FolderRewrite = {
   previous: ProjectFolderRecord;

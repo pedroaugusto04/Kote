@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 import type { ProjectBriefHistoryRecord, SaveProjectBriefHistoryInput } from '../../application/models/project-brief.models.js';
-import { ProjectBriefHistoryRepository } from '../../application/ports/project-brief-history.repository.js';
+import { ProjectBriefHistoryRepository } from '../../application/ports/projects/project-brief-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
 type Row = Record<string, unknown>;

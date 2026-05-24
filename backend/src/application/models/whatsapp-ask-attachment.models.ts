@@ -1,4 +1,4 @@
-import type { WhatsappMediaType } from '../ports/whatsapp-reply.sender.js';
+import type { WhatsappMediaType } from '../ports/integrations/whatsapp-reply.sender.js';
 
 export type WhatsappAskAttachmentNoteRef = {
   id?: string;

@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import type { QueryInput } from '../../../contracts/query.js';
 import { buildPaginationMeta, DEFAULT_PAGE_SIZE } from '../../../contracts/pagination.js';
-import { ContentQueryRepository } from '../../ports/content.repository.js';
+import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { rankKnowledgeMatches } from '../../utils/query.utils.js';
 
 @Injectable()

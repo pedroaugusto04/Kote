@@ -3,10 +3,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { CredentialRecordStatus, IntegrationProvider } from '../../contracts/enums.js';
 import { decryptConfig } from '../credentials.js';
 import type { RepositoryRecord } from '../models/repository-records.models.js';
-import { ContentRepository } from '../ports/content.repository.js';
-import { GithubIntegrationGateway, type GithubInstallationRepository } from '../ports/github-integration.port.js';
-import { CredentialRepository } from '../ports/integrations.repository.js';
-import { RuntimeEnvironmentProvider } from '../ports/runtime-environment.port.js';
+import { ContentRepository } from '../ports/notes/content.repository.js';
+import { GithubIntegrationGateway, type GithubInstallationRepository } from '../ports/integrations/github-integration.port.js';
+import { CredentialRepository } from '../ports/integrations/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 
 @Injectable()
 export class GithubRepositoryResolutionService {

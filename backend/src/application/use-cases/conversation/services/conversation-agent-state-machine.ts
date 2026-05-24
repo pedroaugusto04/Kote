@@ -7,7 +7,7 @@ import type { ConversationInput } from '../../../../contracts/conversation.js';
 import { slugify, trimText } from '../../../../domain/strings.js';
 import { normalizeDate, normalizeTime, nowIso } from '../../../../domain/time.js';
 import type { ProjectFolderRecord, ProjectRecord } from '../../../models/repository-records.models.js';
-import type { ConversationAgentFolderContext, ConversationAgentResponse } from '../../../ports/conversation-agent.gateway.js';
+import type { ConversationAgentFolderContext, ConversationAgentResponse } from '../../../ports/conversation/conversation-agent.gateway.js';
 import { buildConversationIngestPayload } from '../../../utils/conversation-payload.utils.js';
 import { buildProjectFolderTree, folderSlugFromDisplayName } from '../../../utils/project-folder.utils.js';
 

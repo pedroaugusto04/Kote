@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { AiProvider, IntegrationProvider, IntegrationSetupStatus } from '../contracts/enums.js';
 import type { Project } from '../domain/projects.js';
 import type { Workspace } from '../domain/workspaces.js';
-import { ContentRepository } from './ports/content.repository.js';
-import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/runtime-environment.port.js';
+import { ContentRepository } from './ports/notes/content.repository.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
 import { absoluteUrl, configuredEnv, link, missingEnv, secretConfigured, statusFromFlags, workspaceRepos } from './utils/integration-status.utils.js';
 
 export type IntegrationStatusValue = IntegrationSetupStatus;

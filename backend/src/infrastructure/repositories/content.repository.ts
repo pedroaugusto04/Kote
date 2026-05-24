@@ -11,7 +11,7 @@ import type {
 } from '../../application/models/project-timeline.models.js';
 import type { ListProjectsInput } from '../../application/models/project-list.models.js';
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
-import { ContentRepository } from '../../application/ports/content.repository.js';
+import { ContentRepository } from '../../application/ports/notes/content.repository.js';
 import type {
   NoteRecord,
   RepositoryRecord,

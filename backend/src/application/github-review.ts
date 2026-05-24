@@ -2,9 +2,9 @@ import { CanonicalType, EventType, KnowledgeKind, KnowledgeStatus, SourceChannel
 import { ingestPayloadSchema } from '../contracts/ingest.js';
 import { defaultImportance } from '../domain/classification.js';
 import { slugify, trimText } from '../domain/strings.js';
-import { GithubIntegrationGateway } from './ports/github-integration.port.js';
-import { ReviewAnalysisGateway } from './ports/review-analysis.port.js';
-import type { RuntimeEnvironment } from './ports/runtime-environment.port.js';
+import { GithubIntegrationGateway } from './ports/integrations/github-integration.port.js';
+import { ReviewAnalysisGateway } from './ports/projects/review-analysis.port.js';
+import type { RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
 
 type GithubPushPayload = {
   ref?: string;

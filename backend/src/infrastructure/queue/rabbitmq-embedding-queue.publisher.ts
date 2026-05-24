@@ -4,7 +4,7 @@ import amqplib, { type ChannelModel, type Channel } from 'amqplib';
 import {
   EmbeddingQueuePublisher,
   type EmbeddingJobPayload,
-} from '../../application/ports/embedding-queue.publisher.js';
+} from '../../application/ports/notes/embedding-queue.publisher.js';
 import { AppLogger } from '../../observability/logger.js';
 
 const EXCHANGE_NAME = 'kb.embedding';

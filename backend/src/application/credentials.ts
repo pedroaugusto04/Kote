@@ -9,9 +9,9 @@ import {
   StoredIntegrationStatus,
 } from '../contracts/enums.js';
 import type { IntegrationCredentialRecord } from './models/repository-records.models.js';
-import { ContentRepository } from './ports/content.repository.js';
-import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations.repository.js';
-import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
+import { ContentRepository } from './ports/notes/content.repository.js';
+import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
 
 export { IntegrationProvider };
 export const guidedProviders = [

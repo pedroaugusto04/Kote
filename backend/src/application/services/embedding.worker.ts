@@ -1,10 +1,10 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
-import { EmbeddingGateway } from '../ports/embedding.gateway.js';
-import { NoteEmbeddingRepository } from '../ports/note-embedding.repository.js';
-import { RuntimeEnvironmentProvider } from '../ports/runtime-environment.port.js';
-import { ContentRepository } from '../ports/content.repository.js';
-import { EmbeddingJobType, type EmbeddingJobPayload } from '../ports/embedding-queue.publisher.js';
+import { EmbeddingGateway } from '../ports/notes/embedding.gateway.js';
+import { NoteEmbeddingRepository } from '../ports/notes/note-embedding.repository.js';
+import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
+import { ContentRepository } from '../ports/notes/content.repository.js';
+import { EmbeddingJobType, type EmbeddingJobPayload } from '../ports/notes/embedding-queue.publisher.js';
 import { NoteChunkingService } from './note-chunking.service.js';
 import { AppLogger } from '../../observability/logger.js';
 

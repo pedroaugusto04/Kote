@@ -8,9 +8,9 @@ import { hasReminder, normalizeManualNoteStatus } from '../../../domain/note-sta
 import { buildNotePaths, renderEventNote } from '../../../domain/notes.js';
 import type { Project } from '../../../domain/projects.js';
 import { slugify, trimText } from '../../../domain/strings.js';
-import { ContentRepository } from '../../ports/content.repository.js';
-import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/embedding-queue.publisher.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import type { SaveNoteResult } from '../../models/note-save-result.models.js';
 

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AiProvider } from '../../contracts/enums.js';
-import { EmbeddingConfig, EmbeddingGateway } from '../../application/ports/embedding.gateway.js';
+import { EmbeddingConfig, EmbeddingGateway } from '../../application/ports/notes/embedding.gateway.js';
 import { AppLogger } from '../../observability/logger.js';
 
 /**

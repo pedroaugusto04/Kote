@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { ContentRepository } from '../../ports/content.repository.js';
-import { ProjectBriefHistoryRepository } from '../../ports/project-brief-history.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 
 @Injectable()
 export class GetProjectBriefUseCase {

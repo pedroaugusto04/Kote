@@ -1,7 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { createClient } from '@supabase/supabase-js';
 
-import { ObjectStorage, ObjectStorageMissingContentError, type ObjectStoragePutInput } from '../../application/ports/object-storage.js';
+import { ObjectStorage, ObjectStorageMissingContentError, type ObjectStoragePutInput } from '../../application/ports/notes/object-storage.js';
 
 type SupabaseStorageConfig = {
   url: string;

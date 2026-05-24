@@ -4,9 +4,9 @@ import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../../contract
 import { nowIso } from '../../../domain/time.js';
 import { AppLogger } from '../../../observability/logger.js';
 import type { DueReminderView } from '../../models/reminder.models.js';
-import { ContentQueryRepository } from '../../ports/content.repository.js';
-import { ReminderDeliveryGateway } from '../../ports/reminder-delivery.gateway.js';
-import { ReminderDispatchRepository } from '../../ports/workflow-state.repository.js';
+import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
+import { ReminderDeliveryGateway } from '../../ports/reminders/reminder-delivery.gateway.js';
+import { ReminderDispatchRepository } from '../../ports/reminders/workflow-state.repository.js';
 import { formatReminderScheduledAtLabel, reminderDispatchKey } from './reminder-schedule.js';
 import { MarkReminderAsSentUseCase } from './mark-reminder-as-sent.use-case.js';
 import { MAX_REMINDER_DELIVERY_ATTEMPTS, nextReminderRetryAt } from './reminder-retry-policy.js';

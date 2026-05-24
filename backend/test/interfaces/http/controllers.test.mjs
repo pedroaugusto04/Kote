@@ -166,6 +166,8 @@ test('projects and notes controllers delegate create requests to use cases', asy
   }, {
     execute: async (projectSlug, userId) => ({ ok: true, projectSlug, userId }),
   }, {
+    execute: async (userId, projectSlug, favorite) => ({ ok: true, projectSlug, favorite }),
+  }, {
     execute: async (userId, projectSlug) => ({ ok: true, fallback: false, brief: { projectSlug, userId } }),
   }, {
     execute: async (userId, projectSlug) => ({ ok: true, source: 'history', brief: { projectSlug, userId, saved: true } }),

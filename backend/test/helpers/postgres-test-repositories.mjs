@@ -14,7 +14,7 @@ import { webhookEventFromRow } from '../../dist/infrastructure/mappers/row.mappe
 import { PostgresSchemaMigrator } from '../../dist/infrastructure/persistence/schema.migrator.js';
 import { readEnvironment } from '../../dist/adapters/environment.js';
 import { ContentObjectStorageService } from '../../dist/application/services/content-object-storage.service.js';
-import { ObjectStorageMissingContentError } from '../../dist/application/ports/object-storage.js';
+import { ObjectStorageMissingContentError } from '../../dist/application/ports/notes/object-storage.js';
 
 const { Pool } = pg;
 

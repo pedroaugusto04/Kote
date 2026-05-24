@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { UpdateNoteInput } from '../../models/note-input.models.js';
-import { ContentRepository } from '../../ports/content.repository.js';
-import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/embedding-queue.publisher.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
 

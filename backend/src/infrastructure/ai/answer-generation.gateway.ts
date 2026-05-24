@@ -6,7 +6,7 @@ import {
   type AnswerGenerationConfig,
   type AnswerGenerationRequest,
   type AnswerGenerationResponse,
-} from '../../application/ports/answer-generation.gateway.js';
+} from '../../application/ports/query/answer-generation.gateway.js';
 import { runChatCompletion } from './openai-compatible-chat.js';
 import {
   buildAnswerGenerationPrompt,

@@ -11,7 +11,7 @@ import type {
 } from '../../models/project-knowledge-map.models.js';
 import type { NoteRecord, ProjectFolderRecord, SaveProjectInput } from '../../models/repository-records.models.js';
 import { collectFolderDescendantIds } from '../../utils/project-folder.utils.js';
-import { ContentRepository } from '../../ports/content.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()
 export class ListProjectKnowledgeMapUseCase {

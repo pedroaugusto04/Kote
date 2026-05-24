@@ -10,7 +10,7 @@ import type {
   ListAskHistoryInput,
   SaveAskHistoryInput,
 } from '../../application/models/ask-history.models.js';
-import { AskHistoryRepository } from '../../application/ports/ask-history.repository.js';
+import { AskHistoryRepository } from '../../application/ports/query/ask-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
 type Row = Record<string, unknown>;

@@ -4,10 +4,10 @@ import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider }
 import { slugify } from '../domain/strings.js';
 import { encryptConfig } from './credentials.js';
 import type { IntegrationConnectionSessionRecord, WorkspaceRecord } from './models/repository-records.models.js';
-import { GithubIntegrationGateway } from './ports/github-integration.port.js';
-import { ContentRepository } from './ports/content.repository.js';
-import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations.repository.js';
-import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/runtime-environment.port.js';
+import { GithubIntegrationGateway } from './ports/integrations/github-integration.port.js';
+import { ContentRepository } from './ports/notes/content.repository.js';
+import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations/integrations.repository.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
 import { GithubRepositoryResolutionService } from './services/github-repository-resolution.service.js';
 import {
   appendQuery as appendConnectionQuery,

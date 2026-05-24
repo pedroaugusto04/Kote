@@ -2,7 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 
 import { ReminderDeliveryChannel } from '../../contracts/enums.js';
 import { AppLogger } from '../../observability/logger.js';
-import { RuntimeEnvironmentProvider } from '../ports/runtime-environment.port.js';
+import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 import { DispatchDueRemindersUseCase } from '../use-cases/reminders/dispatch-due-reminders.use-case.js';
 
 const ONE_MINUTE_MS = 60_000;

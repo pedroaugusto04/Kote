@@ -10,7 +10,7 @@ import {
   GithubIntegrationGateway,
   type GithubComparePayload,
   type GithubInstallationRepository,
-} from '../../application/ports/github-integration.port.js';
+} from '../../application/ports/integrations/github-integration.port.js';
 
 @Injectable()
 export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {

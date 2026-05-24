@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { buildPaginationMeta } from '../../../contracts/pagination.js';
 import type { ListRemindersInput } from '../../models/reminder-list.models.js';
-import { ContentQueryRepository } from '../../ports/content.repository.js';
+import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { sortRemindersForList } from './reminder-list.helpers.js';
 import { RefreshReminderStatusesUseCase } from './refresh-reminder-statuses.use-case.js';
 

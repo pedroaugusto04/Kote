@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { buildNoteEditorState } from '../notes/note-editor.helpers.js';
 import { noteDetail } from '../../../infrastructure/mappers/content-query.mappers.js';
-import { ContentRepository } from '../../ports/content.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()
 export class GetNoteDetailUseCase {

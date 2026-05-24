@@ -5,11 +5,11 @@ import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableE
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
 import type { ProjectBrief, ProjectBriefContextItem } from '../../models/project-brief.models.js';
-import { ContentRepository } from '../../ports/content.repository.js';
-import { CredentialRepository } from '../../ports/integrations.repository.js';
-import { ProjectBriefAiGateway } from '../../ports/project-brief-ai.gateway.js';
-import { ProjectBriefHistoryRepository } from '../../ports/project-brief-history.repository.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
+import { ProjectBriefAiGateway } from '../../ports/projects/project-brief-ai.gateway.js';
+import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 
 const CONTEXT_WINDOW = 30;
 const RAW_TEXT_LIMIT = 2_000;

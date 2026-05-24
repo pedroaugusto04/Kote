@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus } from '../../contracts/enums.js';
-import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from '../../application/ports/integrations.repository.js';
+import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from '../../application/ports/integrations/integrations.repository.js';
 import { connectionSessionFromRow, credentialFromRow, identityFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 

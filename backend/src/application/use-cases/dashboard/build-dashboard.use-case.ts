@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ContentQueryRepository, ContentRepository } from '../../ports/content.repository.js';
+import { ContentQueryRepository, ContentRepository } from '../../ports/notes/content.repository.js';
 import { buildDashboardHome } from '../../utils/dashboard-home.utils.js';
 import { RefreshReminderStatusesUseCase } from '../reminders/refresh-reminder-statuses.use-case.js';
 

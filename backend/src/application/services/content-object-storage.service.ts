@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { slugify } from '../../domain/strings.js';
 import type { NoteRecord, SaveAttachmentInput, SaveNoteInput } from '../models/repository-records.models.js';
-import { ObjectStorage } from '../ports/object-storage.js';
+import { ObjectStorage } from '../ports/notes/object-storage.js';
 
 function normalizedObjectPath(path: string): string {
   return path.replace(/\\/g, '/').split('/').map((segment) => segment.trim()).filter(Boolean).join('/');

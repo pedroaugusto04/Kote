@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import { ReminderDeliveryChannel } from '../contracts/enums.js';
 import { readEnvironment } from './environment.js';
-import { ReminderDeliveryGateway, type ReminderDeliveryResult, type ReminderSendTextInput } from '../application/ports/reminder-delivery.gateway.js';
-import { TelegramMessageSender, type TelegramSendTextResult } from '../application/ports/telegram-message.sender.js';
+import { ReminderDeliveryGateway, type ReminderDeliveryResult, type ReminderSendTextInput } from '../application/ports/reminders/reminder-delivery.gateway.js';
+import { TelegramMessageSender, type TelegramSendTextResult } from '../application/ports/integrations/telegram-message.sender.js';
 
 @Injectable()
 export class TelegramHttpMessageSender extends TelegramMessageSender {

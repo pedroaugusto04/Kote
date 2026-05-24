@@ -5,7 +5,7 @@ import {
   type FindSimilarOptions,
   type NoteEmbeddingRecord,
   type SimilarChunk,
-} from '../../application/ports/note-embedding.repository.js';
+} from '../../application/ports/notes/note-embedding.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
 function embeddingFromRow(row: Record<string, unknown>): NoteEmbeddingRecord {

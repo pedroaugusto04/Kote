@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { ProjectBrief, ProjectBriefAiConfig, ProjectBriefContextItem } from '../../application/models/project-brief.models.js';
-import { ProjectBriefAiGateway } from '../../application/ports/project-brief-ai.gateway.js';
+import { ProjectBriefAiGateway } from '../../application/ports/projects/project-brief-ai.gateway.js';
 import { AiProvider } from '../../contracts/enums.js';
 import { runChatCompletion } from './openai-compatible-chat.js';
 import { buildProjectBriefPrompt, buildProjectBriefSystemPrompt, parseProjectBrief } from './prompts/project-brief.prompt.js';

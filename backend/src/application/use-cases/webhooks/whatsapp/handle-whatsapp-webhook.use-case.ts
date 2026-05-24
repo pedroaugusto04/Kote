@@ -4,11 +4,11 @@ import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, 
 import type { ConversationInput } from '../../../../contracts/conversation.js';
 import { IntegrationConnectionService } from '../../../integration-connections.js';
 import type { WhatsappWebhookRequest } from '../../../models/webhook-request.models.js';
-import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
-import { RuntimeEnvironmentProvider } from '../../../ports/runtime-environment.port.js';
-import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
-import { WhatsappMediaDownloader } from '../../../ports/whatsapp-media.downloader.js';
-import { WhatsappReplySender } from '../../../ports/whatsapp-reply.sender.js';
+import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
+import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
+import { WhatsappMediaDownloader } from '../../../ports/integrations/whatsapp-media.downloader.js';
+import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.sender.js';
 import { parseAskCommand } from '../../../utils/conversation-command.utils.js';
 import { buildWhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
@@ -263,6 +263,7 @@ export class HandleWhatsappWebhookUseCase {
       userId,
       workspaceSlug,
       requestedAttachments: result.requestedAttachments,
+      requestedAttachmentPattern: result.requestedAttachmentPattern,
       sources: result.sources,
       relatedNotes: result.relatedNotes,
     });

@@ -3,7 +3,7 @@ import { runner } from 'node-pg-migrate';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SchemaMigrator } from '../../application/ports/auth.repository.js';
+import { SchemaMigrator } from '../../application/ports/auth/auth.repository.js';
 import { PostgresDatabase } from './database.js';
 
 const migrationsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'migrations');

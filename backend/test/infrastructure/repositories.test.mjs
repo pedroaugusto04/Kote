@@ -6,12 +6,12 @@ import assert from 'node:assert/strict';
 import { NestFactory } from '@nestjs/core';
 
 import { AppModule } from '../../dist/app.module.js';
-import { SchemaMigrator, UserRepository } from '../../dist/application/ports/auth.repository.js';
-import { ContentQueryRepository, ContentRepository } from '../../dist/application/ports/content.repository.js';
-import { CredentialRepository, ExternalIdentityRepository } from '../../dist/application/ports/integrations.repository.js';
-import { ReminderDeliveryGateway } from '../../dist/application/ports/reminder-delivery.gateway.js';
-import { WebhookEventRepository } from '../../dist/application/ports/webhook-events.repository.js';
-import { ConversationStateRepository, ReminderDispatchRepository } from '../../dist/application/ports/workflow-state.repository.js';
+import { SchemaMigrator, UserRepository } from '../../dist/application/ports/auth/auth.repository.js';
+import { ContentQueryRepository, ContentRepository } from '../../dist/application/ports/notes/content.repository.js';
+import { CredentialRepository, ExternalIdentityRepository } from '../../dist/application/ports/integrations/integrations.repository.js';
+import { ReminderDeliveryGateway } from '../../dist/application/ports/reminders/reminder-delivery.gateway.js';
+import { WebhookEventRepository } from '../../dist/application/ports/webhooks/webhook-events.repository.js';
+import { ConversationStateRepository, ReminderDispatchRepository } from '../../dist/application/ports/reminders/workflow-state.repository.js';
 import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../dist/contracts/enums.js';
 import { EvolutionReminderDeliveryGateway } from '../../dist/adapters/evolution.js';
 import { createPostgresTestRepositories } from '../helpers/postgres-test-repositories.mjs';

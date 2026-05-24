@@ -4,10 +4,10 @@ import { promisify } from 'node:util';
 import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 
 import type { KbUser } from './models/repository-records.models.js';
-import { GoogleOAuthGateway, type GoogleOAuthProfile } from './ports/google-oauth.gateway.js';
-import { ObjectStorage, ObjectStorageMissingContentError } from './ports/object-storage.js';
-import { SchemaMigrator, UserRepository } from './ports/auth.repository.js';
-import { RuntimeEnvironmentProvider } from './ports/runtime-environment.port.js';
+import { GoogleOAuthGateway, type GoogleOAuthProfile } from './ports/auth/google-oauth.gateway.js';
+import { ObjectStorage, ObjectStorageMissingContentError } from './ports/notes/object-storage.js';
+import { SchemaMigrator, UserRepository } from './ports/auth/auth.repository.js';
+import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
 import { readEnvironment } from '../adapters/environment.js';
 
 const scrypt = promisify(crypto.scrypt);

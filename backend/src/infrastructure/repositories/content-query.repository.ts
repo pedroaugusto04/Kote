@@ -5,7 +5,7 @@ import { ReminderDeliveryChannel } from '../../contracts/enums.js';
 import type { DueReminderView, ReminderView } from '../../application/models/reminder.models.js';
 import type { NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
-import { ContentQueryRepository } from '../../application/ports/content.repository.js';
+import { ContentQueryRepository } from '../../application/ports/notes/content.repository.js';
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { resolveReminderScheduledAt } from '../../application/use-cases/reminders/reminder-schedule.js';
 import { reminderDispatchEligibleStatuses } from '../../domain/note-status.js';

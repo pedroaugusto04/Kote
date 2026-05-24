@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/workflow-state.repository.js';
+import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/reminders/workflow-state.repository.js';
 import type { ReminderDispatchMode } from '../../contracts/enums.js';
 import type { RecordReminderDispatchFailureInput, ReminderDispatchRetryKey } from '../../application/models/reminder-dispatch.models.js';
 import { conversationStateFromRow } from '../mappers/row.mappers.js';

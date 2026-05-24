@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { ContentQueryRepository } from '../../ports/content.repository.js';
+import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()
 export class GetReviewDetailUseCase {

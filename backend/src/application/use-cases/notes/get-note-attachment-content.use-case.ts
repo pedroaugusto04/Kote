@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
-import { ObjectStorage, ObjectStorageMissingContentError } from '../../ports/object-storage.js';
-import { ContentRepository } from '../../ports/content.repository.js';
+import { ObjectStorage, ObjectStorageMissingContentError } from '../../ports/notes/object-storage.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 export type NoteAttachmentContent = {
   fileName: string;

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/embedding-queue.publisher.js';
+import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { AppLogger } from '../../../observability/logger.js';
 
 @Injectable()

@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import { ReminderDeliveryChannel } from '../contracts/enums.js';
 import { readEnvironment } from './environment.js';
-import { ReminderDeliveryGateway, type ReminderDeliveryResult, type ReminderSendTextInput } from '../application/ports/reminder-delivery.gateway.js';
-import { WhatsappMediaDownloader, type WhatsappMediaDownloadResult } from '../application/ports/whatsapp-media.downloader.js';
-import { WhatsappReplySender, type WhatsappSendMediaInput, type WhatsappSendTextResult } from '../application/ports/whatsapp-reply.sender.js';
+import { ReminderDeliveryGateway, type ReminderDeliveryResult, type ReminderSendTextInput } from '../application/ports/reminders/reminder-delivery.gateway.js';
+import { WhatsappMediaDownloader, type WhatsappMediaDownloadResult } from '../application/ports/integrations/whatsapp-media.downloader.js';
+import { WhatsappReplySender, type WhatsappSendMediaInput, type WhatsappSendTextResult } from '../application/ports/integrations/whatsapp-reply.sender.js';
 
 @Injectable()
 export class EvolutionWhatsappReplySender extends WhatsappReplySender {

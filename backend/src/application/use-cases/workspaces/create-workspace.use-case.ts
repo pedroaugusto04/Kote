@@ -4,9 +4,9 @@ import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/
 import { slugify } from '../../../domain/strings.js';
 import { encryptConfig } from '../../credentials.js';
 import type { CreateWorkspaceInput } from '../../models/workspace-input.models.js';
-import { ContentRepository } from '../../ports/content.repository.js';
-import { CredentialRepository } from '../../ports/integrations.repository.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 
 @Injectable()
 export class CreateWorkspaceUseCase {

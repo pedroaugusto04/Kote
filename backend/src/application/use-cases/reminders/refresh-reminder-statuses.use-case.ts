@@ -2,9 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import { KnowledgeStatus, ReminderDispatchMode } from '../../../contracts/enums.js';
 import type { ReminderView } from '../../models/reminder.models.js';
-import { ContentRepository } from '../../ports/content.repository.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
-import { ReminderDispatchRepository } from '../../ports/workflow-state.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { ReminderDispatchRepository } from '../../ports/reminders/workflow-state.repository.js';
 import { reminderDispatchKey, resolveReminderScheduledAt } from './reminder-schedule.js';
 import { enrichReminderStatus } from './reminder-status.js';
 

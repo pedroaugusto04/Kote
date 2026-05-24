@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { ContentRepository } from '../../ports/content.repository.js';
-import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/embedding-queue.publisher.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 
 @Injectable()
 export class DeleteNoteUseCase {

@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { CodeChallengeMethod, OAuth2Client } from 'google-auth-library';
 
-import { GoogleOAuthGateway, type GoogleOAuthProfile } from '../../application/ports/google-oauth.gateway.js';
+import { GoogleOAuthGateway, type GoogleOAuthProfile } from '../../application/ports/auth/google-oauth.gateway.js';
 
 @Injectable()
 export class GoogleAuthLibraryOAuthGateway extends GoogleOAuthGateway {

@@ -4,9 +4,9 @@ import { ReminderDispatchMode } from '../../../contracts/enums.js';
 import { isReminderDispatchEligibleStatus } from '../../../domain/note-status.js';
 import { slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone } from '../../../domain/time.js';
-import { ContentQueryRepository } from '../../ports/content.repository.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
-import { ReminderDispatchRepository } from '../../ports/workflow-state.repository.js';
+import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { ReminderDispatchRepository } from '../../ports/reminders/workflow-state.repository.js';
 import { formatReminderScheduledAtLabel, resolveReminderScheduledAt } from './reminder-schedule.js';
 
 @Injectable()

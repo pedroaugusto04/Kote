@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { buildPaginationMeta } from '../../../contracts/pagination.js';
 import type { ListReviewsInput } from '../../models/review-list.models.js';
-import { ContentQueryRepository } from '../../ports/content.repository.js';
+import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()
 export class ListPaginatedReviewsUseCase {

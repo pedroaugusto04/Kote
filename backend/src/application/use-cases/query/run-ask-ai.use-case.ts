@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { AskHistoryRepository } from '../../ports/ask-history.repository.js';
+import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';
 import { AskKnowledgeUseCase } from './ask-knowledge.use-case.js';
 
 @Injectable()

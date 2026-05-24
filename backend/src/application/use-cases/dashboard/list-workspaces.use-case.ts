@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { ContentRepository } from '../../ports/content.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()
 export class ListWorkspacesUseCase {

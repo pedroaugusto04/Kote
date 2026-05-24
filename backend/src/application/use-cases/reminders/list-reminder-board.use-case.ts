@@ -4,7 +4,7 @@ import { KnowledgeStatus } from '../../../contracts/enums.js';
 import type { ReminderBoardInput } from '../../models/reminder-board.models.js';
 import { reminderBoardColumnKeys } from '../../models/reminder-board.models.js';
 import type { ReminderBoardCard, ReminderBoardColumnKey, ReminderBoardResponse } from '../../models/reminder.models.js';
-import { ContentQueryRepository } from '../../ports/content.repository.js';
+import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { sortRemindersBySchedule } from './reminder-list.helpers.js';
 import { RefreshReminderStatusesUseCase } from './refresh-reminder-statuses.use-case.js';
 

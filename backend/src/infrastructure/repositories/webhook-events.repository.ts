@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 
-import { WebhookEventRepository } from '../../application/ports/webhook-events.repository.js';
+import { WebhookEventRepository } from '../../application/ports/webhooks/webhook-events.repository.js';
 import { sanitizeWebhookHeaders, sanitizeWebhookValue } from '../../application/utils/webhook.utils.js';
 import { webhookEventFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';

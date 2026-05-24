@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { UpdateReminderStatusInput } from '../../models/reminder-board.models.js';
-import { ContentRepository } from '../../ports/content.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()
 export class UpdateReminderStatusUseCase {

@@ -4,12 +4,12 @@ import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, Integrati
 import { buildTelegramCodeReviewMessage } from '../../../../domain/notifications.js';
 import { buildGithubReviewEvent } from '../../../github-review.js';
 import type { GithubPushWebhookRequest } from '../../../models/webhook-request.models.js';
-import { ContentRepository } from '../../../ports/content.repository.js';
-import { GithubIntegrationGateway } from '../../../ports/github-integration.port.js';
-import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations.repository.js';
-import { ReviewAnalysisGateway } from '../../../ports/review-analysis.port.js';
-import { RuntimeEnvironmentProvider } from '../../../ports/runtime-environment.port.js';
-import { WebhookEventRepository } from '../../../ports/webhook-events.repository.js';
+import { ContentRepository } from '../../../ports/notes/content.repository.js';
+import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
+import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
+import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.port.js';
+import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
+import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 

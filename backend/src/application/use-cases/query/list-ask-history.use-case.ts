@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { PaginationInput } from '../../../contracts/pagination.js';
-import { AskHistoryRepository } from '../../ports/ask-history.repository.js';
+import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';
 
 @Injectable()
 export class ListAskHistoryUseCase {

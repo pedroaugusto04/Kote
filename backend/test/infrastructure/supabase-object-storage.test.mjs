@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ObjectStorageMissingContentError } from '../../dist/application/ports/object-storage.js';
+import { ObjectStorageMissingContentError } from '../../dist/application/ports/notes/object-storage.js';
 import { SupabaseObjectStorage } from '../../dist/infrastructure/storage/supabase-object-storage.js';
 
 function configureEnv() {

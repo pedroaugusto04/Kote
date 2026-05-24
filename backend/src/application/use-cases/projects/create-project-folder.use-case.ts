@@ -2,7 +2,7 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 
 import type { CreateProjectFolderInput } from '../../models/project-folder-input.models.js';
 import { buildFolderFullSlugPath, folderSlugFromDisplayName } from '../../utils/project-folder.utils.js';
-import { ContentRepository } from '../../ports/content.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()
 export class CreateProjectFolderUseCase {

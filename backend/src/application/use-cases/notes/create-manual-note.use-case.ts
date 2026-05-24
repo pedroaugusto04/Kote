@@ -7,8 +7,8 @@ import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/in
 import { hasReminder, normalizeManualNoteStatus } from '../../../domain/note-status.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import type { CreateManualNoteInput } from '../../models/note-input.models.js';
-import { ContentRepository } from '../../ports/content.repository.js';
-import { RuntimeEnvironmentProvider } from '../../ports/runtime-environment.port.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 
 @Injectable()

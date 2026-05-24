@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 
-import { UserRepository } from '../../application/ports/auth.repository.js';
+import { UserRepository } from '../../application/ports/auth/auth.repository.js';
 import { authIdentityFromRow, userFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 
