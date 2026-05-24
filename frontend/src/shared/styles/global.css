@@ -400,6 +400,10 @@ select:not([multiple]) {
 .tree-item-row:focus-within .favorite-star { opacity: 1; }
 .favorite-star:hover { color: var(--amber); transform: translateY(-50%) scale(1.15); }
 .favorite-star:active { transform: translateY(-50%) scale(0.92); }
+:root[data-theme="light"] .favorite-star.active,
+:root[data-theme="light"] .favorite-star:hover {
+  color: #f0b95a;
+}
 .content { min-width: 0; display: grid; grid-template-rows: auto 1fr; }
 .topbar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 14px; justify-content: space-between; min-height: 70px; padding: 14px 18px; background: var(--glass-topbar); border-bottom: 1px solid var(--line-soft); backdrop-filter: blur(14px); }
 .topbar-leading { display: flex; align-items: center; gap: 12px; }
