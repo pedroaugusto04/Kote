@@ -1,7 +1,9 @@
 import type { KnowledgeMapLinkType, KnowledgeMapNodeType } from '../../../shared/api/models/project-knowledge-map';
 
-export const visibleKnowledgeMapNodeTypes: KnowledgeMapNodeType[] = ['project', 'repository', 'folder', 'note', 'tag', 'category'];
-export const defaultVisibleKnowledgeMapNodeTypes = new Set<KnowledgeMapNodeType>(['project', 'repository', 'folder', 'note']);
+export type KnowledgeMapVisibleNodeType = KnowledgeMapNodeType | 'review-note';
+
+export const visibleKnowledgeMapNodeTypes: KnowledgeMapVisibleNodeType[] = ['project', 'repository', 'folder', 'note', 'review-note', 'tag', 'category'];
+export const defaultVisibleKnowledgeMapNodeTypes = new Set<KnowledgeMapVisibleNodeType>(['project', 'repository', 'folder', 'note', 'review-note']);
 export const knowledgeMapLimitOptions = [40, 80, 120, 150] as const;
 
 export const knowledgeMapNodeStyles: Record<KnowledgeMapNodeType, { label: string; color: string; radius: number }> = {
@@ -11,6 +13,16 @@ export const knowledgeMapNodeStyles: Record<KnowledgeMapNodeType, { label: strin
   note: { label: 'Note', color: '#86efac', radius: 10 },
   tag: { label: 'Tag', color: '#fca5a5', radius: 9 },
   category: { label: 'Category', color: '#fdba74', radius: 10 },
+};
+
+export const knowledgeMapVisibleNodeLabels: Record<KnowledgeMapVisibleNodeType, string> = {
+  project: knowledgeMapNodeStyles.project.label,
+  repository: knowledgeMapNodeStyles.repository.label,
+  folder: knowledgeMapNodeStyles.folder.label,
+  note: knowledgeMapNodeStyles.note.label,
+  'review-note': 'Review notes',
+  tag: knowledgeMapNodeStyles.tag.label,
+  category: knowledgeMapNodeStyles.category.label,
 };
 
 export const knowledgeMapLinkStyles: Record<KnowledgeMapLinkType, { stroke: string; width: number }> = {

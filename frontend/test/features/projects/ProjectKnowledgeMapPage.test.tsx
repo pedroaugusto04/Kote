@@ -163,7 +163,7 @@ describe('ProjectKnowledgeMapPage', () => {
     expect(openNote).toHaveBeenCalledWith('note-1');
   });
 
-  it('shows an empty state when the project has no notes to map', async () => {
+  it('keeps filters available when the current map filters return no notes', async () => {
     stubMapFetch(graphResponse({
       nodes: [{ id: 'project:platform', type: 'project', label: 'Platform', projectSlug: 'platform' }],
       links: [],
@@ -172,7 +172,11 @@ describe('ProjectKnowledgeMapPage', () => {
 
     renderMap();
 
-    expect(await screen.findByText('No recent project notes to map yet.')).toBeInTheDocument();
+    expect(await screen.findByText('No notes match the current map filters.')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Knowledge map category' })).toHaveValue('all');
+    expect(screen.getByRole('combobox', { name: 'Knowledge map folder' })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: 'Knowledge map volume' })).toHaveValue('80');
+    expect(screen.getByLabelText('Knowledge map node types')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('img', { name: 'Project knowledge map' })).not.toBeInTheDocument());
   });
 });
@@ -204,7 +208,7 @@ describe('filterKnowledgeMapDataset', () => {
       ],
     });
 
-    const filtered = filterKnowledgeMapDataset(dataset, new Set(['project', 'folder', 'note', 'tag', 'category']), { includeReviewNotes: false });
+    const filtered = filterKnowledgeMapDataset(dataset, new Set(['project', 'folder', 'note', 'tag', 'category']));
 
     expect(filtered.nodes.map((node) => node.id)).not.toContain('note:review-1');
     expect(filtered.links.map((link) => link.id)).not.toContain('contains:project:platform->note:review-1');
