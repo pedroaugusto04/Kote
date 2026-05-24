@@ -11,6 +11,7 @@ import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
+import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../../widgets/markdown/MarkdownView';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
@@ -124,6 +125,7 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
 
 function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {
   const [activeAttachment, setActiveAttachment] = useState<NoteAttachment | null>(null);
+  const isMobile = useMediaQuery('(max-width: 768px)');
 
   if (!attachments?.length) return null;
 
@@ -131,7 +133,13 @@ function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {
   const files = attachments.filter((attachment) => !attachment.mimeType.startsWith('image/'));
 
   const isPreviewable = (attachment: NoteAttachment) => {
-    return attachment.mimeType.startsWith('image/') || attachment.mimeType === 'application/pdf';
+    if (attachment.mimeType.startsWith('image/')) {
+      return true;
+    }
+    if (attachment.mimeType === 'application/pdf') {
+      return !isMobile;
+    }
+    return false;
   };
 
   const handleAttachmentClick = (e: React.MouseEvent, attachment: NoteAttachment) => {
