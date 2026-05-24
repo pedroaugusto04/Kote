@@ -15,6 +15,13 @@ const apiSpies = vi.hoisted(() => ({
   runAsk: vi.fn(),
 }));
 
+const notificationSpies = vi.hoisted(() => ({
+  notifyError: vi.fn(),
+  notifySuccess: vi.fn(),
+  notifyInfo: vi.fn(),
+  notifyWarning: vi.fn(),
+}));
+
 vi.mock('../../../src/shared/api/client', () => ({
   fetchAskHistory: apiSpies.fetchAskHistory,
   fetchNotes: apiSpies.fetchNotes,
@@ -22,6 +29,14 @@ vi.mock('../../../src/shared/api/client', () => ({
   runAsk: apiSpies.runAsk,
   updateNote: vi.fn(),
 }));
+
+vi.mock('../../../src/shared/ui/notifications', async () => {
+  const actual = await vi.importActual<typeof import('../../../src/shared/ui/notifications')>('../../../src/shared/ui/notifications');
+  return {
+    ...actual,
+    ...notificationSpies,
+  };
+});
 
 const dashboard: Dashboard = {
   workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
@@ -55,6 +70,10 @@ beforeEach(() => {
   apiSpies.fetchAskHistory.mockReset();
   apiSpies.runQuery.mockReset();
   apiSpies.runAsk.mockReset();
+  notificationSpies.notifyError.mockReset();
+  notificationSpies.notifySuccess.mockReset();
+  notificationSpies.notifyInfo.mockReset();
+  notificationSpies.notifyWarning.mockReset();
   apiSpies.fetchAskHistory.mockResolvedValue({
     ok: true,
     history: [],
@@ -200,14 +219,20 @@ describe('SearchPage', () => {
     expect(apiSpies.fetchAskHistory).not.toHaveBeenCalled();
   });
 
-  it('disables Ask AI until there is a query', () => {
+  it('keeps Ask AI clickable and warns when there is no query', () => {
     renderSearchPage('/search');
 
-    expect(screen.getByRole('button', { name: /ask ai/i })).toBeDisabled();
+    const askButton = screen.getByRole('button', { name: /ask ai/i });
+    expect(askButton).toBeEnabled();
+
+    fireEvent.click(askButton);
+
+    expect(notificationSpies.notifyWarning).toHaveBeenCalledWith('Type something before asking AI.');
+    expect(apiSpies.runAsk).not.toHaveBeenCalled();
 
     fireEvent.change(screen.getByPlaceholderText('Search or ask anything...'), { target: { value: 'deploy' } });
 
-    expect(screen.getByRole('button', { name: /ask ai/i })).toBeEnabled();
+    expect(askButton).toBeEnabled();
   });
 
   it('shows Ask AI errors without clearing matching notes', async () => {

@@ -16,6 +16,7 @@ import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { Select } from '../../shared/ui/select';
+import { notifyWarning } from '../../shared/ui/notifications';
 import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { NoteRow } from '../../widgets/notes/NoteRow';
@@ -48,7 +49,6 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
   const debouncedProjectSlug = useDebouncedValue(projectSlug, SEARCH_DEBOUNCE_MS);
   const debouncedStatus = useDebouncedValue(status, SEARCH_DEBOUNCE_MS);
   const hasQuery = Boolean(debouncedQuery.trim());
-  const hasQueryInput = Boolean(query.trim());
   const { page, setPage } = usePaginationState(`${debouncedQuery}:${debouncedProjectSlug}:${workspaceSlug}:${debouncedStatus}`);
   const { page: historyPage, setPage: setHistoryPage } = usePaginationState(`ask-history:${projectSlug}`);
 
@@ -108,7 +108,11 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
 
   const handleAsk = async () => {
     const question = query.trim();
-    if (!question || isAsking) return;
+    if (isAsking) return;
+    if (!question) {
+      notifyWarning('Type something before asking AI.');
+      return;
+    }
 
     setIsAsking(true);
     setAskError(null);
@@ -152,7 +156,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
             type="search"
           />
           <div className="search-actions">
-            <button className="icon-button" disabled={!hasQueryInput || isAsking} type="button" onClick={handleAsk}>
+            <button className="icon-button" disabled={isAsking} type="button" onClick={handleAsk}>
               <AskAiIcon className="ai-answer-action-icon" />
               {isAsking ? 'Asking...' : 'Ask AI'}
             </button>
