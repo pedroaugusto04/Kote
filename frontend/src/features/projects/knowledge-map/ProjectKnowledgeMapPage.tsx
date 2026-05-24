@@ -103,7 +103,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
             />
           </div>
         )}
-        subtitle={project.displayName}
+        subtitle=""
         action={(
           <div className="knowledge-map-actions">
             <button className="icon-button secondary" type="button" onClick={() => setPaused((current) => !current)}>
