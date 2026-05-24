@@ -5,6 +5,7 @@ import type { PaginationMeta } from '../../shared/api/models/pagination';
 import { formatDisplayToken, formatUsDateTime, noteTypeLabel, projectName } from '../../entities/format';
 import { Badge, EmptyState } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
+import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 
 const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
@@ -25,6 +26,7 @@ export function ProjectTimeline({
   onDeleteNote,
   onPageChange,
   isStale = false,
+  resetKey,
 }: {
   dashboard: Dashboard;
   items: ProjectTimelineItem[];
@@ -36,7 +38,19 @@ export function ProjectTimeline({
   onDeleteNote?: (note: NoteSummary) => void;
   onPageChange: (page: number) => void;
   isStale?: boolean;
+  resetKey: string;
 }) {
+  const {
+    isMobilePagination,
+    loadedMobilePage,
+    visibleItems,
+  } = useMobilePaginatedItems({
+    items,
+    pagination,
+    resetKey,
+    isPlaceholderData: isStale,
+  });
+
   return (
     <div className="project-timeline">
       <div className="timeline-filter-row" role="group" aria-label="Timeline category">
@@ -52,9 +66,9 @@ export function ProjectTimeline({
           </button>
         ))}
       </div>
-      {items.length > 0 ? (
+      {visibleItems.length > 0 ? (
         <div className={`project-timeline-list ${isStale ? 'stale-data' : ''}`}>
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)}>
               <div className="project-timeline-marker" aria-hidden="true" />
               <div className="project-timeline-card">
@@ -109,7 +123,11 @@ export function ProjectTimeline({
       ) : (
         <EmptyState>No timeline items for this category.</EmptyState>
       )}
-      {pagination ? <Pagination pagination={pagination} onPageChange={onPageChange} /> : null}
+      {pagination ? (
+        isMobilePagination
+          ? <MobileInfinitePagination pagination={pagination} isLoading={isStale || pagination.page > loadedMobilePage} onPageChange={onPageChange} />
+          : <Pagination pagination={pagination} onPageChange={onPageChange} />
+      ) : null}
     </div>
   );
 }

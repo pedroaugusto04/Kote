@@ -228,6 +228,7 @@ export function ProjectsWorkspace({
             onOpenNote={openNote}
             onPageChange={timelinePagination.setPage}
             isStale={allProjectsTimelineQuery.isPlaceholderData}
+            resetKey={`all:${timelineCategory}:timeline`}
           />
         </Panel>
       ) : selected ? (
@@ -271,6 +272,7 @@ export function ProjectsWorkspace({
           onDeleteProject={selectedProjectDeleteBlockedReason ? undefined : () => setConfirmState({ kind: 'project', project: selected })}
           deleteProjectLabel={selectedProjectDeleteBlockedReason || 'Delete project'}
           isStale={timelineQuery.isPlaceholderData}
+          timelineResetKey={`${selected.projectSlug}:${selectedFolderId}:${timelineCategory}:timeline`}
         />
       ) : null}
       {projectModal ? (

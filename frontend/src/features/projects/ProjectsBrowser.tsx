@@ -47,6 +47,7 @@ type ProjectsBrowserProps = {
   onDeleteProject?: () => void;
   deleteProjectLabel?: string;
   isStale?: boolean;
+  timelineResetKey: string;
 };
 
 export function ProjectsBrowser({
@@ -79,6 +80,7 @@ export function ProjectsBrowser({
   onDeleteProject,
   deleteProjectLabel,
   isStale = false,
+  timelineResetKey,
 }: ProjectsBrowserProps) {
   const folderScopeLabel = selectedFolder ? `${selectedFolder.displayName} and descendant folders` : 'All project notes';
 
@@ -182,6 +184,7 @@ export function ProjectsBrowser({
           onOpenNote={onOpenNote}
           onPageChange={onTimelinePageChange}
           isStale={isStale}
+          resetKey={timelineResetKey}
         />
       </div>
     </Panel>

@@ -7,6 +7,7 @@ import { sortRemindersForList } from '../../entities/reminders';
 import { fetchReminders } from '../../shared/api/client';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
+import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { Pagination } from '../../shared/ui/pagination';
 import { PageHead, Panel } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
@@ -21,7 +22,8 @@ const reminderStatusOptions = ['', 'pending', 'overdue', 'sent', 'resolved', 'ar
 export function RemindersPage({ dashboard, openNote }: PageContext) {
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
   const [status, setStatus] = useState('');
-  const { page, setPage } = usePaginationState(`${workspaceSlug}:${status}`);
+  const remindersPaginationKey = `${workspaceSlug}:${status}`;
+  const { page, setPage } = usePaginationState(remindersPaginationKey);
   const remindersQuery = useQuery({
     queryKey: ['reminders', workspaceSlug, status, page],
     queryFn: () => fetchReminders({ page, workspaceSlug, status }),
@@ -52,7 +54,18 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
         })()
       : undefined,
   });
-  const grouped = (remindersQuery.data?.reminders || []).reduce<Record<string, Reminder[]>>((acc, reminder) => {
+  const pagination = remindersQuery.data?.pagination;
+  const {
+    isMobilePagination,
+    loadedMobilePage,
+    visibleItems: visibleReminders,
+  } = useMobilePaginatedItems({
+    items: remindersQuery.data?.reminders || [],
+    pagination,
+    resetKey: remindersPaginationKey,
+    isPlaceholderData: remindersQuery.isPlaceholderData,
+  });
+  const grouped = visibleReminders.reduce<Record<string, Reminder[]>>((acc, reminder) => {
     const groupDate = reminder.reminderAt ? formatDateInUserTimeZone(reminder.reminderAt) : reminder.reminderDate;
     acc[groupDate || 'no-date'] ||= [];
     acc[groupDate || 'no-date'].push(reminder);
@@ -90,7 +103,11 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
           </Panel>
         ))}
       </div>
-      {remindersQuery.data ? <Pagination pagination={remindersQuery.data.pagination} onPageChange={setPage} /> : null}
+      {pagination ? (
+        isMobilePagination
+          ? <MobileInfinitePagination pagination={pagination} isLoading={remindersQuery.isFetching || pagination.page > loadedMobilePage} onPageChange={setPage} />
+          : <Pagination pagination={pagination} onPageChange={setPage} />
+      ) : null}
     </>
   );
 }

@@ -15,6 +15,7 @@ import { type NoteStatus } from '../../shared/api/models/note-status';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
+import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { Select } from '../../shared/ui/select';
 import { notifyWarning } from '../../shared/ui/notifications';
 import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
@@ -49,7 +50,8 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
   const debouncedProjectSlug = useDebouncedValue(projectSlug, SEARCH_DEBOUNCE_MS);
   const debouncedStatus = useDebouncedValue(status, SEARCH_DEBOUNCE_MS);
   const hasQuery = Boolean(debouncedQuery.trim());
-  const { page, setPage } = usePaginationState(`${debouncedQuery}:${debouncedProjectSlug}:${workspaceSlug}:${debouncedStatus}`);
+  const resultsPaginationKey = `${debouncedQuery}:${debouncedProjectSlug}:${workspaceSlug}:${debouncedStatus}`;
+  const { page, setPage } = usePaginationState(resultsPaginationKey);
   const { page: historyPage, setPage: setHistoryPage } = usePaginationState(`ask-history:${projectSlug}`);
 
   const setQuery = (newQuery: string) => {
@@ -104,7 +106,18 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
     : notesResult.data?.notes || [];
   const pagination = hasQuery ? queryResult.data?.pagination : notesResult.data?.pagination;
   const isResultsStale = hasQuery ? queryResult.isPlaceholderData : notesResult.isPlaceholderData;
+  const isResultsFetching = hasQuery ? queryResult.isFetching : notesResult.isFetching;
   const isResultsError = hasQuery ? queryResult.isError : notesResult.isError;
+  const {
+    isMobilePagination,
+    loadedMobilePage,
+    visibleItems: paginatedVisibleNotes,
+  } = useMobilePaginatedItems({
+    items: visibleNotes,
+    pagination,
+    resetKey: resultsPaginationKey,
+    isPlaceholderData: isResultsStale,
+  });
 
   const handleAsk = async () => {
     const question = query.trim();
@@ -249,7 +262,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
         </div>
         {isResultsError ? <InlineMessage tone="error">Could not load notes for these filters.</InlineMessage> : null}
         <div className={`list ${isResultsStale ? 'stale-data' : ''}`}>
-          {visibleNotes.map((note) => (
+          {paginatedVisibleNotes.map((note) => (
             <NoteRow
               key={note.id}
               note={note}
@@ -260,8 +273,12 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
             />
           ))}
         </div>
-        {pagination ? <Pagination pagination={pagination} onPageChange={setPage} /> : null}
-        {!visibleNotes.length && !isResultsError ? <EmptyState>No notes found with these filters.</EmptyState> : null}
+        {pagination ? (
+          isMobilePagination
+            ? <MobileInfinitePagination pagination={pagination} isLoading={isResultsFetching || pagination.page > loadedMobilePage} onPageChange={setPage} />
+            : <Pagination pagination={pagination} onPageChange={setPage} />
+        ) : null}
+        {!paginatedVisibleNotes.length && !isResultsError ? <EmptyState>No notes found with these filters.</EmptyState> : null}
       </Panel>
     </>
   );
