@@ -13,6 +13,7 @@ export { CreateProjectFolderUseCase } from './projects/create-project-folder.use
 export { UpdateProjectFolderUseCase } from './projects/update-project-folder.use-case.js';
 export { DeleteProjectFolderUseCase } from './projects/delete-project-folder.use-case.js';
 export { UpdateProjectUseCase } from './projects/update-project.use-case.js';
+export { SetProjectFavoriteUseCase } from './projects/set-project-favorite.use-case.js';
 export { CreateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
 export { DeleteNoteUseCase } from './notes/delete-manual-note.use-case.js';
 export { GetNoteAttachmentContentUseCase } from './notes/get-note-attachment-content.use-case.js';

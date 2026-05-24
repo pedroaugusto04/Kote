@@ -83,3 +83,11 @@ export const updateProjectFolderBodySchema = createProjectFolderBodySchema;
 export type ProjectFolderParam = z.infer<typeof projectFolderIdParamSchema>;
 export type CreateProjectFolderBody = z.infer<typeof createProjectFolderBodySchema>;
 export type UpdateProjectFolderBody = z.infer<typeof updateProjectFolderBodySchema>;
+
+export const setProjectFavoriteBodySchema = z
+  .object({
+    favorite: z.boolean(),
+  })
+  .strict();
+
+export type SetProjectFavoriteBody = z.infer<typeof setProjectFavoriteBodySchema>;

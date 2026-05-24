@@ -67,6 +67,7 @@ function projectFromPayload(payload: IngestPayload, workspaceSlug: string): Proj
     workspaceSlug,
     defaultTags: [],
     enabled: true,
+    favorite: false,
   };
 }
 

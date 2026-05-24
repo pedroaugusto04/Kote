@@ -17,4 +17,5 @@ export type Project = {
   repositories: Repository[];
   defaultTags: string[];
   enabled: boolean;
+  favorite: boolean;
 };

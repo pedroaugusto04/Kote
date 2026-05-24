@@ -366,6 +366,7 @@ test('process agent conversation auto-creates a missing project before submittin
     repositories: [],
     defaultTags: [],
     enabled: true,
+    favorite: false,
   });
   assert.equal(ingested.length, 1);
   assert.equal(ingested[0].event.projectSlug, 'projeto-x');

@@ -23,6 +23,7 @@ export {
   fetchProjectTimeline,
   fetchProjects,
   generateProjectBrief,
+  setProjectFavorite,
   updateProject,
   updateProjectFolder,
 } from './projects';

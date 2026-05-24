@@ -37,6 +37,7 @@ export class CreateProjectUseCase {
       repositories: selectedRepositories,
       defaultTags: input.defaultTags,
       enabled: true,
+      favorite: false,
     });
 
     return {

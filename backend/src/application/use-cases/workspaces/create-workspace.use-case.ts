@@ -42,6 +42,7 @@ export class CreateWorkspaceUseCase {
       workspaceSlug,
       defaultTags: [],
       enabled: true,
+      favorite: false,
     });
 
     await Promise.all([

@@ -243,6 +243,7 @@ export class IntegrationConnectionService {
         repositories: [repo],
         defaultTags: [],
         enabled: true,
+        favorite: false,
       });
     }));
     return {

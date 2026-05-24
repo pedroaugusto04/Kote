@@ -28,6 +28,7 @@ export abstract class ContentRepository {
   abstract getProjectBySlug(userId: string, projectSlug: string): Promise<SaveProjectInput | null>;
   abstract upsertProject(userId: string, input: SaveProjectInput): Promise<SaveProjectInput>;
   abstract deleteProject(userId: string, projectSlug: string): Promise<boolean>;
+  abstract setProjectFavorite(userId: string, projectSlug: string, favorite: boolean): Promise<SaveProjectInput | null>;
   abstract listProjectFolders(userId: string, projectSlug: string): Promise<ProjectFolderRecord[]>;
   abstract getProjectFolderById(userId: string, projectSlug: string, folderId: string): Promise<ProjectFolderRecord | null>;
   abstract upsertProjectFolder(userId: string, input: SaveProjectFolderInput): Promise<ProjectFolderRecord>;

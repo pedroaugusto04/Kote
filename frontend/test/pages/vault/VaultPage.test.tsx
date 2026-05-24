@@ -27,6 +27,7 @@ const baseDashboard: Dashboard = {
       workspaceSlug: 'default',
       defaultTags: [],
       enabled: true,
+      favorite: false,
     },
     {
       projectSlug: 'mobile',
@@ -35,6 +36,7 @@ const baseDashboard: Dashboard = {
       workspaceSlug: 'default',
       defaultTags: [],
       enabled: true,
+      favorite: false,
     },
   ],
   notes: [],

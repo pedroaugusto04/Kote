@@ -27,6 +27,7 @@ const dashboard = {
       workspaceSlug: 'default',
       defaultTags: ['backend', 'automation'],
       enabled: true,
+      favorite: false,
     },
   ],
   notes: [
@@ -697,6 +698,7 @@ describe('AppShell', () => {
           workspaceSlug: 'default',
           defaultTags: ['platform'],
           enabled: true,
+          favorite: false,
         },
       ],
       notes: [

@@ -57,6 +57,14 @@ export function deleteProject(projectSlug: string) {
   });
 }
 
+export function setProjectFavorite(projectSlug: string, favorite: boolean) {
+  return request<{ ok: true; project: Project }>(`/api/projects/${encodeURIComponent(projectSlug)}/favorite`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ favorite }),
+  });
+}
+
 export function fetchProjectFolders(projectSlug: string) {
   return request<{ ok: true; projectSlug: string; folders: ProjectFolder[] }>(`/api/projects/${encodeURIComponent(projectSlug)}/folders`);
 }

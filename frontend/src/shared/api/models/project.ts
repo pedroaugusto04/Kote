@@ -17,4 +17,5 @@ export type Project = {
   workspaceSlug: string;
   defaultTags: string[];
   enabled: boolean;
+  favorite: boolean;
 };

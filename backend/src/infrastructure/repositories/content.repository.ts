@@ -110,7 +110,7 @@ export class PostgresContentRepository extends ContentRepository {
     const result = await this.database.getPool().query(
       `${PROJECT_WITH_METADATA_SELECT_SQL}
        WHERE p.user_id = $1 AND p.enabled = true
-       ORDER BY p.project_slug`,
+       ORDER BY p.is_favorite DESC, p.project_slug`,
       [userId],
     );
     return result.rows.map(projectFromRow);
@@ -128,7 +128,7 @@ export class PostgresContentRepository extends ContentRepository {
     const result = await this.database.getPool().query(
       `${PROJECT_WITH_METADATA_SELECT_SQL}
        WHERE p.user_id = $1 AND p.enabled = true
-       ORDER BY p.project_slug
+       ORDER BY p.is_favorite DESC, p.project_slug
        LIMIT $2 OFFSET $3`,
       [userId, pagination.pageSize, offset],
     );
@@ -153,18 +153,20 @@ export class PostgresContentRepository extends ContentRepository {
     repositories: RepositoryRecord[];
     defaultTags: string[];
     enabled: boolean;
+    favorite?: boolean;
   }) {
     const client = await this.database.getPool().connect();
     try {
       await client.query('BEGIN');
       const result = await client.query(
-        `insert into kb_projects (id, user_id, project_slug, display_name, workspace_slug, enabled)
-         values ($1, $2, $3, $4, $5, $6)
+        `insert into kb_projects (id, user_id, project_slug, display_name, workspace_slug, enabled, is_favorite)
+         values ($1, $2, $3, $4, $5, $6, $7)
          on conflict (user_id, project_slug)
          do update set
            display_name = excluded.display_name,
            workspace_slug = excluded.workspace_slug,
            enabled = excluded.enabled,
+           is_favorite = excluded.is_favorite,
            updated_at = now()
          returning *`,
         [
@@ -174,6 +176,7 @@ export class PostgresContentRepository extends ContentRepository {
           input.displayName,
           input.workspaceSlug,
           input.enabled,
+          input.favorite ?? false,
         ],
       );
       const project = result.rows[0];
@@ -208,6 +211,14 @@ export class PostgresContentRepository extends ContentRepository {
     } finally {
       client.release();
     }
+  }
+
+  async setProjectFavorite(userId: string, projectSlug: string, favorite: boolean) {
+    const result = await this.database.getPool().query(
+      `UPDATE kb_projects SET is_favorite = $3, updated_at = now() WHERE user_id = $1 AND project_slug = $2 RETURNING *`,
+      [userId, projectSlug, favorite],
+    );
+    return result.rows[0] ? projectFromRow(result.rows[0]) : null;
   }
 
   async deleteProject(userId: string, projectSlug: string) {
@@ -571,7 +582,10 @@ export class PostgresContentRepository extends ContentRepository {
        from kb_projects
        where user_id = $1
          and enabled = true
-         and project_slug <= $2`,
+         and (
+           is_favorite > (select is_favorite from kb_projects where user_id = $1 and project_slug = $2)
+           or (is_favorite = (select is_favorite from kb_projects where user_id = $1 and project_slug = $2) and project_slug <= $2)
+         )`,
       [userId, selectedSlug],
     );
     const index = Number(result.rows[0]?.idx || 0);

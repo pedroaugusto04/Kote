@@ -51,6 +51,7 @@ const dashboard: Dashboard = {
       workspaceSlug: 'default',
       defaultTags: [],
       enabled: true,
+      favorite: false,
     },
     {
       projectSlug: 'platform',
@@ -59,6 +60,7 @@ const dashboard: Dashboard = {
       workspaceSlug: 'default',
       defaultTags: ['backend'],
       enabled: true,
+      favorite: false,
     },
     {
       projectSlug: 'empty',
@@ -67,6 +69,7 @@ const dashboard: Dashboard = {
       workspaceSlug: 'default',
       defaultTags: [],
       enabled: true,
+      favorite: false,
     },
   ],
   notes: [

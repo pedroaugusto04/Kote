@@ -35,6 +35,7 @@ const dashboard: Dashboard = {
       workspaceSlug: 'default',
       defaultTags: ['backend'],
       enabled: true,
+      favorite: false,
     },
   ],
   notes: [

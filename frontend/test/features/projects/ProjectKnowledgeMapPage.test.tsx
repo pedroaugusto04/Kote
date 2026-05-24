@@ -20,6 +20,7 @@ const dashboard: Dashboard = {
       workspaceSlug: 'default',
       defaultTags: [],
       enabled: true,
+      favorite: false,
     },
   ],
   notes: [],

@@ -148,6 +148,7 @@ export function projectFromRow(row: Row): ProjectRecord {
     })),
     defaultTags: stringArray(row.default_tags),
     enabled: row.enabled !== false,
+    favorite: row.is_favorite === true,
   };
 }
 

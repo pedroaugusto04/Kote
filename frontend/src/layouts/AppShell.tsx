@@ -4,7 +4,7 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout } from '../shared/api/client';
+import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, setProjectFavorite } from '../shared/api/client';
 import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { HomePage } from '../pages/home/HomePage';
@@ -158,6 +158,11 @@ export function AppShell() {
     },
     onError: (error) => notifyGeneralFormError(error, 'Could not delete the note.'),
   });
+  const toggleFavoriteMutation = useMutation({
+    mutationFn: ({ slug, favorite }: { slug: string; favorite: boolean }) =>
+      setProjectFavorite(slug, favorite),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+  });
 
   useEffect(() => {
     if (!isMobileNavOpen) return undefined;
@@ -273,18 +278,32 @@ export function AppShell() {
           <div className="section-label">Projects</div>
           <div className="tree">
             {dashboard.projects.map((project) => (
-              <button
-                className={`tree-item ${project.projectSlug === pageContext.selectedProject ? 'active' : ''}`}
-                type="button"
-                key={project.projectSlug}
-                onClick={() => {
-                  pageContext.openProject(project.projectSlug);
-                  setIsMobileNavOpen(false);
-                }}
-              >
-                <span className="file-icon">P</span>
-                <span>{project.displayName}</span>
-              </button>
+              <div className="tree-item-row" key={project.projectSlug}>
+                <button
+                  className={`tree-item ${project.projectSlug === pageContext.selectedProject ? 'active' : ''}`}
+                  type="button"
+                  onClick={() => {
+                    pageContext.openProject(project.projectSlug);
+                    setIsMobileNavOpen(false);
+                  }}
+                >
+                  <span className="file-icon">P</span>
+                  <span>{project.displayName}</span>
+                </button>
+                <button
+                  aria-label={project.favorite ? 'Unstar' : 'Star'}
+                  className={`favorite-star ${project.favorite ? 'active' : ''}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleFavoriteMutation.mutate({ slug: project.projectSlug, favorite: !project.favorite });
+                  }}
+                  type="button"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" fill={project.favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z" />
+                  </svg>
+                </button>
+              </div>
             ))}
           </div>
         </section>

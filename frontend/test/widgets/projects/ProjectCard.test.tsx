@@ -22,6 +22,7 @@ describe('ProjectCard', () => {
           workspaceSlug: 'default',
           defaultTags: ['backend', 'automation'],
           enabled: true,
+      favorite: false,
         }}
       />,
     );

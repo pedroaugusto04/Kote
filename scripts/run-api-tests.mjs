@@ -12,7 +12,7 @@ console.log('Running API integration tests...');
 const commands = [
   ['npm', ['run', 'clean']],
   ['npm', ['run', 'build:api']],
-  ['node', ['--test', 'backend/test/**/*.test.mjs']]
+  ['node', ['--test', '--test-concurrency=1', 'backend/test/**/*.test.mjs']]
 ];
 
 for (const [cmd, args] of commands) {

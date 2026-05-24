@@ -11,6 +11,7 @@ import {
   ListProjectFoldersUseCase,
   ListProjectKnowledgeMapUseCase,
   ListProjectTimelineUseCase,
+  SetProjectFavoriteUseCase,
   UpdateProjectFolderUseCase,
   UpdateProjectUseCase,
 } from '../../../application/use-cases/index.js';
@@ -23,6 +24,7 @@ import {
   projectKnowledgeMapQuerySchema,
   projectSlugParamSchema,
   projectTimelineQuerySchema,
+  setProjectFavoriteBodySchema,
   updateProjectBodySchema,
   updateProjectFolderBodySchema,
   type CreateProjectBody,
@@ -31,6 +33,7 @@ import {
   type ProjectKnowledgeMapQuery,
   type ProjectSlugParam,
   type ProjectTimelineQuery,
+  type SetProjectFavoriteBody,
   type UpdateProjectBody,
   type UpdateProjectFolderBody,
 } from '../dto/project.dto.js';
@@ -43,6 +46,7 @@ export class ProjectsController {
     private readonly createProject: CreateProjectUseCase,
     private readonly updateProject: UpdateProjectUseCase,
     private readonly deleteProjectUseCase: DeleteProjectUseCase,
+    private readonly setProjectFavoriteUseCase: SetProjectFavoriteUseCase,
     private readonly generateProjectBriefUseCase: GenerateProjectBriefUseCase,
     private readonly getProjectBriefUseCase: GetProjectBriefUseCase,
     private readonly listProjectKnowledgeMapUseCase: ListProjectKnowledgeMapUseCase,
@@ -79,6 +83,16 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.deleteProjectUseCase.execute(params.projectSlug, user.id);
+  }
+
+  @Patch(':projectSlug/favorite')
+  @UseGuards(TrustedOriginGuard)
+  setFavorite(
+    @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
+    @Body(new ZodValidationPipe(setProjectFavoriteBodySchema, 'invalid_set_favorite_payload')) body: SetProjectFavoriteBody,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.setProjectFavoriteUseCase.execute(user.id, params.projectSlug, body.favorite);
   }
 
   @Get('timeline')

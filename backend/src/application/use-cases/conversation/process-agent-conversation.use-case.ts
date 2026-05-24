@@ -310,6 +310,7 @@ export class ProcessAgentConversationUseCase {
       repositories: [],
       defaultTags: [],
       enabled: true,
+      favorite: false,
     });
   }
 

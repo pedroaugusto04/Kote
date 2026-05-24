@@ -100,6 +100,7 @@ export type ProjectRecord = {
   repositories: RepositoryRecord[];
   defaultTags: string[];
   enabled: boolean;
+  favorite: boolean;
 };
 
 export type ProjectFolderRecord = {

@@ -120,6 +120,7 @@ describe('SetupPage', () => {
             workspaceSlug: 'acme-team',
             defaultTags: [],
             enabled: true,
+      favorite: false,
           },
         });
       }
