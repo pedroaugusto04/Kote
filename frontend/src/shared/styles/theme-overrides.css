@@ -1,0 +1,232 @@
+/* ── Light-mode contrast reinforcements ── */
+:root[data-theme="light"] .sidebar {
+  background: var(--glass-panel);
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="light"] .topbar {
+  background: var(--glass-topbar);
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="light"] .card,
+:root[data-theme="light"] .panel,
+:root[data-theme="light"] .note-reader,
+:root[data-theme="light"] .search-box {
+  border-color: var(--line-soft);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .form-field input,
+:root[data-theme="light"] .form-field textarea,
+:root[data-theme="light"] .form-field select,
+:root[data-theme="light"] .search-box input,
+:root[data-theme="light"] .search-box select {
+  border-color: var(--line);
+}
+
+:root[data-theme="light"] .form-field input:focus,
+:root[data-theme="light"] .form-field textarea:focus,
+:root[data-theme="light"] .form-field select:focus,
+:root[data-theme="light"] .search-box input:focus,
+:root[data-theme="light"] .search-box select:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.10);
+  outline: 0;
+}
+
+:root[data-theme="light"] .icon-button {
+  background: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .icon-button:hover:not(:disabled) {
+  background: var(--surface-hover-accent);
+  border-color: var(--cyan);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .icon-button.secondary {
+  background: var(--surface-4);
+  border-color: var(--line-soft);
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .filter-chip {
+  border-color: var(--line-soft);
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .filter-chip:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+:root[data-theme="light"] .filter-chip.active {
+  background: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .nav-item.active,
+:root[data-theme="light"] .tree-item.active {
+  background: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .tag,
+:root[data-theme="light"] .badge:not(.high):not(.critical):not(.overdue):not(.medium):not(.pending):not(.low):not(.active):not(.resolved):not(.sent) {
+  border-color: var(--line-soft);
+  color: var(--text-soft);
+  background: var(--surface-5);
+}
+
+:root[data-theme="light"] .row-action-button {
+  border-color: var(--line-soft);
+  background: var(--surface-4);
+}
+
+:root[data-theme="light"] .row-action-button:hover {
+  border-color: var(--accent-border);
+  background: var(--surface-hover-accent);
+}
+
+:root[data-theme="light"] .command-bar {
+  border-color: var(--line-soft);
+  background: var(--panel);
+}
+
+:root[data-theme="light"] .empty-state {
+  border-color: var(--line-soft);
+  background: var(--surface-4);
+}
+
+:root[data-theme="light"] .pagination-number {
+  border-color: var(--line-soft);
+  background: var(--surface-4);
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .pagination-number.active {
+  background: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .kb-select-trigger {
+  border-color: var(--line);
+}
+
+:root[data-theme="light"] .kb-select-trigger:hover:not(:disabled) {
+  border-color: var(--cyan);
+}
+
+:root[data-theme="light"] .home-kpi {
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="light"] .home-panel {
+  border-color: var(--line-soft);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .kanban-card {
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="light"] .kanban-column {
+  border-color: var(--line-soft);
+  background: var(--surface-2);
+}
+
+:root[data-theme="light"] .segmented-control {
+  border-color: var(--line-soft);
+  background: var(--panel);
+}
+
+:root[data-theme="light"] .segmented-control button {
+  background: var(--panel);
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .segmented-control button:hover:not(:disabled) {
+  background: var(--surface-4);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+:root[data-theme="light"] .segmented-control button.active {
+  background: var(--panel);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .theme-toggle,
+:root[data-theme="light"] .topbar-icon {
+  border-color: var(--line-soft);
+  background: var(--surface-4);
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .theme-toggle:hover,
+:root[data-theme="light"] .topbar-icon:hover,
+:root[data-theme="light"] .topbar-icon.active {
+  background: var(--surface-hover-accent);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .modal-panel {
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="light"] .kb-toast {
+  border-color: var(--line-soft);
+  background: var(--panel);
+}
+
+:root[data-theme="light"] .auth-panel {
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="light"] .landing-hero {
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="light"] .timeline-filter-row button {
+  border-color: var(--line-soft);
+  background: var(--surface-4);
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .timeline-filter-row button.active {
+  background: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .inline-message {
+  border-color: var(--line-soft);
+}
+
+:root[data-theme="light"] .workspace-pill-static {
+  border-color: var(--line-soft);
+  background: var(--surface-4);
+}
+
+:root[data-theme="light"] .connection-code {
+  border-color: var(--accent-border);
+  background: var(--surface-active);
+}
+
+:root[data-theme="light"] .note-ai-summary {
+  border-color: var(--line-soft);
+  background: var(--surface-4);
+}
+
+:root[data-theme="light"] .section-label {
+  color: var(--muted);
+}

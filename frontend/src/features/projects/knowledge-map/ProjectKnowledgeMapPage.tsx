@@ -67,9 +67,33 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   });
   const graph = query.data;
   const flatFolders = useMemo(() => flattenFolders(foldersQuery.data?.folders || []), [foldersQuery.data?.folders]);
+
+  const dateRange = useMemo(() => {
+    if (!graph?.nodes) return null;
+    const noteTimes = graph.nodes
+      .filter((n) => n.type === 'note' && n.date)
+      .map((n) => new Date(n.date!).getTime())
+      .sort((a, b) => a - b);
+    if (noteTimes.length < 2) return null;
+    return {
+      min: noteTimes[0],
+      max: noteTimes[noteTimes.length - 1],
+    };
+  }, [graph]);
+
+  const [maxDateFilter, setMaxDateFilter] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (dateRange) {
+      setMaxDateFilter(dateRange.max);
+    } else {
+      setMaxDateFilter(null);
+    }
+  }, [dateRange]);
+
   const filteredGraph = useMemo(
-    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes) : null,
-    [graph, visibleTypes],
+    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes, maxDateFilter) : null,
+    [graph, visibleTypes, maxDateFilter],
   );
 
   useEffect(() => {
@@ -149,9 +173,12 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
             folders={flatFolders}
             limit={limit}
             visibleTypes={visibleTypes}
+            dateRange={dateRange}
+            maxDateFilter={maxDateFilter}
             onCategoryChange={setCategory}
             onFolderChange={setFolderId}
             onLimitChange={setLimit}
+            onMaxDateFilterChange={setMaxDateFilter}
             onTypeToggle={(type) => {
               setVisibleTypes((current) => {
                 const next = new Set(current);
@@ -199,9 +226,12 @@ type KnowledgeMapControlsProps = {
   folders: ReturnType<typeof flattenFolders>;
   limit: number;
   visibleTypes: Set<KnowledgeMapVisibleNodeType>;
+  dateRange: { min: number; max: number } | null;
+  maxDateFilter: number | null;
   onCategoryChange: (category: ProjectTimelineCategory) => void;
   onFolderChange: (folderId: string) => void;
   onLimitChange: (limit: number) => void;
+  onMaxDateFilterChange: (value: number) => void;
   onTypeToggle: (type: KnowledgeMapVisibleNodeType) => void;
 };
 
@@ -211,9 +241,12 @@ function KnowledgeMapControls({
   folders,
   limit,
   visibleTypes,
+  dateRange,
+  maxDateFilter,
   onCategoryChange,
   onFolderChange,
   onLimitChange,
+  onMaxDateFilterChange,
   onTypeToggle,
 }: KnowledgeMapControlsProps) {
   return (
@@ -251,6 +284,20 @@ function KnowledgeMapControls({
           </label>
         ))}
       </div>
+      {dateRange && maxDateFilter !== null && (
+        <div className="knowledge-map-timeline-slider">
+          <label>
+            <span>Timeline limit: {new Date(maxDateFilter).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+            <input
+              type="range"
+              min={dateRange.min}
+              max={dateRange.max}
+              value={maxDateFilter}
+              onChange={(event) => onMaxDateFilterChange(Number(event.target.value))}
+            />
+          </label>
+        </div>
+      )}
     </div>
   );
 }

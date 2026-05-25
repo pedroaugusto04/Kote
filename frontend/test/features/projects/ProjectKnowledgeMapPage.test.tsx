@@ -185,6 +185,7 @@ describe('ProjectKnowledgeMapPage', () => {
         ...graphResponse().links,
         { id: 'contains:project:platform->repository:101', source: 'project:platform', target: 'repository:101', type: 'contains' },
         { id: 'contains:project:platform->note:review-1', source: 'project:platform', target: 'note:review-1', type: 'contains' },
+        { id: 'from-repository:note:review-1->repository:101', source: 'note:review-1', target: 'repository:101', type: 'from-repository' },
       ],
     }));
 
