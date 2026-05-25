@@ -1,0 +1,41 @@
+/* Search systems & inputs styling */
+.search-box {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.search-box input,
+.search-box select {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  padding: 0 12px;
+}
+
+.search-box select {
+  padding-right: 42px;
+}
+
+.search-box .filters {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.search-box .filters > * {
+  min-width: 0;
+}
+
+.search-box .search-filter-workspace,
+.search-box .search-filter-project,
+.search-box .search-filter-status {
+  grid-column: span 1;
+}
+
+.search-box .kb-select-sizer,
+.search-box .kb-select-trigger {
+  min-height: 48px;
+  padding: 0 14px 0 12px;
+}

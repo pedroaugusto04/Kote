@@ -1,0 +1,173 @@
+/* Integrations grid setup */
+.integrations-grid {
+  align-items: stretch;
+}
+
+.integration-card {
+  position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 100%;
+  gap: 16px;
+}
+
+.integration-card-head {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  gap: 14px;
+  min-width: 0;
+}
+
+.integration-card-head h2 {
+  margin-bottom: 6px;
+}
+
+.integration-card-head p {
+  margin-bottom: 0;
+}
+
+.integration-card-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.integration-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  align-self: end;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.integration-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.integration-logo,
+.integration-logo-fallback {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-6);
+}
+
+.integration-logo {
+  padding: 9px;
+  object-fit: contain;
+}
+
+.integration-logo-github-app {
+  padding: 8px;
+  background: #0f1419;
+  border-color: rgba(15, 20, 25, 0.18);
+}
+
+:root[data-theme="dark"] .integration-logo-github-app {
+  background: #1f2328;
+  border-color: rgba(31, 35, 40, 0.20);
+}
+
+.integration-logo-fallback {
+  display: grid;
+  place-items: center;
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.integration-steps {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.integration-steps li + li {
+  margin-top: 4px;
+}
+
+.connection-code {
+  display: inline-grid;
+  place-items: center;
+  min-height: 52px;
+  width: fit-content;
+  min-width: 148px;
+  padding: 8px 16px;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--surface-hover-strong);
+  color: var(--active-text);
+  font-family: var(--mono);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.repository-picker {
+  display: grid;
+  gap: 8px;
+  max-height: 320px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.repository-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 9px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: var(--surface-4);
+}
+
+.repository-option input {
+  margin: 0;
+}
+
+.repository-option span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.repository-option strong,
+.repository-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repository-option small {
+  color: var(--muted);
+}
+
+.integration-modal {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.integration-modal-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 13px;
+  min-width: 0;
+}
+
+.integration-modal-title h2 {
+  margin-bottom: 0;
+}

@@ -1,0 +1,125 @@
+/* Forms structure, inputs and details */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.form-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.form-field label {
+  cursor: pointer;
+}
+
+.form-field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.form-field-meta {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.form-field input,
+.form-field textarea,
+.form-field select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+  color: var(--text);
+  padding: 10px 12px;
+}
+
+.form-field select {
+  padding-right: 42px;
+}
+
+.form-field .kb-select-trigger {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.form-field input[aria-invalid="true"],
+.form-field textarea[aria-invalid="true"],
+.form-field select[aria-invalid="true"] {
+  border-color: var(--invalid-border);
+  box-shadow: 0 0 0 1px var(--invalid-shadow);
+}
+
+.form-field textarea {
+  min-height: 140px;
+  resize: vertical;
+  font-family: var(--mono);
+  line-height: 1.5;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--danger-text-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.auth-form > .form-actions {
+  width: 100%;
+}
+
+.auth-form > .form-actions .icon-button,
+.auth-form > .form-actions .filter-chip {
+  width: auto;
+}
+
+.inline-message {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--surface-5);
+  color: var(--text-strong);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.inline-message.error {
+  border-color: var(--danger-border);
+  background: var(--surface-danger);
+  color: var(--danger-text);
+}
+
+.inline-message.warning {
+  border-color: var(--warning-border);
+  background: var(--surface-warning);
+  color: var(--warning-text);
+}
+
+.inline-message.success {
+  border-color: var(--success-border-soft);
+  background: var(--surface-success);
+  color: var(--success-text);
+}
+
+.inline-message.info {
+  border-color: var(--info-border);
+  background: var(--surface-info);
+  color: var(--info-text);
+}

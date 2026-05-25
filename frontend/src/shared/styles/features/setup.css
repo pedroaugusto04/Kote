@@ -1,0 +1,117 @@
+/* Setup wizards configuration */
+.setup-layout {
+  min-height: 100vh;
+  padding: 48px 32px 64px;
+  background:
+    radial-gradient(circle at top left, var(--surface-warning), transparent 32%),
+    var(--body-overlay);
+  display: grid;
+  place-items: start center;
+}
+
+.setup-shell {
+  width: min(960px, 100%);
+  display: grid;
+  gap: 24px;
+}
+
+.setup-hero {
+  max-width: 760px;
+}
+
+.setup-hero .page-head {
+  margin-bottom: 0;
+}
+
+.setup-hero .page-head h1 {
+  margin-bottom: 10px;
+}
+
+.setup-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.setup-step-card {
+  width: 100%;
+  max-width: 820px;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, var(--surface-2), var(--surface-1)),
+    var(--surface-1);
+}
+
+.setup-step-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.setup-step-head > div:first-child {
+  max-width: 560px;
+}
+
+.setup-step-state {
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.setup-step-state.done { color: var(--green); }
+.setup-step-state.pending { color: var(--muted); }
+
+.setup-form {
+  width: min(100%, 540px);
+}
+
+.setup-form .form-field input,
+.setup-form .form-field textarea,
+.setup-form .form-field select {
+  min-height: 44px;
+}
+
+.setup-form .form-field .kb-select-sizer,
+.setup-form .form-field .kb-select-trigger {
+  min-height: 44px;
+}
+
+.setup-submit {
+  width: auto;
+  min-width: 180px;
+  align-self: start;
+  padding-inline: 18px;
+}
+
+.setup-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.setup-actions .icon-button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.setup-inline-banner {
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.setup-inline-banner .icon-button {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.setup-inline-banner.success { border-color: var(--success-border-soft); }
+.setup-inline-banner.error { border-color: var(--danger-border); }
