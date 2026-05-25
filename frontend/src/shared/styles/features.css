@@ -91,6 +91,23 @@
   color: var(--danger-text);
 }
 
+.project-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.project-title-row h2 {
+  margin-bottom: 0;
+}
+
+.project-title-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .project-browser {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
