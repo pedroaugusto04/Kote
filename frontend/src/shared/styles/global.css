@@ -652,10 +652,12 @@ p { color: var(--muted); line-height: 1.6; }
   display: grid;
   gap: 12px;
   min-height: 420px;
-  padding: 12px;
+  padding: 14px;
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--surface-3);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 .kanban-column-blocked-drop {
   border-style: dashed;
@@ -665,6 +667,11 @@ p { color: var(--muted); line-height: 1.6; }
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--surface-hover), transparent);
+  border-bottom: 2px solid var(--accent-border);
+  margin-bottom: 4px;
 }
 .kanban-column-header h2 { margin-bottom: 0; }
 .kanban-column-header span,
@@ -696,14 +703,22 @@ p { color: var(--muted); line-height: 1.6; }
   color: inherit;
   cursor: pointer;
   box-shadow: var(--shadow);
-  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 .kanban-card:hover,
 .kanban-card:focus-visible {
   border-color: var(--accent-border);
   background: var(--surface-2);
   outline: 0;
-  transform: translateY(-1px);
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+.kanban-card.dragging {
+  opacity: 0.45;
+  border-style: dashed;
+  border-color: var(--accent-border);
+  transform: scale(0.96);
+  box-shadow: none;
 }
 .kanban-card h3 {
   margin-bottom: 0;
@@ -859,12 +874,15 @@ p { color: var(--muted); line-height: 1.6; }
 .knowledge-map-controls {
   display: grid;
   grid-template-columns: repeat(3, minmax(140px, 1fr));
-  gap: 10px;
+  gap: 12px;
   align-items: end;
-  padding: 10px;
+  padding: 14px;
   border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  background: var(--surface-3);
+  border-radius: 12px;
+  background: var(--glass-panel, rgba(30, 41, 59, 0.45));
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  box-shadow: var(--shadow);
 }
 .knowledge-map-controls > label {
   display: grid;
@@ -974,12 +992,70 @@ p { color: var(--muted); line-height: 1.6; }
   pointer-events: none;
 }
 .knowledge-map-loading {
-  min-height: 240px;
-  display: grid;
-  place-items: center;
+  min-height: clamp(700px, calc(100vh - 210px), 860px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   border: 1px dashed var(--line-soft);
-  border-radius: 8px;
+  border-radius: 12px;
+  background: var(--surface-2);
   color: var(--muted);
+  gap: 16px;
+}
+
+/* Skeleton graph pulsing animation */
+.skeleton-graph {
+  position: relative;
+  width: 240px;
+  height: 160px;
+  margin-bottom: 8px;
+}
+.skeleton-node {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--line);
+  animation: pulse-skeleton 1.5s infinite ease-in-out;
+}
+.skeleton-line {
+  position: absolute;
+  height: 2px;
+  background: var(--line-soft);
+  opacity: 0.4;
+  animation: pulse-skeleton-line 1.5s infinite ease-in-out;
+  transform-origin: left center;
+}
+.skeleton-node.node-1 { top: 20%; left: 20%; background: var(--cyan); }
+.skeleton-node.node-2 { top: 65%; left: 10%; }
+.skeleton-node.node-3 { top: 40%; left: 50%; background: var(--accent-border); }
+.skeleton-node.node-4 { top: 15%; left: 75%; }
+.skeleton-node.node-5 { top: 70%; left: 70%; }
+
+/* Skeleton connections */
+.skeleton-line.line-1 { top: 32%; left: 28%; width: 55px; transform: rotate(22deg); }
+.skeleton-line.line-2 { top: 32%; left: 28%; width: 95px; transform: rotate(10deg); }
+.skeleton-line.line-3 { top: 73%; left: 20%; width: 85px; transform: rotate(-22deg); }
+.skeleton-line.line-4 { top: 48%; left: 58%; width: 55px; transform: rotate(30deg); }
+
+@keyframes pulse-skeleton {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 0.95;
+  }
+}
+@keyframes pulse-skeleton-line {
+  0%, 100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 .note-reader { min-width: 0; min-height: 620px; }
 .vault-reader { width: 100%; }
@@ -3298,4 +3374,110 @@ p { color: var(--muted); line-height: 1.6; }
   height: 100%;
   border: 0;
   background: #fff;
+}
+
+/* Knowledge Map Drawer / Split Panel styling */
+.knowledge-map-container-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  position: relative;
+  min-width: 0;
+}
+.knowledge-map-container-layout.has-drawer {
+  grid-template-columns: 1fr 420px;
+}
+@media (max-width: 1024px) {
+  .knowledge-map-container-layout.has-drawer {
+    grid-template-columns: 1fr;
+  }
+}
+.knowledge-map-drawer {
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow-strong);
+  display: flex;
+  flex-direction: column;
+  height: clamp(700px, calc(100vh - 210px), 860px);
+  min-width: 0;
+  overflow: hidden;
+  animation: slide-in-right 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (max-width: 1024px) {
+  .knowledge-map-drawer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    z-index: 20;
+    height: 100%;
+  }
+}
+.knowledge-map-drawer-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: linear-gradient(180deg, var(--surface-2), var(--surface-1));
+}
+.knowledge-map-drawer-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.knowledge-map-drawer-title-row h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.35;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.knowledge-map-drawer-close {
+  flex: 0 0 auto;
+  font-size: 20px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  line-height: 1;
+}
+.knowledge-map-drawer-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.knowledge-map-drawer-content {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.knowledge-map-drawer-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }

@@ -100,8 +100,10 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
                   <KanbanCard
                     card={card}
                     disabled={statusMutation.isPending}
+                    isDragging={card.id === draggedId}
                     key={card.id}
                     onDragStart={setDraggedId}
+                    onDragEnd={() => setDraggedId('')}
                     onOpen={openNote}
                     projectLabel={projectName(dashboard.projects, card.project)}
                   />
@@ -120,22 +122,27 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
 function KanbanCard({
   card,
   disabled,
+  isDragging,
   onDragStart,
+  onDragEnd,
   onOpen,
   projectLabel,
 }: {
   card: ReminderBoardCard;
   disabled: boolean;
+  isDragging: boolean;
   onDragStart: (id: string) => void;
+  onDragEnd: () => void;
   onOpen: (id: string) => void;
   projectLabel: string;
 }) {
   const schedule = reminderDisplayDateTime(card);
   return (
     <article
-      className="kanban-card"
+      className={`kanban-card${isDragging ? ' dragging' : ''}`}
       draggable={!disabled}
       onClick={() => onOpen(card.id)}
+      onDragEnd={onDragEnd}
       onDragStart={(event) => {
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/plain', card.id);

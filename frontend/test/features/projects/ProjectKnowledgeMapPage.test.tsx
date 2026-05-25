@@ -79,6 +79,25 @@ function stubMapFetch(response = graphResponse()) {
     const url = String(input);
     if (url === '/api/projects/platform/folders') return Response.json({ ok: true, projectSlug: 'platform', folders });
     if (url.startsWith('/api/projects/platform/knowledge-map?')) return Response.json(response);
+    if (url === '/api/notes/note-1') return Response.json({
+      ok: true,
+      note: {
+        id: 'note-1',
+        project: 'platform',
+        title: 'Deploy note',
+        type: 'manual',
+        status: 'active',
+        date: '2026-05-24T00:00:00.000Z',
+        tags: ['deploy'],
+        markdown: '# Deploy note content\nThis is a deploy note.',
+        summary: 'This is a summary.',
+        attachments: [],
+        attachmentCount: 0,
+        editor: {
+          rawText: 'This is a deploy note.'
+        }
+      }
+    });
     return new Response(null, { status: 404 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -180,13 +199,23 @@ describe('ProjectKnowledgeMapPage', () => {
     expect(repositoryLegendItem?.querySelector('i')).not.toHaveStyle({ background: '#e879f9' });
   });
 
-  it('opens note nodes from the map', async () => {
+  it('opens note nodes from the map in a side drawer and allows full page navigation', async () => {
     stubMapFetch();
     const { openNote } = renderMap();
 
     fireEvent.click(await screen.findByRole('button', { name: 'Open note Deploy' }));
 
+    // Verify side drawer note details display
+    expect(await screen.findByRole('heading', { name: 'Deploy note' })).toBeInTheDocument();
+    expect(screen.getByText('This is a deploy note.')).toBeInTheDocument();
+
+    // Click on Open Page
+    fireEvent.click(screen.getByRole('button', { name: 'Open page' }));
     expect(openNote).toHaveBeenCalledWith('note-1');
+
+    // Click on Close drawer
+    fireEvent.click(screen.getByRole('button', { name: 'Close drawer' }));
+    expect(screen.queryByRole('heading', { name: 'Deploy note' })).not.toBeInTheDocument();
   });
 
   it('keeps filters available when the current map filters return no notes', async () => {

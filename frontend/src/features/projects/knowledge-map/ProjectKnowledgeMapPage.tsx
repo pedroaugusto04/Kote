@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ProjectsPageContext } from '../../../app/page-context';
@@ -10,6 +10,7 @@ import type { KnowledgeMapNode, ProjectKnowledgeMapResponse } from '../../../sha
 import { projectTimelineCategoryValues, type ProjectTimelineCategory } from '../../../shared/api/models/project-timeline';
 import { EmptyState, InlineMessage, PageHead } from '../../../shared/ui/primitives';
 import { Select } from '../../../shared/ui/select';
+import { SideNoteDrawer } from '../../../widgets/notes/SideNoteDrawer';
 import { flattenFolders } from '../projects.helpers';
 import { ProjectKnowledgeForceGraph } from './ProjectKnowledgeForceGraph';
 import {
@@ -45,6 +46,8 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const [folderId, setFolderId] = useState('');
   const [limit, setLimit] = useState<number>(80);
   const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapVisibleNodeType>>(() => new Set(defaultVisibleKnowledgeMapNodeTypes));
+  const [sideNoteId, setSideNoteId] = useState<string | null>(null);
+
   const query = useQuery({
     queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit],
     queryFn: () => fetchProjectKnowledgeMap(projectSlug, {
@@ -71,6 +74,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
 
   useEffect(() => {
     setFolderId('');
+    setSideNoteId(null);
     setResetSignal((current) => current + 1);
   }, [projectSlug]);
 
@@ -123,7 +127,20 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
       ) : null}
 
       {query.isLoading ? (
-        <div className="knowledge-map-loading" role="status">Loading map...</div>
+        <div className="knowledge-map-loading" role="status" aria-label="Loading map...">
+          <div className="skeleton-graph">
+            <div className="skeleton-node node-1"></div>
+            <div className="skeleton-node node-2"></div>
+            <div className="skeleton-node node-3"></div>
+            <div className="skeleton-node node-4"></div>
+            <div className="skeleton-node node-5"></div>
+            <div className="skeleton-line line-1"></div>
+            <div className="skeleton-line line-2"></div>
+            <div className="skeleton-line line-3"></div>
+            <div className="skeleton-line line-4"></div>
+          </div>
+          <span>Loading map...</span>
+        </div>
       ) : graph ? (
         <>
           <KnowledgeMapControls
@@ -151,13 +168,23 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
           ) : (
             <>
               <KnowledgeMapLegend presentTypes={new Set(filteredGraph?.nodes.map(knowledgeMapVisibleTypeFromNode) || [])} />
-              <ProjectKnowledgeForceGraph
-                links={filteredGraph?.links || []}
-                nodes={filteredGraph?.nodes || []}
-                onOpenNote={openNote}
-                paused={paused}
-                resetSignal={resetSignal}
-              />
+              <div className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''}`}>
+                <ProjectKnowledgeForceGraph
+                  links={filteredGraph?.links || []}
+                  nodes={filteredGraph?.nodes || []}
+                  onOpenNote={setSideNoteId}
+                  paused={paused}
+                  resetSignal={resetSignal}
+                />
+                {sideNoteId && (
+                  <SideNoteDrawer
+                    noteId={sideNoteId}
+                    dashboardProjects={dashboard.projects}
+                    onClose={() => setSideNoteId(null)}
+                    onOpenFullPage={openNote}
+                  />
+                )}
+              </div>
             </>
           )}
         </>
