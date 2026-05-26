@@ -9,6 +9,7 @@ export type PageContext = {
   openProject: (slug: string) => void;
   openNote: (id: string) => void;
   editNote: (noteId: string) => void;
+  createNote?: (projectSlug?: string) => void;
   deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => void;
 };
 

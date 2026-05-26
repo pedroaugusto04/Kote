@@ -118,11 +118,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function renderHome(overrides: Partial<Dashboard['home']> = {}) {
-  return renderHomeWithDashboard({ ...dashboard, home: { ...dashboard.home, ...overrides } });
+function renderHome(overrides: Partial<Dashboard['home']> = {}, createNote = vi.fn()) {
+  return renderHomeWithDashboard({ ...dashboard, home: { ...dashboard.home, ...overrides } }, createNote);
 }
 
-function renderHomeWithDashboard(inputDashboard: Dashboard) {
+function renderHomeWithDashboard(inputDashboard: Dashboard, createNote = vi.fn()) {
   const openNote = vi.fn();
   const setSelectedProject = vi.fn();
   const openProject = vi.fn();
@@ -137,10 +137,11 @@ function renderHomeWithDashboard(inputDashboard: Dashboard) {
         openProject={openProject}
         editNote={vi.fn()}
         deleteNote={vi.fn()}
+        createNote={createNote}
       />
     </MemoryRouter>,
   );
-  return { openNote, openProject };
+  return { openNote, openProject, createNote };
 }
 
 describe('HomePage', () => {
@@ -205,5 +206,16 @@ describe('HomePage', () => {
 
     expect(screen.getByText('Finish setting up workspace integrations')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Connect integrations' })).toHaveAttribute('href', '/settings/integrations');
+  });
+
+  it('calls createNote when the Quick note button is clicked', () => {
+    const createNote = vi.fn();
+    renderHome({}, createNote);
+
+    const button = screen.getByRole('button', { name: 'Quick note' });
+    expect(button).toBeInTheDocument();
+    fireEvent.click(button);
+
+    expect(createNote).toHaveBeenCalled();
   });
 });

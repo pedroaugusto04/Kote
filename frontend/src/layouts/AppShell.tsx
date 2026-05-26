@@ -212,6 +212,10 @@ export function AppShell() {
       editNote: (noteId: string) => {
         loadNoteMutation.mutate(noteId);
       },
+      createNote: (projectSlug?: string) => {
+        const slug = projectSlug || currentProject || dashboard.projects[0]?.projectSlug || 'inbox';
+        setNoteModal({ mode: 'create', projectSlug: slug });
+      },
       deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => {
         setConfirmState({ kind: 'note', note: { ...note } as NoteSummary });
       },
@@ -413,7 +417,7 @@ export function AppShell() {
       </main>
       {noteModal ? (
         <ProjectNoteModal
-          folders={noteModalFolders}
+          folders={noteModal.mode === 'edit' ? noteModalFolders : undefined}
           mode={noteModal.mode}
           note={noteModal.mode === 'edit' ? noteModal.note : undefined}
           onClose={() => setNoteModal(null)}
@@ -425,8 +429,9 @@ export function AppShell() {
               pageContext.openNote(noteId);
             }
           }}
-          projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : ''}
+          projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
           initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : undefined}
+          projects={dashboard.projects}
         />
       ) : null}
       {confirmState?.kind === 'note' ? (

@@ -6,7 +6,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Too
 import { Link } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
 
-export function HomePage({ dashboard, openNote, openProject }: PageContext) {
+export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
   const hasRepositories = dashboard.projects.some((p) => p.repositories.length > 0);
@@ -47,7 +47,17 @@ export function HomePage({ dashboard, openNote, openProject }: PageContext) {
 
   return (
     <>
-      <PageHead title="Home" subtitle={`Relevant updates from the last ${home.windowDays} days.`} />
+      <PageHead
+        title="Home"
+        subtitle={`Relevant updates from the last ${home.windowDays} days.`}
+        action={
+          createNote ? (
+            <button className="icon-button" type="button" onClick={() => createNote()}>
+              Quick note
+            </button>
+          ) : undefined
+        }
+      />
       <section className="home-layout">
         {needsIntegrationSetup ? (
           <Panel className="setup-inline-banner">

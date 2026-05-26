@@ -1,11 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useMutation } from '@tanstack/react-query';
-import { useRef } from 'react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { formatDisplayToken, reminderInputDate, reminderInputTime } from '../../../entities/format';
-import { createNote, updateNote } from '../../../shared/api/client';
+import { createNote, updateNote, fetchProjectFolders } from '../../../shared/api/client';
 import type { NoteDetail } from '../../../shared/api/models/note';
+import type { Project } from '../../../shared/api/models/project';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
 import { FormActions, FormField } from '../../../shared/forms/fields';
 import { parseCommaSeparatedList } from '../../../shared/forms/normalizers';
@@ -15,6 +16,7 @@ import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../sha
 import { useGlobalLoading } from '../../../app/global-loading';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
+import { flattenFolders } from '../projects.helpers';
 
 const canonicalTypeOptions = ['event', 'decision', 'followup', 'incident', 'knowledge'].map((value) => ({
   value,
@@ -22,13 +24,14 @@ const canonicalTypeOptions = ['event', 'decision', 'followup', 'incident', 'know
 }));
 
 type ProjectNoteModalProps = {
-  folders: FlatProjectFolder[];
+  folders?: FlatProjectFolder[];
   mode: 'create' | 'edit';
   note?: NoteDetail;
   onClose: () => void;
   onSaved: (noteId: string, mode: 'create' | 'edit') => void | Promise<void>;
   projectSlug: string;
   initialFolderId?: string;
+  projects?: Project[];
 };
 
 export function ProjectNoteModal({
@@ -39,15 +42,32 @@ export function ProjectNoteModal({
   onSaved,
   projectSlug,
   initialFolderId,
+  projects,
 }: ProjectNoteModalProps) {
   const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
+  const [selectedProjectSlug, setSelectedProjectSlug] = useState(
+    mode === 'edit' && note ? note.project : projectSlug
+  );
+
+  const foldersQuery = useQuery({
+    queryKey: ['project-folders', 'modal', selectedProjectSlug],
+    queryFn: () => fetchProjectFolders(selectedProjectSlug),
+    enabled: Boolean(selectedProjectSlug) && (!folders || selectedProjectSlug !== projectSlug),
+  });
+
+  const modalFolders = useMemo(
+    () => (selectedProjectSlug === projectSlug && folders) ? folders : flattenFolders(foldersQuery.data?.folders || []),
+    [folders, selectedProjectSlug, projectSlug, foldersQuery.data?.folders],
+  );
+
   const {
     formState: { errors, isDirty },
     control,
     handleSubmit,
     register,
     setError,
+    setValue,
   } = useForm<NoteFormValues>({
     resolver: zodResolver(noteFormSchema),
     shouldFocusError: false,
@@ -74,7 +94,7 @@ export function ProjectNoteModal({
         reminderTime: values.reminderTime,
       };
       return globalLoading.trackPromise(mode === 'create'
-        ? createNote({ ...payload, projectSlug })
+        ? createNote({ ...payload, projectSlug: selectedProjectSlug })
         : updateNote(note?.id || '', payload));
     },
     onSuccess: async (result) => {
@@ -98,7 +118,7 @@ export function ProjectNoteModal({
           <div className="modal-head">
             <div>
               <h2 id="note-modal-title">{mode === 'create' ? 'New note' : 'Edit note'}</h2>
-              <p>{projectSlug}</p>
+              {!(mode === 'create' && projects && projects.length > 0) && <p>{selectedProjectSlug}</p>}
             </div>
             <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
@@ -111,6 +131,29 @@ export function ProjectNoteModal({
               (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
             )}
           >
+            {mode === 'create' && projects && projects.length > 0 && (
+              <FormField name="projectSlug" label="Project" required>
+                {(fieldProps) => (
+                  <Select
+                    ariaDescribedBy={fieldProps['aria-describedby']}
+                    ariaInvalid={fieldProps['aria-invalid']}
+                    ariaRequired={fieldProps['aria-required']}
+                    dataField={fieldProps['data-field']}
+                    id={fieldProps.id}
+                    options={projects.map((project) => ({
+                      value: project.projectSlug,
+                      label: project.displayName,
+                    }))}
+                    required={fieldProps.required}
+                    value={selectedProjectSlug}
+                    onChange={(val) => {
+                      setSelectedProjectSlug(val);
+                      setValue('folderId', '');
+                    }}
+                  />
+                )}
+              </FormField>
+            )}
             <FormField name="folderId" label="Folder" error={errors.folderId?.message} optional>
               {(fieldProps) => (
                 <Controller
@@ -125,7 +168,7 @@ export function ProjectNoteModal({
                       id={fieldProps.id}
                       options={[
                         { value: '', label: 'Root' },
-                        ...folders.map((folder) => ({
+                        ...modalFolders.map((folder) => ({
                           value: folder.id,
                           label: folder.displayName,
                           depth: folder.depth,
