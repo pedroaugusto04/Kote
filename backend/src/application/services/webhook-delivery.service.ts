@@ -27,6 +27,16 @@ export class WebhookDeliveryService {
       headers['X-KB-Signature-256'] = `sha256=${signature}`;
     }
 
+    this.logger.info('webhook.delivery_attempt', {
+      deliveryId,
+      subscriptionId: subscription.id,
+      url: subscription.url,
+      event: payload.event,
+      method: 'POST',
+      headers,
+      payload,
+    });
+
     const response = await fetch(subscription.url, {
       method: 'POST',
       headers,
