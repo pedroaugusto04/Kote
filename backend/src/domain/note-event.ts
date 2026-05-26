@@ -7,5 +7,6 @@ export type NoteEventPayload = {
   workspaceSlug: string;
   projectSlug: string;
   title: string;
+  content: string;
   occurredAt: string;
 };

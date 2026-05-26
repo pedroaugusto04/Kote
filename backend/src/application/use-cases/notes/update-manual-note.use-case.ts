@@ -42,6 +42,7 @@ export class UpdateNoteUseCase {
         workspaceSlug: note.workspaceSlug,
         projectSlug: note.projectSlug,
         title: normalizedInput.title || note.title,
+        content: updated.markdown,
         occurredAt: new Date().toISOString(),
       });
     } catch { /* webhook dispatch must never block note update */ }

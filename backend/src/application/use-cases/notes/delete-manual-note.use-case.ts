@@ -30,6 +30,7 @@ export class DeleteNoteUseCase {
         workspaceSlug: note.workspaceSlug,
         projectSlug: note.projectSlug,
         title: note.title,
+        content: note.markdown,
         occurredAt: new Date().toISOString(),
       });
     } catch { /* webhook dispatch must never block note delete */ }

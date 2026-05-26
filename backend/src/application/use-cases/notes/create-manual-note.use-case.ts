@@ -97,6 +97,7 @@ export class CreateManualNoteUseCase {
         workspaceSlug: workspace.workspaceSlug,
         projectSlug: project.projectSlug,
         title: input.title,
+        content: input.rawText,
         occurredAt: occurredAt,
       }).catch(() => { /* webhook dispatch must never block note creation */ });
       return result;
