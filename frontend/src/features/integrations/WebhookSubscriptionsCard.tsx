@@ -18,6 +18,7 @@ import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
+import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 
 // ---------------------------------------------------------------------------
 // Zod form schema
@@ -251,7 +252,6 @@ function SubscriptionRow({
         <div className="webhook-row-main">
           <strong>{subscription.label || subscription.url}</strong>
           <small className="mono">{subscription.url}</small>
-          <span className="webhook-row-events">{subscription.events.map((e) => <Badge key={e} value={e} tone="low" />)}</span>
         </div>
         <div className="webhook-row-actions">
           <Badge value={subscription.enabled ? 'active' : 'disabled'} tone={subscription.enabled ? 'low' : 'medium'} />
@@ -263,8 +263,22 @@ function SubscriptionRow({
           >
             {subscription.enabled ? 'Disable' : 'Enable'}
           </button>
-          <button className="filter-chip" type="button" onClick={onEdit}>Edit</button>
-          <button className="filter-chip filter-chip--danger" type="button" onClick={() => setConfirmDelete(true)}>Delete</button>
+          <button
+            className="row-action-button"
+            title="Edit"
+            type="button"
+            onClick={onEdit}
+          >
+            <PencilIcon />
+          </button>
+          <button
+            className="row-action-button danger"
+            title="Delete"
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+          >
+            <TrashIcon />
+          </button>
         </div>
       </div>
       {confirmDelete ? (
