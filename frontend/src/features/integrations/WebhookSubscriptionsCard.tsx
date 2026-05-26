@@ -275,7 +275,7 @@ function SubscriptionRow({
           onCancel={() => setConfirmDelete(false)}
           onConfirm={() => { deleteMutation.mutate(); setConfirmDelete(false); }}
           title="Delete webhook"
-          tone="destructive"
+          tone="danger"
         />
       ) : null}
     </>
