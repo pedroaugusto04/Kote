@@ -1,4 +1,4 @@
-import { CredentialRecordStatus } from '../../contracts/enums.js';
+import { CredentialRecordStatus, WebhookTrigger } from '../../contracts/enums.js';
 import type {
   AuthIdentityRecord,
   AttachmentRecord,
@@ -14,6 +14,7 @@ import type {
   WebhookEventRecord,
   WorkspaceRecord,
 } from '../../application/models/repository-records.models.js';
+import type { WebhookSubscriptionRecord } from '../../application/models/webhook-subscription.models.js';
 
 type Row = Record<string, unknown>;
 
@@ -228,6 +229,23 @@ export function conversationStateFromRow(row: Row): ConversationStateRecord {
     workspaceSlug: String(row.workspace_slug),
     conversationKey: String(row.conversation_key),
     state: row.state || {},
+    updatedAt: nowIso(row.updated_at),
+  };
+}
+
+export function webhookSubscriptionFromRow(row: Row): WebhookSubscriptionRecord {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    workspaceSlug: String(row.workspace_slug || ''),
+    label: String(row.label || ''),
+    url: String(row.url || ''),
+    secret: row.secret == null ? null : String(row.secret),
+    events: stringArray(row.events).filter((e): e is WebhookTrigger =>
+      Object.values(WebhookTrigger).includes(e as WebhookTrigger),
+    ),
+    enabled: row.enabled !== false,
+    createdAt: nowIso(row.created_at),
     updatedAt: nowIso(row.updated_at),
   };
 }

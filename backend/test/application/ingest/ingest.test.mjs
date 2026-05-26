@@ -145,6 +145,7 @@ test('manual note creation uses ingest and derives optional reminder from the no
     repositories.contentRepository,
     new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider),
     repositories.runtimeEnvironmentProvider,
+    { dispatch: async () => {} },
   );
 
   const withoutReminder = await useCase.execute({

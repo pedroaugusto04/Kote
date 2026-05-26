@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { WebhookTrigger } from '../../../contracts/enums.js';
 import type { UpdateNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
+import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
 
 @Injectable()
 export class UpdateNoteUseCase {
@@ -12,6 +14,7 @@ export class UpdateNoteUseCase {
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly embeddingQueue: EmbeddingQueuePublisher,
+    private readonly noteEventDispatcher: NoteEventDispatcher,
   ) {}
 
   async execute(input: UpdateNoteInput, userId: string) {
@@ -30,6 +33,18 @@ export class UpdateNoteUseCase {
     try {
       await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: updated.id });
     } catch { /* embedding queue failure must never block note update */ }
+
+    try {
+      await this.noteEventDispatcher.dispatch({
+        event: WebhookTrigger.NoteUpdated,
+        noteId: updated.id,
+        userId,
+        workspaceSlug: note.workspaceSlug,
+        projectSlug: note.projectSlug,
+        title: normalizedInput.title || note.title,
+        occurredAt: new Date().toISOString(),
+      });
+    } catch { /* webhook dispatch must never block note update */ }
 
     return { ok: true as const, noteId: updated.id };
   }

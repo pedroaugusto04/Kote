@@ -134,3 +134,9 @@ export enum AiProvider {
   Gemini = 'gemini',
   None = 'none',
 }
+
+export enum WebhookTrigger {
+  NoteCreated = 'note.created',
+  NoteUpdated = 'note.updated',
+  NoteDeleted = 'note.deleted',
+}

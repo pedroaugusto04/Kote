@@ -43,3 +43,9 @@ export { ListPaginatedProjectsUseCase } from './dashboard/list-paginated-project
 export { ListPaginatedNotesUseCase } from './dashboard/list-paginated-notes.use-case.js';
 export { ListPaginatedReviewsUseCase } from './dashboard/list-paginated-reviews.use-case.js';
 export { ReindexAllEmbeddingsUseCase } from './search/reindex-all-embeddings.use-case.js';
+export {
+  ListWebhookSubscriptionsUseCase,
+  CreateWebhookSubscriptionUseCase,
+  UpdateWebhookSubscriptionUseCase,
+  DeleteWebhookSubscriptionUseCase,
+} from './webhook-subscriptions/webhook-subscription.use-cases.js';
