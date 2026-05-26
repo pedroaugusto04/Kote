@@ -38,6 +38,14 @@ export function buildNextAgentConversationState(input: {
     placeInRoot: input.decision.placeInRoot,
     folders: selectedProjectSlug && selectedProjectSlug !== 'inbox' ? input.candidateFolders : [],
   });
+
+  const newTurn = {
+    userMessage: input.messageText,
+    agentReply: input.decision.replyText || '',
+    action: input.decision.action,
+  };
+  const updatedTurns = [...(input.current.turns || []), newTurn].slice(-5);
+
   return agentConversationStateSchema.parse({
     draft,
     media: input.media,
@@ -51,6 +59,7 @@ export function buildNextAgentConversationState(input: {
     lastUserMessage: input.messageText,
     lastAgentAction: input.decision.action,
     confidence: input.decision.confidence,
+    turns: updatedTurns,
     updatedAt: nowIso(),
   });
 }

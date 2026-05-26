@@ -39,6 +39,12 @@ export const agentConversationFolderDecisionSchema = z.object({
   placeInRoot: z.preprocess(nullishToUndefined, z.boolean().default(false)),
 });
 
+export const agentConversationTurnSchema = z.object({
+  userMessage: defaultStringSchema,
+  agentReply: defaultStringSchema,
+  action: defaultActionSchema,
+});
+
 export const agentConversationStateSchema = z.object({
   draft: agentConversationDraftSchema.default({}),
   media: conversationMediaSchema.default({}),
@@ -48,6 +54,7 @@ export const agentConversationStateSchema = z.object({
   lastUserMessage: defaultStringSchema,
   lastAgentAction: defaultActionSchema,
   confidence: defaultConfidenceSchema,
+  turns: z.array(agentConversationTurnSchema).default([]),
   updatedAt: defaultStringSchema,
 });
 

@@ -9,7 +9,8 @@ import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { WhatsappMediaDownloader } from '../../../ports/integrations/whatsapp-media.downloader.js';
 import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.sender.js';
-import { parseAskCommand } from '../../../utils/conversation-command.utils.js';
+import { parseAskCommand, isAskReset } from '../../../utils/conversation-command.utils.js';
+import { isConversationStateExpired } from '../../../utils/conversation-state.utils.js';
 import { buildWhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { ProcessAgentConversationUseCase } from '../../conversation/process-agent-conversation.use-case.js';
@@ -18,6 +19,7 @@ import { ResolveWhatsappAskAttachmentsUseCase } from '../../query/resolve-whatsa
 import { AppLogger } from '../../../../observability/logger.js';
 import { parseWhatsappEvolutionMessage } from '../../../utils/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
+import { ConversationStateRepository } from '../../../ports/reminders/workflow-state.repository.js';
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
 
 type WhatsappWebhookContext = {
@@ -43,6 +45,7 @@ export class HandleWhatsappWebhookUseCase {
     private readonly whatsappMediaDownloader?: WhatsappMediaDownloader,
     private readonly logger?: AppLogger,
     private readonly resolveWhatsappAskAttachmentsUseCase?: ResolveWhatsappAskAttachmentsUseCase,
+    private readonly conversationStates?: ConversationStateRepository,
   ) {}
 
   async execute(input: WhatsappWebhookRequest) {
@@ -151,6 +154,10 @@ export class HandleWhatsappWebhookUseCase {
   ) {
     const enrichedInput = await this.withDownloadedMedia(context, input);
 
+    if (isAskReset(enrichedInput.messageText || '')) {
+      return this.handleAskReset(context, userId, workspaceSlug, enrichedInput);
+    }
+
     const askCommand = parseAskCommand(enrichedInput.messageText || '');
     if (askCommand) {
       return this.handleAskCommand(context, userId, workspaceSlug, enrichedInput, askCommand.question);
@@ -200,6 +207,29 @@ export class HandleWhatsappWebhookUseCase {
     }, userId);
   }
 
+  private async handleAskReset(
+    context: WhatsappWebhookContext,
+    userId: string,
+    workspaceSlug: string,
+    input: ConversationInput,
+  ) {
+    if (this.conversationStates) {
+      const key = `ask:${input.chatId}:${input.senderId}`;
+      await this.conversationStates.clear(userId, workspaceSlug, key);
+    }
+    const replyText = 'Histórico da conversa do /ask limpo com sucesso! Próxima pergunta começará do zero.';
+    const sendResult = await this.sendReply(input.chatId, replyText);
+    return this.processed(context, {
+      ok: true,
+      processed: true,
+      action: 'ask',
+      message: replyText,
+      payload: null,
+      replySent: sendResult.ok,
+      replyError: sendResult.ok ? undefined : sendResult.error,
+    }, userId);
+  }
+
   private async handleAskCommand(
     context: WhatsappWebhookContext,
     userId: string,
@@ -210,7 +240,53 @@ export class HandleWhatsappWebhookUseCase {
     if (!this.askKnowledgeUseCase) {
       return this.processed(context, { ok: true, resolvedUserId: userId, processed: false }, userId);
     }
-    const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceSlug });
+
+    let conversationHistory: any[] = [];
+    const key = `ask:${input.chatId}:${input.senderId}`;
+
+    if (this.conversationStates) {
+      try {
+        const record = await this.conversationStates.get(userId, workspaceSlug, key);
+        if (record && record.state) {
+          const state = record.state as any;
+          const isExpired = isConversationStateExpired(state.updatedAt, record.updatedAt);
+          if (!isExpired && Array.isArray(state.turns)) {
+            conversationHistory = state.turns;
+          }
+        }
+      } catch (err) {
+        this.logger?.error('whatsapp.ask.load_state_failed', { userId, workspaceSlug, key, error: String(err) });
+      }
+    }
+
+    const executeOptions: { workspaceSlug?: string; conversationHistory?: any[] } = {
+      workspaceSlug,
+    };
+    if (conversationHistory.length > 0) {
+      executeOptions.conversationHistory = conversationHistory;
+    }
+
+    const result = await this.askKnowledgeUseCase.execute(question, userId, executeOptions);
+
+    if (result.ok && this.conversationStates) {
+      try {
+        const newTurn = {
+          question,
+          answer: result.answer,
+          projectSlug: '',
+          timestamp: new Date().toISOString(),
+        };
+        const updatedTurns = [...conversationHistory, newTurn].slice(-5);
+        const nextState = {
+          turns: updatedTurns,
+          updatedAt: new Date().toISOString(),
+        };
+        await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
+      } catch (err) {
+        this.logger?.error('whatsapp.ask.save_state_failed', { userId, workspaceSlug, key, error: String(err) });
+      }
+    }
+
     const attachmentResolution = await this.resolveAskAttachments(userId, workspaceSlug, result);
     const replyText = formatAskReply(result, attachmentResolution);
     const sendResult = await this.sendReply(input.chatId, replyText);
@@ -452,13 +528,18 @@ function formatAskReply(
   result: Awaited<ReturnType<AskKnowledgeUseCase['execute']>>,
   attachmentResolution?: WhatsappAskAttachmentResolution,
 ) {
+  const showMetadata = !attachmentResolution?.requested;
   const lines = [
     String(result.answer || '').trim() || 'I could not build the answer. Please try again.',
     ...formatAskAttachmentNotices(attachmentResolution),
-    '',
-    `Confidence: ${result.confidence}`,
-    ...result.sources.slice(0, 3).map((source) => `Source: ${source.title} (${source.path})`),
   ];
+  if (showMetadata) {
+    lines.push(
+      '',
+      `Confidence: ${result.confidence}`,
+      ...result.sources.slice(0, 3).map((source) => `Source: ${source.title} (${source.path})`),
+    );
+  }
   return lines.filter(Boolean).join('\n');
 }
 

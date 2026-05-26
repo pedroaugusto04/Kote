@@ -31,7 +31,7 @@ export function buildConversationAgentSystemPrompt() {
     'For explicit new-project requests, prefer the new project over existing projects and over "inbox"; do not redirect to an existing project unless the user clearly names it.',
     'selectedFolderId must be one of the provided existing folder ids. Never invent a folder id.',
     'suggestedFolderPath must be an array of human-readable folder names. Use placeInRoot=true only when the user explicitly chooses the project root or the note is truly one-off and no folder is useful.',
-    'Use the currentState as conversation memory. Always repeat previously selected project, draft, and folder context in the JSON unless the new user message clearly changes them.',
+    'Use the currentState as conversation memory. The currentState.turns array contains recent user messages and agent replies in this turn; use it to understand prior context and follow-up corrections. Always repeat previously selected project, draft, and folder context in the JSON unless the new user message clearly changes them.',
     'Prefer making a reasonable assumption when the user intent is clear enough. Do not repeat the same meta-question if the new message already narrows the uncertainty from the previous turn.',
     'When the user gives a short answer that appears to resolve the previous question, treat it as a continuation of that context instead of restarting the flow.',
     'If the project can be inferred with high confidence from the current message plus the available projects and prior context, select it instead of asking again.',

@@ -1,3 +1,4 @@
+import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 import type { RuntimeEnvironment } from '../observability/runtime-environment.port.js';
 
 export type AnswerGenerationConfig = Pick<
@@ -17,6 +18,7 @@ export type AnswerContextChunk = {
 export type AnswerGenerationRequest = {
   question: string;
   context: AnswerContextChunk[];
+  conversationHistory?: AskConversationTurn[];
 };
 
 export type AnswerGenerationResponse = {

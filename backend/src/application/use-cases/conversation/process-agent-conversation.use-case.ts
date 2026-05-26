@@ -17,6 +17,7 @@ import { CredentialRepository } from '../../ports/integrations/integrations.repo
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { ConversationStateRepository } from '../../ports/reminders/workflow-state.repository.js';
 import { isCancel } from '../../utils/conversation-command.utils.js';
+import { isConversationStateExpired } from '../../utils/conversation-state.utils.js';
 import { buildProjectFolderTree } from '../../utils/project-folder.utils.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { ConversationAgentPresenter } from './services/conversation-agent.presenter.js';
@@ -50,8 +51,6 @@ type AgentDecisionTurn = {
   candidateFolders: ProjectFolderRecord[];
   decision: ConversationAgentResponse;
 };
-
-const AGENT_CONVERSATION_STATE_TTL_MS = 15 * 60 * 1000;
 
 @Injectable()
 export class ProcessAgentConversationUseCase {
@@ -187,9 +186,7 @@ export class ProcessAgentConversationUseCase {
   }
 
   private isExpiredState(state: AgentConversationState, recordUpdatedAt: string) {
-    const updatedAt = Date.parse(state.updatedAt || recordUpdatedAt || '');
-    if (!Number.isFinite(updatedAt)) return false;
-    return Date.now() - updatedAt > AGENT_CONVERSATION_STATE_TTL_MS;
+    return isConversationStateExpired(state.updatedAt, recordUpdatedAt);
   }
 
   private isEmptyAgentDraftAsk(decision: ConversationAgentResponse) {

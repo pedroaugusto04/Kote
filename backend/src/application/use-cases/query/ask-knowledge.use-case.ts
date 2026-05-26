@@ -6,6 +6,7 @@ import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.reposi
 import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/query/answer-generation.gateway.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
+import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 
 @Injectable()
 export class AskKnowledgeUseCase {
@@ -17,7 +18,11 @@ export class AskKnowledgeUseCase {
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
   ) {}
 
-  async execute(question: string, userId: string, options: { workspaceSlug?: string; projectSlug?: string } = {}) {
+  async execute(
+    question: string,
+    userId: string,
+    options: { workspaceSlug?: string; projectSlug?: string; conversationHistory?: AskConversationTurn[] } = {},
+  ) {
     const env = this.runtimeEnv.read();
     const embeddingConfig = {
       provider: env.embeddingAiProvider,
@@ -90,6 +95,7 @@ export class AskKnowledgeUseCase {
     const result = await this.answerGenerationGateway.generate(answerConfig, {
       question,
       context: contextChunks,
+      conversationHistory: options.conversationHistory,
     });
 
     if (!result) {
