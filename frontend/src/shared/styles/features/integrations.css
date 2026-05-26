@@ -171,3 +171,123 @@
 .integration-modal-title h2 {
   margin-bottom: 0;
 }
+
+/* Webhook section */
+.webhook-section {
+  margin-top: 28px;
+}
+
+.webhook-card {
+  grid-column: 1 / -1;
+}
+
+.webhook-card .integration-card-body {
+  gap: 0;
+}
+
+/* Webhook subscription rows */
+.webhook-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  flex-wrap: wrap;
+}
+
+.webhook-row:last-child {
+  border-bottom: none;
+}
+
+.webhook-row-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.webhook-row-main strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webhook-row-main small {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.webhook-row-events {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.webhook-row-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Trigger picker */
+.webhook-trigger-picker {
+  display: grid;
+  gap: 12px;
+}
+
+.webhook-trigger-group {
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 0;
+}
+
+.webhook-trigger-group legend {
+  font-weight: 600;
+  font-size: 13px;
+  text-transform: capitalize;
+  padding: 0 6px;
+}
+
+.webhook-trigger-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+
+.webhook-trigger-option + .webhook-trigger-option {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.webhook-trigger-option input {
+  margin: 0;
+}
+
+.webhook-trigger-option span {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.webhook-trigger-option strong {
+  font-size: 14px;
+}
+
+.webhook-trigger-option small {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.filter-chip--danger {
+  color: var(--red, #ef4444);
+  border-color: var(--red, #ef4444);
+}

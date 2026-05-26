@@ -2,13 +2,14 @@ import crypto from 'node:crypto';
 
 import { NotFoundException, Injectable } from '@nestjs/common';
 
-import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
+import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, SourceChannel, WebhookTrigger } from '../../../contracts/enums.js';
 import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
 import { hasReminder, normalizeManualNoteStatus } from '../../../domain/note-status.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import type { CreateManualNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class CreateManualNoteUseCase {
     private readonly contentRepository: ContentRepository,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly noteEventDispatcher: NoteEventDispatcher,
   ) {}
 
   async execute(input: CreateManualNoteInput, userId: string) {
@@ -87,6 +89,17 @@ export class CreateManualNoteUseCase {
 
     return this.ingestEntryUseCase.execute(withDerivedReminderAt(payload, reminderTimeZone), userId, workspace.workspaceSlug, {
       folderId: input.folderId,
+    }).then((result) => {
+      this.noteEventDispatcher.dispatch({
+        event: WebhookTrigger.NoteCreated,
+        noteId: result.noteId,
+        userId,
+        workspaceSlug: workspace.workspaceSlug,
+        projectSlug: project.projectSlug,
+        title: input.title,
+        occurredAt: occurredAt,
+      }).catch(() => { /* webhook dispatch must never block note creation */ });
+      return result;
     });
   }
 }
