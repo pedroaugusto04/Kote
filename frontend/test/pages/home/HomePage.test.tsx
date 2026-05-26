@@ -52,6 +52,7 @@ const dashboard: Dashboard = {
       status: 'active',
       summary: 'Deploy precisa de rollback.',
       source: 'test',
+      attachmentCount: 0,
     },
   ],
   reminders: [],
