@@ -506,3 +506,117 @@
 @media (max-width: 420px) {
   .search-box .filters { grid-template-columns: 1fr; }
 }
+
+/* ==========================================================================
+   8. Mobile Modals Adaptations (Premium Touch)
+   ========================================================================== */
+@media (max-width: 600px) {
+  .modal-backdrop {
+    padding: 0;
+    align-items: stretch; /* Full screen placement */
+  }
+
+  .modal-panel {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    margin: 0;
+    border: none;
+    box-shadow: none;
+    animation: modal-slide-up 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* Center the confirmation modals for better UI balance */
+  .modal-backdrop .confirm-modal {
+    margin: auto;
+    align-self: center;
+    border-radius: 12px;
+    border: 1px solid var(--line-soft);
+    width: min(440px, 92%);
+    height: auto;
+    max-height: calc(100dvh - 32px);
+    box-shadow: var(--modal-shadow);
+    animation: modal-scale-up 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .integration-modal {
+    padding: 20px 16px;
+    gap: 16px;
+  }
+
+  .auth-form {
+    gap: 12px;
+  }
+
+  .form-field {
+    gap: 6px;
+  }
+
+  .form-field textarea {
+    min-height: 120px;
+  }
+
+  .repository-picker {
+    max-height: 240px;
+  }
+
+  /* Form actions are stacked to prevent button squeezing on mobile */
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 8px;
+    margin-top: 8px;
+    width: 100%;
+  }
+
+  .form-actions button,
+  .form-actions .icon-button,
+  .form-actions .filter-chip {
+    width: 100% !important;
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  /* Webhook & integrations action stacking */
+  .integration-actions {
+    flex-direction: column-reverse;
+    width: 100%;
+    gap: 8px;
+    margin-left: 0;
+  }
+
+  .integration-actions button,
+  .integration-actions .filter-chip {
+    width: 100% !important;
+    justify-content: center;
+    min-height: 42px;
+  }
+
+  /* Attachment viewer on mobile */
+  .attachment-viewer-panel {
+    width: 96vw;
+    max-height: 92dvh;
+    border-radius: 12px;
+  }
+}
+
+@keyframes modal-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-scale-up {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
