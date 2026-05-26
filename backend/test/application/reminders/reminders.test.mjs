@@ -320,9 +320,9 @@ test('reminder board groups reminders by due state and terminal status with per-
   assert.equal(board.columns.overdue.items[0].status, 'overdue');
   assert.equal((await repositories.contentRepository.getNoteById(user.id, overdue.id))?.status, 'overdue');
   assert.equal(board.columns.upcoming.total, 2);
-  assert.deepEqual(board.columns.upcoming.items.map((item) => item.id), [sent.id]);
-  assert.equal(board.columns.upcoming.items[0].status, 'sent');
-  assert.equal(board.columns.upcoming.items.some((item) => item.id === upcomingA.id), false);
+  assert.deepEqual(board.columns.upcoming.items.map((item) => item.id), [upcomingA.id]);
+  assert.equal(board.columns.upcoming.items[0].status, 'pending');
+  assert.equal(board.columns.upcoming.items.some((item) => item.id === sent.id), false);
   assert.deepEqual(board.columns.resolved.items.map((item) => item.id), [resolved.id]);
   assert.deepEqual(board.columns.archived.items.map((item) => item.id), [archived.id]);
 });

@@ -6,12 +6,19 @@ export function reminderTimestamp(reminder: { reminderAt?: string; reminderDate?
   return Number.MAX_SAFE_INTEGER;
 }
 
-export function sortRemindersBySchedule<T extends { id: string; title: string; reminderAt?: string; reminderDate?: string; reminderTime?: string }>(
+export function sortRemindersBySchedule<T extends { id: string; title: string; status: string; reminderAt?: string; reminderDate?: string; reminderTime?: string }>(
   reminders: T[],
 ) {
-  return [...reminders].sort((left, right) => reminderTimestamp(left) - reminderTimestamp(right)
+  return [...reminders].sort((left, right) => reminderBoardRank(left.status) - reminderBoardRank(right.status)
+    || reminderTimestamp(left) - reminderTimestamp(right)
     || left.title.localeCompare(right.title)
     || left.id.localeCompare(right.id));
+}
+
+function reminderBoardRank(status: string) {
+  if (status === 'pending') return 0;
+  if (status === 'sent') return 1;
+  return 2;
 }
 
 export function sortRemindersForList<T extends { id: string; title: string; status: string; reminderAt?: string; reminderDate?: string; reminderTime?: string }>(
