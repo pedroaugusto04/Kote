@@ -73,19 +73,21 @@ export function ProjectTimeline({
             <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)}>
               <div className="project-timeline-marker" aria-hidden="true" />
               <div className="project-timeline-card">
-                <div className="project-timeline-meta">
+                <div className="project-timeline-meta project-timeline-meta-primary">
                   <Badge value={formatDisplayToken(item.category)} tone={item.category} />
                   <Badge value={noteTypeLabel(item.type)} tone={item.type} />
                   <Badge value={formatDisplayToken(item.status)} tone={item.status} />
-                  <span className="meta">{formatUsDateTime(item.date)}</span>
-                  <span className="meta">{projectName(dashboard.projects, item.project)}</span>
-                  <span className="meta">{item.source || item.sourceChannel}</span>
                   <AttachmentIndicator count={item.attachmentCount || 0} />
                 </div>
                 <div className="project-timeline-body">
                   <div>
                     <h3>{item.title}</h3>
                     <p>{item.summary}</p>
+                    <div className="project-timeline-meta project-timeline-meta-secondary">
+                      <span className="meta">{projectName(dashboard.projects, item.project)}</span>
+                      <span className="meta">{formatUsDateTime(item.date)}</span>
+                      <span className="meta path">{item.source || item.sourceChannel}</span>
+                    </div>
                   </div>
                   <div className="row-actions">
                     {onEditNote ? (

@@ -6,7 +6,7 @@
   padding: 14px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 
 .project-brief-head {
@@ -110,7 +110,7 @@
 
 .project-browser {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -121,7 +121,7 @@
   padding: 14px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 
 .folder-browser-head {
@@ -324,16 +324,21 @@
 .timeline-filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
+  padding: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-3);
 }
 
 .timeline-filter-row button {
   min-height: 34px;
   padding: 0 11px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid transparent;
   border-radius: 7px;
-  color: var(--muted);
-  background: var(--surface-5);
+  color: var(--text-soft);
+  background: transparent;
+  font-weight: 550;
 }
 
 .timeline-filter-row button.active {
@@ -351,7 +356,7 @@
 
 .project-timeline-list {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .project-timeline-item {
@@ -370,10 +375,10 @@
 
 .project-timeline-card {
   display: grid;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
   overflow: hidden;
-  padding: 14px;
+  padding: 15px;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   background: var(--surface-1);
@@ -399,6 +404,14 @@
   justify-content: flex-start;
 }
 
+.project-timeline-meta-primary {
+  order: 2;
+}
+
+.project-timeline-body {
+  order: 1;
+}
+
 .project-timeline-body > div:first-child {
   flex: 1 1 auto;
   min-width: 0;
@@ -410,10 +423,11 @@
 }
 
 .project-timeline-body h3 {
-  margin-bottom: 4px;
+  margin-bottom: 5px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--text-strong);
 }
 
 .project-timeline-body p {
@@ -423,6 +437,92 @@
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  color: var(--text-soft);
+}
+
+.project-timeline-meta-secondary {
+  margin-top: 9px;
+  gap: 8px;
+}
+
+.project-timeline-meta-secondary .meta + .meta::before {
+  content: "/";
+  margin-right: 8px;
+  color: var(--faint);
+}
+
+.modal-panel.project-modal,
+.modal-panel.project-note-modal {
+  display: grid;
+  gap: 16px;
+  width: min(760px, 100%);
+  padding: 18px;
+}
+
+.modal-panel.project-note-modal {
+  width: min(820px, 100%);
+}
+
+.project-modal-form,
+.project-note-modal-form {
+  gap: 14px;
+}
+
+.project-note-modal-form textarea {
+  min-height: 190px;
+}
+
+.project-modal .repository-picker {
+  display: grid;
+  gap: 7px;
+  max-height: min(260px, 34vh);
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input-bg);
+  overscroll-behavior: contain;
+}
+
+.project-modal .repository-option {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: var(--surface-4);
+  color: var(--text);
+}
+
+.project-modal .repository-option:hover {
+  border-color: var(--accent-border);
+  background: var(--surface-hover-strong);
+}
+
+.project-modal .repository-option input {
+  width: auto;
+}
+
+.project-modal .repository-option span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.project-modal .repository-option strong,
+.project-modal .repository-option small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-modal .repository-option small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* Knowledge Map Graph & Controls */

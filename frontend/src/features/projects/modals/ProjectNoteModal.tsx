@@ -114,7 +114,7 @@ export function ProjectNoteModal({
   return (
     <>
       <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
-        <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
+        <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal project-note-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
               <h2 id="note-modal-title">{mode === 'create' ? 'New note' : 'Edit note'}</h2>
@@ -123,7 +123,7 @@ export function ProjectNoteModal({
             <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
           <form
-            className="auth-form"
+            className="auth-form project-note-modal-form"
             ref={formRef}
             noValidate
             onSubmit={handleSubmit(

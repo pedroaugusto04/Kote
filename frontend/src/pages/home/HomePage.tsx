@@ -94,12 +94,14 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                 {home.priorities.slice(0, 5).map((priority) => (
                   <article className="list-row clickable home-priority-row" key={priority.id} onClick={() => openTarget(priority.target)}>
                     <div className="list-row-body">
-                      <div className="meta-row">
+                      <div className="meta-row home-row-meta-primary">
                         <Badge value={formatDisplayToken(priorityLabel(priority))} tone={priorityTone(priority)} />
-                        <span className="meta">{priorityMeta(priority)}</span>
                       </div>
                       <h3>{priority.title}</h3>
                       <p>{priority.description}</p>
+                      <div className="meta-row home-row-meta-secondary">
+                        <span className="meta">{priorityMeta(priority)}</span>
+                      </div>
                     </div>
                     <span className="file-icon">{priority.type === 'finding' ? 'R' : '!'}</span>
                   </article>

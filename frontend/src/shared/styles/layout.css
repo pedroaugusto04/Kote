@@ -7,7 +7,7 @@
 .sidebar {
   background: var(--panel);
   border-right: 1px solid var(--border-strong);
-  padding: 18px 14px;
+  padding: 18px 12px;
   overflow: auto;
 }
 
@@ -74,11 +74,14 @@
 .main-nav {
   display: grid;
   gap: 4px;
-  margin-bottom: 22px;
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .sidebar-section {
   margin-top: 18px;
+  padding-top: 2px;
 }
 
 .section-label {
@@ -177,6 +180,9 @@
 
 .view {
   min-width: 0;
+  width: 100%;
+  max-width: 1480px;
+  margin: 0 auto;
   padding: 24px;
 }
 
@@ -239,7 +245,7 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: 14px;
-  padding: 14px 6px;
+  padding: 15px 8px;
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
   background: transparent;
@@ -257,7 +263,7 @@
 .list-row-body {
   display: grid;
   align-content: start;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
 }
 

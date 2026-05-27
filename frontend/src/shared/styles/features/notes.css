@@ -4,6 +4,35 @@
   min-height: 620px;
 }
 
+.note-row h3 {
+  color: var(--text-strong);
+  overflow-wrap: anywhere;
+}
+
+.note-row p {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  color: var(--text-soft);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.note-row-meta-primary {
+  order: 2;
+}
+
+.note-row-meta-secondary {
+  order: 4;
+  gap: 8px;
+}
+
+.note-row-meta-secondary .meta + .meta::before {
+  content: "/";
+  margin-right: 8px;
+  color: var(--faint);
+}
+
 .vault-reader {
   width: 100%;
 }

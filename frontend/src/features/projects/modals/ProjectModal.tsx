@@ -83,7 +83,7 @@ export function ProjectModal({
   return (
     <>
       <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
-        <section aria-labelledby="project-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
+        <section aria-labelledby="project-modal-title" aria-modal="true" className="modal-panel integration-modal project-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
               <h2 id="project-modal-title">{mode === 'create' ? 'New project' : 'Edit project'}</h2>
@@ -92,7 +92,7 @@ export function ProjectModal({
             <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
           <form
-            className="auth-form"
+            className="auth-form project-modal-form"
             ref={formRef}
             noValidate
             onSubmit={handleSubmit(

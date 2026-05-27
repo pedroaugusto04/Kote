@@ -22,18 +22,19 @@ export function NoteRow({
   onDelete?: (note: NoteSummary) => void;
 }) {
   return (
-    <article className="list-row clickable" onClick={() => onOpen(note.id)}>
+    <article className="list-row clickable note-row" onClick={() => onOpen(note.id)}>
       <div className="list-row-body note-row-body">
-        <div className="meta-row">
+        <div className="meta-row note-row-meta-primary">
           <Badge value={noteTypeLabel(note.type)} tone={note.type} />
           <Badge value={formatDisplayToken(note.status)} tone={note.status} />
-          <span className="meta">
-            {projectName(dashboard.projects, note.project)} / {formatUsDate(note.date)}
-          </span>
           <AttachmentIndicator count={note.attachmentCount || 0} />
         </div>
         <h3>{note.title}</h3>
         <p>{note.summary}</p>
+        <div className="meta-row note-row-meta-secondary">
+          <span className="meta">{projectName(dashboard.projects, note.project)}</span>
+          <span className="meta">{formatUsDate(note.date)}</span>
+        </div>
       </div>
       <div className="row-actions">
         <QuickNoteStatusActions note={note} compact />

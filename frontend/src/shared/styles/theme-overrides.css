@@ -85,8 +85,8 @@
 }
 
 :root[data-theme="light"] .row-action-button {
-  border-color: var(--line-soft);
-  background: var(--surface-4);
+  border-color: transparent;
+  background: transparent;
 }
 
 :root[data-theme="light"] .row-action-button:hover {

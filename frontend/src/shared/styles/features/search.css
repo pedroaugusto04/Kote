@@ -1,8 +1,12 @@
 /* Search systems & inputs styling */
 .search-box {
   display: grid;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-1);
 }
 
 .search-box input,
@@ -16,12 +20,25 @@
   padding: 0 12px;
 }
 
+.search-box input[type="search"] {
+  min-height: 54px;
+  padding: 0 15px;
+  font-size: 16px;
+}
+
+.search-box input[type="search"]:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--surface-hover-accent);
+  outline: 0;
+}
+
 .search-box select {
   padding-right: 42px;
 }
 
 .search-box .filters {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-top: 2px;
 }
 
 .search-box .filters > * {

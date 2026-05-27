@@ -1,17 +1,22 @@
 .unified-search-box {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   position: relative;
 }
 
 .ai-answer-card-panel,
 .matching-notes-panel {
-  margin-bottom: 14px;
+  margin-bottom: 16px;
+}
+
+.matching-notes-panel {
+  max-width: 1160px;
 }
 
 .search-input-row {
   display: flex;
   align-items: stretch;
-  gap: 10px;
+  gap: 12px;
+  min-width: 0;
 }
 
 .search-input-row input {
@@ -24,6 +29,7 @@
   align-items: stretch;
   gap: 8px;
   flex: 0 0 auto;
+  min-width: 0;
 }
 
 .search-actions .icon-button {
@@ -31,7 +37,8 @@
   align-items: center;
   justify-content: center;
   gap: 7px;
-  min-height: 48px;
+  min-height: 54px;
+  min-width: 0;
   white-space: nowrap;
 }
 
@@ -50,6 +57,8 @@
   border-radius: 8px;
   background: var(--surface-1);
   box-shadow: var(--shadow-strong);
+  max-height: min(520px, calc(100vh - 180px));
+  overflow: auto;
 }
 
 .ask-history-popover-list {
@@ -87,8 +96,8 @@
 
 .ask-history-project {
   color: var(--faint);
-  font-family: var(--mono);
   font-size: 11px;
+  font-weight: 650;
   text-transform: uppercase;
 }
 
@@ -156,10 +165,10 @@
 .matching-notes-count,
 .ask-source-count {
   color: var(--faint);
-  font-family: var(--mono);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0;
+  font-weight: 650;
 }
 
 @media (max-width: 720px) {
@@ -170,6 +179,7 @@
   .search-actions {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    width: 100%;
   }
 
   .search-actions .icon-button {
