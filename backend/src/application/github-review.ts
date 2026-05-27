@@ -135,7 +135,7 @@ export async function buildGithubReviewEvent(
     },
     content: {
       rawText: trimText(String(body.head_commit?.message || ''), 'Push sem mensagem detalhada'),
-      title: `Review ${repoFullName} ${String(body.after || '').slice(0, 8)}`,
+      title: `[${body.repository?.name || repoFullName.split('/').pop() || 'inbox'}] ${String(body.head_commit?.message || 'Push sem mensagem detalhada').split('\n')[0]}`,
       attachments: [],
       sections: {
         summary: analysis.summary,

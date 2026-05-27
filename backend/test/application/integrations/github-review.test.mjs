@@ -208,7 +208,7 @@ test('github push is converted to canonical code review event', async () => {
 
   assert.equal(event.event.type, 'code_review');
   assert.equal(event.classification.canonicalType, 'knowledge');
-  assert.match(event.content.title, /Review/);
+  assert.match(event.content.title, /\[N8N-Automations\]/);
   assert.equal(event.metadata.repoFullName, 'pedroaugusto04/N8N-Automations');
 });
 
