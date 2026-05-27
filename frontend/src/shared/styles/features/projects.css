@@ -324,22 +324,28 @@
 .timeline-filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 7px;
+  padding: 4px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-3);
 }
 
 .timeline-filter-row button {
   min-height: 34px;
   padding: 0 11px;
-  border: 1px solid var(--line-soft);
+  border: 1px solid transparent;
   border-radius: 7px;
-  color: var(--muted);
-  background: var(--surface-5);
+  color: var(--text-soft);
+  background: transparent;
+  font-weight: 550;
 }
 
 .timeline-filter-row button.active {
-  color: var(--active-text);
   border-color: var(--accent-border);
-  background: var(--surface-active);
+  background: var(--surface-2);
+  color: var(--active-text);
+  box-shadow: var(--shadow);
 }
 
 .timeline-filter-row button:hover:not(:disabled) {

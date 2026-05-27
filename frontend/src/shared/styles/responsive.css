@@ -162,6 +162,14 @@
   
   .profile-detail-row { grid-template-columns: 1fr; gap: 6px; }
   .folder-browser-head-top, .folder-browser-actions { align-items: stretch; flex-direction: column; }
+  .timeline-filter-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  
+  .timeline-filter-row button {
+    width: 100%;
+  }
   .note-reader-top { flex-direction: column; }
   .note-reader-actions { justify-content: flex-start; }
   .auth-layout { padding: 20px; }
