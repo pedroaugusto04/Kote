@@ -64,15 +64,6 @@ export class HandleGithubPushUseCase {
     const installationId = String((body.installation as { id?: unknown } | undefined)?.id || '').trim();
     const externalIdentity = { provider: ExternalIdentityProvider.GithubApp, identityType: 'installation_id', externalId: installationId };
     if (!environment.githubWebhookSecret) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'push'),
-        status: WebhookEventStatus.Rejected,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload,
-        error: 'github_webhook_secret_not_configured',
-      });
       throw new UnauthorizedException('github_webhook_secret_not_configured');
     }
     try {
@@ -82,40 +73,13 @@ export class HandleGithubPushUseCase {
         String(headers['x-hub-signature-256'] || ''),
       );
     } catch (error) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'push'),
-        status: WebhookEventStatus.Rejected,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload,
-        error: error instanceof Error ? error.message : String(error),
-      });
       throw new UnauthorizedException('invalid_github_signature');
     }
     if (!installationId) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'push'),
-        status: WebhookEventStatus.Rejected,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload,
-        error: 'missing_installation_id',
-      });
       throw new UnauthorizedException('missing_installation_id');
     }
     const identity = await this.externalIdentities.findExternalIdentity(ExternalIdentityProvider.GithubApp, 'installation_id', installationId);
     if (!identity) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'push'),
-        status: WebhookEventStatus.Rejected,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload,
-        error: 'identity_not_found',
-      });
       throw new NotFoundException('identity_not_found');
     }
     await this.webhookEvents.recordWebhookEvent({

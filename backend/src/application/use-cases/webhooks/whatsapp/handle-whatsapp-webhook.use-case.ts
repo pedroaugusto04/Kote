@@ -50,10 +50,9 @@ export class HandleWhatsappWebhookUseCase {
     await this.assertWebhookToken(context);
     const command = buildWhatsappWebhookCommand(context.body);
     if (command.kind === 'ignore') {
-      return this.processed(context, { ok: true, processed: false, ignored: command.reason });
+      return { ok: true, processed: false, ignored: command.reason };
     }
     if (command.kind === 'reject') {
-      await this.rejected(context, command.reason);
       throw new UnauthorizedException(command.reason);
     }
     context.externalIdentity.externalId = command.externalId;
@@ -61,10 +60,10 @@ export class HandleWhatsappWebhookUseCase {
     if (command.kind === 'connect') {
       const claimed = await this.claimMessageIdempotency(context, 'connection');
       if (!claimed) {
-        return this.processed(context, { ok: true, processed: false, ignored: 'duplicate_message' });
+        return { ok: true, processed: false, ignored: 'duplicate_message' };
       }
       if (!this.connections) {
-        return this.processed(context, { ok: true, processed: false, ignored: 'connection_service_unavailable' });
+        return { ok: true, processed: false, ignored: 'connection_service_unavailable' };
       }
       const result = await this.connections.completeWhatsappFromWebhook({ code: command.code, chatJid: command.externalId });
       await this.recordWebhookEvent(context, {
@@ -77,7 +76,6 @@ export class HandleWhatsappWebhookUseCase {
 
     const identity = await this.externalIdentities.findExternalIdentity(ExternalIdentityProvider.Whatsapp, 'jid', command.externalId);
     if (!identity) {
-      await this.rejected(context, 'identity_not_found');
       throw new NotFoundException('identity_not_found');
     }
     const active = await this.isWhatsappIntegrationActive(identity.userId, identity.workspaceSlug);
@@ -87,11 +85,11 @@ export class HandleWhatsappWebhookUseCase {
         resolvedUserId: identity.userId,
         workspaceSlug: identity.workspaceSlug,
       });
-      return this.processed(context, { ok: true, processed: false, ignored: 'whatsapp_integration_inactive' }, identity.userId);
+      return { ok: true, processed: false, ignored: 'whatsapp_integration_inactive' };
     }
     const claimed = await this.claimMessageIdempotency(context, 'message', identity.userId);
     if (!claimed) {
-      return this.processed(context, { ok: true, processed: false, ignored: 'duplicate_message' }, identity.userId);
+      return { ok: true, processed: false, ignored: 'duplicate_message' };
     }
     const rateLimit = this.rateLimiter.consume({
       userId: identity.userId,
@@ -138,7 +136,6 @@ export class HandleWhatsappWebhookUseCase {
     const evolutionApiKey = String(context.headers.apikey || context.body.apikey || '').trim();
     const validWebhookApiKey = Boolean(environment.whatsappWebhookApiKey) && evolutionApiKey === environment.whatsappWebhookApiKey;
     if (!validWebhookApiKey) {
-      await this.rejected(context, 'invalid_webhook_token');
       throw new UnauthorizedException('invalid_webhook_token');
     }
   }
@@ -318,7 +315,7 @@ export class HandleWhatsappWebhookUseCase {
       noticeSent: sendResult.ok,
       noticeError: sendResult.ok ? '' : sendResult.error,
     });
-    return this.processed(context, {
+    return {
       ok: true,
       processed: false,
       ignored: 'rate_limited',
@@ -326,7 +323,7 @@ export class HandleWhatsappWebhookUseCase {
       retryAfterSeconds: rateLimit.retryAfterSeconds,
       replySent: sendResult.ok,
       replyError: sendResult.ok ? undefined : sendResult.error,
-    }, userId);
+    };
   }
 
   private async isWhatsappIntegrationActive(userId: string, workspaceSlug: string) {
@@ -400,14 +397,6 @@ export class HandleWhatsappWebhookUseCase {
       resolvedUserId,
     });
     return result;
-  }
-
-  private async rejected(context: WhatsappWebhookContext, error: string) {
-    await this.recordWebhookEvent(context, {
-      eventType: 'message',
-      status: WebhookEventStatus.Rejected,
-      error,
-    });
   }
 
   private async failed(context: WhatsappWebhookContext, resolvedUserId: string, error: unknown) {

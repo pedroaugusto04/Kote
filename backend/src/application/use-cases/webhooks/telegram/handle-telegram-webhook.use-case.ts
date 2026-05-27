@@ -25,27 +25,9 @@ export class HandleTelegramWebhookUseCase {
     const externalId = extractTelegramChatId(body);
     const externalIdentity = { provider: ExternalIdentityProvider.Telegram, identityType: 'chat_id', externalId };
     if (!environment.telegramWebhookToken || token !== environment.telegramWebhookToken) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.Telegram,
-        eventType: 'message',
-        status: WebhookEventStatus.Rejected,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload: body,
-        error: 'invalid_webhook_token',
-      });
       throw new UnauthorizedException('invalid_webhook_token');
     }
     if (!externalId) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.Telegram,
-        eventType: 'message',
-        status: WebhookEventStatus.Rejected,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload: body,
-        error: 'missing_external_identity',
-      });
       throw new UnauthorizedException('missing_external_identity');
     }
     const connectionCode = extractTelegramConnectionCode(body);
@@ -64,15 +46,6 @@ export class HandleTelegramWebhookUseCase {
     }
     const identity = await this.externalIdentities.findExternalIdentity(ExternalIdentityProvider.Telegram, 'chat_id', externalId);
     if (!identity) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.Telegram,
-        eventType: 'message',
-        status: WebhookEventStatus.Rejected,
-        externalIdentity,
-        rawHeaders: headers,
-        rawPayload: body,
-        error: 'identity_not_found',
-      });
       throw new NotFoundException('identity_not_found');
     }
     await this.webhookEvents.recordWebhookEvent({
