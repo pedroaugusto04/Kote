@@ -8,6 +8,7 @@ import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
+import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
 
 const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
   value,
@@ -88,6 +89,16 @@ export function ProjectTimeline({
                     <p>{item.summary}</p>
                   </div>
                   <div className="row-actions">
+                    <QuickNoteStatusActions
+                      note={{
+                        id: item.noteId,
+                        title: item.title,
+                        status: item.status,
+                        project: item.project,
+                        tags: item.tags,
+                      }}
+                      compact
+                    />
                     {onEditNote ? (
                       <button
                         aria-label={`Edit note ${item.title}`}

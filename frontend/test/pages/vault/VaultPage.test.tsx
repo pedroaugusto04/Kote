@@ -66,13 +66,38 @@ describe('VaultPage', () => {
     apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
     apiSpies.fetchNote.mockResolvedValue(buildNoteDetail(note));
 
-    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+    const editNote = vi.fn();
+    const deleteNote = vi.fn();
+
+    renderWithAppProviders(
+      <VaultPage
+        dashboard={{ ...baseDashboard, notes: [note] }}
+        selectedProject="platform"
+        selectedNoteId={note.id}
+        setSelectedProject={vi.fn()}
+        openProject={vi.fn()}
+        openNote={vi.fn()}
+        editNote={editNote}
+        deleteNote={deleteNote}
+      />,
+      { route: `/vault/${note.id}` },
+    );
 
     expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
-    expect(screen.queryByRole('button', { name: `Edit note ${note.title}` })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: `Delete note ${note.title}` })).not.toBeInTheDocument();
+
+    const editBtn = screen.getByRole('button', { name: `Edit note ${note.title}` });
+    const deleteBtn = screen.getByRole('button', { name: `Delete note ${note.title}` });
+
+    expect(editBtn).toBeInTheDocument();
+    expect(deleteBtn).toBeInTheDocument();
+
+    fireEvent.click(editBtn);
+    expect(editNote).toHaveBeenCalledWith(note.id);
+
+    fireEvent.click(deleteBtn);
+    expect(deleteNote).toHaveBeenCalledWith({ id: note.id, title: note.title });
   });
 
   it('disables the previous button on the first note in the project', async () => {

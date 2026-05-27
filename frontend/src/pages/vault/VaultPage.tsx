@@ -15,10 +15,19 @@ import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../../widgets/markdown/MarkdownView';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
+import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 
 type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
 
-export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelectedProject, openNote }: PageContext) {
+export function VaultPage({
+  dashboard,
+  selectedProject,
+  selectedNoteId,
+  setSelectedProject,
+  openNote,
+  editNote,
+  deleteNote,
+}: PageContext) {
   const navigate = useNavigate();
   const params = useParams();
   const routeNoteId = params.noteId ? decodeURIComponent(params.noteId) : '';
@@ -90,6 +99,28 @@ export function VaultPage({ dashboard, selectedProject, selectedNoteId, setSelec
                 <h1 className="note-title">{noteQuery.data.title}</h1>
                 <div className="note-reader-actions" aria-label="Navigation between notes">
                   <QuickNoteStatusActions note={noteQuery.data} />
+                  {editNote ? (
+                    <button
+                      aria-label={`Edit note ${noteQuery.data.title}`}
+                      className="row-action-button"
+                      title="Edit"
+                      type="button"
+                      onClick={() => editNote(noteQuery.data.id)}
+                    >
+                      <PencilIcon />
+                    </button>
+                  ) : null}
+                  {deleteNote ? (
+                    <button
+                      aria-label={`Delete note ${noteQuery.data.title}`}
+                      className="row-action-button danger"
+                      title="Delete"
+                      type="button"
+                      onClick={() => deleteNote({ id: noteQuery.data.id, title: noteQuery.data.title })}
+                    >
+                      <TrashIcon />
+                    </button>
+                  ) : null}
                   <button className="icon-button" disabled={!previousNote} type="button" onClick={() => previousNote && openNote(previousNote.id)}>
                     Previous
                   </button>
