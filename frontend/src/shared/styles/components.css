@@ -798,7 +798,8 @@
   place-items: center;
   padding: 24px;
   background: var(--surface-backdrop);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .modal-panel {
