@@ -40,30 +40,32 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
   };
 
   const mockContentRepository = {
-    getNoteById: async (userId, noteId) => {
+    getNotesByIds: async (userId, noteIds) => {
       assert.equal(userId, 'user-123');
-      assert.equal(noteId, 'note-1');
-      return {
-        id: 'note-1',
-        path: 'docs/deploy.md',
-        type: 'note',
-        title: 'Deployment Guide',
-        projectSlug: 'infra',
-        workspaceSlug: 'default',
-        folderId: null,
-        status: 'active',
-        tags: [],
-        occurredAt: '',
-        sourceChannel: '',
-        summary: '',
-        markdown: 'Deploy to staging first.',
-        markdownStorageKey: '',
-        frontmatter: {},
-        metadata: {},
-        origin: '',
-        source: '',
-        links: [],
-      };
+      assert.deepEqual(noteIds, ['note-1']);
+      return [
+        {
+          id: 'note-1',
+          path: 'docs/deploy.md',
+          type: 'note',
+          title: 'Deployment Guide',
+          projectSlug: 'infra',
+          workspaceSlug: 'default',
+          folderId: null,
+          status: 'active',
+          tags: [],
+          occurredAt: '',
+          sourceChannel: '',
+          summary: '',
+          markdown: 'Deploy to staging first.',
+          markdownStorageKey: '',
+          frontmatter: {},
+          metadata: {},
+          origin: '',
+          source: '',
+          links: [],
+        },
+      ];
     },
   };
 

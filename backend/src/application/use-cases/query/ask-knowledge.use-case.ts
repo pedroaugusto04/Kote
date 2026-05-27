@@ -46,11 +46,12 @@ export class AskKnowledgeUseCase {
       };
     }
 
-    // 2. Query similar chunks (limit: 8)
+    // 2. Query similar chunks (limit: 8, threshold: 0.65)
     const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
       limit: 8,
       workspaceSlug: options.workspaceSlug,
       projectSlug: options.projectSlug,
+      minSimilarity: 0.65,
     });
 
     if (similarChunks.length === 0) {
@@ -64,10 +65,10 @@ export class AskKnowledgeUseCase {
       };
     }
 
-    // 3. Fetch notes metadata to enrich chunks
+    // 3. Fetch notes metadata to enrich chunks using optimized single query
     const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
-    const notes = await Promise.all(noteIds.map((id) => this.contentRepository.getNoteById(userId, id)));
-    const noteMap = new Map(notes.filter((n): n is NoteRecord => !!n).map((n) => [n.id, n]));
+    const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
+    const noteMap = new Map(notes.map((n) => [n.id, n]));
 
     const contextChunks = similarChunks
       .map((chunk): AnswerContextChunk | null => {

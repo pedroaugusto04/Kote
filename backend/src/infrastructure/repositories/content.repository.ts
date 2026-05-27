@@ -429,6 +429,16 @@ export class PostgresContentRepository extends ContentRepository {
     return result.rows[0] ? this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
   }
 
+  async getNotesByIds(userId: string, ids: string[]) {
+    if (ids.length === 0) return [];
+    const result = await this.database.getPool().query(
+      'select * from kb_notes where user_id = $1 and id = any($2)',
+      [userId, ids],
+    );
+    const notes = result.rows.map(noteFromRow);
+    return Promise.all(notes.map((n) => this.hydrateMarkdown(n)));
+  }
+
   async getNoteByPath(userId: string, path: string) {
     const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and path = $2 limit 1', [userId, path]);
     return result.rows[0] ? noteFromRow(result.rows[0]) : null;
