@@ -31,15 +31,19 @@ export class AskKnowledgeUseCase {
       apiKey: env.embeddingAiApiKey,
     };
 
+    const conversationHistory = shouldUseConversationHistory(question)
+      ? options.conversationHistory?.slice(-5)
+      : undefined;
+
     let queryText = question;
-    if (options.conversationHistory && options.conversationHistory.length > 0) {
+    if (conversationHistory && conversationHistory.length > 0) {
       const answerConfig = {
         conversationAiProvider: env.conversationAiProvider,
         conversationAiBaseUrl: env.conversationAiBaseUrl,
         conversationAiModel: env.conversationAiModel,
         conversationAiApiKey: env.conversationAiApiKey,
       };
-      queryText = await this.answerGenerationGateway.rewriteQuery(answerConfig, question, options.conversationHistory);
+      queryText = await this.answerGenerationGateway.rewriteQuery(answerConfig, question, conversationHistory);
     }
 
     // 1. Generate embedding for the question
@@ -107,7 +111,7 @@ export class AskKnowledgeUseCase {
     const result = await this.answerGenerationGateway.generate(answerConfig, {
       question,
       context: contextChunks,
-      conversationHistory: options.conversationHistory,
+      conversationHistory,
     });
 
     if (!result) {
@@ -140,3 +144,27 @@ export class AskKnowledgeUseCase {
     };
   }
 }
+
+function shouldUseConversationHistory(question: string): boolean {
+  const normalized = normalizeQuestion(question);
+  if (!normalized) return false;
+
+  return contextualQuestionPatterns.some((pattern) => pattern.test(normalized));
+}
+
+function normalizeQuestion(question: string): string {
+  return String(question || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+const contextualQuestionPatterns = [
+  /^(e|and|also|tambem|agora|then|so|mas|but)\b/,
+  /\b(isso|isto|esse|essa|esses|essas|este|esta|estes|estas|aquele|aquela|aquilo)\b/,
+  /\b(ele|ela|eles|elas|dele|dela|deles|delas|nele|nela|nisso|nessa|nesse)\b/,
+  /\b(it|that|this|these|those|they|them|he|she|him|her|its|their)\b/,
+  /\b(previous|above|last|earlier|anterior|ultimo|ultima)\b/,
+  /\b(o arquivo|a nota|o documento|the file|the note|the document)\b/,
+];

@@ -245,3 +245,100 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
 
   await useCase.execute('And how do I deploy it?', 'user-123', { conversationHistory: history });
 });
+
+test('AskKnowledgeUseCase ignores history for standalone questions', async () => {
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async (config, texts) => {
+      assert.deepEqual(texts, ['envie minha monografia']);
+      return [[0.1, 0.2, 0.3]];
+    },
+  };
+
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [{
+      id: 'emb-1',
+      userId: 'user-123',
+      noteId: 'note-1',
+      chunkIndex: 0,
+      chunkText: 'Monografia final em PDF.',
+      embedding: [0.1, 0.2, 0.3],
+      model: 'gemini-embedding-001',
+      createdAt: '',
+      updatedAt: '',
+      similarity: 0.9,
+    }],
+  };
+
+  const mockContentRepository = {
+    getNotesByIds: async () => [{
+      id: 'note-1',
+      path: 'docs/monografia.md',
+      type: 'note',
+      title: 'Monografia',
+      projectSlug: 'academic',
+      workspaceSlug: 'default',
+      folderId: null,
+      status: 'active',
+      tags: [],
+      occurredAt: '',
+      sourceChannel: '',
+      summary: '',
+      markdown: 'Monografia final em PDF.',
+      markdownStorageKey: '',
+      frontmatter: {},
+      metadata: {},
+      origin: '',
+      source: '',
+      links: [],
+    }],
+  };
+
+  let rewriteCalled = false;
+  const mockAnswerGenerationGateway = {
+    generate: async (config, payload) => {
+      assert.equal(payload.question, 'envie minha monografia');
+      assert.equal(payload.conversationHistory, undefined);
+      return {
+        answer: 'Sending your monograph.',
+        confidence: 'high',
+        requestedAttachments: true,
+        requestedAttachmentPattern: 'monografia',
+        sources: [{ noteId: 'note-1', title: 'Monografia', path: 'docs/monografia.md' }],
+      };
+    },
+    rewriteQuery: async () => {
+      rewriteCalled = true;
+      return 'corrupted query from history';
+    },
+  };
+
+  const mockRuntimeEnv = {
+    read: () => ({
+      embeddingAiProvider: 'gemini',
+      embeddingAiBaseUrl: 'http://gemini.api',
+      embeddingAiModel: 'gemini-embedding-001',
+      embeddingAiApiKey: 'key-123',
+      conversationAiProvider: 'openai',
+      conversationAiBaseUrl: 'http://openai.api',
+      conversationAiModel: 'gpt-4',
+      conversationAiApiKey: 'key-456',
+    }),
+  };
+
+  const useCase = new AskKnowledgeUseCase(
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    mockContentRepository,
+    mockAnswerGenerationGateway,
+    mockRuntimeEnv,
+  );
+
+  const history = [
+    { question: 'me envie o contrato', answer: 'Sending the contract.', projectSlug: 'legal', timestamp: '' },
+  ];
+
+  const result = await useCase.execute('envie minha monografia', 'user-123', { conversationHistory: history });
+
+  assert.equal(rewriteCalled, false);
+  assert.equal(result.requestedAttachmentPattern, 'monografia');
+});
