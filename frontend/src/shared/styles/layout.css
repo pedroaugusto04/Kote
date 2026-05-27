@@ -120,11 +120,16 @@
   display: none;
 }
 
+.command-bar-container {
+  position: relative;
+  width: min(720px, 100%);
+}
+
 .command-bar {
   display: flex;
   align-items: center;
   gap: 10px;
-  width: min(720px, 100%);
+  width: 100%;
   min-height: 42px;
   padding: 0 13px;
   background: var(--surface-2);
@@ -274,4 +279,88 @@
   opacity: 0.55;
   pointer-events: none;
   transition: opacity 140ms ease;
+}
+
+/* Command Bar Popover (Command Palette style) */
+.command-bar-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  box-shadow: var(--shadow-strong);
+  z-index: 100;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.command-bar-popover-status {
+  padding: 10px 14px;
+  color: var(--muted);
+  font-size: 13px;
+  font-family: var(--mono);
+}
+
+.command-bar-result-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.command-bar-result-item:hover,
+.command-bar-result-item.focused {
+  background: var(--surface-6);
+  outline: none;
+}
+
+.command-bar-result-item .result-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.command-bar-result-item .result-title {
+  font-weight: 500;
+  font-size: 13.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-bar-result-item .result-path {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: var(--mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-bar-result-item .result-project-badge {
+  font-size: 10.5px;
+  font-family: var(--mono);
+  background: var(--surface-5);
+  color: var(--cyan);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--line-soft);
+  text-transform: uppercase;
+  white-space: nowrap;
 }

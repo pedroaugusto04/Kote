@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, setProjectFavorite } from '../shared/api/client';
+import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite } from '../shared/api/client';
 import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { HomePage } from '../pages/home/HomePage';
@@ -29,6 +30,7 @@ import { UserAvatar } from '../shared/ui/user-avatar';
 import { BrandMark } from '../shared/ui/brand-mark';
 import { ThemeToggle } from '../shared/ui/theme-toggle';
 import { useGlobalLoading } from '../app/global-loading';
+import { useDebouncedValue } from '../shared/ui/use-debounced-value';
 
 
 function activeView(pathname: string): View {
@@ -70,12 +72,29 @@ export function AppShell() {
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
+  const [searchValue, setSearchValue] = useState('');
+  const debouncedSearchValue = useDebouncedValue(searchValue, 300);
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1);
+  const commandBarRef = useRef<HTMLDivElement>(null);
+
   const view = activeView(location.pathname);
   const routeProject = routeParam(location.pathname, '/projects/');
   const isProjectsRoot = location.pathname === routes.projects;
   const routeNoteId = routeParam(location.pathname, '/vault/');
   const activeWorkspace = dashboard?.workspaces[0] || null;
+  const workspaceSlug = activeWorkspace?.workspaceSlug || '';
   const isSetupRoute = location.pathname.startsWith(routes.setup);
+
+  const searchQuery = useQuery({
+    queryKey: ['global-search-popover', debouncedSearchValue, workspaceSlug],
+    queryFn: () => runQuery({
+      query: debouncedSearchValue,
+      workspaceSlug,
+      limit: 5,
+    }),
+    enabled: Boolean(debouncedSearchValue.trim()),
+  });
   const activeNavItem = navItems.find((item) => item.view === view);
   const topbarTitle = view === 'note'
     ? 'Note details'
@@ -115,7 +134,22 @@ export function AppShell() {
   useEffect(() => {
     setIsMobileNavOpen(false);
     setIsProfileMenuOpen(false);
+    setIsPopoverOpen(false);
+    setSearchValue('');
+    setFocusedIndex(-1);
   }, [location.pathname]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (commandBarRef.current && !commandBarRef.current.contains(event.target as Node)) {
+        setIsPopoverOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     if (!isProfileMenuOpen) return undefined;
@@ -237,6 +271,48 @@ export function AppShell() {
   if (!activeWorkspace) return <Navigate replace to={routes.setup} />;
   if (location.pathname === routes.auth) return <Navigate replace to={routes.home} />;
 
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    const matches = searchQuery.data?.matches || [];
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!isPopoverOpen) {
+        setIsPopoverOpen(true);
+        return;
+      }
+      setFocusedIndex((prev) => (prev + 1 < matches.length ? prev + 1 : 0));
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (!isPopoverOpen) {
+        setIsPopoverOpen(true);
+        return;
+      }
+      setFocusedIndex((prev) => (prev - 1 >= 0 ? prev - 1 : matches.length - 1));
+    } else if (event.key === 'Enter') {
+      if (isPopoverOpen && focusedIndex >= 0 && focusedIndex < matches.length) {
+        event.preventDefault();
+        const selectedMatch = matches[focusedIndex];
+        pageContext.openNote(selectedMatch.id);
+        setSearchValue('');
+        setIsPopoverOpen(false);
+        setFocusedIndex(-1);
+      } else {
+        const q = searchValue.trim();
+        if (q) {
+          event.preventDefault();
+          navigate(`${routes.search}?q=${encodeURIComponent(q)}`);
+          setIsPopoverOpen(false);
+          setSearchValue('');
+          setFocusedIndex(-1);
+        }
+      }
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsPopoverOpen(false);
+      setFocusedIndex(-1);
+      event.currentTarget.blur();
+    }
+  };
+
   return (
     <div className="app-shell">
       <button
@@ -332,15 +408,56 @@ export function AppShell() {
               <span>{activeWorkspace.displayName}</span>
             </div>
           </div>
-          <label className="command-bar">
-            <span>&gt;_</span>
-            <input type="search" placeholder="Search notes, paths, or tags" onKeyDown={(event) => { 
-              if (event.key === 'Enter') {
-                const q = event.currentTarget.value.trim();
-                navigate(q ? `${routes.search}?q=${encodeURIComponent(q)}` : routes.search); 
-              }
-            }} />
-          </label>
+          <div className="command-bar-container" ref={commandBarRef}>
+            <label className="command-bar">
+              <span>&gt;_</span>
+              <input
+                type="search"
+                placeholder="Search notes, paths, or tags"
+                value={searchValue}
+                onChange={(event) => {
+                  setSearchValue(event.target.value);
+                  setIsPopoverOpen(true);
+                  setFocusedIndex(-1);
+                }}
+                onFocus={() => setIsPopoverOpen(true)}
+                onKeyDown={handleSearchKeyDown}
+              />
+            </label>
+            {isPopoverOpen && searchValue.trim() && (
+              <div className="command-bar-popover" role="listbox">
+                {searchQuery.isLoading ? (
+                  <div className="command-bar-popover-status">Searching...</div>
+                ) : searchQuery.data?.matches?.length ? (
+                  searchQuery.data.matches.map((match, index) => (
+                    <button
+                      key={match.id}
+                      className={`command-bar-result-item ${index === focusedIndex ? 'focused' : ''}`}
+                      onClick={() => {
+                        pageContext.openNote(match.id);
+                        setSearchValue('');
+                        setIsPopoverOpen(false);
+                        setFocusedIndex(-1);
+                      }}
+                      type="button"
+                      role="option"
+                      aria-selected={index === focusedIndex}
+                    >
+                      <div className="result-main">
+                        <span className="result-title">{match.title}</span>
+                        {match.path ? <span className="result-path">{match.path}</span> : null}
+                      </div>
+                      <div className="result-meta">
+                        <span className="result-project-badge">{match.project}</span>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="command-bar-popover-status">No notes found</div>
+                )}
+              </div>
+            )}
+          </div>
           <div className="topbar-meta">
             <div className="profile-menu">
               <button
