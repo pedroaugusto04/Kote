@@ -187,7 +187,6 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     mediaDownloader,
     undefined,
     options.askAttachments === false ? undefined : new ResolveWhatsappAskAttachmentsUseCase(repositories.contentRepository, repositories.objectStorage),
-    repositories.conversationStateRepository,
   );
   return { repositories, whatsapp, sender, user, mediaDownloader };
 }
@@ -764,52 +763,17 @@ test('whatsapp /ask attachments stay scoped to the linked workspace', async (t) 
   assert.equal(sender.media.length, 0);
 });
 
-test('whatsapp /ask command keeps track of conversation turns in history', async (t) => {
+test('whatsapp /ask command keeps each question isolated from previous turns', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { whatsapp, repositories, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
 
-  // Turn 1
-  const result1 = await whatsapp.execute(evolutionInput('/kb /ask qual é o deploy checklist?'));
-  assert.equal(result1.action, 'ask');
-  assert.equal(result1.replySent, true);
-
-  // Load from state repo and assert turn is stored
-  const key = `ask:120363@g.us:5511999999999@s.whatsapp.net`;
-  const record = await repositories.conversationStateRepository.get(user.id, 'default', key);
-  assert.ok(record);
-  assert.ok(record.state);
-  assert.equal(record.state.turns.length, 1);
-  assert.equal(record.state.turns[0].question, 'qual é o deploy checklist?');
-  assert.equal(record.state.turns[0].answer, askKnowledge.result.answer);
-
-  // Turn 2
-  const result2 = await whatsapp.execute(evolutionInput('/kb /ask e como executa?'));
-  assert.equal(result2.action, 'ask');
-
-  // Verify that the second call received the history turn in its options
-  assert.equal(askKnowledge.calls.length, 2);
-  assert.equal(askKnowledge.calls[1].options.conversationHistory.length, 1);
-  assert.equal(askKnowledge.calls[1].options.conversationHistory[0].question, 'qual é o deploy checklist?');
-});
-
-test('whatsapp /ask reset command clears the history', async (t) => {
-  const askKnowledge = new StubAskKnowledgeUseCase();
-  const { whatsapp, repositories, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
-
-  // 1. Send /ask to populate some history
   await whatsapp.execute(evolutionInput('/kb /ask qual é o deploy checklist?'));
-  const key = `ask:120363@g.us:5511999999999@s.whatsapp.net`;
-  const record1 = await repositories.conversationStateRepository.get(user.id, 'default', key);
-  assert.equal(record1.state.turns.length, 1);
+  await whatsapp.execute(evolutionInput('/kb /ask e como executa?'));
 
-  // 2. Send /ask reset to clear history
-  const resetResult = await whatsapp.execute(evolutionInput('/kb /ask reset'));
-  assert.equal(resetResult.action, 'ask');
-  assert.match(resetResult.message, /limpo com sucesso/);
-
-  // 3. Confirm repository is empty
-  const record2 = await repositories.conversationStateRepository.get(user.id, 'default', key);
-  assert.equal(record2, null);
+  assert.equal(askKnowledge.calls.length, 2);
+  assert.deepEqual(askKnowledge.calls[0].options, { workspaceSlug: 'default' });
+  assert.deepEqual(askKnowledge.calls[1].options, { workspaceSlug: 'default' });
+  assert.equal(await repositories.countConversationStates(), 0);
 });
 
 test('whatsapp webhook ignores only bot-prefixed self messages', async (t) => {

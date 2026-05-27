@@ -9,9 +9,7 @@ import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { WhatsappMediaDownloader } from '../../../ports/integrations/whatsapp-media.downloader.js';
 import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.sender.js';
-import { parseAskCommand, isAskReset } from '../../../utils/conversation-command.utils.js';
-import { isConversationStateExpired } from '../../../utils/conversation-state.utils.js';
-import { askConversationStateSchema, pushAskTurn, emptyAskConversationState, type AskConversationTurn, type AskConversationState } from '../../../../contracts/ask-conversation.js';
+import { parseAskCommand } from '../../../utils/conversation-command.utils.js';
 import { buildWhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { ProcessAgentConversationUseCase } from '../../conversation/process-agent-conversation.use-case.js';
@@ -20,7 +18,6 @@ import { ResolveWhatsappAskAttachmentsUseCase } from '../../query/resolve-whatsa
 import { AppLogger } from '../../../../observability/logger.js';
 import { parseWhatsappEvolutionMessage } from '../../../utils/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
-import { ConversationStateRepository } from '../../../ports/reminders/workflow-state.repository.js';
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
 
 type WhatsappWebhookContext = {
@@ -46,7 +43,6 @@ export class HandleWhatsappWebhookUseCase {
     private readonly whatsappMediaDownloader?: WhatsappMediaDownloader,
     private readonly logger?: AppLogger,
     private readonly resolveWhatsappAskAttachmentsUseCase?: ResolveWhatsappAskAttachmentsUseCase,
-    private readonly conversationStates?: ConversationStateRepository,
   ) {}
 
   async execute(input: WhatsappWebhookRequest) {
@@ -155,10 +151,6 @@ export class HandleWhatsappWebhookUseCase {
   ) {
     const enrichedInput = await this.withDownloadedMedia(context, input);
 
-    if (isAskReset(enrichedInput.messageText || '')) {
-      return this.handleAskReset(context, userId, workspaceSlug, enrichedInput);
-    }
-
     const askCommand = parseAskCommand(enrichedInput.messageText || '');
     if (askCommand) {
       return this.handleAskCommand(context, userId, workspaceSlug, enrichedInput, askCommand.question);
@@ -208,29 +200,6 @@ export class HandleWhatsappWebhookUseCase {
     }, userId);
   }
 
-  private async handleAskReset(
-    context: WhatsappWebhookContext,
-    userId: string,
-    workspaceSlug: string,
-    input: ConversationInput,
-  ) {
-    if (this.conversationStates) {
-      const key = `ask:${input.chatId}:${input.senderId}`;
-      await this.conversationStates.clear(userId, workspaceSlug, key);
-    }
-    const replyText = 'Histórico da conversa do /ask limpo com sucesso! Próxima pergunta começará do zero.';
-    const sendResult = await this.sendReply(input.chatId, replyText);
-    return this.processed(context, {
-      ok: true,
-      processed: true,
-      action: 'ask',
-      message: replyText,
-      payload: null,
-      replySent: sendResult.ok,
-      replyError: sendResult.ok ? undefined : sendResult.error,
-    }, userId);
-  }
-
   private async handleAskCommand(
     context: WhatsappWebhookContext,
     userId: string,
@@ -242,49 +211,7 @@ export class HandleWhatsappWebhookUseCase {
       return this.processed(context, { ok: true, resolvedUserId: userId, processed: false }, userId);
     }
 
-    let conversationState: AskConversationState = emptyAskConversationState();
-    const key = `ask:${input.chatId}:${input.senderId}`;
-
-    if (this.conversationStates) {
-      try {
-        const record = await this.conversationStates.get(userId, workspaceSlug, key);
-        if (record && record.state) {
-          const parsed = askConversationStateSchema.safeParse(record.state);
-          if (parsed.success) {
-            const isExpired = isConversationStateExpired(parsed.data.updatedAt, record.updatedAt);
-            if (!isExpired) {
-              conversationState = parsed.data;
-            }
-          }
-        }
-      } catch (err) {
-        this.logger?.error('whatsapp.ask.load_state_failed', { userId, workspaceSlug, key, error: String(err) });
-      }
-    }
-
-    const executeOptions: { workspaceSlug?: string; conversationHistory?: AskConversationTurn[] } = {
-      workspaceSlug,
-    };
-    if (conversationState.turns.length > 0) {
-      executeOptions.conversationHistory = conversationState.turns;
-    }
-
-    const result = await this.askKnowledgeUseCase.execute(question, userId, executeOptions);
-
-    if (result.ok && this.conversationStates) {
-      try {
-        const newTurn: AskConversationTurn = {
-          question,
-          answer: result.answer || '',
-          projectSlug: '',
-          timestamp: new Date().toISOString(),
-        };
-        const nextState = pushAskTurn(conversationState, newTurn);
-        await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
-      } catch (err) {
-        this.logger?.error('whatsapp.ask.save_state_failed', { userId, workspaceSlug, key, error: String(err) });
-      }
-    }
+    const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceSlug });
 
     const attachmentResolution = await this.resolveAskAttachments(userId, workspaceSlug, result);
     const replyText = formatAskReply(result, attachmentResolution);
