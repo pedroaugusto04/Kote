@@ -104,6 +104,11 @@ function githubHandlerFixture(projects = []) {
         return projects;
       },
     },
+    {
+      async findCredential() {
+        return null;
+      },
+    },
   );
   return { handler, events, calls };
 }
@@ -283,7 +288,7 @@ test('github app push sends whatsapp alert for high severity AI review findings'
   const handler = new HandleGithubPushUseCase(
     {
       async execute(payload) {
-        return { ok: true, project: payload.event.projectSlug };
+        return { ok: true, project: payload.event.projectSlug, noteId: 'note-1' };
       },
     },
     {
@@ -306,6 +311,7 @@ test('github app push sends whatsapp alert for high severity AI review findings'
         reviewAiBaseUrl: 'https://ai.example.com/v1',
         reviewAiModel: 'review-model',
         reviewAiApiKey: 'review-key',
+        publicBaseUrl: 'https://kb.example.com/knowledge-base',
       }),
     },
     {
@@ -391,9 +397,10 @@ test('github app push sends whatsapp alert for high severity AI review findings'
   assert.equal(whatsappMessages.length, 1);
   assert.equal(whatsappMessages[0].chatJid, '5511999999999@s.whatsapp.net');
   assert.match(whatsappMessages[0].text, /Commit: def456/);
+  assert.match(whatsappMessages[0].text, /Note details: https:\/\/kb\.example\.com\/knowledge-base\/vault\/note-1/);
   assert.match(whatsappMessages[0].text, /The push introduces a risky permission change/);
-  assert.match(whatsappMessages[0].text, /The AI found important issues in this commit/);
-  assert.match(whatsappMessages[0].text, /\[HIGH\]\s+\(src\/private\.ts\)/);
+  assert.match(whatsappMessages[0].text, /\*Important issues\*/);
+  assert.match(whatsappMessages[0].text, /\*HIGH\* \(src\/private\.ts\)/);
   assert.match(whatsappMessages[0].text, /Problem: Authorization is bypassed/);
   assert.match(whatsappMessages[0].text, /How to fix: Restore the user ownership filter/);
   assert.equal(events.at(-1).status, 'processed');

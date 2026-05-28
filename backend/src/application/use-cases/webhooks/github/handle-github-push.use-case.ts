@@ -11,6 +11,7 @@ import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.
 import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.port.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
+import { absoluteUrl } from '../../../utils/integration-status.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 
@@ -127,7 +128,13 @@ export class HandleGithubPushUseCase {
       );
       const resolvedPayload = this.resolvePayloadProject(payload, projectSlug);
       const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug);
-      const whatsappNotification = await this.notifyWhatsappOnHighSeverityFindings(resolvedPayload, identity.userId, identity.workspaceSlug);
+      const whatsappNotification = await this.notifyWhatsappOnHighSeverityFindings(
+        resolvedPayload,
+        identity.userId,
+        identity.workspaceSlug,
+        ingestResult.noteId,
+        environment.publicBaseUrl,
+      );
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
         eventType: String(headers['x-github-event'] || 'push'),
@@ -188,6 +195,8 @@ export class HandleGithubPushUseCase {
     payload: Awaited<ReturnType<typeof buildGithubReviewEvent>>,
     userId: string,
     workspaceSlug: string,
+    noteId: string,
+    noteBaseUrl: string,
   ): Promise<{ sent: boolean; skipped?: string; error?: string }> {
     const hasHighSeverityFinding = payload.content.sections.reviewFindings.some((finding) => ['high', 'critical'].includes(finding.severity));
     if (!hasHighSeverityFinding) return { sent: false, skipped: 'no_high_severity_findings' };
@@ -201,11 +210,12 @@ export class HandleGithubPushUseCase {
     const workspace = workspaces.find((item) => item.workspaceSlug === workspaceSlug);
     const chatJid = String(workspace?.whatsappChatJid || '').trim();
     if (!chatJid) return { sent: false, skipped: 'whatsapp_chat_not_bound' };
+    const noteLink = noteId && noteBaseUrl ? absoluteUrl(noteBaseUrl, `/vault/${encodeURIComponent(noteId)}`) : '';
 
     try {
       const result = await this.whatsappReplySender.sendText({
         chatJid,
-        text: buildWhatsappHighSeverityCodeReviewMessage(payload),
+        text: buildWhatsappHighSeverityCodeReviewMessage(payload, noteLink),
       });
       return result.ok
         ? { sent: true }

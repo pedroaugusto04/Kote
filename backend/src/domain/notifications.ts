@@ -20,27 +20,31 @@ export function buildTelegramCodeReviewMessage(payload: IngestPayload): string {
   return lines.filter(Boolean).join('\n');
 }
 
-export function buildWhatsappHighSeverityCodeReviewMessage(payload: IngestPayload): string {
+export function buildWhatsappHighSeverityCodeReviewMessage(payload: IngestPayload, noteLink?: string): string {
   const sections = payload.content.sections;
   const findings = (sections.reviewFindings || []).filter((finding) => ['high', 'critical'].includes(finding.severity));
   const lines = [
-    'AI code review alert',
+    '*AI code review alert*',
     `Project: ${payload.event.projectSlug}`,
     `Repository: ${String(payload.metadata.repoFullName || '').trim() || payload.source.conversationId || 'unknown'}`,
     `Commit: ${commitLabel(payload)}`,
     payload.metadata.compareUrl ? `Compare: ${String(payload.metadata.compareUrl)}` : '',
-    `Summary: ${sections.summary || payload.content.rawText}`,
-    sections.impact ? `Impact: ${sections.impact}` : '',
-    'The AI found important issues in this commit:',
+    noteLink ? `Note details: ${noteLink}` : '',
+    '',
+    '*Summary*',
+    sections.summary || payload.content.rawText,
+    sections.impact ? `*Impact*\n${sections.impact}` : '',
+    '',
+    '*Important issues*',
     ...findings.slice(0, 5).map((finding) => {
       const location = finding.file ? ` (${finding.file})` : '';
       const recommendation = finding.recommendation || 'Review this issue before moving forward with the change.';
       return [
-        `- [${finding.severity.toUpperCase()}]${location}`,
-        `  Problem: ${finding.summary}`,
-        `  How to fix: ${recommendation}`,
+        `*${finding.severity.toUpperCase()}*${location}`,
+        `Problem: ${finding.summary}`,
+        `How to fix: ${recommendation}`,
       ].join('\n');
     }),
   ];
-  return lines.filter(Boolean).join('\n');
+  return lines.filter((line) => line !== '').join('\n\n');
 }
