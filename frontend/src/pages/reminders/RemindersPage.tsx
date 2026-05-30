@@ -9,7 +9,7 @@ import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { Pagination } from '../../shared/ui/pagination';
-import { PageHead, Panel } from '../../shared/ui/primitives';
+import { EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { ReminderRow } from '../../widgets/reminders/ReminderRow';
@@ -102,6 +102,9 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
             </div>
           </Panel>
         ))}
+        {!visibleReminders.length && !remindersQuery.isLoading && !remindersQuery.isError ? (
+          <EmptyState>No reminders found with these filters.</EmptyState>
+        ) : null}
       </div>
       {pagination ? (
         isMobilePagination

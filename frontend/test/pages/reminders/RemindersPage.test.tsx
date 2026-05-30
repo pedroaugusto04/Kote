@@ -34,6 +34,31 @@ afterEach(() => {
 });
 
 describe('RemindersPage', () => {
+  it('shows an empty state when there are no reminders', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({
+        ok: true,
+        reminders: [],
+        pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+      }), { status: 200 }),
+    );
+
+    renderWithAppProviders(
+      <RemindersPage
+        dashboard={dashboard}
+        selectedProject=""
+        selectedNoteId=""
+        setSelectedProject={() => undefined}
+        openProject={() => undefined}
+        openNote={() => undefined}
+        editNote={() => undefined}
+        deleteNote={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('No reminders found with these filters.')).toBeInTheDocument();
+  });
+
   it('requests reminders filtered by status and renders the backend status', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch')
       .mockResolvedValueOnce(
