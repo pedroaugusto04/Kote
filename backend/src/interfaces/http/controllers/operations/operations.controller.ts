@@ -47,7 +47,7 @@ export class OperationsController {
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
   ) {
-    return this.agentConversation.execute(body, user.id, query.workspaceSlug);
+    return this.agentConversation.execute(body, user.id, query.workspaceSlug, query.projectSlug);
   }
 
   @Get('reminders/dispatch')

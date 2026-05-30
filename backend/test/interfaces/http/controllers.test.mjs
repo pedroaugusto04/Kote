@@ -112,7 +112,7 @@ test('dashboard controller delegates project, workspace and note reads to use ca
   });
   assert.deepEqual(await controller.updateReminderStatus({ id: 'note-1' }, { status: 'resolved' }, user), { ok: true, id: 'note-1', status: 'resolved' });
   assert.deepEqual(await controller.query({ query: 'deploy', limit: 7, workspaceSlug: '', projectSlug: '', status: '', page: 1, pageSize: 5 }, user), { ok: true, query: { query: 'deploy', limit: 7, workspaceSlug: '', projectSlug: '', status: '', page: 1, pageSize: 5 } });
-  assert.deepEqual(await controller.ask({ question: 'How to deploy?', projectSlug: 'platform' }, user), { ok: true, question: 'How to deploy?', userId: 'user-1', options: { projectSlug: 'platform' } });
+  assert.deepEqual(await controller.ask({ question: 'How to deploy?', projectSlug: 'platform' }, user), { ok: true, question: 'How to deploy?', userId: 'user-1', options: { projectSlug: 'platform', workspaceSlug: undefined } });
   assert.deepEqual(await controller.askHistory({ page: 2, pageSize: 5, projectSlug: 'platform' }, user), {
     ok: true,
     history: [{ id: 'ask-1', userId: 'user-1', page: 2, pageSize: 5, projectSlug: 'platform' }],

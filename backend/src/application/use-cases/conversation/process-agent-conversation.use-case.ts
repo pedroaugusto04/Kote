@@ -66,12 +66,21 @@ export class ProcessAgentConversationUseCase {
     private readonly logger?: AppLogger,
   ) {}
 
-  async execute(input: ConversationInput, userId: string, workspaceSlug = 'default'): Promise<AgentConversationResult> {
+  async execute(input: ConversationInput, userId: string, workspaceSlug = 'default', projectSlug?: string): Promise<AgentConversationResult> {
     const normalizedWorkspaceSlug = slugify(workspaceSlug) || 'default';
     await this.assertAgentEnabled(userId, normalizedWorkspaceSlug);
 
     const key = `agent:${input.chatId}:${input.senderId}`;
     let state = await this.loadState(userId, normalizedWorkspaceSlug, key);
+    if (projectSlug) {
+      state = {
+        ...state,
+        project: {
+          ...state.project,
+          selectedProjectSlug: projectSlug,
+        },
+      };
+    }
     const messageText = String(input.messageText || '').trim();
     this.logger?.info('conversation.agent.turn.start', {
       userId,

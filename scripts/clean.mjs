@@ -1,6 +1,6 @@
 import { rmSync, existsSync } from 'node:fs';
 
-const targets = ['dist', 'backend/dist'];
+const targets = ['dist', 'backend/dist', 'cli/dist'];
 for (const target of targets) {
   if (existsSync(target)) {
     rmSync(target, { recursive: true, force: true });

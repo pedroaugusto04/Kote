@@ -153,7 +153,10 @@ export class DashboardController {
     @Body(new ZodValidationPipe(askRequestSchema, 'invalid_ask_payload')) body: AskRequest,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.runAskAiUseCase.execute(body.question, user.id, { projectSlug: body.projectSlug });
+    return this.runAskAiUseCase.execute(body.question, user.id, {
+      projectSlug: body.projectSlug,
+      workspaceSlug: body.workspaceSlug,
+    });
   }
 
   @Get('ask/history')

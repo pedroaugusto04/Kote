@@ -1,0 +1,17 @@
+{
+  "name": "@pedroaugusto04/kb-cli",
+  "version": "1.1.9",
+  "description": "CLI client for the Knowledge Base AI system",
+  "type": "module",
+  "bin": {
+    "kb": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@clack/prompts": "^1.5.0",
+    "commander": "^15.0.0",
+    "picocolors": "^1.1.1"
+  }
+}

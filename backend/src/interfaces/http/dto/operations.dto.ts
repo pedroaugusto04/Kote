@@ -9,8 +9,10 @@ export const agentConversationBodySchema = conversationInputSchema;
 
 export const workspaceQuerySchema = z.object({
   workspaceSlug: z.string().trim().default('default'),
+  projectSlug: z.string().trim().optional(),
 }).transform((query) => ({
   workspaceSlug: query.workspaceSlug || 'default',
+  projectSlug: query.projectSlug || undefined,
 }));
 
 export const reminderDispatchQuerySchema = z.object({

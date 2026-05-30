@@ -6,6 +6,7 @@ export const askRequestSchema = z
   .object({
     question: z.string().trim().min(1, 'Question cannot be empty'),
     projectSlug: z.string().trim().optional().default(''),
+    workspaceSlug: z.string().trim().optional(),
   })
   .pipe(askInputSchema);
 

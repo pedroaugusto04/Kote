@@ -137,7 +137,7 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
   ]);
 });
 
-test('RunAskAiUseCase saves only successful web Ask AI answers', async () => {
+test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches requested attachments via Whatsapp', async () => {
   const saved = [];
   const askKnowledge = {
     calls: [],
@@ -159,12 +159,47 @@ test('RunAskAiUseCase saves only successful web Ask AI answers', async () => {
       saved.push(input);
     },
   };
+  const contentRepository = {
+    async listWorkspaces(userId) {
+      return [{ workspaceSlug: 'default', whatsappChatJid: '12345@c.us' }];
+    },
+  };
+  const resolveWhatsappAskAttachmentsUseCase = {
+    calls: [],
+    async execute(input) {
+      this.calls.push(input);
+      return {
+        requested: true,
+        media: [{
+          noteId: 'note-1',
+          attachmentId: 'att-123',
+          mediaType: 'document',
+          mimeType: 'application/pdf',
+          fileName: 'manual.pdf',
+          mediaBase64: 'dGVzdA==',
+        }],
+      };
+    },
+  };
+  const sentMedia = [];
+  const whatsappReplySender = {
+    async sendMedia(input) {
+      sentMedia.push(input);
+      return { ok: true };
+    },
+  };
 
-  const useCase = new RunAskAiUseCase(askKnowledge, repository);
+  const useCase = new RunAskAiUseCase(
+    askKnowledge,
+    repository,
+    contentRepository,
+    resolveWhatsappAskAttachmentsUseCase,
+    whatsappReplySender,
+  );
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'platform' });
 
   assert.equal(result, askKnowledge.result);
-  assert.deepEqual(askKnowledge.calls, [{ question: 'How to deploy?', userId: 'user-123', options: { projectSlug: 'platform' } }]);
+  assert.deepEqual(askKnowledge.calls, [{ question: 'How to deploy?', userId: 'user-123', options: { projectSlug: 'platform', workspaceSlug: undefined } }]);
   assert.deepEqual(saved, [{
     userId: 'user-123',
     projectSlug: 'platform',
@@ -173,6 +208,15 @@ test('RunAskAiUseCase saves only successful web Ask AI answers', async () => {
     confidence: 'high',
     sources: [{ noteId: 'note-1', title: 'Deploy', path: 'docs/deploy.md' }],
     relatedNotes: [{ id: 'note-1', title: 'Deploy', path: 'docs/deploy.md', projectSlug: 'platform', workspaceSlug: 'default' }],
+  }]);
+
+  assert.equal(resolveWhatsappAskAttachmentsUseCase.calls.length, 1);
+  assert.deepEqual(sentMedia, [{
+    chatJid: '12345@c.us',
+    mediaType: 'document',
+    mimeType: 'application/pdf',
+    fileName: 'manual.pdf',
+    mediaBase64: 'dGVzdA==',
   }]);
 
   askKnowledge.result = { ok: false, answer: 'Failed.', confidence: 'low', requestedAttachments: false, sources: [], relatedNotes: [] };
