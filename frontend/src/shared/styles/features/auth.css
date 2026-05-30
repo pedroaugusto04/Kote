@@ -10,6 +10,13 @@
     linear-gradient(180deg, rgba(18, 29, 36, 0.92), rgba(9, 15, 20, 0.98));
 }
 
+:root[data-theme="light"] .auth-layout {
+  background:
+    radial-gradient(ellipse 100% 60% at 72% -4%, rgba(14, 116, 144, 0.08), transparent 50%),
+    radial-gradient(ellipse 80% 50% at 10% 20%, rgba(4, 120, 87, 0.05), transparent 40%),
+    linear-gradient(168deg, #f1f5f9 0%, #f8fafc 38%, #f0f4f8 100%);
+}
+
 .auth-panel {
   width: 100%;
   display: grid;
