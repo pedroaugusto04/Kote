@@ -4,7 +4,7 @@ import pc from 'picocolors';
 import { text as clackText, isCancel, spinner } from '@clack/prompts';
 import { client, ApiClientError } from '../client.js';
 
-function getMimeType(filePath: string): string {
+function getMimeType(filePath: string, buffer?: Buffer): string {
   const ext = path.extname(filePath).toLowerCase();
   const map: Record<string, string> = {
     '.png': 'image/png',
@@ -29,7 +29,24 @@ function getMimeType(filePath: string): string {
     '.py': 'text/x-python',
     '.sh': 'text/x-shellscript',
   };
-  return map[ext] || 'application/octet-stream';
+  
+  if (map[ext]) return map[ext];
+
+  if (buffer) {
+    const limit = Math.min(buffer.length, 1024);
+    let isBinary = false;
+    for (let i = 0; i < limit; i++) {
+      if (buffer[i] === 0) {
+        isBinary = true;
+        break;
+      }
+    }
+    if (!isBinary) {
+      return 'text/plain';
+    }
+  }
+
+  return 'application/octet-stream';
 }
 
 export async function runNote(noteText: string, options: { file?: string; project?: string }): Promise<void> {
@@ -46,7 +63,7 @@ export async function runNote(noteText: string, options: { file?: string; projec
       const buffer = fs.readFileSync(filePath);
       media = {
         fileName: path.basename(filePath),
-        mimeType: getMimeType(filePath),
+        mimeType: getMimeType(filePath, buffer),
         sizeBytes: stats.size,
         dataBase64: buffer.toString('base64'),
       };

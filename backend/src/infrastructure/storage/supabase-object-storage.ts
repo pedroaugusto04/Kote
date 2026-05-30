@@ -89,9 +89,11 @@ export class SupabaseObjectStorage extends ObjectStorage {
     const config = readConfig();
     requireConfig(config);
     const storage = this.createStorageClient(config);
+    const contentType = input.contentType || 'application/octet-stream';
+
     const { error } = await storage.upload(input.key, uploadBody(input.body), {
       cacheControl: config.cacheControl,
-      contentType: input.contentType || 'application/octet-stream',
+      contentType,
       upsert: true,
     });
     if (error) throw buildStorageError('supabase_storage_put_failed', error);
