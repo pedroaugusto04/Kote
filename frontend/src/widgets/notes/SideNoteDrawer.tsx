@@ -21,6 +21,13 @@ export type SideNoteDrawerProps = {
 export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProjects }: SideNoteDrawerProps) {
   const noteQuery = useQuery(noteDetailQueryOptions(noteId));
   const visibleTags = noteQuery.data ? noteQuery.data.tags.filter((tag) => tag !== noteQuery.data.project) : [];
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [noteId]);
 
   return (
     <aside className="knowledge-map-drawer" aria-label="Note details drawer">
@@ -43,7 +50,7 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
           </div>
         )}
       </header>
-      <div className="knowledge-map-drawer-content">
+      <div className="knowledge-map-drawer-content" ref={contentRef}>
         {noteQuery.isError ? (
           <InlineMessage tone="error">Could not load the note details.</InlineMessage>
         ) : noteQuery.isLoading ? (

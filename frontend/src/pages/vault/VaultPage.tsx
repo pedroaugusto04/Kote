@@ -65,6 +65,10 @@ export function VaultPage({
     }
   }, [noteQuery.data?.project, selectedProject, setSelectedProject]);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [noteId]);
+
   const visibleTags = noteQuery.data ? noteQuery.data.tags.filter((tag) => tag !== noteQuery.data.project) : [];
   const notes = notesQuery.data?.notes || [];
   const pagination = notesQuery.data?.pagination;

@@ -33,7 +33,7 @@ export function NoteRow({
           <AttachmentIndicator count={note.attachmentCount || 0} />
         </div>
         <h3>{note.title}</h3>
-        <p>{note.summary}</p>
+        <p>{getCleanSummary(note.summary)}</p>
       </div>
       <div className="row-actions">
         <QuickNoteStatusActions note={note} compact />
@@ -70,3 +70,16 @@ export function NoteRow({
     </article>
   );
 }
+
+function getCleanSummary(summary: string | undefined): string {
+  if (!summary) return '';
+  // Replace newlines and carriage returns with spaces
+  let text = summary.replace(/\r?\n/g, ' ');
+  // Collapse multiple spaces
+  text = text.replace(/\s+/g, ' ').trim();
+  if (text.length > 200) {
+    return text.substring(0, 200) + '...';
+  }
+  return text;
+}
+
