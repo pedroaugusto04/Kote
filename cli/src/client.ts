@@ -156,6 +156,23 @@ export class ApiClient {
   async listWorkspaces(): Promise<any> {
     return this.fetch('/api/workspaces');
   }
+
+  async createNote(body: any): Promise<any> {
+    return this.fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
+
+  async updateNote(id: string, body: any): Promise<any> {
+    return this.fetch(`/api/notes/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  }
 }
 
 export const client = new ApiClient();
+

@@ -10,6 +10,7 @@ import { loadConfig } from '../config.js';
 const COMMANDS = [
   '/save ',
   '/ask ',
+  '/sync ',
   '/logout',
   '/exit',
   'projects',
@@ -263,6 +264,13 @@ export async function runRepl(): Promise<void> {
       console.log(`    ${pc.gray('Options:')} Supports same -p and -f options as /save`);
       console.log(`    ${pc.gray('Example:')} My note text -p platform\n`);
 
+      console.log(`  ${pc.bold('/sync <path>')}             - Sync a local directory or single markdown file`);
+      console.log(`    ${pc.gray('Options:')}`);
+      console.log(`      ${pc.yellow('-p, --project <slug>')}  Specify default project context`);
+      console.log(`      ${pc.yellow('--dry-run')}             Analyze changes without uploading`);
+      console.log(`      ${pc.yellow('-w, --watch')}             Watch directory/file for real-time changes`);
+      console.log(`    ${pc.gray('Example:')} /sync ./README.md -p platform --dry-run\n`);
+
       console.log(`  ${pc.bold('projects')}                  - List all projects in active workspace`);
       console.log(`  ${pc.bold('workspaces')}                - List available workspaces`);
       console.log(`  ${pc.bold('config list')}              - List all CLI config values`);
@@ -328,6 +336,32 @@ export async function runRepl(): Promise<void> {
       }
       const { text: note, options } = parseReplOptions(rawNote);
       await runNote(note, options);
+      continue;
+    }
+
+    if (trimmed.startsWith('/sync ')) {
+      const rawSync = trimmed.substring(6).trim();
+      const dryRun = rawSync.includes('--dry-run');
+      const watch = rawSync.includes('--watch') || rawSync.includes(' -w');
+      let cleaned = rawSync.replace('--dry-run', '').replace('--watch', '').replace(' -w', '').trim();
+      const { text: dirPath, options } = parseReplOptions(cleaned);
+
+      if (!dirPath) {
+        console.log(pc.yellow('Usage: /sync <path> [options]'));
+        continue;
+      }
+
+      const { runSync } = await import('./sync.js');
+      try {
+        await runSync({
+          dir: dirPath,
+          project: options.project,
+          dryRun,
+          watch,
+        });
+      } catch (err: any) {
+        console.error(pc.red(`Sync failed: ${err.message}`));
+      }
       continue;
     }
 

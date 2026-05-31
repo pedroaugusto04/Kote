@@ -35,6 +35,57 @@ We simplify knowledge capture where the work already happens:
 3. Connect your channels (**WhatsApp/GitHub**).
 4. Start capturing and searching!
 
+## Command Line Interface (CLI) & Local File Sync
+The CLI (`kb`) allows you to interact with your Knowledge Vault from your terminal and sync local folders of Markdown files.
+
+### 1. Installation
+Install the CLI globally from npm:
+```bash
+npm install -g @pedroaugusto04/kb-cli
+```
+
+### 2. Initialization
+Authenticate with your Knowledge Vault server:
+```bash
+kb init
+```
+
+### 3. Local File Sync (`kb sync`)
+Synchronize a folder of Markdown files or a **single Markdown file** directly with your knowledge base:
+
+```bash
+# Sync an entire directory
+kb sync --dir ./docs --project my-project
+
+# Sync a single markdown file (e.g., the README)
+kb sync --dir ./README.md --project my-project
+```
+
+#### How it works:
+* **Directory or Single File Support**: The `--dir` (or `-d`) flag accepts either a path to a directory (which is scanned recursively) or a path directly to a single Markdown file.
+* **Idempotency & Speed**: A local `.kb-sync.json` ledger file is created inside the target directory (or the parent directory of the file if syncing a single file) to store SHA-256 hashes of the files. Unchanged files are skipped on subsequent runs.
+* **ID Binding**: When a note is first created on the server, the generated note ID is automatically injected into the file's YAML frontmatter (`id: <note-id>`) so it is mapped for future updates.
+* **YAML Frontmatter Metadata**: You can define custom tags, project slugs, types, and status in the frontmatter of your markdown files:
+  ```markdown
+  ---
+  title: Running Migrations
+  project: infra
+  tags: db, postgres, migrations
+  status: active
+  ---
+  Content of the note here...
+  ```
+* **Real-time Sync (Watch Mode)**: Use the `--watch` or `-w` flag to monitor the directory or file for real-time changes and sync them instantly:
+  ```bash
+  kb sync --dir ./docs -w
+  # Or for a single file
+  kb sync --dir ./README.md -w
+  ```
+* **Dry Run Mode**: Use the `--dry-run` flag to simulate the sync process, seeing what would be created or updated without actually writing or sending any changes:
+  ```bash
+  kb sync --dir ./docs --dry-run
+  ```
+
 ---
 
 ### Extras

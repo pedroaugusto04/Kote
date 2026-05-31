@@ -8,6 +8,7 @@ import { runNote } from './commands/note.js';
 import { runListProjects, runListWorkspaces } from './commands/list.js';
 import { runRepl } from './commands/repl.js';
 import { runLogout } from './commands/logout.js';
+import { runSync } from './commands/sync.js';
 import { loadConfig } from './config.js';
 
 const program = new Command();
@@ -83,6 +84,19 @@ program
   .action(async () => {
     await runListWorkspaces();
   });
+
+// sync command
+program
+  .command('sync')
+  .description('Sync local markdown files or directories with the knowledge base')
+  .requiredOption('-d, --dir <path>', 'Path to local directory or single markdown file')
+  .option('-p, --project <slug>', 'Default project slug')
+  .option('--dry-run', 'Analyze changes without uploading')
+  .option('-w, --watch', 'Watch directory or file for real-time changes')
+  .action(async (options) => {
+    await runSync(options);
+  });
+
 
 // catch-all text action for note creation
 program
