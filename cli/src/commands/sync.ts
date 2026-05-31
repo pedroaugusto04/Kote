@@ -147,7 +147,7 @@ async function syncDirectory(
         projectSlug: targetProject,
         tags: parsed.tags || [],
         status: parsed.status || 'active',
-        canonicalType: parsed.canonicalType || 'note',
+        canonicalType: parsed.canonicalType || 'event',
       };
 
       if (noteId) {

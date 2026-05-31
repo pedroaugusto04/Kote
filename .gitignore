@@ -54,3 +54,6 @@ test-results/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Sync CLI file
+.kb-sync.json
