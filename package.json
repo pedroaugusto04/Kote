@@ -42,6 +42,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "sonner": "^2.0.7",
+    "web-push": "^3.6.7",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -53,6 +54,7 @@
     "@types/pg": "^8.20.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
+    "@types/web-push": "^3.6.4",
     "@vitejs/plugin-react": "^5.2.0",
     "jsdom": "^25.0.1",
     "ts-node": "^10.9.2",

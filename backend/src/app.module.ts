@@ -124,6 +124,9 @@ import { EmbeddingWorker } from './application/services/embedding.worker.js';
 import { NoteChunkingService } from './application/services/note-chunking.service.js';
 import { ConversationAgentPresenter } from './application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { ReminderEventBus } from './application/services/reminder-event.bus.js';
+import { PushNotificationService } from './application/services/push-notification.service.js';
+import { PushNotificationReminderListener } from './application/services/push-notification-reminder.listener.js';
 import { ApplicationAccessController, AuthController, DashboardController, GithubAppCallbackController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WebhookSubscriptionsController, WorkspacesController, PushSubscriptionsController } from './interfaces/http/controllers/index.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, InternalServiceTokenGuard, TrustedOriginGuard, WebhookRateLimitGuard } from './interfaces/http/auth.guards.js';
 import { GlobalExceptionFilter } from './observability/global-exception.filter.js';
@@ -169,6 +172,9 @@ import { AppLogger } from './observability/logger.js';
     IntegrationCredentialService,
     ContentObjectStorageService,
     VapidService,
+    ReminderEventBus,
+    PushNotificationService,
+    PushNotificationReminderListener,
     GithubRepositoryResolutionService,
     GetNoteDetailUseCase,
     GetReviewDetailUseCase,

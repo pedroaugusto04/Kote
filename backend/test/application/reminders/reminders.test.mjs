@@ -767,3 +767,35 @@ test('telegram reminder worker delegates to telegram dispatch channel', async ()
   assert.equal(calls, 1);
   assert.equal(result.ok, true);
 });
+
+import { ReminderEventBus } from '../../../dist/application/services/reminder-event.bus.js';
+
+test('reminder dispatch emits reminder.sent event on successful delivery', async (t) => {
+  const { repositories, user } = await createStoreWithReminder(t);
+  const sent = [];
+  const emittedEvents = [];
+  const eventBus = new ReminderEventBus();
+
+  eventBus.on('reminder.sent', (event) => {
+    emittedEvents.push(event);
+  });
+
+  const markReminderAsSent = new MarkReminderAsSentUseCase(repositories.reminderDispatchRepository, repositories.contentRepository);
+  const useCase = new DispatchDueRemindersUseCase(
+    repositories.contentQueryRepository,
+    repositories.reminderDispatchRepository,
+    markReminderAsSent,
+    { sendText: async (input) => { sent.push(input); return { ok: true }; } },
+    createLoggerStub(),
+    eventBus,
+  );
+
+  const result = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2099-12-31T12:00:00.000Z');
+
+  assert.equal(result.sent, 1);
+  assert.equal(emittedEvents.length, 1);
+  assert.equal(emittedEvents[0].userId, user.id);
+  assert.equal(emittedEvents[0].channel, ReminderDeliveryChannel.Whatsapp);
+  assert.equal(emittedEvents[0].noteTitle, 'Deploy');
+});
+

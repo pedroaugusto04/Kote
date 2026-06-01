@@ -10,6 +10,7 @@ import { ReminderDispatchRepository } from '../../ports/reminders/workflow-state
 import { formatReminderScheduledAtLabel, reminderDispatchKey } from './reminder-schedule.js';
 import { MarkReminderAsSentUseCase } from './mark-reminder-as-sent.use-case.js';
 import { MAX_REMINDER_DELIVERY_ATTEMPTS, nextReminderRetryAt } from './reminder-retry-policy.js';
+import { ReminderEventBus } from '../../services/reminder-event.bus.js';
 
 @Injectable()
 export class DispatchDueRemindersUseCase {
@@ -19,6 +20,7 @@ export class DispatchDueRemindersUseCase {
     private readonly markReminderAsSent: MarkReminderAsSentUseCase,
     private readonly reminderDeliveryGateway: ReminderDeliveryGateway,
     private readonly logger: AppLogger,
+    private readonly reminderEventBus?: ReminderEventBus,
   ) {}
 
   async execute(channel: ReminderDeliveryChannel, referenceNowIso = nowIso()) {
@@ -115,6 +117,15 @@ export class DispatchDueRemindersUseCase {
       );
       await this.reminderDispatchRepository.clearFailure(retryKey);
       sent += 1;
+
+      this.reminderEventBus?.emit('reminder.sent', {
+        userId: reminder.userId,
+        workspaceSlug: reminder.workspaceSlug,
+        channel: reminder.channel,
+        noteTitle: reminder.title,
+        project: reminder.project || '',
+        text: reminder.noteText,
+      });
     }
 
     return {
