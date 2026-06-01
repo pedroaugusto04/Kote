@@ -54,6 +54,7 @@ export type RuntimeEnvironment = {
   credentialsEncryptionKey: string;
   internalServiceToken: string;
   disableEmbeddingWorker: boolean;
+  frontendBasePath: string;
 };
 
 export abstract class RuntimeEnvironmentProvider {

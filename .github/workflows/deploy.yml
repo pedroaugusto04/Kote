@@ -154,6 +154,7 @@ jobs:
           KB_DISABLE_EMBEDDING_WORKER: ${{ vars.KB_DISABLE_EMBEDDING_WORKER || 'false' }}
           KB_VAPID_PUBLIC_KEY: ${{ vars.KB_VAPID_PUBLIC_KEY || secrets.KB_VAPID_PUBLIC_KEY || '' }}
           KB_VAPID_PRIVATE_KEY: ${{ secrets.KB_VAPID_PRIVATE_KEY || '' }}
+          KB_FRONTEND_BASE_PATH: ${{ vars.VITE_KB_FRONTEND_BASE_PATH || '/knowledge-base/' }}
         run: bash scripts/deploy/generate-backend-env.sh .deploy/backend.env
 
       - name: Validate production environment config

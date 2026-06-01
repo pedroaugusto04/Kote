@@ -13,7 +13,13 @@ test('PushNotificationReminderListener sends push notification when WhatsApp rem
     },
   };
 
-  const listener = new PushNotificationReminderListener(eventBus, pushServiceMock);
+  const envProviderMock = {
+    read() {
+      return { frontendBasePath: '/' };
+    },
+  };
+
+  const listener = new PushNotificationReminderListener(eventBus, pushServiceMock, envProviderMock);
   listener.onModuleInit();
 
   // 1. Emit an event for Whatsapp channel
