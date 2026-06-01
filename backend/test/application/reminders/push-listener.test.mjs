@@ -15,7 +15,7 @@ test('PushNotificationReminderListener sends push notification when WhatsApp rem
 
   const envProviderMock = {
     read() {
-      return { frontendBasePath: '/' };
+      return { publicBaseUrl: 'https://example.com' };
     },
   };
 
@@ -46,5 +46,5 @@ test('PushNotificationReminderListener sends push notification when WhatsApp rem
   assert.equal(pushCalls[0].userId, 'user-1');
   assert.equal(pushCalls[0].payload.title, 'Lembrete: Reunião');
   assert.equal(pushCalls[0].payload.body, '[Work] Preparar slides.');
-  assert.equal(pushCalls[0].payload.url, '/workspaces/default/reminders');
+  assert.equal(pushCalls[0].payload.url, 'https://example.com/workspaces/default/reminders');
 });

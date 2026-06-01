@@ -81,7 +81,6 @@ keys=(
   KB_DISABLE_EMBEDDING_WORKER
   KB_VAPID_PUBLIC_KEY
   KB_VAPID_PRIVATE_KEY
-  KB_FRONTEND_BASE_PATH
 )
 
 for key in "${keys[@]}"; do

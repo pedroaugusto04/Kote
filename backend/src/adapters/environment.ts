@@ -72,7 +72,6 @@ export type RuntimeEnvironment = {
   credentialsEncryptionKey: string;
   internalServiceToken: string;
   disableEmbeddingWorker: boolean;
-  frontendBasePath: string;
 };
 
 export function readEnvironment(env = process.env): RuntimeEnvironment {
@@ -137,6 +136,5 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     credentialsEncryptionKey: String(env.KB_CREDENTIALS_ENCRYPTION_KEY || '').trim(),
     internalServiceToken: String(env.KB_INTERNAL_SERVICE_TOKEN || '').trim(),
     disableEmbeddingWorker: String(env.KB_DISABLE_EMBEDDING_WORKER || 'false').trim().toLowerCase() === 'true',
-    frontendBasePath: String(env.KB_FRONTEND_BASE_PATH || '/').trim(),
   };
 }
