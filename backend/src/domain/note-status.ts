@@ -38,6 +38,10 @@ export function normalizeManualNoteStatus(input: {
   const requestedStatus = String(input.requestedStatus || '').trim().toLowerCase();
   const currentStatus = String(input.currentStatus || '').trim().toLowerCase();
 
+  if (requestedStatus === KnowledgeStatus.Active) {
+    return KnowledgeStatus.Active;
+  }
+
   if (requestedStatus === KnowledgeStatus.Resolved || requestedStatus === KnowledgeStatus.Archived) {
     return requestedStatus;
   }

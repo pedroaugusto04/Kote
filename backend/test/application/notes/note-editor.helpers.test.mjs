@@ -95,3 +95,42 @@ test('preserves structured markdown sections when updating a structured note', (
   assert.match(updated.markdown, /## Findings de review/);
   assert.doesNotMatch(updated.markdown, /Project: \[\[10 Projects\/knowledge base\|pedroaugusto04\/Knowledge Base\]\] Original text style:/);
 });
+
+test('can reopen resolved or archived notes back to active status', () => {
+  const note = structuredReviewNote();
+
+  const reopenedFromResolved = buildUpdatedNote(
+    { ...note, status: 'resolved' },
+    null,
+    null,
+    {
+      id: note.id,
+      title: note.title,
+      rawText: 'Push revisado manualmente pelo editor.',
+      tags: ['review'],
+      status: 'active',
+      reminderDate: '',
+      reminderTime: '',
+    },
+    'America/Sao_Paulo',
+  );
+
+  const reopenedFromArchived = buildUpdatedNote(
+    { ...note, status: 'archived' },
+    null,
+    null,
+    {
+      id: note.id,
+      title: note.title,
+      rawText: 'Push revisado manualmente pelo editor.',
+      tags: ['review'],
+      status: 'active',
+      reminderDate: '',
+      reminderTime: '',
+    },
+    'America/Sao_Paulo',
+  );
+
+  assert.equal(reopenedFromResolved.status, 'active');
+  assert.equal(reopenedFromArchived.status, 'active');
+});

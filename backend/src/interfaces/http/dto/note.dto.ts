@@ -7,7 +7,7 @@ import { normalizeTime } from '../../../domain/time.js';
 import { normalizedSlugList, optionalStringArraySchema } from './dto-normalizers.js';
 
 const noteStatusSchema = z.enum(noteStatusValues).optional();
-const editableNoteStatusSchema = z.enum([KnowledgeStatus.Resolved, KnowledgeStatus.Archived]).optional();
+const editableNoteStatusSchema = z.enum([KnowledgeStatus.Active, KnowledgeStatus.Resolved, KnowledgeStatus.Archived]).optional();
 const canonicalTypeSchema = z.nativeEnum(CanonicalType).optional().default(CanonicalType.Event);
 
 export const createNoteBodySchema = z

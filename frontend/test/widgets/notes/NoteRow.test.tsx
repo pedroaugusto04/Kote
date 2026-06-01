@@ -72,6 +72,74 @@ describe('NoteRow', () => {
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
+  it('shows reopen and unarchive actions for resolved and archived notes', () => {
+    renderWithAppProviders(
+      <NoteRow
+        dashboard={{
+          workspaces: [],
+          projects: [{ projectSlug: 'platform', displayName: 'Platform', repositories: [], workspaceSlug: 'default', defaultTags: [], enabled: true, favorite: false }],
+          notes: [],
+          reminders: [],
+          home: { windowDays: 7, metrics: [], activityByDay: [], activityByProject: [], priorities: [], recentInterestingEvents: [] },
+        }}
+        note={{
+          id: 'note-2',
+          path: '20 Inbox/platform/resolved.md',
+          type: 'event',
+          title: 'Resolvido',
+          project: 'platform',
+          workspace: 'default',
+          folderId: null,
+          tags: ['deploy'],
+          date: '2026-04-27',
+          status: 'resolved',
+          summary: 'Resumo',
+          source: 'manual-api',
+          attachmentCount: 0,
+        }}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Reopen note Resolvido' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resolve note Resolvido' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Archive note Resolvido' })).not.toBeInTheDocument();
+  });
+
+  it('shows an unarchive action for archived notes', () => {
+    renderWithAppProviders(
+      <NoteRow
+        dashboard={{
+          workspaces: [],
+          projects: [{ projectSlug: 'platform', displayName: 'Platform', repositories: [], workspaceSlug: 'default', defaultTags: [], enabled: true, favorite: false }],
+          notes: [],
+          reminders: [],
+          home: { windowDays: 7, metrics: [], activityByDay: [], activityByProject: [], priorities: [], recentInterestingEvents: [] },
+        }}
+        note={{
+          id: 'note-3',
+          path: '20 Inbox/platform/archived.md',
+          type: 'event',
+          title: 'Arquivada',
+          project: 'platform',
+          workspace: 'default',
+          folderId: null,
+          tags: ['deploy'],
+          date: '2026-04-27',
+          status: 'archived',
+          summary: 'Resumo',
+          source: 'manual-api',
+          attachmentCount: 0,
+        }}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Unarchive note Arquivada' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Resolve note Arquivada' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Archive note Arquivada' })).not.toBeInTheDocument();
+  });
+
   it('hides the attachment indicator when a note has no attachments', () => {
     renderWithAppProviders(
       <NoteRow

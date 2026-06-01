@@ -128,6 +128,17 @@ test('create note dto normalizes project, tags and keeps reminder date as transp
     canonicalType: 'event',
     folderId: undefined,
   });
+  assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', status: 'active' }), {
+    title: 'Deploy',
+    rawText: 'texto',
+    tags: [],
+    reminderDate: '',
+    reminderTime: '',
+    reminderAt: '',
+    status: 'active',
+    canonicalType: 'event',
+    folderId: undefined,
+  });
   assert.equal(createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'decidido', canonicalType: 'decision' }).canonicalType, 'decision');
   assert.throws(() => createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto', canonicalType: 'unsupported' }));
 });
