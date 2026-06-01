@@ -30,6 +30,7 @@ test('PushNotificationReminderListener sends push notification when WhatsApp rem
     noteTitle: 'Reunião',
     project: 'Work',
     text: 'Preparar slides.',
+    noteId: 'some-note-id',
   });
 
   // 2. Emit an event for Telegram channel (should be ignored by push listener)
@@ -46,5 +47,5 @@ test('PushNotificationReminderListener sends push notification when WhatsApp rem
   assert.equal(pushCalls[0].userId, 'user-1');
   assert.equal(pushCalls[0].payload.title, 'Lembrete: Reunião');
   assert.equal(pushCalls[0].payload.body, '[Work] Preparar slides.');
-  assert.equal(pushCalls[0].payload.url, 'https://example.com/workspaces/default/reminders');
+  assert.equal(pushCalls[0].payload.url, 'https://example.com/vault/some-note-id');
 });

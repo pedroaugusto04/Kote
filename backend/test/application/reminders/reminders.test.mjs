@@ -810,5 +810,6 @@ test('reminder dispatch emits reminder.sent event on successful delivery', async
   assert.equal(emittedEvents[0].userId, user.id);
   assert.equal(emittedEvents[0].channel, ReminderDeliveryChannel.Whatsapp);
   assert.equal(emittedEvents[0].noteTitle, 'Deploy');
+  assert.equal(emittedEvents[0].noteId, '11111111-1111-1111-1111-111111111111');
 });
 

@@ -125,6 +125,7 @@ export class DispatchDueRemindersUseCase {
         noteTitle: reminder.title,
         project: reminder.project || '',
         text: reminder.noteText,
+        noteId: reminder.reminderId,
       });
     }
 

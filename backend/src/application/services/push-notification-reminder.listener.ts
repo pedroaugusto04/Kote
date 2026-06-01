@@ -22,6 +22,7 @@ export class PushNotificationReminderListener implements OnModuleInit {
         noteTitle: string;
         project: string;
         text: string;
+        noteId?: string;
       }) => {
         // We only cross-dispatch browser push notifications for WhatsApp reminders
         if (payload.channel === ReminderDeliveryChannel.Whatsapp) {
@@ -30,7 +31,10 @@ export class PushNotificationReminderListener implements OnModuleInit {
 
           const baseUrl = this.envProvider.read().publicBaseUrl;
           const cleanBase = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-          const url = `${cleanBase}/workspaces/${payload.workspaceSlug}/reminders`;
+          const path = payload.noteId
+            ? `/vault/${payload.noteId}`
+            : `/workspaces/${payload.workspaceSlug}/reminders`;
+          const url = `${cleanBase}${path}`;
 
           void this.pushService.sendToUser(payload.userId, {
             title: `Lembrete: ${payload.noteTitle}`,
