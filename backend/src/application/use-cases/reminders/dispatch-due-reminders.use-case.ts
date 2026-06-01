@@ -19,8 +19,8 @@ export class DispatchDueRemindersUseCase {
     private readonly reminderDispatchRepository: ReminderDispatchRepository,
     private readonly markReminderAsSent: MarkReminderAsSentUseCase,
     private readonly reminderDeliveryGateway: ReminderDeliveryGateway,
+    private readonly reminderEventBus: ReminderEventBus,
     private readonly logger: AppLogger,
-    private readonly reminderEventBus?: ReminderEventBus,
   ) {}
 
   async execute(channel: ReminderDeliveryChannel, referenceNowIso = nowIso()) {
@@ -118,7 +118,7 @@ export class DispatchDueRemindersUseCase {
       await this.reminderDispatchRepository.clearFailure(retryKey);
       sent += 1;
 
-      this.reminderEventBus?.emit('reminder.sent', {
+      this.reminderEventBus.emit('reminder.sent', {
         userId: reminder.userId,
         workspaceSlug: reminder.workspaceSlug,
         channel: reminder.channel,

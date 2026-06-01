@@ -80,6 +80,12 @@ function createLoggerStub() {
   };
 }
 
+function createEventBusStub() {
+  return {
+    emit() {},
+  };
+}
+
 function environmentProvider(reminderTimeZone = 'America/Sao_Paulo') {
   return {
     read: () => ({ reminderTimeZone }),
@@ -545,6 +551,7 @@ test('default reminder dispatch sends a due WhatsApp reminder and marks it as se
     repositories.reminderDispatchRepository,
     markReminderAsSent,
     { sendText: async (input) => { sent.push(input); return { ok: true }; } },
+    createEventBusStub(),
     createLoggerStub(),
   );
 
@@ -571,6 +578,7 @@ test('default reminder dispatch sends overdue reminders only once using schedule
     repositories.reminderDispatchRepository,
     markReminderAsSent,
     { sendText: async (input) => { sent.push(input); return { ok: true }; } },
+    createEventBusStub(),
     createLoggerStub(),
   );
 
@@ -593,6 +601,7 @@ test('telegram reminder dispatch use case remains compatible as an alternative a
     repositories.reminderDispatchRepository,
     markReminderAsSent,
     { sendText: async (input) => { sent.push(input); return { ok: true }; } },
+    createEventBusStub(),
     createLoggerStub(),
   );
   const useCase = new DispatchDueTelegramRemindersUseCase(dispatchDueReminders);
@@ -630,6 +639,7 @@ test('default reminder dispatch applies 09:00 fallback when reminder has only da
     repositories.reminderDispatchRepository,
     markReminderAsSent,
     { sendText: async (input) => { sent.push(input); return { ok: true }; } },
+    createEventBusStub(),
     createLoggerStub(),
   );
 
@@ -650,6 +660,7 @@ test('default reminder dispatch does not mark reminder as sent when Evolution de
     repositories.reminderDispatchRepository,
     markReminderAsSent,
     { sendText: async () => ({ ok: false, error: 'evolution_api_http_500' }) },
+    createEventBusStub(),
     { ...createLoggerStub(), error(event, fields) { errors.push({ event, fields }); } },
   );
 
@@ -672,6 +683,7 @@ test('default reminder dispatch backs off failed deliveries before retrying', as
     repositories.reminderDispatchRepository,
     markReminderAsSent,
     { sendText: async () => { deliveryCalls += 1; return { ok: false, error: 'evolution_api_http_500' }; } },
+    createEventBusStub(),
     createLoggerStub(),
   );
 
@@ -721,6 +733,7 @@ test('default reminder dispatch stops retrying after five failed attempts', asyn
     repositories.reminderDispatchRepository,
     markReminderAsSent,
     { sendText: async () => { deliveryCalls += 1; return { ok: false, error: 'evolution_api_http_500' }; } },
+    createEventBusStub(),
     createLoggerStub(),
   );
 
@@ -786,8 +799,8 @@ test('reminder dispatch emits reminder.sent event on successful delivery', async
     repositories.reminderDispatchRepository,
     markReminderAsSent,
     { sendText: async (input) => { sent.push(input); return { ok: true }; } },
-    createLoggerStub(),
     eventBus,
+    createLoggerStub(),
   );
 
   const result = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2099-12-31T12:00:00.000Z');
