@@ -127,6 +127,7 @@ import { ConversationFolderResolutionService } from './application/use-cases/con
 import { ReminderEventBus } from './application/services/reminder-event.bus.js';
 import { PushNotificationService } from './application/services/push-notification.service.js';
 import { PushNotificationReminderListener } from './application/services/push-notification-reminder.listener.js';
+import { TelegramReminderListener } from './application/services/telegram-reminder.listener.js';
 import { ApplicationAccessController, AuthController, DashboardController, GithubAppCallbackController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WebhookSubscriptionsController, WorkspacesController, PushSubscriptionsController } from './interfaces/http/controllers/index.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, InternalServiceTokenGuard, TrustedOriginGuard, WebhookRateLimitGuard } from './interfaces/http/auth.guards.js';
 import { GlobalExceptionFilter } from './observability/global-exception.filter.js';
@@ -175,6 +176,7 @@ import { AppLogger } from './observability/logger.js';
     ReminderEventBus,
     PushNotificationService,
     PushNotificationReminderListener,
+    TelegramReminderListener,
     GithubRepositoryResolutionService,
     GetNoteDetailUseCase,
     GetReviewDetailUseCase,
