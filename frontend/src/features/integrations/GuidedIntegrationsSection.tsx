@@ -13,6 +13,9 @@ import {
   getErrorMessage,
   revokeIntegration,
   saveGithubRepositories,
+  fetchPushPublicKey,
+  subscribePush,
+  unsubscribePush,
 } from '../../shared/api/client';
 import { githubRepositoriesFormSchema, type DisplayStatus, type GithubRepositoriesFormValues } from './guided-integrations.forms';
 import type { GithubIntegrationRepository, IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
@@ -38,7 +41,23 @@ const integrationLogos: Record<string, { src: string; label: string }> = {
   'github-app': { src: 'https://cdn.simpleicons.org/github/ffffff', label: 'GitHub' },
   whatsapp: { src: 'https://cdn.simpleicons.org/whatsapp/25D366', label: 'WhatsApp' },
   telegram: { src: 'https://cdn.simpleicons.org/telegram/26A5E4', label: 'Telegram' },
+  'push-notifications': { src: 'https://cdn.simpleicons.org/pushover/3B5998', label: 'Push Notifications' },
 };
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 function integrationId(integration: UserIntegration) {
   return integration.provider;
@@ -278,8 +297,50 @@ function IntegrationCard({
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
   const connectMutation = useMutation({
-    mutationFn: () => globalLoading.trackPromise(connectIntegration({ provider: integration.provider, workspaceSlug, returnToPath })),
-    onSuccess: (result) => {
+    mutationFn: async () => {
+      if (integration.provider === 'push-notifications') {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          throw new Error('Navegador não suporta notificações Push.');
+        }
+
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          throw new Error('Permissão para notificações foi negada.');
+        }
+
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        await navigator.serviceWorker.ready;
+
+        const { publicKey } = await fetchPushPublicKey();
+        if (!publicKey) {
+          throw new Error('Chave pública VAPID não configurada no servidor.');
+        }
+
+        const subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicKey),
+        });
+
+        const keys = subscription.toJSON().keys || {};
+        const p256dh = keys.p256dh || '';
+        const auth = keys.auth || '';
+
+        await subscribePush({
+          endpoint: subscription.endpoint,
+          p256dh,
+          auth,
+        });
+
+        return { ok: true };
+      }
+      return connectIntegration({ provider: integration.provider, workspaceSlug, returnToPath });
+    },
+    onSuccess: (result: any) => {
+      if (integration.provider === 'push-notifications') {
+        notifySuccess('Notificações Push ativadas com sucesso.');
+        queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
+        return;
+      }
       if (result.primaryAction?.url) {
         openExternalIntegration(result.primaryAction.url, integration.provider === 'github-app' ? '_self' : '_blank');
         return;
@@ -290,9 +351,25 @@ function IntegrationCard({
     },
   });
   const revokeMutation = useMutation({
-    mutationFn: () => globalLoading.trackPromise(revokeIntegration(integration.provider, workspaceSlug)),
+    mutationFn: async () => {
+      if (integration.provider === 'push-notifications') {
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+          const registration = await navigator.serviceWorker.ready;
+          const subscription = await registration.pushManager.getSubscription();
+          if (subscription) {
+            await subscription.unsubscribe();
+            try {
+              await unsubscribePush(subscription.endpoint);
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      }
+      return revokeIntegration(integration.provider, workspaceSlug);
+    },
     onSuccess: () => {
-      notifySuccess(`${integration.name} revoked successfully.`);
+      notifySuccess(`${integration.name} desativado com sucesso.`);
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
     },
   });

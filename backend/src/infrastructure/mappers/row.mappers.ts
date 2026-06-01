@@ -13,6 +13,7 @@ import type {
   RepositoryRecord,
   WebhookEventRecord,
   WorkspaceRecord,
+  PushSubscriptionRecord,
 } from '../../application/models/repository-records.models.js';
 import type { WebhookSubscriptionRecord } from '../../application/models/webhook-subscription.models.js';
 
@@ -249,3 +250,16 @@ export function webhookSubscriptionFromRow(row: Row): WebhookSubscriptionRecord 
     updatedAt: nowIso(row.updated_at),
   };
 }
+
+export function pushSubscriptionFromRow(row: Row): PushSubscriptionRecord {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    endpoint: String(row.endpoint),
+    p256dh: String(row.p256dh),
+    auth: String(row.auth),
+    createdAt: nowIso(row.created_at),
+    updatedAt: nowIso(row.updated_at),
+  };
+}
+

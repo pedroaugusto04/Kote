@@ -9,6 +9,7 @@ import { PostgresIntegrationRepository } from '../../dist/infrastructure/reposit
 import { PostgresProjectBriefHistoryRepository } from '../../dist/infrastructure/repositories/project-brief-history.repository.js';
 import { PostgresAskHistoryRepository } from '../../dist/infrastructure/repositories/ask-history.repository.js';
 import { PostgresWebhookEventRepository } from '../../dist/infrastructure/repositories/webhook-events.repository.js';
+import { PostgresPushSubscriptionRepository } from '../../dist/infrastructure/repositories/push-subscription.repository.js';
 import { PostgresWorkflowStateRepository } from '../../dist/infrastructure/repositories/workflow-state.repository.js';
 import { webhookEventFromRow } from '../../dist/infrastructure/mappers/row.mappers.js';
 import { PostgresSchemaMigrator } from '../../dist/infrastructure/persistence/schema.migrator.js';
@@ -131,6 +132,7 @@ export async function createPostgresTestRepositories(t) {
   const contentRepository = new PostgresContentRepository(database, contentObjectStorage);
   const contentQueryRepository = new PostgresContentQueryRepository(database, contentObjectStorage);
   const workflowStateRepository = new PostgresWorkflowStateRepository(database);
+  const pushSubscriptionRepository = new PostgresPushSubscriptionRepository(database);
   const webhookEventRepository = new PostgresWebhookEventRepository(database);
   const runtimeEnvironmentProvider = {
     read: () => ({
@@ -201,5 +203,6 @@ export async function createPostgresTestRepositories(t) {
     reminderDispatchRepository: workflowStateRepository,
     webhookEventRepository,
     runtimeEnvironmentProvider,
+    pushSubscriptionRepository,
   };
 }

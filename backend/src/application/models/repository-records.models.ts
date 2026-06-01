@@ -185,3 +185,14 @@ export type WebhookEventRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PushSubscriptionRecord = {
+  id: string;
+  userId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  createdAt: string;
+  updatedAt: string;
+};
+

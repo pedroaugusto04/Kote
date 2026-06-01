@@ -11,6 +11,7 @@ import {
 import type { IntegrationCredentialRecord } from './models/repository-records.models.js';
 import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations/integrations.repository.js';
+import { PushSubscriptionRepository } from './ports/push/push-subscription.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
 
 export { IntegrationProvider };
@@ -21,6 +22,7 @@ export const guidedProviders = [
   IntegrationProvider.AiReview,
   IntegrationProvider.AiConversation,
   IntegrationProvider.ProjectBriefAi,
+  IntegrationProvider.PushNotifications,
 ] as const;
 type GuidedIntegrationProvider = typeof guidedProviders[number];
 
@@ -53,6 +55,7 @@ const providerLabels: Record<GuidedIntegrationProvider, { name: string; descript
   [IntegrationProvider.AiReview]: { name: 'Review AI', description: 'Push analysis with a server-managed provider and model.' },
   [IntegrationProvider.AiConversation]: { name: 'Conversation AI', description: 'Assisted extraction from chat messages with managed configuration.' },
   [IntegrationProvider.ProjectBriefAi]: { name: 'Project Brief AI', description: 'Manual operational project brief generation with managed configuration.' },
+  [IntegrationProvider.PushNotifications]: { name: 'Push Notifications', description: 'Receive browser push notifications for reminders and updates.' },
 };
 
 function isGuidedProvider(value: string): value is GuidedIntegrationProvider {
@@ -141,12 +144,14 @@ function defaultSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.Whatsapp) return ['Start the connection.', 'Send the code in the WhatsApp chat.'];
   if (provider === IntegrationProvider.Telegram) return ['Start the connection.', 'Send the code in the Telegram chat.'];
   if (provider === IntegrationProvider.GithubApp) return ['Install or authorize the GitHub App.', 'Select the repositories after connection.'];
+  if (provider === IntegrationProvider.PushNotifications) return ['Allow browser notifications.', 'Get push reminders directly in your browser.'];
   return ['Enable the feature.', 'The server-managed configuration will be used automatically.'];
 }
 
 function connectedSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.GithubApp) return ['GitHub App connected.', 'Select the workspace repositories.'];
   if (provider === IntegrationProvider.Telegram) return ['Telegram chat connected.'];
+  if (provider === IntegrationProvider.PushNotifications) return ['Push notifications are active on this browser/device.'];
   if (provider.startsWith('ai-')) return ['Feature active for this workspace.'];
   return ['Integration connected.'];
 }
@@ -193,21 +198,72 @@ export class IntegrationCredentialService {
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly contentRepository?: ContentRepository,
+    private readonly pushSubscriptionRepository?: PushSubscriptionRepository,
   ) {}
 
   async list(userId: string, workspaceSlug = 'default') {
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
-    const records = await this.credentials.listCredentials(userId, workspaceSlug);
+    const [records, pushSubs] = await Promise.all([
+      this.credentials.listCredentials(userId, workspaceSlug),
+      this.pushSubscriptionRepository
+        ? this.pushSubscriptionRepository.listByUserId(userId)
+        : Promise.resolve([]),
+    ]);
+    const integrations = guidedProviders.map((provider) => {
+      if (provider === IntegrationProvider.PushNotifications) {
+        const hasSub = pushSubs.length > 0;
+        return {
+          provider,
+          name: providerLabels[provider].name,
+          description: providerLabels[provider].description,
+          status: hasSub ? StoredIntegrationStatus.Connected : StoredIntegrationStatus.Missing,
+          workspaceSlug,
+          publicMetadata: {},
+          primaryAction: { type: 'connect' as const, label: hasSub ? 'Disable' : 'Enable' },
+          steps: hasSub ? connectedSteps(provider) : defaultSteps(provider),
+          lastError: null,
+          connectedAccount: null,
+          updatedAt: null,
+          revokedAt: null,
+        };
+      }
+      return publicCredential(records.find((record) => record.provider === provider) || null, provider, workspaceSlug);
+    });
     return {
       ok: true as const,
       workspaceSlug,
-      integrations: guidedProviders.map((provider) => publicCredential(records.find((record) => record.provider === provider) || null, provider, workspaceSlug)),
+      integrations,
     };
   }
 
   async revoke(userId: string, workspaceSlug: string, provider: string) {
     if (!isGuidedProvider(provider)) throw new NotFoundException('provider_not_found');
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
+    if (provider === IntegrationProvider.PushNotifications) {
+      if (this.pushSubscriptionRepository) {
+        const subs = await this.pushSubscriptionRepository.listByUserId(userId);
+        for (const sub of subs) {
+          await this.pushSubscriptionRepository.deleteByEndpoint(userId, sub.endpoint);
+        }
+      }
+      return {
+        ok: true as const,
+        integration: {
+          provider: IntegrationProvider.PushNotifications,
+          name: providerLabels[IntegrationProvider.PushNotifications].name,
+          description: providerLabels[IntegrationProvider.PushNotifications].description,
+          status: StoredIntegrationStatus.Revoked,
+          workspaceSlug,
+          publicMetadata: {},
+          primaryAction: { type: 'connect' as const, label: 'Enable' },
+          steps: defaultSteps(IntegrationProvider.PushNotifications),
+          lastError: null,
+          connectedAccount: null,
+          updatedAt: null,
+          revokedAt: new Date().toISOString(),
+        },
+      };
+    }
     if (provider === IntegrationProvider.Telegram || provider === IntegrationProvider.Whatsapp) {
       await this.clearWorkspaceBinding(userId, workspaceSlug, provider);
     }

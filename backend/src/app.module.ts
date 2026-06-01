@@ -18,6 +18,7 @@ import { ReminderDeliveryGateway } from './application/ports/reminders/reminder-
 import { ReviewAnalysisGateway } from './application/ports/projects/review-analysis.port.js';
 import { RuntimeEnvironmentProvider } from './application/ports/observability/runtime-environment.port.js';
 import { ContentObjectStorageService } from './application/services/content-object-storage.service.js';
+import { VapidService } from './application/services/vapid.service.js';
 import { GithubRepositoryResolutionService } from './application/services/github-repository-resolution.service.js';
 import { SchemaMigrator, UserRepository } from './application/ports/auth/auth.repository.js';
 import { ContentQueryRepository, ContentRepository } from './application/ports/notes/content.repository.js';
@@ -55,6 +56,8 @@ import { PostgresSchemaMigrator } from './infrastructure/persistence/schema.migr
 import { PostgresWebhookEventRepository } from './infrastructure/repositories/webhook-events.repository.js';
 import { PostgresWebhookSubscriptionRepository } from './infrastructure/repositories/webhook-subscription.repository.js';
 import { PostgresWorkflowStateRepository } from './infrastructure/repositories/workflow-state.repository.js';
+import { PushSubscriptionRepository } from './application/ports/push/push-subscription.repository.js';
+import { PostgresPushSubscriptionRepository } from './infrastructure/repositories/push-subscription.repository.js';
 import { ProcessRuntimeEnvironmentProvider } from './infrastructure/runtime/runtime-environment.provider.js';
 import { SupabaseObjectStorage } from './infrastructure/storage/supabase-object-storage.js';
 import { RabbitMqEmbeddingQueuePublisher } from './infrastructure/queue/rabbitmq-embedding-queue.publisher.js';
@@ -109,6 +112,9 @@ import {
   CreateWebhookSubscriptionUseCase,
   UpdateWebhookSubscriptionUseCase,
   DeleteWebhookSubscriptionUseCase,
+  ListPushSubscriptionsUseCase,
+  CreatePushSubscriptionUseCase,
+  DeletePushSubscriptionUseCase,
 } from './application/use-cases/index.js';
 import { NoteEventDispatcher } from './application/services/note-event-dispatcher.js';
 import { WebhookDeliveryService } from './application/services/webhook-delivery.service.js';
@@ -118,13 +124,13 @@ import { EmbeddingWorker } from './application/services/embedding.worker.js';
 import { NoteChunkingService } from './application/services/note-chunking.service.js';
 import { ConversationAgentPresenter } from './application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './application/use-cases/conversation/services/conversation-folder-resolution.service.js';
-import { ApplicationAccessController, AuthController, DashboardController, GithubAppCallbackController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WebhookSubscriptionsController, WorkspacesController } from './interfaces/http/controllers/index.js';
+import { ApplicationAccessController, AuthController, DashboardController, GithubAppCallbackController, HealthController, InternalIntegrationsController, InternalN8NController, NotesController, OperationsController, ProjectsController, UserIntegrationsController, WebhookController, WebhookSubscriptionsController, WorkspacesController, PushSubscriptionsController } from './interfaces/http/controllers/index.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, GlobalRateLimitGuard, InternalServiceTokenGuard, TrustedOriginGuard, WebhookRateLimitGuard } from './interfaces/http/auth.guards.js';
 import { GlobalExceptionFilter } from './observability/global-exception.filter.js';
 import { AppLogger } from './observability/logger.js';
 
 @Module({
-  controllers: [HealthController, ApplicationAccessController, DashboardController, WorkspacesController, ProjectsController, NotesController, AuthController, UserIntegrationsController, GithubAppCallbackController, InternalIntegrationsController, OperationsController, InternalN8NController, WebhookController, WebhookSubscriptionsController],
+  controllers: [HealthController, ApplicationAccessController, DashboardController, WorkspacesController, ProjectsController, NotesController, AuthController, UserIntegrationsController, GithubAppCallbackController, InternalIntegrationsController, OperationsController, InternalN8NController, WebhookController, WebhookSubscriptionsController, PushSubscriptionsController],
   providers: [
     AuthService,
     AccessTokenAuthGuard,
@@ -162,6 +168,7 @@ import { AppLogger } from './observability/logger.js';
     IntegrationConnectionService,
     IntegrationCredentialService,
     ContentObjectStorageService,
+    VapidService,
     GithubRepositoryResolutionService,
     GetNoteDetailUseCase,
     GetReviewDetailUseCase,
@@ -189,6 +196,9 @@ import { AppLogger } from './observability/logger.js';
     CreateWebhookSubscriptionUseCase,
     UpdateWebhookSubscriptionUseCase,
     DeleteWebhookSubscriptionUseCase,
+    ListPushSubscriptionsUseCase,
+    CreatePushSubscriptionUseCase,
+    DeletePushSubscriptionUseCase,
     NoteEventDispatcher,
     WebhookDeliveryService,
     WebhookDeliveryWorker,
@@ -221,6 +231,7 @@ import { AppLogger } from './observability/logger.js';
     PostgresWorkflowStateRepository,
     PostgresWebhookEventRepository,
     PostgresWebhookSubscriptionRepository,
+    PostgresPushSubscriptionRepository,
     SupabaseObjectStorage,
     RabbitMqEmbeddingQueuePublisher,
     RabbitMqWebhookQueuePublisher,
@@ -249,6 +260,7 @@ import { AppLogger } from './observability/logger.js';
     { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: WebhookEventRepository, useExisting: PostgresWebhookEventRepository },
     { provide: WebhookSubscriptionRepository, useExisting: PostgresWebhookSubscriptionRepository },
+    { provide: PushSubscriptionRepository, useExisting: PostgresPushSubscriptionRepository },
     { provide: WhatsappReplySender, useExisting: EvolutionWhatsappReplySender },
     { provide: WhatsappMediaDownloader, useExisting: EvolutionWhatsappMediaDownloader },
     { provide: TelegramMessageSender, useExisting: TelegramHttpMessageSender },

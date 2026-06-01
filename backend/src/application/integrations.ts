@@ -4,6 +4,7 @@ import { AiProvider, IntegrationProvider, IntegrationSetupStatus } from '../cont
 import type { Project } from '../domain/projects.js';
 import type { Workspace } from '../domain/workspaces.js';
 import { ContentRepository } from './ports/notes/content.repository.js';
+import { PushSubscriptionRepository } from './ports/push/push-subscription.repository.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
 import { absoluteUrl, configuredEnv, link, missingEnv, secretConfigured, statusFromFlags, workspaceRepos } from './utils/integration-status.utils.js';
 
@@ -32,8 +33,10 @@ export function buildIntegrationStatuses(input: {
   environment: RuntimeEnvironment;
   workspaces: Workspace[];
   projects: Project[];
+  hasPushSubscription?: boolean;
 }): { ok: true; workspaceSlug: string; integrations: IntegrationStatus[] } {
   const { environment, workspaces, projects } = input;
+  const hasPushSubscription = Boolean(input.hasPushSubscription);
   const workspace = workspaces[0];
   const workspaceSlug = workspace?.workspaceSlug || 'default';
   const repos = workspaceRepos(workspace, projects);
@@ -242,6 +245,21 @@ export function buildIntegrationStatuses(input: {
           projectBriefAiActive && !environment.projectBriefAiApiKey ? 'Project Brief AI is active without an API key.' : '',
         ].filter(Boolean),
       },
+      {
+        id: IntegrationProvider.PushNotifications,
+        name: 'Push Notifications',
+        description: 'Receive browser push notifications for reminders and updates.',
+        status: hasPushSubscription ? IntegrationSetupStatus.Connected : IntegrationSetupStatus.Missing,
+        requiredEnv: [],
+        configuredEnv: [],
+        missingEnv: [],
+        links: [],
+        checklist: [
+          'Allow browser notifications when prompted.',
+          'Keep the push notifications card active to receive updates.',
+        ],
+        warnings: [],
+      },
     ],
   };
 }
@@ -251,10 +269,20 @@ export class BuildIntegrationsUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly pushSubscriptionRepository: PushSubscriptionRepository,
   ) {}
 
   async execute(userId = '') {
-    const [workspaces, projects] = await Promise.all([this.contentRepository.listWorkspaces(userId), this.contentRepository.listProjects(userId)]);
-    return buildIntegrationStatuses({ environment: this.environmentProvider.read(), workspaces, projects });
+    const [workspaces, projects, pushSubs] = await Promise.all([
+      this.contentRepository.listWorkspaces(userId),
+      this.contentRepository.listProjects(userId),
+      this.pushSubscriptionRepository.listByUserId(userId),
+    ]);
+    return buildIntegrationStatuses({
+      environment: this.environmentProvider.read(),
+      workspaces,
+      projects,
+      hasPushSubscription: pushSubs.length > 0,
+    });
   }
 }

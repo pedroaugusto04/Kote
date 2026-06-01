@@ -68,6 +68,7 @@ export enum IntegrationProvider {
   AiConversation = 'ai-conversation',
   ProjectBriefAi = 'project-brief-ai',
   GithubApp = 'github-app',
+  PushNotifications = 'push-notifications',
 }
 
 export enum ExternalIdentityProvider {

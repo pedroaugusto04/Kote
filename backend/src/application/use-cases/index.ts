@@ -49,3 +49,9 @@ export {
   UpdateWebhookSubscriptionUseCase,
   DeleteWebhookSubscriptionUseCase,
 } from './webhook-subscriptions/webhook-subscription.use-cases.js';
+export {
+  ListPushSubscriptionsUseCase,
+  CreatePushSubscriptionUseCase,
+  DeletePushSubscriptionUseCase,
+} from './push/push-subscription.use-cases.js';
+
