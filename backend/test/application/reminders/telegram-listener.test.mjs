@@ -23,7 +23,14 @@ test('TelegramReminderListener sends telegram message when WhatsApp reminder is 
     },
   };
 
-  const listener = new TelegramReminderListener(eventBus, telegramSenderMock, envProviderMock);
+  const loggerMock = {
+    error() {},
+    warn() {},
+    info() {},
+    debug() {},
+  };
+
+  const listener = new TelegramReminderListener(eventBus, telegramSenderMock, envProviderMock, loggerMock);
   listener.onModuleInit();
 
   // 1. Emit an event for Whatsapp channel
