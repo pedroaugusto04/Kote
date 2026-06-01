@@ -26,6 +26,7 @@ import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
 import { useGlobalLoading } from '../../app/global-loading';
+import { withFrontendBasePath } from '../../app/base-path';
 
 const statusTone: Record<DisplayStatus | string, string> = {
   connected: 'low',
@@ -335,7 +336,7 @@ function IntegrationCard({
           throw new Error('Permissão para notificações foi negada.');
         }
 
-        const registration = await navigator.serviceWorker.register('/sw.js');
+        const registration = await navigator.serviceWorker.register(withFrontendBasePath('/sw.js'));
         await navigator.serviceWorker.ready;
 
         const { publicKey } = await fetchPushPublicKey();
