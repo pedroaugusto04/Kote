@@ -81,6 +81,33 @@ function buildChatComposeUrl(connection: IntegrationConnectionResponse): string 
 }
 
 function IntegrationLogo({ integration }: { integration: UserIntegration }) {
+  if (integration.provider === 'push-notifications') {
+    return (
+      <div
+        className="integration-logo"
+        style={{
+          display: 'grid',
+          placeItems: 'center',
+          background: 'var(--surface-6)',
+          padding: '9px',
+        }}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+          fill="none"
+          stroke="var(--cyan)"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+      </div>
+    );
+  }
   const logo = integrationLogos[integrationId(integration)];
   if (!logo) return <div className="integration-logo-fallback">{integration.name.slice(0, 2).toUpperCase()}</div>;
   const logoClassName = integration.provider === 'github-app'
@@ -429,7 +456,7 @@ export function GuidedIntegrationsSection({
   defaultOpenGithubRepositories = false,
   onGithubRepositoriesSaved,
   onLoaded,
-  hideGridWrapper = false,
+  children,
 }: {
   workspaceSlug: string;
   returnToPath: string;
@@ -437,7 +464,7 @@ export function GuidedIntegrationsSection({
   defaultOpenGithubRepositories?: boolean;
   onGithubRepositoriesSaved?: () => void;
   onLoaded?: (integrations: UserIntegration[]) => void;
-  hideGridWrapper?: boolean;
+  children?: React.ReactNode;
 }) {
   const [codeConnection, setCodeConnection] = useState<IntegrationConnectionResponse | null>(null);
   const [showGithubRepositories, setShowGithubRepositories] = useState(false);
@@ -486,11 +513,10 @@ export function GuidedIntegrationsSection({
 
   return (
     <>
-      {hideGridWrapper ? cards : (
-        <section className="grid cols-2 integrations-grid">
-          {cards}
-        </section>
-      )}
+      <section className="grid cols-2 integrations-grid">
+        {cards}
+        {children}
+      </section>
       {codeConnection ? <CodeConnectionModal connection={codeConnection} onClose={() => setCodeConnection(null)} workspaceSlug={workspaceSlug} /> : null}
       {showGithubRepositories ? <GithubRepositoriesModal workspaceSlug={workspaceSlug} onClose={() => setShowGithubRepositories(false)} onSaved={onGithubRepositoriesSaved} /> : null}
     </>

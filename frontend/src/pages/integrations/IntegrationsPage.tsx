@@ -20,19 +20,11 @@ export function IntegrationsPage({ workspaceSlug }: { workspaceSlug: string }) {
         : null}
       <GuidedIntegrationsSection
         workspaceSlug={workspaceSlug}
-        providers={['github-app', 'whatsapp', 'telegram', 'ai-review', 'ai-conversation']}
         returnToPath={withFrontendBasePath(routes.integrations)}
         defaultOpenGithubRepositories={callback.integration === 'github-app' && callback.status === 'connected' && callback.workspaceSlug === workspaceSlug}
-      />
-      <section className="grid cols-2 integrations-grid" style={{ marginTop: '28px' }}>
-        <GuidedIntegrationsSection
-          workspaceSlug={workspaceSlug}
-          providers={['push-notifications']}
-          returnToPath={withFrontendBasePath(routes.integrations)}
-          hideGridWrapper={true}
-        />
+      >
         <WebhookSubscriptionsCard workspaceSlug={workspaceSlug} />
-      </section>
+      </GuidedIntegrationsSection>
     </>
   );
 }
