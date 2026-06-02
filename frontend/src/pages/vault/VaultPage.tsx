@@ -171,6 +171,9 @@ function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {
     if (attachment.mimeType.startsWith('image/')) {
       return true;
     }
+    if (attachment.mimeType.startsWith('audio/')) {
+      return true;
+    }
     if (attachment.mimeType === 'application/pdf') {
       return !isMobile;
     }
@@ -228,7 +231,13 @@ function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {
       {activeAttachment && (
         <div className="modal-backdrop attachment-viewer-backdrop" role="presentation" onClick={() => setActiveAttachment(null)}>
           <div
-            className={`attachment-viewer-panel ${activeAttachment.mimeType.startsWith('image/') ? 'image-mode' : 'pdf-mode'}`}
+            className={`attachment-viewer-panel ${
+              activeAttachment.mimeType.startsWith('image/')
+                ? 'image-mode'
+                : activeAttachment.mimeType.startsWith('audio/')
+                ? 'audio-mode'
+                : 'pdf-mode'
+            }`}
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
@@ -257,6 +266,19 @@ function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {
             <div className="attachment-viewer-content">
               {activeAttachment.mimeType.startsWith('image/') ? (
                 <img src={activeAttachment.url} alt={activeAttachment.fileName} className="attachment-viewer-image" />
+              ) : activeAttachment.mimeType.startsWith('audio/') ? (
+                <div className="attachment-viewer-audio-container">
+                  <div className="attachment-viewer-audio-icon">
+                    <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '32px', height: '32px' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
+                    </svg>
+                  </div>
+                  <div className="attachment-viewer-audio-meta">
+                    <span className="attachment-viewer-audio-title">{activeAttachment.fileName}</span>
+                    <span className="attachment-viewer-audio-subtitle">{activeAttachment.mimeType} / {formatFileSize(activeAttachment.sizeBytes)}</span>
+                  </div>
+                  <audio src={activeAttachment.url} controls className="attachment-viewer-audio" autoPlay />
+                </div>
               ) : (
                 <iframe src={activeAttachment.url} title={activeAttachment.fileName} className="attachment-viewer-iframe" />
               )}

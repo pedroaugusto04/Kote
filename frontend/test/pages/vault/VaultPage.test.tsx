@@ -234,6 +234,44 @@ describe('VaultPage', () => {
     expect(screen.getByText('application/pdf / 4.0 KB')).toBeInTheDocument();
   });
 
+  it('renders audio attachments and opens audio preview modal when clicked', async () => {
+    const note = buildNoteSummary({ id: 'note-audio', title: 'Note with audio', attachmentCount: 1 });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(note),
+      attachments: [
+        {
+          id: 'audio-1',
+          fileName: 'grava.mp3',
+          mimeType: 'audio/mpeg',
+          sizeBytes: 1048576,
+          url: '/api/notes/note-audio/attachments/audio-1/content',
+        },
+      ],
+    });
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
+    expect(screen.getByLabelText('1 attachment')).toBeInTheDocument();
+
+    const audioLink = screen.getByRole('link', { name: /grava.mp3/i });
+    expect(audioLink).toBeInTheDocument();
+    
+    // Click to open preview
+    fireEvent.click(audioLink);
+
+    // Should show the title in the modal header and the audio controls
+    expect(screen.getByRole('heading', { name: 'grava.mp3' })).toBeInTheDocument();
+    expect(screen.getAllByText('audio/mpeg / 1.0 MB')).toHaveLength(2);
+    
+    // Check that we have a close button and can close it
+    const closeBtn = screen.getByRole('button', { name: 'Close' });
+    expect(closeBtn).toBeInTheDocument();
+    fireEvent.click(closeBtn);
+    expect(screen.queryByRole('heading', { name: 'grava.mp3' })).not.toBeInTheDocument();
+  });
+
   it('does not render a duplicated original text block from structured note preamble', async () => {
     const note = buildNoteSummary({ id: 'note-structured', title: 'TCC reminder', summary: 'lembrar de chamar banca para o TCC amanha nesse horario' });
     apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));

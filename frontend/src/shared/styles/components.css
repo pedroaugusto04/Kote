@@ -1103,3 +1103,61 @@
   border: 0;
   background: #fff;
 }
+
+/* Audio mode for attachment viewer */
+.attachment-viewer-panel.audio-mode {
+  max-width: 500px;
+}
+
+.attachment-viewer-audio-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  width: 100%;
+  gap: 20px;
+  background: radial-gradient(circle at top, var(--surface-hover-accent) 0%, var(--surface-1) 100%);
+}
+
+.attachment-viewer-audio-icon {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--surface-active);
+  color: var(--accent-text);
+  border: 1px solid var(--accent-border);
+  box-shadow: var(--shadow-strong);
+  margin-bottom: 8px;
+}
+
+.attachment-viewer-audio-meta {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attachment-viewer-audio-title {
+  font-family: var(--ui);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-strong);
+  word-break: break-all;
+  max-width: 380px;
+}
+
+.attachment-viewer-audio-subtitle {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.attachment-viewer-audio {
+  width: 100%;
+  max-width: 400px;
+  border-radius: 999px;
+  outline: none;
+}
