@@ -902,7 +902,7 @@ test('whatsapp audio without caption is transcribed and processes the message as
   assert.equal(result.processed, true);
   assert.equal(result.action, 'submit');
   assert.equal(audioTranscription.calls.length, 1);
-  assert.equal(audioTranscription.calls[0].input.mimeType, 'audio/ogg; codecs=opus');
+  assert.equal(audioTranscription.calls[0].input.mimeType, 'audio/ogg');
   assert.equal(audioTranscription.calls[0].input.dataBase64, Buffer.from('hello audio').toString('base64'));
   assert.equal(sender.sent.length, 1);
   assert.match(sender.sent[0].text, /^Note saved successfully:/);

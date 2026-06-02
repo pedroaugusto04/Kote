@@ -119,7 +119,8 @@ function parseWhatsappMedia(payload: Record<string, unknown>, message: Record<st
   for (const { key, type, fallbackMimeType } of whatsappMediaTypes) {
     const media = objectValue(message[key]);
     if (!media) continue;
-    const mimeType = stringValue(media.mimetype || media.mimeType) || fallbackMimeType;
+    const rawMimeType = stringValue(media.mimetype || media.mimeType) || fallbackMimeType;
+    const mimeType = rawMimeType.split(';')[0].trim().toLowerCase();
     let fileName = stringValue(media.fileName || media.title);
     if (!fileName) {
       const parts = mimeType.split('/');
