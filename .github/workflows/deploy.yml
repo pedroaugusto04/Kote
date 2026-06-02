@@ -146,6 +146,10 @@ jobs:
           KB_EMBEDDING_AI_BASE_URL: ${{ vars.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta' }}
           KB_EMBEDDING_AI_MODEL: ${{ vars.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001' }}
           KB_EMBEDDING_AI_API_KEY: ${{ secrets.KB_EMBEDDING_AI_API_KEY || '' }}
+          KB_AUDIO_AI_PROVIDER: ${{ vars.KB_AUDIO_AI_PROVIDER || 'gemini' }}
+          KB_AUDIO_AI_BASE_URL: ${{ vars.KB_AUDIO_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta' }}
+          KB_AUDIO_AI_MODEL: ${{ vars.KB_AUDIO_AI_MODEL || 'gemini-2.5-flash' }}
+          KB_AUDIO_AI_API_KEY: ${{ secrets.KB_AUDIO_AI_API_KEY || '' }}
           KB_RABBITMQ_URL: ${{ secrets.KB_RABBITMQ_URL || '' }}
           KB_RABBITMQ_USER: ${{ vars.KB_RABBITMQ_USER || 'kb' }}
           KB_RABBITMQ_PASSWORD: ${{ secrets.KB_RABBITMQ_PASSWORD || '' }}

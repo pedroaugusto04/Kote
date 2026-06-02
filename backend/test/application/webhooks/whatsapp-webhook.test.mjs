@@ -179,7 +179,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     repositories.externalIdentityRepository,
     repositories.credentialRepository,
     repositories.webhookEventRepository,
-    { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
+    { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '', audioAiProvider: options.audioTranscription ? 'gemini' : 'none', audioAiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta', audioAiModel: 'gemini-2.5-flash', audioAiApiKey: 'dummy-key' }) },
     undefined,
     conversation,
     options.askKnowledge,
@@ -187,6 +187,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     mediaDownloader,
     undefined,
     options.askAttachments === false ? undefined : new ResolveWhatsappAskAttachmentsUseCase(repositories.contentRepository, repositories.objectStorage),
+    options.audioTranscription,
   );
   return { repositories, whatsapp, sender, user, mediaDownloader };
 }
@@ -864,3 +865,47 @@ test('group messages without /kb prefix are ignored before creating notes or rep
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
   assert.equal(await repositories.countConversationStates(), 0);
 });
+
+class StubAudioTranscriptionGateway {
+  constructor(transcription = 'corrigi timeout no webhook') {
+    this.transcription = transcription;
+    this.calls = [];
+  }
+
+  async transcribe(config, input) {
+    this.calls.push({ config, input });
+    return this.transcription;
+  }
+}
+
+test('whatsapp audio without caption is transcribed and processes the message as text', async (t) => {
+  const privateJid = '5511999999999@s.whatsapp.net';
+  const audioTranscription = new StubAudioTranscriptionGateway();
+  const downloader = new StubWhatsappMediaDownloader(Buffer.from('hello audio').toString('base64'));
+  const { whatsapp, sender, repositories, user } = await fixture(t, new CapturingWhatsappSender(), downloader, {
+    audioTranscription,
+    whatsappJid: privateJid,
+  });
+
+  const result = await whatsapp.execute(evolutionInput('', {
+    data: {
+      key: { remoteJid: privateJid, participant: '5511999999999@s.whatsapp.net', id: 'audio-msg', fromMe: false },
+      message: {
+        audioMessage: {
+          mimetype: 'audio/ogg; codecs=opus',
+          fileLength: 200,
+        },
+      },
+    },
+  }, {}, privateJid));
+
+  assert.equal(result.processed, true);
+  assert.equal(result.action, 'submit');
+  assert.equal(audioTranscription.calls.length, 1);
+  assert.equal(audioTranscription.calls[0].input.mimeType, 'audio/ogg; codecs=opus');
+  assert.equal(audioTranscription.calls[0].input.dataBase64, Buffer.from('hello audio').toString('base64'));
+  assert.equal(sender.sent.length, 1);
+  assert.match(sender.sent[0].text, /^Note saved successfully:/);
+  assert.match(sender.sent[0].text, /Project: N8N Automations/);
+});
+

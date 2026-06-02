@@ -37,6 +37,10 @@ export type RuntimeEnvironment = {
   embeddingAiBaseUrl: string;
   embeddingAiModel: string;
   embeddingAiApiKey: string;
+  audioAiProvider: AiProvider;
+  audioAiBaseUrl: string;
+  audioAiModel: string;
+  audioAiApiKey: string;
   githubAppId: string;
   githubAppPrivateKey: string;
   publicBaseUrl: string;
@@ -96,6 +100,10 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     embeddingAiBaseUrl: String(env.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
     embeddingAiModel: String(env.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001').trim(),
     embeddingAiApiKey: String(env.KB_EMBEDDING_AI_API_KEY || '').trim(),
+    audioAiProvider: (String(env.KB_AUDIO_AI_PROVIDER || 'gemini').trim().toLowerCase() as RuntimeEnvironment['audioAiProvider']),
+    audioAiBaseUrl: String(env.KB_AUDIO_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
+    audioAiModel: String(env.KB_AUDIO_AI_MODEL || 'gemini-2.5-flash').trim(),
+    audioAiApiKey: String(env.KB_AUDIO_AI_API_KEY || env.KB_EMBEDDING_AI_API_KEY || '').trim(),
     githubAppId: String(env.KB_GITHUB_APP_ID || '').trim(),
     githubAppPrivateKey: String(env.KB_GITHUB_APP_PRIVATE_KEY || '').trim(),
     publicBaseUrl: String(env.KB_PUBLIC_BASE_URL || env.WEBHOOK_URL || '').trim().replace(/\/$/, ''),

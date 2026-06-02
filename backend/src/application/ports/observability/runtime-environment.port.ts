@@ -21,6 +21,10 @@ export type RuntimeEnvironment = {
   embeddingAiBaseUrl: string;
   embeddingAiModel: string;
   embeddingAiApiKey: string;
+  audioAiProvider: AiProvider;
+  audioAiBaseUrl: string;
+  audioAiModel: string;
+  audioAiApiKey: string;
   githubAppId: string;
   githubAppPrivateKey: string;
   publicBaseUrl: string;

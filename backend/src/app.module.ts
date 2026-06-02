@@ -11,6 +11,7 @@ import { ProjectBriefAiGateway } from './application/ports/projects/project-brie
 import { NoteEmbeddingRepository } from './application/ports/notes/note-embedding.repository.js';
 import { EmbeddingGateway } from './application/ports/notes/embedding.gateway.js';
 import { AnswerGenerationGateway } from './application/ports/query/answer-generation.gateway.js';
+import { AudioTranscriptionGateway } from './application/ports/audio/audio-transcription.gateway.js';
 import { EmbeddingQueuePublisher } from './application/ports/notes/embedding-queue.publisher.js';
 import { ProjectBriefHistoryRepository } from './application/ports/projects/project-brief-history.repository.js';
 import { AskHistoryRepository } from './application/ports/query/ask-history.repository.js';
@@ -42,6 +43,7 @@ import { DefaultProjectBriefAiGateway } from './infrastructure/ai/project-brief.
 import { DefaultReviewAnalysisGateway } from './infrastructure/ai/review-analysis.gateway.js';
 import { DefaultEmbeddingGateway } from './infrastructure/ai/embedding.gateway.js';
 import { DefaultAnswerGenerationGateway } from './infrastructure/ai/answer-generation.gateway.js';
+import { DefaultAudioTranscriptionGateway } from './infrastructure/ai/audio-transcription.gateway.js';
 import { DefaultGithubIntegrationGateway } from './infrastructure/integrations/github-integration.gateway.js';
 import { GoogleAuthLibraryOAuthGateway } from './infrastructure/auth/google-oauth.gateway.js';
 import { PostgresUserRepository } from './infrastructure/repositories/auth.repository.js';
@@ -224,6 +226,7 @@ import { AppLogger } from './observability/logger.js';
     DefaultReviewAnalysisGateway,
     DefaultEmbeddingGateway,
     DefaultAnswerGenerationGateway,
+    DefaultAudioTranscriptionGateway,
     DefaultGithubIntegrationGateway,
     GoogleAuthLibraryOAuthGateway,
     ProcessRuntimeEnvironmentProvider,
@@ -263,6 +266,7 @@ import { AppLogger } from './observability/logger.js';
     { provide: WebhookQueuePublisher, useExisting: RabbitMqWebhookQueuePublisher },
     { provide: EmbeddingGateway, useExisting: DefaultEmbeddingGateway },
     { provide: AnswerGenerationGateway, useExisting: DefaultAnswerGenerationGateway },
+    { provide: AudioTranscriptionGateway, useExisting: DefaultAudioTranscriptionGateway },
     { provide: ObjectStorage, useExisting: SupabaseObjectStorage },
     { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
     { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
