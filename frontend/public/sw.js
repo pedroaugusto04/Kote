@@ -19,13 +19,14 @@ const SHELL_CACHE = `kb-shell-${CACHE_VERSION}`;
 /**
  * Minimal set of URLs that constitute the app shell.
  * Vite-hashed bundles (JS/CSS) are cached dynamically on first fetch.
+ * These are resolved relative to the service worker scope.
  */
 const SHELL_URLS = [
-  '/',
-  '/manifest.json',
-  '/favicon.svg',
-  '/brand-mark.svg',
-  '/icon-512.png',
+  './',
+  'manifest.json',
+  'favicon.svg',
+  'brand-mark.svg',
+  'icon-512.png',
 ];
 
 // ---------------------------------------------------------------------------
@@ -72,19 +73,23 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith('/api/')) return;
 
+  // Resolve root scope path (e.g. "/knowledge-base/")
+  const registrationScope = self.registration.scope;
+  const scopePath = new URL(registrationScope).pathname;
+
   // For navigation requests, always try network first (SPA — returns index.html)
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Cache the fresh HTML shell
+          // Cache the fresh HTML shell under the scope path root
           const clone = response.clone();
-          caches.open(SHELL_CACHE).then((cache) => cache.put('/', clone));
+          caches.open(SHELL_CACHE).then((cache) => cache.put(scopePath, clone));
           return response;
         })
         .catch(() =>
           // Offline: serve cached shell for any navigation
-          caches.match('/').then((cached) => cached || new Response('Offline', { status: 503 })),
+          caches.match(scopePath).then((cached) => cached || new Response('Offline', { status: 503 })),
         ),
     );
     return;

@@ -2,7 +2,7 @@
   "name": "Knowledge Vault",
   "short_name": "KB Vault",
   "description": "Centralize your team's operational knowledge in one place.",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#090f14",
   "theme_color": "#00345c",
@@ -10,12 +10,12 @@
   "categories": ["productivity", "business"],
   "icons": [
     {
-      "src": "/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
