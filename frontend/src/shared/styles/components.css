@@ -1217,3 +1217,56 @@
   }
 }
 
+/* Breadcrumbs styling */
+.global-breadcrumbs {
+  margin-bottom: 16px;
+  padding: 8px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  animation: fade-in 0.25s ease;
+  font-family: var(--ui);
+  font-size: 13px;
+  display: inline-flex;
+}
+
+.breadcrumbs-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 4px;
+}
+
+.breadcrumbs-item {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+
+.breadcrumbs-separator {
+  margin: 0 6px;
+  color: var(--line-soft);
+  user-select: none;
+}
+
+.breadcrumbs-link {
+  color: var(--active-text);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.breadcrumbs-link:hover {
+  color: var(--text-strong);
+}
+
+.breadcrumbs-current {
+  color: var(--text-strong);
+  font-weight: 600;
+  cursor: default;
+}
+
+

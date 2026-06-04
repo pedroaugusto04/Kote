@@ -682,7 +682,7 @@ describe('AppShell', () => {
     fireEvent.click(screen.getByRole('button', { name: /N8N Automations/ }));
 
     expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Projects' })).toHaveClass('active');
+    expect(within(screen.getByRole('navigation', { name: 'Main sections' })).getByRole('link', { name: 'Projects' })).toHaveClass('active');
   });
 
   it('shows All in the projects select and lists notes from every project', async () => {

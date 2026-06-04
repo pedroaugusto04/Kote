@@ -32,6 +32,7 @@ import { ThemeToggle } from '../shared/ui/theme-toggle';
 import { useGlobalLoading } from '../app/global-loading';
 import { useDebouncedValue } from '../shared/ui/use-debounced-value';
 import { OfflineBanner } from '../shared/ui/offline-banner';
+import { Breadcrumbs } from '../shared/ui/Breadcrumbs';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';
 
 
@@ -534,6 +535,7 @@ export function AppShell() {
           </div>
         </header>
         <section className="view" aria-live="polite">
+          <Breadcrumbs projects={dashboard.projects} />
           <Routes>
             <Route path="/" element={<HomePage {...pageContext} />} />
             <Route path="/projects" element={<ProjectsPage {...pageContext} />} />
