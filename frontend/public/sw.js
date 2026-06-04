@@ -13,7 +13,7 @@
  * Bump this version string whenever a deploy changes the app shell.
  * The activate handler will automatically purge older caches.
  */
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const SHELL_CACHE = `kb-shell-${CACHE_VERSION}`;
 
 /**
@@ -24,8 +24,6 @@ const SHELL_CACHE = `kb-shell-${CACHE_VERSION}`;
 const SHELL_URLS = [
   './',
   'manifest.json',
-  'favicon.svg',
-  'brand-mark.svg',
   'icon-512.png',
 ];
 

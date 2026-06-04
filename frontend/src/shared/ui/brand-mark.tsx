@@ -1,4 +1,4 @@
-const brandMarkUrl = `${import.meta.env.BASE_URL}brand-mark.svg`;
+const brandMarkUrl = `${import.meta.env.BASE_URL}icon-512.png`;
 
 export function BrandMark() {
   return (
