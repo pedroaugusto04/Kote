@@ -2,8 +2,6 @@
 
 Knowledge Vault centralizes your team's operational knowledge in one place, preventing the loss of critical context and decisions.
 
-![Knowledge Vault Overview](docs/screenshots/home-overview.png) 
-
 ## Overview
 Transform scattered information into a searchable knowledge base by automatically capturing daily learnings, decisions, and pending tasks.
 
