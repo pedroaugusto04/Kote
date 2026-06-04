@@ -1253,24 +1253,24 @@
 }
 
 .breadcrumbs-link {
-  color: var(--active-text);
+  color: var(--muted);
   text-decoration: none;
   font-weight: 500;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
   transition: all 0.15s ease;
 }
 
 .breadcrumbs-link:hover {
-  color: var(--text-strong);
-  background: var(--surface-hover);
+  color: var(--active-text);
+  background: var(--surface-hover-accent);
 }
 
 .breadcrumbs-current {
   color: var(--text-strong);
   font-weight: 600;
   cursor: default;
-  padding: 2px 6px;
+  padding: 4px 10px;
 }
 
 

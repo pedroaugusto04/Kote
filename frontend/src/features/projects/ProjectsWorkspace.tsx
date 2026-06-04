@@ -231,6 +231,7 @@ export function ProjectsWorkspace({
                 onDeleteNote={(note) => setConfirmState({ kind: 'note', note })}
                 onEditNote={(note) => loadNoteMutation.mutate(note.id)}
                 onOpenNote={setSideNoteId}
+                onOpenNoteFullPage={openNote}
                 onPageChange={timelinePagination.setPage}
                 isStale={allProjectsTimelineQuery.isPlaceholderData}
                 resetKey={`all:${timelineCategory}:timeline`}
