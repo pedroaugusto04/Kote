@@ -383,12 +383,14 @@
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   background: var(--surface-1);
-  transition: background 140ms ease, border-color 140ms ease;
+  transition: all 180ms ease;
 }
 
 .project-timeline-item:hover .project-timeline-card {
-  background: var(--surface-hover);
-  border-color: var(--line-soft);
+  background: var(--surface-hover-accent);
+  border-color: var(--cyan);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .project-timeline-meta,

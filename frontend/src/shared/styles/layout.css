@@ -231,7 +231,7 @@
 /* Lists and Rows */
 .list {
   display: grid;
-  gap: 2px;
+  gap: 8px;
 }
 
 .list-row {
@@ -239,19 +239,18 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
   gap: 14px;
-  padding: 14px 6px;
-  border-bottom: 1px solid var(--border-subtle);
-  border-radius: 0;
-  background: transparent;
-  transition: background 140ms ease, border-color 140ms ease;
-}
-
-.list-row:last-child {
-  border-bottom: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-1);
+  transition: all 180ms ease;
 }
 
 .list-row:hover {
-  background: var(--surface-6);
+  background: var(--surface-hover-accent);
+  border-color: var(--cyan);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
 }
 
 .list-row-body {
