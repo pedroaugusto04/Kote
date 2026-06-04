@@ -128,14 +128,12 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'Knowledge Base';
-  // Resolve icon URLs relative to sw.js location (same directory)
+  // Resolve icon URL relative to sw.js location (same directory)
   const swDir = self.location.href.replace(/\/[^\/]*$/, '/');
   const defaultIcon = swDir + 'icon-512.png';
-  const defaultBadge = swDir + 'badge.png';
   const options = {
     body: data.body || 'Novo lembrete recebido.',
     icon: data.icon || defaultIcon,
-    badge: data.badge || defaultBadge,
     data: data.data || {},
     vibrate: [100, 50, 100],
   };
