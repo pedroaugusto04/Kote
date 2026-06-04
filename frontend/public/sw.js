@@ -27,6 +27,7 @@ const SHELL_URLS = [
   'favicon.svg',
   'brand-mark.svg',
   'icon-512.png',
+  'badge.png',
 ];
 
 // ---------------------------------------------------------------------------
@@ -129,10 +130,11 @@ self.addEventListener('push', (event) => {
 
   const title = data.title || 'Knowledge Base';
   const defaultIcon = new URL('icon-512.png', self.registration.scope).toString();
+  const defaultBadge = new URL('badge.png', self.registration.scope).toString();
   const options = {
     body: data.body || 'Novo lembrete recebido.',
     icon: data.icon || defaultIcon,
-    badge: data.badge || defaultIcon,
+    badge: data.badge || defaultBadge,
     data: data.data || {},
     vibrate: [100, 50, 100],
   };
