@@ -571,12 +571,16 @@
 .badge {
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 3px 7px;
+  min-height: 20px;
+  padding: 2px 8px;
   border: 1px solid var(--line-soft);
   border-radius: 999px;
   color: var(--muted);
   background: var(--surface-6);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .attachment-indicator {
