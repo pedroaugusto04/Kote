@@ -66,8 +66,32 @@ export function VaultPage({
   }, [noteQuery.data?.project, selectedProject, setSelectedProject]);
 
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [noteId]);
+    const scrollToTop = () => {
+      if (typeof window.scrollTo === 'function') {
+        window.scrollTo(0, 0);
+      }
+      if (document.documentElement && typeof document.documentElement.scrollTo === 'function') {
+        document.documentElement.scrollTo(0, 0);
+      }
+      if (document.body && typeof document.body.scrollTo === 'function') {
+        document.body.scrollTo(0, 0);
+      }
+      
+      const mainContent = document.querySelector('.content');
+      if (mainContent && typeof mainContent.scrollTo === 'function') {
+        mainContent.scrollTo(0, 0);
+      }
+
+      const viewContainer = document.querySelector('.view');
+      if (viewContainer && typeof viewContainer.scrollTo === 'function') {
+        viewContainer.scrollTo(0, 0);
+      }
+    };
+
+    scrollToTop();
+    const timer = setTimeout(scrollToTop, 50);
+    return () => clearTimeout(timer);
+  }, [noteId, noteQuery.data?.id]);
 
   const visibleTags = noteQuery.data ? noteQuery.data.tags.filter((tag) => tag !== noteQuery.data.project) : [];
   const notes = notesQuery.data?.notes || [];
