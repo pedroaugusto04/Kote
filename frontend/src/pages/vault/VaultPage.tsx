@@ -142,7 +142,50 @@ export function VaultPage({
 
   return (
     <>
-      <PageHead title="Note details" subtitle={selectedProjectDetails?.displayName || ''} onBack={() => navigate(-1)} />
+      <PageHead
+        title={noteQuery.data?.title || 'Note details'}
+        subtitle={selectedProjectDetails?.displayName || ''}
+        onBack={() => navigate(-1)}
+        action={
+          noteQuery.data ? (
+            <div className="note-reader-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <QuickNoteStatusActions note={noteQuery.data} />
+              {editNote && (
+                <button
+                  aria-label={`Edit note ${noteQuery.data.title}`}
+                  className="row-action-button edit"
+                  title="Edit"
+                  type="button"
+                  onClick={() => editNote(noteQuery.data.id)}
+                >
+                  <PencilIcon />
+                </button>
+              )}
+              {deleteNote && (
+                <button
+                  aria-label={`Delete note ${noteQuery.data.title}`}
+                  className="row-action-button danger"
+                  title="Delete"
+                  type="button"
+                  onClick={() => deleteNote({ id: noteQuery.data.id, title: noteQuery.data.title })}
+                >
+                  <TrashIcon />
+                </button>
+              )}
+              {!isMobile && (
+                <div style={{ display: 'inline-flex', gap: '6px', marginLeft: '6px' }}>
+                  <button className="icon-button" disabled={!previousNote} type="button" onClick={() => previousNote && openNote(previousNote.id)}>
+                    Previous
+                  </button>
+                  <button className="icon-button" disabled={!nextNote} type="button" onClick={() => nextNote && openNote(nextNote.id)}>
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : undefined
+        }
+      />
       <article
         className="note-reader vault-reader"
         onTouchStart={handleTouchStart}
@@ -152,46 +195,8 @@ export function VaultPage({
 
         {noteQuery.data ? (
           <>
-            <header className="note-reader-head">
-              <div className="note-reader-top">
-                <h1 className="note-title">{noteQuery.data.title}</h1>
-                <div className="note-reader-actions" aria-label="Navigation between notes">
-                  <QuickNoteStatusActions note={noteQuery.data} />
-                  {editNote ? (
-                    <button
-                      aria-label={`Edit note ${noteQuery.data.title}`}
-                      className="row-action-button edit"
-                      title="Edit"
-                      type="button"
-                      onClick={() => editNote(noteQuery.data.id)}
-                    >
-                      <PencilIcon />
-                    </button>
-                  ) : null}
-                  {deleteNote ? (
-                    <button
-                      aria-label={`Delete note ${noteQuery.data.title}`}
-                      className="row-action-button danger"
-                      title="Delete"
-                      type="button"
-                      onClick={() => deleteNote({ id: noteQuery.data.id, title: noteQuery.data.title })}
-                    >
-                      <TrashIcon />
-                    </button>
-                  ) : null}
-                  {!isMobile && (
-                    <>
-                      <button className="icon-button" disabled={!previousNote} type="button" onClick={() => previousNote && openNote(previousNote.id)}>
-                        Previous
-                      </button>
-                      <button className="icon-button" disabled={!nextNote} type="button" onClick={() => nextNote && openNote(nextNote.id)}>
-                        Next
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="note-meta-row">
+            <header className="note-reader-head" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+              <div className="note-meta-row" style={{ marginTop: 0 }}>
                 <Badge value={projectName(dashboard.projects, noteQuery.data.project)} tone="project" />
                 <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
                 <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
