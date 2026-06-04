@@ -13,7 +13,7 @@
  * Bump this version string whenever a deploy changes the app shell.
  * The activate handler will automatically purge older caches.
  */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const SHELL_CACHE = `kb-shell-${CACHE_VERSION}`;
 
 /**
@@ -27,7 +27,6 @@ const SHELL_URLS = [
   'favicon.svg',
   'brand-mark.svg',
   'icon-512.png',
-  'badge.png',
 ];
 
 // ---------------------------------------------------------------------------
@@ -129,10 +128,10 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'Knowledge Base';
-  const scope = self.registration.scope;
-  const scopeWithSlash = scope.endsWith('/') ? scope : `${scope}/`;
-  const defaultIcon = new URL('icon-512.png', scopeWithSlash).toString();
-  const defaultBadge = new URL('badge.png', scopeWithSlash).toString();
+  // Resolve icon URLs relative to sw.js location (same directory)
+  const swDir = self.location.href.replace(/\/[^\/]*$/, '/');
+  const defaultIcon = swDir + 'icon-512.png';
+  const defaultBadge = swDir + 'badge.png';
   const options = {
     body: data.body || 'Novo lembrete recebido.',
     icon: data.icon || defaultIcon,
