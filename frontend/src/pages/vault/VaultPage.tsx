@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, getCleanSummary } from '../../entities/format';
 import { normalizeComparableText } from '../../entities/text';
 import { fetchNotes, fetchRelatedNotes } from '../../shared/api/client';
 import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
@@ -238,15 +238,7 @@ function RelatedNotesSection({
   );
 }
 
-function getCleanSummary(summary: string | undefined): string {
-  if (!summary) return '';
-  let text = summary.replace(/\r?\n/g, ' ');
-  text = text.replace(/\s+/g, ' ').trim();
-  if (text.length > 200) {
-    return text.substring(0, 200) + '...';
-  }
-  return text;
-}
+
 
 
 function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {

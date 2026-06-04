@@ -130,3 +130,15 @@ export function formatDisplayToken(value: string | null | undefined) {
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
     .join(' ');
 }
+
+export function getCleanSummary(summary: string | undefined): string {
+  if (!summary) return '';
+  // Replace newlines and carriage returns with spaces
+  let text = summary.replace(/\r?\n/g, ' ');
+  // Collapse multiple spaces
+  text = text.replace(/\s+/g, ' ').trim();
+  if (text.length > 200) {
+    return text.substring(0, 200) + '...';
+  }
+  return text;
+}

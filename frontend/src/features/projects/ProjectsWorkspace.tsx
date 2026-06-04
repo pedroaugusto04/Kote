@@ -273,6 +273,7 @@ export function ProjectsWorkspace({
               onEditNote={(note) => loadNoteMutation.mutate(note.id)}
               onDeleteNote={(note) => setConfirmState({ kind: 'note', note })}
               onOpenNote={setSideNoteId}
+              onOpenNoteFullPage={openNote}
               onEditProject={selected.projectSlug === 'inbox' ? undefined : () => setProjectModal({ mode: 'edit', project: selected })}
               onDeleteProject={selectedProjectDeleteBlockedReason ? undefined : () => setConfirmState({ kind: 'project', project: selected })}
               deleteProjectLabel={selectedProjectDeleteBlockedReason || 'Delete project'}

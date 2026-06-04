@@ -43,6 +43,7 @@ type ProjectsBrowserProps = {
   onEditNote: (note: NoteSummary) => void;
   onDeleteNote: (note: NoteSummary) => void;
   onOpenNote: (noteId: string) => void;
+  onOpenNoteFullPage?: (noteId: string) => void;
   onEditProject?: () => void;
   onDeleteProject?: () => void;
   deleteProjectLabel?: string;
@@ -76,6 +77,7 @@ export function ProjectsBrowser({
   onEditNote,
   onDeleteNote,
   onOpenNote,
+  onOpenNoteFullPage,
   onEditProject,
   onDeleteProject,
   deleteProjectLabel,
@@ -182,6 +184,7 @@ export function ProjectsBrowser({
           onDeleteNote={onDeleteNote}
           onEditNote={onEditNote}
           onOpenNote={onOpenNote}
+          onOpenNoteFullPage={onOpenNoteFullPage}
           onPageChange={onTimelinePageChange}
           isStale={isStale}
           resetKey={timelineResetKey}

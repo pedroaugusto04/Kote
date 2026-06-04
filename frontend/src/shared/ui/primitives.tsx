@@ -16,8 +16,8 @@ export function Tags({ items }: { items: string[] }) {
   );
 }
 
-export function Panel({ children, className = '' }: PropsWithChildren<{ className?: string }>) {
-  return <section className={`panel ${className}`}>{children}</section>;
+export function Panel({ children, className = '', ...props }: PropsWithChildren<HTMLAttributes<HTMLElement> & { className?: string }>) {
+  return <section {...props} className={`panel ${className}`}>{children}</section>;
 }
 
 export function PageHead({ title, subtitle, action, onBack, backLabel = 'Back' }: { title: ReactNode; subtitle: string; action?: ReactNode; onBack?: () => void; backLabel?: string }) {

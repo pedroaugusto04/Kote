@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
 
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, getCleanSummary } from '../../entities/format';
 import { normalizeComparableText } from '../../entities/text';
 import type { NoteAttachment } from '../../shared/api/models/note';
 import type { Project } from '../../shared/api/models/project';
@@ -144,15 +144,7 @@ function RelatedNotesSection({
   );
 }
 
-function getCleanSummary(summary: string | undefined): string {
-  if (!summary) return '';
-  let text = summary.replace(/\r?\n/g, ' ');
-  text = text.replace(/\s+/g, ' ').trim();
-  if (text.length > 200) {
-    return text.substring(0, 200) + '...';
-  }
-  return text;
-}
+
 
 
 function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {

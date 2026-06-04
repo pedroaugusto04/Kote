@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary } from '../../entities/format';
 import { Badge } from '../../shared/ui/primitives';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { QuickNoteStatusActions } from './QuickNoteStatusActions';
@@ -24,12 +24,14 @@ export function NoteRow({
   note,
   dashboard,
   onOpen,
+  onDoubleClick,
   onEdit,
   onDelete,
 }: {
   note: NoteSummary;
   dashboard: Dashboard;
   onOpen: (id: string) => void;
+  onDoubleClick?: (id: string) => void;
   onEdit?: (note: NoteSummary) => void;
   onDelete?: (note: NoteSummary) => void;
 }) {
@@ -46,7 +48,7 @@ export function NoteRow({
   });
 
   return (
-    <article className="list-row clickable" onClick={() => onOpen(note.id)}>
+    <article className="list-row clickable" onClick={() => onOpen(note.id)} onDoubleClick={() => onDoubleClick?.(note.id)}>
       <div className="list-row-body note-row-body">
         <div className="meta-row">
           {note.isPinned && (
@@ -115,16 +117,6 @@ export function NoteRow({
   );
 }
 
-function getCleanSummary(summary: string | undefined): string {
-  if (!summary) return '';
-  // Replace newlines and carriage returns with spaces
-  let text = summary.replace(/\r?\n/g, ' ');
-  // Collapse multiple spaces
-  text = text.replace(/\s+/g, ' ').trim();
-  if (text.length > 200) {
-    return text.substring(0, 200) + '...';
-  }
-  return text;
-}
+
 
 

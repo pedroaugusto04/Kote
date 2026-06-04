@@ -24,6 +24,7 @@ export function ProjectTimeline({
   category,
   onCategoryChange,
   onOpenNote,
+  onOpenNoteFullPage,
   onEditNote,
   onDeleteNote,
   onPageChange,
@@ -36,6 +37,7 @@ export function ProjectTimeline({
   category: ProjectTimelineCategory;
   onCategoryChange: (category: ProjectTimelineCategory) => void;
   onOpenNote: (noteId: string) => void;
+  onOpenNoteFullPage?: (noteId: string) => void;
   onEditNote?: (note: NoteSummary) => void;
   onDeleteNote?: (note: NoteSummary) => void;
   onPageChange: (page: number) => void;
@@ -71,7 +73,7 @@ export function ProjectTimeline({
       {visibleItems.length > 0 ? (
         <div className={`project-timeline-list ${isStale ? 'stale-data' : ''}`}>
           {visibleItems.map((item) => (
-            <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)}>
+            <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)} onDoubleClick={() => onOpenNoteFullPage?.(item.noteId)}>
               <div className="project-timeline-marker" aria-hidden="true" />
               <div className="project-timeline-card">
                 <div className="project-timeline-meta">
