@@ -129,8 +129,10 @@ self.addEventListener('push', (event) => {
   }
 
   const title = data.title || 'Knowledge Base';
-  const defaultIcon = new URL('icon-512.png', self.registration.scope).toString();
-  const defaultBadge = new URL('badge.png', self.registration.scope).toString();
+  const scope = self.registration.scope;
+  const scopeWithSlash = scope.endsWith('/') ? scope : `${scope}/`;
+  const defaultIcon = new URL('icon-512.png', scopeWithSlash).toString();
+  const defaultBadge = new URL('badge.png', scopeWithSlash).toString();
   const options = {
     body: data.body || 'Novo lembrete recebido.',
     icon: data.icon || defaultIcon,
