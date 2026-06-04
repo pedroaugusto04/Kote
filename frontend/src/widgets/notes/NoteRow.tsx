@@ -13,8 +13,9 @@ import { notifyGeneralFormError } from '../../shared/forms/errors';
 
 function PinIcon({ active }: { active?: boolean }) {
   return (
-    <svg viewBox="0 0 16 16" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={active ? '0' : '1.2'} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4.146.146A.5.5 0 0 1 4.5 0h7a.5.5 0 0 1 .5.5c0 .68-.103 1.307-.263 1.777l-1.02 3.06a.5.5 0 0 0-.05.158V10h.833a.5.5 0 0 1 .374.832l-2.5 3a.5.5 0 0 1-.748 0l-2.5-3A.5.5 0 0 1 7.167 10h.833V5.5c0-.056-.017-.11-.05-.158l-1.02-3.06C6.77 1.807 6.667 1.18 6.667.5a.5.5 0 0 1 .5-.5z"/>
+    <svg viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ width: '1em', height: '1em' }}>
+      <line x1="12" y1="17" x2="12" y2="22" />
+      <path d="M5 17h14v-1.76a2 2 0 0 0-.44-1.24l-2.33-2.91a2 2 0 0 1-.43-1.24V5a2 2 0 0 0-2-2h-3.6a2 2 0 0 0-2 2v4.85a2 2 0 0 1-.43 1.24l-2.33 2.91a2 2 0 0 0-.44 1.24z" />
     </svg>
   );
 }
@@ -64,7 +65,20 @@ export function NoteRow({
         <p>{getCleanSummary(note.summary)}</p>
       </div>
       <div className="row-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', alignSelf: 'stretch', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <button
+          aria-label={note.isPinned ? `Unpin note ${note.title}` : `Pin note ${note.title}`}
+          className={`row-action-button pin ${note.isPinned ? 'active' : ''}`}
+          title={note.isPinned ? 'Unpin' : 'Pin'}
+          type="button"
+          disabled={mutation.isPending}
+          onClick={(event) => {
+            event.stopPropagation();
+            mutation.mutate();
+          }}
+        >
+          <PinIcon active={note.isPinned} />
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 'auto' }}>
           <QuickNoteStatusActions note={note} compact />
           {onEdit ? (
             <button
@@ -96,20 +110,6 @@ export function NoteRow({
           ) : null}
           <span className="file-icon" style={{ marginLeft: '4px', textAlign: 'center' }}>{typeIcon(note.type)}</span>
         </div>
-        <button
-          aria-label={note.isPinned ? `Unpin note ${note.title}` : `Pin note ${note.title}`}
-          className={`row-action-button pin ${note.isPinned ? 'active' : ''}`}
-          title={note.isPinned ? 'Unpin' : 'Pin'}
-          type="button"
-          disabled={mutation.isPending}
-          onClick={(event) => {
-            event.stopPropagation();
-            mutation.mutate();
-          }}
-          style={{ marginTop: 'auto' }}
-        >
-          <PinIcon active={note.isPinned} />
-        </button>
       </div>
     </article>
   );
