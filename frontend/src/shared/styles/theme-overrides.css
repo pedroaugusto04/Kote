@@ -6,15 +6,14 @@
 
 /* Sidebar: subtle vertical gradient instead of flat white */
 :root[data-theme="light"] .sidebar {
-  background:
-    linear-gradient(180deg, var(--surface-1) 0%, var(--surface-2) 100%);
-  border-color: var(--line-soft);
+  background: var(--surface-1);
+  border-right-color: var(--line);
 }
 
 /* Topbar: glass with enhanced blur for depth */
 :root[data-theme="light"] .topbar {
   background: var(--glass-topbar);
-  border-color: var(--line-soft);
+  border-bottom-color: var(--line);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
@@ -24,8 +23,15 @@
 :root[data-theme="light"] .panel,
 :root[data-theme="light"] .note-reader,
 :root[data-theme="light"] .search-box {
-  border-color: var(--line-soft);
+  background: var(--panel);
+  border-color: var(--line);
   box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .card:hover {
+  background: var(--panel);
+  border-color: var(--accent-border);
+  box-shadow: var(--shadow-strong);
 }
 
 /* Form inputs: clear border, soft focus ring */
@@ -35,6 +41,8 @@
 :root[data-theme="light"] .search-box input,
 :root[data-theme="light"] .search-box select {
   border-color: var(--line);
+  background: var(--panel);
+  color: var(--text);
 }
 
 :root[data-theme="light"] .form-field input:focus,
@@ -43,7 +51,7 @@
 :root[data-theme="light"] .search-box input:focus,
 :root[data-theme="light"] .search-box select:focus {
   border-color: var(--cyan);
-  box-shadow: 0 0 0 3px rgba(12, 119, 146, 0.10);
+  box-shadow: 0 0 0 3px rgba(3, 105, 161, 0.12);
   outline: 0;
 }
 
@@ -55,25 +63,32 @@
 }
 
 :root[data-theme="light"] .icon-button:hover:not(:disabled) {
-  background: var(--surface-hover-accent);
+  background: var(--cyan);
   border-color: var(--cyan);
-  color: var(--active-text);
+  color: #ffffff;
 }
 
 :root[data-theme="light"] .icon-button.secondary {
-  background: var(--surface-4);
-  border-color: var(--line-soft);
+  background: var(--surface-2);
+  border-color: var(--line);
   color: var(--text-soft);
+}
+
+:root[data-theme="light"] .icon-button.secondary:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--line);
+  color: var(--text);
 }
 
 /* Filter chips */
 :root[data-theme="light"] .filter-chip {
-  border-color: var(--line-soft);
+  border-color: var(--line);
   color: var(--text-soft);
+  background: var(--panel);
 }
 
 :root[data-theme="light"] .filter-chip:hover:not(:disabled) {
-  border-color: var(--border-strong);
+  border-color: var(--cyan);
   background: var(--surface-hover);
   color: var(--text);
 }
@@ -90,20 +105,56 @@
   background: var(--surface-active);
   border-color: var(--accent-border);
   color: var(--active-text);
+  font-weight: 600;
 }
 
 /* Tags and badges */
 :root[data-theme="light"] .tag,
-:root[data-theme="light"] .badge:not(.high):not(.critical):not(.overdue):not(.medium):not(.pending):not(.low):not(.active):not(.resolved):not(.sent) {
-  border-color: var(--line-soft);
-  color: var(--text-soft);
-  background: var(--surface-5);
+:root[data-theme="light"] .badge {
+  border-color: var(--line);
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+:root[data-theme="light"] .badge.high,
+:root[data-theme="light"] .badge.critical,
+:root[data-theme="light"] .badge.overdue {
+  color: #991b1b;
+  border-color: #fee2e2;
+  background: #fee2e2;
+}
+
+:root[data-theme="light"] .badge.medium,
+:root[data-theme="light"] .badge.pending {
+  color: #92400e;
+  border-color: #fef3c7;
+  background: #fef3c7;
+}
+
+:root[data-theme="light"] .badge.low,
+:root[data-theme="light"] .badge.active,
+:root[data-theme="light"] .badge.resolved {
+  color: #166534;
+  border-color: #dcfce7;
+  background: #dcfce7;
+}
+
+:root[data-theme="light"] .badge.sent {
+  color: #0369a1;
+  border-color: #e0f2fe;
+  background: #e0f2fe;
+}
+
+:root[data-theme="light"] .badge.archived {
+  color: #475569;
+  border-color: #cbd5e1;
+  background: #f1f5f9;
 }
 
 /* Row action buttons */
 :root[data-theme="light"] .row-action-button {
-  border-color: var(--line-soft);
-  background: var(--surface-4);
+  border-color: var(--line);
+  background: var(--surface-1);
 }
 
 :root[data-theme="light"] .row-action-button:hover {
@@ -113,20 +164,20 @@
 
 /* Command bar: slight elevation over body */
 :root[data-theme="light"] .command-bar {
-  border-color: var(--line-soft);
+  border-color: var(--line);
   background: var(--panel);
 }
 
 /* Empty states */
 :root[data-theme="light"] .empty-state {
-  border-color: var(--line-soft);
-  background: var(--surface-4);
+  border-color: var(--line);
+  background: var(--surface-1);
 }
 
 /* Pagination */
 :root[data-theme="light"] .pagination-number {
-  border-color: var(--line-soft);
-  background: var(--surface-4);
+  border-color: var(--line);
+  background: var(--panel);
   color: var(--text-soft);
 }
 
@@ -147,31 +198,31 @@
 
 /* Dashboard KPIs: subtle gradient with soft top highlight */
 :root[data-theme="light"] .home-kpi {
-  border-color: var(--line-soft);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.56), var(--shadow);
+  border-color: var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), var(--shadow);
 }
 
 /* Dashboard panels */
 :root[data-theme="light"] .home-panel {
-  border-color: var(--line-soft);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.56), var(--shadow);
+  border-color: var(--line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), var(--shadow);
 }
 
 /* Kanban */
 :root[data-theme="light"] .kanban-card {
-  border-color: var(--line-soft);
+  border-color: var(--line);
   box-shadow: var(--shadow);
 }
 
 :root[data-theme="light"] .kanban-column {
-  border-color: var(--line-soft);
+  border-color: var(--line);
   background: var(--surface-2);
 }
 
 /* Segmented controls */
 :root[data-theme="light"] .segmented-control {
-  border-color: var(--line-soft);
-  background: var(--surface-3);
+  border-color: var(--line);
+  background: var(--surface-2);
 }
 
 :root[data-theme="light"] .segmented-control button {
@@ -180,8 +231,8 @@
 }
 
 :root[data-theme="light"] .segmented-control button:hover:not(:disabled) {
-  background: var(--surface-4);
-  border-color: var(--border-strong);
+  background: var(--surface-3);
+  border-color: var(--line);
   color: var(--text);
 }
 
@@ -195,8 +246,8 @@
 /* Theme toggle and topbar icons */
 :root[data-theme="light"] .theme-toggle,
 :root[data-theme="light"] .topbar-icon {
-  border-color: var(--line-soft);
-  background: var(--surface-4);
+  border-color: var(--line);
+  background: var(--panel);
   color: var(--muted);
 }
 
@@ -210,31 +261,31 @@
 
 /* Modal panels */
 :root[data-theme="light"] .modal-panel {
-  border-color: var(--line-soft);
+  border-color: var(--line);
   box-shadow: var(--modal-shadow);
 }
 
 /* Toast notifications */
 :root[data-theme="light"] .kb-toast {
-  border-color: var(--line-soft);
+  border-color: var(--line);
   background: var(--panel);
   box-shadow: var(--shadow-strong);
 }
 
 /* Auth panel */
 :root[data-theme="light"] .auth-panel {
-  border-color: var(--line-soft);
+  border-color: var(--line);
 }
 
 /* Landing page hero */
 :root[data-theme="light"] .landing-hero {
-  border-color: var(--line-soft);
+  border-color: var(--line);
 }
 
 /* Timeline filter buttons */
 :root[data-theme="light"] .timeline-filter-row button {
-  border-color: var(--line-soft);
-  background: var(--surface-4);
+  border-color: var(--line);
+  background: var(--panel);
   color: var(--text-soft);
 }
 
@@ -246,13 +297,13 @@
 
 /* Inline messages */
 :root[data-theme="light"] .inline-message {
-  border-color: var(--line-soft);
+  border-color: var(--line);
 }
 
 /* Static workspace pill */
 :root[data-theme="light"] .workspace-pill-static {
-  border-color: var(--line-soft);
-  background: var(--surface-4);
+  border-color: var(--line);
+  background: var(--surface-2);
 }
 
 /* Connection code */
@@ -263,8 +314,8 @@
 
 /* AI summary */
 :root[data-theme="light"] .note-ai-summary {
-  border-color: var(--line-soft);
-  background: var(--surface-4);
+  border-color: var(--line);
+  background: var(--surface-2);
 }
 
 /* Section labels */
@@ -287,8 +338,8 @@
 
 /* Folder browser */
 :root[data-theme="light"] .folder-browser {
-  background: var(--surface-3);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.48);
+  background: var(--surface-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 /* Command bar popover */
