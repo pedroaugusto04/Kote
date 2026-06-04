@@ -460,6 +460,24 @@ test('google callback with invalid state redirects without creating a session', 
   assert.equal(await repositories.userRepository.findUserByEmail('google.user@example.com'), null);
 });
 
+test('google callback with invalid state redirects prepending base path from environment publicBaseUrl', async (t) => {
+  const { auth, repositories } = await fixture(t, { googleGateway: googleGateway() });
+  const originalBaseUrl = process.env.KB_PUBLIC_BASE_URL;
+  try {
+    process.env.KB_PUBLIC_BASE_URL = 'https://kb.example.com/knowledge-base';
+    const controller = new AuthController(auth);
+    const callbackResponse = responseMock();
+
+    await controller.googleCallback('google-code', 'wrong-state', { headers: {} }, callbackResponse);
+
+    assert.equal(callbackResponse.redirectedTo, '/knowledge-base/auth?error=google_auth_failed');
+    assert.equal(callbackResponse.cookies.length, 0);
+    assert.equal(await repositories.userRepository.findUserByEmail('google.user@example.com'), null);
+  } finally {
+    process.env.KB_PUBLIC_BASE_URL = originalBaseUrl;
+  }
+});
+
 test('google-created user cannot login with password', async (t) => {
   const { auth } = await fixture(t, { googleGateway: googleGateway({ email: 'no-password@example.com' }) });
   const controller = new AuthController(auth);

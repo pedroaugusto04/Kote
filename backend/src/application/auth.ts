@@ -111,10 +111,21 @@ function sha256Base64url(value: string): string {
   return crypto.createHash('sha256').update(value).digest('base64url');
 }
 
-function normalizeReturnTo(value: string | undefined): string {
-  const trimmed = String(value || '/').trim() || '/';
+function normalizeReturnTo(value: string | undefined, publicBaseUrl?: string): string {
+  let trimmed = String(value || '/').trim() || '/';
   if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.includes('\\')) {
     throw new BadRequestException('return_to_path_must_be_relative');
+  }
+  if (publicBaseUrl) {
+    try {
+      const parsed = new URL(publicBaseUrl);
+      const basePath = parsed.pathname.replace(/\/$/, '');
+      if (basePath && basePath !== '/' && !trimmed.startsWith(basePath)) {
+        trimmed = `${basePath}${trimmed}`;
+      }
+    } catch {
+      // Ignore URL parsing errors
+    }
   }
   return trimmed;
 }
@@ -274,7 +285,7 @@ export class AuthService implements OnModuleInit {
     }
     const state = crypto.randomBytes(32).toString('base64url');
     const codeVerifier = crypto.randomBytes(64).toString('base64url');
-    const returnTo = normalizeReturnTo(input.returnTo);
+    const returnTo = normalizeReturnTo(input.returnTo, environment.publicBaseUrl);
     const stateCookie = signGoogleOAuthState({
       state,
       codeVerifier,
@@ -319,7 +330,7 @@ export class AuthService implements OnModuleInit {
       if (input.state && statePayload.state !== input.state) throw new UnauthorizedException('invalid_google_oauth_state');
       return appendQueryParam(statePayload.returnTo, 'error', input.errorCode);
     } catch {
-      return appendQueryParam(normalizeReturnTo(input.fallback || '/auth'), 'error', input.errorCode);
+      return appendQueryParam(normalizeReturnTo(input.fallback || '/auth', environment.publicBaseUrl), 'error', input.errorCode);
     }
   }
 
