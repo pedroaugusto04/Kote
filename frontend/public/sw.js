@@ -71,7 +71,7 @@ self.addEventListener('fetch', (event) => {
   // Never intercept API calls, non-GET requests, or cross-origin requests
   if (event.request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
-  if (url.pathname.startsWith('/api/')) return;
+  if (url.pathname.includes('/api/')) return;
 
   // Resolve root scope path (e.g. "/knowledge-base/")
   const registrationScope = self.registration.scope;
