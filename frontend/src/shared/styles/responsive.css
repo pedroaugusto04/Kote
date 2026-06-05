@@ -160,7 +160,8 @@
   }
   
   .profile-detail-row { grid-template-columns: 1fr; gap: 6px; }
-  .folder-browser-head-top, .folder-browser-actions { align-items: stretch; flex-direction: column; }
+  .folder-browser-head-top { align-items: stretch; flex-direction: column; }
+  .folder-browser-actions { align-items: center; flex-direction: row; justify-content: flex-start; gap: 8px; }
   .timeline-filter-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
