@@ -34,6 +34,7 @@ import { flattenFolders } from './projects.helpers';
 import type { ConfirmState, FolderModalState, NoteModalState, ProjectModalState } from './projects.types';
 import { ProjectTimeline } from './ProjectTimeline';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
+import { useMediaQuery } from '../../shared/ui/use-media-query';
 
 
 type ProjectsWorkspaceProps = ProjectsPageContext;
@@ -44,6 +45,7 @@ export function ProjectsWorkspace({
   openProject,
   openNote,
 }: ProjectsWorkspaceProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const params = useParams();
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
@@ -57,7 +59,7 @@ export function ProjectsWorkspace({
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
 
   const handleOpenNote = (id: string) => {
-    if (sideNoteId === id) {
+    if (isMobile || sideNoteId === id) {
       openNote(id);
     } else {
       setSideNoteId(id);

@@ -11,6 +11,7 @@ import { projectTimelineCategoryValues, type ProjectTimelineCategory } from '../
 import { EmptyState, InlineMessage, PageHead } from '../../../shared/ui/primitives';
 import { Select } from '../../../shared/ui/select';
 import { SideNoteDrawer } from '../../../widgets/notes/SideNoteDrawer';
+import { useMediaQuery } from '../../../shared/ui/use-media-query';
 import { flattenFolders } from '../projects.helpers';
 import { ProjectKnowledgeForceGraph } from './ProjectKnowledgeForceGraph';
 import {
@@ -31,6 +32,7 @@ const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> 
 }));
 
 export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }: ProjectKnowledgeMapPageProps) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const params = useParams();
   const navigate = useNavigate();
   const projectSlug = params.projectSlug
@@ -199,7 +201,13 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
                 <ProjectKnowledgeForceGraph
                   links={filteredGraph?.links || []}
                   nodes={filteredGraph?.nodes || []}
-                  onOpenNote={setSideNoteId}
+                  onOpenNote={(id) => {
+                    if (isMobile) {
+                      openNote(id);
+                    } else {
+                      setSideNoteId(id);
+                    }
+                  }}
                   paused={paused}
                   resetSignal={resetSignal}
                 />

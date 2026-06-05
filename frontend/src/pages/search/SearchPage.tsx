@@ -20,6 +20,7 @@ import { Select } from '../../shared/ui/select';
 import { notifyWarning } from '../../shared/ui/notifications';
 import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
+import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import './SearchPage.css';
@@ -36,6 +37,7 @@ const statusOptions: Array<{ value: '' | NoteStatus; label: string }> = [
 ];
 
 export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageContext) {
+  const isMobile = useMediaQuery('(max-width: 768px)');
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
@@ -282,7 +284,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
                 onDelete={() => deleteNote({ id: note.id, title: note.title })}
                 onEdit={() => editNote(note.id)}
                 onOpen={(id) => {
-                  if (sideNoteId === id) {
+                  if (isMobile || sideNoteId === id) {
                     openNote(id);
                   } else {
                     setSideNoteId(id);
