@@ -453,6 +453,45 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
+  .project-timeline-card {
+    max-height: 120px !important;
+    height: 120px !important;
+    overflow: hidden !important;
+    padding: 10px 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+  }
+
+  .project-timeline-card h3 {
+    font-size: 13.5px !important;
+    margin: 0 !important;
+    line-height: 1.3 !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .project-timeline-card p {
+    font-size: 11.5px !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--muted) !important;
+  }
+
+  .project-timeline-meta {
+    font-size: 11px !important;
+    gap: 5px !important;
+    flex-wrap: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 @media (max-width: 560px) {
