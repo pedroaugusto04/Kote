@@ -123,7 +123,7 @@ export function typeIcon(type: string) {
 }
 
 export function formatDisplayToken(value: string | null | undefined) {
-  return String(value || '')
+  return (value || '')
     .trim()
     .split(/[-_]/)
     .filter(Boolean)

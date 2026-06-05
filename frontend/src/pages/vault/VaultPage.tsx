@@ -67,24 +67,16 @@ export function VaultPage({
 
   useEffect(() => {
     const scrollToTop = () => {
-      if (typeof window.scrollTo === 'function') {
-        window.scrollTo(0, 0);
-      }
-      if (document.documentElement && typeof document.documentElement.scrollTo === 'function') {
-        document.documentElement.scrollTo(0, 0);
-      }
-      if (document.body && typeof document.body.scrollTo === 'function') {
-        document.body.scrollTo(0, 0);
+      window.scrollTo(0, 0);
+      
+      const content = document.querySelector('.content');
+      if (typeof content?.scrollTo === 'function') {
+        content.scrollTo(0, 0);
       }
       
-      const mainContent = document.querySelector('.content');
-      if (mainContent && typeof mainContent.scrollTo === 'function') {
-        mainContent.scrollTo(0, 0);
-      }
-
-      const viewContainer = document.querySelector('.view');
-      if (viewContainer && typeof viewContainer.scrollTo === 'function') {
-        viewContainer.scrollTo(0, 0);
+      const view = document.querySelector('.view');
+      if (typeof view?.scrollTo === 'function') {
+        view.scrollTo(0, 0);
       }
     };
 

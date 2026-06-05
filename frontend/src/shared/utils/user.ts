@@ -1,6 +1,6 @@
 export function getUserInitials(input: { displayName?: string | null; email?: string | null }) {
-  const displayName = String(input.displayName || '').trim();
-  const source = displayName || String(input.email || '').trim();
+  const displayName = (input.displayName || '').trim();
+  const source = displayName || (input.email || '').trim();
   if (!source) return 'U';
 
   const nameParts = source

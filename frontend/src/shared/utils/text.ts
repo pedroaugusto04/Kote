@@ -1,5 +1,5 @@
-export function normalizeComparableText(value: string): string {
-  return String(value || '')
+export function normalizeComparableText(value: string | null | undefined): string {
+  return (value || '')
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim()

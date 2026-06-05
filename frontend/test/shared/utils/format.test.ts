@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { formatUsDate, reminderDisplayDateTime } from '../../src/entities/format';
+import { formatUsDate, reminderDisplayDateTime } from '../../../src/shared/utils/format';
 
 afterEach(() => {
   vi.restoreAllMocks();

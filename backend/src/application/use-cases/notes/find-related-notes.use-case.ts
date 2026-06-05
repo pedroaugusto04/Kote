@@ -30,19 +30,16 @@ export class FindRelatedNotesUseCase {
 
     // Deduplicate by noteId, excluding the current note
     const uniqueNoteIds = new Set<string>();
-    const bestSimilarities = new Map<string, number>();
 
     for (const chunk of similarChunks) {
       if (chunk.noteId === noteId) continue;
-      if (!uniqueNoteIds.has(chunk.noteId)) {
-        uniqueNoteIds.add(chunk.noteId);
-        bestSimilarities.set(chunk.noteId, chunk.similarity);
+      uniqueNoteIds.add(chunk.noteId);
+      if (uniqueNoteIds.size >= limit) {
+        break;
       }
     }
 
-    const sortedNoteIds = Array.from(uniqueNoteIds)
-      .sort((a, b) => (bestSimilarities.get(b) || 0) - (bestSimilarities.get(a) || 0))
-      .slice(0, limit);
+    const sortedNoteIds = Array.from(uniqueNoteIds);
 
     if (!sortedNoteIds.length) {
       return [];

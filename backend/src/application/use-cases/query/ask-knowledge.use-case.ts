@@ -153,7 +153,7 @@ function shouldUseConversationHistory(question: string): boolean {
 }
 
 function normalizeQuestion(question: string): string {
-  return String(question || '')
+  return question
     .trim()
     .toLowerCase()
     .normalize('NFD')

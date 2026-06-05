@@ -57,13 +57,13 @@ Keep dependency injection aligned with the current framework. This project uses 
   - transport DTOs, request/response schemas, and HTTP serialization/parsing helpers belong under `knowledge-base/src/interfaces/http/**`
   - persistence mappers, ORM/storage serializers, and adapter-specific types belong next to the concrete repository/adapter under `knowledge-base/src/infrastructure/**` or `knowledge-base/src/adapters/**`
   - if a mapper translates across layers, place it with the layer that owns the boundary being crossed, instead of in a generic `utils` folder
-- Shared frontend models should live in:
+- Shared frontend models and utility helpers should live in:
   - `knowledge-base/frontend/src/shared/api/models/**`
-  - `knowledge-base/frontend/src/entities/**`
+  - `knowledge-base/frontend/src/shared/utils/**` for shared formatting, text, and business logic helper functions
   - `knowledge-base/frontend/src/features/**` when feature-scoped
 - Frontend placement rules:
   - API request/response models, endpoint payload types, and API mappers belong under `knowledge-base/frontend/src/shared/api/**`
-  - entity models, entity mappers, and entity-level normalizers belong under `knowledge-base/frontend/src/entities/**`
+  - shared formatters, text helpers, and helper-level normalizers belong under `knowledge-base/frontend/src/shared/utils/**`
   - feature-local view models, form schemas, and feature mappers belong under `knowledge-base/frontend/src/features/**`
   - reusable UI-only types and presentational helpers belong with the owning `shared`, `widgets`, or component module, not mixed into API or domain folders
 - Prefer colocating files with the module that owns them. Only promote a type/model/mapper to a broader shared folder when it is actually reused across module boundaries.

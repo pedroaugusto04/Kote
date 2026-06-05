@@ -73,7 +73,7 @@ function openExternalIntegration(url: string, target: '_self' | '_blank' = '_bla
 }
 
 function buildChatComposeUrl(connection: IntegrationConnectionResponse): string {
-  const text = String(connection.instruction || '').trim();
+  const text = (connection.instruction || '').trim();
   if (!text) return '';
   const encoded = encodeURIComponent(text);
   if (connection.provider === 'whatsapp') return `https://wa.me/?text=${encoded}`;
