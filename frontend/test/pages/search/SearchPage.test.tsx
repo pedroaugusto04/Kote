@@ -78,7 +78,7 @@ beforeEach(() => {
   apiSpies.fetchAskHistory.mockResolvedValue({
     ok: true,
     history: [],
-    pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+    pagination: { page: 1, pageSize: 3, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
   });
   apiSpies.fetchNotes.mockResolvedValue({
     ok: true,
@@ -271,7 +271,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
+      pagination: { page: 1, pageSize: 3, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
     }).mockResolvedValueOnce({
       ok: true,
       history: [{
@@ -284,7 +284,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T11:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 3, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
     });
 
     renderSearchPage('/search');
@@ -298,8 +298,8 @@ describe('SearchPage', () => {
     fireEvent.click(screen.getByRole('option', { name: 'Platform' }));
 
     expect(await screen.findByText('Deploy platform from staging.')).toBeInTheDocument();
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: '' });
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: 'platform' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 3, projectSlug: '' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 3, projectSlug: 'platform' });
   });
 
   it('uses Ask AI history pagination controls', async () => {
@@ -315,7 +315,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
+      pagination: { page: 1, pageSize: 3, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
     }).mockResolvedValueOnce({
       ok: true,
       history: [{
@@ -328,7 +328,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T09:00:00.000Z',
       }],
-      pagination: { page: 2, pageSize: 5, total: 6, totalPages: 2, hasNext: false, hasPrevious: true },
+      pagination: { page: 2, pageSize: 3, total: 6, totalPages: 2, hasNext: false, hasPrevious: true },
     });
 
     renderSearchPage('/search');
@@ -338,7 +338,7 @@ describe('SearchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
 
     expect(await screen.findByText('Second answer.')).toBeInTheDocument();
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 2, pageSize: 5, projectSlug: '' });
+    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 2, pageSize: 3, projectSlug: '' });
   });
 
   it('selects a history item as the current answer and closes the popover', async () => {
@@ -354,7 +354,7 @@ describe('SearchPage', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 3, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
     });
 
     renderSearchPage('/search');

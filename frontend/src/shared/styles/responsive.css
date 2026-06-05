@@ -492,6 +492,47 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+
+  /* Mobile card optimization: hide secondary metadata & layout actions */
+  .list-row-body .meta-row .badge:nth-child(1),
+  .project-timeline-meta .badge:nth-child(1),
+  .project-timeline-meta .badge:nth-child(2),
+  .project-timeline-meta .meta:nth-of-type(2),
+  .project-timeline-meta .meta:nth-of-type(3),
+  .quick-note-status-actions,
+  .list-row > .row-actions > .row-action-button.pin,
+  .list-row > .row-actions > .file-icon,
+  .list-row > .row-actions > div > .file-icon {
+    display: none !important;
+  }
+
+  .list-row > .row-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    align-self: center !important;
+    height: auto !important;
+    margin-top: 0 !important;
+  }
+
+  .list-row > .row-actions > div {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    margin-top: 0 !important;
+    align-items: center !important;
+  }
+
+  .project-timeline-body .row-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 8px !important;
+    align-self: center !important;
+    margin-top: 0 !important;
+  }
 }
 
 @media (max-width: 560px) {

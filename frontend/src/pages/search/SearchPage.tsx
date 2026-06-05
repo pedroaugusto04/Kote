@@ -26,7 +26,7 @@ import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import './SearchPage.css';
 
 const SEARCH_DEBOUNCE_MS = 350;
-const ASK_HISTORY_PAGE_SIZE = 5;
+const ASK_HISTORY_PAGE_SIZE = 3;
 
 const statusOptions: Array<{ value: '' | NoteStatus; label: string }> = [
   { value: '', label: 'All' },
