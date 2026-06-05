@@ -2,7 +2,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName } from '../../shared/utils/format';
 import { Badge, EmptyState } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';

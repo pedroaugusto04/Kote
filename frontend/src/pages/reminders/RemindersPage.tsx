@@ -2,8 +2,8 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../entities/format';
-import { sortRemindersForList } from '../../entities/reminders';
+import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../shared/utils/format';
+import { sortRemindersForList } from '../../shared/utils/reminders';
 import { fetchReminders } from '../../shared/api/client';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';

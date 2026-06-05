@@ -1,5 +1,5 @@
 import type { Dashboard } from '../../shared/api/models/dashboard';
-import { formatDisplayToken } from '../../entities/format';
+import { formatDisplayToken } from '../../shared/utils/format';
 import { Badge } from '../../shared/ui/primitives';
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 import { Line, LineChart, ResponsiveContainer } from 'recharts';

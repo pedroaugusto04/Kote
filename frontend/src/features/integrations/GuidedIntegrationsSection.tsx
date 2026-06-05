@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 
-import { formatDisplayToken } from '../../entities/format';
+import { formatDisplayToken } from '../../shared/utils/format';
 import {
   connectIntegration,
   fetchGithubRepositories,

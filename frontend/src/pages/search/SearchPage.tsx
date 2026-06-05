@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken } from '../../entities/format';
+import { formatDisplayToken } from '../../shared/utils/format';
 import { fetchAskHistory, fetchNotes, runAsk, runQuery } from '../../shared/api/client';
 import type { AskHistoryResponse } from '../../shared/api/models/ask';
 import type { AskAnswerCardItem } from '../../widgets/ask/ask-answer-card.models';

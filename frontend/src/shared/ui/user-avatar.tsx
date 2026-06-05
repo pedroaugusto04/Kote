@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { getUserInitials } from '../../entities/user';
+import { getUserInitials } from '../utils/user';
 
 type UserAvatarProps = {
   avatarUrl?: string | null;

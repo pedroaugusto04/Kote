@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary } from '../../shared/utils/format';
 import { Badge } from '../../shared/ui/primitives';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { QuickNoteStatusActions } from './QuickNoteStatusActions';

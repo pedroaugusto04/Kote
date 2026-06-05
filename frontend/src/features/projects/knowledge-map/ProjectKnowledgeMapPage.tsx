@@ -4,7 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import type { ProjectsPageContext } from '../../../app/page-context';
 import { routes } from '../../../app/routing/routes';
-import { formatDisplayToken } from '../../../entities/format';
+import { formatDisplayToken } from '../../../shared/utils/format';
 import { fetchProjectFolders, fetchProjectKnowledgeMap } from '../../../shared/api/client';
 import type { KnowledgeMapNode, ProjectKnowledgeMapResponse } from '../../../shared/api/models/project-knowledge-map';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory } from '../../../shared/api/models/project-timeline';

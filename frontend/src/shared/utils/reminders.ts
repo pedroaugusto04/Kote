@@ -1,4 +1,4 @@
-import type { Reminder } from '../shared/api/models/reminder';
+import type { Reminder } from '../api/models/reminder';
 
 function reminderTimestamp(reminder: Pick<Reminder, 'reminderAt' | 'reminderDate' | 'reminderTime'>) {
   const direct = Date.parse(reminder.reminderAt || '');

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import React from 'react';
 
-import { normalizeComparableText } from '../../entities/text';
+import { normalizeComparableText, sameText } from '../../shared/utils/text';
+import { formatFileSize } from '../../shared/utils/format';
 import type { NoteAttachment } from '../../shared/api/models/note';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../markdown/MarkdownView';
@@ -220,16 +221,6 @@ function listHasOnlyNone(lines: string[]) {
   return lines.length > 0 && lines.every((line) => sameText(line.replace(/^-\s*/, ''), 'none'));
 }
 
-function sameText(left: string, right: string) {
-  return normalizeComparableText(left) === normalizeComparableText(right);
-}
-
 function normalizeReaderText(value: string) {
   return normalizeComparableText(value);
-}
-
-function formatFileSize(sizeBytes: number) {
-  if (sizeBytes < 1024) return `${sizeBytes} B`;
-  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
-  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }

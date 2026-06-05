@@ -4,7 +4,7 @@ import type { ProjectBriefPanelResponse } from '../../shared/api/models/project-
 import type { ProjectTimelineCategory, ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { ProjectFolder } from '../../shared/api/models/project-folder';
 import type { Project } from '../../shared/api/models/project';
-import { formatDisplayToken } from '../../entities/format';
+import { formatDisplayToken } from '../../shared/utils/format';
 import { Panel, Tags } from '../../shared/ui/primitives';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';

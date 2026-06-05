@@ -1,4 +1,4 @@
-import type { Project } from '../shared/api/models/project';
+import type { Project } from '../api/models/project';
 
 const DEFAULT_USER_TIME_ZONE = 'America/Sao_Paulo';
 
@@ -69,19 +69,13 @@ export function formatUsDateTime(value: string | null | undefined) {
   return `${datePart} ${hours}:${minutes}`;
 }
 
-function formatDateTimeInUserTimeZone(value: string | null | undefined) {
-  const parts = dateTimePartsInUserTimeZone(value);
-  if (!parts) return value || '';
-  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
-}
-
 export function formatDateInUserTimeZone(value: string | null | undefined) {
   const parts = dateTimePartsInUserTimeZone(value);
   if (!parts) return value || '';
   return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
-function formatTimeInUserTimeZone(value: string | null | undefined) {
+export function formatTimeInUserTimeZone(value: string | null | undefined) {
   const parts = dateTimePartsInUserTimeZone(value);
   if (!parts) return '';
   return `${parts.hour}:${parts.minute}`;
@@ -99,6 +93,12 @@ export function reminderInputDate(input: { reminderAt?: string; reminderDate?: s
 
 export function reminderInputTime(input: { reminderAt?: string; reminderTime?: string }) {
   return input.reminderAt ? formatTimeInUserTimeZone(input.reminderAt) : input.reminderTime || '';
+}
+
+function formatDateTimeInUserTimeZone(value: string | null | undefined) {
+  const parts = dateTimePartsInUserTimeZone(value);
+  if (!parts) return value || '';
+  return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
 export function noteTypeLabel(type: string) {
@@ -141,4 +141,10 @@ export function getCleanSummary(summary: string | undefined): string {
     return text.substring(0, 200) + '...';
   }
   return text;
+}
+
+export function formatFileSize(sizeBytes: number) {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }

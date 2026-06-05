@@ -1,6 +1,6 @@
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { Reminder } from '../../shared/api/models/reminder';
-import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../entities/format';
+import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { Badge } from '../../shared/ui/primitives';
 import { QuickNoteStatusActions } from '../notes/QuickNoteStatusActions';
 

@@ -5,3 +5,7 @@ export function normalizeComparableText(value: string): string {
     .trim()
     .toLocaleLowerCase();
 }
+
+export function sameText(left: string, right: string): boolean {
+  return normalizeComparableText(left) === normalizeComparableText(right);
+}

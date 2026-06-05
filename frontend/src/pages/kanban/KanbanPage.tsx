@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../entities/format';
+import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
 import type { ReminderBoardCard, ReminderBoardColumnKey } from '../../shared/api/models/reminder';
 import { notifyGeneralFormError } from '../../shared/forms/errors';

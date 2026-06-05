@@ -1,6 +1,6 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatDisplayToken, formatUsDate, projectName, reminderDisplayDateTime } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';

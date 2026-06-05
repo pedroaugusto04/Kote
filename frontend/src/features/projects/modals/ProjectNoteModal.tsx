@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import { formatDisplayToken, reminderInputDate, reminderInputTime } from '../../../entities/format';
+import { formatDisplayToken, reminderInputDate, reminderInputTime } from '../../../shared/utils/format';
 import { createNote, updateNote, fetchProjectFolders } from '../../../shared/api/client';
 import type { NoteDetail } from '../../../shared/api/models/note';
 import type { Project } from '../../../shared/api/models/project';

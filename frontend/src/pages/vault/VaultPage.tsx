@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, getCleanSummary } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, getCleanSummary } from '../../shared/utils/format';
 import { fetchNotes, fetchRelatedNotes } from '../../shared/api/client';
 import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
