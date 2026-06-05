@@ -2,7 +2,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
-import { formatDisplayToken, formatUsDateTime, noteTypeLabel, projectName } from '../../entities/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName } from '../../entities/format';
 import { Badge, EmptyState } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
@@ -80,9 +80,10 @@ export function ProjectTimeline({
                   <Badge value={formatDisplayToken(item.category)} tone={item.category} />
                   <Badge value={noteTypeLabel(item.type)} tone={item.type} />
                   <Badge value={formatDisplayToken(item.status)} tone={item.status} />
-                  <span className="meta">{formatUsDateTime(item.date)}</span>
-                  <span className="meta">{projectName(dashboard.projects, item.project)}</span>
-                  <span className="meta">{item.source || item.sourceChannel}</span>
+                  <span className="meta meta-date">{formatUsDate(item.date)}</span>
+                  <span className="meta meta-time"> {formatUsDateTime(item.date).split(' ')[1]}</span>
+                  <span className="meta meta-project">{projectName(dashboard.projects, item.project)}</span>
+                  <span className="meta meta-source">{item.source || item.sourceChannel}</span>
                   <AttachmentIndicator count={item.attachmentCount || 0} />
                 </div>
                 <div className="project-timeline-body">

@@ -498,13 +498,13 @@
   .list-row-body .meta-row .pinned-badge,
   .list-row-body .meta-row .meta-project,
   .list-row-body .meta-row .meta-separator,
-  .project-timeline-meta .meta:nth-of-type(2),
-  .project-timeline-meta .meta:nth-of-type(3),
+  .project-timeline-meta .meta-time,
+  .project-timeline-meta .meta-project,
+  .project-timeline-meta .meta-source,
   .list-row-body .meta-row .attachment-indicator,
   .project-timeline-meta .attachment-indicator,
   .list-row .quick-note-status-actions,
   .project-timeline-card .quick-note-status-actions,
-  .list-row > .row-actions > .row-action-button.pin,
   .list-row > .row-actions > .file-icon,
   .list-row > .row-actions > div > .file-icon {
     display: none !important;
@@ -513,10 +513,9 @@
   .list-row > .row-actions {
     display: flex !important;
     flex-direction: column !important;
-    justify-content: center !important;
+    justify-content: space-between !important;
     align-items: center !important;
-    align-self: center !important;
-    height: auto !important;
+    align-self: stretch !important;
     margin-top: 0 !important;
   }
 
