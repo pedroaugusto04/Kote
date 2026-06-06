@@ -1,0 +1,81 @@
+import { Module } from '@nestjs/common';
+import { LoggerModule } from './logger.module.js';
+import { EnvModule } from './env.module.js';
+import { DatabaseModule } from './database.module.js';
+import { AuthModule } from './auth.module.js';
+import { QueueModule } from './queue.module.js';
+import { AiModule } from './ai.module.js';
+import { NotesModule } from './notes.module.js';
+import { RemindersModule } from './reminders.module.js';
+import { OperationsModule } from './operations.module.js';
+import { WorkspacesModule } from './workspaces.module.js';
+
+import {
+  IntegrationConnectionService,
+} from '../../application/integration-connections.js';
+import {
+  IntegrationCredentialService,
+} from '../../application/credentials.js';
+import {
+  HandleGithubPushUseCase,
+  HandleWhatsappWebhookUseCase,
+  HandleTelegramWebhookUseCase,
+  ListWebhookSubscriptionsUseCase,
+  CreateWebhookSubscriptionUseCase,
+  UpdateWebhookSubscriptionUseCase,
+  DeleteWebhookSubscriptionUseCase,
+} from '../../application/use-cases/index.js';
+import { WebhookDeliveryService } from '../../application/services/webhook-delivery.service.js';
+import { WebhookDeliveryWorker } from '../../application/services/webhook-delivery.worker.js';
+
+import {
+  UserIntegrationsController,
+  InternalIntegrationsController,
+  InternalN8NController,
+  WebhookController,
+  WebhookSubscriptionsController,
+  GithubAppCallbackController,
+} from '../../interfaces/http/controllers/index.js';
+
+@Module({
+  imports: [
+    LoggerModule,
+    EnvModule,
+    DatabaseModule,
+    AuthModule,
+    QueueModule,
+    AiModule,
+    NotesModule,
+    RemindersModule,
+    OperationsModule,
+    WorkspacesModule,
+  ],
+  controllers: [
+    UserIntegrationsController,
+    InternalIntegrationsController,
+    InternalN8NController,
+    WebhookController,
+    WebhookSubscriptionsController,
+    GithubAppCallbackController,
+  ],
+  providers: [
+    IntegrationConnectionService,
+    IntegrationCredentialService,
+    HandleGithubPushUseCase,
+    HandleWhatsappWebhookUseCase,
+    HandleTelegramWebhookUseCase,
+    WebhookDeliveryService,
+    WebhookDeliveryWorker,
+    ListWebhookSubscriptionsUseCase,
+    CreateWebhookSubscriptionUseCase,
+    UpdateWebhookSubscriptionUseCase,
+    DeleteWebhookSubscriptionUseCase,
+  ],
+  exports: [
+    IntegrationConnectionService,
+    IntegrationCredentialService,
+    WebhookDeliveryService,
+    WebhookDeliveryWorker,
+  ],
+})
+export class IntegrationsModule {}

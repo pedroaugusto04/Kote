@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, lazy, Suspense } from 'react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
@@ -9,17 +9,19 @@ import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote
 import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { HomePage } from '../pages/home/HomePage';
-import { IntegrationsPage } from '../pages/integrations/IntegrationsPage';
-import { KanbanPage } from '../pages/kanban/KanbanPage';
 import { ProjectsPage } from '../pages/projects/ProjectsPage';
-import { ProjectKnowledgeMapPage } from '../features/projects/knowledge-map/ProjectKnowledgeMapPage';
-import { ProfilePage } from '../pages/profile/ProfilePage';
 import { RemindersPage } from '../pages/reminders/RemindersPage';
 import { SearchPage } from '../pages/search/SearchPage';
-import { SetupPage } from '../pages/setup/SetupPage';
 import { VaultPage } from '../pages/vault/VaultPage';
 import { LandingPage } from '../pages/landing/LandingPage';
-import { AuthPage } from '../pages/auth/AuthPage';
+import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
+
+const IntegrationsPage = lazy(() => import('../pages/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
+const KanbanPage = lazy(() => import('../pages/kanban/KanbanPage').then(m => ({ default: m.KanbanPage })));
+const ProjectKnowledgeMapPage = lazy(() => import('../features/projects/knowledge-map/ProjectKnowledgeMapPage').then(m => ({ default: m.ProjectKnowledgeMapPage })));
+const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const SetupPage = lazy(() => import('../pages/setup/SetupPage').then(m => ({ default: m.SetupPage })));
+const AuthPage = lazy(() => import('../pages/auth/AuthPage').then(m => ({ default: m.AuthPage })));
 import { flattenFolders } from '../features/projects/projects.helpers';
 import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
 import type { ConfirmState, NoteModalState } from '../features/projects/projects.types';
@@ -262,16 +264,24 @@ export function AppShell() {
 
   if (isUnauthorized) {
     return (
-      <Routes>
-        <Route path={routes.home} element={<LandingPage />} />
-        <Route path={routes.auth} element={<AuthPage onAuthenticated={() => dashboardQuery.refetch()} />} />
-        <Route path="*" element={<Navigate replace to={routes.auth} />} />
-      </Routes>
+      <Suspense fallback={<GlobalLoadingOverlay />}>
+        <Routes>
+          <Route path={routes.home} element={<LandingPage />} />
+          <Route path={routes.auth} element={<AuthPage onAuthenticated={() => dashboardQuery.refetch()} />} />
+          <Route path="*" element={<Navigate replace to={routes.auth} />} />
+        </Routes>
+      </Suspense>
     );
   }
 
   if (!dashboard || !pageContext) return null;
-  if (isSetupRoute) return <SetupPage dashboard={dashboard} refetchDashboard={() => dashboardQuery.refetch()} />;
+  if (isSetupRoute) {
+    return (
+      <Suspense fallback={<GlobalLoadingOverlay />}>
+        <SetupPage dashboard={dashboard} refetchDashboard={() => dashboardQuery.refetch()} />
+      </Suspense>
+    );
+  }
   if (!activeWorkspace) return <Navigate replace to={routes.setup} />;
   if (location.pathname === routes.auth) return <Navigate replace to={routes.home} />;
 
@@ -536,21 +546,23 @@ export function AppShell() {
         </header>
         <section className="view" aria-live="polite">
           <Breadcrumbs projects={dashboard.projects} />
-          <Routes>
-            <Route path="/" element={<HomePage {...pageContext} />} />
-            <Route path="/projects" element={<ProjectsPage {...pageContext} />} />
-            <Route path="/map" element={<ProjectKnowledgeMapPage dashboard={pageContext.dashboard} openNote={pageContext.openNote} selectedProject={pageContext.selectedProject} />} />
-            <Route path="/map/:projectSlug" element={<ProjectKnowledgeMapPage dashboard={pageContext.dashboard} openNote={pageContext.openNote} selectedProject={pageContext.selectedProject} />} />
-            <Route path="/projects/:projectSlug" element={<ProjectsPage {...pageContext} />} />
-            <Route path="/vault" element={<Navigate replace to={routes.projects} />} />
-            <Route path="/vault/:noteId" element={shouldBlockNoteRoute ? null : <VaultPage {...pageContext} />} />
-            <Route path="/search" element={<SearchPage {...pageContext} />} />
-            <Route path="/kanban" element={<KanbanPage {...pageContext} />} />
-            <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
-            <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
-            <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
-            <Route path="*" element={<HomePage {...pageContext} />} />
-          </Routes>
+          <Suspense fallback={<GlobalLoadingOverlay />}>
+            <Routes>
+              <Route path="/" element={<HomePage {...pageContext} />} />
+              <Route path="/projects" element={<ProjectsPage {...pageContext} />} />
+              <Route path="/map" element={<ProjectKnowledgeMapPage dashboard={pageContext.dashboard} openNote={pageContext.openNote} selectedProject={pageContext.selectedProject} />} />
+              <Route path="/map/:projectSlug" element={<ProjectKnowledgeMapPage dashboard={pageContext.dashboard} openNote={pageContext.openNote} selectedProject={pageContext.selectedProject} />} />
+              <Route path="/projects/:projectSlug" element={<ProjectsPage {...pageContext} />} />
+              <Route path="/vault" element={<Navigate replace to={routes.projects} />} />
+              <Route path="/vault/:noteId" element={shouldBlockNoteRoute ? null : <VaultPage {...pageContext} />} />
+              <Route path="/search" element={<SearchPage {...pageContext} />} />
+              <Route path="/kanban" element={<KanbanPage {...pageContext} />} />
+              <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
+              <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
+              <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
+              <Route path="*" element={<HomePage {...pageContext} />} />
+            </Routes>
+          </Suspense>
         </section>
       </main>
       {noteModal ? (
