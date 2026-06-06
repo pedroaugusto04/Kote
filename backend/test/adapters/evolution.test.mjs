@@ -211,7 +211,7 @@ test('evolution whatsapp sender posts audio payload to sendWhatsAppAudio endpoin
     assert.equal(calls[0].options.headers.apikey, 'evolution-key');
     assert.deepEqual(JSON.parse(calls[0].options.body), {
       number: '120363@g.us',
-      audio: `data:audio/mp3;base64,${Buffer.from('hello audio').toString('base64')}`,
+      audio: Buffer.from('hello audio').toString('base64'),
       options: {
         delay: 1200,
         encoding: true,

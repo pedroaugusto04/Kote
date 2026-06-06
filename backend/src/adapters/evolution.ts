@@ -84,7 +84,7 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
     const payload: Record<string, unknown> = isAudio
       ? {
           number: input.chatJid,
-          audio: isUrl ? mediaValue : `data:${input.mimeType || 'audio/mp3'};base64,${mediaValue}`,
+          audio: mediaValue,
           options: {
             delay: 1200,
             encoding: !isUrl,
