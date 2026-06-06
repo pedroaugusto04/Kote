@@ -23,14 +23,11 @@ export function ensureNoteDetail(queryClient: QueryClient, noteId: string) {
   return queryClient.ensureQueryData(noteDetailQueryOptions(noteId));
 }
 
-export async function invalidateNoteRelatedQueries(queryClient: QueryClient, noteId = '') {
-  await queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-  await queryClient.invalidateQueries({ queryKey: ['notes'] });
-  await queryClient.invalidateQueries({ queryKey: ['reminders'] });
-  await queryClient.invalidateQueries({ queryKey: ['search'] });
-  await queryClient.invalidateQueries({ queryKey: ['search-notes'] });
-  await queryClient.invalidateQueries({ queryKey: ['project-folders'] });
-  if (noteId) {
-    await queryClient.invalidateQueries({ queryKey: noteDetailQueryKey(noteId) });
-  }
+export async function invalidateNoteRelatedQueries(queryClient: QueryClient) {
+  await queryClient.invalidateQueries({
+    predicate: (query) => {
+      const topKey = query.queryKey[0];
+      return typeof topKey === 'string' && !['auth', 'integrations', 'github-repositories'].includes(topKey);
+    }
+  });
 }

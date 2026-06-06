@@ -382,6 +382,4 @@ export function ProjectsWorkspace({
 
 async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) {
   await invalidateNoteRelatedQueries(queryClient);
-  await queryClient.invalidateQueries({ queryKey: ['project-timeline'] });
-  await queryClient.invalidateQueries({ queryKey: ['projects'] });
 }

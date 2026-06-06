@@ -12,9 +12,9 @@ const TWENTY_FOUR_HOURS_MS = 24 * ONE_HOUR_MS;
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Data is considered fresh for 5 minutes, stale for 24 hours.
-      // This means offline users see cached data without refetch errors.
-      staleTime: 5 * 60 * 1000,
+      // Data is considered stale immediately when online, allowing background updates.
+      // Offline users will still see the persisted local cache seamlessly.
+      staleTime: 0,
       gcTime: TWENTY_FOUR_HOURS_MS,
 
       // Serve cached data immediately; refresh in background when online.

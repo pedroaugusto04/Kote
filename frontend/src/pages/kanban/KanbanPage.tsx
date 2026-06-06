@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
+import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import type { ReminderBoardCard, ReminderBoardColumnKey } from '../../shared/api/models/reminder';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifyWarning } from '../../shared/ui/notifications';
@@ -33,11 +34,7 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: ReminderBoardTargetStatus }) => updateReminderStatus(id, status),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['reminder-board'] }),
-        queryClient.invalidateQueries({ queryKey: ['reminders'] }),
-        queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
-      ]);
+      await invalidateNoteRelatedQueries(queryClient);
     },
     onError: (error) => notifyGeneralFormError(error, 'Could not update the reminder status.'),
   });
