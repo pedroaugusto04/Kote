@@ -204,6 +204,9 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
                   onOpenNote={(id) => {
                     if (isMobile) {
                       openNote(id);
+                    } else if (sideNoteId === id) {
+                      // If clicking again on the same note with preview open, open full page
+                      openNote(id);
                     } else {
                       setSideNoteId(id);
                     }

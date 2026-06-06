@@ -5,6 +5,7 @@ import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
+import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 
 export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
   const { home } = dashboard;
@@ -181,6 +182,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                         <span className="meta">
                           {projectName(dashboard.projects, event.project)} / {formatUsDate(event.date)}
                         </span>
+                        <AttachmentIndicator count={event.attachmentCount || 0} />
                       </div>
                       <h3>{event.title}</h3>
                       <p>{event.summary}</p>

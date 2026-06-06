@@ -50,6 +50,7 @@ export type HomeInterestingEvent = {
   date: string;
   summary: string;
   status: string;
+  attachmentCount?: number;
   target: HomeNavigationTarget;
 };
 

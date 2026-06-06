@@ -185,6 +185,7 @@ export function buildDashboardHome(
       date: note.date,
       summary: note.summary,
       status: note.status,
+      attachmentCount: note.attachmentCount || 0,
       target: noteTarget(note),
     }));
 

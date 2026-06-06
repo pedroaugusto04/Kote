@@ -8,18 +8,19 @@ function reminderTimestamp(reminder: Pick<Reminder, 'reminderAt' | 'reminderDate
   return Number.MAX_SAFE_INTEGER;
 }
 
-function reminderOpenRank(status: string) {
+function reminderStatusRank(status: string) {
   if (status === 'overdue') return 0;
   if (status === 'pending') return 1;
-  return 2;
+  if (status === 'sent') return 2;
+  return 3; // archived or other
 }
 
 export function sortRemindersForList(reminders: Reminder[], statusFilter: string) {
   if (statusFilter) return reminders;
   return [...reminders].sort((left, right) => {
-    const leftOpenRank = reminderOpenRank(left.status);
-    const rightOpenRank = reminderOpenRank(right.status);
-    return leftOpenRank - rightOpenRank
+    const leftStatusRank = reminderStatusRank(left.status);
+    const rightStatusRank = reminderStatusRank(right.status);
+    return leftStatusRank - rightStatusRank
       || reminderTimestamp(left) - reminderTimestamp(right)
       || left.title.localeCompare(right.title)
       || left.id.localeCompare(right.id);

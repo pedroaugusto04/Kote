@@ -42,7 +42,7 @@ export function NoteRow({
     mutationFn: () => pinNote(note.id, !note.isPinned),
     onSuccess: async () => {
       notifySuccess(note.isPinned ? 'Note unpinned.' : 'Note pinned.');
-      await invalidateNoteRelatedQueries(queryClient, note.id);
+      await invalidateNoteRelatedQueries(queryClient);
       onPinSuccess?.();
     },
     onError: (error) => {
