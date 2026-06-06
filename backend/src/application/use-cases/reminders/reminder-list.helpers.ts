@@ -6,6 +6,10 @@ export function reminderTimestamp(reminder: { reminderAt?: string; reminderDate?
   return Number.MAX_SAFE_INTEGER;
 }
 
+function reminderIsFuture(reminder: { reminderAt?: string; reminderDate?: string; reminderTime?: string }, now = Date.now()): boolean {
+  return reminderTimestamp(reminder) > now;
+}
+
 function reminderStatusRank(status: string) {
   if (status === 'overdue') return 0;
   if (status === 'pending') return 1;
@@ -17,7 +21,9 @@ export function sortRemindersBySchedule<T extends { id: string; title: string; s
   reminders: T[],
 ) {
   return [...reminders].sort((left, right) => reminderStatusRank(left.status) - reminderStatusRank(right.status)
-    || reminderTimestamp(left) - reminderTimestamp(right)
+    || (reminderIsFuture(left) 
+        ? reminderTimestamp(left) - reminderTimestamp(right) 
+        : reminderTimestamp(right) - reminderTimestamp(left))
     || left.title.localeCompare(right.title)
     || left.id.localeCompare(right.id));
 }
@@ -31,7 +37,9 @@ export function sortRemindersForList<T extends { id: string; title: string; stat
     const leftStatusRank = reminderStatusRank(left.status);
     const rightStatusRank = reminderStatusRank(right.status);
     return leftStatusRank - rightStatusRank
-      || reminderTimestamp(left) - reminderTimestamp(right)
+      || (reminderIsFuture(left) 
+          ? reminderTimestamp(left) - reminderTimestamp(right) 
+          : reminderTimestamp(right) - reminderTimestamp(left))
       || left.title.localeCompare(right.title)
       || left.id.localeCompare(right.id);
   });

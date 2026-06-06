@@ -8,6 +8,10 @@ function reminderTimestamp(reminder: Pick<Reminder, 'reminderAt' | 'reminderDate
   return Number.MAX_SAFE_INTEGER;
 }
 
+function reminderIsFuture(reminder: Pick<Reminder, 'reminderAt' | 'reminderDate' | 'reminderTime'>, now = Date.now()): boolean {
+  return reminderTimestamp(reminder) > now;
+}
+
 function reminderStatusRank(status: string) {
   if (status === 'overdue') return 0;
   if (status === 'pending') return 1;
@@ -21,7 +25,9 @@ export function sortRemindersForList(reminders: Reminder[], statusFilter: string
     const leftStatusRank = reminderStatusRank(left.status);
     const rightStatusRank = reminderStatusRank(right.status);
     return leftStatusRank - rightStatusRank
-      || reminderTimestamp(left) - reminderTimestamp(right)
+      || (reminderIsFuture(left) 
+          ? reminderTimestamp(left) - reminderTimestamp(right) 
+          : reminderTimestamp(right) - reminderTimestamp(left))
       || left.title.localeCompare(right.title)
       || left.id.localeCompare(right.id);
   });
