@@ -161,17 +161,6 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
         </div>
       </section>
 
-      {/* AI Answer */}
-      {isAsking ? <AskAnswerSkeleton question={questionInput.trim()} projectLabel={selectedProjectLabel} /> : null}
-
-      {!isAsking && askAnswer ? (
-        <Panel className="ai-answer-card-panel">
-          <AskAnswerCard item={askAnswer} openNote={openNote} projects={dashboard.projects} />
-        </Panel>
-      ) : null}
-
-      {askError ? <InlineMessage className="ask-error-message" tone="error">{askError}</InlineMessage> : null}
-
       {/* History inline */}
       {showHistory ? (
         <AskHistoryInline
@@ -189,6 +178,17 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
           }}
         />
       ) : null}
+
+      {/* AI Answer */}
+      {isAsking ? <AskAnswerSkeleton question={questionInput.trim()} projectLabel={selectedProjectLabel} /> : null}
+
+      {!isAsking && askAnswer ? (
+        <Panel className="ai-answer-card-panel">
+          <AskAnswerCard item={askAnswer} openNote={openNote} projects={dashboard.projects} />
+        </Panel>
+      ) : null}
+
+      {askError ? <InlineMessage className="ask-error-message" tone="error">{askError}</InlineMessage> : null}
 
       {/* Project Brief */}
       <Panel className="ask-ai-brief-panel">

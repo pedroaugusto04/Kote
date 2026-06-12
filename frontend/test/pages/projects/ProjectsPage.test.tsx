@@ -86,6 +86,7 @@ const dashboard: Dashboard = {
       status: 'active',
       summary: 'Resumo',
       source: 'manual-api',
+      attachmentCount: 0,
     },
   ],
   reminders: [],

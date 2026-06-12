@@ -206,7 +206,7 @@ export function ProjectTimeline({
                     <h3>{item.title}</h3>
                     <p>{item.summary}</p>
                   </div>
-                  <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div className="row-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', alignSelf: 'stretch', justifyContent: 'space-between' }}>
                     <button
                       aria-label={item.isPinned ? `Unpin note ${item.title}` : `Pin note ${item.title}`}
                       className={`row-action-button pin ${item.isPinned ? 'active' : ''}`}
@@ -220,44 +220,46 @@ export function ProjectTimeline({
                     >
                       <PinIcon active={item.isPinned} />
                     </button>
-                    <QuickNoteStatusActions
-                      note={{
-                        id: item.noteId,
-                        title: item.title,
-                        status: item.status,
-                        project: item.project,
-                        tags: item.tags,
-                      }}
-                      compact
-                    />
-                    {onEditNote ? (
-                      <button
-                        aria-label={`Edit note ${item.title}`}
-                        className="row-action-button edit"
-                        title="Edit"
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onEditNote(item);
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 'auto' }}>
+                      <QuickNoteStatusActions
+                        note={{
+                          id: item.noteId,
+                          title: item.title,
+                          status: item.status,
+                          project: item.project,
+                          tags: item.tags,
                         }}
-                      >
-                        <PencilIcon />
-                      </button>
-                    ) : null}
-                    {onDeleteNote ? (
-                      <button
-                        aria-label={`Delete note ${item.title}`}
-                        className="row-action-button danger"
-                        title="Delete"
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDeleteNote(item);
-                        }}
-                      >
-                        <TrashIcon />
-                      </button>
-                    ) : null}
+                        compact
+                      />
+                      {onEditNote ? (
+                        <button
+                          aria-label={`Edit note ${item.title}`}
+                          className="row-action-button edit"
+                          title="Edit"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onEditNote(item);
+                          }}
+                        >
+                          <PencilIcon />
+                        </button>
+                      ) : null}
+                      {onDeleteNote ? (
+                        <button
+                          aria-label={`Delete note ${item.title}`}
+                          className="row-action-button danger"
+                          title="Delete"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteNote(item);
+                          }}
+                        >
+                          <TrashIcon />
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
               </div>

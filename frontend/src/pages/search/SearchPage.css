@@ -1,6 +1,7 @@
 /* ─── Ask AI Input Section ─── */
 .ask-ai-input-section {
   margin-bottom: 18px;
+  max-width: 760px;
 }
 
 .ask-ai-input-row {
@@ -26,6 +27,7 @@
 .ask-ai-send-btn {
   min-height: 48px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ask-ai-filters {
@@ -35,7 +37,12 @@
 }
 
 .ask-ai-filter {
-  min-width: 120px;
+  width: 180px;
+}
+
+.ask-ai-history-toggle {
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .ask-ai-history-toggle.active {
