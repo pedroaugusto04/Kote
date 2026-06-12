@@ -104,7 +104,7 @@ export function ProjectsWorkspace({
     queryFn: () => fetchAllProjectsTimeline({
       page: timelinePagination.page,
       category: timelineCategory,
-      status: timelineStatus || undefined,
+      status: timelineStatus,
     }),
     enabled: isAllProjectsSelected,
     staleTime: timelineCategory === 'all' ? 30_000 : 0,
@@ -116,7 +116,7 @@ export function ProjectsWorkspace({
       page: timelinePagination.page,
       category: timelineCategory,
       folderId: selectedFolderId || undefined,
-      status: timelineStatus || undefined,
+      status: timelineStatus,
     }),
     enabled: Boolean(selected?.projectSlug),
     staleTime: timelineCategory === 'all' ? 30_000 : 0,

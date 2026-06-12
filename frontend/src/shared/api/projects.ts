@@ -76,7 +76,7 @@ export function fetchProjectTimeline(projectSlug: string, params: { page?: numbe
     category: params.category || 'all',
   });
   if (params.folderId) search.set('folderId', params.folderId);
-  if (params.status) search.set('status', params.status);
+  if (params.status !== undefined) search.set('status', params.status);
   return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`/api/projects/${encodeURIComponent(projectSlug)}/timeline?${search.toString()}`);
 }
 
@@ -105,7 +105,7 @@ export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: num
     pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
     category: params.category || 'all',
   });
-  if (params.status) search.set('status', params.status);
+  if (params.status !== undefined) search.set('status', params.status);
   return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`/api/projects/timeline?${search.toString()}`);
 }
 

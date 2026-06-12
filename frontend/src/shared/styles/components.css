@@ -155,11 +155,13 @@
 }
 
 .page-head-select {
-  min-width: min(280px, 100%);
+  width: 240px;
+  max-width: 100%;
 }
 
 .page-head-select.status-select {
-  min-width: min(150px, 100%);
+  width: 140px;
+  max-width: 100%;
 }
 
 .page-head-select .kb-select-sizer,
