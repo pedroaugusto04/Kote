@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { fetchNote, updateNote } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
@@ -58,6 +61,73 @@ export function ProjectTimeline({
     isPlaceholderData: isStale,
   });
 
+  const queryClient = useQueryClient();
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  const handleResolveAll = async () => {
+    if (!visibleItems.length) return;
+    if (!window.confirm(`Are you sure you want to resolve all ${visibleItems.length} notes currently listed?`)) return;
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        visibleItems.map(async (item) => {
+          const detail = await fetchNote(item.noteId);
+          return updateNote(item.noteId, {
+            folderId: detail.folderId || '',
+            title: detail.title,
+            rawText: detail.rawText || '',
+            tags: detail.tags,
+            status: 'resolved',
+            canonicalType: detail.canonicalType,
+            reminderDate: detail.reminderDate,
+            reminderTime: detail.reminderTime,
+            reminderAt: detail.reminderAt,
+          });
+        })
+      );
+      queryClient.invalidateQueries({ queryKey: ['project-timeline'] });
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to resolve some notes.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleArchiveAll = async () => {
+    if (!visibleItems.length) return;
+    if (!window.confirm(`Are you sure you want to archive all ${visibleItems.length} notes currently listed?`)) return;
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        visibleItems.map(async (item) => {
+          const detail = await fetchNote(item.noteId);
+          return updateNote(item.noteId, {
+            folderId: detail.folderId || '',
+            title: detail.title,
+            rawText: detail.rawText || '',
+            tags: detail.tags,
+            status: 'archived',
+            canonicalType: detail.canonicalType,
+            reminderDate: detail.reminderDate,
+            reminderTime: detail.reminderTime,
+            reminderAt: detail.reminderAt,
+          });
+        })
+      );
+      queryClient.invalidateQueries({ queryKey: ['project-timeline'] });
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to archive some notes.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   return (
     <div className="project-timeline">
       <div className="timeline-filter-row-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
@@ -74,6 +144,17 @@ export function ProjectTimeline({
             </button>
           ))}
         </div>
+        {visibleItems.length > 0 && (
+          <div className="bulk-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button className="link-button" type="button" disabled={isBulkUpdating} onClick={handleResolveAll} style={{ fontSize: '13px', color: 'var(--text-soft)' }}>
+              Resolve all
+            </button>
+            <span style={{ color: 'var(--line-soft)', fontSize: '12px' }}>|</span>
+            <button className="link-button" type="button" disabled={isBulkUpdating} onClick={handleArchiveAll} style={{ fontSize: '13px', color: 'var(--text-soft)' }}>
+              Archive all
+            </button>
+          </div>
+        )}
       </div>
       {visibleItems.length > 0 ? (
         <div className={`project-timeline-list ${isStale ? 'stale-data' : ''}`}>

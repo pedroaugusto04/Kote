@@ -5,7 +5,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken } from '../../shared/utils/format';
-import { fetchAskHistory, fetchNotes, runAsk, runQuery } from '../../shared/api/client';
+import { fetchAskHistory, fetchNote, fetchNotes, runAsk, runQuery, updateNote } from '../../shared/api/client';
 import type { AskHistoryResponse } from '../../shared/api/models/ask';
 import type { AskAnswerCardItem } from '../../widgets/ask/ask-answer-card.models';
 import { AskAnswerCard, projectLabel } from '../../widgets/ask/AskAnswerCard';
@@ -128,6 +128,72 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
     resetKey: resultsPaginationKey,
     isPlaceholderData: isResultsStale,
   });
+
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  const handleResolveAll = async () => {
+    if (!paginatedVisibleNotes.length) return;
+    if (!window.confirm(`Are you sure you want to resolve all ${paginatedVisibleNotes.length} notes currently listed?`)) return;
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        paginatedVisibleNotes.map(async (note) => {
+          const detail = await fetchNote(note.id);
+          return updateNote(note.id, {
+            folderId: detail.folderId || '',
+            title: detail.title,
+            rawText: detail.rawText || '',
+            tags: detail.tags,
+            status: 'resolved',
+            canonicalType: detail.canonicalType,
+            reminderDate: detail.reminderDate,
+            reminderTime: detail.reminderTime,
+            reminderAt: detail.reminderAt,
+          });
+        })
+      );
+      queryClient.invalidateQueries({ queryKey: ['search'] });
+      queryClient.invalidateQueries({ queryKey: ['search-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to resolve some notes.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleArchiveAll = async () => {
+    if (!paginatedVisibleNotes.length) return;
+    if (!window.confirm(`Are you sure you want to archive all ${paginatedVisibleNotes.length} notes currently listed?`)) return;
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        paginatedVisibleNotes.map(async (note) => {
+          const detail = await fetchNote(note.id);
+          return updateNote(note.id, {
+            folderId: detail.folderId || '',
+            title: detail.title,
+            rawText: detail.rawText || '',
+            tags: detail.tags,
+            status: 'archived',
+            canonicalType: detail.canonicalType,
+            reminderDate: detail.reminderDate,
+            reminderTime: detail.reminderTime,
+            reminderAt: detail.reminderAt,
+          });
+        })
+      );
+      queryClient.invalidateQueries({ queryKey: ['search'] });
+      queryClient.invalidateQueries({ queryKey: ['search-notes'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to archive some notes.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
 
   const handleAsk = async () => {
     const question = searchInput.trim();
@@ -272,8 +338,21 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
       <div className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''}`}>
         <Panel className="matching-notes-panel" style={{ minWidth: 0 }}>
           <div className="matching-notes-heading">
-            <h2>Matching Notes</h2>
-            <span className="matching-notes-count">{pagination ? `${pagination.total} total` : ''}</span>
+            <div>
+              <h2>Matching Notes</h2>
+              <span className="matching-notes-count">{pagination ? `${pagination.total} total` : ''}</span>
+            </div>
+            {paginatedVisibleNotes.length > 0 && (
+              <div className="bulk-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button className="link-button" type="button" disabled={isBulkUpdating} onClick={handleResolveAll} style={{ fontSize: '13px', color: 'var(--text-soft)' }}>
+                  Resolve all
+                </button>
+                <span style={{ color: 'var(--line-soft)', fontSize: '12px' }}>|</span>
+                <button className="link-button" type="button" disabled={isBulkUpdating} onClick={handleArchiveAll} style={{ fontSize: '13px', color: 'var(--text-soft)' }}>
+                  Archive all
+                </button>
+              </div>
+            )}
           </div>
           {isResultsError ? <InlineMessage tone="error">Could not load notes for these filters.</InlineMessage> : null}
           <div className={`list ${isResultsStale ? 'stale-data' : ''}`}>

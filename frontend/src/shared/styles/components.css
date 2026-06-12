@@ -158,6 +158,10 @@
   min-width: min(280px, 100%);
 }
 
+.page-head-select.status-select {
+  min-width: min(150px, 100%);
+}
+
 .page-head-select .kb-select-sizer,
 .page-head-select .kb-select-trigger {
   min-height: 40px;
@@ -1288,6 +1292,22 @@
   font-weight: 600;
   cursor: default;
   padding: 3px 6px;
+}
+
+.link-button {
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--active-text);
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.link-button:hover {
+  text-decoration: underline;
 }
 
 

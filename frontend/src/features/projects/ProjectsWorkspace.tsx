@@ -231,7 +231,7 @@ export function ProjectsWorkspace({
             <label className="sr-only" htmlFor="projects-page-status-select">Filter by status</label>
             <Select
               ariaLabel="Filter by status"
-              className="page-head-select"
+              className="page-head-select status-select"
               id="projects-page-status-select"
               options={statusOptions}
               value={timelineStatus}

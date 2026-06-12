@@ -1,10 +1,10 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../shared/utils/format';
 import { sortRemindersForList } from '../../shared/utils/reminders';
-import { fetchReminders } from '../../shared/api/client';
+import { fetchReminders, updateReminderStatus } from '../../shared/api/client';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
@@ -77,6 +77,46 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
     resetKey: remindersPaginationKey,
     isPlaceholderData: remindersQuery.isPlaceholderData,
   });
+
+  const queryClient = useQueryClient();
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+
+  const handleResolveAll = async () => {
+    if (!visibleReminders.length) return;
+    if (!window.confirm(`Are you sure you want to resolve all ${visibleReminders.length} reminders currently listed?`)) return;
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        visibleReminders.map((reminder) => updateReminderStatus(reminder.id, 'resolved'))
+      );
+      queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to resolve some reminders.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleArchiveAll = async () => {
+    if (!visibleReminders.length) return;
+    if (!window.confirm(`Are you sure you want to archive all ${visibleReminders.length} reminders currently listed?`)) return;
+    setIsBulkUpdating(true);
+    try {
+      await Promise.all(
+        visibleReminders.map((reminder) => updateReminderStatus(reminder.id, 'archived'))
+      );
+      queryClient.invalidateQueries({ queryKey: ['reminders'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    } catch (err) {
+      console.error(err);
+      alert('Failed to archive some reminders.');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   const grouped = visibleReminders.reduce<Record<string, Reminder[]>>((acc, reminder) => {
     const groupDate = reminder.reminderAt ? formatDateInUserTimeZone(reminder.reminderAt) : reminder.reminderDate;
     acc[groupDate || 'no-date'] ||= [];
@@ -103,6 +143,17 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
         )}
         subtitle=""
       />
+      {visibleReminders.length > 0 && (
+        <div className="bulk-actions" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <button className="link-button" type="button" disabled={isBulkUpdating} onClick={handleResolveAll} style={{ fontSize: '13px', color: 'var(--text-soft)' }}>
+            Resolve all
+          </button>
+          <span style={{ color: 'var(--line-soft)', fontSize: '12px' }}>|</span>
+          <button className="link-button" type="button" disabled={isBulkUpdating} onClick={handleArchiveAll} style={{ fontSize: '13px', color: 'var(--text-soft)' }}>
+            Archive all
+          </button>
+        </div>
+      )}
       <div className={`grid ${remindersQuery.isPlaceholderData ? 'stale-data' : ''}`}>
         {Object.entries(grouped).map(([date, reminders]) => (
           <Panel key={date}>

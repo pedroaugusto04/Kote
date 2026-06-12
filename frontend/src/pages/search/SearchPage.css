@@ -121,20 +121,6 @@
   justify-content: flex-start;
 }
 
-.link-button {
-  min-height: 34px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--active-text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.link-button:hover {
-  text-decoration: underline;
-}
-
 .matching-notes-heading {
   display: flex;
   align-items: flex-start;
