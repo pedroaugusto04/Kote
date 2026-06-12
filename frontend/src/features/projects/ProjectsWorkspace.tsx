@@ -17,6 +17,7 @@ import type { ProjectBriefPanelResponse } from '../../shared/api/models/project-
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
 import { getErrorMessage } from '../../shared/api/error-message';
 import type { ProjectTimelineCategory } from '../../shared/api/models/project-timeline';
+import { type NoteStatus } from '../../shared/api/models/note-status';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
@@ -55,6 +56,7 @@ export function ProjectsWorkspace({
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState(ROOT_FOLDER_ID);
   const [timelineCategory, setTimelineCategory] = useState<ProjectTimelineCategory>('all');
+  const [timelineStatus, setTimelineStatus] = useState<'' | 'open' | NoteStatus>('open');
   const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
 
@@ -86,23 +88,25 @@ export function ProjectsWorkspace({
   const folderTree = foldersQuery.data?.folders || [];
   const flatFolders = useMemo(() => flattenFolders(folderTree), [folderTree]);
   const selectedFolder = flatFolders.find((folder) => folder.id === selectedFolderId) || null;
-  const timelinePagination = usePaginationState(`${selected?.projectSlug || 'all'}:${selectedFolderId}:${timelineCategory}:timeline`);
+  const timelinePagination = usePaginationState(`${selected?.projectSlug || 'all'}:${selectedFolderId}:${timelineCategory}:${timelineStatus}:timeline`);
   const allProjectsTimelineQuery = useQuery({
-    queryKey: ['project-timeline', 'all-projects', timelineCategory, timelinePagination.page],
+    queryKey: ['project-timeline', 'all-projects', timelineCategory, timelineStatus, timelinePagination.page],
     queryFn: () => fetchAllProjectsTimeline({
       page: timelinePagination.page,
       category: timelineCategory,
+      status: timelineStatus || undefined,
     }),
     enabled: isAllProjectsSelected,
     staleTime: timelineCategory === 'all' ? 30_000 : 0,
     placeholderData: keepPreviousData,
   });
   const timelineQuery = useQuery({
-    queryKey: ['project-timeline', selected?.projectSlug || '', selectedFolderId, timelineCategory, timelinePagination.page],
+    queryKey: ['project-timeline', selected?.projectSlug || '', selectedFolderId, timelineCategory, timelineStatus, timelinePagination.page],
     queryFn: () => fetchProjectTimeline(selected?.projectSlug || '', {
       page: timelinePagination.page,
       category: timelineCategory,
       folderId: selectedFolderId || undefined,
+      status: timelineStatus || undefined,
     }),
     enabled: Boolean(selected?.projectSlug),
     staleTime: timelineCategory === 'all' ? 30_000 : 0,
@@ -238,13 +242,15 @@ export function ProjectsWorkspace({
                   setTimelineCategory(category);
                   timelinePagination.setPage(1);
                 }}
+                status={timelineStatus}
+                onStatusChange={setTimelineStatus}
                 onDeleteNote={(note) => setConfirmState({ kind: 'note', note })}
                 onEditNote={(note) => loadNoteMutation.mutate(note.id)}
                 onOpenNote={handleOpenNote}
                 onOpenNoteFullPage={openNote}
                 onPageChange={timelinePagination.setPage}
                 isStale={allProjectsTimelineQuery.isPlaceholderData}
-                resetKey={`all:${timelineCategory}:timeline`}
+                resetKey={`all:${timelineCategory}:${timelineStatus}:timeline`}
               />
             </Panel>
           ) : selected ? (
@@ -265,11 +271,13 @@ export function ProjectsWorkspace({
                 ? getErrorMessage(latestBriefQuery.error, 'Could not load the latest project brief.')
                 : ''}
               timelineCategory={timelineCategory}
+              timelineStatus={timelineStatus}
               timelinePagination={timelineQuery.data?.pagination}
               onTimelineCategoryChange={(category) => {
                 setTimelineCategory(category);
                 timelinePagination.setPage(1);
               }}
+              onTimelineStatusChange={setTimelineStatus}
               onTimelinePageChange={timelinePagination.setPage}
               onFolderSelect={(folderId) => {
                 setSelectedFolderId(folderId);
@@ -289,7 +297,7 @@ export function ProjectsWorkspace({
               onDeleteProject={selectedProjectDeleteBlockedReason ? undefined : () => setConfirmState({ kind: 'project', project: selected })}
               deleteProjectLabel={selectedProjectDeleteBlockedReason || 'Delete project'}
               isStale={timelineQuery.isPlaceholderData}
-              timelineResetKey={`${selected.projectSlug}:${selectedFolderId}:${timelineCategory}:timeline`}
+              timelineResetKey={`${selected.projectSlug}:${selectedFolderId}:${timelineCategory}:${timelineStatus}:timeline`}
             />
           ) : null}
         </div>

@@ -28,9 +28,10 @@ import './SearchPage.css';
 const SEARCH_DEBOUNCE_MS = 350;
 const ASK_HISTORY_PAGE_SIZE = 3;
 
-const statusOptions: Array<{ value: '' | NoteStatus; label: string }> = [
+const statusOptions: Array<{ value: '' | 'open' | NoteStatus; label: string }> = [
   { value: '', label: 'All' },
-  ...(['active', 'pending', 'sent', 'resolved', 'archived'] as NoteStatus[]).map((value) => ({
+  { value: 'open', label: 'Open' },
+  ...(['active', 'pending', 'overdue', 'sent', 'resolved', 'archived'] as NoteStatus[]).map((value) => ({
     value,
     label: formatDisplayToken(value),
   })),
@@ -43,7 +44,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
   const query = searchParams.get('q') || '';
   const [searchInput, setSearchInput] = useState(query);
   const [projectSlug, setProjectSlug] = useState('');
-  const [status, setStatus] = useState<'' | NoteStatus>('');
+  const [status, setStatus] = useState<'' | 'open' | NoteStatus>('open');
   const [askAnswer, setAskAnswer] = useState<AskAnswerCardItem | null>(null);
   const [isAnswerHidden, setIsAnswerHidden] = useState(false);
   const [showHistory, setShowHistory] = useState(false);

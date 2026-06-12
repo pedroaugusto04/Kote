@@ -151,6 +151,7 @@ test('builds dashboard home metrics and keeps dashboard arrays independent', () 
     date: '2026-04-27',
     summary: 'Investigar incidente.',
     status: 'active',
+    attachmentCount: 0,
     target: { kind: 'note', id: 'incident-1', path: '20 Inbox/incident.md' },
   });
 });

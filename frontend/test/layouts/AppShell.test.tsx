@@ -225,7 +225,7 @@ function mockFetch() {
     if (url === '/api/projects/n8n-automations/folders') {
       return Response.json({ ok: true, projectSlug: 'n8n-automations', folders: [] });
     }
-    if (url === '/api/projects/timeline?page=1&pageSize=10&category=all') {
+    if (url.startsWith('/api/projects/timeline') && url.includes('category=all')) {
       return Response.json({
         ok: true,
         timeline: dashboard.notes.map((note) => ({
@@ -732,7 +732,7 @@ describe('AppShell', () => {
       if (url === '/api/integrations?workspaceSlug=default') {
         return Response.json({ ok: true, workspaceSlug: 'default', integrations: [] });
       }
-      if (url === '/api/projects/timeline?page=1&pageSize=10&category=all') {
+      if (url.startsWith('/api/projects/timeline') && url.includes('category=all')) {
         return Response.json({
           ok: true,
           timeline: allProjectsDashboard.notes.map((note) => ({
@@ -857,7 +857,7 @@ describe('AppShell', () => {
       if (url === '/api/projects/n8n-automations/folders') {
         return Response.json({ ok: true, projectSlug: 'n8n-automations', folders: [] });
       }
-      if (url === '/api/projects/timeline?page=1&pageSize=10&category=all') {
+      if (url.startsWith('/api/projects/timeline') && url.includes('category=all')) {
         return Response.json({
           ok: true,
           timeline: [],

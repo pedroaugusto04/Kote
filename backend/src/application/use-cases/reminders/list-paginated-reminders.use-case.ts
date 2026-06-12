@@ -19,9 +19,16 @@ export class ListPaginatedRemindersUseCase {
       await this.contentQueryRepository.listReminders(userId),
       { workspaceSlug: input.workspaceSlug },
     );
+    const statusFilter = input.status || 'open';
     const reminders = sortRemindersForList(remindersWithStatus
       .filter((reminder) => !input.workspaceSlug || reminder.workspace === input.workspaceSlug)
-      .filter((reminder) => !input.status || reminder.status === input.status), input.status);
+      .filter((reminder) => {
+        if (statusFilter === 'all') return true;
+        if (statusFilter === 'open') {
+          return reminder.status !== 'resolved' && reminder.status !== 'archived';
+        }
+        return reminder.status === statusFilter;
+      }), statusFilter);
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, reminders.length);
     const start = (pagination.page - 1) * pagination.pageSize;
     return { items: reminders.slice(start, start + pagination.pageSize), pagination };

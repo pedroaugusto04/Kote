@@ -20,7 +20,7 @@ function reminderStatusRank(status: string) {
 }
 
 export function sortRemindersForList(reminders: Reminder[], statusFilter: string) {
-  if (statusFilter) return reminders;
+  if (statusFilter && statusFilter !== 'active' && statusFilter !== 'open' && statusFilter !== 'all') return reminders;
   return [...reminders].sort((left, right) => {
     const leftStatusRank = reminderStatusRank(left.status);
     const rightStatusRank = reminderStatusRank(right.status);

@@ -17,9 +17,18 @@ export async function up(pgm: MigrationBuilder) {
         RETURN;
       END IF;
 
-      CREATE EXTENSION IF NOT EXISTS vector;
+      BEGIN
+        CREATE EXTENSION IF NOT EXISTS vector SCHEMA public;
+      EXCEPTION WHEN OTHERS THEN
+        RAISE NOTICE 'Could not create extension vector';
+      END;
 
-      CREATE TABLE IF NOT EXISTS kb_note_embeddings (
+      IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'vector' AND pg_type_is_visible(oid)) THEN
+        RAISE NOTICE 'vector type is not available — skipping kb_note_embeddings';
+        RETURN;
+      END IF;
+      
+      EXECUTE 'CREATE TABLE IF NOT EXISTS kb_note_embeddings (
         id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id       uuid NOT NULL REFERENCES kb_users(id) ON DELETE CASCADE,
         note_id       uuid NOT NULL REFERENCES kb_notes(id) ON DELETE CASCADE,
@@ -30,17 +39,17 @@ export async function up(pgm: MigrationBuilder) {
         created_at    timestamptz NOT NULL DEFAULT now(),
         updated_at    timestamptz NOT NULL DEFAULT now(),
         UNIQUE (note_id, chunk_index)
-      );
+      )';
 
-      CREATE INDEX IF NOT EXISTS idx_note_embeddings_user
-        ON kb_note_embeddings(user_id);
+      EXECUTE 'CREATE INDEX IF NOT EXISTS idx_note_embeddings_user
+        ON kb_note_embeddings(user_id)';
 
-      CREATE INDEX IF NOT EXISTS idx_note_embeddings_note
-        ON kb_note_embeddings(note_id);
+      EXECUTE 'CREATE INDEX IF NOT EXISTS idx_note_embeddings_note
+        ON kb_note_embeddings(note_id)';
 
-      CREATE INDEX IF NOT EXISTS idx_note_embeddings_vector
+      EXECUTE 'CREATE INDEX IF NOT EXISTS idx_note_embeddings_vector
         ON kb_note_embeddings USING hnsw (embedding vector_cosine_ops)
-        WITH (m = 16, ef_construction = 64);
+        WITH (m = 16, ef_construction = 64)';
     END
     $$;
   `);

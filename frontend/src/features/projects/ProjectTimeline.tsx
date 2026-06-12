@@ -9,13 +9,22 @@ import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
+import { Select } from '../../shared/ui/select';
+import { type NoteStatus } from '../../shared/api/models/note-status';
 
 const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
   value,
   label: formatDisplayToken(value),
 }));
 
-
+const statusOptions: Array<{ value: '' | 'open' | NoteStatus; label: string }> = [
+  { value: '', label: 'All' },
+  { value: 'open', label: 'Open' },
+  ...(['active', 'pending', 'overdue', 'sent', 'resolved', 'archived'] as NoteStatus[]).map((value) => ({
+    value,
+    label: formatDisplayToken(value),
+  })),
+];
 
 export function ProjectTimeline({
   dashboard,
@@ -23,6 +32,8 @@ export function ProjectTimeline({
   pagination,
   category,
   onCategoryChange,
+  status,
+  onStatusChange,
   onOpenNote,
   onOpenNoteFullPage,
   onEditNote,
@@ -36,6 +47,8 @@ export function ProjectTimeline({
   pagination?: PaginationMeta;
   category: ProjectTimelineCategory;
   onCategoryChange: (category: ProjectTimelineCategory) => void;
+  status: '' | 'open' | NoteStatus;
+  onStatusChange: (status: '' | 'open' | NoteStatus) => void;
   onOpenNote: (noteId: string) => void;
   onOpenNoteFullPage?: (noteId: string) => void;
   onEditNote?: (note: NoteSummary) => void;
@@ -57,18 +70,29 @@ export function ProjectTimeline({
 
   return (
     <div className="project-timeline">
-      <div className="timeline-filter-row" role="group" aria-label="Timeline category">
-        {categoryOptions.map((option) => (
-          <button
-            aria-pressed={category === option.value}
-            className={category === option.value ? 'active' : ''}
-            key={option.value}
-            type="button"
-            onClick={() => onCategoryChange(option.value)}
-          >
-            {option.label}
-          </button>
-        ))}
+      <div className="timeline-filter-row-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+        <div className="timeline-filter-row" role="group" aria-label="Timeline category" style={{ margin: 0 }}>
+          {categoryOptions.map((option) => (
+            <button
+              aria-pressed={category === option.value}
+              className={category === option.value ? 'active' : ''}
+              key={option.value}
+              type="button"
+              onClick={() => onCategoryChange(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+        <div className="timeline-status-filter" style={{ minWidth: '150px' }}>
+          <Select
+            ariaLabel="Filter by status"
+            className="search-filter search-filter-status"
+            options={statusOptions}
+            value={status}
+            onChange={(nextValue) => onStatusChange(nextValue as '' | NoteStatus)}
+          />
+        </div>
       </div>
       {visibleItems.length > 0 ? (
         <div className={`project-timeline-list ${isStale ? 'stale-data' : ''}`}>

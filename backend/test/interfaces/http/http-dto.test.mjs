@@ -149,11 +149,13 @@ test('project timeline dto accepts known categories and optional folder filters 
     pageSize: 10,
     category: 'decision',
     folderId: 'folder-1',
+    status: 'open',
   });
   assert.deepEqual(projectTimelineQuerySchema.parse({}), {
     page: 1,
     pageSize: 10,
     category: 'all',
+    status: 'open',
   });
   assert.throws(() => projectTimelineQuerySchema.parse({ category: 'webhook' }));
 });

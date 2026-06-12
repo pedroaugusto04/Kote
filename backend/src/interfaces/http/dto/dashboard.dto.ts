@@ -3,7 +3,7 @@ import { paginationInputSchema } from '../../../contracts/pagination.js';
 import { noteStatusValues } from '../../../domain/note-status.js';
 import { slugify } from '../../../domain/strings.js';
 
-const notesListStatusValues = ['', ...noteStatusValues] as const;
+const notesListStatusValues = ['', 'open', ...noteStatusValues] as const;
 
 export const noteIdParamSchema = z.object({
   id: z.string().trim().min(1),
@@ -24,7 +24,7 @@ export const notesListQuerySchema = paginationInputSchema.extend({
   workspaceSlug: z.string().default(''),
   projectSlug: z.string().default(''),
   folderId: z.string().default(''),
-  status: z.enum(notesListStatusValues).default(''),
+  status: z.enum(notesListStatusValues).default('open'),
   selectedId: z.string().default(''),
 }).transform((input) => ({
   ...input,
@@ -44,7 +44,7 @@ export const reviewsListQuerySchema = paginationInputSchema.extend({
 
 export const remindersListQuerySchema = paginationInputSchema.extend({
   workspaceSlug: z.string().default(''),
-  status: z.enum(['', 'pending', 'overdue', 'sent', 'resolved', 'archived']).default(''),
+  status: z.enum(['', 'open', 'active', 'all', 'pending', 'overdue', 'sent', 'resolved', 'archived']).default('open'),
 }).transform((input) => ({
   ...input,
   workspaceSlug: slugify(input.workspaceSlug),

@@ -32,7 +32,7 @@ export function sortRemindersForList<T extends { id: string; title: string; stat
   reminders: T[],
   statusFilter?: string,
 ) {
-  if (statusFilter) return reminders;
+  if (statusFilter && statusFilter !== 'active' && statusFilter !== 'open' && statusFilter !== 'all') return reminders;
   return [...reminders].sort((left, right) => {
     const leftStatusRank = reminderStatusRank(left.status);
     const rightStatusRank = reminderStatusRank(right.status);

@@ -14,14 +14,19 @@ import { Select } from '../../shared/ui/select';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { ReminderRow } from '../../widgets/reminders/ReminderRow';
 
-const reminderStatusOptions = ['', 'pending', 'overdue', 'sent', 'resolved', 'archived'].map((value) => ({
-  value,
-  label: value ? formatDisplayToken(value) : 'All statuses',
-}));
+const reminderStatusOptions = [
+  { value: 'open', label: 'Open' },
+  { value: 'all', label: 'All' },
+  { value: 'active', label: 'Active' },
+  ...['pending', 'overdue', 'sent', 'resolved', 'archived'].map((value) => ({
+    value,
+    label: formatDisplayToken(value),
+  })),
+];
 
 export function RemindersPage({ dashboard, openNote }: PageContext) {
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState('open');
   const remindersPaginationKey = `${workspaceSlug}:${status}`;
   const { page, setPage } = usePaginationState(remindersPaginationKey);
   const remindersQuery = useQuery({
@@ -33,7 +38,14 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
           const filteredReminders = sortRemindersForList(
             dashboard.reminders
               .filter((reminder) => !workspaceSlug || reminder.workspace === workspaceSlug)
-              .filter((reminder) => !status || reminder.status === status),
+              .filter((reminder) => {
+                const statusFilter = status || 'open';
+                if (statusFilter === 'all') return true;
+                if (statusFilter === 'open') {
+                  return reminder.status !== 'resolved' && reminder.status !== 'archived';
+                }
+                return reminder.status === statusFilter;
+              }),
             status,
           );
           return {

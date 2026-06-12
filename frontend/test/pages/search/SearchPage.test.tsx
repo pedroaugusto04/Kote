@@ -138,7 +138,7 @@ describe('SearchPage', () => {
       query: 'dep',
       projectSlug: '',
       workspaceSlug: 'default',
-      status: '',
+      status: 'open',
       limit: 10,
       page: 1,
       pageSize: 10,

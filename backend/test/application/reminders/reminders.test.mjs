@@ -226,15 +226,15 @@ test('paginated reminders sort all statuses with overdue and pending first then 
     },
   });
 
-  const listed = await listReminders.execute(user.id, { page: 1, pageSize: 10 });
+  const listed = await listReminders.execute(user.id, { page: 1, pageSize: 10, status: 'all' });
 
   assert.deepEqual(
     listed.items.map((item) => ({ title: item.title, status: item.status })),
     [
       { title: 'Pending earlier', status: 'pending' },
       { title: 'Pending later', status: 'pending' },
-      { title: archivedReminder.title, status: 'archived' },
       { title: sentReminder.title, status: 'sent' },
+      { title: archivedReminder.title, status: 'archived' },
     ],
   );
 });

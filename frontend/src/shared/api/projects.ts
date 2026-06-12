@@ -69,13 +69,14 @@ export function fetchProjectFolders(projectSlug: string) {
   return request<{ ok: true; projectSlug: string; folders: ProjectFolder[] }>(`/api/projects/${encodeURIComponent(projectSlug)}/folders`);
 }
 
-export function fetchProjectTimeline(projectSlug: string, params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; folderId?: string }) {
+export function fetchProjectTimeline(projectSlug: string, params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; folderId?: string; status?: string }) {
   const search = new URLSearchParams({
     page: String(params.page || 1),
     pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
     category: params.category || 'all',
   });
   if (params.folderId) search.set('folderId', params.folderId);
+  if (params.status) search.set('status', params.status);
   return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`/api/projects/${encodeURIComponent(projectSlug)}/timeline?${search.toString()}`);
 }
 
@@ -98,12 +99,13 @@ export function fetchLatestProjectBrief(projectSlug: string) {
   return request<SavedProjectBriefResponse>(`/api/projects/${encodeURIComponent(projectSlug)}/brief`);
 }
 
-export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory }) {
+export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; status?: string }) {
   const search = new URLSearchParams({
     page: String(params.page || 1),
     pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
     category: params.category || 'all',
   });
+  if (params.status) search.set('status', params.status);
   return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`/api/projects/timeline?${search.toString()}`);
 }
 

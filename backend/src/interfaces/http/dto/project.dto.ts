@@ -36,6 +36,7 @@ export const projectSlugParamSchema = z.object({
 export const projectTimelineQuerySchema = paginationInputSchema.extend({
   category: z.enum(projectTimelineCategories).default('all'),
   folderId: z.string().trim().optional(),
+  status: z.string().trim().default('open'),
 });
 
 export const projectKnowledgeMapQuerySchema = z.object({

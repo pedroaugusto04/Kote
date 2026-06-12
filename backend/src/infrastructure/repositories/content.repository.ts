@@ -326,8 +326,12 @@ export class PostgresContentRepository extends ContentRepository {
       clauses.push(`project_slug = $${values.length}`);
     }
     if (input.status) {
-      values.push(input.status);
-      clauses.push(`lower(status) = $${values.length}`);
+      if (input.status === 'open') {
+        clauses.push(`lower(status) not in ('resolved', 'archived')`);
+      } else {
+        values.push(input.status);
+        clauses.push(`lower(status) = $${values.length}`);
+      }
     }
     if (input.folderId) {
       values.push(input.folderId);
@@ -367,6 +371,14 @@ export class PostgresContentRepository extends ContentRepository {
     }
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, input.category);
+    if (input.status) {
+      if (input.status === 'open') {
+        clauses.push(`lower(status) not in ('resolved', 'archived')`);
+      } else {
+        values.push(input.status);
+        clauses.push(`lower(status) = $${values.length}`);
+      }
+    }
     const where = clauses.join(' and ');
     const dataWhere = where
       .replace(/\buser_id\b/g, 'n.user_id')
@@ -375,6 +387,7 @@ export class PostgresContentRepository extends ContentRepository {
       .replace(/\btype\b/g, 'n.type')
       .replace(/\bsource_channel\b/g, 'n.source_channel')
       .replace(/\bsource\b/g, 'n.source')
+      .replace(/\bstatus\b/g, 'n.status')
       .replace(/\bmetadata\b/g, 'n.metadata');
     const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes where ${where}`, values);
     const total = Number(totalResult.rows[0]?.total || 0);

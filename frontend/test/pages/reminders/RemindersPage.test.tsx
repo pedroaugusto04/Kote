@@ -117,7 +117,7 @@ describe('RemindersPage', () => {
 
     expect(await screen.findByText('Deploy')).toBeInTheDocument();
     expect(screen.getByText('Pending')).toBeInTheDocument();
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, '/api/reminders?page=1&pageSize=10&workspaceSlug=default&status=', expect.any(Object));
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, '/api/reminders?page=1&pageSize=10&workspaceSlug=default&status=open', expect.any(Object));
 
     fireEvent.click(screen.getByLabelText('Filter by status'));
     fireEvent.click(screen.getByRole('option', { name: 'Sent' }));
@@ -146,9 +146,9 @@ describe('RemindersPage', () => {
               workspace: 'default',
               status: 'sent',
               isOverdue: false,
-              reminderDate: '2026-05-01',
+              reminderDate: '2099-05-01',
               reminderTime: '08:00',
-              reminderAt: '2026-05-01T08:00:00.000Z',
+              reminderAt: '2099-05-01T08:00:00.000Z',
               relativePath: '20 Inbox/sent-earlier.md',
             },
             {
@@ -158,9 +158,9 @@ describe('RemindersPage', () => {
               workspace: 'default',
               status: 'pending',
               isOverdue: false,
-              reminderDate: '2026-06-15',
+              reminderDate: '2099-06-15',
               reminderTime: '09:00',
-              reminderAt: '2026-06-15T09:00:00.000Z',
+              reminderAt: '2099-06-15T09:00:00.000Z',
               relativePath: '20 Inbox/pending-later.md',
             },
             {
@@ -170,9 +170,9 @@ describe('RemindersPage', () => {
               workspace: 'default',
               status: 'pending',
               isOverdue: false,
-              reminderDate: '2026-06-10',
+              reminderDate: '2099-06-10',
               reminderTime: '09:00',
-              reminderAt: '2026-06-10T09:00:00.000Z',
+              reminderAt: '2099-06-10T09:00:00.000Z',
               relativePath: '20 Inbox/pending-earlier.md',
             },
           ],

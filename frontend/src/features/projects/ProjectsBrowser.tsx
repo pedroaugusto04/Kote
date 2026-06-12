@@ -9,6 +9,7 @@ import { Panel, Tags } from '../../shared/ui/primitives';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
 import { ProjectTimeline } from './ProjectTimeline';
+import { type NoteStatus } from '../../shared/api/models/note-status';
 
 type ProjectsBrowserProps = {
   dashboard: Dashboard;
@@ -23,6 +24,8 @@ type ProjectsBrowserProps = {
   briefError?: string;
   briefHistoryError?: string;
   timelineCategory: ProjectTimelineCategory;
+  timelineStatus: '' | 'open' | NoteStatus;
+  onTimelineStatusChange: (status: '' | 'open' | NoteStatus) => void;
   timelinePagination?: {
     page: number;
     pageSize: number;
@@ -64,8 +67,10 @@ export function ProjectsBrowser({
   briefError = '',
   briefHistoryError = '',
   timelineCategory,
+  timelineStatus,
   timelinePagination,
   onTimelineCategoryChange,
+  onTimelineStatusChange,
   onTimelinePageChange,
   onFolderSelect,
   onGenerateBrief,
@@ -181,6 +186,8 @@ export function ProjectsBrowser({
           pagination={timelinePagination}
           category={timelineCategory}
           onCategoryChange={onTimelineCategoryChange}
+          status={timelineStatus}
+          onStatusChange={onTimelineStatusChange}
           onDeleteNote={onDeleteNote}
           onEditNote={onEditNote}
           onOpenNote={onOpenNote}

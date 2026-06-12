@@ -31,6 +31,7 @@ export type ListProjectTimelineInput = {
   page: number;
   pageSize: number;
   category: ProjectTimelineCategory;
+  status?: string;
 };
 
 export type PaginatedProjectTimeline = {
