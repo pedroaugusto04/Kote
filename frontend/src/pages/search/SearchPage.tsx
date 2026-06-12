@@ -31,14 +31,10 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   const [showHistory, setShowHistory] = useState(false);
   const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
 
-  const historyRef = useRef<HTMLDivElement>(null);
   const { page: historyPage, setPage: setHistoryPage } = usePaginationState(`ask-history:${projectSlug}`);
 
   const handleHistoryPageChange = (newPage: number) => {
     setHistoryPage(newPage);
-    setTimeout(() => {
-      historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
   };
 
   const selectedProjectLabel = projectLabel(projectSlug, dashboard.projects);
@@ -195,7 +191,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
 
           {/* History inline */}
           {showHistory ? (
-            <div ref={historyRef}>
+            <div>
               <AskHistoryInline
                 historyQuery={historyQuery}
                 projects={dashboard.projects}
@@ -307,7 +303,7 @@ function AskHistoryInline({
             ))}
           </div>
           {historyQuery.data?.pagination ? (
-            <Pagination compact disableScrollToTop pagination={historyQuery.data.pagination} onPageChange={setPage} />
+            <Pagination compact pagination={historyQuery.data.pagination} onPageChange={setPage} />
           ) : null}
         </>
       )}
