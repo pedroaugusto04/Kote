@@ -10,7 +10,7 @@ import type { AskHistoryResponse } from '../../shared/api/models/ask';
 import type { AskAnswerCardItem } from '../../widgets/ask/ask-answer-card.models';
 import { AskAnswerCard, projectLabel } from '../../widgets/ask/AskAnswerCard';
 import { AskAiIcon } from '../../widgets/ask/AskAiIcon';
-import type { NoteSummary } from '../../shared/api/models/note';
+import type { NoteSummary, CanonicalNoteType } from '../../shared/api/models/note';
 import { type NoteStatus } from '../../shared/api/models/note-status';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
@@ -144,13 +144,13 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           return updateNote(note.id, {
             folderId: detail.folderId || '',
             title: detail.title,
-            rawText: detail.rawText || '',
+            rawText: detail.editor?.rawText || '',
             tags: detail.tags,
             status: 'resolved',
-            canonicalType: detail.canonicalType,
-            reminderDate: detail.reminderDate,
-            reminderTime: detail.reminderTime,
-            reminderAt: detail.reminderAt,
+            canonicalType: detail.type as CanonicalNoteType,
+            reminderDate: detail.editor?.reminderDate,
+            reminderTime: detail.editor?.reminderTime,
+            reminderAt: detail.editor?.reminderAt,
           });
         })
       );
@@ -175,13 +175,13 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           return updateNote(note.id, {
             folderId: detail.folderId || '',
             title: detail.title,
-            rawText: detail.rawText || '',
+            rawText: detail.editor?.rawText || '',
             tags: detail.tags,
             status: 'archived',
-            canonicalType: detail.canonicalType,
-            reminderDate: detail.reminderDate,
-            reminderTime: detail.reminderTime,
-            reminderAt: detail.reminderAt,
+            canonicalType: detail.type as CanonicalNoteType,
+            reminderDate: detail.editor?.reminderDate,
+            reminderTime: detail.editor?.reminderTime,
+            reminderAt: detail.editor?.reminderAt,
           });
         })
       );
@@ -513,12 +513,16 @@ function queryMatchToNoteSummary(match: {
 
 function dashboardNotesPage(
   notes: NoteSummary[],
-  filters: { workspaceSlug: string; projectSlug: string; status: '' | NoteStatus },
+  filters: { workspaceSlug: string; projectSlug: string; status: '' | 'open' | NoteStatus },
 ) {
   const filteredNotes = notes.filter((note) =>
     (!filters.workspaceSlug || note.workspace === filters.workspaceSlug)
     && (!filters.projectSlug || note.project === filters.projectSlug)
-    && (!filters.status || note.status === filters.status),
+    && (!filters.status || (
+      filters.status === 'open'
+        ? note.status !== 'resolved' && note.status !== 'archived'
+        : note.status === filters.status
+    )),
   );
 
   return {

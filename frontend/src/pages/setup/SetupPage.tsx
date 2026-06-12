@@ -65,7 +65,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
             workspaces: [result.workspace],
             projects: current.projects.some((project) => project.projectSlug === result.initialProject.projectSlug)
               ? current.projects
-              : [result.initialProject, ...current.projects],
+              : [{ ...result.initialProject, favorite: false }, ...current.projects],
           }
         : current);
     },

@@ -110,7 +110,7 @@ export function QuickNoteStatusActions({
     },
     onSuccess: async (_result, action) => {
       notifySuccess(action.successMessage);
-      await invalidateNoteRelatedQueries(queryClient, note.id);
+      await invalidateNoteRelatedQueries(queryClient);
     },
     onError: (error) => {
       setDisplayStatus(note.status);

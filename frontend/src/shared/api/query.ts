@@ -8,7 +8,7 @@ function normalizeLimit(limit: number | undefined) {
   return Math.min(Math.max(Math.trunc(limit), 1), 10);
 }
 
-export function runQuery(params: { query: string; projectSlug?: string; workspaceSlug?: string; status?: '' | NoteStatus; limit?: number; page?: number; pageSize?: number }) {
+export function runQuery(params: { query: string; projectSlug?: string; workspaceSlug?: string; status?: '' | 'open' | NoteStatus; limit?: number; page?: number; pageSize?: number }) {
   const search = new URLSearchParams({
     query: params.query,
     projectSlug: params.projectSlug || '',

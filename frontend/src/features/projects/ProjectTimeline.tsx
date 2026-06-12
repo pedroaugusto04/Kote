@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { fetchNote, updateNote } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
-import type { NoteSummary } from '../../shared/api/models/note';
+import type { NoteSummary, CanonicalNoteType } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
 import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName } from '../../shared/utils/format';
@@ -76,13 +76,13 @@ export function ProjectTimeline({
           return updateNote(item.noteId, {
             folderId: detail.folderId || '',
             title: detail.title,
-            rawText: detail.rawText || '',
+            rawText: detail.editor?.rawText || '',
             tags: detail.tags,
             status: 'resolved',
-            canonicalType: detail.canonicalType,
-            reminderDate: detail.reminderDate,
-            reminderTime: detail.reminderTime,
-            reminderAt: detail.reminderAt,
+            canonicalType: detail.type as CanonicalNoteType,
+            reminderDate: detail.editor?.reminderDate,
+            reminderTime: detail.editor?.reminderTime,
+            reminderAt: detail.editor?.reminderAt,
           });
         })
       );
@@ -107,13 +107,13 @@ export function ProjectTimeline({
           return updateNote(item.noteId, {
             folderId: detail.folderId || '',
             title: detail.title,
-            rawText: detail.rawText || '',
+            rawText: detail.editor?.rawText || '',
             tags: detail.tags,
             status: 'archived',
-            canonicalType: detail.canonicalType,
-            reminderDate: detail.reminderDate,
-            reminderTime: detail.reminderTime,
-            reminderAt: detail.reminderAt,
+            canonicalType: detail.type as CanonicalNoteType,
+            reminderDate: detail.editor?.reminderDate,
+            reminderTime: detail.editor?.reminderTime,
+            reminderAt: detail.editor?.reminderAt,
           });
         })
       );
