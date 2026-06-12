@@ -815,3 +815,24 @@
   height: auto;
 }
 
+/* Projects Search Box with magnifying glass icon */
+.projects-search-box {
+  position: relative;
+  width: 100%;
+}
+
+.projects-search-box input {
+  padding-left: 38px !important;
+}
+
+.projects-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+

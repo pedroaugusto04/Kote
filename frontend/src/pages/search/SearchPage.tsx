@@ -303,7 +303,7 @@ function AskHistoryInline({
             ))}
           </div>
           {historyQuery.data?.pagination ? (
-            <Pagination compact pagination={historyQuery.data.pagination} onPageChange={setPage} />
+            <Pagination compact disableScrollToTop pagination={historyQuery.data.pagination} onPageChange={setPage} />
           ) : null}
         </>
       )}

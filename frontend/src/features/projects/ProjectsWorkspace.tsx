@@ -40,6 +40,7 @@ import type { ConfirmState, FolderModalState, NoteModalState, ProjectModalState 
 import { ProjectTimeline } from './ProjectTimeline';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { NoteRow } from '../../widgets/notes/NoteRow';
+import { SearchIcon } from '../../shared/ui/icons';
 
 const SEARCH_DEBOUNCE_MS = 350;
 
@@ -272,6 +273,7 @@ export function ProjectsWorkspace({
 
       {/* Search input for filtering notes within the selected project */}
       <section className="search-box projects-search-box">
+        <SearchIcon className="projects-search-icon" />
         <input
           aria-label="Search notes in project"
           autoComplete="off"
