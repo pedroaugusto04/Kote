@@ -819,15 +819,16 @@
 .projects-search-box {
   position: relative;
   width: 100%;
+  padding: 0 !important;
 }
 
 .projects-search-box input {
-  padding-left: 46px !important;
+  padding-left: 42px !important;
 }
 
 .projects-search-icon {
   position: absolute;
-  left: 16px;
+  left: 14px;
   top: 50%;
   transform: translateY(-50%);
   width: 18px;
