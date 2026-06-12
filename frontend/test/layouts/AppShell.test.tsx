@@ -291,11 +291,15 @@ function stubMatchMedia(initialMatches: boolean) {
     },
     media: '(prefers-color-scheme: dark)',
     onchange: null,
-    addEventListener: vi.fn((_event: string, listener: (event: MediaQueryListEvent) => void) => {
-      listeners.add(listener);
+    addEventListener: vi.fn((_event: string, listener: EventListenerOrEventListenerObject) => {
+      if (typeof listener === 'function') {
+        listeners.add(listener as unknown as (event: MediaQueryListEvent) => void);
+      }
     }),
-    removeEventListener: vi.fn((_event: string, listener: (event: MediaQueryListEvent) => void) => {
-      listeners.delete(listener);
+    removeEventListener: vi.fn((_event: string, listener: EventListenerOrEventListenerObject) => {
+      if (typeof listener === 'function') {
+        listeners.delete(listener as unknown as (event: MediaQueryListEvent) => void);
+      }
     }),
     addListener: vi.fn(),
     removeListener: vi.fn(),

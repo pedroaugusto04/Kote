@@ -83,7 +83,7 @@ beforeEach(() => {
   apiSpies.fetchNotes.mockResolvedValue({
     ok: true,
     notes: dashboard.notes,
-    pagination: { page: 1, pageSize: 10, total: dashboard.notes.length, totalPages: 1, hasNext: false, hasPrevious: false },
+    pagination: { page: 1, pageSize: 10, total: dashboard.notes?.length, totalPages: 1, hasNext: false, hasPrevious: false },
   });
   Element.prototype.scrollIntoView = vi.fn();
 });
@@ -99,7 +99,7 @@ describe('SearchPage', () => {
     apiSpies.fetchNotes.mockResolvedValue({
       ok: true,
       notes: dashboard.notes,
-      pagination: { page: 1, pageSize: 10, total: dashboard.notes.length, totalPages: 1, hasNext: false, hasPrevious: false },
+      pagination: { page: 1, pageSize: 10, total: dashboard.notes?.length, totalPages: 1, hasNext: false, hasPrevious: false },
     });
     apiSpies.runQuery.mockResolvedValue({
       ok: true,
