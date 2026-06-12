@@ -1,110 +1,38 @@
-import { keepPreviousData, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-
-import { useSearchParams } from 'react-router-dom';
+import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken } from '../../shared/utils/format';
-import { fetchAskHistory, fetchNote, fetchNotes, runAsk, runQuery, updateNote } from '../../shared/api/client';
+import { fetchAskHistory, fetchLatestProjectBrief, generateProjectBrief, runAsk } from '../../shared/api/client';
+import { getErrorMessage } from '../../shared/api/error-message';
 import type { AskHistoryResponse } from '../../shared/api/models/ask';
+import type { ProjectBriefPanelResponse } from '../../shared/api/models/project-brief';
 import type { AskAnswerCardItem } from '../../widgets/ask/ask-answer-card.models';
 import { AskAnswerCard, projectLabel } from '../../widgets/ask/AskAnswerCard';
 import { AskAiIcon } from '../../widgets/ask/AskAiIcon';
-import type { NoteSummary, CanonicalNoteType } from '../../shared/api/models/note';
-import { type NoteStatus } from '../../shared/api/models/note-status';
-import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
+import { ProjectBriefPanel } from '../../widgets/projects/ProjectBriefPanel';
 import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
-import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { Select } from '../../shared/ui/select';
 import { notifyWarning } from '../../shared/ui/notifications';
-import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
+import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
-import { useMediaQuery } from '../../shared/ui/use-media-query';
-import { NoteRow } from '../../widgets/notes/NoteRow';
-import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
-import { ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
-import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import './SearchPage.css';
 
-const SEARCH_DEBOUNCE_MS = 350;
-const ASK_HISTORY_PAGE_SIZE = 3;
+const ASK_HISTORY_PAGE_SIZE = 5;
 
-const statusOptions: Array<{ value: '' | 'open' | NoteStatus; label: string }> = [
-  { value: 'open', label: 'Open' },
-  { value: '', label: 'All' },
-  ...(['active', 'pending', 'overdue', 'sent', 'resolved', 'archived'] as NoteStatus[]).map((value) => ({
-    value,
-    label: formatDisplayToken(value),
-  })),
-];
-
-export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageContext) {
-  const isMobile = useMediaQuery('(max-width: 768px)');
+export function SearchPage({ dashboard, openNote }: PageContext) {
   const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const query = searchParams.get('q') || '';
-  const [searchInput, setSearchInput] = useState(query);
+  const [questionInput, setQuestionInput] = useState('');
   const [projectSlug, setProjectSlug] = useState('');
-  const [status, setStatus] = useState<'' | 'open' | NoteStatus>('open');
   const [askAnswer, setAskAnswer] = useState<AskAnswerCardItem | null>(null);
-  const [isAnswerHidden, setIsAnswerHidden] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [isAsking, setIsAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
-  const [sideNoteId, setSideNoteId] = useState<string | null>(null);
-  const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
-  const debouncedQuery = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
-  const debouncedProjectSlug = useDebouncedValue(projectSlug, SEARCH_DEBOUNCE_MS);
-  const debouncedStatus = useDebouncedValue(status, SEARCH_DEBOUNCE_MS);
-  const hasQuery = Boolean(debouncedQuery.trim());
-  const resultsPaginationKey = `${debouncedQuery}:${debouncedProjectSlug}:${workspaceSlug}:${debouncedStatus}`;
-  const { page, setPage } = usePaginationState(resultsPaginationKey);
+  const [showHistory, setShowHistory] = useState(false);
+  const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
+
   const { page: historyPage, setPage: setHistoryPage } = usePaginationState(`ask-history:${projectSlug}`);
+  const selectedProjectLabel = projectLabel(projectSlug, dashboard.projects);
 
-  useEffect(() => {
-    setSearchInput(query);
-  }, [query]);
-
-  useEffect(() => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (debouncedQuery) {
-        next.set('q', debouncedQuery);
-      } else {
-        next.delete('q');
-      }
-      return next;
-    }, { replace: true });
-  }, [debouncedQuery, setSearchParams]);
-
-  const queryResult = useQuery({
-    queryKey: ['search', debouncedQuery, debouncedProjectSlug, workspaceSlug, debouncedStatus, page],
-    queryFn: () => runQuery({
-      query: debouncedQuery,
-      projectSlug: debouncedProjectSlug,
-      workspaceSlug,
-      status: debouncedStatus,
-      limit: 10,
-      page,
-      pageSize: DEFAULT_PAGE_SIZE,
-    }),
-    enabled: hasQuery,
-    placeholderData: keepPreviousData,
-  });
-  const notesResult = useQuery({
-    queryKey: ['search-notes', debouncedProjectSlug, workspaceSlug, debouncedStatus, page],
-    queryFn: () => fetchNotes({ page, workspaceSlug, projectSlug: debouncedProjectSlug, status: debouncedStatus }),
-    enabled: !hasQuery,
-    placeholderData: keepPreviousData,
-    initialData: !hasQuery && dashboard.notes
-      ? dashboardNotesPage(dashboard.notes, {
-        workspaceSlug,
-        projectSlug: debouncedProjectSlug,
-        status: debouncedStatus,
-      })
-      : undefined,
-  });
   const historyQuery = useQuery({
     queryKey: ['ask-history', projectSlug, historyPage],
     queryFn: () => fetchAskHistory({ projectSlug, page: historyPage, pageSize: ASK_HISTORY_PAGE_SIZE }),
@@ -112,92 +40,38 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
     placeholderData: keepPreviousData,
   });
 
-  const selectedProjectLabel = projectLabel(projectSlug, dashboard.projects);
-  const visibleNotes = hasQuery
-    ? queryResult.data?.matches.map(queryMatchToNoteSummary) || []
-    : notesResult.data?.notes || [];
-  const pagination = hasQuery ? queryResult.data?.pagination : notesResult.data?.pagination;
-  const isResultsStale = hasQuery ? queryResult.isPlaceholderData : notesResult.isPlaceholderData;
-  const isResultsFetching = hasQuery ? queryResult.isFetching : notesResult.isFetching;
-  const isResultsError = hasQuery ? queryResult.isError : notesResult.isError;
-  const {
-    isMobilePagination,
-    loadedMobilePage,
-    visibleItems: paginatedVisibleNotes,
-  } = useMobilePaginatedItems({
-    items: visibleNotes,
-    pagination,
-    resetKey: resultsPaginationKey,
-    isPlaceholderData: isResultsStale,
+  // Project Brief state & queries — scoped to the selected project
+  const briefProjectSlug = projectSlug || '';
+  const briefQueryKey = ['project-brief', briefProjectSlug];
+  const latestBriefQuery = useQuery<ProjectBriefPanelResponse>({
+    queryKey: briefQueryKey,
+    queryFn: () => fetchLatestProjectBrief(briefProjectSlug),
+    enabled: false,
   });
-
-  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
-  const [confirmBulk, setConfirmBulk] = useState<{ type: 'resolve' | 'archive' } | null>(null);
-
-  const handleResolveAll = async () => {
-    if (!paginatedVisibleNotes.length) return;
-    setIsBulkUpdating(true);
-    try {
-      await Promise.all(
-        paginatedVisibleNotes.map(async (note) => {
-          const detail = await fetchNote(note.id);
-          return updateNote(note.id, {
-            folderId: detail.folderId || '',
-            title: detail.title,
-            rawText: detail.editor?.rawText || '',
-            tags: detail.tags,
-            status: 'resolved',
-            canonicalType: detail.type as CanonicalNoteType,
-            reminderDate: detail.editor?.reminderDate,
-            reminderTime: detail.editor?.reminderTime,
-            reminderAt: detail.editor?.reminderAt,
-          });
-        })
-      );
-      queryClient.invalidateQueries({ queryKey: ['search'] });
-      queryClient.invalidateQueries({ queryKey: ['search-notes'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    } catch (err) {
-      console.error(err);
-      alert('Failed to resolve some notes.');
-    } finally {
-      setIsBulkUpdating(false);
+  const generateBriefMutation = useMutation({
+    mutationFn: (slug: string) => generateProjectBrief(slug),
+    onSuccess: (response, slug) => {
+      queryClient.setQueryData<ProjectBriefPanelResponse>(['project-brief', slug], response);
+      setHiddenLatestBriefProjects((current) => ({ ...current, [slug]: false }));
+    },
+    onError: (error) => notifyGeneralFormError(error, 'Could not generate the project brief.'),
+  });
+  const showLatestBrief = () => {
+    const currentBrief = latestBriefQuery.data;
+    if (currentBrief && 'source' in currentBrief && currentBrief.source === 'history' && !hiddenLatestBriefProjects[briefProjectSlug]) {
+      setHiddenLatestBriefProjects((current) => ({ ...current, [briefProjectSlug]: true }));
+      return;
     }
+    setHiddenLatestBriefProjects((current) => ({ ...current, [briefProjectSlug]: false }));
+    if (currentBrief && 'source' in currentBrief && currentBrief.source === 'history') return;
+    void latestBriefQuery.refetch();
   };
-
-  const handleArchiveAll = async () => {
-    if (!paginatedVisibleNotes.length) return;
-    setIsBulkUpdating(true);
-    try {
-      await Promise.all(
-        paginatedVisibleNotes.map(async (note) => {
-          const detail = await fetchNote(note.id);
-          return updateNote(note.id, {
-            folderId: detail.folderId || '',
-            title: detail.title,
-            rawText: detail.editor?.rawText || '',
-            tags: detail.tags,
-            status: 'archived',
-            canonicalType: detail.type as CanonicalNoteType,
-            reminderDate: detail.editor?.reminderDate,
-            reminderTime: detail.editor?.reminderTime,
-            reminderAt: detail.editor?.reminderAt,
-          });
-        })
-      );
-      queryClient.invalidateQueries({ queryKey: ['search'] });
-      queryClient.invalidateQueries({ queryKey: ['search-notes'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    } catch (err) {
-      console.error(err);
-      alert('Failed to archive some notes.');
-    } finally {
-      setIsBulkUpdating(false);
-    }
-  };
+  const selectedBriefResponse = hiddenLatestBriefProjects[briefProjectSlug] && latestBriefQuery.data && 'source' in latestBriefQuery.data && latestBriefQuery.data.source === 'history'
+    ? undefined
+    : latestBriefQuery.data;
 
   const handleAsk = async () => {
-    const question = searchInput.trim();
+    const question = questionInput.trim();
     if (isAsking) return;
     if (!question) {
       notifyWarning('Type something before asking AI.');
@@ -207,8 +81,6 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
     setIsAsking(true);
     setAskError(null);
     setAskAnswer(null);
-    setIsAnswerHidden(false);
-    setShowHistory(false);
 
     try {
       const result = await runAsk({ question, projectSlug });
@@ -219,7 +91,7 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
           projectSlug,
           sources: result.sources || [],
         });
-        setIsAnswerHidden(false);
+        setAskError(null);
         setHistoryPage(1);
         await queryClient.invalidateQueries({ queryKey: ['ask-history'] });
       } else {
@@ -234,68 +106,36 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
 
   return (
     <>
-      <PageHead title="Search" subtitle="Search notes and ask AI from the same evidence." />
+      <PageHead title="Ask AI" subtitle="Ask questions, generate project briefs, and explore your AI history." />
 
-      <section className="search-box unified-search-box">
-        <div className="search-input-row">
+      {/* Question input */}
+      <section className="ask-ai-input-section">
+        <div className="ask-ai-input-row">
+          <AskAiIcon className="ask-ai-input-icon" />
           <input
-            aria-label="Search query"
+            aria-label="Ask a question"
             autoComplete="off"
-            enterKeyHint="search"
-            inputMode="search"
+            enterKeyHint="send"
             spellCheck={false}
             type="text"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-            placeholder="Search or ask anything..."
+            value={questionInput}
+            onChange={(event) => setQuestionInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                handleAsk();
+              }
+            }}
+            placeholder="Ask anything about your notes..."
           />
-          <div className="search-actions">
-            <button className="icon-button" disabled={isAsking} type="button" onClick={handleAsk}>
-              <AskAiIcon className="ai-answer-action-icon" />
-              {isAsking ? 'Asking...' : 'Ask AI'}
-            </button>
-            <div className="history-popover-anchor">
-              <button
-                aria-expanded={showHistory}
-                className="icon-button secondary"
-                type="button"
-                onClick={() => setShowHistory((current) => !current)}
-              >
-                History
-              </button>
-              {showHistory ? (
-                <AskHistoryPopover
-                  historyQuery={historyQuery}
-                  projects={dashboard.projects}
-                  setPage={setHistoryPage}
-                  onSelect={(item) => {
-                    setAskAnswer({
-                      question: item.question,
-                      answer: item.answer,
-                      projectSlug: item.projectSlug,
-                      sources: item.sources,
-                    });
-                    setIsAnswerHidden(false);
-                    setAskError(null);
-                    setShowHistory(false);
-                  }}
-                />
-              ) : null}
-            </div>
-          </div>
+          <button className="icon-button ask-ai-send-btn" disabled={isAsking} type="button" onClick={handleAsk}>
+            {isAsking ? 'Asking...' : 'Ask'}
+          </button>
         </div>
-        <div className="filters">
-          <Select
-            ariaLabel="Current workspace"
-            className="search-filter search-filter-workspace"
-            disabled
-            options={[{ value: workspaceSlug || 'current-workspace', label: workspaceSlug || 'current-workspace' }]}
-            value={workspaceSlug || 'current-workspace'}
-            onChange={() => undefined}
-          />
+        <div className="ask-ai-filters">
           <Select
             ariaLabel="Filter by project"
-            className="search-filter search-filter-project"
+            className="ask-ai-filter"
             options={[
               { value: '', label: 'All projects' },
               ...dashboard.projects.map((project) => ({
@@ -307,114 +147,66 @@ export function SearchPage({ dashboard, openNote, editNote, deleteNote }: PageCo
             onChange={(nextProjectSlug) => {
               setProjectSlug(nextProjectSlug);
               setAskAnswer(null);
-              setIsAnswerHidden(false);
               setAskError(null);
             }}
           />
-          <Select
-            ariaLabel="Filter by status"
-            className="search-filter search-filter-status"
-            options={statusOptions}
-            value={status}
-            onChange={(nextValue) => setStatus(nextValue as '' | NoteStatus)}
-          />
+          <button
+            aria-expanded={showHistory}
+            className={`icon-button secondary ask-ai-history-toggle ${showHistory ? 'active' : ''}`}
+            type="button"
+            onClick={() => setShowHistory((current) => !current)}
+          >
+            {showHistory ? 'Hide history' : 'Show history'}
+          </button>
         </div>
       </section>
 
-      {isAsking ? <AskAnswerSkeleton question={searchInput.trim()} projectLabel={selectedProjectLabel} /> : null}
+      {/* AI Answer */}
+      {isAsking ? <AskAnswerSkeleton question={questionInput.trim()} projectLabel={selectedProjectLabel} /> : null}
 
-      {!isAsking && askAnswer && !isAnswerHidden ? (
+      {!isAsking && askAnswer ? (
         <Panel className="ai-answer-card-panel">
-          <div className="ai-answer-toolbar">
-            <button className="icon-button secondary" type="button" onClick={() => setIsAnswerHidden(true)}>
-              Hide answer
-            </button>
-          </div>
           <AskAnswerCard item={askAnswer} openNote={openNote} projects={dashboard.projects} />
         </Panel>
       ) : null}
 
       {askError ? <InlineMessage className="ask-error-message" tone="error">{askError}</InlineMessage> : null}
 
-      <div className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''}`}>
-        <Panel className="matching-notes-panel" style={{ minWidth: 0 }}>
-          <div className="matching-notes-heading">
-            <div>
-              <h2>Matching Notes</h2>
-              <span className="matching-notes-count">{pagination ? `${pagination.total} total` : ''}</span>
-            </div>
-            {paginatedVisibleNotes.length > 0 && (
-              <div className="bulk-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk({ type: 'resolve' })}>
-                  <ResolveIcon />
-                  Resolve all
-                </button>
-                <span style={{ color: 'var(--line-soft)', fontSize: '12px' }}>|</span>
-                <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk({ type: 'archive' })}>
-                  <ArchiveIcon />
-                  Archive all
-                </button>
-              </div>
-            )}
-          </div>
-          {isResultsError ? <InlineMessage tone="error">Could not load notes for these filters.</InlineMessage> : null}
-          <div className={`list ${isResultsStale ? 'stale-data' : ''}`}>
-            {paginatedVisibleNotes.map((note) => (
-              <NoteRow
-                key={note.id}
-                note={note}
-                dashboard={dashboard}
-                onDelete={() => deleteNote({ id: note.id, title: note.title })}
-                onEdit={() => editNote(note.id)}
-                onOpen={(id) => {
-                  if (isMobile || sideNoteId === id) {
-                    openNote(id);
-                  } else {
-                    setSideNoteId(id);
-                  }
-                }}
-                onDoubleClick={openNote}
-                onPinSuccess={() => setPage(1)}
-              />
-            ))}
-          </div>
-          {pagination ? (
-            isMobilePagination
-              ? <MobileInfinitePagination pagination={pagination} isLoading={isResultsFetching || pagination.page > loadedMobilePage} onPageChange={setPage} />
-              : <Pagination pagination={pagination} onPageChange={setPage} />
-          ) : null}
-          {!paginatedVisibleNotes.length && !isResultsError ? <EmptyState>No notes found with these filters.</EmptyState> : null}
-        </Panel>
-
-        {sideNoteId && (
-          <SideNoteDrawer
-            noteId={sideNoteId}
-            dashboardProjects={dashboard.projects}
-            onClose={() => setSideNoteId(null)}
-            onOpenFullPage={openNote}
-          />
-        )}
-      </div>
-
-      {confirmBulk && (
-        <ConfirmationModal
-          busy={isBulkUpdating}
-          title={confirmBulk.type === 'resolve' ? 'Resolve all items' : 'Archive all items'}
-          description={
-            confirmBulk.type === 'resolve'
-              ? `Are you sure you want to resolve all ${paginatedVisibleNotes.length} notes currently listed?`
-              : `Are you sure you want to archive all ${paginatedVisibleNotes.length} notes currently listed?`
-          }
-          cancelLabel="Cancel"
-          confirmLabel={confirmBulk.type === 'resolve' ? 'Resolve all' : 'Archive all'}
-          tone="default"
-          onCancel={() => setConfirmBulk(null)}
-          onConfirm={async () => {
-            await (confirmBulk.type === 'resolve' ? handleResolveAll() : handleArchiveAll());
-            setConfirmBulk(null);
+      {/* History inline */}
+      {showHistory ? (
+        <AskHistoryInline
+          historyQuery={historyQuery}
+          projects={dashboard.projects}
+          setPage={setHistoryPage}
+          onSelect={(item) => {
+            setAskAnswer({
+              question: item.question,
+              answer: item.answer,
+              projectSlug: item.projectSlug,
+              sources: item.sources,
+            });
+            setAskError(null);
           }}
         />
-      )}
+      ) : null}
+
+      {/* Project Brief */}
+      <Panel className="ask-ai-brief-panel">
+        <ProjectBriefPanel
+          response={selectedBriefResponse}
+          loading={generateBriefMutation.isPending && generateBriefMutation.variables === briefProjectSlug}
+          historyLoading={latestBriefQuery.isFetching}
+          error={generateBriefMutation.isError && generateBriefMutation.variables === briefProjectSlug
+            ? getErrorMessage(generateBriefMutation.error, 'Could not generate the project brief.')
+            : ''}
+          historyError={latestBriefQuery.isError
+            ? getErrorMessage(latestBriefQuery.error, 'Could not load the latest project brief.')
+            : ''}
+          onGenerate={() => generateBriefMutation.mutate(briefProjectSlug)}
+          onShowLatest={showLatestBrief}
+          onOpenNote={openNote}
+        />
+      </Panel>
     </>
   );
 }
@@ -443,7 +235,7 @@ function AskAnswerSkeleton({ question, projectLabel: selectedProjectLabel }: { q
   );
 }
 
-function AskHistoryPopover({
+function AskHistoryInline({
   historyQuery,
   projects,
   setPage,
@@ -456,85 +248,32 @@ function AskHistoryPopover({
 }) {
   const history = historyQuery.data?.history || [];
 
-  if (historyQuery.isLoading) {
-    return <div className="ask-history-popover" role="dialog"><div className="inline-message">Loading history...</div></div>;
-  }
-
-  if (historyQuery.isError) {
-    return (
-      <div className="ask-history-popover" role="dialog">
-        <InlineMessage tone="error">Could not load Ask AI history.</InlineMessage>
-      </div>
-    );
-  }
-
-  if (history.length === 0) {
-    return <div className="ask-history-popover" role="dialog"><div className="inline-message">No Ask AI history for this filter.</div></div>;
-  }
-
   return (
-    <div className={`ask-history-popover ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`} role="dialog">
-      <div className="ask-history-popover-list">
-        {history.map((item) => (
-          <button className="ask-history-item" key={item.id} type="button" onClick={() => onSelect(item)}>
-            <span className="ask-history-question">{item.question}</span>
-            <span className="ask-history-project">{projectLabel(item.projectSlug, projects)}</span>
-            <span className="ask-history-answer">{item.answer}</span>
-          </button>
-        ))}
-      </div>
-      {historyQuery.data?.pagination ? (
-        <Pagination compact pagination={historyQuery.data.pagination} onPageChange={setPage} />
-      ) : null}
-    </div>
+    <Panel className="ask-ai-history-panel">
+      <h2>Question History</h2>
+
+      {historyQuery.isLoading ? (
+        <div className="inline-message">Loading history...</div>
+      ) : historyQuery.isError ? (
+        <InlineMessage tone="error">Could not load Ask AI history.</InlineMessage>
+      ) : history.length === 0 ? (
+        <EmptyState>No Ask AI history for this filter.</EmptyState>
+      ) : (
+        <>
+          <div className={`ask-history-list ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`}>
+            {history.map((item) => (
+              <button className="ask-history-item" key={item.id} type="button" onClick={() => onSelect(item)}>
+                <span className="ask-history-question">{item.question}</span>
+                <span className="ask-history-project">{projectLabel(item.projectSlug, projects)}</span>
+                <span className="ask-history-answer">{item.answer}</span>
+              </button>
+            ))}
+          </div>
+          {historyQuery.data?.pagination ? (
+            <Pagination compact pagination={historyQuery.data.pagination} onPageChange={setPage} />
+          ) : null}
+        </>
+      )}
+    </Panel>
   );
-}
-
-function queryMatchToNoteSummary(match: {
-  id: string;
-  path: string;
-  title: string;
-  type: string;
-  project: string;
-  workspace: string;
-  tags: string[];
-  date: string;
-  status: NoteStatus;
-  summary: string;
-  source: string;
-  attachmentCount?: number;
-}): NoteSummary {
-  return {
-    ...match,
-    attachmentCount: match.attachmentCount || 0,
-    folderId: null,
-  };
-}
-
-function dashboardNotesPage(
-  notes: NoteSummary[],
-  filters: { workspaceSlug: string; projectSlug: string; status: '' | 'open' | NoteStatus },
-) {
-  const filteredNotes = notes.filter((note) =>
-    (!filters.workspaceSlug || note.workspace === filters.workspaceSlug)
-    && (!filters.projectSlug || note.project === filters.projectSlug)
-    && (!filters.status || (
-      filters.status === 'open'
-        ? note.status !== 'resolved' && note.status !== 'archived'
-        : note.status === filters.status
-    )),
-  );
-
-  return {
-    ok: true as const,
-    notes: filteredNotes.slice(0, DEFAULT_PAGE_SIZE),
-    pagination: {
-      page: 1,
-      pageSize: DEFAULT_PAGE_SIZE,
-      total: filteredNotes.length,
-      totalPages: Math.max(1, Math.ceil(filteredNotes.length / DEFAULT_PAGE_SIZE)),
-      hasNext: filteredNotes.length > DEFAULT_PAGE_SIZE,
-      hasPrevious: false,
-    },
-  };
 }

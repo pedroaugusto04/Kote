@@ -663,25 +663,24 @@ describe('AppShell', () => {
     });
   });
 
-  it('shows only the search results list without the old answer panel', async () => {
+  it('shows the Ask AI page with project brief and no note list', async () => {
     stubLocalStorage();
     vi.stubGlobal('fetch', mockFetch());
 
-    renderWithAppProviders(<AppShell />, { route: '/search?q=deploy' });
+    renderWithAppProviders(<AppShell />, { route: '/search' });
 
-    expect(await screen.findByRole('heading', { name: 'Search' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Answer' })).not.toBeInTheDocument();
-    expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
-    expect(await screen.findByText('Deploy rollout')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ask AI' })).toBeInTheDocument();
+    expect(screen.getByText('Project brief')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Matching Notes' })).not.toBeInTheDocument();
   });
 
   it('switches to the projects menu when selecting a project from another section', async () => {
     stubLocalStorage();
     vi.stubGlobal('fetch', mockFetch());
 
-    renderWithAppProviders(<AppShell />, { route: '/search?q=deploy' });
+    renderWithAppProviders(<AppShell />, { route: '/search' });
 
-    expect(await screen.findByRole('heading', { name: 'Search' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Ask AI' })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /N8N Automations/ }));
 

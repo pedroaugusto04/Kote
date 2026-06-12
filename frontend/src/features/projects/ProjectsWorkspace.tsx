@@ -12,21 +12,28 @@ import {
   fetchProjectFolders,
   fetchProjectTimeline,
   generateProjectBrief,
+  runQuery,
 } from '../../shared/api/client';
 import type { ProjectBriefPanelResponse } from '../../shared/api/models/project-brief';
+import type { NoteSummary } from '../../shared/api/models/note';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
 import { getErrorMessage } from '../../shared/api/error-message';
 import type { ProjectTimelineCategory } from '../../shared/api/models/project-timeline';
 import { type NoteStatus } from '../../shared/api/models/note-status';
+import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { formatDisplayToken } from '../../shared/utils/format';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
-import { PageHead, Panel } from '../../shared/ui/primitives';
+import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
+import { Pagination } from '../../shared/ui/pagination';
+import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
+import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
 import { useGlobalLoading } from '../../app/global-loading';
+import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { ROOT_FOLDER_ID } from './projects.constants';
 import { ProjectFolderModal } from './modals/ProjectFolderModal';
 import { ProjectNoteModal } from './modals/ProjectNoteModal';
@@ -36,7 +43,9 @@ import { flattenFolders } from './projects.helpers';
 import type { ConfirmState, FolderModalState, NoteModalState, ProjectModalState } from './projects.types';
 import { ProjectTimeline } from './ProjectTimeline';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
-import { useMediaQuery } from '../../shared/ui/use-media-query';
+import { NoteRow } from '../../widgets/notes/NoteRow';
+
+const SEARCH_DEBOUNCE_MS = 350;
 
 const statusOptions: Array<{ value: '' | 'open' | NoteStatus; label: string }> = [
   { value: 'open', label: 'Open' },
@@ -70,6 +79,11 @@ export function ProjectsWorkspace({
   const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
 
+  // Search state
+  const [searchInput, setSearchInput] = useState('');
+  const debouncedSearchInput = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
+  const hasSearchQuery = Boolean(debouncedSearchInput.trim());
+
   const handleOpenNote = (id: string) => {
     if (isMobile || sideNoteId === id) {
       openNote(id);
@@ -84,10 +98,16 @@ export function ProjectsWorkspace({
     ? dashboard.projects.find((project) => project.projectSlug === selectedSlug) || dashboard.projects[0]
     : undefined;
   const isAllProjectsSelected = !selectedSlug;
+  const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
 
   useEffect(() => {
     setSelectedFolderId(ROOT_FOLDER_ID);
   }, [selected?.projectSlug]);
+
+  // Clear search when switching projects
+  useEffect(() => {
+    setSearchInput('');
+  }, [selectedSlug]);
 
   const foldersQuery = useQuery({
     queryKey: ['project-folders', selected?.projectSlug || ''],
@@ -106,7 +126,7 @@ export function ProjectsWorkspace({
       category: timelineCategory,
       status: timelineStatus,
     }),
-    enabled: isAllProjectsSelected,
+    enabled: isAllProjectsSelected && !hasSearchQuery,
     staleTime: timelineCategory === 'all' ? 30_000 : 0,
     placeholderData: keepPreviousData,
   });
@@ -118,10 +138,50 @@ export function ProjectsWorkspace({
       folderId: selectedFolderId || undefined,
       status: timelineStatus,
     }),
-    enabled: Boolean(selected?.projectSlug),
+    enabled: Boolean(selected?.projectSlug) && !hasSearchQuery,
     staleTime: timelineCategory === 'all' ? 30_000 : 0,
     placeholderData: keepPreviousData,
   });
+
+  // Search query — scoped to the selected project
+  const searchPaginationKey = `search:${debouncedSearchInput}:${selectedSlug}:${timelineStatus}`;
+  const { page: searchPage, setPage: setSearchPage } = usePaginationState(searchPaginationKey);
+  const searchQuery = useQuery({
+    queryKey: ['projects-search', debouncedSearchInput, selectedSlug, workspaceSlug, timelineStatus, searchPage],
+    queryFn: () => runQuery({
+      query: debouncedSearchInput,
+      projectSlug: selectedSlug || '',
+      workspaceSlug,
+      status: timelineStatus,
+      limit: 10,
+      page: searchPage,
+      pageSize: DEFAULT_PAGE_SIZE,
+    }),
+    enabled: hasSearchQuery,
+    placeholderData: keepPreviousData,
+  });
+
+  const searchResults: NoteSummary[] = useMemo(() => {
+    if (!searchQuery.data?.matches) return [];
+    return searchQuery.data.matches.map((match) => ({
+      ...match,
+      attachmentCount: match.attachmentCount || 0,
+      folderId: null,
+    }));
+  }, [searchQuery.data?.matches]);
+
+  const searchPagination = searchQuery.data?.pagination;
+  const {
+    isMobilePagination: isSearchMobilePagination,
+    loadedMobilePage: searchLoadedMobilePage,
+    visibleItems: paginatedSearchResults,
+  } = useMobilePaginatedItems({
+    items: searchResults,
+    pagination: searchPagination,
+    resetKey: searchPaginationKey,
+    isPlaceholderData: searchQuery.isPlaceholderData,
+  });
+
   const briefQueryKey = ['project-brief', selected?.projectSlug || ''];
   const latestBriefQuery = useQuery<ProjectBriefPanelResponse>({
     queryKey: briefQueryKey,
@@ -134,7 +194,6 @@ export function ProjectsWorkspace({
     : dashboardNotes.some((note) => note.project === selected?.projectSlug)
       ? 'Delete or move the project notes before removing it.'
       : '';
-  const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug;
   const { data: integrationsResponse } = useQuery({
     queryKey: ['integrations', workspaceSlug],
     queryFn: () => fetchIntegrations(workspaceSlug || ''),
@@ -242,9 +301,59 @@ export function ProjectsWorkspace({
         subtitle=""
         action={<button className="icon-button" type="button" onClick={() => setProjectModal({ mode: 'create' })}>New project</button>}
       />
+
+      {/* Search input for filtering notes within the selected project */}
+      <section className="projects-search-box">
+        <input
+          aria-label="Search notes in project"
+          autoComplete="off"
+          enterKeyHint="search"
+          inputMode="search"
+          spellCheck={false}
+          type="text"
+          value={searchInput}
+          onChange={(event) => setSearchInput(event.target.value)}
+          placeholder={selected ? `Search in ${selected.displayName}...` : 'Search across all projects...'}
+        />
+      </section>
+
       <div className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}>
         <div style={{ minWidth: 0 }}>
-          {isAllProjectsSelected ? (
+          {hasSearchQuery ? (
+            /* Search results mode */
+            <Panel className="matching-notes-panel" style={{ minWidth: 0 }}>
+              <div className="matching-notes-heading">
+                <div>
+                  <h2>Search Results</h2>
+                  <span className="matching-notes-count">
+                    {searchPagination ? `${searchPagination.total} total` : ''}
+                    {selected ? ` in ${selected.displayName}` : ' across all projects'}
+                  </span>
+                </div>
+              </div>
+              {searchQuery.isError ? <InlineMessage tone="error">Could not load notes for this search.</InlineMessage> : null}
+              <div className={`list ${searchQuery.isPlaceholderData ? 'stale-data' : ''}`}>
+                {paginatedSearchResults.map((note) => (
+                  <NoteRow
+                    key={note.id}
+                    note={note}
+                    dashboard={dashboard}
+                    onDelete={() => setConfirmState({ kind: 'note', note })}
+                    onEdit={() => loadNoteMutation.mutate(note.id)}
+                    onOpen={handleOpenNote}
+                    onDoubleClick={openNote}
+                    onPinSuccess={() => setSearchPage(1)}
+                  />
+                ))}
+              </div>
+              {searchPagination ? (
+                isSearchMobilePagination
+                  ? <MobileInfinitePagination pagination={searchPagination} isLoading={searchQuery.isFetching || searchPagination.page > searchLoadedMobilePage} onPageChange={setSearchPage} />
+                  : <Pagination pagination={searchPagination} onPageChange={setSearchPage} />
+              ) : null}
+              {!paginatedSearchResults.length && !searchQuery.isError ? <EmptyState>No notes found for this search.</EmptyState> : null}
+            </Panel>
+          ) : isAllProjectsSelected ? (
             <Panel>
               <div className="page-head">
                 <div>

@@ -1,61 +1,77 @@
-.unified-search-box {
-  margin-bottom: 14px;
-  position: relative;
+/* ─── Ask AI Input Section ─── */
+.ask-ai-input-section {
+  margin-bottom: 18px;
 }
 
-.ai-answer-card-panel,
-.matching-notes-panel {
-  margin-bottom: 14px;
-}
-
-.search-input-row {
+.ask-ai-input-row {
   display: flex;
   align-items: stretch;
   gap: 10px;
+  margin-bottom: 10px;
 }
 
-.search-input-row input {
+.ask-ai-input-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+  align-self: center;
+  color: var(--muted);
+}
+
+.ask-ai-input-row input {
   flex: 1;
   min-width: 0;
 }
 
-.search-actions {
-  display: flex;
-  align-items: stretch;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.search-actions .icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
+.ask-ai-send-btn {
   min-height: 48px;
   white-space: nowrap;
 }
 
-.history-popover-anchor {
-  position: relative;
+.ask-ai-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.ask-history-popover {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 30;
-  width: min(420px, calc(100vw - 32px));
-  padding: 12px;
-  border: 1px solid var(--line-soft);
-  border-radius: 8px;
-  background: var(--surface-1);
-  box-shadow: var(--shadow-strong);
+.ask-ai-filter {
+  min-width: 160px;
 }
 
-.ask-history-popover-list {
+.ask-ai-history-toggle.active {
+  background: var(--surface-hover-strong);
+  border-color: var(--accent-border);
+}
+
+/* ─── AI Answer Panel ─── */
+.ai-answer-card-panel {
+  margin-bottom: 18px;
+}
+
+.ai-answer-action-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+.ask-error-message {
+  margin-bottom: 18px;
+}
+
+/* ─── Ask History Inline Panel ─── */
+.ask-ai-history-panel {
+  margin-bottom: 18px;
+}
+
+.ask-ai-history-panel h2 {
+  margin-bottom: 14px;
+}
+
+.ask-history-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-bottom: 14px;
 }
 
 .ask-history-item {
@@ -63,12 +79,13 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 4px 10px;
   width: 100%;
-  padding: 10px;
+  padding: 12px 14px;
   border: 1px solid var(--line-soft);
-  border-radius: 7px;
+  border-radius: 8px;
   background: var(--surface-2);
   color: var(--text);
   text-align: left;
+  transition: border-color 140ms ease, background 140ms ease;
 }
 
 .ask-history-item:hover {
@@ -103,22 +120,23 @@
   -webkit-line-clamp: 2;
 }
 
-.ai-answer-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-bottom: 10px;
+/* ─── Brief Panel inside Ask AI ─── */
+.ask-ai-brief-panel {
+  margin-bottom: 18px;
 }
 
-.show-last-answer-row,
-.ask-error-message {
+/* ─── Projects Search Box ─── */
+.projects-search-box {
   margin-bottom: 14px;
 }
 
-.show-last-answer-row {
-  display: flex;
-  justify-content: flex-start;
+.projects-search-box input {
+  width: 100%;
+}
+
+/* ─── Matching Notes (shared with Projects search results) ─── */
+.matching-notes-panel {
+  margin-bottom: 14px;
 }
 
 .matching-notes-heading {
@@ -133,14 +151,7 @@
   margin-bottom: 4px;
 }
 
-.ai-answer-action-icon {
-  width: 15px;
-  height: 15px;
-  flex: 0 0 auto;
-}
-
-.matching-notes-count,
-.ask-source-count {
+.matching-notes-count {
   color: var(--faint);
   font-family: var(--mono);
   font-size: 11px;
@@ -148,13 +159,13 @@
   letter-spacing: 0;
 }
 
-/* Compact pagination overrides inside Ask History Popover */
-.ask-history-popover .pagination-bar {
+/* ─── Compact Pagination overrides inside Ask History Panel ─── */
+.ask-ai-history-panel .pagination-bar {
   position: static !important;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
-  margin: 10px 0 0 0 !important;
+  margin: 0 !important;
   padding: 8px 0 0 0 !important;
   border-top: 1px solid var(--line-soft) !important;
   border-radius: 0 !important;
@@ -165,7 +176,7 @@
   justify-content: space-between !important;
 }
 
-.ask-history-popover .pagination-summary {
+.ask-ai-history-panel .pagination-summary {
   font-size: 11px !important;
   padding: 2px 6px !important;
   min-height: auto !important;
@@ -174,23 +185,12 @@
   border: 1px solid var(--line-soft) !important;
 }
 
-.ask-history-popover .pagination-controls {
+.ask-ai-history-panel .pagination-controls {
   gap: 4px !important;
 }
 
-.ask-history-popover .pagination-button {
-  min-width: 24px !important;
-  min-height: 24px !important;
-  height: 24px !important;
-  padding: 0 6px !important;
-  font-size: 14px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 5px !important;
-}
-
-.ask-history-popover .pagination-number {
+.ask-ai-history-panel .pagination-button,
+.ask-ai-history-panel .pagination-number {
   min-width: 24px !important;
   min-height: 24px !important;
   height: 24px !important;
@@ -203,26 +203,18 @@
 }
 
 @media (max-width: 720px) {
-  .search-input-row {
+  .ask-ai-input-row {
     flex-direction: column;
   }
 
-  .search-actions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  .ask-ai-filters {
+    flex-direction: column;
+    align-items: stretch;
   }
 
-  .search-actions .icon-button {
-    width: 100%;
-  }
-
-  .history-popover-anchor {
+  .ask-ai-filter {
     min-width: 0;
-  }
-
-  .ask-history-popover {
-    left: auto;
-    right: 0;
+    width: 100%;
   }
 
   .matching-notes-heading {
