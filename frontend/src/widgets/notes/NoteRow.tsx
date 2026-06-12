@@ -73,52 +73,56 @@ export function NoteRow({
         <h3>{note.title}</h3>
         <p>{getCleanSummary(note.summary)}</p>
       </div>
-      <div className="row-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', alignSelf: 'stretch', justifyContent: 'space-between' }}>
-        <button
-          aria-label={note.isPinned ? `Unpin note ${note.title}` : `Pin note ${note.title}`}
-          className={`row-action-button pin ${note.isPinned ? 'active' : ''}`}
-          title={note.isPinned ? 'Unpin' : 'Pin'}
-          type="button"
-          disabled={mutation.isPending}
-          onClick={(event) => {
-            event.stopPropagation();
-            mutation.mutate();
-          }}
-        >
-          <PinIcon active={note.isPinned} />
-        </button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: 'auto' }}>
-          <QuickNoteStatusActions note={note} compact />
-          {onEdit ? (
-            <button
-              aria-label={`Edit note ${note.title}`}
-              className="row-action-button edit"
-              title="Edit"
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onEdit(note);
-              }}
-            >
-              <PencilIcon />
-            </button>
-          ) : null}
-          {onDelete ? (
-            <button
-              aria-label={`Delete note ${note.title}`}
-              className="row-action-button danger"
-              title="Delete"
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onDelete(note);
-              }}
-            >
-              <TrashIcon />
-            </button>
-          ) : null}
-          <span className="file-icon" style={{ marginLeft: '4px', textAlign: 'center' }}>{typeIcon(note.type)}</span>
-        </div>
+      <button
+        aria-label={note.isPinned ? `Unpin note ${note.title}` : `Pin note ${note.title}`}
+        className={`row-action-button pin ${note.isPinned ? 'active' : ''}`}
+        title={note.isPinned ? 'Unpin' : 'Pin'}
+        type="button"
+        disabled={mutation.isPending}
+        onClick={(event) => {
+          event.stopPropagation();
+          mutation.mutate();
+        }}
+        style={{
+          position: 'absolute',
+          top: '14px',
+          right: '14px',
+          zIndex: 2,
+        }}
+      >
+        <PinIcon active={note.isPinned} />
+      </button>
+      <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginTop: 'auto' }}>
+        <QuickNoteStatusActions note={note} compact />
+        {onEdit ? (
+          <button
+            aria-label={`Edit note ${note.title}`}
+            className="row-action-button edit"
+            title="Edit"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(note);
+            }}
+          >
+            <PencilIcon />
+          </button>
+        ) : null}
+        {onDelete ? (
+          <button
+            aria-label={`Delete note ${note.title}`}
+            className="row-action-button danger"
+            title="Delete"
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(note);
+            }}
+          >
+            <TrashIcon />
+          </button>
+        ) : null}
+        <span className="file-icon" style={{ marginLeft: '4px', textAlign: 'center' }}>{typeIcon(note.type)}</span>
       </div>
     </article>
   );

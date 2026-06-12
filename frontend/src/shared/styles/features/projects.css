@@ -822,16 +822,16 @@
 }
 
 .projects-search-box input {
-  padding-left: 38px !important;
+  padding-left: 46px !important;
 }
 
 .projects-search-icon {
   position: absolute;
-  left: 14px;
+  left: 16px;
   top: 50%;
   transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   color: var(--muted);
   pointer-events: none;
 }

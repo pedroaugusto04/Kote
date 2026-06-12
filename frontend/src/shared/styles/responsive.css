@@ -401,101 +401,70 @@
   
   .auth-panel { padding: 22px; }
 
-  .list-row {
-    display: grid !important;
-    grid-template-columns: minmax(0, 1fr) auto !important;
-    flex-direction: row !important;
+  .list-row,
+  .project-timeline-card {
+    display: flex !important;
+    flex-direction: column !important;
     align-items: stretch !important;
-    max-height: 120px;
-    height: 120px;
-    overflow: hidden;
-    padding: 10px 12px;
-    gap: 12px;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 12px 14px !important;
+    gap: 10px !important;
+    position: relative !important;
   }
 
   .list-row:hover {
     transform: none;
   }
 
-  .list-row-body {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-    min-width: 0;
-    gap: 4px;
-  }
-
-  .list-row-body h3 {
-    font-size: 13.5px;
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.3;
-  }
-
-  .list-row-body p {
-    font-size: 11.5px;
-    line-height: 1.35;
-    margin: 0;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: var(--muted);
-  }
-
-  .list-row-body .meta-row {
-    font-size: 11px;
-    gap: 5px;
-    flex-wrap: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .project-timeline-card {
-    max-height: 120px !important;
-    height: 120px !important;
-    overflow: hidden !important;
-    padding: 10px 12px !important;
+  .list-row-body,
+  .project-timeline-body {
     display: flex !important;
     flex-direction: column !important;
-    justify-content: space-between !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    gap: 6px !important;
   }
 
+  .list-row-body h3,
   .project-timeline-card h3 {
-    font-size: 13.5px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
     margin: 0 !important;
-    line-height: 1.3 !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .project-timeline-card p {
-    font-size: 11.5px !important;
     line-height: 1.35 !important;
-    margin: 0 !important;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    color: var(--muted) !important;
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    padding-right: 36px !important; /* Leave space for absolute pin button */
   }
 
+  .list-row-body p,
+  .project-timeline-card p {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    display: -webkit-box !important;
+    -webkit-line-clamp: 3 !important;
+    -webkit-box-orient: vertical !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis;
+    color: var(--text-soft) !important;
+  }
+
+  .list-row-body .meta-row,
   .project-timeline-meta {
     font-size: 11px !important;
-    gap: 5px !important;
-    flex-wrap: nowrap !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    gap: 6px 8px !important;
+    display: flex !important;
+    flex-wrap: wrap !important; /* Wrap badges and attachments naturally */
+    overflow: visible !important;
+    text-overflow: clip !important;
+    width: 100% !important;
+    padding-right: 36px !important; /* Leave space for pin button */
   }
 
-  /* Mobile card optimization: hide secondary metadata & layout actions */
-  .project-timeline-meta .badge:nth-child(1),
+  /* Display all metadata tags and attachment badges properly on mobile */
   .list-row-body .meta-row .pinned-badge,
   .list-row-body .meta-row .meta-project,
   .list-row-body .meta-row .meta-separator,
@@ -503,37 +472,39 @@
   .project-timeline-meta .meta-project,
   .project-timeline-meta .meta-source,
   .list-row .quick-note-status-actions,
-  .project-timeline-card .quick-note-status-actions,
-  .list-row > .row-actions > .file-icon,
-  .list-row > .row-actions > div > .file-icon {
-    display: none !important;
+  .project-timeline-card .quick-note-status-actions {
+    display: inline-flex !important;
   }
 
-  .list-row > .row-actions {
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    align-self: stretch !important;
-    margin-top: 0 !important;
-  }
-
-  .list-row > .row-actions > div {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    margin-top: 0 !important;
-    align-items: center !important;
-  }
-
+  /* Align row action buttons (Edit, Delete) in a neat row at the bottom right */
+  .list-row > .row-actions,
   .project-timeline-body .row-actions {
     display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
+    flex-direction: row !important;
     align-items: center !important;
+    justify-content: flex-end !important;
     gap: 8px !important;
-    align-self: center !important;
+    align-self: flex-end !important;
+    margin-top: 6px !important;
+    width: auto !important;
+    min-height: auto !important;
+  }
+
+  .list-row > .row-actions > div,
+  .project-timeline-body .row-actions > div {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 8px !important;
     margin-top: 0 !important;
+    align-items: center !important;
+  }
+
+  .list-row > .row-actions .row-action-button.pin,
+  .project-timeline-card .row-action-button.pin {
+    position: absolute !important;
+    top: 10px !important;
+    right: 10px !important;
+    margin: 0 !important;
   }
 }
 
