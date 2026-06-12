@@ -115,7 +115,8 @@
   max-height: 280px;
   margin: 0;
   padding: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   list-style: none;
 }
 
@@ -159,7 +160,7 @@
 .page-head-select {
   width: auto;
   min-width: 180px;
-  max-width: 320px;
+  max-width: 520px;
 }
 
 .page-head-select.status-select {
