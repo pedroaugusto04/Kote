@@ -107,57 +107,109 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
       <div className="kanban-board" aria-busy={boardQuery.isFetching || statusMutation.isPending}>
         {kanbanBoardColumns.map((column) => {
           const data = board?.[column.key] || DEFAULT_COLUMN_DATA;
-          const {
-            loadedPage,
-            visibleItems,
-          } = useKanbanColumnPaginatedItems({
-            items: data.items,
-            pagination: data,
-            resetKey: `${workspaceSlug}:${projectSlug}:${column.key}`,
-            isPlaceholderData: boardQuery.isPlaceholderData,
-          });
           return (
-            <section
-              aria-label={column.title}
-              aria-disabled={!column.targetStatus}
-              className={`kanban-column${column.targetStatus ? '' : ' kanban-column-blocked-drop'}`}
+            <KanbanColumn
+              column={column}
+              data={data}
+              draggedId={draggedId}
+              isFetching={boardQuery.isFetching}
+              isPlaceholderData={boardQuery.isPlaceholderData}
               key={column.key}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                handleDrop(column.key);
-              }}
-            >
-              <header className="kanban-column-header">
-                <h2>{column.title}</h2>
-                <span>{data.total}</span>
-              </header>
-              <div className="kanban-column-list">
-                {visibleItems.map((card: ReminderBoardCard) => (
-                  <KanbanCard
-                    card={card}
-                    disabled={statusMutation.isPending}
-                    isDragging={card.id === draggedId}
-                    key={card.id}
-                    onDragStart={setDraggedId}
-                    onDragEnd={() => setDraggedId('')}
-                    onOpen={openNote}
-                    projectLabel={projectName(dashboard.projects, card.project)}
-                  />
-                ))}
-                {visibleItems.length === 0 ? <p className="kanban-empty">{column.empty}</p> : null}
-                <KanbanColumnInfinitePagination
-                  columnKey={column.key}
-                  pagination={data}
-                  isLoading={boardQuery.isFetching || data.page > loadedPage}
-                  onPageChange={handleColumnPageChange}
-                />
-              </div>
-            </section>
+              projects={dashboard.projects}
+              statusMutationPending={statusMutation.isPending}
+              projectSlug={projectSlug}
+              workspaceSlug={workspaceSlug}
+              handleColumnPageChange={handleColumnPageChange}
+              handleDrop={handleDrop}
+              openNote={openNote}
+              setDraggedId={setDraggedId}
+            />
           );
         })}
       </div>
     </>
+  );
+}
+
+interface KanbanColumnProps {
+  column: typeof kanbanBoardColumns[number];
+  data: typeof DEFAULT_COLUMN_DATA;
+  workspaceSlug: string;
+  projectSlug: string;
+  isPlaceholderData: boolean;
+  isFetching: boolean;
+  draggedId: string;
+  setDraggedId: (id: string) => void;
+  statusMutationPending: boolean;
+  handleDrop: (columnKey: ReminderBoardColumnKey) => void;
+  handleColumnPageChange: (columnKey: ReminderBoardColumnKey, page: number) => void;
+  openNote: (id: string) => void;
+  projects: any[];
+}
+
+function KanbanColumn({
+  column,
+  data,
+  workspaceSlug,
+  projectSlug,
+  isPlaceholderData,
+  isFetching,
+  draggedId,
+  setDraggedId,
+  statusMutationPending,
+  handleDrop,
+  handleColumnPageChange,
+  openNote,
+  projects,
+}: KanbanColumnProps) {
+  const {
+    loadedPage,
+    visibleItems,
+  } = useKanbanColumnPaginatedItems({
+    items: data.items,
+    pagination: data,
+    resetKey: `${workspaceSlug}:${projectSlug}:${column.key}`,
+    isPlaceholderData,
+  });
+
+  return (
+    <section
+      aria-label={column.title}
+      aria-disabled={!column.targetStatus}
+      className={`kanban-column${column.targetStatus ? '' : ' kanban-column-blocked-drop'}`}
+      key={column.key}
+      onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => {
+        event.preventDefault();
+        handleDrop(column.key);
+      }}
+    >
+      <header className="kanban-column-header">
+        <h2>{column.title}</h2>
+        <span>{data.total}</span>
+      </header>
+      <div className="kanban-column-list">
+        {visibleItems.map((card: ReminderBoardCard) => (
+          <KanbanCard
+            card={card}
+            disabled={statusMutationPending}
+            isDragging={card.id === draggedId}
+            key={card.id}
+            onDragStart={setDraggedId}
+            onDragEnd={() => setDraggedId('')}
+            onOpen={openNote}
+            projectLabel={projectName(projects, card.project)}
+          />
+        ))}
+        {visibleItems.length === 0 ? <p className="kanban-empty">{column.empty}</p> : null}
+        <KanbanColumnInfinitePagination
+          columnKey={column.key}
+          pagination={data}
+          isLoading={isFetching || data.page > loadedPage}
+          onPageChange={handleColumnPageChange}
+        />
+      </div>
+    </section>
   );
 }
 
