@@ -15,7 +15,12 @@
     "test:api": "node scripts/run-api-tests.mjs",
     "test:cli": "node scripts/run-cli-tests.mjs",
     "test:frontend": "vitest run --config frontend/vite.config.ts",
-    "test": "npm run test:api && npm run test:cli && npm run test:frontend",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:integration": "vitest run --config frontend/vite.config.ts frontend/test/integration",
+    "test": "npm run test:api && npm run test:cli && npm run test:frontend && npm run test:integration",
     "cli": "npm run build:cli && node cli/dist/index.js"
   },
   "dependencies": {
@@ -49,6 +54,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@types/amqplib": "^0.10.8",

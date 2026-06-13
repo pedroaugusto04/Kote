@@ -72,6 +72,61 @@ A aplicação estará disponível em:
 
 ---
 
+## Testes
+
+### Testes Unitários e de Integração
+O projeto possui testes para API, CLI e frontend:
+
+```bash
+# Rodar todos os testes (rápido, sem navegador real)
+npm test
+
+# Rodar apenas testes da API
+npm run test:api
+
+# Rodar apenas testes do CLI
+npm run test:cli
+
+# Rodar apenas testes do frontend
+npm run test:frontend
+
+# Rodar apenas testes de integração (rápido, sem navegador real)
+npm run test:integration
+```
+
+### Testes E2E (End-to-End)
+Testes E2E são executados usando Playwright e cobrem fluxos críticos da aplicação. Estes testes são mais lentos pois usam navegador real:
+
+```bash
+# Instalar navegadores do Playwright (primeira vez apenas)
+npx playwright install
+
+# Rodar testes E2E em modo headless (apenas Chromium)
+npm run test:e2e
+
+# Rodar testes E2E com interface visual
+npm run test:e2e:ui
+
+# Rodar testes E2e em modo debug
+npm run test:e2e:debug
+
+# Rodar testes E2E com navegador visível
+npm run test:e2e:headed
+```
+
+**Estratégia de Testes:**
+- **Testes de Integração (Vitest):** Rápidos, executam sem navegador real, cobrem a maioria das funcionalidades
+- **Testes E2E (Playwright):** Mais lentos, usam navegador real (Chromium), para fluxos críticos e validação cross-browser
+
+**Funcionalidades cobertas pelos testes:**
+- Dashboard Operacional: navegação e elementos principais
+- Busca Contextual: funcionalidade de busca e filtros
+- Ask AI: interface de chat com IA
+- Projetos e Notas: gerenciamento de projetos e vault
+- Integrações: configuração de integrações (WhatsApp, Telegram, GitHub)
+
+---
+
 ## Capturas de Tela
 
 <p align="center">
