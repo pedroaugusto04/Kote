@@ -23,4 +23,4 @@ export type ProjectTimelineItem = {
   path: string;
   attachmentCount: number;
   isPinned?: boolean;
-};
+}; 
