@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import type { AuthenticatedUser } from '../../../../application/auth.js';
@@ -26,6 +27,7 @@ import {
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
+@ApiTags('Notes')
 @Controller('api/notes')
 @UseGuards(AccessTokenAuthGuard)
 export class NotesController {
@@ -40,6 +42,10 @@ export class NotesController {
 
   @Post()
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a manual note' })
+  @ApiResponse({ status: 201, description: 'Note created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
   create(
     @Body(new ZodValidationPipe(createNoteBodySchema, 'invalid_create_note_payload')) body: CreateNoteBody,
     @CurrentUser() user: AuthenticatedUser,
@@ -49,6 +55,11 @@ export class NotesController {
 
   @Patch(':id')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a note' })
+  @ApiParam({ name: 'id', description: 'Note ID' })
+  @ApiResponse({ status: 200, description: 'Note updated successfully' })
+  @ApiResponse({ status: 404, description: 'Note not found' })
   update(
     @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
     @Body(new ZodValidationPipe(updateNoteBodySchema, 'invalid_update_note_payload')) body: UpdateNoteBody,
@@ -59,6 +70,11 @@ export class NotesController {
 
   @Delete(':id')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a note' })
+  @ApiParam({ name: 'id', description: 'Note ID' })
+  @ApiResponse({ status: 200, description: 'Note deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Note not found' })
   remove(
     @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
     @CurrentUser() user: AuthenticatedUser,
@@ -67,6 +83,12 @@ export class NotesController {
   }
 
   @Get(':noteId/attachments/:attachmentId/content')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get note attachment content' })
+  @ApiParam({ name: 'noteId', description: 'Note ID' })
+  @ApiParam({ name: 'attachmentId', description: 'Attachment ID' })
+  @ApiResponse({ status: 200, description: 'Attachment content retrieved' })
+  @ApiResponse({ status: 404, description: 'Attachment not found' })
   async attachmentContent(
     @Param(new ZodValidationPipe(noteAttachmentContentParamSchema, 'invalid_note_attachment_id')) params: NoteAttachmentContentParam,
     @CurrentUser() user: AuthenticatedUser,
@@ -83,6 +105,10 @@ export class NotesController {
 
   @Patch(':id/pin')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Pin or unpin a note' })
+  @ApiParam({ name: 'id', description: 'Note ID' })
+  @ApiResponse({ status: 200, description: 'Note pin status updated' })
   pin(
     @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
     @Body(new ZodValidationPipe(pinNoteBodySchema, 'invalid_pin_note_payload')) body: PinNoteBody,
@@ -92,6 +118,10 @@ export class NotesController {
   }
 
   @Get(':id/related')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Find related notes' })
+  @ApiParam({ name: 'id', description: 'Note ID' })
+  @ApiResponse({ status: 200, description: 'Related notes retrieved' })
   related(
     @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
     @CurrentUser() user: AuthenticatedUser,

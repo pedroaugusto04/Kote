@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { IntegrationConnectionService } from '../../../../application/integration-connections.js';
@@ -21,6 +22,7 @@ import {
 } from '../../dto/integration-credentials.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
+@ApiTags('Integrations')
 @Controller('api/integrations')
 @UseGuards(AccessTokenAuthGuard)
 export class UserIntegrationsController {
@@ -30,6 +32,9 @@ export class UserIntegrationsController {
   ) {}
 
   @Get()
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List user integrations' })
+  @ApiResponse({ status: 200, description: 'Integrations retrieved successfully' })
   async list(
     @CurrentUser() currentUser: AuthenticatedUser,
     @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
@@ -39,6 +44,10 @@ export class UserIntegrationsController {
 
   @Post(':provider/connect')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Connect to an integration provider' })
+  @ApiParam({ name: 'provider', description: 'Integration provider' })
+  @ApiResponse({ status: 200, description: 'Connection initiated successfully' })
   async connect(
     @Param(new ZodValidationPipe(guidedProviderParamSchema, 'provider_not_supported')) params: GuidedProviderParam,
     @Body(new ZodValidationPipe(connectIntegrationBodySchema, 'invalid_integration_connection_payload')) body: ConnectIntegrationBody,
@@ -56,6 +65,10 @@ export class UserIntegrationsController {
 
   @Post(':provider/test')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Test an integration connection' })
+  @ApiParam({ name: 'provider', description: 'Integration provider' })
+  @ApiResponse({ status: 200, description: 'Connection test successful' })
   async test(
     @Param(new ZodValidationPipe(aiProviderParamSchema, 'provider_not_supported')) params: AiProviderParam,
     @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
@@ -65,6 +78,9 @@ export class UserIntegrationsController {
   }
 
   @Get('github-app/repositories')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List GitHub App repositories' })
+  @ApiResponse({ status: 200, description: 'Repositories retrieved successfully' })
   async listGithubRepositories(
     @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -74,6 +90,9 @@ export class UserIntegrationsController {
 
   @Post('github-app/repositories')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save GitHub App repositories' })
+  @ApiResponse({ status: 200, description: 'Repositories saved successfully' })
   async saveGithubRepositories(
     @Body(new ZodValidationPipe(githubRepositoriesBodySchema, 'invalid_github_repositories_payload')) body: GithubRepositoriesBody,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -82,6 +101,11 @@ export class UserIntegrationsController {
   }
 
   @Get(':provider/sessions/:sessionId')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get integration session status' })
+  @ApiParam({ name: 'provider', description: 'Integration provider' })
+  @ApiParam({ name: 'sessionId', description: 'Session ID' })
+  @ApiResponse({ status: 200, description: 'Session retrieved successfully' })
   async session(
     @Param(new ZodValidationPipe(sessionParamSchema, 'connection_session_not_found')) params: SessionParam,
     @CurrentUser() currentUser: AuthenticatedUser,
@@ -91,6 +115,10 @@ export class UserIntegrationsController {
 
   @Delete(':provider')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke integration connection' })
+  @ApiParam({ name: 'provider', description: 'Integration provider' })
+  @ApiResponse({ status: 200, description: 'Connection revoked successfully' })
   async revoke(
     @Param(new ZodValidationPipe(guidedProviderParamSchema, 'provider_not_supported')) params: GuidedProviderParam,
     @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,

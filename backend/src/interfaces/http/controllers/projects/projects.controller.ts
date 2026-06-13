@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import {
@@ -39,6 +40,7 @@ import {
 } from '../../dto/project.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
+@ApiTags('Projects')
 @Controller('api/projects')
 @UseGuards(AccessTokenAuthGuard)
 export class ProjectsController {
@@ -59,6 +61,10 @@ export class ProjectsController {
 
   @Post()
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new project' })
+  @ApiResponse({ status: 201, description: 'Project created successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request body' })
   create(
     @Body(new ZodValidationPipe(createProjectBodySchema, 'invalid_create_project_payload')) body: CreateProjectBody,
     @CurrentUser() user: AuthenticatedUser,
@@ -68,6 +74,11 @@ export class ProjectsController {
 
   @Patch(':projectSlug')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a project' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Project updated successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
   update(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @Body(new ZodValidationPipe(updateProjectBodySchema, 'invalid_update_project_payload')) body: UpdateProjectBody,
@@ -78,6 +89,11 @@ export class ProjectsController {
 
   @Delete(':projectSlug')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a project' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Project deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
   remove(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @CurrentUser() user: AuthenticatedUser,
@@ -87,6 +103,10 @@ export class ProjectsController {
 
   @Patch(':projectSlug/favorite')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Set project favorite status' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Favorite status updated' })
   setFavorite(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @Body(new ZodValidationPipe(setProjectFavoriteBodySchema, 'invalid_set_favorite_payload')) body: SetProjectFavoriteBody,
@@ -96,6 +116,9 @@ export class ProjectsController {
   }
 
   @Get('timeline')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get timeline for all projects' })
+  @ApiResponse({ status: 200, description: 'Timeline retrieved successfully' })
   async allProjectsTimeline(
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
@@ -105,6 +128,11 @@ export class ProjectsController {
   }
 
   @Get(':projectSlug/timeline')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get timeline for a specific project' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Timeline retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
   async timeline(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
@@ -115,6 +143,11 @@ export class ProjectsController {
   }
 
   @Get(':projectSlug/knowledge-map')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get knowledge map for a project' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Knowledge map retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Project not found' })
   async knowledgeMap(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @Query(new ZodValidationPipe(projectKnowledgeMapQuerySchema, 'invalid_project_knowledge_map_query')) query: ProjectKnowledgeMapQuery,
@@ -125,6 +158,10 @@ export class ProjectsController {
 
   @Post(':projectSlug/brief')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate project brief' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Brief generated successfully' })
   generateBrief(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @CurrentUser() user: AuthenticatedUser,
@@ -133,6 +170,11 @@ export class ProjectsController {
   }
 
   @Get(':projectSlug/brief')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get project brief' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Brief retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Brief not found' })
   getBrief(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @CurrentUser() user: AuthenticatedUser,
@@ -141,6 +183,10 @@ export class ProjectsController {
   }
 
   @Get(':projectSlug/folders')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List project folders' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Folders retrieved successfully' })
   listFolders(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @CurrentUser() user: AuthenticatedUser,
@@ -150,6 +196,10 @@ export class ProjectsController {
 
   @Post(':projectSlug/folders')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a project folder' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 201, description: 'Folder created successfully' })
   createFolder(
     @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
     @Body(new ZodValidationPipe(createProjectFolderBodySchema, 'invalid_create_folder_payload')) body: CreateProjectFolderBody,
@@ -160,6 +210,12 @@ export class ProjectsController {
 
   @Patch(':projectSlug/folders/:folderId')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a project folder' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiParam({ name: 'folderId', description: 'Folder ID' })
+  @ApiResponse({ status: 200, description: 'Folder updated successfully' })
+  @ApiResponse({ status: 404, description: 'Folder not found' })
   updateFolder(
     @Param(new ZodValidationPipe(projectFolderIdParamSchema, 'invalid_folder_id')) params: ProjectFolderParam,
     @Body(new ZodValidationPipe(updateProjectFolderBodySchema, 'invalid_update_folder_payload')) body: UpdateProjectFolderBody,
@@ -170,6 +226,12 @@ export class ProjectsController {
 
   @Delete(':projectSlug/folders/:folderId')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Delete a project folder' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiParam({ name: 'folderId', description: 'Folder ID' })
+  @ApiResponse({ status: 200, description: 'Folder deleted successfully' })
+  @ApiResponse({ status: 404, description: 'Folder not found' })
   deleteFolder(
     @Param(new ZodValidationPipe(projectFolderIdParamSchema, 'invalid_folder_id')) params: ProjectFolderParam,
     @CurrentUser() user: AuthenticatedUser,

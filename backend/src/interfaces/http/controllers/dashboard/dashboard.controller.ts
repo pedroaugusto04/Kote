@@ -1,4 +1,5 @@
 import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import {
@@ -42,6 +43,7 @@ import { queryRequestSchema, type QueryRequest } from '../../dto/query.dto.js';
 import { askHistoryQuerySchema, askRequestSchema, type AskHistoryQuery, type AskRequest } from '../../dto/ask.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
+@ApiTags('Dashboard')
 @Controller('api')
 @UseGuards(AccessTokenAuthGuard)
 export class DashboardController {
@@ -62,11 +64,17 @@ export class DashboardController {
   ) {}
 
   @Get('dashboard')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get dashboard data' })
+  @ApiResponse({ status: 200, description: 'Dashboard data retrieved successfully' })
   dashboard(@CurrentUser() user: AuthenticatedUser) {
     return this.buildDashboard.execute(user.id);
   }
 
   @Get('projects')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List projects' })
+  @ApiResponse({ status: 200, description: 'Projects retrieved successfully' })
   async projects(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(projectsListQuerySchema, 'invalid_projects_query')) query: ProjectsListQuery,
@@ -75,11 +83,17 @@ export class DashboardController {
   }
 
   @Get('workspaces')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List workspaces' })
+  @ApiResponse({ status: 200, description: 'Workspaces retrieved successfully' })
   async workspaces(@CurrentUser() user: AuthenticatedUser) {
     return { ok: true, workspaces: await this.listWorkspacesUseCase.execute(user.id) };
   }
 
   @Get('notes')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List notes' })
+  @ApiResponse({ status: 200, description: 'Notes retrieved successfully' })
   async notes(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(notesListQuerySchema, 'invalid_notes_query')) query: NotesListQuery,
@@ -88,6 +102,11 @@ export class DashboardController {
   }
 
   @Get('notes/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get note detail' })
+  @ApiParam({ name: 'id', description: 'Note ID' })
+  @ApiResponse({ status: 200, description: 'Note detail retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Note not found' })
   async note(@Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam, @CurrentUser() user: AuthenticatedUser) {
     const note = await this.getNoteDetail.execute(user.id, params.id);
     if (!note) throw new NotFoundException('note_not_found');
@@ -95,6 +114,9 @@ export class DashboardController {
   }
 
   @Get('reviews')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List reviews' })
+  @ApiResponse({ status: 200, description: 'Reviews retrieved successfully' })
   async reviews(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(reviewsListQuerySchema, 'invalid_reviews_query')) query: ReviewsListQuery,
@@ -103,6 +125,11 @@ export class DashboardController {
   }
 
   @Get('reviews/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get review detail' })
+  @ApiParam({ name: 'id', description: 'Review ID' })
+  @ApiResponse({ status: 200, description: 'Review detail retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Review not found' })
   async review(@Param(new ZodValidationPipe(reviewIdParamSchema, 'invalid_review_id')) params: ReviewIdParam, @CurrentUser() user: AuthenticatedUser) {
     const review = await this.getReviewDetail.execute(user.id, params.id);
     if (!review) throw new NotFoundException('review_not_found');
@@ -110,6 +137,9 @@ export class DashboardController {
   }
 
   @Get('reminders')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List reminders' })
+  @ApiResponse({ status: 200, description: 'Reminders retrieved successfully' })
   async reminders(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(remindersListQuerySchema, 'invalid_reminders_query')) query: RemindersListQuery,
@@ -118,6 +148,9 @@ export class DashboardController {
   }
 
   @Get('reminders/board')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get reminder board' })
+  @ApiResponse({ status: 200, description: 'Reminder board retrieved successfully' })
   async reminderBoard(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(reminderBoardQuerySchema, 'invalid_reminder_board_query')) query: ReminderBoardQuery,
@@ -126,6 +159,11 @@ export class DashboardController {
   }
 
   @Patch('reminders/:id/status')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update reminder status' })
+  @ApiParam({ name: 'id', description: 'Reminder ID' })
+  @ApiResponse({ status: 200, description: 'Reminder status updated' })
+  @ApiResponse({ status: 404, description: 'Reminder not found' })
   async updateReminderStatus(
     @Param(new ZodValidationPipe(reminderIdParamSchema, 'invalid_reminder_id')) params: ReminderIdParam,
     @Body(new ZodValidationPipe(updateReminderStatusBodySchema, 'invalid_reminder_status_payload')) body: UpdateReminderStatusBody,
@@ -137,18 +175,27 @@ export class DashboardController {
   }
 
   @Get('query')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Query knowledge base (GET)' })
+  @ApiResponse({ status: 200, description: 'Query results retrieved successfully' })
   query(@Query(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) query: QueryRequest, @CurrentUser() user: AuthenticatedUser) {
     return this.queryKnowledge.execute(query, user.id);
   }
 
   @Post('query')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Query knowledge base (POST)' })
+  @ApiResponse({ status: 200, description: 'Query results retrieved successfully' })
   queryPost(@Body(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) body: QueryRequest, @CurrentUser() user: AuthenticatedUser) {
     return this.queryKnowledge.execute(body, user.id);
   }
 
   @Post('ask')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Ask AI a question' })
+  @ApiResponse({ status: 200, description: 'AI response retrieved successfully' })
   ask(
     @Body(new ZodValidationPipe(askRequestSchema, 'invalid_ask_payload')) body: AskRequest,
     @CurrentUser() user: AuthenticatedUser,
@@ -160,6 +207,9 @@ export class DashboardController {
   }
 
   @Get('ask/history')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get AI conversation history' })
+  @ApiResponse({ status: 200, description: 'Conversation history retrieved successfully' })
   async askHistory(
     @Query(new ZodValidationPipe(askHistoryQuerySchema, 'invalid_ask_history_query')) query: AskHistoryQuery,
     @CurrentUser() user: AuthenticatedUser,

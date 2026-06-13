@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import {
@@ -23,6 +24,7 @@ import {
 import { markRemindersBodySchema, type MarkRemindersBody } from '../../dto/query.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
+@ApiTags('Operations')
 @Controller('api')
 @UseGuards(AccessTokenAuthGuard)
 export class OperationsController {
@@ -36,12 +38,18 @@ export class OperationsController {
 
   @Post('ingest')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Ingest content into knowledge base' })
+  @ApiResponse({ status: 200, description: 'Content ingested successfully' })
   ingest(@Body(new ZodValidationPipe(ingestBodySchema, 'invalid_ingest_payload')) body: IngestBody, @CurrentUser() user: AuthenticatedUser) {
     return this.ingestEntry.execute(body, user.id);
   }
 
   @Post('conversation/agent')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Process agent conversation' })
+  @ApiResponse({ status: 200, description: 'Conversation processed successfully' })
   processAgentConversation(
     @Body(new ZodValidationPipe(agentConversationBodySchema, 'invalid_agent_conversation_payload')) body: AgentConversationBody,
     @CurrentUser() user: AuthenticatedUser,
@@ -51,6 +59,9 @@ export class OperationsController {
   }
 
   @Get('reminders/dispatch')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get reminder dispatch' })
+  @ApiResponse({ status: 200, description: 'Reminder dispatch retrieved successfully' })
   remindersDispatch(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(reminderDispatchQuerySchema, 'invalid_reminder_dispatch_query')) query: ReminderDispatchQuery,
@@ -60,6 +71,9 @@ export class OperationsController {
 
   @Post('reminders/mark-sent')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Mark reminders as sent' })
+  @ApiResponse({ status: 200, description: 'Reminders marked as sent' })
   remindersMarkSent(
     @Body(new ZodValidationPipe(markRemindersBodySchema, 'invalid_mark_reminders_payload')) body: MarkRemindersBody,
     @CurrentUser() user: AuthenticatedUser,
@@ -70,6 +84,9 @@ export class OperationsController {
 
   @Post('operations/reindex-embeddings')
   @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reindex all embeddings' })
+  @ApiResponse({ status: 200, description: 'Embeddings reindexed successfully' })
   reindexAllEmbeddings(@CurrentUser() user: AuthenticatedUser) {
     return this.reindexEmbeddings.execute(user.id);
   }

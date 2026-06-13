@@ -1,4 +1,5 @@
 import { Body, Controller, Get, NotFoundException, Post, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiSecurity, ApiBody, ApiQuery } from '@nestjs/swagger';
 
 import { ExternalIdentityRepository } from '../../../../application/ports/integrations/integrations.repository.js';
 import {
@@ -25,6 +26,8 @@ import {
 } from '../../dto/internal-n8n.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
+@ApiTags('Internal n8n')
+@ApiSecurity('service-token')
 @Controller('api/internal/n8n')
 @UseGuards(InternalServiceTokenGuard)
 export class InternalN8NController {
@@ -38,24 +41,36 @@ export class InternalN8NController {
   ) {}
 
   @Post('ingest')
+  @ApiOperation({ summary: 'Ingest content (internal n8n)' })
+  @ApiResponse({ status: 200, description: 'Content ingested successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async ingest(@Body(new ZodValidationPipe(internalN8nIngestBodySchema, 'invalid_internal_ingest_payload')) body: InternalN8nIngestBody) {
     const tenant = await this.resolveTenant(body);
     return this.ingestEntry.execute(body.payload, tenant.userId, tenant.workspaceSlug);
   }
 
   @Post('query')
+  @ApiOperation({ summary: 'Query knowledge base (internal n8n)' })
+  @ApiResponse({ status: 200, description: 'Query results retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async query(@Body(new ZodValidationPipe(internalN8nQueryBodySchema, 'invalid_internal_query_payload')) body: InternalN8nQueryBody) {
     const tenant = await this.resolveTenant(body);
     return this.queryKnowledge.execute(body.payload, tenant.userId);
   }
 
   @Post('conversation/agent')
+  @ApiOperation({ summary: 'Process agent conversation (internal n8n)' })
+  @ApiResponse({ status: 200, description: 'Conversation processed successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async agentConversationPost(@Body(new ZodValidationPipe(internalN8nAgentConversationBodySchema, 'invalid_internal_agent_conversation_payload')) body: InternalN8nAgentConversationBody) {
     const tenant = await this.resolveTenant(body);
     return this.agentConversation.execute(body.payload, tenant.userId, tenant.workspaceSlug);
   }
 
   @Get('reminders/dispatch')
+  @ApiOperation({ summary: 'Get reminder dispatch (internal n8n)' })
+  @ApiResponse({ status: 200, description: 'Reminder dispatch retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async remindersDispatch(@Query(new ZodValidationPipe(internalReminderDispatchQuerySchema, 'invalid_internal_reminder_dispatch_query')) query: InternalReminderDispatchQuery) {
     const tenant = await this.resolveExternalIdentity(query);
     const result = await this.reminderDispatch.execute(query.mode, tenant.userId, tenant.workspaceSlug);
@@ -70,6 +85,9 @@ export class InternalN8NController {
   }
 
   @Post('reminders/mark-sent')
+  @ApiOperation({ summary: 'Mark reminders as sent (internal n8n)' })
+  @ApiResponse({ status: 200, description: 'Reminders marked as sent' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
   async remindersMarkSent(@Body(new ZodValidationPipe(internalN8nMarkSentBodySchema, 'invalid_internal_mark_reminders_payload')) body: InternalN8nMarkSentBody) {
     const tenant = await this.resolveTenant(body);
     return this.markReminders.execute(body.payload.ids, tenant.userId, tenant.workspaceSlug, body.payload.mode, body.payload.dispatchKey);

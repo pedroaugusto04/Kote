@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { json, urlencoded, type NextFunction, type Request, type Response } from 'express';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { readEnvironment } from './adapters/environment.js';
 import { AppModule } from './app.module.js';
@@ -49,6 +50,18 @@ export async function createApp(): Promise<NestExpressApplication> {
   app.setBaseViewsDir(staticRoot);
 
   app.useGlobalFilters(app.get(GlobalExceptionFilter));
+
+  // Swagger configuration
+  const config = new DocumentBuilder()
+    .setTitle('Knowledge Base API')
+    .setDescription('API documentation for Knowledge Base application')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addCookieAuth('accessToken')
+    .addCookieAuth('refreshToken')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
   return app;
 }

@@ -1,4 +1,5 @@
 import { Controller, Get, Query, Res, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { readEnvironment } from '../../../../adapters/environment.js';
@@ -11,12 +12,19 @@ import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
 const githubAppCallbackRoute = readEnvironment().githubAppCallbackPath.replace(/^\/+/, '');
 
+@ApiTags('GitHub App Callback')
 @Controller()
 export class GithubAppCallbackController {
   constructor(private readonly connections: IntegrationConnectionService) {}
 
   @Get(githubAppCallbackRoute)
   @UseGuards(AccessTokenAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Handle GitHub App callback' })
+  @ApiQuery({ name: 'code', required: true, description: 'OAuth authorization code' })
+  @ApiQuery({ name: 'state', required: true, description: 'OAuth state parameter' })
+  @ApiQuery({ name: 'installation_id', required: true, description: 'GitHub App installation ID' })
+  @ApiResponse({ status: 302, description: 'Redirect to application' })
   async githubAppCallback(
     @Query(new ZodValidationPipe(githubAppCallbackQuerySchema, 'invalid_github_app_callback')) query: GithubAppCallbackQuery,
     @CurrentUser() currentUser: AuthenticatedUser,
