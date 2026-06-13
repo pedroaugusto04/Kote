@@ -103,7 +103,7 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
       </section>
 
       {activeAttachment && (
-        <div className="modal-backdrop attachment-viewer-backdrop" role="presentation" onClick={() => setActiveAttachment(null)}>
+        <div className="attachment-viewer-backdrop" role="presentation" onClick={() => setActiveAttachment(null)}>
           <div
             className={`attachment-viewer-panel ${
               activeAttachment.mimeType.startsWith('image/')
