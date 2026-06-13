@@ -10,7 +10,7 @@ import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifyWarning } from '../../shared/ui/notifications';
 import { Badge, PageHead } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
-import { KanbanColumnInfinitePagination, useKanbanColumnPaginatedItems } from '../../shared/ui/kanban-column-infinite-pagination';
+import { KanbanColumnInfinitePagination } from '../../shared/ui/kanban-column-infinite-pagination';
 import { kanbanBoardColumns, type ReminderBoardTargetStatus } from './kanban-board.columns';
 
 const BOARD_LIMIT = 5;
@@ -113,12 +113,9 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
               data={data}
               draggedId={draggedId}
               isFetching={boardQuery.isFetching}
-              isPlaceholderData={boardQuery.isPlaceholderData}
               key={column.key}
               projects={dashboard.projects}
               statusMutationPending={statusMutation.isPending}
-              projectSlug={projectSlug}
-              workspaceSlug={workspaceSlug}
               handleColumnPageChange={handleColumnPageChange}
               handleDrop={handleDrop}
               openNote={openNote}
@@ -134,9 +131,6 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
 interface KanbanColumnProps {
   column: typeof kanbanBoardColumns[number];
   data: typeof DEFAULT_COLUMN_DATA;
-  workspaceSlug: string;
-  projectSlug: string;
-  isPlaceholderData: boolean;
   isFetching: boolean;
   draggedId: string;
   setDraggedId: (id: string) => void;
@@ -150,9 +144,6 @@ interface KanbanColumnProps {
 function KanbanColumn({
   column,
   data,
-  workspaceSlug,
-  projectSlug,
-  isPlaceholderData,
   isFetching,
   draggedId,
   setDraggedId,
@@ -162,15 +153,6 @@ function KanbanColumn({
   openNote,
   projects,
 }: KanbanColumnProps) {
-  const {
-    visibleItems,
-  } = useKanbanColumnPaginatedItems({
-    items: data.items,
-    pagination: data,
-    resetKey: `${workspaceSlug}:${projectSlug}:${column.key}`,
-    isPlaceholderData,
-  });
-
   return (
     <section
       aria-label={column.title}
@@ -188,7 +170,7 @@ function KanbanColumn({
         <span>{data.total}</span>
       </header>
       <div className="kanban-column-list">
-        {visibleItems.map((card: ReminderBoardCard) => (
+        {data.items.map((card: ReminderBoardCard) => (
           <KanbanCard
             card={card}
             disabled={statusMutationPending}
@@ -200,7 +182,7 @@ function KanbanColumn({
             projectLabel={projectName(projects, card.project)}
           />
         ))}
-        {visibleItems.length === 0 ? <p className="kanban-empty">{column.empty}</p> : null}
+        {data.items.length === 0 ? <p className="kanban-empty">{column.empty}</p> : null}
         <KanbanColumnInfinitePagination
           columnKey={column.key}
           pagination={data}

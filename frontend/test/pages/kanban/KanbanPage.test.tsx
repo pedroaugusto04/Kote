@@ -88,7 +88,7 @@ describe('KanbanPage', () => {
     expect(screen.getByRole('heading', { name: 'Archived' })).toBeInTheDocument();
     expect(fetchSpy).toHaveBeenNthCalledWith(
       1,
-      '/api/reminders/board?workspaceSlug=default&projectSlug=&limitPerColumn=5&columnPage%5Boverdue%5D=1&columnPage%5Bupcoming%5D=1&columnPage%5Bresolved%5D=1&columnPage%5Barchived%5D=1',
+      '/api/reminders/board?workspaceSlug=default&projectSlug=&limitPerColumn=5&overduePage=1&upcomingPage=1&resolvedPage=1&archivedPage=1',
       expect.any(Object)
     );
 
@@ -98,7 +98,7 @@ describe('KanbanPage', () => {
     await waitFor(() => {
       expect(fetchSpy).toHaveBeenNthCalledWith(
         2,
-        '/api/reminders/board?workspaceSlug=default&projectSlug=ops&limitPerColumn=5&columnPage%5Boverdue%5D=1&columnPage%5Bupcoming%5D=1&columnPage%5Bresolved%5D=1&columnPage%5Barchived%5D=1',
+        '/api/reminders/board?workspaceSlug=default&projectSlug=ops&limitPerColumn=5&overduePage=1&upcomingPage=1&resolvedPage=1&archivedPage=1',
         expect.any(Object)
       );
     });
@@ -174,7 +174,7 @@ describe('KanbanPage', () => {
       ok: true,
       columns: {
         overdue: {
-          items: Array.from({ length: 3 }, (_, i) => reminder(`Item ${i + 6}`, { id: `r${i + 6}` })),
+          items: Array.from({ length: 8 }, (_, i) => reminder(`Item ${i + 1}`, { id: `r${i + 1}` })),
           total: 8,
           page: 2,
           pageSize: 5,
@@ -229,7 +229,7 @@ describe('KanbanPage', () => {
     // Second fetch should include page 2 for overdue
     expect(fetchSpy).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining('columnPage%5Boverdue%5D=2'),
+      expect.stringContaining('overduePage=2'),
       expect.any(Object),
     );
   });

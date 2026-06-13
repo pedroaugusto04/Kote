@@ -22,13 +22,11 @@ export function fetchReminderBoard(params: {
     workspaceSlug: params.workspaceSlug || '',
     projectSlug: params.projectSlug || '',
     limitPerColumn: String(params.limitPerColumn || 50),
+    overduePage: String(params.columnPage?.overdue || 1),
+    upcomingPage: String(params.columnPage?.upcoming || 1),
+    resolvedPage: String(params.columnPage?.resolved || 1),
+    archivedPage: String(params.columnPage?.archived || 1),
   });
-
-  if (params.columnPage) {
-    Object.entries(params.columnPage).forEach(([key, value]) => {
-      search.append(`columnPage[${key}]`, String(value));
-    });
-  }
 
   return request<ReminderBoardResponse>(`/api/reminders/board?${search.toString()}`);
 }

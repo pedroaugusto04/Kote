@@ -39,8 +39,8 @@ export class ListReminderBoardUseCase {
       const page = input.columnPage[columnKey] || 1;
       const pageSize = input.limitPerColumn;
       const totalPages = Math.max(1, Math.ceil(total / pageSize));
-      const startIndex = (page - 1) * pageSize;
-      const endIndex = startIndex + pageSize;
+      const startIndex = 0;
+      const endIndex = page * pageSize;
       const paginatedItems = items.slice(startIndex, endIndex);
 
       columns[columnKey] = {

@@ -65,6 +65,20 @@ test('reminder board dto normalizes filters and status updates', () => {
     limitPerColumn: 25,
     columnPage: { overdue: 1, upcoming: 1, resolved: 1, archived: 1 },
   });
+  assert.deepEqual(reminderBoardQuerySchema.parse({
+    workspaceSlug: 'Default Workspace',
+    projectSlug: 'N8N Automations',
+    limitPerColumn: '25',
+    overduePage: '2',
+    upcomingPage: '1',
+    resolvedPage: '3',
+    archivedPage: '1',
+  }), {
+    workspaceSlug: 'default-workspace',
+    projectSlug: 'n8n-automations',
+    limitPerColumn: 25,
+    columnPage: { overdue: 2, upcoming: 1, resolved: 3, archived: 1 },
+  });
   assert.throws(() => reminderBoardQuerySchema.parse({ limitPerColumn: '100' }));
   assert.deepEqual(updateReminderStatusBodySchema.parse({ status: 'overdue' }), { status: 'overdue' });
   assert.deepEqual(updateReminderStatusBodySchema.parse({ status: 'resolved' }), { status: 'resolved' });
