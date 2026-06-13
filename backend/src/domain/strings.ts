@@ -41,3 +41,17 @@ export function stripMarkdownFences(value: string): string {
     .replace(/\s*```$/i, '')
     .trim();
 }
+
+export function getBase64ByteLength(base64: string): number {
+  if (!base64) return 0;
+  const trimmed = base64.trim();
+  const len = trimmed.length;
+  if (len === 0) return 0;
+  let padding = 0;
+  if (trimmed.endsWith('==')) {
+    padding = 2;
+  } else if (trimmed.endsWith('=')) {
+    padding = 1;
+  }
+  return (len * 3) / 4 - padding;
+}

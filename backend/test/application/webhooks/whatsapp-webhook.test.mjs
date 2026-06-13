@@ -909,3 +909,30 @@ test('whatsapp audio without caption is transcribed and processes the message as
   assert.match(sender.sent[0].text, /Project: N8N Automations/);
 });
 
+test('linked whatsapp chat computes attachment size from downloaded base64 when fileLength is missing', async (t) => {
+  const downloader = new StubWhatsappMediaDownloader(Buffer.from('hello image payload').toString('base64'));
+  const { repositories, whatsapp, user } = await fixture(t, new CapturingWhatsappSender(), downloader);
+
+  const result = await whatsapp.execute(evolutionInput('', {
+    data: {
+      key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: `media-missing-size-${Math.random()}`, fromMe: false },
+      message: {
+        imageMessage: {
+          caption: '/kb corrigi timeout no webhook',
+          mimetype: 'image/png',
+          fileName: 'erro.png',
+          // fileLength is missing
+        },
+      },
+    },
+  }));
+
+  assert.equal(result.action, 'submit');
+  assert.equal(result.ingestResult.attachmentIds.length, 1);
+  const attachments = await repositories.contentRepository.listAttachments(user.id, result.ingestResult.noteId);
+  assert.equal(attachments.length, 1);
+  assert.equal(attachments[0].fileName, 'erro.png');
+  assert.equal(attachments[0].mimeType, 'image/png');
+  assert.equal(attachments[0].sizeBytes, 19); // 'hello image payload' has 19 bytes
+});
+

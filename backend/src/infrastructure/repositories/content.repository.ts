@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 
+import { getBase64ByteLength } from '../../domain/strings.js';
+
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
 import type {
@@ -577,6 +579,10 @@ export class PostgresContentRepository extends ContentRepository {
     const noteResult = await this.database.getPool().query('select workspace_slug from kb_notes where user_id = $1 and id = $2 limit 1', [userId, input.noteId]);
     const workspaceSlug = noteResult.rows[0]?.workspace_slug || 'default';
     const storageKey = await this.contentObjectStorage.saveAttachmentData(userId, workspaceSlug, input);
+    let sizeBytes = input.sizeBytes;
+    if ((!sizeBytes || sizeBytes <= 0) && input.dataBase64) {
+      sizeBytes = getBase64ByteLength(input.dataBase64);
+    }
     const result = await this.database.getPool().query(
       INSERT_ATTACHMENT_SQL,
       [
@@ -585,7 +591,7 @@ export class PostgresContentRepository extends ContentRepository {
         input.noteId,
         input.fileName,
         input.mimeType,
-        input.sizeBytes,
+        sizeBytes,
         storageKey,
         input.checksumSha256,
         JSON.stringify(input.metadata || {}),
