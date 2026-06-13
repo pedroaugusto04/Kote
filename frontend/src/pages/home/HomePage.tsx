@@ -17,14 +17,15 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
   const hasRepositories = dashboard.projects.some((p) => p.repositories.length > 0);
   const needsIntegrationSetup = activeWorkspace && !hasRepositories;
   const activityByDay = home.activityByDay.map((point) => ({ ...point, label: formatUsDate(point.date) }));
+  const timelineSize = 6;
 
   const [selectedTimelineProject, setSelectedTimelineProject] = useState<string>('');
 
   const timelineQuery = useQuery({
     queryKey: ['home-project-timeline', selectedTimelineProject],
     queryFn: () => selectedTimelineProject
-      ? fetchProjectTimeline(selectedTimelineProject, { page: 1, pageSize: 10, category: 'all', status: '' })
-      : fetchAllProjectsTimeline({ page: 1, pageSize: 10, category: 'all', status: '' }),
+      ? fetchProjectTimeline(selectedTimelineProject, { page: 1, pageSize: timelineSize, category: 'all', status: '' })
+      : fetchAllProjectsTimeline({ page: 1, pageSize: timelineSize, category: 'all', status: '' }),
     staleTime: 30_000,
   });
 
