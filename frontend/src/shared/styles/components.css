@@ -1084,6 +1084,9 @@
   display: grid;
   place-items: center;
   padding: 24px;
+  background: var(--surface-backdrop);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 .attachment-viewer-panel {

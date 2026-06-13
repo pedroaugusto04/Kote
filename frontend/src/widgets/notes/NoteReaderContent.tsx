@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 import { normalizeComparableText, sameText } from '../../shared/utils/text';
 import { formatFileSize } from '../../shared/utils/format';
@@ -102,7 +103,7 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
         ) : null}
       </section>
 
-      {activeAttachment && (
+      {activeAttachment && createPortal(
         <div className="attachment-viewer-backdrop" role="presentation" onClick={() => setActiveAttachment(null)}>
           <div
             className={`attachment-viewer-panel ${
@@ -125,6 +126,7 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
                   title="Open in new tab / download"
                   target="_blank"
                   rel="noreferrer"
+                  onClick={(e) => e.stopPropagation()}
                 >
                   Open Original
                 </a>
@@ -158,7 +160,8 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
