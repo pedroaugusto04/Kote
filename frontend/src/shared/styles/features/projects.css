@@ -317,8 +317,14 @@
 }
 
 .kanban-column-infinite-pagination {
-  margin: 8px 2px 0;
-  padding: 8px;
+  display: grid;
+  gap: 10px;
+  justify-items: stretch;
+  margin: 14px 2px 0;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-1);
   text-align: center;
 }
 
@@ -326,13 +332,13 @@
   display: block;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .kanban-column-infinite-pagination-loading {
   display: block;
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Timelines */

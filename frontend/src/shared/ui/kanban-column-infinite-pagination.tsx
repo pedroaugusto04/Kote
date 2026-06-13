@@ -95,7 +95,7 @@ export function KanbanColumnInfinitePagination<T extends string>({
           requestNextPage();
         }
       },
-      { rootMargin: '200px', threshold: 0.1 }
+      { rootMargin: '100px', threshold: 0.1 }
     );
 
     const sentinel = sentinelRef.current;
