@@ -22,6 +22,7 @@ const { Pool } = pg;
 const DEFAULT_TEST_DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:5438/knowledge_base_db_test';
 const TEST_DATABASE_NAME = 'knowledge_base_db_test';
 const TEST_SCHEMA_PREFIX = 'kb_test_';
+const BASE_SCHEMA_NAME = 'kb_test_base';
 
 function testDatabaseUrl() {
   const rawUrl = process.env.KB_TEST_DATABASE_URL || DEFAULT_TEST_DATABASE_URL;
@@ -108,20 +109,79 @@ async function dropSchema(targetUrl, schemaName) {
   }
 }
 
+async function ensureBaseSchema(targetUrl) {
+  const pool = new Pool({ connectionString: targetUrl.toString() });
+  try {
+    // Check if base schema exists
+    const existing = await pool.query(
+      `select 1 from information_schema.schemata where schema_name = $1`,
+      [BASE_SCHEMA_NAME]
+    );
+    
+    if (!existing.rows[0]) {
+      // Create base schema and run migrations once
+      await pool.query(`create schema ${quoteIdent(BASE_SCHEMA_NAME)}`);
+      const database = createDatabase(pool);
+      const schemaMigrator = new PostgresSchemaMigrator(database);
+      await schemaMigrator.migrate();
+    }
+  } finally {
+    await pool.end();
+  }
+}
+
+async function truncateSchema(targetUrl, schemaName) {
+  const pool = new Pool({ connectionString: targetUrl.toString() });
+  try {
+    // Get all tables in the schema
+    const tables = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+    `, [schemaName]);
+    
+    // Truncate all tables (disable foreign key checks temporarily)
+    await pool.query('SET session_replication_role = replica');
+    
+    for (const table of tables.rows) {
+      await pool.query(`truncate table ${quoteIdent(schemaName)}.${quoteIdent(table.table_name)} cascade`);
+    }
+    
+    await pool.query('SET session_replication_role = DEFAULT');
+    
+    // Reset sequences
+    const sequences = await pool.query(`
+      SELECT sequence_name 
+      FROM information_schema.sequences 
+      WHERE sequence_schema = $1
+    `, [schemaName]);
+    
+    for (const seq of sequences.rows) {
+      await pool.query(`alter sequence ${quoteIdent(schemaName)}.${quoteIdent(seq.sequence_name)} restart with 1`);
+    }
+  } finally {
+    await pool.end();
+  }
+}
+
 export async function createPostgresTestRepositories(t) {
   const targetUrl = testDatabaseUrl();
   await ensureTestDatabase(targetUrl);
+  
+  // Ensure base schema exists with migrations (runs once)
+  await ensureBaseSchema(targetUrl);
 
-  const schemaName = createSchemaName();
+  // Use the base schema directly for all tests
+  const schemaName = BASE_SCHEMA_NAME;
   const pool = new Pool({
     connectionString: targetUrl.toString(),
     options: `-c search_path=${schemaName},public`,
   });
-  await pool.query(`create schema ${quoteIdent(schemaName)}`);
+  
+  // Truncate all tables to clean up before test (much faster than migrations)
+  await truncateSchema(targetUrl, schemaName);
 
   const database = createDatabase(pool);
-  const schemaMigrator = new PostgresSchemaMigrator(database);
-  await schemaMigrator.migrate();
 
   const userRepository = new PostgresUserRepository(database);
   const integrationRepository = new PostgresIntegrationRepository(database);
@@ -146,7 +206,7 @@ export async function createPostgresTestRepositories(t) {
     if (closed) return;
     closed = true;
     await pool.end();
-    await dropSchema(targetUrl, schemaName);
+    // Don't drop the base schema - it's reused across tests
   }
 
   if (t?.after) t.after(close);
@@ -189,7 +249,6 @@ export async function createPostgresTestRepositories(t) {
     expireConnectionSession,
     countConversationStates,
     getLastWebhookEvent,
-    schemaMigrator,
     objectStorage,
     userRepository,
     credentialRepository: integrationRepository,
