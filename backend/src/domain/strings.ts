@@ -55,3 +55,13 @@ export function getBase64ByteLength(base64: string): number {
   }
   return (len * 3) / 4 - padding;
 }
+
+export function calculateAttachmentSize(sizeBytes?: number | null, dataBase64?: string | null): number {
+  if (sizeBytes && sizeBytes > 0) {
+    return sizeBytes;
+  }
+  if (dataBase64) {
+    return getBase64ByteLength(dataBase64);
+  }
+  return 0;
+}

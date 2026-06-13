@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { getBase64ByteLength } from '../../../../domain/strings.js';
+import { calculateAttachmentSize } from '../../../../domain/strings.js';
 import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import type { ConversationInput } from '../../../../contracts/conversation.js';
 import { IntegrationConnectionService } from '../../../integration-connections.js';
@@ -480,7 +480,7 @@ export class HandleWhatsappWebhookUseCase {
       });
       return input;
     }
-    const sizeBytes = input.media.sizeBytes || getBase64ByteLength(result.dataBase64);
+    const sizeBytes = calculateAttachmentSize(input.media.sizeBytes, result.dataBase64);
     return {
       ...input,
       media: {
