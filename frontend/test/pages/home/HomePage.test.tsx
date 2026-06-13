@@ -3,6 +3,7 @@ import { cleanup, fireEvent, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import { HomePage } from '../../../src/pages/home/HomePage';
@@ -112,11 +113,44 @@ beforeEach(() => {
     numberingSystem: 'latn',
     timeZone: 'America/Sao_Paulo',
   });
+
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('/api/projects/timeline')) {
+      return Response.json({
+        ok: true,
+        timeline: [
+          {
+            id: 'timeline-item-1',
+            noteId: 'note-1',
+            title: 'Falha no deploy',
+            summary: 'Deploy precisa de rollback.',
+            project: 'n8n-automations',
+            workspace: 'default',
+            folderId: null,
+            type: 'incident',
+            category: 'manual',
+            status: 'active',
+            source: 'test',
+            sourceChannel: 'test',
+            date: '2026-04-27',
+            tags: ['deploy'],
+            path: '20 Inbox/note.md',
+            attachmentCount: 0,
+          }
+        ],
+        pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+      });
+    }
+    return Response.error();
+  });
+  vi.stubGlobal('fetch', fetchMock);
 });
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 function renderHome(overrides: Partial<Dashboard['home']> = {}, createNote = vi.fn()) {
@@ -127,32 +161,43 @@ function renderHomeWithDashboard(inputDashboard: Dashboard, createNote = vi.fn()
   const openNote = vi.fn();
   const setSelectedProject = vi.fn();
   const openProject = vi.fn();
+  const client = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
   render(
-    <MemoryRouter>
-      <HomePage
-        dashboard={inputDashboard}
-        selectedProject="n8n-automations"
-        selectedNoteId=""
-        openNote={openNote}
-        setSelectedProject={setSelectedProject}
-        openProject={openProject}
-        editNote={vi.fn()}
-        deleteNote={vi.fn()}
-        createNote={createNote}
-      />
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <HomePage
+          dashboard={inputDashboard}
+          selectedProject="n8n-automations"
+          selectedNoteId=""
+          openNote={openNote}
+          setSelectedProject={setSelectedProject}
+          openProject={openProject}
+          editNote={vi.fn()}
+          deleteNote={vi.fn()}
+          createNote={createNote}
+        />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
   return { openNote, openProject, createNote };
 }
 
 describe('HomePage', () => {
-  it('renders operational KPIs, priorities and charts with capped lists', () => {
+  it('renders operational KPIs, priorities and charts with capped lists', async () => {
     renderHome();
 
     expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
     expect(screen.getByText('Recent changes')).toBeInTheDocument();
     expect(screen.getByText('Prioridade 1')).toBeInTheDocument();
-    const eventsPanel = screen.getByRole('heading', { name: 'Relevant recent events' }).closest('.home-panel-events') as HTMLElement;
+
+    const timelineHeading = await screen.findByRole('heading', { name: 'Project Activity Timeline' });
+    expect(timelineHeading).toBeInTheDocument();
+
+    const eventsPanel = screen.getByRole('heading', { name: 'Relevant recent events' }).closest('.home-panel-recent-events') as HTMLElement;
     expect(eventsPanel).toHaveTextContent('Manual');
     expect(eventsPanel).toHaveTextContent('Incident');
     expect(eventsPanel).toHaveTextContent('Active');
@@ -160,19 +205,20 @@ describe('HomePage', () => {
     expect(screen.getByText('High')).toBeInTheDocument();
     expect(screen.getAllByText(/N8N Automations \/ 2026-04-27 09:30:00/i).length).toBeGreaterThan(0);
     expect(screen.queryByText('Prioridade 6')).not.toBeInTheDocument();
-    expect(screen.getAllByTestId('chart')).toHaveLength(4);
+    expect(screen.getAllByTestId('chart')).toHaveLength(2);
   });
 
-  it('navigates from review, note and project entries', () => {
-    const { openNote, openProject } = renderHome();
+  it('navigates from review, note and project entries', async () => {
+    const { openNote } = renderHome();
+
+    const timelineEvent = await screen.findByText('Falha no deploy');
+    expect(timelineEvent).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Prioridade 1'));
-    fireEvent.click(screen.getByText('Falha no deploy'));
-    fireEvent.click(screen.getByRole('button', { name: /N8N Automations/i }));
+    fireEvent.click(timelineEvent);
 
     expect(openNote).toHaveBeenCalledWith('review-1');
     expect(openNote).toHaveBeenCalledWith('note-1');
-    expect(openProject).toHaveBeenCalledWith('n8n-automations');
   });
 
   it('renders an empty state when there are no priorities', () => {

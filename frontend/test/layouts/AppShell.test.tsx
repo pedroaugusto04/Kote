@@ -393,7 +393,8 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />);
 
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
-    fireEvent.click(await screen.findByText('Deploy rollout'));
+    const deployNotes = await screen.findAllByText('Deploy rollout');
+    fireEvent.click(deployNotes[0]);
 
     expect((await screen.findAllByRole('heading', { name: 'Deploy rollout' })).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('N8N Automations')).length).toBeGreaterThan(0);
@@ -510,7 +511,8 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />);
 
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
-    fireEvent.click(await screen.findByText('Deploy rollout'));
+    const deployNotes = await screen.findAllByText('Deploy rollout');
+    fireEvent.click(deployNotes[0]);
 
     const overlay = (await screen.findByText('Loading')).closest('.global-loading-overlay');
     expect(overlay).toHaveClass('global-loading-overlay');

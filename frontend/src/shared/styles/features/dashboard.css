@@ -82,8 +82,10 @@
 
 .home-panel-priorities { grid-area: priorities; }
 .home-panel-activity { grid-area: activity; }
-.home-panel-projects { grid-area: projects; }
-.home-panel-events { grid-area: events; }
+.home-panel-projects,
+.home-panel-recent-events { grid-area: projects; }
+.home-panel-events,
+.home-panel-timeline { grid-area: events; }
 
 .panel-head {
   display: flex;
@@ -163,4 +165,108 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ─── Homepage Vertical Timeline ─── */
+.home-timeline {
+  position: relative;
+  padding-left: 28px;
+  margin-top: 18px;
+}
+
+.home-timeline::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--line-soft);
+}
+
+.home-timeline-item {
+  position: relative;
+  padding-bottom: 24px;
+}
+
+.home-timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.home-timeline-dot {
+  position: absolute;
+  left: -24px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--panel);
+  z-index: 2;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.home-timeline-dot::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  opacity: 0.15;
+  pointer-events: none;
+}
+
+.home-timeline-item:hover .home-timeline-dot {
+  transform: scale(1.2);
+  box-shadow: 0 0 8px currentColor;
+}
+
+.home-timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.home-timeline-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--muted);
+}
+
+.home-timeline-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-strong);
+  cursor: pointer;
+  width: fit-content;
+}
+
+.home-timeline-title:hover {
+  color: var(--cyan);
+}
+
+.home-timeline-summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-soft);
+}
+
+.timeline-project-select {
+  width: auto;
+  min-width: 150px;
+  max-width: 300px;
+}
+.timeline-project-select .kb-select {
+  min-width: 0;
+}
+.timeline-project-select .kb-select-sizer,
+.timeline-project-select .kb-select-trigger {
+  min-height: 32px;
+  padding: 0 12px 0 10px;
+  font-size: 13px;
 }

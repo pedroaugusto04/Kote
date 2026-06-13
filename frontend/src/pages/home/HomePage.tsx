@@ -1,11 +1,15 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatDisplayToken, formatUsDate, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchAllProjectsTimeline, fetchProjectTimeline } from '../../shared/api/client';
+import { Select } from '../../shared/ui/select';
 
 export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
   const { home } = dashboard;
@@ -13,6 +17,34 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
   const hasRepositories = dashboard.projects.some((p) => p.repositories.length > 0);
   const needsIntegrationSetup = activeWorkspace && !hasRepositories;
   const activityByDay = home.activityByDay.map((point) => ({ ...point, label: formatUsDate(point.date) }));
+
+  const [selectedTimelineProject, setSelectedTimelineProject] = useState<string>('');
+
+  const timelineQuery = useQuery({
+    queryKey: ['home-project-timeline', selectedTimelineProject],
+    queryFn: () => selectedTimelineProject
+      ? fetchProjectTimeline(selectedTimelineProject, { page: 1, pageSize: 10, category: 'all', status: '' })
+      : fetchAllProjectsTimeline({ page: 1, pageSize: 10, category: 'all', status: '' }),
+    staleTime: 30_000,
+  });
+
+  const timelineItems = timelineQuery.data?.timeline || [];
+
+  const projectOptions = [
+    { value: '', label: 'All Projects' },
+    ...dashboard.projects.map((project) => ({
+      value: project.projectSlug,
+      label: project.displayName,
+    })),
+  ];
+
+  function getTimelineNodeColor(category: string, type: string) {
+    if (category === 'github-push') return 'var(--cyan)';
+    if (category === 'whatsapp') return 'var(--green)';
+    if (type === 'incident') return 'var(--red)';
+    if (type === 'decision' || category === 'decision') return 'var(--amber)';
+    return 'var(--muted)';
+  }
 
   function openTarget(target: HomeNavigationTarget) {
     if (target.kind === 'project' && target.slug) {
@@ -132,40 +164,53 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             </div>
           </Panel>
 
-          <Panel className="home-panel home-panel-projects">
+          <Panel className="home-panel home-panel-timeline">
             <div className="panel-head">
-              <h2>Active projects</h2>
-              <span className="meta">top 5</span>
+              <h2>Project Activity Timeline</h2>
+              <Select
+                ariaLabel="Filter timeline by project"
+                className="timeline-project-select"
+                options={projectOptions}
+                value={selectedTimelineProject}
+                onChange={setSelectedTimelineProject}
+              />
             </div>
-            {home.activityByProject.length ? (
-              <div className="chart-box compact" aria-label="Activity chart by project">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={home.activityByProject} layout="vertical" margin={{ left: 4, right: 18, top: 8, bottom: 8 }}>
-                    <CartesianGrid stroke="var(--chart-grid)" horizontal={false} />
-                    <XAxis type="number" hide allowDecimals={false} />
-                    <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={116} stroke="var(--chart-axis)" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
-                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
-                    />
-                    <Bar dataKey="count" name="Notes" fill="var(--chart-bar-fill)" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+            {timelineQuery.isPending ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>Loading timeline...</div>
+            ) : timelineQuery.isError ? (
+              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--red)' }}>Failed to load timeline.</div>
+            ) : timelineItems.length === 0 ? (
+              <EmptyState>No timeline events found for this project.</EmptyState>
             ) : (
-              <EmptyState>No recent activity by project.</EmptyState>
+              <div className="home-timeline">
+                {timelineItems.map((item) => (
+                  <article className="home-timeline-item" key={item.id}>
+                    <div
+                      className="home-timeline-dot"
+                      style={{
+                        color: getTimelineNodeColor(item.category, item.type),
+                        backgroundColor: getTimelineNodeColor(item.category, item.type),
+                      }}
+                    />
+                    <div className="home-timeline-content">
+                      <div className="home-timeline-meta">
+                        <Badge value={formatDisplayToken(item.category)} tone={item.category} />
+                        <Badge value={noteTypeLabel(item.type)} tone={item.type} />
+                        <span className="meta">{projectName(dashboard.projects, item.project)}</span>
+                        <span className="meta">{formatUsDate(item.date)}</span>
+                      </div>
+                      <h3 className="home-timeline-title" onClick={() => openNote(item.noteId)}>
+                        {item.title}
+                      </h3>
+                      <p className="home-timeline-summary">{item.summary}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
             )}
-            <div className="compact-links spaced">
-              {home.activityByProject.slice(0, 5).map((project) => (
-                <button className="home-project-link" type="button" key={project.project} onClick={() => openProject(project.project)}>
-                  <span>{project.label}</span>
-                  <Badge value={project.count} tone="active" />
-                </button>
-              ))}
-            </div>
           </Panel>
 
-          <Panel className="home-panel home-panel-events">
+          <Panel className="home-panel home-panel-recent-events">
             <div className="panel-head">
               <h2>Relevant recent events</h2>
               <span className="meta">top 5</span>
