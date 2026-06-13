@@ -151,6 +151,88 @@ describe('KanbanPage', () => {
     expect(notificationSpies.notifyWarning).toHaveBeenCalledWith('Reminders cannot be manually set to overdue.');
     expect(fetchSpy).not.toHaveBeenCalledWith('/api/reminders/r2/status', expect.anything());
   });
+
+  it('loads more items when clicking the Load more button', async () => {
+    const page1Data = {
+      ok: true,
+      columns: {
+        overdue: {
+          items: Array.from({ length: 5 }, (_, i) => reminder(`Item ${i + 1}`, { id: `r${i + 1}` })),
+          total: 8,
+          page: 1,
+          pageSize: 5,
+          totalPages: 2,
+          hasNext: true,
+        },
+        upcoming: { items: [], total: 0, page: 1, pageSize: 5, totalPages: 1, hasNext: false },
+        resolved: { items: [], total: 0, page: 1, pageSize: 5, totalPages: 1, hasNext: false },
+        archived: { items: [], total: 0, page: 1, pageSize: 5, totalPages: 1, hasNext: false },
+      },
+    };
+
+    const page2Data = {
+      ok: true,
+      columns: {
+        overdue: {
+          items: Array.from({ length: 3 }, (_, i) => reminder(`Item ${i + 6}`, { id: `r${i + 6}` })),
+          total: 8,
+          page: 2,
+          pageSize: 5,
+          totalPages: 2,
+          hasNext: false,
+        },
+        upcoming: { items: [], total: 0, page: 1, pageSize: 5, totalPages: 1, hasNext: false },
+        resolved: { items: [], total: 0, page: 1, pageSize: 5, totalPages: 1, hasNext: false },
+        archived: { items: [], total: 0, page: 1, pageSize: 5, totalPages: 1, hasNext: false },
+      },
+    };
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify(page1Data), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(page2Data), { status: 200 }));
+
+    renderWithAppProviders(
+      <KanbanPage
+        dashboard={dashboard}
+        selectedProject=""
+        selectedNoteId=""
+        setSelectedProject={() => undefined}
+        openProject={() => undefined}
+        openNote={() => undefined}
+        editNote={() => undefined}
+        deleteNote={() => undefined}
+      />,
+    );
+
+    // Wait for page 1 items to appear
+    expect(await screen.findByText('Item 1')).toBeInTheDocument();
+    expect(screen.getByText('Item 5')).toBeInTheDocument();
+    expect(screen.queryByText('Item 6')).not.toBeInTheDocument();
+
+    // The "Load more" button should be visible
+    const loadMoreButton = screen.getByRole('button', { name: 'Load more' });
+    expect(loadMoreButton).toBeInTheDocument();
+
+    // Click Load more
+    fireEvent.click(loadMoreButton);
+
+    // Wait for page 2 items to appear
+    await waitFor(() => {
+      expect(screen.getByText('Item 6')).toBeInTheDocument();
+    });
+
+    // All items from both pages should be visible
+    expect(screen.getByText('Item 1')).toBeInTheDocument();
+    expect(screen.getByText('Item 5')).toBeInTheDocument();
+    expect(screen.getByText('Item 8')).toBeInTheDocument();
+
+    // Second fetch should include page 2 for overdue
+    expect(fetchSpy).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('columnPage%5Boverdue%5D=2'),
+      expect.any(Object),
+    );
+  });
 });
 
 function boardResponse(title: string) {

@@ -163,7 +163,6 @@ function KanbanColumn({
   projects,
 }: KanbanColumnProps) {
   const {
-    loadedPage,
     visibleItems,
   } = useKanbanColumnPaginatedItems({
     items: data.items,
@@ -205,7 +204,7 @@ function KanbanColumn({
         <KanbanColumnInfinitePagination
           columnKey={column.key}
           pagination={data}
-          isLoading={isFetching || data.page > loadedPage}
+          isLoading={isFetching}
           onPageChange={handleColumnPageChange}
         />
       </div>

@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 type IdentifiableItem = {
   id: string;
 };
 
+/**
+ * Accumulates items across pages for a single Kanban column.
+ * Uses a simple ref-based page cache and a memo to derive the merged list.
+ * No useState inside — avoids double-render loops from effect-driven state.
+ */
 export function useKanbanColumnPaginatedItems<T extends IdentifiableItem>({
   items,
   pagination,
@@ -16,40 +21,43 @@ export function useKanbanColumnPaginatedItems<T extends IdentifiableItem>({
   isPlaceholderData?: boolean;
 }) {
   const currentPage = pagination?.page ?? 1;
-  const [columnItems, setColumnItems] = useState<T[]>(items);
-  const [loadedPage, setLoadedPage] = useState(currentPage);
-  const pageItemsRef = useRef<Record<number, T[]>>({});
+  const pagesRef = useRef<Record<number, T[]>>({});
   const resetKeyRef = useRef(resetKey);
+  const processedPageRef = useRef(0);
 
-  useEffect(() => {
-    if (resetKeyRef.current !== resetKey) {
-      resetKeyRef.current = resetKey;
-      pageItemsRef.current = {};
-      setLoadedPage(0);
-      setColumnItems(items);
+  // Reset cache when filters change
+  if (resetKeyRef.current !== resetKey) {
+    resetKeyRef.current = resetKey;
+    pagesRef.current = {};
+    processedPageRef.current = 0;
+  }
+
+  // Store new page data (skip placeholder renders)
+  if (!isPlaceholderData && items.length > 0) {
+    pagesRef.current[currentPage] = items;
+    processedPageRef.current = currentPage;
+  } else if (!isPlaceholderData && currentPage === 1) {
+    pagesRef.current = { 1: items };
+    processedPageRef.current = 1;
+  }
+
+  const visibleItems = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: T[] = [];
+    const maxPage = processedPageRef.current || currentPage;
+    for (let p = 1; p <= maxPage; p++) {
+      for (const item of pagesRef.current[p] || []) {
+        if (!seen.has(item.id)) {
+          seen.add(item.id);
+          merged.push(item);
+        }
+      }
     }
+    return merged;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, currentPage, isPlaceholderData, resetKey]);
 
-    if (isPlaceholderData || !pagination) return;
-
-    if (currentPage <= 1) {
-      pageItemsRef.current = { 1: items };
-      setColumnItems(items);
-      setLoadedPage(1);
-      return;
-    }
-
-    pageItemsRef.current = {
-      ...pageItemsRef.current,
-      [currentPage]: items,
-    };
-    setColumnItems(mergePageItems(pageItemsRef.current, currentPage));
-    setLoadedPage(currentPage);
-  }, [isPlaceholderData, items, loadedPage, pagination, resetKey, currentPage]);
-
-  return {
-    loadedPage,
-    visibleItems: columnItems,
-  };
+  return { visibleItems };
 }
 
 export function KanbanColumnInfinitePagination<T extends string>({
@@ -64,7 +72,6 @@ export function KanbanColumnInfinitePagination<T extends string>({
   onPageChange: (columnKey: T, page: number) => void;
 }) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  const requestedPageRef = useRef<number | null>(null);
 
   const currentPage = pagination.page ?? 1;
   const totalPages = pagination.totalPages ?? 1;
@@ -72,22 +79,13 @@ export function KanbanColumnInfinitePagination<T extends string>({
   const total = pagination.total ?? 0;
   const pageSize = pagination.pageSize ?? 5;
 
-  useEffect(() => {
-    requestedPageRef.current = null;
-  }, [currentPage]);
-
   const requestNextPage = useCallback(() => {
     if (isLoading || !hasNext) return;
-
-    const nextPage = currentPage + 1;
-    if (requestedPageRef.current === nextPage) return;
-
-    requestedPageRef.current = nextPage;
-    onPageChange(columnKey, nextPage);
+    onPageChange(columnKey, currentPage + 1);
   }, [isLoading, onPageChange, hasNext, currentPage, columnKey]);
 
   useEffect(() => {
-    if (totalPages <= 1) return undefined;
+    if (totalPages <= 1 || !hasNext) return undefined;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -99,15 +97,12 @@ export function KanbanColumnInfinitePagination<T extends string>({
     );
 
     const sentinel = sentinelRef.current;
-    if (sentinel) {
-      observer.observe(sentinel);
-    }
+    if (sentinel) observer.observe(sentinel);
 
     return () => {
-      if (sentinel) observer.unobserve(sentinel);
       observer.disconnect();
     };
-  }, [totalPages, requestNextPage]);
+  }, [totalPages, hasNext, requestNextPage]);
 
   if (totalPages <= 1) return null;
 
@@ -131,19 +126,4 @@ export function KanbanColumnInfinitePagination<T extends string>({
       ) : null}
     </div>
   );
-}
-
-function mergePageItems<T extends IdentifiableItem>(pages: Record<number, T[]>, maxPage: number) {
-  const seenIds = new Set<string>();
-  const merged: T[] = [];
-
-  for (let page = 1; page <= maxPage; page += 1) {
-    for (const item of pages[page] || []) {
-      if (seenIds.has(item.id)) continue;
-      seenIds.add(item.id);
-      merged.push(item);
-    }
-  }
-
-  return merged;
 }
