@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
@@ -10,7 +10,7 @@ import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifyWarning } from '../../shared/ui/notifications';
 import { Badge, PageHead } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
-import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
+import { KanbanColumnInfinitePagination, useKanbanColumnPaginatedItems } from '../../shared/ui/kanban-column-infinite-pagination';
 import { kanbanBoardColumns, type ReminderBoardTargetStatus } from './kanban-board.columns';
 
 const BOARD_LIMIT = 5;
@@ -46,6 +46,7 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
   const boardQuery = useQuery({
     queryKey: ['reminder-board', workspaceSlug, projectSlug, columnPages],
     queryFn: () => fetchReminderBoard({ workspaceSlug, projectSlug, limitPerColumn: BOARD_LIMIT, columnPage: columnPages }),
+    placeholderData: keepPreviousData,
   });
 
   const statusMutation = useMutation({
@@ -107,9 +108,9 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
         {kanbanBoardColumns.map((column) => {
           const data = board?.[column.key] || DEFAULT_COLUMN_DATA;
           const {
-            loadedMobilePage,
+            loadedPage,
             visibleItems,
-          } = useMobilePaginatedItems({
+          } = useKanbanColumnPaginatedItems({
             items: data.items,
             pagination: data,
             resetKey: `${workspaceSlug}:${projectSlug}:${column.key}`,
@@ -145,10 +146,11 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
                   />
                 ))}
                 {visibleItems.length === 0 ? <p className="kanban-empty">{column.empty}</p> : null}
-                <MobileInfinitePagination
+                <KanbanColumnInfinitePagination
+                  columnKey={column.key}
                   pagination={data}
-                  isLoading={boardQuery.isFetching || data.page > loadedMobilePage}
-                  onPageChange={(page) => handleColumnPageChange(column.key, page)}
+                  isLoading={boardQuery.isFetching || data.page > loadedPage}
+                  onPageChange={handleColumnPageChange}
                 />
               </div>
             </section>

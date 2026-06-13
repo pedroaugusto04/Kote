@@ -6,17 +6,18 @@ type IdentifiableItem = {
 
 export function useKanbanColumnPaginatedItems<T extends IdentifiableItem>({
   items,
-  columnKey,
+  pagination,
   resetKey,
   isPlaceholderData = false,
 }: {
   items: T[];
-  columnKey: string;
+  pagination?: { page?: number };
   resetKey: string;
   isPlaceholderData?: boolean;
 }) {
+  const currentPage = pagination?.page ?? 1;
   const [columnItems, setColumnItems] = useState<T[]>(items);
-  const [loadedPage, setLoadedPage] = useState(1);
+  const [loadedPage, setLoadedPage] = useState(currentPage);
   const pageItemsRef = useRef<Record<number, T[]>>({});
   const resetKeyRef = useRef(resetKey);
 
@@ -24,23 +25,26 @@ export function useKanbanColumnPaginatedItems<T extends IdentifiableItem>({
     if (resetKeyRef.current !== resetKey) {
       resetKeyRef.current = resetKey;
       pageItemsRef.current = {};
-      setLoadedPage(1);
+      setLoadedPage(0);
       setColumnItems(items);
     }
 
-    if (isPlaceholderData) return;
+    if (isPlaceholderData || !pagination) return;
 
-    if (items.length === 0 && loadedPage === 1) {
+    if (currentPage <= 1) {
+      pageItemsRef.current = { 1: items };
       setColumnItems(items);
+      setLoadedPage(1);
       return;
     }
 
     pageItemsRef.current = {
       ...pageItemsRef.current,
-      [loadedPage]: items,
+      [currentPage]: items,
     };
-    setColumnItems(mergePageItems(pageItemsRef.current, loadedPage));
-  }, [isPlaceholderData, items, loadedPage, resetKey]);
+    setColumnItems(mergePageItems(pageItemsRef.current, currentPage));
+    setLoadedPage(currentPage);
+  }, [isPlaceholderData, items, loadedPage, pagination, resetKey, currentPage]);
 
   return {
     loadedPage,
@@ -55,29 +59,35 @@ export function KanbanColumnInfinitePagination<T extends string>({
   onPageChange,
 }: {
   columnKey: T;
-  pagination: { page: number; totalPages: number; hasNext: boolean; total: number; pageSize: number };
+  pagination: { page?: number; totalPages?: number; hasNext?: boolean; total?: number; pageSize?: number };
   isLoading: boolean;
   onPageChange: (columnKey: T, page: number) => void;
 }) {
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   const requestedPageRef = useRef<number | null>(null);
 
+  const currentPage = pagination.page ?? 1;
+  const totalPages = pagination.totalPages ?? 1;
+  const hasNext = pagination.hasNext ?? false;
+  const total = pagination.total ?? 0;
+  const pageSize = pagination.pageSize ?? 5;
+
   useEffect(() => {
     requestedPageRef.current = null;
-  }, [pagination.page]);
+  }, [currentPage]);
 
   const requestNextPage = useCallback(() => {
-    if (isLoading || !pagination.hasNext) return;
+    if (isLoading || !hasNext) return;
 
-    const nextPage = pagination.page + 1;
+    const nextPage = currentPage + 1;
     if (requestedPageRef.current === nextPage) return;
 
     requestedPageRef.current = nextPage;
     onPageChange(columnKey, nextPage);
-  }, [isLoading, onPageChange, pagination.hasNext, pagination.page, columnKey]);
+  }, [isLoading, onPageChange, hasNext, currentPage, columnKey]);
 
   useEffect(() => {
-    if (pagination.totalPages <= 1) return undefined;
+    if (totalPages <= 1) return undefined;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -97,18 +107,28 @@ export function KanbanColumnInfinitePagination<T extends string>({
       if (sentinel) observer.unobserve(sentinel);
       observer.disconnect();
     };
-  }, [pagination.totalPages, requestNextPage]);
+  }, [totalPages, requestNextPage]);
 
-  if (!pagination.hasNext) return null;
+  if (totalPages <= 1) return null;
 
-  const loadedCount = Math.min(pagination.total, pagination.page * pagination.pageSize);
+  const loadedCount = Math.min(total, currentPage * pageSize);
 
   return (
     <div className="kanban-column-infinite-pagination" ref={sentinelRef} aria-live="polite">
       <span className="kanban-column-infinite-pagination-summary">
-        {loadedCount} of {pagination.total}
+        {hasNext ? `${loadedCount} of ${total}` : `All ${total} loaded`}
       </span>
-      {isLoading ? <span className="kanban-column-infinite-pagination-loading">Loading...</span> : null}
+      {hasNext ? (
+        <button
+          className="icon-button mobile-infinite-pagination-button"
+          disabled={isLoading}
+          type="button"
+          onClick={requestNextPage}
+          style={{ marginTop: '8px', width: '100%', justifyContent: 'center' }}
+        >
+          {isLoading ? 'Loading...' : 'Load more'}
+        </button>
+      ) : null}
     </div>
   );
 }

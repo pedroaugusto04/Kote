@@ -232,6 +232,29 @@
   min-height: 330px;
 }
 
+@media (min-width: 861px) {
+  .kanban-column-list {
+    max-height: 540px;
+    overflow-y: auto;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-soft) transparent;
+  }
+
+  .kanban-column-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .kanban-column-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .kanban-column-list::-webkit-scrollbar-thumb {
+    background-color: var(--line-soft);
+    border-radius: 3px;
+  }
+}
+
 .kanban-card {
   display: grid;
   gap: 9px;
