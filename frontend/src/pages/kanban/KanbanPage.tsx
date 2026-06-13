@@ -15,6 +15,15 @@ import { kanbanBoardColumns, type ReminderBoardTargetStatus } from './kanban-boa
 
 const BOARD_LIMIT = 50;
 
+const DEFAULT_COLUMN_DATA = {
+  items: [] as any[],
+  total: 0,
+  page: 1,
+  pageSize: BOARD_LIMIT,
+  totalPages: 1,
+  hasNext: false,
+};
+
 export function KanbanPage({ dashboard, openNote }: PageContext) {
   const queryClient = useQueryClient();
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
@@ -95,7 +104,7 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
       />
       <div className="kanban-board" aria-busy={boardQuery.isFetching || statusMutation.isPending}>
         {kanbanBoardColumns.map((column) => {
-          const data = board?.[column.key] || { items: [], total: 0, page: 1, pageSize: BOARD_LIMIT, totalPages: 1, hasNext: false };
+          const data = board?.[column.key] || DEFAULT_COLUMN_DATA;
           const { visibleItems } = useKanbanColumnPaginatedItems({
             items: data.items,
             columnKey: column.key,
