@@ -9,6 +9,8 @@ import { disposeErrorReporter, logInfo } from './error-reporter';
 import { AiHistoryManager } from './ai-history/history-manager';
 import { ClaudeCodeHistoryProvider } from './ai-history/providers/claude-code.provider';
 import { CodexHistoryProvider } from './ai-history/providers/codex.provider';
+import { AntigravityHistoryProvider } from './ai-history/providers/antigravity.provider';
+import { OpenCodeHistoryProvider } from './ai-history/providers/opencode.provider';
 
 let kbClient: KbClient;
 let sidebarProvider: SidebarViewProvider;
@@ -116,6 +118,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const historyManager = new AiHistoryManager();
   historyManager.registerProvider(new ClaudeCodeHistoryProvider());
   historyManager.registerProvider(new CodexHistoryProvider());
+  historyManager.registerProvider(new AntigravityHistoryProvider());
+  historyManager.registerProvider(new OpenCodeHistoryProvider());
 
   context.subscriptions.push(
     vscode.commands.registerCommand('kb.showRecentAiSessions', () => {

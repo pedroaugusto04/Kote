@@ -9,6 +9,7 @@ import { runListProjects, runListWorkspaces } from './commands/list.js';
 import { runRepl } from './commands/repl.js';
 import { runLogout } from './commands/logout.js';
 import { runSync } from './commands/sync.js';
+import { runSyncAi } from './commands/sync-ai.js';
 import { loadConfig } from './config.js';
 
 const program = new Command();
@@ -96,6 +97,16 @@ program
   .action(async (options) => {
     await runSync(options);
   });
+
+// sync-ai command
+program
+  .command('sync-ai')
+  .description('Sync/import recent local AI sessions (Claude Code, Codex, Antigravity, OpenCode)')
+  .option('-p, --project <slug>', 'Specify project context')
+  .action(async (options) => {
+    await runSyncAi(options);
+  });
+
 
 
 // catch-all text action for note creation
