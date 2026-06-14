@@ -19,6 +19,7 @@ O **Knowledge Vault** centraliza o conhecimento operacional e as decisões do se
 * **Busca Contextual:** Encontre respostas instantaneamente em todo o histórico da organização.
 * **Ask AI & Histórico:** Interface de chat com IA integrada, incluindo filtros por projeto e paginação do histórico de perguntas por usuário.
 * **Briefing de Projeto:** Resumos técnicos operacionais gerados automaticamente por IA a partir dos últimos itens do projeto.
+* **Extensão para VS Code:** Interação completa com o Knowledge Vault, chat na barra lateral, busca rápida por atalhos e salvamento de trechos de código/arquivos diretamente do editor.
 
 ---
 
@@ -47,6 +48,18 @@ kb init
 * **Flags Úteis:**
   * `--watch` ou `-w`: Monitoramento e sincronização em tempo real.
   * `--dry-run`: Simula a sincronização sem realizar alterações no servidor.
+
+---
+
+## Extensão para VS Code (`knowledge-base-vscode`)
+A extensão oficial para VS Code integra o Knowledge Vault diretamente no seu ambiente de desenvolvimento, facilitando o acesso ao conhecimento e o registro de novos aprendizados.
+
+### Principais Funcionalidades
+* **Barra Lateral Dedicada:** Chat interativo com a IA e salvamento manual de notas de forma integrada.
+* **Salvar Seleção de Código:** Selecione qualquer trecho de código, clique com o botão direito e escolha a opção **KB: Save Selection as Note** para salvá-lo instantaneamente como uma nota em seu projeto.
+* **Salvar Arquivo Ativo:** Salve arquivos abertos por completo no Knowledge Vault executando o comando **KB: Save Active File as Note** na paleta de comandos do VS Code (`Ctrl+Shift+P` / `Cmd+Shift+P`).
+* **Importação do Histórico de IA Local:** Sincroniza e monitora em tempo real históricos de sessões de ferramentas CLI locais de IA como o *Claude Code* e *Codex CLI*, arquivando-os de forma centralizada.
+
 ---
 
 ## Executando com Docker
@@ -142,4 +155,9 @@ npm run test:e2e:headed
 <p align="center">
   <img src="docs/screenshots/projects-overview.png" alt="Visão Geral de Projetos" width="80%">
   <br><em>Visualização e organização de notas dentro do workspace.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/vscode-extension.png" alt="Extensão do VS Code" width="80%">
+  <br><em>Extensão do VS Code integrada com barra lateral, chat de IA e acesso a atalhos rápidos.</em>
 </p>

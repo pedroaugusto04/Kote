@@ -283,3 +283,65 @@
   margin-top: 12px;
 }
 
+/* Styled Markdown Code Blocks */
+.markdown-code-block {
+  margin: 16px 0;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: #1e1e24;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.markdown-code-block-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: #15151a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.markdown-code-block-lang {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #8f90a6;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.markdown-code-block-copy {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  color: #c7c7d3;
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.markdown-code-block-copy:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+.markdown-code-block-content {
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  background: transparent;
+}
+
+.markdown-code-block-content code {
+  font-family: var(--mono, 'Fira Code', 'SFMono-Regular', Consolas, monospace) !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  color: #e3e3e9 !important;
+  white-space: pre !important;
+}
+
+

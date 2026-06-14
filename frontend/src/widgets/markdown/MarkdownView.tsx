@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 const severityClassNames: Record<string, string> = {
   INFO: 'markdown-severity markdown-severity-info',
@@ -8,16 +8,114 @@ const severityClassNames: Record<string, string> = {
   CRITICAL: 'markdown-severity markdown-severity-critical',
 };
 
+type Block =
+  | { type: 'header1'; text: string }
+  | { type: 'header2'; text: string }
+  | { type: 'list-item'; text: string }
+  | { type: 'code'; code: string; language: string }
+  | { type: 'paragraph'; text: string };
+
+function parseMarkdownBlocks(markdown: string): Block[] {
+  const lines = markdown.split(/\r?\n/);
+  const blocks: Block[] = [];
+  let inCodeBlock = false;
+  let codeLines: string[] = [];
+  let codeLanguage = '';
+
+  for (const line of lines) {
+    const isCodeFence = line.trim().startsWith('```');
+    if (isCodeFence) {
+      if (inCodeBlock) {
+        // End of code block
+        blocks.push({
+          type: 'code',
+          code: codeLines.join('\n'),
+          language: codeLanguage,
+        });
+        codeLines = [];
+        codeLanguage = '';
+        inCodeBlock = false;
+      } else {
+        // Start of code block
+        inCodeBlock = true;
+        codeLanguage = line.trim().slice(3).trim() || 'code';
+      }
+    } else if (inCodeBlock) {
+      codeLines.push(line);
+    } else {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      if (line.startsWith('# ')) {
+        blocks.push({ type: 'header1', text: line.slice(2) });
+      } else if (line.startsWith('## ')) {
+        blocks.push({ type: 'header2', text: line.slice(3) });
+      } else if (line.startsWith('- ')) {
+        blocks.push({ type: 'list-item', text: line.slice(2) });
+      } else {
+        blocks.push({ type: 'paragraph', text: line });
+      }
+    }
+  }
+
+  // Handle unclosed code blocks
+  if (inCodeBlock && codeLines.length > 0) {
+    blocks.push({
+      type: 'code',
+      code: codeLines.join('\n'),
+      language: codeLanguage,
+    });
+  }
+
+  return blocks;
+}
+
+function CodeBlockView({ code, language }: { code: string; language: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  return (
+    <div className="markdown-code-block">
+      <div className="markdown-code-block-header">
+        <span className="markdown-code-block-lang">{language}</span>
+        <button className="markdown-code-block-copy" onClick={handleCopy} type="button">
+          {copied ? '✓ Copied' : 'Copy'}
+        </button>
+      </div>
+      <pre className="markdown-code-block-content">
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
+}
+
 export function MarkdownView({ markdown }: { markdown: string }) {
+  const blocks = parseMarkdownBlocks(markdown);
+
   return (
     <div className="markdown">
-      {markdown.split('\n').map((line, index) => {
-        if (line.startsWith('# ')) return <h1 key={index}>{renderInlineMarkdown(line.slice(2))}</h1>;
-        if (line.startsWith('## ')) return <h2 key={index}>{renderInlineMarkdown(line.slice(3))}</h2>;
-        if (line.startsWith('- ')) return <p key={index}>- {renderInlineMarkdown(line.slice(2))}</p>;
-        if (!line.trim()) return null;
-
-        return <p key={index}>{renderInlineMarkdown(line)}</p>;
+      {blocks.map((block, index) => {
+        switch (block.type) {
+          case 'header1':
+            return <h1 key={index}>{renderInlineMarkdown(block.text)}</h1>;
+          case 'header2':
+            return <h2 key={index}>{renderInlineMarkdown(block.text)}</h2>;
+          case 'list-item':
+            return <p key={index}>- {renderInlineMarkdown(block.text)}</p>;
+          case 'code':
+            return <CodeBlockView key={index} code={block.code} language={block.language} />;
+          case 'paragraph':
+          default:
+            return <p key={index}>{renderInlineMarkdown(block.text)}</p>;
+        }
       })}
     </div>
   );
