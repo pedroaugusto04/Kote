@@ -73,7 +73,6 @@ export function registerSaveNoteCommand(
 
       const languageId = editor.document.languageId || '';
       const isMarkdown = languageId === 'markdown';
-      const finalRawText = isMarkdown ? rawText : `\`\`\`${languageId}\n${rawText}\n\`\`\``;
 
       // Infer title from the first header or first line
       let title = 'Unsaved Note';
@@ -97,14 +96,14 @@ export function registerSaveNoteCommand(
 
       if (confirm === undefined) return;
 
-      const sourceChannel = rawText.includes('<!-- KB_SOURCE_CHANNEL: ai-chat -->') ? 'ai-chat' : undefined;
+      const sourceChannel = (rawText.includes('Source: Codex') || rawText.includes('Source: Claude Code')) ? 'ai-chat' : undefined;
 
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Saving note…', cancellable: false },
         async () => {
           try {
             await client.createNote({
-              rawText: finalRawText,
+              rawText: isMarkdown ? rawText : `\`\`\`${languageId}\n${rawText}\n\`\`\``,
               title: confirm || title,
               projectSlug: getProject(),
               sourceChannel,

@@ -283,8 +283,7 @@ export class AiHistoryManager {
 
   private getMarkdownText(session: AiSession): string {
     const titleWithDate = this.getTitleWithDate(session);
-    let rawText = `<!-- KB_SOURCE_CHANNEL: ai-chat -->\n`;
-    rawText += `# ${titleWithDate}\n\n`;
+    let rawText = `# ${titleWithDate}\n\n`;
     rawText += `Source: ${this.providers.get(session.providerId)?.name || session.providerId}\n`;
     if (session.projectSlug) {
       rawText += `Project: ${session.projectSlug}\n`;
