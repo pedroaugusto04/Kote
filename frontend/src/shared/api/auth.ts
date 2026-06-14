@@ -56,3 +56,7 @@ export function buildGoogleAuthStartUrl(returnTo: string) {
   const params = new URLSearchParams({ returnTo });
   return `${resolveApiPath('/api/auth/google/start')}?${params.toString()}`;
 }
+
+export async function fetchConnectionToken() {
+  return request<{ ok: true; connectionToken: string }>('/api/auth/connection-token');
+}

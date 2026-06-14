@@ -410,6 +410,27 @@ export class AuthService implements OnModuleInit {
     };
   }
 
+  generateConnectionToken(user: AuthenticatedUser): string {
+    const tokens = this.issueTokens({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      displayName: user.displayName,
+      passwordHash: null,
+      avatarStorageKey: null,
+      avatarMimeType: null,
+      avatarSizeBytes: null,
+      avatarUpdatedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    const payload = JSON.stringify({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
+    return `kbc_${base64url(payload)}`;
+  }
+
   private async findOrCreateGoogleUser(profile: GoogleOAuthProfile): Promise<KbUser> {
     if (!profile.email || !profile.emailVerified) throw new UnauthorizedException('google_email_not_verified');
     const identity = await this.users.findAuthIdentity(googleAuthProvider, profile.providerUserId);

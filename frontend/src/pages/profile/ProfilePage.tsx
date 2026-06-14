@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { deleteCurrentUserAvatar, fetchCurrentUser, uploadCurrentUserAvatar } from '../../shared/api/client';
+import { deleteCurrentUserAvatar, fetchConnectionToken, fetchCurrentUser, uploadCurrentUserAvatar } from '../../shared/api/client';
 import { getErrorMessage } from '../../shared/api/error-message';
 import type { Workspace } from '../../shared/api/models/workspace';
 import { InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
@@ -30,6 +31,31 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
     onSuccess: syncCurrentUser,
   });
   const avatarBusy = uploadAvatarMutation.isPending || deleteAvatarMutation.isPending;
+
+  const [connectionToken, setConnectionToken] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [revealError, setRevealError] = useState<string | null>(null);
+  const [isRevealing, setIsRevealing] = useState(false);
+
+  const handleRevealToken = async () => {
+    setIsRevealing(true);
+    setRevealError(null);
+    try {
+      const res = await fetchConnectionToken();
+      setConnectionToken(res.connectionToken);
+    } catch (err) {
+      setRevealError('Failed to retrieve connection token. Please try again.');
+    } finally {
+      setIsRevealing(false);
+    }
+  };
+
+  const handleCopy = () => {
+    if (!connectionToken) return;
+    void navigator.clipboard.writeText(connectionToken);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <>
@@ -111,6 +137,47 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
                 </dd>
               </div>
             </dl>
+
+            <div className="profile-connection-section">
+              <div className="profile-connection-header">
+                <h3 className="profile-connection-title">CLI & VS Code Connection</h3>
+                <p className="profile-connection-desc">
+                  Generate a unified connection token to authenticate your VS Code extension or command line interface (CLI). This token contains refresh capability and will keep you logged in.
+                </p>
+              </div>
+
+              {revealError && <InlineMessage tone="error">{revealError}</InlineMessage>}
+
+              {connectionToken ? (
+                <div className="profile-connection-box">
+                  <input
+                    readOnly
+                    type="password"
+                    value={connectionToken}
+                    className="profile-connection-input"
+                    aria-label="Connection Token"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopy}
+                    className="profile-connection-btn"
+                  >
+                    {copied ? 'Copied!' : 'Copy Token'}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={isRevealing}
+                  onClick={handleRevealToken}
+                  className="profile-connection-btn"
+                  style={{ marginTop: '8px' }}
+                >
+                  {isRevealing ? 'Generating...' : 'Reveal Connection Token'}
+                </button>
+              )}
+            </div>
           </div>
         ) : null}
       </Panel>

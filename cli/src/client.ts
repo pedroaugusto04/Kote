@@ -58,18 +58,21 @@ export class ApiClient {
     // If unauthorized, attempt token refresh if we have a refresh token
     if (response.status === 401 && !path.includes('auth/login') && !path.includes('auth/refresh')) {
       const config = loadConfig();
-      if (config.cookies.kb_refresh_token) {
+      let refreshed = false;
+      if (config.cookies?.kb_refresh_token) {
         try {
           const refreshResponse = await this.request('/api/auth/refresh', { method: 'POST' });
           if (refreshResponse.ok) {
             // Token was refreshed (cookies saved automatically), retry original request
             response = await this.request(path, options);
-          } else {
-            clearConfigAuth();
+            refreshed = true;
           }
         } catch {
-          clearConfigAuth();
+          // Ignore
         }
+      }
+      if (!refreshed) {
+        clearConfigAuth();
       }
     }
 

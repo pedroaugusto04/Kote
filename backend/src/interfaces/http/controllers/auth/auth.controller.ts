@@ -86,6 +86,17 @@ export class AuthController {
     return { ok: true, user };
   }
 
+  @Get('connection-token')
+  @UseGuards(AccessTokenAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a connection token for CLI or IDE connection' })
+  @ApiResponse({ status: 200, description: 'Connection token retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  connectionToken(@CurrentUser() user: AuthenticatedUser) {
+    const token = this.auth.generateConnectionToken(user);
+    return { ok: true, connectionToken: token };
+  }
+
   @Put('avatar')
   @UseGuards(AccessTokenAuthGuard, TrustedOriginGuard)
   @ApiBearerAuth()

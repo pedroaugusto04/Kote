@@ -18,6 +18,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   logInfo('Extension', `Extension activate() started. isConfigured: ${isConfigured()}`);
   kbClient = new KbClient();
 
+  kbClient.onUnauthorized = () => {
+    logInfo('Extension', 'Session expired, triggering onAuthChange and reloading webview');
+    vscode.commands.executeCommand('kb.onAuthChange');
+    sidebarProvider.reloadWebview();
+    vscode.window.showErrorMessage('Your Knowledge Base session has expired. Please log in again.');
+  };
+
   // -------------------------------------------------------------------------
   // Status bar
   // -------------------------------------------------------------------------

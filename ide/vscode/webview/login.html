@@ -284,11 +284,12 @@
       <div class="instructions">
         <p>1. Open this link in your browser to log in with your Google account:</p>
         <p><a href="https://pedro-duarte.ddns.net/knowledge-base/api/auth/google/start?returnTo=/knowledge-base/auth" target="_blank" id="googleLink">Open Google Login</a></p>
-        <p>2. Copy the value of the cookie <strong>kb_access_token</strong> from your browser's Developer Tools (Application -> Cookies).</p>
+        <p>2. Once logged in, go to your <strong>Profile</strong> page and click <strong>Reveal Connection Token</strong>.</p>
+        <p>3. Copy the token and paste it below:</p>
       </div>
       <div class="form-group">
-        <label for="googleToken">kb_access_token cookie value</label>
-        <input type="password" id="googleToken" placeholder="Paste access token here…" />
+        <label for="googleToken">Connection Token / Cookie Value</label>
+        <input type="password" id="googleToken" placeholder="Paste connection token or cookie value here…" />
       </div>
       <button class="btn-submit" id="btnSubmitGoogle">Validate and Connect</button>
     </div>

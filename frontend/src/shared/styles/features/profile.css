@@ -98,3 +98,65 @@
   font-family: var(--mono);
   font-size: 12px;
 }
+
+/* CLI / VS Code connection card */
+.profile-connection-section {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.profile-connection-header {
+  margin-bottom: 16px;
+}
+
+.profile-connection-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--text-strong);
+}
+
+.profile-connection-desc {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.profile-connection-box {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--input-bg);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 12px;
+}
+
+.profile-connection-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+  text-overflow: ellipsis;
+}
+
+.profile-connection-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  padding: 6px 12px;
+  color: var(--text-strong);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.profile-connection-btn:hover {
+  background: var(--surface-hover);
+}

@@ -32,14 +32,13 @@ export async function runInit(): Promise<void> {
       console.log('\n' + pc.cyan('Google OAuth Instructions:'));
       console.log(`1. Open the following URL in your browser to log in:`);
       console.log(`   ${pc.underline(pc.bold(pc.blue(googleStartUrl)))}`);
-      console.log(`2. Once logged in, open the Developer Tools (F12) in your browser.`);
-      console.log(`3. Under the Application tab (Storage -> Cookies), find the cookie named "${pc.bold('kb_access_token')}".`);
-      console.log(`4. Copy its value and paste it below:\n`);
+      console.log(`2. Once logged in, go to your Profile page and click "Reveal Connection Token".`);
+      console.log(`3. Copy the token and paste it below:\n`);
 
       const token = await password({
-        message: 'Paste the kb_access_token cookie value:',
+        message: 'Paste your Connection Token:',
         validate: (value) => {
-          if (!value || !value.trim()) return 'Access token value is required';
+          if (!value || !value.trim()) return 'Connection Token is required';
           return;
         },
       });
@@ -49,11 +48,29 @@ export async function runInit(): Promise<void> {
         return;
       }
 
-      s.start('Validating Google access token...');
+      s.start('Validating Google Connection Token...');
+      const trimmed = token.trim();
+      let accessToken = trimmed;
+      let refreshToken: string | undefined = undefined;
+
+      if (trimmed.startsWith('kbc_')) {
+        try {
+          const payload = Buffer.from(trimmed.slice(4), 'base64').toString('utf8');
+          const parsed = JSON.parse(payload);
+          if (parsed.accessToken && parsed.refreshToken) {
+            accessToken = parsed.accessToken;
+            refreshToken = parsed.refreshToken;
+          }
+        } catch {
+          // Fallback to raw token
+        }
+      }
+
       saveConfig({
         apiUrl,
         cookies: {
-          kb_access_token: token.trim(),
+          kb_access_token: accessToken,
+          kb_refresh_token: refreshToken,
         },
       });
     } else {

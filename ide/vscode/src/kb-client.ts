@@ -112,6 +112,7 @@ function makeRequest(url: string, options: RequestOptions = {}): Promise<{ statu
 
 export class KbClient {
   private config: KbConfig;
+  public onUnauthorized?: () => void;
 
   constructor() {
     this.config = loadKbConfig();
@@ -161,18 +162,31 @@ export class KbClient {
 
     // Attempt token refresh on 401
     if (response.status === 401) {
+      let refreshed = false;
       if (this.config.cookies.kb_refresh_token) {
-        const refreshResponse = await makeRequest(this.buildUrl('/api/auth/refresh'), {
-          method: 'POST',
-          headers: { Cookie: this.buildCookieHeader() },
-        });
-        if (refreshResponse.status < 300) {
-          // Parse Set-Cookie and save
-          const setCookie = refreshResponse.headers['set-cookie'] ?? '';
-          this.updateCookiesFromSetCookie(setCookie);
-          headers.Cookie = this.buildCookieHeader();
-          response = await makeRequest(url, { ...options, headers });
+        try {
+          const refreshResponse = await makeRequest(this.buildUrl('/api/auth/refresh'), {
+            method: 'POST',
+            headers: { Cookie: this.buildCookieHeader() },
+          });
+          if (refreshResponse.status < 300) {
+            // Parse Set-Cookie and save
+            const setCookie = refreshResponse.headers['set-cookie'] ?? '';
+            this.updateCookiesFromSetCookie(setCookie);
+            saveKbConfig({ cookies: this.config.cookies });
+            headers.Cookie = this.buildCookieHeader();
+            response = await makeRequest(url, { ...options, headers });
+            refreshed = true;
+          }
+        } catch {
+          // Ignore
         }
+      }
+
+      if (!refreshed) {
+        this.config.cookies = {};
+        saveKbConfig({ cookies: {} });
+        this.onUnauthorized?.();
       }
     }
 
@@ -334,14 +348,33 @@ export class KbClient {
   }
 
   async validateAndSetGoogleToken(token: string): Promise<void> {
-    this.config.cookies.kb_access_token = token;
-    saveKbConfig({ cookies: { kb_access_token: token } });
+    const trimmed = token.trim();
+    let accessToken: string | undefined = trimmed;
+    let refreshToken: string | undefined = undefined;
+
+    if (trimmed.startsWith('kbc_')) {
+      try {
+        const payload = Buffer.from(trimmed.slice(4), 'base64').toString('utf8');
+        const parsed = JSON.parse(payload);
+        if (parsed.accessToken && parsed.refreshToken) {
+          accessToken = parsed.accessToken;
+          refreshToken = parsed.refreshToken;
+        }
+      } catch (err) {
+        // Fallback to raw token
+      }
+    }
+
+    this.config.cookies.kb_access_token = accessToken;
+    this.config.cookies.kb_refresh_token = refreshToken;
+    saveKbConfig({ cookies: { kb_access_token: accessToken, kb_refresh_token: refreshToken } });
 
     try {
       await this.listWorkspaces();
     } catch (err) {
       this.config.cookies.kb_access_token = undefined;
-      saveKbConfig({ cookies: { kb_access_token: undefined } });
+      this.config.cookies.kb_refresh_token = undefined;
+      saveKbConfig({ cookies: { kb_access_token: undefined, kb_refresh_token: undefined } });
       throw err;
     }
   }
