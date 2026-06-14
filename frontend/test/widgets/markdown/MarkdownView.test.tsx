@@ -30,4 +30,32 @@ describe('MarkdownView', () => {
     expect(badge?.closest('strong')).toBeInTheDocument();
     expect(container.querySelector('strong')?.textContent).toContain('The filtering logic is repeated');
   });
+
+  it('renders a code block with language using CodeBlockView', () => {
+    const { container } = render(<MarkdownView markdown={"```typescript\nconst x = 1;\n```"} />);
+    
+    expect(container.querySelector('.markdown-code-block')).toBeInTheDocument();
+    expect(screen.getByText('typescript')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument();
+    expect(screen.getByText('const x = 1;')).toBeInTheDocument();
+  });
+
+  it('renders a code block without language using CodeBlockView with fallback language', () => {
+    const { container } = render(<MarkdownView markdown={"```\nconst x = 1;\n```"} />);
+    
+    expect(container.querySelector('.markdown-code-block')).toBeInTheDocument();
+    expect(screen.getByText('code')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument();
+    expect(screen.getByText('const x = 1;')).toBeInTheDocument();
+  });
+
+  it('renders inline code as standard code tag', () => {
+    const { container } = render(<MarkdownView markdown={"Use the `const x = 1` syntax."} />);
+    
+    expect(container.querySelector('.markdown-code-block')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /copy/i })).not.toBeInTheDocument();
+    const codeTag = container.querySelector('code');
+    expect(codeTag).toBeInTheDocument();
+    expect(codeTag?.textContent).toBe('const x = 1');
+  });
 });

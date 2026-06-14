@@ -1,4 +1,4 @@
-import { useState, type ReactNode, Children } from 'react';
+import { useState, type ReactNode, Children, createContext, useContext } from 'react';
 import ReactMarkdown from 'react-markdown';
 
 const severityClassNames: Record<string, string> = {
@@ -8,6 +8,8 @@ const severityClassNames: Record<string, string> = {
   HIGH: 'markdown-severity markdown-severity-high',
   CRITICAL: 'markdown-severity markdown-severity-critical',
 };
+
+const PreContext = createContext(false);
 
 function processTextWithBadges(child: ReactNode): ReactNode {
   if (typeof child !== 'string') return child;
@@ -87,15 +89,26 @@ export function MarkdownView({ markdown }: { markdown: string }) {
           h3: ({ children }) => <h3>{processChildren(children)}</h3>,
           h4: ({ children }) => <h4>{processChildren(children)}</h4>,
           strong: ({ children }) => <strong>{processChildren(children)}</strong>,
+          pre: ({ children }) => (
+            <PreContext.Provider value={true}>
+              {children}
+            </PreContext.Provider>
+          ),
           code(props: any) {
             const { children, className, node, ...rest } = props;
+            const isInsidePre = useContext(PreContext);
             const match = /language-(\w+)/.exec(className || '');
-            return match ? (
-              <CodeBlockView
-                code={String(children).replace(/\n$/, '')}
-                language={match[1]}
-              />
-            ) : (
+            
+            if (isInsidePre) {
+              return (
+                <CodeBlockView
+                  code={String(children).replace(/\n$/, '')}
+                  language={match ? match[1] : 'code'}
+                />
+              );
+            }
+
+            return (
               <code {...rest} className={className}>
                 {children}
               </code>
