@@ -64,6 +64,7 @@ export interface KbCreateNotePayload {
   rawText: string;
   projectSlug: string;
   tags?: string[];
+  sourceChannel?: string;
 }
 
 export interface KbCreateNoteResult {

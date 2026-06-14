@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CanonicalType, KnowledgeStatus } from '../../../contracts/enums.js';
+import { CanonicalType, KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
 import { noteStatusValues } from '../../../domain/note-status.js';
 import { slugify } from '../../../domain/strings.js';
 import { normalizeTime } from '../../../domain/time.js';
@@ -22,6 +22,7 @@ export const createNoteBodySchema = z
     reminderDate: z.string().trim().optional().default(''),
     reminderTime: z.string().trim().optional().default(''),
     reminderAt: z.string().trim().optional().default(''),
+    sourceChannel: z.nativeEnum(SourceChannel).optional(),
   })
   .strict()
   .transform((body) => ({
@@ -35,6 +36,7 @@ export const createNoteBodySchema = z
     reminderDate: body.reminderDate.trim(),
     reminderTime: normalizeTime(body.reminderTime),
     reminderAt: body.reminderAt,
+    sourceChannel: body.sourceChannel,
   }))
   .superRefine((body, ctx) => {
     if (body.reminderTime && !body.reminderDate) {

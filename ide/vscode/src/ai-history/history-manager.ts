@@ -116,7 +116,8 @@ export class AiHistoryManager {
   }
 
   private getMarkdownText(session: AiSession): string {
-    let rawText = `# ${session.title}\n\n`;
+    let rawText = `<!-- KB_SOURCE_CHANNEL: ai-chat -->\n`;
+    rawText += `# ${session.title}\n\n`;
     rawText += `Source: ${this.providers.get(session.providerId)?.name || session.providerId}\n`;
     if (session.projectSlug) {
       rawText += `Project: ${session.projectSlug}\n`;
@@ -158,6 +159,7 @@ export class AiHistoryManager {
         title: session.title,
         rawText,
         projectSlug: session.projectSlug || client.defaultProjectSlug || 'inbox',
+        sourceChannel: 'ai-chat',
       });
 
       vscode.window.showInformationMessage('Note saved to Knowledge Vault successfully!');

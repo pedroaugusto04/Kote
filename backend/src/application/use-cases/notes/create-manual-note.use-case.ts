@@ -43,7 +43,7 @@ export class CreateManualNoteUseCase {
     const occurredAt = new Date().toISOString();
     const payload: IngestPayload = {
       source: {
-        channel: SourceChannel.External,
+        channel: (input.sourceChannel as SourceChannel) || SourceChannel.External,
         system: 'manual-api',
         actor: '',
         conversationId: workspace.workspaceSlug,

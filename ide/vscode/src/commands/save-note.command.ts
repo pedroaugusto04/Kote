@@ -90,6 +90,8 @@ export function registerSaveNoteCommand(
 
       if (confirm === undefined) return;
 
+      const sourceChannel = rawText.includes('<!-- KB_SOURCE_CHANNEL: ai-chat -->') ? 'ai-chat' : undefined;
+
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Saving note…', cancellable: false },
         async () => {
@@ -98,6 +100,7 @@ export function registerSaveNoteCommand(
               rawText,
               title: confirm || title,
               projectSlug: getProject(),
+              sourceChannel,
             });
             vscode.window.showInformationMessage(`Note saved to KB — project: ${getProject()}`);
             vscode.commands.executeCommand('kb.refresh');

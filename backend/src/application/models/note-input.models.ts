@@ -9,6 +9,7 @@ export type CreateManualNoteInput = {
   reminderDate: string;
   reminderTime: string;
   reminderAt?: string;
+  sourceChannel?: string;
 };
 
 export type UpdateNoteInput = {

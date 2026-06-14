@@ -3,6 +3,7 @@ export enum SourceChannel {
   GithubPush = 'github-push',
   N8nWorkflow = 'n8n-workflow',
   External = 'external',
+  AiChat = 'ai-chat',
 }
 
 export enum EventType {
