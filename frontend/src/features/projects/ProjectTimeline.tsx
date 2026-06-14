@@ -5,11 +5,11 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary, CanonicalNoteType } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName, formatSourceLabel, getCleanSummary } from '../../shared/utils/format';
 import { Badge, EmptyState } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
-import { PencilIcon, TrashIcon, ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
+import { PencilIcon, TrashIcon, ResolveIcon, ArchiveIcon, SourceIcon } from '../../shared/ui/icons';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
@@ -19,6 +19,7 @@ import { notifySuccess } from '../../shared/ui/notifications';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { Select } from '../../shared/ui/select';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
+import { extractSourceFromText } from '../../shared/utils/text';
 
 function PinIcon({ active }: { active?: boolean }) {
   return (
@@ -198,93 +199,101 @@ export function ProjectTimeline({
       </div>
       {visibleItems.length > 0 ? (
         <div className={`project-timeline-list ${isStale ? 'stale-data' : ''}`}>
-          {visibleItems.map((item) => (
-            <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)} onDoubleClick={() => onOpenNoteFullPage?.(item.noteId)}>
-              <div className="project-timeline-marker" aria-hidden="true" />
-              <div className="project-timeline-card">
-                <div className="project-timeline-meta">
-                  {item.isPinned && (
-                    <span className="pinned-badge" title="Pinned Note" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--amber)', fontSize: '11px', fontWeight: 'bold' }}>
-                      <PinIcon active /> Pinned
-                    </span>
-                  )}
-                  <Badge value={formatDisplayToken(item.category)} tone={item.category} />
-                  <Badge value={noteTypeLabel(item.type)} tone={item.type} />
-                  <Badge value={formatDisplayToken(item.status)} tone={item.status} />
-                  <span className="meta meta-date">{formatUsDate(item.date)}</span>
-                  <span className="meta meta-time"> {formatUsDateTime(item.date).split(' ')[1]}</span>
-                  <span className="meta meta-project">{projectName(dashboard.projects, item.project)}</span>
-                  <span className="meta meta-source">{item.source || item.sourceChannel}</span>
-                  <AttachmentIndicator count={item.attachmentCount || 0} />
-                </div>
-                <button
-                  aria-label={item.isPinned ? `Unpin note ${item.title}` : `Pin note ${item.title}`}
-                  className={`row-action-button pin ${item.isPinned ? 'active' : ''}`}
-                  title={item.isPinned ? 'Unpin' : 'Pin'}
-                  type="button"
-                  disabled={pinMutation.isPending}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    pinMutation.mutate({ noteId: item.noteId, pinned: !item.isPinned });
-                  }}
-                  style={{
-                    position: 'absolute',
-                    top: '14px',
-                    right: '14px',
-                    zIndex: 2,
-                  }}
-                >
-                  <PinIcon active={item.isPinned} />
-                </button>
-                <div className="project-timeline-body">
-                  <div>
-                    <h3>{item.title}</h3>
-                    <p>{item.summary}</p>
+          {visibleItems.map((item) => {
+            const activeSource = extractSourceFromText(item.summary) || item.source || item.sourceChannel;
+            return (
+              <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)} onDoubleClick={() => onOpenNoteFullPage?.(item.noteId)}>
+                <div className="project-timeline-marker" aria-hidden="true" />
+                <div className="project-timeline-card">
+                  <div className="project-timeline-meta">
+                    {item.isPinned && (
+                      <span className="pinned-badge" title="Pinned Note" style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--amber)', fontSize: '11px', fontWeight: 'bold' }}>
+                        <PinIcon active /> Pinned
+                      </span>
+                    )}
+                    <Badge value={formatDisplayToken(item.category)} tone={item.category} />
+                    <Badge value={noteTypeLabel(item.type)} tone={item.type} />
+                    <Badge value={formatDisplayToken(item.status)} tone={item.status} />
+                    <span className="meta meta-date">{formatUsDate(item.date)}</span>
+                    <span className="meta meta-time"> {formatUsDateTime(item.date).split(' ')[1]}</span>
+                    <span className="meta meta-project">{projectName(dashboard.projects, item.project)}</span>
+                    <AttachmentIndicator count={item.attachmentCount || 0} />
                   </div>
-                  <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginTop: 'auto' }}>
-                    <QuickNoteStatusActions
-                      note={{
-                        id: item.noteId,
-                        title: item.title,
-                        status: item.status,
-                        project: item.project,
-                        tags: item.tags,
-                      }}
-                      compact
-                    />
-                    {onEditNote ? (
-                      <button
-                        aria-label={`Edit note ${item.title}`}
-                        className="row-action-button edit"
-                        title="Edit"
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onEditNote(item);
+                  <button
+                    aria-label={item.isPinned ? `Unpin note ${item.title}` : `Pin note ${item.title}`}
+                    className={`row-action-button pin ${item.isPinned ? 'active' : ''}`}
+                    title={item.isPinned ? 'Unpin' : 'Pin'}
+                    type="button"
+                    disabled={pinMutation.isPending}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      pinMutation.mutate({ noteId: item.noteId, pinned: !item.isPinned });
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '14px',
+                      right: '14px',
+                      zIndex: 2,
+                    }}
+                  >
+                    <PinIcon active={item.isPinned} />
+                  </button>
+                  <div className="project-timeline-body">
+                    <div>
+                      <h3>{item.title}</h3>
+                      {activeSource && (
+                        <span className={`source-tag ${getSourceTagClass(activeSource)}`} title={`Source: ${formatSourceLabel(activeSource)}`}>
+                          <SourceIcon source={activeSource} />
+                          <span>{formatSourceLabel(activeSource)}</span>
+                        </span>
+                      )}
+                      <p>{getCleanSummary(item.summary)}</p>
+                    </div>
+                    <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginTop: 'auto' }}>
+                      <QuickNoteStatusActions
+                        note={{
+                          id: item.noteId,
+                          title: item.title,
+                          status: item.status,
+                          project: item.project,
+                          tags: item.tags,
                         }}
-                      >
-                        <PencilIcon />
-                      </button>
-                    ) : null}
-                    {onDeleteNote ? (
-                      <button
-                        aria-label={`Delete note ${item.title}`}
-                        className="row-action-button danger"
-                        title="Delete"
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onDeleteNote(item);
-                        }}
-                      >
-                        <TrashIcon />
-                      </button>
-                    ) : null}
+                        compact
+                      />
+                      {onEditNote ? (
+                        <button
+                          aria-label={`Edit note ${item.title}`}
+                          className="row-action-button edit"
+                          title="Edit"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onEditNote(item);
+                          }}
+                        >
+                          <PencilIcon />
+                        </button>
+                      ) : null}
+                      {onDeleteNote ? (
+                        <button
+                          aria-label={`Delete note ${item.title}`}
+                          className="row-action-button danger"
+                          title="Delete"
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onDeleteNote(item);
+                          }}
+                        >
+                          <TrashIcon />
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </article>
-          ))}
+              </article>
+            );
+          })}
         </div>
       ) : (
         <EmptyState>No timeline items for this category.</EmptyState>
@@ -316,4 +325,23 @@ export function ProjectTimeline({
       )}
     </div>
   );
+}
+
+function getSourceTagClass(source: string | null | undefined): string {
+  if (!source) return 'manual';
+  const normalized = source.toLowerCase().trim();
+  if (normalized.includes('whatsapp') || normalized.includes('evolution')) return 'whatsapp';
+  if (normalized.includes('github')) return 'github';
+  if (
+    normalized === 'ai-chat' ||
+    normalized.includes('antigravity') ||
+    normalized.includes('codex') ||
+    normalized.includes('claude') ||
+    normalized.includes('open-code') ||
+    normalized.includes('opencode')
+  ) {
+    return 'ai';
+  }
+  if (normalized.includes('n8n') || normalized.includes('api')) return 'api';
+  return 'manual';
 }

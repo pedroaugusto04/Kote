@@ -13,8 +13,9 @@ import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
-import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
+import { PencilIcon, TrashIcon, SourceIcon } from '../../shared/ui/icons';
 import { NoteBody, NoteAttachments } from '../../widgets/notes/NoteReaderContent';
+import { extractSourceFromText } from '../../shared/utils/text';
 
 type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
 
@@ -244,23 +245,51 @@ function RelatedNotesSection({
     <section className="related-notes-section" aria-label="Related notes">
       <h2 className="note-body-label">Related Notes</h2>
       <div className="related-notes-grid">
-        {relatedNotes.map((note) => (
-          <div
-            key={note.id}
-            className="related-note-card clickable"
-            onClick={() => openNote(note.id)}
-          >
-            <div className="related-note-card-meta">
-              <Badge value={noteTypeLabel(note.type)} tone={note.type} />
-              <span className="meta">{formatUsDate(note.date)}</span>
+        {relatedNotes.map((note) => {
+          const activeSource = extractSourceFromText(note.summary) || note.source;
+          return (
+            <div
+              key={note.id}
+              className="related-note-card clickable"
+              onClick={() => openNote(note.id)}
+            >
+              <div className="related-note-card-meta">
+                <Badge value={noteTypeLabel(note.type)} tone={note.type} />
+                <span className="meta">{formatUsDate(note.date)}</span>
+              </div>
+              <h4>{note.title}</h4>
+              {activeSource && (
+                <span className={`source-tag ${getSourceTagClass(activeSource)}`} title={`Source: ${formatSourceLabel(activeSource)}`} style={{ marginBottom: '6px' }}>
+                  <SourceIcon source={activeSource} />
+                  <span>{formatSourceLabel(activeSource)}</span>
+                </span>
+              )}
+              <p>{getCleanSummary(note.summary)}</p>
             </div>
-            <h4>{note.title}</h4>
-            <p>{getCleanSummary(note.summary)}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
+}
+
+function getSourceTagClass(source: string | null | undefined): string {
+  if (!source) return 'manual';
+  const normalized = source.toLowerCase().trim();
+  if (normalized.includes('whatsapp') || normalized.includes('evolution')) return 'whatsapp';
+  if (normalized.includes('github')) return 'github';
+  if (
+    normalized === 'ai-chat' ||
+    normalized.includes('antigravity') ||
+    normalized.includes('codex') ||
+    normalized.includes('claude') ||
+    normalized.includes('open-code') ||
+    normalized.includes('opencode')
+  ) {
+    return 'ai';
+  }
+  if (normalized.includes('n8n') || normalized.includes('api')) return 'api';
+  return 'manual';
 }
 
 
