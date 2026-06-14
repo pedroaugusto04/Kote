@@ -107,6 +107,20 @@ function renderReviewFindings(findings: NonNullable<IngestPayload['content']['se
     .join('\n');
 }
 
+export function isAiNote(payload: IngestPayload): boolean {
+  const sourceChannel = payload.source.channel || '';
+  const sourceSystem = String(payload.source.system || '').toLowerCase().trim();
+  return (
+    sourceChannel === 'ai-chat' ||
+    sourceSystem === 'ai-chat' ||
+    sourceSystem.includes('antigravity') ||
+    sourceSystem.includes('codex') ||
+    sourceSystem.includes('claude') ||
+    sourceSystem.includes('open-code') ||
+    sourceSystem.includes('opencode')
+  );
+}
+
 export function renderEventNote(project: Project, payload: IngestPayload, paths: ReturnType<typeof buildNotePaths>): string {
   const sections = payload.content.sections;
   const frontmatter = renderFrontmatter({
@@ -125,6 +139,21 @@ export function renderEventNote(project: Project, payload: IngestPayload, paths:
     occurred_at: payload.event.occurredAt,
     related: [paths.canonicalRelativePath, paths.followupRelativePath].filter(Boolean),
   });
+
+  if (isAiNote(payload)) {
+    return [
+      frontmatter,
+      `# ${trimText(payload.content.title, payload.content.rawText)}`,
+      '',
+      `Project: ${project.displayName || project.projectSlug}`,
+      '',
+      payload.content.rawText,
+      '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
   return [
     frontmatter,
     `# ${trimText(payload.content.title, payload.content.rawText)}`,
