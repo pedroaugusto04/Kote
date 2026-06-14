@@ -103,7 +103,6 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
       const lines = content.trim().split('\n');
       
       const turns: AiTurn[] = [];
-      let lastPrompt = '';
 
       for (const line of lines) {
         if (!line.trim()) continue;
@@ -114,7 +113,6 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
 
           if (role === 'user') {
             turns.push({ role: 'user', content: text });
-            lastPrompt = text;
           } else if (role === 'assistant') {
             turns.push({ role: 'assistant', content: text });
           }
@@ -125,7 +123,17 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
 
       if (turns.length === 0) return null;
 
-      const title = lastPrompt ? `Claude Code: ${lastPrompt.slice(0, 50)}...` : 'Claude Code Session';
+      let title = 'Claude Session';
+      const firstUserTurn = turns.find(t => t.role === 'user');
+      if (firstUserTurn && firstUserTurn.content) {
+        const cleanPrompt = firstUserTurn.content
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (cleanPrompt) {
+          title = `Claude: ${cleanPrompt.slice(0, 60)}${cleanPrompt.length > 60 ? '...' : ''}`;
+        }
+      }
 
       // Detect project slug from parent directory name
       const parentDir = path.basename(path.dirname(filePath));

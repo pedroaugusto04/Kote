@@ -102,7 +102,6 @@ export class CodexHistoryProvider implements AiHistoryProvider {
       if (!content) return null;
 
       const turns: AiTurn[] = [];
-      let lastPrompt = '';
 
       if (filePath.endsWith('.jsonl')) {
         const lines = content.split('\n');
@@ -140,7 +139,6 @@ export class CodexHistoryProvider implements AiHistoryProvider {
                   if (textContent) {
                     if (role === 'user') {
                       turns.push({ role: 'user', content: textContent });
-                      lastPrompt = textContent;
                     } else {
                       turns.push({ role: 'assistant', content: textContent });
                     }
@@ -153,7 +151,6 @@ export class CodexHistoryProvider implements AiHistoryProvider {
               const text = record.content || record.text || '';
               if (role === 'user' && text) {
                 turns.push({ role: 'user', content: text });
-                lastPrompt = text;
               } else if (role === 'assistant' && text) {
                 turns.push({ role: 'assistant', content: text });
               }
@@ -168,7 +165,6 @@ export class CodexHistoryProvider implements AiHistoryProvider {
           const text = msg.content || msg.text || '';
           if (role === 'user') {
             turns.push({ role: 'user', content: text });
-            lastPrompt = text;
           } else {
             turns.push({ role: 'assistant', content: text });
           }
@@ -177,7 +173,17 @@ export class CodexHistoryProvider implements AiHistoryProvider {
 
       if (turns.length === 0) return null;
 
-      const title = lastPrompt ? `Codex: ${lastPrompt.slice(0, 50)}...` : 'Codex Session';
+      let title = 'Codex Session';
+      const firstUserTurn = turns.find(t => t.role === 'user');
+      if (firstUserTurn && firstUserTurn.content) {
+        const cleanPrompt = firstUserTurn.content
+          .replace(/[\r\n]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (cleanPrompt) {
+          title = `Codex: ${cleanPrompt.slice(0, 60)}${cleanPrompt.length > 60 ? '...' : ''}`;
+        }
+      }
 
       return {
         providerId: this.id,
