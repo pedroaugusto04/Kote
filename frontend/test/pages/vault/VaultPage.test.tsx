@@ -318,6 +318,57 @@ describe('VaultPage', () => {
     expect(screen.queryByText('Project: pedroaugusto04/TCC-Latex')).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'AI summary' })).not.toBeInTheDocument();
   });
+
+  it('does not render AI summary for notes with Source header when content matches', async () => {
+    const note = buildNoteSummary({
+      id: 'note-ai-header',
+      title: 'AI note title',
+      summary: 'Source: Antigravity\nProject: knowledge-base\n\n---\n\nHello world',
+    });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(note),
+      markdown: '# AI note title\n\nSource: Antigravity\nProject: knowledge-base\n\n---\n\nHello world',
+      summary: 'Source: Antigravity\nProject: knowledge-base\n\n---\n\nHello world',
+      editor: {
+        canDelete: true,
+        rawText: 'Source: Antigravity\nProject: knowledge-base\n\n---\n\nHello world',
+        reminderDate: '',
+        reminderTime: '',
+      },
+    });
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'AI summary' })).not.toBeInTheDocument();
+  });
+
+  it('does not render AI summary for notes from an AI source', async () => {
+    const note = buildNoteSummary({
+      id: 'note-ai-source',
+      title: 'AI note title',
+      summary: 'Some different summary text',
+      source: 'antigravity',
+    });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(note),
+      markdown: '# AI note title\n\nHello world',
+      summary: 'Some different summary text',
+      editor: {
+        canDelete: true,
+        rawText: 'Hello world',
+        reminderDate: '',
+        reminderTime: '',
+      },
+    });
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'AI summary' })).not.toBeInTheDocument();
+  });
 });
 
 function renderVaultPage({

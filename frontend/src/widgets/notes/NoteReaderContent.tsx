@@ -3,7 +3,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 
 import { normalizeComparableText, sameText, stripSourceHeader } from '../../shared/utils/text';
-import { formatFileSize, formatSourceLabel } from '../../shared/utils/format';
+import { formatFileSize, formatSourceLabel, getSourceTagClass } from '../../shared/utils/format';
 import type { NoteAttachment } from '../../shared/api/models/note';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../markdown/MarkdownView';
@@ -13,7 +13,9 @@ export function NoteBody({ markdown, rawText, summary, title, source }: { markdo
   const extraMarkdown = readerExtraSections(markdown, title);
   const hasExtra = Boolean(extraMarkdown);
   const cleanedRawText = stripSourceHeader(rawText);
-  const hasSummary = Boolean(summary) && normalizeReaderText(summary) !== normalizeReaderText(cleanedRawText);
+  const cleanedSummary = stripSourceHeader(summary);
+  const isAiNote = source ? getSourceTagClass(source) === 'ai' : false;
+  const hasSummary = !isAiNote && Boolean(cleanedSummary) && normalizeReaderText(cleanedSummary) !== normalizeReaderText(cleanedRawText);
   const showLabel = hasExtra || hasSummary;
   const activeSource = source;
 
@@ -35,7 +37,7 @@ export function NoteBody({ markdown, rawText, summary, title, source }: { markdo
       {hasSummary ? (
         <section className="note-body-section note-ai-summary">
           <h2 className="note-body-label">AI summary</h2>
-          <MarkdownView markdown={summary} />
+          <MarkdownView markdown={cleanedSummary} />
         </section>
       ) : null}
       {extraMarkdown ? <MarkdownView markdown={extraMarkdown} /> : null}
