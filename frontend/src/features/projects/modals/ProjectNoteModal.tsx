@@ -94,7 +94,7 @@ export function ProjectNoteModal({
         reminderTime: values.reminderTime,
       };
       return globalLoading.trackPromise(mode === 'create'
-        ? createNote({ ...payload, projectSlug: selectedProjectSlug })
+        ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual' })
         : updateNote(note?.id || '', payload));
     },
     onSuccess: async (result) => {

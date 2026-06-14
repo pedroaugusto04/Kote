@@ -53,41 +53,4 @@ export function stripSourceHeader(rawText: string): string {
   return rawText;
 }
 
-export function extractSourceFromText(rawText: string): string | undefined {
-  if (!rawText) return undefined;
-  const lines = rawText.split('\n');
-  const firstContentIndex = lines.findIndex((line) => line.trim());
-  if (firstContentIndex !== -1) {
-    const firstLine = lines[firstContentIndex].trim();
-    if (firstLine.toLowerCase().startsWith('source:')) {
-      const srcVal = firstLine.substring(7).trim();
-      if (!rawText.includes('\n')) {
-        const providers = [
-          'antigravity',
-          'claude code',
-          'claude',
-          'open code',
-          'open-code',
-          'opencode',
-          'codex',
-          'ai-chat',
-          'whatsapp',
-          'evolution',
-          'github',
-          'n8n',
-          'api',
-          'manual',
-        ];
-        for (const provider of providers) {
-          if (srcVal.toLowerCase().startsWith(provider)) {
-            return srcVal.substring(0, provider.length);
-          }
-        }
-        const firstWord = srcVal.split(/[\s.,:-]/)[0];
-        if (firstWord) return firstWord;
-      }
-      if (srcVal) return srcVal;
-    }
-  }
-  return undefined;
-}
+

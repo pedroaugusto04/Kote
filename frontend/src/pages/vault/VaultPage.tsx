@@ -3,8 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, getCleanSummary, formatSourceLabel, getSourceTagClass } from '../../shared/utils/format';
-import { fetchNotes, fetchRelatedNotes } from '../../shared/api/client';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
+import { fetchNotes } from '../../shared/api/client';
 import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
@@ -13,9 +13,9 @@ import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
-import { PencilIcon, TrashIcon, SourceIcon } from '../../shared/ui/icons';
+import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 import { NoteBody, NoteAttachments } from '../../widgets/notes/NoteReaderContent';
-import { extractSourceFromText } from '../../shared/utils/text';
+import { RelatedNotesSection } from '../../widgets/notes/RelatedNotesSection';
 
 type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
 
@@ -220,58 +220,6 @@ export function VaultPage({
   );
 }
 
-function RelatedNotesSection({
-  noteId,
-  openNote,
-}: {
-  noteId: string;
-  openNote: (id: string) => void;
-}) {
-  const { data: relatedNotes, isLoading, isError } = useQuery({
-    queryKey: ['notes', 'related', noteId],
-    queryFn: () => fetchRelatedNotes(noteId),
-    enabled: Boolean(noteId),
-  });
-
-  if (isLoading) {
-    return <div className="related-notes-loading">Finding related notes...</div>;
-  }
-
-  if (isError || !relatedNotes || relatedNotes.length === 0) {
-    return null;
-  }
-
-  return (
-    <section className="related-notes-section" aria-label="Related notes">
-      <h2 className="note-body-label">Related Notes</h2>
-      <div className="related-notes-grid">
-        {relatedNotes.map((note) => {
-          const activeSource = extractSourceFromText(note.summary) || note.source;
-          return (
-            <div
-              key={note.id}
-              className="related-note-card clickable"
-              onClick={() => openNote(note.id)}
-            >
-              <div className="related-note-card-meta">
-                <Badge value={noteTypeLabel(note.type)} tone={note.type} />
-                <span className="meta">{formatUsDate(note.date)}</span>
-              </div>
-              <h4>{note.title}</h4>
-              {activeSource && (
-                <span className={`source-tag ${getSourceTagClass(activeSource)}`} title={`Source: ${formatSourceLabel(activeSource)}`} style={{ marginBottom: '6px' }}>
-                  <SourceIcon source={activeSource} />
-                  <span>{formatSourceLabel(activeSource)}</span>
-                </span>
-              )}
-              <p>{getCleanSummary(note.summary)}</p>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 
 

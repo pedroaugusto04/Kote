@@ -1,12 +1,12 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary, formatSourceLabel, getSourceTagClass } from '../../shared/utils/format';
-import { extractSourceFromText } from '../../shared/utils/text';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary } from '../../shared/utils/format';
 import { Badge } from '../../shared/ui/primitives';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { QuickNoteStatusActions } from './QuickNoteStatusActions';
-import { PencilIcon, TrashIcon, SourceIcon } from '../../shared/ui/icons';
+import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
+import { SourceBadge } from './SourceBadge';
 import { pinNote } from '../../shared/api/client';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifySuccess } from '../../shared/ui/notifications';
@@ -51,7 +51,7 @@ export function NoteRow({
     },
   });
 
-  const activeSource = extractSourceFromText(note.summary) || note.source;
+  const activeSource = note.source;
 
   return (
     <article className="list-row clickable" onClick={() => onOpen(note.id)} onDoubleClick={() => onDoubleClick?.(note.id)}>
@@ -74,12 +74,7 @@ export function NoteRow({
           <AttachmentIndicator count={note.attachmentCount || 0} />
         </div>
         <h3>{note.title}</h3>
-        {activeSource && (
-          <span className={`source-tag ${getSourceTagClass(activeSource)}`} title={`Source: ${formatSourceLabel(activeSource)}`}>
-            <SourceIcon source={activeSource} />
-            <span>{formatSourceLabel(activeSource)}</span>
-          </span>
-        )}
+        <SourceBadge source={activeSource} />
         <p>{getCleanSummary(note.summary)}</p>
       </div>
       <button

@@ -156,6 +156,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
               title: msg.title,
               rawText: msg.content,
               projectSlug: msg.projectSlug || this.activeProject || this._client.defaultProjectSlug,
+              sourceChannel: 'ai-chat',
+              source: 'open-code',
             });
             this._post({
               type: 'noteSaved',

@@ -1,11 +1,12 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName, reminderDisplayDateTime, typeIcon } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary } from '../../shared/utils/format';
 import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Link } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
+import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllProjectsTimeline, fetchProjectTimeline } from '../../shared/api/client';
@@ -184,33 +185,37 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
               <EmptyState>No timeline events found for this project.</EmptyState>
             ) : (
               <div className="home-timeline">
-                {timelineItems.map((item) => (
-                  <article className="home-timeline-item clickable" key={item.id} onClick={() => openNote(item.noteId)}>
-                    <div
-                      className="home-timeline-dot"
-                      style={{
-                        color: getTimelineNodeColor(item.category, item.type),
-                        backgroundColor: getTimelineNodeColor(item.category, item.type),
-                      }}
-                    />
-                    <div className="home-timeline-content">
-                      <div className="home-timeline-meta">
-                        <Badge value={formatDisplayToken(item.category)} tone={item.category} />
-                        <Badge value={noteTypeLabel(item.type)} tone={item.type} />
-                        <Badge value={formatDisplayToken(item.status)} tone={item.status} />
-                        <span className="meta">
-                          {projectName(dashboard.projects, item.project)} / {formatUsDate(item.date)}
-                        </span>
-                        <AttachmentIndicator count={item.attachmentCount || 0} />
+                {timelineItems.map((item) => {
+                  const activeSource = item.source || item.sourceChannel;
+                  return (
+                    <article className="home-timeline-item clickable" key={item.id} onClick={() => openNote(item.noteId)}>
+                      <div
+                        className="home-timeline-dot"
+                        style={{
+                          color: getTimelineNodeColor(item.category, item.type),
+                          backgroundColor: getTimelineNodeColor(item.category, item.type),
+                        }}
+                      />
+                      <div className="home-timeline-content">
+                        <div className="home-timeline-meta">
+                          <Badge value={formatDisplayToken(item.category)} tone={item.category} />
+                          <Badge value={noteTypeLabel(item.type)} tone={item.type} />
+                          <Badge value={formatDisplayToken(item.status)} tone={item.status} />
+                          <span className="meta">
+                            {projectName(dashboard.projects, item.project)} / {formatUsDate(item.date)}
+                          </span>
+                          <AttachmentIndicator count={item.attachmentCount || 0} />
+                        </div>
+                        <h3 className="home-timeline-title">
+                          {item.title}
+                        </h3>
+                        <SourceBadge source={activeSource} />
+                        <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>
                       </div>
-                      <h3 className="home-timeline-title">
-                        {item.title}
-                      </h3>
-                      <p className="home-timeline-summary">{item.summary}</p>
-                    </div>
-                    <span className="file-icon">{typeIcon(item.type)}</span>
-                  </article>
-                ))}
+                      <span className="file-icon">{typeIcon(item.type)}</span>
+                    </article>
+                  );
+                })}
               </div>
             )}
           </Panel>

@@ -148,6 +148,7 @@ async function syncDirectory(
         tags: parsed.tags || [],
         status: parsed.status || 'active',
         canonicalType: parsed.canonicalType || 'event',
+        source: 'manual',
       };
 
       if (noteId) {

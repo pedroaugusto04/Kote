@@ -48,6 +48,7 @@ export function registerSaveNoteCommand(
               rawText,
               title: context_ || (selectedText ? `Snippet from ${fileName}` : undefined),
               projectSlug: getProject(),
+              source: 'open-code',
             });
             vscode.window.showInformationMessage(`Note saved to KB — project: ${getProject()}`);
             // Trigger sidebar refresh
@@ -96,7 +97,24 @@ export function registerSaveNoteCommand(
 
       if (confirm === undefined) return;
 
-      const sourceChannel = (rawText.includes('Source: Codex') || rawText.includes('Source: Claude Code')) ? 'ai-chat' : undefined;
+      let source = 'open-code';
+      let sourceChannel: string | undefined = undefined;
+      const lowerText = rawText.toLowerCase();
+      if (lowerText.includes('source:')) {
+        if (lowerText.includes('source: claude') || lowerText.includes('source: claudecode')) {
+          source = 'claude-code';
+          sourceChannel = 'ai-chat';
+        } else if (lowerText.includes('source: codex')) {
+          source = 'codex-cli';
+          sourceChannel = 'ai-chat';
+        } else if (lowerText.includes('source: antigravity')) {
+          source = 'antigravity';
+          sourceChannel = 'ai-chat';
+        } else if (lowerText.includes('source: opencode') || lowerText.includes('source: open-code')) {
+          source = 'open-code';
+          sourceChannel = 'ai-chat';
+        }
+      }
 
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Saving note…', cancellable: false },
@@ -107,6 +125,7 @@ export function registerSaveNoteCommand(
               title: confirm || title,
               projectSlug: getProject(),
               sourceChannel,
+              source,
             });
             vscode.window.showInformationMessage(`Note saved to KB — project: ${getProject()}`);
             vscode.commands.executeCommand('kb.refresh');

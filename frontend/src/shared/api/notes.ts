@@ -32,6 +32,8 @@ export type CreateNoteParams = {
   reminderDate?: string;
   reminderTime?: string;
   reminderAt?: string;
+  sourceChannel?: string;
+  source?: string;
 };
 
 export type CreateNoteResponse = {

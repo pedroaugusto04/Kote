@@ -2,7 +2,7 @@ import { useState } from 'react';
 import React from 'react';
 import { createPortal } from 'react-dom';
 
-import { normalizeComparableText, sameText, stripSourceHeader, extractSourceFromText } from '../../shared/utils/text';
+import { normalizeComparableText, sameText, stripSourceHeader } from '../../shared/utils/text';
 import { formatFileSize, formatSourceLabel } from '../../shared/utils/format';
 import type { NoteAttachment } from '../../shared/api/models/note';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
@@ -15,7 +15,7 @@ export function NoteBody({ markdown, rawText, summary, title, source }: { markdo
   const cleanedRawText = stripSourceHeader(rawText);
   const hasSummary = Boolean(summary) && normalizeReaderText(summary) !== normalizeReaderText(cleanedRawText);
   const showLabel = hasExtra || hasSummary;
-  const activeSource = extractSourceFromText(rawText) || source;
+  const activeSource = source;
 
   return (
     <div className="note-body">

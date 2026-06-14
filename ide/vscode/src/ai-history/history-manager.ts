@@ -327,6 +327,7 @@ export class AiHistoryManager {
         rawText,
         projectSlug: session.projectSlug || client.defaultProjectSlug || 'inbox',
         sourceChannel: 'ai-chat',
+        source: session.providerId,
       });
 
       vscode.window.showInformationMessage('Note saved to Knowledge Vault successfully!');

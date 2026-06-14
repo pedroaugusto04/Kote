@@ -171,9 +171,9 @@ export function getSourceConfig(source: string | null | undefined): { label: str
     normalized.includes('opencode')
   ) {
     let label = 'AI';
-    if (normalized === 'open-code' || normalized === 'opencode') label = 'Open Code';
-    else if (normalized === 'antigravity') label = 'Antigravity';
-    else if (normalized === 'codex') label = 'Codex';
+    if (normalized.includes('open-code') || normalized.includes('opencode')) label = 'Open Code';
+    else if (normalized.includes('antigravity')) label = 'Antigravity';
+    else if (normalized.includes('codex')) label = 'Codex';
     else if (normalized.includes('claude')) label = 'Claude Code';
     return { label, tagClass: 'ai' };
   }

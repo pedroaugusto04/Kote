@@ -50,6 +50,8 @@ export function registerAskCommand(
                   await client.createNote({
                     rawText: `**Q:** ${question}\n\n**A:** ${answer}`,
                     projectSlug: getProject(),
+                    sourceChannel: 'ai-chat',
+                    source: 'open-code',
                   });
                   vscode.window.showInformationMessage('Note saved to Knowledge Vault.');
                 } catch (err: unknown) {

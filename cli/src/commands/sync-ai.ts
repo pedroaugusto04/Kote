@@ -517,6 +517,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
       rawText,
       projectSlug: targetProject,
       sourceChannel: 'ai-chat',
+      source: session.providerId,
     });
 
     s.stop(pc.green('Import complete!'));

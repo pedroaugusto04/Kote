@@ -107,6 +107,8 @@ export class ChatPanelProvider {
             title: msg.title,
             rawText: msg.content,
             projectSlug: msg.projectSlug || this._activeProject || this._client.defaultProjectSlug,
+            sourceChannel: 'ai-chat',
+            source: 'open-code',
           });
           this._post({ type: 'noteSaved', noteId: res.noteId ?? res.id ?? '' });
           vscode.window.showInformationMessage(`Note saved to KB — project: ${msg.projectSlug}`);

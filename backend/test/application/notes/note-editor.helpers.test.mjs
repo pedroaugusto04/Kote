@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildUpdatedNote, extractEditableRawText, extractSourceFromText } from '../../../dist/application/use-cases/notes/note-editor.helpers.js';
+import { buildUpdatedNote, extractEditableRawText } from '../../../dist/application/use-cases/notes/note-editor.helpers.js';
 
 function structuredReviewNote() {
   return {
@@ -198,9 +198,3 @@ test('buildUpdatedNote strips duplicate title header from new rawText', () => {
   assert.equal(updated.metadata.rawText, 'Some updated content.');
 });
 
-test('extractSourceFromText extracts the correct system name when raw text has a source header', () => {
-  assert.equal(extractSourceFromText('Source: Antigravity\nSome text'), 'Antigravity');
-  assert.equal(extractSourceFromText('\n\nSource: Open Code\n\nSome text'), 'Open Code');
-  assert.equal(extractSourceFromText('Source:   Codex\n'), 'Codex');
-  assert.equal(extractSourceFromText('Some random text'), undefined);
-});
