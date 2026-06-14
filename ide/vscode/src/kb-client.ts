@@ -347,6 +347,22 @@ export class KbClient {
     } catch {}
   }
 
+  async exchangeConnectionToken(token: string): Promise<{ accessToken: string; refreshToken: string }> {
+    const url = this.buildUrl('/api/auth/exchange-connection-token');
+    const headers = { 'Content-Type': 'application/json' };
+    const body = JSON.stringify({ connectionToken: token });
+    const response = await makeRequest(url, { method: 'POST', headers, body });
+    if (response.status >= 400) {
+      let errorMsg = 'Failed to exchange connection token';
+      try {
+        const parsed = JSON.parse(response.body);
+        errorMsg = parsed?.message ?? errorMsg;
+      } catch {}
+      throw new Error(errorMsg);
+    }
+    return JSON.parse(response.body);
+  }
+
   async validateAndSetGoogleToken(token: string): Promise<void> {
     const trimmed = token.trim();
     let accessToken: string | undefined = trimmed;
@@ -359,9 +375,17 @@ export class KbClient {
         if (parsed.accessToken && parsed.refreshToken) {
           accessToken = parsed.accessToken;
           refreshToken = parsed.refreshToken;
+        } else {
+          throw new Error('Not legacy format');
         }
       } catch (err) {
-        // Fallback to raw token
+        try {
+          const result = await this.exchangeConnectionToken(trimmed);
+          accessToken = result.accessToken;
+          refreshToken = result.refreshToken;
+        } catch (exchangeErr) {
+          // Fallback/propagate
+        }
       }
     }
 

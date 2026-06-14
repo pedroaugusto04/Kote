@@ -182,6 +182,9 @@ export async function createPostgresTestRepositories(t) {
   await truncateSchema(targetUrl, schemaName);
 
   const database = createDatabase(pool);
+  const schemaMigrator = {
+    async migrate() {}
+  };
 
   const userRepository = new PostgresUserRepository(database);
   const integrationRepository = new PostgresIntegrationRepository(database);
@@ -263,5 +266,6 @@ export async function createPostgresTestRepositories(t) {
     webhookEventRepository,
     runtimeEnvironmentProvider,
     pushSubscriptionRepository,
+    schemaMigrator,
   };
 }

@@ -1,6 +1,6 @@
 {
   "name": "@pedroaugusto04/kb-cli",
-  "version": "1.1.17",
+  "version": "1.1.18",
   "description": "CLI client for the Knowledge Base AI system",
   "type": "module",
   "bin": {

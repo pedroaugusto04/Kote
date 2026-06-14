@@ -699,3 +699,40 @@ test('guarded user integrations controller depends on current user instead of re
     ),
   );
 });
+
+test('connection token generation and exchange flow', async (t) => {
+  const { auth } = await fixture(t);
+  const controller = new AuthController(auth);
+
+  const loginResponse = responseMock();
+  const login = await controller.login(
+    { email: 'admin@example.com', password: 'admin-password' },
+    { headers: { origin: 'https://kb.example.com', host: 'kb.example.com' }, protocol: 'https' },
+    loginResponse,
+  );
+
+  // 1. Generate connection token
+  const result = await controller.connectionToken(login.user);
+  assert.equal(result.ok, true);
+  assert.ok(result.connectionToken.startsWith('kbc_'));
+
+  // 2. Exchange connection token for real tokens
+  const exchangeResult = await controller.exchangeConnectionToken({
+    connectionToken: result.connectionToken,
+  });
+
+  assert.equal(exchangeResult.ok, true);
+  assert.ok(exchangeResult.accessToken);
+  assert.ok(exchangeResult.refreshToken);
+
+  // 3. Re-exchanging or using an invalid token rejects
+  await assert.rejects(
+    () => controller.exchangeConnectionToken({ connectionToken: 'kbc_invalidtoken' }),
+    /invalid_token/,
+  );
+
+  await assert.rejects(
+    () => controller.exchangeConnectionToken({ connectionToken: 'invalid_no_prefix' }),
+    /invalid_connection_token/,
+  );
+});

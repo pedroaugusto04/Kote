@@ -36,7 +36,7 @@ type JwtPayload = {
   sub: string;
   email: string;
   role: string;
-  typ: 'access' | 'refresh';
+  typ: 'access' | 'refresh' | 'connection';
   iat: number;
   exp: number;
 };
@@ -411,24 +411,26 @@ export class AuthService implements OnModuleInit {
   }
 
   generateConnectionToken(user: AuthenticatedUser): string {
-    const tokens = this.issueTokens({
-      id: user.id,
-      email: user.email,
-      role: user.role,
-      displayName: user.displayName,
-      passwordHash: null,
-      avatarStorageKey: null,
-      avatarMimeType: null,
-      avatarSizeBytes: null,
-      avatarUpdatedAt: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-    const payload = JSON.stringify({
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    });
-    return `kbc_${base64url(payload)}`;
+    const environment = this.environmentProvider.read();
+    const token = signJwt(
+      { sub: user.id, email: user.email, role: user.role, typ: 'connection' },
+      environment.jwtAccessSecret,
+      600, // 10 minutes TTL
+    );
+    return `kbc_${token}`;
+  }
+
+  async exchangeConnectionToken(connectionToken: string): Promise<TokenPair> {
+    const trimmed = String(connectionToken || '').trim();
+    if (!trimmed.startsWith('kbc_')) {
+      throw new UnauthorizedException('invalid_connection_token');
+    }
+    const token = trimmed.slice(4);
+    const environment = this.environmentProvider.read();
+    const payload = verifyJwt(token, environment.jwtAccessSecret, 'connection');
+    const user = await this.users.findUserById(payload.sub);
+    if (!user) throw new UnauthorizedException('user_not_found');
+    return this.issueTokens(user);
   }
 
   private async findOrCreateGoogleUser(profile: GoogleOAuthProfile): Promise<KbUser> {

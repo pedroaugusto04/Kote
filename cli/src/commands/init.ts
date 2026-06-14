@@ -60,9 +60,14 @@ export async function runInit(): Promise<void> {
           if (parsed.accessToken && parsed.refreshToken) {
             accessToken = parsed.accessToken;
             refreshToken = parsed.refreshToken;
+          } else {
+            throw new Error('Not legacy format');
           }
         } catch {
-          // Fallback to raw token
+          s.message('Exchanging connection token...');
+          const result = await client.exchangeConnectionToken(trimmed);
+          accessToken = result.accessToken;
+          refreshToken = result.refreshToken;
         }
       }
 

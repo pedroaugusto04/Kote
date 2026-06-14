@@ -6,7 +6,7 @@ import type { Request, Response } from 'express';
 import { AuthService, avatarMaxSizeBytes, type AuthenticatedUser } from '../../../../application/auth.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, TrustedOriginGuard } from '../../auth.guards.js';
-import { loginBodySchema, signupBodySchema, type LoginBody, type SignupBody } from '../../dto/auth.dto.js';
+import { exchangeConnectionTokenBodySchema, loginBodySchema, signupBodySchema, type ExchangeConnectionTokenBody, type LoginBody, type SignupBody } from '../../dto/auth.dto.js';
 import { clearAuthCookies, clearGoogleOAuthStateCookie, googleOAuthStateFromRequest, refreshTokenFromRequest, setAuthCookies, setGoogleOAuthStateCookie } from '../../http-security.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
@@ -95,6 +95,22 @@ export class AuthController {
   connectionToken(@CurrentUser() user: AuthenticatedUser) {
     const token = this.auth.generateConnectionToken(user);
     return { ok: true, connectionToken: token };
+  }
+
+  @Post('exchange-connection-token')
+  @UseGuards(AuthRateLimitGuard)
+  @ApiOperation({ summary: 'Exchange connection token for user session tokens' })
+  @ApiResponse({ status: 200, description: 'Tokens issued successfully' })
+  @ApiResponse({ status: 401, description: 'Invalid or expired connection token' })
+  async exchangeConnectionToken(
+    @Body(new ZodValidationPipe(exchangeConnectionTokenBodySchema, 'invalid_exchange_payload')) body: ExchangeConnectionTokenBody,
+  ) {
+    const tokens = await this.auth.exchangeConnectionToken(body.connectionToken);
+    return {
+      ok: true,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    };
   }
 
   @Put('avatar')

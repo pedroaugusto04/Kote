@@ -106,6 +106,15 @@ export class ApiClient {
     });
   }
 
+  async exchangeConnectionToken(connectionToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+    clearConfigAuth();
+    return this.fetch('/api/auth/exchange-connection-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ connectionToken }),
+    });
+  }
+
   async logout(): Promise<any> {
     try {
       await this.fetch('/api/auth/logout', { method: 'POST' });
