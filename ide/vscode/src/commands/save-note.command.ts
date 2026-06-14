@@ -55,5 +55,57 @@ export function registerSaveNoteCommand(
         },
       );
     }),
+
+    vscode.commands.registerCommand('kb.saveActiveFile', async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage('No active editor open.');
+        return;
+      }
+      const rawText = editor.document.getText()?.trim();
+      if (!rawText) {
+        vscode.window.showWarningMessage('The active file is empty.');
+        return;
+      }
+
+      // Infer title from the first header or first line
+      let title = 'Unsaved Note';
+      const lines = rawText.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('# ')) {
+          title = trimmed.substring(2).trim();
+          break;
+        } else if (trimmed) {
+          title = trimmed.slice(0, 50);
+          break;
+        }
+      }
+
+      const confirm = await vscode.window.showInputBox({
+        prompt: 'Confirm note title',
+        value: title,
+        ignoreFocusOut: false,
+      });
+
+      if (confirm === undefined) return;
+
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Saving note…', cancellable: false },
+        async () => {
+          try {
+            await client.createNote({
+              rawText,
+              title: confirm || title,
+              projectSlug: getProject(),
+            });
+            vscode.window.showInformationMessage(`Note saved to KB — project: ${getProject()}`);
+            vscode.commands.executeCommand('kb.refresh');
+          } catch (err: unknown) {
+            reportError('save-active-file', err);
+          }
+        },
+      );
+    })
   );
 }

@@ -6,6 +6,9 @@ import { StatusBarProvider } from './providers/status-bar.provider';
 import { registerAskCommand } from './commands/ask.command';
 import { registerSaveNoteCommand } from './commands/save-note.command';
 import { disposeErrorReporter, logInfo } from './error-reporter';
+import { AiHistoryManager } from './ai-history/history-manager';
+import { ClaudeCodeHistoryProvider } from './ai-history/providers/claude-code.provider';
+import { CodexHistoryProvider } from './ai-history/providers/codex.provider';
 
 let kbClient: KbClient;
 let sidebarProvider: SidebarViewProvider;
@@ -99,6 +102,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       } catch { /* silent */ }
     }),
   );
+
+  // -------------------------------------------------------------------------
+  // AI Session Watchers
+  // -------------------------------------------------------------------------
+  const historyManager = new AiHistoryManager();
+  historyManager.registerProvider(new ClaudeCodeHistoryProvider());
+  historyManager.registerProvider(new CodexHistoryProvider());
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('kb.showRecentAiSessions', () => {
+      historyManager.showRecentSessions(kbClient);
+    })
+  );
+
+  historyManager.startWatching(kbClient, context);
 }
 
 export function deactivate(): void {

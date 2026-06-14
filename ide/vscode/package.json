@@ -65,6 +65,17 @@
         "command": "kb.refresh",
         "title": "KB: Refresh Sidebar",
         "category": "Knowledge Vault"
+      },
+      {
+        "command": "kb.saveActiveFile",
+        "title": "KB: Save Active File as Note",
+        "category": "Knowledge Vault"
+      },
+      {
+        "command": "kb.showRecentAiSessions",
+        "title": "KB: View Recent AI Sessions",
+        "category": "Knowledge Vault",
+        "icon": "$(history)"
       }
     ],
     "keybindings": [
@@ -85,6 +96,13 @@
         {
           "command": "kb.openChat",
           "group": "kb@2"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "kb.showRecentAiSessions",
+          "when": "view == kb.sidebarView",
+          "group": "navigation"
         }
       ]
     }
