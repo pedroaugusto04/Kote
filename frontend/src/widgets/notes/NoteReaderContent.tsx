@@ -2,24 +2,33 @@ import { useState } from 'react';
 import React from 'react';
 import { createPortal } from 'react-dom';
 
-import { normalizeComparableText, sameText } from '../../shared/utils/text';
-import { formatFileSize } from '../../shared/utils/format';
+import { normalizeComparableText, sameText, stripSourceHeader } from '../../shared/utils/text';
+import { formatFileSize, formatSourceLabel } from '../../shared/utils/format';
 import type { NoteAttachment } from '../../shared/api/models/note';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../markdown/MarkdownView';
+import { SourceIcon } from '../../shared/ui/icons';
 
-export function NoteBody({ markdown, rawText, summary, title }: { markdown: string; rawText: string; summary: string; title: string }) {
+export function NoteBody({ markdown, rawText, summary, title, source }: { markdown: string; rawText: string; summary: string; title: string; source?: string }) {
   const extraMarkdown = readerExtraSections(markdown, title);
   const hasExtra = Boolean(extraMarkdown);
-  const hasSummary = Boolean(summary) && normalizeReaderText(summary) !== normalizeReaderText(rawText);
+  const cleanedRawText = stripSourceHeader(rawText);
+  const hasSummary = Boolean(summary) && normalizeReaderText(summary) !== normalizeReaderText(cleanedRawText);
   const showLabel = hasExtra || hasSummary;
 
   return (
     <div className="note-body">
-      {rawText ? (
+      {source && (
+        <div className="note-source-header" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', fontSize: '13px', color: 'var(--muted)' }}>
+          <span>Source:</span>
+          <SourceIcon source={source} style={{ width: '15px', height: '15px', color: 'var(--muted)' }} />
+          <strong>{formatSourceLabel(source)}</strong>
+        </div>
+      )}
+      {cleanedRawText ? (
         <section className="note-body-section">
           {showLabel ? <h2 className="note-body-label">Original text</h2> : null}
-          <MarkdownView markdown={rawText} />
+          <MarkdownView markdown={cleanedRawText} />
         </section>
       ) : null}
       {hasSummary ? (

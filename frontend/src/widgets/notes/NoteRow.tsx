@@ -1,11 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary, formatSourceLabel } from '../../shared/utils/format';
 import { Badge } from '../../shared/ui/primitives';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { QuickNoteStatusActions } from './QuickNoteStatusActions';
-import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
+import { PencilIcon, TrashIcon, SourceIcon } from '../../shared/ui/icons';
 import { pinNote } from '../../shared/api/client';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifySuccess } from '../../shared/ui/notifications';
@@ -68,6 +68,14 @@ export function NoteRow({
           <span className="meta meta-date">
             {formatUsDate(note.date)}
           </span>
+          {note.source && (
+            <>
+              <span className="meta-separator"> / </span>
+              <span className="meta meta-source" title={`Source: ${formatSourceLabel(note.source)}`} style={{ display: 'inline-flex', alignItems: 'center', alignSelf: 'center' }}>
+                <SourceIcon source={note.source} style={{ width: '13px', height: '13px', display: 'inline-block', verticalAlign: 'middle', color: 'var(--muted)' }} />
+              </span>
+            </>
+          )}
           <AttachmentIndicator count={note.attachmentCount || 0} />
         </div>
         <h3>{note.title}</h3>

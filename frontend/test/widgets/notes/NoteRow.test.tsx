@@ -190,4 +190,39 @@ describe('NoteRow', () => {
 
     expect(screen.queryByLabelText(/^\d+ attachments?$/)).not.toBeInTheDocument();
   });
+
+  it('renders the source icon when a source is provided', () => {
+    const { container } = renderWithAppProviders(
+      <NoteRow
+        dashboard={{
+          workspaces: [],
+          projects: [{ projectSlug: 'platform', displayName: 'Platform', repositories: [], workspaceSlug: 'default', defaultTags: [], enabled: true, favorite: false }],
+          notes: [],
+          reminders: [],
+          home: { windowDays: 7, metrics: [], activityByDay: [], activityByProject: [], priorities: [], recentInterestingEvents: [] },
+        }}
+        note={{
+          id: 'note-1',
+          path: '20 Inbox/platform/note.md',
+          type: 'event',
+          title: 'Deploy antigo',
+          project: 'platform',
+          workspace: 'default',
+          folderId: null,
+          tags: ['deploy'],
+          date: '2026-04-27',
+          status: 'active',
+          summary: 'Resumo',
+          source: 'whatsapp-webhook',
+          attachmentCount: 0,
+        }}
+        onOpen={vi.fn()}
+      />,
+    );
+
+    const sourceElement = container.querySelector('.meta-source');
+    expect(sourceElement).toBeInTheDocument();
+    expect(sourceElement).toHaveAttribute('title', 'Source: WhatsApp');
+    expect(sourceElement?.querySelector('svg')).toBeInTheDocument();
+  });
 });

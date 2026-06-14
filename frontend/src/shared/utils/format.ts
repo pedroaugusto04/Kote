@@ -156,6 +156,10 @@ export function formatSourceLabel(source: string | null | undefined): string {
   if (normalized.includes('github')) return 'GitHub';
   if (normalized.includes('n8n')) return 'n8n';
   if (normalized === 'ai-chat') return 'AI';
+  if (normalized === 'open-code' || normalized === 'opencode') return 'Open Code';
+  if (normalized === 'antigravity') return 'Antigravity';
+  if (normalized === 'codex') return 'Codex';
+  if (normalized.includes('claude')) return 'Claude Code';
   if (normalized === 'manual-api' || normalized === 'manual') return 'Manual';
   return formatDisplayToken(source);
 }
