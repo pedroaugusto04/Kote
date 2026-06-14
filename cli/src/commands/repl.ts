@@ -11,6 +11,7 @@ const COMMANDS = [
   '/save ',
   '/ask ',
   '/sync ',
+  '/sync-ai',
   '/logout',
   '/exit',
   'projects',
@@ -271,6 +272,11 @@ export async function runRepl(): Promise<void> {
       console.log(`      ${pc.yellow('-w, --watch')}             Watch directory/file for real-time changes`);
       console.log(`    ${pc.gray('Example:')} /sync ./README.md -p platform --dry-run\n`);
 
+      console.log(`  ${pc.bold('/sync-ai')}                   - Sync/import recent local AI sessions (Claude Code, Codex, Antigravity, OpenCode)`);
+      console.log(`    ${pc.gray('Options:')}`);
+      console.log(`      ${pc.yellow('-p, --project <slug>')}  Specify project context`);
+      console.log(`    ${pc.gray('Example:')} /sync-ai -p platform\n`);
+
       console.log(`  ${pc.bold('projects')}                  - List all projects in active workspace`);
       console.log(`  ${pc.bold('workspaces')}                - List available workspaces`);
       console.log(`  ${pc.bold('config list')}              - List all CLI config values`);
@@ -361,6 +367,19 @@ export async function runRepl(): Promise<void> {
         });
       } catch (err: any) {
         console.error(pc.red(`Sync failed: ${err.message}`));
+      }
+      continue;
+    }
+
+    if (trimmed === '/sync-ai' || trimmed.startsWith('/sync-ai ')) {
+      const rawSync = trimmed.startsWith('/sync-ai ') ? trimmed.substring(9).trim() : '';
+      const { options } = parseReplOptions(rawSync);
+
+      const { runSyncAi } = await import('./sync-ai.js');
+      try {
+        await runSyncAi({ project: options.project });
+      } catch (err: any) {
+        console.error(pc.red(`Sync-AI failed: ${err.message}`));
       }
       continue;
     }
