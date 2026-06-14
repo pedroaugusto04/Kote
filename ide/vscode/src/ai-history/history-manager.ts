@@ -7,17 +7,35 @@ export class AiHistoryManager {
   private activeDisposables: vscode.Disposable[] = [];
   private knownSessionTimes = new Map<string, number>(); // track last modified timestamps to avoid duplicates
   private recentSessions: AiSession[] = []; // store in memory to allow viewing/importing later
+  private context?: vscode.ExtensionContext;
 
   registerProvider(provider: AiHistoryProvider) {
     this.providers.set(provider.id, provider);
   }
 
   async startWatching(client: KbClient, context: vscode.ExtensionContext) {
+    this.context = context;
+
     // Clean up active watchers
     for (const d of this.activeDisposables) {
       d.dispose();
     }
     this.activeDisposables = [];
+
+    // Load persisted known session times
+    try {
+      const persistedTimes = context.globalState.get<[string, number][]>('kb.knownSessionTimes') || [];
+      this.knownSessionTimes = new Map(persistedTimes);
+    } catch {
+      this.knownSessionTimes = new Map();
+    }
+
+    // Load persisted recent sessions
+    try {
+      this.recentSessions = context.globalState.get<AiSession[]>('kb.recentSessions') || [];
+    } catch {
+      this.recentSessions = [];
+    }
 
     // Load initial recent sessions from active providers to populate the list on startup
     for (const provider of this.providers.values()) {
@@ -26,12 +44,21 @@ export class AiHistoryManager {
         if (!enabled) continue;
         const initial = await provider.getRecentSessions();
         for (const s of initial) {
-          this.addOrUpdateRecentSession(s);
+          this.addOrUpdateRecentSession(s, true);
+          
+          // Record the timestamp of existing sessions so they don't trigger prompts
+          const key = `${provider.id}:${s.sessionId}`;
+          const currentKnownTime = this.knownSessionTimes.get(key) || 0;
+          if (s.timestamp > currentKnownTime) {
+            this.knownSessionTimes.set(key, s.timestamp);
+          }
         }
       } catch (err) {
         console.error(`Failed to load initial sessions for ${provider.id}:`, err);
       }
     }
+
+    this.saveState();
 
     for (const provider of this.providers.values()) {
       try {
@@ -69,18 +96,37 @@ export class AiHistoryManager {
     }
   }
 
-  private addOrUpdateRecentSession(session: AiSession) {
+  private saveState() {
+    if (!this.context) return;
+    try {
+      const timesArray = Array.from(this.knownSessionTimes.entries());
+      this.context.globalState.update('kb.knownSessionTimes', timesArray);
+      this.context.globalState.update('kb.recentSessions', this.recentSessions);
+    } catch (err) {
+      console.error('Failed to save AI sessions state:', err);
+    }
+  }
+
+  private addOrUpdateRecentSession(session: AiSession, skipSave = false) {
     const existingIdx = this.recentSessions.findIndex(
       s => s.providerId === session.providerId && s.sessionId === session.sessionId
     );
     if (existingIdx >= 0) {
       this.recentSessions[existingIdx] = session;
     } else {
-      this.recentSessions.unshift(session);
+      this.recentSessions.push(session);
     }
+
+    // Sort by timestamp descending (newest first)
+    this.recentSessions.sort((a, b) => b.timestamp - a.timestamp);
+
     // Limit to recent 20
     if (this.recentSessions.length > 20) {
       this.recentSessions = this.recentSessions.slice(0, 20);
+    }
+
+    if (!skipSave) {
+      this.saveState();
     }
   }
 

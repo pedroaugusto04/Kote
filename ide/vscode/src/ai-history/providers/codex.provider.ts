@@ -21,16 +21,34 @@ export class CodexHistoryProvider implements AiHistoryProvider {
     }
   }
 
+  private getAllFiles(dir: string): string[] {
+    let results: string[] = [];
+    try {
+      const list = fs.readdirSync(dir);
+      for (const file of list) {
+        const filePath = path.join(dir, file);
+        const stat = fs.statSync(filePath);
+        if (stat && stat.isDirectory()) {
+          results = results.concat(this.getAllFiles(filePath));
+        } else {
+          results.push(filePath);
+        }
+      }
+    } catch (err) {
+      // Ignore errors reading directories
+    }
+    return results;
+  }
+
   async getRecentSessions(): Promise<AiSession[]> {
     const dir = this.getHistoryDir();
     if (!fs.existsSync(dir)) return [];
 
     const sessions: AiSession[] = [];
     try {
-      const files = fs.readdirSync(dir);
-      for (const file of files) {
-        if (file.endsWith('.json') || file.endsWith('.jsonl')) {
-          const filePath = path.join(dir, file);
+      const allFiles = this.getAllFiles(dir);
+      for (const filePath of allFiles) {
+        if (filePath.endsWith('.json') || filePath.endsWith('.jsonl')) {
           const session = this.parseFile(filePath);
           if (session) sessions.push(session);
         }
@@ -44,20 +62,37 @@ export class CodexHistoryProvider implements AiHistoryProvider {
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const historyDir = this.getHistoryDir();
     const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(historyDir, '*.{json,jsonl}')
+      new vscode.RelativePattern(historyDir, '**/*.{json,jsonl}')
     );
 
+    const timeouts = new Map<string, NodeJS.Timeout>();
+
     const handleFile = (uri: vscode.Uri) => {
-      const session = this.parseFile(uri.fsPath);
-      if (session) {
-        callback(session);
+      const fsPath = uri.fsPath;
+      if (timeouts.has(fsPath)) {
+        clearTimeout(timeouts.get(fsPath)!);
       }
+
+      const timeout = setTimeout(() => {
+        timeouts.delete(fsPath);
+        const session = this.parseFile(fsPath);
+        if (session) {
+          callback(session);
+        }
+      }, 500); // 500ms debounce
+
+      timeouts.set(fsPath, timeout);
     };
 
     watcher.onDidChange(handleFile);
     watcher.onDidCreate(handleFile);
 
-    return watcher;
+    return new vscode.Disposable(() => {
+      for (const t of timeouts.values()) {
+        clearTimeout(t);
+      }
+      watcher.dispose();
+    });
   }
 
   private parseFile(filePath: string): AiSession | null {
