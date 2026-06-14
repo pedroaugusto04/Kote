@@ -15,7 +15,7 @@ export const createNoteBodySchema = z
     projectSlug: z.string().trim().min(1, 'Enter the project.'),
     folderId: z.string().trim().optional().default(''),
     title: z.string().trim().max(160, 'Use at most 160 characters.').optional().default(''),
-    rawText: z.string().trim().min(1, 'Enter the note text.').max(20000, 'Use at most 20000 characters.'),
+    rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
     tags: optionalStringArraySchema(60, 'Use at most 60 characters.'),
     status: noteStatusSchema,
     canonicalType: canonicalTypeSchema,
@@ -63,7 +63,7 @@ export const updateNoteBodySchema = z
   .object({
     folderId: z.string().trim().optional().default(''),
     title: z.string().trim().max(160, 'Use at most 160 characters.').optional().default(''),
-    rawText: z.string().trim().min(1, 'Enter the note text.').max(20000, 'Use at most 20000 characters.'),
+    rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
     tags: optionalStringArraySchema(60, 'Use at most 60 characters.'),
     status: editableNoteStatusSchema,
     canonicalType: canonicalTypeSchema,

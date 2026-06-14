@@ -24,7 +24,7 @@ export const noteFormSchema = z.object({
   folderId: z.string(),
   canonicalType: z.enum(canonicalNoteTypeValues),
   title: z.string().trim().max(160, 'Use at most 160 characters.'),
-  rawText: z.string().trim().min(1, 'Enter the note text.').max(20000, 'Use at most 20000 characters.'),
+  rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
   tags: z.string().max(500, 'Use at most 500 characters.'),
   reminderDate: z.string(),
   reminderTime: z.string(),
