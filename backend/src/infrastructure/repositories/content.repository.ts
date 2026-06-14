@@ -672,6 +672,7 @@ function projectTimelineCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 
   if (hasTimelineReminder(record)) return 'reminder';
   if (record.sourceChannel === 'github-push') return 'github-push';
   if (record.sourceChannel === 'whatsapp') return 'whatsapp';
+  if (record.sourceChannel === 'ai-chat') return 'ai-chat';
   return 'manual';
 }
 
@@ -723,7 +724,12 @@ function appendTimelineCategoryClause(clauses: string[], category: ListProjectTi
     clauses.push("source_channel = 'whatsapp'");
     return;
   }
+  if (category === 'ai-chat') {
+    clauses.push("source_channel = 'ai-chat'");
+    return;
+  }
   clauses.push("source_channel <> 'github-push'");
   clauses.push("source_channel <> 'whatsapp'");
+  clauses.push("source_channel <> 'ai-chat'");
   clauses.push("(metadata->>'manual' = 'true' or source = 'manual-api')");
 }

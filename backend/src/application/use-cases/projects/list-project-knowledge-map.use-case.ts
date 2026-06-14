@@ -157,6 +157,7 @@ export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'type' | 'm
   if (hasReminder(record)) return 'reminder';
   if (record.sourceChannel === 'github-push') return 'github-push';
   if (record.sourceChannel === 'whatsapp') return 'whatsapp';
+  if (record.sourceChannel === 'ai-chat') return 'ai-chat';
   return 'manual';
 }
 
@@ -230,6 +231,7 @@ function categoryLabel(category: ProjectKnowledgeMapNoteCategory) {
     manual: 'Manual',
     reminder: 'Reminder',
     decision: 'Decision',
+    'ai-chat': 'AI Chat',
   };
   return labels[category];
 }

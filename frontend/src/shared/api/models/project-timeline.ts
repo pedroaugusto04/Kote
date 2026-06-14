@@ -1,6 +1,6 @@
 import type { NoteStatus } from './note-status';
 
-export const projectTimelineCategoryValues = ['all', 'whatsapp', 'github-push', 'manual', 'reminder', 'decision'] as const;
+export const projectTimelineCategoryValues = ['all', 'whatsapp', 'github-push', 'manual', 'reminder', 'decision', 'ai-chat'] as const;
 
 export type ProjectTimelineCategory = (typeof projectTimelineCategoryValues)[number];
 export type ProjectTimelineItemCategory = Exclude<ProjectTimelineCategory, 'all'>;
