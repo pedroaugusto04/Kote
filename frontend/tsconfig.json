@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "allowJs": false,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -17,5 +17,5 @@
     "jsx": "react-jsx",
     "types": ["vite/client"]
   },
-  "include": ["src"]
+  "include": ["src", "test"]
 }

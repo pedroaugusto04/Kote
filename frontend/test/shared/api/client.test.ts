@@ -216,7 +216,7 @@ describe('api client', () => {
   });
 
   it('does not attempt refresh for non-session 401 errors', async () => {
-    const fetchMock = vi.fn(async () => apiErrorResponse(401, 'invalid_credentials', 'Credenciais invalidas.'));
+    const fetchMock = vi.fn(async (input?: any) => apiErrorResponse(401, 'invalid_credentials', 'Credenciais invalidas.'));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(fetchDashboard()).rejects.toEqual(expect.objectContaining({
@@ -302,7 +302,7 @@ describe('api client', () => {
   });
 
   it('does not try to refresh the refresh endpoint itself', async () => {
-    const fetchMock = vi.fn(async () => apiErrorResponse(401, 'token_expired', 'Sessao expirada.', 'req-refresh'));
+    const fetchMock = vi.fn(async (input?: any) => apiErrorResponse(401, 'token_expired', 'Sessao expirada.', 'req-refresh'));
     vi.stubGlobal('fetch', fetchMock);
 
     await expect(request('/api/auth/refresh', { method: 'POST' })).rejects.toEqual(expect.objectContaining({
