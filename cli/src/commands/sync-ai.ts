@@ -1,6 +1,7 @@
 import pc from 'picocolors';
 import * as clackPrompts from '@clack/prompts';
 import { client, ApiClientError } from '../client.js';
+import { loadConfig } from '../config.js';
 
 export const clack = {
   select: clackPrompts.select,
@@ -463,34 +464,55 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
     return;
   }
 
-  // Display select prompt to choose a session
-  const selectOptions = allSessions.slice(0, 25).map(session => {
-    const dateStr = new Date(session.timestamp).toISOString().split('T')[0];
-    return {
-      value: session,
-      label: `[${session.providerName}] ${session.title}`,
-      hint: `${dateStr} (${session.turns.length} turns)`
-    };
-  });
+  let displayedCount = 20;
+  let selectedSession: CliAiSession | null = null;
 
-  const selected = await clack.select({
-    message: 'Select an AI session to import/sync to Knowledge Vault:',
-    options: selectOptions,
-  });
+  while (true) {
+    const selectOptions: any[] = allSessions.slice(0, displayedCount).map(session => {
+      const dateStr = new Date(session.timestamp).toISOString().split('T')[0];
+      return {
+        value: session,
+        label: `[${session.providerName}] ${session.title}`,
+        hint: `${dateStr} (${session.turns.length} turns)`
+      };
+    });
 
-  if (clack.isCancel(selected)) {
-    console.log(pc.yellow('Cancelled.'));
-    return;
+    if (allSessions.length > displayedCount) {
+      selectOptions.push({
+        value: 'LOAD_MORE',
+        label: pc.cyan('❯ Load More...'),
+        hint: `Showing ${displayedCount} of ${allSessions.length} sessions`
+      });
+    }
+
+    const selected = await clack.select({
+      message: 'Select an AI session to import/sync to Knowledge Vault:',
+      options: selectOptions,
+    });
+
+    if (clack.isCancel(selected)) {
+      console.log(pc.yellow('Cancelled.'));
+      return;
+    }
+
+    if (selected === 'LOAD_MORE') {
+      displayedCount += 20;
+      continue;
+    }
+
+    selectedSession = selected as CliAiSession;
+    break;
   }
 
-  const session = selected as CliAiSession;
+  const session = selectedSession;
   const titleWithDate = getTitleWithDate(session);
   const rawText = getMarkdownText(session);
   s.start(`Saving "${titleWithDate}" as note to Knowledge Vault...`);
 
   try {
-    const targetProject = options.project || session.projectSlug || 'inbox';
-    const note = await client.createNote({
+    const config = loadConfig();
+    const targetProject = options.project || session.projectSlug || config.defaultProjectSlug || 'inbox';
+    await client.createNote({
       title: titleWithDate,
       rawText,
       projectSlug: targetProject,
@@ -498,8 +520,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
     });
 
     s.stop(pc.green('Import complete!'));
-    console.log(pc.cyan(`\nNote saved successfully to project "${targetProject}"!`));
-    console.log(pc.gray(`Note ID: ${note.id}`));
+    console.log(pc.cyan(`\nNote saved to Knowledge Vault successfully!`));
   } catch (error: any) {
     s.stop(pc.red('Save failed'));
     if (error instanceof ApiClientError) {

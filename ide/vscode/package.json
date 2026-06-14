@@ -10,7 +10,7 @@
     "url": "https://github.com/pedroaugusto04/knowledge-base"
   },
   "engines": {
-    "vscode": "^1.80.0"
+    "vscode": "^1.80.0 || ^2.0.0"
   },
   "categories": [
     "Other"

@@ -164,4 +164,94 @@ test('Sync AI sessions command integration', async (t) => {
       await server.close();
     }
   });
+
+  await t.test('runSyncAi pagination loop handles LOAD_MORE selection', async () => {
+    let createdNote = null;
+    const server = await new Promise((resolve) => {
+      const srv = createServer(async (req, res) => {
+        const chunks = [];
+        for await (const chunk of req) chunks.push(chunk);
+        if (req.method === 'POST' && req.url.includes('/notes')) {
+          createdNote = JSON.parse(Buffer.concat(chunks).toString());
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ id: 'paginated-id' }));
+          return;
+        }
+        res.writeHead(404, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({}));
+      });
+      srv.listen(0, '127.0.0.1', () => {
+        const addr = srv.address();
+        resolve({
+          url: `http://127.0.0.1:${addr.port}`,
+          close: () => new Promise((r) => srv.close(r)),
+        });
+      });
+    });
+
+    // Write 25 Claude files in a nested projects folder to force pagination
+    const paginatedDir = path.join(TEST_DIR, '.claude', 'projects', 'paginated');
+    fs.mkdirSync(paginatedDir, { recursive: true });
+    for (let i = 0; i < 25; i++) {
+      fs.writeFileSync(
+        path.join(paginatedDir, `session-${i}.jsonl`),
+        `{"role": "user", "content": "Query number ${i}"}\n{"role": "assistant", "content": "Response ${i}"}\n`,
+        'utf8'
+      );
+    }
+
+    try {
+      const { saveConfig, clearConfigAuth } = await import('../../cli/dist/config.js');
+      clearConfigAuth();
+      saveConfig({
+        apiUrl: server.url,
+        workspaceSlug: 'sync-ai-ws',
+        defaultProjectSlug: 'inbox',
+        cookies: { kb_access_token: 'mock-sync-ai-token' },
+      });
+
+      const { runSyncAi, clack } = await import('../../cli/dist/commands/sync-ai.js');
+
+      // Mock clack prompts
+      t.mock.method(clack, 'spinner', () => ({
+        start: () => {},
+        stop: () => {},
+      }));
+      t.mock.method(clack, 'isCancel', () => false);
+
+      let selectCallsCount = 0;
+      let optionsReceivedFirstCall = null;
+      let optionsReceivedSecondCall = null;
+
+      t.mock.method(clack, 'select', async (opts) => {
+        selectCallsCount++;
+        if (selectCallsCount === 1) {
+          optionsReceivedFirstCall = opts.options;
+          return 'LOAD_MORE'; // Select load more on first prompt
+        }
+        optionsReceivedSecondCall = opts.options;
+        // Select the first real option on second prompt
+        return opts.options[0].value;
+      });
+
+      // Capture logs
+      const logs = [];
+      const originalLog = console.log;
+      console.log = (...args) => logs.push(args.join(' '));
+
+      try {
+        await runSyncAi({ project: 'custom-proj' });
+      } finally {
+        console.log = originalLog;
+      }
+
+      assert.equal(selectCallsCount, 2, 'Should prompt exactly twice');
+      assert.equal(optionsReceivedFirstCall.length, 21, 'First call should list 20 sessions + 1 LOAD_MORE');
+      assert.equal(optionsReceivedFirstCall[20].value, 'LOAD_MORE');
+      assert.ok(optionsReceivedSecondCall.length > 21, 'Second call should display more sessions');
+      assert.ok(createdNote, 'Note should be successfully saved');
+    } finally {
+      await server.close();
+    }
+  });
 });
