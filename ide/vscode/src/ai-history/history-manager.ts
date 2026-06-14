@@ -272,9 +272,19 @@ export class AiHistoryManager {
     quickPick.show();
   }
 
+  private getTitleWithDate(session: AiSession): string {
+    const dateObj = new Date(session.timestamp);
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const formattedDate = `${year}-${month}-${day}`;
+    return `${session.title} (${formattedDate})`;
+  }
+
   private getMarkdownText(session: AiSession): string {
+    const titleWithDate = this.getTitleWithDate(session);
     let rawText = `<!-- KB_SOURCE_CHANNEL: ai-chat -->\n`;
-    rawText += `# ${session.title}\n\n`;
+    rawText += `# ${titleWithDate}\n\n`;
     rawText += `Source: ${this.providers.get(session.providerId)?.name || session.providerId}\n`;
     if (session.projectSlug) {
       rawText += `Project: ${session.projectSlug}\n`;
@@ -311,9 +321,10 @@ export class AiHistoryManager {
 
   private async saveSessionToVault(client: KbClient, session: AiSession) {
     try {
+      const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
       await client.createNote({
-        title: session.title,
+        title: titleWithDate,
         rawText,
         projectSlug: session.projectSlug || client.defaultProjectSlug || 'inbox',
         sourceChannel: 'ai-chat',

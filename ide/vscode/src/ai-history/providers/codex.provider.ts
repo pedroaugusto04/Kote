@@ -110,13 +110,53 @@ export class CodexHistoryProvider implements AiHistoryProvider {
           if (!line.trim()) continue;
           try {
             const record = JSON.parse(line);
-            const role = record.role || (record.type === 'prompt' ? 'user' : 'assistant');
-            const text = record.content || record.text || '';
-            if (role === 'user') {
-              turns.push({ role: 'user', content: text });
-              lastPrompt = text;
+            
+            // Handle response_item message types (newer codex output)
+            if (record.type === 'response_item' && record.payload) {
+              const payload = record.payload;
+              if (payload.type === 'message') {
+                const role = payload.role;
+                if (role === 'user' || role === 'assistant') {
+                  const contentArray = payload.content || [];
+                  let textContent = '';
+                  for (const block of contentArray) {
+                    if (block.text) {
+                      const txt = block.text.trim();
+                      // Filter out developer instructions / system files to keep notes clean
+                      if (txt.startsWith('<environment_context>') || 
+                          txt.startsWith('# AGENTS.md instructions') || 
+                          txt.includes('<permissions instructions>') ||
+                          txt.includes('<skills_instructions>') ||
+                          txt.includes('<apps_instructions>')) {
+                        continue;
+                      }
+                      if (txt) {
+                        if (textContent) textContent += '\n\n';
+                        textContent += txt;
+                      }
+                    }
+                  }
+                  
+                  if (textContent) {
+                    if (role === 'user') {
+                      turns.push({ role: 'user', content: textContent });
+                      lastPrompt = textContent;
+                    } else {
+                      turns.push({ role: 'assistant', content: textContent });
+                    }
+                  }
+                }
+              }
             } else {
-              turns.push({ role: 'assistant', content: text });
+              // Fallback for older flat log formats (or other record types)
+              const role = record.role || (record.type === 'prompt' ? 'user' : record.type === 'response' ? 'assistant' : null);
+              const text = record.content || record.text || '';
+              if (role === 'user' && text) {
+                turns.push({ role: 'user', content: text });
+                lastPrompt = text;
+              } else if (role === 'assistant' && text) {
+                turns.push({ role: 'assistant', content: text });
+              }
             }
           } catch {}
         }
