@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ReactNode, Children } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 const severityClassNames: Record<string, string> = {
   INFO: 'markdown-severity markdown-severity-info',
@@ -8,67 +9,44 @@ const severityClassNames: Record<string, string> = {
   CRITICAL: 'markdown-severity markdown-severity-critical',
 };
 
-type Block =
-  | { type: 'header1'; text: string }
-  | { type: 'header2'; text: string }
-  | { type: 'list-item'; text: string }
-  | { type: 'code'; code: string; language: string }
-  | { type: 'paragraph'; text: string };
+function processTextWithBadges(child: ReactNode): ReactNode {
+  if (typeof child !== 'string') return child;
 
-function parseMarkdownBlocks(markdown: string): Block[] {
-  const lines = markdown.split(/\r?\n/);
-  const blocks: Block[] = [];
-  let inCodeBlock = false;
-  let codeLines: string[] = [];
-  let codeLanguage = '';
+  const parts: ReactNode[] = [];
+  const tokenPattern = /(\[(?:INFO|LOW|MEDIUM|HIGH|CRITICAL)\])/gi;
+  let lastIndex = 0;
 
-  for (const line of lines) {
-    const isCodeFence = line.trim().startsWith('```');
-    if (isCodeFence) {
-      if (inCodeBlock) {
-        // End of code block
-        blocks.push({
-          type: 'code',
-          code: codeLines.join('\n'),
-          language: codeLanguage,
-        });
-        codeLines = [];
-        codeLanguage = '';
-        inCodeBlock = false;
-      } else {
-        // Start of code block
-        inCodeBlock = true;
-        codeLanguage = line.trim().slice(3).trim() || 'code';
-      }
-    } else if (inCodeBlock) {
-      codeLines.push(line);
-    } else {
-      const trimmed = line.trim();
-      if (!trimmed) {
-        continue;
-      }
-      if (line.startsWith('# ')) {
-        blocks.push({ type: 'header1', text: line.slice(2) });
-      } else if (line.startsWith('## ')) {
-        blocks.push({ type: 'header2', text: line.slice(3) });
-      } else if (line.startsWith('- ')) {
-        blocks.push({ type: 'list-item', text: line.slice(2) });
-      } else {
-        blocks.push({ type: 'paragraph', text: line });
-      }
+  for (const match of child.matchAll(tokenPattern)) {
+    if (match.index > lastIndex) {
+      parts.push(child.slice(lastIndex, match.index));
     }
+
+    const token = match[0];
+    const severity = token.slice(1, -1).toUpperCase();
+    if (severityClassNames[severity]) {
+      parts.push(
+        <span className={severityClassNames[severity]} key={`${match.index}-${token}`}>
+          {token}
+        </span>,
+      );
+    } else {
+      parts.push(token);
+    }
+
+    lastIndex = match.index + token.length;
   }
 
-  // Handle unclosed code blocks
-  if (inCodeBlock && codeLines.length > 0) {
-    blocks.push({
-      type: 'code',
-      code: codeLines.join('\n'),
-      language: codeLanguage,
-    });
+  if (lastIndex < child.length) {
+    parts.push(child.slice(lastIndex));
   }
 
-  return blocks;
+  return parts.length > 0 ? <>{parts}</> : child;
+}
+
+function processChildren(children: ReactNode): ReactNode {
+  return Children.map(children, (child) => {
+    return processTextWithBadges(child);
+  });
 }
 
 function CodeBlockView({ code, language }: { code: string; language: string }) {
@@ -98,57 +76,35 @@ function CodeBlockView({ code, language }: { code: string; language: string }) {
 }
 
 export function MarkdownView({ markdown }: { markdown: string }) {
-  const blocks = parseMarkdownBlocks(markdown);
-
   return (
     <div className="markdown">
-      {blocks.map((block, index) => {
-        switch (block.type) {
-          case 'header1':
-            return <h1 key={index}>{renderInlineMarkdown(block.text)}</h1>;
-          case 'header2':
-            return <h2 key={index}>{renderInlineMarkdown(block.text)}</h2>;
-          case 'list-item':
-            return <p key={index}>- {renderInlineMarkdown(block.text)}</p>;
-          case 'code':
-            return <CodeBlockView key={index} code={block.code} language={block.language} />;
-          case 'paragraph':
-          default:
-            return <p key={index}>{renderInlineMarkdown(block.text)}</p>;
-        }
-      })}
+      <ReactMarkdown
+        components={{
+          p: ({ children }) => <p>{processChildren(children)}</p>,
+          li: ({ children }) => <li>{processChildren(children)}</li>,
+          h1: ({ children }) => <h1>{processChildren(children)}</h1>,
+          h2: ({ children }) => <h2>{processChildren(children)}</h2>,
+          h3: ({ children }) => <h3>{processChildren(children)}</h3>,
+          h4: ({ children }) => <h4>{processChildren(children)}</h4>,
+          strong: ({ children }) => <strong>{processChildren(children)}</strong>,
+          code(props: any) {
+            const { children, className, node, ...rest } = props;
+            const match = /language-(\w+)/.exec(className || '');
+            return match ? (
+              <CodeBlockView
+                code={String(children).replace(/\n$/, '')}
+                language={match[1]}
+              />
+            ) : (
+              <code {...rest} className={className}>
+                {children}
+              </code>
+            );
+          }
+        }}
+      >
+        {markdown}
+      </ReactMarkdown>
     </div>
   );
-}
-
-function renderInlineMarkdown(text: string): ReactNode[] {
-  const parts: ReactNode[] = [];
-  const tokenPattern = /(\*\*[^*]+\*\*|\[(?:INFO|LOW|MEDIUM|HIGH|CRITICAL)\])/gi;
-  let lastIndex = 0;
-
-  for (const match of text.matchAll(tokenPattern)) {
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-
-    const token = match[0];
-    const severity = token.slice(1, -1).toUpperCase();
-    if (severityClassNames[severity]) {
-      parts.push(
-        <span className={severityClassNames[severity]} key={`${match.index}-${token}`}>
-          {token}
-        </span>,
-      );
-    } else {
-      parts.push(<strong key={`${match.index}-${token}`}>{renderInlineMarkdown(token.slice(2, -2))}</strong>);
-    }
-
-    lastIndex = match.index + token.length;
-  }
-
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
-  return parts;
 }
