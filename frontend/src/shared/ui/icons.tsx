@@ -95,13 +95,13 @@ export function ApiIcon({ className, style }: { className?: string; style?: Reac
 export function SourceIcon({ source, className, style }: { source?: string | null; className?: string; style?: React.CSSProperties }) {
   if (!source) return null;
   const normalized = source.toLowerCase().trim();
-  if (normalized.includes('whatsapp')) {
+  if (normalized.includes('whatsapp') || normalized.includes('evolution')) {
     return <WhatsAppIcon className={className} style={style} />;
   }
   if (normalized.includes('github')) {
     return <GitHubIcon className={className} style={style} />;
   }
-  if (normalized.includes('n8n')) {
+  if (normalized.includes('n8n') || normalized.includes('api')) {
     return <ApiIcon className={className} style={style} />;
   }
   if (

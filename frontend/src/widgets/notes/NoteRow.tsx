@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary, formatSourceLabel } from '../../shared/utils/format';
+import { extractSourceFromText } from '../../shared/utils/text';
 import { Badge } from '../../shared/ui/primitives';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { QuickNoteStatusActions } from './QuickNoteStatusActions';
@@ -50,6 +51,8 @@ export function NoteRow({
     },
   });
 
+  const activeSource = extractSourceFromText(note.summary) || note.source;
+
   return (
     <article className="list-row clickable" onClick={() => onOpen(note.id)} onDoubleClick={() => onDoubleClick?.(note.id)}>
       <div className="list-row-body note-row-body">
@@ -68,11 +71,11 @@ export function NoteRow({
           <span className="meta meta-date">
             {formatUsDate(note.date)}
           </span>
-          {note.source && (
+          {activeSource && (
             <>
               <span className="meta-separator"> / </span>
-              <span className="meta meta-source" title={`Source: ${formatSourceLabel(note.source)}`} style={{ display: 'inline-flex', alignItems: 'center', alignSelf: 'center' }}>
-                <SourceIcon source={note.source} style={{ width: '13px', height: '13px', display: 'inline-block', verticalAlign: 'middle', color: 'var(--muted)' }} />
+              <span className="meta meta-source" title={`Source: ${formatSourceLabel(activeSource)}`} style={{ display: 'inline-flex', alignItems: 'center', alignSelf: 'center' }}>
+                <SourceIcon source={activeSource} style={{ width: '13px', height: '13px', display: 'inline-block', verticalAlign: 'middle', color: 'var(--muted)' }} />
               </span>
             </>
           )}

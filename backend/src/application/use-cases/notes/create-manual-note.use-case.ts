@@ -11,7 +11,7 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
-import { stripTitleHeader } from './note-editor.helpers.js';
+import { stripTitleHeader, extractSourceFromText } from './note-editor.helpers.js';
 
 @Injectable()
 export class CreateManualNoteUseCase {
@@ -43,10 +43,11 @@ export class CreateManualNoteUseCase {
     });
     const occurredAt = new Date().toISOString();
     const cleanedRawText = stripTitleHeader(input.rawText, input.title);
+    const extractedSourceSystem = extractSourceFromText(input.rawText);
     const payload: IngestPayload = {
       source: {
-        channel: input.sourceChannel || SourceChannel.External,
-        system: 'manual-api',
+        channel: extractedSourceSystem ? SourceChannel.AiChat : (input.sourceChannel || SourceChannel.External),
+        system: extractedSourceSystem || 'manual-api',
         actor: '',
         conversationId: workspace.workspaceSlug,
         correlationId: `manual:${crypto.randomUUID()}`,

@@ -26,3 +26,17 @@ export function stripSourceHeader(rawText: string): string {
   }
   return rawText;
 }
+
+export function extractSourceFromText(rawText: string): string | undefined {
+  if (!rawText) return undefined;
+  const lines = rawText.split('\n');
+  const firstContentIndex = lines.findIndex((line) => line.trim());
+  if (firstContentIndex !== -1) {
+    const firstLine = lines[firstContentIndex].trim();
+    if (firstLine.toLowerCase().startsWith('source:')) {
+      const srcVal = firstLine.substring(7).trim();
+      if (srcVal) return srcVal;
+    }
+  }
+  return undefined;
+}

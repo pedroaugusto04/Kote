@@ -1,4 +1,5 @@
 import type { Project } from '../api/models/project';
+import { stripSourceHeader } from './text';
 
 const DEFAULT_USER_TIME_ZONE = 'America/Sao_Paulo';
 
@@ -133,8 +134,9 @@ export function formatDisplayToken(value: string | null | undefined) {
 
 export function getCleanSummary(summary: string | undefined): string {
   if (!summary) return '';
+  const cleaned = stripSourceHeader(summary);
   // Replace newlines and carriage returns with spaces
-  let text = summary.replace(/\r?\n/g, ' ');
+  let text = cleaned.replace(/\r?\n/g, ' ');
   // Collapse multiple spaces
   text = text.replace(/\s+/g, ' ').trim();
   if (text.length > 200) {
@@ -152,7 +154,7 @@ export function formatFileSize(sizeBytes: number) {
 export function formatSourceLabel(source: string | null | undefined): string {
   if (!source) return '';
   const normalized = source.toLowerCase().trim();
-  if (normalized.includes('whatsapp')) return 'WhatsApp';
+  if (normalized.includes('whatsapp') || normalized.includes('evolution')) return 'WhatsApp';
   if (normalized.includes('github')) return 'GitHub';
   if (normalized.includes('n8n')) return 'n8n';
   if (normalized === 'ai-chat') return 'AI';
