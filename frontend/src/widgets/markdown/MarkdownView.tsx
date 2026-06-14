@@ -1,6 +1,7 @@
 import { useState, type ReactNode, Children, createContext, useContext, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Prism from 'prismjs';
+import DOMPurify from 'dompurify';
 import 'prismjs/themes/prism-tomorrow.css';
 import 'prismjs/components/prism-typescript.js';
 import 'prismjs/components/prism-javascript.js';
@@ -74,7 +75,8 @@ function CodeBlockView({ code, language }: { code: string; language: string }) {
     const cleanLanguage = language.toLowerCase();
     const grammar = Prism.languages[cleanLanguage] || Prism.languages.clike || Prism.languages.markup;
     const lang = Prism.languages[cleanLanguage] ? cleanLanguage : 'markup';
-    return Prism.highlight(code, grammar, lang);
+    const rawHtml = Prism.highlight(code, grammar, lang);
+    return DOMPurify.sanitize(rawHtml);
   }, [code, language]);
 
   return (
