@@ -148,3 +148,14 @@ export function formatFileSize(sizeBytes: number) {
   if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+export function formatSourceLabel(source: string | null | undefined): string {
+  if (!source) return '';
+  const normalized = source.toLowerCase().trim();
+  if (normalized.includes('whatsapp')) return 'WhatsApp';
+  if (normalized.includes('github')) return 'GitHub';
+  if (normalized.includes('n8n')) return 'n8n';
+  if (normalized === 'ai-chat') return 'AI';
+  if (normalized === 'manual-api' || normalized === 'manual') return 'Manual';
+  return formatDisplayToken(source);
+}

@@ -25,7 +25,7 @@ export function buildUpdatedNote(
   reminderTimeZone: string,
 ) {
   const title = trimText(input.title, note.title || input.rawText);
-  const rawText = normalizeMultiline(input.rawText);
+  const rawText = stripTitleHeader(normalizeMultiline(input.rawText), title);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
   const noteType = normalizeCanonicalType(input.canonicalType, note.type);
   const reminderFields = buildUtcReminderFields({
@@ -89,7 +89,7 @@ function normalizeCanonicalType(value: string | undefined, fallback: string) {
 
 export function extractEditableRawText(note: NoteRecord) {
   const fromMetadata = String(note.metadata.rawText || '').trim();
-  if (fromMetadata) return fromMetadata;
+  if (fromMetadata) return stripTitleHeader(fromMetadata, note.title);
 
   const structuredNote = parseStructuredNoteMarkdown(note.markdown, note.title);
   if (structuredNote?.rawText) return structuredNote.rawText;
@@ -147,6 +147,32 @@ function summarizeRawText(rawText: string, fallbackTitle: string) {
 
 function sameText(left: string, right: string) {
   return normalizeComparableText(left) === normalizeComparableText(right);
+}
+
+export function stripTitleHeader(rawText: string, title: string): string {
+  if (!title || !rawText) return rawText;
+  const trimmedTitle = title.trim();
+  const lines = rawText.split('\n');
+  const firstContentIndex = lines.findIndex((line) => line.trim());
+  if (firstContentIndex !== -1) {
+    const firstLine = lines[firstContentIndex].trim();
+    if (firstLine.startsWith('# ')) {
+      const headingText = firstLine.substring(2).trim();
+      const cleanHeading = headingText.replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, '');
+      const cleanTitle = trimmedTitle.replace(/\s*\(\d{4}-\d{2}-\d{2}\)$/, '');
+      if (
+        cleanHeading.toLowerCase() === cleanTitle.toLowerCase() ||
+        cleanHeading.toLowerCase() === 'unsaved note'
+      ) {
+        const remainingLines = [...lines.slice(0, firstContentIndex), ...lines.slice(firstContentIndex + 1)];
+        while (remainingLines.length > 0 && remainingLines[0].trim() === '') {
+          remainingLines.shift();
+        }
+        return remainingLines.join('\n');
+      }
+    }
+  }
+  return rawText;
 }
 
 type StructuredNoteSection = {

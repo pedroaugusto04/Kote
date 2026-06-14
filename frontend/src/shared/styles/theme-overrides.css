@@ -152,6 +152,12 @@
   background: #e0f2fe;
 }
 
+:root[data-theme="light"] .badge.source {
+  color: #7e22ce;
+  border-color: #f3e8ff;
+  background: #f3e8ff;
+}
+
 :root[data-theme="light"] .badge.archived {
   color: #475569;
   border-color: #cbd5e1;

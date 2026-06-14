@@ -134,3 +134,66 @@ test('can reopen resolved or archived notes back to active status', () => {
   assert.equal(reopenedFromResolved.status, 'active');
   assert.equal(reopenedFromArchived.status, 'active');
 });
+
+test('extracts editable raw text and strips duplicate title headers', () => {
+  const note = {
+    id: 'note-2',
+    path: '20 Inbox/platform/note.md',
+    type: 'event',
+    title: 'My Custom Note',
+    projectSlug: 'platform',
+    workspaceSlug: 'default',
+    folderId: null,
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-05-07T12:00:00.000Z',
+    summary: 'Content text.',
+    markdown: '# My Custom Note\n\nContent text.',
+    frontmatter: {},
+    metadata: { rawText: '# My Custom Note\n\nContent text.' },
+    origin: 'postgres',
+    source: 'ai-chat',
+    links: [],
+  };
+
+  assert.equal(extractEditableRawText(note), 'Content text.');
+});
+
+test('buildUpdatedNote strips duplicate title header from new rawText', () => {
+  const note = {
+    id: 'note-2',
+    path: '20 Inbox/platform/note.md',
+    type: 'event',
+    title: 'My Custom Note',
+    projectSlug: 'platform',
+    workspaceSlug: 'default',
+    folderId: null,
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-05-07T12:00:00.000Z',
+    summary: '',
+    markdown: '',
+    frontmatter: {},
+    metadata: {},
+    origin: 'postgres',
+    source: 'ai-chat',
+    links: [],
+  };
+
+  const updated = buildUpdatedNote(
+    note,
+    null,
+    null,
+    {
+      id: note.id,
+      title: 'My Custom Note',
+      rawText: '# My Custom Note\n\nSome updated content.',
+      tags: [],
+      reminderDate: '',
+      reminderTime: '',
+    },
+    'America/Sao_Paulo',
+  );
+
+  assert.equal(updated.metadata.rawText, 'Some updated content.');
+});

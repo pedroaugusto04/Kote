@@ -11,6 +11,7 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
+import { stripTitleHeader } from './note-editor.helpers.js';
 
 @Injectable()
 export class CreateManualNoteUseCase {
@@ -41,6 +42,7 @@ export class CreateManualNoteUseCase {
       hasReminder: hasReminder({ reminderDate, reminderAt }),
     });
     const occurredAt = new Date().toISOString();
+    const cleanedRawText = stripTitleHeader(input.rawText, input.title);
     const payload: IngestPayload = {
       source: {
         channel: input.sourceChannel || SourceChannel.External,
@@ -55,11 +57,11 @@ export class CreateManualNoteUseCase {
         projectSlug: project.projectSlug,
       },
       content: {
-        rawText: input.rawText,
+        rawText: cleanedRawText,
         title: input.title,
         attachments: [],
         sections: {
-          summary: input.rawText,
+          summary: cleanedRawText,
           impact: '',
           risks: [],
           nextSteps: [],
