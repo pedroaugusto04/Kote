@@ -26,6 +26,7 @@ import {
   type PinNoteBody,
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
+import { inlineContentDisposition } from '../../http-helpers.js';
 
 @ApiTags('Notes')
 @Controller('api/notes')
@@ -128,9 +129,4 @@ export class NotesController {
   ) {
     return this.findRelatedNotesUseCase.execute(user.id, params.id);
   }
-}
-
-function inlineContentDisposition(fileName: string) {
-  const fallbackName = (fileName || 'attachment').replace(/[\\/\u0000-\u001f\u007f"]/g, '_');
-  return `inline; filename="${fallbackName}"; filename*=UTF-8''${encodeURIComponent(fileName || 'attachment')}`;
 }
