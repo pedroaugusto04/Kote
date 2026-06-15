@@ -107,17 +107,19 @@ function renderReviewFindings(findings: NonNullable<IngestPayload['content']['se
     .join('\n');
 }
 
+const AI_SOURCE_PATTERNS = [
+  'ai-chat',
+  'antigravity',
+  'codex',
+  'claude',
+  'open-code',
+  'opencode',
+] as const;
+
 export function isAiSource(source: string | null | undefined): boolean {
   if (!source) return false;
   const normalized = source.toLowerCase().trim();
-  return (
-    normalized === 'ai-chat' ||
-    normalized.includes('antigravity') ||
-    normalized.includes('codex') ||
-    normalized.includes('claude') ||
-    normalized.includes('open-code') ||
-    normalized.includes('opencode')
-  );
+  return AI_SOURCE_PATTERNS.some((pattern) => normalized === pattern || normalized.includes(pattern));
 }
 
 export function isAiNote(payload: IngestPayload): boolean {

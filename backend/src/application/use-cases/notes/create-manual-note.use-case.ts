@@ -5,6 +5,7 @@ import { NotFoundException, Injectable } from '@nestjs/common';
 import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, SourceChannel, WebhookTrigger } from '../../../contracts/enums.js';
 import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
 import { hasReminder, normalizeManualNoteStatus } from '../../../domain/note-status.js';
+import { isAiSource } from '../../../domain/notes.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import type { CreateManualNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
@@ -44,14 +45,7 @@ export class CreateManualNoteUseCase {
     const occurredAt = new Date().toISOString();
     const cleanedRawText = stripTitleHeader(input.rawText, input.title);
     const activeSource = input.source?.trim();
-    const isAiChat = activeSource && (
-      activeSource.toLowerCase().includes('antigravity') ||
-      activeSource.toLowerCase().includes('claude') ||
-      activeSource.toLowerCase().includes('codex') ||
-      activeSource.toLowerCase() === 'ai-chat' ||
-      activeSource.toLowerCase() === 'open-code' ||
-      activeSource.toLowerCase() === 'opencode'
-    );
+    const isAiChat = isAiSource(activeSource);
     const payload: IngestPayload = {
       source: {
         channel: input.sourceChannel || (isAiChat ? SourceChannel.AiChat : SourceChannel.External),
