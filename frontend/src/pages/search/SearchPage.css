@@ -115,7 +115,7 @@
 }
 
 .ask-ai-history-toggle,
-.project-brief-actions .project-brief-history-toggle {
+.project-brief-actions .icon-button.project-brief-history-toggle {
   min-height: 38px;
   padding: 0 16px;
   border-radius: 8px;
@@ -129,14 +129,14 @@
 }
 
 .ask-ai-history-toggle:hover,
-.project-brief-actions .project-brief-history-toggle:hover {
+.project-brief-actions .icon-button.project-brief-history-toggle:hover {
   background: var(--surface-hover-strong);
   color: var(--text);
   border-color: var(--line);
 }
 
 .ask-ai-history-toggle.active,
-.project-brief-actions .project-brief-history-toggle.active {
+.project-brief-actions .icon-button.project-brief-history-toggle.active {
   background: var(--surface-hover-accent);
   border-color: var(--accent-border);
   color: var(--active-text);
