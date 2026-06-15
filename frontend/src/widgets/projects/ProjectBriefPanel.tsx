@@ -23,17 +23,7 @@ function BriefIcon({ className }: { className?: string }) {
   );
 }
 
-function BriefWaitingState({
-  onGenerate,
-  onShowLatest,
-  busy,
-  hasNoSavedBrief,
-}: {
-  onGenerate: () => void;
-  onShowLatest: () => void;
-  busy: boolean;
-  hasNoSavedBrief: boolean;
-}) {
+function BriefWaitingState() {
   return (
     <div className="brief-waiting-card">
       <div className="brief-waiting-visual">
@@ -48,15 +38,7 @@ function BriefWaitingState({
       </div>
       <div className="brief-waiting-content">
         <h3>Project Brief Assistant</h3>
-        <p>Synthesize note activities, decisions, open items, and risks into a structured technical summary.</p>
-      </div>
-      <div className="brief-waiting-actions">
-        <button className="icon-button" disabled={busy} type="button" onClick={onGenerate}>
-          Generate brief
-        </button>
-        <button className="icon-button secondary" disabled={busy || hasNoSavedBrief} type="button" onClick={onShowLatest}>
-          Show latest
-        </button>
+        <p>Click "Generate brief" or "Show latest" above to synthesize project-wide activities, decisions, and risks.</p>
       </div>
     </div>
   );
@@ -77,7 +59,7 @@ function BriefThinkingState() {
       </div>
       <div className="brief-thinking-content">
         <h3>Analyzing Notes & Decisions...</h3>
-        <p>Our AI model is reading project updates, extracting decisions, and preparing the layout.</p>
+        <p>Our AI model is compiling project updates, extracting decisions, and preparing the layout.</p>
       </div>
       <div className="brief-thinking-skeleton-grid">
         <div className="brief-skeleton-section full-width">
@@ -128,22 +110,20 @@ export function ProjectBriefPanel({
 
   return (
     <section className="project-brief-panel" aria-label="Project brief">
-      {brief || error || historyError || isFallback || (source === 'history' && !busy) ? (
-        <div className="project-brief-head">
-          <div>
-            <h3>Project brief</h3>
-            <p>{brief ? `Generated ${new Date(brief.generatedAt).toLocaleString('en-US')}` : hasNoSavedBrief ? 'No saved brief yet.' : 'Generate a new brief or show the latest saved one.'}</p>
-          </div>
-          <div className="project-brief-actions">
-            <button className="icon-button" disabled={busy} type="button" onClick={onGenerate}>
-              {loading ? 'Generating...' : 'Generate brief'}
-            </button>
-            <button className="icon-button secondary" disabled={busy} type="button" onClick={onShowLatest}>
-              {historyLoading ? 'Loading...' : source === 'history' ? 'Hide latest' : 'Show latest'}
-            </button>
-          </div>
+      <div className="project-brief-head">
+        <div>
+          <h3>Project brief</h3>
+          <p>{brief ? `Generated ${new Date(brief.generatedAt).toLocaleString('en-US')}` : hasNoSavedBrief ? 'No saved brief yet.' : 'Generate a new brief or show the latest saved one.'}</p>
         </div>
-      ) : null}
+        <div className="project-brief-actions">
+          <button className="icon-button" disabled={busy} type="button" onClick={onGenerate}>
+            {loading ? 'Generating...' : 'Generate brief'}
+          </button>
+          <button className="icon-button secondary" disabled={busy} type="button" onClick={onShowLatest}>
+            {historyLoading ? 'Loading...' : source === 'history' ? 'Hide latest' : 'Show latest'}
+          </button>
+        </div>
+      </div>
 
       {isFallback ? (
         <div className="project-brief-fallback" role="status">Showing the latest saved brief because generation failed.</div>
@@ -188,12 +168,7 @@ export function ProjectBriefPanel({
           </div>
         </div>
       ) : !error && !historyError ? (
-        <BriefWaitingState
-          onGenerate={onGenerate}
-          onShowLatest={onShowLatest}
-          busy={busy}
-          hasNoSavedBrief={hasNoSavedBrief}
-        />
+        <BriefWaitingState />
       ) : null}
     </section>
   );
