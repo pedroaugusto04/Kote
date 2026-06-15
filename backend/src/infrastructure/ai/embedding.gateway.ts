@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { AiProvider } from '../../contracts/enums.js';
 import { EmbeddingConfig, EmbeddingGateway } from '../../application/ports/notes/embedding.gateway.js';
 import { AppLogger } from '../../observability/logger.js';
+import { truncateForLog } from '../utils/logging.js';
 
 /**
  * Max texts per Gemini batchEmbedContents request (API limit is 100).
@@ -43,11 +44,6 @@ export class EmbeddingGenerationError extends Error {
     this.statusText = details.statusText;
     this.responseBody = details.responseBody;
   }
-}
-
-function truncateForLog(value: string, maxLength = 1_500) {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength)}...`;
 }
 
 /**

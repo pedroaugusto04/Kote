@@ -1,5 +1,6 @@
 import { AiProvider } from '../../contracts/enums.js';
 import { stripMarkdownFences } from '../../domain/strings.js';
+import { truncateForLog } from '../utils/logging.js';
 
 export type ChatConfig = {
   provider: AiProvider;
@@ -37,11 +38,6 @@ export class AiChatCompletionError extends Error {
     this.statusText = details.statusText;
     this.responseBody = details.responseBody;
   }
-}
-
-function truncateForLog(value: string, maxLength = 1_500) {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength)}...`;
 }
 
 export async function runChatCompletion(

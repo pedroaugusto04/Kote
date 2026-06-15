@@ -6,6 +6,7 @@ import {
   AudioTranscriptionInput,
 } from '../../application/ports/audio/audio-transcription.gateway.js';
 import { AppLogger } from '../../observability/logger.js';
+import { truncateForLog } from '../utils/logging.js';
 
 export class AudioTranscriptionError extends Error {
   readonly provider: AiProvider;
@@ -150,7 +151,7 @@ export class DefaultAudioTranscriptionGateway extends AudioTranscriptionGateway 
         endpoint: endpoint.replace(/key=[^&]+/, 'key=***'),
         status: response.status,
         statusText: response.statusText,
-        responseBody: responseText.slice(0, 1000),
+        responseBody: truncateForLog(responseText, 1000),
       });
     }
 
@@ -165,7 +166,7 @@ export class DefaultAudioTranscriptionGateway extends AudioTranscriptionGateway 
         endpoint: endpoint.replace(/key=[^&]+/, 'key=***'),
         status: response.status,
         statusText: response.statusText,
-        responseBody: responseText.slice(0, 1000),
+        responseBody: truncateForLog(responseText, 1000),
         cause: error,
       });
     }
@@ -218,7 +219,7 @@ export class DefaultAudioTranscriptionGateway extends AudioTranscriptionGateway 
         endpoint,
         status: response.status,
         statusText: response.statusText,
-        responseBody: responseText.slice(0, 1000),
+        responseBody: truncateForLog(responseText, 1000),
       });
     }
 
