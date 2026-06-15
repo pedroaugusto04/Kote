@@ -59,15 +59,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
     placeholderData: keepPreviousData,
   });
 
-  // Project Brief state & queries — scoped to the selected project
   const briefProjectSlug = projectSlug || 'all';
-  const briefQueryKey = ['project-brief', briefProjectSlug];
-
-  const latestBriefQuery = useQuery<ProjectBriefPanelResponse>({
-    queryKey: briefQueryKey,
-    queryFn: () => fetchLatestProjectBrief(briefProjectSlug),
-    enabled: activeTab === 'brief',
-  });
 
   const briefHistoryQuery = useQuery({
     queryKey: ['brief-history', briefProjectSlug, briefHistoryPage],
@@ -78,14 +70,14 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
 
   const generateBriefMutation = useMutation({
     mutationFn: (slug: string) => generateProjectBrief(slug),
-    onSuccess: (response, slug) => {
-      queryClient.setQueryData<ProjectBriefPanelResponse>(['project-brief', slug], response);
+    onSuccess: (response) => {
+      setSelectedBrief(response);
       void queryClient.invalidateQueries({ queryKey: ['brief-history'] });
     },
     onError: (error) => notifyGeneralFormError(error, 'Could not generate the project brief.'),
   });
 
-  const displayedBrief = selectedBrief || latestBriefQuery.data;
+  const displayedBrief = selectedBrief || undefined;
 
   const handleAsk = async (overrideQuestion?: string) => {
     const question = (overrideQuestion ?? questionInput).trim();

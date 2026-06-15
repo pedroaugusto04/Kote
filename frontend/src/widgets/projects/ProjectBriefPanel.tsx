@@ -132,9 +132,6 @@ export function ProjectBriefPanel({
       {isFallback ? (
         <div className="project-brief-fallback" role="status">Showing the latest saved brief because generation failed.</div>
       ) : null}
-      {source === 'history' && !busy ? (
-        <div className="project-brief-fallback" role="status">Showing a saved brief from history.</div>
-      ) : null}
       {error ? <div className="project-brief-error" role="alert">{error}</div> : null}
 
       {busy ? (

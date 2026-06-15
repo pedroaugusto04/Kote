@@ -258,38 +258,14 @@ describe('SearchPage (Ask AI)', () => {
     expect(screen.getByText('Based on 1 source')).toBeInTheDocument();
   });
 
-  it('renders the project brief panel and fetches the latest saved brief', async () => {
-    apiSpies.fetchLatestProjectBrief.mockResolvedValue({
-      ok: true,
-      source: 'none',
-      brief: null,
-    });
+  it('renders the project brief panel before generation in waiting state', async () => {
     renderSearchPage();
     fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
 
     expect(screen.getByRole('region', { name: 'Project brief' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Generate brief' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show history' })).toBeInTheDocument();
-    expect(apiSpies.fetchLatestProjectBrief).toHaveBeenCalled();
-  });
-
-  it('automatically fetches and shows the latest saved project brief when opening the tab', async () => {
-    apiSpies.fetchLatestProjectBrief.mockResolvedValue({
-      ok: true,
-      source: 'history',
-      brief: projectBriefResponse().brief,
-    });
-    renderSearchPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
-
-    expect(await screen.findByText('Platform is actively processing deployment work.')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Showing a saved brief from history.');
-    expect(screen.getByRole('button', { name: 'Show history' })).toBeInTheDocument();
-    expect(apiSpies.generateProjectBrief).not.toHaveBeenCalled();
-    
-    // Check source button rendering
-    const sourceButton = screen.getByRole('button', { name: /Deploy antigo/ });
-    expect(sourceButton).toBeInTheDocument();
+    expect(screen.getByText('Project Brief Assistant')).toBeInTheDocument();
   });
 
   it('shows history list and loads selected brief on select', async () => {
@@ -331,7 +307,6 @@ describe('SearchPage (Ask AI)', () => {
 
     // Verify it is displayed in the main pane
     expect(await screen.findByText('Custom history brief summary')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Showing a saved brief from history.');
   });
 
   it('shows an empty saved-brief history state when no history exists', async () => {
