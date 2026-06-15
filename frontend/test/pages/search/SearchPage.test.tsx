@@ -278,7 +278,7 @@ describe('SearchPage (Ask AI)', () => {
     expect(apiSpies.generateProjectBrief).not.toHaveBeenCalled();
     
     // Check source button rendering
-    const sourceButton = screen.getByRole('button', { name: 'Deploy antigo' });
+    const sourceButton = screen.getByRole('button', { name: /Deploy antigo/ });
     expect(sourceButton).toBeInTheDocument();
   });
 

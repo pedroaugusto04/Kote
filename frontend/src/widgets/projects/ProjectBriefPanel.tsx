@@ -51,28 +51,33 @@ export function ProjectBriefPanel({
       {error || historyError ? <div className="project-brief-error" role="alert">{error || historyError}</div> : null}
       {brief ? (
         <div className="project-brief-grid">
-          <ProjectBriefSection title="Summary" items={[brief.summary]} />
-          <ProjectBriefSection title="Status" items={[brief.status]} />
+          <ProjectBriefSection title="Summary" items={[brief.summary]} isText />
+          <ProjectBriefSection title="Status" items={[brief.status]} isText />
           <ProjectBriefSection title="Recent changes" items={brief.recentChanges} />
           <ProjectBriefSection title="Decisions" items={brief.decisions} />
           <ProjectBriefSection title="Open items" items={brief.openItems} />
           <ProjectBriefSection title="Risks" items={brief.risks} />
           <ProjectBriefSection title="Next steps" items={brief.nextSteps} />
-          <div className="project-brief-section">
-            <strong>Sources</strong>
+          <div className="project-brief-section-card sources-section">
+            <div className="project-brief-section-header">
+              <span className="project-brief-section-tag">Sources</span>
+            </div>
             {brief.sources.length > 0 ? (
-              <ul>
+              <div className="project-brief-sources-list">
                 {brief.sources.map((source) => (
-                  <li key={source.noteId}>
-                    <button className="project-brief-source" type="button" onClick={() => onOpenNote(source.noteId)}>
-                      {source.title || source.path || source.noteId}
-                    </button>
-                    <span className="meta">{source.date}</span>
-                  </li>
+                  <button
+                    className="source-link-btn project-brief-source-chip"
+                    key={source.noteId}
+                    type="button"
+                    onClick={() => onOpenNote(source.noteId)}
+                  >
+                    <span className="source-chip-title">{source.title || source.path || source.noteId}</span>
+                    {source.date ? <span className="source-chip-date">{source.date}</span> : null}
+                  </button>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p>No sources.</p>
+              <p className="project-brief-section-empty">No sources.</p>
             )}
           </div>
         </div>
@@ -81,17 +86,28 @@ export function ProjectBriefPanel({
   );
 }
 
-function ProjectBriefSection({ title, items }: { title: string; items: string[] }) {
+function ProjectBriefSection({ title, items, isText = false }: { title: string; items: string[]; isText?: boolean }) {
   const filtered = items.map((item) => item.trim()).filter(Boolean);
   return (
-    <div className="project-brief-section">
-      <strong>{title}</strong>
+    <div className="project-brief-section-card">
+      <div className="project-brief-section-header">
+        <span className="project-brief-section-tag">{title}</span>
+      </div>
       {filtered.length > 0 ? (
-        <ul>
-          {filtered.map((item, index) => <li key={`${title}-${index}`}>{item}</li>)}
-        </ul>
+        isText ? (
+          <p className="project-brief-section-text">{filtered[0]}</p>
+        ) : (
+          <ul className="project-brief-section-list">
+            {filtered.map((item, index) => (
+              <li key={`${title}-${index}`} className="project-brief-section-item">
+                <span className="brief-bullet-marker"></span>
+                <span className="brief-item-content">{item}</span>
+              </li>
+            ))}
+          </ul>
+        )
       ) : (
-        <p>None.</p>
+        <p className="project-brief-section-empty">None.</p>
       )}
     </div>
   );
