@@ -3,11 +3,10 @@ import type { ProjectBriefPanelResponse } from '../../shared/api/models/project-
 export type ProjectBriefPanelProps = {
   response?: ProjectBriefPanelResponse;
   loading: boolean;
-  historyLoading: boolean;
   error: string;
-  historyError: string;
+  showHistory: boolean;
   onGenerate: () => void;
-  onShowLatest: () => void;
+  onToggleHistory: () => void;
   onOpenNote: (noteId: string) => void;
 };
 
@@ -38,7 +37,7 @@ function BriefWaitingState() {
       </div>
       <div className="brief-waiting-content">
         <h3>Project Brief Assistant</h3>
-        <p>Click "Generate brief" or "Show latest" above to synthesize project-wide activities, decisions, and risks.</p>
+        <p>Click "Generate brief" or "Show history" above to synthesize project-wide activities, decisions, and risks.</p>
       </div>
     </div>
   );
@@ -95,32 +94,37 @@ function BriefThinkingState() {
 export function ProjectBriefPanel({
   response,
   loading,
-  historyLoading,
   error,
-  historyError,
+  showHistory,
   onGenerate,
-  onShowLatest,
+  onToggleHistory,
   onOpenNote,
 }: ProjectBriefPanelProps) {
   const brief = response?.brief;
   const source = response && 'source' in response ? response.source : '';
   const hasNoSavedBrief = source === 'none';
   const isFallback = Boolean(response && 'fallback' in response && response.fallback);
-  const busy = loading || historyLoading;
+  const busy = loading;
 
   return (
     <section className="project-brief-panel" aria-label="Project brief">
       <div className="project-brief-head">
         <div>
           <h3>Project brief</h3>
-          <p>{brief ? `Generated ${new Date(brief.generatedAt).toLocaleString('en-US')}` : hasNoSavedBrief ? 'No saved brief yet.' : 'Generate a new brief or show the latest saved one.'}</p>
+          <p>{brief ? `Generated ${new Date(brief.generatedAt).toLocaleString('en-US')}` : hasNoSavedBrief ? 'No saved brief yet.' : 'Generate a new brief or view history.'}</p>
         </div>
         <div className="project-brief-actions">
           <button className="icon-button" disabled={busy} type="button" onClick={onGenerate}>
             {loading ? 'Generating...' : 'Generate brief'}
           </button>
-          <button className="icon-button secondary" disabled={busy} type="button" onClick={onShowLatest}>
-            {historyLoading ? 'Loading...' : source === 'history' ? 'Hide latest' : 'Show latest'}
+          <button
+            aria-expanded={showHistory}
+            className={`icon-button secondary project-brief-history-toggle ${showHistory ? 'active' : ''}`}
+            disabled={busy}
+            type="button"
+            onClick={onToggleHistory}
+          >
+            {showHistory ? 'Hide history' : 'Show history'}
           </button>
         </div>
       </div>
@@ -129,9 +133,9 @@ export function ProjectBriefPanel({
         <div className="project-brief-fallback" role="status">Showing the latest saved brief because generation failed.</div>
       ) : null}
       {source === 'history' && !busy ? (
-        <div className="project-brief-fallback" role="status">Showing the latest saved brief.</div>
+        <div className="project-brief-fallback" role="status">Showing a saved brief from history.</div>
       ) : null}
-      {error || historyError ? <div className="project-brief-error" role="alert">{error || historyError}</div> : null}
+      {error ? <div className="project-brief-error" role="alert">{error}</div> : null}
 
       {busy ? (
         <BriefThinkingState />
@@ -167,7 +171,7 @@ export function ProjectBriefPanel({
             )}
           </div>
         </div>
-      ) : !error && !historyError ? (
+      ) : !error ? (
         <BriefWaitingState />
       ) : null}
     </section>

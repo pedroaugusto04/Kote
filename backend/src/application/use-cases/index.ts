@@ -9,6 +9,7 @@ export { ListProjectKnowledgeMapUseCase } from './projects/list-project-knowledg
 export { ListProjectTimelineUseCase } from './projects/list-project-timeline.use-case.js';
 export { GenerateProjectBriefUseCase } from './projects/generate-project-brief.use-case.js';
 export { GetProjectBriefUseCase } from './projects/get-project-brief.use-case.js';
+export { ListProjectBriefHistoryUseCase } from './projects/list-project-brief-history.use-case.js';
 export { CreateProjectFolderUseCase } from './projects/create-project-folder.use-case.js';
 export { UpdateProjectFolderUseCase } from './projects/update-project-folder.use-case.js';
 export { DeleteProjectFolderUseCase } from './projects/delete-project-folder.use-case.js';

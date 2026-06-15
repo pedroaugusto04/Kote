@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 
+import { buildPaginationMeta } from '../../contracts/pagination.js';
 import type { ProjectBriefHistoryRecord, SaveProjectBriefHistoryInput } from '../../application/models/project-brief.models.js';
 import { ProjectBriefHistoryRepository } from '../../application/ports/projects/project-brief-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -69,5 +70,37 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
       [input.userId, input.workspaceSlug, input.projectSlug],
     );
     return result.rows[0] ? projectBriefHistoryFromRow(result.rows[0]) : null;
+  }
+
+  async list(input: {
+    userId: string;
+    workspaceSlug: string;
+    projectSlug: string;
+    page: number;
+    pageSize: number;
+  }) {
+    const where = ['user_id = $1', 'workspace_slug = $2', 'project_slug = $3'];
+    const values: unknown[] = [input.userId, input.workspaceSlug, input.projectSlug];
+
+    const countResult = await this.database.getPool().query(
+      `select count(*)::int as total from kb_project_brief_history where ${where.join(' and ')}`,
+      values,
+    );
+    const total = Number(countResult.rows[0]?.total || 0);
+    const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
+    const offset = (pagination.page - 1) * pagination.pageSize;
+
+    const result = await this.database.getPool().query(
+      `select * from kb_project_brief_history
+       where ${where.join(' and ')}
+       order by generated_at desc, id desc
+       limit $4 offset $5`,
+      [...values, pagination.pageSize, offset],
+    );
+
+    return {
+      items: result.rows.map(projectBriefHistoryFromRow),
+      pagination,
+    };
   }
 }

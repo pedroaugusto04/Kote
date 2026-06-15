@@ -18,6 +18,7 @@ export {
   deleteProjectFolder,
   fetchAllProjectsTimeline,
   fetchLatestProjectBrief,
+  fetchProjectBriefHistory,
   fetchProjectFolders,
   fetchProjectKnowledgeMap,
   fetchProjectTimeline,

@@ -9,6 +9,7 @@ import {
   DeleteProjectUseCase,
   GenerateProjectBriefUseCase,
   GetProjectBriefUseCase,
+  ListProjectBriefHistoryUseCase,
   ListProjectFoldersUseCase,
   ListProjectKnowledgeMapUseCase,
   ListProjectTimelineUseCase,
@@ -28,6 +29,7 @@ import {
   setProjectFavoriteBodySchema,
   updateProjectBodySchema,
   updateProjectFolderBodySchema,
+  paginationInputSchema,
   type CreateProjectBody,
   type CreateProjectFolderBody,
   type ProjectFolderParam,
@@ -37,6 +39,7 @@ import {
   type SetProjectFavoriteBody,
   type UpdateProjectBody,
   type UpdateProjectFolderBody,
+  type PaginationInput,
 } from '../../dto/project.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
@@ -51,6 +54,7 @@ export class ProjectsController {
     private readonly setProjectFavoriteUseCase: SetProjectFavoriteUseCase,
     private readonly generateProjectBriefUseCase: GenerateProjectBriefUseCase,
     private readonly getProjectBriefUseCase: GetProjectBriefUseCase,
+    private readonly listProjectBriefHistoryUseCase: ListProjectBriefHistoryUseCase,
     private readonly listProjectKnowledgeMapUseCase: ListProjectKnowledgeMapUseCase,
     private readonly listProjectTimelineUseCase: ListProjectTimelineUseCase,
     private readonly listProjectFoldersUseCase: ListProjectFoldersUseCase,
@@ -180,6 +184,23 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.getProjectBriefUseCase.execute(user.id, params.projectSlug);
+  }
+
+  @Get(':projectSlug/brief/history')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get history of project briefs' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Brief history retrieved successfully' })
+  getBriefHistory(
+    @Param(new ZodValidationPipe(projectSlugParamSchema, 'invalid_project_slug')) params: ProjectSlugParam,
+    @Query(new ZodValidationPipe(paginationInputSchema, 'invalid_pagination_input')) query: PaginationInput,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.listProjectBriefHistoryUseCase.execute(user.id, {
+      projectSlug: params.projectSlug,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
   }
 
   @Get(':projectSlug/folders')

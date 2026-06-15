@@ -2,10 +2,20 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryR
 import { useState, useRef } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { fetchAskHistory, fetchLatestProjectBrief, generateProjectBrief, runAsk } from '../../shared/api/client';
+import {
+  fetchAskHistory,
+  fetchLatestProjectBrief,
+  fetchProjectBriefHistory,
+  generateProjectBrief,
+  runAsk,
+} from '../../shared/api/client';
 import { getErrorMessage } from '../../shared/api/error-message';
 import type { AskHistoryResponse } from '../../shared/api/models/ask';
-import type { ProjectBriefPanelResponse } from '../../shared/api/models/project-brief';
+import type {
+  ProjectBriefPanelResponse,
+  ProjectBriefHistoryResponse,
+  ProjectBriefHistoryRecord,
+} from '../../shared/api/models/project-brief';
 import type { AskAnswerCardItem } from '../../widgets/ask/ask-answer-card.models';
 import { AskAnswerCard, projectLabel } from '../../widgets/ask/AskAnswerCard';
 import { AskAiIcon } from '../../widgets/ask/AskAiIcon';
@@ -29,9 +39,12 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   const [isAsking, setIsAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
+
+  const [showBriefHistory, setShowBriefHistory] = useState(false);
+  const [selectedBrief, setSelectedBrief] = useState<ProjectBriefPanelResponse | null>(null);
 
   const { page: historyPage, setPage: setHistoryPage } = usePaginationState(`ask-history:${projectSlug}`);
+  const { page: briefHistoryPage, setPage: setBriefHistoryPage } = usePaginationState(`brief-history:${projectSlug}`);
 
   const handleHistoryPageChange = (newPage: number) => {
     setHistoryPage(newPage);
@@ -49,32 +62,30 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   // Project Brief state & queries — scoped to the selected project
   const briefProjectSlug = projectSlug || 'all';
   const briefQueryKey = ['project-brief', briefProjectSlug];
+
   const latestBriefQuery = useQuery<ProjectBriefPanelResponse>({
     queryKey: briefQueryKey,
     queryFn: () => fetchLatestProjectBrief(briefProjectSlug),
-    enabled: false,
+    enabled: activeTab === 'brief',
   });
+
+  const briefHistoryQuery = useQuery({
+    queryKey: ['brief-history', briefProjectSlug, briefHistoryPage],
+    queryFn: () => fetchProjectBriefHistory(briefProjectSlug, { page: briefHistoryPage, pageSize: 5 }),
+    enabled: showBriefHistory,
+    placeholderData: keepPreviousData,
+  });
+
   const generateBriefMutation = useMutation({
     mutationFn: (slug: string) => generateProjectBrief(slug),
     onSuccess: (response, slug) => {
       queryClient.setQueryData<ProjectBriefPanelResponse>(['project-brief', slug], response);
-      setHiddenLatestBriefProjects((current) => ({ ...current, [slug]: false }));
+      void queryClient.invalidateQueries({ queryKey: ['brief-history'] });
     },
     onError: (error) => notifyGeneralFormError(error, 'Could not generate the project brief.'),
   });
-  const showLatestBrief = () => {
-    const currentBrief = latestBriefQuery.data;
-    if (currentBrief && 'source' in currentBrief && currentBrief.source === 'history' && !hiddenLatestBriefProjects[briefProjectSlug]) {
-      setHiddenLatestBriefProjects((current) => ({ ...current, [briefProjectSlug]: true }));
-      return;
-    }
-    setHiddenLatestBriefProjects((current) => ({ ...current, [briefProjectSlug]: false }));
-    if (currentBrief && 'source' in currentBrief && currentBrief.source === 'history') return;
-    void latestBriefQuery.refetch();
-  };
-  const selectedBriefResponse = hiddenLatestBriefProjects[briefProjectSlug] && latestBriefQuery.data && 'source' in latestBriefQuery.data && latestBriefQuery.data.source === 'history'
-    ? undefined
-    : latestBriefQuery.data;
+
+  const displayedBrief = selectedBrief || latestBriefQuery.data;
 
   const handleAsk = async (overrideQuestion?: string) => {
     const question = (overrideQuestion ?? questionInput).trim();
@@ -136,6 +147,8 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
               setProjectSlug(nextProjectSlug);
               setAskAnswer(null);
               setAskError(null);
+              setSelectedBrief(null);
+              setShowBriefHistory(false);
             }}
           />
         }
@@ -234,22 +247,44 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
         </div>
       ) : (
         /* Project Brief */
-        <Panel className="ask-ai-brief-panel">
-          <ProjectBriefPanel
-            response={selectedBriefResponse}
-            loading={generateBriefMutation.isPending && generateBriefMutation.variables === briefProjectSlug}
-            historyLoading={latestBriefQuery.isFetching}
-            error={generateBriefMutation.isError && generateBriefMutation.variables === briefProjectSlug
-              ? getErrorMessage(generateBriefMutation.error, 'Could not generate the project brief.')
-              : ''}
-            historyError={latestBriefQuery.isError
-              ? getErrorMessage(latestBriefQuery.error, 'Could not load the latest project brief.')
-              : ''}
-            onGenerate={() => generateBriefMutation.mutate(briefProjectSlug)}
-            onShowLatest={showLatestBrief}
-            onOpenNote={openNote}
-          />
-        </Panel>
+        <div className={`ask-ai-workspace ${showBriefHistory ? 'has-history' : ''}`}>
+          <div className="ask-ai-main-pane">
+            <Panel className="ask-ai-brief-panel">
+              <ProjectBriefPanel
+                response={displayedBrief}
+                loading={generateBriefMutation.isPending && generateBriefMutation.variables === briefProjectSlug}
+                error={generateBriefMutation.isError && generateBriefMutation.variables === briefProjectSlug
+                  ? getErrorMessage(generateBriefMutation.error, 'Could not generate the project brief.')
+                  : ''}
+                showHistory={showBriefHistory}
+                onGenerate={() => {
+                  setSelectedBrief(null);
+                  generateBriefMutation.mutate(briefProjectSlug);
+                }}
+                onToggleHistory={() => setShowBriefHistory((current) => !current)}
+                onOpenNote={openNote}
+              />
+            </Panel>
+          </div>
+
+          {/* History Panel */}
+          {showBriefHistory ? (
+            <div className="ask-ai-history-pane">
+              <BriefHistoryInline
+                historyQuery={briefHistoryQuery}
+                setPage={setBriefHistoryPage}
+                onSelect={(item) => {
+                  setSelectedBrief({
+                    ok: true,
+                    source: 'history',
+                    brief: item.brief,
+                  });
+                  setShowBriefHistory(false);
+                }}
+              />
+            </div>
+          ) : null}
+        </div>
       )}
     </>
   );
@@ -276,6 +311,56 @@ function AskAnswerSkeleton({ question, projectLabel: selectedProjectLabel }: { q
         </div>
       </div>
     </div>
+  );
+}
+
+function BriefHistoryInline({
+  historyQuery,
+  setPage,
+  onSelect,
+}: {
+  historyQuery: UseQueryResult<ProjectBriefHistoryResponse>;
+  setPage: (page: number) => void;
+  onSelect: (item: ProjectBriefHistoryRecord) => void;
+}) {
+  const history = historyQuery.data?.items || [];
+
+  return (
+    <Panel className="ask-ai-history-panel">
+      <h2>Brief History</h2>
+
+      {historyQuery.isLoading ? (
+        <div className="inline-message">Loading history...</div>
+      ) : historyQuery.isError ? (
+        <InlineMessage tone="error">Could not load Brief history.</InlineMessage>
+      ) : history.length === 0 ? (
+        <EmptyState>No brief history for this project.</EmptyState>
+      ) : (
+        <>
+          <div className={`ask-history-list ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`}>
+            {history.map((item) => (
+              <button className="ask-history-item" key={item.id} type="button" onClick={() => onSelect(item)}>
+                <div className="ask-history-item-header">
+                  <span className="ask-history-question">
+                    {item.brief.summary.length > 50
+                      ? `${item.brief.summary.slice(0, 50)}...`
+                      : item.brief.summary}
+                  </span>
+                </div>
+                <div className="ask-history-item-meta">
+                  <span className="ask-history-project">{item.model}</span>
+                  <span className="ask-history-date">{formatDate(item.generatedAt)}</span>
+                </div>
+                <span className="ask-history-answer">{item.brief.status}</span>
+              </button>
+            ))}
+          </div>
+          {historyQuery.data?.pagination ? (
+            <Pagination compact disableScrollToTop pagination={historyQuery.data.pagination} onPageChange={setPage} />
+          ) : null}
+        </>
+      )}
+    </Panel>
   );
 }
 

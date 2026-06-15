@@ -20,6 +20,7 @@ import {
   SetProjectFavoriteUseCase,
   GenerateProjectBriefUseCase,
   GetProjectBriefUseCase,
+  ListProjectBriefHistoryUseCase,
   GetReviewDetailUseCase,
   ListPaginatedReviewsUseCase,
 } from '../../application/use-cases/index.js';
@@ -51,12 +52,14 @@ import { ProjectsController } from '../../interfaces/http/controllers/index.js';
     SetProjectFavoriteUseCase,
     GenerateProjectBriefUseCase,
     GetProjectBriefUseCase,
+    ListProjectBriefHistoryUseCase,
     GetReviewDetailUseCase,
     ListPaginatedReviewsUseCase,
   ],
   exports: [
     GenerateProjectBriefUseCase,
     GetProjectBriefUseCase,
+    ListProjectBriefHistoryUseCase,
     CreateProjectUseCase,
     UpdateProjectUseCase,
     DeleteProjectUseCase,

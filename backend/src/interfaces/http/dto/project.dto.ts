@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 import { slugify } from '../../../domain/strings.js';
-import { paginationInputSchema } from '../../../contracts/pagination.js';
+import { paginationInputSchema, type PaginationInput } from '../../../contracts/pagination.js';
+export { paginationInputSchema, type PaginationInput };
 import { projectTimelineCategories } from '../../../application/models/project-timeline.models.js';
 import {
   normalizedSlugList,

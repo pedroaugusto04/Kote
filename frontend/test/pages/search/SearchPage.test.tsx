@@ -12,6 +12,7 @@ const apiSpies = vi.hoisted(() => ({
   fetchAskHistory: vi.fn(),
   runAsk: vi.fn(),
   fetchLatestProjectBrief: vi.fn(),
+  fetchProjectBriefHistory: vi.fn(),
   generateProjectBrief: vi.fn(),
 }));
 
@@ -26,6 +27,7 @@ vi.mock('../../../src/shared/api/client', () => ({
   fetchAskHistory: apiSpies.fetchAskHistory,
   runAsk: apiSpies.runAsk,
   fetchLatestProjectBrief: apiSpies.fetchLatestProjectBrief,
+  fetchProjectBriefHistory: apiSpies.fetchProjectBriefHistory,
   generateProjectBrief: apiSpies.generateProjectBrief,
 }));
 
@@ -69,6 +71,7 @@ beforeEach(() => {
   apiSpies.fetchAskHistory.mockReset();
   apiSpies.runAsk.mockReset();
   apiSpies.fetchLatestProjectBrief.mockReset();
+  apiSpies.fetchProjectBriefHistory.mockReset();
   apiSpies.generateProjectBrief.mockReset();
   notificationSpies.notifyError.mockReset();
   notificationSpies.notifySuccess.mockReset();
@@ -77,6 +80,10 @@ beforeEach(() => {
   apiSpies.fetchAskHistory.mockResolvedValue({
     ok: true,
     history: [],
+    pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+  });
+  apiSpies.fetchProjectBriefHistory.mockResolvedValue({
+    items: [],
     pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
   });
   Element.prototype.scrollIntoView = vi.fn();
@@ -251,38 +258,7 @@ describe('SearchPage (Ask AI)', () => {
     expect(screen.getByText('Based on 1 source')).toBeInTheDocument();
   });
 
-  it('renders the project brief panel before generation without calling the brief endpoint', async () => {
-    renderSearchPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
-
-    expect(screen.getByRole('region', { name: 'Project brief' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Generate brief' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Show latest' })).toBeInTheDocument();
-    expect(apiSpies.fetchLatestProjectBrief).not.toHaveBeenCalled();
-  });
-
-  it('shows the latest saved project brief on demand without generating a new one', async () => {
-    apiSpies.fetchLatestProjectBrief.mockResolvedValue({
-      ok: true,
-      source: 'history',
-      brief: projectBriefResponse().brief,
-    });
-    renderSearchPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Show latest' }));
-
-    expect(await screen.findByText('Platform is actively processing deployment work.')).toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('Showing the latest saved brief.');
-    expect(screen.getByRole('button', { name: 'Hide latest' })).toBeInTheDocument();
-    expect(apiSpies.generateProjectBrief).not.toHaveBeenCalled();
-    
-    // Check source button rendering
-    const sourceButton = screen.getByRole('button', { name: /Deploy antigo/ });
-    expect(sourceButton).toBeInTheDocument();
-  });
-
-  it('shows an empty saved-brief state when no history exists', async () => {
+  it('renders the project brief panel and fetches the latest saved brief', async () => {
     apiSpies.fetchLatestProjectBrief.mockResolvedValue({
       ok: true,
       source: 'none',
@@ -291,9 +267,89 @@ describe('SearchPage (Ask AI)', () => {
     renderSearchPage();
     fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show latest' }));
+    expect(screen.getByRole('region', { name: 'Project brief' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Generate brief' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show history' })).toBeInTheDocument();
+    expect(apiSpies.fetchLatestProjectBrief).toHaveBeenCalled();
+  });
 
-    expect(await screen.findByText('No saved brief yet.')).toBeInTheDocument();
+  it('automatically fetches and shows the latest saved project brief when opening the tab', async () => {
+    apiSpies.fetchLatestProjectBrief.mockResolvedValue({
+      ok: true,
+      source: 'history',
+      brief: projectBriefResponse().brief,
+    });
+    renderSearchPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
+
+    expect(await screen.findByText('Platform is actively processing deployment work.')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Showing a saved brief from history.');
+    expect(screen.getByRole('button', { name: 'Show history' })).toBeInTheDocument();
+    expect(apiSpies.generateProjectBrief).not.toHaveBeenCalled();
+    
+    // Check source button rendering
+    const sourceButton = screen.getByRole('button', { name: /Deploy antigo/ });
+    expect(sourceButton).toBeInTheDocument();
+  });
+
+  it('shows history list and loads selected brief on select', async () => {
+    apiSpies.fetchLatestProjectBrief.mockResolvedValue({
+      ok: true,
+      source: 'none',
+      brief: null,
+    });
+    apiSpies.fetchProjectBriefHistory.mockResolvedValue({
+      items: [
+        {
+          id: 'brief-history-1',
+          userId: 'user-1',
+          workspaceSlug: 'default',
+          projectSlug: 'platform',
+          brief: {
+            ...projectBriefResponse().brief,
+            summary: 'Custom history brief summary',
+          },
+          sourceRefs: [],
+          contextHash: 'hash-1',
+          contextWindow: 30,
+          provider: 'openai',
+          model: 'gpt-4',
+          generatedAt: '2026-05-22T12:00:00.000Z',
+          createdAt: '2026-05-22T12:00:00.000Z',
+        },
+      ],
+      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+    });
+
+    renderSearchPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Show history' }));
+
+    // Wait for history item to appear and select it
+    const historyItem = await screen.findByText('Custom history brief summary');
+    fireEvent.click(historyItem);
+
+    // Verify it is displayed in the main pane
+    expect(await screen.findByText('Custom history brief summary')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Showing a saved brief from history.');
+  });
+
+  it('shows an empty saved-brief history state when no history exists', async () => {
+    apiSpies.fetchLatestProjectBrief.mockResolvedValue({
+      ok: true,
+      source: 'none',
+      brief: null,
+    });
+    apiSpies.fetchProjectBriefHistory.mockResolvedValue({
+      items: [],
+      pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+    });
+    renderSearchPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show history' }));
+
+    expect(await screen.findByText('No brief history for this project.')).toBeInTheDocument();
   });
 
   it('generates and displays a project brief', async () => {

@@ -1,5 +1,5 @@
 import type { Project } from './models/project';
-import type { ProjectBriefResponse, SavedProjectBriefResponse } from './models/project-brief';
+import type { ProjectBriefResponse, SavedProjectBriefResponse, ProjectBriefHistoryResponse } from './models/project-brief';
 import type { ProjectFolder } from './models/project-folder';
 import type { ProjectKnowledgeMapQuery, ProjectKnowledgeMapResponse } from './models/project-knowledge-map';
 import type { ProjectTimelineCategory, ProjectTimelineItem } from './models/project-timeline';
@@ -97,6 +97,14 @@ export function generateProjectBrief(projectSlug: string) {
 
 export function fetchLatestProjectBrief(projectSlug: string) {
   return request<SavedProjectBriefResponse>(`/api/projects/${encodeURIComponent(projectSlug)}/brief`);
+}
+
+export function fetchProjectBriefHistory(projectSlug: string, params: { page?: number; pageSize?: number } = {}) {
+  const search = new URLSearchParams({
+    page: String(params.page || 1),
+    pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
+  });
+  return request<ProjectBriefHistoryResponse>(`/api/projects/${encodeURIComponent(projectSlug)}/brief/history?${search.toString()}`);
 }
 
 export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; status?: string }) {
