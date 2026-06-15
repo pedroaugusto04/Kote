@@ -1006,3 +1006,195 @@
   pointer-events: none;
 }
 
+/* Project Brief Loading & Thinking States */
+.brief-waiting-card,
+.brief-thinking-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 32px;
+  background: var(--surface-2);
+  border: 1px dashed var(--line-soft);
+  border-radius: 12px;
+  min-height: 340px;
+  margin-top: 10px;
+  transition: border-color 140ms ease;
+  width: 100%;
+}
+
+.brief-waiting-card:hover {
+  border-color: var(--cyan);
+}
+
+.brief-waiting-visual,
+.brief-thinking-visual {
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+  position: relative;
+  width: 100%;
+}
+
+.brief-core-pulse,
+.brief-thinking-pulse {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.brief-core-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 180, 216, 0.25);
+  animation: core-pulsate 3.2s infinite cubic-bezier(0.215, 0.610, 0.355, 1);
+}
+
+.brief-core-ring.ring-1 {
+  width: 50px;
+  height: 50px;
+  animation-delay: 0s;
+}
+
+.brief-core-ring.ring-2 {
+  width: 80px;
+  height: 80px;
+  animation-delay: 1.0s;
+}
+
+.brief-core-ring.ring-3 {
+  width: 110px;
+  height: 110px;
+  animation-delay: 2.0s;
+}
+
+/* Pulsing class for thinking state */
+.brief-core-ring.pulsing {
+  animation: core-pulsate 2.4s infinite cubic-bezier(0.215, 0.610, 0.355, 1);
+}
+
+.brief-core-center {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  border: 1px solid var(--line-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 0 10px rgba(0, 180, 216, 0.1);
+  color: var(--cyan);
+}
+
+.waiting-brief-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--cyan);
+}
+
+.rotating-icon {
+  animation: waitingRotate 5s linear infinite;
+}
+
+.brief-waiting-content h3,
+.brief-thinking-content h3 {
+  font-family: var(--mono);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin: 0 0 8px 0;
+  text-shadow: 0 0 10px rgba(0, 180, 216, 0.25);
+}
+
+.brief-waiting-content p,
+.brief-thinking-content p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0 0 24px 0;
+  max-width: 440px;
+}
+
+.brief-waiting-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* Skeleton Loading styles */
+.brief-thinking-skeleton-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 32px;
+  text-align: left;
+}
+
+.brief-thinking-skeleton-grid > .brief-skeleton-section.full-width {
+  grid-column: 1 / -1;
+}
+
+.brief-skeleton-section {
+  background: var(--surface-3);
+  border: 1px solid var(--line-soft);
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  opacity: 0.7;
+  animation: brief-skeleton-fade 1.8s infinite ease-in-out;
+}
+
+.brief-skeleton-section:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.brief-skeleton-section:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.brief-skeleton-section:nth-child(4) {
+  animation-delay: 0.6s;
+}
+
+.brief-skeleton-section:nth-child(5) {
+  animation-delay: 0.8s;
+}
+
+@keyframes brief-skeleton-fade {
+  0% { opacity: 0.45; }
+  50% { opacity: 0.85; }
+  100% { opacity: 0.45; }
+}
+
+.skeleton-title-bar {
+  width: 80px;
+  height: 10px;
+  background: var(--line-soft);
+  border-radius: 4px;
+}
+
+.skeleton-text-bar {
+  height: 8px;
+  background: var(--line-soft);
+  border-radius: 4px;
+}
+
+.skeleton-text-bar.line-1 {
+  width: 95%;
+}
+
+.skeleton-text-bar.line-2 {
+  width: 75%;
+}
+
