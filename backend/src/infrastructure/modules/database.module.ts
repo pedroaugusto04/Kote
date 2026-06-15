@@ -30,6 +30,11 @@ import { PostgresWebhookEventRepository } from '../repositories/webhook-events.r
 import { PostgresWebhookSubscriptionRepository } from '../repositories/webhook-subscription.repository.js';
 import { PostgresWorkflowStateRepository } from '../repositories/workflow-state.repository.js';
 import { PostgresPushSubscriptionRepository } from '../repositories/push-subscription.repository.js';
+import { PostgresWorkspaceRepository } from '../repositories/workspace.repository.js';
+import { PostgresProjectRepository } from '../repositories/project.repository.js';
+import { PostgresNoteRepository } from '../repositories/note.repository.js';
+import { PostgresFolderRepository } from '../repositories/folder.repository.js';
+import { PostgresAttachmentRepository } from '../repositories/attachment.repository.js';
 
 const repositories = [
   PostgresDatabase,
@@ -38,6 +43,11 @@ const repositories = [
   PostgresIntegrationRepository,
   PostgresProjectBriefHistoryRepository,
   PostgresAskHistoryRepository,
+  PostgresWorkspaceRepository,
+  PostgresProjectRepository,
+  PostgresNoteRepository,
+  PostgresFolderRepository,
+  PostgresAttachmentRepository,
   PostgresContentRepository,
   PostgresContentQueryRepository,
   PostgresNoteEmbeddingRepository,

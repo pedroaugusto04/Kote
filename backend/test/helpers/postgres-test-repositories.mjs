@@ -16,6 +16,11 @@ import { PostgresSchemaMigrator } from '../../dist/infrastructure/persistence/sc
 import { readEnvironment } from '../../dist/adapters/environment.js';
 import { ContentObjectStorageService } from '../../dist/application/services/content-object-storage.service.js';
 import { ObjectStorageMissingContentError } from '../../dist/application/ports/notes/object-storage.js';
+import { PostgresWorkspaceRepository } from '../../dist/infrastructure/repositories/workspace.repository.js';
+import { PostgresProjectRepository } from '../../dist/infrastructure/repositories/project.repository.js';
+import { PostgresNoteRepository } from '../../dist/infrastructure/repositories/note.repository.js';
+import { PostgresFolderRepository } from '../../dist/infrastructure/repositories/folder.repository.js';
+import { PostgresAttachmentRepository } from '../../dist/infrastructure/repositories/attachment.repository.js';
 
 const { Pool } = pg;
 
@@ -192,7 +197,21 @@ export async function createPostgresTestRepositories(t) {
   const askHistoryRepository = new PostgresAskHistoryRepository(database);
   const objectStorage = new InMemoryObjectStorage();
   const contentObjectStorage = new ContentObjectStorageService(objectStorage);
-  const contentRepository = new PostgresContentRepository(database, contentObjectStorage);
+  
+  const workspaceRepository = new PostgresWorkspaceRepository(database);
+  const projectRepository = new PostgresProjectRepository(database);
+  const noteRepository = new PostgresNoteRepository(database, contentObjectStorage);
+  const folderRepository = new PostgresFolderRepository(database);
+  const attachmentRepository = new PostgresAttachmentRepository(database, contentObjectStorage);
+  
+  const contentRepository = new PostgresContentRepository(
+    workspaceRepository,
+    projectRepository,
+    noteRepository,
+    folderRepository,
+    attachmentRepository,
+    contentObjectStorage
+  );
   const contentQueryRepository = new PostgresContentQueryRepository(database, contentObjectStorage);
   const workflowStateRepository = new PostgresWorkflowStateRepository(database);
   const pushSubscriptionRepository = new PostgresPushSubscriptionRepository(database);
