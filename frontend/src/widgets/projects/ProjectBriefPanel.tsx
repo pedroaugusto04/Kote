@@ -37,10 +37,7 @@ function BriefWaitingState() {
         </div>
       </div>
       <div className="brief-waiting-content">
-        <h3>
-          <span className="assistant-title-prefix">Project Brief</span>{' '}
-          <span className="assistant-title-badge">Assistant</span>
-        </h3>
+        <h3>Project Brief Assistant</h3>
         <p>Click "Generate brief" or "Show latest" above to synthesize project-wide activities, decisions, and risks.</p>
       </div>
     </div>

@@ -349,10 +349,7 @@ function AskWaitingState({ onPromptClick }: { onPromptClick: (text: string) => v
         </div>
       </div>
       <div className="ask-waiting-text">
-        <h3>
-          <span className="assistant-title-prefix">Ask AI</span>{' '}
-          <span className="assistant-title-badge">Assistant</span>
-        </h3>
+        <h3>Ask AI Assistant</h3>
         <p>Ask questions, query your notes, or get summaries instantly using neural search.</p>
       </div>
       <div className="ask-suggested-prompts">
