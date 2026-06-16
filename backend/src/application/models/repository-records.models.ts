@@ -132,6 +132,7 @@ export type NoteRecord = {
   markdownStorageKey: string;
   frontmatter: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  source: string;
   attachmentCount?: number;
   isPinned?: boolean;
 };

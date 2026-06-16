@@ -45,11 +45,13 @@ export class CreateManualNoteUseCase {
     });
     const occurredAt = new Date().toISOString();
     const cleanedRawText = stripTitleHeader(input.rawText, input.title);
+    const activeSource = input.source?.trim();
+    const isAiChat = isAiSource(activeSource);
 
     const payload: IngestPayload = {
       source: {
-        channel: input.sourceChannel || SourceChannel.External,
-        system: 'manual-api',
+        channel: input.sourceChannel || (isAiChat ? SourceChannel.AiChat : SourceChannel.External),
+        system: activeSource || 'manual-api',
         actor: '',
         conversationId: workspace.workspaceSlug,
         correlationId: `manual:${crypto.randomUUID()}`,

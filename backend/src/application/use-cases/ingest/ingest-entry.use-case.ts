@@ -166,6 +166,7 @@ async function saveIngestedNote(
       reminderTime: payload.actions.reminderTime,
       reminderAt: payload.actions.reminderAt,
     },
+    source: payload.source.system,
   });
   const attachments = await Promise.all(
     payload.content.attachments.map((attachment) =>

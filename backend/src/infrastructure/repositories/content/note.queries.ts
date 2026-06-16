@@ -16,5 +16,6 @@ export function buildNoteMutableValues(input: SaveNoteInput, markdownStorageKey:
     markdownStorageKey,
     JSON.stringify(input.frontmatter),
     JSON.stringify(input.metadata),
+    input.source,
   ];
 }

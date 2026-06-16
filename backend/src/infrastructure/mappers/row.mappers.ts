@@ -186,6 +186,7 @@ export function noteFromRow(row: Row): NoteRecord {
     markdownStorageKey: String(row.markdown_storage_key || ''),
     frontmatter: (row.frontmatter || {}) as Record<string, unknown>,
     metadata: (row.metadata || {}) as Record<string, unknown>,
+    source: String(row.source || row.source_channel || ''),
     attachmentCount: Number(row.attachment_count || 0),
     isPinned: row.is_pinned === true,
   };

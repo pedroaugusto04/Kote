@@ -104,5 +104,6 @@ function noteInputWithPath(note: NoteRecord, path: string) {
     markdownStorageKey: note.markdownStorageKey,
     frontmatter: note.frontmatter,
     metadata: note.metadata,
+    source: note.source,
   };
 }
