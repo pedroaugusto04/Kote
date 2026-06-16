@@ -285,7 +285,6 @@ export class AiHistoryManager {
     const titleWithDate = this.getTitleWithDate(session);
     let rawText = `# ${titleWithDate}\n\n`;
     rawText += `Source: ${this.providers.get(session.providerId)?.name || session.providerId}\n`;
-    rawText += `Session: ${session.sessionId}\n`;
     if (session.projectSlug) {
       rawText += `Project: ${session.projectSlug}\n`;
     }
