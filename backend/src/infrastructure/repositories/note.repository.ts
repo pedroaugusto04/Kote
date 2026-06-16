@@ -114,7 +114,6 @@ export class PostgresNoteRepository {
       .replace(/\bfolder_id\b/g, 'n.folder_id')
       .replace(/\btype\b/g, 'n.type')
       .replace(/\bsource_channel\b/g, 'n.source_channel')
-      .replace(/\bsource\b/g, 'n.source')
       .replace(/\bstatus\b/g, 'n.status')
       .replace(/\bmetadata\b/g, 'n.metadata');
     const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes where ${where}`, values);
@@ -149,7 +148,6 @@ export class PostgresNoteRepository {
       .replace(/\bfolder_id\b/g, 'n.folder_id')
       .replace(/\btype\b/g, 'n.type')
       .replace(/\bsource_channel\b/g, 'n.source_channel')
-      .replace(/\bsource\b/g, 'n.source')
       .replace(/\bmetadata\b/g, 'n.metadata');
     const result = await this.database.getPool().query(
       `select n.*, count(a.id)::int as attachment_count
@@ -185,14 +183,24 @@ export class PostgresNoteRepository {
     return result.rows[0] ? noteFromRow(result.rows[0]) : null;
   }
 
+  async getBySourceAndSessionId(userId: string, source: string, sessionId: string) {
+    const result = await this.database.getPool().query(
+      `select * from kb_notes 
+       where user_id = $1 and source = $2 and metadata->>'sessionId' = $3 
+       limit 1`,
+      [userId, source, sessionId]
+    );
+    return result.rows[0] ? this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
+  }
+
   async upsert(userId: string, input: SaveNoteInput) {
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
     const result = await this.database.getPool().query(
       `insert into kb_notes (
          id, user_id, path, type, title, project_slug, workspace_slug, folder_id, status, tags, occurred_at,
-         source_channel, summary, markdown_storage_key, frontmatter, metadata, origin, source, links
+         source_channel, summary, markdown_storage_key, frontmatter, metadata
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, $18, $19::jsonb)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14, $15::jsonb, $16::jsonb)
        on conflict (user_id, path)
        do update set
          type = excluded.type,
@@ -208,9 +216,6 @@ export class PostgresNoteRepository {
          markdown_storage_key = excluded.markdown_storage_key,
          frontmatter = excluded.frontmatter,
          metadata = excluded.metadata,
-         origin = excluded.origin,
-         source = excluded.source,
-         links = excluded.links,
          updated_at = now()
       returning *`,
       [input.id || crypto.randomUUID(), userId, ...buildNoteMutableValues(input, markdownStorageKey)]
@@ -282,9 +287,6 @@ export class PostgresNoteRepository {
            markdown_storage_key = $14,
            frontmatter = $15::jsonb,
            metadata = $16::jsonb,
-           origin = $17,
-           source = $18,
-           links = $19::jsonb,
            updated_at = now()
        where user_id = $1 and id = $2
        returning *`,
@@ -329,7 +331,7 @@ function projectTimelineItem(record: NoteRecord) {
   };
 }
 
-function projectTimelineCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 'source' | 'sourceChannel'>): ProjectTimelineFilterCategory {
+function projectTimelineCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 'sourceChannel'>): ProjectTimelineFilterCategory {
   if (record.type === 'decision') return 'decision';
   if (hasTimelineReminder(record)) return 'reminder';
   if (record.sourceChannel === 'github-push') return 'github-push';
@@ -393,5 +395,5 @@ function appendTimelineCategoryClause(clauses: string[], category: ListProjectTi
   clauses.push("source_channel <> 'github-push'");
   clauses.push("source_channel <> 'whatsapp'");
   clauses.push("source_channel <> 'ai-chat'");
-  clauses.push("(metadata->>'manual' = 'true' or source = 'manual-api')");
+  clauses.push("metadata->>'manual' = 'true'");
 }

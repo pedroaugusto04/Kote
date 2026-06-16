@@ -23,7 +23,7 @@ export const createNoteBodySchema = z
     reminderTime: z.string().trim().optional().default(''),
     reminderAt: z.string().trim().optional().default(''),
     sourceChannel: z.nativeEnum(SourceChannel).optional(),
-    source: z.string().trim().optional(),
+    sessionId: z.string().trim().optional(),
   })
   .strict()
   .transform((body) => ({
@@ -38,7 +38,7 @@ export const createNoteBodySchema = z
     reminderTime: normalizeTime(body.reminderTime),
     reminderAt: body.reminderAt,
     sourceChannel: body.sourceChannel,
-    source: body.source,
+    sessionId: body.sessionId,
   }))
   .superRefine((body, ctx) => {
     if (body.reminderTime && !body.reminderDate) {

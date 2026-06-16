@@ -131,6 +131,65 @@ test('updates manual note content and reminder metadata only', async (t) => {
   assert.equal(updated?.metadata.reminderAt, '2026-05-01T13:15:00.000Z');
 });
 
+test('updates existing manual note when matching sessionId and source instead of creating duplicate', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const noopDispatcher = { dispatch: async () => {} };
+  const createNote = new CreateManualNoteUseCase(
+    repositories.contentRepository,
+    ingest,
+    repositories.runtimeEnvironmentProvider,
+    noopDispatcher,
+  );
+
+  // 1. Create the initial session note
+  const first = await createNote.execute({
+    projectSlug: 'platform',
+    title: 'Initial AI Session Title',
+    rawText: 'Turn 1 content',
+    tags: ['ai'],
+    source: 'claude-code',
+    sessionId: 'session-unique-123',
+    reminderDate: '',
+    reminderTime: '',
+  }, user.id);
+
+  assert.equal(first.ok, true);
+
+  // 2. Query notes count (should be 1)
+  let page = await repositories.contentRepository.listNotesPage(user.id, { page: 1, pageSize: 10, projectSlug: 'platform' });
+  assert.equal(page.items.length, 1);
+  assert.equal(page.items[0].title, 'Initial AI Session Title');
+
+  // 3. Save the session again with updated/new content
+  const second = await createNote.execute({
+    projectSlug: 'platform',
+    title: 'Updated AI Session Title',
+    rawText: 'Turn 1 content\n\nTurn 2 content',
+    tags: ['ai', 'updated'],
+    source: 'claude-code',
+    sessionId: 'session-unique-123',
+    reminderDate: '',
+    reminderTime: '',
+  }, user.id);
+
+  assert.equal(second.ok, true);
+  assert.equal(second.noteId, first.noteId); // Must be the EXACT SAME note ID!
+
+  // 4. Query notes count again (should still be 1, no duplicate!)
+  page = await repositories.contentRepository.listNotesPage(user.id, { page: 1, pageSize: 10, projectSlug: 'platform' });
+  assert.equal(page.items.length, 1);
+  assert.equal(page.items[0].title, 'Updated AI Session Title'); // Title must be updated!
+
+  const detail = await repositories.contentRepository.getNoteById(user.id, second.noteId);
+  assert.equal(detail?.title, 'Updated AI Session Title');
+  assert.equal(detail?.metadata?.sessionId, 'session-unique-123');
+  assert.match(detail?.markdown || '', /Turn 2 content/);
+});
+
 test('creates and updates manual decisions as canonical note types', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();

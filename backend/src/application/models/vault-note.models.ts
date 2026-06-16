@@ -26,8 +26,6 @@ export type VaultNoteAttachment = {
 export type VaultNoteDetail = VaultNoteSummary & {
   markdown: string;
   frontmatter: Record<string, unknown>;
-  links: string[];
-  origin: string;
   attachments: VaultNoteAttachment[];
   editor: {
     canDelete: boolean;

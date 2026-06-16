@@ -8,6 +8,7 @@ import { hasReminder, normalizeManualNoteStatus } from '../../../domain/note-sta
 import { isAiSource } from '../../../domain/notes.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import type { CreateManualNoteInput } from '../../models/note-input.models.js';
+import type { NoteRecord } from '../../models/repository-records.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
@@ -44,12 +45,11 @@ export class CreateManualNoteUseCase {
     });
     const occurredAt = new Date().toISOString();
     const cleanedRawText = stripTitleHeader(input.rawText, input.title);
-    const activeSource = input.source?.trim();
-    const isAiChat = isAiSource(activeSource);
+
     const payload: IngestPayload = {
       source: {
-        channel: input.sourceChannel || (isAiChat ? SourceChannel.AiChat : SourceChannel.External),
-        system: activeSource || 'manual-api',
+        channel: input.sourceChannel || SourceChannel.External,
+        system: 'manual-api',
         actor: '',
         conversationId: workspace.workspaceSlug,
         correlationId: `manual:${crypto.randomUUID()}`,
@@ -89,6 +89,7 @@ export class CreateManualNoteUseCase {
         workspaceSlug: workspace.workspaceSlug,
         manual: true,
         rawText: input.rawText,
+        sessionId: input.sessionId,
       },
     };
 

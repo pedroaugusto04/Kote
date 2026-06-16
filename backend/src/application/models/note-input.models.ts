@@ -12,7 +12,7 @@ export type CreateManualNoteInput = {
   reminderTime: string;
   reminderAt?: string;
   sourceChannel?: SourceChannel;
-  source?: string;
+  sessionId?: string;
 };
 
 export type UpdateNoteInput = {

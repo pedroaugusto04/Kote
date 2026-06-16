@@ -99,6 +99,7 @@ export function registerSaveNoteCommand(
 
       let source = 'open-code';
       let sourceChannel: string | undefined = undefined;
+      let sessionId: string | undefined = undefined;
       const lowerText = rawText.toLowerCase();
       if (lowerText.includes('source:')) {
         if (lowerText.includes('source: claude') || lowerText.includes('source: claudecode')) {
@@ -116,6 +117,11 @@ export function registerSaveNoteCommand(
         }
       }
 
+      const sessionMatch = rawText.match(/^[Ss]ession:\s*([^\r\n]+)/m);
+      if (sessionMatch) {
+        sessionId = sessionMatch[1].trim();
+      }
+
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Saving note…', cancellable: false },
         async () => {
@@ -126,6 +132,7 @@ export function registerSaveNoteCommand(
               projectSlug: getProject(),
               sourceChannel,
               source,
+              sessionId,
             });
             vscode.window.showInformationMessage(`Note saved to KB — project: ${getProject()}`);
             vscode.commands.executeCommand('kb.refresh');

@@ -76,9 +76,6 @@ export function buildUpdatedNote(
       : renderEditableMarkdown(frontmatter, title, rawText),
     frontmatter,
     metadata,
-    origin: note.origin,
-    source: note.source,
-    links: note.links,
   };
 }
 

@@ -411,6 +411,7 @@ function getMarkdownText(session: CliAiSession): string {
   const titleWithDate = getTitleWithDate(session);
   let rawText = `# ${titleWithDate}\n\n`;
   rawText += `Source: ${session.providerName}\n`;
+  rawText += `Session: ${session.sessionId}\n`;
   if (session.projectSlug) {
     rawText += `Project: ${session.projectSlug}\n`;
   }
@@ -518,6 +519,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
       projectSlug: targetProject,
       sourceChannel: 'ai-chat',
       source: session.providerId,
+      sessionId: session.sessionId,
     });
 
     s.stop(pc.green('Import complete!'));

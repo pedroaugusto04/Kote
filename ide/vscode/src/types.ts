@@ -66,6 +66,7 @@ export interface KbCreateNotePayload {
   tags?: string[];
   sourceChannel?: string;
   source?: string;
+  sessionId?: string;
 }
 
 export interface KbCreateNoteResult {

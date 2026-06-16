@@ -141,7 +141,6 @@ function toContextItem(note: NoteRecord): ProjectBriefContextItem {
     tags: note.tags,
     date: note.occurredAt,
     path: note.path,
-    links: note.links,
     rawText: truncate(String(note.metadata.rawText || ''), RAW_TEXT_LIMIT),
   };
 }

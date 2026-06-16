@@ -31,7 +31,7 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     date: record.occurredAt,
     status: record.status,
     summary: record.summary,
-    source: record.source || record.sourceChannel,
+    source: record.sourceChannel,
     attachmentCount: record.attachmentCount || 0,
     isPinned: record.isPinned,
   };
@@ -55,8 +55,6 @@ export function noteDetail(record: NoteRecord, attachments: AttachmentRecord[] =
     ...noteSummary({ ...record, attachmentCount: attachments.length || record.attachmentCount || 0 }),
     markdown: record.markdown,
     frontmatter: record.frontmatter,
-    links: record.links,
-    origin: record.origin,
     attachments: attachments.map((attachment) => noteAttachment(record.id, attachment)),
     editor: null,
   };

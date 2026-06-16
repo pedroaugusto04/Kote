@@ -16,6 +16,8 @@ import type { SaveNoteResult } from '../../models/note-save-result.models.js';
 
 type IngestExecutionOptions = {
   folderId?: string;
+  existingNoteId?: string;
+  existingNotePath?: string;
 };
 
 @Injectable()
@@ -131,7 +133,8 @@ async function saveIngestedNote(
     await contentRepository.upsertProject(userId, project);
   }
   const note = await contentRepository.upsertNote(userId, {
-    path: paths.eventRelativePath.replace(/\\/g, '/'),
+    id: options.existingNoteId || undefined,
+    path: options.existingNotePath || paths.eventRelativePath.replace(/\\/g, '/'),
     type: payload.classification.canonicalType,
     title,
     projectSlug: project.projectSlug,
@@ -163,9 +166,6 @@ async function saveIngestedNote(
       reminderTime: payload.actions.reminderTime,
       reminderAt: payload.actions.reminderAt,
     },
-    origin: 'postgres',
-    source: payload.source.system,
-    links: [paths.canonicalRelativePath, paths.followupRelativePath].filter(Boolean),
   });
   const attachments = await Promise.all(
     payload.content.attachments.map((attachment) =>

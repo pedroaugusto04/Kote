@@ -34,6 +34,7 @@ export type CreateNoteParams = {
   reminderAt?: string;
   sourceChannel?: string;
   source?: string;
+  sessionId?: string;
 };
 
 export type CreateNoteResponse = {

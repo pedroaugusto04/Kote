@@ -149,6 +149,10 @@ export class PostgresContentRepository extends ContentRepository {
     return this.noteRepository.getByPath(userId, path);
   }
 
+  async getNoteBySourceAndSessionId(userId: string, source: string, sessionId: string) {
+    return this.noteRepository.getBySourceAndSessionId(userId, source, sessionId);
+  }
+
   async upsertNote(userId: string, input: SaveNoteInput) {
     return this.noteRepository.upsert(userId, input);
   }

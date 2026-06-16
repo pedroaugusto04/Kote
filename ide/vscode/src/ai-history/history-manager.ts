@@ -285,6 +285,7 @@ export class AiHistoryManager {
     const titleWithDate = this.getTitleWithDate(session);
     let rawText = `# ${titleWithDate}\n\n`;
     rawText += `Source: ${this.providers.get(session.providerId)?.name || session.providerId}\n`;
+    rawText += `Session: ${session.sessionId}\n`;
     if (session.projectSlug) {
       rawText += `Project: ${session.projectSlug}\n`;
     }
@@ -328,6 +329,7 @@ export class AiHistoryManager {
         projectSlug: session.projectSlug || client.defaultProjectSlug || 'inbox',
         sourceChannel: 'ai-chat',
         source: session.providerId,
+        sessionId: session.sessionId,
       });
 
       vscode.window.showInformationMessage('Note saved to Knowledge Vault successfully!');

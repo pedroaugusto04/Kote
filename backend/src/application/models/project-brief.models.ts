@@ -30,7 +30,6 @@ export type ProjectBriefContextItem = {
   tags: string[];
   date: string;
   path: string;
-  links: string[];
   rawText: string;
 };
 
