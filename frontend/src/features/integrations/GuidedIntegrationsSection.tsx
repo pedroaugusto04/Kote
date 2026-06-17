@@ -420,7 +420,7 @@ function IntegrationCard({
       </div>
       <div className="integration-card-body">
         <IntegrationSteps integration={integration} />
-        {integration.connectedAccount ? <p className="meta">Conta: {integration.connectedAccount}</p> : null}
+        {integration.connectedAccount ? <p className="meta">Account: {integration.connectedAccount}</p> : null}
         {integration.lastError ? <InlineMessage tone="error">{integration.lastError}</InlineMessage> : null}
         {actionError ? <InlineMessage tone="error">{actionError}</InlineMessage> : null}
       </div>
