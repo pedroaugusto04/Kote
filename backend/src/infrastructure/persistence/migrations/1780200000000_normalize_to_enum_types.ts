@@ -19,7 +19,11 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN status SET DEFAULT 'active'::note_status_enum;`);
 
   pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN type TYPE note_type_enum USING type::note_type_enum;`);
+
+  pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence DROP DEFAULT;`);
   pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence TYPE ask_confidence_enum USING confidence::ask_confidence_enum;`);
+  pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence SET DEFAULT 'low'::ask_confidence_enum;`);
+
   pgm.sql(`ALTER TABLE kb_integration_credentials ALTER COLUMN status TYPE credential_status_enum USING status::credential_status_enum;`);
 }
 
@@ -30,7 +34,11 @@ export async function down(pgm: MigrationBuilder): Promise<void> {
   pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN status SET DEFAULT 'active'::text;`);
 
   pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN type TYPE text USING type::text;`);
+
+  pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence DROP DEFAULT;`);
   pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence TYPE text USING confidence::text;`);
+  pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence SET DEFAULT 'low'::text;`);
+
   pgm.sql(`ALTER TABLE kb_integration_credentials ALTER COLUMN status TYPE text USING status::text;`);
 
   // Recreate CHECK constraints
