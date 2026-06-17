@@ -1,7 +1,9 @@
 import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
 
 import { readEnvironment } from '../../adapters/environment.js';
+import * as schema from './schema/index.js';
 
 const { Pool } = pg;
 
@@ -28,10 +30,12 @@ function buildSslConfig(environment: ReturnType<typeof readEnvironment>): pg.Poo
 @Injectable()
 export class PostgresDatabase implements OnModuleDestroy {
   private pool: pg.Pool | null = null;
+  private db: ReturnType<typeof drizzle> | null = null;
 
   async onModuleDestroy(): Promise<void> {
     await this.pool?.end();
     this.pool = null;
+    this.db = null;
   }
 
   isConfigured(): boolean {
@@ -51,5 +55,13 @@ export class PostgresDatabase implements OnModuleDestroy {
     });
 
     return this.pool;
+  }
+
+  getDb() {
+    if (this.db) return this.db;
+
+    const pool = this.getPool();
+    this.db = drizzle(pool, { schema });
+    return this.db;
   }
 }

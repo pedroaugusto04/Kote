@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
+import { eq, and, count, desc, sql, inArray } from 'drizzle-orm';
 
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
@@ -15,7 +16,7 @@ import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { noteSummary } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { buildNoteMutableValues } from './content/note.queries.js';
+import { notes, attachments } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresNoteRepository {
@@ -29,60 +30,121 @@ export class PostgresNoteRepository {
   }
 
   async list(userId: string) {
-    const result = await this.database.getPool().query(
-      `select n.*, count(a.id)::int as attachment_count
-       from kb_notes n
-       left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
-       where n.user_id = $1
-       group by n.id
-       order by n.is_pinned desc, n.occurred_at desc, n.title asc`,
-      [userId]
-    );
-    return result.rows.map(noteFromRow);
+    const db = this.database.getDb();
+    const result = await db
+      .select({
+        id: notes.id,
+        userId: notes.userId,
+        path: notes.path,
+        type: notes.type,
+        title: notes.title,
+        projectSlug: notes.projectSlug,
+        workspaceSlug: notes.workspaceSlug,
+        folderId: notes.folderId,
+        status: notes.status,
+        tags: notes.tags,
+        occurredAt: notes.occurredAt,
+        sourceChannel: notes.sourceChannel,
+        summary: notes.summary,
+        markdownStorageKey: notes.markdownStorageKey,
+        frontmatter: notes.frontmatter,
+        metadata: notes.metadata,
+        origin: notes.origin,
+        source: notes.source,
+        links: notes.links,
+        sessionId: notes.sessionId,
+        reminderDate: notes.reminderDate,
+        reminderAt: notes.reminderAt,
+        isPinned: notes.isPinned,
+        createdAt: notes.createdAt,
+        updatedAt: notes.updatedAt,
+        attachmentCount: count(attachments.id).as('attachment_count'),
+      })
+      .from(notes)
+      .leftJoin(attachments, and(
+        eq(attachments.userId, notes.userId),
+        eq(attachments.noteId, notes.id)
+      ))
+      .where(eq(notes.userId, userId))
+      .groupBy(notes.id)
+      .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title);
+    
+    return result.map(noteFromRow);
   }
 
   async listPage(userId: string, input: ListNotesInput) {
-    const clauses = ['n.user_id = $1'];
-    const values: unknown[] = [userId];
+    const db = this.database.getDb();
+    const conditions = [eq(notes.userId, userId)];
 
     if (input.workspaceSlug) {
-      values.push(input.workspaceSlug);
-      clauses.push(`n.workspace_slug = $${values.length}`);
+      conditions.push(eq(notes.workspaceSlug, input.workspaceSlug));
     }
     if (input.projectSlug) {
-      values.push(input.projectSlug);
-      clauses.push(`n.project_slug = $${values.length}`);
+      conditions.push(eq(notes.projectSlug, input.projectSlug));
     }
     if (input.status) {
       if (input.status === 'open') {
-        clauses.push(`n.status not in ('resolved', 'archived')`);
+        conditions.push(sql`n.status not in ('resolved', 'archived')`);
       } else {
-        values.push(input.status);
-        clauses.push(`n.status::text = $${values.length}`);
+        conditions.push(eq(notes.status, input.status as any));
       }
     }
     if (input.folderId) {
-      values.push(input.folderId);
-      clauses.push(`n.folder_id = $${values.length}`);
+      conditions.push(eq(notes.folderId, input.folderId));
     }
 
-    const where = clauses.join(' and ');
-    const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes n where ${where}`, values);
-    const total = Number(totalResult.rows[0]?.total || 0);
-    const selectedPage = input.selectedId ? await this.resolveNotePage(input, where, values) : input.page;
+    const whereCondition = and(...conditions);
+    
+    const totalResult = await db
+      .select({ total: count() })
+      .from(notes)
+      .where(whereCondition);
+    
+    const total = Number(totalResult[0]?.total || 0);
+    const selectedPage = input.selectedId ? await this.resolveNotePage(input, whereCondition) : input.page;
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
-    const result = await this.database.getPool().query(
-      `select n.*, count(a.id)::int as attachment_count
-       from kb_notes n
-       left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
-       where ${where}
-       group by n.id
-       order by n.is_pinned desc, n.occurred_at desc, n.title asc
-       limit $${values.length + 1} offset $${values.length + 2}`,
-      [...values, pagination.pageSize, (pagination.page - 1) * pagination.pageSize]
-    );
+    
+    const result = await db
+      .select({
+        id: notes.id,
+        userId: notes.userId,
+        path: notes.path,
+        type: notes.type,
+        title: notes.title,
+        projectSlug: notes.projectSlug,
+        workspaceSlug: notes.workspaceSlug,
+        folderId: notes.folderId,
+        status: notes.status,
+        tags: notes.tags,
+        occurredAt: notes.occurredAt,
+        sourceChannel: notes.sourceChannel,
+        summary: notes.summary,
+        markdownStorageKey: notes.markdownStorageKey,
+        frontmatter: notes.frontmatter,
+        metadata: notes.metadata,
+        origin: notes.origin,
+        source: notes.source,
+        links: notes.links,
+        sessionId: notes.sessionId,
+        reminderDate: notes.reminderDate,
+        reminderAt: notes.reminderAt,
+        isPinned: notes.isPinned,
+        createdAt: notes.createdAt,
+        updatedAt: notes.updatedAt,
+        attachmentCount: count(attachments.id).as('attachment_count'),
+      })
+      .from(notes)
+      .leftJoin(attachments, and(
+        eq(attachments.userId, notes.userId),
+        eq(attachments.noteId, notes.id)
+      ))
+      .where(whereCondition)
+      .groupBy(notes.id)
+      .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title)
+      .limit(pagination.pageSize)
+      .offset((pagination.page - 1) * pagination.pageSize);
 
-    return { items: result.rows.map((row) => noteSummary(noteFromRow(row))), pagination };
+    return { items: result.map((row) => noteSummary(noteFromRow(row))), pagination };
   }
 
   async listProjectTimeline(userId: string, input: ListProjectTimelineInput) {
@@ -144,28 +206,41 @@ export class PostgresNoteRepository {
   }
 
   async getById(userId: string, id: string) {
-    const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and id = $2 limit 1', [userId, id]);
-    return result.rows[0] ? this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(notes)
+      .where(and(eq(notes.userId, userId), eq(notes.id, id)))
+      .limit(1);
+    
+    return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
   async getByIds(userId: string, ids: string[]) {
     if (ids.length === 0) return [];
-    const result = await this.database.getPool().query(
-      'select * from kb_notes where user_id = $1 and id = any($2)',
-      [userId, ids]
-    );
-    const notes = result.rows.map(noteFromRow);
-    return Promise.all(notes.map((n) => this.hydrateMarkdown(n)));
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(notes)
+      .where(and(eq(notes.userId, userId), inArray(notes.id, ids)));
+    
+    const noteRecords = result.map(noteFromRow);
+    return Promise.all(noteRecords.map((n) => this.hydrateMarkdown(n)));
   }
 
   async getBySourceAndSessionId(userId: string, source: string, sessionId: string) {
-    const result = await this.database.getPool().query(
-      `select * from kb_notes
-       where user_id = $1 and source = $2 and session_id = $3
-       limit 1`,
-      [userId, source, sessionId]
-    );
-    return result.rows[0] ? this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(notes)
+      .where(and(
+        eq(notes.userId, userId),
+        eq(notes.source, source),
+        eq(notes.sessionId, sessionId)
+      ))
+      .limit(1);
+    
+    return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
   async upsert(userId: string, input: SaveNoteInput) {
@@ -180,17 +255,33 @@ export class PostgresNoteRepository {
     }
     
     // Otherwise insert new note (deduplication is handled by use case via source + session_id)
-    const result = await this.database.getPool().query(
-      `insert into kb_notes (
-         id, user_id, path, type, title, project_slug, workspace_slug, folder_id, status, tags, occurred_at,
-         source_channel, summary, markdown_storage_key, frontmatter, metadata, source,
-         session_id, reminder_date, reminder_at
-       )
-       values ($1, $2, $3, $4::note_type_enum, $5, $6, $7, $8, $9::note_status_enum, $10::jsonb, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, $18, $19, $20)
-      returning *`,
-      [input.id || crypto.randomUUID(), userId, ...buildNoteMutableValues(input, markdownStorageKey)]
-    );
-    return { ...noteFromRow(result.rows[0]), markdown: input.markdown };
+    const db = this.database.getDb();
+    const result = await db
+      .insert(notes)
+      .values({
+        userId,
+        path: input.path,
+        type: input.type as any,
+        title: input.title,
+        projectSlug: input.projectSlug,
+        workspaceSlug: input.workspaceSlug,
+        folderId: input.folderId,
+        status: input.status as any,
+        tags: input.tags,
+        occurredAt: input.occurredAt,
+        sourceChannel: input.sourceChannel,
+        summary: input.summary,
+        markdownStorageKey,
+        frontmatter: input.frontmatter,
+        metadata: input.metadata,
+        source: input.source,
+        sessionId: input.sessionId ?? '',
+        reminderDate: input.reminderDate ?? '',
+        reminderAt: input.reminderAt ?? '',
+      } as any)
+      .returning();
+    
+    return this.hydrateMarkdown(noteFromRow(result[0]));
   }
 
   async update(userId: string, input: SaveNoteInput) {
@@ -204,33 +295,35 @@ export class PostgresNoteRepository {
   }
 
   async updateReminderStatus(userId: string, id: string, status: string) {
-    const result = await this.database.getPool().query(
-      `update kb_notes
-       set status = $3,
-           updated_at = now()
-       where user_id = $1 and id = $2
-         and (reminder_date <> '' or reminder_at <> '')
-       returning *`,
-      [userId, id, status]
-    );
-    return result.rows[0] ? noteFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .update(notes)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(and(eq(notes.userId, userId), eq(notes.id, id)))
+      .returning();
+    
+    return result[0] ? noteFromRow(result[0]) : null;
   }
 
   async setPinned(userId: string, id: string, pinned: boolean) {
-    const result = await this.database.getPool().query(
-      `update kb_notes
-       set is_pinned = $3,
-           updated_at = now()
-       where user_id = $1 and id = $2
-       returning *`,
-      [userId, id, pinned]
-    );
-    return result.rows[0] ? noteFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .update(notes)
+      .set({ isPinned: pinned, updatedAt: new Date() })
+      .where(and(eq(notes.userId, userId), eq(notes.id, id)))
+      .returning();
+    
+    return result[0] ? noteFromRow(result[0]) : null;
   }
 
   async delete(userId: string, id: string, markdownStorageKey: string | null) {
-    const result = await this.database.getPool().query('delete from kb_notes where user_id = $1 and id = $2', [userId, id]);
-    if ((result.rowCount || 0) === 0) return false;
+    const db = this.database.getDb();
+    const result = await db
+      .delete(notes)
+      .where(and(eq(notes.userId, userId), eq(notes.id, id)))
+      .returning();
+    
+    if (result.length === 0) return false;
     if (markdownStorageKey) {
       await this.contentObjectStorage.deleteObjects([markdownStorageKey]);
     }
@@ -261,33 +354,57 @@ export class PostgresNoteRepository {
            updated_at = now()
        where user_id = $1 and id = $2
        returning *`,
-      [userId, input.id, ...buildNoteMutableValues(input, markdownStorageKey)]
+      [
+        userId,
+        input.id,
+        input.path,
+        input.type,
+        input.title,
+        input.projectSlug,
+        input.workspaceSlug,
+        input.folderId,
+        input.status,
+        JSON.stringify(input.tags),
+        input.occurredAt,
+        input.sourceChannel,
+        input.summary,
+        markdownStorageKey,
+        JSON.stringify(input.frontmatter),
+        JSON.stringify(input.metadata),
+        input.source,
+        input.sessionId ?? '',
+        input.reminderDate ?? '',
+        input.reminderAt ?? '',
+      ]
     );
   }
 
-  private async resolveNotePage(input: ListNotesInput, where: string, values: unknown[]) {
-    const selected = await this.database.getPool().query(
-      `select occurred_at, title, is_pinned
-       from kb_notes n
-       where ${where} and n.id = $${values.length + 1}
-       limit 1`,
-      [...values, input.selectedId]
-    );
-    const note = selected.rows[0];
+  private async resolveNotePage(input: ListNotesInput, whereCondition: any) {
+    const db = this.database.getDb();
+    const selected = await db
+      .select({
+        occurredAt: notes.occurredAt,
+        title: notes.title,
+        isPinned: notes.isPinned,
+      })
+      .from(notes)
+      .where(and(whereCondition, eq(notes.id, input.selectedId || '')))
+      .limit(1);
+    
+    const note = selected[0];
     if (!note) return input.page;
 
-    const result = await this.database.getPool().query(
-      `select count(*)::int as idx
-       from kb_notes n
-       where ${where}
-         and (
-           (n.is_pinned and not $${values.length + 1}::boolean)
-           or (n.is_pinned = $${values.length + 1}::boolean and n.occurred_at > $${values.length + 2})
-           or (n.is_pinned = $${values.length + 1}::boolean and n.occurred_at = $${values.length + 2} and n.title <= $${values.length + 3})
-         )`,
-      [...values, note.is_pinned, note.occurred_at, note.title]
-    );
-    const index = Number(result.rows[0]?.idx || 0);
+    const result = await db
+      .select({ idx: count() })
+      .from(notes)
+      .where(and(
+        whereCondition,
+        sql`(n.is_pinned and not ${note.isPinned}::boolean)
+           or (n.is_pinned = ${note.isPinned}::boolean and n.occurred_at > ${note.occurredAt})
+           or (n.is_pinned = ${note.isPinned}::boolean and n.occurred_at = ${note.occurredAt} and n.title <= ${note.title})`
+      ));
+    
+    const index = Number(result[0]?.idx || 0);
     return index > 0 ? Math.ceil(index / input.pageSize) : 1;
   }
 }

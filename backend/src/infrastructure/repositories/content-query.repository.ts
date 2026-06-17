@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { eq, and, count, desc, sql, inArray } from 'drizzle-orm';
 
 import { readEnvironment } from '../../adapters/environment.js';
 import { ReminderDeliveryChannel } from '../../contracts/enums.js';
@@ -12,6 +13,7 @@ import { reminderDispatchEligibleStatuses } from '../../domain/note-status.js';
 import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { notes, attachments, workspaces } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresContentQueryRepository extends ContentQueryRepository {
@@ -27,16 +29,46 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
   }
 
   private async loadNotes(userId: string) {
-    const result = await this.database.getPool().query(
-      `select n.*, count(a.id)::int as attachment_count
-       from kb_notes n
-       left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
-       where n.user_id = $1
-       group by n.id
-       order by n.occurred_at desc, n.title asc`,
-      [userId],
-    );
-    return result.rows.map(noteFromRow);
+    const db = this.database.getDb();
+    const result = await db
+      .select({
+        id: notes.id,
+        userId: notes.userId,
+        path: notes.path,
+        type: notes.type,
+        title: notes.title,
+        projectSlug: notes.projectSlug,
+        workspaceSlug: notes.workspaceSlug,
+        folderId: notes.folderId,
+        status: notes.status,
+        tags: notes.tags,
+        occurredAt: notes.occurredAt,
+        sourceChannel: notes.sourceChannel,
+        summary: notes.summary,
+        markdownStorageKey: notes.markdownStorageKey,
+        frontmatter: notes.frontmatter,
+        metadata: notes.metadata,
+        origin: notes.origin,
+        source: notes.source,
+        links: notes.links,
+        sessionId: notes.sessionId,
+        reminderDate: notes.reminderDate,
+        reminderAt: notes.reminderAt,
+        isPinned: notes.isPinned,
+        createdAt: notes.createdAt,
+        updatedAt: notes.updatedAt,
+        attachmentCount: count(attachments.id).as('attachment_count'),
+      })
+      .from(notes)
+      .leftJoin(attachments, and(
+        eq(attachments.userId, notes.userId),
+        eq(attachments.noteId, notes.id)
+      ))
+      .where(eq(notes.userId, userId))
+      .groupBy(notes.id)
+      .orderBy(desc(notes.occurredAt), notes.title);
+    
+    return result.map(noteFromRow);
   }
 
   async list(userId: string) {
@@ -44,16 +76,46 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
   }
 
   async getById(userId: string, id: string) {
-    const result = await this.database.getPool().query(
-      `select n.*, count(a.id)::int as attachment_count
-       from kb_notes n
-       left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
-       where n.user_id = $1 and n.id = $2
-       group by n.id
-       limit 1`,
-      [userId, id],
-    );
-    const note = result.rows[0] ? await this.hydrateMarkdown(noteFromRow(result.rows[0])) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select({
+        id: notes.id,
+        userId: notes.userId,
+        path: notes.path,
+        type: notes.type,
+        title: notes.title,
+        projectSlug: notes.projectSlug,
+        workspaceSlug: notes.workspaceSlug,
+        folderId: notes.folderId,
+        status: notes.status,
+        tags: notes.tags,
+        occurredAt: notes.occurredAt,
+        sourceChannel: notes.sourceChannel,
+        summary: notes.summary,
+        markdownStorageKey: notes.markdownStorageKey,
+        frontmatter: notes.frontmatter,
+        metadata: notes.metadata,
+        origin: notes.origin,
+        source: notes.source,
+        links: notes.links,
+        sessionId: notes.sessionId,
+        reminderDate: notes.reminderDate,
+        reminderAt: notes.reminderAt,
+        isPinned: notes.isPinned,
+        createdAt: notes.createdAt,
+        updatedAt: notes.updatedAt,
+        attachmentCount: count(attachments.id).as('attachment_count'),
+      })
+      .from(notes)
+      .leftJoin(attachments, and(
+        eq(attachments.userId, notes.userId),
+        eq(attachments.noteId, notes.id)
+      ))
+      .where(and(eq(notes.userId, userId), eq(notes.id, id)))
+      .groupBy(notes.id)
+      .limit(1);
+    
+    const note = result[0] ? await this.hydrateMarkdown(noteFromRow(result[0])) : null;
     return note ? noteDetail(note) : null;
   }
 
@@ -62,8 +124,14 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
   }
 
   async getReviewById(userId: string, id: string) {
-    const result = await this.database.getPool().query('select * from kb_notes where user_id = $1 and id = $2 limit 1', [userId, id]);
-    return result.rows[0] ? reviewFromNote(noteFromRow(result.rows[0])) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(notes)
+      .where(and(eq(notes.userId, userId), eq(notes.id, id)))
+      .limit(1);
+    
+    return result[0] ? reviewFromNote(noteFromRow(result[0])) : null;
   }
 
   async listReminders(userId: string) {
@@ -72,36 +140,57 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
 
   async listDueRemindersByChannel(channel: ReminderDeliveryChannel, now: string) {
     const reminderTimeZone = readEnvironment().reminderTimeZone;
-    const recipientField = channel === ReminderDeliveryChannel.Telegram ? 'w.telegram_chat_id' : 'w.whatsapp_chat_jid';
-    const result = await this.database.getPool().query(
-      `select n.user_id, n.workspace_slug, n.id as reminder_id, n.title, n.project_slug, n.path, n.status, n.summary, n.metadata, n.reminder_date, n.reminder_at, ${recipientField} as recipient_id
-       from kb_notes n
-       join kb_workspaces w on w.user_id = n.user_id and w.workspace_slug = n.workspace_slug
-       where n.status::text = any($1::text[])
-         and (n.reminder_date <> '' or n.reminder_at <> '')
-         and coalesce(${recipientField}, '') <> ''`,
-      [reminderDispatchEligibleStatuses],
-    );
+    const db = this.database.getDb();
+    
+    const recipientField = channel === ReminderDeliveryChannel.Telegram 
+      ? workspaces.telegramChatId 
+      : workspaces.whatsappGroupJid;
+    
+    const result = await db
+      .select({
+        userId: notes.userId,
+        workspaceSlug: notes.workspaceSlug,
+        reminderId: notes.id,
+        title: notes.title,
+        projectSlug: notes.projectSlug,
+        path: notes.path,
+        status: notes.status,
+        summary: notes.summary,
+        metadata: notes.metadata,
+        reminderDate: notes.reminderDate,
+        reminderAt: notes.reminderAt,
+        recipientId: recipientField,
+      })
+      .from(notes)
+      .innerJoin(workspaces, and(
+        eq(workspaces.userId, notes.userId),
+        eq(workspaces.workspaceSlug, notes.workspaceSlug)
+      ))
+      .where(and(
+        inArray(notes.status, reminderDispatchEligibleStatuses as any),
+        sql`(n.reminder_date <> '' or n.reminder_at <> '')`,
+        sql`coalesce(${recipientField}, '') <> ''`
+      ));
 
-    return result.rows
+    return result
       .map((row) => {
         const metadata = (row.metadata || {}) as Record<string, unknown>;
         const noteText = String(metadata.rawText || '').trim() || String(row.summary || '').trim() || String(row.title || '').trim();
         const scheduledAt = resolveReminderScheduledAt({
-          reminderDate: String(row.reminder_date || ''),
+          reminderDate: String(row.reminderDate || ''),
           reminderTime: String(metadata.reminderTime || ''),
-          reminderAt: String(row.reminder_at || ''),
+          reminderAt: String(row.reminderAt || ''),
         }, reminderTimeZone);
         if (!scheduledAt || scheduledAt > now) return null;
         return {
-          userId: String(row.user_id || ''),
-          workspaceSlug: String(row.workspace_slug || ''),
+          userId: String(row.userId || ''),
+          workspaceSlug: String(row.workspaceSlug || ''),
           channel,
-          recipientId: String(row.recipient_id || ''),
-          reminderId: String(row.reminder_id || ''),
+          recipientId: String(row.recipientId || ''),
+          reminderId: String(row.reminderId || ''),
           title: String(row.title || ''),
           noteText,
-          project: String(row.project_slug || ''),
+          project: String(row.projectSlug || ''),
           relativePath: String(row.path || ''),
           status: String(row.status || ''),
           scheduledAt,

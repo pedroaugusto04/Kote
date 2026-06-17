@@ -1,11 +1,13 @@
 import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 
 import { CredentialRecordStatus } from '../../contracts/enums.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from '../../application/ports/integrations/integrations.repository.js';
 import { connectionSessionFromRow, credentialFromRow, identityFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { integrationCredentials, externalIdentities, integrationConnectionSessions } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresIntegrationRepository extends CredentialRepository implements ExternalIdentityRepository, IntegrationConnectionSessionRepository {
@@ -14,71 +16,107 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
   }
 
   async listCredentials(userId: string, workspaceSlug: string) {
-    const result = await this.database.getPool().query(
-      'select * from kb_integration_credentials where user_id = $1 and workspace_slug = $2 order by provider',
-      [userId, workspaceSlug],
-    );
-    return result.rows.map(credentialFromRow);
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(integrationCredentials)
+      .where(and(eq(integrationCredentials.userId, userId), eq(integrationCredentials.workspaceSlug, workspaceSlug)))
+      .orderBy(integrationCredentials.provider);
+    
+    return result.map(credentialFromRow);
   }
 
   async upsertCredential(input: { userId: string; workspaceSlug: string; provider: string; status: string; encryptedConfig: unknown; publicMetadata: Record<string, unknown> }) {
-    const result = await this.database.getPool().query(
-      `insert into kb_integration_credentials (id, user_id, workspace_slug, provider, status, encrypted_config, public_metadata, revoked_at)
-       values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, null)
-       on conflict (user_id, workspace_slug, provider)
-       do update set
-         status = excluded.status,
-         encrypted_config = excluded.encrypted_config,
-         public_metadata = excluded.public_metadata,
-         updated_at = now(),
-         revoked_at = null
-       returning *`,
-      [
-        crypto.randomUUID(),
-        input.userId,
-        input.workspaceSlug,
-        input.provider,
-        input.status,
-        JSON.stringify(input.encryptedConfig),
-        JSON.stringify(input.publicMetadata),
-      ],
-    );
-    return credentialFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(integrationCredentials)
+      .values({
+        id: crypto.randomUUID(),
+        userId: input.userId,
+        workspaceSlug: input.workspaceSlug,
+        provider: input.provider,
+        status: input.status as any,
+        encryptedConfig: input.encryptedConfig,
+        publicMetadata: input.publicMetadata,
+        revokedAt: null,
+      })
+      .onConflictDoUpdate({
+        target: [integrationCredentials.userId, integrationCredentials.workspaceSlug, integrationCredentials.provider],
+        set: {
+          status: input.status as any,
+          encryptedConfig: input.encryptedConfig,
+          publicMetadata: input.publicMetadata,
+          updatedAt: new Date(),
+          revokedAt: null,
+        },
+      })
+      .returning();
+    
+    return credentialFromRow(result[0]);
   }
 
   async revokeCredential(userId: string, workspaceSlug: string, provider: string, encryptedConfig: unknown) {
-    const result = await this.database.getPool().query(
-      `update kb_integration_credentials
-       set status = $4, encrypted_config = $5::jsonb, revoked_at = now(), updated_at = now()
-       where user_id = $1 and workspace_slug = $2 and provider = $3
-       returning *`,
-      [userId, workspaceSlug, provider, CredentialRecordStatus.Revoked, JSON.stringify(encryptedConfig)],
-    );
-    return result.rows[0] ? credentialFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .update(integrationCredentials)
+      .set({
+        status: CredentialRecordStatus.Revoked,
+        encryptedConfig: encryptedConfig,
+        revokedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(integrationCredentials.userId, userId),
+        eq(integrationCredentials.workspaceSlug, workspaceSlug),
+        eq(integrationCredentials.provider, provider)
+      ))
+      .returning();
+    
+    return result[0] ? credentialFromRow(result[0]) : null;
   }
 
   async findCredential(userId: string, workspaceSlug: string, provider: string) {
-    const result = await this.database.getPool().query(
-      'select * from kb_integration_credentials where user_id = $1 and workspace_slug = $2 and provider = $3 limit 1',
-      [userId, workspaceSlug, provider],
-    );
-    return result.rows[0] ? credentialFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(integrationCredentials)
+      .where(and(
+        eq(integrationCredentials.userId, userId),
+        eq(integrationCredentials.workspaceSlug, workspaceSlug),
+        eq(integrationCredentials.provider, provider)
+      ))
+      .limit(1);
+    
+    return result[0] ? credentialFromRow(result[0]) : null;
   }
 
   async findExternalIdentity(provider: string, identityType: string, externalId: string) {
-    const result = await this.database.getPool().query(
-      'select * from kb_external_identities where provider = $1 and identity_type = $2 and external_id = $3 limit 1',
-      [provider, identityType, externalId],
-    );
-    return result.rows[0] ? identityFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(externalIdentities)
+      .where(and(
+        eq(externalIdentities.provider, provider),
+        eq(externalIdentities.identityType, identityType),
+        eq(externalIdentities.externalId, externalId)
+      ))
+      .limit(1);
+    
+    return result[0] ? identityFromRow(result[0]) : null;
   }
 
   async deleteExternalIdentities(input: { userId: string; workspaceSlug: string; provider: string }) {
-    const result = await this.database.getPool().query(
-      'delete from kb_external_identities where user_id = $1 and workspace_slug = $2 and provider = $3',
-      [input.userId, input.workspaceSlug, input.provider],
-    );
-    return result.rowCount || 0;
+    const db = this.database.getDb();
+    const result = await db
+      .delete(externalIdentities)
+      .where(and(
+        eq(externalIdentities.userId, input.userId),
+        eq(externalIdentities.workspaceSlug, input.workspaceSlug),
+        eq(externalIdentities.provider, input.provider)
+      ))
+      .returning();
+    
+    return result.length;
   }
 
   async upsertExternalIdentity(input: {
@@ -92,33 +130,36 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
     metadata?: Record<string, unknown>;
     publicMetadata: Record<string, unknown>;
   }) {
-    const result = await this.database.getPool().query(
-      `insert into kb_external_identities (id, user_id, workspace_slug, provider, identity_type, external_id, credential_id, verified_at, metadata, public_metadata)
-       values ($1, $2, $3, $4, $5, $6, $7, coalesce($8::timestamptz, now()), $9::jsonb, $10::jsonb)
-       on conflict (provider, identity_type, external_id)
-       do update set
-         user_id = excluded.user_id,
-         workspace_slug = excluded.workspace_slug,
-         credential_id = excluded.credential_id,
-         verified_at = excluded.verified_at,
-         metadata = excluded.metadata,
-         public_metadata = excluded.public_metadata,
-         updated_at = now()
-       returning *`,
-      [
-        crypto.randomUUID(),
-        input.userId,
-        input.workspaceSlug,
-        input.provider,
-        input.identityType,
-        input.externalId,
-        input.credentialId || null,
-        input.verifiedAt || null,
-        JSON.stringify(input.metadata || {}),
-        JSON.stringify(input.publicMetadata),
-      ],
-    );
-    return identityFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(externalIdentities)
+      .values({
+        id: crypto.randomUUID(),
+        userId: input.userId,
+        workspaceSlug: input.workspaceSlug,
+        provider: input.provider,
+        identityType: input.identityType,
+        externalId: input.externalId,
+        credentialId: input.credentialId || null,
+        verifiedAt: input.verifiedAt ? new Date(input.verifiedAt) : new Date(),
+        metadata: input.metadata || {},
+        publicMetadata: input.publicMetadata,
+      })
+      .onConflictDoUpdate({
+        target: [externalIdentities.provider, externalIdentities.identityType, externalIdentities.externalId],
+        set: {
+          userId: input.userId,
+          workspaceSlug: input.workspaceSlug,
+          credentialId: input.credentialId || null,
+          verifiedAt: input.verifiedAt ? new Date(input.verifiedAt) : sql`coalesce(${externalIdentities.verifiedAt}, now())`,
+          metadata: input.metadata || {},
+          publicMetadata: input.publicMetadata,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    
+    return identityFromRow(result[0]);
   }
 
   async createConnectionSession(input: {
@@ -131,61 +172,88 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
     metadata: Record<string, unknown>;
     expiresAt: string;
   }) {
-    const result = await this.database.getPool().query(
-      `insert into kb_integration_connection_sessions
-       (id, user_id, workspace_slug, provider, state_hash, verification_code_hash, status, metadata, expires_at)
-       values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9::timestamptz)
-       returning *`,
-      [
-        crypto.randomUUID(),
-        input.userId,
-        input.workspaceSlug,
-        input.provider,
-        input.stateHash,
-        input.verificationCodeHash,
-        input.status,
-        JSON.stringify(input.metadata || {}),
-        input.expiresAt,
-      ],
-    );
-    return connectionSessionFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(integrationConnectionSessions)
+      .values({
+        id: crypto.randomUUID(),
+        userId: input.userId,
+        workspaceSlug: input.workspaceSlug,
+        provider: input.provider,
+        stateHash: input.stateHash,
+        verificationCodeHash: input.verificationCodeHash,
+        status: input.status,
+        metadata: input.metadata || {},
+        expiresAt: new Date(input.expiresAt),
+      })
+      .returning();
+    
+    return connectionSessionFromRow(result[0]);
   }
 
   async findConnectionSession(id: string) {
-    const result = await this.database.getPool().query('select * from kb_integration_connection_sessions where id = $1 limit 1', [id]);
-    return result.rows[0] ? connectionSessionFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(integrationConnectionSessions)
+      .where(eq(integrationConnectionSessions.id, id))
+      .limit(1);
+    
+    return result[0] ? connectionSessionFromRow(result[0]) : null;
   }
 
   async findActiveConnectionSessionByState(provider: string, stateHash: string, nowIso: string) {
-    const result = await this.database.getPool().query(
-      `select * from kb_integration_connection_sessions
-       where provider = $1 and state_hash = $2 and status = 'pending' and consumed_at is null and expires_at > $3::timestamptz
-       order by created_at desc
-       limit 1`,
-      [provider, stateHash, nowIso],
-    );
-    return result.rows[0] ? connectionSessionFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(integrationConnectionSessions)
+      .where(and(
+        eq(integrationConnectionSessions.provider, provider),
+        eq(integrationConnectionSessions.stateHash, stateHash),
+        eq(integrationConnectionSessions.status, 'pending'),
+        isNull(integrationConnectionSessions.consumedAt),
+        sql`${integrationConnectionSessions.expiresAt} > ${new Date(nowIso)}`
+      ))
+      .orderBy(desc(integrationConnectionSessions.createdAt))
+      .limit(1);
+    
+    return result[0] ? connectionSessionFromRow(result[0]) : null;
   }
 
   async findActiveConnectionSessionByCode(provider: string, verificationCodeHash: string, nowIso: string) {
-    const result = await this.database.getPool().query(
-      `select * from kb_integration_connection_sessions
-       where provider = $1 and verification_code_hash = $2 and status = 'pending' and consumed_at is null and expires_at > $3::timestamptz
-       order by created_at desc
-       limit 1`,
-      [provider, verificationCodeHash, nowIso],
-    );
-    return result.rows[0] ? connectionSessionFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(integrationConnectionSessions)
+      .where(and(
+        eq(integrationConnectionSessions.provider, provider),
+        eq(integrationConnectionSessions.verificationCodeHash, verificationCodeHash),
+        eq(integrationConnectionSessions.status, 'pending'),
+        isNull(integrationConnectionSessions.consumedAt),
+        sql`${integrationConnectionSessions.expiresAt} > ${new Date(nowIso)}`
+      ))
+      .orderBy(desc(integrationConnectionSessions.createdAt))
+      .limit(1);
+    
+    return result[0] ? connectionSessionFromRow(result[0]) : null;
   }
 
   async consumeConnectionSession(id: string, status: string, metadata: Record<string, unknown>) {
-    const result = await this.database.getPool().query(
-      `update kb_integration_connection_sessions
-       set status = $2, metadata = metadata || $3::jsonb, consumed_at = coalesce(consumed_at, now()), updated_at = now()
-       where id = $1 and consumed_at is null
-       returning *`,
-      [id, status, JSON.stringify(metadata || {})],
-    );
-    return result.rows[0] ? connectionSessionFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .update(integrationConnectionSessions)
+      .set({
+        status,
+        metadata: sql`metadata || ${metadata}`,
+        consumedAt: sql`coalesce(${integrationConnectionSessions.consumedAt}, now())`,
+        updatedAt: new Date(),
+      })
+      .where(and(
+        eq(integrationConnectionSessions.id, id),
+        isNull(integrationConnectionSessions.consumedAt)
+      ))
+      .returning();
+    
+    return result[0] ? connectionSessionFromRow(result[0]) : null;
   }
 }

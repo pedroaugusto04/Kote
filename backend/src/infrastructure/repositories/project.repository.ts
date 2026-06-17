@@ -2,12 +2,14 @@ import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
+import { eq, and, desc } from 'drizzle-orm';
 
 import type { ListProjectsInput } from '../../application/models/project-list.models.js';
 import type { RepositoryRecord, SaveProjectInput } from '../../application/models/repository-records.models.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { projectFromRow, repositoryFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { projects, repositories, workspaces } from '../persistence/schema/index.js';
 import { PROJECT_WITH_METADATA_SELECT_SQL } from './content/project-workspace.queries.js';
 
 @Injectable()
@@ -114,52 +116,67 @@ export class PostgresProjectRepository {
   }
 
   async setFavorite(userId: string, projectSlug: string, favorite: boolean) {
-    const result = await this.database.getPool().query(
-      `UPDATE kb_projects SET is_favorite = $3, updated_at = now() WHERE user_id = $1 AND project_slug = $2 RETURNING *`,
-      [userId, projectSlug, favorite]
-    );
-    return result.rows[0] ? projectFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .update(projects)
+      .set({ favorite: favorite, updatedAt: new Date() })
+      .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
+      .returning();
+    
+    return result[0] ? projectFromRow(result[0]) : null;
   }
 
   async delete(userId: string, projectSlug: string) {
-    const result = await this.database.getPool().query('delete from kb_projects where user_id = $1 and project_slug = $2', [userId, projectSlug]);
-    return (result.rowCount || 0) > 0;
+    const db = this.database.getDb();
+    const result = await db
+      .delete(projects)
+      .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
+      .returning();
+    
+    return result.length > 0;
   }
 
   async listRepositories(userId: string, workspaceSlug: string) {
-    const result = await this.database.getPool().query(
-      `SELECT r.* FROM kb_repositories r
-       JOIN kb_workspaces w ON w.workspace_slug = r.workspace_slug
-       WHERE w.user_id = $1 AND r.workspace_slug = $2
-       ORDER BY r.full_name`,
-      [userId, workspaceSlug]
-    );
-    return result.rows.map(repositoryFromRow);
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(repositories)
+      .innerJoin(workspaces, and(
+        eq(workspaces.workspaceSlug, repositories.workspaceSlug),
+        eq(workspaces.userId, userId)
+      ))
+      .where(and(eq(workspaces.userId, userId), eq(repositories.workspaceSlug, workspaceSlug)))
+      .orderBy(repositories.fullName);
+    
+    return result.map((row) => repositoryFromRow(row.kb_repositories));
   }
 
   async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
-    const result = await this.database.getPool().query(
-      `INSERT INTO kb_repositories (id, workspace_slug, external_id, full_name, html_url, description, default_branch)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       ON CONFLICT (workspace_slug, external_id)
-       DO UPDATE SET
-         full_name = EXCLUDED.full_name,
-         html_url = EXCLUDED.html_url,
-         description = EXCLUDED.description,
-         default_branch = EXCLUDED.default_branch,
-         updated_at = now()
-       RETURNING *`,
-      [
-        input.id || crypto.randomUUID(),
-        input.workspaceSlug,
-        input.externalId,
-        input.fullName,
-        input.htmlUrl,
-        input.description,
-        input.defaultBranch,
-      ]
-    );
-    return repositoryFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(repositories)
+      .values({
+        id: input.id || crypto.randomUUID(),
+        workspaceSlug: input.workspaceSlug,
+        externalId: typeof input.externalId === 'string' ? Number(input.externalId) : input.externalId,
+        fullName: input.fullName,
+        htmlUrl: input.htmlUrl,
+        description: input.description,
+        defaultBranch: input.defaultBranch,
+      })
+      .onConflictDoUpdate({
+        target: [repositories.workspaceSlug, repositories.externalId],
+        set: {
+          fullName: input.fullName,
+          htmlUrl: input.htmlUrl,
+          description: input.description,
+          defaultBranch: input.defaultBranch,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    
+    return repositoryFromRow(result[0]);
   }
 
   private async resolveProjectPage(userId: string, selectedSlug: string, pageSize: number) {

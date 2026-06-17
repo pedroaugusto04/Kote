@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import { eq, and, desc, count } from 'drizzle-orm';
 
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import type {
@@ -12,6 +13,7 @@ import type {
 } from '../../application/models/ask-history.models.js';
 import { AskHistoryRepository } from '../../application/ports/query/ask-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { askHistory } from '../persistence/schema/index.js';
 
 type Row = Record<string, unknown>;
 
@@ -39,50 +41,50 @@ export class PostgresAskHistoryRepository extends AskHistoryRepository {
   }
 
   async save(input: SaveAskHistoryInput) {
-    await this.database.getPool().query(
-      `insert into kb_ask_history (
-         id, user_id, project_slug, question, answer, confidence, sources, related_notes
-       )
-       values ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb)`,
-      [
-        crypto.randomUUID(),
-        input.userId,
-        input.projectSlug,
-        input.question,
-        input.answer,
-        input.confidence,
-        JSON.stringify(input.sources),
-        JSON.stringify(input.relatedNotes),
-      ],
-    );
+    const db = this.database.getDb();
+    await db
+      .insert(askHistory)
+      .values({
+        id: crypto.randomUUID(),
+        userId: input.userId,
+        projectSlug: input.projectSlug,
+        question: input.question,
+        answer: input.answer,
+        confidence: input.confidence as any,
+        sources: input.sources,
+        relatedNotes: input.relatedNotes,
+      });
   }
 
   async list(input: ListAskHistoryInput) {
-    const where = ['user_id = $1'];
-    const values: unknown[] = [input.userId];
+    const db = this.database.getDb();
+    const conditions = [eq(askHistory.userId, input.userId)];
+    
     if (input.projectSlug) {
-      values.push(input.projectSlug);
-      where.push(`project_slug = $${values.length}`);
+      conditions.push(eq(askHistory.projectSlug, input.projectSlug));
     }
 
-    const countResult = await this.database.getPool().query(
-      `select count(*)::int as total from kb_ask_history where ${where.join(' and ')}`,
-      values,
-    );
-    const total = Number(countResult.rows[0]?.total || 0);
+    const whereCondition = and(...conditions);
+    
+    const countResult = await db
+      .select({ total: count() })
+      .from(askHistory)
+      .where(whereCondition);
+    
+    const total = Number(countResult[0]?.total || 0);
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
     const offset = (pagination.page - 1) * pagination.pageSize;
 
-    const result = await this.database.getPool().query(
-      `select * from kb_ask_history
-       where ${where.join(' and ')}
-       order by created_at desc, id desc
-       limit $${values.length + 1} offset $${values.length + 2}`,
-      [...values, pagination.pageSize, offset],
-    );
+    const result = await db
+      .select()
+      .from(askHistory)
+      .where(whereCondition)
+      .orderBy(desc(askHistory.createdAt), desc(askHistory.id))
+      .limit(pagination.pageSize)
+      .offset(offset);
 
     return {
-      items: result.rows.map(askHistoryFromRow),
+      items: result.map(askHistoryFromRow),
       pagination,
     };
   }

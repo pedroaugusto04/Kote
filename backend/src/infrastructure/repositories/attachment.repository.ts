@@ -1,13 +1,14 @@
 import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import { eq, and, desc } from 'drizzle-orm';
 
 import { calculateAttachmentSize } from '../../domain/strings.js';
 import type { AttachmentRecord, SaveAttachmentInput } from '../../application/models/repository-records.models.js';
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { attachmentFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { INSERT_ATTACHMENT_SQL } from './content/attachment.queries.js';
+import { attachments, notes } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresAttachmentRepository {
@@ -18,56 +19,67 @@ export class PostgresAttachmentRepository {
 
   async save(userId: string, input: SaveAttachmentInput) {
     const attachmentId = input.id || crypto.randomUUID();
-    const noteResult = await this.database.getPool().query(
-      'select workspace_slug from kb_notes where user_id = $1 and id = $2 limit 1',
-      [userId, input.noteId]
-    );
-    const workspaceSlug = noteResult.rows[0]?.workspace_slug || 'default';
+    const db = this.database.getDb();
+    const noteResult = await db
+      .select({ workspaceSlug: notes.workspaceSlug })
+      .from(notes)
+      .where(and(eq(notes.userId, userId), eq(notes.id, input.noteId)))
+      .limit(1);
+    
+    const workspaceSlug = noteResult[0]?.workspaceSlug || 'default';
     const storageKey = await this.contentObjectStorage.saveAttachmentData(userId, workspaceSlug, input);
     const sizeBytes = calculateAttachmentSize(input.sizeBytes, input.dataBase64);
-    const result = await this.database.getPool().query(
-      INSERT_ATTACHMENT_SQL,
-      [
-        attachmentId,
+    const result = await db
+      .insert(attachments)
+      .values({
+        id: attachmentId,
         userId,
-        input.noteId,
-        input.fileName,
-        input.mimeType,
+        noteId: input.noteId,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
         sizeBytes,
         storageKey,
-        input.checksumSha256,
-        JSON.stringify(input.metadata || {}),
-      ]
-    );
-    return attachmentFromRow(result.rows[0]);
+        checksumSha256: input.checksumSha256,
+        metadata: input.metadata || {},
+      })
+      .returning();
+    
+    return attachmentFromRow(result[0]);
   }
 
   async list(userId: string, noteId: string) {
-    const result = await this.database.getPool().query(
-      'select * from kb_attachments where user_id = $1 and note_id = $2 order by created_at',
-      [userId, noteId]
-    );
-    return result.rows.map(attachmentFromRow);
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(attachments)
+      .where(and(eq(attachments.userId, userId), eq(attachments.noteId, noteId)))
+      .orderBy(desc(attachments.createdAt));
+    
+    return result.map(attachmentFromRow);
   }
 
   async listByNoteId(userId: string, noteId: string) {
-    const result = await this.database.getPool().query(
-      'select storage_key from kb_attachments where user_id = $1 and note_id = $2',
-      [userId, noteId]
-    );
-    return result.rows.map((row) => row.storage_key || '');
+    const db = this.database.getDb();
+    const result = await db
+      .select({ storageKey: attachments.storageKey })
+      .from(attachments)
+      .where(and(eq(attachments.userId, userId), eq(attachments.noteId, noteId)));
+    
+    return result.map((row) => row.storageKey || '');
   }
 
   async deleteByNoteId(userId: string, noteId: string) {
-    const result = await this.database.getPool().query(
-      'select storage_key from kb_attachments where user_id = $1 and note_id = $2',
-      [userId, noteId]
-    );
-    const keys = result.rows.map((row) => row.storage_key || '');
-    await this.database.getPool().query(
-      'delete from kb_attachments where user_id = $1 and note_id = $2',
-      [userId, noteId]
-    );
+    const db = this.database.getDb();
+    const result = await db
+      .select({ storageKey: attachments.storageKey })
+      .from(attachments)
+      .where(and(eq(attachments.userId, userId), eq(attachments.noteId, noteId)));
+    
+    const keys = result.map((row) => row.storageKey || '');
+    await db
+      .delete(attachments)
+      .where(and(eq(attachments.userId, userId), eq(attachments.noteId, noteId)));
+    
     await this.contentObjectStorage.deleteObjects(keys);
   }
 }

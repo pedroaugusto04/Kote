@@ -1,10 +1,12 @@
 import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import { eq, and, sql } from 'drizzle-orm';
 
 import { UserRepository } from '../../application/ports/auth/auth.repository.js';
 import { authIdentityFromRow, userFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { users, authIdentities } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresUserRepository extends UserRepository {
@@ -13,79 +15,91 @@ export class PostgresUserRepository extends UserRepository {
   }
 
   async findUserByEmail(email: string) {
-    const result = await this.database.getPool().query('select * from kb_users where lower(email) = lower($1) limit 1', [email]);
-    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(users)
+      .where(sql`lower(email) = lower(${email})`)
+      .limit(1);
+    
+    return result[0] ? userFromRow(result[0]) : null;
   }
 
   async findUserById(id: string) {
-    const result = await this.database.getPool().query('select * from kb_users where id = $1 limit 1', [id]);
-    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1);
+    
+    return result[0] ? userFromRow(result[0]) : null;
   }
 
   async createUser(input: { email: string; displayName?: string; passwordHash?: string | null; role: string }) {
-    const result = await this.database.getPool().query(
-      `insert into kb_users (id, email, display_name, password_hash, role)
-       values ($1, $2, $3, $4, $5)
-       returning *`,
-      [
-        crypto.randomUUID(),
-        input.email.trim().toLowerCase(),
-        String(input.displayName || input.email.split('@')[0] || 'User').trim(),
-        input.passwordHash ?? null,
-        input.role,
-      ],
-    );
-    return userFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(users)
+      .values({
+        id: crypto.randomUUID(),
+        email: input.email.trim().toLowerCase(),
+        displayName: String(input.displayName || input.email.split('@')[0] || 'User').trim(),
+        passwordHash: input.passwordHash || '',
+        role: input.role,
+      })
+      .returning();
+    
+    return userFromRow(result[0]);
   }
 
   async updateUserAvatar(input: { userId: string; storageKey: string; mimeType: string; sizeBytes: number }) {
-    const result = await this.database.getPool().query(
-      `update kb_users
-       set avatar_storage_key = $2,
-           avatar_mime_type = $3,
-           avatar_size_bytes = $4,
-           avatar_updated_at = now(),
-           updated_at = now()
-       where id = $1
-       returning *`,
-      [input.userId, input.storageKey, input.mimeType, input.sizeBytes],
-    );
-    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .update(users)
+      .set({ 
+        avatar: input.storageKey,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, input.userId))
+      .returning();
+    
+    return result[0] ? userFromRow(result[0]) : null;
   }
 
   async clearUserAvatar(userId: string) {
-    const result = await this.database.getPool().query(
-      `update kb_users
-       set avatar_storage_key = null,
-           avatar_mime_type = null,
-           avatar_size_bytes = null,
-           avatar_updated_at = null,
-           updated_at = now()
-       where id = $1
-       returning *`,
-      [userId],
-    );
-    return result.rows[0] ? userFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .update(users)
+      .set({ 
+        avatar: '',
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return result[0] ? userFromRow(result[0]) : null;
   }
 
   async findAuthIdentity(provider: string, providerUserId: string) {
-    const result = await this.database.getPool().query(
-      `select * from kb_auth_identities
-       where provider = $1 and provider_user_id = $2
-       limit 1`,
-      [provider, providerUserId],
-    );
-    return result.rows[0] ? authIdentityFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(authIdentities)
+      .where(and(eq(authIdentities.provider, provider), eq(authIdentities.providerUserId, providerUserId)))
+      .limit(1);
+    
+    return result[0] ? authIdentityFromRow(result[0]) : null;
   }
 
   async findUserAuthIdentity(userId: string, provider: string) {
-    const result = await this.database.getPool().query(
-      `select * from kb_auth_identities
-       where user_id = $1 and provider = $2
-       limit 1`,
-      [userId, provider],
-    );
-    return result.rows[0] ? authIdentityFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(authIdentities)
+      .where(and(eq(authIdentities.userId, userId), eq(authIdentities.provider, provider)))
+      .limit(1);
+    
+    return result[0] ? authIdentityFromRow(result[0]) : null;
   }
 
   async createAuthIdentity(input: {
@@ -97,21 +111,21 @@ export class PostgresUserRepository extends UserRepository {
     displayName?: string;
     metadata?: Record<string, unknown>;
   }) {
-    const result = await this.database.getPool().query(
-      `insert into kb_auth_identities (id, provider, provider_user_id, user_id, email, email_verified, display_name, metadata)
-       values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
-       returning *`,
-      [
-        crypto.randomUUID(),
-        input.provider,
-        input.providerUserId,
-        input.userId,
-        input.email.trim().toLowerCase(),
-        input.emailVerified,
-        String(input.displayName || '').trim(),
-        JSON.stringify(input.metadata || {}),
-      ],
-    );
-    return authIdentityFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(authIdentities)
+      .values({
+        id: crypto.randomUUID(),
+        provider: input.provider,
+        providerUserId: input.providerUserId,
+        userId: input.userId,
+        email: input.email.trim().toLowerCase(),
+        emailVerified: input.emailVerified,
+        displayName: String(input.displayName || '').trim(),
+        metadata: input.metadata || {},
+      })
+      .returning();
+    
+    return authIdentityFromRow(result[0]);
   }
 }

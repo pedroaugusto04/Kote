@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
+import { eq, and, sql } from 'drizzle-orm';
 
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/reminders/workflow-state.repository.js';
 import type { ReminderDispatchMode } from '../../contracts/enums.js';
 import type { RecordReminderDispatchFailureInput, ReminderDispatchRetryKey } from '../../application/models/reminder-dispatch.models.js';
 import { conversationStateFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { conversationStates, reminderDispatchState, reminderDispatchFailures } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresWorkflowStateRepository extends ConversationStateRepository implements ReminderDispatchRepository {
@@ -13,72 +15,111 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
   }
 
   async get(userId: string, workspaceSlug: string, conversationKey: string) {
-    const result = await this.database.getPool().query(
-      'select * from kb_conversation_states where user_id = $1 and workspace_slug = $2 and conversation_key = $3 limit 1',
-      [userId, workspaceSlug, conversationKey],
-    );
-    return result.rows[0] ? conversationStateFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(conversationStates)
+      .where(and(
+        eq(conversationStates.userId, userId),
+        eq(conversationStates.workspaceSlug, workspaceSlug),
+        eq(conversationStates.conversationKey, conversationKey)
+      ))
+      .limit(1);
+    
+    return result[0] ? conversationStateFromRow(result[0]) : null;
   }
 
   async upsert(userId: string, workspaceSlug: string, conversationKey: string, state: unknown) {
-    const result = await this.database.getPool().query(
-      `insert into kb_conversation_states (user_id, workspace_slug, conversation_key, state)
-       values ($1, $2, $3, $4::jsonb)
-       on conflict (user_id, workspace_slug, conversation_key)
-       do update set state = excluded.state, updated_at = now()
-       returning *`,
-      [userId, workspaceSlug, conversationKey, JSON.stringify(state || {})],
-    );
-    return conversationStateFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(conversationStates)
+      .values({
+        userId,
+        workspaceSlug,
+        conversationKey,
+        state: state || {},
+      })
+      .onConflictDoUpdate({
+        target: [conversationStates.userId, conversationStates.workspaceSlug, conversationStates.conversationKey],
+        set: {
+          state: state || {},
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    
+    return conversationStateFromRow(result[0]);
   }
 
   async clear(userId: string, workspaceSlug: string, conversationKey: string) {
-    await this.database.getPool().query('delete from kb_conversation_states where user_id = $1 and workspace_slug = $2 and conversation_key = $3', [
-      userId,
-      workspaceSlug,
-      conversationKey,
-    ]);
+    const db = this.database.getDb();
+    await db
+      .delete(conversationStates)
+      .where(and(
+        eq(conversationStates.userId, userId),
+        eq(conversationStates.workspaceSlug, workspaceSlug),
+        eq(conversationStates.conversationKey, conversationKey)
+      ));
   }
 
   async hasSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string) {
-    const result = await this.database.getPool().query(
-      `select 1 from kb_reminder_dispatch_state
-       where user_id = $1 and workspace_slug = $2 and mode = $3 and dispatch_key = $4 and reminder_id = $5
-       limit 1`,
-      [userId, workspaceSlug, mode, dispatchKey, reminderId],
-    );
-    return Boolean(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(reminderDispatchState)
+      .where(and(
+        eq(reminderDispatchState.userId, userId),
+        eq(reminderDispatchState.workspaceSlug, workspaceSlug),
+        eq(reminderDispatchState.mode, mode as any),
+        eq(reminderDispatchState.dispatchKey, dispatchKey),
+        eq(reminderDispatchState.reminderId, reminderId)
+      ))
+      .limit(1);
+    
+    return Boolean(result[0]);
   }
 
   async markSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string) {
-    await this.database.getPool().query(
-      `insert into kb_reminder_dispatch_state (user_id, workspace_slug, mode, dispatch_key, reminder_id)
-       values ($1, $2, $3, $4, $5)
-       on conflict (user_id, workspace_slug, mode, dispatch_key, reminder_id) do nothing`,
-      [userId, workspaceSlug, mode, dispatchKey, reminderId],
-    );
+    const db = this.database.getDb();
+    await db
+      .insert(reminderDispatchState)
+      .values({
+        userId,
+        workspaceSlug,
+        mode: mode as any,
+        dispatchKey,
+        reminderId,
+      })
+      .onConflictDoNothing();
   }
 
   async getRetryState(input: ReminderDispatchRetryKey) {
-    const result = await this.database.getPool().query(
-      `select attempt_count, next_retry_at, last_error, updated_at
-       from kb_reminder_dispatch_failures
-       where user_id = $1
-         and workspace_slug = $2
-         and mode = $3
-         and dispatch_key = $4
-         and reminder_id = $5
-         and channel = $6
-       limit 1`,
-      [input.userId, input.workspaceSlug, input.mode, input.dispatchKey, input.reminderId, input.channel],
-    );
-    const row = result.rows[0];
+    const db = this.database.getDb();
+    const result = await db
+      .select({
+        attemptCount: reminderDispatchFailures.attemptCount,
+        nextRetryAt: reminderDispatchFailures.nextRetryAt,
+        lastError: reminderDispatchFailures.lastError,
+        updatedAt: reminderDispatchFailures.updatedAt,
+      })
+      .from(reminderDispatchFailures)
+      .where(and(
+        eq(reminderDispatchFailures.userId, input.userId),
+        eq(reminderDispatchFailures.workspaceSlug, input.workspaceSlug),
+        eq(reminderDispatchFailures.mode, input.mode as any),
+        eq(reminderDispatchFailures.dispatchKey, input.dispatchKey),
+        eq(reminderDispatchFailures.reminderId, input.reminderId),
+        eq(reminderDispatchFailures.channel, input.channel)
+      ))
+      .limit(1);
+    
+    const row = result[0];
     if (!row) return null;
     return {
-      attemptCount: Number(row.attempt_count || 0),
-      nextRetryAt: row.next_retry_at ? new Date(row.next_retry_at).toISOString() : '',
-      lastError: String(row.last_error || ''),
-      updatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : '',
+      attemptCount: Number(row.attemptCount || 0),
+      nextRetryAt: row.nextRetryAt ? row.nextRetryAt.toISOString() : '',
+      lastError: String(row.lastError || ''),
+      updatedAt: row.updatedAt ? row.updatedAt.toISOString() : '',
     };
   }
 
@@ -124,15 +165,16 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
   }
 
   async clearFailure(input: ReminderDispatchRetryKey) {
-    await this.database.getPool().query(
-      `delete from kb_reminder_dispatch_failures
-       where user_id = $1
-         and workspace_slug = $2
-         and mode = $3
-         and dispatch_key = $4
-         and reminder_id = $5
-         and channel = $6`,
-      [input.userId, input.workspaceSlug, input.mode, input.dispatchKey, input.reminderId, input.channel],
-    );
+    const db = this.database.getDb();
+    await db
+      .delete(reminderDispatchFailures)
+      .where(and(
+        eq(reminderDispatchFailures.userId, input.userId),
+        eq(reminderDispatchFailures.workspaceSlug, input.workspaceSlug),
+        eq(reminderDispatchFailures.mode, input.mode as any),
+        eq(reminderDispatchFailures.dispatchKey, input.dispatchKey),
+        eq(reminderDispatchFailures.reminderId, input.reminderId),
+        eq(reminderDispatchFailures.channel, input.channel)
+      ));
   }
 }

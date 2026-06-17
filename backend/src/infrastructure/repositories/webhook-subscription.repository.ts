@@ -1,11 +1,13 @@
 import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import { eq, and, sql } from 'drizzle-orm';
 
 import { WebhookSubscriptionRepository } from '../../application/ports/webhooks/webhook-subscription.repository.js';
 import type { WebhookSubscriptionRecord } from '../../application/models/webhook-subscription.models.js';
 import { webhookSubscriptionFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { webhookSubscriptions } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRepository {
@@ -14,32 +16,44 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
   }
 
   async list(userId: string, workspaceSlug: string): Promise<WebhookSubscriptionRecord[]> {
-    const result = await this.database.getPool().query(
-      `SELECT * FROM kb_webhook_subscriptions
-       WHERE user_id = $1 AND workspace_slug = $2
-       ORDER BY created_at ASC`,
-      [userId, workspaceSlug],
-    );
-    return result.rows.map(webhookSubscriptionFromRow);
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(webhookSubscriptions)
+      .where(and(eq(webhookSubscriptions.userId, userId), eq(webhookSubscriptions.workspaceSlug, workspaceSlug)))
+      .orderBy(webhookSubscriptions.createdAt);
+    
+    return result.map(webhookSubscriptionFromRow);
   }
 
   async findById(userId: string, id: string): Promise<WebhookSubscriptionRecord | null> {
-    const result = await this.database.getPool().query(
-      `SELECT * FROM kb_webhook_subscriptions WHERE id = $1 AND user_id = $2`,
-      [id, userId],
-    );
-    return result.rows[0] ? webhookSubscriptionFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(webhookSubscriptions)
+      .where(and(eq(webhookSubscriptions.id, id), eq(webhookSubscriptions.userId, userId)))
+      .limit(1);
+    
+    return result[0] ? webhookSubscriptionFromRow(result[0]) : null;
   }
 
   async create(input: Omit<WebhookSubscriptionRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<WebhookSubscriptionRecord> {
-    const id = crypto.randomUUID();
-    const result = await this.database.getPool().query(
-      `INSERT INTO kb_webhook_subscriptions (id, user_id, workspace_slug, label, url, secret, events, enabled)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING *`,
-      [id, input.userId, input.workspaceSlug, input.label, input.url, input.secret, input.events, input.enabled],
-    );
-    return webhookSubscriptionFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(webhookSubscriptions)
+      .values({
+        id: crypto.randomUUID(),
+        userId: input.userId,
+        workspaceSlug: input.workspaceSlug,
+        label: input.label,
+        url: input.url,
+        secret: input.secret,
+        events: input.events,
+        enabled: input.enabled,
+      })
+      .returning();
+    
+    return webhookSubscriptionFromRow(result[0]);
   }
 
   async update(
@@ -88,19 +102,27 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
   }
 
   async delete(userId: string, id: string): Promise<boolean> {
-    const result = await this.database.getPool().query(
-      `DELETE FROM kb_webhook_subscriptions WHERE id = $1 AND user_id = $2`,
-      [id, userId],
-    );
-    return (result.rowCount || 0) > 0;
+    const db = this.database.getDb();
+    const result = await db
+      .delete(webhookSubscriptions)
+      .where(and(eq(webhookSubscriptions.id, id), eq(webhookSubscriptions.userId, userId)))
+      .returning();
+    
+    return result.length > 0;
   }
 
   async findByEvent(userId: string, workspaceSlug: string, event: string): Promise<WebhookSubscriptionRecord[]> {
-    const result = await this.database.getPool().query(
-      `SELECT * FROM kb_webhook_subscriptions
-       WHERE user_id = $1 AND workspace_slug = $2 AND enabled = TRUE AND $3 = ANY(events)`,
-      [userId, workspaceSlug, event],
-    );
-    return result.rows.map(webhookSubscriptionFromRow);
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(webhookSubscriptions)
+      .where(and(
+        eq(webhookSubscriptions.userId, userId),
+        eq(webhookSubscriptions.workspaceSlug, workspaceSlug),
+        eq(webhookSubscriptions.enabled, true),
+        sql`${event} = ANY(events)`
+      ));
+    
+    return result.map(webhookSubscriptionFromRow);
   }
 }

@@ -1,11 +1,13 @@
 import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import { eq, and } from 'drizzle-orm';
 
 import { WebhookEventRepository } from '../../application/ports/webhooks/webhook-events.repository.js';
 import { sanitizeWebhookHeaders, sanitizeWebhookValue } from '../../application/utils/webhook.utils.js';
 import { webhookEventFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { webhookIdempotencyKeys, webhookEvents } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresWebhookEventRepository extends WebhookEventRepository {
@@ -22,30 +24,22 @@ export class PostgresWebhookEventRepository extends WebhookEventRepository {
     rawHeaders?: Record<string, unknown>;
     rawPayload?: unknown;
   }) {
-    const result = await this.database.getPool().query(
-      `insert into kb_webhook_idempotency_keys (
-         provider,
-         event_type,
-         idempotency_key,
-         resolved_user_id,
-         external_identity,
-         raw_headers,
-         raw_payload
-       )
-       values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7::jsonb)
-       on conflict (provider, event_type, idempotency_key) do nothing
-       returning idempotency_key`,
-      [
-        input.provider,
-        input.eventType,
-        input.idempotencyKey,
-        input.resolvedUserId || null,
-        JSON.stringify(input.externalIdentity || {}),
-        JSON.stringify(sanitizeWebhookHeaders(input.rawHeaders || {})),
-        JSON.stringify(sanitizeWebhookValue(input.rawPayload || {})),
-      ],
-    );
-    return (result.rowCount || 0) > 0;
+    const db = this.database.getDb();
+    const result = await db
+      .insert(webhookIdempotencyKeys)
+      .values({
+        provider: input.provider,
+        eventType: input.eventType,
+        idempotencyKey: input.idempotencyKey,
+        resolvedUserId: input.resolvedUserId || null,
+        externalIdentity: input.externalIdentity || {},
+        rawHeaders: sanitizeWebhookHeaders(input.rawHeaders || {}),
+        rawPayload: sanitizeWebhookValue(input.rawPayload || {}),
+      })
+      .onConflictDoNothing()
+      .returning();
+    
+    return result.length > 0;
   }
 
   async recordWebhookEvent(input: {
@@ -58,22 +52,22 @@ export class PostgresWebhookEventRepository extends WebhookEventRepository {
     rawPayload?: unknown;
     error?: string;
   }) {
-    const result = await this.database.getPool().query(
-      `insert into kb_webhook_events (id, provider, event_type, status, resolved_user_id, external_identity, raw_headers, raw_payload, error)
-       values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9)
-       returning *`,
-      [
-        crypto.randomUUID(),
-        input.provider,
-        input.eventType,
-        input.status,
-        input.resolvedUserId || null,
-        JSON.stringify(input.externalIdentity || {}),
-        JSON.stringify(sanitizeWebhookHeaders(input.rawHeaders || {})),
-        JSON.stringify(sanitizeWebhookValue(input.rawPayload || {})),
-        input.error || '',
-      ],
-    );
-    return webhookEventFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(webhookEvents)
+      .values({
+        id: crypto.randomUUID(),
+        provider: input.provider,
+        eventType: input.eventType,
+        status: input.status,
+        resolvedUserId: input.resolvedUserId || null,
+        externalIdentity: input.externalIdentity || {},
+        rawHeaders: sanitizeWebhookHeaders(input.rawHeaders || {}),
+        rawPayload: sanitizeWebhookValue(input.rawPayload || {}),
+        error: input.error || '',
+      })
+      .returning();
+    
+    return webhookEventFromRow(result[0]);
   }
 }

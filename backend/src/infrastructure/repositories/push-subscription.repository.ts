@@ -1,9 +1,12 @@
 import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
+import { eq, and } from 'drizzle-orm';
+
 import { PushSubscriptionRepository } from '../../application/ports/push/push-subscription.repository.js';
 import type { PushSubscriptionRecord } from '../../application/models/repository-records.models.js';
 import { pushSubscriptionFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { pushSubscriptions } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresPushSubscriptionRepository extends PushSubscriptionRepository {
@@ -12,39 +15,58 @@ export class PostgresPushSubscriptionRepository extends PushSubscriptionReposito
   }
 
   async save(input: Omit<PushSubscriptionRecord, 'id' | 'createdAt' | 'updatedAt'>): Promise<PushSubscriptionRecord> {
-    const id = crypto.randomUUID();
-    const result = await this.database.getPool().query(
-      `INSERT INTO kb_push_subscriptions (id, user_id, endpoint, p256dh, auth)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (endpoint) DO UPDATE
-       SET p256dh = EXCLUDED.p256dh, auth = EXCLUDED.auth, updated_at = now()
-       RETURNING *`,
-      [id, input.userId, input.endpoint, input.p256dh, input.auth],
-    );
-    return pushSubscriptionFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(pushSubscriptions)
+      .values({
+        id: crypto.randomUUID(),
+        userId: input.userId,
+        endpoint: input.endpoint,
+        p256dh: input.p256dh,
+        auth: input.auth,
+      })
+      .onConflictDoUpdate({
+        target: pushSubscriptions.endpoint,
+        set: {
+          p256dh: input.p256dh,
+          auth: input.auth,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    
+    return pushSubscriptionFromRow(result[0]);
   }
 
   async deleteByEndpoint(userId: string, endpoint: string): Promise<boolean> {
-    const result = await this.database.getPool().query(
-      `DELETE FROM kb_push_subscriptions WHERE user_id = $1 AND endpoint = $2`,
-      [userId, endpoint],
-    );
-    return (result.rowCount || 0) > 0;
+    const db = this.database.getDb();
+    const result = await db
+      .delete(pushSubscriptions)
+      .where(and(eq(pushSubscriptions.userId, userId), eq(pushSubscriptions.endpoint, endpoint)))
+      .returning();
+    
+    return result.length > 0;
   }
 
   async listByUserId(userId: string): Promise<PushSubscriptionRecord[]> {
-    const result = await this.database.getPool().query(
-      `SELECT * FROM kb_push_subscriptions WHERE user_id = $1 ORDER BY created_at ASC`,
-      [userId],
-    );
-    return result.rows.map(pushSubscriptionFromRow);
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, userId))
+      .orderBy(pushSubscriptions.createdAt);
+    
+    return result.map(pushSubscriptionFromRow);
   }
 
   async findByEndpoint(endpoint: string): Promise<PushSubscriptionRecord | null> {
-    const result = await this.database.getPool().query(
-      `SELECT * FROM kb_push_subscriptions WHERE endpoint = $1`,
-      [endpoint],
-    );
-    return result.rows[0] ? pushSubscriptionFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, endpoint))
+      .limit(1);
+    
+    return result[0] ? pushSubscriptionFromRow(result[0]) : null;
   }
 }

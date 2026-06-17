@@ -1,11 +1,13 @@
 import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
+import { eq, and, desc, count } from 'drizzle-orm';
 
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import type { ProjectBriefHistoryRecord, SaveProjectBriefHistoryInput } from '../../application/models/project-brief.models.js';
 import { ProjectBriefHistoryRepository } from '../../application/ports/projects/project-brief-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { projectBriefHistory } from '../persistence/schema/index.js';
 
 type Row = Record<string, unknown>;
 
@@ -37,39 +39,41 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
   }
 
   async save(input: SaveProjectBriefHistoryInput) {
-    const result = await this.database.getPool().query(
-      `insert into kb_project_brief_history (
-         id, user_id, workspace_slug, project_slug, brief, source_refs, context_hash,
-         context_window, provider, model, generated_at
-       )
-       values ($1, $2, $3, $4, $5::jsonb, $6::jsonb, $7, $8, $9, $10, $11::timestamptz)
-       returning *`,
-      [
-        crypto.randomUUID(),
-        input.userId,
-        input.workspaceSlug,
-        input.projectSlug,
-        JSON.stringify(input.brief),
-        JSON.stringify(input.sourceRefs),
-        input.contextHash,
-        input.contextWindow,
-        input.provider,
-        input.model,
-        input.brief.generatedAt,
-      ],
-    );
-    return projectBriefHistoryFromRow(result.rows[0]);
+    const db = this.database.getDb();
+    const result = await db
+      .insert(projectBriefHistory)
+      .values({
+        id: crypto.randomUUID(),
+        userId: input.userId,
+        workspaceSlug: input.workspaceSlug,
+        projectSlug: input.projectSlug,
+        brief: input.brief,
+        sourceRefs: input.sourceRefs,
+        contextHash: input.contextHash,
+        contextWindow: input.contextWindow,
+        provider: input.provider,
+        model: input.model,
+        generatedAt: new Date(input.brief.generatedAt),
+      })
+      .returning();
+    
+    return projectBriefHistoryFromRow(result[0]);
   }
 
   async findLatest(input: { userId: string; workspaceSlug: string; projectSlug: string }) {
-    const result = await this.database.getPool().query(
-      `select * from kb_project_brief_history
-       where user_id = $1 and workspace_slug = $2 and project_slug = $3
-       order by generated_at desc
-       limit 1`,
-      [input.userId, input.workspaceSlug, input.projectSlug],
-    );
-    return result.rows[0] ? projectBriefHistoryFromRow(result.rows[0]) : null;
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(projectBriefHistory)
+      .where(and(
+        eq(projectBriefHistory.userId, input.userId),
+        eq(projectBriefHistory.workspaceSlug, input.workspaceSlug),
+        eq(projectBriefHistory.projectSlug, input.projectSlug)
+      ))
+      .orderBy(desc(projectBriefHistory.generatedAt))
+      .limit(1);
+    
+    return result[0] ? projectBriefHistoryFromRow(result[0]) : null;
   }
 
   async list(input: {
@@ -79,27 +83,32 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     page: number;
     pageSize: number;
   }) {
-    const where = ['user_id = $1', 'workspace_slug = $2', 'project_slug = $3'];
-    const values: unknown[] = [input.userId, input.workspaceSlug, input.projectSlug];
-
-    const countResult = await this.database.getPool().query(
-      `select count(*)::int as total from kb_project_brief_history where ${where.join(' and ')}`,
-      values,
+    const db = this.database.getDb();
+    const whereCondition = and(
+      eq(projectBriefHistory.userId, input.userId),
+      eq(projectBriefHistory.workspaceSlug, input.workspaceSlug),
+      eq(projectBriefHistory.projectSlug, input.projectSlug)
     );
-    const total = Number(countResult.rows[0]?.total || 0);
+
+    const countResult = await db
+      .select({ total: count() })
+      .from(projectBriefHistory)
+      .where(whereCondition);
+    
+    const total = Number(countResult[0]?.total || 0);
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
     const offset = (pagination.page - 1) * pagination.pageSize;
 
-    const result = await this.database.getPool().query(
-      `select * from kb_project_brief_history
-       where ${where.join(' and ')}
-       order by generated_at desc, id desc
-       limit $4 offset $5`,
-      [...values, pagination.pageSize, offset],
-    );
+    const result = await db
+      .select()
+      .from(projectBriefHistory)
+      .where(whereCondition)
+      .orderBy(desc(projectBriefHistory.generatedAt), desc(projectBriefHistory.id))
+      .limit(pagination.pageSize)
+      .offset(offset);
 
     return {
-      items: result.rows.map(projectBriefHistoryFromRow),
+      items: result.map(projectBriefHistoryFromRow),
       pagination,
     };
   }
