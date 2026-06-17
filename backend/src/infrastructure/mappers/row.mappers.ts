@@ -30,7 +30,13 @@ function fieldString(row: Row, snake: string, camel: string, fallback = ''): str
 }
 
 function nowIso(value: unknown): string {
-  return value instanceof Date ? value.toISOString() : String(value || new Date().toISOString());
+  if (value instanceof Date) {
+    if (isNaN(value.getTime())) {
+      return new Date().toISOString();
+    }
+    return value.toISOString();
+  }
+  return String(value || new Date().toISOString());
 }
 
 function stringArray(value: unknown): string[] {
