@@ -58,7 +58,7 @@ export class PostgresNoteRepository {
         clauses.push(`status not in ('resolved', 'archived')`);
       } else {
         values.push(input.status);
-        clauses.push(`status = $${values.length}`);
+        clauses.push(`status::text = $${values.length}`);
       }
     }
     if (input.folderId) {
@@ -104,7 +104,7 @@ export class PostgresNoteRepository {
         clauses.push(`status not in ('resolved', 'archived')`);
       } else {
         values.push(input.status);
-        clauses.push(`status = $${values.length}`);
+        clauses.push(`status::text = $${values.length}`);
       }
     }
     const where = clauses.join(' and ');
@@ -207,7 +207,7 @@ export class PostgresNoteRepository {
          id, user_id, path, type, title, project_slug, workspace_slug, folder_id, status, tags, occurred_at,
          source_channel, summary, markdown_storage_key, frontmatter, metadata, source
        )
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17)
+       values ($1, $2, $3, $4::note_type_enum, $5, $6, $7, $8, $9::note_status_enum, $10::jsonb, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17)
       returning *`,
       [input.id || crypto.randomUUID(), userId, ...buildNoteMutableValues(input, markdownStorageKey)]
     );
@@ -265,12 +265,12 @@ export class PostgresNoteRepository {
     return client.query(
       `update kb_notes
        set path = $3,
-           type = $4,
+           type = $4::note_type_enum,
            title = $5,
            project_slug = $6,
            workspace_slug = $7,
            folder_id = $8,
-           status = $9,
+           status = $9::note_status_enum,
            tags = $10::jsonb,
            occurred_at = $11,
            source_channel = $12,
