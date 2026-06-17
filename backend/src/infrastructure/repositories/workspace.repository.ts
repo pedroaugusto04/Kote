@@ -32,14 +32,14 @@ export class PostgresWorkspaceRepository {
         userId,
         workspaceSlug: input.workspaceSlug,
         displayName: input.displayName,
-        whatsappGroupJid: input.whatsappChatJid,
+        whatsappChatJid: input.whatsappChatJid,
         telegramChatId: input.telegramChatId,
       })
       .onConflictDoUpdate({
         target: [workspaces.userId, workspaces.workspaceSlug],
         set: {
           displayName: input.displayName,
-          whatsappGroupJid: input.whatsappChatJid,
+          whatsappChatJid: input.whatsappChatJid,
           telegramChatId: input.telegramChatId,
           updatedAt: new Date(),
         },

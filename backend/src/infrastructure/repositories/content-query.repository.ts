@@ -48,9 +48,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         markdownStorageKey: notes.markdownStorageKey,
         frontmatter: notes.frontmatter,
         metadata: notes.metadata,
-        origin: notes.origin,
-        source: notes.source,
-        links: notes.links,
         sessionId: notes.sessionId,
         reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
@@ -95,9 +92,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         markdownStorageKey: notes.markdownStorageKey,
         frontmatter: notes.frontmatter,
         metadata: notes.metadata,
-        origin: notes.origin,
-        source: notes.source,
-        links: notes.links,
         sessionId: notes.sessionId,
         reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
@@ -144,7 +138,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     
     const recipientField = channel === ReminderDeliveryChannel.Telegram 
       ? workspaces.telegramChatId 
-      : workspaces.whatsappGroupJid;
+      : workspaces.whatsappChatJid;
     
     const result = await db
       .select({

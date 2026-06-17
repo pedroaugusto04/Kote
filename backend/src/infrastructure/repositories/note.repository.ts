@@ -49,9 +49,6 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         frontmatter: notes.frontmatter,
         metadata: notes.metadata,
-        origin: notes.origin,
-        source: notes.source,
-        links: notes.links,
         sessionId: notes.sessionId,
         reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
@@ -122,9 +119,6 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         frontmatter: notes.frontmatter,
         metadata: notes.metadata,
-        origin: notes.origin,
-        source: notes.source,
-        links: notes.links,
         sessionId: notes.sessionId,
         reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
@@ -235,7 +229,7 @@ export class PostgresNoteRepository {
       .from(notes)
       .where(and(
         eq(notes.userId, userId),
-        eq(notes.source, source),
+        eq(notes.sourceChannel, source),
         eq(notes.sessionId, sessionId)
       ))
       .limit(1);
