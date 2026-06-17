@@ -124,7 +124,7 @@ export function ProjectsWorkspace({
       status: timelineStatus,
     }),
     enabled: isAllProjectsSelected && !hasSearchQuery,
-    staleTime: timelineCategory === 'all' ? 30_000 : 0,
+    staleTime: 0,
     placeholderData: keepPreviousData,
   });
   const timelineQuery = useQuery({
@@ -136,7 +136,7 @@ export function ProjectsWorkspace({
       status: timelineStatus,
     }),
     enabled: Boolean(selected?.projectSlug) && !hasSearchQuery,
-    staleTime: timelineCategory === 'all' ? 30_000 : 0,
+    staleTime: 0,
     placeholderData: keepPreviousData,
   });
 
