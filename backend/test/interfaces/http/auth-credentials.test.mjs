@@ -253,11 +253,9 @@ test('avatar upload stores bytes and returns the updated user', async (t) => {
 
   const storedUser = await repositories.userRepository.findUserById(login.user.id);
   assert.equal(result.ok, true);
-  assert.match(result.user.avatarUrl, /^\/api\/auth\/avatar\/content\?v=/);
-  assert.equal(storedUser.avatarMimeType, 'image/png');
-  assert.equal(storedUser.avatarSizeBytes, image.length);
-  assert.match(storedUser.avatarStorageKey, new RegExp(`^users/${login.user.id}/profile/avatar-\\d+\\.png$`));
-  assert.deepEqual(repositories.objectStorage.objects.get(storedUser.avatarStorageKey), image);
+  assert.match(result.user.avatarUrl, /^\/api\/auth\/avatar\/content$/);
+  assert.match(storedUser.avatar, new RegExp(`^users/${login.user.id}/profile/avatar-\\d+\\.png$`));
+  assert.deepEqual(repositories.objectStorage.objects.get(storedUser.avatar), image);
 });
 
 test('avatar remove clears fields and deletes the previous storage key best-effort', async (t) => {
@@ -280,12 +278,9 @@ test('avatar remove clears fields and deletes the previous storage key best-effo
   const storedUser = await repositories.userRepository.findUserById(login.user.id);
 
   assert.equal(removed.user.avatarUrl, null);
-  assert.equal(storedUser.avatarStorageKey, null);
-  assert.equal(storedUser.avatarMimeType, null);
-  assert.equal(storedUser.avatarSizeBytes, null);
-  assert.equal(storedUser.avatarUpdatedAt, null);
-  assert.equal(repositories.objectStorage.objects.has(uploaded.avatarStorageKey), false);
-  assert.equal(repositories.objectStorage.deletedKeys.includes(uploaded.avatarStorageKey), true);
+  assert.equal(storedUser.avatar, '');
+  assert.equal(repositories.objectStorage.objects.has(uploaded.avatar), false);
+  assert.equal(repositories.objectStorage.deletedKeys.includes(uploaded.avatar), true);
 });
 
 test('avatar content endpoint returns bytes and blocks missing avatars', async (t) => {

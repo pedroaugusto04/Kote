@@ -1,13 +1,11 @@
 import type { MigrationBuilder } from 'node-pg-migrate';
 
 export async function up(pgm: MigrationBuilder) {
-  pgm.sql(`
-    alter table kb_users
-      drop column if exists avatar_storage_key,
-      drop column if exists avatar_mime_type,
-      drop column if exists avatar_size_bytes,
-      drop column if exists avatar_updated_at;
-  `);
+  // Drop columns one at a time to avoid long-running transaction locks
+  pgm.sql(`alter table kb_users drop column if exists avatar_storage_key;`);
+  pgm.sql(`alter table kb_users drop column if exists avatar_mime_type;`);
+  pgm.sql(`alter table kb_users drop column if exists avatar_size_bytes;`);
+  pgm.sql(`alter table kb_users drop column if exists avatar_updated_at;`);
 }
 
 export async function down(pgm: MigrationBuilder) {
