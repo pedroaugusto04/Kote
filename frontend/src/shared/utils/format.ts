@@ -135,14 +135,15 @@ export function formatDisplayToken(value: string | null | undefined) {
 export function getCleanSummary(summary: string | undefined): string {
   if (!summary) return '';
   const cleaned = stripSourceHeader(summary);
-  // Replace newlines and carriage returns with spaces
-  let text = cleaned.replace(/\r?\n/g, ' ');
-  // Collapse multiple spaces
-  text = text.replace(/\s+/g, ' ').trim();
+  const text = collapseWhitespace(cleaned);
   if (text.length > 200) {
     return text.substring(0, 200) + '...';
   }
   return text;
+}
+
+function collapseWhitespace(value: string): string {
+  return value.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 export function formatFileSize(sizeBytes: number) {

@@ -105,5 +105,8 @@ function noteInputWithPath(note: NoteRecord, path: string) {
     frontmatter: note.frontmatter,
     metadata: note.metadata,
     source: note.source,
+    sessionId: note.sessionId,
+    reminderDate: note.reminderDate,
+    reminderAt: note.reminderAt,
   };
 }

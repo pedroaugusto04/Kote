@@ -11,9 +11,9 @@ export function buildNoteEditorState(note: NoteRecord) {
   return {
     canDelete: true,
     rawText: extractEditableRawText(note),
-    reminderDate: String(note.metadata.reminderDate || '').trim(),
+    reminderDate: note.reminderDate,
     reminderTime: String(note.metadata.reminderTime || '').trim(),
-    reminderAt: String(note.metadata.reminderAt || '').trim(),
+    reminderAt: note.reminderAt,
   };
 }
 
@@ -37,7 +37,7 @@ export function buildUpdatedNote(
   const nextStatus = normalizeManualNoteStatus({
     requestedStatus: input.status,
     currentStatus: note.status,
-    hadReminder: Boolean(String(note.metadata.reminderDate || '').trim() || String(note.metadata.reminderAt || '').trim()),
+    hadReminder: Boolean(note.reminderDate || note.reminderAt),
     hasReminder: Boolean(reminderFields.reminderDate || reminderFields.reminderAt),
   });
   const structuredNote = parseStructuredNoteMarkdown(note.markdown, note.title);
@@ -53,9 +53,7 @@ export function buildUpdatedNote(
   const metadata = {
     ...note.metadata,
     rawText,
-    reminderDate: reminderFields.reminderDate,
     reminderTime: reminderFields.reminderTime,
-    reminderAt: reminderFields.reminderAt,
   };
 
   return {
@@ -77,6 +75,9 @@ export function buildUpdatedNote(
     frontmatter,
     metadata,
     source: note.source,
+    sessionId: note.sessionId,
+    reminderDate: reminderFields.reminderDate,
+    reminderAt: reminderFields.reminderAt,
   };
 }
 

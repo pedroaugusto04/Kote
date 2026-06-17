@@ -64,6 +64,7 @@ export class CreateManualNoteUseCase {
         actor: '',
         conversationId: workspace.workspaceSlug,
         correlationId: `manual:${crypto.randomUUID()}`,
+        sessionId: input.sessionId || '',
       },
       event: {
         type: EventType.ManualNote,
@@ -97,10 +98,7 @@ export class CreateManualNoteUseCase {
         followUpBy: '',
       },
       metadata: {
-        workspaceSlug: workspace.workspaceSlug,
-        manual: true,
         rawText: input.rawText,
-        sessionId: input.sessionId,
       },
     };
 

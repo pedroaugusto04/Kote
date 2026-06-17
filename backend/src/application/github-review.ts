@@ -160,6 +160,7 @@ export async function buildGithubReviewEvent(
     },
     metadata: {
       repoFullName,
+      branch: String(body.ref || '').replace(/^refs\/heads\//, '') || 'main',
       compareUrl: String(body.compare || ''),
       changedFiles,
       headSha: String(body.after || ''),

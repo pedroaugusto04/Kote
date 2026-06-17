@@ -74,11 +74,11 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     const reminderTimeZone = readEnvironment().reminderTimeZone;
     const recipientField = channel === ReminderDeliveryChannel.Telegram ? 'w.telegram_chat_id' : 'w.whatsapp_chat_jid';
     const result = await this.database.getPool().query(
-      `select n.user_id, n.workspace_slug, n.id as reminder_id, n.title, n.project_slug, n.path, n.status, n.summary, n.metadata, ${recipientField} as recipient_id
+      `select n.user_id, n.workspace_slug, n.id as reminder_id, n.title, n.project_slug, n.path, n.status, n.summary, n.metadata, n.reminder_date, n.reminder_at, ${recipientField} as recipient_id
        from kb_notes n
        join kb_workspaces w on w.user_id = n.user_id and w.workspace_slug = n.workspace_slug
        where n.status::text = any($1::text[])
-         and (coalesce(n.metadata->>'reminderAt', '') <> '' or coalesce(n.metadata->>'reminderDate', '') <> '')
+         and (n.reminder_date <> '' or n.reminder_at <> '')
          and coalesce(${recipientField}, '') <> ''`,
       [reminderDispatchEligibleStatuses],
     );
@@ -88,9 +88,9 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         const metadata = (row.metadata || {}) as Record<string, unknown>;
         const noteText = String(metadata.rawText || '').trim() || String(row.summary || '').trim() || String(row.title || '').trim();
         const scheduledAt = resolveReminderScheduledAt({
-          reminderDate: metadata.reminderDate,
-          reminderTime: metadata.reminderTime,
-          reminderAt: metadata.reminderAt,
+          reminderDate: String(row.reminder_date || ''),
+          reminderTime: String(metadata.reminderTime || ''),
+          reminderAt: String(row.reminder_at || ''),
         }, reminderTimeZone);
         if (!scheduledAt || scheduledAt > now) return null;
         return {

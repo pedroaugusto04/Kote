@@ -94,10 +94,11 @@ async function seedManualNote(repositories, userId) {
     summary: 'confirmar deploy',
     markdown: '# Deploy antigo\n\n## Summary\n\nconfirmar deploy\n',
     frontmatter: { id: 'manual:1' },
-    metadata: { manual: true, rawText: 'confirmar deploy', reminderDate: '2026-04-29', reminderTime: '09:30' },
-    origin: 'postgres',
+    metadata: { manual: true, rawText: 'confirmar deploy', reminderTime: '09:30' },
     source: 'manual-api',
-    links: [],
+    sessionId: '',
+    reminderDate: '2026-04-29',
+    reminderAt: '',
   });
   return { note };
 }
@@ -126,9 +127,9 @@ test('updates manual note content and reminder metadata only', async (t) => {
   assert.deepEqual(updated?.tags, ['release']);
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /validar deploy final/);
   assert.doesNotMatch((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /confirmar deploy/);
-  assert.equal(updated?.metadata.reminderDate, '2026-05-01');
+  assert.equal(updated?.reminderDate, '2026-05-01');
   assert.equal(updated?.metadata.reminderTime, '13:15');
-  assert.equal(updated?.metadata.reminderAt, '2026-05-01T13:15:00.000Z');
+  assert.equal(updated?.reminderAt, '2026-05-01T13:15:00.000Z');
 });
 
 test('updates existing manual note when matching sessionId and source instead of creating duplicate', async (t) => {
@@ -186,7 +187,7 @@ test('updates existing manual note when matching sessionId and source instead of
 
   const detail = await repositories.contentRepository.getNoteById(user.id, second.noteId);
   assert.equal(detail?.title, 'Updated AI Session Title');
-  assert.equal(detail?.metadata?.sessionId, 'session-unique-123');
+  assert.equal(detail?.sessionId, 'session-unique-123');
   assert.match(detail?.markdown || '', /Turn 2 content/);
 });
 
@@ -316,10 +317,11 @@ test('lists project timeline by derived category without raw webhook events', as
     summary: 'remind me',
     markdown: '# Reminder note',
     frontmatter: {},
-    metadata: { reminderDate: '2026-05-20' },
-    origin: 'postgres',
+    metadata: {},
     source: 'manual-api',
-    links: [],
+    sessionId: '',
+    reminderDate: '2026-05-20',
+    reminderAt: '',
   });
   await repositories.contentRepository.upsertNote(user.id, {
     path: '30 Knowledge/platform/2026/05/decision.md',
@@ -406,9 +408,9 @@ test('clears manual note reminder metadata', async (t) => {
   }, user.id);
 
   const updated = await repositories.contentRepository.getNoteById(user.id, note.id);
-  assert.equal(updated?.metadata.reminderDate, '');
+  assert.equal(updated?.reminderDate, '');
   assert.equal(updated?.metadata.reminderTime, '');
-  assert.equal(updated?.metadata.reminderAt, '');
+  assert.equal(updated?.reminderAt, '');
   assert.equal((await repositories.contentQueryRepository.listReminders(user.id)).length, 0);
 });
 
@@ -700,7 +702,7 @@ test('updates any note type and still blocks project deletion while notes exist'
   assert.equal(updated?.title, 'Review atualizada');
   assert.deepEqual(updated?.tags, ['review']);
   assert.equal(updated?.metadata.rawText, 'texto atualizado');
-  assert.equal(updated?.metadata.reminderDate, '2026-05-02');
+  assert.equal(updated?.reminderDate, '2026-05-02');
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /texto atualizado/);
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /## Summary/);
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /## Findings de review/);

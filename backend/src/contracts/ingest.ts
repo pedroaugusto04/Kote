@@ -33,6 +33,7 @@ export const ingestPayloadSchema = z
       actor: z.string().default(''),
       conversationId: z.string().default(''),
       correlationId: z.string().min(1),
+      sessionId: z.string().default(''),
     }),
     event: z.object({
       type: eventTypeSchema,

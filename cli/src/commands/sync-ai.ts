@@ -2,6 +2,7 @@ import pc from 'picocolors';
 import * as clackPrompts from '@clack/prompts';
 import { client, ApiClientError } from '../client.js';
 import { loadConfig } from '../config.js';
+import { collapseWhitespace } from '../utils/text.js';
 
 export const clack = {
   select: clackPrompts.select,
@@ -95,7 +96,7 @@ function parseClaudeFile(filePath: string): CliAiSession | null {
     let title = 'Claude Session';
     const firstUserTurn = turns.find(t => t.role === 'user');
     if (firstUserTurn && firstUserTurn.content) {
-      const cleanPrompt = firstUserTurn.content.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const cleanPrompt = collapseWhitespace(firstUserTurn.content);
       if (cleanPrompt) {
         title = `Claude: ${cleanPrompt.slice(0, 60)}${cleanPrompt.length > 60 ? '...' : ''}`;
       }
@@ -204,7 +205,7 @@ function parseCodexFile(filePath: string): CliAiSession | null {
     let title = 'Codex Session';
     const firstUserTurn = turns.find(t => t.role === 'user');
     if (firstUserTurn && firstUserTurn.content) {
-      const cleanPrompt = firstUserTurn.content.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const cleanPrompt = collapseWhitespace(firstUserTurn.content);
       if (cleanPrompt) {
         title = `Codex: ${cleanPrompt.slice(0, 60)}${cleanPrompt.length > 60 ? '...' : ''}`;
       }
@@ -278,7 +279,7 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
     let title = 'Antigravity Session';
     const firstUserTurn = turns.find(t => t.role === 'user');
     if (firstUserTurn && firstUserTurn.content) {
-      const cleanPrompt = firstUserTurn.content.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+      const cleanPrompt = collapseWhitespace(firstUserTurn.content);
       if (cleanPrompt) {
         title = `Antigravity: ${cleanPrompt.slice(0, 60)}${cleanPrompt.length > 60 ? '...' : ''}`;
       }

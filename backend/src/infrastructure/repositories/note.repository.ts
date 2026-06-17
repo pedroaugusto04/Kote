@@ -42,37 +42,32 @@ export class PostgresNoteRepository {
   }
 
   async listPage(userId: string, input: ListNotesInput) {
-    const clauses = ['user_id = $1'];
+    const clauses = ['n.user_id = $1'];
     const values: unknown[] = [userId];
 
     if (input.workspaceSlug) {
       values.push(input.workspaceSlug);
-      clauses.push(`workspace_slug = $${values.length}`);
+      clauses.push(`n.workspace_slug = $${values.length}`);
     }
     if (input.projectSlug) {
       values.push(input.projectSlug);
-      clauses.push(`project_slug = $${values.length}`);
+      clauses.push(`n.project_slug = $${values.length}`);
     }
     if (input.status) {
       if (input.status === 'open') {
-        clauses.push(`status not in ('resolved', 'archived')`);
+        clauses.push(`n.status not in ('resolved', 'archived')`);
       } else {
         values.push(input.status);
-        clauses.push(`status::text = $${values.length}`);
+        clauses.push(`n.status::text = $${values.length}`);
       }
     }
     if (input.folderId) {
       values.push(input.folderId);
-      clauses.push(`folder_id = $${values.length}`);
+      clauses.push(`n.folder_id = $${values.length}`);
     }
 
     const where = clauses.join(' and ');
-    const dataWhere = where
-      .replace(/\buser_id\b/g, 'n.user_id')
-      .replace(/\bworkspace_slug\b/g, 'n.workspace_slug')
-      .replace(/\bproject_slug\b/g, 'n.project_slug')
-      .replace(/\bfolder_id\b/g, 'n.folder_id');
-    const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes where ${where}`, values);
+    const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes n where ${where}`, values);
     const total = Number(totalResult.rows[0]?.total || 0);
     const selectedPage = input.selectedId ? await this.resolveNotePage(input, where, values) : input.page;
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
@@ -80,7 +75,7 @@ export class PostgresNoteRepository {
       `select n.*, count(a.id)::int as attachment_count
        from kb_notes n
        left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
-       where ${dataWhere}
+       where ${where}
        group by n.id
        order by n.is_pinned desc, n.occurred_at desc, n.title asc
        limit $${values.length + 1} offset $${values.length + 2}`,
@@ -92,39 +87,30 @@ export class PostgresNoteRepository {
 
   async listProjectTimeline(userId: string, input: ListProjectTimelineInput) {
     const values: unknown[] = [userId];
-    const clauses = ['user_id = $1'];
+    const clauses = ['n.user_id = $1'];
     if (input.projectSlug) {
       values.push(input.projectSlug);
-      clauses.push(`project_slug = $${values.length}`);
+      clauses.push(`n.project_slug = $${values.length}`);
     }
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, input.category);
     if (input.status) {
       if (input.status === 'open') {
-        clauses.push(`status not in ('resolved', 'archived')`);
+        clauses.push(`n.status not in ('resolved', 'archived')`);
       } else {
         values.push(input.status);
-        clauses.push(`status::text = $${values.length}`);
+        clauses.push(`n.status::text = $${values.length}`);
       }
     }
     const where = clauses.join(' and ');
-    const dataWhere = where
-      .replace(/\buser_id\b/g, 'n.user_id')
-      .replace(/\bproject_slug\b/g, 'n.project_slug')
-      .replace(/\bfolder_id\b/g, 'n.folder_id')
-      .replace(/\btype\b/g, 'n.type')
-      .replace(/\bsource_channel\b/g, 'n.source_channel')
-      .replace(/\bsource\b/g, 'n.source')
-      .replace(/\bstatus\b/g, 'n.status')
-      .replace(/\bmetadata\b/g, 'n.metadata');
-    const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes where ${where}`, values);
+    const totalResult = await this.database.getPool().query(`select count(*)::int as total from kb_notes n where ${where}`, values);
     const total = Number(totalResult.rows[0]?.total || 0);
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
     const result = await this.database.getPool().query(
       `select n.*, count(a.id)::int as attachment_count
        from kb_notes n
        left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
-       where ${dataWhere}
+       where ${where}
        group by n.id
        order by n.is_pinned desc, n.occurred_at desc, n.title asc
        limit $${values.length + 1} offset $${values.length + 2}`,
@@ -139,23 +125,15 @@ export class PostgresNoteRepository {
 
   async listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput) {
     const values: unknown[] = [userId, input.projectSlug];
-    const clauses = ['user_id = $1', 'project_slug = $2'];
+    const clauses = ['n.user_id = $1', 'n.project_slug = $2'];
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, input.category);
     const where = clauses.join(' and ');
-    const dataWhere = where
-      .replace(/\buser_id\b/g, 'n.user_id')
-      .replace(/\bproject_slug\b/g, 'n.project_slug')
-      .replace(/\bfolder_id\b/g, 'n.folder_id')
-      .replace(/\btype\b/g, 'n.type')
-      .replace(/\bsource_channel\b/g, 'n.source_channel')
-      .replace(/\bsource\b/g, 'n.source')
-      .replace(/\bmetadata\b/g, 'n.metadata');
     const result = await this.database.getPool().query(
       `select n.*, count(a.id)::int as attachment_count
        from kb_notes n
        left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
-       where ${dataWhere}
+       where ${where}
        group by n.id
        order by n.is_pinned desc, n.occurred_at desc, n.title asc
        limit $${values.length + 1}`,
@@ -182,8 +160,8 @@ export class PostgresNoteRepository {
 
   async getBySourceAndSessionId(userId: string, source: string, sessionId: string) {
     const result = await this.database.getPool().query(
-      `select * from kb_notes 
-       where user_id = $1 and source = $2 and metadata->>'sessionId' = $3 
+      `select * from kb_notes
+       where user_id = $1 and source = $2 and session_id = $3
        limit 1`,
       [userId, source, sessionId]
     );
@@ -201,13 +179,14 @@ export class PostgresNoteRepository {
       }
     }
     
-    // Otherwise insert new note (deduplication is handled by use case via source + sessionId)
+    // Otherwise insert new note (deduplication is handled by use case via source + session_id)
     const result = await this.database.getPool().query(
       `insert into kb_notes (
          id, user_id, path, type, title, project_slug, workspace_slug, folder_id, status, tags, occurred_at,
-         source_channel, summary, markdown_storage_key, frontmatter, metadata, source
+         source_channel, summary, markdown_storage_key, frontmatter, metadata, source,
+         session_id, reminder_date, reminder_at
        )
-       values ($1, $2, $3, $4::note_type_enum, $5, $6, $7, $8, $9::note_status_enum, $10::jsonb, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17)
+       values ($1, $2, $3, $4::note_type_enum, $5, $6, $7, $8, $9::note_status_enum, $10::jsonb, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17, $18, $19, $20)
       returning *`,
       [input.id || crypto.randomUUID(), userId, ...buildNoteMutableValues(input, markdownStorageKey)]
     );
@@ -230,10 +209,7 @@ export class PostgresNoteRepository {
        set status = $3,
            updated_at = now()
        where user_id = $1 and id = $2
-         and (
-           coalesce(metadata->>'reminderDate', '') <> ''
-           or coalesce(metadata->>'reminderAt', '') <> ''
-         )
+         and (reminder_date <> '' or reminder_at <> '')
        returning *`,
       [userId, id, status]
     );
@@ -279,6 +255,9 @@ export class PostgresNoteRepository {
            frontmatter = $15::jsonb,
            metadata = $16::jsonb,
            source = $17,
+           session_id = $18,
+           reminder_date = $19,
+           reminder_at = $20,
            updated_at = now()
        where user_id = $1 and id = $2
        returning *`,
@@ -289,8 +268,8 @@ export class PostgresNoteRepository {
   private async resolveNotePage(input: ListNotesInput, where: string, values: unknown[]) {
     const selected = await this.database.getPool().query(
       `select occurred_at, title, is_pinned
-       from kb_notes
-       where ${where} and id = $${values.length + 1}
+       from kb_notes n
+       where ${where} and n.id = $${values.length + 1}
        limit 1`,
       [...values, input.selectedId]
     );
@@ -299,12 +278,12 @@ export class PostgresNoteRepository {
 
     const result = await this.database.getPool().query(
       `select count(*)::int as idx
-       from kb_notes
+       from kb_notes n
        where ${where}
          and (
-           (is_pinned and not $${values.length + 1}::boolean)
-           or (is_pinned = $${values.length + 1}::boolean and occurred_at > $${values.length + 2})
-           or (is_pinned = $${values.length + 1}::boolean and occurred_at = $${values.length + 2} and title <= $${values.length + 3})
+           (n.is_pinned and not $${values.length + 1}::boolean)
+           or (n.is_pinned = $${values.length + 1}::boolean and n.occurred_at > $${values.length + 2})
+           or (n.is_pinned = $${values.length + 1}::boolean and n.occurred_at = $${values.length + 2} and n.title <= $${values.length + 3})
          )`,
       [...values, note.is_pinned, note.occurred_at, note.title]
     );
@@ -323,7 +302,7 @@ function projectTimelineItem(record: NoteRecord) {
   };
 }
 
-function projectTimelineCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 'source' | 'sourceChannel'>): ProjectTimelineFilterCategory {
+function projectTimelineCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 'source' | 'sourceChannel' | 'reminderDate' | 'reminderAt'>): ProjectTimelineFilterCategory {
   if (record.type === 'decision') return 'decision';
   if (hasTimelineReminder(record)) return 'reminder';
   if (record.sourceChannel === 'github-push') return 'github-push';
@@ -332,8 +311,8 @@ function projectTimelineCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 
   return 'manual';
 }
 
-function hasTimelineReminder(record: Pick<NoteRecord, 'metadata'>) {
-  return Boolean(String(record.metadata.reminderDate || '').trim() || String(record.metadata.reminderAt || '').trim());
+function hasTimelineReminder(record: Pick<NoteRecord, 'reminderDate' | 'reminderAt'>) {
+  return Boolean(record.reminderDate.trim() || record.reminderAt.trim());
 }
 
 function appendTimelineFolderClause(
@@ -347,45 +326,45 @@ function appendTimelineFolderClause(
       values.push(id);
       return `$${values.length}`;
     });
-    clauses.push(`folder_id in (${placeholders.join(', ')})`);
+    clauses.push(`n.folder_id in (${placeholders.join(', ')})`);
     return;
   }
   if (folderId === undefined) return;
   const normalizedFolderId = folderId.trim();
   if (!normalizedFolderId) return;
   values.push(normalizedFolderId);
-  clauses.push(`folder_id = $${values.length}`);
+  clauses.push(`n.folder_id = $${values.length}`);
 }
 
 function appendTimelineCategoryClause(clauses: string[], category: ListProjectTimelineInput['category']) {
-  const notDecision = "type <> 'decision'";
-  const noReminder = "(coalesce(metadata->>'reminderDate', '') = '' and coalesce(metadata->>'reminderAt', '') = '')";
+  const notDecision = "n.type <> 'decision'";
+  const noReminder = "(n.reminder_date = '' and n.reminder_at = '')";
   if (category === 'all') return;
   if (category === 'decision') {
-    clauses.push("type = 'decision'");
+    clauses.push("n.type = 'decision'");
     return;
   }
   if (category === 'reminder') {
     clauses.push(notDecision);
-    clauses.push("(coalesce(metadata->>'reminderDate', '') <> '' or coalesce(metadata->>'reminderAt', '') <> '')");
+    clauses.push("(n.reminder_date <> '' or n.reminder_at <> '')");
     return;
   }
   clauses.push(notDecision);
   clauses.push(noReminder);
   if (category === 'github-push') {
-    clauses.push("source_channel = 'github-push'");
+    clauses.push("n.source_channel = 'github-push'");
     return;
   }
   if (category === 'whatsapp') {
-    clauses.push("source_channel = 'whatsapp'");
+    clauses.push("n.source_channel = 'whatsapp'");
     return;
   }
   if (category === 'ai-chat') {
-    clauses.push("source_channel = 'ai-chat'");
+    clauses.push("n.source_channel = 'ai-chat'");
     return;
   }
-  clauses.push("source_channel <> 'github-push'");
-  clauses.push("source_channel <> 'whatsapp'");
-  clauses.push("source_channel <> 'ai-chat'");
-  clauses.push("(metadata->>'manual' = 'true' or source = 'manual-api')");
+  clauses.push("n.source_channel <> 'github-push'");
+  clauses.push("n.source_channel <> 'whatsapp'");
+  clauses.push("n.source_channel <> 'ai-chat'");
+  clauses.push("n.source = 'manual-api'");
 }

@@ -133,6 +133,9 @@ export type NoteRecord = {
   frontmatter: Record<string, unknown>;
   metadata: Record<string, unknown>;
   source: string;
+  sessionId: string;
+  reminderDate: string;
+  reminderAt: string;
   attachmentCount?: number;
   isPinned?: boolean;
 };

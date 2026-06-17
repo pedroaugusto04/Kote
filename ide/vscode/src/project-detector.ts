@@ -3,6 +3,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import * as vscode from 'vscode';
 import type { KbClient, KbProject } from './kb-client';
+import { toUrlSlug } from './utils/text.js';
 
 /**
  * Tries to detect which KB project corresponds to the currently open workspace.
@@ -49,21 +50,19 @@ export async function detectActiveProject(
       const repoName = remoteUrl
         .split('/')
         .pop()
-        ?.replace(/\.git$/, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-|-$/g, '');
+        ?.replace(/\.git$/, '');
 
       if (repoName) {
+        const slug = toUrlSlug(repoName);
         const match = projects.find(
-          (p) => p.projectSlug === repoName || p.displayName.toLowerCase().replace(/\s+/g, '-') === repoName,
+          (p) => p.projectSlug === slug || toUrlSlug(p.displayName) === slug,
         );
         if (match) return match.projectSlug;
       }
     } catch { /* no git or no remote */ }
 
     // 3. Folder name
-    const folderName = path.basename(root).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const folderName = toUrlSlug(path.basename(root));
     const byFolder = projects.find((p) => p.projectSlug === folderName);
     if (byFolder) return byFolder.projectSlug;
   }

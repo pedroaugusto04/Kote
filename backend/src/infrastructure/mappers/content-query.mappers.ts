@@ -90,8 +90,8 @@ export function reviewFromNote(record: NoteRecord): ReviewView | null {
 }
 
 export function reminderFromNote(record: NoteRecord): ReminderView | null {
-  const reminderDate = String(record.metadata.reminderDate || '');
-  const reminderAt = String(record.metadata.reminderAt || '');
+  const reminderDate = record.reminderDate;
+  const reminderAt = record.reminderAt;
   if (!reminderDate && !reminderAt) return null;
   return {
     id: record.id,

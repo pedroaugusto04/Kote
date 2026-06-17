@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
+import { collapseWhitespace } from '../../utils/text.js';
 
 export class AntigravityHistoryProvider implements AiHistoryProvider {
   readonly id = 'antigravity';
@@ -128,10 +129,7 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       let title = 'Antigravity Session';
       const firstUserTurn = turns.find(t => t.role === 'user');
       if (firstUserTurn && firstUserTurn.content) {
-        const cleanPrompt = firstUserTurn.content
-          .replace(/[\r\n]+/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
+        const cleanPrompt = collapseWhitespace(firstUserTurn.content);
         if (cleanPrompt) {
           title = `Antigravity: ${cleanPrompt.slice(0, 60)}${cleanPrompt.length > 60 ? '...' : ''}`;
         }

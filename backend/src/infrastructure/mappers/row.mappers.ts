@@ -187,6 +187,9 @@ export function noteFromRow(row: Row): NoteRecord {
     frontmatter: (row.frontmatter || {}) as Record<string, unknown>,
     metadata: (row.metadata || {}) as Record<string, unknown>,
     source: String(row.source || row.source_channel || ''),
+    sessionId: String(row.session_id || ''),
+    reminderDate: String(row.reminder_date || ''),
+    reminderAt: String(row.reminder_at || ''),
     attachmentCount: Number(row.attachment_count || 0),
     isPinned: row.is_pinned === true,
   };

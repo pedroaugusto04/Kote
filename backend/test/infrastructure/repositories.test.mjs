@@ -33,13 +33,12 @@ test('postgres repositories share state across content query and workflow ports'
     markdown: '',
     frontmatter: {},
     metadata: {
-      reminderDate: '2026-04-28',
       reminderTime: '09:00',
-      reminderAt: '2026-04-28T12:00:00.000Z',
     },
-    origin: 'postgres',
     source: 'test',
-    links: [],
+    sessionId: '',
+    reminderDate: '2026-04-28',
+    reminderAt: '2026-04-28T12:00:00.000Z',
   });
 
   const reminders = await repositories.contentQueryRepository.listReminders(user.id);

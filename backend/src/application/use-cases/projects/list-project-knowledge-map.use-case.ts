@@ -152,7 +152,7 @@ export function buildProjectKnowledgeMap(
   };
 }
 
-export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 'source' | 'sourceChannel'>): ProjectKnowledgeMapNoteCategory {
+export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 'source' | 'sourceChannel' | 'reminderDate' | 'reminderAt'>): ProjectKnowledgeMapNoteCategory {
   if (record.type === 'decision') return 'decision';
   if (hasReminder(record)) return 'reminder';
   if (record.sourceChannel === 'github-push') return 'github-push';
@@ -174,8 +174,8 @@ function collectAncestorFolderIds(folders: ProjectFolderRecord[], selectedIds: S
   return result;
 }
 
-function hasReminder(record: Pick<NoteRecord, 'metadata'>) {
-  return Boolean(String(record.metadata.reminderDate || '').trim() || String(record.metadata.reminderAt || '').trim());
+function hasReminder(record: Pick<NoteRecord, 'reminderDate' | 'reminderAt'>) {
+  return Boolean(record.reminderDate.trim() || record.reminderAt.trim());
 }
 
 function isReviewNote(record: Pick<NoteRecord, 'metadata' | 'sourceChannel'>) {
@@ -183,12 +183,7 @@ function isReviewNote(record: Pick<NoteRecord, 'metadata' | 'sourceChannel'>) {
 }
 
 function noteRepositoryFullName(note: NoteRecord) {
-  return String(
-    note.metadata.repoFullName
-      || note.metadata.repositoryFullName
-      || note.metadata.repo
-      || '',
-  ).trim().toLowerCase();
+  return String(note.metadata.repoFullName || '').trim().toLowerCase();
 }
 
 function addNode(nodes: Map<string, KnowledgeMapNode>, node: KnowledgeMapNode) {

@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
+import { collapseWhitespace } from '../../utils/text.js';
 
 export class CodexHistoryProvider implements AiHistoryProvider {
   readonly id = 'codex-cli';
@@ -176,10 +177,7 @@ export class CodexHistoryProvider implements AiHistoryProvider {
       let title = 'Codex Session';
       const firstUserTurn = turns.find(t => t.role === 'user');
       if (firstUserTurn && firstUserTurn.content) {
-        const cleanPrompt = firstUserTurn.content
-          .replace(/[\r\n]+/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
+        const cleanPrompt = collapseWhitespace(firstUserTurn.content);
         if (cleanPrompt) {
           title = `Codex: ${cleanPrompt.slice(0, 60)}${cleanPrompt.length > 60 ? '...' : ''}`;
         }

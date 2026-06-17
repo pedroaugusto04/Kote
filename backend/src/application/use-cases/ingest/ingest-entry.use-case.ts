@@ -162,11 +162,12 @@ async function saveIngestedNote(
       eventType: payload.event.type,
       impact: payload.content.sections.impact,
       reviewFindings: payload.content.sections.reviewFindings,
-      reminderDate: payload.actions.reminderDate,
       reminderTime: payload.actions.reminderTime,
-      reminderAt: payload.actions.reminderAt,
     },
     source: payload.source.system,
+    sessionId: payload.source.sessionId,
+    reminderDate: payload.actions.reminderDate,
+    reminderAt: payload.actions.reminderAt,
   });
   const attachments = await Promise.all(
     payload.content.attachments.map((attachment) =>

@@ -8,6 +8,13 @@ export function slugify(value: string): string {
     .replace(/-+/g, '-');
 }
 
+export function toUrlSlug(value: string): string {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 export function unique<T>(items: T[]): T[] {
   return [...new Set(items)];
 }
@@ -19,6 +26,10 @@ export function sanitizeFileStem(value: string, fallback = 'entry'): string {
 export function trimText(value: string, fallback = ''): string {
   const normalized = String(value || '').replace(/\s+/g, ' ').trim();
   return normalized || fallback;
+}
+
+export function collapseWhitespace(value: string): string {
+  return String(value || '').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 export function normalizeComparableText(value: string): string {
