@@ -27,6 +27,5 @@ export type SaveNoteResult = {
   dailyPath: string;
   attachmentIds: string[];
   assetPaths: string[];
-  gitStatus: string;
   note: SavedNoteSummary;
 };

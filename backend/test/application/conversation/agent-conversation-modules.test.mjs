@@ -96,7 +96,6 @@ test('conversation agent presenter formats saved reminder timestamp in Sao Paulo
     dailyPath: '',
     attachmentIds: [],
     assetPaths: [],
-    gitStatus: 'test',
     note: {
       id: 'note-1',
       title: 'Pedir documento ao Eduardo',
@@ -275,7 +274,6 @@ test('process agent conversation auto-creates a missing project before submittin
         dailyPath: '',
         attachmentIds: [],
         assetPaths: [],
-        gitStatus: 'test',
         note: {
           id: 'note-1',
           title: payload.content.title || payload.content.rawText,

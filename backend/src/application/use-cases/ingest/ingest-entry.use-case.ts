@@ -197,7 +197,6 @@ async function saveIngestedNote(
     dailyPath: paths.dailyRelativePath.replace(/\\/g, '/'),
     attachmentIds: attachments.map((attachment) => attachment.id),
     assetPaths: [],
-    gitStatus: 'not_used_postgres',
     note: {
       id: note.id,
       title: note.title,
