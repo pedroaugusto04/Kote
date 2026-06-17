@@ -55,10 +55,10 @@ export class PostgresNoteRepository {
     }
     if (input.status) {
       if (input.status === 'open') {
-        clauses.push(`lower(status) not in ('resolved', 'archived')`);
+        clauses.push(`status not in ('resolved', 'archived')`);
       } else {
         values.push(input.status);
-        clauses.push(`lower(status) = $${values.length}`);
+        clauses.push(`status = $${values.length}`);
       }
     }
     if (input.folderId) {
@@ -101,10 +101,10 @@ export class PostgresNoteRepository {
     appendTimelineCategoryClause(clauses, input.category);
     if (input.status) {
       if (input.status === 'open') {
-        clauses.push(`lower(status) not in ('resolved', 'archived')`);
+        clauses.push(`status not in ('resolved', 'archived')`);
       } else {
         values.push(input.status);
-        clauses.push(`lower(status) = $${values.length}`);
+        clauses.push(`status = $${values.length}`);
       }
     }
     const where = clauses.join(' and ');
