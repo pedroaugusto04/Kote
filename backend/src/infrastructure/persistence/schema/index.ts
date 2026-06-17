@@ -8,6 +8,12 @@ export const noteTypeEnum = pgEnum('note_type_enum', ['event', 'decision', 'know
 export const askConfidenceEnum = pgEnum('ask_confidence_enum', ['low', 'medium', 'high']);
 export const credentialStatusEnum = pgEnum('credential_status_enum', ['connected', 'revoked']);
 
+// Enum value types for type-safe inserts and updates
+export type NoteStatus = typeof noteStatusEnum.enumValues[number];
+export type NoteType = typeof noteTypeEnum.enumValues[number];
+export type AskConfidence = typeof askConfidenceEnum.enumValues[number];
+export type CredentialStatus = typeof credentialStatusEnum.enumValues[number];
+
 // Users
 export const users = pgTable('kb_users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -137,7 +143,7 @@ export const notes = pgTable('kb_notes', {
   userProjectIdx: index('kb_notes_user_project_idx').on(table.userId, table.projectSlug),
   userWorkspaceIdx: index('kb_notes_user_workspace_idx').on(table.userId, table.workspaceSlug),
   userProjectFolderIdx: index('kb_notes_user_project_folder_idx').on(table.userId, table.projectSlug, table.folderId),
-  userSourceSessionIdx: index('kb_notes_user_source_session_idx').on(table.userId, table.sourceChannel, table.sessionId),
+  userSourceSessionIdx: index('kb_notes_user_source_session_idx').on(table.userId, table.source, table.sessionId),
   reminderAtIdx: index('kb_notes_reminder_at_idx').on(table.reminderAt),
   reminderDateIdx: index('kb_notes_reminder_date_idx').on(table.reminderDate),
 }));

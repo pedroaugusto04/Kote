@@ -16,7 +16,7 @@ import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { noteSummary } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { notes, attachments, noteTypeEnum, noteStatusEnum } from '../persistence/schema/index.js';
+import { notes, attachments, NoteStatus, NoteType } from '../persistence/schema/index.js';
 
 @Injectable()
 export class PostgresNoteRepository {
@@ -83,7 +83,7 @@ export class PostgresNoteRepository {
       if (input.status === 'open') {
         conditions.push(notInArray(notes.status, ['resolved', 'archived']));
       } else {
-        conditions.push(eq(notes.status, input.status as 'active' | 'pending' | 'resolved' | 'archived' | 'sent' | 'overdue'));
+        conditions.push(eq(notes.status, input.status as NoteStatus));
       }
     }
     if (input.folderId) {
@@ -229,7 +229,7 @@ export class PostgresNoteRepository {
       .from(notes)
       .where(and(
         eq(notes.userId, userId),
-        eq(notes.sourceChannel, source),
+        eq(notes.source, source),
         eq(notes.sessionId, sessionId)
       ))
       .limit(1);
@@ -256,12 +256,12 @@ export class PostgresNoteRepository {
         id: crypto.randomUUID(),
         userId,
         path: input.path,
-        type: input.type as 'event' | 'decision' | 'knowledge' | 'incident' | 'followup',
+        type: input.type as NoteType,
         title: input.title,
         projectSlug: input.projectSlug,
         workspaceSlug: input.workspaceSlug,
         folderId: input.folderId,
-        status: input.status as 'active' | 'pending' | 'resolved' | 'archived' | 'sent' | 'overdue',
+        status: input.status as NoteStatus,
         tags: input.tags,
         occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
         sourceChannel: input.sourceChannel,
@@ -293,7 +293,7 @@ export class PostgresNoteRepository {
     const db = this.database.getDb();
     const result = await db
       .update(notes)
-      .set({ status: status as 'active' | 'pending' | 'resolved' | 'archived' | 'sent' | 'overdue', updatedAt: new Date() })
+      .set({ status: status as NoteStatus, updatedAt: new Date() })
       .where(and(eq(notes.userId, userId), eq(notes.id, id)))
       .returning();
     
