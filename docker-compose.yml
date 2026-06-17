@@ -33,6 +33,11 @@ services:
       KB_DATABASE_URL: ${KB_DATABASE_URL_DOCKER:-postgres://postgres:postgres@postgres:5432/knowledge_base}
       KB_API_INSPECT: ${KB_API_INSPECT:-true}
       KB_API_INSPECT_PORT: ${KB_API_INSPECT_PORT:-9229}
+      KB_LOG_FILE_ENABLED: ${KB_LOG_FILE_ENABLED:-true}
+      KB_LOG_DIR: ${KB_LOG_DIR:-/app/logs}
+      KB_LOG_MAX_FILES: ${KB_LOG_MAX_FILES:-30}
+      KB_LOG_MAX_SIZE: ${KB_LOG_MAX_SIZE:-20m}
+      KB_LOG_LEVEL: ${KB_LOG_LEVEL:-debug}
     command: sh -c "umask 000 && npm install && npm run dev:api"
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
@@ -40,6 +45,7 @@ services:
     volumes:
       - ./:/app
       - kb_api_node_modules:/app/node_modules
+      - kb_api_logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
@@ -96,3 +102,4 @@ volumes:
   kb_api_node_modules:
   kb_frontend_node_modules:
   kb_rabbitmq_data:
+  kb_api_logs:

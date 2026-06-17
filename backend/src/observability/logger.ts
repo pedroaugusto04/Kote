@@ -1,4 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import * as winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 
 import { redactSensitiveValue } from './redact.js';
 import { getRequestContext } from './request-context.js';
@@ -55,6 +57,11 @@ function isPrettyConsoleLogsEnabled() {
   return resolveBooleanEnvironmentFlag(configuredValue, true);
 }
 
+function isFileLoggingEnabled() {
+  const configuredValue = process.env.KB_LOG_FILE_ENABLED;
+  return resolveBooleanEnvironmentFlag(configuredValue, true);
+}
+
 function formatLevelLabel(level: LogLevel) {
   const label = LOG_LEVEL_LABELS[level];
   if (!isPrettyConsoleLogsEnabled()) {
@@ -92,7 +99,57 @@ function formatKeyValue(key: string, value: unknown, prettyConsoleLogsEnabled: b
 }
 
 @Injectable()
-export class AppLogger {
+export class AppLogger implements OnModuleInit, OnModuleDestroy {
+  private winstonLogger: winston.Logger | null = null;
+
+  onModuleInit() {
+    if (isFileLoggingEnabled()) {
+      this.initializeWinston();
+    }
+  }
+
+  onModuleDestroy() {
+    if (this.winstonLogger) {
+      this.winstonLogger.close();
+    }
+  }
+
+  private initializeWinston() {
+    const logDir = process.env.KB_LOG_DIR || '/app/logs';
+    const maxFiles = parseInt(process.env.KB_LOG_MAX_FILES || '30', 10);
+    const maxSize = process.env.KB_LOG_MAX_SIZE || '20m';
+
+    const fileTransport = new DailyRotateFile({
+      dirname: logDir,
+      filename: 'application-%DATE%.log',
+      datePattern: 'YYYY-MM-DD',
+      maxSize: maxSize,
+      maxFiles: maxFiles,
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json(),
+      ),
+    });
+
+    const errorFileTransport = new DailyRotateFile({
+      dirname: logDir,
+      filename: 'error-%DATE%.log',
+      datePattern: 'YYYY-MM-DD',
+      maxSize: maxSize,
+      maxFiles: maxFiles,
+      level: 'error',
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        winston.format.json(),
+      ),
+    });
+
+    this.winstonLogger = winston.createLogger({
+      level: process.env.KB_LOG_LEVEL || 'info',
+      transports: [fileTransport, errorFileTransport],
+    });
+  }
+
   debug(event: string, fields: Record<string, unknown> = {}) {
     this.write('debug', event, fields);
   }
@@ -125,6 +182,11 @@ export class AppLogger {
       statusCode: context?.statusCode,
       ...fields,
     }) as Record<string, unknown>;
+
+    if (this.winstonLogger) {
+      this.winstonLogger.log(level, entry);
+    }
+
     if (process.env.NODE_ENV === 'production') {
       if (!prettyConsoleLogsEnabled) {
         this.output(level, JSON.stringify(entry));

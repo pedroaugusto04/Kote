@@ -15,6 +15,6 @@ ENV NODE_ENV=production
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY --from=build /app/backend/dist ./backend/dist
-RUN mkdir -p /app/dist/frontend
+RUN mkdir -p /app/dist/frontend /var/log/knowledge-base-api
 EXPOSE 4310
 CMD ["node", "backend/dist/main.js"]

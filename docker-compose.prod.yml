@@ -16,6 +16,11 @@ services:
       KB_SUPABASE_CACHE_CONTROL: ${KB_SUPABASE_CACHE_CONTROL:-31536000}
       LOG_PRETTY_CONSOLE: ${LOG_PRETTY_CONSOLE:-true}
       KB_LOG_PRETTY_CONSOLE: ${KB_LOG_PRETTY_CONSOLE:-true}
+      KB_LOG_FILE_ENABLED: ${KB_LOG_FILE_ENABLED:-true}
+      KB_LOG_DIR: ${KB_LOG_DIR:-/var/log/knowledge-base-api}
+      KB_LOG_MAX_FILES: ${KB_LOG_MAX_FILES:-30}
+      KB_LOG_MAX_SIZE: ${KB_LOG_MAX_SIZE:-20m}
+      KB_LOG_LEVEL: ${KB_LOG_LEVEL:-info}
       KB_EMBEDDING_AI_PROVIDER: ${KB_EMBEDDING_AI_PROVIDER:-gemini}
       KB_EMBEDDING_AI_BASE_URL: ${KB_EMBEDDING_AI_BASE_URL}
       KB_EMBEDDING_AI_MODEL: ${KB_EMBEDDING_AI_MODEL}
@@ -28,6 +33,8 @@ services:
       KB_DISABLE_EMBEDDING_WORKER: ${KB_DISABLE_EMBEDDING_WORKER:-false}
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
+    volumes:
+      - /var/log/knowledge-base-api:/var/log/knowledge-base-api
     healthcheck:
       test:
         - CMD-SHELL
