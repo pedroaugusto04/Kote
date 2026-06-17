@@ -197,6 +197,15 @@ export class PostgresNoteRepository {
 
   async upsert(userId: string, input: SaveNoteInput) {
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
+    
+    // If an existing note ID is provided, update it directly instead of using path-based conflict
+    if (input.id) {
+      const existing = await this.getById(userId, input.id);
+      if (existing) {
+        return this.update(userId, input);
+      }
+    }
+    
     const result = await this.database.getPool().query(
       `insert into kb_notes (
          id, user_id, path, type, title, project_slug, workspace_slug, folder_id, status, tags, occurred_at,

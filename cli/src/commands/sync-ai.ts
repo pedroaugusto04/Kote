@@ -411,7 +411,6 @@ function getMarkdownText(session: CliAiSession): string {
   const titleWithDate = getTitleWithDate(session);
   let rawText = `# ${titleWithDate}\n\n`;
   rawText += `Source: ${session.providerName}\n`;
-  rawText += `Session: ${session.sessionId}\n`;
   if (session.projectSlug) {
     rawText += `Project: ${session.projectSlug}\n`;
   }

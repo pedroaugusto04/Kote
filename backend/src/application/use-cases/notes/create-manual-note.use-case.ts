@@ -33,6 +33,16 @@ export class CreateManualNoteUseCase {
     const project = projects.find((item) => item.enabled && item.workspaceSlug === workspace.workspaceSlug && item.projectSlug === input.projectSlug);
     if (!project) throw new NotFoundException('project_not_found');
 
+    // Check if a note with the same source + sessionId already exists to avoid duplicates
+    let existingNoteId: string | undefined;
+    const activeSource = input.source?.trim();
+    if (activeSource && input.sessionId) {
+      const existingNote = await this.contentRepository.getNoteBySourceAndSessionId(userId, activeSource, input.sessionId);
+      if (existingNote) {
+        existingNoteId = existingNote.id;
+      }
+    }
+
     const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
     const reminderDate = normalizeDate(input.reminderDate, reminderTimeZone);
     const reminderTime = normalizeTime(input.reminderTime);
@@ -45,7 +55,6 @@ export class CreateManualNoteUseCase {
     });
     const occurredAt = new Date().toISOString();
     const cleanedRawText = stripTitleHeader(input.rawText, input.title);
-    const activeSource = input.source?.trim();
     const isAiChat = isAiSource(activeSource);
 
     const payload: IngestPayload = {
@@ -97,6 +106,7 @@ export class CreateManualNoteUseCase {
 
     return this.ingestEntryUseCase.execute(withDerivedReminderAt(payload, reminderTimeZone), userId, workspace.workspaceSlug, {
       folderId: input.folderId,
+      existingNoteId,
     }).then((result) => {
       this.noteEventDispatcher.dispatch({
         event: WebhookTrigger.NoteCreated,
