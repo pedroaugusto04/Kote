@@ -14,7 +14,10 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.sql(`ALTER TABLE kb_integration_credentials DROP CONSTRAINT IF EXISTS check_credential_status;`);
 
   // Alter columns to use ENUM types
+  pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN status DROP DEFAULT;`);
   pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN status TYPE note_status_enum USING status::note_status_enum;`);
+  pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN status SET DEFAULT 'active'::note_status_enum;`);
+
   pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN type TYPE note_type_enum USING type::note_type_enum;`);
   pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence TYPE ask_confidence_enum USING confidence::ask_confidence_enum;`);
   pgm.sql(`ALTER TABLE kb_integration_credentials ALTER COLUMN status TYPE credential_status_enum USING status::credential_status_enum;`);
@@ -22,7 +25,10 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
   // Revert columns back to text
+  pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN status DROP DEFAULT;`);
   pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN status TYPE text USING status::text;`);
+  pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN status SET DEFAULT 'active'::text;`);
+
   pgm.sql(`ALTER TABLE kb_notes ALTER COLUMN type TYPE text USING type::text;`);
   pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence TYPE text USING confidence::text;`);
   pgm.sql(`ALTER TABLE kb_integration_credentials ALTER COLUMN status TYPE text USING status::text;`);
