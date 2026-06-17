@@ -198,7 +198,7 @@ export class PostgresNoteRepository {
   async upsert(userId: string, input: SaveNoteInput) {
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
     
-    // If an existing note ID is provided, update it directly instead of using path-based conflict
+    // If an existing note ID is provided, update it directly
     if (input.id) {
       const existing = await this.getById(userId, input.id);
       if (existing) {
@@ -206,29 +206,13 @@ export class PostgresNoteRepository {
       }
     }
     
+    // Otherwise insert new note (deduplication is handled by use case via source + sessionId)
     const result = await this.database.getPool().query(
       `insert into kb_notes (
          id, user_id, path, type, title, project_slug, workspace_slug, folder_id, status, tags, occurred_at,
          source_channel, summary, markdown_storage_key, frontmatter, metadata, source
        )
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12, $13, $14, $15::jsonb, $16::jsonb, $17)
-       on conflict (user_id, path)
-       do update set
-         type = excluded.type,
-         title = excluded.title,
-         project_slug = excluded.project_slug,
-         workspace_slug = excluded.workspace_slug,
-         folder_id = excluded.folder_id,
-         status = excluded.status,
-         tags = excluded.tags,
-         occurred_at = excluded.occurred_at,
-         source_channel = excluded.source_channel,
-         summary = excluded.summary,
-         markdown_storage_key = excluded.markdown_storage_key,
-         frontmatter = excluded.frontmatter,
-         metadata = excluded.metadata,
-         source = excluded.source,
-         updated_at = now()
       returning *`,
       [input.id || crypto.randomUUID(), userId, ...buildNoteMutableValues(input, markdownStorageKey)]
     );
