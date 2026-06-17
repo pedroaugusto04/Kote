@@ -24,7 +24,9 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence TYPE ask_confidence_enum USING confidence::ask_confidence_enum;`);
   pgm.sql(`ALTER TABLE kb_ask_history ALTER COLUMN confidence SET DEFAULT 'low'::ask_confidence_enum;`);
 
+  pgm.sql(`ALTER TABLE kb_integration_credentials ALTER COLUMN status DROP DEFAULT;`);
   pgm.sql(`ALTER TABLE kb_integration_credentials ALTER COLUMN status TYPE credential_status_enum USING status::credential_status_enum;`);
+  pgm.sql(`ALTER TABLE kb_integration_credentials ALTER COLUMN status SET DEFAULT 'connected'::credential_status_enum;`);
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {
