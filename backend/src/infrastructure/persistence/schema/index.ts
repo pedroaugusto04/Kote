@@ -102,7 +102,6 @@ export const projects = pgTable('kb_projects', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   projectSlug: text('project_slug').notNull(),
   displayName: text('display_name').notNull(),
-  repoFullName: text('repo_full_name').notNull().default(''),
   workspaceSlug: text('workspace_slug').notNull().default(''),
   aliases: jsonb('aliases').notNull().default('[]'),
   defaultTags: jsonb('default_tags').notNull().default('[]'),

@@ -1,6 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import type { PoolClient } from 'pg';
-
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
 import type { ListProjectTimelineInput } from '../../application/models/project-timeline.models.js';
