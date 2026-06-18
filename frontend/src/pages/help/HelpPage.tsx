@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './HelpPage.css';
 
-type SectionId = 'overview' | 'projects' | 'ai-chat' | 'integrations' | 'cli' | 'vscode' | 'reminders' | 'map';
+type SectionId = 'overview' | 'projects' | 'ai-chat' | 'messaging-integrations' | 'github-integration' | 'ai-integrations' | 'webhooks' | 'push-notifications' | 'cli' | 'vscode' | 'reminders' | 'map';
 
 interface HelpItem {
   title: string;
@@ -92,6 +92,7 @@ const sections: HelpSection[] = [
       { title: 'Zero context loss', body: 'Every decision, routine, and exception is recorded. New team members get up to speed in minutes, not weeks.' },
       { title: 'Invisible capture', body: 'Knowledge flows in where work happens: WhatsApp audio messages, Telegram alerts, GitHub pushes, VS Code, and the CLI.' },
       { title: 'AI-powered retrieval', body: 'Ask questions in natural language. The AI answers from your actual project data, not generic internet knowledge.' },
+      { title: 'Full documentation', body: 'For detailed setup guides, API reference, and contribution guidelines, check the complete documentation on GitHub.', tip: 'View the full README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/README.md' },
     ],
   },
   {
@@ -121,11 +122,11 @@ const sections: HelpSection[] = [
     ],
   },
   {
-    id: 'integrations',
-    label: 'Integrations',
+    id: 'messaging-integrations',
+    label: 'Messaging',
     icon: <IconPlug />,
-    title: 'Integrations',
-    description: 'Connect your existing tools so knowledge is captured where work happens — without switching context.',
+    title: 'Messaging Integrations',
+    description: 'Connect WhatsApp and Telegram to capture knowledge where your team communicates — audio messages, alerts, and quick queries.',
     items: [
       {
         title: 'WhatsApp',
@@ -153,6 +154,118 @@ const sections: HelpSection[] = [
     ],
   },
   {
+    id: 'github-integration',
+    label: 'GitHub',
+    icon: <IconGithub />,
+    title: 'GitHub Integration',
+    description: 'Connect GitHub repositories to automatically capture code reviews, push summaries, and technical decisions as notes.',
+    items: [
+      {
+        title: 'GitHub App Installation',
+        body: 'Install the Knowledge Vault GitHub App to enable automatic code review capture on push events.',
+        steps: [
+          'Go to Settings → Integrations → GitHub App',
+          'Click "Connect" to install the GitHub App',
+          'Select your workspace repositories after installation',
+          'Configure the webhook URL if required',
+        ],
+        tip: 'The GitHub App uses signed webhooks for security and generates installation tokens for repository access.',
+      },
+      {
+        title: 'Automatic Code Reviews',
+        body: 'On every push, the system analyzes the changes using AI and creates a structured note with summary, impact, risks, and next steps.',
+        tip: 'Code reviews are tagged with the repository name and automatically linked to the corresponding project.',
+      },
+      {
+        title: 'Repository Selection',
+        body: 'After connecting the GitHub App, select which repositories to monitor. Each repository can be mapped to a specific project.',
+        tip: 'Use the "Repositories" button in the GitHub integration card to manage your selected repositories.',
+      },
+    ],
+  },
+  {
+    id: 'ai-integrations',
+    label: 'AI Providers',
+    icon: <IconBot />,
+    title: 'AI Provider Integrations',
+    description: 'Configure AI providers for code reviews, conversation analysis, and project brief generation.',
+    items: [
+      {
+        title: 'Review AI',
+        body: 'The AI provider used for automatic code review analysis on GitHub pushes. Supports OpenAI, Anthropic, and other compatible providers.',
+        tip: 'Configure the provider, base URL, model, and API key in the server environment variables (KB_REVIEW_AI_*).',
+      },
+      {
+        title: 'Conversation AI',
+        body: 'The AI provider used for conversation extraction and analysis in the Ask AI feature.',
+        tip: 'Configure the provider, base URL, model, and API key in the server environment variables (KB_CONVERSATION_AI_*).',
+      },
+      {
+        title: 'Project Brief AI',
+        body: 'The AI provider used for generating project briefs. Can inherit settings from Conversation AI or use separate configuration.',
+        tip: 'Configure the provider, base URL, model, and API key in the server environment variables (KB_PROJECT_BRIEF_AI_*).',
+      },
+    ],
+  },
+  {
+    id: 'webhooks',
+    label: 'Webhooks',
+    icon: <IconPlug />,
+    title: 'Webhook Endpoints',
+    description: 'Public webhook URLs for external tools to send data directly to your knowledge base.',
+    items: [
+      {
+        title: 'GitHub Push Webhook',
+        body: 'Endpoint for GitHub push events. Configure this URL in your GitHub repository webhook settings.',
+        tip: 'The webhook path is configurable via KB_GITHUB_WEBHOOK_PATH environment variable.',
+      },
+      {
+        title: 'Ingest Webhook',
+        body: 'Generic endpoint for ingesting structured data from external tools like n8n or custom workflows.',
+        tip: 'Use the ingest webhook to send any structured data that matches the ingest payload schema.',
+      },
+      {
+        title: 'WhatsApp Webhook',
+        body: 'Endpoint for Evolution API to send WhatsApp message events and status updates.',
+        tip: 'Configure this URL in your Evolution API instance webhook settings.',
+      },
+      {
+        title: 'Query Webhook',
+        body: 'Endpoint for external systems to query the knowledge base via webhook.',
+        tip: 'Use this for integrations that need to retrieve knowledge without direct API access.',
+      },
+    ],
+  },
+  {
+    id: 'push-notifications',
+    label: 'Push Notifications',
+    icon: <IconBell />,
+    title: 'Push Notifications',
+    description: 'Receive browser push notifications for reminders and important updates.',
+    items: [
+      {
+        title: 'Enabling Push Notifications',
+        body: 'Allow browser notifications when prompted and activate the Push Notifications integration in Settings.',
+        steps: [
+          'Go to Settings → Integrations → Push Notifications',
+          'Click "Connect" to enable push notifications',
+          'Allow browser notifications when prompted',
+        ],
+        tip: 'Push notifications require a service worker and VAPID keys configured on the server.',
+      },
+      {
+        title: 'Reminder Notifications',
+        body: 'Receive push notifications for note reminders at the scheduled time.',
+        tip: 'Push notifications work alongside WhatsApp reminders — you can use both or choose one.',
+      },
+      {
+        title: 'System Notifications',
+        body: 'Receive important system updates and alerts directly in your browser.',
+        tip: 'Keep the push notifications card active to continue receiving updates.',
+      },
+    ],
+  },
+  {
     id: 'cli',
     label: 'CLI Tool',
     icon: <IconTerminal />,
@@ -163,6 +276,7 @@ const sections: HelpSection[] = [
       { title: 'Syncing AI sessions', body: 'Sync AI assistant sessions (Claude Code, Codex, Antigravity, OpenCode) to your knowledge base.', code: 'kb sync-ai' },
       { title: 'Syncing files and directories', body: 'Send individual files or entire directories to the knowledge base.', code: 'kb sync --file ./README.md\nkb sync --dir ./docs' },
       { title: 'Finding your API token', body: 'Go to Profile → CLI & VS Code Connection in the app to generate a unified connection token. This token authenticates both the VS Code extension and CLI.'},
+      { title: 'CLI documentation', body: 'For complete CLI commands, usage examples, and advanced configuration, refer to the CLI documentation on GitHub.', tip: 'View CLI README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/cli/README.md' },
     ],
   },
   {
@@ -185,6 +299,7 @@ const sections: HelpSection[] = [
       { title: 'Saving code snippets', body: 'Select any code → Right-click → "Save to Knowledge Vault". The snippet is stored as a note with file path and language metadata.' },
       { title: 'Quick AI questions', body: 'Use the sidebar chat or Command Palette to ask questions about your knowledge base without switching tabs.' },
       { title: 'Importing AI sessions', body: 'The extension detects AI assistant sessions in your workspace and lets you import them with one click from the sidebar.' },
+      { title: 'Extension documentation', body: 'For detailed extension features, keyboard shortcuts, and configuration options, check the VS Code extension documentation on GitHub.', tip: 'View VS Code extension README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/ide/vscode/README.md' },
     ],
   },
   {
