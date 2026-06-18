@@ -47,10 +47,10 @@ Get instant answers from your team's collective knowledge without searching manu
 
 <p align="center">
   <img src="docs/screenshots/ai-conversation-example.png" alt="AI Conversation" width="80%">
-  <br><em>Real conversation example showing how AI contextualizes responses from your data.</em>
+  <br><em>Example note created from syncing an AI session (Claude Code, Codex, Antigravity, OpenCode) to your knowledge base.</em>
 </p>
 
-Natural language interface makes knowledge accessible to everyone on your team, regardless of their technical background.
+Preserve AI-assisted development sessions as searchable knowledge. The sync-ai feature captures conversations from tools like Claude Code, Codex, Antigravity, OpenCode, and other AI assistants, storing them as structured notes in your vault.
 
 ### Project Management & Notes
 
@@ -114,7 +114,7 @@ Automate knowledge capture from your development workflow. Perfect for CI/CD pip
 
 <p align="center">
   <img src="docs/screenshots/cli-sync-ai-command.png" alt="CLI Sync AI" width="80%">
-  <br><em>Example of syncing AI session history (Claude Code, Codex CLI) to central vault.</em>
+  <br><em>Example of syncing AI session history (Claude Code, Codex, Antigravity, OpenCode) to central vault.</em>
 </p>
 
 Preserve AI-assisted development sessions as searchable knowledge. Never lose valuable insights from your AI interactions.
