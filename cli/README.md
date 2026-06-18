@@ -120,12 +120,12 @@ kb sync-ai --session-path ~/.claude/sessions --project ai-work --watch
 ## Screenshots
 
 <p align="center">
-  <img src="../docs/screenshots/cli-commands.png" alt="CLI Commands" width="80%">
+  <img src="../docs/screenshots/cli-commands.png" alt="CLI Commands" width="100%">
   <br><em>Command-line interface for syncing files and interacting with Knowledge Vault.</em>
 </p>
 
 <p align="center">
-  <img src="../docs/screenshots/cli-sync-ai-command.png" alt="CLI Sync AI" width="80%">
+  <img src="../docs/screenshots/cli-sync-ai-command.png" alt="CLI Sync AI" width="100%">
   <br><em>Example of syncing AI session history to central vault.</em>
 </p>
 

@@ -16,7 +16,7 @@ Integrate your Knowledge Vault directly into VS Code — search, ask AI, save no
 ## Screenshots
 
 <p align="center">
-  <img src="../../docs/screenshots/vscode-extension.png" alt="VS Code Extension" width="80%">
+  <img src="../../docs/screenshots/vscode-extension.png" alt="VS Code Extension" width="100%">
   <br><em>Integrated sidebar with AI chat and quick-save commands for code selections.</em>
 </p>
 
@@ -132,12 +132,6 @@ The extension can automatically sync sessions from:
 - Automatically preserve AI-assisted development sessions
 - Search and reference previous AI conversations
 - Build a searchable history of AI interactions
-
-
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
 
 ## Links
 
