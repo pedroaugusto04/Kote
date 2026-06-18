@@ -421,7 +421,15 @@ export function HelpPage() {
                 {item.tip && (
                   <div className="help-tip">
                     <IconInfo />
-                    <span>{item.tip}</span>
+                    <span>
+                      {item.tip.split(/(https?:\/\/[^\s]+)/).map((part, i) =>
+                        part.match(/^https?:\/\//) ? (
+                          <a key={i} href={part} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--cyan)', textDecoration: 'underline' }}>{part}</a>
+                        ) : (
+                          part
+                        )
+                      )}
+                    </span>
                   </div>
                 )}
               </div>
