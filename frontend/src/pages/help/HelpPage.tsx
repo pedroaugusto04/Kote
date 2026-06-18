@@ -121,8 +121,18 @@ const sections: HelpSection[] = [
     title: 'Integrations',
     description: 'Connect your existing tools so knowledge is captured where work happens — without switching context.',
     items: [
-      { title: 'WhatsApp', body: 'Send audio or text to the Knowledge Vault bot. Audio is transcribed and structured into notes. Use /ask to search directly from the chat.', tip: 'Go to Settings → Integrations → WhatsApp and follow the QR code pairing flow.' },
-      { title: 'Telegram', body: 'Receive pipeline failure alerts, code review summaries, and GitHub push notifications in Telegram.', tip: 'Go to Settings → Integrations → Telegram and paste your bot token.' },
+      {
+        title: 'WhatsApp',
+        body: 'Send audio or text messages to the Knowledge Vault WhatsApp bot — audio is transcribed and structured into notes automatically. Use /ask to search your knowledge base directly from the chat.',
+        code: `/kb connect <token>   ← send this to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
+        tip: 'Go to Settings → Integrations → WhatsApp. A token will be shown — copy the command and send it to the bot number. Click "Open WhatsApp" to open the chat with the message pre-filled.',
+      },
+      {
+        title: 'Telegram',
+        body: 'Receive pipeline failure alerts, code review summaries, and GitHub push notifications directly in Telegram via the Knowledge Vault bot.',
+        code: `/kb connect <token>   ← send this to @${import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot'}`,
+        tip: 'Go to Settings → Integrations → Telegram. A token will be shown — copy the command and send it to the bot. Click "Open Telegram bot" to open the chat directly.',
+      },
       { title: 'GitHub Push', body: 'On every push, the system analyzes commits and diffs with AI, stores summaries, and sends WhatsApp alerts for relevant issues.', code: '# Add webhook in your GitHub repo settings:\n# URL: https://your-app.com/api/github/webhook\n# Content type: application/json\n# Events: Push' },
     ],
   },

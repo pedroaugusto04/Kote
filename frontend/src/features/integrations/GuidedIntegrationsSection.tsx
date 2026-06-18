@@ -72,12 +72,15 @@ function openExternalIntegration(url: string, target: '_self' | '_blank' = '_bla
   window.open(url, target, 'noopener,noreferrer');
 }
 
+const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889';
+const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot';
+
 function buildChatComposeUrl(connection: IntegrationConnectionResponse): string {
   const text = (connection.instruction || '').trim();
   if (!text) return '';
   const encoded = encodeURIComponent(text);
-  if (connection.provider === 'whatsapp') return `https://wa.me/?text=${encoded}`;
-  if (connection.provider === 'telegram') return `https://t.me/share/url?url=&text=${encoded}`;
+  if (connection.provider === 'whatsapp') return `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
+  if (connection.provider === 'telegram') return `https://t.me/${TELEGRAM_BOT_USERNAME}`;
   return '';
 }
 
@@ -146,6 +149,8 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
     }
   }, [currentSession?.status, queryClient, workspaceSlug]);
 
+  const isWhatsApp = connection.provider === 'whatsapp';
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section aria-labelledby="connection-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
@@ -160,26 +165,67 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
           <button aria-label="Close details" className="modal-close" type="button" onClick={onClose}>x</button>
         </div>
 
-        <div className="connection-code" aria-label="Connection code">{connection.verificationCode}</div>
-        <p>Send <strong>{connection.instruction}</strong> in the authorized chat.</p>
-        <div className="integration-actions">
-          {composeUrl ? (
-            <button className="icon-button" type="button" onClick={() => openExternalIntegration(composeUrl)}>
-              {connection.provider === 'telegram' ? 'Open Telegram with message' : 'Open WhatsApp with message'}
-            </button>
-          ) : null}
-          {connection.instruction ? (
-            <button
-              className="filter-chip"
-              type="button"
-              onClick={() => {
-                void navigator.clipboard?.writeText(connection.instruction || '');
-              }}
-            >
-              Copy command
-            </button>
-          ) : null}
-        </div>
+        {isWhatsApp ? (
+          <>
+            <p className="meta" style={{ marginBottom: '8px' }}>Send the command below to the Knowledge Vault WhatsApp bot:</p>
+            <div className="connection-code" aria-label="Connection code">{connection.verificationCode}</div>
+            <p>
+              Send <strong>{connection.instruction}</strong> to{' '}
+              <strong>+{WHATSAPP_NUMBER}</strong>.
+            </p>
+            <div className="integration-actions">
+              {composeUrl ? (
+                <a
+                  className="icon-button"
+                  href={composeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open WhatsApp
+                </a>
+              ) : null}
+              {connection.instruction ? (
+                <button
+                  className="filter-chip"
+                  type="button"
+                  onClick={() => { void navigator.clipboard?.writeText(connection.instruction || ''); }}
+                >
+                  Copy command
+                </button>
+              ) : null}
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="meta" style={{ marginBottom: '8px' }}>Send the command below to the Knowledge Vault Telegram bot:</p>
+            <div className="connection-code" aria-label="Connection code">{connection.verificationCode}</div>
+            <p>
+              Send <strong>{connection.instruction}</strong> to{' '}
+              <strong>@{TELEGRAM_BOT_USERNAME}</strong>.
+            </p>
+            <div className="integration-actions">
+              {composeUrl ? (
+                <a
+                  className="icon-button"
+                  href={composeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open Telegram bot
+                </a>
+              ) : null}
+              {connection.instruction ? (
+                <button
+                  className="filter-chip"
+                  type="button"
+                  onClick={() => { void navigator.clipboard?.writeText(connection.instruction || ''); }}
+                >
+                  Copy command
+                </button>
+              ) : null}
+            </div>
+          </>
+        )}
         {currentSession?.connectedAccount ? <p className="meta">Connected as {currentSession.connectedAccount}</p> : null}
         {currentSession?.lastError ? <InlineMessage tone="error">{currentSession.lastError}</InlineMessage> : null}
       </section>
