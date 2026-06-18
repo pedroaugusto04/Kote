@@ -57,8 +57,6 @@ understands your context and provides relevant responses based on your actual da
   <br><em>Organize notes within projects with clean, structured views.</em>
 </p>
 
-Organize related knowledge in projects. Each project becomes a living documentation hub.
-
 <p align="center">
   <img src="docs/screenshots/note-details-example.png" alt="Note Details" width="80%">
   <br><em>Detailed note view with metadata, tags, and rich content.</em>
@@ -69,16 +67,12 @@ Organize related knowledge in projects. Each project becomes a living documentat
   <br><em>AI-generated summaries of project activity and key decisions.</em>
 </p>
 
-Quickly catch up on project status with AI-generated briefs.
-
 ### Knowledge Map
 
 <p align="center">
   <img src="docs/screenshots/map-overview.png" alt="Knowledge Map" width="80%">
   <br><em>Visual graph showing connections between notes, projects, and topics.</em>
 </p>
-
-Discover relationships and patterns in your knowledge through visual connections.
 
 ### Integrations
 
