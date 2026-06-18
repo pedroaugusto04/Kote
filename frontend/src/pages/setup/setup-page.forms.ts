@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 export const workspaceFormSchema = z.object({
-  displayName: z.string().trim().min(1, 'Informe o nome do workspace.').max(120, 'Use no maximo 120 caracteres.'),
-  workspaceSlug: z.string().trim().min(1, 'Informe o slug do workspace.').max(80, 'Use no maximo 80 caracteres.').regex(/^[a-z0-9._-]+$/, 'Use apenas letras minusculas, numeros, ponto, hifen ou underline.'),
+  displayName: z.string().trim().min(1, 'Workspace name is required.').max(120, 'Maximum length is 120 characters.'),
+  workspaceSlug: z.string().trim().min(1, 'Workspace slug is required.').max(80, 'Maximum length is 80 characters.').regex(/^[a-z0-9._-]+$/, 'Use only lowercase letters, numbers, dots, hyphens, or underscores.'),
 });
 
 export type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>;

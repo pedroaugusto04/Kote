@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 import { ExternalIdentityProvider, IntegrationProvider as IntegrationProviderEnum } from '../../../contracts/enums.js';
 
-const requiredWorkspaceSlugSchema = z.string().trim().min(1, 'Informe o workspace.').max(80, 'Use no maximo 80 caracteres.').regex(/^[a-zA-Z0-9._-]+$/, 'Use apenas letras, numeros, ponto, hifen ou underline.');
-const repoFullNameSchema = z.string().trim().min(1, 'Informe o repositorio.').max(200, 'Use no maximo 200 caracteres.').regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'Use o formato owner/repositorio.');
+const requiredWorkspaceSlugSchema = z.string().trim().min(1, 'Workspace is required.').max(80, 'Maximum length is 80 characters.').regex(/^[a-zA-Z0-9._-]+$/, 'Only letters, numbers, dots, hyphens, and underscores are allowed.');
+const repoFullNameSchema = z.string().trim().min(1, 'Repository is required.').max(200, 'Maximum length is 200 characters.').regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/, 'Use the format owner/repository.');
 export const githubRepositoryInputSchema = z.object({
   id: z.union([z.string(), z.number()]).transform((value) => String(value).trim()),
   fullName: repoFullNameSchema,
@@ -11,7 +11,7 @@ export const githubRepositoryInputSchema = z.object({
 const returnToPathSchema = z.string().trim().optional().transform((value, ctx) => {
   if (!value) return undefined;
   if (!value.startsWith('/') || value.startsWith('//')) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use um caminho relativo de retorno.', path: ['returnToPath'] });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use a relative return path.', path: ['returnToPath'] });
     return z.NEVER;
   }
   try {
@@ -19,7 +19,7 @@ const returnToPathSchema = z.string().trim().optional().transform((value, ctx) =
     if (parsed.origin !== 'https://knowledge-base.local') throw new Error('invalid_origin');
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use um caminho relativo de retorno.', path: ['returnToPath'] });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use a relative return path.', path: ['returnToPath'] });
     return z.NEVER;
   }
 });
@@ -27,7 +27,8 @@ const returnToPathSchema = z.string().trim().optional().transform((value, ctx) =
 const externalIdentitySchema = z.object({
   provider: z.nativeEnum(ExternalIdentityProvider),
   identityType: z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9._-]+$/).optional(),
-  externalId: z.string().trim().min(1).max(180),
+  externalId: z.string().trim().min(1, 'External ID is required.')
+    .max(180, 'Maximum length is 180 characters.'),
 });
 
 export const integrationProviderSchema = z.nativeEnum(IntegrationProviderEnum);
@@ -57,7 +58,7 @@ export const aiProviderParamSchema = z.object({
 export const resolveIntegrationCredentialBodySchema = z
   .object({
     workspaceSlug: requiredWorkspaceSlugSchema.optional(),
-    userId: z.string().uuid().optional(),
+    userId: z.string().uuid('Invalid user ID.').optional(),
     externalIdentity: externalIdentitySchema.optional(),
   })
   .strict()
@@ -86,7 +87,7 @@ export const githubAppCallbackQuerySchema = z.object({
 
 export const sessionParamSchema = z.object({
   provider: guidedIntegrationProviderSchema,
-  sessionId: z.string().uuid(),
+  sessionId: z.string().uuid('Invalid session ID.'),
 });
 
 export const githubRepositoriesBodySchema = z

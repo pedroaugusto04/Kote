@@ -22,7 +22,7 @@ export class CreateProjectFolderUseCase {
     if (folders.some((folder) => folder.parentFolderId === (parentFolder?.id || null) && folder.folderSlug === folderSlug)) {
       throw new ConflictException({
         code: 'folder_slug_already_exists',
-        details: { fieldErrors: { displayName: 'Ja existe uma pasta com esse nome neste nivel.' } },
+        details: { fieldErrors: { displayName: 'A folder with this name already exists at this level.' } },
       });
     }
 

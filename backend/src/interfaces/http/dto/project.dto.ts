@@ -12,10 +12,10 @@ import {
 
 export const createProjectBodySchema = z
   .object({
-    displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
-    projectSlug: z.string().trim().max(80, 'Use no maximo 80 caracteres.').optional(),
+    displayName: z.string().trim().min(1, 'Project name is required.').max(120, 'Maximum length is 120 characters.'),
+    projectSlug: z.string().trim().max(80, 'Maximum length is 80 characters.').optional(),
     repositoryIds: repositoryIdsSchema,
-    defaultTags: optionalStringArraySchema(60, 'Use no maximo 60 caracteres.'),
+    defaultTags: optionalStringArraySchema(60, 'Maximum length is 60 characters.'),
   })
   .strict()
   .transform((body) => {
@@ -48,9 +48,9 @@ export const projectKnowledgeMapQuerySchema = z.object({
 
 export const updateProjectBodySchema = z
   .object({
-    displayName: z.string().trim().min(1, 'Informe o nome do projeto.').max(120, 'Use no maximo 120 caracteres.'),
+    displayName: z.string().trim().min(1, 'Project name is required.').max(120, 'Maximum length is 120 characters.'),
     repositoryIds: repositoryIdsSchema,
-    defaultTags: optionalStringArraySchema(60, 'Use no maximo 60 caracteres.'),
+    defaultTags: optionalStringArraySchema(60, 'Maximum length is 60 characters.'),
   })
   .strict()
   .transform((body) => ({
@@ -71,7 +71,7 @@ export const projectFolderIdParamSchema = z.object({
 
 export const createProjectFolderBodySchema = z
   .object({
-    displayName: z.string().trim().min(1, 'Informe o nome da pasta.').max(120, 'Use no maximo 120 caracteres.'),
+    displayName: z.string().trim().min(1, 'Folder name is required.').max(120, 'Maximum length is 120 characters.'),
     parentFolderId: z.string().trim().optional().default(''),
   })
   .strict()
