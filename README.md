@@ -17,12 +17,19 @@
 ## Core Features
 
 * **GitHub Push Integration:** Capture `git push` events, analyze commits/diffs with AI, and automatically send technical summaries to your knowledge base and team channels.
+  
 * **WhatsApp Integration:** Send audio or text messages to generate AI-structured notes, use `/ask` to search for information and inserted files, and receive automatic reminders directly in WhatsApp.
+  
 * **Telegram Integration:** Get pipeline failure alerts, review summaries, and interact directly with the bot for quick knowledge capture.
+  
 * **AI-Powered Conversations:** Integrated chat interface to ask questions about your knowledge base with project filters and conversation history.
+  
 * **CLI Tool:** Command-line interface for syncing local files and AI session histories directly from your terminal.
+  
 * **VS Code Extension:** Complete Knowledge Vault integration with sidebar chat, quick shortcuts, and direct code/file saving from your editor.
+  
 * **Contextual Search:** Find answers instantly across your entire organizational history.
+  
 * **Project Briefs:** AI-generated operational technical summaries from the latest project items.
 
 ---
