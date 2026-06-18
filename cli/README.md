@@ -24,6 +24,7 @@ npm install -g @pedroaugusto04/kb-cli
 
 ```bash
 kb
+help
 # or use
 kb --help
 ```
