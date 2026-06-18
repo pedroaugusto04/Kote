@@ -137,6 +137,7 @@ const sections: HelpSection[] = [
           'Click "Open WhatsApp" to open the chat with the message pre-filled',
         ],
         code: `/kb connect <token>   ← send this to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
+        tip: 'You can also send documents, images, and other files directly to the WhatsApp bot — they will be attached to the created note. Use /ask to ask questions and retrieve files from your knowledge base.',
       },
       {
         title: 'Telegram',
