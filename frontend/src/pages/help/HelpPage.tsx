@@ -202,7 +202,7 @@ const sections: HelpSection[] = [
       {
         title: 'Setting a reminder via WhatsApp',
         body: 'You can create a reminder directly from WhatsApp — just like saving a regular note, but including the day and time for the reminder. Send a message to the Knowledge Vault bot specifying the reminder schedule.',
-        code: 'Lembrar de revisar o PR do Lucas amanhã às 10h\n\nReunião com o time de produto na sexta às 14:30\n\nMe lembra de atualizar a doc da API dia 20/06 às 09:00',
+        code: 'Remind me to review Lucas\'s PR tomorrow at 10am\n\nTeam meeting with product on Friday at 2:30pm\n\nRemind me to update the API docs on June 20th at 9:00am',
         tip: 'It works just like saving a regular note via WhatsApp. Include the day and time in your message and the system will automatically detect and schedule it as a reminder.',
       },
       { title: 'Viewing reminders', body: 'Navigate to "Reminders" in the sidebar to see all upcoming reminders across your projects, sorted by due date.' },
