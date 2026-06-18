@@ -172,7 +172,3 @@ You can also use environment variables:
 - [Main Project Documentation](../README.md)
 - [VS Code Extension](../ide/vscode/README.md)
 - [Knowledge Vault Repository](https://github.com/pedroaugusto04/knowledge-base)
-
-## License
-
-MIT
