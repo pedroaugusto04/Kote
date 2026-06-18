@@ -2,10 +2,6 @@
 
 **Knowledge Vault** centralizes your team's operational knowledge and decisions in one place, preventing knowledge fragmentation and accelerating the integration of new team members into your workflow.
 
-## License
-
-See [LICENSE](LICENSE) for terms of use.
-
 ![Home Overview](docs/screenshots/home-overview.png)
 
 ---
@@ -21,6 +17,8 @@ See [LICENSE](LICENSE) for terms of use.
 ## Core Features
 
 * **GitHub Push Integration:** Capture `git push` events, analyze commits/diffs with AI, and automatically send technical summaries to your knowledge base and team channels.
+* **WhatsApp Integration:** Send audio or text messages to generate AI-structured notes, use `/ask` to search for information and inserted files, and receive automatic reminders directly in WhatsApp.
+* **Telegram Integration:** Get pipeline failure alerts, review summaries, and interact directly with the bot for quick knowledge capture.
 * **AI-Powered Conversations:** Integrated chat interface to ask questions about your knowledge base with project filters and conversation history.
 * **CLI Tool:** Command-line interface for syncing local files and AI session histories directly from your terminal.
 * **VS Code Extension:** Complete Knowledge Vault integration with sidebar chat, quick shortcuts, and direct code/file saving from your editor.
@@ -37,7 +35,7 @@ Capture knowledge automatically as you code. When you push to GitHub, Knowledge 
 
 * **Automatic Capture:** No manual documentation required—knowledge is captured as part of your existing workflow
 * **AI Analysis:** Commits and diffs are analyzed to extract key decisions and technical context
-* **Team Visibility:** Summaries are sent to your team channels (Telegram) and stored in your knowledge base
+* **Team Visibility:** Summaries are stored in your knowledge base. Alerts are sent to WhatsApp only when relevant problems are detected
 * **Searchable History:** Every push becomes part of your searchable organizational memory
 
 ### AI-Powered Conversations
@@ -99,7 +97,7 @@ Capture knowledge where your team already works without changing habits. Connect
 
 * **WhatsApp:** Send audio or text messages to generate AI-structured notes. Receive automatic reminders integrated via WhatsApp.
 * **Telegram:** Get pipeline failure alerts, review summaries, and interact directly with the bot.
-* **GitHub Push:** Capture `git push` events, analyze commits/diffs with AI, and send accessible technical summaries to your Telegram channel and knowledge base.
+* **GitHub Push:** Capture `git push` events, analyze commits/diffs with AI, and store summaries in your knowledge base. Alerts are sent to WhatsApp only when relevant problems are detected.
 
 ---
 
@@ -163,4 +161,8 @@ Save code snippets and get AI help without leaving your editor. The extension br
 **Installation:** Search for "Knowledge Vault" in the VS Code Extension Marketplace.
 
 For complete extension documentation, see [ide/vscode/README.md](ide/vscode/README.md).
+
+## License
+
+See [LICENSE](LICENSE) for terms of use.
 
