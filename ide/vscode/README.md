@@ -2,9 +2,7 @@
 
 Integrate your Knowledge Vault directly into VS Code — search, ask AI, save notes without leaving your editor.
 
-![Version](https://img.shields.io/visual-studio-marketplace/v/knowledge-base-vscode?color=blue&logo=visual-studio-code)
-![Installs](https://img.shields.io/visual-studio-marketplace/i/knowledge-base-vscode?color=green&logo=visual-studio-code)
-![Rating](https://img.shields.io/visual-studio-marketplace/stars/knowledge-base-vscode?color=yellow&logo=visual-studio-code)
+[![Visual Studio Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=knowledge-base.knowledge-base-vscode)
 
 ## Features
 
