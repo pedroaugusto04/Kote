@@ -833,7 +833,7 @@ describe('AppShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(await screen.findByLabelText('Connection code')).toHaveTextContent('ABC123');
-    expect(await screen.findByText('/kb connect ABC123')).toBeInTheDocument();
+    expect(await screen.findByText(/Send \/kb connect ABC123 to/)).toBeInTheDocument();
   });
 
   it('redirects authenticated users without workspace to the setup wizard', async () => {
