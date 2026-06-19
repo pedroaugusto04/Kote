@@ -38,6 +38,35 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
+// Listen for keyboard shortcut commands
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'quick-clip-page') {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab || !tab.id) return;
+      if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('edge://')) {
+        showNotification('Error', 'Browser settings pages cannot be clipped.');
+        return;
+      }
+
+      // Extract content-extractor results
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        files: ['content-extractor.js'],
+      });
+      const result = (results?.[0] as any)?.result;
+
+      if (result && result.success && result.result) {
+        await saveClippedNote(result.result, ['quick-clip']);
+      } else {
+        showNotification('Error', result?.error || 'Failed to extract page content.');
+      }
+    } catch (err: any) {
+      showNotification('Error', err.message || 'Failed to quick clip page.');
+    }
+  }
+});
+
 // Listen for messages from popup or other scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SAVE_CLIP') {

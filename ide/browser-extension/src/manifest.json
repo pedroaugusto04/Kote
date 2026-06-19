@@ -20,5 +20,21 @@
   "action": {
     "default_popup": "popup.html",
     "default_title": "Knowledge Base Clipper"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "MacCtrl+Shift+Y"
+      },
+      "description": "Open Knowledge Base Clipper popup"
+    },
+    "quick-clip-page": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+H",
+        "mac": "MacCtrl+Shift+H"
+      },
+      "description": "Quick clip full page to Knowledge Base"
+    }
   }
 }
