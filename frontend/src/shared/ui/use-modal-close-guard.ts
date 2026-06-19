@@ -1,4 +1,5 @@
 import { useCallback, useState, useEffect } from 'react';
+import { KEYBOARD_KEYS } from '../constants/keyboard.constants';
 
 export const discardChangesConfirmationCopy = {
   cancelLabel: 'Keep editing',
@@ -34,7 +35,7 @@ export function useModalCloseGuard({ isDirty, onClose }: { isDirty: boolean; onC
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === KEYBOARD_KEYS.ESCAPE) {
         if (isDiscardConfirmationOpen) {
           event.preventDefault();
           cancelClose();

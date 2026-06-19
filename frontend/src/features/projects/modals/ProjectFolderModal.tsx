@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { createProjectFolder, updateProjectFolder } from '../../../shared/api/client';
+import { UI_MESSAGES } from '../../../shared/constants/ui.constants';
 import type { ProjectFolder } from '../../../shared/api/models/project-folder';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
 import { FormActions, FormField } from '../../../shared/forms/fields';
@@ -83,10 +84,10 @@ export function ProjectFolderModal({
         <section aria-labelledby="folder-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
-              <h2 id="folder-modal-title">{mode === 'create' ? 'New folder' : 'Edit folder'}</h2>
+              <h2 id="folder-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_FOLDER : UI_MESSAGES.EDIT_FOLDER}</h2>
               <p>{projectSlug}</p>
             </div>
-            <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
+            <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
           <form
             className="auth-form"

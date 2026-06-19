@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { formatDisplayToken, reminderInputDate, reminderInputTime } from '../../../shared/utils/format';
+import { UI_MESSAGES } from '../../../shared/constants/ui.constants';
 import { createNote, updateNote, fetchProjectFolders } from '../../../shared/api/client';
 import type { NoteDetail } from '../../../shared/api/models/note';
 import type { Project } from '../../../shared/api/models/project';
@@ -117,10 +118,10 @@ export function ProjectNoteModal({
         <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
-              <h2 id="note-modal-title">{mode === 'create' ? 'New note' : 'Edit note'}</h2>
+              <h2 id="note-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_NOTE : UI_MESSAGES.EDIT_NOTE}</h2>
               {!(mode === 'create' && projects && projects.length > 0) && <p>{selectedProjectSlug}</p>}
             </div>
-            <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
+            <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
           <form
             className="auth-form"

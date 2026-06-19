@@ -1,4 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { KEYBOARD_KEYS } from '../constants/keyboard.constants';
+import { UI_MESSAGES } from '../constants/ui.constants';
 
 export type SelectOption = {
   value: string;
@@ -50,8 +52,8 @@ export function Select({
   onBlur?: () => void;
 }) {
   const reactId = useId();
-  const resolvedId = id || `kb-select-${reactId}`;
-  const listboxId = `${resolvedId}-listbox`;
+  const resolvedId = id || `${UI_MESSAGES.SELECT_PREFIX}-${reactId}`;
+  const listboxId = `${resolvedId}${UI_MESSAGES.LISTBOX_SUFFIX}`;
   const rootRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const widestOption = useMemo(
@@ -96,7 +98,7 @@ export function Select({
       }
     };
     const handleEscape = (event: globalThis.KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === KEYBOARD_KEYS.ESCAPE) {
         setIsOpen(false);
       }
     };
@@ -115,7 +117,7 @@ export function Select({
 
   const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
     if (disabled) return;
-    if (!isOpen && (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Enter' || event.key === ' ')) {
+    if (!isOpen && (event.key === KEYBOARD_KEYS.ARROW_DOWN || event.key === KEYBOARD_KEYS.ARROW_UP || event.key === KEYBOARD_KEYS.ENTER || event.key === KEYBOARD_KEYS.SPACE)) {
       event.preventDefault();
       setIsOpen(true);
       const initialIndex = selectedIndex >= 0 ? selectedIndex : firstEnabledOptionIndex(options);
@@ -123,34 +125,34 @@ export function Select({
       return;
     }
     if (!isOpen) return;
-    if (event.key === 'ArrowDown') {
+    if (event.key === KEYBOARD_KEYS.ARROW_DOWN) {
       event.preventDefault();
       setActiveIndex((current) => nextEnabledOptionIndex(options, current < 0 ? 0 : current, 1));
       return;
     }
-    if (event.key === 'ArrowUp') {
+    if (event.key === KEYBOARD_KEYS.ARROW_UP) {
       event.preventDefault();
       setActiveIndex((current) => nextEnabledOptionIndex(options, current < 0 ? 0 : current, -1));
       return;
     }
-    if (event.key === 'Home') {
+    if (event.key === KEYBOARD_KEYS.HOME) {
       event.preventDefault();
       setActiveIndex(firstEnabledOptionIndex(options));
       return;
     }
-    if (event.key === 'End') {
+    if (event.key === KEYBOARD_KEYS.END) {
       event.preventDefault();
       setActiveIndex(nextEnabledOptionIndex(options, 0, -1));
       return;
     }
-    if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === KEYBOARD_KEYS.ENTER || event.key === KEYBOARD_KEYS.SPACE) {
       event.preventDefault();
       if (activeIndex >= 0 && !options[activeIndex]?.disabled) {
         commitSelection(options[activeIndex].value);
       }
       return;
     }
-    if (event.key === 'Tab') {
+    if (event.key === KEYBOARD_KEYS.TAB) {
       setIsOpen(false);
     }
   };

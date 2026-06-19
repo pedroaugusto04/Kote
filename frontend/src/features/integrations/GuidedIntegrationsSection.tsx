@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 
 import { formatDisplayToken } from '../../shared/utils/format';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import {
   connectIntegration,
   fetchGithubRepositories,
@@ -162,7 +163,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
               {currentSession ? <Badge value={formatDisplayToken(currentSession.status)} tone={statusTone[currentSession.status] || 'medium'} /> : null}
             </div>
           </div>
-          <button aria-label="Close details" className="modal-close" type="button" onClick={onClose}>x</button>
+          <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={onClose}>x</button>
         </div>
 
         {isWhatsApp ? (
@@ -298,12 +299,12 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
         <div className="modal-head">
           <div>
             <div className="card-kicker">github-app</div>
-            <h2 id="github-repositories-title">Select repositories</h2>
+            <h2 id="github-repositories-title">{UI_MESSAGES.SELECT_REPOSITORIES}</h2>
           </div>
           <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
         </div>
 
-        {repositoriesQuery.isLoading ? <p className="meta">Loading repositories...</p> : null}
+        {repositoriesQuery.isLoading ? <p className="meta">{UI_MESSAGES.LOADING_REPOSITORIES}</p> : null}
         {repositoriesQuery.isError ? <InlineMessage tone="error">{getErrorMessage(repositoriesQuery.error, 'Could not load repositories.')}</InlineMessage> : null}
         <form
           className="auth-form"

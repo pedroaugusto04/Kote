@@ -7,6 +7,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
 import { routes } from '../../app/routing/routes';
 import { Panel } from '../../shared/ui/primitives';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 
 /** localStorage key for onboarding state. */
 const STORAGE_KEY = 'kb-onboarding-checklist';
@@ -236,10 +237,10 @@ export function OnboardingChecklist({
     : 0;
 
   return (
-    <Panel className="onboarding-checklist" id="onboarding-checklist" aria-label="Getting started checklist">
+    <Panel className="onboarding-checklist" id="onboarding-checklist" aria-label={`${UI_MESSAGES.GETTING_STARTED} checklist`}>
       <div className="onboarding-checklist-head">
         <div>
-          <h2>Getting Started</h2>
+          <h2>{UI_MESSAGES.GETTING_STARTED}</h2>
           <p className="meta">Complete these steps to unlock the full potential of your workspace.</p>
         </div>
         <div className="onboarding-checklist-progress">

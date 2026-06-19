@@ -71,6 +71,67 @@ export const UI_MESSAGES = {
   UNPIN: 'Unpin',
   PINNED: 'Pinned',
   PINNED_NOTE: 'Pinned Note',
+
+  // App shell and navigation labels
+  NOTE_DETAILS: 'Note details',
+  DOCUMENTATION: 'Documentation',
+  KNOWLEDGE_VAULT: 'Knowledge Vault',
+  DEVELOPER_KNOWLEDGE_BASE: 'developer knowledge base',
+  WORKSPACE: 'Workspace',
+  SEARCH_NOTES_PATHS_OR_TAGS: 'Search notes, paths, or tags',
+  SEARCHING: 'Searching...',
+  NO_NOTES_FOUND: 'No notes found',
+  USER_MENU: 'User menu',
+  LOADING_USER: 'Loading user...',
+  LOADING_EMAIL: 'Loading email...',
+  MY_PROFILE: 'My Profile',
+  INTEGRATIONS: 'Integrations',
+  SIGN_OUT: 'Sign out',
+  COULD_NOT_OPEN_NOTE: 'Could not open the note.',
+  KNOWLEDGE_MAP: 'Knowledge Map',
+  SETTINGS: 'Settings',
+  NOTE: 'Note',
+  SEARCH: 'Search',
+  KANBAN: 'Kanban',
+  REMINDERS: 'Reminders',
+  PROFILE: 'Profile',
+  HOME: 'Home',
+  CLOSE_NAVIGATION: 'Close navigation',
+  VAULT_NAVIGATION: 'Vault navigation',
+  MENU: 'menu',
+  UNSTAR: 'Unstar',
+  STAR: 'Star',
+  DEFAULT_PROJECT_SLUG: 'inbox',
+
+  // ARIA labels
+  GO_TO_HOME: 'Go to Home',
+  MAIN_SECTIONS: 'Main sections',
+  CURRENT_WORKSPACE: 'Current workspace:',
+  CLOSE_DETAILS: 'Close details',
+  BREADCRUMBS: 'Breadcrumbs',
+
+  // Modal labels
+  CONFIRM: 'Confirm',
+
+  // ID prefixes
+  SELECT_PREFIX: 'kb-select',
+  LISTBOX_SUFFIX: '-listbox',
+
+  // Common labels
+  EDIT_NOTE: 'Edit note',
+  EDIT_FOLDER: 'Edit folder',
+  EDIT_PROJECT: 'Edit project',
+  PROJECT_BRIEF: 'Project brief',
+  PROJECT_ACTIONS: 'Project actions',
+  RELATED_NOTES: 'Related notes',
+  GETTING_STARTED: 'Getting Started',
+  SELECT_REPOSITORIES: 'Select repositories',
+  LOADING_REPOSITORIES: 'Loading repositories...',
+  ASK_ANYTHING: 'Ask anything about your notes...',
+  ASKING: 'Asking...',
+  PRODUCTION_WEBHOOK: 'Production webhook',
+  EXAMPLE_WEBHOOK_URL: 'https://example.com/webhook',
+  MY_WORKSPACE: 'My Workspace',
 } as const;
 
 export type UIMessageKey = keyof typeof UI_MESSAGES;

@@ -2,6 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useMemo, useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
+import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
@@ -226,7 +227,7 @@ function KanbanCard({
       role="button"
       tabIndex={0}
       onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
+        if (event.key === KEYBOARD_KEYS.ENTER || event.key === KEYBOARD_KEYS.SPACE) {
           event.preventDefault();
           onOpen(card.id);
         }

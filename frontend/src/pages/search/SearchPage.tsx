@@ -2,6 +2,8 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryR
 import { useState, useRef } from 'react';
 
 import type { PageContext } from '../../app/page-context';
+import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import {
   fetchAskHistory,
   fetchLatestProjectBrief,
@@ -181,15 +183,15 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                   value={questionInput}
                   onChange={(event) => setQuestionInput(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
+                    if (event.key === KEYBOARD_KEYS.ENTER) {
                       event.preventDefault();
                       handleAsk();
                     }
                   }}
-                  placeholder="Ask anything about your notes..."
+                  placeholder={UI_MESSAGES.ASK_ANYTHING}
                 />
                 <button className="icon-button ask-ai-send-btn" disabled={isAsking} type="button" onClick={() => handleAsk()}>
-                  {isAsking ? 'Asking...' : 'Ask'}
+                  {isAsking ? UI_MESSAGES.ASKING : 'Ask'}
                 </button>
                 <button
                   aria-expanded={showHistory}

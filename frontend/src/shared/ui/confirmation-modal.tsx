@@ -1,9 +1,11 @@
 import { useId, useEffect } from 'react';
+import { KEYBOARD_KEYS } from '../constants/keyboard.constants';
+import { UI_MESSAGES } from '../constants/ui.constants';
 
 export function ConfirmationModal({
   busy = false,
-  cancelLabel = 'Cancelar',
-  confirmLabel = 'Confirmar',
+  cancelLabel = UI_MESSAGES.CANCEL,
+  confirmLabel = UI_MESSAGES.CONFIRM,
   description,
   onCancel,
   onConfirm,
@@ -23,7 +25,7 @@ export function ConfirmationModal({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === KEYBOARD_KEYS.ESCAPE) {
         event.preventDefault();
         onCancel();
       }
@@ -49,7 +51,7 @@ export function ConfirmationModal({
             <h2 id={titleId}>{title}</h2>
             <p>{description}</p>
           </div>
-          <button aria-label="Close details" className="modal-close" type="button" onClick={onCancel}>x</button>
+          <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={onCancel}>x</button>
         </div>
         <div className="form-actions">
           <button className="filter-chip" type="button" onClick={onCancel}>

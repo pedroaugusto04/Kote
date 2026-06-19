@@ -29,6 +29,8 @@ import type { ConfirmState, NoteModalState } from '../features/projects/projects
 import { notifyGeneralFormError } from '../shared/forms/errors';
 import { ConfirmationModal } from '../shared/ui/confirmation-modal';
 import { QUERY_KEYS } from '../shared/constants/query-keys.constants';
+import { UI_MESSAGES } from '../shared/constants/ui.constants';
+import { KEYBOARD_KEYS } from '../shared/constants/keyboard.constants';
 import { notifySuccess } from '../shared/ui/notifications';
 import { UserAvatar } from '../shared/ui/user-avatar';
 import { BrandMark } from '../shared/ui/brand-mark';
@@ -41,15 +43,15 @@ import { Line, LineChart, ResponsiveContainer } from 'recharts';
 
 
 function activeView(pathname: string): View {
-  if (pathname.startsWith('/map')) return 'map';
-  if (pathname.startsWith('/projects')) return 'projects';
-  if (pathname.startsWith('/vault')) return 'note';
-  if (pathname.startsWith('/search')) return 'search';
-  if (pathname.startsWith('/kanban')) return 'kanban';
-  if (pathname.startsWith('/reminders')) return 'reminders';
-  if (pathname.startsWith('/profile')) return 'profile';
-  if (pathname.startsWith('/settings/integrations')) return 'integrations';
-  if (pathname.startsWith('/help')) return 'help';
+  if (pathname.startsWith(routes.map)) return 'map';
+  if (pathname.startsWith(routes.projects)) return 'projects';
+  if (pathname.startsWith(routes.vault)) return 'note';
+  if (pathname.startsWith(routes.search)) return 'search';
+  if (pathname.startsWith(routes.kanban)) return 'kanban';
+  if (pathname.startsWith(routes.reminders)) return 'reminders';
+  if (pathname.startsWith(routes.profile)) return 'profile';
+  if (pathname.startsWith(routes.integrations)) return 'integrations';
+  if (pathname.startsWith(routes.help)) return 'help';
   return 'home';
 }
 
@@ -87,9 +89,9 @@ export function AppShell() {
   const commandBarRef = useRef<HTMLDivElement>(null);
 
   const view = activeView(location.pathname);
-  const routeProject = routeParam(location.pathname, '/projects/');
+  const routeProject = routeParam(location.pathname, `${routes.projects}/`);
   const isProjectsRoot = location.pathname === routes.projects;
-  const routeNoteId = routeParam(location.pathname, '/vault/');
+  const routeNoteId = routeParam(location.pathname, `${routes.vault}/`);
   const activeWorkspace = dashboard?.workspaces[0] || null;
   const workspaceSlug = activeWorkspace?.workspaceSlug || '';
   const isSetupRoute = location.pathname.startsWith(routes.setup);
@@ -106,14 +108,14 @@ export function AppShell() {
   const isSearching = searchQuery.isLoading || searchQuery.isFetching || (searchValue.trim() !== debouncedSearchValue.trim());
   const activeNavItem = navItems.find((item) => item.view === view);
   const topbarTitle = view === 'note'
-    ? 'Note details'
+    ? UI_MESSAGES.NOTE_DETAILS
     : view === 'profile'
-      ? 'Profile'
+      ? UI_MESSAGES.PROFILE
       : view === 'integrations'
-        ? 'Integrations'
+        ? UI_MESSAGES.INTEGRATIONS
         : view === 'help'
-          ? 'Documentation'
-          : activeNavItem?.label || 'Home';
+          ? UI_MESSAGES.DOCUMENTATION
+          : activeNavItem?.label || UI_MESSAGES.HOME;
   const routeNoteQuery = useQuery(noteDetailQueryOptions(routeNoteId));
   const cachedRouteNote = getCachedNoteDetail(queryClient, routeNoteId);
   const activeRouteNote = routeNoteQuery.data || cachedRouteNote;
@@ -166,7 +168,7 @@ export function AppShell() {
     if (!isProfileMenuOpen) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsProfileMenuOpen(false);
+      if (event.key === KEYBOARD_KEYS.ESCAPE) setIsProfileMenuOpen(false);
     };
 
     window.addEventListener('keydown', onKeyDown);
@@ -188,7 +190,7 @@ export function AppShell() {
   const loadNoteMutation = useMutation({
     mutationFn: (id: string) => globalLoading.trackPromise(fetchNote(id)),
     onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
-    onError: (error) => notifyGeneralFormError(error, 'Could not load the note for editing.'),
+    onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_LOAD_NOTE_FOR_EDITING),
   });
   const deleteNoteMutation = useMutation({
     mutationFn: (id: string) => globalLoading.trackPromise(deleteNote(id)),
@@ -198,10 +200,10 @@ export function AppShell() {
       if (routeNoteId === noteId) {
         navigate(routes.vault);
       }
-      notifySuccess('Note deleted successfully.');
+      notifySuccess(UI_MESSAGES.NOTE_DELETED);
       await refreshDashboard(queryClient);
     },
-    onError: (error) => notifyGeneralFormError(error, 'Could not delete the note.'),
+    onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_DELETE_NOTE),
   });
   const toggleFavoriteMutation = useMutation({
     mutationFn: ({ slug, favorite }: { slug: string; favorite: boolean }) =>
@@ -214,7 +216,7 @@ export function AppShell() {
 
     const originalOverflow = document.body.style.overflow;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setIsMobileNavOpen(false);
+      if (event.key === KEYBOARD_KEYS.ESCAPE) setIsMobileNavOpen(false);
     };
 
     document.body.style.overflow = 'hidden';
@@ -251,14 +253,14 @@ export function AppShell() {
           setSelectedNoteId(id);
           navigate(routes.note(id));
         }).catch((error) => {
-          notifyGeneralFormError(error, 'Could not open the note.');
+          notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_OPEN_NOTE);
         });
       },
       editNote: (noteId: string) => {
         loadNoteMutation.mutate(noteId);
       },
       createNote: (projectSlug?: string) => {
-        const slug = projectSlug || currentProject || dashboard.projects[0]?.projectSlug || 'inbox';
+        const slug = projectSlug || currentProject || dashboard.projects[0]?.projectSlug || UI_MESSAGES.DEFAULT_PROJECT_SLUG;
         setNoteModal({ mode: 'create', projectSlug: slug });
       },
       deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => {
@@ -292,21 +294,21 @@ export function AppShell() {
 
   const handleSearchKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     const matches = searchQuery.data?.matches || [];
-    if (event.key === 'ArrowDown') {
+    if (event.key === KEYBOARD_KEYS.ARROW_DOWN) {
       event.preventDefault();
       if (!isPopoverOpen) {
         setIsPopoverOpen(true);
         return;
       }
       setFocusedIndex((prev) => (prev + 1 < matches.length ? prev + 1 : 0));
-    } else if (event.key === 'ArrowUp') {
+    } else if (event.key === KEYBOARD_KEYS.ARROW_UP) {
       event.preventDefault();
       if (!isPopoverOpen) {
         setIsPopoverOpen(true);
         return;
       }
       setFocusedIndex((prev) => (prev - 1 >= 0 ? prev - 1 : matches.length - 1));
-    } else if (event.key === 'Enter') {
+    } else if (event.key === KEYBOARD_KEYS.ENTER) {
       if (isPopoverOpen && focusedIndex >= 0 && focusedIndex < matches.length) {
         event.preventDefault();
         const selectedMatch = matches[focusedIndex];
@@ -324,7 +326,7 @@ export function AppShell() {
           setFocusedIndex(-1);
         }
       }
-    } else if (event.key === 'Escape') {
+    } else if (event.key === KEYBOARD_KEYS.ESCAPE) {
       event.preventDefault();
       setIsPopoverOpen(false);
       setFocusedIndex(-1);
@@ -336,22 +338,22 @@ export function AppShell() {
     <div className="app-shell">
       <OfflineBanner />
       <button
-        aria-label="Close navigation"
+        aria-label={UI_MESSAGES.CLOSE_NAVIGATION}
         aria-hidden={!isMobileNavOpen}
         className={`mobile-nav-backdrop ${isMobileNavOpen ? 'visible' : ''}`}
         onClick={() => setIsMobileNavOpen(false)}
         tabIndex={isMobileNavOpen ? 0 : -1}
         type="button"
       />
-      <aside className={`sidebar ${isMobileNavOpen ? 'open' : ''}`} aria-label="Vault navigation" id="app-sidebar">
-        <Link className="brand" to={routes.home} aria-label="Go to Home">
+      <aside className={`sidebar ${isMobileNavOpen ? 'open' : ''}`} aria-label={UI_MESSAGES.VAULT_NAVIGATION} id="app-sidebar">
+        <Link className="brand" to={routes.home} aria-label={UI_MESSAGES.GO_TO_HOME}>
           <BrandMark />
           <div>
-            <strong>Knowledge Vault</strong>
-            <span>developer knowledge base</span>
+            <strong>{UI_MESSAGES.KNOWLEDGE_VAULT}</strong>
+            <span>{UI_MESSAGES.DEVELOPER_KNOWLEDGE_BASE}</span>
           </div>
         </Link>
-        <nav className="main-nav" aria-label="Main sections">
+        <nav className="main-nav" aria-label={UI_MESSAGES.MAIN_SECTIONS}>
           {navItems.map((item) => (
             <NavLink
               className={({ isActive }) => `nav-item ${isActive || view === item.view ? 'active' : ''}`}
@@ -365,8 +367,8 @@ export function AppShell() {
           ))}
         </nav>
         <section className="sidebar-section">
-          <div className="section-label">Workspace</div>
-          <div className="workspace-pill workspace-pill-static" aria-label={`Current workspace: ${activeWorkspace.workspaceSlug}`} role="status">
+          <div className="section-label">{UI_MESSAGES.WORKSPACE}</div>
+          <div className="workspace-pill workspace-pill-static" aria-label={`${UI_MESSAGES.CURRENT_WORKSPACE} ${activeWorkspace.workspaceSlug}`} role="status">
             <span className="status-dot" />
             <span className="workspace-pill-copy">
               <strong>{activeWorkspace.displayName}</strong>
@@ -375,7 +377,7 @@ export function AppShell() {
           </div>
         </section>
         <section className="sidebar-section">
-          <div className="section-label">Projects</div>
+          <div className="section-label">{UI_MESSAGES.PROJECTS}</div>
           <div className="tree">
             {dashboard.projects.map((project) => (
               <div className="tree-item-row" key={project.projectSlug}>
@@ -406,7 +408,7 @@ export function AppShell() {
                   )}
                 </button>
                 <button
-                  aria-label={project.favorite ? 'Unstar' : 'Star'}
+                  aria-label={project.favorite ? UI_MESSAGES.UNSTAR : UI_MESSAGES.STAR}
                   className={`favorite-star ${project.favorite ? 'active' : ''}`}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -427,7 +429,7 @@ export function AppShell() {
         <header className="topbar">
           <div className="topbar-leading">
             <button
-              aria-label="menu"
+              aria-label={UI_MESSAGES.MENU}
               aria-controls="app-sidebar"
               aria-expanded={isMobileNavOpen}
               className="mobile-nav-toggle"
@@ -448,7 +450,7 @@ export function AppShell() {
               <span>&gt;_</span>
               <input
                 type="search"
-                placeholder="Search notes, paths, or tags"
+                placeholder={UI_MESSAGES.SEARCH_NOTES_PATHS_OR_TAGS}
                 value={searchValue}
                 onChange={(event) => {
                   setSearchValue(event.target.value);
@@ -462,7 +464,7 @@ export function AppShell() {
             {isPopoverOpen && searchValue.trim() && (
               <div className="command-bar-popover" role="listbox">
                 {isSearching ? (
-                  <div className="command-bar-popover-status">Searching...</div>
+                  <div className="command-bar-popover-status">{UI_MESSAGES.SEARCHING}</div>
                 ) : searchQuery.data?.matches?.length ? (
                   searchQuery.data.matches.map((match, index) => (
                     <button
@@ -488,7 +490,7 @@ export function AppShell() {
                     </button>
                   ))
                 ) : (
-                  <div className="command-bar-popover-status">No notes found</div>
+                  <div className="command-bar-popover-status">{UI_MESSAGES.NO_NOTES_FOUND}</div>
                 )}
               </div>
             )}
@@ -498,10 +500,10 @@ export function AppShell() {
               <button
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="menu"
-                aria-label="User menu"
+                aria-label={UI_MESSAGES.USER_MENU}
                 className={`topbar-link topbar-icon ${view === 'profile' || view === 'integrations' ? 'active' : ''}`}
                 onClick={() => setIsProfileMenuOpen((current) => !current)}
-                title="User menu"
+                title={UI_MESSAGES.USER_MENU}
                 type="button"
               >
                 <UserAvatar
@@ -521,18 +523,18 @@ export function AppShell() {
                       email={currentUser?.email}
                     />
                     <div className="profile-menu-copy">
-                      <strong>{currentUser?.displayName || 'Loading user...'}</strong>
-                      <span>{currentUser?.email || 'Loading email...'}</span>
+                      <strong>{currentUser?.displayName || UI_MESSAGES.LOADING_USER}</strong>
+                      <span>{currentUser?.email || UI_MESSAGES.LOADING_EMAIL}</span>
                     </div>
                   </div>
                   <Link className="profile-menu-link" role="menuitem" to={routes.profile}>
-                    My Profile
+                    {UI_MESSAGES.MY_PROFILE}
                   </Link>
                   <Link className="profile-menu-link" role="menuitem" to={routes.integrations}>
-                    Integrations
+                    {UI_MESSAGES.INTEGRATIONS}
                   </Link>
                   <Link className="profile-menu-link" role="menuitem" to={routes.help}>
-                    Documentation
+                    {UI_MESSAGES.DOCUMENTATION}
                   </Link>
                 </div>
               ) : null}
@@ -548,7 +550,7 @@ export function AppShell() {
                 });
               }}
             >
-              Sign out
+              {UI_MESSAGES.SIGN_OUT}
             </button>
           </div>
         </header>
@@ -582,7 +584,7 @@ export function AppShell() {
           onClose={() => setNoteModal(null)}
           onSaved={async (noteId, mode) => {
             setNoteModal(null);
-            notifySuccess(mode === 'create' ? 'Note created successfully.' : 'Note updated successfully.');
+            notifySuccess(mode === 'create' ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
             await refreshDashboard(queryClient);
             if (mode === 'create' && noteId) {
               pageContext.openNote(noteId);
@@ -596,12 +598,12 @@ export function AppShell() {
       {confirmState?.kind === 'note' ? (
         <ConfirmationModal
           busy={deleteNoteMutation.isPending}
-          cancelLabel="Cancel"
-          confirmLabel="Confirm deletion"
+          cancelLabel={UI_MESSAGES.CANCEL}
+          confirmLabel={UI_MESSAGES.CONFIRM_DELETION}
           description={`Deleting note ${confirmState.note.title} also removes its linked reminder, when present.`}
           onCancel={() => setConfirmState(null)}
           onConfirm={() => deleteNoteMutation.mutate(confirmState.note.id)}
-          title="Delete note"
+          title={UI_MESSAGES.DELETE_NOTE}
         />
       ) : null}
     </div>

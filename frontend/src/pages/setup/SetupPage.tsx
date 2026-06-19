@@ -13,6 +13,7 @@ import { FormField } from '../../shared/forms/fields';
 import { slugifyInput } from '../../shared/forms/normalizers';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { BrandMark } from '../../shared/ui/brand-mark';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { PageHead, Panel } from '../../shared/ui/primitives';
 import { useGlobalLoading } from '../../app/global-loading';
 import { workspaceFormSchema, type WorkspaceFormValues } from './setup-page.forms';
@@ -116,7 +117,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
                 )}
               >
                 <FormField name="displayName" label="Workspace name" error={errors.displayName?.message} required>
-                  {(fieldProps) => <input {...fieldProps} {...register('displayName')} placeholder="My Workspace" />}
+                  {(fieldProps) => <input {...fieldProps} {...register('displayName')} placeholder={UI_MESSAGES.MY_WORKSPACE} />}
                 </FormField>
                 <FormField name="workspaceSlug" label="Workspace slug" error={errors.workspaceSlug?.message} required>
                   {(fieldProps) => (

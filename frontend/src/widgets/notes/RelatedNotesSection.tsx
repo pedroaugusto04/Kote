@@ -3,6 +3,7 @@ import { fetchRelatedNotes } from '../../shared/api/client';
 import { Badge } from '../../shared/ui/primitives';
 import { noteTypeLabel, getCleanSummary, formatUsDate } from '../../shared/utils/format';
 import { SourceBadge } from './SourceBadge';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 
 type RelatedNotesSectionProps = {
   noteId: string;
@@ -25,8 +26,8 @@ export function RelatedNotesSection({ noteId, openNote }: RelatedNotesSectionPro
   }
 
   return (
-    <section className="related-notes-section" aria-label="Related notes">
-      <h2 className="note-body-label">Related Notes</h2>
+    <section className="related-notes-section" aria-label={UI_MESSAGES.RELATED_NOTES}>
+      <h2 className="note-body-label">{UI_MESSAGES.RELATED_NOTES}</h2>
       <div className="related-notes-grid">
         {relatedNotes.map((note) => {
           const activeSource = note.source;

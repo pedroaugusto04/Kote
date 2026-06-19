@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 
 import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
+import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import type { Project } from '../../shared/api/models/project';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, InlineMessage, Tags } from '../../shared/ui/primitives';
@@ -31,7 +32,7 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
 
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
+      if (event.key === KEYBOARD_KEYS.ESCAPE) {
         event.preventDefault();
         onClose();
       }

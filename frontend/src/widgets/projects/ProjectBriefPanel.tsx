@@ -1,4 +1,5 @@
 import type { ProjectBriefPanelResponse } from '../../shared/api/models/project-brief';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 
 export type ProjectBriefPanelProps = {
   response?: ProjectBriefPanelResponse;
@@ -107,10 +108,10 @@ export function ProjectBriefPanel({
   const busy = loading;
 
   return (
-    <section className="project-brief-panel" aria-label="Project brief">
+    <section className="project-brief-panel" aria-label={UI_MESSAGES.PROJECT_BRIEF}>
       <div className="project-brief-head">
         <div>
-          <h3>Project brief</h3>
+          <h3>{UI_MESSAGES.PROJECT_BRIEF}</h3>
           <p>{brief ? `Generated ${new Date(brief.generatedAt).toLocaleString('en-US')}` : hasNoSavedBrief ? 'No saved brief yet.' : 'Generate a new brief or view history.'}</p>
         </div>
         <div className="project-brief-actions">

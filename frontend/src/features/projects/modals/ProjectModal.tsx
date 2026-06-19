@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
 import { createProject, updateProject } from '../../../shared/api/client';
+import { UI_MESSAGES } from '../../../shared/constants/ui.constants';
 import type { GithubIntegrationRepository } from '../../../shared/api/models/integration';
 import type { Project } from '../../../shared/api/models/project';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
@@ -86,10 +87,10 @@ export function ProjectModal({
         <section aria-labelledby="project-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
-              <h2 id="project-modal-title">{mode === 'create' ? 'New project' : 'Edit project'}</h2>
+              <h2 id="project-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_PROJECT : UI_MESSAGES.EDIT_PROJECT}</h2>
               <p>Define the explicit link to a GitHub repository.</p>
             </div>
-            <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
+            <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
           <form
             className="auth-form"

@@ -15,6 +15,7 @@ import type { WebhookSubscription, WebhookTriggerDefinition } from '../../shared
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormActions, FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
@@ -180,10 +181,10 @@ function WebhookFormModal({
             )}
           >
             <FormField name="label" label="Label" required={true} error={errors.label?.message}>
-              {(props) => <input className="form-input" {...props} {...register('label')} placeholder="Production webhook" />}
+              {(props) => <input className="form-input" {...props} {...register('label')} placeholder={UI_MESSAGES.PRODUCTION_WEBHOOK} />}
             </FormField>
             <FormField name="url" label="Endpoint URL" error={errors.url?.message}>
-              {(props) => <input className="form-input" {...props} {...register('url')} placeholder="https://example.com/webhook" />}
+              {(props) => <input className="form-input" {...props} {...register('url')} placeholder={UI_MESSAGES.EXAMPLE_WEBHOOK_URL} />}
             </FormField>
             <FormField name="secret" label={editing ? 'New secret (leave blank to keep)' : 'Secret (HMAC SHA-256, optional)'} error={errors.secret?.message}>
               {(props) => <input className="form-input" {...props} {...register('secret')} type="password" autoComplete="off" />}
