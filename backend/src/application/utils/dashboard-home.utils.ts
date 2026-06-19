@@ -202,6 +202,20 @@ export function buildDashboardHome(
         meta: `${reviewsWithOpenFindings.length} reviews with pending findings`,
         tone: openHighFindings.length ? 'high' : 'active',
       },
+      {
+        id: 'total-notes',
+        label: 'Total notes',
+        value: notes.length,
+        meta: 'total notes in workspace',
+        tone: 'active',
+      },
+      {
+        id: 'total-reminders',
+        label: 'Total reminders',
+        value: reminders.length,
+        meta: 'total reminders in workspace',
+        tone: 'active',
+      },
     ],
     activityByDay: dayKeys.map((key) => ({ date: key, label: formatDayLabel(key), count: countByDay.get(key) || 0 })),
     activityByProject: Array.from(countByProject.entries())

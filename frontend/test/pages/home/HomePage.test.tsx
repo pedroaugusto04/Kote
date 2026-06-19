@@ -142,6 +142,27 @@ beforeEach(() => {
         pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       });
     }
+    if (url.includes('/api/integrations')) {
+      return Response.json({
+        ok: true,
+        workspaceSlug: 'default',
+        integrations: [],
+      });
+    }
+    if (url.includes('/api/notes')) {
+      return Response.json({
+        ok: true,
+        notes: [],
+        pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+      });
+    }
+    if (url.includes('/api/reminders')) {
+      return Response.json({
+        ok: true,
+        reminders: [],
+        pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+      });
+    }
     return Response.error();
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -251,14 +272,52 @@ describe('HomePage', () => {
     expect(screen.queryByText('open')).not.toBeInTheDocument();
   });
 
-  it('prompts users to connect integrations when GitHub repositories are not selected', () => {
+  it('shows the onboarding checklist when workspace is active', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/projects/timeline')) {
+        return Response.json({
+          ok: true,
+          timeline: [],
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/integrations')) {
+        return Response.json({
+          ok: true,
+          workspaceSlug: 'default',
+          integrations: [
+            { provider: 'github-app', name: 'GitHub App', description: 'GitHub', status: 'missing', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
+            { provider: 'whatsapp', name: 'WhatsApp', description: 'WhatsApp', status: 'missing', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
+          ],
+        });
+      }
+      if (url.includes('/api/notes')) {
+        return Response.json({
+          ok: true,
+          notes: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/reminders')) {
+        return Response.json({
+          ok: true,
+          reminders: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
     renderHomeWithDashboard({
       ...dashboard,
       projects: dashboard.projects.map(p => ({ ...p, repositories: [] })),
     });
 
-    expect(screen.getByText('Finish setting up workspace integrations')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Connect integrations' })).toHaveAttribute('href', '/settings/integrations');
+    expect(await screen.findByRole('heading', { name: 'Getting Started' })).toBeInTheDocument();
+    expect(screen.getByText('Connect GitHub')).toBeInTheDocument();
+    expect(screen.getByText('Connect WhatsApp')).toBeInTheDocument();
   });
 
   it('calls createNote when the Quick note button is clicked', () => {

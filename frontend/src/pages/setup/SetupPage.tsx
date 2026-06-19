@@ -6,10 +6,8 @@ import { Link } from 'react-router-dom';
 
 import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
-import { GuidedIntegrationsSection, IntegrationCallbackNotice, useIntegrationCallback } from '../../features/integrations/GuidedIntegrationsSection';
 import { createWorkspace } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
-import type { UserIntegration } from '../../shared/api/models/integration';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
 import { FormField } from '../../shared/forms/fields';
 import { slugifyInput } from '../../shared/forms/normalizers';
@@ -29,11 +27,8 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
   const formRef = useRef<HTMLFormElement>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [createdWorkspaceSlug, setCreatedWorkspaceSlug] = useState('');
-  const [githubIntegrations, setGithubIntegrations] = useState<UserIntegration[]>([]);
-  const [chatIntegrations, setChatIntegrations] = useState<UserIntegration[]>([]);
   const activeWorkspace = dashboard.workspaces[0] || null;
-  const effectiveWorkspaceSlug = createdWorkspaceSlug || activeWorkspace?.workspaceSlug || '';
-  const githubCallbackStatus = useIntegrationCallback();
+  const workspaceReady = Boolean(activeWorkspace || createdWorkspaceSlug);
 
   const {
     formState: { errors },
@@ -79,14 +74,6 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
     },
   });
 
-  const githubConnected = githubIntegrations.some((integration) => integration.provider === 'github-app' && integration.status === 'connected');
-  const githubReposSelected = dashboard.projects.some((p) => p.repositories.length > 0);
-  const chatConnected = chatIntegrations.some((integration) => (
-    (integration.provider === 'whatsapp' || integration.provider === 'telegram') && integration.status === 'connected'
-  ));
-  const workspaceReady = Boolean(activeWorkspace || createdWorkspaceSlug);
-  const callbackMatchesWorkspace = Boolean(githubCallbackStatus.workspaceSlug && githubCallbackStatus.workspaceSlug === effectiveWorkspaceSlug);
-
   return (
     <main className="setup-layout">
       <div className="setup-shell">
@@ -99,8 +86,8 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
             </div>
           </Link>
           <PageHead
-            title="Set up workspace"
-            subtitle="Create the workspace and connect integrations at your own pace. Optional steps can be completed later."
+            title="Create your workspace"
+            subtitle="Name your workspace to get started. You'll be able to connect GitHub, WhatsApp, and other integrations from the dashboard."
           />
         </section>
 
@@ -108,7 +95,6 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
           <Panel className="setup-step-card">
           <div className="setup-step-head">
             <div>
-              <div className="card-kicker">Step 1</div>
               <h2>Create workspace</h2>
             </div>
             <StepState complete={workspaceReady} pendingLabel="required" doneLabel="done" />
@@ -128,7 +114,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
               )}
             >
               <FormField name="displayName" label="Workspace name" error={errors.displayName?.message} required>
-                {(fieldProps) => <input {...fieldProps} {...register('displayName')} />}
+                {(fieldProps) => <input {...fieldProps} {...register('displayName')} placeholder="My Workspace" />}
               </FormField>
               <FormField name="workspaceSlug" label="Workspace slug" error={errors.workspaceSlug?.message} required>
                 {(fieldProps) => (
@@ -144,57 +130,6 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
                 Create workspace
               </button>
             </form>
-          )}
-          </Panel>
-
-          <Panel className="setup-step-card">
-          <div className="setup-step-head">
-            <div>
-              <div className="card-kicker">Step 2</div>
-              <h2>Connect GitHub</h2>
-            </div>
-            <StepState complete={githubConnected && githubReposSelected} pendingLabel="optional" doneLabel="done" />
-          </div>
-          {workspaceReady ? (
-            <>
-              {githubCallbackStatus.integration === 'github-app'
-                && callbackMatchesWorkspace
-                && (githubCallbackStatus.status === 'connected' || githubCallbackStatus.status === 'error')
-                ? <IntegrationCallbackNotice status={githubCallbackStatus.status} />
-                : null}
-              <GuidedIntegrationsSection
-                workspaceSlug={effectiveWorkspaceSlug}
-                returnToPath={withFrontendBasePath(routes.setup)}
-                providers={['github-app']}
-                defaultOpenGithubRepositories={githubCallbackStatus.integration === 'github-app' && githubCallbackStatus.status === 'connected' && callbackMatchesWorkspace}
-                onGithubRepositoriesSaved={async () => {
-                  await refetchDashboard();
-                }}
-                onLoaded={setGithubIntegrations}
-              />
-            </>
-          ) : (
-            <p className="meta">Create the workspace before starting the GitHub connection.</p>
-          )}
-          </Panel>
-
-          <Panel className="setup-step-card">
-          <div className="setup-step-head">
-            <div>
-              <div className="card-kicker">Step 3</div>
-              <h2>Connect WhatsApp or Telegram</h2>
-            </div>
-            <StepState complete={chatConnected} pendingLabel="optional" doneLabel="done" />
-          </div>
-          {workspaceReady ? (
-            <GuidedIntegrationsSection
-              workspaceSlug={effectiveWorkspaceSlug}
-              returnToPath={withFrontendBasePath(routes.setup)}
-              providers={['whatsapp', 'telegram']}
-              onLoaded={setChatIntegrations}
-            />
-          ) : (
-            <p className="meta">Create the workspace before starting the messaging flows.</p>
           )}
           </Panel>
         </section>

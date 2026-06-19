@@ -854,7 +854,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/projects' });
 
-    expect(await screen.findByRole('heading', { name: 'Set up workspace' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Create your workspace' })).toBeInTheDocument();
   });
 
   it('renders projects routes even when dashboard notes are omitted', async () => {
@@ -907,14 +907,13 @@ describe('AppShell', () => {
     expect(screen.getByLabelText('Select project')).toHaveTextContent('All');
   });
 
-  it('keeps authenticated users in setup so they can finish optional integrations', async () => {
+  it('keeps authenticated users in setup so they can complete workspace creation', async () => {
     vi.stubGlobal('fetch', mockFetch());
 
     renderWithAppProviders(<AppShell />, { route: '/setup' });
 
-    expect(await screen.findByRole('heading', { name: 'Set up workspace' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Connect GitHub' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Connect WhatsApp or Telegram' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Create your workspace' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Create workspace' })).toBeInTheDocument();
   });
 
   it('opens the GitHub installation flow in the same tab', async () => {

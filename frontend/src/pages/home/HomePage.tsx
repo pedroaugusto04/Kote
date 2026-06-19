@@ -3,8 +3,7 @@ import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models
 import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary } from '../../shared/utils/format';
 import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Link } from 'react-router-dom';
-import { routes } from '../../app/routing/routes';
+import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { useState } from 'react';
@@ -15,8 +14,7 @@ import { Select } from '../../shared/ui/select';
 export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
-  const hasRepositories = dashboard.projects.some((p) => p.repositories.length > 0);
-  const needsIntegrationSetup = activeWorkspace && !hasRepositories;
+  const workspaceSlug = activeWorkspace?.workspaceSlug || '';
   const activityByDay = home.activityByDay.map((point) => ({ ...point, label: formatUsDate(point.date) }));
   const TIMELINE_SIZE = 5;
 
@@ -94,14 +92,8 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
         }
       />
       <section className="home-layout">
-        {needsIntegrationSetup ? (
-          <Panel className="setup-inline-banner">
-            <div>
-              <strong>Finish setting up workspace integrations</strong>
-              <p className="meta">Connect GitHub for push reviews and WhatsApp or Telegram to capture notes from conversations.</p>
-            </div>
-            <Link className="icon-button" to={routes.integrations}>Connect integrations</Link>
-          </Panel>
+        {activeWorkspace ? (
+          <OnboardingChecklist dashboard={dashboard} workspaceSlug={workspaceSlug} />
         ) : null}
 
         <section className="home-kpis" aria-label="Operational indicators">

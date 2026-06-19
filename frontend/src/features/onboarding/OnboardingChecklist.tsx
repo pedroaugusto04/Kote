@@ -1,0 +1,280 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+
+import { fetchIntegrations } from '../../shared/api/client';
+import type { Dashboard } from '../../shared/api/models/dashboard';
+import type { UserIntegration } from '../../shared/api/models/integration';
+import { routes } from '../../app/routing/routes';
+import { Panel } from '../../shared/ui/primitives';
+
+/** localStorage key for onboarding state. */
+const STORAGE_KEY = 'kb-onboarding-checklist';
+
+type OnboardingStorage = {
+  dismissed: boolean;
+  dismissedAt: string | null;
+  showLaterAt: string | null;
+};
+
+function loadStorage(): OnboardingStorage {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { dismissed: false, dismissedAt: null, showLaterAt: null };
+    return JSON.parse(raw) as OnboardingStorage;
+  } catch {
+    return { dismissed: false, dismissedAt: null, showLaterAt: null };
+  }
+}
+
+function saveStorage(state: OnboardingStorage) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+type ChecklistItemDef = {
+  id: string;
+  label: string;
+  description: string;
+  priority: boolean;
+  route: string;
+  provider?: string;
+  icon: string;
+};
+
+const CHECKLIST_ITEMS: ChecklistItemDef[] = [
+  {
+    id: 'github',
+    label: 'Connect GitHub',
+    description: 'Automatically create projects by selecting your repositories.',
+    priority: true,
+    route: routes.integrations,
+    provider: 'github-app',
+    icon: '⌥',
+  },
+  {
+    id: 'whatsapp',
+    label: 'Connect WhatsApp',
+    description: 'Capture notes and knowledge via WhatsApp messages.',
+    priority: true,
+    route: routes.integrations,
+    provider: 'whatsapp',
+    icon: '💬',
+  },
+  {
+    id: 'ask-ai',
+    label: 'Test Ask AI',
+    description: 'Try asking questions about your knowledge base.',
+    priority: false,
+    route: routes.search,
+    icon: '✦',
+  },
+  {
+    id: 'reminder',
+    label: 'Set up a reminder',
+    description: 'Schedule reminders via WhatsApp to stay on top of tasks.',
+    priority: false,
+    route: routes.reminders,
+    icon: '🔔',
+  },
+];
+
+/** The number of days after first dismissal before the checklist auto-hides permanently. */
+const AUTO_HIDE_DAYS = 7;
+
+function isIntegrationConnected(integrations: UserIntegration[], provider: string): boolean {
+  return integrations.some(
+    (i) => i.provider === provider && i.status === 'connected',
+  );
+}
+
+function getCompletedItems(
+  integrations: UserIntegration[],
+  dashboard: Dashboard,
+): Set<string> {
+  const completed = new Set<string>();
+
+  if (isIntegrationConnected(integrations, 'github-app')
+    && dashboard.projects.some((p) => p.repositories.length > 0)) {
+    completed.add('github');
+  }
+
+  if (isIntegrationConnected(integrations, 'whatsapp')) {
+    completed.add('whatsapp');
+  }
+
+  const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
+  if (totalNotes >= 3) {
+    completed.add('ask-ai');
+  }
+
+  const totalReminders = dashboard.home.metrics.find((m) => m.id === 'total-reminders')?.value ?? 0;
+  if (totalReminders > 0) {
+    completed.add('reminder');
+  }
+
+  return completed;
+}
+
+function getVisibleItems(
+  integrations: UserIntegration[],
+  dashboard: Dashboard,
+): ChecklistItemDef[] {
+  const whatsappConnected = isIntegrationConnected(integrations, 'whatsapp');
+  const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
+
+  return CHECKLIST_ITEMS.filter((item) => {
+    if (item.id === 'ask-ai' && totalNotes < 3) return false;
+    if (item.id === 'reminder' && !whatsappConnected) return false;
+    return true;
+  });
+}
+
+export function OnboardingChecklist({
+  dashboard,
+  workspaceSlug,
+}: {
+  dashboard: Dashboard;
+  workspaceSlug: string;
+}) {
+  const [storage, setStorage] = useState(loadStorage);
+
+  const integrationsQuery = useQuery({
+    queryKey: ['integrations', workspaceSlug],
+    queryFn: () => fetchIntegrations(workspaceSlug),
+    enabled: Boolean(workspaceSlug),
+    staleTime: 30_000,
+  });
+
+  const integrations = integrationsQuery.data?.integrations ?? [];
+
+  const completed = useMemo(
+    () => getCompletedItems(integrations, dashboard),
+    [integrations, dashboard],
+  );
+
+  const visibleItems = useMemo(
+    () => getVisibleItems(integrations, dashboard),
+    [integrations, dashboard],
+  );
+
+  const completedCount = visibleItems.filter((item) => completed.has(item.id)).length;
+  const allDone = completedCount === visibleItems.length && visibleItems.length > 0;
+
+  // Auto-hide after 7 days from first dismissal.
+  useEffect(() => {
+    if (!storage.dismissedAt) return;
+    const dismissedDate = new Date(storage.dismissedAt);
+    const daysSince = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
+    if (daysSince >= AUTO_HIDE_DAYS && !storage.dismissed) {
+      const next = { ...storage, dismissed: true };
+      setStorage(next);
+      saveStorage(next);
+    }
+  }, [storage]);
+
+  // Determine visibility.
+  const isHiddenByShowLater = storage.showLaterAt
+    ? new Date(storage.showLaterAt).getTime() > Date.now()
+    : false;
+
+  if (storage.dismissed || allDone || isHiddenByShowLater) return null;
+  if (integrationsQuery.isLoading) return null;
+
+  function handleDismiss() {
+    const next: OnboardingStorage = {
+      dismissed: true,
+      dismissedAt: new Date().toISOString(),
+      showLaterAt: null,
+    };
+    setStorage(next);
+    saveStorage(next);
+  }
+
+  function handleShowLater() {
+    const later = new Date();
+    later.setHours(later.getHours() + 24);
+    const next: OnboardingStorage = {
+      dismissed: false,
+      dismissedAt: storage.dismissedAt || new Date().toISOString(),
+      showLaterAt: later.toISOString(),
+    };
+    setStorage(next);
+    saveStorage(next);
+  }
+
+  const progressPercent = visibleItems.length > 0
+    ? Math.round((completedCount / visibleItems.length) * 100)
+    : 0;
+
+  return (
+    <Panel className="onboarding-checklist" id="onboarding-checklist" aria-label="Getting started checklist">
+      <div className="onboarding-checklist-head">
+        <div>
+          <h2>Getting Started</h2>
+          <p className="meta">Complete these steps to unlock the full potential of your workspace.</p>
+        </div>
+        <div className="onboarding-checklist-progress">
+          <div className="onboarding-progress-ring" aria-label={`${progressPercent}% complete`}>
+            <svg viewBox="0 0 36 36" className="onboarding-ring-svg">
+              <circle
+                className="onboarding-ring-track"
+                cx="18"
+                cy="18"
+                r="15.5"
+                fill="none"
+                strokeWidth="3"
+              />
+              <circle
+                className="onboarding-ring-fill"
+                cx="18"
+                cy="18"
+                r="15.5"
+                fill="none"
+                strokeWidth="3"
+                strokeDasharray={`${progressPercent} ${100 - progressPercent}`}
+                strokeDashoffset="25"
+                strokeLinecap="round"
+              />
+            </svg>
+            <span className="onboarding-ring-label">{completedCount}/{visibleItems.length}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="onboarding-checklist-items">
+        {visibleItems.map((item) => {
+          const done = completed.has(item.id);
+          return (
+            <Link
+              className={`onboarding-item ${done ? 'done' : ''} ${item.priority ? 'priority' : ''}`}
+              key={item.id}
+              to={item.route}
+              id={`onboarding-item-${item.id}`}
+            >
+              <span className={`onboarding-item-check ${done ? 'checked' : ''}`} aria-hidden="true">
+                {done ? '✓' : item.icon}
+              </span>
+              <div className="onboarding-item-copy">
+                <strong>{item.label}</strong>
+                <span>{item.description}</span>
+              </div>
+              {item.priority && !done ? (
+                <span className="onboarding-item-badge">Priority</span>
+              ) : null}
+              <span className="onboarding-item-arrow" aria-hidden="true">→</span>
+            </Link>
+          );
+        })}
+      </div>
+
+      <div className="onboarding-checklist-foot">
+        <button className="onboarding-dismiss" type="button" onClick={handleShowLater}>
+          Show me later
+        </button>
+        <button className="onboarding-dismiss muted" type="button" onClick={handleDismiss}>
+          Dismiss
+        </button>
+      </div>
+    </Panel>
+  );
+}
