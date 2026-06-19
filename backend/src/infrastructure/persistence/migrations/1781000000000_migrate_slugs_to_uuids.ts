@@ -108,6 +108,20 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
     WHERE w.user_id = s.user_id AND w.workspace_slug = s.workspace_slug;
   `);
 
+  // 2.5 Delete orphan rows that don't match any active workspace or project
+  pgm.sql('DELETE FROM kb_notes WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_projects WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_project_folders WHERE project_id IS NULL;');
+  pgm.sql('DELETE FROM kb_integration_credentials WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_external_identities WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_integration_connection_sessions WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_conversation_states WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_reminder_dispatch_state WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_reminder_dispatch_failures WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_project_brief_history WHERE project_id IS NULL;');
+  pgm.sql('DELETE FROM kb_repositories WHERE workspace_id IS NULL;');
+  pgm.sql('DELETE FROM kb_webhook_subscriptions WHERE workspace_id IS NULL;');
+
   // 3. Make the new columns NOT NULL (except nullable references where appropriate)
   pgm.sql('ALTER TABLE kb_notes ALTER COLUMN workspace_id SET NOT NULL;');
   pgm.sql('ALTER TABLE kb_projects ALTER COLUMN workspace_id SET NOT NULL;');
