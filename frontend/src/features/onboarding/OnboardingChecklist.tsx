@@ -33,6 +33,15 @@ function saveStorage(state: OnboardingStorage) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+/** Mark the Ask AI feature as tested. Call this when the user sends their first AI message. */
+export function markAskAiTested() {
+  const current = loadStorage();
+  if (!current.askAiTested) {
+    const next = { ...current, askAiTested: true };
+    saveStorage(next);
+  }
+}
+
 type ChecklistItemDef = {
   id: string;
   label: string;
