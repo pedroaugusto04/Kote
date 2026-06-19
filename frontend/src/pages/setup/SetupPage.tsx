@@ -56,12 +56,12 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
       notifySuccess('Workspace created successfully.');
       queryClient.setQueryData<Dashboard>(['dashboard'], (current) => current
         ? {
-            ...current,
-            workspaces: [result.workspace],
-            projects: current.projects.some((project) => project.projectSlug === result.initialProject.projectSlug)
-              ? current.projects
-              : [{ ...result.initialProject, favorite: false }, ...current.projects],
-          }
+          ...current,
+          workspaces: [result.workspace],
+          projects: current.projects.some((project) => project.projectSlug === result.initialProject.projectSlug)
+            ? current.projects
+            : [{ ...result.initialProject, favorite: false }, ...current.projects],
+        }
         : current);
     },
     onError: (error) => {
@@ -85,52 +85,54 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
               <span>workspace setup</span>
             </div>
           </Link>
-          <PageHead
-            title="Create your workspace"
-            subtitle="Name your workspace to get started. You'll be able to connect GitHub, WhatsApp, and other integrations from the dashboard."
-          />
+          <div style={{ marginTop: '12px' }}>
+            <PageHead
+              title="Create your workspace"
+              subtitle="Name your workspace to get started. You'll be able to connect GitHub, WhatsApp, and other integrations from the dashboard."
+            />
+          </div>
         </section>
 
         <section className="setup-grid">
           <Panel className="setup-step-card">
-          <div className="setup-step-head">
-            <div>
-              <h2>Create workspace</h2>
+            <div className="setup-step-head">
+              <div>
+                <h2>Create workspace</h2>
+              </div>
+              <StepState complete={workspaceReady} pendingLabel="required" doneLabel="done" />
             </div>
-            <StepState complete={workspaceReady} pendingLabel="required" doneLabel="done" />
-          </div>
-          {activeWorkspace ? (
-            <div className="setup-step-body">
-              <p>Current workspace: <strong>{activeWorkspace.displayName}</strong> ({activeWorkspace.workspaceSlug})</p>
-            </div>
-          ) : (
-            <form
-              className="auth-form setup-form"
-              ref={formRef}
-              noValidate
-              onSubmit={handleSubmit(
-                (values) => createWorkspaceMutation.mutate(values),
-                (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
-              )}
-            >
-              <FormField name="displayName" label="Workspace name" error={errors.displayName?.message} required>
-                {(fieldProps) => <input {...fieldProps} {...register('displayName')} placeholder="My Workspace" />}
-              </FormField>
-              <FormField name="workspaceSlug" label="Workspace slug" error={errors.workspaceSlug?.message} required>
-                {(fieldProps) => (
-                  <input
-                    {...fieldProps}
-                    {...register('workspaceSlug', {
-                      onChange: () => setSlugTouched(true),
-                    })}
-                  />
+            {activeWorkspace ? (
+              <div className="setup-step-body">
+                <p>Current workspace: <strong>{activeWorkspace.displayName}</strong> ({activeWorkspace.workspaceSlug})</p>
+              </div>
+            ) : (
+              <form
+                className="auth-form setup-form"
+                ref={formRef}
+                noValidate
+                onSubmit={handleSubmit(
+                  (values) => createWorkspaceMutation.mutate(values),
+                  (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
                 )}
-              </FormField>
-              <button className="icon-button auth-submit setup-submit" disabled={createWorkspaceMutation.isPending} type="submit">
-                Create workspace
-              </button>
-            </form>
-          )}
+              >
+                <FormField name="displayName" label="Workspace name" error={errors.displayName?.message} required>
+                  {(fieldProps) => <input {...fieldProps} {...register('displayName')} placeholder="My Workspace" />}
+                </FormField>
+                <FormField name="workspaceSlug" label="Workspace slug" error={errors.workspaceSlug?.message} required>
+                  {(fieldProps) => (
+                    <input
+                      {...fieldProps}
+                      {...register('workspaceSlug', {
+                        onChange: () => setSlugTouched(true),
+                      })}
+                    />
+                  )}
+                </FormField>
+                <button className="icon-button auth-submit setup-submit" disabled={createWorkspaceMutation.isPending} type="submit">
+                  Create workspace
+                </button>
+              </form>
+            )}
           </Panel>
         </section>
 
