@@ -814,3 +814,79 @@ test('folders organize manual notes and update derived note paths on rename', as
   const deleted = await deleteFolder.execute('platform', archiveFolder.id, user.id);
   assert.equal(deleted.ok, true);
 });
+
+test('manages uncategorized notes creation and updates', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+
+  const ingest = new IngestEntryUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+  );
+  const noopDispatcher = { dispatch: async () => {} };
+  const createNote = new CreateManualNoteUseCase(
+    repositories.contentRepository,
+    ingest,
+    repositories.runtimeEnvironmentProvider,
+    noopDispatcher,
+  );
+
+  // 1. Create a manual note with empty categoryIds
+  const created = await createNote.execute({
+    projectSlug: 'platform',
+    title: 'An Uncategorized Note',
+    rawText: 'This note has no categories.',
+    tags: [],
+    canonicalType: 'event',
+    categoryIds: [],
+    reminderDate: '',
+    reminderTime: '',
+  }, user.id);
+
+  const note = await repositories.contentRepository.getNoteById(user.id, created.noteId);
+  assert.deepEqual(note?.categories || [], []);
+
+  // 2. Add a category via update
+  const defaultCat = await repositories.contentRepository.createCategory(user.id, 'default', {
+    name: 'custom-cat',
+    color: '#123456',
+    icon: 'star',
+  });
+
+  const updateUseCase = new UpdateNoteUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+    undefined,
+    noopDispatcher,
+  );
+
+  await updateUseCase.execute({
+    id: created.noteId,
+    title: 'Now Categorized Note',
+    rawText: 'This note now has categories.',
+    tags: [],
+    categoryIds: [defaultCat.id],
+    reminderDate: '',
+    reminderTime: '',
+  }, user.id);
+
+  const updatedNote = await repositories.contentRepository.getNoteById(user.id, created.noteId);
+  assert.equal(updatedNote?.categories.length, 1);
+  assert.equal(updatedNote?.categories[0].id, defaultCat.id);
+
+  // 3. Remove all categories to make it uncategorized again
+  await updateUseCase.execute({
+    id: created.noteId,
+    title: 'Uncategorized Again Note',
+    rawText: 'This note is uncategorized again.',
+    tags: [],
+    categoryIds: [],
+    reminderDate: '',
+    reminderTime: '',
+  }, user.id);
+
+  const finalNote = await repositories.contentRepository.getNoteById(user.id, created.noteId);
+  assert.deepEqual(finalNote?.categories || [], []);
+});
+

@@ -23,7 +23,7 @@ export class PostgresNoteRepository {
   constructor(
     private readonly database: PostgresDatabase,
     private readonly contentObjectStorage: ContentObjectStorageService,
-  ) {}
+  ) { }
 
   private async hydrateMarkdown(note: NoteRecord): Promise<NoteRecord> {
     return this.contentObjectStorage.hydrateMarkdown(note);
@@ -31,13 +31,13 @@ export class PostgresNoteRepository {
 
   private async resolveIds(userId: string, projectSlug: string | null, workspaceSlug: string): Promise<{ projectId: string | null; workspaceId: string }> {
     const db = this.database.getDb();
-    
+
     const wsResult = await db
       .select({ id: workspaces.id })
       .from(workspaces)
       .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
       .limit(1);
-    
+
     if (wsResult.length === 0) {
       throw new Error(`Workspace not found for slug: ${workspaceSlug}`);
     }
@@ -113,7 +113,7 @@ export class PostgresNoteRepository {
       .where(eq(notes.userId, userId))
       .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
       .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title);
-    
+
     return result.map(noteFromRow);
   }
 
@@ -157,16 +157,16 @@ export class PostgresNoteRepository {
     }
 
     const whereCondition = and(...conditions);
-    
+
     const totalResult = await db
       .select({ total: count() })
       .from(notes)
       .where(whereCondition);
-    
+
     const total = Number(totalResult[0]?.total || 0);
     const selectedPage = input.selectedId ? await this.resolveNotePage(input, whereCondition) : input.page;
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
-    
+
     const result = await db
       .select({
         id: notes.id,
@@ -230,17 +230,17 @@ export class PostgresNoteRepository {
   async listProjectTimeline(userId: string, input: ListProjectTimelineInput) {
     const values: unknown[] = [userId];
     const clauses = ['n.user_id = $1'];
-    
+
     const joinSql = `
       left join kb_projects p on p.id = n.project_id
       join kb_workspaces w on w.id = n.workspace_id
     `;
-    
+
     if (input.projectSlug) {
       values.push(input.projectSlug);
       clauses.push(`p.project_slug = $${values.length}`);
     }
-    
+
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, input.category);
     if (input.status) {
@@ -256,12 +256,12 @@ export class PostgresNoteRepository {
       `select count(*)::int as total 
        from kb_notes n 
        ${joinSql}
-       where ${where}`, 
+       where ${where}`,
       values
     );
     const total = Number(totalResult.rows[0]?.total || 0);
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
-    
+
     const result = await this.database.getPool().query(
       `select n.*, p.project_slug, w.workspace_slug, count(distinct a.id)::int as attachment_count,
               coalesce(
@@ -304,7 +304,7 @@ export class PostgresNoteRepository {
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, input.category);
     const where = clauses.join(' and ');
-    
+
     const result = await this.database.getPool().query(
       `select n.*, p.project_slug, w.workspace_slug, count(distinct a.id)::int as attachment_count,
               coalesce(
@@ -390,7 +390,7 @@ export class PostgresNoteRepository {
       .where(and(eq(notes.userId, userId), eq(notes.id, id)))
       .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
       .limit(1);
-    
+
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
@@ -445,7 +445,7 @@ export class PostgresNoteRepository {
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(and(eq(notes.userId, userId), inArray(notes.id, ids)))
       .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug);
-    
+
     const noteRecords = result.map(noteFromRow);
     return Promise.all(noteRecords.map((n) => this.hydrateMarkdown(n)));
   }
@@ -505,35 +505,25 @@ export class PostgresNoteRepository {
       ))
       .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
       .limit(1);
-    
+
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
   async upsert(userId: string, input: SaveNoteInput) {
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
-    
+
     if (input.id) {
       const existing = await this.getById(userId, input.id);
       if (existing) {
         return this.update(userId, input);
       }
     }
-    
+
     const db = this.database.getDb();
     const { projectId, workspaceId } = await this.resolveIds(userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
     const noteId = crypto.randomUUID();
 
-    let categoryIds = input.categoryIds || [];
-    if (categoryIds.length === 0) {
-      const defaultCat = await db
-        .select({ id: categories.id })
-        .from(categories)
-        .where(and(eq(categories.workspaceId, workspaceId), eq(categories.name, 'event')))
-        .limit(1);
-      if (defaultCat.length > 0) {
-        categoryIds = [defaultCat[0].id];
-      }
-    }
+    const categoryIds = input.categoryIds || [];
 
     await db
       .insert(notes)
@@ -566,7 +556,7 @@ export class PostgresNoteRepository {
         }))
       );
     }
-    
+
     const created = await this.getById(userId, noteId);
     if (!created) {
       throw new Error(`Note not found after creation: ${noteId}`);
@@ -594,7 +584,7 @@ export class PostgresNoteRepository {
       .update(notes)
       .set({ status: status as NoteStatus, updatedAt: new Date() })
       .where(and(eq(notes.userId, userId), eq(notes.id, id)));
-    
+
     return this.getById(userId, id);
   }
 
@@ -604,7 +594,7 @@ export class PostgresNoteRepository {
       .update(notes)
       .set({ isPinned: pinned, updatedAt: new Date() })
       .where(and(eq(notes.userId, userId), eq(notes.id, id)));
-    
+
     return this.getById(userId, id);
   }
 
@@ -614,7 +604,7 @@ export class PostgresNoteRepository {
       .delete(notes)
       .where(and(eq(notes.userId, userId), eq(notes.id, id)))
       .returning();
-    
+
     if (result.length === 0) return false;
     if (markdownStorageKey) {
       await this.contentObjectStorage.deleteObjects([markdownStorageKey]);
@@ -707,7 +697,7 @@ export class PostgresNoteRepository {
       .from(notes)
       .where(and(whereCondition, eq(notes.id, input.selectedId || '')))
       .limit(1);
-    
+
     const note = selected[0];
     if (!note) return input.page;
 
@@ -722,7 +712,7 @@ export class PostgresNoteRepository {
           or (${notes.isPinned} = ${note.isPinned} and ${notes.occurredAt} = ${note.occurredAt} and ${notes.title} <= ${note.title})
         )`
       ));
-    
+
     const index = Number(result[0]?.idx || 0);
     return index > 0 ? Math.ceil(index / input.pageSize) : 1;
   }

@@ -21,6 +21,7 @@ import { PostgresProjectRepository } from '../../dist/infrastructure/repositorie
 import { PostgresNoteRepository } from '../../dist/infrastructure/repositories/note.repository.js';
 import { PostgresFolderRepository } from '../../dist/infrastructure/repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../../dist/infrastructure/repositories/attachment.repository.js';
+import { PostgresCategoryRepository } from '../../dist/infrastructure/repositories/category.repository.js';
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '../../dist/infrastructure/persistence/schema/index.js';
@@ -213,6 +214,7 @@ export async function createPostgresTestRepositories(t) {
   const noteRepository = new PostgresNoteRepository(database, contentObjectStorage);
   const folderRepository = new PostgresFolderRepository(database);
   const attachmentRepository = new PostgresAttachmentRepository(database, contentObjectStorage);
+  const categoryRepository = new PostgresCategoryRepository(database);
 
   const contentRepository = new PostgresContentRepository(
     workspaceRepository,
@@ -220,6 +222,7 @@ export async function createPostgresTestRepositories(t) {
     noteRepository,
     folderRepository,
     attachmentRepository,
+    categoryRepository,
     contentObjectStorage
   );
   const contentQueryRepository = new PostgresContentQueryRepository(database, contentObjectStorage);

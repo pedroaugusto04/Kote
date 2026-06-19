@@ -180,18 +180,22 @@ async function saveIngestedNote(
       favorite: project.favorite,
     });
   }
-  const categoryName = payload.classification.canonicalType || 'event';
   let categoryIds = options.categoryIds;
-  if (!categoryIds || categoryIds.length === 0) {
-    let category = await contentRepository.findCategoryByName(userId, workspaceSlug, categoryName);
-    if (!category) {
-      category = await contentRepository.createCategory(userId, workspaceSlug, {
-        name: categoryName,
-        color: '#9e9e9e',
-        icon: '',
-      });
+  if (categoryIds === undefined) {
+    const categoryName = payload.classification.canonicalType;
+    if (categoryName) {
+      let category = await contentRepository.findCategoryByName(userId, workspaceSlug, categoryName);
+      if (!category) {
+        category = await contentRepository.createCategory(userId, workspaceSlug, {
+          name: categoryName,
+          color: '#9e9e9e',
+          icon: '',
+        });
+      }
+      categoryIds = [category.id];
+    } else {
+      categoryIds = [];
     }
-    categoryIds = [category.id];
   }
 
   const note = await contentRepository.upsertNote(userId, {

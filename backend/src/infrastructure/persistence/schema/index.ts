@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, boolean, bigint, integer, index, pgEnum } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, jsonb, boolean, bigint, integer, index, pgEnum, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { pgTable as pgTableV2 } from 'drizzle-orm/pg-core';
 
@@ -252,7 +252,7 @@ export const repositories = pgTable('kb_repositories', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
-  workspaceExternalIdx: index('kb_repositories_workspace_slug_external_id_idx').on(table.workspaceId, table.externalId),
+  workspaceExternalIdx: uniqueIndex('kb_repositories_workspace_id_external_id_idx').on(table.workspaceId, table.externalId),
 }));
 
 // Project Repositories
