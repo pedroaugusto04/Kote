@@ -330,4 +330,125 @@ describe('HomePage', () => {
 
     expect(createNote).toHaveBeenCalled();
   });
+
+  it('shows Make first push when GitHub is connected and has linked repo', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/projects/timeline')) {
+        return Response.json({
+          ok: true,
+          timeline: [],
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/integrations')) {
+        return Response.json({
+          ok: true,
+          workspaceSlug: 'default',
+          integrations: [
+            { provider: 'github-app', name: 'GitHub App', description: 'GitHub', status: 'connected', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
+            { provider: 'whatsapp', name: 'WhatsApp', description: 'WhatsApp', status: 'missing', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
+          ],
+        });
+      }
+      if (url.includes('/api/notes')) {
+        return Response.json({
+          ok: true,
+          notes: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/reminders')) {
+        return Response.json({
+          ok: true,
+          reminders: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const testDashboard = {
+      ...dashboard,
+      home: {
+        ...dashboard.home,
+        metrics: [
+          ...dashboard.home.metrics,
+          { id: 'total-github-pushes', label: 'Total GitHub pushes', value: 0, meta: '', tone: 'active' },
+        ],
+      },
+    };
+
+    renderHomeWithDashboard(testDashboard);
+
+    expect(await screen.findByRole('heading', { name: 'Getting Started' })).toBeInTheDocument();
+    
+    const connectGithubItem = screen.getByText('Connect GitHub').closest('.onboarding-item');
+    expect(connectGithubItem).toHaveClass('done');
+
+    const makeFirstPushItem = screen.getByText('Make first push').closest('.onboarding-item');
+    expect(makeFirstPushItem).toBeInTheDocument();
+    expect(makeFirstPushItem).not.toHaveClass('done');
+  });
+
+  it('marks Make first push as done when total-github-pushes is > 0', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/projects/timeline')) {
+        return Response.json({
+          ok: true,
+          timeline: [],
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/integrations')) {
+        return Response.json({
+          ok: true,
+          workspaceSlug: 'default',
+          integrations: [
+            { provider: 'github-app', name: 'GitHub App', description: 'GitHub', status: 'connected', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
+            { provider: 'whatsapp', name: 'WhatsApp', description: 'WhatsApp', status: 'missing', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
+          ],
+        });
+      }
+      if (url.includes('/api/notes')) {
+        return Response.json({
+          ok: true,
+          notes: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/reminders')) {
+        return Response.json({
+          ok: true,
+          reminders: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const testDashboard = {
+      ...dashboard,
+      home: {
+        ...dashboard.home,
+        metrics: [
+          ...dashboard.home.metrics,
+          { id: 'total-github-pushes', label: 'Total GitHub pushes', value: 1, meta: '', tone: 'active' },
+        ],
+      },
+    };
+
+    renderHomeWithDashboard(testDashboard);
+
+    expect(await screen.findByRole('heading', { name: 'Getting Started' })).toBeInTheDocument();
+    
+    const connectGithubItem = screen.getByText('Connect GitHub').closest('.onboarding-item');
+    expect(connectGithubItem).toHaveClass('done');
+
+    const makeFirstPushItem = screen.getByText('Make first push').closest('.onboarding-item');
+    expect(makeFirstPushItem).toHaveClass('done');
+  });
 });

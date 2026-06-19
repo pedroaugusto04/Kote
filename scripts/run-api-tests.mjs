@@ -16,7 +16,11 @@ const commands = [
 ];
 
 for (const [cmd, args] of commands) {
-  const result = spawnSync(cmd, args, { stdio: 'inherit', shell: true });
+  const result = spawnSync(cmd, args, {
+    stdio: 'inherit',
+    shell: true,
+    env: { ...process.env, KB_LOG_FILE_ENABLED: 'false' }
+  });
   if (result.status !== 0) {
     process.exit(result.status || 1);
   }

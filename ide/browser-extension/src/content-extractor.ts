@@ -1,4 +1,4 @@
-import { extractPageMetadata } from './parser.js';
+import { extractPageMetadata, convertHtmlToMarkdown, formatNoteWithFrontmatter } from './parser.js';
 
 (() => {
   // Get selection HTML preserving formatting
@@ -16,10 +16,16 @@ import { extractPageMetadata } from './parser.js';
 
   try {
     const payload = extractPageMetadata(document, url, selectedHtml || null);
+    
+    // Convert HTML to Markdown in the content script where DOM is available
+    const htmlToConvert = payload.selectedHtml || payload.contentHtml || '';
+    const markdown = convertHtmlToMarkdown(htmlToConvert);
+    
     return {
       success: true,
       isSelection: !!selectedHtml,
       result: payload,
+      markdown: markdown,
     };
   } catch (error: any) {
     return {

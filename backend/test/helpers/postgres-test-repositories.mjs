@@ -22,6 +22,9 @@ import { PostgresNoteRepository } from '../../dist/infrastructure/repositories/n
 import { PostgresFolderRepository } from '../../dist/infrastructure/repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../../dist/infrastructure/repositories/attachment.repository.js';
 
+import { drizzle } from 'drizzle-orm/node-postgres';
+import * as schema from '../../dist/infrastructure/persistence/schema/index.js';
+
 const { Pool } = pg;
 
 const DEFAULT_TEST_DATABASE_URL = 'postgres://postgres:postgres@127.0.0.1:5438/knowledge_base_db_test';
@@ -73,12 +76,18 @@ function createSchemaName() {
 }
 
 function createDatabase(pool) {
+  let db = null;
   return {
     isConfigured() {
       return true;
     },
     getPool() {
       return pool;
+    },
+    getDb() {
+      if (db) return db;
+      db = drizzle(pool, { schema });
+      return db;
     },
   };
 }

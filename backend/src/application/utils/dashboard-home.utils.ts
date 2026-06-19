@@ -216,6 +216,13 @@ export function buildDashboardHome(
         meta: 'total reminders in workspace',
         tone: 'active',
       },
+      {
+        id: 'total-github-pushes',
+        label: 'Total GitHub pushes',
+        value: notes.filter((note) => note.source === 'github-push' || String(note.source || '').toLowerCase().includes('github')).length,
+        meta: 'total push reviews in workspace',
+        tone: 'active',
+      },
     ],
     activityByDay: dayKeys.map((key) => ({ date: key, label: formatDayLabel(key), count: countByDay.get(key) || 0 })),
     activityByProject: Array.from(countByProject.entries())

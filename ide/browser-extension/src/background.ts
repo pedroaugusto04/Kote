@@ -92,9 +92,12 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
     cleanApiUrl = cleanApiUrl.slice(0, -4);
   }
 
-  // Convert HTML to Markdown in the Background service worker
-  const htmlToConvert = clip.selectedHtml || clip.contentHtml || '';
-  const markdown = convertHtmlToMarkdown(htmlToConvert);
+  // Convert HTML to Markdown (if not already converted in content script)
+  let markdown = (clip as any).markdown;
+  if (!markdown) {
+    const htmlToConvert = clip.selectedHtml || clip.contentHtml || '';
+    markdown = convertHtmlToMarkdown(htmlToConvert);
+  }
 
   // Prepend frontmatter markdown content
   const formattedBody = formatNoteWithFrontmatter(clip, markdown, tags);

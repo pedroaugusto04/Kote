@@ -278,23 +278,36 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Clear default option
         selectProject.innerHTML = '';
         
-        if (list.length === 0) {
+        // Always add Inbox option first
+        const inboxOpt = document.createElement('option');
+        inboxOpt.value = 'inbox';
+        inboxOpt.textContent = 'Inbox (Default)';
+        selectProject.appendChild(inboxOpt);
+        
+        // Add projects from API
+        for (const proj of list) {
           const opt = document.createElement('option');
-          opt.value = 'inbox';
-          opt.textContent = 'Inbox (Default)';
+          opt.value = proj.slug;
+          opt.textContent = proj.name || proj.slug;
           selectProject.appendChild(opt);
-        } else {
-          for (const proj of list) {
-            const opt = document.createElement('option');
-            opt.value = proj.slug;
-            opt.textContent = proj.name || proj.slug;
-            selectProject.appendChild(opt);
-          }
         }
+      } else {
+        console.warn('Failed to load projects:', res.status, res.statusText);
+        // Fallback to static Inbox project
+        selectProject.innerHTML = '';
+        const inboxOpt = document.createElement('option');
+        inboxOpt.value = 'inbox';
+        inboxOpt.textContent = 'Inbox (Default)';
+        selectProject.appendChild(inboxOpt);
       }
     } catch (error) {
       // Fallback to static Inbox project
       console.warn('Failed to load dynamic project list:', error);
+      selectProject.innerHTML = '';
+      const inboxOpt = document.createElement('option');
+      inboxOpt.value = 'inbox';
+      inboxOpt.textContent = 'Inbox (Default)';
+      selectProject.appendChild(inboxOpt);
     }
   }
 

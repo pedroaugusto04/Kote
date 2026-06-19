@@ -63,6 +63,14 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     icon: '⌥',
   },
   {
+    id: 'github-push',
+    label: 'Make first push',
+    description: 'Push code to your linked repository to trigger your first review.',
+    priority: true,
+    route: routes.projects,
+    icon: '↑',
+  },
+  {
     id: 'whatsapp',
     label: 'Connect WhatsApp',
     description: 'Capture notes and knowledge via WhatsApp messages.',
@@ -110,6 +118,11 @@ function getCompletedItems(
     completed.add('github');
   }
 
+  const totalGithubPushes = dashboard.home.metrics.find((m) => m.id === 'total-github-pushes')?.value ?? 0;
+  if (totalGithubPushes > 0) {
+    completed.add('github-push');
+  }
+
   if (isIntegrationConnected(integrations, 'whatsapp')) {
     completed.add('whatsapp');
   }
@@ -130,10 +143,13 @@ function getVisibleItems(
   integrations: UserIntegration[],
   dashboard: Dashboard,
 ): ChecklistItemDef[] {
+  const githubConnected = isIntegrationConnected(integrations, 'github-app')
+    && dashboard.projects.some((p) => p.repositories.length > 0);
   const whatsappConnected = isIntegrationConnected(integrations, 'whatsapp');
   const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
 
   return CHECKLIST_ITEMS.filter((item) => {
+    if (item.id === 'github-push' && !githubConnected) return false;
     if (item.id === 'ask-ai' && totalNotes < 3) return false;
     if (item.id === 'reminder' && !whatsappConnected) return false;
     return true;
