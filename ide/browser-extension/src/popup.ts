@@ -8,6 +8,38 @@ interface ProjectInfo {
 // Global state
 let currentClip: ClipPayload | null = null;
 
+async function getOrExchangeAccessToken(currentApiUrl: string, connectionToken: string): Promise<string> {
+  const cached = await chrome.storage.local.get(['accessToken']);
+  if (cached.accessToken) {
+    return cached.accessToken;
+  }
+
+  if (connectionToken.startsWith('kbc_')) {
+    try {
+      const payload = Uint8Array.from(atob(connectionToken.slice(4)), (c) => c.charCodeAt(0));
+      const parsed = JSON.parse(new TextDecoder().decode(payload));
+      if (parsed.accessToken) {
+        await chrome.storage.local.set({ accessToken: parsed.accessToken, refreshToken: parsed.refreshToken });
+        return parsed.accessToken;
+      }
+    } catch {
+      // ignore and proceed to exchange
+    }
+  }
+
+  const exchangeRes = await fetch(`${currentApiUrl}/api/auth/exchange-connection-token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ connectionToken }),
+  });
+  if (!exchangeRes.ok) {
+    throw new Error('Failed to exchange connection token.');
+  }
+  const data = await exchangeRes.json();
+  await chrome.storage.local.set({ accessToken: data.accessToken, refreshToken: data.refreshToken });
+  return data.accessToken;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   // UI Elements
   const panelSettings = document.getElementById('panel-settings')!;
@@ -78,26 +110,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       // Exchange and validate connection token
-      let accessToken = token;
-      if (token.startsWith('kbc_')) {
-        try {
-          const payload = Uint8Array.from(atob(token.slice(4)), (c) => c.charCodeAt(0));
-          const parsed = JSON.parse(new TextDecoder().decode(payload));
-          if (parsed.accessToken) {
-            accessToken = parsed.accessToken;
-          }
-        } catch {
-          // Attempt exchange request
-          const exchangeRes = await fetch(`${url}/api/auth/exchange-connection-token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ connectionToken: token }),
-          });
-          if (!exchangeRes.ok) throw new Error('Token verification failed.');
-          const data = await exchangeRes.json();
-          accessToken = data.accessToken;
-        }
-      }
+      const accessToken = await getOrExchangeAccessToken(url, token);
 
       // Check workspaces to verify full token validity
       const testRes = await fetch(`${url}/api/workspaces`, {
@@ -248,18 +261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!config.connectionToken) return;
 
     try {
-      let accessToken = config.connectionToken;
-      if (accessToken.startsWith('kbc_')) {
-        try {
-          const payload = Uint8Array.from(atob(accessToken.slice(4)), (c) => c.charCodeAt(0));
-          const parsed = JSON.parse(new TextDecoder().decode(payload));
-          if (parsed.accessToken) {
-            accessToken = parsed.accessToken;
-          }
-        } catch {
-          // ignore error, will be handled during fetch
-        }
-      }
+      const accessToken = await getOrExchangeAccessToken(currentApiUrl, config.connectionToken);
 
       const res = await fetch(`${currentApiUrl}/api/projects?page=1&pageSize=100`, {
         method: 'GET',
