@@ -1,4 +1,4 @@
-import type { ReminderBoardColumnKey } from './reminder.models.js';
+import { ReminderBoardColumnKey, KnowledgeStatus } from '../../contracts/enums.js';
 
 export type ReminderBoardInput = {
   workspaceSlug?: string;
@@ -9,7 +9,12 @@ export type ReminderBoardInput = {
 
 export type UpdateReminderStatusInput = {
   id: string;
-  status: 'pending' | 'overdue' | 'resolved' | 'archived';
+  status: KnowledgeStatus;
 };
 
-export const reminderBoardColumnKeys: ReminderBoardColumnKey[] = ['overdue', 'upcoming', 'resolved', 'archived'];
+export const reminderBoardColumnKeys: ReminderBoardColumnKey[] = [
+  ReminderBoardColumnKey.Overdue,
+  ReminderBoardColumnKey.Upcoming,
+  ReminderBoardColumnKey.Resolved,
+  ReminderBoardColumnKey.Archived,
+];

@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
-import { CredentialRecordStatus, IntegrationProvider } from '../../contracts/enums.js';
+import { CredentialRecordStatus, IntegrationProvider, MissingCredentialError } from '../../contracts/enums.js';
 import { decryptConfig } from '../credentials.js';
 import type { RepositoryRecord } from '../models/repository-records.models.js';
 import { ContentRepository } from '../ports/notes/content.repository.js';
@@ -17,7 +17,7 @@ export class GithubRepositoryResolutionService {
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
   ) {}
 
-  async listAccessibleRepositories(input: { userId: string; workspaceSlug: string; missingCredentialError: 'not_found' | 'connection_required' }) {
+  async listAccessibleRepositories(input: { userId: string; workspaceSlug: string; missingCredentialError: MissingCredentialError }) {
     const credential = await this.credentialRepository.findCredential(input.userId, input.workspaceSlug, IntegrationProvider.GithubApp);
     if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) {
       if (input.missingCredentialError === 'not_found') throw new NotFoundException('credential_not_found');
@@ -45,14 +45,14 @@ export class GithubRepositoryResolutionService {
     userId: string;
     workspaceSlug: string;
     repositoryIds: string[];
-    missingCredentialError?: 'not_found' | 'connection_required';
+    missingCredentialError?: MissingCredentialError;
   }): Promise<RepositoryRecord[]> {
     if (input.repositoryIds.length === 0) return [];
 
     const availableRepositories = await this.listAccessibleRepositories({
       userId: input.userId,
       workspaceSlug: input.workspaceSlug,
-      missingCredentialError: input.missingCredentialError || 'connection_required',
+      missingCredentialError: input.missingCredentialError || MissingCredentialError.ConnectionRequired,
     });
     const repositoryById = new Map(availableRepositories.map((repository) => [String(repository.id), repository]));
     const missingRepositoryId = input.repositoryIds.find((repositoryId) => !repositoryById.has(repositoryId));

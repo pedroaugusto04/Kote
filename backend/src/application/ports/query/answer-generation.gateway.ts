@@ -1,5 +1,6 @@
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 import type { RuntimeEnvironment } from '../observability/runtime-environment.port.js';
+import { ConversationConfidence } from '../../../contracts/enums.js';
 
 export type AnswerGenerationConfig = Pick<
   RuntimeEnvironment,
@@ -23,7 +24,7 @@ export type AnswerGenerationRequest = {
 
 export type AnswerGenerationResponse = {
   answer: string;
-  confidence: 'high' | 'medium' | 'low';
+  confidence: ConversationConfidence;
   requestedAttachments: boolean;
   requestedAttachmentPattern?: string;
   sources: Array<{

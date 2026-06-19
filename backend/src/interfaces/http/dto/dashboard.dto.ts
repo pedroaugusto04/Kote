@@ -1,4 +1,6 @@
 import { z } from 'zod';
+
+import { KnowledgeStatus } from '../../../contracts/enums.js';
 import { paginationInputSchema } from '../../../contracts/pagination.js';
 import { noteStatusValues } from '../../../domain/note-status.js';
 import { slugify } from '../../../domain/strings.js';
@@ -76,7 +78,7 @@ export const reminderIdParamSchema = z.object({
 });
 
 export const updateReminderStatusBodySchema = z.object({
-  status: z.enum(['pending', 'overdue', 'resolved', 'archived']),
+  status: z.nativeEnum(KnowledgeStatus),
 });
 
 export type NoteIdParam = z.infer<typeof noteIdParamSchema>;

@@ -15,9 +15,12 @@ import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { type NoteStatus } from '../../shared/api/models/note-status';
+import { BulkActionType, BulkStatusUpdate } from '../../shared/api/models/bulk-action';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
 import { Select } from '../../shared/ui/select';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 
@@ -82,17 +85,17 @@ export function ProjectTimeline({
   const pinMutation = useMutation({
     mutationFn: ({ noteId, pinned }: { noteId: string; pinned: boolean }) => pinNote(noteId, pinned),
     onSuccess: async (_, { pinned }) => {
-      notifySuccess(pinned ? 'Note pinned.' : 'Note unpinned.');
+      notifySuccess(pinned ? UI_MESSAGES.NOTE_PINNED : UI_MESSAGES.NOTE_UNPINNED);
       await invalidateNoteRelatedQueries(queryClient);
     },
     onError: (error) => {
-      notifyGeneralFormError(error, 'Could not toggle pin status.');
+      notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_TOGGLE_PIN_STATUS);
     },
   });
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
-  const [confirmBulk, setConfirmBulk] = useState<{ type: 'resolve' | 'archive' } | null>(null);
+  const [confirmBulk, setConfirmBulk] = useState<{ type: BulkActionType } | null>(null);
 
-  const handleResolveAll = async () => {
+  const handleBulkStatusUpdate = async (status: BulkStatusUpdate) => {
     if (!visibleItems.length) return;
     setIsBulkUpdating(true);
     try {
@@ -104,7 +107,7 @@ export function ProjectTimeline({
             title: detail.title,
             rawText: detail.editor?.rawText || '',
             tags: detail.tags,
-            status: 'resolved',
+            status,
             canonicalType: detail.type as CanonicalNoteType,
             reminderDate: detail.editor?.reminderDate,
             reminderTime: detail.editor?.reminderTime,
@@ -112,47 +115,19 @@ export function ProjectTimeline({
           });
         })
       );
-      queryClient.invalidateQueries({ queryKey: ['project-timeline'] });
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PROJECTS.ALL });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTES.ALL });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD });
     } catch (err) {
       console.error(err);
-      alert('Failed to resolve some notes.');
+      alert(`Failed to ${status} some notes.`);
     } finally {
       setIsBulkUpdating(false);
     }
   };
 
-  const handleArchiveAll = async () => {
-    if (!visibleItems.length) return;
-    setIsBulkUpdating(true);
-    try {
-      await Promise.all(
-        visibleItems.map(async (item) => {
-          const detail = await fetchNote(item.noteId);
-          return updateNote(item.noteId, {
-            folderId: detail.folderId || '',
-            title: detail.title,
-            rawText: detail.editor?.rawText || '',
-            tags: detail.tags,
-            status: 'archived',
-            canonicalType: detail.type as CanonicalNoteType,
-            reminderDate: detail.editor?.reminderDate,
-            reminderTime: detail.editor?.reminderTime,
-            reminderAt: detail.editor?.reminderAt,
-          });
-        })
-      );
-      queryClient.invalidateQueries({ queryKey: ['project-timeline'] });
-      queryClient.invalidateQueries({ queryKey: ['notes'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    } catch (err) {
-      console.error(err);
-      alert('Failed to archive some notes.');
-    } finally {
-      setIsBulkUpdating(false);
-    }
-  };
+  const handleResolveAll = () => handleBulkStatusUpdate(BulkStatusUpdate.Resolved);
+  const handleArchiveAll = () => handleBulkStatusUpdate(BulkStatusUpdate.Archived);
 
   return (
     <div className="project-timeline">
@@ -185,12 +160,12 @@ export function ProjectTimeline({
         )}
         {visibleItems.length > 0 && (
           <div className="bulk-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk({ type: 'resolve' })}>
+            <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk({ type: BulkActionType.Resolve })}>
               <ResolveIcon />
               Resolve all
             </button>
             <span style={{ color: 'var(--line-soft)', fontSize: '12px' }}>|</span>
-            <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk({ type: 'archive' })}>
+            <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk({ type: BulkActionType.Archive })}>
               <ArchiveIcon />
               Archive all
             </button>
@@ -302,18 +277,18 @@ export function ProjectTimeline({
       {confirmBulk && (
         <ConfirmationModal
           busy={isBulkUpdating}
-          title={confirmBulk.type === 'resolve' ? 'Resolve all items' : 'Archive all items'}
+          title={confirmBulk.type === BulkActionType.Resolve ? 'Resolve all items' : 'Archive all items'}
           description={
-            confirmBulk.type === 'resolve'
+            confirmBulk.type === BulkActionType.Resolve
               ? `Are you sure you want to resolve all ${visibleItems.length} notes currently listed?`
               : `Are you sure you want to archive all ${visibleItems.length} notes currently listed?`
           }
           cancelLabel="Cancel"
-          confirmLabel={confirmBulk.type === 'resolve' ? 'Resolve all' : 'Archive all'}
+          confirmLabel={confirmBulk.type === BulkActionType.Resolve ? 'Resolve all' : 'Archive all'}
           tone="default"
           onCancel={() => setConfirmBulk(null)}
           onConfirm={async () => {
-            await (confirmBulk.type === 'resolve' ? handleResolveAll() : handleArchiveAll());
+            await (confirmBulk.type === BulkActionType.Resolve ? handleResolveAll() : handleArchiveAll());
             setConfirmBulk(null);
           }}
         />

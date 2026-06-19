@@ -5,11 +5,12 @@ import { fileURLToPath } from 'node:url';
 
 import { SchemaMigrator } from '../../application/ports/auth/auth.repository.js';
 import { PostgresDatabase } from './database.js';
+import { MigrationDirection } from '../../contracts/enums.js';
 
 const migrationsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), 'migrations');
 const migrationsTable = 'kb_schema_migrations';
 
-export async function runPostgresMigrations(database: PostgresDatabase, direction: 'up' | 'down' = 'up') {
+export async function runPostgresMigrations(database: PostgresDatabase, direction: MigrationDirection = MigrationDirection.Up) {
   if (!database.isConfigured()) return [];
 
   const client = await database.getPool().connect();
@@ -43,6 +44,6 @@ export class PostgresSchemaMigrator extends SchemaMigrator {
   }
 
   async migrate() {
-    await runPostgresMigrations(this.database, 'up');
+    await runPostgresMigrations(this.database, MigrationDirection.Up);
   }
 }

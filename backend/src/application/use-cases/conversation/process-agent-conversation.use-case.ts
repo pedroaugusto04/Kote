@@ -5,7 +5,7 @@ import {
   type AgentConversationState,
 } from '../../../contracts/agent-conversation.js';
 import { type ConversationInput } from '../../../contracts/conversation.js';
-import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
+import { CredentialRecordStatus, IntegrationProvider, AgentConversationAction } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
@@ -33,7 +33,7 @@ import {
 } from './services/conversation-agent-state-machine.js';
 
 type AgentConversationResult = {
-  action: 'ask' | 'confirm' | 'cancel' | 'submit';
+  action: AgentConversationAction;
   replyText: string;
   payload: ReturnType<typeof ingestPayloadSchema.parse> | null;
   ingestResult?: Awaited<ReturnType<IngestEntryUseCase['execute']>>;
@@ -92,7 +92,7 @@ export class ProcessAgentConversationUseCase {
     });
 
     if (!messageText && !input.hasMedia) {
-      return this.reply('ask', this.presenter.emptyTextPrompt(), null, state);
+      return this.reply(AgentConversationAction.Ask, this.presenter.emptyTextPrompt(), null, state);
     }
     if (!messageText && input.hasMedia) {
       const nextState = agentConversationStateSchema.parse({
@@ -104,11 +104,11 @@ export class ProcessAgentConversationUseCase {
         updatedAt: nowIso(),
       });
       await this.conversationStates.upsert(userId, normalizedWorkspaceSlug, key, nextState);
-      return this.reply('ask', nextState.lastQuestion, null, nextState);
+      return this.reply(AgentConversationAction.Ask, nextState.lastQuestion, null, nextState);
     }
     if (isCancel(messageText)) {
       await this.conversationStates.clear(userId, normalizedWorkspaceSlug, key);
-      return this.reply('cancel', this.presenter.captureCanceled(), null, EMPTY_AGENT_CONVERSATION_STATE);
+      return this.reply(AgentConversationAction.Cancel, this.presenter.captureCanceled(), null, EMPTY_AGENT_CONVERSATION_STATE);
     }
 
     return this.processNewTurn(input, userId, normalizedWorkspaceSlug, key, state);
@@ -130,7 +130,7 @@ export class ProcessAgentConversationUseCase {
       state,
     );
     if (this.isEmptyAgentDraftAsk(decision)) {
-      return this.reply('ask', this.presenter.couldNotUnderstand(), null, state);
+      return this.reply(AgentConversationAction.Ask, this.presenter.couldNotUnderstand(), null, state);
     }
 
     const selectedProjectSlug = resolveAgentSelectedProjectSlug(decision.selectedProjectSlug, state);
@@ -161,13 +161,13 @@ export class ProcessAgentConversationUseCase {
     });
 
     if (!nextState.draft.rawText) {
-      return this.reply('ask', this.presenter.couldNotUnderstand(), null, nextState);
+      return this.reply(AgentConversationAction.Ask, this.presenter.couldNotUnderstand(), null, nextState);
     }
     if (decision.action !== 'cancel') {
       return this.submitState(input, userId, workspaceSlug, key, nextState);
     }
 
-    return this.reply('ask', decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
+    return this.reply(AgentConversationAction.Ask, decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
   }
 
   private async assertAgentEnabled(userId: string, workspaceSlug: string) {
@@ -288,7 +288,7 @@ export class ProcessAgentConversationUseCase {
       eventPath: ingestResult.eventPath,
     });
     return this.reply(
-      'submit',
+      AgentConversationAction.Submit,
       this.presenter.noteSaved(ingestResult),
       payload,
       EMPTY_AGENT_CONVERSATION_STATE,

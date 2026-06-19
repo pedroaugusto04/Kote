@@ -5,6 +5,7 @@ import type { ProjectFolder } from '../../shared/api/models/project-folder';
 import type { Project } from '../../shared/api/models/project';
 import { formatDisplayToken } from '../../shared/utils/format';
 import { Panel, Tags } from '../../shared/ui/primitives';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
 import { ProjectTimeline } from './ProjectTimeline';
@@ -74,7 +75,7 @@ export function ProjectsBrowser({
   isStale = false,
   timelineResetKey,
 }: ProjectsBrowserProps) {
-  const folderScopeLabel = selectedFolder ? `${selectedFolder.displayName} and descendant folders` : 'All project notes';
+  const folderScopeLabel = selectedFolder ? `${selectedFolder.displayName} ${UI_MESSAGES.AND_DESCENDANT_FOLDERS}` : UI_MESSAGES.ALL_PROJECT_NOTES;
 
   return (
     <Panel>
@@ -123,16 +124,16 @@ export function ProjectsBrowser({
         </div>
         <div className="project-actions">
           <Tags items={project.defaultTags.map(formatDisplayToken)} />
-          <button className="icon-button" type="button" onClick={onCreateNote}>New note</button>
+          <button className="icon-button" type="button" onClick={onCreateNote}>{UI_MESSAGES.NEW_NOTE}</button>
         </div>
       </div>
       <div className="project-browser">
         <aside className="folder-browser">
           <div className="folder-browser-head">
             <div className="folder-browser-head-top">
-              <strong>Folders</strong>
+              <strong>{UI_MESSAGES.FOLDERS}</strong>
               <div className="folder-browser-actions">
-                <button aria-label="New folder" className="row-action-button" title="New folder" type="button" onClick={onCreateFolder}>
+                <button aria-label={UI_MESSAGES.NEW_FOLDER} className="row-action-button" title={UI_MESSAGES.NEW_FOLDER} type="button" onClick={onCreateFolder}>
                   <svg aria-hidden="true" viewBox="0 0 16 16">
                     <path d="M8 3v10" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />
                     <path d="M3 8h10" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.2" />

@@ -7,7 +7,7 @@ import type {
 } from '../../models/whatsapp-ask-attachment.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ObjectStorage, ObjectStorageMissingContentError } from '../../ports/notes/object-storage.js';
-import type { WhatsappMediaType } from '../../ports/integrations/whatsapp-reply.sender.js';
+import { WhatsappMediaType } from '../../ports/integrations/whatsapp-reply.sender.js';
 
 const maxAttachmentsPerReply = 3;
 const maxAttachmentBytes = 15 * 1024 * 1024;
@@ -154,8 +154,8 @@ function emptyResolution(requested: boolean): WhatsappAskAttachmentResolution {
 }
 
 function mediaTypeFromMime(mimeType: string): WhatsappMediaType {
-  if (mimeType.startsWith('image/')) return 'image';
-  if (mimeType.startsWith('video/')) return 'video';
-  if (mimeType.startsWith('audio/')) return 'audio';
-  return 'document';
+  if (mimeType.startsWith('image/')) return WhatsappMediaType.Image;
+  if (mimeType.startsWith('video/')) return WhatsappMediaType.Video;
+  if (mimeType.startsWith('audio/')) return WhatsappMediaType.Audio;
+  return WhatsappMediaType.Document;
 }

@@ -7,6 +7,7 @@ import {
   ExternalIdentityProvider,
   IntegrationProvider,
   StoredIntegrationStatus,
+  IntegrationActionType,
 } from '../contracts/enums.js';
 import type { IntegrationCredentialRecord } from './models/repository-records.models.js';
 import { ContentRepository } from './ports/notes/content.repository.js';
@@ -40,7 +41,7 @@ export type StoredIntegration = {
   status: StoredIntegrationStatus;
   workspaceSlug: string;
   publicMetadata: Record<string, unknown>;
-  primaryAction: { type: 'connect' | 'revoke' | 'none'; label: string } | null;
+  primaryAction: { type: IntegrationActionType; label: string } | null;
   steps: string[];
   lastError: string | null;
   connectedAccount: string | null;
@@ -91,7 +92,7 @@ export function decryptConfig(encrypted: unknown, environmentProvider: RuntimeEn
 
 function publicCredential(record: IntegrationCredentialRecord | null, provider: GuidedIntegrationProvider, workspaceSlug: string): StoredIntegration {
   const label = providerLabels[provider];
-  const connectAction = { type: 'connect' as const, label: provider === IntegrationProvider.GithubApp ? 'Connect GitHub' : provider.startsWith('ai-') ? 'Enable' : `Connect ${label.name}` };
+  const connectAction = { type: IntegrationActionType.Connect, label: provider === IntegrationProvider.GithubApp ? 'Connect GitHub' : provider.startsWith('ai-') ? 'Enable' : `Connect ${label.name}` };
   if (!record) {
     return {
       provider,
@@ -117,7 +118,7 @@ function publicCredential(record: IntegrationCredentialRecord | null, provider: 
     status: connected ? StoredIntegrationStatus.Connected : StoredIntegrationStatus.Revoked,
     workspaceSlug,
     publicMetadata: record.publicMetadata,
-    primaryAction: connected ? { type: 'revoke', label: provider.startsWith('ai-') ? 'Disable' : 'Revoke' } : connectAction,
+    primaryAction: connected ? { type: IntegrationActionType.Revoke, label: provider.startsWith('ai-') ? 'Disable' : 'Revoke' } : connectAction,
     steps: connected ? connectedSteps(provider) : ['Credential revoked.', provider.startsWith('ai-') ? 'Enable it again to restore access.' : 'Connect again to reactivate it.'],
     lastError: typeof record.publicMetadata.lastError === 'string' ? record.publicMetadata.lastError : null,
     connectedAccount: typeof record.publicMetadata.connectedAccount === 'string' ? record.publicMetadata.connectedAccount : null,

@@ -4,6 +4,7 @@ import { promisify } from 'node:util';
 import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 
 import type { KbUser } from './models/repository-records.models.js';
+import { JwtTokenType } from '../contracts/enums.js';
 import { GoogleOAuthGateway, type GoogleOAuthProfile } from './ports/auth/google-oauth.gateway.js';
 import { ObjectStorage, ObjectStorageMissingContentError } from './ports/notes/object-storage.js';
 import { SchemaMigrator, UserRepository } from './ports/auth/auth.repository.js';
@@ -36,7 +37,7 @@ type JwtPayload = {
   sub: string;
   email: string;
   role: string;
-  typ: 'access' | 'refresh' | 'connection';
+  typ: JwtTokenType;
   iat: number;
   exp: number;
 };
@@ -334,7 +335,7 @@ export class AuthService implements OnModuleInit {
 
   async refresh(refreshToken: string): Promise<{ user: AuthenticatedUser; tokens: TokenPair }> {
     const environment = this.environmentProvider.read();
-    const payload = verifyJwt(refreshToken, environment.jwtRefreshSecret, 'refresh');
+    const payload = verifyJwt(refreshToken, environment.jwtRefreshSecret, JwtTokenType.Refresh);
     const user = await this.users.findUserById(payload.sub);
     if (!user) throw new UnauthorizedException('user_not_found');
     return { user: toAuthenticatedUser(user), tokens: this.issueTokens(user) };
@@ -343,7 +344,7 @@ export class AuthService implements OnModuleInit {
   async authenticateAccessToken(accessToken: string | undefined): Promise<AuthenticatedUser> {
     if (!accessToken) throw new UnauthorizedException('missing_access_token');
     const environment = this.environmentProvider.read();
-    const payload = verifyJwt(accessToken, environment.jwtAccessSecret, 'access');
+    const payload = verifyJwt(accessToken, environment.jwtAccessSecret, JwtTokenType.Access);
     const user = await this.users.findUserById(payload.sub);
     if (!user) throw new UnauthorizedException('user_not_found');
     return toAuthenticatedUser(user);
@@ -405,8 +406,8 @@ export class AuthService implements OnModuleInit {
   issueTokens(user: KbUser): TokenPair {
     const environment = this.environmentProvider.read();
     return {
-      accessToken: signJwt({ sub: user.id, email: user.email, role: user.role, typ: 'access' }, environment.jwtAccessSecret, environment.accessTokenTtlSeconds),
-      refreshToken: signJwt({ sub: user.id, email: user.email, role: user.role, typ: 'refresh' }, environment.jwtRefreshSecret, environment.refreshTokenTtlSeconds),
+      accessToken: signJwt({ sub: user.id, email: user.email, role: user.role, typ: JwtTokenType.Access }, environment.jwtAccessSecret, environment.accessTokenTtlSeconds),
+      refreshToken: signJwt({ sub: user.id, email: user.email, role: user.role, typ: JwtTokenType.Refresh }, environment.jwtRefreshSecret, environment.refreshTokenTtlSeconds),
       accessTokenMaxAgeSeconds: environment.accessTokenTtlSeconds,
       refreshTokenMaxAgeSeconds: environment.refreshTokenTtlSeconds,
     };
@@ -415,7 +416,7 @@ export class AuthService implements OnModuleInit {
   generateConnectionToken(user: AuthenticatedUser): string {
     const environment = this.environmentProvider.read();
     const token = signJwt(
-      { sub: user.id, email: user.email, role: user.role, typ: 'connection' },
+      { sub: user.id, email: user.email, role: user.role, typ: JwtTokenType.Connection },
       environment.jwtAccessSecret,
       600, // 10 minutes TTL
     );
@@ -429,7 +430,7 @@ export class AuthService implements OnModuleInit {
     }
     const token = trimmed.slice(4);
     const environment = this.environmentProvider.read();
-    const payload = verifyJwt(token, environment.jwtAccessSecret, 'connection');
+    const payload = verifyJwt(token, environment.jwtAccessSecret, JwtTokenType.Connection);
     const user = await this.users.findUserById(payload.sub);
     if (!user) throw new UnauthorizedException('user_not_found');
     return this.issueTokens(user);

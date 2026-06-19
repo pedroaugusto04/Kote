@@ -1,9 +1,11 @@
+import { WhatsappMediaType } from '../../../contracts/enums.js';
+
 export type WhatsappSendTextResult = {
   ok: boolean;
   error?: string;
 };
 
-export type WhatsappMediaType = 'image' | 'video' | 'audio' | 'document';
+export { WhatsappMediaType };
 
 export type WhatsappSendMediaInput = {
   chatJid: string;

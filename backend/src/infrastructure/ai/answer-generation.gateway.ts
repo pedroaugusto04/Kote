@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { AiProvider } from '../../contracts/enums.js';
+import { AiProvider, ConversationConfidence } from '../../contracts/enums.js';
 import type { AskConversationTurn } from '../../contracts/ask-conversation.js';
 import {
   AnswerGenerationGateway,
@@ -49,7 +49,7 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
       // Fallback: If parsing fails, treat the response text as the answer itself
       return {
         answer: content,
-        confidence: 'medium',
+        confidence: ConversationConfidence.Medium,
         requestedAttachments: false,
         sources: [],
       };

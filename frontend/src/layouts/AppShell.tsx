@@ -28,6 +28,7 @@ import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
 import type { ConfirmState, NoteModalState } from '../features/projects/projects.types';
 import { notifyGeneralFormError } from '../shared/forms/errors';
 import { ConfirmationModal } from '../shared/ui/confirmation-modal';
+import { QUERY_KEYS } from '../shared/constants/query-keys.constants';
 import { notifySuccess } from '../shared/ui/notifications';
 import { UserAvatar } from '../shared/ui/user-avatar';
 import { BrandMark } from '../shared/ui/brand-mark';
@@ -62,7 +63,7 @@ export function AppShell() {
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
   const dashboardQuery = useQuery({
-    queryKey: ['dashboard'],
+    queryKey: QUERY_KEYS.DASHBOARD,
     queryFn: fetchDashboard,
     retry: (failureCount, error) => {
       if (error instanceof ApiClientError && error.status === 401) return false;
@@ -94,7 +95,7 @@ export function AppShell() {
   const isSetupRoute = location.pathname.startsWith(routes.setup);
 
   const searchQuery = useQuery({
-    queryKey: ['global-search-popover', debouncedSearchValue, workspaceSlug],
+    queryKey: QUERY_KEYS.GLOBAL_SEARCH(debouncedSearchValue, workspaceSlug),
     queryFn: () => runQuery({
       query: debouncedSearchValue,
       workspaceSlug,
@@ -119,7 +120,7 @@ export function AppShell() {
   const shouldBlockNoteRoute = Boolean(routeNoteId) && routeNoteQuery.isLoading && !activeRouteNote;
   const isUnauthorized = dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401;
   const currentUserQuery = useQuery({
-    queryKey: ['auth', 'me'],
+    queryKey: QUERY_KEYS.AUTH.ME,
     queryFn: fetchCurrentUser,
     enabled: Boolean(dashboard && activeWorkspace && !isSetupRoute),
   });
@@ -176,7 +177,7 @@ export function AppShell() {
   }, [isProfileMenuOpen]);
 
   const noteFoldersQuery = useQuery({
-    queryKey: ['project-folders', 'app-shell-note-modal', noteModal?.mode === 'edit' ? noteModal.note.project : ''],
+    queryKey: QUERY_KEYS.PROJECTS.FOLDERS(noteModal?.mode === 'edit' ? noteModal.note.project : ''),
     queryFn: () => fetchProjectFolders(noteModal?.mode === 'edit' ? noteModal.note.project : ''),
     enabled: noteModal?.mode === 'edit',
   });
@@ -205,7 +206,7 @@ export function AppShell() {
   const toggleFavoriteMutation = useMutation({
     mutationFn: ({ slug, favorite }: { slug: string; favorite: boolean }) =>
       setProjectFavorite(slug, favorite),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD }),
   });
 
   useEffect(() => {

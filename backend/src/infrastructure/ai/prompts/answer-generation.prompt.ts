@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import type { AnswerContextChunk, AnswerGenerationResponse } from '../../../application/ports/query/answer-generation.gateway.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
+import { ConversationConfidence } from '../../../contracts/enums.js';
 
 export const answerGenerationResponseSchema = z.object({
   answer: z.string().trim().default(''),
@@ -75,7 +76,7 @@ export function parseAnswerGenerationResponse(
 
   return {
     answer: parsed.answer,
-    confidence: parsed.confidence,
+    confidence: parsed.confidence as ConversationConfidence,
     requestedAttachments: parsed.requestedAttachments,
     requestedAttachmentPattern: parsed.requestedAttachmentPattern,
     sources: filteredSources,

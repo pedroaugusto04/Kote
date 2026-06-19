@@ -1,4 +1,5 @@
 import type { PaginatedResult } from '../../contracts/pagination.js';
+import { ConversationConfidence } from '../../contracts/enums.js';
 
 export type AskHistorySource = {
   noteId: string;
@@ -18,7 +19,7 @@ export type AskHistoryItem = {
   id: string;
   question: string;
   answer: string;
-  confidence: 'high' | 'medium' | 'low';
+  confidence: ConversationConfidence;
   projectSlug: string;
   sources: AskHistorySource[];
   relatedNotes: AskHistoryRelatedNote[];
@@ -30,7 +31,7 @@ export type SaveAskHistoryInput = {
   projectSlug: string;
   question: string;
   answer: string;
-  confidence: 'high' | 'medium' | 'low';
+  confidence: ConversationConfidence;
   sources: AskHistorySource[];
   relatedNotes: AskHistoryRelatedNote[];
 };

@@ -8,6 +8,7 @@ import { resolveHttpErrorCode, httpErrorCatalog } from './http-error-catalog.js'
 import { AppLogger } from './logger.js';
 import { getRequestMetadata } from './request-metadata.js';
 import { getRequestContext, updateRequestContext } from './request-context.js';
+import { HttpErrorLogLevel } from '../observability/observability.enums.js';
 
 type HttpExceptionResponse = string | {
   code?: string;
@@ -45,7 +46,7 @@ function extractHttpExceptionPayload(error: HttpException): { code?: string; sta
   return { code, statusCode, details };
 }
 
-export function normalizeException(error: unknown): { code: string; statusCode: number; details: ApiErrorDetails; safeMessage: string; logLevel: 'debug' | 'info' | 'warn' | 'error' } {
+export function normalizeException(error: unknown): { code: string; statusCode: number; details: ApiErrorDetails; safeMessage: string; logLevel: HttpErrorLogLevel } {
   if (error instanceof HttpException) {
     const payload = extractHttpExceptionPayload(error);
     const code = resolveHttpErrorCode(payload);
@@ -135,6 +136,6 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       stack: error?.stack,
       cause: error?.cause instanceof Error ? error.cause.message : error?.cause,
     };
-    this.logger[normalized.logLevel]('http.request.error', fields);
+    this.logger[normalized.logLevel as keyof AppLogger]('http.request.error', fields);
   }
 }

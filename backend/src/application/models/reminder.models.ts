@@ -1,4 +1,4 @@
-import type { ReminderDeliveryChannel } from '../../contracts/enums.js';
+import type { ReminderDeliveryChannel, ReminderBoardColumnKey } from '../../contracts/enums.js';
 
 export type ReminderView = {
   id: string;
@@ -13,8 +13,6 @@ export type ReminderView = {
   reminderAt: string;
   relativePath: string;
 };
-
-export type ReminderBoardColumnKey = 'overdue' | 'upcoming' | 'resolved' | 'archived';
 
 export type ReminderBoardCard = ReminderView;
 

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { calculateAttachmentSize } from '../../../../domain/strings.js';
-import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus, ExternalIdentityType, WebhookEventType } from '../../../../contracts/enums.js';
 import type { ConversationInput } from '../../../../contracts/conversation.js';
 import { IntegrationConnectionService } from '../../../integration-connections.js';
 import type { WhatsappWebhookRequest } from '../../../models/webhook-request.models.js';
@@ -25,7 +25,7 @@ import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-a
 type WhatsappWebhookContext = {
   headers: Record<string, string>;
   body: Record<string, unknown>;
-  externalIdentity: { provider: ExternalIdentityProvider.Whatsapp; identityType: 'jid'; externalId: string };
+  externalIdentity: { provider: ExternalIdentityProvider.Whatsapp; identityType: ExternalIdentityType.Jid; externalId: string };
 };
 
 @Injectable()
@@ -72,7 +72,7 @@ export class HandleWhatsappWebhookUseCase {
     context: WhatsappWebhookContext,
     command: Extract<WhatsappWebhookCommand, { kind: 'connect' }>,
   ) {
-    const claimed = await this.claimMessageIdempotency(context, 'connection');
+    const claimed = await this.claimMessageIdempotency(context, WebhookEventType.Connection);
     if (!claimed) {
       return { ok: true, processed: false, ignored: 'duplicate_message' };
     }
@@ -84,7 +84,7 @@ export class HandleWhatsappWebhookUseCase {
       chatJid: command.externalId,
     });
     await this.recordWebhookEvent(context, {
-      eventType: 'connection',
+      eventType: WebhookEventType.Connection,
       status: WebhookEventStatus.Processed,
       resolvedUserId: result.resolvedUserId,
     });
@@ -119,7 +119,7 @@ export class HandleWhatsappWebhookUseCase {
       return { ok: true, processed: false, ignored: 'whatsapp_integration_inactive' };
     }
 
-    const claimed = await this.claimMessageIdempotency(context, 'message', identity.userId);
+    const claimed = await this.claimMessageIdempotency(context, WebhookEventType.Message, identity.userId);
     if (!claimed) {
       return { ok: true, processed: false, ignored: 'duplicate_message' };
     }
@@ -135,7 +135,7 @@ export class HandleWhatsappWebhookUseCase {
     }
 
     await this.recordWebhookEvent(context, {
-      eventType: 'message',
+      eventType: WebhookEventType.Message,
       status: WebhookEventStatus.Resolved,
       resolvedUserId: identity.userId,
     });
@@ -159,7 +159,7 @@ export class HandleWhatsappWebhookUseCase {
       body,
       externalIdentity: {
         provider: ExternalIdentityProvider.Whatsapp,
-        identityType: 'jid',
+        identityType: ExternalIdentityType.Jid,
         externalId: '',
       },
     };
@@ -436,7 +436,7 @@ export class HandleWhatsappWebhookUseCase {
 
   private async claimMessageIdempotency(
     context: WhatsappWebhookContext,
-    eventType: 'message' | 'connection',
+    eventType: WebhookEventType,
     resolvedUserId?: string,
   ) {
     const idempotencyKey = this.buildMessageIdempotencyKey(context);
@@ -493,7 +493,7 @@ export class HandleWhatsappWebhookUseCase {
 
   private async processed<T>(context: WhatsappWebhookContext, result: T, resolvedUserId?: string) {
     await this.recordWebhookEvent(context, {
-      eventType: 'message',
+      eventType: WebhookEventType.Message,
       status: WebhookEventStatus.Processed,
       resolvedUserId,
     });
@@ -507,7 +507,7 @@ export class HandleWhatsappWebhookUseCase {
       error: error instanceof Error ? error.message : String(error),
     });
     await this.recordWebhookEvent(context, {
-      eventType: 'message',
+      eventType: WebhookEventType.Message,
       status: WebhookEventStatus.Failed,
       resolvedUserId,
       error: error instanceof Error ? error.message : String(error),
@@ -517,7 +517,7 @@ export class HandleWhatsappWebhookUseCase {
   private async recordWebhookEvent(
     context: WhatsappWebhookContext,
     event: {
-      eventType: 'message' | 'connection';
+      eventType: WebhookEventType;
       status: WebhookEventStatus;
       resolvedUserId?: string;
       error?: string;

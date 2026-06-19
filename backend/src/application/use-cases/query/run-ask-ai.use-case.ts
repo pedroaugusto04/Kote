@@ -5,6 +5,7 @@ import { AskKnowledgeUseCase } from './ask-knowledge.use-case.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ResolveWhatsappAskAttachmentsUseCase } from './resolve-whatsapp-ask-attachments.use-case.js';
 import { WhatsappReplySender } from '../../ports/integrations/whatsapp-reply.sender.js';
+import { ConversationConfidence } from '../../../contracts/enums.js';
 
 @Injectable()
 export class RunAskAiUseCase {
@@ -28,7 +29,7 @@ export class RunAskAiUseCase {
         projectSlug: options.projectSlug || '',
         question,
         answer: result.answer,
-        confidence: result.confidence,
+        confidence: result.confidence as ConversationConfidence,
         sources: result.sources,
         relatedNotes: result.relatedNotes,
       });

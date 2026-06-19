@@ -1,3 +1,4 @@
+import { WebhookIgnoreReason } from '../../contracts/enums.js';
 import { redactSensitiveValue } from '../../observability/redact.js';
 
 export function normalizeHeaders(headers: Record<string, string | string[] | undefined>): Record<string, string> {
@@ -48,7 +49,7 @@ export type ParsedWhatsappEvolutionMessage =
     }
   | {
       kind: 'ignored';
-      reason: 'unsupported_event' | 'missing_payload';
+      reason: WebhookIgnoreReason;
     };
 
 function whatsappPayload(body: Record<string, unknown>): Record<string, unknown> {
@@ -146,7 +147,7 @@ function parseWhatsappMedia(payload: Record<string, unknown>, message: Record<st
 export function parseWhatsappEvolutionMessage(body: Record<string, unknown>): ParsedWhatsappEvolutionMessage {
   const payload = whatsappPayload(body);
   const event = evolutionEvent(body, payload);
-  if (event && event !== 'MESSAGES_UPSERT') return { kind: 'ignored', reason: 'unsupported_event' };
+  if (event && event !== 'MESSAGES_UPSERT') return { kind: 'ignored', reason: WebhookIgnoreReason.UnsupportedEvent };
 
   const key = objectValue(payload.key);
   const rawMessage = objectValue(payload.message) || objectValue(body.message);
@@ -155,7 +156,7 @@ export function parseWhatsappEvolutionMessage(body: Record<string, unknown>): Pa
     || objectValue(objectValue(rawMessage?.viewOnceMessageV2)?.message)
     || objectValue(objectValue(rawMessage?.documentWithCaptionMessage)?.message)
     || rawMessage;
-  if (!key || !message) return { kind: 'ignored', reason: 'missing_payload' };
+  if (!key || !message) return { kind: 'ignored', reason: WebhookIgnoreReason.MissingPayload };
 
   const chatId = stringValue(key.remoteJid || payload.remoteJid || payload.chatId || body.remoteJid || body.chatId);
   const senderId = stringValue(key.participant || payload.participant || body.participant || chatId);

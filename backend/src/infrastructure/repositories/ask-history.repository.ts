@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { eq, and, desc, count } from 'drizzle-orm';
 
 import { buildPaginationMeta } from '../../contracts/pagination.js';
+import { ConversationConfidence } from '../../contracts/enums.js';
 import type {
   AskHistoryItem,
   AskHistoryRelatedNote,
@@ -29,7 +30,7 @@ function askHistoryFromRow(row: Row): AskHistoryItem {
     id: String(row.id || ''),
     question: String(row.question || ''),
     answer: String(row.answer || ''),
-    confidence: row.confidence === 'high' || row.confidence === 'medium' ? row.confidence : 'low',
+    confidence: (row.confidence === 'high' || row.confidence === 'medium' ? row.confidence : 'low') as ConversationConfidence,
     projectSlug: String(projectSlug || ''),
     sources: Array.isArray(row.sources) ? row.sources as AskHistorySource[] : [],
     relatedNotes: Array.isArray(relatedNotes) ? relatedNotes as AskHistoryRelatedNote[] : [],

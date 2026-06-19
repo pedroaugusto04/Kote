@@ -31,6 +31,8 @@ import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
 import { useGlobalLoading } from '../../app/global-loading';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { ROOT_FOLDER_ID } from './projects.constants';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
 import { ProjectFolderModal } from './modals/ProjectFolderModal';
 import { ProjectNoteModal } from './modals/ProjectNoteModal';
 import { ProjectModal } from './modals/ProjectModal';
@@ -108,7 +110,7 @@ export function ProjectsWorkspace({
   }, [selectedSlug]);
 
   const foldersQuery = useQuery({
-    queryKey: ['project-folders', selected?.projectSlug || ''],
+    queryKey: QUERY_KEYS.PROJECTS.FOLDERS(selected?.projectSlug || ''),
     queryFn: () => fetchProjectFolders(selected?.projectSlug || ''),
     enabled: Boolean(selected?.projectSlug),
     initialData: selected ? { ok: true as const, projectSlug: selected.projectSlug, folders: [] } : undefined,
@@ -118,7 +120,7 @@ export function ProjectsWorkspace({
   const selectedFolder = flatFolders.find((folder) => folder.id === selectedFolderId) || null;
   const timelinePagination = usePaginationState(`${selected?.projectSlug || 'all'}:${selectedFolderId}:${timelineCategory}:${timelineStatus}:timeline`);
   const allProjectsTimelineQuery = useQuery({
-    queryKey: ['project-timeline', 'all-projects', timelineCategory, timelineStatus, timelinePagination.page],
+    queryKey: QUERY_KEYS.PROJECTS.TIMELINE_ALL_PROJECTS(timelineCategory, timelineStatus, timelinePagination.page),
     queryFn: () => fetchAllProjectsTimeline({
       page: timelinePagination.page,
       category: timelineCategory,
@@ -129,7 +131,7 @@ export function ProjectsWorkspace({
     placeholderData: keepPreviousData,
   });
   const timelineQuery = useQuery({
-    queryKey: ['project-timeline', selected?.projectSlug || '', selectedFolderId, timelineCategory, timelineStatus, timelinePagination.page],
+    queryKey: QUERY_KEYS.PROJECTS.TIMELINE(selected?.projectSlug || '', selectedFolderId, timelineCategory, timelineStatus, timelinePagination.page),
     queryFn: () => fetchProjectTimeline(selected?.projectSlug || '', {
       page: timelinePagination.page,
       category: timelineCategory,
@@ -145,7 +147,7 @@ export function ProjectsWorkspace({
   const searchPaginationKey = `search:${debouncedSearchInput}:${selectedSlug}:${timelineStatus}`;
   const { page: searchPage, setPage: setSearchPage } = usePaginationState(searchPaginationKey);
   const searchQuery = useQuery({
-    queryKey: ['projects-search', debouncedSearchInput, selectedSlug, workspaceSlug, timelineStatus, searchPage],
+    queryKey: QUERY_KEYS.PROJECTS.SEARCH(debouncedSearchInput, selectedSlug, workspaceSlug, timelineStatus, searchPage),
     queryFn: () => runQuery({
       query: debouncedSearchInput,
       projectSlug: selectedSlug || '',
@@ -182,12 +184,12 @@ export function ProjectsWorkspace({
 
   const timelineItems = timelineQuery.data?.timeline || [];
   const selectedProjectDeleteBlockedReason = selected?.projectSlug === 'inbox'
-    ? 'Inbox cannot be changed.'
+    ? UI_MESSAGES.INBOX_CANNOT_BE_CHANGED
     : dashboardNotes.some((note) => note.project === selected?.projectSlug)
-      ? 'Delete or move the project notes before removing it.'
+      ? UI_MESSAGES.DELETE_OR_MOVE_PROJECT_NOTES
       : '';
   const { data: integrationsResponse } = useQuery({
-    queryKey: ['integrations', workspaceSlug],
+    queryKey: QUERY_KEYS.INTEGRATIONS.ALL(workspaceSlug),
     queryFn: () => fetchIntegrations(workspaceSlug || ''),
     enabled: Boolean(workspaceSlug),
   });
@@ -195,7 +197,7 @@ export function ProjectsWorkspace({
     (integration) => integration.provider === 'github-app' && integration.status === 'connected',
   ) || false;
   const { data: repositoriesResponse } = useQuery({
-    queryKey: ['github-repositories', workspaceSlug],
+    queryKey: QUERY_KEYS.INTEGRATIONS.GITHUB_REPOSITORIES(workspaceSlug),
     queryFn: () => fetchGithubRepositories(workspaceSlug || ''),
     enabled: Boolean(workspaceSlug) && githubConnected,
   });
@@ -203,37 +205,37 @@ export function ProjectsWorkspace({
   const loadNoteMutation = useMutation({
     mutationFn: (id: string) => globalLoading.trackPromise(ensureNoteDetail(queryClient, id)),
     onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
-    onError: (error) => notifyGeneralFormError(error, 'Could not load the note for editing.'),
+    onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_LOAD_NOTE_FOR_EDITING),
   });
   const deleteProjectMutation = useMutation({
     mutationFn: (projectSlug: string) => globalLoading.trackPromise(deleteProject(projectSlug)),
     onSuccess: async (_, projectSlug) => {
       const nextProjectSlug = dashboard.projects.filter((project) => project.projectSlug !== projectSlug)[0]?.projectSlug || 'inbox';
       setConfirmState(null);
-      notifySuccess('Project deleted successfully.');
+      notifySuccess(UI_MESSAGES.PROJECT_DELETED);
       openProject(nextProjectSlug);
       await refreshDashboard(queryClient);
     },
-    onError: (error) => notifyGeneralFormError(error, 'Could not delete the project.'),
+    onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_DELETE_PROJECT),
   });
   const deleteFolderMutation = useMutation({
     mutationFn: ({ projectSlug, folderId }: { projectSlug: string; folderId: string }) => globalLoading.trackPromise(deleteProjectFolder(projectSlug, folderId)),
     onSuccess: async () => {
       setConfirmState(null);
       setSelectedFolderId(ROOT_FOLDER_ID);
-      notifySuccess('Folder deleted successfully.');
+      notifySuccess(UI_MESSAGES.FOLDER_DELETED);
       await refreshDashboard(queryClient);
     },
-    onError: (error) => notifyGeneralFormError(error, 'Could not delete the folder.'),
+    onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_DELETE_FOLDER),
   });
   const deleteNoteMutation = useMutation({
     mutationFn: (id: string) => globalLoading.trackPromise(deleteNote(id)),
     onSuccess: async () => {
       setConfirmState(null);
-      notifySuccess('Note deleted successfully.');
+      notifySuccess(UI_MESSAGES.NOTE_DELETED);
       await refreshDashboard(queryClient);
     },
-    onError: (error) => notifyGeneralFormError(error, 'Could not delete the note.'),
+    onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_DELETE_NOTE),
   });
 
   return (
@@ -241,14 +243,14 @@ export function ProjectsWorkspace({
       <PageHead
         title={(
           <div className="page-head-title-row">
-            <h1>Projects</h1>
-            <label className="sr-only" htmlFor="projects-page-project-select">Select project</label>
+            <h1>{UI_MESSAGES.PROJECTS}</h1>
+            <label className="sr-only" htmlFor="projects-page-project-select">{UI_MESSAGES.SELECT_PROJECT}</label>
             <Select
-              ariaLabel="Select project"
+              ariaLabel={UI_MESSAGES.SELECT_PROJECT}
               className="page-head-select"
               id="projects-page-project-select"
               options={[
-                { value: '', label: 'All' },
+                { value: '', label: UI_MESSAGES.ALL },
                 ...dashboard.projects.map((project) => ({
                   value: project.projectSlug,
                   label: project.displayName,
@@ -257,9 +259,9 @@ export function ProjectsWorkspace({
               value={selected?.projectSlug || ''}
               onChange={openProject}
             />
-            <label className="sr-only" htmlFor="projects-page-status-select">Filter by status</label>
+            <label className="sr-only" htmlFor="projects-page-status-select">{UI_MESSAGES.FILTER_BY_STATUS}</label>
             <Select
-              ariaLabel="Filter by status"
+              ariaLabel={UI_MESSAGES.FILTER_BY_STATUS}
               className="page-head-select status-select"
               id="projects-page-status-select"
               options={statusOptions}
@@ -273,11 +275,11 @@ export function ProjectsWorkspace({
           <div style={{ display: 'flex', gap: '8px' }}>
             {createNote ? (
               <button className="icon-button" type="button" onClick={() => createNote()}>
-                Quick note
+                {UI_MESSAGES.QUICK_NOTE}
               </button>
             ) : null}
             <button className="icon-button" type="button" onClick={() => setProjectModal({ mode: 'create' })}>
-              New project
+              {UI_MESSAGES.NEW_PROJECT}
             </button>
           </div>
         }
@@ -287,7 +289,7 @@ export function ProjectsWorkspace({
       <section className="search-box projects-search-box">
         <SearchIcon className="projects-search-icon" />
         <input
-          aria-label="Search notes in project"
+          aria-label={UI_MESSAGES.SEARCH_NOTES_IN_PROJECT}
           autoComplete="off"
           enterKeyHint="search"
           inputMode="search"
@@ -295,7 +297,7 @@ export function ProjectsWorkspace({
           type="text"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder={selected ? `Search in ${selected.displayName}...` : 'Search across all projects...'}
+          placeholder={selected ? `${UI_MESSAGES.SEARCH_IN} ${selected.displayName}...` : UI_MESSAGES.SEARCH_ACROSS_ALL_PROJECTS}
         />
       </section>
 
@@ -306,14 +308,14 @@ export function ProjectsWorkspace({
             <Panel className="matching-notes-panel" style={{ minWidth: 0 }}>
               <div className="matching-notes-heading">
                 <div>
-                  <h2>Search Results</h2>
+                  <h2>{UI_MESSAGES.SEARCH_RESULTS}</h2>
                   <span className="matching-notes-count">
-                    {searchPagination ? `${searchPagination.total} total` : ''}
+                    {searchPagination ? `${searchPagination.total} ${UI_MESSAGES.TOTAL}` : ''}
                     {selected ? ` in ${selected.displayName}` : ' across all projects'}
                   </span>
                 </div>
               </div>
-              {searchQuery.isError ? <InlineMessage tone="error">Could not load notes for this search.</InlineMessage> : null}
+              {searchQuery.isError ? <InlineMessage tone="error">{UI_MESSAGES.COULD_NOT_LOAD_NOTES_FOR_SEARCH}</InlineMessage> : null}
               <div className={`list ${searchQuery.isPlaceholderData ? 'stale-data' : ''}`}>
                 {paginatedSearchResults.map((note) => (
                   <NoteRow
@@ -333,14 +335,14 @@ export function ProjectsWorkspace({
                   ? <MobileInfinitePagination pagination={searchPagination} isLoading={searchQuery.isFetching || searchPagination.page > searchLoadedMobilePage} onPageChange={setSearchPage} />
                   : <Pagination pagination={searchPagination} onPageChange={setSearchPage} />
               ) : null}
-              {!paginatedSearchResults.length && !searchQuery.isError ? <EmptyState>No notes found for this search.</EmptyState> : null}
+              {!paginatedSearchResults.length && !searchQuery.isError ? <EmptyState>{UI_MESSAGES.NO_NOTES_FOUND_FOR_SEARCH}</EmptyState> : null}
             </Panel>
           ) : isAllProjectsSelected ? (
             <Panel>
               <div className="page-head">
                 <div>
-                  <h2>All</h2>
-                  <p>Notes from all projects</p>
+                  <h2>{UI_MESSAGES.ALL}</h2>
+                  <p>{UI_MESSAGES.NOTES_FROM_ALL_PROJECTS}</p>
                 </div>
               </div>
               <ProjectTimeline
@@ -418,7 +420,7 @@ export function ProjectsWorkspace({
           onClose={() => setProjectModal(null)}
           onSaved={async (projectSlug, mode) => {
             setProjectModal(null);
-            notifySuccess(mode === 'create' ? 'Project created successfully.' : 'Project updated successfully.');
+            notifySuccess(mode === 'create' ? UI_MESSAGES.PROJECT_CREATED : UI_MESSAGES.PROJECT_UPDATED);
             openProject(projectSlug);
             await refreshDashboard(queryClient);
           }}
@@ -434,7 +436,7 @@ export function ProjectsWorkspace({
           onSaved={async (folderId, mode) => {
             setFolderModal(null);
             setSelectedFolderId(folderId || ROOT_FOLDER_ID);
-            notifySuccess(mode === 'create' ? 'Folder created successfully.' : 'Folder updated successfully.');
+            notifySuccess(mode === 'create' ? UI_MESSAGES.FOLDER_CREATED : UI_MESSAGES.FOLDER_UPDATED);
             await refreshDashboard(queryClient);
           }}
           projectSlug={folderModal.projectSlug}
@@ -448,7 +450,7 @@ export function ProjectsWorkspace({
           onClose={() => setNoteModal(null)}
           onSaved={async (noteId, mode) => {
             setNoteModal(null);
-            notifySuccess(mode === 'create' ? 'Note created successfully.' : 'Note updated successfully.');
+            notifySuccess(mode === 'create' ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
             await refreshDashboard(queryClient);
             if (mode === 'create' && noteId) {
               openNote(noteId);
@@ -461,8 +463,8 @@ export function ProjectsWorkspace({
       {confirmState ? (
         <ConfirmationModal
           busy={deleteProjectMutation.isPending || deleteFolderMutation.isPending || deleteNoteMutation.isPending}
-          cancelLabel="Cancel"
-          confirmLabel="Confirm deletion"
+          cancelLabel={UI_MESSAGES.CANCEL}
+          confirmLabel={UI_MESSAGES.CONFIRM_DELETION}
           description={confirmState.kind === 'project'
             ? `Deleting project ${confirmState.project.displayName} is permanent.`
             : confirmState.kind === 'folder'
@@ -480,7 +482,7 @@ export function ProjectsWorkspace({
             }
             deleteNoteMutation.mutate(confirmState.note.id);
           }}
-          title={confirmState.kind === 'project' ? 'Delete project' : confirmState.kind === 'folder' ? 'Delete folder' : 'Delete note'}
+          title={confirmState.kind === 'project' ? UI_MESSAGES.DELETE_PROJECT : confirmState.kind === 'folder' ? UI_MESSAGES.DELETE_FOLDER : UI_MESSAGES.DELETE_NOTE}
         />
       ) : null}
     </>

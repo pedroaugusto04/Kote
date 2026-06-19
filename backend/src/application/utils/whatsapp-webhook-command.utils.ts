@@ -1,15 +1,15 @@
 import { extractWhatsappExternalId, parseWhatsappEvolutionMessage } from './webhook.utils.js';
 import { extractWhatsappConnectionCode } from '../integration-connections.js';
 import { conversationInputSchema, type ConversationInput } from '../../contracts/conversation.js';
+import { WebhookIgnoreReason } from '../../contracts/enums.js';
 
-type WhatsappWebhookIgnoreReason = 'unsupported_event' | 'missing_payload' | 'from_me' | 'missing_group_prefix';
 const BOT_MESSAGE_PREFIX = '[BOT]';
 const GROUP_INVOCATION_PREFIX = '/kb';
 
 export type WhatsappWebhookCommand =
   | {
       kind: 'ignore';
-      reason: WhatsappWebhookIgnoreReason;
+      reason: WebhookIgnoreReason;
     }
   | {
       kind: 'reject';
@@ -32,10 +32,10 @@ export function buildWhatsappWebhookCommand(body: Record<string, unknown>): What
     return { kind: 'ignore', reason: parsedMessage.reason };
   }
   if (parsedMessage.fromMe && parsedMessage.messageText.startsWith(BOT_MESSAGE_PREFIX)) {
-    return { kind: 'ignore', reason: 'from_me' };
+    return { kind: 'ignore', reason: WebhookIgnoreReason.FromMe };
   }
   if (parsedMessage.isGroup && !hasGroupInvocationPrefix(parsedMessage.messageText)) {
-    return { kind: 'ignore', reason: 'missing_group_prefix' };
+    return { kind: 'ignore', reason: WebhookIgnoreReason.MissingGroupPrefix };
   }
   const messageText = parsedMessage.isGroup
     ? stripGroupInvocationPrefix(parsedMessage.messageText)

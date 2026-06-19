@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException, Optional } from '@nestjs/common';
 
-import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider } from '../contracts/enums.js';
+import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, ExternalIdentityType, ExternalIdKey, WorkspaceBindingField, ConnectionCallbackStatus, MissingCredentialError } from '../contracts/enums.js';
 import { slugify } from '../domain/strings.js';
 import { encryptConfig } from './credentials.js';
 import type { IntegrationConnectionSessionRecord, WorkspaceRecord } from './models/repository-records.models.js';
@@ -46,10 +46,10 @@ type CodeBasedProvider = IntegrationProvider.Whatsapp | IntegrationProvider.Tele
 type CodeBasedConnectionSpec = {
   provider: CodeBasedProvider;
   externalProvider: ExternalIdentityProvider.Whatsapp | ExternalIdentityProvider.Telegram;
-  identityType: 'jid' | 'chat_id';
+  identityType: ExternalIdentityType;
   label: string;
-  externalIdKey: 'chatJid' | 'chatId';
-  workspaceBinding: 'whatsappChatJid' | 'telegramChatId';
+  externalIdKey: ExternalIdKey;
+  workspaceBinding: WorkspaceBindingField;
 };
 
 function normalizeWorkspaceSlug(value: string): string {
@@ -156,7 +156,7 @@ export class IntegrationConnectionService {
         provider: IntegrationProvider.GithubApp,
         session: publicConnectionSession(finalSession),
         connectedAccount: this.connectedAccount(accountLogin, installationId),
-        redirectUrl: this.buildGithubCallbackRedirect(finalSession, 'connected'),
+        redirectUrl: this.buildGithubCallbackRedirect(finalSession, ConnectionCallbackStatus.Connected),
       };
     } catch (error) {
       await this.sessions.consumeConnectionSession(session.id, 'error', { lastError: error instanceof Error ? error.message : String(error) });
@@ -166,7 +166,7 @@ export class IntegrationConnectionService {
 
   async completeGithubForBrowser(input: { userId: string; state: string; installationId: string }) {
     const session = await this.sessions.findActiveConnectionSessionByState(IntegrationProvider.GithubApp, connectionSha256(input.state), new Date().toISOString());
-    const redirectFromSession = session ? this.buildGithubCallbackRedirect(session, 'error') : this.fallbackGithubCallbackRedirect();
+    const redirectFromSession = session ? this.buildGithubCallbackRedirect(session, ConnectionCallbackStatus.Error) : this.fallbackGithubCallbackRedirect();
     try {
       const result = await this.completeGithub(input);
       return { redirectUrl: result.redirectUrl };
@@ -182,10 +182,10 @@ export class IntegrationConnectionService {
       spec: {
         provider: IntegrationProvider.Whatsapp,
         externalProvider: ExternalIdentityProvider.Whatsapp,
-        identityType: 'jid',
+        identityType: ExternalIdentityType.Jid,
         label: 'Chat WhatsApp',
-        externalIdKey: 'chatJid',
-        workspaceBinding: 'whatsappChatJid',
+        externalIdKey: ExternalIdKey.ChatJid,
+        workspaceBinding: WorkspaceBindingField.WhatsappChatJid,
       },
     });
   }
@@ -197,10 +197,10 @@ export class IntegrationConnectionService {
       spec: {
         provider: IntegrationProvider.Telegram,
         externalProvider: ExternalIdentityProvider.Telegram,
-        identityType: 'chat_id',
+        identityType: ExternalIdentityType.ChatId,
         label: 'Chat Telegram',
-        externalIdKey: 'chatId',
-        workspaceBinding: 'telegramChatId',
+        externalIdKey: ExternalIdKey.ChatId,
+        workspaceBinding: WorkspaceBindingField.TelegramChatId,
       },
     });
   }
@@ -211,7 +211,7 @@ export class IntegrationConnectionService {
     const repositories = await this.githubRepositoryResolution.listAccessibleRepositories({
       userId: input.userId,
       workspaceSlug,
-      missingCredentialError: 'not_found',
+      missingCredentialError: MissingCredentialError.NotFound,
     });
     const projects = await this.content.listProjects(input.userId);
     const selected = new Set(projects.filter(p => p.workspaceSlug === workspaceSlug).flatMap(p => p.repositories.map(r => r.fullName)));
@@ -238,7 +238,7 @@ export class IntegrationConnectionService {
       userId: input.userId,
       workspaceSlug,
       repositoryIds: input.repositories.map((repo) => repo.id),
-      missingCredentialError: 'not_found',
+      missingCredentialError: MissingCredentialError.NotFound,
     });
 
     const projects = await Promise.all(savedRepositories.map((repo) => {
@@ -523,7 +523,7 @@ export class IntegrationConnectionService {
   private async upsertWorkspaceBinding(
     userId: string,
     workspaceSlug: string,
-    field: 'whatsappChatJid' | 'telegramChatId',
+    field: WorkspaceBindingField,
     value: string,
   ) {
     const now = new Date().toISOString();
@@ -539,7 +539,7 @@ export class IntegrationConnectionService {
     return workspace;
   }
 
-  private buildGithubCallbackRedirect(session: IntegrationConnectionSessionRecord, status: 'connected' | 'error') {
+  private buildGithubCallbackRedirect(session: IntegrationConnectionSessionRecord, status: ConnectionCallbackStatus) {
     const environment = this.environment();
     const metadata = session.metadata as ConnectionSessionMetadata;
     const origin = normalizeConnectionBrowserOrigin(metadata.browserOrigin) || environment.publicBaseUrl || '';

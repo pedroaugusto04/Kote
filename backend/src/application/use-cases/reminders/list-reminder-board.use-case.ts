@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
-import { KnowledgeStatus } from '../../../contracts/enums.js';
+import { KnowledgeStatus, ReminderBoardColumnKey } from '../../../contracts/enums.js';
 import type { ReminderBoardInput } from '../../models/reminder-board.models.js';
 import { reminderBoardColumnKeys } from '../../models/reminder-board.models.js';
-import type { ReminderBoardCard, ReminderBoardColumnKey, ReminderBoardResponse } from '../../models/reminder.models.js';
+import type { ReminderBoardCard, ReminderBoardResponse } from '../../models/reminder.models.js';
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { sortRemindersBySchedule } from './reminder-list.helpers.js';
 import { RefreshReminderStatusesUseCase } from './refresh-reminder-statuses.use-case.js';
@@ -22,10 +22,10 @@ export class ListReminderBoardUseCase {
       .filter((reminder) => !input.projectSlug || reminder.project === input.projectSlug), { workspaceSlug: input.workspaceSlug });
 
     const columnItems: Record<ReminderBoardColumnKey, ReminderBoardCard[]> = {
-      overdue: [],
-      upcoming: [],
-      resolved: [],
-      archived: [],
+      [ReminderBoardColumnKey.Overdue]: [],
+      [ReminderBoardColumnKey.Upcoming]: [],
+      [ReminderBoardColumnKey.Resolved]: [],
+      [ReminderBoardColumnKey.Archived]: [],
     };
 
     for (const reminder of sortRemindersBySchedule(reminders)) {
@@ -65,7 +65,7 @@ function emptyColumns(limitPerColumn: number): ReminderBoardResponse['columns'] 
 }
 
 function boardColumnKey(reminder: Pick<ReminderBoardCard, 'status' | 'isOverdue'>): ReminderBoardColumnKey {
-  if (reminder.status === KnowledgeStatus.Resolved) return 'resolved';
-  if (reminder.status === KnowledgeStatus.Archived) return 'archived';
-  return reminder.status === KnowledgeStatus.Overdue || reminder.isOverdue ? 'overdue' : 'upcoming';
+  if (reminder.status === KnowledgeStatus.Resolved) return ReminderBoardColumnKey.Resolved;
+  if (reminder.status === KnowledgeStatus.Archived) return ReminderBoardColumnKey.Archived;
+  return reminder.status === KnowledgeStatus.Overdue || reminder.isOverdue ? ReminderBoardColumnKey.Overdue : ReminderBoardColumnKey.Upcoming;
 }
