@@ -88,7 +88,7 @@ function signedGithubInput(body) {
 }
 
 const githubGateway = {
-  verifyWebhookSignature() {},
+  verifyWebhookSignature() { },
   async fetchInstallationToken() {
     return 'github-token';
   },
@@ -163,7 +163,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
   }, user.id);
   const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   const unusedGithubGateway = {
-    verifyWebhookSignature() {},
+    verifyWebhookSignature() { },
     async fetchInstallationToken() {
       throw new Error('installation token should not be fetched for unselected repositories');
     },

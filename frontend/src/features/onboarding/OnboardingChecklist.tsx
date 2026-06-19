@@ -15,15 +15,17 @@ type OnboardingStorage = {
   dismissed: boolean;
   dismissedAt: string | null;
   showLaterAt: string | null;
+  askAiTested: boolean;
 };
 
 function loadStorage(): OnboardingStorage {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { dismissed: false, dismissedAt: null, showLaterAt: null };
-    return JSON.parse(raw) as OnboardingStorage;
+    if (!raw) return { dismissed: false, dismissedAt: null, showLaterAt: null, askAiTested: false };
+    const parsed = JSON.parse(raw) as OnboardingStorage;
+    return { ...parsed, askAiTested: parsed.askAiTested ?? false };
   } catch {
-    return { dismissed: false, dismissedAt: null, showLaterAt: null };
+    return { dismissed: false, dismissedAt: null, showLaterAt: null, askAiTested: false };
   }
 }
 
@@ -90,6 +92,7 @@ function isIntegrationConnected(integrations: UserIntegration[], provider: strin
 function getCompletedItems(
   integrations: UserIntegration[],
   dashboard: Dashboard,
+  askAiTested: boolean,
 ): Set<string> {
   const completed = new Set<string>();
 
@@ -102,8 +105,7 @@ function getCompletedItems(
     completed.add('whatsapp');
   }
 
-  const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
-  if (totalNotes >= 3) {
+  if (askAiTested) {
     completed.add('ask-ai');
   }
 
@@ -185,6 +187,7 @@ export function OnboardingChecklist({
       dismissed: true,
       dismissedAt: new Date().toISOString(),
       showLaterAt: null,
+      askAiTested: storage.askAiTested,
     };
     setStorage(next);
     saveStorage(next);
@@ -197,6 +200,7 @@ export function OnboardingChecklist({
       dismissed: false,
       dismissedAt: storage.dismissedAt || new Date().toISOString(),
       showLaterAt: later.toISOString(),
+      askAiTested: storage.askAiTested,
     };
     setStorage(next);
     saveStorage(next);

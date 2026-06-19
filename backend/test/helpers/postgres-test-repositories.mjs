@@ -122,7 +122,7 @@ async function ensureBaseSchema(targetUrl) {
       `select 1 from information_schema.schemata where schema_name = $1`,
       [BASE_SCHEMA_NAME]
     );
-    
+
     if (!existing.rows[0]) {
       // Create base schema and run migrations once
       await pool.query(`create schema ${quoteIdent(BASE_SCHEMA_NAME)}`);
@@ -144,23 +144,23 @@ async function truncateSchema(targetUrl, schemaName) {
       FROM information_schema.tables 
       WHERE table_schema = $1 AND table_type = 'BASE TABLE'
     `, [schemaName]);
-    
+
     // Truncate all tables (disable foreign key checks temporarily)
     await pool.query('SET session_replication_role = replica');
-    
+
     for (const table of tables.rows) {
       await pool.query(`truncate table ${quoteIdent(schemaName)}.${quoteIdent(table.table_name)} cascade`);
     }
-    
+
     await pool.query('SET session_replication_role = DEFAULT');
-    
+
     // Reset sequences
     const sequences = await pool.query(`
       SELECT sequence_name 
       FROM information_schema.sequences 
       WHERE sequence_schema = $1
     `, [schemaName]);
-    
+
     for (const seq of sequences.rows) {
       await pool.query(`alter sequence ${quoteIdent(schemaName)}.${quoteIdent(seq.sequence_name)} restart with 1`);
     }
@@ -172,7 +172,7 @@ async function truncateSchema(targetUrl, schemaName) {
 export async function createPostgresTestRepositories(t) {
   const targetUrl = testDatabaseUrl();
   await ensureTestDatabase(targetUrl);
-  
+
   // Ensure base schema exists with migrations (runs once)
   await ensureBaseSchema(targetUrl);
 
@@ -182,13 +182,13 @@ export async function createPostgresTestRepositories(t) {
     connectionString: targetUrl.toString(),
     options: `-c search_path=${schemaName},public`,
   });
-  
+
   // Truncate all tables to clean up before test (much faster than migrations)
   await truncateSchema(targetUrl, schemaName);
 
   const database = createDatabase(pool);
   const schemaMigrator = {
-    async migrate() {}
+    async migrate() { }
   };
 
   const userRepository = new PostgresUserRepository(database);
@@ -197,13 +197,13 @@ export async function createPostgresTestRepositories(t) {
   const askHistoryRepository = new PostgresAskHistoryRepository(database);
   const objectStorage = new InMemoryObjectStorage();
   const contentObjectStorage = new ContentObjectStorageService(objectStorage);
-  
+
   const workspaceRepository = new PostgresWorkspaceRepository(database);
   const projectRepository = new PostgresProjectRepository(database);
   const noteRepository = new PostgresNoteRepository(database, contentObjectStorage);
   const folderRepository = new PostgresFolderRepository(database);
   const attachmentRepository = new PostgresAttachmentRepository(database, contentObjectStorage);
-  
+
   const contentRepository = new PostgresContentRepository(
     workspaceRepository,
     projectRepository,

@@ -21,7 +21,7 @@ export class BuildDashboardUseCase {
     private readonly contentRepository: ContentRepository,
     private readonly contentQueryRepository: ContentQueryRepository,
     private readonly refreshReminderStatuses: RefreshReminderStatusesUseCase,
-  ) {}
+  ) { }
 
   async execute(userId: string) {
     const [workspaces, projects, notes, reviews, rawReminders] = await Promise.all([

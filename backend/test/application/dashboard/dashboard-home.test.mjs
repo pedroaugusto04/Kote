@@ -8,7 +8,7 @@ const projects = [
   { projectSlug: 'beta', displayName: 'Beta', repositories: [{ id: '2', workspaceSlug: 'default', externalId: '2', fullName: 'acme/beta', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }], workspaceSlug: 'default', defaultTags: [], enabled: true },
 ];
 
-  const baseNote = {
+const baseNote = {
   id: 'note-base',
   path: '20 Inbox/base.md',
   type: 'event',
