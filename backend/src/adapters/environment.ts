@@ -46,6 +46,7 @@ export type RuntimeEnvironment = {
   publicBaseUrl: string;
   apiPublicBaseUrl: string;
   allowedOrigins: string[];
+  allowedExtensionIds: string[];
   trustProxy: boolean;
   githubPushWebhookPath: string;
   ingestWebhookPath: string;
@@ -111,6 +112,10 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     allowedOrigins: String(env.KB_ALLOWED_ORIGINS || '')
       .split(',')
       .map((origin) => origin.trim().replace(/\/$/, ''))
+      .filter(Boolean),
+    allowedExtensionIds: String(env.KB_ALLOWED_EXTENSION_IDS || '')
+      .split(',')
+      .map((id) => id.trim())
       .filter(Boolean),
     trustProxy: String(env.KB_TRUST_PROXY || 'false').toLowerCase() === 'true',
     githubPushWebhookPath: String(env.KB_GITHUB_WEBHOOK_PATH || '/n8n/webhook/kb-github-push').trim(),

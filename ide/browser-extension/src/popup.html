@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Knowledge Base Clipper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-container">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        <span class="logo-text">Knowledge Vault</span>
+      </div>
+      <button id="btn-settings-toggle" class="btn-icon" title="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </button>
+    </header>
+
+    <!-- Main Content Panels -->
+    <main class="app-main">
+      <!-- Settings Panel -->
+      <section id="panel-settings" class="panel hidden">
+        <h2 class="panel-title">Connection Settings</h2>
+        <div class="form-group">
+          <label for="input-api-url">API Server URL</label>
+          <input type="url" id="input-api-url" placeholder="http://localhost:4310" value="http://localhost:4310">
+        </div>
+        <div class="form-group">
+          <label for="input-token">Connection Token</label>
+          <input type="password" id="input-token" placeholder="Enter kbc_... token">
+          <small class="help-text">Obtain this token from your Knowledge Vault profile settings page.</small>
+        </div>
+        <div class="actions-row">
+          <button id="btn-save-settings" class="btn btn-primary">Save Connection</button>
+        </div>
+      </section>
+
+      <!-- Clipper Panel -->
+      <section id="panel-clipper" class="panel">
+        <div class="source-info">
+          <div class="clip-type-badge" id="badge-clip-type">Detecting content...</div>
+          <span class="url-text" id="text-source-url">Reading current tab...</span>
+        </div>
+
+        <div class="form-group">
+          <label for="input-title">Note Title</label>
+          <input type="text" id="input-title" placeholder="Loading title...">
+        </div>
+
+        <div class="form-group">
+          <label for="select-project">Project</label>
+          <select id="select-project">
+            <option value="inbox">Inbox</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="input-tags">Tags <span class="label-hint">(comma separated)</span></label>
+          <input type="text" id="input-tags" placeholder="e.g. web, reference, tutorial">
+        </div>
+
+        <div class="actions-row">
+          <button id="btn-clip" class="btn btn-primary btn-full">
+            <span id="btn-clip-text">Save Note</span>
+            <span id="btn-clip-spinner" class="spinner hidden"></span>
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Banner / Notifications -->
+    <footer class="app-footer">
+      <div id="status-banner" class="status-banner hidden"></div>
+    </footer>
+  </div>
+  <script src="popup.js" type="module"></script>
+</body>
+</html>

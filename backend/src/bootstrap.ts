@@ -36,6 +36,14 @@ export async function createApp(): Promise<NestExpressApplication> {
   app.enableCors({
     origin(origin, callback) {
       if (!origin) return callback(null, true);
+      if (origin.startsWith('chrome-extension://')) {
+        const extensionId = origin.replace('chrome-extension://', '');
+        const allowedIds = environment.allowedExtensionIds;
+        if (allowedIds.length > 0) {
+          return callback(null, allowedIds.includes(extensionId));
+        }
+        return callback(null, true);
+      }
       const allowedOrigins = new Set(environment.allowedOrigins);
       if (environment.publicBaseUrl) allowedOrigins.add(new URL(environment.publicBaseUrl).origin);
       callback(null, allowedOrigins.has(origin.replace(/\/$/, '')));

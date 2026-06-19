@@ -66,6 +66,18 @@ export function assertTrustedBrowserOrigin(request: Request) {
   const originOrReferer = request.headers.origin || request.headers.referer;
   if (!originOrReferer) return;
   const actualOrigin = new URL(String(originOrReferer)).origin;
+  if (actualOrigin.startsWith('chrome-extension://')) {
+    const extensionId = actualOrigin.replace('chrome-extension://', '');
+    const environment = readEnvironment();
+    const allowedIds = environment.allowedExtensionIds;
+    if (allowedIds.length > 0) {
+      if (allowedIds.includes(extensionId)) {
+        return;
+      }
+      throw new ForbiddenException('invalid_origin');
+    }
+    return;
+  }
   const expected = expectedOrigins(request);
   if (!expected.has(actualOrigin)) {
     throw new ForbiddenException('invalid_origin');

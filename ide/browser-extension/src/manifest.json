@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Knowledge Base Clipper",
+  "version": "1.0.0",
+  "description": "Clip web pages or selections and save them directly to your Knowledge Base.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "contextMenus",
+    "scripting"
+  ],
+  "host_permissions": [
+    "http://localhost/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Knowledge Base Clipper"
+  }
+}
