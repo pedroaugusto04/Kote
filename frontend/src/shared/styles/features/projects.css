@@ -229,6 +229,13 @@
   gap: 6px;
 }
 
+.project-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
 .project-browser {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
