@@ -223,3 +223,39 @@
 .onboarding-dismiss.muted:hover {
   opacity: 1;
 }
+
+/* WhatsApp Reminder Test Button */
+.onboarding-reminder-test-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--cyan);
+  background: var(--surface-3);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  cursor: pointer;
+  width: fit-content;
+  transition: all 150ms ease;
+  line-height: 1.2;
+}
+
+.onboarding-reminder-test-btn:hover {
+  background: var(--cyan);
+  color: var(--surface-1);
+  border-color: var(--cyan);
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 6px rgba(83, 199, 222, 0.2);
+}
+
+.onboarding-reminder-test-btn svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+  flex-shrink: 0;
+}
+
