@@ -15,4 +15,5 @@ export abstract class ProjectBriefHistoryRepository {
     page: number;
     pageSize: number;
   }): Promise<PaginatedResult<ProjectBriefHistoryRecord>>;
+  abstract countByUser(userId: string): Promise<number>;
 }

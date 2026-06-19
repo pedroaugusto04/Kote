@@ -3,6 +3,8 @@ import { ContentQueryRepository, ContentRepository } from '../../ports/notes/con
 import { buildDashboardHome } from '../../utils/dashboard-home.utils.js';
 import { RefreshReminderStatusesUseCase } from '../reminders/refresh-reminder-statuses.use-case.js';
 import { formatDateInTimeZone } from '../../../domain/time.js';
+import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';
+import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 
 function shiftDateKey(dateKey: string, days: number): string {
   const [year, month, day] = dateKey.split('-').map(Number);
@@ -21,16 +23,27 @@ export class BuildDashboardUseCase {
     private readonly contentRepository: ContentRepository,
     private readonly contentQueryRepository: ContentQueryRepository,
     private readonly refreshReminderStatuses: RefreshReminderStatusesUseCase,
+    private readonly askHistoryRepository?: AskHistoryRepository,
+    private readonly projectBriefHistoryRepository?: ProjectBriefHistoryRepository,
   ) { }
 
   async execute(userId: string) {
-    const [workspaces, projects, notes, reviews, rawReminders] = await Promise.all([
+    const [workspaces, projects, notes, reviews, rawReminders, askHistoryResult, projectBriefsCount] = await Promise.all([
       this.contentRepository.listWorkspaces(userId),
       this.contentRepository.listProjects(userId),
       this.contentQueryRepository.list(userId),
       this.contentQueryRepository.listReviews(userId),
       this.contentQueryRepository.listReminders(userId),
+      this.askHistoryRepository
+        ? this.askHistoryRepository.list({ userId, page: 1, pageSize: 1 }).catch(() => null)
+        : null,
+      this.projectBriefHistoryRepository
+        ? this.projectBriefHistoryRepository.countByUser(userId).catch(() => 0)
+        : 0,
     ]);
+
+    const totalAskQueries = askHistoryResult?.pagination?.total ?? 0;
+    const totalProjectBriefs = projectBriefsCount ?? 0;
 
     const zone = 'UTC';
     const now = new Date();
@@ -59,6 +72,19 @@ export class BuildDashboardUseCase {
     });
 
     const reminders = await this.refreshReminderStatuses.execute(userId, rawReminders);
-    return { workspaces, projects: enrichedProjects, home: buildDashboardHome(enrichedProjects, notes, reviews, reminders) };
+    return {
+      workspaces,
+      projects: enrichedProjects,
+      home: buildDashboardHome(
+        enrichedProjects,
+        notes,
+        reviews,
+        reminders,
+        now,
+        zone,
+        totalAskQueries,
+        totalProjectBriefs,
+      ),
+    };
   }
 }

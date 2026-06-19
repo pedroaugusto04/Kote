@@ -112,4 +112,14 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
       pagination,
     };
   }
+
+  async countByUser(userId: string): Promise<number> {
+    const db = this.database.getDb();
+    const result = await db
+      .select({ total: count() })
+      .from(projectBriefHistory)
+      .where(eq(projectBriefHistory.userId, userId));
+    
+    return Number(result[0]?.total || 0);
+  }
 }

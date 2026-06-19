@@ -98,6 +98,8 @@ export function buildDashboardHome(
   reminders: ReminderView[],
   now = new Date(),
   timeZone = 'UTC',
+  totalAskQueries = 0,
+  totalProjectBriefs = 0,
 ): DashboardHomeSummary {
   const zone = normalizeTimeZone(timeZone);
   const { start, end } = recentWindow(now, HOME_WINDOW_DAYS, zone);
@@ -221,6 +223,20 @@ export function buildDashboardHome(
         label: 'Total GitHub pushes',
         value: notes.filter((note) => note.source === 'github-push' || String(note.source || '').toLowerCase().includes('github')).length,
         meta: 'total push reviews in workspace',
+        tone: 'active',
+      },
+      {
+        id: 'total-ask-queries',
+        label: 'Total Ask AI queries',
+        value: totalAskQueries,
+        meta: 'total questions asked to AI',
+        tone: 'active',
+      },
+      {
+        id: 'total-project-briefs',
+        label: 'Total project briefs',
+        value: totalProjectBriefs,
+        meta: 'total generated project briefs',
         tone: 'active',
       },
     ],

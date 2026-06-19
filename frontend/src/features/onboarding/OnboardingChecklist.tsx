@@ -16,31 +16,20 @@ type OnboardingStorage = {
   dismissed: boolean;
   dismissedAt: string | null;
   showLaterAt: string | null;
-  askAiTested: boolean;
 };
 
 function loadStorage(): OnboardingStorage {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { dismissed: false, dismissedAt: null, showLaterAt: null, askAiTested: false };
-    const parsed = JSON.parse(raw) as OnboardingStorage;
-    return { ...parsed, askAiTested: parsed.askAiTested ?? false };
+    if (!raw) return { dismissed: false, dismissedAt: null, showLaterAt: null };
+    return JSON.parse(raw) as OnboardingStorage;
   } catch {
-    return { dismissed: false, dismissedAt: null, showLaterAt: null, askAiTested: false };
+    return { dismissed: false, dismissedAt: null, showLaterAt: null };
   }
 }
 
 function saveStorage(state: OnboardingStorage) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-/** Mark the Ask AI feature as tested. Call this when the user sends their first AI message. */
-export function markAskAiTested() {
-  const current = loadStorage();
-  if (!current.askAiTested) {
-    const next = { ...current, askAiTested: true };
-    saveStorage(next);
-  }
 }
 
 type ChecklistItemDef = {
@@ -89,6 +78,14 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     icon: '✦',
   },
   {
+    id: 'project-brief',
+    label: 'Test Project Brief',
+    description: 'Generate a project brief to summarize project documentation.',
+    priority: false,
+    route: routes.search,
+    icon: '📄',
+  },
+  {
     id: 'reminder',
     label: 'Set up a reminder',
     description: 'Schedule reminders via WhatsApp to stay on top of tasks.',
@@ -110,7 +107,6 @@ function isIntegrationConnected(integrations: UserIntegration[], provider: strin
 function getCompletedItems(
   integrations: UserIntegration[],
   dashboard: Dashboard,
-  askAiTested: boolean,
 ): Set<string> {
   const completed = new Set<string>();
 
@@ -128,8 +124,14 @@ function getCompletedItems(
     completed.add('whatsapp');
   }
 
-  if (askAiTested) {
+  const totalAskQueries = dashboard.home.metrics.find((m) => m.id === 'total-ask-queries')?.value ?? 0;
+  if (totalAskQueries > 0) {
     completed.add('ask-ai');
+  }
+
+  const totalProjectBriefs = dashboard.home.metrics.find((m) => m.id === 'total-project-briefs')?.value ?? 0;
+  if (totalProjectBriefs > 0) {
+    completed.add('project-brief');
   }
 
   const totalReminders = dashboard.home.metrics.find((m) => m.id === 'total-reminders')?.value ?? 0;
@@ -152,6 +154,7 @@ function getVisibleItems(
   return CHECKLIST_ITEMS.filter((item) => {
     if (item.id === 'github-push' && !githubConnected) return false;
     if (item.id === 'ask-ai' && totalNotes < 3) return false;
+    if (item.id === 'project-brief' && totalNotes < 3) return false;
     if (item.id === 'reminder' && !whatsappConnected) return false;
     return true;
   });
@@ -176,8 +179,8 @@ export function OnboardingChecklist({
   const integrations = integrationsQuery.data?.integrations ?? [];
 
   const completed = useMemo(
-    () => getCompletedItems(integrations, dashboard, storage.askAiTested),
-    [integrations, dashboard, storage.askAiTested],
+    () => getCompletedItems(integrations, dashboard),
+    [integrations, dashboard],
   );
 
   const visibleItems = useMemo(
@@ -213,7 +216,6 @@ export function OnboardingChecklist({
       dismissed: true,
       dismissedAt: new Date().toISOString(),
       showLaterAt: null,
-      askAiTested: storage.askAiTested,
     };
     setStorage(next);
     saveStorage(next);
@@ -226,7 +228,6 @@ export function OnboardingChecklist({
       dismissed: false,
       dismissedAt: storage.dismissedAt || new Date().toISOString(),
       showLaterAt: later.toISOString(),
-      askAiTested: storage.askAiTested,
     };
     setStorage(next);
     saveStorage(next);

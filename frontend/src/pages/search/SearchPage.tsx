@@ -12,7 +12,6 @@ import {
   generateProjectBrief,
   runAsk,
 } from '../../shared/api/client';
-import { markAskAiTested } from '../../features/onboarding/OnboardingChecklist';
 import { getErrorMessage } from '../../shared/api/error-message';
 import { formatDateIso } from '../../shared/utils/format';
 import type { AskHistoryResponse } from '../../shared/api/models/ask';
@@ -108,7 +107,6 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
         setAskError(null);
         setHistoryPage(1);
         await queryClient.invalidateQueries({ queryKey: ['ask-history'] });
-        markAskAiTested();
       } else {
         setAskError(SEARCH_MESSAGES.ERRORS.COULD_NOT_GENERATE_ANSWER);
       }
