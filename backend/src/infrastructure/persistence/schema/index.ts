@@ -103,7 +103,6 @@ export const projects = pgTable('kb_projects', {
   projectSlug: text('project_slug').notNull(),
   displayName: text('display_name').notNull(),
   workspaceSlug: text('workspace_slug').notNull().default(''),
-  defaultTags: jsonb('default_tags').notNull().default('[]'),
   enabled: boolean('enabled').notNull().default(true),
   isFavorite: boolean('is_favorite').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
