@@ -90,7 +90,8 @@ export function extractPageMetadata(doc: Document, url: string, selectedHtml?: s
   }
 
   // Clone document to avoid modifying active page DOM during Readability parse
-  const docClone = doc.cloneNode(true) as Document;
+  const docClone = doc.implementation.createHTMLDocument(doc.title);
+  docClone.documentElement.innerHTML = doc.documentElement.innerHTML;
   const reader = new Readability(docClone, {
     charThreshold: 0,
     keepClasses: false,
