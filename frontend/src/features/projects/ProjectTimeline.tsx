@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { fetchNote, updateNote, pinNote } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
-import type { NoteSummary, CanonicalNoteType } from '../../shared/api/models/note';
+import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
 import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName, getCleanSummary } from '../../shared/utils/format';
@@ -108,7 +108,6 @@ export function ProjectTimeline({
             rawText: detail.editor?.rawText || '',
             tags: detail.tags,
             status,
-            canonicalType: detail.type as CanonicalNoteType,
             reminderDate: detail.editor?.reminderDate,
             reminderTime: detail.editor?.reminderTime,
             reminderAt: detail.editor?.reminderAt,

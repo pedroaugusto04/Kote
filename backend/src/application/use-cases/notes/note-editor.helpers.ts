@@ -7,6 +7,8 @@ import { normalizeComparableText, normalizeMultiline, trimText } from '../../../
 import type { UpdateNoteInput } from '../../models/note-input.models.js';
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
 
+type UpdatedNoteInput = UpdateNoteInput & { canonicalType: CanonicalType };
+
 export function buildNoteEditorState(note: NoteRecord) {
   return {
     canDelete: true,
@@ -21,13 +23,13 @@ export function buildUpdatedNote(
   note: NoteRecord,
   previousFolder: ProjectFolderRecord | null,
   nextFolder: ProjectFolderRecord | null,
-  input: UpdateNoteInput,
+  input: UpdatedNoteInput,
   reminderTimeZone: string,
 ) {
   const title = trimText(input.title, note.title || input.rawText);
   const rawText = stripTitleHeader(normalizeMultiline(input.rawText), title);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
-  const noteType = normalizeCanonicalType(input.canonicalType, note.categories[0]?.name || 'event');
+  const noteType = input.canonicalType || CanonicalType.Event;
   const reminderFields = buildUtcReminderFields({
     reminderDate: input.reminderDate,
     reminderTime: input.reminderTime,
@@ -79,11 +81,6 @@ export function buildUpdatedNote(
     reminderDate: reminderFields.reminderDate,
     reminderAt: reminderFields.reminderAt,
   };
-}
-
-function normalizeCanonicalType(value: string | undefined, fallback: string) {
-  if (value && Object.values(CanonicalType).includes(value as CanonicalType)) return value;
-  return fallback || CanonicalType.Event;
 }
 
 export function extractEditableRawText(note: NoteRecord) {

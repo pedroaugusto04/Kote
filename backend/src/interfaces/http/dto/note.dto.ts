@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { CanonicalType, KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
+import { KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
 import { noteStatusValues } from '../../../domain/note-status.js';
 import { slugify } from '../../../domain/strings.js';
 import { normalizeTime } from '../../../domain/time.js';
@@ -8,7 +8,6 @@ import { normalizedSlugList, optionalStringArraySchema } from './dto-normalizers
 
 const noteStatusSchema = z.enum(noteStatusValues).optional();
 const editableNoteStatusSchema = z.enum([KnowledgeStatus.Active, KnowledgeStatus.Resolved, KnowledgeStatus.Archived]).optional();
-const canonicalTypeSchema = z.nativeEnum(CanonicalType).optional().default(CanonicalType.Event);
 
 export const createNoteBodySchema = z
   .object({
@@ -18,8 +17,7 @@ export const createNoteBodySchema = z
     rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
     tags: optionalStringArraySchema(60, 'Use at most 60 characters.'),
     status: noteStatusSchema,
-    canonicalType: canonicalTypeSchema,
-    categoryIds: z.array(z.string()).optional(),
+    categoryIds: z.array(z.string()).optional().default([]),
     reminderDate: z.string().trim().optional().default(''),
     reminderTime: z.string().trim().optional().default(''),
     reminderAt: z.string().trim().optional().default(''),
@@ -35,7 +33,6 @@ export const createNoteBodySchema = z
     rawText: body.rawText,
     tags: normalizedSlugList(body.tags),
     status: body.status,
-    canonicalType: body.canonicalType,
     categoryIds: body.categoryIds,
     reminderDate: body.reminderDate.trim(),
     reminderTime: normalizeTime(body.reminderTime),
@@ -72,7 +69,6 @@ export const updateNoteBodySchema = z
     rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
     tags: optionalStringArraySchema(60, 'Use at most 60 characters.'),
     status: editableNoteStatusSchema,
-    canonicalType: canonicalTypeSchema,
     categoryIds: z.array(z.string()).optional(),
     reminderDate: z.string().trim().optional().default(''),
     reminderTime: z.string().trim().optional().default(''),
@@ -85,7 +81,6 @@ export const updateNoteBodySchema = z
     rawText: body.rawText,
     tags: normalizedSlugList(body.tags),
     status: body.status,
-    canonicalType: body.canonicalType,
     categoryIds: body.categoryIds,
     reminderDate: body.reminderDate.trim(),
     reminderTime: normalizeTime(body.reminderTime),

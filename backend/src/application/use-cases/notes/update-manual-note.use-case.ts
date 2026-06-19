@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { WebhookTrigger } from '../../../contracts/enums.js';
+import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import type { UpdateNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
@@ -25,10 +26,17 @@ export class UpdateNoteUseCase {
       reminderDate: normalizeDate(input.reminderDate, reminderTimeZone),
       reminderTime: normalizeTime(input.reminderTime),
     };
+    const categoryIds = normalizedInput.categoryIds === undefined
+      ? note.categories.map((category) => category.id)
+      : normalizedInput.categoryIds;
+    const categories = categoryIds.length > 0
+      ? await this.contentRepository.listCategories(userId, note.workspaceSlug || '')
+      : [];
+    const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
     const updated = await this.contentRepository.updateNote(
       userId,
       {
-        ...buildUpdatedNote(note, previousFolder, nextFolder, normalizedInput, reminderTimeZone),
+        ...buildUpdatedNote(note, previousFolder, nextFolder, { ...normalizedInput, canonicalType }, reminderTimeZone),
         categoryIds: input.categoryIds,
       },
     );

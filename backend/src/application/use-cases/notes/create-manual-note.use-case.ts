@@ -2,13 +2,13 @@ import crypto from 'node:crypto';
 
 import { NotFoundException, Injectable } from '@nestjs/common';
 
-import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, SourceChannel, WebhookTrigger } from '../../../contracts/enums.js';
+import { EventType, Importance, KnowledgeKind, KnowledgeStatus, SourceChannel, WebhookTrigger } from '../../../contracts/enums.js';
 import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
 import { hasReminder, normalizeManualNoteStatus } from '../../../domain/note-status.js';
 import { isAiSource } from '../../../domain/notes.js';
+import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import type { CreateManualNoteInput } from '../../models/note-input.models.js';
-import type { NoteRecord } from '../../models/repository-records.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
@@ -47,6 +47,11 @@ export class CreateManualNoteUseCase {
     const reminderDate = normalizeDate(input.reminderDate, reminderTimeZone);
     const reminderTime = normalizeTime(input.reminderTime);
     const reminderAt = input.reminderAt || '';
+    const categoryIds = input.categoryIds || [];
+    const categories = categoryIds.length > 0
+      ? await this.contentRepository.listCategories(userId, workspace.workspaceSlug)
+      : [];
+    const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
     const status = normalizeManualNoteStatus({
       requestedStatus: input.status,
       currentStatus: KnowledgeStatus.Active,
@@ -85,7 +90,7 @@ export class CreateManualNoteUseCase {
       },
       classification: {
         kind: KnowledgeKind.Note,
-        canonicalType: normalizeManualCanonicalType(input.canonicalType),
+        canonicalType,
         importance: Importance.Low,
         status,
         tags: input.tags,
@@ -122,7 +127,3 @@ export class CreateManualNoteUseCase {
   }
 }
 
-function normalizeManualCanonicalType(value: string | undefined) {
-  if (value && Object.values(CanonicalType).includes(value as CanonicalType)) return value as CanonicalType;
-  return CanonicalType.Event;
-}

@@ -7,7 +7,6 @@ export type CreateManualNoteInput = {
   rawText: string;
   tags: string[];
   status?: string;
-  canonicalType?: string;
   categoryIds?: string[];
   reminderDate: string;
   reminderTime: string;
@@ -24,7 +23,6 @@ export type UpdateNoteInput = {
   rawText: string;
   tags: string[];
   status?: string;
-  canonicalType?: string;
   categoryIds?: string[];
   reminderDate: string;
   reminderTime: string;

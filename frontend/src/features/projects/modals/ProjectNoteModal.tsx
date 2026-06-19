@@ -19,11 +19,6 @@ import { noteFormSchema, type NoteFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
 import { flattenFolders } from '../projects.helpers';
 
-const canonicalTypeOptions = ['event', 'decision', 'followup', 'incident', 'knowledge'].map((value) => ({
-  value,
-  label: formatDisplayToken(value),
-}));
-
 type ProjectNoteModalProps = {
   folders?: FlatProjectFolder[];
   mode: 'create' | 'edit';
@@ -82,7 +77,6 @@ export function ProjectNoteModal({
     shouldFocusError: false,
     defaultValues: {
       folderId: note?.folderId || initialFolderId || '',
-      canonicalType: note?.type === 'decision' || note?.type === 'followup' || note?.type === 'incident' || note?.type === 'knowledge' ? note.type : 'event',
       categoryIds: note?.categories?.map((c) => c.id) || [],
       title: note?.title || '',
       rawText: note?.editor?.rawText || '',
@@ -96,7 +90,6 @@ export function ProjectNoteModal({
     mutationFn: (values: NoteFormValues) => {
       const payload = {
         folderId: values.folderId || undefined,
-        canonicalType: values.canonicalType,
         categoryIds: values.categoryIds,
         title: values.title,
         rawText: values.rawText,
@@ -194,7 +187,6 @@ export function ProjectNoteModal({
                 />
               )}
             </FormField>
-            <input type="hidden" {...register('canonicalType')} />
             <FormField name="categoryIds" label="Categories" error={errors.categoryIds?.message} optional>
               {(fieldProps) => (
                 <Controller
@@ -230,17 +222,6 @@ export function ProjectNoteModal({
                                   ? (field.value || []).filter((id) => id !== category.id)
                                   : [...(field.value || []), category.id];
                                 field.onChange(nextValue);
-
-                                // Automatically sync canonicalType for legacy compatibility/behavior
-                                const firstCategory = categoriesQuery.data?.find((c) => nextValue.includes(c.id));
-                                if (firstCategory) {
-                                  const name = firstCategory.name;
-                                  if (['event', 'decision', 'followup', 'incident', 'knowledge'].includes(name)) {
-                                    setValue('canonicalType', name as any);
-                                  }
-                                } else {
-                                  setValue('canonicalType', 'event');
-                                }
                               }}
                             />
                             <span style={{

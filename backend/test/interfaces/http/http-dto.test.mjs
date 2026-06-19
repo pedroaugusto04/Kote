@@ -140,7 +140,7 @@ test('create note dto normalizes project, tags and keeps reminder date as transp
     reminderTime: '09:30',
     reminderAt: '',
     status: undefined,
-    canonicalType: 'event',
+    categoryIds: undefined,
     folderId: undefined,
   });
   assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', status: 'active' }), {
@@ -151,11 +151,10 @@ test('create note dto normalizes project, tags and keeps reminder date as transp
     reminderTime: '',
     reminderAt: '',
     status: 'active',
-    canonicalType: 'event',
+    categoryIds: undefined,
     folderId: undefined,
   });
-  assert.equal(createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'decidido', canonicalType: 'decision' }).canonicalType, 'decision');
-  assert.throws(() => createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto', canonicalType: 'unsupported' }));
+  assert.deepEqual(createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto' }).categoryIds, []);
 });
 
 test('project timeline dto accepts known categories and optional folder filters only', () => {

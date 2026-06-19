@@ -191,10 +191,21 @@ test('updates existing manual note when matching sessionId and source instead of
   assert.match(detail?.markdown || '', /Turn 2 content/);
 });
 
-test('creates and updates manual decisions as canonical note types', async (t) => {
+test('resolves the primary note type from selected categories by priority', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
   await seedProject(repositories, user.id);
+
+  const decisionCategory = await repositories.contentRepository.createCategory(user.id, 'default', {
+    name: 'decision',
+    color: '#9e9e9e',
+    icon: '',
+  });
+  const knowledgeCategory = await repositories.contentRepository.createCategory(user.id, 'default', {
+    name: 'knowledge',
+    color: '#9e9e9e',
+    icon: '',
+  });
 
   const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
   const noopDispatcher = { dispatch: async () => {} };
@@ -209,7 +220,7 @@ test('creates and updates manual decisions as canonical note types', async (t) =
     title: 'Choose queue provider',
     rawText: 'Use Postgres queue for v1',
     tags: ['architecture'],
-    canonicalType: 'decision',
+    categoryIds: [knowledgeCategory.id, decisionCategory.id],
     reminderDate: '',
     reminderTime: '',
   }, user.id);
@@ -223,7 +234,7 @@ test('creates and updates manual decisions as canonical note types', async (t) =
     title: 'Choose queue provider',
     rawText: 'Move this back to a regular event',
     tags: ['architecture'],
-    canonicalType: 'event',
+    categoryIds: [],
     reminderDate: '',
     reminderTime: '',
   }, user.id);
@@ -838,7 +849,6 @@ test('manages uncategorized notes creation and updates', async (t) => {
     title: 'An Uncategorized Note',
     rawText: 'This note has no categories.',
     tags: [],
-    canonicalType: 'event',
     categoryIds: [],
     reminderDate: '',
     reminderTime: '',
