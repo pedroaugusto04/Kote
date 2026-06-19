@@ -16,6 +16,7 @@ import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, not
 import { FormActions, FormField } from '../../shared/forms/fields';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { WEBHOOK_MESSAGES } from './webhook.constants';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
@@ -25,10 +26,10 @@ import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 // Zod form schema
 // ---------------------------------------------------------------------------
 const webhookFormSchema = z.object({
-  label: z.string().trim().min(1, 'Label is required.').max(100),
-  url: z.string().trim().url('Enter a valid URL.'),
+  label: z.string().trim().min(1, WEBHOOK_MESSAGES.VALIDATION.LABEL_REQUIRED).max(100),
+  url: z.string().trim().url(WEBHOOK_MESSAGES.VALIDATION.URL_INVALID),
   secret: z.string().max(256),
-  events: z.array(z.string()).min(1, 'Select at least one event.'),
+  events: z.array(z.string()).min(1, WEBHOOK_MESSAGES.VALIDATION.EVENTS_REQUIRED),
 });
 type WebhookFormValues = z.infer<typeof webhookFormSchema>;
 
@@ -139,7 +140,7 @@ function WebhookFormModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webhook-subscriptions', workspaceSlug] });
-      notifySuccess(editing ? 'Webhook updated.' : 'Webhook created.');
+      notifySuccess(editing ? WEBHOOK_MESSAGES.MUTATION.UPDATED : WEBHOOK_MESSAGES.MUTATION.CREATED);
       closeGuard.resetCloseGuard();
       onClose();
     },
@@ -149,7 +150,7 @@ function WebhookFormModal({
         window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
         return;
       }
-      notifyGeneralFormError(error, 'Could not save the webhook.');
+      notifyGeneralFormError(error, WEBHOOK_MESSAGES.MUTATION.ERROR);
     },
   });
 
@@ -166,9 +167,9 @@ function WebhookFormModal({
           <div className="modal-head">
             <div>
               <div className="card-kicker">webhook</div>
-              <h2 id="webhook-form-title">{editing ? 'Edit webhook' : 'New webhook'}</h2>
+              <h2 id="webhook-form-title">{editing ? WEBHOOK_MESSAGES.FORM.EDIT_TITLE : WEBHOOK_MESSAGES.FORM.NEW_TITLE}</h2>
             </div>
-            <button aria-label="Close" className="modal-close" type="button" onClick={closeGuard.requestClose}>×</button>
+            <button aria-label={WEBHOOK_MESSAGES.CLOSE} className="modal-close" type="button" onClick={closeGuard.requestClose}>×</button>
           </div>
 
           <form
@@ -180,18 +181,18 @@ function WebhookFormModal({
               (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
             )}
           >
-            <FormField name="label" label="Label" required={true} error={errors.label?.message}>
+            <FormField name="label" label={WEBHOOK_MESSAGES.FORM.LABEL} required={true} error={errors.label?.message}>
               {(props) => <input className="form-input" {...props} {...register('label')} placeholder={UI_MESSAGES.PRODUCTION_WEBHOOK} />}
             </FormField>
-            <FormField name="url" label="Endpoint URL" error={errors.url?.message}>
+            <FormField name="url" label={WEBHOOK_MESSAGES.FORM.ENDPOINT_URL} error={errors.url?.message}>
               {(props) => <input className="form-input" {...props} {...register('url')} placeholder={UI_MESSAGES.EXAMPLE_WEBHOOK_URL} />}
             </FormField>
-            <FormField name="secret" label={editing ? 'New secret (leave blank to keep)' : 'Secret (HMAC SHA-256, optional)'} error={errors.secret?.message}>
+            <FormField name="secret" label={editing ? WEBHOOK_MESSAGES.FORM.SECRET_NEW : WEBHOOK_MESSAGES.FORM.SECRET_CREATE} error={errors.secret?.message}>
               {(props) => <input className="form-input" {...props} {...register('secret')} type="password" autoComplete="off" />}
             </FormField>
 
             <div data-field="events">
-              <label className="field-label">Events</label>
+              <label className="field-label">{WEBHOOK_MESSAGES.FORM.EVENTS}</label>
               <TriggerPicker
                 triggers={triggers}
                 selected={selectedEvents}
@@ -201,7 +202,7 @@ function WebhookFormModal({
               {errors.events?.message ? <p className="form-error" role="alert">{errors.events.message}</p> : null}
             </div>
 
-            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={editing ? 'Save' : 'Create'} />
+            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={editing ? WEBHOOK_MESSAGES.FORM.SAVE : WEBHOOK_MESSAGES.FORM.CREATE} />
           </form>
         </section>
       </div>
@@ -243,7 +244,7 @@ function SubscriptionRow({
     mutationFn: () => deleteWebhookSubscription(subscription.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webhook-subscriptions', workspaceSlug] });
-      notifySuccess('Webhook deleted.');
+      notifySuccess(WEBHOOK_MESSAGES.MUTATION.DELETED);
     },
   });
 
@@ -255,18 +256,18 @@ function SubscriptionRow({
           <small className="mono">{subscription.url}</small>
         </div>
         <div className="webhook-row-actions">
-          <Badge value={subscription.enabled ? 'active' : 'disabled'} tone={subscription.enabled ? 'low' : 'medium'} />
+          <Badge value={subscription.enabled ? WEBHOOK_MESSAGES.ROW.ACTIVE : WEBHOOK_MESSAGES.ROW.DISABLED} tone={subscription.enabled ? 'low' : 'medium'} />
           <button
             className="filter-chip"
             disabled={toggleMutation.isPending}
             type="button"
             onClick={() => toggleMutation.mutate()}
           >
-            {subscription.enabled ? 'Disable' : 'Enable'}
+            {subscription.enabled ? WEBHOOK_MESSAGES.ROW.DISABLE : WEBHOOK_MESSAGES.ROW.ENABLE}
           </button>
           <button
             className="row-action-button"
-            title="Edit"
+            title={WEBHOOK_MESSAGES.ROW.EDIT}
             type="button"
             onClick={onEdit}
           >
@@ -274,7 +275,7 @@ function SubscriptionRow({
           </button>
           <button
             className="row-action-button danger"
-            title="Delete"
+            title={WEBHOOK_MESSAGES.ROW.DELETE}
             type="button"
             onClick={() => setConfirmDelete(true)}
           >
@@ -284,12 +285,12 @@ function SubscriptionRow({
       </div>
       {confirmDelete ? (
         <ConfirmationModal
-          cancelLabel="Cancel"
-          confirmLabel="Delete"
-          description={`Delete webhook "${subscription.label || subscription.url}"? This cannot be undone.`}
+          cancelLabel={WEBHOOK_MESSAGES.DELETE_CONFIRMATION.CANCEL}
+          confirmLabel={WEBHOOK_MESSAGES.DELETE_CONFIRMATION.CONFIRM}
+          description={WEBHOOK_MESSAGES.DELETE_CONFIRMATION.DESCRIPTION.replace('{label}', subscription.label || subscription.url)}
           onCancel={() => setConfirmDelete(false)}
           onConfirm={() => { deleteMutation.mutate(); setConfirmDelete(false); }}
-          title="Delete webhook"
+          title={WEBHOOK_MESSAGES.DELETE_CONFIRMATION.TITLE}
           tone="danger"
         />
       ) : null}
@@ -328,16 +329,16 @@ export function WebhookSubscriptionsCard({ workspaceSlug }: { workspaceSlug: str
         <div className="integration-card-head">
           <div className="integration-logo-fallback">WH</div>
           <div>
-            <h2>Webhooks</h2>
-            <p>Notify external endpoints when notes are created, updated or deleted.</p>
+            <h2>{WEBHOOK_MESSAGES.CARD.TITLE}</h2>
+            <p>{WEBHOOK_MESSAGES.CARD.DESCRIPTION}</p>
           </div>
         </div>
 
         <div className="integration-card-body">
-          {subscriptionsQuery.isLoading ? <p className="meta">Loading webhooks...</p> : null}
-          {subscriptionsQuery.isError ? <InlineMessage tone="error">Could not load webhooks.</InlineMessage> : null}
+          {subscriptionsQuery.isLoading ? <p className="meta">{WEBHOOK_MESSAGES.CARD.LOADING}</p> : null}
+          {subscriptionsQuery.isError ? <InlineMessage tone="error">{WEBHOOK_MESSAGES.CARD.ERROR}</InlineMessage> : null}
           {!subscriptionsQuery.isLoading && subscriptions.length === 0 ? (
-            <EmptyState>No webhooks configured yet.</EmptyState>
+            <EmptyState>{WEBHOOK_MESSAGES.CARD.EMPTY}</EmptyState>
           ) : null}
           {subscriptions.map((sub) => (
             <SubscriptionRow
@@ -350,9 +351,9 @@ export function WebhookSubscriptionsCard({ workspaceSlug }: { workspaceSlug: str
         </div>
 
         <div className="integration-card-foot">
-          <Badge value={`${subscriptions.length} webhook${subscriptions.length === 1 ? '' : 's'}`} tone="low" />
+          <Badge value={WEBHOOK_MESSAGES.CARD.COUNT.replace('{count}', String(subscriptions.length)).replace('{plural}', subscriptions.length === 1 ? '' : 's')} tone="low" />
           <div className="integration-actions">
-            <button className="icon-button" type="button" onClick={openCreate}>+ New webhook</button>
+            <button className="icon-button" type="button" onClick={openCreate}>{WEBHOOK_MESSAGES.CARD.NEW_BUTTON}</button>
           </div>
         </div>
       </Panel>

@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import type { PageContext } from '../../app/page-context';
 import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { SEARCH_MESSAGES } from './search.constants';
 import {
   fetchAskHistory,
   fetchLatestProjectBrief,
@@ -31,7 +32,6 @@ import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import './SearchPage.css';
 
-const ASK_HISTORY_PAGE_SIZE = 5;
 
 export function SearchPage({ dashboard, openNote }: PageContext) {
   const queryClient = useQueryClient();
@@ -57,7 +57,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
 
   const historyQuery = useQuery({
     queryKey: ['ask-history', projectSlug, historyPage],
-    queryFn: () => fetchAskHistory({ projectSlug, page: historyPage, pageSize: ASK_HISTORY_PAGE_SIZE }),
+    queryFn: () => fetchAskHistory({ projectSlug, page: historyPage, pageSize: 5 }),
     enabled: showHistory,
     placeholderData: keepPreviousData,
   });
@@ -77,7 +77,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
       setSelectedBrief(response);
       void queryClient.invalidateQueries({ queryKey: ['brief-history'] });
     },
-    onError: (error) => notifyGeneralFormError(error, 'Could not generate the project brief.'),
+    onError: (error) => notifyGeneralFormError(error, SEARCH_MESSAGES.ERRORS.COULD_NOT_GENERATE_BRIEF),
   });
 
   const displayedBrief = selectedBrief || undefined;
@@ -86,7 +86,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
     const question = (overrideQuestion ?? questionInput).trim();
     if (isAsking) return;
     if (!question) {
-      notifyWarning('Type something before asking AI.');
+      notifyWarning(SEARCH_MESSAGES.VALIDATION.TYPE_BEFORE_ASKING);
       return;
     }
 
@@ -108,10 +108,10 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
         await queryClient.invalidateQueries({ queryKey: ['ask-history'] });
         markAskAiTested();
       } else {
-        setAskError('Could not generate an answer. Please try again.');
+        setAskError(SEARCH_MESSAGES.ERRORS.COULD_NOT_GENERATE_ANSWER);
       }
     } catch (error: unknown) {
-      setAskError(error instanceof Error ? error.message : 'An unexpected error occurred while communicating with the AI.');
+      setAskError(error instanceof Error ? error.message : SEARCH_MESSAGES.ERRORS.UNEXPECTED_ERROR);
     } finally {
       setIsAsking(false);
     }
@@ -125,14 +125,14 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   return (
     <>
       <PageHead
-        title="Ask AI"
-        subtitle="Ask questions, generate project briefs, and explore your AI history."
+        title={SEARCH_MESSAGES.PAGE_TITLE}
+        subtitle={SEARCH_MESSAGES.PAGE_SUBTITLE}
         action={
           <Select
-            ariaLabel="Filter by project"
+            ariaLabel={SEARCH_MESSAGES.FILTER.FILTER_BY_PROJECT}
             className="page-head-select"
             options={[
-              { value: '', label: 'All projects' },
+              { value: '', label: SEARCH_MESSAGES.FILTER.ALL_PROJECTS },
               ...dashboard.projects.map((project) => ({
                 value: project.projectSlug,
                 label: project.displayName,
@@ -156,14 +156,14 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
           onClick={() => setActiveTab('ask')}
           type="button"
         >
-          Ask AI
+          {SEARCH_MESSAGES.TABS.ASK_AI}
         </button>
         <button
           className={activeTab === 'brief' ? 'active' : ''}
           onClick={() => setActiveTab('brief')}
           type="button"
         >
-          Project Briefs
+          {SEARCH_MESSAGES.TABS.PROJECT_BRIEFS}
         </button>
       </div>
 
@@ -175,7 +175,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
               <div className="ask-ai-input-row">
                 <AskAiIcon className="ask-ai-input-icon" />
                 <input
-                  aria-label="Ask a question"
+                  aria-label={SEARCH_MESSAGES.INPUT.PLACEHOLDER}
                   autoComplete="off"
                   enterKeyHint="send"
                   spellCheck={false}
@@ -191,7 +191,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                   placeholder={UI_MESSAGES.ASK_ANYTHING}
                 />
                 <button className="icon-button ask-ai-send-btn" disabled={isAsking} type="button" onClick={() => handleAsk()}>
-                  {isAsking ? UI_MESSAGES.ASKING : 'Ask'}
+                  {isAsking ? UI_MESSAGES.ASKING : SEARCH_MESSAGES.INPUT.ASK_BUTTON}
                 </button>
                 <button
                   aria-expanded={showHistory}
@@ -199,7 +199,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                   type="button"
                   onClick={() => setShowHistory((current) => !current)}
                 >
-                  {showHistory ? 'Hide history' : 'Show history'}
+                  {showHistory ? SEARCH_MESSAGES.INPUT.HIDE_HISTORY : SEARCH_MESSAGES.INPUT.SHOW_HISTORY}
                 </button>
               </div>
             </section>
@@ -297,7 +297,7 @@ function AskAnswerSkeleton({ question, projectLabel: selectedProjectLabel }: { q
         <div className="ask-answer-header">
           <div className="ask-ai-identity">
             <AskAiIcon className="ask-ai-identity-icon ask-ai-pulse" />
-            <strong>Thinking...</strong>
+            <strong>{SEARCH_MESSAGES.SKELETON.THINKING}</strong>
           </div>
         </div>
         <div className="ask-skeleton-lines">
@@ -323,14 +323,14 @@ function BriefHistoryInline({
 
   return (
     <Panel className="ask-ai-history-panel">
-      <h2>Brief History</h2>
+      <h2>{SEARCH_MESSAGES.HISTORY.BRIEF_HISTORY_TITLE}</h2>
 
       {historyQuery.isLoading ? (
-        <div className="inline-message">Loading history...</div>
+        <div className="inline-message">{SEARCH_MESSAGES.HISTORY.LOADING}</div>
       ) : historyQuery.isError ? (
-        <InlineMessage tone="error">Could not load Brief history.</InlineMessage>
+        <InlineMessage tone="error">{SEARCH_MESSAGES.HISTORY.COULD_NOT_LOAD_BRIEF_HISTORY}</InlineMessage>
       ) : history.length === 0 ? (
-        <EmptyState>No brief history for this project.</EmptyState>
+        <EmptyState>{SEARCH_MESSAGES.HISTORY.NO_BRIEF_HISTORY}</EmptyState>
       ) : (
         <>
           <div className={`ask-history-list ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`}>
@@ -375,14 +375,14 @@ function AskHistoryInline({
 
   return (
     <Panel className="ask-ai-history-panel">
-      <h2>Question History</h2>
+      <h2>{SEARCH_MESSAGES.HISTORY.ASK_HISTORY_TITLE}</h2>
 
       {historyQuery.isLoading ? (
-        <div className="inline-message">Loading history...</div>
+        <div className="inline-message">{SEARCH_MESSAGES.HISTORY.LOADING}</div>
       ) : historyQuery.isError ? (
-        <InlineMessage tone="error">Could not load Ask AI history.</InlineMessage>
+        <InlineMessage tone="error">{SEARCH_MESSAGES.HISTORY.COULD_NOT_LOAD_ASK_HISTORY}</InlineMessage>
       ) : history.length === 0 ? (
-        <EmptyState>No Ask AI history for this filter.</EmptyState>
+        <EmptyState>{SEARCH_MESSAGES.HISTORY.NO_ASK_HISTORY}</EmptyState>
       ) : (
         <>
           <div className={`ask-history-list ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`}>
@@ -410,13 +410,6 @@ function AskHistoryInline({
 }
 
 function AskWaitingState({ onPromptClick }: { onPromptClick: (text: string) => void }) {
-  const SUGGESTED_PROMPTS = [
-    'Summarize my recent notes',
-    'What are my action items?',
-    'What is the status of platform?',
-    'Review key decisions made',
-  ];
-
   return (
     <div className="ask-waiting-card">
       <div className="ask-waiting-visual">
@@ -430,13 +423,13 @@ function AskWaitingState({ onPromptClick }: { onPromptClick: (text: string) => v
         </div>
       </div>
       <div className="ask-waiting-text">
-        <h3>Ask AI Assistant</h3>
-        <p>Ask questions, query your notes, or get summaries instantly using neural search.</p>
+        <h3>{SEARCH_MESSAGES.WAITING_STATE.TITLE}</h3>
+        <p>{SEARCH_MESSAGES.WAITING_STATE.DESCRIPTION}</p>
       </div>
       <div className="ask-suggested-prompts">
-        <span className="suggested-title">Suggested Prompts</span>
+        <span className="suggested-title">{SEARCH_MESSAGES.WAITING_STATE.SUGGESTED_TITLE}</span>
         <div className="suggested-grid">
-          {SUGGESTED_PROMPTS.map((prompt, i) => (
+          {SEARCH_MESSAGES.SUGGESTED_PROMPTS.map((prompt, i) => (
             <button
               key={i}
               className="suggested-chip"

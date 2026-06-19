@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 
 import { formatDisplayToken } from '../../shared/utils/format';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { INTEGRATION_LOGOS, INTEGRATION_MESSAGES } from './integrations.constants';
 import {
   connectIntegration,
   fetchGithubRepositories,
@@ -39,13 +40,6 @@ const statusTone: Record<DisplayStatus | string, string> = {
   disabled: 'medium',
 };
 
-const integrationLogos: Record<string, { src: string; label: string }> = {
-  'github-app': { src: 'https://cdn.simpleicons.org/github/ffffff', label: 'GitHub' },
-  whatsapp: { src: 'https://cdn.simpleicons.org/whatsapp/25D366', label: 'WhatsApp' },
-  telegram: { src: 'https://cdn.simpleicons.org/telegram/26A5E4', label: 'Telegram' },
-  'push-notifications': { src: 'https://cdn.simpleicons.org/pushover/3B5998', label: 'Push Notifications' },
-};
-
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding)
@@ -73,15 +67,15 @@ function openExternalIntegration(url: string, target: '_self' | '_blank' = '_bla
   window.open(url, target, 'noopener,noreferrer');
 }
 
-const WHATSAPP_NUMBER = import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889';
-const TELEGRAM_BOT_USERNAME = import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot';
+const WHATSAPP_NUMBER = INTEGRATION_MESSAGES.WHATSAPP_NUMBER;
+const TELEGRAM_BOT_USERNAME = INTEGRATION_MESSAGES.TELEGRAM_BOT_USERNAME;
 
 function buildChatComposeUrl(connection: IntegrationConnectionResponse): string {
   const text = (connection.instruction || '').trim();
   if (!text) return '';
   const encoded = encodeURIComponent(text);
-  if (connection.provider === 'whatsapp') return `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
-  if (connection.provider === 'telegram') return `https://t.me/${TELEGRAM_BOT_USERNAME}`;
+  if (connection.provider === 'whatsapp') return `${INTEGRATION_MESSAGES.WHATSAPP_BASE_URL}${WHATSAPP_NUMBER}?text=${encoded}`;
+  if (connection.provider === 'telegram') return `${INTEGRATION_MESSAGES.TELEGRAM_BASE_URL}${TELEGRAM_BOT_USERNAME}`;
   return '';
 }
 
@@ -113,7 +107,7 @@ function IntegrationLogo({ integration }: { integration: UserIntegration }) {
       </div>
     );
   }
-  const logo = integrationLogos[integrationId(integration)];
+  const logo = INTEGRATION_LOGOS[integrationId(integration)];
   if (!logo) return <div className="integration-logo-fallback">{integration.name.slice(0, 2).toUpperCase()}</div>;
   const logoClassName = integration.provider === 'github-app'
     ? 'integration-logo integration-logo-github-app'
@@ -122,7 +116,7 @@ function IntegrationLogo({ integration }: { integration: UserIntegration }) {
 }
 
 function IntegrationSteps({ integration }: { integration: UserIntegration }) {
-  const steps = integration.steps?.length ? integration.steps : ['Start the connection to enable this integration.'];
+  const steps = integration.steps?.length ? integration.steps : [INTEGRATION_MESSAGES.DEFAULT_STEP];
   return (
     <ol className="integration-steps">
       {steps.map((step) => <li key={step}>{step}</li>)}
@@ -141,7 +135,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
     refetchInterval: (query) => query.state.data?.session.status === 'pending' ? 2500 : false,
   });
   const currentSession = sessionQuery.data?.session || session;
-  const providerLabel = connection.provider === 'telegram' ? 'Telegram' : 'WhatsApp';
+  const providerLabel = connection.provider === 'telegram' ? INTEGRATION_MESSAGES.PROVIDER_LABELS.telegram : INTEGRATION_MESSAGES.PROVIDER_LABELS.whatsapp;
 
   useEffect(() => {
     if (currentSession?.status === 'connected') {
@@ -159,7 +153,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
           <div>
             <div className="card-kicker">{connection.provider}</div>
             <div className="integration-modal-title">
-              <h2 id="connection-title">Connect {providerLabel}</h2>
+              <h2 id="connection-title">{INTEGRATION_MESSAGES.CONNECTION.TITLE.replace('{provider}', providerLabel)}</h2>
               {currentSession ? <Badge value={formatDisplayToken(currentSession.status)} tone={statusTone[currentSession.status] || 'medium'} /> : null}
             </div>
           </div>
@@ -168,11 +162,10 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
 
         {isWhatsApp ? (
           <>
-            <p className="meta" style={{ marginBottom: '8px' }}>Send the command below to the Knowledge Vault WhatsApp bot:</p>
+            <p className="meta" style={{ marginBottom: '8px' }}>{INTEGRATION_MESSAGES.CONNECTION.WHATSAPP_INSTRUCTION}</p>
             <div className="connection-code" aria-label="Connection code">{connection.verificationCode}</div>
             <p>
-              Send <strong>{connection.instruction}</strong> to{' '}
-              <strong>+{WHATSAPP_NUMBER}</strong>.
+              {INTEGRATION_MESSAGES.CONNECTION.SEND_TO_WHATSAPP.replace('{instruction}', connection.instruction || '').replace('{number}', WHATSAPP_NUMBER)}
             </p>
             <div className="integration-actions">
               {composeUrl ? (
@@ -182,7 +175,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Open WhatsApp
+                  {INTEGRATION_MESSAGES.CONNECTION.OPEN_WHATSAPP}
                 </a>
               ) : null}
               {connection.instruction ? (
@@ -191,18 +184,17 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
                   type="button"
                   onClick={() => { void navigator.clipboard?.writeText(connection.instruction || ''); }}
                 >
-                  Copy command
+                  {INTEGRATION_MESSAGES.CONNECTION.COPY_COMMAND}
                 </button>
               ) : null}
             </div>
           </>
         ) : (
           <>
-            <p className="meta" style={{ marginBottom: '8px' }}>Send the command below to the Knowledge Vault Telegram bot:</p>
+            <p className="meta" style={{ marginBottom: '8px' }}>{INTEGRATION_MESSAGES.CONNECTION.TELEGRAM_INSTRUCTION}</p>
             <div className="connection-code" aria-label="Connection code">{connection.verificationCode}</div>
             <p>
-              Send <strong>{connection.instruction}</strong> to{' '}
-              <strong>@{TELEGRAM_BOT_USERNAME}</strong>.
+              {INTEGRATION_MESSAGES.CONNECTION.SEND_TO_TELEGRAM.replace('{instruction}', connection.instruction || '').replace('{username}', TELEGRAM_BOT_USERNAME)}
             </p>
             <div className="integration-actions">
               {composeUrl ? (
@@ -212,7 +204,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Open Telegram bot
+                  {INTEGRATION_MESSAGES.CONNECTION.OPEN_TELEGRAM_BOT}
                 </a>
               ) : null}
               {connection.instruction ? (
@@ -221,13 +213,13 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
                   type="button"
                   onClick={() => { void navigator.clipboard?.writeText(connection.instruction || ''); }}
                 >
-                  Copy command
+                  {INTEGRATION_MESSAGES.CONNECTION.COPY_COMMAND}
                 </button>
               ) : null}
             </div>
           </>
         )}
-        {currentSession?.connectedAccount ? <p className="meta">Connected as {currentSession.connectedAccount}</p> : null}
+        {currentSession?.connectedAccount ? <p className="meta">{INTEGRATION_MESSAGES.CONNECTION.CONNECTED_AS.replace('{account}', currentSession.connectedAccount)}</p> : null}
         {currentSession?.lastError ? <InlineMessage tone="error">{currentSession.lastError}</InlineMessage> : null}
       </section>
     </div>
@@ -271,7 +263,7 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      notifySuccess('Repositories saved successfully.');
+      notifySuccess(INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SUCCESS);
       closeGuard.resetCloseGuard();
       onSaved?.();
       onClose();
@@ -282,7 +274,7 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
         window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
         return;
       }
-      notifyGeneralFormError(error, 'Could not save the selected repositories.');
+      notifyGeneralFormError(error, INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.ERROR_SAVE);
     },
   });
 
@@ -299,13 +291,13 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
         <div className="modal-head">
           <div>
             <div className="card-kicker">github-app</div>
-            <h2 id="github-repositories-title">{UI_MESSAGES.SELECT_REPOSITORIES}</h2>
+            <h2 id="github-repositories-title">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.TITLE}</h2>
           </div>
           <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
         </div>
 
-        {repositoriesQuery.isLoading ? <p className="meta">{UI_MESSAGES.LOADING_REPOSITORIES}</p> : null}
-        {repositoriesQuery.isError ? <InlineMessage tone="error">{getErrorMessage(repositoriesQuery.error, 'Could not load repositories.')}</InlineMessage> : null}
+        {repositoriesQuery.isLoading ? <p className="meta">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.LOADING}</p> : null}
+        {repositoriesQuery.isError ? <InlineMessage tone="error">{getErrorMessage(repositoriesQuery.error, INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.ERROR)}</InlineMessage> : null}
         <form
           className="auth-form"
           ref={formRef}
@@ -335,8 +327,8 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
           </div>
           {errors.repositories?.message ? <p className="form-error" role="alert">{errors.repositories.message}</p> : null}
           <div className="integration-card-foot">
-            <span className="meta">{selected.length} selected</span>
-            <FormActions disabled={saveMutation.isPending} onCancel={closeGuard.requestClose} submitLabel="Save" />
+            <span className="meta">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SELECTED.replace('{count}', String(selected.length))}</span>
+            <FormActions disabled={saveMutation.isPending} onCancel={closeGuard.requestClose} submitLabel={INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SAVE} />
           </div>
         </form>
       </section>
@@ -375,12 +367,12 @@ function IntegrationCard({
     mutationFn: async () => {
       if (integration.provider === 'push-notifications') {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-          throw new Error('Navegador não suporta notificações Push.');
+          throw new Error(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.BROWSER_NOT_SUPPORTED);
         }
 
         const permission = await Notification.requestPermission();
         if (permission !== 'granted') {
-          throw new Error('Permissão para notificações foi negada.');
+          throw new Error(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.PERMISSION_DENIED);
         }
 
         const registration = await navigator.serviceWorker.register(withFrontendBasePath('/sw.js'));
@@ -388,7 +380,7 @@ function IntegrationCard({
 
         const { publicKey } = await fetchPushPublicKey();
         if (!publicKey) {
-          throw new Error('Chave pública VAPID não configurada no servidor.');
+          throw new Error(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.VAPID_KEY_NOT_CONFIGURED);
         }
 
         const subscription = await registration.pushManager.subscribe({
@@ -412,7 +404,7 @@ function IntegrationCard({
     },
     onSuccess: (result: any) => {
       if (integration.provider === 'push-notifications') {
-        notifySuccess('Notificações Push ativadas com sucesso.');
+        notifySuccess(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.SUCCESS);
         queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
         return;
       }
@@ -421,7 +413,7 @@ function IntegrationCard({
         return;
       }
       if (result.session) onCodeConnection(result);
-      if (!result.primaryAction?.url && !result.session) notifySuccess(`${integration.name} updated successfully.`);
+      if (!result.primaryAction?.url && !result.session) notifySuccess(INTEGRATION_MESSAGES.GENERAL.UPDATED_SUCCESS.replace('{name}', integration.name));
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
     },
   });
@@ -444,16 +436,16 @@ function IntegrationCard({
       return revokeIntegration(integration.provider, workspaceSlug);
     },
     onSuccess: () => {
-      notifySuccess(`${integration.name} desativado com sucesso.`);
+      notifySuccess(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.DEACTIVATED.replace('{name}', integration.name));
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
     },
   });
   const connected = integration.status === 'connected';
   const actionLabel = connected ? integration.primaryAction?.label || 'Revoke' : integration.primaryAction?.label || 'Connect';
   const actionError = connectMutation.isError
-    ? getErrorMessage(connectMutation.error, 'Could not activate this integration.')
+    ? getErrorMessage(connectMutation.error, INTEGRATION_MESSAGES.GENERAL.ACTIVATE_ERROR)
     : revokeMutation.isError
-      ? getErrorMessage(revokeMutation.error, 'Could not revoke this integration.')
+      ? getErrorMessage(revokeMutation.error, INTEGRATION_MESSAGES.GENERAL.REVOKE_ERROR)
       : '';
 
   return (

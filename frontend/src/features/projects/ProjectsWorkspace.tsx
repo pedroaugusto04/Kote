@@ -31,6 +31,7 @@ import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
 import { useGlobalLoading } from '../../app/global-loading';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { ROOT_FOLDER_ID } from './projects.constants';
+import { PROJECTS_WORKSPACE_MESSAGES } from './projects-ui.constants';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
 import { ProjectFolderModal } from './modals/ProjectFolderModal';
@@ -44,11 +45,9 @@ import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { NoteRow } from '../../widgets/notes/NoteRow';
 import { SearchIcon } from '../../shared/ui/icons';
 
-const SEARCH_DEBOUNCE_MS = 350;
-
 const statusOptions: Array<{ value: '' | 'open' | NoteStatus; label: string }> = [
-  { value: 'open', label: 'Open' },
-  { value: '', label: 'All' },
+  { value: 'open', label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
+  { value: '', label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.ALL },
   ...(['active', 'pending', 'overdue', 'sent', 'resolved', 'archived'] as NoteStatus[]).map((value) => ({
     value,
     label: formatDisplayToken(value),
@@ -81,7 +80,7 @@ export function ProjectsWorkspace({
 
   // Search state
   const [searchInput, setSearchInput] = useState('');
-  const debouncedSearchInput = useDebouncedValue(searchInput, SEARCH_DEBOUNCE_MS);
+  const debouncedSearchInput = useDebouncedValue(searchInput, PROJECTS_WORKSPACE_MESSAGES.SEARCH.DEBOUNCE_MS);
   const hasSearchQuery = Boolean(debouncedSearchInput.trim());
 
   const handleOpenNote = (id: string) => {
@@ -297,7 +296,7 @@ export function ProjectsWorkspace({
           type="text"
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}
-          placeholder={selected ? `${UI_MESSAGES.SEARCH_IN} ${selected.displayName}...` : UI_MESSAGES.SEARCH_ACROSS_ALL_PROJECTS}
+          placeholder={selected ? `${PROJECTS_WORKSPACE_MESSAGES.SEARCH.IN_PROJECT.replace('{project}', selected.displayName)}...` : PROJECTS_WORKSPACE_MESSAGES.SEARCH.ACROSS_ALL}
         />
       </section>
 
@@ -466,10 +465,10 @@ export function ProjectsWorkspace({
           cancelLabel={UI_MESSAGES.CANCEL}
           confirmLabel={UI_MESSAGES.CONFIRM_DELETION}
           description={confirmState.kind === 'project'
-            ? `Deleting project ${confirmState.project.displayName} is permanent.`
+            ? PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_PROJECT.replace('{displayName}', confirmState.project.displayName)
             : confirmState.kind === 'folder'
-              ? `Folder ${confirmState.folder.displayName} will only be removed if it is empty.`
-              : `Deleting note ${confirmState.note.title} also removes its linked reminder, when present.`}
+              ? PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_FOLDER.replace('{displayName}', confirmState.folder.displayName)
+              : PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_NOTE.replace('{title}', confirmState.note.title)}
           onCancel={() => setConfirmState(null)}
           onConfirm={() => {
             if (confirmState.kind === 'project') {
