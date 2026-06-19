@@ -1,6 +1,6 @@
 import type { PaginationMeta } from './pagination.models.js';
 
-export const projectTimelineCategories = ['all', 'whatsapp', 'github-push', 'manual', 'reminder', 'decision', 'ai-chat'] as const;
+export const projectTimelineCategories = ['all', 'whatsapp', 'github-push', 'manual', 'reminder', 'ai-chat'] as const;
 
 export type ProjectTimelineCategory = (typeof projectTimelineCategories)[number];
 export type ProjectTimelineFilterCategory = Exclude<ProjectTimelineCategory, 'all'>;

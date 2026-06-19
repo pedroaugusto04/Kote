@@ -586,7 +586,6 @@ function projectTimelineItem(record: NoteRecord) {
 }
 
 function projectTimelineCategory(record: Pick<NoteRecord, 'type' | 'metadata' | 'source' | 'sourceChannel' | 'reminderDate' | 'reminderAt'>): ProjectTimelineFilterCategory {
-  if (record.type === 'decision') return 'decision';
   if (hasTimelineReminder(record)) return 'reminder';
   if (record.sourceChannel === 'github-push') return 'github-push';
   if (record.sourceChannel === 'whatsapp') return 'whatsapp';
@@ -620,19 +619,12 @@ function appendTimelineFolderClause(
 }
 
 function appendTimelineCategoryClause(clauses: string[], category: ListProjectTimelineInput['category']) {
-  const notDecision = "n.type <> 'decision'";
   const noReminder = "(n.reminder_date = '' and n.reminder_at = '')";
   if (category === 'all') return;
-  if (category === 'decision') {
-    clauses.push("n.type = 'decision'");
-    return;
-  }
   if (category === 'reminder') {
-    clauses.push(notDecision);
     clauses.push("(n.reminder_date <> '' or n.reminder_at <> '')");
     return;
   }
-  clauses.push(notDecision);
   clauses.push(noReminder);
   if (category === 'github-push') {
     clauses.push("n.source_channel = 'github-push'");
@@ -649,5 +641,4 @@ function appendTimelineCategoryClause(clauses: string[], category: ListProjectTi
   clauses.push("n.source_channel <> 'github-push'");
   clauses.push("n.source_channel <> 'whatsapp'");
   clauses.push("n.source_channel <> 'ai-chat'");
-  clauses.push("n.source = 'manual-api'");
 }
