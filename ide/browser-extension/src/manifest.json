@@ -31,8 +31,8 @@
     },
     "quick-clip-page": {
       "suggested_key": {
-        "default": "Ctrl+Shift+H",
-        "mac": "MacCtrl+Shift+H"
+        "default": "Ctrl+Shift+K",
+        "mac": "MacCtrl+Shift+K"
       },
       "description": "Quick clip full page to Knowledge Base"
     }
