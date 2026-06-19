@@ -1,8 +1,12 @@
-import { DOMParser } from '@xmldom/xmldom';
+import { DOMParser, DOMImplementation } from '@xmldom/xmldom';
 
-// Shim DOMParser for Turndown in Service Worker context
+// Shim DOMParser and document for Turndown in Service Worker context
 if (typeof globalThis.DOMParser === 'undefined') {
   globalThis.DOMParser = DOMParser as any;
+}
+
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = new DOMImplementation().createDocument('http://www.w3.org/1999/xhtml', 'html', null) as any;
 }
 
 import { convertHtmlToMarkdown, formatNoteWithFrontmatter, type ClipPayload } from './parser.js';
@@ -140,7 +144,7 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: `kb_access_token=${accessToken}`,
+      'Authorization': `Bearer ${accessToken}`,
     },
     body: JSON.stringify({
       projectSlug: project,

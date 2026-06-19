@@ -10,7 +10,15 @@ const refreshCookieName = 'kb_refresh_token';
 const googleOAuthStateCookieName = 'kb_google_oauth_state';
 
 export function accessTokenFromRequest(request: Request): string | undefined {
-  return parseCookies(request.headers.cookie)[accessCookieName];
+  const cookieToken = parseCookies(request.headers.cookie)[accessCookieName];
+  if (cookieToken) return cookieToken;
+
+  const authHeader = request.headers.authorization;
+  if (authHeader && String(authHeader).startsWith('Bearer ')) {
+    return String(authHeader).slice('Bearer '.length).trim();
+  }
+
+  return undefined;
 }
 
 export function refreshTokenFromRequest(request: Request): string | undefined {

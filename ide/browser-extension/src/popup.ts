@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          Cookie: `kb_access_token=${accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       });
 
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          Cookie: `kb_access_token=${accessToken}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
       });
 
