@@ -13,6 +13,8 @@ import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/emb
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import type { SaveNoteResult } from '../../models/note-save-result.models.js';
+import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
+
 
 type IngestExecutionOptions = {
   folderId?: string;
@@ -257,7 +259,7 @@ async function saveIngestedNote(
     note: {
       id: note.id,
       title: note.title,
-      type: hasReminder({ reminderDate, reminderAt }) ? 'reminder' : (note.categories[0]?.name || 'event'),
+      type: hasReminder({ reminderDate, reminderAt }) ? 'reminder' : resolveCanonicalTypeFromCategories(note.categories || [], (note.categories || []).map((c) => c.id)),
       status: note.status,
       projectSlug: project.projectSlug,
       projectName: project.displayName || project.projectSlug,

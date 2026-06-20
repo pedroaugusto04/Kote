@@ -10,6 +10,8 @@ import { CredentialRepository } from '../../ports/integrations/integrations.repo
 import { ProjectBriefAiGateway } from '../../ports/projects/project-brief-ai.gateway.js';
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
+
 
 const CONTEXT_WINDOW = 30;
 const RAW_TEXT_LIMIT = 2_000;
@@ -135,7 +137,7 @@ function toContextItem(note: NoteRecord): ProjectBriefContextItem {
     noteId: note.id,
     title: note.title,
     summary: note.summary,
-    type: note.categories[0]?.name || 'event',
+    type: resolveCanonicalTypeFromCategories(note.categories || [], (note.categories || []).map((c) => c.id)),
     status: note.status,
     sourceChannel: note.sourceChannel,
     tags: note.tags,

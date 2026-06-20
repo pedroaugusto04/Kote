@@ -4,6 +4,8 @@ import type { AttachmentRecord, NoteRecord } from '../../application/models/repo
 import type { ReviewView } from '../../application/models/review.models.js';
 import { absoluteUrl } from '../../application/utils/integration-status.utils.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../application/models/vault-note.models.js';
+import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
+
 
 function attachmentContentPath(noteId: string, attachmentId: string): string {
   const encodedNoteId = encodeURIComponent(noteId);
@@ -23,7 +25,7 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     id: record.id,
     path: record.path,
     categories: record.categories,
-    type: record.categories[0]?.name || 'event',
+    type: resolveCanonicalTypeFromCategories(record.categories || [], (record.categories || []).map((c) => c.id)),
     title: record.title,
     project: record.projectSlug || '',
     workspace: record.workspaceSlug || '',
