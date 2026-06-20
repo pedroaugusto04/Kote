@@ -60,6 +60,7 @@ describe('NoteRow', () => {
     expect(screen.getByText('Event')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('Manual')).toBeInTheDocument();
+    expect(screen.getByText('Deploy')).toBeInTheDocument();
     expect(resolveButton).toBeInTheDocument();
     expect(archiveButton).toBeInTheDocument();
     expect(editButton).toHaveAttribute('title', 'Edit');

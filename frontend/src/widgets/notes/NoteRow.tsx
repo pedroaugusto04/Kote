@@ -81,6 +81,7 @@ export function NoteRow({
         </div>
         <h3>{note.title}</h3>
         <SourceBadge source={activeSource} />
+        {note.tags && note.tags.length ? <Tags items={note.tags.map(formatDisplayToken)} /> : null}
         <p>{getCleanSummary(note.summary)}</p>
       </div>
       <button

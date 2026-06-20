@@ -202,6 +202,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                           {item.title}
                         </h3>
                         <SourceBadge source={activeSource} />
+                        {item.tags && item.tags.length ? <Tags items={item.tags.map(formatDisplayToken)} /> : null}
                         <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>
                       </div>
                       <span className="file-icon">{typeIcon(item.type)}</span>
