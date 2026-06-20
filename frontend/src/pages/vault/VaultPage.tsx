@@ -95,27 +95,20 @@ export function VaultPage({
   const currentNote = currentNoteIndex >= 0 ? notes[currentNoteIndex] : null;
   const previousNoteOnPage = currentNoteIndex > 0 ? toNavigationNote(notes[currentNoteIndex - 1]) : null;
   const nextNoteOnPage = currentNoteIndex >= 0 && currentNoteIndex < notes.length - 1 ? toNavigationNote(notes[currentNoteIndex + 1]) : null;
-  const hasPreviousPage = Boolean(pagination?.hasPrevious && currentPage > 1);
-  const hasNextPage = Boolean(pagination?.hasNext);
-  const atPageStart = currentNoteIndex === 0;
-  const atPageEnd = currentNoteIndex >= 0 && currentNoteIndex === notes.length - 1;
-  // Pre-fetch adjacent pages as soon as we know the current page — not just when at boundary.
-  // This ensures data is cached before the user reaches the edge note, eliminating the loading gap.
-  // noteId is included in the key so each note has an isolated cache entry.
+  const needsPreviousPage = Boolean(currentNote && currentNoteIndex === 0 && pagination?.hasPrevious && currentPage > 1);
+  const needsNextPage = Boolean(currentNote && currentNoteIndex === notes.length - 1 && pagination?.hasNext);
   const previousPageQuery = useQuery({
-    queryKey: ['notes', 'vault', effectiveProject, noteId, 'previous-page', currentPage],
+    queryKey: ['notes', 'vault', effectiveProject, 'previous-page', currentPage],
     queryFn: () => fetchNotes({ page: currentPage - 1, projectSlug: effectiveProject }),
-    enabled: Boolean(effectiveProject && notesQuery.isSuccess && hasPreviousPage),
+    enabled: Boolean(effectiveProject && needsPreviousPage),
   });
   const nextPageQuery = useQuery({
-    queryKey: ['notes', 'vault', effectiveProject, noteId, 'next-page', currentPage],
+    queryKey: ['notes', 'vault', effectiveProject, 'next-page', currentPage],
     queryFn: () => fetchNotes({ page: currentPage + 1, projectSlug: effectiveProject }),
-    enabled: Boolean(effectiveProject && notesQuery.isSuccess && hasNextPage),
+    enabled: Boolean(effectiveProject && needsNextPage),
   });
-  const previousNote = previousNoteOnPage || (atPageStart ? lastNavigationNote(previousPageQuery.data?.notes) : null);
-  const nextNote = nextNoteOnPage || (atPageEnd ? firstNavigationNote(nextPageQuery.data?.notes) : null);
-  const isPreviousLoading = !previousNote && atPageStart && hasPreviousPage && previousPageQuery.isLoading;
-  const isNextLoading = !nextNote && atPageEnd && hasNextPage && nextPageQuery.isLoading;
+  const previousNote = previousNoteOnPage || lastNavigationNote(previousPageQuery.data?.notes);
+  const nextNote = nextNoteOnPage || firstNavigationNote(nextPageQuery.data?.notes);
 
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
@@ -179,22 +172,10 @@ export function VaultPage({
               )}
               {!isMobile && (
                 <div style={{ display: 'inline-flex', gap: '6px', marginLeft: '6px' }}>
-                  <button
-                    className={`icon-button${isPreviousLoading ? ' loading' : ''}`}
-                    disabled={!previousNote && !isPreviousLoading}
-                    type="button"
-                    title={isPreviousLoading ? 'Loading…' : previousNote?.title}
-                    onClick={() => previousNote && openNote(previousNote.id)}
-                  >
+                  <button className="icon-button" disabled={!previousNote} type="button" onClick={() => previousNote && openNote(previousNote.id)}>
                     Previous
                   </button>
-                  <button
-                    className={`icon-button${isNextLoading ? ' loading' : ''}`}
-                    disabled={!nextNote && !isNextLoading}
-                    type="button"
-                    title={isNextLoading ? 'Loading…' : nextNote?.title}
-                    onClick={() => nextNote && openNote(nextNote.id)}
-                  >
+                  <button className="icon-button" disabled={!nextNote} type="button" onClick={() => nextNote && openNote(nextNote.id)}>
                     Next
                   </button>
                 </div>
