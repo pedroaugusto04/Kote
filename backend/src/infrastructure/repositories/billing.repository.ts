@@ -4,12 +4,14 @@ import { eq, and, or, isNull, lte, lt, sql } from 'drizzle-orm';
 
 import {
   BillingCustomerRepository,
-  BillingCustomerRecord,
   BillingPaymentRepository,
-  BillingPaymentRecord,
   BillingWebhookEventRepository,
-  GatewayWebhookEventRecord,
 } from '../../application/ports/billing/billing-repositories.js';
+import {
+  type BillingCustomerRecord,
+  type BillingPaymentRecord,
+  type GatewayWebhookEventRecord,
+} from '../../application/models/billing.models.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import {
   billingCustomers,
