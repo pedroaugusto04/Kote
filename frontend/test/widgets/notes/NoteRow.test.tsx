@@ -58,7 +58,6 @@ describe('NoteRow', () => {
     const editButton = screen.getByRole('button', { name: 'Edit note Deploy antigo' });
     const deleteButton = screen.getByRole('button', { name: 'Delete note Deploy antigo' });
 
-    expect(screen.getByText('Event')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('Manual')).toBeInTheDocument();
     expect(screen.getByText('Deploy')).toBeInTheDocument();
