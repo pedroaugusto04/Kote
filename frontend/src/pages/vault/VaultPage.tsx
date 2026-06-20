@@ -45,20 +45,6 @@ export function VaultPage({
     queryKey: ['notes', 'vault', effectiveProject, noteId, page],
     queryFn: () => fetchNotes({ page, projectSlug: effectiveProject, selectedId: noteId }),
     enabled: Boolean(noteId && effectiveProject),
-    initialData: noteId && dashboard.notes
-      ? {
-          ok: true as const,
-          notes: dashboard.notes.filter((note) => note.project === effectiveProject).slice(0, DEFAULT_PAGE_SIZE),
-          pagination: {
-            page: 1,
-            pageSize: DEFAULT_PAGE_SIZE,
-            total: dashboard.notes.filter((note) => note.project === effectiveProject).length,
-            totalPages: Math.max(1, Math.ceil(dashboard.notes.filter((note) => note.project === effectiveProject).length / DEFAULT_PAGE_SIZE)),
-            hasNext: dashboard.notes.filter((note) => note.project === effectiveProject).length > DEFAULT_PAGE_SIZE,
-            hasPrevious: false,
-          },
-        }
-      : undefined,
   });
 
   useEffect(() => {
@@ -93,6 +79,15 @@ export function VaultPage({
   const currentNoteIndex = notes.findIndex((note) => note.id === noteId);
   const currentPage = pagination?.page || page;
   const currentNote = currentNoteIndex >= 0 ? notes[currentNoteIndex] : null;
+
+  useEffect(() => {
+    console.log({
+      noteId,
+      currentPage,
+      currentNoteIndex,
+      notes: notes.map((n) => n.id),
+    });
+  }, [noteId, currentPage, currentNoteIndex, notes]);
   const previousNoteOnPage = currentNoteIndex > 0 ? toNavigationNote(notes[currentNoteIndex - 1]) : null;
   const nextNoteOnPage = currentNoteIndex >= 0 && currentNoteIndex < notes.length - 1 ? toNavigationNote(notes[currentNoteIndex + 1]) : null;
   const needsPreviousPage = Boolean(currentNote && currentNoteIndex === 0 && pagination?.hasPrevious && currentPage > 1);
