@@ -4,7 +4,7 @@ export function Badge({ value, tone }: { value: ReactNode; tone?: string }) {
   return <span className={`badge ${tone || String(value)}`}>{value}</span>;
 }
 
-export function Tags({ items }: { items: Array<string | { label: string; backgroundColor?: string; color?: string }> }) {
+export function Tags({ items }: { items: Array<string | { label: string; backgroundColor?: string; color?: string; style?: React.CSSProperties }> }) {
   return (
     <div className="tag-row">
       {items.map((item, index) => {
@@ -15,9 +15,14 @@ export function Tags({ items }: { items: Array<string | { label: string; backgro
             </span>
           );
         }
-        const style = item.backgroundColor
-          ? { backgroundColor: item.backgroundColor, color: item.color || '#fff', borderColor: item.backgroundColor }
-          : undefined;
+        let style = item.style;
+        if (!style && item.backgroundColor) {
+          style = {
+            backgroundColor: item.backgroundColor,
+            color: item.color || '#fff',
+            borderColor: item.backgroundColor,
+          };
+        }
         return (
           <span className="tag" key={`${item.label}-${index}`} style={style}>
             {item.label}

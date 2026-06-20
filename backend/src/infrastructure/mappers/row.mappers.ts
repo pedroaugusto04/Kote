@@ -205,6 +205,7 @@ export function categoryFromRow(row: Row): CategoryRecord {
     workspaceId: fieldString(row, 'workspace_id', 'workspaceId'),
     name: fieldString(row, 'name', 'name'),
     color: fieldString(row, 'color', 'color', '#9e9e9e'),
+    colorDark: field(row, 'color_dark', 'colorDark') == null ? null : String(field(row, 'color_dark', 'colorDark')),
     icon: fieldString(row, 'icon', 'icon', ''),
     isSystem: field(row, 'is_system', 'isSystem') === true,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),

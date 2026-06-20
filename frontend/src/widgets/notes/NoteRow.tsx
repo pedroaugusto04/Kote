@@ -81,9 +81,9 @@ export function NoteRow({
           <AttachmentIndicator count={note.attachmentCount || 0} />
           <Badge value={formatDisplayToken(note.status)} tone={note.status} />
         </div>
+        {displayTags.length ? <Tags items={displayTags} /> : null}
         <h3>{note.title}</h3>
         <SourceBadge source={activeSource} />
-        {displayTags.length ? <Tags items={displayTags} /> : null}
         <p>{getCleanSummary(note.summary)}</p>
       </div>
       <button

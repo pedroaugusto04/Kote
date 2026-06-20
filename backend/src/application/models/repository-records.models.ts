@@ -124,6 +124,7 @@ export type CategoryRecord = {
   workspaceId: string;
   name: string;
   color: string;
+  colorDark: string | null;
   icon: string;
   isSystem: boolean;
   createdAt: string;

@@ -375,6 +375,7 @@ export const categories = pgTable('kb_categories', {
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   color: text('color').notNull().default('#9e9e9e'),
+  colorDark: text('color_dark'),
   icon: text('icon').notNull().default(''),
   isSystem: boolean('is_system').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),

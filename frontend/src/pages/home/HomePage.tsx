@@ -199,14 +199,14 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                           <AttachmentIndicator count={item.attachmentCount || 0} />
                           <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                         </div>
-                        <h3 className="home-timeline-title">
-                          {item.title}
-                        </h3>
-                        <SourceBadge source={activeSource} />
                         {(() => {
                           const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
                           return displayTags.length ? <Tags items={displayTags} /> : null;
                         })()}
+                        <h3 className="home-timeline-title">
+                          {item.title}
+                        </h3>
+                        <SourceBadge source={activeSource} />
                         <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>
                       </div>
                       <span className="file-icon">{typeIcon(item.type)}</span>

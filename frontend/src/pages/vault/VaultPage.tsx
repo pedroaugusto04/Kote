@@ -192,11 +192,6 @@ export function VaultPage({
           <>
             <header className="note-reader-head" style={{ borderBottom: 'none', paddingBottom: 0 }}>
               <div className="note-meta-row" style={{ marginTop: 0 }}>
-                <Badge value={projectName(dashboard.projects, noteQuery.data.project)} tone="project" />
-                <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
-                {noteQuery.data.source && (
-                  <Badge value={formatSourceLabel(noteQuery.data.source)} tone="source" />
-                )}
                 <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
                 <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
                 <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />

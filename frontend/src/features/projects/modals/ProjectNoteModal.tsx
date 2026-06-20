@@ -224,13 +224,13 @@ export function ProjectNoteModal({
                                 field.onChange(nextValue);
                               }}
                             />
-                            <span style={{
-                              display: 'inline-block',
-                              width: '8px',
-                              height: '8px',
-                              borderRadius: '50%',
-                              backgroundColor: category.color || '#cccccc'
-                            }} />
+                            <span
+                              className="category-dot"
+                              style={{
+                                '--dot-color-light': category.color || '#cccccc',
+                                '--dot-color-dark': category.colorDark || category.color || '#cccccc'
+                              } as React.CSSProperties}
+                            />
                             <span>{formatDisplayToken(category.name)}</span>
                           </label>
                         );

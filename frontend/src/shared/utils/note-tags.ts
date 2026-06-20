@@ -1,18 +1,30 @@
-import type { CategoryRecord } from '../api/models/category';
+import React from 'react';
 import { formatDisplayToken } from './format';
 
-export type TagItem = string | { label: string; backgroundColor?: string; color?: string };
+export type TagItem = string | {
+  label: string;
+  backgroundColor?: string;
+  color?: string;
+  style?: React.CSSProperties;
+};
 
 type DisplayTagInput = {
   tags: string[];
-  categories?: Array<Pick<CategoryRecord, 'name' | 'color'>>;
+  categories?: Array<{ name: string; color?: string; colorDark?: string }>;
 };
+
+export function getCategoryStyle(color?: string, colorDark?: string): React.CSSProperties | undefined {
+  if (!color) return undefined;
+  return {
+    '--tag-color-light': color,
+    '--tag-color-dark': colorDark || color,
+  } as React.CSSProperties;
+}
 
 export function buildNoteDisplayTags(input: DisplayTagInput): TagItem[] {
   const categoryTags = (input.categories || []).map((cat) => ({
     label: formatDisplayToken(cat.name),
-    backgroundColor: cat.color,
-    color: '#ffffff',
+    style: getCategoryStyle(cat.color, cat.colorDark),
   }));
   const customTags = (input.tags || []).map(formatDisplayToken);
 

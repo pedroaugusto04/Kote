@@ -4,6 +4,7 @@ export type CategoryRecord = {
   workspaceId: string;
   name: string;
   color: string;
+  colorDark?: string;
   icon: string;
   isSystem: boolean;
   createdAt: string;

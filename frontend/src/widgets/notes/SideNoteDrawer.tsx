@@ -74,11 +74,6 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
         ) : noteQuery.data ? (
           <>
             <div className="knowledge-map-drawer-meta-row">
-              <Badge value={projectName(dashboardProjects, noteQuery.data.project)} tone="project" />
-              <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
-              {noteQuery.data.source && (
-                <Badge value={formatSourceLabel(noteQuery.data.source)} tone="source" />
-              )}
               <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
               <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
               <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />

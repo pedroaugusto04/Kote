@@ -598,6 +598,32 @@
   letter-spacing: 0.02em;
 }
 
+.tag[style*="--tag-color-light"] {
+  --tag-color: var(--tag-color-dark);
+  background: color-mix(in srgb, var(--tag-color) 8%, var(--surface-6)) !important;
+  color: var(--tag-color) !important;
+  border-color: color-mix(in srgb, var(--tag-color) 25%, var(--line-soft)) !important;
+}
+
+:root[data-theme="light"] .tag[style*="--tag-color-light"] {
+  --tag-color: var(--tag-color-light);
+  background: color-mix(in srgb, var(--tag-color) 8%, var(--surface-2)) !important;
+  color: var(--tag-color) !important;
+  border-color: color-mix(in srgb, var(--tag-color) 25%, var(--line)) !important;
+}
+
+.category-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dot-color-dark, #cccccc);
+}
+
+:root[data-theme="light"] .category-dot {
+  background: var(--dot-color-light, #cccccc);
+}
+
 .attachment-indicator {
   display: inline-flex;
   align-items: center;

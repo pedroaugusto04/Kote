@@ -230,12 +230,12 @@ export function ProjectTimeline({
                   </button>
                   <div className="project-timeline-body">
                     <div>
-                      <h3>{item.title}</h3>
-                      <SourceBadge source={activeSource} />
                       {(() => {
                         const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
                         return displayTags.length ? <Tags items={displayTags} /> : null;
                       })()}
+                      <h3>{item.title}</h3>
+                      <SourceBadge source={activeSource} />
                       <p>{getCleanSummary(item.summary)}</p>
                     </div>
                     <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginTop: 'auto' }}>
