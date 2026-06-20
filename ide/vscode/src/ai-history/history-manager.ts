@@ -1,6 +1,11 @@
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession } from './types';
 import type { KbClient } from '../kb-client';
+import { logInfo, toMessage } from '../error-reporter';
+
+type SessionPromptAction = 'Auto-save' | 'Preview & Edit' | 'Ignore';
+
+const SESSION_PROMPT_TIMEOUT_MS = 2 * 60 * 1000;
 
 export class AiHistoryManager {
   private providers = new Map<string, AiHistoryProvider>();
@@ -218,6 +223,43 @@ export class AiHistoryManager {
     }
   }
 
+  private rememberSessionHash(key: string, hash: string) {
+    this.knownSessionHashes.set(key, hash);
+    this.saveState();
+  }
+
+  private forgetSessionHash(key: string) {
+    this.knownSessionHashes.delete(key);
+    this.saveState();
+  }
+
+  private async askSessionAction(provider: AiHistoryProvider): Promise<SessionPromptAction | undefined | 'Timed out'> {
+    let timeout: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<'Timed out'>((resolve) => {
+      timeout = setTimeout(() => resolve('Timed out'), SESSION_PROMPT_TIMEOUT_MS);
+    });
+
+    const action = await Promise.race([
+      vscode.window.showInformationMessage(
+        `KB: New AI session detected from ${provider.name}. Do you want to save it as a note?`,
+        'Auto-save',
+        'Preview & Edit',
+        'Ignore'
+      ) as Promise<SessionPromptAction | undefined>,
+      timeoutPromise,
+    ]);
+
+    if (timeout) {
+      clearTimeout(timeout);
+    }
+
+    if (action === 'Timed out') {
+      logInfo('AI History', `Session prompt for ${provider.id} timed out after ${SESSION_PROMPT_TIMEOUT_MS}ms.`);
+    }
+
+    return action;
+  }
+
   private async handleChangedSession(client: KbClient, provider: AiHistoryProvider, session: AiSession) {
     const key = `${provider.id}:${session.sessionId}`;
     const hash = this.computeSessionHash(session);
@@ -230,6 +272,18 @@ export class AiHistoryManager {
 
     this.addOrUpdateRecentSession(session);
 
+    // Saved sessions should keep auto-saving even if an older prompt for the
+    // same session is still open or timed out.
+    if (this.savedSessions.has(key)) {
+      this.pendingPromptSessions.delete(key);
+      const saved = await this.autoSaveSessionToVault(client, session);
+      if (saved) {
+        this.rememberSessionHash(key, hash);
+        await this.processPendingPromptSession(client, provider, key);
+      }
+      return;
+    }
+
     // If a prompt is already open, keep the newest version pending. Do not mark
     // the hash as known yet, otherwise the update is lost when the prompt closes.
     if (this.promptingSessions.has(key)) {
@@ -237,43 +291,34 @@ export class AiHistoryManager {
       return;
     }
 
-    this.knownSessionHashes.set(key, hash);
-    this.saveState();
-
-    // If the session is already saved, keep auto-saving changed content.
-    if (this.savedSessions.has(key)) {
-      await this.autoSaveSessionToVault(client, session);
-      await this.processPendingPromptSession(client, provider, key);
-      return;
-    }
-
     // If the session is ignored, do nothing until the user imports it manually.
     if (this.ignoredSessions.has(key)) {
+      this.rememberSessionHash(key, hash);
       this.pendingPromptSessions.delete(key);
       return;
     }
 
+    this.rememberSessionHash(key, hash);
     this.promptingSessions.add(key);
     try {
-      const action = await vscode.window.showInformationMessage(
-        `KB: New AI session detected from ${provider.name}. Do you want to save it as a note?`,
-        'Auto-save',
-        'Preview & Edit',
-        'Ignore'
-      );
+      const action = await this.askSessionAction(provider);
 
       if (action === 'Auto-save') {
         this.markSessionAsSaved(provider.id, session.sessionId);
-        await this.saveSessionToVault(client, session);
+        const saved = await this.saveSessionToVault(client, session);
+        if (!saved) {
+          this.forgetSessionHash(key);
+        }
       } else if (action === 'Preview & Edit') {
         await this.openPreview(session);
       } else if (action === 'Ignore') {
         this.markSessionAsIgnored(provider.id, session.sessionId);
+      } else if (action === 'Timed out') {
+        return;
       }
 
       if (!this.savedSessions.has(key) && !this.ignoredSessions.has(key)) {
-        this.knownSessionHashes.delete(key);
-        this.saveState();
+        this.forgetSessionHash(key);
       }
     } finally {
       this.promptingSessions.delete(key);
@@ -478,7 +523,7 @@ export class AiHistoryManager {
     }
   }
 
-  private async saveSessionToVault(client: KbClient, session: AiSession) {
+  private async saveSessionToVault(client: KbClient, session: AiSession): Promise<boolean> {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
@@ -493,12 +538,14 @@ export class AiHistoryManager {
 
       vscode.window.showInformationMessage('Note saved to Knowledge Vault successfully!');
       vscode.commands.executeCommand('kb.refresh');
+      return true;
     } catch (err: any) {
       vscode.window.showErrorMessage(`Failed to save note: ${err.message || err}`);
+      return false;
     }
   }
 
-  private async autoSaveSessionToVault(client: KbClient, session: AiSession) {
+  private async autoSaveSessionToVault(client: KbClient, session: AiSession): Promise<boolean> {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
@@ -512,8 +559,10 @@ export class AiHistoryManager {
       });
 
       vscode.commands.executeCommand('kb.refresh');
+      return true;
     } catch (err: any) {
-      console.error(`Failed to auto-save note: ${err.message || err}`);
+      logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
+      return false;
     }
   }
 }
