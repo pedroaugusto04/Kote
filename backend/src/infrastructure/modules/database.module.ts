@@ -18,6 +18,11 @@ import { AskHistoryRepository } from '../../application/ports/query/ask-history.
 import { NoteEmbeddingRepository } from '../../application/ports/notes/note-embedding.repository.js';
 import { QuotaRepository } from '../../application/ports/quota/quota.repository.js';
 import { QuotaService } from '../../application/services/quota.service.js';
+import {
+  BillingCustomerRepository,
+  BillingPaymentRepository,
+  BillingWebhookEventRepository,
+} from '../../application/ports/billing/billing-repositories.js';
 
 import { PostgresUserRepository } from '../repositories/auth.repository.js';
 import { PostgresContentQueryRepository } from '../repositories/content-query.repository.js';
@@ -39,6 +44,11 @@ import { PostgresFolderRepository } from '../repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../repositories/attachment.repository.js';
 import { PostgresCategoryRepository } from '../repositories/category.repository.js';
 import { PostgresQuotaRepository } from '../repositories/quota.repository.js';
+import {
+  PostgresBillingCustomerRepository,
+  PostgresBillingPaymentRepository,
+  PostgresBillingWebhookEventRepository,
+} from '../repositories/billing.repository.js';
 
 const repositories = [
   PostgresDatabase,
@@ -61,6 +71,9 @@ const repositories = [
   PostgresWebhookSubscriptionRepository,
   PostgresPushSubscriptionRepository,
   PostgresQuotaRepository,
+  PostgresBillingCustomerRepository,
+  PostgresBillingPaymentRepository,
+  PostgresBillingWebhookEventRepository,
   QuotaService,
   { provide: SchemaMigrator, useExisting: PostgresSchemaMigrator },
   { provide: QuotaRepository, useExisting: PostgresQuotaRepository },
@@ -78,6 +91,9 @@ const repositories = [
   { provide: WebhookEventRepository, useExisting: PostgresWebhookEventRepository },
   { provide: WebhookSubscriptionRepository, useExisting: PostgresWebhookSubscriptionRepository },
   { provide: PushSubscriptionRepository, useExisting: PostgresPushSubscriptionRepository },
+  { provide: BillingCustomerRepository, useExisting: PostgresBillingCustomerRepository },
+  { provide: BillingPaymentRepository, useExisting: PostgresBillingPaymentRepository },
+  { provide: BillingWebhookEventRepository, useExisting: PostgresBillingWebhookEventRepository },
 ];
 
 @Module({
