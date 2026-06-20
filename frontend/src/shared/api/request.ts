@@ -27,6 +27,10 @@ let refreshPromise: Promise<void> | null = null;
 
 async function readJson(response: Response): Promise<unknown> {
   const text = await response.text();
+  return readJsonFromText(text);
+}
+
+function readJsonFromText(text: string): unknown {
   if (!text) return null;
   try {
     return JSON.parse(text) as unknown;
@@ -113,6 +117,41 @@ async function executeRequest<T>(path: string, init: RequestInit = {}, options: 
 
 export async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return executeRequest<T>(path, init, { hasRetried: false });
+}
+
+async function sendText(path: string, init: RequestInit = {}): Promise<{ response: Response; text: string }> {
+  const response = await fetch(resolveApiPath(path), {
+    ...buildInit({
+      ...init,
+      headers: { accept: 'text/plain, text/markdown, application/json, */*', ...(init.headers || {}) },
+    }),
+  });
+  return { response, text: await response.text() };
+}
+
+async function executeTextRequest(path: string, init: RequestInit = {}, options: RequestOptions): Promise<string> {
+  const { response, text } = await sendText(path, init);
+  if (response.ok) return text;
+
+  const payload = readJsonFromText(text);
+  if (!shouldAttemptRefresh(path, response, payload, options)) {
+    throw toApiClientError(response, payload);
+  }
+
+  try {
+    await refreshSession();
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 401) {
+      await logoutSilently();
+    }
+    throw error;
+  }
+
+  return executeTextRequest(path, init, { hasRetried: true });
+}
+
+export async function requestText(path: string, init: RequestInit = {}): Promise<string> {
+  return executeTextRequest(path, init, { hasRetried: false });
 }
 
 export function resetRequestStateForTests() {

@@ -5,9 +5,69 @@ import { createPortal } from 'react-dom';
 import { normalizeComparableText, sameText, stripSourceHeader } from '../../shared/utils/text';
 import { formatFileSize, formatSourceLabel, getSourceTagClass } from '../../shared/utils/format';
 import type { NoteAttachment } from '../../shared/api/models/note';
+import { fetchAttachmentText } from '../../shared/api/notes';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../markdown/MarkdownView';
 import { SourceIcon } from '../../shared/ui/icons';
+
+type AttachmentPreviewKind = 'image' | 'audio' | 'pdf' | 'markdown' | 'text' | 'none';
+
+type TextPreviewState = {
+  attachmentId: string;
+  status: 'loading' | 'loaded' | 'error';
+  text: string;
+};
+
+const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdown', 'mkd']);
+const TEXT_EXTENSIONS = new Set([
+  'txt',
+  'text',
+  'log',
+  'csv',
+  'tsv',
+  'json',
+  'jsonl',
+  'ndjson',
+  'yaml',
+  'yml',
+  'xml',
+  'html',
+  'htm',
+  'css',
+  'js',
+  'jsx',
+  'ts',
+  'tsx',
+  'mjs',
+  'cjs',
+  'sh',
+  'bash',
+  'zsh',
+  'sql',
+  'env',
+  'ini',
+  'conf',
+  'config',
+  'toml',
+  'lock',
+  'diff',
+  'patch',
+  'svg',
+]);
+
+const TEXT_MIME_TYPES = new Set([
+  'application/json',
+  'application/ld+json',
+  'application/x-ndjson',
+  'application/xml',
+  'application/yaml',
+  'application/x-yaml',
+  'application/toml',
+  'application/javascript',
+  'application/typescript',
+  'application/x-sh',
+  'image/svg+xml',
+]);
 
 export function NoteBody({ markdown, rawText, summary, title, source }: { markdown: string; rawText: string; summary: string; title: string; source?: string }) {
   const extraMarkdown = readerExtraSections(markdown, title);
@@ -47,6 +107,7 @@ export function NoteBody({ markdown, rawText, summary, title, source }: { markdo
 
 export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {
   const [activeAttachment, setActiveAttachment] = useState<NoteAttachment | null>(null);
+  const [textPreview, setTextPreview] = useState<TextPreviewState | null>(null);
   const isMobile = useMediaQuery('(max-width: 768px)');
 
   if (!attachments?.length) return null;
@@ -54,25 +115,42 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
   const images = attachments.filter((attachment) => attachment.mimeType.startsWith('image/'));
   const files = attachments.filter((attachment) => !attachment.mimeType.startsWith('image/'));
 
-  const isPreviewable = (attachment: NoteAttachment) => {
+  const getPreviewKind = (attachment: NoteAttachment): AttachmentPreviewKind => {
     if (attachment.mimeType.startsWith('image/')) {
-      return true;
+      return 'image';
     }
     if (attachment.mimeType.startsWith('audio/')) {
-      return true;
+      return 'audio';
     }
     if (attachment.mimeType === 'application/pdf') {
-      return !isMobile;
+      return isMobile ? 'none' : 'pdf';
     }
-    return false;
+    if (isMarkdownAttachment(attachment)) return 'markdown';
+    if (isTextAttachment(attachment)) return 'text';
+    return 'none';
   };
 
   const handleAttachmentClick = (e: React.MouseEvent, attachment: NoteAttachment) => {
-    if (isPreviewable(attachment)) {
+    const previewKind = getPreviewKind(attachment);
+    if (previewKind !== 'none') {
       e.preventDefault();
       setActiveAttachment(attachment);
+      if (previewKind === 'markdown' || previewKind === 'text') {
+        setTextPreview({ attachmentId: attachment.id, status: 'loading', text: '' });
+        fetchAttachmentText(attachment.url)
+          .then((text) => {
+            setTextPreview({ attachmentId: attachment.id, status: 'loaded', text });
+          })
+          .catch(() => {
+            setTextPreview({ attachmentId: attachment.id, status: 'error', text: '' });
+          });
+      } else {
+        setTextPreview(null);
+      }
     }
   };
+
+  const activePreviewKind = activeAttachment ? getPreviewKind(activeAttachment) : 'none';
 
   return (
     <>
@@ -119,10 +197,12 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
         <div className="attachment-viewer-backdrop" role="presentation" onClick={() => setActiveAttachment(null)}>
           <div
             className={`attachment-viewer-panel ${
-              activeAttachment.mimeType.startsWith('image/')
+              activePreviewKind === 'image'
                 ? 'image-mode'
-                : activeAttachment.mimeType.startsWith('audio/')
+                : activePreviewKind === 'audio'
                 ? 'audio-mode'
+                : activePreviewKind === 'markdown' || activePreviewKind === 'text'
+                ? 'text-mode'
                 : 'pdf-mode'
             }`}
             role="dialog"
@@ -152,9 +232,9 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
               </div>
             </div>
             <div className="attachment-viewer-content">
-              {activeAttachment.mimeType.startsWith('image/') ? (
+              {activePreviewKind === 'image' ? (
                 <img src={activeAttachment.url} alt={activeAttachment.fileName} className="attachment-viewer-image" />
-              ) : activeAttachment.mimeType.startsWith('audio/') ? (
+              ) : activePreviewKind === 'audio' ? (
                 <div className="attachment-viewer-audio-container">
                   <div className="attachment-viewer-audio-icon">
                     <svg fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" style={{ width: '32px', height: '32px' }}>
@@ -167,6 +247,12 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
                   </div>
                   <audio src={activeAttachment.url} controls className="attachment-viewer-audio" autoPlay />
                 </div>
+              ) : activePreviewKind === 'markdown' || activePreviewKind === 'text' ? (
+                <TextAttachmentPreview
+                  fileName={activeAttachment.fileName}
+                  kind={activePreviewKind}
+                  preview={textPreview?.attachmentId === activeAttachment.id ? textPreview : null}
+                />
               ) : (
                 <iframe src={activeAttachment.url} title={activeAttachment.fileName} className="attachment-viewer-iframe" />
               )}
@@ -177,6 +263,57 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
       )}
     </>
   );
+}
+
+function TextAttachmentPreview({
+  fileName,
+  kind,
+  preview,
+}: {
+  fileName: string;
+  kind: 'markdown' | 'text';
+  preview: TextPreviewState | null;
+}) {
+  if (!preview || preview.status === 'loading') {
+    return <div className="attachment-viewer-status">Loading preview...</div>;
+  }
+
+  if (preview.status === 'error') {
+    return <div className="attachment-viewer-status error">Could not load this preview.</div>;
+  }
+
+  return (
+    <div className="attachment-text-preview" aria-label={`Preview of ${fileName}`}>
+      {kind === 'markdown' ? (
+        <MarkdownView markdown={preview.text} />
+      ) : (
+        <pre>{preview.text}</pre>
+      )}
+    </div>
+  );
+}
+
+function isMarkdownAttachment(attachment: NoteAttachment) {
+  const mimeType = normalizedMimeType(attachment.mimeType);
+  return mimeType === 'text/markdown' || mimeType === 'text/x-markdown' || MARKDOWN_EXTENSIONS.has(fileExtension(attachment.fileName));
+}
+
+function isTextAttachment(attachment: NoteAttachment) {
+  const mimeType = normalizedMimeType(attachment.mimeType);
+  if (mimeType.startsWith('text/')) return true;
+  if (TEXT_MIME_TYPES.has(mimeType)) return true;
+  return TEXT_EXTENSIONS.has(fileExtension(attachment.fileName));
+}
+
+function normalizedMimeType(mimeType: string) {
+  return String(mimeType || '').split(';')[0].trim().toLowerCase();
+}
+
+function fileExtension(fileName: string) {
+  const cleanFileName = String(fileName || '').split(/[?#]/)[0].trim().toLowerCase();
+  const extensionIndex = cleanFileName.lastIndexOf('.');
+  if (extensionIndex === -1) return '';
+  return cleanFileName.slice(extensionIndex + 1);
 }
 
 function readerExtraSections(markdown: string, title: string) {

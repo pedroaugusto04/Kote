@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiClientError, fetchAskHistory, fetchCurrentUser, fetchDashboard, getErrorMessage, runQuery } from '../../../src/shared/api/client';
 import { resolveApiPath } from '../../../src/shared/api/api-path';
-import { request, resetRequestStateForTests } from '../../../src/shared/api/request';
+import { request, requestText, resetRequestStateForTests } from '../../../src/shared/api/request';
 
 function apiErrorResponse(status: number, code: string, message = 'Request failed.', requestId = `req-${code}`, details: Record<string, unknown> = {}) {
   return Response.json({
@@ -311,6 +311,41 @@ describe('api client', () => {
       requestId: 'req-refresh',
     }));
     expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual(['/api/auth/refresh']);
+  });
+
+  it('returns text responses with session credentials', async () => {
+    const fetchMock = vi.fn(async () => new Response('# Runbook', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(requestText('/api/notes/note-1/attachments/attachment-1/content')).resolves.toBe('# Runbook');
+    expect(fetchMock).toHaveBeenCalledWith('/api/notes/note-1/attachments/attachment-1/content', expect.objectContaining({
+      credentials: 'include',
+      headers: { accept: 'text/plain, text/markdown, application/json, */*' },
+    }));
+  });
+
+  it('refreshes once for text responses after a session 401', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/notes/note-1/attachments/attachment-1/content' && fetchMock.mock.calls.filter(([call]) => String(call) === url).length === 1) {
+        return apiErrorResponse(401, 'token_expired', 'Sessao expirada.');
+      }
+      if (url === '/api/auth/refresh') {
+        return Response.json({ ok: true });
+      }
+      if (url === '/api/notes/note-1/attachments/attachment-1/content') {
+        return new Response('# Runbook', { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(requestText('/api/notes/note-1/attachments/attachment-1/content')).resolves.toBe('# Runbook');
+    expect(fetchMock.mock.calls.map(([input]) => String(input))).toEqual([
+      '/api/notes/note-1/attachments/attachment-1/content',
+      '/api/auth/refresh',
+      '/api/notes/note-1/attachments/attachment-1/content',
+    ]);
   });
 
   it('retries each original request at most once', async () => {
