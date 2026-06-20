@@ -1,8 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
-import { formatUsDate, projectName, typeIcon, getCleanSummary } from '../../shared/utils/format';
-import { Tags } from '../../shared/ui/primitives';
+import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary } from '../../shared/utils/format';
+import { Badge, Tags } from '../../shared/ui/primitives';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { QuickNoteStatusActions } from './QuickNoteStatusActions';
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
@@ -10,7 +10,7 @@ import { pinNote } from '../../shared/api/client';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
-import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
+import { SourceBadge } from './SourceBadge';
 
 function PinIcon({ active }: { active?: boolean }) {
   return (
@@ -51,7 +51,7 @@ export function NoteRow({
     },
   });
 
-  const displayTags = buildNoteDisplayTags(note);
+  const activeSource = note.source;
 
   return (
     <article className="list-row clickable" onClick={() => onOpen(note.id)} onDoubleClick={() => onDoubleClick?.(note.id)}>
@@ -62,6 +62,13 @@ export function NoteRow({
               <PinIcon active /> Pinned
             </span>
           )}
+          {note.categories && note.categories.length > 0 ? (
+            note.categories.map((category) => (
+              <Badge key={category.id} value={category.name} tone={category.name} />
+            ))
+          ) : (
+            <Badge value={noteTypeLabel(note.type)} tone={note.type} />
+          )}
           <span className="meta meta-project">
             {projectName(dashboard.projects, note.project)}
           </span>
@@ -70,9 +77,10 @@ export function NoteRow({
             {formatUsDate(note.date)}
           </span>
           <AttachmentIndicator count={note.attachmentCount || 0} />
+          <Badge value={formatDisplayToken(note.status)} tone={note.status} />
         </div>
         <h3>{note.title}</h3>
-        {displayTags.length ? <Tags items={displayTags} /> : null}
+        <SourceBadge source={activeSource} />
         <p>{getCleanSummary(note.summary)}</p>
       </div>
       <button

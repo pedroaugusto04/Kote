@@ -57,7 +57,7 @@ describe('NoteRow', () => {
     const editButton = screen.getByRole('button', { name: 'Edit note Deploy antigo' });
     const deleteButton = screen.getByRole('button', { name: 'Delete note Deploy antigo' });
 
-    expect(screen.getByText('Deploy')).toBeInTheDocument();
+    expect(screen.getByText('Event')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('Manual')).toBeInTheDocument();
     expect(resolveButton).toBeInTheDocument();
@@ -192,8 +192,8 @@ describe('NoteRow', () => {
     expect(screen.queryByLabelText(/^\d+ attachments?$/)).not.toBeInTheDocument();
   });
 
-  it('renders the source as a display tag when a source is provided', () => {
-    renderWithAppProviders(
+  it('renders the source icon when a source is provided', () => {
+    const { container } = renderWithAppProviders(
       <NoteRow
         dashboard={{
           workspaces: [],
@@ -221,7 +221,9 @@ describe('NoteRow', () => {
       />,
     );
 
-    expect(screen.getByText('WhatsApp')).toBeInTheDocument();
-    expect(screen.queryByText('whatsapp-webhook')).not.toBeInTheDocument();
+    const sourceElement = container.querySelector('.source-tag');
+    expect(sourceElement).toBeInTheDocument();
+    expect(sourceElement).toHaveAttribute('title', 'Source: WhatsApp');
+    expect(sourceElement?.querySelector('svg')).toBeInTheDocument();
   });
 });

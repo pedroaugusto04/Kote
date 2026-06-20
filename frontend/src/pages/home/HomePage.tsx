@@ -1,6 +1,6 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary, noteTypeLabel } from '../../shared/utils/format';
 import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllProjectsTimeline, fetchProjectTimeline } from '../../shared/api/client';
 import { Select } from '../../shared/ui/select';
-import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
+import { SourceBadge } from '../../widgets/notes/SourceBadge';
 
 export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
   const { home } = dashboard;
@@ -178,7 +178,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             ) : (
               <div className="home-timeline">
                 {timelineItems.map((item) => {
-                  const displayTags = buildNoteDisplayTags(item);
+                  const activeSource = item.source || item.sourceChannel;
                   return (
                     <article className="home-timeline-item clickable" key={item.id} onClick={() => openNote(item.noteId)}>
                       <div
@@ -190,15 +190,18 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                       />
                       <div className="home-timeline-content">
                         <div className="home-timeline-meta">
+                          <Badge value={formatDisplayToken(item.category)} tone={item.category} />
+                          <Badge value={noteTypeLabel(item.type)} tone={item.type} />
                           <span className="meta">
                             {projectName(dashboard.projects, item.project)} / {formatUsDate(item.date)}
                           </span>
                           <AttachmentIndicator count={item.attachmentCount || 0} />
+                          <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                         </div>
                         <h3 className="home-timeline-title">
                           {item.title}
                         </h3>
-                        {displayTags.length ? <Tags items={displayTags} /> : null}
+                        <SourceBadge source={activeSource} />
                         <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>
                       </div>
                       <span className="file-icon">{typeIcon(item.type)}</span>
