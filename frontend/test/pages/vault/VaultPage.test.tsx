@@ -408,6 +408,7 @@ function buildNoteSummary(overrides: Partial<NoteSummary> = {}): NoteSummary {
     project: 'platform',
     workspace: 'default',
     folderId: null,
+    categories: [],
     tags: ['deploy'],
     date: '2026-05-01',
     status: 'active',

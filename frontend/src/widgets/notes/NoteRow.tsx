@@ -64,13 +64,7 @@ export function NoteRow({
               <PinIcon active /> Pinned
             </span>
           )}
-          {note.categories && note.categories.length > 0 ? (
-            note.categories.map((category) => (
-              <Badge key={category.id} value={category.name} tone={category.name} />
-            ))
-          ) : (
-            <Badge value={noteTypeLabel(note.type)} tone={note.type} />
-          )}
+          {displayTags.length ? <Tags items={displayTags} /> : null}
           <span className="meta meta-project">
             {projectName(dashboard.projects, note.project)}
           </span>
@@ -81,7 +75,6 @@ export function NoteRow({
           <AttachmentIndicator count={note.attachmentCount || 0} />
           <Badge value={formatDisplayToken(note.status)} tone={note.status} />
         </div>
-        {displayTags.length ? <Tags items={displayTags} /> : null}
         <h3>{note.title}</h3>
         <SourceBadge source={activeSource} />
         <p>{getCleanSummary(note.summary)}</p>

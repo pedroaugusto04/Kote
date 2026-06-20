@@ -180,6 +180,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
               <div className="home-timeline">
                 {timelineItems.map((item) => {
                   const activeSource = item.source || item.sourceChannel;
+                  const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
                   return (
                     <article className="home-timeline-item clickable" key={item.id} onClick={() => openNote(item.noteId)}>
                       <div
@@ -191,18 +192,13 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                       />
                       <div className="home-timeline-content">
                         <div className="home-timeline-meta">
-                          <Badge value={formatDisplayToken(item.category)} tone={item.category} />
-                          <Badge value={noteTypeLabel(item.type)} tone={item.type} />
+                          {displayTags.length ? <Tags items={displayTags} /> : null}
                           <span className="meta">
                             {projectName(dashboard.projects, item.project)} / {formatUsDate(item.date)}
                           </span>
                           <AttachmentIndicator count={item.attachmentCount || 0} />
                           <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                         </div>
-                        {(() => {
-                          const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
-                          return displayTags.length ? <Tags items={displayTags} /> : null;
-                        })()}
                         <h3 className="home-timeline-title">
                           {item.title}
                         </h3>

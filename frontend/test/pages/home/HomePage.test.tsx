@@ -48,6 +48,7 @@ const dashboard: Dashboard = {
       project: 'n8n-automations',
       workspace: 'default',
       folderId: null,
+      categories: [],
       tags: ['deploy'],
       date: '2026-04-27',
       status: 'active',

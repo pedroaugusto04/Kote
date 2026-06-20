@@ -184,6 +184,7 @@ export function ProjectTimeline({
         <div className={`project-timeline-list ${isStale ? 'stale-data' : ''}`}>
           {visibleItems.map((item) => {
             const activeSource = item.source || item.sourceChannel;
+            const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
             return (
               <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)} onDoubleClick={() => onOpenNoteFullPage?.(item.noteId)}>
                 <div
@@ -201,8 +202,7 @@ export function ProjectTimeline({
                         <PinIcon active /> Pinned
                       </span>
                     )}
-                    <Badge value={formatDisplayToken(item.category)} tone={item.category} />
-                    <Badge value={noteTypeLabel(item.type)} tone={item.type} />
+                    {displayTags.length ? <Tags items={displayTags} /> : null}
                     <span className="meta meta-date">{formatUsDate(item.date)}</span>
                     <span className="meta meta-time"> {formatUsDateTime(item.date).split(' ')[1]}</span>
                     <span className="meta meta-project">{projectName(dashboard.projects, item.project)}</span>
@@ -230,10 +230,6 @@ export function ProjectTimeline({
                   </button>
                   <div className="project-timeline-body">
                     <div>
-                      {(() => {
-                        const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
-                        return displayTags.length ? <Tags items={displayTags} /> : null;
-                      })()}
                       <h3>{item.title}</h3>
                       <SourceBadge source={activeSource} />
                       <p>{getCleanSummary(item.summary)}</p>
