@@ -68,21 +68,7 @@ export class PostgresFolderRepository {
   async upsert(userId: string, input: SaveProjectFolderInput) {
     const db = this.database.getDb();
     
-    let projectId = input.projectId;
-    if (!projectId && input.projectSlug) {
-      const projResult = await db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(and(eq(projects.userId, userId), eq(projects.projectSlug, input.projectSlug)))
-        .limit(1);
-      if (projResult.length > 0) {
-        projectId = projResult[0].id;
-      }
-    }
-    if (!projectId) {
-      throw new Error(`Project not found for slug: ${input.projectSlug}`);
-    }
-
+    const projectId = input.projectId;
     const result = await db
       .insert(projectFolders)
       .values({
@@ -129,17 +115,7 @@ export class PostgresFolderRepository {
   }
 
   async upsertWithClient(client: PoolClient, userId: string, input: SaveProjectFolderInput) {
-    let projectId = input.projectId;
-    if (!projectId && input.projectSlug) {
-      const projResult = await client.query('select id from kb_projects where user_id = $1 and project_slug = $2 limit 1', [userId, input.projectSlug]);
-      if (projResult.rows.length > 0) {
-        projectId = projResult.rows[0].id;
-      }
-    }
-    if (!projectId) {
-      throw new Error(`Project not found for slug: ${input.projectSlug}`);
-    }
-
+    const projectId = input.projectId;
     const result = await client.query(
       `insert into kb_project_folders (
          id, user_id, project_id, parent_folder_id, display_name, folder_slug, full_slug_path
