@@ -727,6 +727,8 @@ export class PostgresNoteRepository {
     if (input?.projectId) {
       values.push(input.projectId);
       conditions.push(`n.project_id = $${values.length}`);
+    } else {
+      conditions.push('n.project_id IS NULL');
     }
     if (input?.workspaceId) {
       values.push(input.workspaceId);

@@ -106,7 +106,13 @@ describe('VaultPage', () => {
       buildNoteSummary({ id: 'note-2', title: 'Intermediaria', date: '2026-05-02' }),
     ];
     apiSpies.fetchNotes.mockResolvedValue(pageResult(notes, { total: 2 }));
-    apiSpies.fetchNote.mockResolvedValue(buildNoteDetail(notes[0]));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(notes[0]),
+      navigation: {
+        previous: null,
+        next: { id: notes[1].id, title: notes[1].title },
+      },
+    });
 
     renderVaultPage({ notes, selectedNoteId: notes[0].id });
 
@@ -121,7 +127,13 @@ describe('VaultPage', () => {
       buildNoteSummary({ id: 'note-2', title: 'Intermediaria', date: '2026-05-02' }),
     ];
     apiSpies.fetchNotes.mockResolvedValue(pageResult(notes, { total: 2 }));
-    apiSpies.fetchNote.mockResolvedValue(buildNoteDetail(notes[1]));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(notes[1]),
+      navigation: {
+        previous: { id: notes[0].id, title: notes[0].title },
+        next: null,
+      },
+    });
 
     renderVaultPage({ notes, selectedNoteId: notes[1].id });
 
@@ -138,7 +150,13 @@ describe('VaultPage', () => {
     ];
     const openNote = vi.fn();
     apiSpies.fetchNotes.mockResolvedValue(pageResult(notes, { total: 3 }));
-    apiSpies.fetchNote.mockResolvedValue(buildNoteDetail(notes[1]));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(notes[1]),
+      navigation: {
+        previous: { id: notes[0].id, title: notes[0].title },
+        next: { id: notes[2].id, title: notes[2].title },
+      },
+    });
 
     renderVaultPage({ notes, openNote, selectedNoteId: notes[1].id });
 
@@ -150,7 +168,7 @@ describe('VaultPage', () => {
     expect(openNote).toHaveBeenNthCalledWith(2, notes[2].id);
   });
 
-  it('loads the adjacent page when navigating across a pagination boundary', async () => {
+  it('navigates to adjacent page notes using backend-provided neighbors', async () => {
     const pageOne = [
       buildNoteSummary({ id: 'note-5', title: 'Mais recente', date: '2026-05-05' }),
       buildNoteSummary({ id: 'note-4', title: 'Quase recente', date: '2026-05-04' }),
@@ -161,18 +179,18 @@ describe('VaultPage', () => {
       buildNoteSummary({ id: 'note-1', title: 'Mais antiga', date: '2026-05-01' }),
     ];
     const openNote = vi.fn();
-    apiSpies.fetchNotes
-      .mockResolvedValueOnce(pageResult(pageOne, { page: 1, total: 5, totalPages: 2, hasNext: true }))
-      .mockResolvedValueOnce(pageResult(pageTwo, { page: 2, total: 5, totalPages: 2, hasPrevious: true }));
-    apiSpies.fetchNote.mockResolvedValue(buildNoteDetail(pageOne[2]));
+    apiSpies.fetchNotes.mockResolvedValue(pageResult(pageOne, { page: 1, total: 5, totalPages: 2, hasNext: true }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(pageOne[2]),
+      navigation: {
+        previous: { id: pageOne[1].id, title: pageOne[1].title },
+        next: { id: pageTwo[0].id, title: pageTwo[0].title },
+      },
+    });
 
     renderVaultPage({ notes: pageOne, openNote, selectedNoteId: pageOne[2].id });
 
     expect(await screen.findByRole('heading', { name: pageOne[2].title })).toBeInTheDocument();
-    await waitFor(() => {
-      expect(apiSpies.fetchNotes).toHaveBeenNthCalledWith(2, { page: 2, projectSlug: 'platform' });
-    });
-
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     expect(openNote).toHaveBeenCalledWith(pageTwo[0].id);
