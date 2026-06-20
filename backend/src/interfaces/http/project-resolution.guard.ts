@@ -13,7 +13,7 @@ export class ProjectResolutionGuard implements CanActivate {
       return false;
     }
 
-    const projectSlug = request.params.projectSlug || request.query.projectSlug || request.body.projectSlug;
+    const projectSlug = request.params.projectSlug || request.query.projectSlug || request.body?.projectSlug;
     if (!projectSlug) {
       throw new NotFoundException('project_slug_missing');
     }
@@ -45,7 +45,7 @@ export class OptionalProjectResolutionGuard implements CanActivate {
       return false;
     }
 
-    const workspaceSlug = request.params.workspaceSlug || request.query.workspaceSlug || request.body.workspaceSlug;
+    const workspaceSlug = request.params.workspaceSlug || request.query.workspaceSlug || request.body?.workspaceSlug;
     if (workspaceSlug) {
       const workspace = await this.contentRepository.getWorkspaceBySlug(user.id, String(workspaceSlug));
       if (workspace) {
@@ -53,7 +53,7 @@ export class OptionalProjectResolutionGuard implements CanActivate {
       }
     }
 
-    const projectSlug = request.params.projectSlug || request.query.projectSlug || request.body.projectSlug;
+    const projectSlug = request.params.projectSlug || request.query.projectSlug || request.body?.projectSlug;
     if (!projectSlug) {
       return true;
     }
