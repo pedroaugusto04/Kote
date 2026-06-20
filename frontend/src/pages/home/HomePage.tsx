@@ -1,6 +1,6 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary, noteTypeLabel } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary, noteTypeLabel, getTimelineNodeColor } from '../../shared/utils/format';
 import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
@@ -39,13 +39,6 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
     })),
   ];
 
-  function getTimelineNodeColor(category: string, type: string) {
-    if (category === 'github-push') return 'var(--cyan)';
-    if (category === 'whatsapp') return 'var(--green)';
-    if (type === 'incident') return 'var(--red)';
-    if (type === 'decision' || category === 'decision') return 'var(--amber)';
-    return 'var(--muted)';
-  }
 
   function openTarget(target: HomeNavigationTarget) {
     if (target.kind === 'project' && target.slug) {

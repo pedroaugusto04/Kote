@@ -14,6 +14,7 @@
   --green: #7dd3a5;
   --amber: #f0b95a;
   --red: #ff7a7a;
+  --purple: #c084fc;
   --body-overlay: linear-gradient(180deg, rgba(18, 29, 36, 0.82), rgba(9, 15, 20, 0.96));
   --body-radial: radial-gradient(circle at 68% 0%, rgba(83, 199, 222, 0.08), transparent 34%);
   --glass-panel: rgba(15, 23, 29, 0.88);
@@ -93,6 +94,7 @@
   --green: #15803d;
   --amber: #a16207;
   --red: #b91c1c;
+  --purple: #7e22ce;
   --body-overlay: linear-gradient(
     168deg,
     rgba(248, 250, 252, 0.94) 0%,

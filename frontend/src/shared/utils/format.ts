@@ -201,3 +201,11 @@ export function formatDateIso(dateStr?: string): string {
   const d = new Date(dateStr);
   return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
 }
+
+export function getTimelineNodeColor(category: string, type?: string) {
+  if (category === 'github-push') return 'var(--cyan)';
+  if (category === 'whatsapp') return 'var(--green)';
+  if (category === 'reminder') return 'var(--amber)';
+  if (category === 'ai-chat') return 'var(--purple)';
+  return 'var(--muted)';
+}

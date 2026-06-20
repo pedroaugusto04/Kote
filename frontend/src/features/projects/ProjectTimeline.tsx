@@ -5,7 +5,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, noteTypeLabel, getCleanSummary } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, noteTypeLabel, getCleanSummary, getTimelineNodeColor } from '../../shared/utils/format';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { Badge, EmptyState, Tags } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
@@ -39,13 +39,6 @@ const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> 
   label: formatDisplayToken(value),
 }));
 
-function getTimelineNodeColor(category: string, type: string) {
-  if (category === 'github-push') return 'var(--cyan)';
-  if (category === 'whatsapp') return 'var(--green)';
-  if (type === 'incident') return 'var(--red)';
-  if (type === 'decision' || category === 'decision') return 'var(--amber)';
-  return 'var(--muted)';
-}
 
 export function ProjectTimeline({
   dashboard,
