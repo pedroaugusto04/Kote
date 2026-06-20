@@ -171,6 +171,11 @@ export class PostgresNoteRepository {
     const selectedPage = input.selectedId ? await this.resolveNotePage(input, whereCondition) : input.page;
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
 
+    // When selectedId is provided, ensure the selected note is included in the results
+    const resultCondition = input.selectedId
+      ? or(whereCondition, eq(notes.id, input.selectedId))
+      : whereCondition;
+
     const result = await db
       .select({
         id: notes.id,
@@ -221,7 +226,7 @@ export class PostgresNoteRepository {
       ))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
-      .where(whereCondition)
+      .where(resultCondition)
       .groupBy(notes.id, projects.projectSlug)
       .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title)
       .limit(pagination.pageSize)
@@ -745,8 +750,6 @@ export class PostgresNoteRepository {
     values.push(noteId);
     const targetParam = `$${values.length}`;
 
-    console.log('[getNoteNeighbors] Debug:', { userId, noteId, input, where, values });
-
     const result = await this.database.getPool().query<{
       previous_id: string | null;
       previous_title: string | null;
@@ -772,12 +775,10 @@ export class PostgresNoteRepository {
     );
 
     const row = result.rows[0];
-    const neighbors = {
+    return {
       previous: row?.previous_id ? { id: row.previous_id, title: row.previous_title ?? '' } : null,
       next: row?.next_id ? { id: row.next_id, title: row.next_title ?? '' } : null,
     };
-    console.log('[getNoteNeighbors] Result:', neighbors);
-    return neighbors;
   }
 }
 
