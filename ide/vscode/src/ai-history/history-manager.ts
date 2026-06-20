@@ -11,6 +11,7 @@ export class AiHistoryManager {
   private savedSessions = new Map<string, number>(); // key -> timestamp "providerId:sessionId"
   private ignoredSessions = new Map<string, number>(); // key -> timestamp "providerId:sessionId"
   private promptingSessions = new Set<string>(); // prevent overlapping popups for the same active session
+  private pendingPromptSessions = new Map<string, AiSession>(); // latest changed session seen while a popup is open
   private readonly MAX_SAVED_SESSIONS = 200; // Maximum number of saved sessions to track
   private readonly MAX_IGNORED_SESSIONS = 500; // Maximum number of ignored sessions to track
   private readonly SESSION_TTL_DAYS = 60; // Remove sessions older than 60 days
@@ -99,55 +100,10 @@ export class AiHistoryManager {
         const enabled = await provider.isEnabled();
         if (!enabled) continue;
 
-        const disposable = provider.watchSessions(async (session) => {
-          const key = `${provider.id}:${session.sessionId}`;
-          const hash = this.computeSessionHash(session);
-          const lastHash = this.knownSessionHashes.get(key);
-          
-          // Only trigger popup if content has actually changed
-          if (lastHash === hash) {
-            return; // Already processed this exact content
-          }
-          
-          this.knownSessionHashes.set(key, hash);
-          this.addOrUpdateRecentSession(session);
-
-          // If the session is already saved (auto-save enabled)
-          if (this.savedSessions.has(key)) {
-            await this.autoSaveSessionToVault(client, session);
-            return;
-          }
-
-          // If the session is ignored, do nothing
-          if (this.ignoredSessions.has(key)) {
-            return;
-          }
-
-          // If a popup is already open for this session, do not open another one.
-          if (this.promptingSessions.has(key)) {
-            return;
-          }
-
-          this.promptingSessions.add(key);
-          try {
-            const action = await vscode.window.showInformationMessage(
-              `KB: New AI session detected from ${provider.name}. Do you want to save it as a note?`,
-              'Auto-save',
-              'Preview & Edit',
-              'Ignore'
-            );
-
-            if (action === 'Auto-save') {
-              this.markSessionAsSaved(provider.id, session.sessionId);
-              await this.saveSessionToVault(client, session);
-            } else if (action === 'Preview & Edit') {
-              await this.openPreview(session);
-            } else if (action === 'Ignore') {
-              this.markSessionAsIgnored(provider.id, session.sessionId);
-            }
-          } finally {
-            this.promptingSessions.delete(key);
-          }
+        const disposable = provider.watchSessions((session) => {
+          this.handleChangedSession(client, provider, session).catch((err) => {
+            console.error(`Failed to handle changed session for ${provider.id}:`, err);
+          });
         });
 
         this.activeDisposables.push(disposable);
@@ -188,6 +144,20 @@ export class AiHistoryManager {
     for (const [key, timestamp] of this.ignoredSessions.entries()) {
       if (now - timestamp > ttlMs) {
         this.ignoredSessions.delete(key);
+      }
+    }
+
+    // Clean up hashes for sessions that are no longer saved or ignored
+    for (const [key] of this.knownSessionHashes.entries()) {
+      if (!this.savedSessions.has(key) && !this.ignoredSessions.has(key)) {
+        // Only remove if the session is not in recent sessions either
+        const [providerId, sessionId] = key.split(':');
+        const isInRecent = this.recentSessions.some(
+          s => s.providerId === providerId && s.sessionId === sessionId
+        );
+        if (!isInRecent) {
+          this.knownSessionHashes.delete(key);
+        }
       }
     }
 
@@ -246,6 +216,77 @@ export class AiHistoryManager {
     if (!skipSave) {
       this.saveState();
     }
+  }
+
+  private async handleChangedSession(client: KbClient, provider: AiHistoryProvider, session: AiSession) {
+    const key = `${provider.id}:${session.sessionId}`;
+    const hash = this.computeSessionHash(session);
+    const lastHash = this.knownSessionHashes.get(key);
+
+    // Only trigger popup if content has actually changed.
+    if (lastHash === hash) {
+      return;
+    }
+
+    this.addOrUpdateRecentSession(session);
+
+    // If a prompt is already open, keep the newest version pending. Do not mark
+    // the hash as known yet, otherwise the update is lost when the prompt closes.
+    if (this.promptingSessions.has(key)) {
+      this.pendingPromptSessions.set(key, session);
+      return;
+    }
+
+    this.knownSessionHashes.set(key, hash);
+    this.saveState();
+
+    // If the session is already saved, keep auto-saving changed content.
+    if (this.savedSessions.has(key)) {
+      await this.autoSaveSessionToVault(client, session);
+      await this.processPendingPromptSession(client, provider, key);
+      return;
+    }
+
+    // If the session is ignored, do nothing until the user imports it manually.
+    if (this.ignoredSessions.has(key)) {
+      this.pendingPromptSessions.delete(key);
+      return;
+    }
+
+    this.promptingSessions.add(key);
+    try {
+      const action = await vscode.window.showInformationMessage(
+        `KB: New AI session detected from ${provider.name}. Do you want to save it as a note?`,
+        'Auto-save',
+        'Preview & Edit',
+        'Ignore'
+      );
+
+      if (action === 'Auto-save') {
+        this.markSessionAsSaved(provider.id, session.sessionId);
+        await this.saveSessionToVault(client, session);
+      } else if (action === 'Preview & Edit') {
+        await this.openPreview(session);
+      } else if (action === 'Ignore') {
+        this.markSessionAsIgnored(provider.id, session.sessionId);
+      }
+
+      if (!this.savedSessions.has(key) && !this.ignoredSessions.has(key)) {
+        this.knownSessionHashes.delete(key);
+        this.saveState();
+      }
+    } finally {
+      this.promptingSessions.delete(key);
+      await this.processPendingPromptSession(client, provider, key);
+    }
+  }
+
+  private async processPendingPromptSession(client: KbClient, provider: AiHistoryProvider, key: string) {
+    const pendingSession = this.pendingPromptSessions.get(key);
+    if (!pendingSession) return;
+
+    this.pendingPromptSessions.delete(key);
+    await this.handleChangedSession(client, provider, pendingSession);
   }
 
   async showRecentSessions(client: KbClient) {

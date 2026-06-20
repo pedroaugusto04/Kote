@@ -58,4 +58,34 @@ describe('MarkdownView', () => {
     expect(codeTag).toBeInTheDocument();
     expect(codeTag?.textContent).toBe('const x = 1');
   });
+
+  it('does not render raw HTML from untrusted markdown', () => {
+    const { container } = render(
+      <MarkdownView markdown={'<img src=x onerror="alert(1)">\n\n<script>alert(1)</script>'} />,
+    );
+
+    expect(container.querySelector('img')).not.toBeInTheDocument();
+    expect(container.querySelector('script')).not.toBeInTheDocument();
+    expect(container).toHaveTextContent('<img src=x onerror="alert(1)">');
+    expect(container).toHaveTextContent('<script>alert(1)</script>');
+  });
+
+  it('strips unsafe markdown link protocols', () => {
+    const { container } = render(<MarkdownView markdown={'[Open me](javascript:alert(1))'} />);
+
+    const link = container.querySelector('a');
+    expect(link).toBeInTheDocument();
+    expect(link?.textContent).toBe('Open me');
+    expect(link).toHaveAttribute('href', '');
+  });
+
+  it('sanitizes syntax-highlighted code block HTML before injecting it', () => {
+    const { container } = render(
+      <MarkdownView markdown={'```html\n<img src=x onerror="alert(1)">\n```'} />,
+    );
+
+    expect(container.querySelector('.markdown-code-block')).toBeInTheDocument();
+    expect(container.querySelector('.markdown-code-block img')).not.toBeInTheDocument();
+    expect(container.querySelector('.markdown-code-block code')?.textContent).toBe('<img src=x onerror="alert(1)">');
+  });
 });
