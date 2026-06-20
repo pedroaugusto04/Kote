@@ -368,7 +368,9 @@ describe('ProjectsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'New note' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Revisar rollout' } });
     fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'confirmar deploy' } });
-    fireEvent.change(screen.getByLabelText('Tags'), { target: { value: 'deploy' } });
+    const tagsInput = screen.getByLabelText('Tags');
+    fireEvent.change(tagsInput, { target: { value: 'deploy' } });
+    fireEvent.keyDown(tagsInput, { key: 'Enter' });
     fireEvent.change(screen.getByLabelText('Reminder date'), { target: { value: '2026-04-29' } });
     fireEvent.change(screen.getByLabelText('Reminder time'), { target: { value: '09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create note' }));

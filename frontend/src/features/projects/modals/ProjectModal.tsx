@@ -9,8 +9,8 @@ import type { GithubIntegrationRepository } from '../../../shared/api/models/int
 import type { Project } from '../../../shared/api/models/project';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
 import { FormActions, FormField } from '../../../shared/forms/fields';
-import { parseCommaSeparatedList } from '../../../shared/forms/normalizers';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
+import { TagInput } from '../../../shared/ui/tag-input';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
 import { projectFormSchema, type ProjectFormValues } from '../projects.forms';
@@ -47,7 +47,7 @@ export function ProjectModal({
       displayName: project?.displayName || '',
       projectSlug: project?.projectSlug || '',
       repositoryIds: project?.repositories.map((repository) => repository.externalId) || [],
-      defaultTags: project?.defaultTags.join(', ') || '',
+      defaultTags: project?.defaultTags || [],
     },
   });
   const closeGuard = useModalCloseGuard({ isDirty, onClose });
@@ -56,7 +56,7 @@ export function ProjectModal({
       const payload = {
         displayName: values.displayName,
         repositoryIds: values.repositoryIds,
-        defaultTags: parseCommaSeparatedList(values.defaultTags),
+        defaultTags: values.defaultTags,
       };
       return globalLoading.trackPromise(mode === 'create'
         ? createProject({ ...payload, projectSlug: values.projectSlug || undefined })
@@ -168,7 +168,24 @@ export function ProjectModal({
             {hasRepositoryOptions ? <p className="meta">{repositoryHint}</p> : null}
             <div className="form-grid">
               <FormField name="defaultTags" label="Tags" error={errors.defaultTags?.message} optional>
-                {(fieldProps) => <input {...fieldProps} {...register('defaultTags')} />}
+                {(fieldProps) => (
+                  <Controller
+                    control={control}
+                    name="defaultTags"
+                    render={({ field }) => (
+                      <TagInput
+                        ariaDescribedBy={fieldProps['aria-describedby']}
+                        ariaInvalid={fieldProps['aria-invalid']}
+                        ariaRequired={fieldProps['aria-required']}
+                        dataField={fieldProps['data-field']}
+                        id={fieldProps.id}
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                      />
+                    )}
+                  />
+                )}
               </FormField>
             </div>
             <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === 'create' ? 'Create project' : 'Save project'} />

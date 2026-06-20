@@ -6,7 +6,7 @@ export const projectFormSchema = z.object({
   displayName: z.string().trim().min(1, 'Enter the project name.').max(120, 'Use at most 120 characters.'),
   projectSlug: optionalSlugSchema,
   repositoryIds: z.array(z.string().trim().min(1, 'Select a valid GitHub repository.')),
-  defaultTags: z.string().max(500, 'Use at most 500 characters.'),
+  defaultTags: z.array(z.string().trim()).max(20, 'Use at most 20 tags.'),
 });
 
 export type ProjectFormValues = z.infer<typeof projectFormSchema>;
@@ -23,7 +23,7 @@ export const noteFormSchema = z.object({
   categoryIds: z.array(z.string()),
   title: z.string().trim().max(160, 'Use at most 160 characters.'),
   rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
-  tags: z.string().max(500, 'Use at most 500 characters.'),
+  tags: z.array(z.string().trim()).max(20, 'Use at most 20 tags.'),
   reminderDate: z.string(),
   reminderTime: z.string(),
 }).superRefine((values, ctx) => {

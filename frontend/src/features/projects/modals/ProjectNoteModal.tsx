@@ -10,9 +10,9 @@ import type { NoteDetail } from '../../../shared/api/models/note';
 import type { Project } from '../../../shared/api/models/project';
 import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../../shared/forms/errors';
 import { FormActions, FormField } from '../../../shared/forms/fields';
-import { parseCommaSeparatedList } from '../../../shared/forms/normalizers';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { Select } from '../../../shared/ui/select';
+import { TagInput } from '../../../shared/ui/tag-input';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
@@ -80,7 +80,7 @@ export function ProjectNoteModal({
       categoryIds: note?.categories?.map((c) => c.id) || [],
       title: note?.title || '',
       rawText: note?.editor?.rawText || '',
-      tags: note?.tags.join(', ') || '',
+      tags: note?.tags || [],
       reminderDate: note?.editor ? reminderInputDate(note.editor) : '',
       reminderTime: note?.editor ? reminderInputTime(note.editor) : '',
     },
@@ -93,7 +93,7 @@ export function ProjectNoteModal({
         categoryIds: values.categoryIds,
         title: values.title,
         rawText: values.rawText,
-        tags: parseCommaSeparatedList(values.tags),
+        tags: values.tags,
         reminderDate: values.reminderDate,
         reminderTime: values.reminderTime,
       };
@@ -247,7 +247,24 @@ export function ProjectNoteModal({
               {(fieldProps) => <textarea {...fieldProps} {...register('rawText')} />}
             </FormField>
             <FormField name="tags" label="Tags" error={errors.tags?.message} optional>
-              {(fieldProps) => <input {...fieldProps} {...register('tags')} />}
+              {(fieldProps) => (
+                <Controller
+                  control={control}
+                  name="tags"
+                  render={({ field }) => (
+                    <TagInput
+                      ariaDescribedBy={fieldProps['aria-describedby']}
+                      ariaInvalid={fieldProps['aria-invalid']}
+                      ariaRequired={fieldProps['aria-required']}
+                      dataField={fieldProps['data-field']}
+                      id={fieldProps.id}
+                      value={field.value}
+                      onChange={field.onChange}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
+              )}
             </FormField>
             <div className="form-grid">
               <FormField name="reminderDate" label="Reminder date" error={errors.reminderDate?.message} optional>

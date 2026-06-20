@@ -9,6 +9,7 @@ export const KEYBOARD_KEYS = {
   HOME: 'Home',
   END: 'End',
   TAB: 'Tab',
+  BACKSPACE: 'Backspace',
 } as const;
 
 export type KeyboardKey = keyof typeof KEYBOARD_KEYS;
