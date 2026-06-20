@@ -745,6 +745,8 @@ export class PostgresNoteRepository {
     values.push(noteId);
     const targetParam = `$${values.length}`;
 
+    console.log('[getNoteNeighbors] Debug:', { userId, noteId, input, where, values });
+
     const result = await this.database.getPool().query<{
       previous_id: string | null;
       previous_title: string | null;
@@ -770,10 +772,12 @@ export class PostgresNoteRepository {
     );
 
     const row = result.rows[0];
-    return {
+    const neighbors = {
       previous: row?.previous_id ? { id: row.previous_id, title: row.previous_title ?? '' } : null,
       next: row?.next_id ? { id: row.next_id, title: row.next_title ?? '' } : null,
     };
+    console.log('[getNoteNeighbors] Result:', neighbors);
+    return neighbors;
   }
 }
 
