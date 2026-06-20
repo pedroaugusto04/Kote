@@ -721,33 +721,50 @@ export class PostgresNoteRepository {
   }
 
   async getNoteNeighbors(userId: string, noteId: string, projectId?: string, workspaceId?: string) {
-    const db = this.database.getDb();
-    const conditions = [eq(notes.userId, userId)];
+    const conditions: string[] = ['n.user_id = $1'];
+    const values: unknown[] = [userId];
 
     if (projectId) {
-      conditions.push(eq(notes.projectId, projectId));
+      values.push(projectId);
+      conditions.push(`n.project_id = $${values.length}`);
     }
     if (workspaceId) {
-      conditions.push(eq(notes.workspaceId, workspaceId));
+      values.push(workspaceId);
+      conditions.push(`n.workspace_id = $${values.length}`);
     }
 
-    const whereCondition = and(...conditions);
+    const where = conditions.join(' AND ');
+    values.push(noteId);
+    const targetParam = `$${values.length}`;
 
-    const result = await db
-      .select({
-        previousId: sql<string>`LAG(notes.id) OVER (ORDER BY notes.is_pinned DESC, notes.occurred_at DESC, notes.title ASC)`,
-        previousTitle: sql<string>`LAG(notes.title) OVER (ORDER BY notes.is_pinned DESC, notes.occurred_at DESC, notes.title ASC)`,
-        nextId: sql<string>`LEAD(notes.id) OVER (ORDER BY notes.is_pinned DESC, notes.occurred_at DESC, notes.title ASC)`,
-        nextTitle: sql<string>`LEAD(notes.title) OVER (ORDER BY notes.is_pinned DESC, notes.occurred_at DESC, notes.title ASC)`,
-      })
-      .from(notes)
-      .where(and(whereCondition, eq(notes.id, noteId)))
-      .limit(1);
+    const result = await this.database.getPool().query<{
+      previous_id: string | null;
+      previous_title: string | null;
+      next_id: string | null;
+      next_title: string | null;
+    }>(
+      `WITH ordered AS (
+        SELECT
+          n.id,
+          n.title,
+          LAG(n.id) OVER w AS previous_id,
+          LAG(n.title) OVER w AS previous_title,
+          LEAD(n.id) OVER w AS next_id,
+          LEAD(n.title) OVER w AS next_title
+        FROM kb_notes n
+        WHERE ${where}
+        WINDOW w AS (ORDER BY n.is_pinned DESC, n.occurred_at DESC, n.title ASC)
+      )
+      SELECT previous_id, previous_title, next_id, next_title
+      FROM ordered
+      WHERE id = ${targetParam}`,
+      values,
+    );
 
-    const row = result[0];
+    const row = result.rows[0];
     return {
-      previous: row?.previousId ? { id: row.previousId, title: row.previousTitle ?? '' } : null,
-      next: row?.nextId ? { id: row.nextId, title: row.nextTitle ?? '' } : null,
+      previous: row?.previous_id ? { id: row.previous_id, title: row.previous_title ?? '' } : null,
+      next: row?.next_id ? { id: row.next_id, title: row.next_title ?? '' } : null,
     };
   }
 }
