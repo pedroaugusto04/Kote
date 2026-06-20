@@ -15,6 +15,9 @@ import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../sha
 import { useGlobalLoading } from '../../../app/global-loading';
 import { projectFormSchema, type ProjectFormValues } from '../projects.forms';
 
+const MAX_TAGS = 10;
+const MAX_TAG_LENGTH = 50;
+
 type ProjectModalProps = {
   githubConnected: boolean;
   workspaceRepositories: GithubIntegrationRepository[];
@@ -178,8 +181,8 @@ export function ProjectModal({
                         value={field.value}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
-                        maxTags={20}
-                        maxTagLength={50}
+                        maxTags={MAX_TAGS}
+                        maxTagLength={MAX_TAG_LENGTH}
                       />
                     )}
                   />

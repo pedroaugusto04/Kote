@@ -19,6 +19,9 @@ import { noteFormSchema, type NoteFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
 import { flattenFolders } from '../projects.helpers';
 
+const MAX_TAGS = 10;
+const MAX_TAG_LENGTH = 50;
+
 type ProjectNoteModalProps = {
   folders?: FlatProjectFolder[];
   mode: 'create' | 'edit';
@@ -257,8 +260,8 @@ export function ProjectNoteModal({
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}
-                      maxTags={20}
-                      maxTagLength={50}
+                      maxTags={MAX_TAGS}
+                      maxTagLength={MAX_TAG_LENGTH}
                     />
                   )}
                 />
