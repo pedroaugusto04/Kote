@@ -114,8 +114,8 @@ export function VaultPage({
   });
   const previousNote = previousNoteOnPage || (atPageStart ? lastNavigationNote(previousPageQuery.data?.notes) : null);
   const nextNote = nextNoteOnPage || (atPageEnd ? firstNavigationNote(nextPageQuery.data?.notes) : null);
-  const isPreviousLoading = !previousNoteOnPage && atPageStart && hasPreviousPage && previousPageQuery.isLoading;
-  const isNextLoading = !nextNoteOnPage && atPageEnd && hasNextPage && nextPageQuery.isLoading;
+  const isPreviousLoading = !previousNote && atPageStart && hasPreviousPage && previousPageQuery.isLoading;
+  const isNextLoading = !nextNote && atPageEnd && hasNextPage && nextPageQuery.isLoading;
 
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);

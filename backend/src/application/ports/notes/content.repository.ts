@@ -13,7 +13,6 @@ import type {
   CategoryRecord,
 } from '../../models/repository-records.models.js';
 import type { ListNotesInput, PaginatedNotes } from '../../models/note-list.models.js';
-import type { GetNoteNeighborsInput, NoteNeighbors } from '../../models/note-neighbors.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../models/project-knowledge-map.models.js';
 import type { ListProjectTimelineInput, PaginatedProjectTimeline } from '../../models/project-timeline.models.js';
 import type { ListProjectsInput, PaginatedProjects } from '../../models/project-list.models.js';
@@ -55,7 +54,6 @@ export abstract class ContentRepository {
   abstract updateReminderStatus(userId: string, id: string, status: string): Promise<NoteRecord | null>;
   abstract setNotePinned(userId: string, id: string, pinned: boolean): Promise<NoteRecord | null>;
   abstract deleteNote(userId: string, id: string): Promise<boolean>;
-  abstract getNoteNeighbors(userId: string, id: string, input: GetNoteNeighborsInput): Promise<NoteNeighbors>;
   abstract saveAttachment(userId: string, input: SaveAttachmentInput): Promise<AttachmentRecord>;
   abstract listAttachments(userId: string, noteId: string): Promise<AttachmentRecord[]>;
 }

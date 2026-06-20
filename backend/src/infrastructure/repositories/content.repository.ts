@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
-import type { GetNoteNeighborsInput, NoteNeighbors } from '../../application/models/note-neighbors.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
 import type { ListProjectTimelineInput } from '../../application/models/project-timeline.models.js';
 import type { ListProjectsInput, PaginatedProjects } from '../../application/models/project-list.models.js';
@@ -220,10 +219,6 @@ export class PostgresContentRepository extends ContentRepository {
       await this.attachmentRepository.deleteByNoteId(userId, id);
     }
     return deleted;
-  }
-
-  async getNoteNeighbors(userId: string, id: string, input: GetNoteNeighborsInput): Promise<NoteNeighbors> {
-    return this.noteRepository.getNeighbors(userId, id, input);
   }
 
   async saveAttachment(userId: string, input: SaveAttachmentInput) {

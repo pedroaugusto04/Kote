@@ -21,7 +21,6 @@ export { DeleteNoteUseCase } from './notes/delete-manual-note.use-case.js';
 export { GetNoteAttachmentContentUseCase } from './notes/get-note-attachment-content.use-case.js';
 export { UpdateNoteUseCase } from './notes/update-manual-note.use-case.js';
 export { GetNoteDetailUseCase } from './dashboard/get-note-detail.use-case.js';
-export { GetNoteNeighborsUseCase } from './dashboard/get-note-neighbors.use-case.js';
 export { GetReviewDetailUseCase } from './dashboard/get-review-detail.use-case.js';
 export { QueryKnowledgeUseCase } from './query/query-knowledge.use-case.js';
 export { AskKnowledgeUseCase } from './query/ask-knowledge.use-case.js';

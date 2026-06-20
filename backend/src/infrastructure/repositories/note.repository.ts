@@ -5,7 +5,6 @@ import type { PoolClient } from 'pg';
 import { eq, and, count, desc, sql, inArray, notInArray } from 'drizzle-orm';
 
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
-import type { GetNoteNeighborsInput, NoteNeighbors } from '../../application/models/note-neighbors.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
 import type {
   ListProjectTimelineInput,
@@ -29,61 +28,6 @@ export class PostgresNoteRepository {
 
   private async hydrateMarkdown(note: NoteRecord): Promise<NoteRecord> {
     return this.contentObjectStorage.hydrateMarkdown(note);
-  }
-
-  async getNeighbors(userId: string, id: string, input: GetNoteNeighborsInput): Promise<NoteNeighbors> {
-    const conditions: string[] = ['n.user_id = $1'];
-    const values: unknown[] = [userId];
-
-    if (input.projectId) {
-      values.push(input.projectId);
-      conditions.push(`n.project_id = $${values.length}`);
-    } else if (input.projectSlug) {
-      values.push(input.projectSlug);
-      conditions.push(`n.project_id = (SELECT id FROM kb_projects WHERE user_id = $1 AND project_slug = $${values.length} LIMIT 1)`);
-    }
-
-    if (input.status === StatusFilter.Open) {
-      values.push(terminalStatuses);
-      conditions.push(`n.status != all($${values.length}::note_status_enum[])`);
-    } else if (input.status) {
-      values.push(input.status);
-      conditions.push(`n.status::text = $${values.length}`);
-    }
-
-    const where = conditions.join(' AND ');
-    values.push(id);
-    const targetParam = `$${values.length}`;
-
-    const result = await this.database.getPool().query<{
-      previous_id: string | null;
-      previous_title: string | null;
-      next_id: string | null;
-      next_title: string | null;
-    }>(
-      `WITH ordered AS (
-        SELECT
-          n.id,
-          n.title,
-          LAG(n.id)    OVER w AS previous_id,
-          LAG(n.title) OVER w AS previous_title,
-          LEAD(n.id)    OVER w AS next_id,
-          LEAD(n.title) OVER w AS next_title
-        FROM kb_notes n
-        WHERE ${where}
-        WINDOW w AS (ORDER BY n.is_pinned DESC, n.occurred_at DESC, n.title ASC)
-      )
-      SELECT previous_id, previous_title, next_id, next_title
-      FROM ordered
-      WHERE id = ${targetParam}`,
-      values,
-    );
-
-    const row = result.rows[0];
-    return {
-      previous: row?.previous_id ? { id: row.previous_id, title: row.previous_title ?? '' } : null,
-      next: row?.next_id ? { id: row.next_id, title: row.next_title ?? '' } : null,
-    };
   }
 
   private async resolveIds(userId: string, projectSlug: string | null, workspaceSlug: string): Promise<{ projectId: string | null; workspaceId: string }> {

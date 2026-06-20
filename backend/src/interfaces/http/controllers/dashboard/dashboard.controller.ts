@@ -6,7 +6,6 @@ import {
   BuildDashboardUseCase,
   GetReviewDetailUseCase,
   GetNoteDetailUseCase,
-  GetNoteNeighborsUseCase,
   ListReminderBoardUseCase,
   ListPaginatedNotesUseCase,
   ListPaginatedProjectsUseCase,
@@ -62,7 +61,6 @@ export class DashboardController {
     private readonly listReminderBoardUseCase: ListReminderBoardUseCase,
     private readonly updateReminderStatusUseCase: UpdateReminderStatusUseCase,
     private readonly getNoteDetail: GetNoteDetailUseCase,
-    private readonly getNoteNeighbors: GetNoteNeighborsUseCase,
     private readonly getReviewDetail: GetReviewDetailUseCase,
     private readonly queryKnowledge: QueryKnowledgeUseCase,
     private readonly runAskAiUseCase: RunAskAiUseCase,
@@ -111,22 +109,6 @@ export class DashboardController {
       ok: true,
       ...paginatedResponse('notes', await this.listNotesUseCase.execute(user.id, { ...query, workspaceId, projectId })),
     };
-  }
-
-  @Get('notes/:id/neighbors')
-  @UseGuards(OptionalProjectResolutionGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get previous and next notes relative to a given note' })
-  @ApiParam({ name: 'id', description: 'Note ID' })
-  @ApiResponse({ status: 200, description: 'Neighbors retrieved successfully' })
-  async noteNeighbors(
-    @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
-    @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId?: string,
-    @Query('projectSlug') projectSlug?: string,
-  ) {
-    const neighbors = await this.getNoteNeighbors.execute(user.id, params.id, projectSlug, projectId);
-    return { ok: true, ...neighbors };
   }
 
   @Get('notes/:id')
