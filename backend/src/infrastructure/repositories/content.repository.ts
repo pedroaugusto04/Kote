@@ -35,32 +35,36 @@ export class PostgresContentRepository extends ContentRepository {
     super();
   }
 
-  async listCategories(userId: string, workspaceSlug: string) {
-    return this.categoryRepository.list(userId, workspaceSlug);
+  async listCategories(userId: string, workspaceId: string) {
+    return this.categoryRepository.list(userId, workspaceId);
   }
 
   async getCategoryById(userId: string, categoryId: string) {
     return this.categoryRepository.getById(userId, categoryId);
   }
 
-  async createCategory(userId: string, workspaceSlug: string, input: { name: string; color?: string; icon?: string }) {
-    return this.categoryRepository.create(userId, workspaceSlug, input);
+  async createCategory(userId: string, workspaceId: string, input: { name: string; color?: string; icon?: string }) {
+    return this.categoryRepository.create(userId, workspaceId, input);
   }
 
-  async findCategoryByName(userId: string, workspaceSlug: string, name: string) {
-    return this.categoryRepository.findByName(userId, workspaceSlug, name);
+  async findCategoryByName(userId: string, workspaceId: string, name: string) {
+    return this.categoryRepository.findByName(userId, workspaceId, name);
   }
 
   async listWorkspaces(userId: string) {
     return this.workspaceRepository.list(userId);
   }
 
+  async getWorkspaceBySlug(userId: string, workspaceSlug: string) {
+    return this.workspaceRepository.getBySlug(userId, workspaceSlug);
+  }
+
   async upsertWorkspace(userId: string, input: SaveWorkspaceInput) {
     return this.workspaceRepository.upsert(userId, input);
   }
 
-  async listRepositories(userId: string, workspaceSlug: string) {
-    return this.projectRepository.listRepositories(userId, workspaceSlug);
+  async listRepositories(userId: string, workspaceId: string) {
+    return this.projectRepository.listRepositories(userId, workspaceId);
   }
 
   async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
@@ -81,7 +85,7 @@ export class PostgresContentRepository extends ContentRepository {
         workspaceSlug: record.workspaceSlug || '',
         repositories: record.repositories.map((repo) => ({
           id: repo.id,
-          workspaceSlug: repo.workspaceSlug || record.workspaceSlug || '',
+          workspaceSlug: record.workspaceSlug || '',
           externalId: repo.externalId,
           fullName: repo.fullName,
           htmlUrl: repo.htmlUrl,

@@ -87,7 +87,7 @@ export class AiHistoryManager {
         const initial = await provider.getRecentSessions();
         for (const s of initial) {
           this.addOrUpdateRecentSession(s, true);
-          
+
           // Record the hash of existing sessions so they don't trigger prompts
           const key = `${provider.id}:${s.sessionId}`;
           const hash = this.computeSessionHash(s);
@@ -307,7 +307,7 @@ export class AiHistoryManager {
         const saved = await this.saveSessionToVault(client, session);
         if (saved) this.rememberSessionHash(key, hash);
       } else if (action === 'Preview & Edit') {
-        await this.openPreview(session);
+        this.openPreview(session);
       } else if (action === 'Ignore') {
         this.markSessionAsIgnored(provider.id, session.sessionId);
         this.rememberSessionHash(key, hash);
@@ -418,17 +418,17 @@ export class AiHistoryManager {
       // Trigger if active item is "Load More..." or is in the last 2 positions and "Load More" exists
       if (activeItem.isLoadMore || (activeIndex >= items.length - 2 && items[items.length - 1].isLoadMore)) {
         isHandlingActiveChange = true;
-        
+
         setTimeout(() => {
           displayedCount += PAGE_SIZE;
-          
+
           const query = quickPick.value;
           quickPick.items = getItems(query);
-          
+
           // Re-focus near the previous position
           const newIndex = Math.min(activeIndex, quickPick.items.length - 1);
           quickPick.activeItems = [quickPick.items[newIndex]];
-          
+
           isHandlingActiveChange = false;
         }, 150);
       }
@@ -493,7 +493,7 @@ export class AiHistoryManager {
       rawText += `Project: ${session.projectSlug}\n`;
     }
     rawText += `\n---\n\n`;
-    
+
     for (const turn of session.turns) {
       const roleHeader = turn.role === 'user' ? '👤 User' : '🤖 Assistant';
       rawText += `### ${roleHeader}\n${turn.content}\n\n`;
@@ -509,7 +509,7 @@ export class AiHistoryManager {
         language: 'markdown',
       });
       await vscode.window.showTextDocument(doc);
-      
+
       const choice = await vscode.window.showInformationMessage(
         'KB: You are viewing the AI conversation. Edit the file as you wish, then choose Save Now.',
         'Save Now'

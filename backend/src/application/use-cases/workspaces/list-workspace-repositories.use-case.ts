@@ -6,8 +6,8 @@ import type { RepositoryRecord } from '../../models/repository-records.models.js
 export class ListWorkspaceRepositoriesUseCase {
   constructor(private readonly contentRepository: ContentRepository) {}
 
-  async execute(userId: string, workspaceSlug: string): Promise<{ ok: true; repositories: RepositoryRecord[] }> {
-    const repositories = await this.contentRepository.listRepositories(userId, workspaceSlug);
+  async execute(userId: string, workspaceId: string): Promise<{ ok: true; repositories: RepositoryRecord[] }> {
+    const repositories = await this.contentRepository.listRepositories(userId, workspaceId);
     return { ok: true, repositories };
   }
 }

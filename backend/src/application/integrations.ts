@@ -284,7 +284,7 @@ export class BuildIntegrationsUseCase {
       workspaceSlug: p.workspaceSlug || '',
       repositories: p.repositories.map((repo) => ({
         id: repo.id,
-        workspaceSlug: repo.workspaceSlug || '',
+        workspaceSlug: p.workspaceSlug || '',
         externalId: repo.externalId,
         fullName: repo.fullName,
         htmlUrl: repo.htmlUrl,

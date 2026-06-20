@@ -20,14 +20,15 @@ import type { ReviewView } from '../../models/review.models.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../models/vault-note.models.js';
 
 export abstract class ContentRepository {
-  abstract listCategories(userId: string, workspaceSlug: string): Promise<CategoryRecord[]>;
+  abstract listCategories(userId: string, workspaceId: string): Promise<CategoryRecord[]>;
   abstract getCategoryById(userId: string, categoryId: string): Promise<CategoryRecord | null>;
-  abstract createCategory(userId: string, workspaceSlug: string, input: { name: string; color?: string; icon?: string }): Promise<CategoryRecord>;
-  abstract findCategoryByName(userId: string, workspaceSlug: string, name: string): Promise<CategoryRecord | null>;
+  abstract createCategory(userId: string, workspaceId: string, input: { name: string; color?: string; icon?: string }): Promise<CategoryRecord>;
+  abstract findCategoryByName(userId: string, workspaceId: string, name: string): Promise<CategoryRecord | null>;
 
   abstract listWorkspaces(userId: string): Promise<SaveWorkspaceInput[]>;
+  abstract getWorkspaceBySlug(userId: string, workspaceSlug: string): Promise<SaveWorkspaceInput | null>;
   abstract upsertWorkspace(userId: string, input: SaveWorkspaceInput): Promise<SaveWorkspaceInput>;
-  abstract listRepositories(userId: string, workspaceSlug: string): Promise<RepositoryRecord[]>;
+  abstract listRepositories(userId: string, workspaceId: string): Promise<RepositoryRecord[]>;
   abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<RepositoryRecord>;
   abstract listProjects(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;

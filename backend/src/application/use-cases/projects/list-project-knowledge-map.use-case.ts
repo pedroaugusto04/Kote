@@ -61,7 +61,7 @@ export function buildProjectKnowledgeMap(
       id: nodeId,
       type: 'repository',
       label: repository.fullName,
-      subtitle: repository.defaultBranch || repository.workspaceSlug,
+      subtitle: repository.defaultBranch || project.workspaceSlug || '',
       projectSlug: project.projectSlug,
       size: 18,
     });

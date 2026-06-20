@@ -100,7 +100,7 @@ async function saveIngestedNote(
         workspaceSlug: existingProject.workspaceSlug || workspaceSlug,
         repositories: existingProject.repositories.map((repo) => ({
           id: repo.id,
-          workspaceSlug: repo.workspaceSlug || workspaceSlug,
+          workspaceSlug: existingProject.workspaceSlug || workspaceSlug,
           externalId: repo.externalId,
           fullName: repo.fullName,
           htmlUrl: repo.htmlUrl,
@@ -144,10 +144,9 @@ async function saveIngestedNote(
   const title = trimText(payload.content.title, payload.content.rawText);
   if (!existingProject) {
     if (project.repositories.length > 0) {
-      const repo = project.repositories[0];
+      const repo = project.repositories[0]!;
       const savedRepo = await contentRepository.upsertRepository({
         workspaceId,
-        workspaceSlug: repo.workspaceSlug,
         externalId: repo.externalId,
         fullName: repo.fullName,
         htmlUrl: repo.htmlUrl,
@@ -156,7 +155,7 @@ async function saveIngestedNote(
       });
       project.repositories[0] = {
         ...savedRepo,
-        workspaceSlug: savedRepo.workspaceSlug || workspaceSlug,
+        workspaceSlug: workspaceSlug,
       };
     }
     await contentRepository.upsertProject(userId, {

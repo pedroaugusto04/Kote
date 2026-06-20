@@ -5,7 +5,7 @@ import { QueryKnowledgeUseCase } from '../../../dist/application/use-cases/index
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 async function seedDefaultWorkspace(repositories, userId) {
-  await repositories.contentRepository.upsertWorkspace(userId, {
+  const ws = await repositories.contentRepository.upsertWorkspace(userId, {
     workspaceSlug: 'default',
     displayName: 'Default',
     whatsappChatJid: '',
@@ -23,6 +23,7 @@ async function seedDefaultWorkspace(repositories, userId) {
     defaultTags: [],
     enabled: true,
   });
+  return ws;
 }
 
 test('query returns ranked matches from the authenticated user repository scope', async (t) => {
@@ -30,9 +31,9 @@ test('query returns ranked matches from the authenticated user repository scope'
   const user = await repositories.createTestUser();
   const otherUser = await repositories.createTestUser();
   const queryRepository = repositories.contentQueryRepository;
-  await seedDefaultWorkspace(repositories, user.id);
+  const ws = await seedDefaultWorkspace(repositories, user.id);
   await seedDefaultWorkspace(repositories, otherUser.id);
-  const categories = await repositories.contentRepository.listCategories(user.id, 'default');
+  const categories = await repositories.contentRepository.listCategories(user.id, ws.id);
   const noteCategory = categories.find((category) => category.name === 'event') || categories[0];
   const deployNote = await repositories.contentRepository.upsertNote(user.id, {
     path: '20 Inbox/n8n-automations/2026/04/deploy.md',

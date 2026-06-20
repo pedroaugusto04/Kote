@@ -143,40 +143,34 @@ export class PostgresProjectRepository {
     return result.length > 0;
   }
 
-  async listRepositories(userId: string, workspaceSlug: string) {
+  async listRepositories(userId: string, workspaceId: string) {
     const db = this.database.getDb();
     const result = await db
-      .select()
+      .select({
+        id: repositories.id,
+        workspaceId: repositories.workspaceId,
+        externalId: repositories.externalId,
+        fullName: repositories.fullName,
+        htmlUrl: repositories.htmlUrl,
+        description: repositories.description,
+        defaultBranch: repositories.defaultBranch,
+        createdAt: repositories.createdAt,
+        updatedAt: repositories.updatedAt,
+      })
       .from(repositories)
-      .innerJoin(workspaces, and(
-        eq(workspaces.id, repositories.workspaceId),
-        eq(workspaces.userId, userId)
-      ))
-      .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
+      .innerJoin(workspaces, eq(workspaces.id, repositories.workspaceId))
+      .where(and(eq(repositories.workspaceId, workspaceId), eq(workspaces.userId, userId)))
       .orderBy(repositories.fullName);
     
-    return result.map((row) => repositoryFromRow({
-      ...row.kb_repositories,
-      workspace_slug: row.kb_workspaces.workspaceSlug
-    }));
+    return result.map(repositoryFromRow);
   }
 
   async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
     const db = this.database.getDb();
     
-    let workspaceId = input.workspaceId;
-    if (!workspaceId && input.workspaceSlug) {
-      const wsResult = await db
-        .select({ id: workspaces.id })
-        .from(workspaces)
-        .where(eq(workspaces.workspaceSlug, input.workspaceSlug))
-        .limit(1);
-      if (wsResult.length > 0) {
-        workspaceId = wsResult[0].id;
-      }
-    }
+    const workspaceId = input.workspaceId;
     if (!workspaceId) {
-      throw new Error(`Workspace not found for slug: ${input.workspaceSlug}`);
+      throw new Error('Workspace ID is required');
     }
 
     const result = await db
@@ -202,10 +196,7 @@ export class PostgresProjectRepository {
       })
       .returning();
     
-    return repositoryFromRow({
-      ...result[0],
-      workspace_slug: input.workspaceSlug
-    });
+    return repositoryFromRow(result[0]);
   }
 
   private async resolveProjectPage(userId: string, selectedSlug: string, pageSize: number) {

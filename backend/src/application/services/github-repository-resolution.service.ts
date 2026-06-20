@@ -72,7 +72,6 @@ export class GithubRepositoryResolutionService {
       const repository = repositoryById.get(repositoryId);
       return this.contentRepository.upsertRepository({
         workspaceId: workspace.id,
-        workspaceSlug: input.workspaceSlug,
         externalId: String(repository?.id || repositoryId),
         fullName: repository?.fullName || '',
         htmlUrl: repository?.htmlUrl || null,

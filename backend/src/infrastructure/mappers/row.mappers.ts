@@ -139,11 +139,9 @@ export function workspaceFromRow(row: Row): WorkspaceRecord {
 }
 
 export function repositoryFromRow(row: Row): RepositoryRecord {
-  const workspaceSlug = fieldString(row, 'workspace_slug', 'workspaceSlug', '');
   return {
     id: String(row.id),
     workspaceId: fieldString(row, 'workspace_id', 'workspaceId'),
-    ...(workspaceSlug ? { workspaceSlug } : {}),
     externalId: String(field(row, 'external_id', 'externalId') ?? '0'),
     fullName: fieldString(row, 'full_name', 'fullName'),
     htmlUrl: field(row, 'html_url', 'htmlUrl') ? String(field(row, 'html_url', 'htmlUrl')) : null,

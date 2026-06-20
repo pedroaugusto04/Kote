@@ -70,7 +70,7 @@ export class BuildDashboardUseCase {
         workspaceSlug: project.workspaceSlug || '',
         repositories: project.repositories.map((repo) => ({
           ...repo,
-          workspaceSlug: repo.workspaceSlug || '',
+          workspaceSlug: project.workspaceSlug || '',
         })),
         activitySparkline,
       };

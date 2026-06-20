@@ -83,7 +83,6 @@ export type WorkspaceRecord = {
 export type RepositoryRecord = {
   id: string;
   workspaceId: string;
-  workspaceSlug?: string;
   externalId: string;
   fullName: string;
   htmlUrl: string | null;

@@ -12,7 +12,7 @@ import { categories, workspaces } from '../persistence/schema/index.js';
 export class PostgresCategoryRepository {
   constructor(private readonly database: PostgresDatabase) {}
 
-  async list(userId: string, workspaceSlug: string): Promise<CategoryRecord[]> {
+  async list(userId: string, workspaceId: string): Promise<CategoryRecord[]> {
     const db = this.database.getDb();
     const result = await db
       .select({
@@ -27,8 +27,7 @@ export class PostgresCategoryRepository {
         updatedAt: categories.updatedAt,
       })
       .from(categories)
-      .innerJoin(workspaces, and(eq(workspaces.id, categories.workspaceId), eq(workspaces.userId, userId)))
-      .where(and(eq(categories.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
+      .where(and(eq(categories.userId, userId), eq(categories.workspaceId, workspaceId)))
       .orderBy(categories.name);
 
     return result.map(categoryFromRow);
@@ -57,20 +56,10 @@ export class PostgresCategoryRepository {
 
   async create(
     userId: string,
-    workspaceSlug: string,
+    workspaceId: string,
     input: { name: string; color?: string; icon?: string; isSystem?: boolean }
   ): Promise<CategoryRecord> {
     const db = this.database.getDb();
-    const workspaceResult = await db
-      .select({ id: workspaces.id })
-      .from(workspaces)
-      .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
-      .limit(1);
-
-    if (workspaceResult.length === 0) {
-      throw new Error(`Workspace not found: ${workspaceSlug}`);
-    }
-    const workspaceId = workspaceResult[0].id;
 
     const result = await db
       .insert(categories)
@@ -88,7 +77,7 @@ export class PostgresCategoryRepository {
     return categoryFromRow(result[0]);
   }
 
-  async findByName(userId: string, workspaceSlug: string, name: string): Promise<CategoryRecord | null> {
+  async findByName(userId: string, workspaceId: string, name: string): Promise<CategoryRecord | null> {
     const db = this.database.getDb();
     const result = await db
       .select({
@@ -103,10 +92,9 @@ export class PostgresCategoryRepository {
         updatedAt: categories.updatedAt,
       })
       .from(categories)
-      .innerJoin(workspaces, and(eq(workspaces.id, categories.workspaceId), eq(workspaces.userId, userId)))
       .where(and(
         eq(categories.userId, userId),
-        eq(workspaces.workspaceSlug, workspaceSlug),
+        eq(categories.workspaceId, workspaceId),
         eq(categories.name, name)
       ))
       .limit(1);

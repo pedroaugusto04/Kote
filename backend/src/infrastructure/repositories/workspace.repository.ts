@@ -48,4 +48,15 @@ export class PostgresWorkspaceRepository {
     
     return workspaceFromRow(result[0]);
   }
+
+  async getBySlug(userId: string, workspaceSlug: string) {
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(workspaces)
+      .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
+      .limit(1);
+    
+    return result[0] ? workspaceFromRow(result[0]) : null;
+  }
 }
