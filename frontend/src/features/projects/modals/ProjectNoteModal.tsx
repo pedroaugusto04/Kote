@@ -253,11 +253,7 @@ export function ProjectNoteModal({
                   name="tags"
                   render={({ field }) => (
                     <TagInput
-                      ariaDescribedBy={fieldProps['aria-describedby']}
-                      ariaInvalid={fieldProps['aria-invalid']}
-                      ariaRequired={fieldProps['aria-required']}
-                      dataField={fieldProps['data-field']}
-                      id={fieldProps.id}
+                      {...fieldProps}
                       value={field.value}
                       onChange={field.onChange}
                       onBlur={field.onBlur}

@@ -92,7 +92,8 @@ export class GenerateProjectBriefUseCase {
         model: config.model,
       });
       return { ok: true as const, fallback: false, brief: normalized };
-    } catch {
+    } catch (error) {
+      console.error('Project brief generation failed:', error);
       const latest = await this.historyRepository.findLatest({
         userId,
         workspaceSlug,

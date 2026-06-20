@@ -17,6 +17,8 @@ export type TagInputProps = {
   dataField?: string;
   onBlur?: () => void;
   className?: string;
+  maxTags?: number;
+  maxTagLength?: number;
 };
 
 export function TagInput({
@@ -34,6 +36,8 @@ export function TagInput({
   dataField,
   onBlur,
   className = '',
+  maxTags,
+  maxTagLength,
 }: TagInputProps) {
   const reactId = useId();
   const resolvedId = id || `${UI_MESSAGES.SELECT_PREFIX}-${reactId}`;
@@ -73,6 +77,18 @@ export function TagInput({
       setShowSuggestions(false);
       return;
     }
+
+    if (maxTags && value.length >= maxTags) {
+      setInputValue('');
+      setShowSuggestions(false);
+      return;
+    }
+    
+    if (maxTagLength && trimmedTag.length > maxTagLength) {
+      setInputValue('');
+      setShowSuggestions(false);
+      return;
+    }
     
     onChange([...value, trimmedTag]);
     setInputValue('');
@@ -90,6 +106,9 @@ export function TagInput({
     setShowSuggestions(newValue.length > 0 && filteredSuggestions.length > 0);
     setActiveSuggestionIndex(-1);
   };
+
+  const isTagLengthExceeded = maxTagLength && inputValue.trim().length > maxTagLength;
+  const isMaxTagsReached = maxTags && value.length >= maxTags;
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (disabled) return;
@@ -183,12 +202,28 @@ export function TagInput({
           placeholder={value.length === 0 ? placeholder : ''}
           aria-label={ariaLabel}
           aria-describedby={ariaDescribedBy}
-          aria-invalid={ariaInvalid}
+          aria-invalid={ariaInvalid || isTagLengthExceeded ? true : undefined}
           aria-required={isRequired}
-          disabled={disabled}
-          className="kb-tag-input-field"
+          disabled={disabled || isMaxTagsReached ? true : undefined}
+          className={`kb-tag-input-field ${isTagLengthExceeded ? 'kb-tag-input-field-error' : ''}`}
+          maxLength={maxTagLength}
         />
       </div>
+      
+      {(maxTags || maxTagLength) && (
+        <div className="kb-tag-input-footer">
+          {maxTagLength && (
+            <span className={`kb-tag-input-counter ${isTagLengthExceeded ? 'kb-tag-input-counter-error' : ''}`}>
+              {inputValue.trim().length}/{maxTagLength}
+            </span>
+          )}
+          {maxTags && (
+            <span className={`kb-tag-input-counter ${isMaxTagsReached ? 'kb-tag-input-counter-warning' : ''}`}>
+              {value.length}/{maxTags}
+            </span>
+          )}
+        </div>
+      )}
       
       {showSuggestions && filteredSuggestions.length > 0 && (
         <div className="kb-tag-suggestions">

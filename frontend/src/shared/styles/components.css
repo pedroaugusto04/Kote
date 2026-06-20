@@ -1514,6 +1514,7 @@
   font-size: 14px;
   padding: 4px 0;
   outline: none;
+  box-shadow: none;
 }
 
 .kb-tag-input-field::placeholder {
@@ -1523,6 +1524,35 @@
 .kb-tag-input-field:disabled {
   color: var(--faint);
   cursor: not-allowed;
+}
+
+.kb-tag-input-field-error {
+  color: var(--danger-text);
+}
+
+.kb-tag-input-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 6px;
+  padding: 0 2px;
+}
+
+.kb-tag-input-counter {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+  transition: color 140ms ease;
+}
+
+.kb-tag-input-counter-error {
+  color: var(--danger-text);
+  font-weight: 600;
+}
+
+.kb-tag-input-counter-warning {
+  color: var(--warning-text);
+  font-weight: 600;
 }
 
 .kb-tag-suggestions {
