@@ -42,7 +42,11 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     super();
   }
 
-  private async resolveProjectId(userId: string, workspaceSlug: string, projectSlug: string): Promise<string> {
+  private async resolveProjectId(userId: string, workspaceSlug: string, projectSlug: string): Promise<string | null> {
+    if (projectSlug === 'all') {
+      return null;
+    }
+
     const db = this.database.getDb();
     const result = await db
       .select({ id: projects.id })
@@ -54,7 +58,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         eq(projects.projectSlug, projectSlug)
       ))
       .limit(1);
-    
+
     if (result.length === 0) {
       throw new Error(`Project not found for slug: ${projectSlug} in workspace: ${workspaceSlug}`);
     }
@@ -70,6 +74,8 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         id: crypto.randomUUID(),
         userId: input.userId,
         projectId,
+        workspaceSlug: input.workspaceSlug,
+        projectSlug: input.projectSlug,
         brief: input.brief,
         sourceRefs: input.sourceRefs,
         contextHash: input.contextHash,
@@ -79,22 +85,19 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         generatedAt: new Date(input.brief.generatedAt),
       })
       .returning();
-    
-    return projectBriefHistoryFromRow({
-      ...result[0],
-      workspaceSlug: input.workspaceSlug,
-      projectSlug: input.projectSlug,
-    });
+
+    return projectBriefHistoryFromRow(result[0]);
   }
 
   async findLatest(input: { userId: string; workspaceSlug: string; projectSlug: string }) {
     const db = this.database.getDb();
+    
     const result = await db
       .select({
         id: projectBriefHistory.id,
         userId: projectBriefHistory.userId,
-        workspaceSlug: workspaces.workspaceSlug,
-        projectSlug: projects.projectSlug,
+        workspaceSlug: projectBriefHistory.workspaceSlug,
+        projectSlug: projectBriefHistory.projectSlug,
         brief: projectBriefHistory.brief,
         sourceRefs: projectBriefHistory.sourceRefs,
         contextHash: projectBriefHistory.contextHash,
@@ -105,12 +108,10 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         createdAt: projectBriefHistory.createdAt,
       })
       .from(projectBriefHistory)
-      .innerJoin(projects, eq(projects.id, projectBriefHistory.projectId))
-      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
       .where(and(
         eq(projectBriefHistory.userId, input.userId),
-        eq(workspaces.workspaceSlug, input.workspaceSlug),
-        eq(projects.projectSlug, input.projectSlug)
+        eq(projectBriefHistory.workspaceSlug, input.workspaceSlug),
+        eq(projectBriefHistory.projectSlug, input.projectSlug)
       ))
       .orderBy(desc(projectBriefHistory.generatedAt))
       .limit(1);
@@ -128,15 +129,13 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     const db = this.database.getDb();
     const whereCondition = and(
       eq(projectBriefHistory.userId, input.userId),
-      eq(workspaces.workspaceSlug, input.workspaceSlug),
-      eq(projects.projectSlug, input.projectSlug)
+      eq(projectBriefHistory.workspaceSlug, input.workspaceSlug),
+      eq(projectBriefHistory.projectSlug, input.projectSlug)
     );
 
     const countResult = await db
       .select({ total: count() })
       .from(projectBriefHistory)
-      .innerJoin(projects, eq(projects.id, projectBriefHistory.projectId))
-      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
       .where(whereCondition);
     
     const total = Number(countResult[0]?.total || 0);
@@ -147,8 +146,8 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
       .select({
         id: projectBriefHistory.id,
         userId: projectBriefHistory.userId,
-        workspaceSlug: workspaces.workspaceSlug,
-        projectSlug: projects.projectSlug,
+        workspaceSlug: projectBriefHistory.workspaceSlug,
+        projectSlug: projectBriefHistory.projectSlug,
         brief: projectBriefHistory.brief,
         sourceRefs: projectBriefHistory.sourceRefs,
         contextHash: projectBriefHistory.contextHash,
@@ -159,8 +158,6 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         createdAt: projectBriefHistory.createdAt,
       })
       .from(projectBriefHistory)
-      .innerJoin(projects, eq(projects.id, projectBriefHistory.projectId))
-      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
       .where(whereCondition)
       .orderBy(desc(projectBriefHistory.generatedAt), desc(projectBriefHistory.id))
       .limit(pagination.pageSize)

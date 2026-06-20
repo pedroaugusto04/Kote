@@ -209,7 +209,9 @@ export const reminderDispatchFailures = pgTable('kb_reminder_dispatch_failures',
 export const projectBriefHistory = pgTable('kb_project_brief_history', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull(),
-  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
+  workspaceSlug: text('workspace_slug').notNull(),
+  projectSlug: text('project_slug').notNull(),
   brief: jsonb('brief').notNull(),
   sourceRefs: jsonb('source_refs').notNull().default('[]'),
   contextHash: text('context_hash').notNull(),
@@ -221,6 +223,7 @@ export const projectBriefHistory = pgTable('kb_project_brief_history', {
 }, (table) => ({
   userIdx: index('idx_project_brief_history_user').on(table.userId),
   projectIdx: index('idx_project_brief_history_project').on(table.userId, table.projectId),
+  userWorkspaceProjectIdx: index('idx_project_brief_history_user_workspace_project').on(table.userId, table.workspaceSlug, table.projectSlug),
 }));
 
 // Webhook Events
