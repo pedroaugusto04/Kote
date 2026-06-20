@@ -13,7 +13,7 @@ test('AsaasWebhookController rejects requests if ASAAS_WEBHOOK_TOKEN is not conf
 
   await assert.rejects(
     () => controller.handleWebhook({ id: 'evt_1' }, { 'asaas-access-token': 'any-token' }),
-    { name: 'UnauthorizedException', message: 'Webhook não autorizado' }
+    { name: 'UnauthorizedException', message: 'Unauthorized webhook' }
   );
 
   process.env.ASAAS_WEBHOOK_TOKEN = originalToken;
@@ -29,13 +29,13 @@ test('AsaasWebhookController rejects requests with invalid or missing tokens', a
   // Missing token
   await assert.rejects(
     () => controller.handleWebhook({ id: 'evt_1' }, {}),
-    { name: 'UnauthorizedException', message: 'Webhook não autorizado' }
+    { name: 'UnauthorizedException', message: 'Unauthorized webhook' }
   );
 
   // Invalid token
   await assert.rejects(
     () => controller.handleWebhook({ id: 'evt_1' }, { 'asaas-access-token': 'wrong-token' }),
-    { name: 'UnauthorizedException', message: 'Webhook não autorizado' }
+    { name: 'UnauthorizedException', message: 'Unauthorized webhook' }
   );
 });
 

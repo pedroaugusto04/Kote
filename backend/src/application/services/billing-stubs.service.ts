@@ -42,13 +42,13 @@ export class BillingIntentService {
 
   async resolveIntentFromExternalReference(ref?: string | null) {
     if (!ref) {
-      throw new Error('externalReference ausente');
+      throw new Error('externalReference is missing');
     }
 
     const params = new URLSearchParams(ref);
     const intentId = params.get('id');
     if (!intentId) {
-      throw new Error('id não encontrado no externalReference');
+      throw new Error('id not found in externalReference');
     }
 
     const db = this.database.getDb();
