@@ -135,6 +135,7 @@ function timelineFromDashboardNotes(projectSlug = 'platform') {
       sourceChannel: note.source,
       attachmentCount: note.attachmentCount || 0,
       folderId: note.folderId || null,
+      categories: note.categories || [],
     })),
     pagination: {
       page: 1,
@@ -662,6 +663,7 @@ describe('ProjectsPage', () => {
               source: 'github-push',
               sourceChannel: 'github-push',
               category: 'github-push',
+              categories: [],
               attachmentCount: 0,
             },
           ],
@@ -722,6 +724,7 @@ describe('ProjectsPage', () => {
               source: 'manual-api',
               sourceChannel: 'external',
               category: 'manual',
+              categories: [],
               attachmentCount: 0,
             },
           ],

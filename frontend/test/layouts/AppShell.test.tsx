@@ -42,9 +42,12 @@ const dashboard = {
       date: '2026-04-27',
       status: 'active',
       summary: 'Revisar deploy.',
-      source: 'test',
-    },
-  ],
+          source: 'test',
+          categories: [{ id: 'category-event', name: 'event' }],
+          folderId: null,
+          attachmentCount: 0,
+        },
+      ],
   reminders: [],
   home: {
     windowDays: 7,
@@ -198,6 +201,9 @@ function mockFetch() {
         ok: true,
         note: {
           ...dashboard.notes[0],
+          categories: [{ id: 'category-event', name: 'event' }],
+          folderId: null,
+          attachmentCount: 0,
           markdown:
             '---\n' +
             'id: "manual:note-1"\n' +
@@ -219,6 +225,8 @@ function mockFetch() {
           frontmatter: {},
           links: [],
           origin: 'vault',
+          attachments: [],
+          editor: null,
         },
       });
     }
@@ -232,6 +240,7 @@ function mockFetch() {
           ...note,
           folderId: null,
           attachmentCount: 0,
+          categories: note.categories || [],
           noteId: note.id,
           category: 'manual',
           sourceChannel: note.source,
@@ -402,8 +411,10 @@ describe('AppShell', () => {
     expect((await screen.findAllByText('Active')).length).toBeGreaterThan(0);
     expect(await screen.findByText('Deploy')).toBeInTheDocument();
     expect(screen.getAllByText('Revisar deploy.').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(document.querySelector('.note-reader')).not.toBeNull();
+    });
     const noteReader = document.querySelector('.note-reader');
-    expect(noteReader).not.toBeNull();
     expect(within(noteReader as HTMLElement).getAllByText('Revisar deploy.')).toHaveLength(1);
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
     expect(screen.queryByText('test')).not.toBeInTheDocument();

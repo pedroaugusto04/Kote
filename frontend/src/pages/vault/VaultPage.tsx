@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
+import { formatUsDate, projectName } from '../../shared/utils/format';
 import { fetchNotes } from '../../shared/api/client';
 import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
@@ -16,6 +16,7 @@ import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActio
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 import { NoteBody, NoteAttachments } from '../../widgets/notes/NoteReaderContent';
 import { RelatedNotesSection } from '../../widgets/notes/RelatedNotesSection';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 
 type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
 
@@ -86,7 +87,7 @@ export function VaultPage({
     return () => clearTimeout(timer);
   }, [noteId, noteQuery.data?.id]);
 
-  const visibleTags = noteQuery.data ? noteQuery.data.tags.filter((tag) => tag !== noteQuery.data.project) : [];
+  const visibleTags = noteQuery.data ? buildNoteDisplayTags(noteQuery.data) : [];
   const notes = notesQuery.data?.notes || [];
   const pagination = notesQuery.data?.pagination;
   const currentNoteIndex = notes.findIndex((note) => note.id === noteId);
@@ -192,15 +193,10 @@ export function VaultPage({
             <header className="note-reader-head" style={{ borderBottom: 'none', paddingBottom: 0 }}>
               <div className="note-meta-row" style={{ marginTop: 0 }}>
                 <Badge value={projectName(dashboard.projects, noteQuery.data.project)} tone="project" />
-                <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
-                {noteQuery.data.source && (
-                  <Badge value={formatSourceLabel(noteQuery.data.source)} tone="source" />
-                )}
-                <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
                 <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
                 <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
               </div>
-              {visibleTags.length ? <Tags items={visibleTags.map(formatDisplayToken)} /> : null}
+              {visibleTags.length ? <Tags items={visibleTags} /> : null}
             </header>
             <NoteAttachments attachments={noteQuery.data.attachments} />
             <NoteBody
@@ -239,5 +235,3 @@ function firstNavigationNote(notes: NoteSummary[] | undefined): NavigationNote |
 function lastNavigationNote(notes: NoteSummary[] | undefined): NavigationNote | null {
   return toNavigationNote(notes?.at(-1));
 }
-
-

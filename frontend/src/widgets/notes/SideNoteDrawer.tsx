@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
+import { formatUsDate, projectName } from '../../shared/utils/format';
 import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import type { Project } from '../../shared/api/models/project';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
@@ -9,6 +9,7 @@ import { Badge, EmptyState, InlineMessage, Tags } from '../../shared/ui/primitiv
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { NoteBody, NoteAttachments } from './NoteReaderContent';
 import { RelatedNotesSection } from './RelatedNotesSection';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 
 export type SideNoteDrawerProps = {
 
@@ -21,7 +22,7 @@ export type SideNoteDrawerProps = {
 
 export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProjects }: SideNoteDrawerProps) {
   const noteQuery = useQuery(noteDetailQueryOptions(noteId));
-  const visibleTags = noteQuery.data ? noteQuery.data.tags.filter((tag) => tag !== noteQuery.data.project) : [];
+  const visibleTags = noteQuery.data ? buildNoteDisplayTags(noteQuery.data) : [];
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -74,15 +75,10 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
           <>
             <div className="knowledge-map-drawer-meta-row">
               <Badge value={projectName(dashboardProjects, noteQuery.data.project)} tone="project" />
-              <Badge value={noteTypeLabel(noteQuery.data.type)} tone={noteQuery.data.type} />
-              {noteQuery.data.source && (
-                <Badge value={formatSourceLabel(noteQuery.data.source)} tone="source" />
-              )}
-              <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
               <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
               <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
             </div>
-            {visibleTags.length ? <Tags items={visibleTags.map(formatDisplayToken)} /> : null}
+            {visibleTags.length ? <Tags items={visibleTags} /> : null}
             <NoteAttachments attachments={noteQuery.data.attachments} />
             <NoteBody
               markdown={noteQuery.data.markdown}
@@ -100,8 +96,6 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
     </aside>
   );
 }
-
-
 
 
 

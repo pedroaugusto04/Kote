@@ -1,4 +1,5 @@
 import type { NoteStatus } from './note-status';
+import type { CategoryRecord } from './category';
 
 export const projectTimelineCategoryValues = ['all', 'whatsapp', 'github-push', 'manual', 'reminder', 'ai-chat'] as const;
 
@@ -13,6 +14,7 @@ export type ProjectTimelineItem = {
   project: string;
   workspace: string;
   folderId: string | null;
+  categories: CategoryRecord[];
   type: string;
   category: ProjectTimelineItemCategory;
   status: NoteStatus;

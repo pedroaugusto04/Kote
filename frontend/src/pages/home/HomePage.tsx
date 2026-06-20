@@ -1,15 +1,15 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary } from '../../shared/utils/format';
-import { Badge, EmptyState, PageHead, Panel } from '../../shared/ui/primitives';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary } from '../../shared/utils/format';
+import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
-import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllProjectsTimeline, fetchProjectTimeline } from '../../shared/api/client';
 import { Select } from '../../shared/ui/select';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 
 export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
   const { home } = dashboard;
@@ -178,7 +178,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             ) : (
               <div className="home-timeline">
                 {timelineItems.map((item) => {
-                  const activeSource = item.source || item.sourceChannel;
+                  const displayTags = buildNoteDisplayTags(item);
                   return (
                     <article className="home-timeline-item clickable" key={item.id} onClick={() => openNote(item.noteId)}>
                       <div
@@ -190,9 +190,6 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                       />
                       <div className="home-timeline-content">
                         <div className="home-timeline-meta">
-                          <Badge value={formatDisplayToken(item.category)} tone={item.category} />
-                          <Badge value={noteTypeLabel(item.type)} tone={item.type} />
-                          <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                           <span className="meta">
                             {projectName(dashboard.projects, item.project)} / {formatUsDate(item.date)}
                           </span>
@@ -201,7 +198,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                         <h3 className="home-timeline-title">
                           {item.title}
                         </h3>
-                        <SourceBadge source={activeSource} />
+                        {displayTags.length ? <Tags items={displayTags} /> : null}
                         <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>
                       </div>
                       <span className="file-icon">{typeIcon(item.type)}</span>

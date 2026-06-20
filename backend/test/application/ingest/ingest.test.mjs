@@ -179,5 +179,6 @@ test('manual note creation uses ingest and derives optional reminder from the no
   assert.equal(reminders.length, 1);
   assert.equal(reminders[0].id, withReminder.noteId);
   assert.equal(notes.every((note) => note.projectSlug === 'acme-api'), true);
-  assert.equal(notes.some((note) => note.tags.includes('backend')), true);
+  assert.deepEqual(notes.find((note) => note.id === withoutReminder.noteId)?.tags, ['deploy']);
+  assert.deepEqual(notes.find((note) => note.id === withReminder.noteId)?.tags, []);
 });

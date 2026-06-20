@@ -1,4 +1,5 @@
 import type { PaginationMeta } from './pagination.models.js';
+import type { CategoryRecord } from './repository-records.models.js';
 
 export const projectTimelineCategories = ['all', 'whatsapp', 'github-push', 'manual', 'reminder', 'ai-chat'] as const;
 
@@ -13,6 +14,7 @@ export type ProjectTimelineItem = {
   project: string;
   workspace: string;
   folderId: string | null;
+  categories: CategoryRecord[];
   type: string;
   category: ProjectTimelineFilterCategory;
   status: string;

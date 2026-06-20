@@ -5,15 +5,14 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, noteTypeLabel, projectName, getCleanSummary } from '../../shared/utils/format';
-import { Badge, EmptyState } from '../../shared/ui/primitives';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, getCleanSummary } from '../../shared/utils/format';
+import { Badge, EmptyState, Tags } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { PencilIcon, TrashIcon, ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
-import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { type NoteStatus } from '../../shared/api/models/note-status';
 import { BulkActionType, BulkStatusUpdate } from '../../shared/api/models/bulk-action';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
@@ -23,6 +22,7 @@ import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
 import { Select } from '../../shared/ui/select';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 
 function PinIcon({ active }: { active?: boolean }) {
   return (
@@ -174,7 +174,7 @@ export function ProjectTimeline({
       {visibleItems.length > 0 ? (
         <div className={`project-timeline-list ${isStale ? 'stale-data' : ''}`}>
           {visibleItems.map((item) => {
-            const activeSource = item.source || item.sourceChannel;
+            const displayTags = buildNoteDisplayTags(item);
             return (
               <article className="project-timeline-item clickable" key={item.id} onClick={() => onOpenNote(item.noteId)} onDoubleClick={() => onOpenNoteFullPage?.(item.noteId)}>
                 <div className="project-timeline-marker" aria-hidden="true" />
@@ -185,9 +185,6 @@ export function ProjectTimeline({
                         <PinIcon active /> Pinned
                       </span>
                     )}
-                    <Badge value={formatDisplayToken(item.category)} tone={item.category} />
-                    <Badge value={noteTypeLabel(item.type)} tone={item.type} />
-                    <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                     <span className="meta meta-date">{formatUsDate(item.date)}</span>
                     <span className="meta meta-time"> {formatUsDateTime(item.date).split(' ')[1]}</span>
                     <span className="meta meta-project">{projectName(dashboard.projects, item.project)}</span>
@@ -215,7 +212,7 @@ export function ProjectTimeline({
                   <div className="project-timeline-body">
                     <div>
                       <h3>{item.title}</h3>
-                      <SourceBadge source={activeSource} />
+                      {displayTags.length ? <Tags items={displayTags} /> : null}
                       <p>{getCleanSummary(item.summary)}</p>
                     </div>
                     <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginTop: 'auto' }}>
@@ -295,5 +292,3 @@ export function ProjectTimeline({
     </div>
   );
 }
-
-

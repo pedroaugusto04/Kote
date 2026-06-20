@@ -130,7 +130,7 @@ async function saveIngestedNote(
     classification: {
       ...parsed.classification,
       status: normalizedStatus,
-      tags: Array.from(new Set([project.projectSlug, ...project.defaultTags, ...parsed.classification.tags].map((tag) => slugify(tag)).filter(Boolean))),
+      tags: Array.from(new Set(parsed.classification.tags.map((tag) => slugify(tag)).filter(Boolean))),
     },
   };
   const folder = options.folderId

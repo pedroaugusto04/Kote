@@ -186,7 +186,7 @@ export class HandleGithubPushUseCase {
       },
       classification: {
         ...payload.classification,
-        tags: [...new Set(['code-review', projectSlug, ...payload.classification.tags.filter((tag) => tag !== payload.event.projectSlug)])],
+        tags: [...new Set(['code-review', ...payload.classification.tags.filter((tag) => tag !== payload.event.projectSlug)])],
       },
     };
   }

@@ -133,6 +133,7 @@ beforeEach(() => {
             status: 'active',
             source: 'test',
             sourceChannel: 'test',
+            categories: [{ id: 'category-incident', name: 'incident' }],
             date: '2026-04-27',
             tags: ['deploy'],
             path: '20 Inbox/note.md',
@@ -222,7 +223,7 @@ describe('HomePage', () => {
     expect(timelineItem).toBeInTheDocument();
 
     const timelinePanel = timelineHeading.closest('.home-panel-timeline') as HTMLElement;
-    expect(timelinePanel).toHaveTextContent('Manual');
+    expect(timelinePanel).toHaveTextContent('Test');
     expect(timelinePanel).toHaveTextContent('Incident');
     expect(timelinePanel).toHaveTextContent('Active');
 
