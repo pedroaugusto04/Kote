@@ -13,6 +13,7 @@ import type {
 import type { NoteRecord, SaveNoteInput } from '../../application/models/repository-records.models.js';
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
+import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
 import { noteSummary } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -147,8 +148,8 @@ export class PostgresNoteRepository {
       }
     }
     if (input.status) {
-      if (input.status === 'open') {
-        conditions.push(notInArray(notes.status, ['resolved', 'archived']));
+      if (input.status === StatusFilter.Open) {
+        conditions.push(notInArray(notes.status, [...terminalStatuses]));
       } else {
         conditions.push(eq(notes.status, input.status as NoteStatus));
       }
@@ -246,8 +247,9 @@ export class PostgresNoteRepository {
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, input.category);
     if (input.status) {
-      if (input.status === 'open') {
-        clauses.push(`n.status not in ('resolved', 'archived')`);
+      if (input.status === StatusFilter.Open) {
+        values.push(terminalStatuses);
+        clauses.push(`n.status != all($${values.length}::note_status_enum[])`);
       } else {
         values.push(input.status);
         clauses.push(`n.status::text = $${values.length}`);

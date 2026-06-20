@@ -1,3 +1,12 @@
+export enum ProjectBriefSavedSource {
+  History = 'history',
+  None = 'none',
+}
+
+export enum ProjectBriefFallbackReason {
+  GenerationFailed = 'generation_failed',
+}
+
 export type ProjectBriefSource = {
   noteId: string;
   title: string;
@@ -21,13 +30,13 @@ export type ProjectBrief = {
 export type ProjectBriefResponse = {
   ok: true;
   fallback: boolean;
-  fallbackReason?: 'generation_failed';
+  fallbackReason?: ProjectBriefFallbackReason;
   brief: ProjectBrief;
 };
 
 export type SavedProjectBriefResponse = {
   ok: true;
-  source: 'history' | 'none';
+  source: ProjectBriefSavedSource;
   brief: ProjectBrief | null;
 };
 

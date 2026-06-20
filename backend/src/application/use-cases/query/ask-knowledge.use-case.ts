@@ -7,6 +7,7 @@ import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/qu
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
+import { ConversationConfidence } from '../../../contracts/enums.js';
 
 @Injectable()
 export class AskKnowledgeUseCase {
@@ -54,7 +55,7 @@ export class AskKnowledgeUseCase {
       return {
         ok: false,
         answer: 'Failed to generate embedding for the question.',
-        confidence: 'low' as const,
+        confidence: ConversationConfidence.Low,
         requestedAttachments: false,
         sources: [],
         relatedNotes: [],
@@ -73,7 +74,7 @@ export class AskKnowledgeUseCase {
       return {
         ok: true,
         answer: 'No relevant information found in the knowledge base.',
-        confidence: 'low' as const,
+        confidence: ConversationConfidence.Low,
         requestedAttachments: false,
         sources: [],
         relatedNotes: [],
@@ -118,7 +119,7 @@ export class AskKnowledgeUseCase {
       return {
         ok: false,
         answer: 'Failed to generate an answer from the AI model.',
-        confidence: 'low' as const,
+        confidence: ConversationConfidence.Low,
         requestedAttachments: false,
         sources: [],
         relatedNotes: [],

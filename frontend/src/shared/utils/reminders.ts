@@ -1,4 +1,5 @@
 import type { Reminder } from '../api/models/reminder';
+import { StatusFilter } from '../api/models/note-status';
 
 function reminderTimestamp(reminder: Pick<Reminder, 'reminderAt' | 'reminderDate' | 'reminderTime'>) {
   const direct = Date.parse(reminder.reminderAt || '');
@@ -20,7 +21,7 @@ function reminderStatusRank(status: string) {
 }
 
 export function sortRemindersForList(reminders: Reminder[], statusFilter: string) {
-  if (statusFilter && statusFilter !== 'active' && statusFilter !== 'open' && statusFilter !== 'all') return reminders;
+  if (statusFilter && statusFilter !== 'active' && statusFilter !== StatusFilter.Open && statusFilter !== StatusFilter.All) return reminders;
   return [...reminders].sort((left, right) => {
     const leftStatusRank = reminderStatusRank(left.status);
     const rightStatusRank = reminderStatusRank(right.status);

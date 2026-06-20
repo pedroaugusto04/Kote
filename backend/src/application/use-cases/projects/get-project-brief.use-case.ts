@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
+import { ProjectBriefSavedSource } from '../../models/project-brief.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 
@@ -33,7 +34,7 @@ export class GetProjectBriefUseCase {
 
     return {
       ok: true as const,
-      source: latest ? 'history' as const : 'none' as const,
+      source: latest ? ProjectBriefSavedSource.History : ProjectBriefSavedSource.None,
       brief: latest?.brief || null,
     };
   }

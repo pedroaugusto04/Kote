@@ -1,5 +1,14 @@
 import type { AiProvider } from '../../contracts/enums.js';
 
+export enum ProjectBriefSavedSource {
+  History = 'history',
+  None = 'none',
+}
+
+export enum ProjectBriefFallbackReason {
+  GenerationFailed = 'generation_failed',
+}
+
 export type ProjectBriefSource = {
   noteId: string;
   title: string;

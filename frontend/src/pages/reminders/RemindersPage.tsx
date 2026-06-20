@@ -5,6 +5,7 @@ import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../shared/utils/format';
 import { sortRemindersForList } from '../../shared/utils/reminders';
 import { fetchReminders, updateReminderStatus } from '../../shared/api/client';
+import { StatusFilter } from '../../shared/api/models/note-status';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
@@ -17,8 +18,8 @@ import { ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 
 const reminderStatusOptions = [
-  { value: 'open', label: 'Open' },
-  { value: 'all', label: 'All' },
+  { value: StatusFilter.Open, label: 'Open' },
+  { value: StatusFilter.All, label: 'All' },
   { value: 'active', label: 'Active' },
   ...['pending', 'overdue', 'sent', 'resolved', 'archived'].map((value) => ({
     value,
@@ -53,9 +54,9 @@ const bulkActionConfig: Record<BulkReminderAction, {
 };
 
 function matchesReminderStatus(reminder: Reminder, status: string) {
-  const statusFilter = status || 'open';
-  if (statusFilter === 'all') return true;
-  if (statusFilter === 'open') return reminder.status !== 'resolved' && reminder.status !== 'archived';
+  const statusFilter = status || StatusFilter.Open;
+  if (statusFilter === StatusFilter.All) return true;
+  if (statusFilter === StatusFilter.Open) return reminder.status !== 'resolved' && reminder.status !== 'archived';
   return reminder.status === statusFilter;
 }
 
@@ -83,7 +84,7 @@ function buildInitialReminderPage(reminders: Reminder[], workspaceSlug: string, 
 
 export function RemindersPage({ dashboard, openNote }: PageContext) {
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
-  const [status, setStatus] = useState('open');
+  const [status, setStatus] = useState(StatusFilter.Open);
   const remindersPaginationKey = `${workspaceSlug}:${status}`;
   const { page, setPage } = usePaginationState(remindersPaginationKey);
   const remindersQuery = useQuery({

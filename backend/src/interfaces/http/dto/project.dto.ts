@@ -4,6 +4,7 @@ import { slugify } from '../../../domain/strings.js';
 import { paginationInputSchema, type PaginationInput } from '../../../contracts/pagination.js';
 export { paginationInputSchema, type PaginationInput };
 import { projectTimelineCategories } from '../../../application/models/project-timeline.models.js';
+import { notesListStatusFilterValues, StatusFilter } from '../../../contracts/status-filters.js';
 import {
   normalizedSlugList,
   optionalStringArraySchema,
@@ -37,7 +38,7 @@ export const projectSlugParamSchema = z.object({
 export const projectTimelineQuerySchema = paginationInputSchema.extend({
   category: z.enum(projectTimelineCategories).default('all'),
   folderId: z.string().trim().optional(),
-  status: z.string().trim().default('open'),
+  status: z.enum(notesListStatusFilterValues).default(StatusFilter.Open),
 });
 
 export const projectKnowledgeMapQuerySchema = z.object({

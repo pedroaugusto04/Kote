@@ -1,4 +1,4 @@
-import type { NoteStatus } from './models/note-status';
+import type { NoteStatusFilter } from './models/note-status';
 import type { QueryResponse } from './models/query';
 import { DEFAULT_PAGE_SIZE } from './models/pagination';
 import { request } from './request';
@@ -8,7 +8,7 @@ function normalizeLimit(limit: number | undefined) {
   return Math.min(Math.max(Math.trunc(limit), 1), 10);
 }
 
-export function runQuery(params: { query: string; projectSlug?: string; workspaceSlug?: string; status?: '' | 'open' | NoteStatus; limit?: number; page?: number; pageSize?: number }) {
+export function runQuery(params: { query: string; projectSlug?: string; workspaceSlug?: string; status?: NoteStatusFilter; limit?: number; page?: number; pageSize?: number }) {
   const search = new URLSearchParams({
     query: params.query,
     projectSlug: params.projectSlug || '',

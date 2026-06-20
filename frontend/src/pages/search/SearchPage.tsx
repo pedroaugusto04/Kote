@@ -25,6 +25,7 @@ import { AskAnswerCard, projectLabel } from '../../widgets/ask/AskAnswerCard';
 import { AskAiIcon } from '../../widgets/ask/AskAiIcon';
 import { AskAnswerSkeleton } from '../../widgets/ask/AskAnswerSkeleton';
 import { ProjectBriefPanel } from '../../widgets/projects/ProjectBriefPanel';
+import { ProjectBriefSavedSource } from '../../shared/api/models/project-brief';
 import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { Select } from '../../shared/ui/select';
@@ -272,7 +273,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                 onSelect={(item) => {
                   setSelectedBrief({
                     ok: true,
-                    source: 'history',
+                    source: ProjectBriefSavedSource.History,
                     brief: item.brief,
                   });
                   setShowBriefHistory(false);

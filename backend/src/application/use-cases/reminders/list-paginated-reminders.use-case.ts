@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 
+import { KnowledgeStatus } from '../../../contracts/enums.js';
 import { buildPaginationMeta } from '../../../contracts/pagination.js';
+import { StatusFilter } from '../../../contracts/status-filters.js';
 import type { ListRemindersInput } from '../../models/reminder-list.models.js';
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { sortRemindersForList } from './reminder-list.helpers.js';
@@ -19,13 +21,13 @@ export class ListPaginatedRemindersUseCase {
       await this.contentQueryRepository.listReminders(userId),
       { workspaceSlug: input.workspaceSlug },
     );
-    const statusFilter = input.status || 'open';
+    const statusFilter = input.status || StatusFilter.Open;
     const reminders = sortRemindersForList(remindersWithStatus
       .filter((reminder) => !input.workspaceSlug || reminder.workspace === input.workspaceSlug)
       .filter((reminder) => {
-        if (statusFilter === 'all') return true;
-        if (statusFilter === 'open') {
-          return reminder.status !== 'resolved' && reminder.status !== 'archived';
+        if (statusFilter === StatusFilter.All) return true;
+        if (statusFilter === StatusFilter.Open) {
+          return reminder.status !== KnowledgeStatus.Resolved && reminder.status !== KnowledgeStatus.Archived;
         }
         return reminder.status === statusFilter;
       }), statusFilter);

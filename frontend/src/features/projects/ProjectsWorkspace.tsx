@@ -15,7 +15,7 @@ import {
 } from '../../shared/api/client';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
 import type { ProjectTimelineCategory, ProjectTimelineItem, ProjectTimelineItemCategory } from '../../shared/api/models/project-timeline';
-import { type NoteStatus } from '../../shared/api/models/note-status';
+import { StatusFilter, type NoteStatus, type NoteStatusFilter } from '../../shared/api/models/note-status';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { formatDisplayToken } from '../../shared/utils/format';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
@@ -45,8 +45,8 @@ import { ProjectTimelineCard } from './ProjectTimelineCard';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { SearchIcon } from '../../shared/ui/icons';
 
-const statusOptions: Array<{ value: '' | 'open' | NoteStatus; label: string }> = [
-  { value: 'open', label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
+const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
+  { value: StatusFilter.Open, label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
   { value: '', label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.ALL },
   ...(['active', 'pending', 'overdue', 'sent', 'resolved', 'archived'] as NoteStatus[]).map((value) => ({
     value,
@@ -74,7 +74,7 @@ export function ProjectsWorkspace({
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState(ROOT_FOLDER_ID);
   const [timelineCategory, setTimelineCategory] = useState<ProjectTimelineCategory>('all');
-  const [timelineStatus, setTimelineStatus] = useState<'' | 'open' | NoteStatus>('open');
+  const [timelineStatus, setTimelineStatus] = useState<NoteStatusFilter>(StatusFilter.Open);
   const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
 
@@ -288,7 +288,7 @@ export function ProjectsWorkspace({
               id="projects-page-status-select"
               options={statusOptions}
               value={timelineStatus}
-              onChange={(nextValue) => setTimelineStatus(nextValue as '' | 'open' | NoteStatus)}
+              onChange={(nextValue) => setTimelineStatus(nextValue as NoteStatusFilter)}
             />
           </div>
         )}

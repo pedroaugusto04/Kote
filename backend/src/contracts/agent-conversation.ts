@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
-import { CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from './enums.js';
+import { AgentConversationAction as AgentConversationActionEnum, CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from './enums.js';
 import { conversationMediaSchema } from './conversation.js';
 
-const agentActionSchema = z.enum(['ask', 'confirm', 'cancel', 'submit']);
+const agentActionSchema = z.nativeEnum(AgentConversationActionEnum);
 const nullishToUndefined = (value: unknown) => value == null ? undefined : value;
 const blankishToUndefined = (value: unknown) => {
   if (value == null) return undefined;
@@ -15,7 +15,7 @@ const defaultStringArraySchema = z.preprocess(nullishToUndefined, z.array(defaul
 const defaultKnowledgeKindSchema = z.preprocess(nullishToUndefined, z.nativeEnum(KnowledgeKind).default(KnowledgeKind.Note));
 const defaultCanonicalTypeSchema = z.preprocess(nullishToUndefined, z.nativeEnum(CanonicalType).default(CanonicalType.Event));
 const defaultImportanceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(Importance).default(Importance.Low));
-const defaultActionSchema = z.preprocess(blankishToUndefined, agentActionSchema.default('ask'));
+const defaultActionSchema = z.preprocess(blankishToUndefined, agentActionSchema.default(AgentConversationActionEnum.Ask));
 const defaultConfidenceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(ConversationConfidence).default(ConversationConfidence.Low));
 
 export const agentConversationDraftSchema = z.object({
@@ -69,7 +69,7 @@ export const conversationAgentDecisionSchema = z.object({
   action: defaultActionSchema,
 });
 
-export type AgentConversationAction = z.infer<typeof agentActionSchema>;
+export type AgentConversationAction = AgentConversationActionEnum;
 export type AgentConversationDraft = z.infer<typeof agentConversationDraftSchema>;
 export type AgentConversationState = z.infer<typeof agentConversationStateSchema>;
 export type ConversationAgentDecision = z.infer<typeof conversationAgentDecisionSchema>;

@@ -9,7 +9,7 @@ import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
 import { ProjectTimeline } from './ProjectTimeline';
-import { type NoteStatus } from '../../shared/api/models/note-status';
+import { type NoteStatusFilter } from '../../shared/api/models/note-status';
 
 type ProjectsBrowserProps = {
   dashboard: Dashboard;
@@ -19,8 +19,8 @@ type ProjectsBrowserProps = {
   selectedFolder: ProjectFolder | null;
   timelineItems: ProjectTimelineItem[];
   timelineCategory: ProjectTimelineCategory;
-  timelineStatus: '' | 'open' | NoteStatus;
-  onTimelineStatusChange: (status: '' | 'open' | NoteStatus) => void;
+  timelineStatus: NoteStatusFilter;
+  onTimelineStatusChange: (status: NoteStatusFilter) => void;
   timelinePagination?: {
     page: number;
     pageSize: number;

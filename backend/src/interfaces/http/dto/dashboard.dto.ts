@@ -2,10 +2,8 @@ import { z } from 'zod';
 
 import { KnowledgeStatus } from '../../../contracts/enums.js';
 import { paginationInputSchema } from '../../../contracts/pagination.js';
-import { noteStatusValues } from '../../../domain/note-status.js';
+import { notesListStatusFilterValues, reminderListStatusFilterValues, StatusFilter } from '../../../contracts/status-filters.js';
 import { slugify } from '../../../domain/strings.js';
-
-const notesListStatusValues = ['', 'open', ...noteStatusValues] as const;
 
 export const noteIdParamSchema = z.object({
   id: z.string().trim().min(1),
@@ -26,7 +24,7 @@ export const notesListQuerySchema = paginationInputSchema.extend({
   workspaceSlug: z.string().default(''),
   projectSlug: z.string().default(''),
   folderId: z.string().default(''),
-  status: z.enum(notesListStatusValues).default('open'),
+  status: z.enum(notesListStatusFilterValues).default(StatusFilter.Open),
   selectedId: z.string().default(''),
 }).transform((input) => ({
   ...input,
@@ -46,7 +44,7 @@ export const reviewsListQuerySchema = paginationInputSchema.extend({
 
 export const remindersListQuerySchema = paginationInputSchema.extend({
   workspaceSlug: z.string().default(''),
-  status: z.enum(['', 'open', 'active', 'all', 'pending', 'overdue', 'sent', 'resolved', 'archived']).default('open'),
+  status: z.enum(reminderListStatusFilterValues).default(StatusFilter.Open),
 }).transform((input) => ({
   ...input,
   workspaceSlug: slugify(input.workspaceSlug),

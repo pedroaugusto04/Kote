@@ -1,4 +1,4 @@
-import type { ProjectBriefPanelResponse } from '../../shared/api/models/project-brief';
+import { ProjectBriefSavedSource, type ProjectBriefPanelResponse } from '../../shared/api/models/project-brief';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 
 export type ProjectBriefPanelProps = {
@@ -103,7 +103,7 @@ export function ProjectBriefPanel({
 }: ProjectBriefPanelProps) {
   const brief = response?.brief;
   const source = response && 'source' in response ? response.source : '';
-  const hasNoSavedBrief = source === 'none';
+  const hasNoSavedBrief = source === ProjectBriefSavedSource.None;
   const isFallback = Boolean(response && 'fallback' in response && response.fallback);
   const busy = loading;
 

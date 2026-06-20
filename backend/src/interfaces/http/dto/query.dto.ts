@@ -3,19 +3,20 @@ import { z } from 'zod';
 import { paginationInputSchema } from '../../../contracts/pagination.js';
 import { queryInputSchema } from '../../../contracts/query.js';
 import { ReminderDispatchMode } from '../../../contracts/enums.js';
+import { StatusFilter } from '../../../contracts/status-filters.js';
 
 export const queryRequestSchema = z.object({
   query: z.string().default(''),
   workspaceSlug: z.string().default(''),
   projectSlug: z.string().default(''),
-  status: z.string().default('open'),
+  status: z.string().default(StatusFilter.Open),
   limit: z.coerce.number().default(5),
 }).merge(paginationInputSchema).pipe(queryInputSchema);
 
 export const markRemindersBodySchema = z
   .object({
     ids: z.array(z.string().trim().min(1)).min(1),
-    mode: z.enum([ReminderDispatchMode.Daily, ReminderDispatchMode.Exact]).optional(),
+    mode: z.nativeEnum(ReminderDispatchMode).optional(),
     dispatchKey: z.string().trim().optional(),
   })
   .strict()

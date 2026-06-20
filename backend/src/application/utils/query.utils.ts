@@ -1,4 +1,5 @@
 import type { QueryInput } from '../../contracts/query.js';
+import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
 import type { VaultNoteSummary } from '../models/vault-note.models.js';
 
 function tokenizeQuery(query: string): string[] {
@@ -24,8 +25,8 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<Quer
       && (!query.workspaceSlug || note.workspace === query.workspaceSlug)
       && (
         !('status' in query) || !query.status || (
-          query.status === 'open'
-            ? !['resolved', 'archived'].includes(note.status.toLowerCase())
+          query.status === StatusFilter.Open
+            ? !terminalStatuses.includes(note.status.toLowerCase() as (typeof terminalStatuses)[number])
             : note.status.toLowerCase() === query.status
         )
       ),

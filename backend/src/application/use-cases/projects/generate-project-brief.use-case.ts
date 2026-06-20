@@ -2,9 +2,9 @@ import crypto from 'node:crypto';
 
 import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 
-import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
+import { AiProvider, CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
-import type { ProjectBrief, ProjectBriefContextItem } from '../../models/project-brief.models.js';
+import { ProjectBriefFallbackReason, type ProjectBrief, type ProjectBriefContextItem } from '../../models/project-brief.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { ProjectBriefAiGateway } from '../../ports/projects/project-brief-ai.gateway.js';
@@ -103,7 +103,7 @@ export class GenerateProjectBriefUseCase {
         return {
           ok: true as const,
           fallback: true,
-          fallbackReason: 'generation_failed' as const,
+          fallbackReason: ProjectBriefFallbackReason.GenerationFailed,
           brief: latest.brief,
         };
       }
@@ -119,7 +119,7 @@ export class GenerateProjectBriefUseCase {
       model: environment.projectBriefAiModel,
       apiKey: environment.projectBriefAiApiKey,
     };
-    if (config.provider === 'none' || !config.baseUrl || !config.model || !config.apiKey) {
+    if (config.provider === AiProvider.None || !config.baseUrl || !config.model || !config.apiKey) {
       throw new BadRequestException('project_brief_ai_not_configured');
     }
     return config;

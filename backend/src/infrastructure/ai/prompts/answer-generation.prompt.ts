@@ -6,7 +6,7 @@ import { ConversationConfidence } from '../../../contracts/enums.js';
 
 export const answerGenerationResponseSchema = z.object({
   answer: z.string().trim().default(''),
-  confidence: z.enum(['high', 'medium', 'low']).default('medium'),
+  confidence: z.nativeEnum(ConversationConfidence).default(ConversationConfidence.Medium),
   requestedAttachments: z.boolean().default(false),
   requestedAttachmentPattern: z.string().optional(),
   sources: z.array(
@@ -76,7 +76,7 @@ export function parseAnswerGenerationResponse(
 
   return {
     answer: parsed.answer,
-    confidence: parsed.confidence as ConversationConfidence,
+    confidence: parsed.confidence,
     requestedAttachments: parsed.requestedAttachments,
     requestedAttachmentPattern: parsed.requestedAttachmentPattern,
     sources: filteredSources,

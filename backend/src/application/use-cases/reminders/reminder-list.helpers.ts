@@ -1,3 +1,6 @@
+import { KnowledgeStatus } from '../../../contracts/enums.js';
+import { StatusFilter } from '../../../contracts/status-filters.js';
+
 export function reminderTimestamp(reminder: { reminderAt?: string; reminderDate?: string; reminderTime?: string }) {
   const direct = Date.parse(reminder.reminderAt || '');
   if (!Number.isNaN(direct)) return direct;
@@ -11,9 +14,9 @@ function reminderIsFuture(reminder: { reminderAt?: string; reminderDate?: string
 }
 
 function reminderStatusRank(status: string) {
-  if (status === 'overdue') return 0;
-  if (status === 'pending') return 1;
-  if (status === 'sent') return 2;
+  if (status === KnowledgeStatus.Overdue) return 0;
+  if (status === KnowledgeStatus.Pending) return 1;
+  if (status === KnowledgeStatus.Sent) return 2;
   return 3; // archived or other
 }
 
@@ -32,7 +35,7 @@ export function sortRemindersForList<T extends { id: string; title: string; stat
   reminders: T[],
   statusFilter?: string,
 ) {
-  if (statusFilter && statusFilter !== 'active' && statusFilter !== 'open' && statusFilter !== 'all') return reminders;
+  if (statusFilter && statusFilter !== KnowledgeStatus.Active && statusFilter !== StatusFilter.Open && statusFilter !== StatusFilter.All) return reminders;
   return [...reminders].sort((left, right) => {
     const leftStatusRank = reminderStatusRank(left.status);
     const rightStatusRank = reminderStatusRank(right.status);
