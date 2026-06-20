@@ -11,6 +11,7 @@ import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { SourceBadge } from './SourceBadge';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 
 function PinIcon({ active }: { active?: boolean }) {
   return (
@@ -52,6 +53,7 @@ export function NoteRow({
   });
 
   const activeSource = note.source;
+  const displayTags = buildNoteDisplayTags({ tags: note.tags, categories: note.categories });
 
   return (
     <article className="list-row clickable" onClick={() => onOpen(note.id)} onDoubleClick={() => onDoubleClick?.(note.id)}>
@@ -81,7 +83,7 @@ export function NoteRow({
         </div>
         <h3>{note.title}</h3>
         <SourceBadge source={activeSource} />
-        {note.tags && note.tags.length ? <Tags items={note.tags.map(formatDisplayToken)} /> : null}
+        {displayTags.length ? <Tags items={displayTags} /> : null}
         <p>{getCleanSummary(note.summary)}</p>
       </div>
       <button

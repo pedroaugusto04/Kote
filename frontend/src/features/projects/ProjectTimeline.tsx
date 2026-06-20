@@ -6,6 +6,7 @@ import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
 import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, noteTypeLabel, getCleanSummary } from '../../shared/utils/format';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { Badge, EmptyState, Tags } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
@@ -231,7 +232,10 @@ export function ProjectTimeline({
                     <div>
                       <h3>{item.title}</h3>
                       <SourceBadge source={activeSource} />
-                      {item.tags && item.tags.length ? <Tags items={item.tags.map(formatDisplayToken)} /> : null}
+                      {(() => {
+                        const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
+                        return displayTags.length ? <Tags items={displayTags} /> : null;
+                      })()}
                       <p>{getCleanSummary(item.summary)}</p>
                     </div>
                     <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginTop: 'auto' }}>

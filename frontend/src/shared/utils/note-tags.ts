@@ -1,29 +1,30 @@
 import type { CategoryRecord } from '../api/models/category';
-import type { NoteStatus } from '../api/models/note-status';
-import { formatDisplayToken, formatSourceLabel } from './format';
+import { formatDisplayToken } from './format';
+
+export type TagItem = string | { label: string; backgroundColor?: string; color?: string };
 
 type DisplayTagInput = {
   tags: string[];
-  status: NoteStatus | string;
-  source?: string | null;
-  sourceChannel?: string | null;
-  categories?: Array<Pick<CategoryRecord, 'name'>>;
+  categories?: Array<Pick<CategoryRecord, 'name' | 'color'>>;
 };
 
-export function buildNoteDisplayTags(input: DisplayTagInput): string[] {
-  const source = formatSourceLabel(input.source || input.sourceChannel || '');
-  const values = [
-    ...input.tags.map(formatDisplayToken),
-    formatDisplayToken(input.status),
-    source,
-    ...(input.categories || []).map((category) => formatDisplayToken(category.name)),
-  ];
+export function buildNoteDisplayTags(input: DisplayTagInput): TagItem[] {
+  const categoryTags = (input.categories || []).map((cat) => ({
+    label: formatDisplayToken(cat.name),
+    backgroundColor: cat.color,
+    color: '#ffffff',
+  }));
+  const customTags = (input.tags || []).map(formatDisplayToken);
 
   const seen = new Set<string>();
-  return values.filter((value) => {
-    const key = value.trim().toLocaleLowerCase();
+  (input.categories || []).forEach((cat) => seen.add(cat.name.toLowerCase().trim()));
+
+  const filteredCustomTags = customTags.filter((tag) => {
+    const key = tag.toLowerCase().trim();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+
+  return [...categoryTags, ...filteredCustomTags];
 }

@@ -6,6 +6,7 @@ import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import type { Project } from '../../shared/api/models/project';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, InlineMessage, Tags } from '../../shared/ui/primitives';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { NoteBody, NoteAttachments } from './NoteReaderContent';
 import { RelatedNotesSection } from './RelatedNotesSection';
@@ -21,7 +22,7 @@ export type SideNoteDrawerProps = {
 
 export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProjects }: SideNoteDrawerProps) {
   const noteQuery = useQuery(noteDetailQueryOptions(noteId));
-  const visibleTags = noteQuery.data?.tags || [];
+  const visibleTags = noteQuery.data ? buildNoteDisplayTags({ tags: noteQuery.data.tags, categories: noteQuery.data.categories }) : [];
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -82,7 +83,7 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
               <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
               <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
             </div>
-            {visibleTags.length ? <Tags items={visibleTags.map(formatDisplayToken)} /> : null}
+            {visibleTags.length ? <Tags items={visibleTags} /> : null}
             <NoteAttachments attachments={noteQuery.data.attachments} />
             <NoteBody
               markdown={noteQuery.data.markdown}

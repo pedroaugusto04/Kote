@@ -9,6 +9,7 @@ import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
@@ -86,7 +87,7 @@ export function VaultPage({
     return () => clearTimeout(timer);
   }, [noteId, noteQuery.data?.id]);
 
-  const visibleTags = noteQuery.data?.tags || [];
+  const visibleTags = noteQuery.data ? buildNoteDisplayTags({ tags: noteQuery.data.tags, categories: noteQuery.data.categories }) : [];
   const notes = notesQuery.data?.notes || [];
   const pagination = notesQuery.data?.pagination;
   const currentNoteIndex = notes.findIndex((note) => note.id === noteId);
@@ -200,7 +201,7 @@ export function VaultPage({
                 <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
                 <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
               </div>
-              {visibleTags.length ? <Tags items={visibleTags.map(formatDisplayToken)} /> : null}
+              {visibleTags.length ? <Tags items={visibleTags} /> : null}
             </header>
             <NoteAttachments attachments={noteQuery.data.attachments} />
             <NoteBody

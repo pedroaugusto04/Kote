@@ -10,6 +10,7 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchAllProjectsTimeline, fetchProjectTimeline } from '../../shared/api/client';
 import { Select } from '../../shared/ui/select';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
+import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 
 export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
   const { home } = dashboard;
@@ -202,7 +203,10 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                           {item.title}
                         </h3>
                         <SourceBadge source={activeSource} />
-                        {item.tags && item.tags.length ? <Tags items={item.tags.map(formatDisplayToken)} /> : null}
+                        {(() => {
+                          const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
+                          return displayTags.length ? <Tags items={displayTags} /> : null;
+                        })()}
                         <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>
                       </div>
                       <span className="file-icon">{typeIcon(item.type)}</span>
