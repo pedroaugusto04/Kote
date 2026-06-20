@@ -61,6 +61,7 @@ export abstract class ContentRepository {
 export abstract class ContentQueryRepository {
   abstract list(userId: string): Promise<VaultNoteSummary[]>;
   abstract getById(userId: string, id: string): Promise<VaultNoteDetail | null>;
+  abstract getNoteNeighbors(userId: string, noteId: string, projectId?: string, workspaceId?: string): Promise<{ previous: { id: string; title: string } | null; next: { id: string; title: string } | null }>;
   abstract listReviews(userId: string): Promise<ReviewView[]>;
   abstract getReviewById(userId: string, id: string): Promise<ReviewView | null>;
   abstract listReminders(userId: string): Promise<ReminderView[]>;

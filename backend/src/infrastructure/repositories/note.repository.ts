@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
-import { eq, and, count, desc, sql, inArray, notInArray } from 'drizzle-orm';
+import { eq, and, count, desc, sql, inArray, notInArray, or } from 'drizzle-orm';
 
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
@@ -718,6 +718,55 @@ export class PostgresNoteRepository {
 
     const index = Number(result[0]?.idx || 0);
     return index > 0 ? Math.ceil(index / input.pageSize) : 1;
+  }
+
+  async getNoteNeighbors(userId: string, noteId: string, projectId?: string, workspaceId?: string) {
+    const db = this.database.getDb();
+    const conditions: string[] = ['n.user_id = $1'];
+    const values: unknown[] = [userId];
+
+    if (projectId) {
+      values.push(projectId);
+      conditions.push(`n.project_id = $${values.length}`);
+    }
+    if (workspaceId) {
+      values.push(workspaceId);
+      conditions.push(`n.workspace_id = $${values.length}`);
+    }
+
+    const where = conditions.join(' AND ');
+    values.push(noteId);
+    const targetParam = `$${values.length}`;
+
+    const result = await this.database.getPool().query<{
+      previous_id: string | null;
+      previous_title: string | null;
+      next_id: string | null;
+      next_title: string | null;
+    }>(
+      `WITH ordered AS (
+        SELECT
+          n.id,
+          n.title,
+          LAG(n.id)    OVER w AS previous_id,
+          LAG(n.title) OVER w AS previous_title,
+          LEAD(n.id)    OVER w AS next_id,
+          LEAD(n.title) OVER w AS next_title
+        FROM kb_notes n
+        WHERE ${where}
+        WINDOW w AS (ORDER BY n.is_pinned DESC, n.occurred_at DESC, n.title ASC)
+      )
+      SELECT previous_id, previous_title, next_id, next_title
+      FROM ordered
+      WHERE id = ${targetParam}`,
+      values,
+    );
+
+    const row = result.rows[0];
+    return {
+      previous: row?.previous_id ? { id: row.previous_id, title: row.previous_title ?? '' } : null,
+      next: row?.next_id ? { id: row.next_id, title: row.next_title ?? '' } : null,
+    };
   }
 }
 

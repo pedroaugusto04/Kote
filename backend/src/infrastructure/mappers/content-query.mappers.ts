@@ -53,7 +53,11 @@ export function noteAttachment(noteId: string, attachment: AttachmentRecord) {
   };
 }
 
-export function noteDetail(record: NoteRecord, attachments: AttachmentRecord[] = []): VaultNoteDetail {
+export function noteDetail(
+  record: NoteRecord,
+  attachments: AttachmentRecord[] = [],
+  navigation?: { previous: { id: string; title: string } | null; next: { id: string; title: string } | null }
+): VaultNoteDetail {
   return {
     ...noteSummary({ ...record, attachmentCount: attachments.length || record.attachmentCount || 0 }),
     markdown: record.markdown,
@@ -70,6 +74,7 @@ export function noteDetail(record: NoteRecord, attachments: AttachmentRecord[] =
     },
     attachments: attachments.map((attachment) => noteAttachment(record.id, attachment)),
     editor: null,
+    navigation: navigation || { previous: null, next: null },
   };
 }
 

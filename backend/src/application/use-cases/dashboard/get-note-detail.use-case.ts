@@ -1,20 +1,18 @@
 import { Injectable } from '@nestjs/common';
 
 import { buildNoteEditorState } from '../notes/note-editor.helpers.js';
-import { noteDetail } from '../../../infrastructure/mappers/content-query.mappers.js';
-import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()
 export class GetNoteDetailUseCase {
-  constructor(private readonly contentRepository: ContentRepository) {}
+  constructor(private readonly contentQueryRepository: ContentQueryRepository) {}
 
   async execute(userId: string, id: string) {
-    const note = await this.contentRepository.getNoteById(userId, id);
+    const note = await this.contentQueryRepository.getById(userId, id);
     if (!note) return null;
-    const attachments = await this.contentRepository.listAttachments(userId, id);
     return {
-      ...noteDetail(note, attachments),
-      editor: buildNoteEditorState(note),
+      ...note,
+      editor: buildNoteEditorState(note as any),
     };
   }
 }

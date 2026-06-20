@@ -37,4 +37,8 @@ export type VaultNoteDetail = VaultNoteSummary & {
     reminderTime: string;
     reminderAt: string;
   } | null;
+  navigation: {
+    previous: { id: string; title: string } | null;
+    next: { id: string; title: string } | null;
+  };
 };

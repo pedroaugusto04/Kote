@@ -14,12 +14,14 @@ import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from '../ma
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, workspaces, projects, categories, noteCategories } from '../persistence/schema/index.js';
+import { PostgresNoteRepository } from './note.repository.js';
 
 @Injectable()
 export class PostgresContentQueryRepository extends ContentQueryRepository {
   constructor(
     private readonly database: PostgresDatabase,
     private readonly contentObjectStorage: ContentObjectStorageService,
+    private readonly noteRepository: PostgresNoteRepository,
   ) {
     super();
   }
@@ -152,7 +154,14 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       .limit(1);
     
     const note = result[0] ? await this.hydrateMarkdown(noteFromRow(result[0])) : null;
-    return note ? noteDetail(note) : null;
+    if (!note) return null;
+
+    const neighbors = await this.noteRepository.getNoteNeighbors(userId, id, note.projectId, note.workspaceId);
+    return noteDetail(note, [], neighbors);
+  }
+
+  async getNoteNeighbors(userId: string, noteId: string, projectId?: string, workspaceId?: string) {
+    return this.noteRepository.getNoteNeighbors(userId, noteId, projectId, workspaceId);
   }
 
   async listReviews(userId: string) {

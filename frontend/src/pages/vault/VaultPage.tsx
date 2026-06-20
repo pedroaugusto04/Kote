@@ -74,36 +74,8 @@ export function VaultPage({
   }, [noteId, noteQuery.data?.id]);
 
   const visibleTags = noteQuery.data ? buildNoteDisplayTags({ tags: noteQuery.data.tags, categories: noteQuery.data.categories }) : [];
-  const notes = notesQuery.data?.notes || [];
-  const pagination = notesQuery.data?.pagination;
-  const currentNoteIndex = notes.findIndex((note) => note.id === noteId);
-  const currentPage = pagination?.page || page;
-  const currentNote = currentNoteIndex >= 0 ? notes[currentNoteIndex] : null;
-
-  useEffect(() => {
-    console.log({
-      noteId,
-      currentPage,
-      currentNoteIndex,
-      notes: notes.map((n) => n.id),
-    });
-  }, [noteId, currentPage, currentNoteIndex, notes]);
-  const previousNoteOnPage = currentNoteIndex > 0 ? toNavigationNote(notes[currentNoteIndex - 1]) : null;
-  const nextNoteOnPage = currentNoteIndex >= 0 && currentNoteIndex < notes.length - 1 ? toNavigationNote(notes[currentNoteIndex + 1]) : null;
-  const needsPreviousPage = Boolean(currentNote && currentNoteIndex === 0 && pagination?.hasPrevious && currentPage > 1);
-  const needsNextPage = Boolean(currentNote && currentNoteIndex === notes.length - 1 && pagination?.hasNext);
-  const previousPageQuery = useQuery({
-    queryKey: ['notes', 'vault', effectiveProject, 'previous-page', currentPage],
-    queryFn: () => fetchNotes({ page: currentPage - 1, projectSlug: effectiveProject }),
-    enabled: Boolean(effectiveProject && needsPreviousPage),
-  });
-  const nextPageQuery = useQuery({
-    queryKey: ['notes', 'vault', effectiveProject, 'next-page', currentPage],
-    queryFn: () => fetchNotes({ page: currentPage + 1, projectSlug: effectiveProject }),
-    enabled: Boolean(effectiveProject && needsNextPage),
-  });
-  const previousNote = previousNoteOnPage || lastNavigationNote(previousPageQuery.data?.notes);
-  const nextNote = nextNoteOnPage || firstNavigationNote(nextPageQuery.data?.notes);
+  const previousNote = noteQuery.data?.navigation?.previous || null;
+  const nextNote = noteQuery.data?.navigation?.next || null;
 
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
