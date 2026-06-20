@@ -90,7 +90,7 @@ export class PostgresBillingCustomerRepository extends BillingCustomerRepository
   async getGatewayCustomerId(userId: string, gateway: PaymentGateway): Promise<string> {
     const customer = await this.getCustomerByUserId(userId, gateway);
     if (!customer?.gatewayCustomerId) {
-      throw new Error(`Asaas customer ID not registered for user ${userId}`);
+      throw new Error(`Gateway customer ID not registered for user ${userId}`);
     }
     return customer.gatewayCustomerId;
   }

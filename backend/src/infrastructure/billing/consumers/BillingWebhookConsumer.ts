@@ -180,7 +180,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       webhookEventId = content?.webhookEventId;
 
       if (!webhookEventId) {
-        throw new Error('Mensagem inválida: webhookEventId ausente');
+        throw new Error('Invalid message: webhookEventId missing');
       }
 
       const claimed = await this.webhookEventRepository.markWebhookEventProcessing(
@@ -255,11 +255,11 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
   private async handleWebhookLogic(webhookEventId: string) {
     const webhookRecord = await this.webhookEventRepository.getWebhookEventById(webhookEventId);
     if (!webhookRecord) {
-      throw new Error(`WebhookEvent não encontrado no banco: ${webhookEventId}`);
+      throw new Error(`WebhookEvent not found in database: ${webhookEventId}`);
     }
 
     if (!webhookRecord.payload || typeof webhookRecord.payload !== 'object') {
-      throw new Error(`Payload de webhook inválido para eventId=${webhookEventId}`);
+      throw new Error(`Invalid webhook payload for eventId=${webhookEventId}`);
     }
 
     const event = this.paymentGateway.parseWebhook(webhookRecord.payload);
@@ -288,7 +288,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     const userId = await this.resolveUserId(gateway, gatewayCustomerId, payment.externalReference);
 
     if (!userId) {
-      throw new Error(`Não foi possível resolver o userId para o pagamento ${gatewayPaymentId}`);
+      throw new Error(`Could not resolve userId for payment ${gatewayPaymentId}`);
     }
 
     // Sync payment records

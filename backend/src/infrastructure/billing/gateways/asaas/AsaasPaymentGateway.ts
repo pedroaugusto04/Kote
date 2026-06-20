@@ -74,7 +74,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
 
   private ensureConfigured() {
     if (!process.env.ASAAS_ACCESS_TOKEN) {
-      throw new Error('ASAAS_ACCESS_TOKEN não configurado');
+      throw new Error('ASAAS_ACCESS_TOKEN not configured');
     }
   }
 
@@ -193,7 +193,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
 
     const id = this.normalizeGatewayId(data?.id);
     if (!id) {
-      throw new Error('Asaas não retornou id do cliente');
+      throw new Error('Asaas did not return customer id');
     }
 
     return { id };
@@ -235,7 +235,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
 
     const id = this.normalizeGatewayId(data?.id);
     if (!id) {
-      throw new Error('Asaas não retornou id da assinatura');
+      throw new Error('Asaas did not return subscription id');
     }
 
     return {
