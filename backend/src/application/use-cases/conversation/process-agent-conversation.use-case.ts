@@ -310,8 +310,7 @@ export class ProcessAgentConversationUseCase {
     const existing = await this.contentRepository.getProjectBySlug(userId, normalizedProjectSlug);
     if (existing?.enabled) return;
 
-    const workspaces = await this.contentRepository.listWorkspaces(userId);
-    const workspace = workspaces[0];
+    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
     if (!workspace) return;
 
     await this.contentRepository.upsertProject(userId, {

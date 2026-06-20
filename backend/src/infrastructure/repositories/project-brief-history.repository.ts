@@ -19,6 +19,7 @@ function projectBriefHistoryFromRow(row: Row): ProjectBriefHistoryRecord {
   return {
     id: String(row.id || ''),
     userId: String(row.userId ?? ''),
+    projectId: row.projectId ? String(row.projectId) : undefined,
     workspaceSlug: String(row.workspaceSlug ?? ''),
     projectSlug: String(row.projectSlug ?? ''),
     brief: row.brief as ProjectBriefHistoryRecord['brief'],
@@ -67,7 +68,9 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
 
   async save(input: SaveProjectBriefHistoryInput) {
     const db = this.database.getDb();
-    const projectId = await this.resolveProjectId(input.userId, input.workspaceSlug, input.projectSlug);
+    const projectId = input.projectId !== undefined
+      ? input.projectId
+      : await this.resolveProjectId(input.userId, input.workspaceSlug, input.projectSlug);
     const result = await db
       .insert(projectBriefHistory)
       .values({
@@ -89,13 +92,24 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     return projectBriefHistoryFromRow(result[0]);
   }
 
-  async findLatest(input: { userId: string; workspaceSlug: string; projectSlug: string }) {
+  async findLatest(input: { userId: string; workspaceSlug: string; projectSlug: string; projectId?: string }) {
     const db = this.database.getDb();
     
+    const conditions = [
+      eq(projectBriefHistory.userId, input.userId),
+    ];
+    if (input.projectId && input.projectId !== 'all') {
+      conditions.push(eq(projectBriefHistory.projectId, input.projectId));
+    } else {
+      conditions.push(eq(projectBriefHistory.workspaceSlug, input.workspaceSlug));
+      conditions.push(eq(projectBriefHistory.projectSlug, input.projectSlug));
+    }
+
     const result = await db
       .select({
         id: projectBriefHistory.id,
         userId: projectBriefHistory.userId,
+        projectId: projectBriefHistory.projectId,
         workspaceSlug: projectBriefHistory.workspaceSlug,
         projectSlug: projectBriefHistory.projectSlug,
         brief: projectBriefHistory.brief,
@@ -108,11 +122,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         createdAt: projectBriefHistory.createdAt,
       })
       .from(projectBriefHistory)
-      .where(and(
-        eq(projectBriefHistory.userId, input.userId),
-        eq(projectBriefHistory.workspaceSlug, input.workspaceSlug),
-        eq(projectBriefHistory.projectSlug, input.projectSlug)
-      ))
+      .where(and(...conditions))
       .orderBy(desc(projectBriefHistory.generatedAt))
       .limit(1);
     
@@ -123,20 +133,25 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     userId: string;
     workspaceSlug: string;
     projectSlug: string;
+    projectId?: string;
     page: number;
     pageSize: number;
   }) {
     const db = this.database.getDb();
-    const whereCondition = and(
+    const conditions = [
       eq(projectBriefHistory.userId, input.userId),
-      eq(projectBriefHistory.workspaceSlug, input.workspaceSlug),
-      eq(projectBriefHistory.projectSlug, input.projectSlug)
-    );
+    ];
+    if (input.projectId && input.projectId !== 'all') {
+      conditions.push(eq(projectBriefHistory.projectId, input.projectId));
+    } else {
+      conditions.push(eq(projectBriefHistory.workspaceSlug, input.workspaceSlug));
+      conditions.push(eq(projectBriefHistory.projectSlug, input.projectSlug));
+    }
 
     const countResult = await db
       .select({ total: count() })
       .from(projectBriefHistory)
-      .where(whereCondition);
+      .where(and(...conditions));
     
     const total = Number(countResult[0]?.total || 0);
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
@@ -146,6 +161,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
       .select({
         id: projectBriefHistory.id,
         userId: projectBriefHistory.userId,
+        projectId: projectBriefHistory.projectId,
         workspaceSlug: projectBriefHistory.workspaceSlug,
         projectSlug: projectBriefHistory.projectSlug,
         brief: projectBriefHistory.brief,
@@ -158,7 +174,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         createdAt: projectBriefHistory.createdAt,
       })
       .from(projectBriefHistory)
-      .where(whereCondition)
+      .where(and(...conditions))
       .orderBy(desc(projectBriefHistory.generatedAt), desc(projectBriefHistory.id))
       .limit(pagination.pageSize)
       .offset(offset);

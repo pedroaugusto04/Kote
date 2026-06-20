@@ -56,6 +56,16 @@ export class PostgresProjectRepository {
     return result.rows[0] ? projectFromRow(result.rows[0]) : null;
   }
 
+  async getById(userId: string, id: string) {
+    const result = await this.database.getPool().query(
+      `${PROJECT_WITH_METADATA_SELECT_SQL}
+       WHERE p.user_id = $1 AND p.id = $2
+       LIMIT 1`,
+      [userId, id]
+    );
+    return result.rows[0] ? projectFromRow(result.rows[0]) : null;
+  }
+
   async upsert(userId: string, input: SaveProjectInput) {
     const client = await this.database.getPool().connect();
     try {
@@ -122,22 +132,22 @@ export class PostgresProjectRepository {
     }
   }
 
-  async setFavorite(userId: string, projectSlug: string, favorite: boolean) {
+  async setFavorite(userId: string, id: string, favorite: boolean) {
     const db = this.database.getDb();
     const result = await db
       .update(projects)
       .set({ isFavorite: favorite, updatedAt: new Date() })
-      .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
+      .where(and(eq(projects.userId, userId), eq(projects.id, id)))
       .returning();
     
     return result[0] ? projectFromRow(result[0]) : null;
   }
 
-  async delete(userId: string, projectSlug: string) {
+  async delete(userId: string, id: string) {
     const db = this.database.getDb();
     const result = await db
       .delete(projects)
-      .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
+      .where(and(eq(projects.userId, userId), eq(projects.id, id)))
       .returning();
     
     return result.length > 0;

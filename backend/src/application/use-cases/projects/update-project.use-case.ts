@@ -12,7 +12,9 @@ export class UpdateProjectUseCase {
 
   async execute(input: UpdateProjectInput, userId: string) {
 
-    const project = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
+    const project = input.projectId
+      ? await this.contentRepository.getProjectById(userId, input.projectId)
+      : await this.contentRepository.getProjectBySlug(userId, input.projectSlug || '');
     if (!project || !project.enabled) throw new NotFoundException('project_not_found');
 
     const selectedRepositories = await this.githubRepositoryResolution.resolveSelectedRepositories({

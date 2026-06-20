@@ -26,12 +26,14 @@ export class GenerateProjectBriefUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {}
 
-  async execute(userId: string, projectSlug: string) {
+  async execute(userId: string, projectId: string) {
     let workspaceSlug = '';
     let isAll = false;
+    let projectSlug = '';
 
-    if (projectSlug === 'all') {
+    if (projectId === 'all') {
       isAll = true;
+      projectSlug = 'all';
       const workspaces = await this.contentRepository.listWorkspaces(userId);
       if (workspaces.length > 0) {
         workspaceSlug = workspaces[0].workspaceSlug;
@@ -39,9 +41,10 @@ export class GenerateProjectBriefUseCase {
         throw new NotFoundException('workspace_not_found');
       }
     } else {
-      const project = await this.contentRepository.getProjectBySlug(userId, projectSlug);
+      const project = await this.contentRepository.getProjectById(userId, projectId);
       if (!project || !project.enabled) throw new NotFoundException('project_not_found');
       workspaceSlug = project.workspaceSlug || '';
+      projectSlug = project.projectSlug;
     }
 
     const config = this.aiConfig();
@@ -49,7 +52,7 @@ export class GenerateProjectBriefUseCase {
 
     const generatedAt = new Date().toISOString();
     const items = (await this.contentRepository.listNotes(userId))
-      .filter((note) => note.workspaceSlug === workspaceSlug && (isAll || note.projectSlug === projectSlug))
+      .filter((note) => note.workspaceSlug === workspaceSlug && (isAll || note.projectId === projectId))
       .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || left.title.localeCompare(right.title))
       .slice(0, CONTEXT_WINDOW)
       .map(toContextItem);
@@ -59,6 +62,7 @@ export class GenerateProjectBriefUseCase {
       const brief = emptyProjectBrief(projectSlug, generatedAt);
       await this.historyRepository.save({
         userId,
+        projectId: isAll ? undefined : projectId,
         workspaceSlug,
         projectSlug,
         brief,
@@ -82,6 +86,7 @@ export class GenerateProjectBriefUseCase {
       const normalized = normalizeBrief(brief, projectSlug, generatedAt, items);
       await this.historyRepository.save({
         userId,
+        projectId: isAll ? undefined : projectId,
         workspaceSlug,
         projectSlug,
         brief: normalized,
@@ -96,6 +101,7 @@ export class GenerateProjectBriefUseCase {
       console.error('Project brief generation failed:', error);
       const latest = await this.historyRepository.findLatest({
         userId,
+        projectId: isAll ? undefined : projectId,
         workspaceSlug,
         projectSlug,
       });

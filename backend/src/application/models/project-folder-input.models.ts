@@ -1,11 +1,13 @@
 export type CreateProjectFolderInput = {
-  projectSlug: string;
+  projectId?: string;
+  projectSlug?: string;
   displayName: string;
   parentFolderId?: string;
 };
 
 export type UpdateProjectFolderInput = {
-  projectSlug: string;
+  projectId?: string;
+  projectSlug?: string;
   folderId: string;
   displayName: string;
   parentFolderId?: string;

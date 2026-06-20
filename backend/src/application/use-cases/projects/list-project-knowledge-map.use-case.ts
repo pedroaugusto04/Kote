@@ -18,12 +18,19 @@ export class ListProjectKnowledgeMapUseCase {
   constructor(private readonly contentRepository: ContentRepository) {}
 
   async execute(userId: string, input: ListProjectKnowledgeMapInput): Promise<ProjectKnowledgeMapResponse> {
-    const project = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
+    const project = input.projectId
+      ? await this.contentRepository.getProjectById(userId, input.projectId)
+      : await this.contentRepository.getProjectBySlug(userId, input.projectSlug || '');
     if (!project || !project.enabled) throw new NotFoundException('project_not_found');
 
-    const folders = await this.contentRepository.listProjectFolders(userId, input.projectSlug);
+    const folders = await this.contentRepository.listProjectFolders(userId, project.id);
     const normalizedFolderId = input.folderId?.trim() || '';
-    const queryInput = { ...input, folderId: undefined as string | undefined, folderIds: undefined as string[] | undefined };
+    const queryInput = {
+      ...input,
+      projectId: project.id,
+      folderId: undefined as string | undefined,
+      folderIds: undefined as string[] | undefined,
+    };
     if (normalizedFolderId) {
       const selectedFolder = folders.find((folder) => folder.id === normalizedFolderId);
       if (!selectedFolder) throw new NotFoundException('folder_not_found');

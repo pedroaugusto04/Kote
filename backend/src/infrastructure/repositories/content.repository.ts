@@ -105,24 +105,28 @@ export class PostgresContentRepository extends ContentRepository {
     return this.projectRepository.getBySlug(userId, projectSlug);
   }
 
+  async getProjectById(userId: string, projectId: string) {
+    return this.projectRepository.getById(userId, projectId);
+  }
+
   async upsertProject(userId: string, input: SaveProjectInput) {
     return this.projectRepository.upsert(userId, input);
   }
 
-  async deleteProject(userId: string, projectSlug: string) {
-    return this.projectRepository.delete(userId, projectSlug);
+  async deleteProject(userId: string, projectId: string) {
+    return this.projectRepository.delete(userId, projectId);
   }
 
-  async setProjectFavorite(userId: string, projectSlug: string, favorite: boolean) {
-    return this.projectRepository.setFavorite(userId, projectSlug, favorite);
+  async setProjectFavorite(userId: string, projectId: string, favorite: boolean) {
+    return this.projectRepository.setFavorite(userId, projectId, favorite);
   }
 
-  async listProjectFolders(userId: string, projectSlug: string) {
-    return this.folderRepository.list(userId, projectSlug);
+  async listProjectFolders(userId: string, projectId: string) {
+    return this.folderRepository.list(userId, projectId);
   }
 
-  async getProjectFolderById(userId: string, projectSlug: string, folderId: string) {
-    return this.folderRepository.getById(userId, projectSlug, folderId);
+  async getProjectFolderById(userId: string, projectId: string, folderId: string) {
+    return this.folderRepository.getById(userId, projectId, folderId);
   }
 
   async upsertProjectFolder(userId: string, input: SaveProjectFolderInput) {
@@ -158,8 +162,8 @@ export class PostgresContentRepository extends ContentRepository {
     );
   }
 
-  async deleteProjectFolder(userId: string, projectSlug: string, folderId: string) {
-    return this.folderRepository.delete(userId, projectSlug, folderId);
+  async deleteProjectFolder(userId: string, projectId: string, folderId: string) {
+    return this.folderRepository.delete(userId, projectId, folderId);
   }
 
   async listNotes(userId: string) {

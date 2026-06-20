@@ -13,7 +13,7 @@ import { projectFolders, projects, workspaces } from '../persistence/schema/inde
 export class PostgresFolderRepository {
   constructor(private readonly database: PostgresDatabase) {}
 
-  async list(userId: string, projectSlug: string) {
+  async list(userId: string, projectId: string) {
     const db = this.database.getDb();
     const result = await db
       .select({
@@ -31,13 +31,13 @@ export class PostgresFolderRepository {
       .from(projectFolders)
       .innerJoin(projects, and(eq(projects.id, projectFolders.projectId), eq(projects.userId, userId)))
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
-      .where(and(eq(projectFolders.userId, userId), eq(projects.projectSlug, projectSlug)))
+      .where(and(eq(projectFolders.userId, userId), eq(projectFolders.projectId, projectId)))
       .orderBy(projectFolders.fullSlugPath);
     
     return result.map(projectFolderFromRow);
   }
 
-  async getById(userId: string, projectSlug: string, folderId: string) {
+  async getById(userId: string, projectId: string, folderId: string) {
     const db = this.database.getDb();
     const result = await db
       .select({
@@ -57,7 +57,7 @@ export class PostgresFolderRepository {
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
       .where(and(
         eq(projectFolders.userId, userId),
-        eq(projects.projectSlug, projectSlug),
+        eq(projectFolders.projectId, projectId),
         eq(projectFolders.id, folderId)
       ))
       .limit(1);
@@ -114,18 +114,8 @@ export class PostgresFolderRepository {
     });
   }
 
-  async delete(userId: string, projectSlug: string, folderId: string) {
+  async delete(userId: string, projectId: string, folderId: string) {
     const db = this.database.getDb();
-    
-    const projResult = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
-      .limit(1);
-    
-    if (projResult.length === 0) return false;
-    const projectId = projResult[0].id;
-
     const result = await db
       .delete(projectFolders)
       .where(and(

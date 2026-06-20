@@ -43,6 +43,9 @@ import { queryRequestSchema, type QueryRequest } from '../../dto/query.dto.js';
 import { askHistoryQuerySchema, askRequestSchema, type AskHistoryQuery, type AskRequest } from '../../dto/ask.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { paginatedResponse } from '../../http-helpers.js';
+import { OptionalProjectResolutionGuard } from '../../project-resolution.guard.js';
+import { ProjectId } from '../../project.decorators.js';
+import { WorkspaceId } from '../../workspace.decorators.js';
 
 @ApiTags('Dashboard')
 @Controller('api')
@@ -92,14 +95,20 @@ export class DashboardController {
   }
 
   @Get('notes')
+  @UseGuards(OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List notes' })
   @ApiResponse({ status: 200, description: 'Notes retrieved successfully' })
   async notes(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(notesListQuerySchema, 'invalid_notes_query')) query: NotesListQuery,
+    @WorkspaceId() workspaceId?: string,
+    @ProjectId() projectId?: string,
   ) {
-    return { ok: true, ...paginatedResponse('notes', await this.listNotesUseCase.execute(user.id, query)) };
+    return {
+      ok: true,
+      ...paginatedResponse('notes', await this.listNotesUseCase.execute(user.id, { ...query, workspaceId, projectId })),
+    };
   }
 
   @Get('notes/:id')

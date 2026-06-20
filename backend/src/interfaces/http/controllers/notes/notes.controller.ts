@@ -27,6 +27,8 @@ import {
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { inlineContentDisposition } from '../../http-helpers.js';
+import { ProjectResolutionGuard } from '../../project-resolution.guard.js';
+import { ProjectId } from '../../project.decorators.js';
 
 @ApiTags('Notes')
 @Controller('api/notes')
@@ -42,7 +44,7 @@ export class NotesController {
   ) {}
 
   @Post()
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a manual note' })
   @ApiResponse({ status: 201, description: 'Note created successfully' })
@@ -50,8 +52,9 @@ export class NotesController {
   create(
     @Body(new ZodValidationPipe(createNoteBodySchema, 'invalid_create_note_payload')) body: CreateNoteBody,
     @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId: string,
   ) {
-    return this.createManualNote.execute(body, user.id);
+    return this.createManualNote.execute({ ...body, projectId }, user.id);
   }
 
   @Patch(':id')

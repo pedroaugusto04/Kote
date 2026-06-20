@@ -206,8 +206,7 @@ export class HandleGithubPushUseCase {
     const connected = Boolean(credential && credential.status === CredentialRecordStatus.Connected && !credential.revokedAt);
     if (!connected) return { sent: false, skipped: 'whatsapp_not_connected' };
 
-    const workspaces = await this.contentRepository.listWorkspaces(userId);
-    const workspace = workspaces.find((item) => item.workspaceSlug === workspaceSlug);
+    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
     const chatJid = String(workspace?.whatsappChatJid || '').trim();
     if (!chatJid) return { sent: false, skipped: 'whatsapp_chat_not_bound' };
     const noteLink = noteId && noteBaseUrl ? absoluteUrl(noteBaseUrl, `/vault/${encodeURIComponent(noteId)}`) : '';

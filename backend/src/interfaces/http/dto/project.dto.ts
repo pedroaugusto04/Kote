@@ -65,11 +65,6 @@ export type ProjectTimelineQuery = z.infer<typeof projectTimelineQuerySchema>;
 export type ProjectKnowledgeMapQuery = z.infer<typeof projectKnowledgeMapQuerySchema>;
 export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
 
-export const projectFolderIdParamSchema = z.object({
-  projectSlug: z.string().trim().min(1).transform((value) => slugify(value)),
-  folderId: z.string().trim().min(1),
-});
-
 export const createProjectFolderBodySchema = z
   .object({
     displayName: z.string().trim().min(1, 'Folder name is required.').max(120, 'Maximum length is 120 characters.'),
@@ -83,7 +78,6 @@ export const createProjectFolderBodySchema = z
 
 export const updateProjectFolderBodySchema = createProjectFolderBodySchema;
 
-export type ProjectFolderParam = z.infer<typeof projectFolderIdParamSchema>;
 export type CreateProjectFolderBody = z.infer<typeof createProjectFolderBodySchema>;
 export type UpdateProjectFolderBody = z.infer<typeof updateProjectFolderBodySchema>;
 

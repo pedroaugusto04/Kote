@@ -69,7 +69,6 @@ export class PostgresNoteRepository {
         projectId: notes.projectId,
         workspaceId: notes.workspaceId,
         projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
         folderId: notes.folderId,
         status: notes.status,
         tags: notes.tags,
@@ -104,7 +103,6 @@ export class PostgresNoteRepository {
         )`.as('categories'),
       })
       .from(notes)
-      .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(attachments, and(
         eq(attachments.userId, notes.userId),
@@ -113,7 +111,7 @@ export class PostgresNoteRepository {
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(eq(notes.userId, userId))
-      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
+      .groupBy(notes.id, projects.projectSlug)
       .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title);
 
     return result.map(noteFromRow);
@@ -123,7 +121,9 @@ export class PostgresNoteRepository {
     const db = this.database.getDb();
     const conditions = [eq(notes.userId, userId)];
 
-    if (input.workspaceSlug) {
+    if (input.workspaceId) {
+      conditions.push(eq(notes.workspaceId, input.workspaceId));
+    } else if (input.workspaceSlug) {
       const wsResult = await db
         .select({ id: workspaces.id })
         .from(workspaces)
@@ -135,7 +135,9 @@ export class PostgresNoteRepository {
         return { items: [], pagination: buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, 0) };
       }
     }
-    if (input.projectSlug) {
+    if (input.projectId) {
+      conditions.push(eq(notes.projectId, input.projectId));
+    } else if (input.projectSlug) {
       const projResult = await db
         .select({ id: projects.id })
         .from(projects)
@@ -178,7 +180,6 @@ export class PostgresNoteRepository {
         projectId: notes.projectId,
         workspaceId: notes.workspaceId,
         projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
         folderId: notes.folderId,
         status: notes.status,
         tags: notes.tags,
@@ -213,7 +214,6 @@ export class PostgresNoteRepository {
         )`.as('categories'),
       })
       .from(notes)
-      .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(attachments, and(
         eq(attachments.userId, notes.userId),
@@ -222,7 +222,7 @@ export class PostgresNoteRepository {
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(whereCondition)
-      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
+      .groupBy(notes.id, projects.projectSlug)
       .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title)
       .limit(pagination.pageSize)
       .offset((pagination.page - 1) * pagination.pageSize);
@@ -236,10 +236,12 @@ export class PostgresNoteRepository {
 
     const joinSql = `
       left join kb_projects p on p.id = n.project_id
-      join kb_workspaces w on w.id = n.workspace_id
     `;
 
-    if (input.projectSlug) {
+    if (input.projectId) {
+      values.push(input.projectId);
+      clauses.push(`n.project_id = $${values.length}`);
+    } else if (input.projectSlug) {
       values.push(input.projectSlug);
       clauses.push(`p.project_slug = $${values.length}`);
     }
@@ -267,7 +269,7 @@ export class PostgresNoteRepository {
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
 
     const result = await this.database.getPool().query(
-      `select n.*, p.project_slug, w.workspace_slug, count(distinct a.id)::int as attachment_count,
+      `select n.*, p.project_slug, count(distinct a.id)::int as attachment_count,
               coalesce(
                 json_agg(
                   json_build_object(
@@ -290,7 +292,7 @@ export class PostgresNoteRepository {
        left join kb_note_categories nc on nc.note_id = n.id
        left join kb_categories cat on cat.id = nc.category_id
        where ${where}
-       group by n.id, p.project_slug, w.workspace_slug
+       group by n.id, p.project_slug
        order by n.is_pinned desc, n.occurred_at desc, n.title asc
        limit $${values.length + 1} offset $${values.length + 2}`,
       [...values, pagination.pageSize, (pagination.page - 1) * pagination.pageSize]
@@ -303,14 +305,21 @@ export class PostgresNoteRepository {
   }
 
   async listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput) {
-    const values: unknown[] = [userId, input.projectSlug];
-    const clauses = ['n.user_id = $1', 'p.project_slug = $2'];
+    const values: unknown[] = [userId];
+    const clauses = ['n.user_id = $1'];
+    if (input.projectId) {
+      values.push(input.projectId);
+      clauses.push(`n.project_id = $${values.length}`);
+    } else {
+      values.push(input.projectSlug);
+      clauses.push(`p.project_slug = $${values.length}`);
+    }
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, input.category);
     const where = clauses.join(' and ');
 
     const result = await this.database.getPool().query(
-      `select n.*, p.project_slug, w.workspace_slug, count(distinct a.id)::int as attachment_count,
+      `select n.*, p.project_slug, count(distinct a.id)::int as attachment_count,
               coalesce(
                 json_agg(
                   json_build_object(
@@ -329,12 +338,11 @@ export class PostgresNoteRepository {
               ) as categories
        from kb_notes n
        left join kb_projects p on p.id = n.project_id
-       join kb_workspaces w on w.id = n.workspace_id
        left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
        left join kb_note_categories nc on nc.note_id = n.id
        left join kb_categories cat on cat.id = nc.category_id
        where ${where}
-       group by n.id, p.project_slug, w.workspace_slug
+       group by n.id, p.project_slug
        order by n.is_pinned desc, n.occurred_at desc, n.title asc
        limit $${values.length + 1}`,
       [...values, input.limit]
@@ -354,7 +362,6 @@ export class PostgresNoteRepository {
         projectId: notes.projectId,
         workspaceId: notes.workspaceId,
         projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
         folderId: notes.folderId,
         status: notes.status,
         tags: notes.tags,
@@ -388,12 +395,11 @@ export class PostgresNoteRepository {
         )`.as('categories'),
       })
       .from(notes)
-      .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(and(eq(notes.userId, userId), eq(notes.id, id)))
-      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
+      .groupBy(notes.id, projects.projectSlug)
       .limit(1);
 
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
@@ -411,7 +417,6 @@ export class PostgresNoteRepository {
         projectId: notes.projectId,
         workspaceId: notes.workspaceId,
         projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
         folderId: notes.folderId,
         status: notes.status,
         tags: notes.tags,
@@ -445,12 +450,11 @@ export class PostgresNoteRepository {
         )`.as('categories'),
       })
       .from(notes)
-      .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(and(eq(notes.userId, userId), inArray(notes.id, ids)))
-      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug);
+      .groupBy(notes.id, projects.projectSlug);
 
     const noteRecords = result.map(noteFromRow);
     return Promise.all(noteRecords.map((n) => this.hydrateMarkdown(n)));
@@ -467,7 +471,6 @@ export class PostgresNoteRepository {
         projectId: notes.projectId,
         workspaceId: notes.workspaceId,
         projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
         folderId: notes.folderId,
         status: notes.status,
         tags: notes.tags,
@@ -501,7 +504,6 @@ export class PostgresNoteRepository {
         )`.as('categories'),
       })
       .from(notes)
-      .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
@@ -510,7 +512,7 @@ export class PostgresNoteRepository {
         eq(notes.source, source),
         eq(notes.sessionId, sessionId)
       ))
-      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
+      .groupBy(notes.id, projects.projectSlug)
       .limit(1);
 
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;

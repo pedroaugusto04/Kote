@@ -5,10 +5,7 @@ export type WorkspaceRequest = AuthenticatedRequest & {
   workspaceId?: string;
 };
 
-export const WorkspaceId = createParamDecorator((_data: unknown, context: ExecutionContext): string => {
+export const WorkspaceId = createParamDecorator((_data: unknown, context: ExecutionContext): string | undefined => {
   const request = context.switchToHttp().getRequest<WorkspaceRequest>();
-  if (!request.workspaceId) {
-    throw new Error('workspace_id_missing_from_request');
-  }
   return request.workspaceId;
 });

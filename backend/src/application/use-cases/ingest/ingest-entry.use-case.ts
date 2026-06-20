@@ -86,14 +86,15 @@ async function saveIngestedNote(
 ): Promise<SaveNoteResult> {
   const parsed = withDerivedReminderAt(ingestPayloadSchema.parse(input), reminderTimeZone);
   const workspaceSlug = slugify(workspaceSlugOverride || String(parsed.metadata.workspaceSlug || 'default')) || 'default';
-  const workspace = (await contentRepository.listWorkspaces(userId)).find((item) => item.workspaceSlug === workspaceSlug);
+  const workspace = await contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
   if (!workspace) throw new NotFoundException('workspace_not_found');
-  const existingProject = (await contentRepository.listProjects(userId)).find(
-    (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.projectSlug === parsed.event.projectSlug,
-  );
-  const projectId = existingProject ? existingProject.id : crypto.randomUUID();
   const workspaceId = workspace.id;
-  const project: Project = existingProject
+
+  const existingProject = await contentRepository.getProjectBySlug(userId, parsed.event.projectSlug);
+  const isMatchingProject = existingProject && existingProject.enabled && existingProject.workspaceId === workspaceId;
+  const projectId = isMatchingProject ? existingProject.id : crypto.randomUUID();
+
+  const project: Project = isMatchingProject
     ? {
         projectSlug: existingProject.projectSlug,
         displayName: existingProject.displayName,
@@ -136,13 +137,13 @@ async function saveIngestedNote(
     },
   };
   const folder = options.folderId
-    ? await contentRepository.getProjectFolderById(userId, project.projectSlug, options.folderId)
+    ? await contentRepository.getProjectFolderById(userId, projectId, options.folderId)
     : null;
   if (options.folderId && (!folder || folder.workspaceSlug !== workspaceSlug)) throw new NotFoundException('folder_not_found');
   const paths = buildNotePaths(project, payload, folder?.fullSlugPath || '');
   const markdown = renderEventNote(project, payload, paths);
   const title = trimText(payload.content.title, payload.content.rawText);
-  if (!existingProject) {
+  if (!isMatchingProject) {
     if (project.repositories.length > 0) {
       const repo = project.repositories[0]!;
       const savedRepo = await contentRepository.upsertRepository({
@@ -185,9 +186,9 @@ async function saveIngestedNote(
   if (categoryIds === undefined) {
     const categoryName = payload.classification.canonicalType;
     if (categoryName) {
-      let category = await contentRepository.findCategoryByName(userId, workspaceSlug, categoryName);
+      let category = await contentRepository.findCategoryByName(userId, workspaceId, categoryName);
       if (!category) {
-        category = await contentRepository.createCategory(userId, workspaceSlug, {
+        category = await contentRepository.createCategory(userId, workspaceId, {
           name: categoryName,
           color: '#9e9e9e',
           icon: '',
@@ -240,7 +241,7 @@ async function saveIngestedNote(
     ),
   );
   const folderSummary = folder
-    ? await buildFolderSummary(contentRepository, userId, project.projectSlug, folder)
+    ? await buildFolderSummary(contentRepository, userId, projectId, folder)
     : { folderName: 'Project root', folderPath: 'Project root' };
   const reminderDate = String(payload.actions.reminderDate || '');
   const reminderTime = String(payload.actions.reminderTime || '');
@@ -279,10 +280,10 @@ async function saveIngestedNote(
 async function buildFolderSummary(
   contentRepository: ContentRepository,
   userId: string,
-  projectSlug: string,
+  projectId: string,
   folder: ProjectFolderRecord,
 ) {
-  const folders = await contentRepository.listProjectFolders(userId, projectSlug);
+  const folders = await contentRepository.listProjectFolders(userId, projectId);
   const byId = new Map(folders.map((item) => [item.id, item]));
   const names: string[] = [];
   let current: ProjectFolderRecord | undefined = folder;

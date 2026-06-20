@@ -11,10 +11,14 @@ export class ListProjectBriefHistoryUseCase {
     private readonly historyRepository: ProjectBriefHistoryRepository,
   ) {}
 
-  async execute(userId: string, input: PaginationInput & { projectSlug: string }) {
-    const { projectSlug, page, pageSize } = input;
+  async execute(userId: string, input: PaginationInput & { projectId: string }) {
+    const { projectId, page, pageSize } = input;
     let workspaceSlug = '';
-    if (projectSlug === 'all') {
+    let projectSlug = '';
+    let isAll = false;
+    if (projectId === 'all') {
+      isAll = true;
+      projectSlug = 'all';
       const workspaces = await this.contentRepository.listWorkspaces(userId);
       if (workspaces.length > 0) {
         workspaceSlug = workspaces[0].workspaceSlug;
@@ -22,15 +26,17 @@ export class ListProjectBriefHistoryUseCase {
         throw new NotFoundException('workspace_not_found');
       }
     } else {
-      const project = await this.contentRepository.getProjectBySlug(userId, projectSlug);
+      const project = await this.contentRepository.getProjectById(userId, projectId);
       if (!project || !project.enabled) throw new NotFoundException('project_not_found');
       workspaceSlug = project.workspaceSlug || '';
+      projectSlug = project.projectSlug;
     }
 
     return this.historyRepository.list({
       userId,
       workspaceSlug,
       projectSlug,
+      projectId: isAll ? undefined : projectId,
       page,
       pageSize,
     });

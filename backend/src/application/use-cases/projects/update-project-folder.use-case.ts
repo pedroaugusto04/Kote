@@ -16,10 +16,12 @@ export class UpdateProjectFolderUseCase {
   constructor(private readonly contentRepository: ContentRepository) {}
 
   async execute(input: UpdateProjectFolderInput, userId: string) {
-    const project = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
+    const project = input.projectId
+      ? await this.contentRepository.getProjectById(userId, input.projectId)
+      : await this.contentRepository.getProjectBySlug(userId, input.projectSlug || '');
     if (!project || !project.enabled) throw new NotFoundException('project_not_found');
 
-    const folders = await this.contentRepository.listProjectFolders(userId, input.projectSlug);
+    const folders = await this.contentRepository.listProjectFolders(userId, project.id);
     const currentFolder = folders.find((folder) => folder.id === input.folderId);
     if (!currentFolder) throw new NotFoundException('folder_not_found');
 
@@ -63,7 +65,7 @@ export class UpdateProjectFolderUseCase {
 
     const notes = await this.contentRepository.listNotes(userId);
     const rewrittenByFolderId = new Map(rewrites.map((rewrite) => [rewrite.previous.id, rewrite]));
-    const affectedNotes = notes.filter((note) => note.projectSlug === project.projectSlug && note.folderId && descendantIds.has(note.folderId));
+    const affectedNotes = notes.filter((note) => note.projectId === project.id && note.folderId && descendantIds.has(note.folderId));
     const updatedNotes = [];
     for (const note of affectedNotes) {
       const loadedNote = await this.contentRepository.getNoteById(userId, note.id);

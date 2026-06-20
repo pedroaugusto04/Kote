@@ -24,14 +24,14 @@ export class CreateManualNoteUseCase {
     private readonly noteEventDispatcher: NoteEventDispatcher,
   ) { }
 
-  async execute(input: CreateManualNoteInput, userId: string) {
-    const workspaces = await this.contentRepository.listWorkspaces(userId);
-    const workspace = workspaces[0];
-    if (!workspace) throw new NotFoundException('workspace_not_found');
+  async execute(input: CreateManualNoteInput & { projectId?: string }, userId: string) {
+    const project = input.projectId
+      ? await this.contentRepository.getProjectById(userId, input.projectId)
+      : await this.contentRepository.getProjectBySlug(userId, input.projectSlug || '');
+    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
 
-    const projects = await this.contentRepository.listProjects(userId);
-    const project = projects.find((item) => item.enabled && item.workspaceSlug === workspace.workspaceSlug && item.projectSlug === input.projectSlug);
-    if (!project) throw new NotFoundException('project_not_found');
+    const workspaceId = project.workspaceId;
+    const workspaceSlug = project.workspaceSlug || 'default';
 
     // Check if a note with the same source + sessionId already exists to avoid duplicates
     let existingNoteId: string | undefined;
@@ -49,7 +49,7 @@ export class CreateManualNoteUseCase {
     const reminderAt = input.reminderAt || '';
     const categoryIds = input.categoryIds || [];
     const categories = categoryIds.length > 0
-      ? await this.contentRepository.listCategories(userId, workspace.workspaceSlug)
+      ? await this.contentRepository.listCategories(userId, workspaceId)
       : [];
     const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
     const status = normalizeManualNoteStatus({
@@ -67,7 +67,7 @@ export class CreateManualNoteUseCase {
         channel: input.sourceChannel || (isAiChat ? SourceChannel.AiChat : SourceChannel.External),
         system: activeSource || 'manual-api',
         actor: '',
-        conversationId: workspace.workspaceSlug,
+        conversationId: workspaceSlug,
         correlationId: `manual:${crypto.randomUUID()}`,
         sessionId: input.sessionId || '',
       },
@@ -107,7 +107,7 @@ export class CreateManualNoteUseCase {
       },
     };
 
-    return this.ingestEntryUseCase.execute(withDerivedReminderAt(payload, reminderTimeZone), userId, workspace.workspaceSlug, {
+    return this.ingestEntryUseCase.execute(withDerivedReminderAt(payload, reminderTimeZone), userId, workspaceSlug, {
       folderId: input.folderId,
       existingNoteId,
       categoryIds: input.categoryIds,
@@ -116,7 +116,7 @@ export class CreateManualNoteUseCase {
         event: WebhookTrigger.NoteCreated,
         noteId: result.noteId,
         userId,
-        workspaceSlug: workspace.workspaceSlug,
+        workspaceSlug: workspaceSlug,
         projectSlug: project.projectSlug,
         title: input.title,
         content: input.rawText,

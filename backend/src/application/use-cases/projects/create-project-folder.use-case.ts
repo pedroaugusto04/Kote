@@ -11,10 +11,12 @@ export class CreateProjectFolderUseCase {
   constructor(private readonly contentRepository: ContentRepository) {}
 
   async execute(input: CreateProjectFolderInput, userId: string) {
-    const project = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
+    const project = input.projectId
+      ? await this.contentRepository.getProjectById(userId, input.projectId)
+      : await this.contentRepository.getProjectBySlug(userId, input.projectSlug || '');
     if (!project || !project.enabled) throw new NotFoundException('project_not_found');
 
-    const folders = await this.contentRepository.listProjectFolders(userId, input.projectSlug);
+    const folders = await this.contentRepository.listProjectFolders(userId, project.id);
     const parentFolder = input.parentFolderId
       ? folders.find((folder) => folder.id === input.parentFolderId) || null
       : null;

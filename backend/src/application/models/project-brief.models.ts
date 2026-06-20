@@ -52,6 +52,7 @@ export type ProjectBriefAiConfig = {
 export type ProjectBriefHistoryRecord = {
   id: string;
   userId: string;
+  projectId?: string;
   workspaceSlug: string;
   projectSlug: string;
   brief: ProjectBrief;
@@ -66,6 +67,7 @@ export type ProjectBriefHistoryRecord = {
 
 export type SaveProjectBriefHistoryInput = {
   userId: string;
+  projectId?: string;
   workspaceSlug: string;
   projectSlug: string;
   brief: ProjectBrief;

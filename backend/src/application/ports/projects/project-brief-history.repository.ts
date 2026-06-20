@@ -7,11 +7,13 @@ export abstract class ProjectBriefHistoryRepository {
     userId: string;
     workspaceSlug: string;
     projectSlug: string;
+    projectId?: string;
   }): Promise<ProjectBriefHistoryRecord | null>;
   abstract list(input: {
     userId: string;
     workspaceSlug: string;
     projectSlug: string;
+    projectId?: string;
     page: number;
     pageSize: number;
   }): Promise<PaginatedResult<ProjectBriefHistoryRecord>>;

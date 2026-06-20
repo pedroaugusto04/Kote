@@ -30,7 +30,7 @@ export class UpdateNoteUseCase {
       ? note.categories.map((category) => category.id)
       : normalizedInput.categoryIds;
     const categories = categoryIds.length > 0
-      ? await this.contentRepository.listCategories(userId, note.workspaceSlug || '')
+      ? await this.contentRepository.listCategories(userId, note.workspaceId)
       : [];
     const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
     const updated = await this.contentRepository.updateNote(
@@ -65,13 +65,13 @@ export class UpdateNoteUseCase {
     const note = await this.contentRepository.getNoteById(userId, noteId);
     if (!note) throw new NotFoundException('note_not_found');
 
-    const project = await this.contentRepository.getProjectBySlug(userId, note.projectSlug || '');
+    const project = await this.contentRepository.getProjectById(userId, note.projectId);
     if (!project || !project.enabled) throw new NotFoundException('project_not_found');
     const previousFolder = note.folderId
-      ? await this.contentRepository.getProjectFolderById(userId, project.projectSlug, note.folderId)
+      ? await this.contentRepository.getProjectFolderById(userId, project.id, note.folderId)
       : null;
     const nextFolder = folderId
-      ? await this.contentRepository.getProjectFolderById(userId, project.projectSlug, folderId)
+      ? await this.contentRepository.getProjectFolderById(userId, project.id, folderId)
       : null;
     if (folderId && !nextFolder) throw new NotFoundException('folder_not_found');
     return { note, previousFolder, nextFolder };
