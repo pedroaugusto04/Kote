@@ -114,6 +114,7 @@ jobs:
           KB_GOOGLE_OAUTH_REDIRECT_URI: ${{ vars.KB_GOOGLE_OAUTH_REDIRECT_URI || '' }}
           KB_INTERNAL_SERVICE_TOKEN: ${{ secrets.KB_INTERNAL_SERVICE_TOKEN }}
           KB_CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.KB_CREDENTIALS_ENCRYPTION_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY || '' }}
           KB_GITHUB_APP_INSTALL_URL: ${{ vars.KB_GITHUB_APP_INSTALL_URL || '' }}
           KB_GITHUB_APP_CLIENT_ID: ${{ secrets.KB_GITHUB_APP_CLIENT_ID || '' }}
           KB_GITHUB_APP_CLIENT_SECRET: ${{ secrets.KB_GITHUB_APP_CLIENT_SECRET || '' }}
@@ -163,6 +164,7 @@ jobs:
           ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN || '' }}
           ASAAS_CUSTOMER_NOTIFICATIONS_DISABLED: ${{ vars.ASAAS_CUSTOMER_NOTIFICATIONS_DISABLED || 'false' }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY || '' }}
+          STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY || '' }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET || '' }}
           CHANGE_SUBSCRIPTION_WORKER_AUTORUN: ${{ vars.CHANGE_SUBSCRIPTION_WORKER_AUTORUN || 'false' }}
           BILLING_WORKER_AUTORUN: ${{ vars.BILLING_WORKER_AUTORUN || 'false' }}
@@ -197,6 +199,7 @@ jobs:
           KB_JWT_REFRESH_SECRET: ${{ secrets.KB_JWT_REFRESH_SECRET }}
           KB_INTERNAL_SERVICE_TOKEN: ${{ secrets.KB_INTERNAL_SERVICE_TOKEN }}
           KB_CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.KB_CREDENTIALS_ENCRYPTION_KEY }}
+          STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY || '' }}
         run: |
           set -euo pipefail
           test -n "$VPS_HOST" || { echo "Missing secret: VPS_HOST"; exit 1; }
@@ -218,6 +221,7 @@ jobs:
           test -n "$KB_JWT_REFRESH_SECRET" || { echo "Missing secret: KB_JWT_REFRESH_SECRET"; exit 1; }
           test -n "$KB_INTERNAL_SERVICE_TOKEN" || { echo "Missing secret: KB_INTERNAL_SERVICE_TOKEN"; exit 1; }
           test -n "$KB_CREDENTIALS_ENCRYPTION_KEY" || { echo "Missing secret: KB_CREDENTIALS_ENCRYPTION_KEY"; exit 1; }
+          test -n "$STRIPE_PUBLISHABLE_KEY" || { echo "Missing variable: STRIPE_PUBLISHABLE_KEY"; exit 1; }
 
       - name: Ensure rsync is available on GitHub runner
         run: |
