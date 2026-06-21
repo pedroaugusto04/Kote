@@ -457,7 +457,7 @@ export function SubscriptionPage() {
 
               {/* CPF/CNPJ Field - Required for PIX and Boleto */}
               {!selectedPlan.isDefault && isBrazil && (choiceType === BILLING_TYPE.PIX || choiceType === BILLING_TYPE.BOLETO) && (
-                <div>
+                <div className="form-field">
                   <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>
                     CPF/CNPJ <span style={{ color: 'rgb(220, 38, 38)' }}>*</span>
                   </label>
@@ -465,22 +465,16 @@ export function SubscriptionPage() {
                     type="text"
                     value={cpfCnpj}
                     onChange={handleCpfCnpjChange}
-                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      border: cpfCnpjError ? '1px solid rgb(220, 38, 38)' : '1px solid var(--border)',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                      fontFamily: 'monospace',
-                    }}
+                    placeholder="000.000.000-00 or 00.000.000/0000-00"
+                    aria-invalid={!!cpfCnpjError}
+                    style={{ fontFamily: 'monospace' }}
                   />
                   {cpfCnpjError && (
-                    <span style={{ fontSize: '11px', color: 'rgb(220, 38, 38)', display: 'block', marginTop: '4px' }}>
+                    <span className="form-error">
                       {cpfCnpjError}
                     </span>
                   )}
-                  <span style={{ fontSize: '11px', color: 'var(--muted)', display: 'block', marginTop: '4px' }}>
+                  <span className="form-field-meta">
                     Required for invoice issuance
                   </span>
                 </div>
