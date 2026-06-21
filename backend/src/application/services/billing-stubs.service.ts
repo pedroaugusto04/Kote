@@ -39,6 +39,7 @@ export type UserSubStatus = typeof USER_SUB_STATUS[keyof typeof USER_SUB_STATUS]
 // Constants for Gateway Names
 export const GATEWAY_NAMES = {
   ASAAS: 'asaas',
+  STRIPE: 'stripe',
 } as const;
 
 // Constants for Billing Intent Statuses

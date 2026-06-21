@@ -162,6 +162,8 @@ jobs:
           ASAAS_BASE_URL: ${{ vars.ASAAS_BASE_URL || '' }}
           ASAAS_WEBHOOK_TOKEN: ${{ secrets.ASAAS_WEBHOOK_TOKEN || '' }}
           ASAAS_CUSTOMER_NOTIFICATIONS_DISABLED: ${{ vars.ASAAS_CUSTOMER_NOTIFICATIONS_DISABLED || 'false' }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY || '' }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET || '' }}
         run: bash scripts/deploy/generate-backend-env.sh .deploy/backend.env
 
       - name: Validate production environment config

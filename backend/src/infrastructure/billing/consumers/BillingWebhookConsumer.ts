@@ -9,7 +9,7 @@ import {
 import { AsaasPaymentGateway } from '../gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../gateways/stripe/StripePaymentGateway.js';
 import { AsaasGatewayStatusMapper } from '../gateways/asaas/AsaasGatewayStatusMapper.js';
-import { SubscriptionService, BillingIntentService } from '../../../application/services/billing-stubs.service.js';
+import { SubscriptionService, BillingIntentService, GATEWAY_NAMES } from '../../../application/services/billing-stubs.service.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { BillingEventBus } from '../../../application/services/billing-event.bus.js';
 import {
@@ -267,7 +267,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     }
 
     const gateway = webhookRecord.gateway;
-    const paymentGateway = gateway === 'stripe' ? this.stripePaymentGateway : this.paymentGateway;
+    const paymentGateway = gateway === GATEWAY_NAMES.STRIPE ? this.stripePaymentGateway : this.paymentGateway;
     const event = paymentGateway.parseWebhook(webhookRecord.payload as Record<string, unknown>);
     const payment = event.payment;
 
@@ -279,7 +279,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     const gatewayPaymentId = String(payment.id);
 
     let payStatus: PaymentStatus | null = null;
-    if (gateway === 'stripe') {
+    if (gateway === GATEWAY_NAMES.STRIPE) {
       const s = String(payment.status ?? '').toLowerCase();
       if (['pending', 'received', 'confirmed', 'overdue', 'refunded', 'canceled', 'partially_refunded'].includes(s)) {
         payStatus = s as PaymentStatus;
@@ -443,7 +443,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     let creditCardToken = payment.creditCardToken || intent?.creditCardToken;
     if (!creditCardToken) {
       try {
-        const paymentGateway = gateway === 'stripe' ? this.stripePaymentGateway : this.paymentGateway;
+        const paymentGateway = gateway === GATEWAY_NAMES.STRIPE ? this.stripePaymentGateway : this.paymentGateway;
         const gatewayPayment = await paymentGateway.getPaymentByGatewayId(gatewayPaymentId);
         creditCardToken = gatewayPayment?.creditCardToken;
       } catch (err) {
