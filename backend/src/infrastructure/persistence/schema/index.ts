@@ -505,7 +505,7 @@ export const plans = pgTable('kb_plans', {
 export const userSubscriptions = pgTable('kb_user_subscriptions', {
   userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   planId: uuid('plan_id').notNull().references(() => plans.id),
-  status: text('status').notNull().default('active'), // active, trialing, past_due, canceled
+  status: text('status').notNull().default('active'), // active, pending, past_due, canceled, inactive
   currentPeriodStart: timestamp('current_period_start').notNull().defaultNow(),
   currentPeriodEnd: timestamp('current_period_end').notNull().defaultNow(),
   gatewayName: text('gateway_name').notNull().default('asaas'), // 'asaas', 'stripe', etc.

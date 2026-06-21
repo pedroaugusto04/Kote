@@ -18,8 +18,6 @@ export class StripeGatewayStatusMapper implements IGatewayStatusMapper {
       case 'canceled':
       case 'unpaid':
         return 'canceled';
-      case 'trialing':
-        return 'trialing';
       default:
         return null;
     }
@@ -29,7 +27,7 @@ export class StripeGatewayStatusMapper implements IGatewayStatusMapper {
     const s = String(rawStatus ?? '').toLowerCase();
     const e = String(event ?? '').toLowerCase();
 
-    if (e.includes('charge.refunded') || e.includes('charge.refund')) {
+    if (e.includes('charge.refunded') || e.includes('charge.refund.updated')) {
       return 'refunded';
     }
 
@@ -47,8 +45,10 @@ export class StripeGatewayStatusMapper implements IGatewayStatusMapper {
         return 'canceled';
 
       case 'refunded':
-      case 'partially_refunded':
         return 'refunded';
+
+      case 'partially_refunded':
+        return 'partially_refunded';
 
       default:
         return null;

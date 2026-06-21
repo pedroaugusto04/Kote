@@ -138,22 +138,6 @@ export class SubscriptionService {
       throw new BadRequestException('Your subscription has a past due payment. Please settle the pending payment to change plan or cycle.');
     }
 
-    const pendingPayment = await db
-      .select()
-      .from(billingPayments)
-      .where(
-        and(
-          eq(billingPayments.userId, userId),
-          eq(billingPayments.status, PaymentStatus.PENDING)
-        )
-      )
-      .limit(1)
-      .then(r => r[0] || null);
-
-    if (pendingPayment) {
-      throw new BadRequestException('A subscription payment is already pending. Please settle or cancel the pending payment before making a new request.');
-    }
-
     if (
       currentSub &&
       currentSub.planId === planId &&
@@ -608,7 +592,7 @@ export class SubscriptionService {
       gatewayCustomerId: null,
     };
 
-    const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === SubscriptionStatus.PAST_DUE || subRow.status === SubscriptionStatus.TRIALING)) ? latestSubSummary : null;
+    const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === SubscriptionStatus.PAST_DUE)) ? latestSubSummary : null;
 
     const paymentRow = await db
       .select()

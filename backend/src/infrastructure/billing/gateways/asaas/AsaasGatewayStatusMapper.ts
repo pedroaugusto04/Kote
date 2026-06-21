@@ -45,10 +45,12 @@ export class AsaasGatewayStatusMapper implements IGatewayStatusMapper {
         return 'overdue';
 
       case 'REFUNDED':
-      case 'PARTIALLY_REFUNDED':
       case 'REFUND_REQUESTED':
       case 'REFUND_IN_PROGRESS':
         return 'refunded';
+
+      case 'PARTIALLY_REFUNDED':
+        return 'partially_refunded';
 
       case 'CHARGEBACK_REQUESTED':
       case 'CHARGEBACK_DISPUTE':
