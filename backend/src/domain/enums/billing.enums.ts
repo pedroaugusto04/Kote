@@ -31,6 +31,7 @@ export enum SubscriptionChangeStatus {
 
 export enum PaymentStatus {
   PENDING = 'pending',
+  OVERDUE = 'overdue',
   CONFIRMED = 'confirmed',
   CANCELED = 'canceled',
 }

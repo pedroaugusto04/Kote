@@ -47,6 +47,9 @@ services:
       WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS: ${WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS:-30}
       WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS: ${WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS:-10}
       DEV_EMAIL: ${DEV_EMAIL:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      BILLING_SSE_REDIS_ENABLED: ${BILLING_SSE_REDIS_ENABLED:-true}
+      BILLING_SSE_REDIS_CHANNEL_PREFIX: ${BILLING_SSE_REDIS_CHANNEL_PREFIX:-billing:sse:subscription_status:}
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
     volumes:
@@ -62,6 +65,19 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - kb_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   rabbitmq:
     image: rabbitmq:4-management-alpine
@@ -79,3 +95,4 @@ services:
 
 volumes:
   kb_rabbitmq_data:
+  kb_redis_data:

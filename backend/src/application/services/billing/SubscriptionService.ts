@@ -38,6 +38,7 @@ import { NewSubscriptionStrategy } from './subscriptionStrategy/strategies/NewSu
 import { UpgradeProrationStrategy } from './subscriptionStrategy/strategies/UpgradeProrationStrategy.js';
 import { DowngradeStrategy } from './subscriptionStrategy/strategies/DowngradeStrategy.js';
 import { ChangeCycleStrategy } from './subscriptionStrategy/strategies/ChangeCycleStrategy.js';
+import { BillingSseHub } from '../../../infrastructure/billing/sse/BillingSseHub.js';
 
 
 @Injectable()
@@ -53,6 +54,7 @@ export class SubscriptionService {
     private readonly asaasGatewayStatusMapper: AsaasGatewayStatusMapper,
     private readonly stripeGatewayStatusMapper: StripeGatewayStatusMapper,
     private readonly billingPaymentRepository: PostgresBillingPaymentRepository,
+    private readonly billingSseHub: BillingSseHub,
   ) {}
 
   async getPlans() {
@@ -557,7 +559,7 @@ export class SubscriptionService {
     // calculate due date based on last payment
     // if not available, use gateway due date
     const nextDueDate =
-      (latestRecurringPayment.status === PaymentStatus.PENDING) && latestPaymentDueDate
+      (latestRecurringPayment.status === PaymentStatus.PENDING || latestRecurringPayment.status === PaymentStatus.OVERDUE) && latestPaymentDueDate
         ? (!gatewayNextDueDate || gatewayNextDueDate > latestPaymentDueDate ? latestPaymentDueDate : gatewayNextDueDate)
         : (gatewayNextDueDate ?? latestPaymentDueDate);
 
@@ -572,10 +574,9 @@ export class SubscriptionService {
       })
       .where(eq(userSubscriptions.userId, params.subscriptionId));
 
-    // TODO: Implement SSE publishing when BillingSseHub is available
-    // const statusSummary = await this.getSubscriptionStatusSummary(params.userId);
-    // const summary = statusSummary ?? undefined;
-    // this.billingSseHub.publishSubscriptionStatus(params.userId, { summary: summary ?? null });
+    const statusSummary = await this.getSubscriptionStatusSummary(params.userId);
+    const summary = statusSummary ?? undefined;
+    this.billingSseHub.publishSubscriptionStatus(params.userId, { summary: summary ?? null });
   }
 
   async getSubscriptionStatusSummary(userId: string) {
@@ -743,8 +744,7 @@ export class SubscriptionService {
     const statusSummary = await this.getSubscriptionStatusSummary(ctx.userId);
     const summary = statusSummary ?? undefined;
 
-    // TODO: Implement SSE publishing when BillingSseHub is available
-    // this.billingSseHub.publishSubscriptionStatus(ctx.userId, { summary: summary ?? null });
+    this.billingSseHub.publishSubscriptionStatus(ctx.userId, { summary: summary ?? null });
 
     const changeKind: SubscriptionChangeKind = SubscriptionChangeKind.NEW;
 
@@ -828,8 +828,7 @@ export class SubscriptionService {
     const statusSummary = await this.getSubscriptionStatusSummary(ctx.userId);
     const summary = statusSummary ?? undefined;
 
-    // TODO: Implement SSE publishing when BillingSseHub is available
-    // this.billingSseHub.publishSubscriptionStatus(ctx.userId, { summary: summary ?? null });
+    this.billingSseHub.publishSubscriptionStatus(ctx.userId, { summary: summary ?? null });
 
     const changeKind: SubscriptionChangeKind = SubscriptionChangeKind.UPGRADE;
 
@@ -862,8 +861,7 @@ export class SubscriptionService {
     const statusSummary = await this.getSubscriptionStatusSummary(ctx.userId);
     const summary = statusSummary ?? undefined;
 
-    // TODO: Implement SSE publishing when BillingSseHub is available
-    // this.billingSseHub.publishSubscriptionStatus(ctx.userId, { summary: summary ?? null });
+    this.billingSseHub.publishSubscriptionStatus(ctx.userId, { summary: summary ?? null });
 
     const changeKind: SubscriptionChangeKind = SubscriptionChangeKind.DOWNGRADE;
 
@@ -896,8 +894,7 @@ export class SubscriptionService {
     const statusSummary = await this.getSubscriptionStatusSummary(ctx.userId);
     const summary = statusSummary ?? undefined;
 
-    // TODO: Implement SSE publishing when BillingSseHub is available
-    // this.billingSseHub.publishSubscriptionStatus(ctx.userId, { summary: summary ?? null });
+    this.billingSseHub.publishSubscriptionStatus(ctx.userId, { summary: summary ?? null });
 
     const changeKind: SubscriptionChangeKind = SubscriptionChangeKind.CHANGE_CYCLE;
 

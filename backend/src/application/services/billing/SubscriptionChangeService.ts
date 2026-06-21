@@ -252,7 +252,7 @@ export class SubscriptionChangeService {
         ? this.asaasGatewayStatusMapper.normalizePaymentStatus(payment.status, null)
         : this.stripeGatewayStatusMapper.normalizePaymentStatus(payment.status, null);
 
-      if (normalizedStatus !== PaymentStatus.PENDING) continue;
+      if (normalizedStatus !== PaymentStatus.PENDING && normalizedStatus !== PaymentStatus.OVERDUE) continue;
 
       const dueDate = payment.dueDate ? new Date(payment.dueDate) : null;
       if (!dueDate) continue;

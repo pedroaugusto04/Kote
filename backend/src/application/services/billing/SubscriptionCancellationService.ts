@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 import {
   userSubscriptions,
@@ -11,6 +11,7 @@ import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/s
 import { AppLogger } from '../../../observability/logger.js';
 import { BillingIntentService } from './BillingIntentService.js';
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
+import { BillingSseHub } from '../../../infrastructure/billing/sse/BillingSseHub.js';
 
 @Injectable()
 export class SubscriptionCancellationService {
@@ -20,6 +21,7 @@ export class SubscriptionCancellationService {
     private readonly asaasPaymentGateway: AsaasPaymentGateway,
     private readonly stripePaymentGateway: StripePaymentGateway,
     private readonly billingIntentService: BillingIntentService,
+    private readonly billingSseHub: BillingSseHub,
   ) {}
 
   async cancelPendingPayment(userId: string, paymentId: string) {
@@ -30,9 +32,9 @@ export class SubscriptionCancellationService {
       throw new BadRequestException('Payment not found');
     }
 
-    // Validation: only PENDING payments can be canceled
-    if (payment.status !== PaymentStatus.PENDING) {
-      throw new BadRequestException('Only pending payments can be canceled');
+    // Validation: only PENDING or OVERDUE payments can be canceled
+    if (payment.status !== PaymentStatus.PENDING && payment.status !== PaymentStatus.OVERDUE) {
+      throw new BadRequestException('Only pending or overdue payments can be canceled');
     }
 
     // Validation: only UPGRADE type payments can be manually canceled
@@ -44,7 +46,8 @@ export class SubscriptionCancellationService {
     try {
       await gateway.cancelPayment(payment.gatewayPaymentId);
     } catch (e: any) {
-      this.logger.warn(`Failed to cancel payment on gateway: ${e.message}`);
+      this.logger.error(`Failed to cancel payment on gateway: ${e.message}`);
+      throw new BadRequestException('Failed to cancel payment on gateway. Please try again later.');
     }
 
     await db.update(billingPayments).set({ status: PaymentStatus.CANCELED }).where(eq(billingPayments.id, paymentId));
@@ -55,6 +58,9 @@ export class SubscriptionCancellationService {
     }
 
     await this.billingIntentService.cancelLatestPendingOneShotIntent(userId);
+
+    // Publish SSE update
+    this.billingSseHub.publishSubscriptionStatus(userId, { summary: null });
   }
 
   async cancelSubscription(userId: string) {
@@ -73,12 +79,13 @@ export class SubscriptionCancellationService {
     try {
       await gateway.cancelSubscription(sub.gatewaySubscriptionId);
     } catch (e: any) {
-      this.logger.warn(`Failed to cancel subscription on gateway: ${e.message}`);
+      this.logger.error(`Failed to cancel subscription on gateway: ${e.message}`);
+      throw new BadRequestException('Failed to cancel subscription on gateway. Please try again later.');
     }
 
     const openPayments = await db.select().from(billingPayments).where(and(
       eq(billingPayments.userId, userId),
-      eq(billingPayments.status, PaymentStatus.PENDING)
+      inArray(billingPayments.status, [PaymentStatus.PENDING, PaymentStatus.OVERDUE])
     ));
     
     const canceledPaymentIds: string[] = [];
@@ -86,19 +93,23 @@ export class SubscriptionCancellationService {
       try {
         await gateway.cancelPayment(payment.gatewayPaymentId);
       } catch (e: any) {
-        this.logger.warn(`Failed to cancel payment ${payment.gatewayPaymentId} on gateway: ${e.message}`);
+        this.logger.error(`Failed to cancel payment ${payment.gatewayPaymentId} on gateway: ${e.message}`);
+        throw new BadRequestException('Failed to cancel payment on gateway. Please try again later.');
       }
       await db.update(billingPayments).set({ status: PaymentStatus.CANCELED }).where(eq(billingPayments.id, payment.id));
       canceledPaymentIds.push(payment.id);
     }
 
-    await db.update(userSubscriptions).set({ 
+    await db.update(userSubscriptions).set({
       status: SubscriptionStatus.CANCELED,
       canceledAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(userSubscriptions.userId, userId));
 
     await this.billingIntentService.cancelLatestPendingOneShotIntent(userId);
+
+    // Publish SSE update
+    this.billingSseHub.publishSubscriptionStatus(userId, { summary: null });
   }
 
   async disableSubscription(userId: string) {
@@ -117,12 +128,13 @@ export class SubscriptionCancellationService {
     try {
       await gateway.cancelSubscription(sub.gatewaySubscriptionId);
     } catch (e: any) {
-      this.logger.warn(`Failed to cancel subscription on gateway: ${e.message}`);
+      this.logger.error(`Failed to cancel subscription on gateway: ${e.message}`);
+      throw new BadRequestException('Failed to cancel subscription on gateway. Please try again later.');
     }
 
     const openPayments = await db.select().from(billingPayments).where(and(
       eq(billingPayments.userId, userId),
-      eq(billingPayments.status, PaymentStatus.PENDING)
+      inArray(billingPayments.status, [PaymentStatus.PENDING, PaymentStatus.OVERDUE])
     ));
     
     const canceledPaymentIds: string[] = [];
@@ -130,18 +142,22 @@ export class SubscriptionCancellationService {
       try {
         await gateway.cancelPayment(payment.gatewayPaymentId);
       } catch (e: any) {
-        this.logger.warn(`Failed to cancel payment ${payment.gatewayPaymentId} on gateway: ${e.message}`);
+        this.logger.error(`Failed to cancel payment ${payment.gatewayPaymentId} on gateway: ${e.message}`);
+        throw new BadRequestException('Failed to cancel payment on gateway. Please try again later.');
       }
       await db.update(billingPayments).set({ status: PaymentStatus.CANCELED }).where(eq(billingPayments.id, payment.id));
       canceledPaymentIds.push(payment.id);
     }
 
-    await db.update(userSubscriptions).set({ 
+    await db.update(userSubscriptions).set({
       status: SubscriptionStatus.INACTIVE,
       canceledAt: new Date(),
       updatedAt: new Date(),
     }).where(eq(userSubscriptions.userId, userId));
 
     await this.billingIntentService.cancelLatestPendingOneShotIntent(userId);
+
+    // Publish SSE update
+    this.billingSseHub.publishSubscriptionStatus(userId, { summary: null });
   }
 }

@@ -59,6 +59,24 @@ export class BillingIntentService {
     creditCardToken?: string | null;
   }): Promise<{ externalReference: string }> {
     const db = this.database.getDb();
+    
+    // Check for duplicate pending intents for NEW or UPGRADE types
+    if (params.type === 'new' || params.type === 'upgrade') {
+      const pendingOneShotIntent = await db
+        .select()
+        .from(billingIntents)
+        .where(and(
+          eq(billingIntents.userId, params.userId),
+          eq(billingIntents.status, INTENT_STATUS.PENDING),
+        ))
+        .limit(1)
+        .then(r => r[0] || null);
+
+      if (pendingOneShotIntent && (pendingOneShotIntent.type === 'new' || pendingOneShotIntent.type === 'upgrade')) {
+        throw new Error('There is already a pending charge awaiting payment');
+      }
+    }
+    
     const intentId = crypto.randomUUID();
     
     await db.insert(billingIntents).values({

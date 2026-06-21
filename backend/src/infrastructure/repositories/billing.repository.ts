@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { eq, and, or, isNull, lte, lt, sql } from 'drizzle-orm';
+import { eq, and, or, isNull, lte, lt, sql, inArray } from 'drizzle-orm';
 
 import {
   BillingCustomerRepository,
@@ -252,7 +252,8 @@ export class PostgresBillingPaymentRepository extends BillingPaymentRepository {
         eq(billingPayments.userId, userId),
         eq(billingPayments.subscriptionId, subscriptionId),
         eq(billingPayments.kind, 'recurring'),
-        eq(billingPayments.status, 'pending')
+        // Consider both PENDING and OVERDUE as real debt
+        inArray(billingPayments.status, ['pending', 'overdue'])
       ))
       .limit(1);
     
