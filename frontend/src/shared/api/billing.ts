@@ -72,6 +72,7 @@ export interface QuotaAndBillingStatusDTO {
   plan: string;
   status: string;
   currentPeriodEnd: string;
+  cpfCnpj?: string;
   limits: {
     storage: number;
     aiRequests: number;

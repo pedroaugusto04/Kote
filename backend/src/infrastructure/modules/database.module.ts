@@ -74,7 +74,6 @@ const repositories = [
   PostgresBillingCustomerRepository,
   PostgresBillingPaymentRepository,
   PostgresBillingWebhookEventRepository,
-  QuotaService,
   { provide: SchemaMigrator, useExisting: PostgresSchemaMigrator },
   { provide: QuotaRepository, useExisting: PostgresQuotaRepository },
   { provide: UserRepository, useExisting: PostgresUserRepository },

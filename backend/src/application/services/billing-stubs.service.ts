@@ -187,6 +187,14 @@ export class SubscriptionService {
       cpfCnpj = user?.cpfCnpj || '';
     }
 
+    // Save cpfCnpj to user profile if provided and different from current
+    if (cpfCnpj) {
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1).then(r => r[0] || null);
+      if (user && user.cpfCnpj !== cpfCnpj) {
+        await db.update(users).set({ cpfCnpj, updatedAt: new Date() }).where(eq(users.id, userId));
+      }
+    }
+
     if (targetPlan.slug === 'free') {
       if (currentSub && currentSub.status !== SubscriptionStatus.CANCELED) {
         const changeRequest = {

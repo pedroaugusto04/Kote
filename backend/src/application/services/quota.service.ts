@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { QuotaRepository } from '../ports/quota/quota.repository.js';
+import { UserRepository } from '../ports/auth/auth.repository.js';
 import { QuotaResourceType } from '../../domain/enums/plans.enums.js';
 import type { PlanRecord } from '../models/repository-records.models.js';
 
@@ -7,6 +8,7 @@ export interface QuotaStatus {
   plan: string;
   status: string;
   currentPeriodEnd: string;
+  cpfCnpj?: string;
   limits: {
     storage: number;
     aiRequests: number;
@@ -23,7 +25,10 @@ export interface QuotaStatus {
 
 @Injectable()
 export class QuotaService {
-  constructor(private readonly quotaRepository: QuotaRepository) {}
+  constructor(
+    private readonly quotaRepository: QuotaRepository,
+    private readonly userRepository: UserRepository
+  ) {}
 
   async checkQuota(
     userId: string,
@@ -115,6 +120,10 @@ export class QuotaService {
       currentPeriodEnd = periodEnd.toISOString();
     }
 
+    // Fetch user's cpfCnpj
+    const user = await this.userRepository.findUserById(userId);
+    const cpfCnpj = user?.cpfCnpj || '';
+
     // Storage
     const storageLimitBase = Number(plan.maxStorageBytes);
     const storageAdjustments = await this.quotaRepository.getActiveAdjustments(userId, QuotaResourceType.STORAGE);
@@ -142,6 +151,7 @@ export class QuotaService {
       plan: plan.slug,
       status,
       currentPeriodEnd,
+      cpfCnpj,
       limits: {
         storage: storageLimitTotal,
         aiRequests: aiLimitTotal,

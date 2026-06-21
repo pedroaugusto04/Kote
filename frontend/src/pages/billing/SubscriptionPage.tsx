@@ -111,6 +111,7 @@ export function SubscriptionPage() {
   const plans = plansQuery.data || [];
   const status = statusQuery.data;
   const summary = status?.summary;
+  const savedCpfCnpj = status?.cpfCnpj || '';
 
   const currentPlan = useMemo(() => {
     if (!status || !plans.length) return null;
@@ -121,7 +122,7 @@ export function SubscriptionPage() {
     setSelectedPlan(plan);
     setChoiceCycle(billingCycle);
     setChoiceType(BILLING_TYPE.CREDIT_CARD);
-    setCpfCnpj('');
+    setCpfCnpj(savedCpfCnpj);
     setCpfCnpjError('');
     setIsChoiceModalOpen(true);
   };

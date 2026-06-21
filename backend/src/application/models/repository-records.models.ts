@@ -9,6 +9,7 @@ export type KbUser = {
   passwordHash: string | null;
   role: string;
   avatar: string;
+  cpfCnpj: string;
   createdAt: string;
   updatedAt: string;
 };
