@@ -15,6 +15,7 @@ import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gatewa
 import { StripeGatewayStatusMapper } from '../../../infrastructure/billing/gateways/stripe/StripeGatewayStatusMapper.js';
 import { PostgresBillingPaymentRepository } from '../../../infrastructure/repositories/billing.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { SubscriptionCancellationService } from './SubscriptionCancellationService.js';
 import crypto from 'node:crypto';
 
 @Injectable()
@@ -27,6 +28,7 @@ export class SubscriptionChangeService {
     private readonly stripeGatewayStatusMapper: StripeGatewayStatusMapper,
     private readonly billingPaymentRepository: PostgresBillingPaymentRepository,
     private readonly logger: AppLogger,
+    private readonly subscriptionCancellationService: SubscriptionCancellationService,
   ) {}
 
   async scheduleChange(params: {
@@ -124,12 +126,8 @@ export class SubscriptionChangeService {
     }
 
     if (plan.slug === SubscriptionPlan.FREE) {
-      // If downgrade to free plan, cancel subscription
-      // TODO: Implement subscription cancellation in gateway
-      await db.update(userSubscriptions).set({
-        status: SubscriptionStatus.CANCELED,
-        updatedAt: new Date(),
-      }).where(eq(userSubscriptions.userId, changeRequest.userId));
+      // If downgrade to free plan, cancel subscription in gateway
+      await this.subscriptionCancellationService.cancelSubscription(changeRequest.userId);
 
       await db.update(subscriptionChangeRequests).set({
         status: SubscriptionChangeStatus.APPLIED,
