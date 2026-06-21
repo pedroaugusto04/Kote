@@ -10,6 +10,7 @@ import { AsaasPaymentGateway } from '../gateways/asaas/AsaasPaymentGateway.js';
 import { AsaasGatewayStatusMapper } from '../gateways/asaas/AsaasGatewayStatusMapper.js';
 import { SubscriptionService, BillingIntentService } from '../../../application/services/billing-stubs.service.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { BillingEventBus } from '../../../application/services/billing-event.bus.js';
 import {
   parseDateTimeInput,
   toMoneyNumber,
@@ -65,6 +66,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly gatewayStatusMapper: AsaasGatewayStatusMapper,
     private readonly subscriptionService: SubscriptionService,
     private readonly billingIntentService: BillingIntentService,
+    private readonly billingEventBus: BillingEventBus,
     private readonly logger: AppLogger
   ) {
     this.exchange = process.env.KB_RABBITMQ_BILLING_EXCHANGE || 'billing.webhooks';
@@ -344,6 +346,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
         userId,
         status: payStatus,
       });
+      this.billingEventBus.emit(userId);
       return;
     }
 
@@ -365,6 +368,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       userId,
       status: payStatus,
     });
+    this.billingEventBus.emit(userId);
   }
 
   // --- Helper Methods ---

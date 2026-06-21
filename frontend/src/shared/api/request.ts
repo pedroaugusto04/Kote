@@ -55,11 +55,35 @@ async function send(path: string, init: RequestInit = {}): Promise<RawResponse> 
 }
 
 function toApiClientError(response: Response, payload: unknown) {
-  const requestId = response.headers.get('x-request-id') || (isApiErrorEnvelope(payload) ? payload.requestId : '');
-  const code = isApiErrorEnvelope(payload) ? payload.error.code : 'request_failed';
-  const message = isApiErrorEnvelope(payload) ? payload.error.message : 'Request failed.';
-  const details = isApiErrorEnvelope(payload) ? payload.error.details : {};
-  return new ApiClientError({ status: response.status, code, message, requestId, details });
+  let code = 'request_failed';
+  let message = 'Request failed.';
+  let details: Record<string, any> = {};
+  let requestId = response.headers.get('x-request-id') || '';
+
+  if (isApiErrorEnvelope(payload)) {
+    code = payload.error.code;
+    message = payload.error.message;
+    details = payload.error.details;
+    if (payload.requestId) requestId = payload.requestId;
+  } else if (payload && typeof payload === 'object') {
+    const raw = payload as any;
+    if (typeof raw.code === 'string') {
+      code = raw.code;
+    } else if (typeof raw.error === 'string') {
+      code = raw.error.toLowerCase().replace(/\s+/g, '_');
+    }
+    if (typeof raw.message === 'string') {
+      message = raw.message;
+    }
+    const { statusCode, error, message: _, code: __, ...extra } = raw;
+    details = extra;
+  }
+
+  const apiErr = new ApiClientError({ status: response.status, code, message, requestId, details });
+  if (code === 'QUOTA_EXCEEDED' && typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('quota-exceeded', { detail: apiErr }));
+  }
+  return apiErr;
 }
 
 function shouldAttemptRefresh(path: string, response: Response, payload: unknown, options: RequestOptions) {

@@ -9,6 +9,7 @@ import { BillingWebhookConsumer } from '../billing/consumers/BillingWebhookConsu
 import { SubscriptionService, BillingIntentService } from '../../application/services/billing-stubs.service.js';
 import { AsaasWebhookController } from '../../interfaces/http/controllers/billing/asaas-webhook.controller.js';
 import { HandleAsaasWebhookUseCase } from '../../application/use-cases/index.js';
+import { BillingEventBus } from '../../application/services/billing-event.bus.js';
 
 @Module({
   imports: [DatabaseModule, LoggerModule],
@@ -22,6 +23,7 @@ import { HandleAsaasWebhookUseCase } from '../../application/use-cases/index.js'
     SubscriptionService,
     BillingIntentService,
     HandleAsaasWebhookUseCase,
+    BillingEventBus,
   ],
   exports: [
     AsaasPaymentGateway,
@@ -30,6 +32,7 @@ import { HandleAsaasWebhookUseCase } from '../../application/use-cases/index.js'
     SubscriptionService,
     BillingIntentService,
     HandleAsaasWebhookUseCase,
+    BillingEventBus,
   ],
 })
 export class BillingModule {}

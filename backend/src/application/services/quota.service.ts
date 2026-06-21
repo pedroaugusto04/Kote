@@ -54,19 +54,19 @@ export class QuotaService {
     }
 
     // 2. Fetch base plan limit
-    const baseLimit = this.getBaseLimit(plan, resourceType);
+    const baseLimit = Number(this.getBaseLimit(plan, resourceType));
 
     // 3. Fetch active adjustments for this resource type
     const adjustments = await this.quotaRepository.getActiveAdjustments(userId, resourceType);
     const extraLimit = adjustments.reduce((acc, adj) => acc + adj.amount, 0);
 
-    const totalLimit = baseLimit + extraLimit;
+    const totalLimit = baseLimit === -1 ? -1 : baseLimit + extraLimit;
 
     // 4. Fetch current usage
     const currentUsage = await this.getCurrentUsage(userId, resourceType, periodStart, periodEnd, context);
 
     return {
-      allowed: (currentUsage + requestedAmount) <= totalLimit,
+      allowed: totalLimit === -1 ? true : (currentUsage + requestedAmount) <= totalLimit,
       limit: totalLimit,
       current: currentUsage,
     };
@@ -116,27 +116,27 @@ export class QuotaService {
     }
 
     // Storage
-    const storageLimitBase = plan.maxStorageBytes;
+    const storageLimitBase = Number(plan.maxStorageBytes);
     const storageAdjustments = await this.quotaRepository.getActiveAdjustments(userId, QuotaResourceType.STORAGE);
-    const storageLimitTotal = storageLimitBase + storageAdjustments.reduce((acc, a) => acc + a.amount, 0);
+    const storageLimitTotal = storageLimitBase === -1 ? -1 : storageLimitBase + storageAdjustments.reduce((acc, a) => acc + a.amount, 0);
     const storageUsage = await this.quotaRepository.getAttachmentStorageUsage(userId);
 
     // AI Requests
-    const aiLimitBase = plan.maxAiRequestsPerMonth;
+    const aiLimitBase = Number(plan.maxAiRequestsPerMonth);
     const aiAdjustments = await this.quotaRepository.getActiveAdjustments(userId, QuotaResourceType.AI_REQUEST);
-    const aiLimitTotal = aiLimitBase + aiAdjustments.reduce((acc, a) => acc + a.amount, 0);
+    const aiLimitTotal = aiLimitBase === -1 ? -1 : aiLimitBase + aiAdjustments.reduce((acc, a) => acc + a.amount, 0);
     const aiUsage = await this.quotaRepository.getCurrentUsage(userId, QuotaResourceType.AI_REQUEST, periodStart, periodEnd);
 
     // Workspaces
-    const workspacesLimitBase = plan.maxWorkspaces;
+    const workspacesLimitBase = Number(plan.maxWorkspaces);
     const workspacesAdjustments = await this.quotaRepository.getActiveAdjustments(userId, QuotaResourceType.WORKSPACE);
-    const workspacesLimitTotal = workspacesLimitBase + workspacesAdjustments.reduce((acc, a) => acc + a.amount, 0);
+    const workspacesLimitTotal = workspacesLimitBase === -1 ? -1 : workspacesLimitBase + workspacesAdjustments.reduce((acc, a) => acc + a.amount, 0);
     const workspacesUsage = await this.quotaRepository.getWorkspaceCount(userId);
 
     // Projects (we return limits representing the project count per workspace, so we don't count across any specific workspace here)
-    const projectsLimitBase = plan.maxProjectsPerWorkspace;
+    const projectsLimitBase = Number(plan.maxProjectsPerWorkspace);
     const projectsAdjustments = await this.quotaRepository.getActiveAdjustments(userId, QuotaResourceType.PROJECT);
-    const projectsLimitTotal = projectsLimitBase + projectsAdjustments.reduce((acc, a) => acc + a.amount, 0);
+    const projectsLimitTotal = projectsLimitBase === -1 ? -1 : projectsLimitBase + projectsAdjustments.reduce((acc, a) => acc + a.amount, 0);
 
     return {
       plan: plan.slug,

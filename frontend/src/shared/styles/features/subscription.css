@@ -1,3 +1,8 @@
+:root {
+  --primary: var(--cyan);
+  --surface-selected: var(--surface-active);
+}
+
 /* Subscription management */
 .subscription-panel {
   width: min(100%, 1024px);

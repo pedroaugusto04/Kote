@@ -117,3 +117,57 @@ export function cancelScheduledChange(changeId: string): Promise<{ ok: true }> {
     method: 'DELETE',
   });
 }
+
+export type SubscriptionStatusHandler = (status: QuotaAndBillingStatusDTO | null) => void;
+
+export function subscribeToSubscriptionStatus(handler: SubscriptionStatusHandler): () => void {
+  const url = '/api/subscription/status/stream';
+  let retryCount = 0;
+  let retryTimeout: any = null;
+  let closed = false;
+  let es: EventSource | null = null;
+
+  const onMessage = (evt: MessageEvent) => {
+    try {
+      const parsed = JSON.parse(evt.data ?? 'null') as QuotaAndBillingStatusDTO | null;
+      handler(parsed);
+    } catch (err) {
+      console.error('[SSE] Error processing subscription status event:', err);
+    }
+  };
+
+  function connect() {
+    if (closed) return;
+
+    es = new EventSource(url, { withCredentials: true });
+    es.onmessage = onMessage;
+
+    es.onopen = () => {
+      retryCount = 0;
+    };
+
+    es.onerror = () => {
+      if (closed) return;
+      es?.close();
+
+      if (retryCount >= 10) {
+        console.warn('[SSE] Reconnection limit reached. Stopping.');
+        return;
+      }
+
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+      retryCount++;
+      retryTimeout = setTimeout(connect, delay);
+    };
+  }
+
+  connect();
+
+  return () => {
+    closed = true;
+    if (retryTimeout) clearTimeout(retryTimeout);
+    if (es) {
+      es.close();
+    }
+  };
+}

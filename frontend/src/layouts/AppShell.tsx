@@ -29,6 +29,7 @@ import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
 import type { ConfirmState, NoteModalState } from '../features/projects/projects.types';
 import { notifyGeneralFormError } from '../shared/forms/errors';
 import { ConfirmationModal } from '../shared/ui/confirmation-modal';
+import { QuotaExceededModal } from '../shared/ui/QuotaExceededModal';
 import { QUERY_KEYS } from '../shared/constants/query-keys.constants';
 import { UI_MESSAGES } from '../shared/constants/ui.constants';
 import { KEYBOARD_KEYS } from '../shared/constants/keyboard.constants';
@@ -83,6 +84,7 @@ export function AppShell() {
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [quotaExceededError, setQuotaExceededError] = useState<ApiClientError | null>(null);
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedSearchValue = useDebouncedValue(searchValue, 300);
@@ -163,6 +165,18 @@ export function AppShell() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleQuotaExceeded = (event: Event) => {
+      const customEvent = event as CustomEvent<ApiClientError>;
+      setQuotaExceededError(customEvent.detail);
+    };
+
+    window.addEventListener('quota-exceeded', handleQuotaExceeded);
+    return () => {
+      window.removeEventListener('quota-exceeded', handleQuotaExceeded);
     };
   }, []);
 
@@ -611,6 +625,12 @@ export function AppShell() {
           onCancel={() => setConfirmState(null)}
           onConfirm={() => deleteNoteMutation.mutate(confirmState.note.id)}
           title={UI_MESSAGES.DELETE_NOTE}
+        />
+      ) : null}
+      {quotaExceededError ? (
+        <QuotaExceededModal
+          error={quotaExceededError}
+          onClose={() => setQuotaExceededError(null)}
         />
       ) : null}
     </div>
