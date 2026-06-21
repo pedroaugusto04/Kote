@@ -251,6 +251,7 @@ export class SubscriptionService {
       let pixQrCode: string | null = null;
       let pixQrCodeUrl: string | null = null;
       let invoiceUrl: string | null = null;
+      let gatewayPaymentId: string | null = null;
 
       try {
         let customerId = gatewayCustomerId;
@@ -283,6 +284,7 @@ export class SubscriptionService {
           pixQrCode = latest.pixQrCode || null;
           pixQrCodeUrl = latest.pixQrCodeUrl || null;
           invoiceUrl = latest.invoiceUrl || null;
+          gatewayPaymentId = latest.id || null;
         }
       } catch (e: any) {
         this.logger.error(`Failed to register subscription on ${gatewayName.toUpperCase()}: ${e.message}`);
@@ -327,12 +329,22 @@ export class SubscriptionService {
       });
 
       const paymentId = crypto.randomUUID();
+      
+      // Only create payment record if we have a valid gateway payment ID
+      if (!gatewayPaymentId) {
+        this.logger.warn('billing_stubs.no_gateway_payment_id', {
+          userId,
+          gatewayName,
+        });
+        return;
+      }
+      
       await db.insert(billingPayments).values({
         id: paymentId,
         subscriptionId: userId,
         userId,
         gateway: gatewayName as any,
-        gatewayPaymentId: 'pay_' + Math.random().toString(36).substr(2, 9),
+        gatewayPaymentId,
         status: type === BillingType.CREDIT_CARD ? PaymentStatus.CONFIRMED : PaymentStatus.PENDING,
         billingType: type,
         kind: 'recurring',

@@ -388,6 +388,9 @@ export class AsaasPaymentGateway implements IPaymentGateway {
         const payloadStr = pixRes?.payload;
         if (isNonEmptyString(payloadStr)) {
           payment.pixQrCode = payloadStr;
+          if (pixRes?.encodedImage) {
+            payment.pixQrCodeUrl = `data:image/png;base64,${pixRes.encodedImage}`;
+          }
         }
       } catch {
         // ignore
