@@ -45,3 +45,35 @@ export enum PaymentStatus {
   CANCELED = 'canceled',
   PARTIALLY_REFUNDED = 'partially_refunded',
 }
+
+export enum BillingIntentType {
+  NEW = 'new',
+  UPGRADE = 'upgrade',
+  CHANGE_CYCLE = 'change_cycle',
+}
+
+export enum BillingIntentStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  DONE = 'done',
+  FAILED = 'failed',
+  CANCELED = 'canceled',
+}
+
+export enum PaymentKind {
+  RECURRING = 'recurring',
+  UPGRADE = 'upgrade',
+}
+
+export enum PaymentGateway {
+  ASAAS = 'asaas',
+  STRIPE = 'stripe',
+}
+
+export enum WebhookProcessStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  DONE = 'done',
+  FAILED = 'failed',
+}
+

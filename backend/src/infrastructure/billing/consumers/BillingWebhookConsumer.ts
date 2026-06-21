@@ -22,27 +22,19 @@ import {
 } from '../gateways/asaas/AsaasHelpers.js';
 import {
   type PaymentGateway,
-  type PaymentStatus,
   type PaymentKind,
+  type PaymentStatus as SchemaPaymentStatus,
 } from '../../../infrastructure/persistence/schema/index.js';
+import {
+  BillingIntentStatus,
+  BillingIntentType,
+  PaymentStatus,
+  WebhookProcessStatus,
+  PaymentKind as DomainPaymentKind,
+} from '../../../domain/enums/billing.enums.js';
 import { BillingTypeEnum } from '../gateways/IPaymentGateway.js';
 
 const RECONNECT_DELAY_MS = 5_000;
-
-// Constants for processing states
-const WEBHOOK_STATUS = {
-  PENDING: 'pending',
-  PROCESSING: 'processing',
-  DONE: 'done',
-  FAILED: 'failed',
-} as const;
-
-const PAYMENT_KIND = {
-  UPGRADE: 'upgrade',
-  RECURRING: 'recurring',
-} as const;
-
-const SYSTEM_GATEWAY = 'asaas' as const;
 
 @Injectable()
 export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
@@ -282,7 +274,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
 
     const gatewayPaymentId = String(payment.id);
 
-    let payStatus: PaymentStatus | null = null;
+    let payStatus: SchemaPaymentStatus | null = null;
     const mapper = gateway === PAYMENT_GATEWAY.STRIPE
       ? this.stripeGatewayStatusMapper
       : this.asaasGatewayStatusMapper;
@@ -362,9 +354,9 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       gatewayPaymentId,
       status: payStatus,
       billingType: payment.billingType ?? existingPayment?.billingType ?? null,
-      kind: existingPayment?.kind || ((intent?.type === 'new' || intent?.type === 'upgrade')
-        ? PAYMENT_KIND.UPGRADE
-        : PAYMENT_KIND.RECURRING) as PaymentKind,
+      kind: existingPayment?.kind || ((intent?.type === BillingIntentType.NEW || intent?.type === BillingIntentType.UPGRADE)
+        ? DomainPaymentKind.UPGRADE
+        : DomainPaymentKind.RECURRING) as PaymentKind,
       gatewayStatus: payment.status || null,
       value,
       dueDate,
@@ -381,8 +373,8 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     await this.paymentRepository.upsertSubscriptionPayment(paymentData);
 
     // Guard/Early return for cancellations/refunds
-    if (payStatus === 'canceled' || payStatus === 'refunded' || payStatus === 'partially_refunded') {
-      if (intent && (intent.status === 'pending' || intent.status === 'processing')) {
+    if (payStatus === PaymentStatus.CANCELED || payStatus === PaymentStatus.REFUNDED || payStatus === PaymentStatus.PARTIALLY_REFUNDED) {
+      if (intent && (intent.status === BillingIntentStatus.PENDING || intent.status === BillingIntentStatus.PROCESSING)) {
         await this.billingIntentService.markCanceled(userId, intent.id);
       }
       await this.subscriptionService.refreshSubscriptionFromPayments({
@@ -396,11 +388,11 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     }
 
     // Handle payment confirmations
-    if (payStatus === 'confirmed' || payStatus === 'received') {
+    if (payStatus === PaymentStatus.CONFIRMED || payStatus === PaymentStatus.RECEIVED) {
       const { creditCardToken, billingType: nextBillingType } = await this.resolveAndSyncCreditCardToken(userId, gateway, gatewayPaymentId, payment, intent);
 
-      if (intent && (intent.status === 'pending' || intent.status === 'processing')) {
-        if (intent.type === 'new') {
+      if (intent && (intent.status === BillingIntentStatus.PENDING || intent.status === BillingIntentStatus.PROCESSING)) {
+        if (intent.type === BillingIntentType.NEW) {
           await this.processNewSubscriptionIntent(
             userId,
             gatewayCustomerId,
@@ -411,15 +403,22 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
             nextBillingType,
             gateway,
           );
+          this.billingEventBus.emit(userId);
+          return;
         } else {
           const claimedIntent = await this.billingIntentService.claimForProcessing(userId, intent.id);
           if (claimedIntent) {
             await this.processIntentPayload(userId, gatewayCustomerId, payment, intent, paidAt, creditCardToken, nextBillingType);
+            this.billingEventBus.emit(userId);
+            return;
           }
         }
       }
     }
 
+    // Only refresh when no terminal intent was handled. When a terminal intent
+    // was processed, the subscription status is already correct and refreshing
+    // here would overwrite it with stale payment-based heuristics.
     await this.subscriptionService.refreshSubscriptionFromPayments({
       subscriptionId: userId,
       gatewaySubscriptionId: payment.subscription,
@@ -601,7 +600,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     creditCardToken?: string,
     nextBillingType?: BillingTypeEnum
   ): Promise<void> {
-    if (intent.type === 'upgrade') {
+    if (intent.type === BillingIntentType.UPGRADE) {
       const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);
       const activeSub = sub?.activeSub;
 
@@ -627,7 +626,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
   private async notifyAttemptLimitIfNeeded(webhookEventId: string) {
     try {
       const event = await this.webhookEventRepository.getWebhookEventById(webhookEventId);
-      if (!event || event.status !== WEBHOOK_STATUS.FAILED || event.attempts !== this.maxWebhookAttempts) {
+      if (!event || event.status !== WebhookProcessStatus.FAILED || event.attempts !== this.maxWebhookAttempts) {
         return;
       }
       this.logger.warn('billing_webhook_consumer.notify_attempt_limit_reached', {

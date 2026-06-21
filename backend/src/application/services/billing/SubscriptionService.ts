@@ -25,6 +25,7 @@ import {
   SubscriptionChangeStatus,
   SubscriptionChangeKind,
   PaymentStatus,
+  BillingIntentType,
 } from '../../../domain/enums/billing.enums.js';
 import { FREE_PLAN_ID, SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
 import { formatGatewayDueDate, getNextDueDate } from '../../../domain/utils/subscription.utils.js';
@@ -654,7 +655,7 @@ export class SubscriptionService {
     const price = resolvePlanValueForCycle(ctx.newPlan, ctx.newBillingCycle, ctx.gateway);
     await this.createOneShotPayment({
       ctx,
-      intentType: 'new',
+      intentType: BillingIntentType.NEW,
       paymentValue: price,
       paymentDescription: SubscriptionChangeKind.NEW,
       description: `First payment for plan ${ctx.newPlan.displayName} - ${ctx.user.name}`,
@@ -678,7 +679,7 @@ export class SubscriptionService {
 
     await this.createOneShotPayment({
       ctx,
-      intentType: 'upgrade',
+      intentType: BillingIntentType.UPGRADE,
       paymentValue: firstPaymentValue,
       paymentDescription: SubscriptionChangeKind.UPGRADE,
       description: `Upgrade payment for plan ${ctx.newPlan.displayName} - ${ctx.user.name}`,
@@ -744,7 +745,7 @@ export class SubscriptionService {
 
   private async createOneShotPayment(params: {
     ctx: SubscriptionContext;
-    intentType: 'new' | 'upgrade';
+    intentType: BillingIntentType.NEW | BillingIntentType.UPGRADE;
     paymentValue: number;
     paymentDescription: SubscriptionChangeKind;
     description: string;
