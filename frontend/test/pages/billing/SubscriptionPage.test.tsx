@@ -15,19 +15,31 @@ const mockPlans = [
     maxWorkspaces: 1,
     maxProjectsPerWorkspace: 3,
     maxAiRequestsPerMonth: 50,
-    maxStorageBytes: 1024 * 1024 * 1024,
+    maxStorageBytes: 5 * 1024 * 1024 * 1024,
   },
   {
     id: 'plan-pro',
     name: 'Pro Plan',
     description: 'Advanced workspace utilities',
-    price: 49.00,
-    annualPrice: 470.40,
+    price: 20.00,
+    annualPrice: 192.00,
     isDefault: false,
-    maxWorkspaces: 5,
+    maxWorkspaces: 3,
     maxProjectsPerWorkspace: 20,
-    maxAiRequestsPerMonth: 1000,
-    maxStorageBytes: 10 * 1024 * 1024 * 1024,
+    maxAiRequestsPerMonth: 500,
+    maxStorageBytes: 25 * 1024 * 1024 * 1024,
+  },
+  {
+    id: 'plan-enterprise',
+    name: 'Enterprise Plan',
+    description: 'Corporate features',
+    price: 99.00,
+    annualPrice: 950.40,
+    isDefault: false,
+    maxWorkspaces: -1,
+    maxProjectsPerWorkspace: -1,
+    maxAiRequestsPerMonth: 2000,
+    maxStorageBytes: 100 * 1024 * 1024 * 1024,
   }
 ];
 
@@ -132,8 +144,8 @@ describe('SubscriptionPage', () => {
 
     renderWithAppProviders(<SubscriptionPage />);
 
-    const upgradeBtn = await screen.findByRole('button', { name: 'Upgrade Plan' });
-    fireEvent.click(upgradeBtn);
+    const upgradeBtns = await screen.findAllByRole('button', { name: 'Upgrade Plan' });
+    fireEvent.click(upgradeBtns[0]);
 
     expect(await screen.findByText('Choose billing options')).toBeInTheDocument();
   });
