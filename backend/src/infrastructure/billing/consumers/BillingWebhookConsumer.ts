@@ -7,6 +7,7 @@ import {
   BillingWebhookEventRepository,
 } from '../../../application/ports/billing/billing-repositories.js';
 import { AsaasPaymentGateway } from '../gateways/asaas/AsaasPaymentGateway.js';
+import { StripePaymentGateway } from '../gateways/stripe/StripePaymentGateway.js';
 import { AsaasGatewayStatusMapper } from '../gateways/asaas/AsaasGatewayStatusMapper.js';
 import { SubscriptionService, BillingIntentService } from '../../../application/services/billing-stubs.service.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -63,6 +64,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly paymentRepository: BillingPaymentRepository,
     private readonly webhookEventRepository: BillingWebhookEventRepository,
     private readonly paymentGateway: AsaasPaymentGateway,
+    private readonly stripePaymentGateway: StripePaymentGateway,
     private readonly gatewayStatusMapper: AsaasGatewayStatusMapper,
     private readonly subscriptionService: SubscriptionService,
     private readonly billingIntentService: BillingIntentService,
@@ -264,7 +266,9 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       throw new Error(`Invalid webhook payload for eventId=${webhookEventId}`);
     }
 
-    const event = this.paymentGateway.parseWebhook(webhookRecord.payload);
+    const gateway = webhookRecord.gateway;
+    const paymentGateway = gateway === 'stripe' ? this.stripePaymentGateway : this.paymentGateway;
+    const event = paymentGateway.parseWebhook(webhookRecord.payload as Record<string, unknown>);
     const payment = event.payment;
 
     if (!payment?.id) {
@@ -273,9 +277,17 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     }
 
     const gatewayPaymentId = String(payment.id);
-    const gateway = webhookRecord.gateway;
 
-    const payStatus = this.gatewayStatusMapper.normalizePaymentStatus(payment.status, event.event);
+    let payStatus: PaymentStatus | null = null;
+    if (gateway === 'stripe') {
+      const s = String(payment.status ?? '').toLowerCase();
+      if (['pending', 'received', 'confirmed', 'overdue', 'refunded', 'canceled', 'partially_refunded'].includes(s)) {
+        payStatus = s as PaymentStatus;
+      }
+    } else {
+      payStatus = this.gatewayStatusMapper.normalizePaymentStatus(payment.status, event.event);
+    }
+
     if (!payStatus) {
       this.logger.warn('billing_webhook_consumer.ignored_unknown_status', {
         status: payment.status,
@@ -286,7 +298,11 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
 
     // Resolve userId using helper
     const rawPayload = webhookRecord.payload as any;
-    const gatewayCustomerId = rawPayload?.payment?.customer || rawPayload?.customer;
+    const gatewayCustomerId =
+      rawPayload?.payment?.customer ||
+      rawPayload?.customer ||
+      rawPayload?.data?.object?.customer ||
+      rawPayload?.object?.customer;
     const userId = await this.resolveUserId(gateway, gatewayCustomerId, payment.externalReference);
 
     if (!userId) {
@@ -427,7 +443,8 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     let creditCardToken = payment.creditCardToken || intent?.creditCardToken;
     if (!creditCardToken) {
       try {
-        const gatewayPayment = await this.paymentGateway.getPaymentByGatewayId(gatewayPaymentId);
+        const paymentGateway = gateway === 'stripe' ? this.stripePaymentGateway : this.paymentGateway;
+        const gatewayPayment = await paymentGateway.getPaymentByGatewayId(gatewayPaymentId);
         creditCardToken = gatewayPayment?.creditCardToken;
       } catch (err) {
         this.logger.error('billing_webhook_consumer.cc_fetch_failed', {

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, UseGuards, Sse, MessageEvent } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, UseGuards, Sse, MessageEvent, Headers } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { Observable, from, concat } from 'rxjs';
 import { filter, map, switchMap } from 'rxjs';
@@ -7,6 +7,7 @@ import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard } from '../../auth.guards.js';
 import { BillingCycle, BillingType } from '../../../../domain/enums/billing.enums.js';
+import { COUNTRY_CODE } from '../../../../domain/constants/billing.constants.js';
 import { BillingEventBus } from '../../../../application/services/billing-event.bus.js';
 import {
   GetPlansUseCase,
@@ -61,15 +62,52 @@ export class SubscriptionController {
     return this.getSubscriptionStatusUseCase.execute(user.id);
   }
 
+  @Get('country')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Detect user country based on headers' })
+  @ApiResponse({ status: 200, description: 'User country code retrieved successfully' })
+  async getCountry(
+    @Headers('x-user-country') userCountryHeader?: string,
+    @Headers('cf-ipcountry') cfCountryHeader?: string,
+    @Headers('accept-language') acceptLanguageHeader?: string,
+  ) {
+    let countryCode: string = COUNTRY_CODE.UNITED_STATES;
+    if (userCountryHeader && userCountryHeader.trim().length > 0) {
+      countryCode = userCountryHeader.trim().toUpperCase();
+    } else if (cfCountryHeader && cfCountryHeader.trim().length > 0) {
+      countryCode = cfCountryHeader.trim().toUpperCase();
+    } else if (acceptLanguageHeader && acceptLanguageHeader.toLowerCase().includes('pt-br')) {
+      countryCode = COUNTRY_CODE.BRAZIL;
+    }
+    return { country: countryCode };
+  }
+
   @Post()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update or create user subscription' })
   @ApiResponse({ status: 200, description: 'Subscription updated successfully' })
   async updateSubscription(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { planId: string; billingCycle?: BillingCycle; billingType?: BillingType },
+    @Body() body: { planId: string; billingCycle?: BillingCycle; billingType?: BillingType; cpfCnpj?: string; countryCode?: string },
+    @Headers('x-user-country') userCountryHeader?: string,
+    @Headers('cf-ipcountry') cfCountryHeader?: string,
+    @Headers('accept-language') acceptLanguageHeader?: string,
   ) {
-    const { planId, billingCycle, billingType } = body;
+    const { planId, billingCycle, billingType, cpfCnpj } = body;
+
+    let countryCode: string = body.countryCode || '';
+    if (!countryCode) {
+      if (userCountryHeader && userCountryHeader.trim().length > 0) {
+        countryCode = userCountryHeader.trim();
+      } else if (cfCountryHeader && cfCountryHeader.trim().length > 0) {
+        countryCode = cfCountryHeader.trim();
+      } else if (acceptLanguageHeader && acceptLanguageHeader.toLowerCase().includes('pt-br')) {
+        countryCode = COUNTRY_CODE.BRAZIL;
+      } else {
+        countryCode = COUNTRY_CODE.UNITED_STATES;
+      }
+    }
+
     return this.updateSubscriptionUseCase.execute({
       userId: user.id,
       email: user.email,
@@ -77,6 +115,8 @@ export class SubscriptionController {
       planId,
       billingCycle,
       billingType,
+      cpfCnpj,
+      countryCode,
     });
   }
 

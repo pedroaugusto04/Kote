@@ -11,6 +11,13 @@ export const signupBodySchema = loginBodySchema.extend({
   name: z.string().trim().min(1, 'Enter your name.'),
 });
 
+export const updateProfileBodySchema = z
+  .object({
+    displayName: z.string().trim().optional(),
+    cpfCnpj: z.string().trim().optional(),
+  })
+  .strict();
+
 export const exchangeConnectionTokenBodySchema = z
   .object({
     connectionToken: z.string().trim().min(1, 'Connection token is required.'),
@@ -19,5 +26,6 @@ export const exchangeConnectionTokenBodySchema = z
 
 export type LoginBody = z.infer<typeof loginBodySchema>;
 export type SignupBody = z.infer<typeof signupBodySchema>;
+export type UpdateProfileBody = z.infer<typeof updateProfileBodySchema>;
 export type ExchangeConnectionTokenBody = z.infer<typeof exchangeConnectionTokenBodySchema>;
 

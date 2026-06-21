@@ -64,6 +64,7 @@ export { UpdateSubscriptionUseCase } from './billing/update-subscription.use-cas
 export { CancelPaymentUseCase } from './billing/cancel-payment.use-case.js';
 export { CancelScheduledChangeUseCase } from './billing/cancel-scheduled-change.use-case.js';
 export { HandleAsaasWebhookUseCase } from './webhooks/asaas/handle-asaas-webhook.use-case.js';
+export { HandleStripeWebhookUseCase } from './webhooks/stripe/handle-stripe-webhook.use-case.js';
 
 
 

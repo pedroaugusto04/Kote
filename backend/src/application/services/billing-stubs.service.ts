@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { PostgresDatabase } from '../../infrastructure/persistence/database.js';
 import {
   plans,
+  users,
   billingIntents,
   userSubscriptions,
   billingPayments,
@@ -12,6 +13,7 @@ import {
 } from '../../infrastructure/persistence/schema/index.js';
 import { AppLogger } from '../../observability/logger.js';
 import { AsaasPaymentGateway } from '../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
+import { StripePaymentGateway } from '../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
 import { BillingTypeEnum } from '../../infrastructure/billing/gateways/IPaymentGateway.js';
 import {
   BillingCycle,
@@ -22,6 +24,7 @@ import {
   PaymentStatus,
 } from '../../domain/enums/billing.enums.js';
 import { FREE_PLAN_ID } from '../../domain/enums/plans.enums.js';
+import { PAYMENT_GATEWAY, COUNTRY_CODE } from '../../domain/constants/billing.constants.js';
 
 
 // Constants for User Subscription Statuses
@@ -135,6 +138,7 @@ export class SubscriptionService {
     private readonly logger: AppLogger,
     private readonly billingIntentService: BillingIntentService,
     private readonly asaasPaymentGateway: AsaasPaymentGateway,
+    private readonly stripePaymentGateway: StripePaymentGateway,
   ) {}
 
   async getPlans() {
@@ -146,6 +150,8 @@ export class SubscriptionService {
       description: plan.description,
       price: plan.priceCents / 100,
       annualPrice: (plan.priceCents * 12 * 0.8) / 100, // 20% discount for annual
+      priceUsd: plan.priceUsdCents / 100,
+      annualPriceUsd: (plan.priceUsdCents * 12 * 0.8) / 100, // 20% discount for annual
       maxStorageBytes: Number(plan.maxStorageBytes),
       maxAiRequestsPerMonth: plan.maxAiRequestsPerMonth,
       maxWorkspaces: plan.maxWorkspaces,
@@ -162,6 +168,8 @@ export class SubscriptionService {
     planId: string,
     billingCycle?: BillingCycle,
     billingType?: BillingType,
+    cpfCnpj?: string,
+    countryCode?: string,
   ) {
     const db = this.database.getDb();
 
@@ -171,6 +179,12 @@ export class SubscriptionService {
     }
 
     const currentSub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, userId)).limit(1).then(r => r[0] || null);
+
+    // Fetch user's cpfCnpj if not provided
+    if (!cpfCnpj) {
+      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1).then(r => r[0] || null);
+      cpfCnpj = user?.cpfCnpj || '';
+    }
 
     if (targetPlan.slug === 'free') {
       if (currentSub && currentSub.status !== SubscriptionStatus.CANCELED) {
@@ -209,27 +223,42 @@ export class SubscriptionService {
       const cycle = billingCycle || BillingCycle.MONTHLY;
       const type = billingType || BillingType.CREDIT_CARD;
 
-      const priceCents = targetPlan.priceCents;
-      const price = cycle === BillingCycle.YEARLY ? (priceCents * 12 * 0.8) / 100 : priceCents / 100;
+      // Determine gateway based on country
+      const isBrazil = countryCode?.toUpperCase() === COUNTRY_CODE.BRAZIL;
+      const gatewayName = isBrazil ? PAYMENT_GATEWAY.ASAAS : PAYMENT_GATEWAY.STRIPE;
+      const gateway = isBrazil ? this.asaasPaymentGateway : this.stripePaymentGateway;
 
-      const hasAsaas = Boolean(process.env.ASAAS_ACCESS_TOKEN);
-      if (!hasAsaas) {
-        throw new BadRequestException('ASAAS_ACCESS_TOKEN is not configured on the server.');
+      if (isBrazil) {
+        const hasAsaas = Boolean(process.env.ASAAS_ACCESS_TOKEN);
+        if (!hasAsaas) {
+          throw new BadRequestException('ASAAS_ACCESS_TOKEN is not configured on the server.');
+        }
+      } else {
+        const hasStripe = Boolean(process.env.STRIPE_SECRET_KEY);
+        if (!hasStripe) {
+          throw new BadRequestException('STRIPE_SECRET_KEY is not configured on the server.');
+        }
       }
 
+      // Proportional BRL or USD price
+      const priceCents = isBrazil ? targetPlan.priceCents : targetPlan.priceUsdCents;
+      const price = cycle === BillingCycle.YEARLY ? (priceCents * 12 * 0.8) / 100 : priceCents / 100;
+
       let gatewaySubscriptionId: string;
-      let gatewayCustomerId = currentSub?.gatewayCustomerId || '';
+      const hasMatchingGateway = currentSub?.gatewayName === gatewayName;
+      let gatewayCustomerId = hasMatchingGateway ? (currentSub?.gatewayCustomerId || '') : '';
       let bankSlipUrl: string | null = null;
       let pixQrCode: string | null = null;
       let pixQrCodeUrl: string | null = null;
       let invoiceUrl: string | null = null;
 
       try {
-        let customerId = currentSub?.gatewayCustomerId || '';
+        let customerId = gatewayCustomerId;
         if (!customerId) {
-          const customer = await this.asaasPaymentGateway.createCustomer({
+          const customer = await gateway.createCustomer({
             name: userDisplayName || userEmail,
             email: userEmail,
+            cpfCnpj: isBrazil ? (cpfCnpj || undefined) : undefined,
           });
           customerId = customer.id;
         }
@@ -237,7 +266,7 @@ export class SubscriptionService {
 
         const nextDueDate = new Date();
         nextDueDate.setDate(nextDueDate.getDate() + 3);
-        const asaasSub = await this.asaasPaymentGateway.createSubscription({
+        const subResult = await gateway.createSubscription({
           customerId,
           billingType: type === BillingType.PIX ? BillingTypeEnum.PIX : type === BillingType.BOLETO ? BillingTypeEnum.BOLETO : BillingTypeEnum.CREDIT_CARD,
           value: price,
@@ -245,9 +274,9 @@ export class SubscriptionService {
           nextDueDate: nextDueDate.toISOString().split('T')[0],
           description: `Subscription ${targetPlan.displayName} - ${cycle === BillingCycle.YEARLY ? 'Yearly' : 'Monthly'}`,
         });
-        gatewaySubscriptionId = asaasSub.id;
+        gatewaySubscriptionId = subResult.id;
 
-        const payments = await this.asaasPaymentGateway.getSubscriptionPayments(asaasSub.id);
+        const payments = await gateway.getSubscriptionPayments(subResult.id);
         if (payments.length > 0) {
           const latest = payments[0];
           bankSlipUrl = latest.bankSlipUrl || null;
@@ -256,8 +285,8 @@ export class SubscriptionService {
           invoiceUrl = latest.invoiceUrl || null;
         }
       } catch (e: any) {
-        this.logger.error(`Failed to register subscription on Asaas: ${e.message}`);
-        throw new BadRequestException(`Asaas subscription registration failed: ${e.message}`);
+        this.logger.error(`Failed to register subscription on ${gatewayName.toUpperCase()}: ${e.message}`);
+        throw new BadRequestException(`${gatewayName.toUpperCase()} subscription registration failed: ${e.message}`);
       }
 
       const currentPeriodStart = new Date();
@@ -274,7 +303,7 @@ export class SubscriptionService {
         status: type === BillingType.CREDIT_CARD ? SubscriptionStatus.ACTIVE : SubscriptionStatus.PENDING,
         currentPeriodStart,
         currentPeriodEnd,
-        gatewayName: 'asaas',
+        gatewayName,
         gatewaySubscriptionId,
         gatewayCustomerId,
         billingCycle: cycle,
@@ -289,6 +318,7 @@ export class SubscriptionService {
           currentPeriodEnd,
           gatewaySubscriptionId,
           gatewayCustomerId,
+          gatewayName,
           billingCycle: cycle,
           billingType: type,
           nextDueDate: currentPeriodEnd,
@@ -301,7 +331,7 @@ export class SubscriptionService {
         id: paymentId,
         subscriptionId: userId,
         userId,
-        gateway: 'asaas',
+        gateway: gatewayName as any,
         gatewayPaymentId: 'pay_' + Math.random().toString(36).substr(2, 9),
         status: type === BillingType.CREDIT_CARD ? PaymentStatus.CONFIRMED : PaymentStatus.PENDING,
         billingType: type,

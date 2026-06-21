@@ -20,6 +20,7 @@ export const users = pgTable('kb_users', {
   passwordHash: text('password_hash').notNull(),
   role: text('role').notNull().default('user'),
   avatar: text('avatar').default(''),
+  cpfCnpj: text('cpf_cnpj').default(''),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
@@ -458,7 +459,7 @@ export const noteCategoriesRelations = relations(noteCategories, ({ one }) => ({
   }),
 }));
 // Billing Enums
-export const paymentGatewayEnum = pgEnum('kb_payment_gateway_enum', ['asaas']);
+export const paymentGatewayEnum = pgEnum('kb_payment_gateway_enum', ['asaas', 'stripe']);
 export const billingCycleEnum = pgEnum('kb_billing_cycle_enum', ['monthly', 'yearly']);
 export const billingTypeEnum = pgEnum('kb_billing_type_enum', ['boleto', 'pix', 'credit_card']);
 export const paymentStatusEnum = pgEnum('kb_payment_status_enum', ['pending', 'received', 'confirmed', 'overdue', 'refunded', 'canceled', 'partially_refunded']);
@@ -491,6 +492,7 @@ export const plans = pgTable('kb_plans', {
   maxWorkspaces: integer('max_workspaces').notNull(),
   maxProjectsPerWorkspace: integer('max_projects_per_workspace').notNull(),
   priceCents: integer('price_cents').notNull().default(0),
+  priceUsdCents: integer('price_usd_cents').notNull().default(0),
   billingPeriod: text('billing_period').notNull().default('monthly'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),

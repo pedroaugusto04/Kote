@@ -1,4 +1,5 @@
 import { request } from './request';
+import { detectUserCountry } from '../utils/location';
 
 export interface PlanDTO {
   id: string;
@@ -6,6 +7,8 @@ export interface PlanDTO {
   description: string;
   price: number;
   annualPrice: number;
+  priceUsd: number;
+  annualPriceUsd: number;
   maxStorageBytes: number;
   maxAiRequestsPerMonth: number;
   maxWorkspaces: number;
@@ -88,21 +91,38 @@ export interface SubscriptionInput {
   planId: string;
   billingCycle?: 'monthly' | 'yearly';
   billingType?: 'credit_card' | 'pix' | 'boleto';
+  cpfCnpj?: string;
+  countryCode?: string;
 }
 
 export function fetchPlans(): Promise<PlanDTO[]> {
-  return request<PlanDTO[]>('/api/subscription/plans');
+  return request<PlanDTO[]>('/api/subscription/plans', {
+    headers: { 'x-user-country': detectUserCountry() },
+  });
+}
+
+export function fetchDetectedCountry(): Promise<{ country: string }> {
+  return request<{ country: string }>('/api/subscription/country');
 }
 
 export function fetchSubscriptionStatus(): Promise<QuotaAndBillingStatusDTO> {
-  return request<QuotaAndBillingStatusDTO>('/api/subscription/status');
+  return request<QuotaAndBillingStatusDTO>('/api/subscription/status', {
+    headers: { 'x-user-country': detectUserCountry() },
+  });
 }
 
 export function updateSubscription(input: SubscriptionInput): Promise<QuotaAndBillingStatusDTO> {
+  const country = detectUserCountry();
   return request<QuotaAndBillingStatusDTO>('/api/subscription', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(input),
+    headers: {
+      'content-type': 'application/json',
+      'x-user-country': country,
+    },
+    body: JSON.stringify({
+      ...input,
+      countryCode: input.countryCode || country,
+    }),
   });
 }
 

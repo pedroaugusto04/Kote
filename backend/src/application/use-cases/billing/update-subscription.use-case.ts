@@ -19,6 +19,8 @@ export class UpdateSubscriptionUseCase {
     planId: string;
     billingCycle?: BillingCycle;
     billingType?: BillingType;
+    cpfCnpj?: string;
+    countryCode?: string;
   }) {
     await this.subscriptionService.registerOrUpdateSubscription(
       params.userId,
@@ -27,6 +29,8 @@ export class UpdateSubscriptionUseCase {
       params.planId,
       params.billingCycle,
       params.billingType,
+      params.cpfCnpj,
+      params.countryCode,
     );
 
     this.billingEventBus.emit(params.userId);

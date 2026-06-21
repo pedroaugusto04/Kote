@@ -10,6 +10,7 @@ import { ObjectStorage, ObjectStorageMissingContentError } from './ports/notes/o
 import { SchemaMigrator, UserRepository } from './ports/auth/auth.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
 import { readEnvironment } from '../adapters/environment.js';
+import { BILLING_ERROR_MESSAGES } from '../domain/constants/billing.constants.js';
 
 const scrypt = promisify(crypto.scrypt);
 
@@ -383,6 +384,20 @@ export class AuthService implements OnModuleInit {
     if (user.avatar) {
       await requireAvatarStorage(this.objectStorage).delete(user.avatar).catch(() => undefined);
     }
+    return toAuthenticatedUser(updated);
+  }
+
+  async updateProfile(userId: string, input: { displayName?: string; cpfCnpj?: string }): Promise<AuthenticatedUser> {
+    const user = await this.users.findUserById(userId);
+    if (!user) throw new UnauthorizedException(BILLING_ERROR_MESSAGES.USER_NOT_FOUND);
+    
+    const updated = await this.users.updateUser({
+      userId,
+      displayName: input.displayName,
+      cpfCnpj: input.cpfCnpj,
+    });
+    
+    if (!updated) throw new UnauthorizedException(BILLING_ERROR_MESSAGES.USER_NOT_FOUND);
     return toAuthenticatedUser(updated);
   }
 

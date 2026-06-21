@@ -52,6 +52,26 @@ export class PostgresUserRepository extends UserRepository {
     return userFromRow(result[0]);
   }
 
+  async updateUser(input: { userId: string; displayName?: string; cpfCnpj?: string }) {
+    const db = this.database.getDb();
+    const updateData: Record<string, unknown> = { updatedAt: new Date() };
+    
+    if (input.displayName !== undefined) {
+      updateData.displayName = input.displayName;
+    }
+    if (input.cpfCnpj !== undefined) {
+      updateData.cpfCnpj = input.cpfCnpj;
+    }
+    
+    const result = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, input.userId))
+      .returning();
+    
+    return result[0] ? userFromRow(result[0]) : null;
+  }
+
   async updateUserAvatar(input: { userId: string; storageKey: string; mimeType: string; sizeBytes: number }) {
     const db = this.database.getDb();
     const result = await db

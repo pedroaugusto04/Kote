@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchPlans,
   fetchSubscriptionStatus,
+  fetchDetectedCountry,
   updateSubscription,
   cancelPendingPayment,
   cancelScheduledChange,
@@ -12,17 +13,35 @@ import {
   type ScheduledChangeDTO
 } from '../../shared/api/billing';
 import { PageHead, Panel, InlineMessage } from '../../shared/ui/primitives';
+import { formatCpfCnpj, isValidCpfCnpjFormat } from '../../shared/utils/cpf-cnpj';
+import { detectUserCountry } from '../../shared/utils/location';
+import { BILLING_ERROR_MESSAGES, BILLING_CYCLE, BILLING_TYPE, type BillingCycle, type BillingType } from '../../shared/constants/billing.constants';
 
 export function SubscriptionPage() {
   const queryClient = useQueryClient();
 
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
+  const { data: countryData } = useQuery({
+    queryKey: ['billing', 'detectedCountry'],
+    queryFn: fetchDetectedCountry,
+    staleTime: Infinity,
+  });
+
+  const isBrazil = useMemo(() => {
+    if (countryData?.country) {
+      return countryData.country === 'BR';
+    }
+    return detectUserCountry() === 'BR';
+  }, [countryData]);
+
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(BILLING_CYCLE.MONTHLY);
   const [selectedPlan, setSelectedPlan] = useState<PlanDTO | null>(null);
   
   // Modals state
   const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
-  const [choiceCycle, setChoiceCycle] = useState<'monthly' | 'yearly'>('monthly');
-  const [choiceType, setChoiceType] = useState<'credit_card' | 'pix' | 'boleto'>('credit_card');
+  const [choiceCycle, setChoiceCycle] = useState<BillingCycle>(BILLING_CYCLE.MONTHLY);
+  const [choiceType, setChoiceType] = useState<BillingType>(BILLING_TYPE.CREDIT_CARD);
+  const [cpfCnpj, setCpfCnpj] = useState('');
+  const [cpfCnpjError, setCpfCnpjError] = useState('');
 
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [activePayment, setActivePayment] = useState<PendingPaymentDTO | null>(null);
@@ -101,16 +120,33 @@ export function SubscriptionPage() {
   const handleOpenChoice = (plan: PlanDTO) => {
     setSelectedPlan(plan);
     setChoiceCycle(billingCycle);
-    setChoiceType('credit_card');
+    setChoiceType(BILLING_TYPE.CREDIT_CARD);
+    setCpfCnpj('');
+    setCpfCnpjError('');
     setIsChoiceModalOpen(true);
   };
 
   const handleConfirmChoice = () => {
     if (!selectedPlan) return;
+
+    // CPF/CNPJ is required for PIX and Boleto
+    if (isBrazil && (choiceType === BILLING_TYPE.PIX || choiceType === BILLING_TYPE.BOLETO) && !cpfCnpj.trim()) {
+      setCpfCnpjError(BILLING_ERROR_MESSAGES.CPF_CNPJ_REQUIRED);
+      return;
+    }
+
+    // Validate CPF/CNPJ format
+    if (isBrazil && cpfCnpj.trim() && !isValidCpfCnpjFormat(cpfCnpj)) {
+      setCpfCnpjError(BILLING_ERROR_MESSAGES.INVALID_CPF_CNPJ_FORMAT);
+      return;
+    }
+
+    const cleanCpfCnpj = cpfCnpj.replace(/\D/g, '');
     updateMutation.mutate({
       planId: selectedPlan.id,
       billingCycle: choiceCycle,
       billingType: choiceType,
+      cpfCnpj: isBrazil ? (cleanCpfCnpj || undefined) : undefined,
     });
   };
 
@@ -121,8 +157,17 @@ export function SubscriptionPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCpfCnpj(e.target.value);
+    setCpfCnpj(formatted);
+    setCpfCnpjError('');
+  };
+
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'BRL' }).format(val);
+    return new Intl.NumberFormat(isBrazil ? 'pt-BR' : 'en-US', {
+      style: 'currency',
+      currency: isBrazil ? 'BRL' : 'USD',
+    }).format(val);
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -233,8 +278,10 @@ export function SubscriptionPage() {
                 const isCurrent = summary.latestSub?.planId === plan.id;
                 const isFree = plan.isDefault;
                 
-                // Calculate display price based on global state cycle selection
-                const displayPrice = billingCycle === 'yearly' ? plan.annualPrice : plan.price;
+                // Calculate display price based on global state cycle selection and country
+                const displayPrice = isBrazil
+                  ? (billingCycle === 'yearly' ? plan.annualPrice : plan.price)
+                  : (billingCycle === 'yearly' ? plan.annualPriceUsd : plan.priceUsd);
 
                 return (
                   <div
@@ -332,20 +379,24 @@ export function SubscriptionPage() {
                   <div className="cycle-selector" style={{ width: 'max-content' }}>
                     <button
                       type="button"
-                      className={`cycle-btn ${choiceCycle === 'monthly' ? 'active' : ''}`}
+                      className={`cycle-btn ${choiceCycle === BILLING_CYCLE.MONTHLY ? 'active' : ''}`}
                       onClick={() => {
-                        setChoiceCycle('monthly');
-                        if (choiceType === 'boleto') setChoiceType('credit_card');
+                        setChoiceCycle(BILLING_CYCLE.MONTHLY);
+                        if (choiceType === BILLING_TYPE.BOLETO) setChoiceType(BILLING_TYPE.CREDIT_CARD);
+                        setCpfCnpjError('');
                       }}
                     >
-                      Monthly ({formatCurrency(selectedPlan.price)})
+                      Monthly ({formatCurrency(isBrazil ? selectedPlan.price : selectedPlan.priceUsd)})
                     </button>
                     <button
                       type="button"
-                      className={`cycle-btn ${choiceCycle === 'yearly' ? 'active' : ''}`}
-                      onClick={() => setChoiceCycle('yearly')}
+                      className={`cycle-btn ${choiceCycle === BILLING_CYCLE.YEARLY ? 'active' : ''}`}
+                      onClick={() => {
+                        setChoiceCycle(BILLING_CYCLE.YEARLY);
+                        setCpfCnpjError('');
+                      }}
                     >
-                      Yearly ({formatCurrency(selectedPlan.annualPrice)})
+                      Yearly ({formatCurrency(isBrazil ? selectedPlan.annualPrice : selectedPlan.annualPriceUsd)})
                       <span className="discount-badge">Save 20%</span>
                     </button>
                   </div>
@@ -358,8 +409,11 @@ export function SubscriptionPage() {
                   <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>Payment Method</label>
                   <div className="billing-options-grid">
                     <div
-                      className={`billing-option-card ${choiceType === 'credit_card' ? 'selected' : ''}`}
-                      onClick={() => setChoiceType('credit_card')}
+                      className={`billing-option-card ${choiceType === BILLING_TYPE.CREDIT_CARD ? 'selected' : ''}`}
+                      onClick={() => {
+                        setChoiceType(BILLING_TYPE.CREDIT_CARD);
+                        setCpfCnpjError('');
+                      }}
                     >
                       <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" />
@@ -367,27 +421,68 @@ export function SubscriptionPage() {
                       <span className="billing-option-label">Credit Card</span>
                     </div>
 
-                    <div
-                      className={`billing-option-card ${choiceType === 'pix' ? 'selected' : ''}`}
-                      onClick={() => setChoiceType('pix')}
-                    >
-                      <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.875 15.75a1.125 1.125 0 01-1.125-1.125v-1.5a1.125 1.125 0 011.125-1.125h1.5a1.125 1.125 0 011.125 1.125v1.5a1.125 1.125 0 01-1.125 1.125h-1.5z" />
-                      </svg>
-                      <span className="billing-option-label">PIX</span>
-                    </div>
+                    {isBrazil && (
+                      <>
+                        <div
+                          className={`billing-option-card ${choiceType === BILLING_TYPE.PIX ? 'selected' : ''}`}
+                          onClick={() => {
+                            setChoiceType(BILLING_TYPE.PIX);
+                            setCpfCnpjError('');
+                          }}
+                        >
+                          <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.875 15.75a1.125 1.125 0 01-1.125-1.125v-1.5a1.125 1.125 0 011.125-1.125h1.5a1.125 1.125 0 011.125 1.125v1.5a1.125 1.125 0 01-1.125 1.125h-1.5z" />
+                          </svg>
+                          <span className="billing-option-label">PIX</span>
+                        </div>
 
-                    <div
-                      className={`billing-option-card ${choiceType === 'boleto' ? 'selected' : ''}`}
-                      onClick={() => setChoiceType('boleto')}
-                    >
-                      <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                      </svg>
-                      <span className="billing-option-label">Boleto</span>
-                    </div>
+                        <div
+                          className={`billing-option-card ${choiceType === BILLING_TYPE.BOLETO ? 'selected' : ''}`}
+                          onClick={() => {
+                            setChoiceType(BILLING_TYPE.BOLETO);
+                            setCpfCnpjError('');
+                          }}
+                        >
+                          <svg width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                          </svg>
+                          <span className="billing-option-label">Boleto</span>
+                        </div>
+                      </>
+                    )}
                   </div>
+                </div>
+              )}
+
+              {/* CPF/CNPJ Field - Required for PIX and Boleto */}
+              {!selectedPlan.isDefault && isBrazil && (choiceType === BILLING_TYPE.PIX || choiceType === BILLING_TYPE.BOLETO) && (
+                <div>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>
+                    CPF/CNPJ <span style={{ color: 'rgb(220, 38, 38)' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={cpfCnpj}
+                    onChange={handleCpfCnpjChange}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px',
+                      border: cpfCnpjError ? '1px solid rgb(220, 38, 38)' : '1px solid var(--border)',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontFamily: 'monospace',
+                    }}
+                  />
+                  {cpfCnpjError && (
+                    <span style={{ fontSize: '11px', color: 'rgb(220, 38, 38)', display: 'block', marginTop: '4px' }}>
+                      {cpfCnpjError}
+                    </span>
+                  )}
+                  <span style={{ fontSize: '11px', color: 'var(--muted)', display: 'block', marginTop: '4px' }}>
+                    Required for invoice issuance
+                  </span>
                 </div>
               )}
             </div>

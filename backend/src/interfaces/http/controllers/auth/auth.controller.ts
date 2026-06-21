@@ -6,7 +6,7 @@ import type { Request, Response } from 'express';
 import { AuthService, avatarMaxSizeBytes, type AuthenticatedUser } from '../../../../application/auth.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, TrustedOriginGuard } from '../../auth.guards.js';
-import { exchangeConnectionTokenBodySchema, loginBodySchema, signupBodySchema, type ExchangeConnectionTokenBody, type LoginBody, type SignupBody } from '../../dto/auth.dto.js';
+import { exchangeConnectionTokenBodySchema, loginBodySchema, signupBodySchema, updateProfileBodySchema, type ExchangeConnectionTokenBody, type LoginBody, type SignupBody, type UpdateProfileBody } from '../../dto/auth.dto.js';
 import { clearAuthCookies, clearGoogleOAuthStateCookie, googleOAuthStateFromRequest, refreshTokenFromRequest, setAuthCookies, setGoogleOAuthStateCookie } from '../../http-security.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
@@ -165,6 +165,21 @@ export class AuthController {
     response.setHeader('Content-Type', content.mimeType);
     response.setHeader('Cache-Control', 'private, max-age=3600');
     response.send(content.body);
+  }
+
+  @Put('profile')
+  @UseGuards(AccessTokenAuthGuard, TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  async updateProfile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body(new ZodValidationPipe(updateProfileBodySchema, 'invalid_update_profile_payload')) body: UpdateProfileBody,
+  ) {
+    return {
+      ok: true,
+      user: await this.auth.updateProfile(user.id, body),
+    };
   }
 
   @Get('google/start')

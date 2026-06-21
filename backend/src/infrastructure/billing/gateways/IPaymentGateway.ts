@@ -8,6 +8,7 @@ export enum BillingTypeEnum {
 
 export enum GatewayNameEnum {
   ASAAS = 'ASAAS',
+  STRIPE = 'STRIPE',
 }
 
 export interface GatewayCustomer {
