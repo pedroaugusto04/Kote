@@ -8,9 +8,11 @@ export class QuotaExceededException extends HttpException {
         error: 'Quota Exceeded',
         code: 'QUOTA_EXCEEDED',
         message: `You have reached the limit of ${limit} for ${resourceType}. Current usage: ${current}.`,
-        resourceType,
-        limit,
-        current,
+        details: {
+          resourceType,
+          limit,
+          current,
+        },
       },
       HttpStatus.FORBIDDEN,
     );

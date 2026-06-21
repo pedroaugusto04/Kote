@@ -401,7 +401,7 @@ export function SubscriptionPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                   <div className="status-banner-content" style={{ flex: 1, minWidth: '280px' }}>
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                      <span className="current-badge" style={{ position: 'static', background: 'var(--amber)', color: 'black', fontSize: '11px', padding: '2px 8px' }}>
+                      <span className="current-badge" style={{ position: 'static', background: 'var(--surface-warning)', color: 'var(--warning-text)', fontSize: '11px', padding: '2px 8px', border: '1px solid var(--warning-border)' }}>
                         {summary.scheduledChange.type === 'downgrade' ? 'Scheduled Downgrade' : 'Scheduled Cycle Change'}
                       </span>
                       <span className="current-badge" style={{ position: 'static', background: 'var(--surface-3)', color: 'var(--text-strong)', fontSize: '11px', padding: '2px 8px', border: '1px solid var(--border-subtle)' }}>
@@ -447,7 +447,7 @@ export function SubscriptionPage() {
                   <button
                     type="button"
                     className="filter-chip"
-                    style={{ border: '1px solid rgb(220, 38, 38)', color: 'rgb(220, 38, 38)', background: 'rgba(220, 38, 38, 0.05)', fontWeight: 600, padding: '8px 16px', borderRadius: '6px' }}
+                    style={{ border: '1px solid var(--danger-border)', color: 'var(--danger-text)', background: 'var(--surface-danger)', fontWeight: 600, padding: '8px 16px', borderRadius: '6px' }}
                     onClick={() => setIsCancelScheduledModalOpen(true)}
                   >
                     Cancel Change
@@ -481,7 +481,7 @@ export function SubscriptionPage() {
                     <button
                       type="button"
                       className="filter-chip"
-                      style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.4)', color: 'rgb(220,38,38)' }}
+                      style={{ background: 'transparent', border: '1px solid var(--danger-border)', color: 'var(--danger-text)' }}
                       onClick={() => cancelPaymentMutation.mutate(latestPendingPayment.id)}
                       disabled={cancelPaymentMutation.isPending}
                     >
