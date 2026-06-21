@@ -10,7 +10,9 @@ import { AsaasPaymentGateway } from '../gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../gateways/stripe/StripePaymentGateway.js';
 import { AsaasGatewayStatusMapper } from '../gateways/asaas/AsaasGatewayStatusMapper.js';
 import { StripeGatewayStatusMapper } from '../gateways/stripe/StripeGatewayStatusMapper.js';
-import { SubscriptionService, BillingIntentService, GATEWAY_NAMES } from '../../../application/services/billing-stubs.service.js';
+import { SubscriptionService, GATEWAY_NAMES } from '../../../application/services/billing/SubscriptionService.js';
+import { BillingIntentService } from '../../../application/services/billing/BillingIntentService.js';
+import { BillingType } from '../../../domain/enums/billing.enums.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { BillingEventBus } from '../../../application/services/billing-event.bus.js';
 import {
@@ -358,7 +360,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
         subscriptionId: userId,
         gatewaySubscriptionId: payment.subscription,
         userId,
-        status: payStatus,
+        status: null, // Não muda status da assinatura em cancelamento de pagamento
       });
       this.billingEventBus.emit(userId);
       return;
@@ -366,12 +368,12 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
 
     // Handle payment confirmations
     if (payStatus === 'confirmed' || payStatus === 'received') {
-      const creditCardToken = await this.resolveAndSyncCreditCardToken(userId, gateway, gatewayPaymentId, payment, intent);
+      const { creditCardToken, billingType: nextBillingType } = await this.resolveAndSyncCreditCardToken(userId, gateway, gatewayPaymentId, payment, intent);
 
       if (intent && (intent.status === 'pending' || intent.status === 'processing')) {
         const claimedIntent = await this.billingIntentService.claimForProcessing(userId, intent.id);
         if (claimedIntent) {
-          await this.processIntentPayload(userId, gatewayCustomerId, payment, intent, paidAt, creditCardToken);
+          await this.processIntentPayload(userId, gatewayCustomerId, payment, intent, paidAt, creditCardToken, nextBillingType);
         }
       }
     }
@@ -380,7 +382,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       subscriptionId: userId,
       gatewaySubscriptionId: payment.subscription,
       userId,
-      status: payStatus,
+      status: null, // Deixa o método determinar o status baseado nos pagamentos
     });
     this.billingEventBus.emit(userId);
   }
@@ -433,9 +435,9 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     gatewayPaymentId: string,
     payment: any,
     intent: any
-  ): Promise<string | undefined> {
+  ): Promise<{ creditCardToken?: string; billingType: BillingTypeEnum }> {
     if (payment.billingType !== BillingTypeEnum.CREDIT_CARD) {
-      return undefined;
+      return { billingType: payment.billingType as BillingTypeEnum };
     }
 
     let creditCardToken = payment.creditCardToken || intent?.creditCardToken;
@@ -458,9 +460,15 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
 
     if (creditCardToken) {
       await this.customerRepository.markCreditCardOnFile(userId, gateway, creditCardToken);
+      return { creditCardToken, billingType: BillingTypeEnum.CREDIT_CARD };
     }
 
-    return creditCardToken;
+    // Fallback para PIX se token de cartão não for recuperável
+    this.logger.warn('billing_webhook_consumer.cc_token_not_found_fallback_to_pix', {
+      userId,
+      gatewayPaymentId,
+    });
+    return { billingType: BillingTypeEnum.PIX };
   }
 
   private async processIntentPayload(
@@ -469,24 +477,65 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     payment: any,
     intent: any,
     paidAt: Date | null,
-    creditCardToken?: string
+    creditCardToken?: string,
+    nextBillingType?: BillingTypeEnum
   ): Promise<void> {
     if (intent.type === 'new') {
+      // Idempotência: verificar se subscription já foi criada para este intent
+      const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);
+      const existingSubscriptionByIntent = sub?.activeSub?.planId === intent.planId ? sub.activeSub : null;
+      
+      if (existingSubscriptionByIntent) {
+        this.logger.info('billing_webhook_consumer.new_intent_idempotent', {
+          intentId: intent.id,
+          subscriptionId: userId,
+        });
+        await this.billingIntentService.markDoneWithSubscription(userId, intent.id, userId);
+        return;
+      }
+
       await this.subscriptionService.createNewSubscription({
         gatewayCustomerId: gatewayCustomerId || '',
         userId,
         targetPlanId: intent.planId || '',
         billingCycle: intent.billingCycle || 'monthly',
-        billingType: payment.billingType ? (payment.billingType.toLowerCase() as any) : undefined,
+        billingType: nextBillingType ? (nextBillingType.toLowerCase() as any) : (payment.billingType ? (payment.billingType.toLowerCase() as any) : undefined),
         activationDate: paidAt || new Date(),
         creditCardToken,
         createdFromIntentId: intent.id,
+        gatewayName: payment.gateway || GATEWAY_NAMES.ASAAS,
       });
       return;
     }
 
     if (intent.type === 'upgrade') {
-      await this.subscriptionService.confirmUpgrade(userId, intent.planId || '');
+      const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);
+      const activeSub = sub?.activeSub;
+      
+      // Idempotência: verificar se subscription já foi atualizada para o plano alvo
+      if (activeSub?.planId === intent.planId) {
+        this.logger.info('billing_webhook_consumer.upgrade_intent_idempotent', {
+          intentId: intent.id,
+          subscriptionId: userId,
+          targetPlanId: intent.planId,
+        });
+        await this.billingIntentService.markDone(userId, intent.id);
+        return;
+      }
+
+      const gatewayCustomerId = activeSub?.gatewayCustomerId || '';
+      const gateway = activeSub?.gatewayName || GATEWAY_NAMES.ASAAS;
+      const price = intent.value || 0;
+      const billingType = intent.billingType || BillingType.CREDIT_CARD;
+      
+      await this.subscriptionService.confirmUpgrade(
+        userId,
+        intent.planId || '',
+        gateway,
+        gatewayCustomerId,
+        price,
+        billingType
+      );
       await this.billingIntentService.markDone(userId, intent.id);
     }
   }

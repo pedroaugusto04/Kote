@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { SubscriptionService } from '../../services/billing-stubs.service.js';
+import { SubscriptionService } from '../../services/billing/SubscriptionService.js';
 
 @Injectable()
 export class GetPlansUseCase {

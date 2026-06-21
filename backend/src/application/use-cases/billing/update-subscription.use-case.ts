@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { QuotaService } from '../../services/quota.service.js';
-import { SubscriptionService } from '../../services/billing-stubs.service.js';
+import { SubscriptionService } from '../../services/billing/SubscriptionService.js';
 import { BillingCycle, BillingType } from '../../../domain/enums/billing.enums.js';
 import { BillingEventBus } from '../../services/billing-event.bus.js';
 

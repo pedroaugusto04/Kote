@@ -2,7 +2,7 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import crypto from 'node:crypto';
 import { BillingWebhookEventRepository } from '../../../ports/billing/billing-repositories.js';
 import { BillingQueuePublisher } from '../../../ports/billing/billing-queue.publisher.js';
-import { GATEWAY_NAMES } from '../../../services/billing-stubs.service.js';
+import { GATEWAY_NAMES } from '../../../services/billing/SubscriptionService.js';
 
 @Injectable()
 export class HandleStripeWebhookUseCase {

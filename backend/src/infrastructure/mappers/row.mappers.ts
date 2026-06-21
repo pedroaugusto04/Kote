@@ -57,6 +57,7 @@ export function userFromRow(row: Row): KbUser {
     passwordHash: field(row, 'password_hash', 'passwordHash') == null ? null : String(field(row, 'password_hash', 'passwordHash')),
     role: String(row.role),
     avatar: fieldString(row, 'avatar', 'avatar'),
+    cpfCnpj: fieldString(row, 'cpf_cnpj', 'cpfCnpj', ''),
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };

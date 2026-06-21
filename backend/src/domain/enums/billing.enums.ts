@@ -15,6 +15,7 @@ export enum SubscriptionStatus {
   PAST_DUE = 'past_due',
   TRIALING = 'trialing',
   CANCELED = 'canceled',
+  INACTIVE = 'inactive',
 }
 
 export enum SubscriptionChangeType {

@@ -164,6 +164,16 @@ jobs:
           ASAAS_CUSTOMER_NOTIFICATIONS_DISABLED: ${{ vars.ASAAS_CUSTOMER_NOTIFICATIONS_DISABLED || 'false' }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY || '' }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET || '' }}
+          CHANGE_SUBSCRIPTION_WORKER_AUTORUN: ${{ vars.CHANGE_SUBSCRIPTION_WORKER_AUTORUN || 'false' }}
+          BILLING_WORKER_AUTORUN: ${{ vars.BILLING_WORKER_AUTORUN || 'false' }}
+          MAX_DAYS_PAST_DUE: ${{ vars.MAX_DAYS_PAST_DUE || '7' }}
+          WEBHOOK_OUTBOX_RELAY_AUTORUN: ${{ vars.WEBHOOK_OUTBOX_RELAY_AUTORUN || 'false' }}
+          WEBHOOK_OUTBOX_RELAY_CRON: ${{ vars.WEBHOOK_OUTBOX_RELAY_CRON || '*/1 * * * *' }}
+          WEBHOOK_OUTBOX_RELAY_TIMEZONE: ${{ vars.WEBHOOK_OUTBOX_RELAY_TIMEZONE || 'America/Sao_Paulo' }}
+          WEBHOOK_OUTBOX_RELAY_BATCH_SIZE: ${{ vars.WEBHOOK_OUTBOX_RELAY_BATCH_SIZE || '100' }}
+          WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS: ${{ vars.WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS || '30' }}
+          WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS: ${{ vars.WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS || '10' }}
+          DEV_EMAIL: ${{ vars.DEV_EMAIL || '' }}
         run: bash scripts/deploy/generate-backend-env.sh .deploy/backend.env
 
       - name: Validate production environment config

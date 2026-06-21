@@ -242,6 +242,22 @@ export class PostgresBillingPaymentRepository extends BillingPaymentRepository {
       value: Number(row.value),
     };
   }
+
+  async hasRecurringPaymentInRealDebt(userId: string, subscriptionId: string): Promise<boolean> {
+    const db = this.database.getDb();
+    const paymentsInDebt = await db
+      .select()
+      .from(billingPayments)
+      .where(and(
+        eq(billingPayments.userId, userId),
+        eq(billingPayments.subscriptionId, subscriptionId),
+        eq(billingPayments.kind, 'recurring'),
+        eq(billingPayments.status, 'pending')
+      ))
+      .limit(1);
+    
+    return paymentsInDebt.length > 0;
+  }
 }
 
 @Injectable()
