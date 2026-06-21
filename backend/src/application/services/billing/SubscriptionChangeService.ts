@@ -77,7 +77,17 @@ export class SubscriptionChangeService {
 
   async cancelScheduledChange(userId: string, changeId: string) {
     const db = this.database.getDb();
-    await db.update(subscriptionChangeRequests).set({ status: SubscriptionChangeStatus.CANCELED }).where(eq(subscriptionChangeRequests.id, changeId));
+    const deleted = await db
+      .delete(subscriptionChangeRequests)
+      .where(and(
+        eq(subscriptionChangeRequests.id, changeId),
+        eq(subscriptionChangeRequests.userId, userId),
+      ))
+      .returning({ id: subscriptionChangeRequests.id });
+
+    if (deleted.length === 0) {
+      throw new BadRequestException('Scheduled change not found');
+    }
   }
 
   async getScheduledChange(userId: string) {

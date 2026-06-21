@@ -4,6 +4,11 @@ import { PostgresDatabase } from '../../../infrastructure/persistence/database.j
 import { plans } from '../../../infrastructure/persistence/schema/index.js';
 import { BillingCycle } from '../../../domain/enums/billing.enums.js';
 import { compareMoney, PLAN_PRICE_SCALE, toMoneyDecimal, toMoneyNumber } from '../../../infrastructure/utils/money.js';
+import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
+import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
+import { GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { AppLogger } from '../../../observability/logger.js';
+import type { SubscriptionContext } from './subscriptionStrategy/subscriptionContext.js';
 
 type BillingValueInput = string | number | { toString(): string } | null | undefined;
 
@@ -11,7 +16,47 @@ type BillingValueInput = string | number | { toString(): string } | null | undef
 export class SubscriptionUpgradeService {
   constructor(
     private readonly database: PostgresDatabase,
+    private readonly asaasPaymentGateway: AsaasPaymentGateway,
+    private readonly stripePaymentGateway: StripePaymentGateway,
+    private readonly logger: AppLogger,
   ) {}
+
+  async getUpgradeFirstPaymentValue(ctx: SubscriptionContext): Promise<number> {
+    if (!ctx.activeSub) {
+      throw new BadRequestException('Unable to change subscription plan. Please try again later.');
+    }
+    if (!ctx.activePlan) {
+      throw new BadRequestException('Active plan not found for upgrade calculation');
+    }
+    if (!ctx.newPlan) {
+      throw new BadRequestException('Target plan not found for upgrade calculation');
+    }
+
+    const gateway = ctx.gateway === GatewayNameEnum.STRIPE
+      ? this.stripePaymentGateway
+      : this.asaasPaymentGateway;
+
+    const gatewaySubscription = await gateway.getSubscriptionByGatewayId(ctx.activeSub.gatewaySubscriptionId);
+    if (!gatewaySubscription?.nextDueDate) {
+      this.logger.error('subscription_upgrade.gateway_subscription_missing', {
+        gatewaySubscriptionId: ctx.activeSub.gatewaySubscriptionId,
+        gateway: ctx.gateway,
+      });
+      throw new BadRequestException('Unable to change subscription plan. Please try again later.');
+    }
+
+    const periodEnd = ctx.activeSub.nextDueDate ?? new Date(gatewaySubscription.nextDueDate);
+    const deltaPrice = await this.calculateProrationUpgradeValue({
+      currentPlanId: ctx.activePlan.id,
+      newPlanId: ctx.newPlan.id,
+      billingCycle: ctx.activeSub.billingCycle,
+      currentPeriodEnd: periodEnd,
+    });
+
+    const fallbackValue = ctx.newSubscriptionValue ?? await this.resolvePlanValueForCycle(ctx.newPlan, ctx.activeSub.billingCycle);
+
+    return compareMoney(deltaPrice, 0, PLAN_PRICE_SCALE) > 0 ? deltaPrice : fallbackValue;
+  }
 
   async calculateProrationUpgradeValue(params: {
     currentPlanId: string;
@@ -35,14 +80,22 @@ export class SubscriptionUpgradeService {
     const currentPrice = this.priceForCycle(currentPlan, params.billingCycle);
     const newPrice = this.priceForCycle(newPlan, params.billingCycle);
 
-    const deltaPrice = this.computeProrationDelta({
+    return this.computeProrationDelta({
       currentPrice,
       newPrice,
       currentBillingCycle: params.billingCycle,
       periodEnd: params.currentPeriodEnd,
     });
+  }
 
-    return deltaPrice > 0 ? deltaPrice : newPrice;
+  private async resolvePlanValueForCycle(
+    plan: { priceCents: number; priceUsdCents: number },
+    cycle: BillingCycle,
+  ): Promise<number> {
+    if (cycle === BillingCycle.YEARLY) {
+      return (plan.priceCents * 12 * 0.8) / 100;
+    }
+    return plan.priceCents / 100;
   }
 
   private computeProrationDelta(params: {

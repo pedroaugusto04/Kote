@@ -20,6 +20,7 @@ export type SubscriptionContext = {
   newBillingCycle: BillingCycle;
   newBillingType: BillingType;
   newCreditCardToken?: string;
+  newSubscriptionValue?: number;
   user: { id: string; name: string };
   gateway: GatewayNameEnum;
   gatewayCustomerId: string;

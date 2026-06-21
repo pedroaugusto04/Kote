@@ -56,6 +56,7 @@ export function SubscriptionPage() {
   const [activePayment, setActivePayment] = useState<PendingPaymentDTO | null>(null);
 
   const [isCancelScheduledModalOpen, setIsCancelScheduledModalOpen] = useState(false);
+  const [isPaymentCloseConfirmOpen, setIsPaymentCloseConfirmOpen] = useState(false);
 
   const [copied, setCopied] = useState(false);
   const hadPendingPaymentRef = useRef(false);
@@ -267,6 +268,15 @@ export function SubscriptionPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleRefreshSubscription = () => {
+    void queryClient.invalidateQueries({ queryKey: ['billing', 'status'] });
+    void queryClient.invalidateQueries({ queryKey: ['billing', 'plans'] });
+  };
+
+  const requestClosePaymentModal = () => {
+    setIsPaymentCloseConfirmOpen(true);
+  };
+
   const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatCpfCnpj(e.target.value);
     setCpfCnpj(formatted);
@@ -295,6 +305,16 @@ export function SubscriptionPage() {
     <>
       <PageHead title="Subscription Management" subtitle="Choose plans, manage invoice cycles, and payment methods" />
       <Panel className="subscription-panel">
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: summary ? '12px' : 0 }}>
+          <button
+            type="button"
+            className="filter-chip"
+            onClick={handleRefreshSubscription}
+            disabled={statusQuery.isFetching || plansQuery.isFetching}
+          >
+            {statusQuery.isFetching || plansQuery.isFetching ? 'Refreshing...' : 'Refresh'}
+          </button>
+        </div>
         {isLoading && <div className="profile-state" role="status">Loading subscription details...</div>}
         
         {plansQuery.isError && <InlineMessage tone="error">Failed to load available plans.</InlineMessage>}
@@ -427,7 +447,14 @@ export function SubscriptionPage() {
 
             {/* Plan Display Header & Toggle */}
             <div className="subscription-header-row">
-              <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-strong)' }}>Available Plans</h2>
+              <div>
+                <h2 style={{ fontSize: '18px', fontWeight: 600, color: 'var(--text-strong)' }}>Available Plans</h2>
+                {summary.entitledUntil && (
+                  <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px' }}>
+                    Active until {formatDate(summary.entitledUntil)}
+                  </p>
+                )}
+              </div>
               <div className="cycle-selector">
                 <button
                   type="button"
@@ -697,14 +724,14 @@ export function SubscriptionPage() {
 
       {/* 2. Modal: Subscription Payment Details */}
       {isPaymentModalOpen && activePayment && (
-        <div className="modal-backdrop" onClick={() => setIsPaymentModalOpen(false)}>
+        <div className="modal-backdrop" onClick={requestClosePaymentModal}>
           <section className="modal-panel integration-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-head">
               <div>
                 <h2>Payment instructions</h2>
                 <p>Complete the payment of {formatCurrency(activePayment.value)} to activate your subscription</p>
               </div>
-              <button className="modal-close" type="button" onClick={() => setIsPaymentModalOpen(false)}>x</button>
+              <button className="modal-close" type="button" onClick={requestClosePaymentModal}>x</button>
             </div>
 
             <div style={{ margin: '20px 0' }}>
@@ -798,9 +825,39 @@ export function SubscriptionPage() {
               <button
                 className="filter-chip"
                 type="button"
-                onClick={() => setIsPaymentModalOpen(false)}
+                onClick={requestClosePaymentModal}
               >
                 Close
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {isPaymentCloseConfirmOpen && (
+        <div className="modal-backdrop" onClick={() => setIsPaymentCloseConfirmOpen(false)}>
+          <section className="modal-panel integration-modal confirm-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <h2>Close payment</h2>
+                <p>Are you sure you want to close this payment? You can reopen it from the pending invoice banner.</p>
+              </div>
+              <button className="modal-close" type="button" onClick={() => setIsPaymentCloseConfirmOpen(false)}>x</button>
+            </div>
+            <div className="form-actions">
+              <button className="filter-chip" type="button" onClick={() => setIsPaymentCloseConfirmOpen(false)}>
+                Keep open
+              </button>
+              <button
+                className="icon-button danger-button"
+                type="button"
+                onClick={() => {
+                  setIsPaymentCloseConfirmOpen(false);
+                  setIsPaymentModalOpen(false);
+                  setActivePayment(null);
+                }}
+              >
+                Yes, close
               </button>
             </div>
           </section>

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
-import { eq, and, or, isNull, lte, lt, sql, inArray } from 'drizzle-orm';
+import { eq, and, or, isNull, lte, lt, sql, inArray, ne, desc } from 'drizzle-orm';
 
 import {
   BillingCustomerRepository,
@@ -20,10 +20,14 @@ import {
   billingPayments,
   gatewayWebhookEvents,
   PaymentGateway,
-  PaymentStatus,
+  PaymentStatus as SchemaPaymentStatus,
   BillingType,
   PaymentKind,
 } from '../persistence/schema/index.js';
+import { PaymentStatus } from '../../domain/enums/billing.enums.js';
+import {
+  pickHighestPriorityPendingPayment,
+} from '../utils/billing/paymentUtils.js';
 
 @Injectable()
 export class PostgresBillingCustomerRepository extends BillingCustomerRepository {
@@ -243,21 +247,77 @@ export class PostgresBillingPaymentRepository extends BillingPaymentRepository {
     };
   }
 
+  async getLatestPendingPaymentByUserId(userId: string): Promise<BillingPaymentRecord | null> {
+    const db = this.database.getDb();
+    const rows = await db
+      .select()
+      .from(billingPayments)
+      .where(and(
+        eq(billingPayments.userId, userId),
+        inArray(billingPayments.status, [PaymentStatus.PENDING, PaymentStatus.OVERDUE]),
+      ))
+      .orderBy(desc(billingPayments.dueDate), desc(billingPayments.createdAt));
+
+    if (rows.length === 0) {
+      return null;
+    }
+
+    const selected = pickHighestPriorityPendingPayment(rows.map((row) => ({
+      ...row,
+      dueDate: row.dueDate,
+      createdAt: row.createdAt,
+    })));
+
+    if (!selected) {
+      return null;
+    }
+
+    return {
+      ...selected,
+      value: Number(selected.value),
+    };
+  }
+
   async hasRecurringPaymentInRealDebt(userId: string, subscriptionId: string): Promise<boolean> {
     const db = this.database.getDb();
-    const paymentsInDebt = await db
+
+    const overduePayment = await db
+      .select({ id: billingPayments.id })
+      .from(billingPayments)
+      .where(and(
+        eq(billingPayments.userId, userId),
+        eq(billingPayments.subscriptionId, subscriptionId),
+        eq(billingPayments.kind, 'recurring'),
+        eq(billingPayments.status, PaymentStatus.OVERDUE),
+      ))
+      .limit(1);
+
+    if (overduePayment.length > 0) {
+      return true;
+    }
+
+    const latestRecurring = await db
       .select()
       .from(billingPayments)
       .where(and(
         eq(billingPayments.userId, userId),
         eq(billingPayments.subscriptionId, subscriptionId),
         eq(billingPayments.kind, 'recurring'),
-        // Consider both PENDING and OVERDUE as real debt
-        inArray(billingPayments.status, ['pending', 'overdue'])
+        ne(billingPayments.status, PaymentStatus.CANCELED),
       ))
-      .limit(1);
-    
-    return paymentsInDebt.length > 0;
+      .orderBy(desc(billingPayments.dueDate))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+
+    if (
+      latestRecurring &&
+      (latestRecurring.status === PaymentStatus.REFUNDED ||
+        latestRecurring.status === PaymentStatus.PARTIALLY_REFUNDED)
+    ) {
+      return true;
+    }
+
+    return false;
   }
 }
 

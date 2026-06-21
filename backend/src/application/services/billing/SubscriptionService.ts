@@ -35,7 +35,7 @@ import type { SubscriptionChangeResult } from '../../models/subscription-change.
 import { SubscriptionChangeService } from './SubscriptionChangeService.js';
 import { PostgresBillingPaymentRepository } from '../../../infrastructure/repositories/billing.repository.js';
 import { UpdateSubscriptionStrategyFactory } from './subscriptionStrategy/UpdateSubscriptionStrategyFactory.js';
-import { canCancelPayment } from '../../../infrastructure/utils/billing/paymentUtils.js';
+import { canCancelPayment, isActiveSubscriptionStatus } from '../../../infrastructure/utils/billing/paymentUtils.js';
 
 
 @Injectable()
@@ -141,21 +141,25 @@ export class SubscriptionService {
       currentSub &&
       currentSub.planId === planId &&
       currentSub.billingCycle === cycle &&
-      currentSub.billingType === type &&
       currentSub.status === SubscriptionStatus.ACTIVE
     ) {
-      throw new BadRequestException('You are already subscribed to this plan with the same cycle and payment method.');
+      throw new BadRequestException('You are already subscribed to this plan with the same billing cycle.');
     }
 
-    if (currentSub) {
+    const activeSubRow =
+      currentSub && isActiveSubscriptionStatus(currentSub.status) ? currentSub : null;
+
+    if (activeSubRow) {
       const isScheduled = await this.subscriptionChangeService.isChangeScheduled(userId);
       if (isScheduled) {
         throw new BadRequestException('A plan change is already scheduled. Please wait or cancel the scheduled change before selecting a new plan.');
       }
     }
 
-    // Check if credit card is registered for monthly billing
-    if (cycle === BillingCycle.MONTHLY && type !== BillingType.CREDIT_CARD) {
+    const shouldCheckCardOnFile =
+      type === BillingType.CREDIT_CARD || cycle === BillingCycle.MONTHLY;
+
+    if (shouldCheckCardOnFile && cycle === BillingCycle.MONTHLY && type !== BillingType.CREDIT_CARD) {
       const customerRow = await db.select().from(billingCustomers).where(eq(billingCustomers.userId, userId)).limit(1).then(r => r[0] || null);
       const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
       if (hasCreditCardOnFile) {
@@ -175,8 +179,8 @@ export class SubscriptionService {
     }
 
     let activePlanRow = null;
-    if (currentSub) {
-      activePlanRow = await db.select().from(plans).where(eq(plans.id, currentSub.planId)).limit(1).then(r => r[0] || null);
+    if (activeSubRow) {
+      activePlanRow = await db.select().from(plans).where(eq(plans.id, activeSubRow.planId)).limit(1).then(r => r[0] || null);
     }
     const activePlan = activePlanRow ? {
       id: activePlanRow.id,
@@ -191,25 +195,35 @@ export class SubscriptionService {
       isActive: activePlanRow.isActive,
     } : undefined;
 
+    const newSubscriptionValue = this.resolvePlanValueForCycle(
+      {
+        priceCents: targetPlan.priceCents,
+        priceUsdCents: targetPlan.priceUsdCents,
+      },
+      cycle,
+      gatewayName === PAYMENT_GATEWAY.ASAAS ? GatewayNameEnum.ASAAS : GatewayNameEnum.STRIPE,
+    );
+
     const ctx: SubscriptionContext = {
       userId,
       newPlan: targetPlan,
       newBillingCycle: cycle,
       newBillingType: type,
       newCreditCardToken: normalizedCreditCardToken,
+      newSubscriptionValue,
       user: {
         id: userId,
         name: userDisplayName || userEmail,
       },
       gateway: gatewayName === PAYMENT_GATEWAY.ASAAS ? GatewayNameEnum.ASAAS : GatewayNameEnum.STRIPE,
       gatewayCustomerId,
-      activeSub: currentSub ? {
-        id: currentSub.userId,
-        planId: currentSub.planId,
-        billingCycle: currentSub.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
-        gatewaySubscriptionId: currentSub.gatewaySubscriptionId || '',
-        nextDueDate: currentSub.nextDueDate || undefined,
-        gatewayName: currentSub.gatewayName,
+      activeSub: activeSubRow ? {
+        id: activeSubRow.userId,
+        planId: activeSubRow.planId,
+        billingCycle: activeSubRow.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+        gatewaySubscriptionId: activeSubRow.gatewaySubscriptionId || '',
+        nextDueDate: activeSubRow.nextDueDate || undefined,
+        gatewayName: activeSubRow.gatewayName || gatewayName,
       } : undefined,
       activePlan,
     };
@@ -457,7 +471,7 @@ export class SubscriptionService {
         eq(billingPayments.userId, params.userId),
         eq(billingPayments.kind, 'recurring')
       ))
-      .orderBy(desc(billingPayments.createdAt))
+      .orderBy(desc(billingPayments.dueDate))
       .limit(1)
       .then(r => r[0] || null);
 
@@ -544,13 +558,7 @@ export class SubscriptionService {
 
     const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === SubscriptionStatus.PAST_DUE)) ? latestSubSummary : null;
 
-    const paymentRow = await db
-      .select()
-      .from(billingPayments)
-      .where(and(eq(billingPayments.userId, userId), eq(billingPayments.status, PaymentStatus.PENDING)))
-      .orderBy(desc(billingPayments.createdAt))
-      .limit(1)
-      .then(r => r[0] || null);
+    const paymentRow = await this.billingPaymentRepository.getLatestPendingPaymentByUserId(userId);
 
     const latestPendingPaymentSummary = paymentRow ? {
       id: paymentRow.id,
@@ -611,7 +619,7 @@ export class SubscriptionService {
       latestPendingPayment: latestPendingPaymentSummary,
       scheduledChange: scheduledChangeDTO,
       entitledPlanId: activeSubSummary ? activeSubSummary.planId : FREE_PLAN_ID,
-      entitledUntil: activeSubSummary ? activeSubSummary.currentPeriodEnd : null,
+      entitledUntil: activeSubSummary?.nextDueDate ?? null,
       hasCreditCardOnFile,
     };
   }
@@ -640,12 +648,7 @@ export class SubscriptionService {
       throw new BadRequestException('Cannot perform upgrade with past due subscription. Please settle the pending recurring payment and try again.');
     }
 
-    const firstPaymentValue = await this.subscriptionUpgradeService.calculateProrationUpgradeValue({
-      currentPlanId: ctx.activePlan?.id || '',
-      newPlanId: ctx.newPlan.id,
-      billingCycle: ctx.activeSub.billingCycle,
-      currentPeriodEnd: ctx.activeSub.nextDueDate || new Date(),
-    });
+    const firstPaymentValue = await this.subscriptionUpgradeService.getUpgradeFirstPaymentValue(ctx);
 
     await this.createOneShotPayment({
       ctx,
