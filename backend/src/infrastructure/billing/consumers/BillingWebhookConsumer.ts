@@ -24,23 +24,8 @@ import {
   type PaymentGateway,
   type PaymentStatus,
   type PaymentKind,
-  type BillingType,
 } from '../../../infrastructure/persistence/schema/index.js';
 import { BillingTypeEnum } from '../gateways/IPaymentGateway.js';
-
-/**
- * Maps gateway-layer BillingTypeEnum (uppercase, e.g. 'CREDIT_CARD') to the
- * DB enum value (lowercase, e.g. 'credit_card') accepted by kb_billing_type_enum.
- */
-function normalizeBillingTypeForDb(value: BillingTypeEnum | undefined | null): BillingType | null {
-  if (!value) return null;
-  switch (value) {
-    case BillingTypeEnum.CREDIT_CARD: return 'credit_card';
-    case BillingTypeEnum.PIX: return 'pix';
-    case BillingTypeEnum.BOLETO: return 'boleto';
-    default: return null;
-  }
-}
 
 const RECONNECT_DELAY_MS = 5_000;
 
@@ -344,13 +329,18 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
 
     const intent = await this.resolveIntent(payment.externalReference);
 
+    // subscriptionId references userSubscriptions.userId (FK).
+    // On first payment, the subscription row may not exist yet → use existing link or null.
+    // A subsequent webhook upsert will update it once the subscription is created.
+    const subscriptionId = existingPayment?.subscriptionId ?? null;
+
     const paymentData = {
-      subscriptionId: userId,
+      subscriptionId,
       userId,
       gateway,
       gatewayPaymentId,
       status: payStatus,
-      billingType: normalizeBillingTypeForDb(payment.billingType),
+      billingType: payment.billingType ?? null,
       kind: existingPayment?.kind || (intent?.type === 'upgrade' ? PAYMENT_KIND.UPGRADE : PAYMENT_KIND.RECURRING) as PaymentKind,
       gatewayStatus: payment.status || null,
       value,

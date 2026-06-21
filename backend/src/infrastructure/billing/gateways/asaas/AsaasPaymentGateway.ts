@@ -161,10 +161,13 @@ export class AsaasPaymentGateway implements IPaymentGateway {
   }
 
   private normalizeBillingType(value: unknown): BillingTypeEnum | undefined {
-    if (value === BillingTypeEnum.BOLETO) return BillingTypeEnum.BOLETO;
-    if (value === BillingTypeEnum.PIX) return BillingTypeEnum.PIX;
-    if (value === BillingTypeEnum.CREDIT_CARD) return BillingTypeEnum.CREDIT_CARD;
-    return undefined;
+    if (typeof value !== 'string') return undefined;
+    switch (value.toUpperCase()) {
+      case 'BOLETO': return BillingTypeEnum.BOLETO;
+      case 'PIX': return BillingTypeEnum.PIX;
+      case 'CREDIT_CARD': return BillingTypeEnum.CREDIT_CARD;
+      default: return undefined;
+    }
   }
 
   private normalizeOptionalDate(value: unknown): string | Date | undefined {
@@ -217,7 +220,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
   async createSubscription(input: CreateSubscriptionInput): Promise<GatewaySubscription> {
     const payload = {
       customer: input.customerId,
-      billingType: input.billingType,
+      billingType: input.billingType.toUpperCase(),
       value: this.normalizeGatewayMoney(input.value),
       cycle: input.cycle,
       nextDueDate: input.nextDueDate,
@@ -250,7 +253,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
       ...(input.value !== undefined ? { value: this.normalizeGatewayMoney(input.value) } : {}),
       ...(input.cycle ? { cycle: input.cycle } : {}),
       ...(input.nextDueDate ? { nextDueDate: input.nextDueDate } : {}),
-      ...(input.billingType ? { billingType: input.billingType } : {}),
+      ...(input.billingType ? { billingType: input.billingType.toUpperCase() } : {}),
       ...(input.description ? { description: input.description } : {}),
       ...(input.externalReference ? { externalReference: input.externalReference } : {}),
       ...(input.updatePendingPayments !== undefined ? { updatePendingPayments: input.updatePendingPayments } : {}),
@@ -272,7 +275,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
     const payload = {
       ...(input.value !== undefined ? { value: this.normalizeGatewayMoney(input.value) } : {}),
       ...(input.dueDate ? { dueDate: input.dueDate } : {}),
-      ...(input.billingType ? { billingType: input.billingType } : {}),
+      ...(input.billingType ? { billingType: input.billingType.toUpperCase() } : {}),
       ...(input.description ? { description: input.description } : {}),
       ...(input.externalReference ? { externalReference: input.externalReference } : {}),
     };
@@ -340,7 +343,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
   async createPayment(input: CreatePaymentInput): Promise<GatewayPayment> {
     const payload = {
       customer: input.customerId,
-      billingType: input.billingType,
+      billingType: input.billingType.toUpperCase(),
       ...(input.billingType === BillingTypeEnum.CREDIT_CARD && input.creditCardToken
         ? { creditCardToken: input.creditCardToken }
         : {}),

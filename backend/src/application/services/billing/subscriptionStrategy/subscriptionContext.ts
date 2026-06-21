@@ -1,5 +1,5 @@
 import { BillingCycle, BillingType } from '../../../../domain/enums/billing.enums.js';
-import { BillingTypeEnum, GatewayNameEnum } from '../../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { GatewayNameEnum } from '../../../../infrastructure/billing/gateways/IPaymentGateway.js';
 
 export interface SubscriptionPlanDTO {
   id: string;
@@ -27,7 +27,7 @@ export type SubscriptionContext = {
 
   newPlan: SubscriptionPlanDTO;
   newBillingCycle: BillingCycle;
-  newBillingType: BillingTypeEnum;
+  newBillingType: BillingType;
   newCreditCardToken?: string;
   newSubscriptionValue: number;
 

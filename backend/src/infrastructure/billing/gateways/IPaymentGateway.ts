@@ -1,9 +1,9 @@
 import { BillingCycle, PaymentKind } from '../../persistence/schema/index.js';
 
 export enum BillingTypeEnum {
-  BOLETO = 'BOLETO',
-  PIX = 'PIX',
-  CREDIT_CARD = 'CREDIT_CARD',
+  BOLETO = 'boleto',
+  PIX = 'pix',
+  CREDIT_CARD = 'credit_card',
 }
 
 export enum GatewayNameEnum {

@@ -8,7 +8,7 @@ import {
 } from '../../../infrastructure/persistence/schema/index.js';
 import { SubscriptionChangeStatus, SubscriptionChangeType, SubscriptionStatus, BillingCycle, BillingType, PaymentStatus } from '../../../domain/enums/billing.enums.js';
 import { SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
-import { BillingTypeEnum, GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { BillingTypeEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
 import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
 import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
@@ -149,7 +149,7 @@ export class SubscriptionChangeService {
         await gateway.updateSubscription(sub.gatewaySubscriptionId, {
           value: targetRecurringValue,
           cycle: billingCycle === BillingCycle.YEARLY ? 'yearly' : 'monthly',
-          billingType: changeRequest.toBillingType === BillingType.PIX ? BillingTypeEnum.PIX : changeRequest.toBillingType === BillingType.BOLETO ? BillingTypeEnum.BOLETO : BillingTypeEnum.CREDIT_CARD,
+          billingType: changeRequest.toBillingType as BillingType ?? BillingType.CREDIT_CARD,
           updatePendingPayments: true,
         });
 
@@ -276,8 +276,7 @@ export class SubscriptionChangeService {
         ? this.asaasGatewayStatusMapper.normalizePaymentStatus(syncedPayment.status, null) ?? normalizedStatus ?? PaymentStatus.PENDING
         : this.stripeGatewayStatusMapper.normalizePaymentStatus(syncedPayment.status, null) ?? normalizedStatus ?? PaymentStatus.PENDING;
 
-      const billingType = syncedPayment.billingType ?? payment.billingType;
-      const normalizedBillingType = billingType === BillingTypeEnum.BOLETO ? 'boleto' : billingType === BillingTypeEnum.PIX ? 'pix' : 'credit_card';
+      const billingType = syncedPayment.billingType ?? payment.billingType ?? null;
 
       await this.billingPaymentRepository.upsertSubscriptionPayment({
         subscriptionId: sub.id,
@@ -285,7 +284,7 @@ export class SubscriptionChangeService {
         gateway: gateway === this.asaasPaymentGateway ? 'asaas' : 'stripe',
         gatewayPaymentId: payment.id,
         status: syncedStatus,
-        billingType: normalizedBillingType,
+        billingType: billingType,
         gatewayStatus: syncedPayment.status ?? payment.status ?? undefined,
         value: syncedPayment.value ?? normalizedRecurringValue,
         dueDate: syncedDueDate,
