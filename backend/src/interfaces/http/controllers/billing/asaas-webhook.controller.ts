@@ -1,8 +1,6 @@
 import crypto from 'node:crypto';
-import { Controller, Post, Body, Req, Headers, UnauthorizedException, Logger, HttpCode, HttpStatus, UseGuards, Get } from '@nestjs/common';
+import { Controller, Post, Body, Headers, UnauthorizedException, Logger, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { type Request } from 'express';
-
 import { BillingWebhookEventRepository } from '../../../../application/ports/billing/billing-repositories.js';
 import { BillingQueuePublisher } from '../../../../application/ports/billing/billing-queue.publisher.js';
 import { WebhookRateLimitGuard } from '../../auth.guards.js';
@@ -17,18 +15,6 @@ export class AsaasWebhookController {
     private readonly webhookEventRepository: BillingWebhookEventRepository,
     private readonly queuePublisher: BillingQueuePublisher,
   ) { }
-
-  @Get()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Webhook health check' })
-  @ApiResponse({ status: 200, description: 'Webhook is ready' })
-  async healthCheck() {
-    return {
-      ok: true,
-      ready: true,
-      message: 'Asaas webhook endpoint is ready'
-    };
-  }
 
   @Post()
   @HttpCode(HttpStatus.OK)
