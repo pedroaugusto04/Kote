@@ -13,7 +13,6 @@ export enum SubscriptionStatus {
   ACTIVE = 'active',
   PENDING = 'pending',
   PAST_DUE = 'past_due',
-  TRIALING = 'trialing',
   CANCELED = 'canceled',
   INACTIVE = 'inactive',
 }
@@ -31,7 +30,10 @@ export enum SubscriptionChangeStatus {
 
 export enum PaymentStatus {
   PENDING = 'pending',
-  OVERDUE = 'overdue',
+  RECEIVED = 'received',
   CONFIRMED = 'confirmed',
+  OVERDUE = 'overdue',
+  REFUNDED = 'refunded',
   CANCELED = 'canceled',
+  PARTIALLY_REFUNDED = 'partially_refunded',
 }

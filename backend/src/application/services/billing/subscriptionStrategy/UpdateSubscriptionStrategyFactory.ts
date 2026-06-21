@@ -14,13 +14,8 @@ export class UpdateSubscriptionStrategyFactory {
   getChangeKind(ctx: SubscriptionContext): SubscriptionChangeKind {
     const activeSub = ctx.activeSub;
 
-    // caso nao tenha assinatura ativa ou se a assinatura ativa for o plano gratuito -> cria nova
-    if (
-      !activeSub ||
-      activeSub.planId === FREE_PLAN_ID ||
-      ctx.activePlan?.slug === SubscriptionPlan.FREE ||
-      ctx.activePlan?.id === FREE_PLAN_ID
-    ) {
+    // caso nao tenha assinatura ativa -> cria nova
+    if (!activeSub) {
       return SubscriptionChangeKind.NEW;
     }
 

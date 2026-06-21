@@ -14,6 +14,7 @@ import { SubscriptionUpgradeService } from '../../application/services/billing/S
 import { SubscriptionCancellationService } from '../../application/services/billing/SubscriptionCancellationService.js';
 import { SubscriptionChangeService } from '../../application/services/billing/SubscriptionChangeService.js';
 
+import { AuthModule } from './auth.module.js';
 import { AsaasWebhookController } from '../../interfaces/http/controllers/billing/asaas-webhook.controller.js';
 import { StripeWebhookController } from '../../interfaces/http/controllers/billing/stripe-webhook.controller.js';
 import { BillingSseController } from '../../interfaces/http/controllers/billing/billing-sse.controller.js';
@@ -27,7 +28,7 @@ import { BillingSseRedisBroker } from '../billing/sse/BillingSseRedisBroker.js';
 import { BillingSseHub } from '../billing/sse/BillingSseHub.js';
 
 @Module({
-  imports: [DatabaseModule, LoggerModule],
+  imports: [DatabaseModule, LoggerModule, AuthModule],
   controllers: [AsaasWebhookController, StripeWebhookController, BillingSseController],
   providers: [
     AppLogger,

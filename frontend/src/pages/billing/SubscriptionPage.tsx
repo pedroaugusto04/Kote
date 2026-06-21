@@ -16,6 +16,7 @@ import { PageHead, Panel, InlineMessage } from '../../shared/ui/primitives';
 import { formatCpfCnpj, isValidCpfCnpjFormat } from '../../shared/utils/cpf-cnpj';
 import { detectUserCountry } from '../../shared/utils/location';
 import { BILLING_ERROR_MESSAGES, BILLING_CYCLE, BILLING_TYPE, type BillingCycle, type BillingType } from '../../shared/constants/billing.constants';
+import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 
 export function SubscriptionPage() {
   const queryClient = useQueryClient();
@@ -92,7 +93,12 @@ export function SubscriptionPage() {
       if (pendingPayment && (pendingPayment.billingType === 'pix' || pendingPayment.billingType === 'boleto')) {
         setActivePayment(pendingPayment);
         setIsPaymentModalOpen(true);
+      } else {
+        notifySuccess('Subscription updated successfully');
       }
+    },
+    onError: (error) => {
+      notifyError(error instanceof Error ? error.message : 'An error occurred');
     },
   });
 
@@ -100,6 +106,10 @@ export function SubscriptionPage() {
     mutationFn: cancelPendingPayment,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['billing', 'status'] });
+      notifySuccess('Payment canceled successfully');
+    },
+    onError: (error) => {
+      notifyError(error instanceof Error ? error.message : 'Failed to cancel payment');
     },
   });
 
@@ -107,6 +117,10 @@ export function SubscriptionPage() {
     mutationFn: cancelScheduledChange,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['billing', 'status'] });
+      notifySuccess('Scheduled change canceled successfully');
+    },
+    onError: (error) => {
+      notifyError(error instanceof Error ? error.message : 'Failed to cancel scheduled change');
     },
   });
 
@@ -523,13 +537,7 @@ export function SubscriptionPage() {
               )}
             </div>
 
-            {updateMutation.isError && (
-              <div style={{ padding: '0 24px', marginBottom: '16px' }}>
-                <InlineMessage tone="error">
-                  {updateMutation.error instanceof Error ? updateMutation.error.message : 'An error occurred'}
-                </InlineMessage>
-              </div>
-            )}
+
 
             <div className="form-actions">
               <button className="filter-chip" type="button" onClick={() => setIsChoiceModalOpen(false)}>
