@@ -14,6 +14,8 @@ import {
 import { AppLogger } from '../../observability/logger.js';
 import { AsaasPaymentGateway } from '../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
+import { AsaasGatewayStatusMapper } from '../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
+import { StripeGatewayStatusMapper } from '../../infrastructure/billing/gateways/stripe/StripeGatewayStatusMapper.js';
 import { BillingTypeEnum } from '../../infrastructure/billing/gateways/IPaymentGateway.js';
 import {
   BillingCycle,
@@ -140,6 +142,8 @@ export class SubscriptionService {
     private readonly billingIntentService: BillingIntentService,
     private readonly asaasPaymentGateway: AsaasPaymentGateway,
     private readonly stripePaymentGateway: StripePaymentGateway,
+    private readonly asaasGatewayStatusMapper: AsaasGatewayStatusMapper,
+    private readonly stripeGatewayStatusMapper: StripeGatewayStatusMapper,
   ) {}
 
   async getPlans() {
@@ -266,6 +270,7 @@ export class SubscriptionService {
       let pixQrCodeUrl: string | null = null;
       let invoiceUrl: string | null = null;
       let gatewayPaymentId: string | null = null;
+      let paymentStatus: PaymentStatus = PaymentStatus.PENDING;
 
       try {
         let customerId = gatewayCustomerId;
@@ -299,6 +304,18 @@ export class SubscriptionService {
           pixQrCodeUrl = latest.pixQrCodeUrl || null;
           invoiceUrl = latest.invoiceUrl || null;
           gatewayPaymentId = latest.id || null;
+          
+          // Normalize payment status from gateway using appropriate mapper (like feconect does)
+          const mapper = gatewayName === PAYMENT_GATEWAY.ASAAS 
+            ? this.asaasGatewayStatusMapper 
+            : this.stripeGatewayStatusMapper;
+          const normalizedStatus = mapper.normalizePaymentStatus(latest.status, null);
+          
+          if (normalizedStatus === 'confirmed' || normalizedStatus === 'received') {
+            paymentStatus = PaymentStatus.CONFIRMED;
+          } else {
+            paymentStatus = PaymentStatus.PENDING;
+          }
         }
       } catch (e: any) {
         this.logger.error(`Failed to register subscription on ${gatewayName.toUpperCase()}: ${e.message}`);
@@ -313,10 +330,13 @@ export class SubscriptionService {
         currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
       }
 
+      // Use payment status to determine subscription status (like feconect does)
+      const subscriptionStatus = paymentStatus === PaymentStatus.CONFIRMED ? SubscriptionStatus.ACTIVE : SubscriptionStatus.PENDING;
+
       await db.insert(userSubscriptions).values({
         userId,
         planId: targetPlan.id,
-        status: SubscriptionStatus.ACTIVE,
+        status: subscriptionStatus,
         currentPeriodStart,
         currentPeriodEnd,
         gatewayName,
@@ -329,7 +349,7 @@ export class SubscriptionService {
         target: [userSubscriptions.userId],
         set: {
           planId: targetPlan.id,
-          status: SubscriptionStatus.ACTIVE,
+          status: subscriptionStatus,
           currentPeriodStart,
           currentPeriodEnd,
           gatewaySubscriptionId,
