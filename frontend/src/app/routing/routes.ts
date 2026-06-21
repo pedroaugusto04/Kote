@@ -13,10 +13,12 @@ export const routes = {
   reminders: '/reminders',
   profile: '/profile',
   integrations: '/settings/integrations',
+  subscription: '/settings/subscription',
   help: '/help',
 } as const;
 
-export type View = 'home' | 'map' | 'projects' | 'note' | 'search' | 'kanban' | 'reminders' | 'profile' | 'integrations' | 'help';
+export type View = 'home' | 'map' | 'projects' | 'note' | 'search' | 'kanban' | 'reminders' | 'profile' | 'integrations' | 'subscription' | 'help';
+
 
 export const navItems: Array<{ view: View; label: string; path: string }> = [
   { view: 'home', label: 'Home', path: routes.home },

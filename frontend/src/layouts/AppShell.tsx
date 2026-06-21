@@ -17,6 +17,7 @@ import { LandingPage } from '../pages/landing/LandingPage';
 import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
 
 const IntegrationsPage = lazy(() => import('../pages/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
+const SubscriptionPage = lazy(() => import('../pages/billing/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
 const KanbanPage = lazy(() => import('../pages/kanban/KanbanPage').then(m => ({ default: m.KanbanPage })));
 const ProjectKnowledgeMapPage = lazy(() => import('../features/projects/knowledge-map/ProjectKnowledgeMapPage').then(m => ({ default: m.ProjectKnowledgeMapPage })));
 const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
@@ -51,6 +52,7 @@ function activeView(pathname: string): View {
   if (pathname.startsWith(routes.reminders)) return 'reminders';
   if (pathname.startsWith(routes.profile)) return 'profile';
   if (pathname.startsWith(routes.integrations)) return 'integrations';
+  if (pathname.startsWith(routes.subscription)) return 'subscription';
   if (pathname.startsWith(routes.help)) return 'help';
   return 'home';
 }
@@ -501,7 +503,7 @@ export function AppShell() {
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="menu"
                 aria-label={UI_MESSAGES.USER_MENU}
-                className={`topbar-link topbar-icon ${view === 'profile' || view === 'integrations' ? 'active' : ''}`}
+                className={`topbar-link topbar-icon ${view === 'profile' || view === 'integrations' || view === 'subscription' ? 'active' : ''}`}
                 onClick={() => setIsProfileMenuOpen((current) => !current)}
                 title={UI_MESSAGES.USER_MENU}
                 type="button"
@@ -532,6 +534,9 @@ export function AppShell() {
                   </Link>
                   <Link className="profile-menu-link" role="menuitem" to={routes.integrations}>
                     {UI_MESSAGES.INTEGRATIONS}
+                  </Link>
+                  <Link className="profile-menu-link" role="menuitem" to={routes.subscription}>
+                    Subscription
                   </Link>
                   <Link className="profile-menu-link" role="menuitem" to={routes.help}>
                     {UI_MESSAGES.DOCUMENTATION}
@@ -570,6 +575,7 @@ export function AppShell() {
               <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
               <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
               <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
+              <Route path="/settings/subscription" element={<SubscriptionPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="*" element={<HomePage {...pageContext} />} />
             </Routes>

@@ -8,6 +8,7 @@ import { RabbitMqBillingQueuePublisher } from '../billing/publishers/RabbitMqBil
 import { BillingWebhookConsumer } from '../billing/consumers/BillingWebhookConsumer.js';
 import { SubscriptionService, BillingIntentService } from '../../application/services/billing-stubs.service.js';
 import { AsaasWebhookController } from '../../interfaces/http/controllers/billing/asaas-webhook.controller.js';
+import { HandleAsaasWebhookUseCase } from '../../application/use-cases/index.js';
 
 @Module({
   imports: [DatabaseModule, LoggerModule],
@@ -20,6 +21,7 @@ import { AsaasWebhookController } from '../../interfaces/http/controllers/billin
     BillingWebhookConsumer,
     SubscriptionService,
     BillingIntentService,
+    HandleAsaasWebhookUseCase,
   ],
   exports: [
     AsaasPaymentGateway,
@@ -27,6 +29,7 @@ import { AsaasWebhookController } from '../../interfaces/http/controllers/billin
     BillingQueuePublisher,
     SubscriptionService,
     BillingIntentService,
+    HandleAsaasWebhookUseCase,
   ],
 })
 export class BillingModule {}

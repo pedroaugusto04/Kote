@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { AsaasWebhookController } from '../../dist/interfaces/http/controllers/billing/asaas-webhook.controller.js';
+import { HandleAsaasWebhookUseCase } from '../../dist/application/use-cases/index.js';
 
 test('AsaasWebhookController rejects requests if ASAAS_WEBHOOK_TOKEN is not configured', async () => {
   const originalToken = process.env.ASAAS_WEBHOOK_TOKEN;
@@ -9,7 +10,8 @@ test('AsaasWebhookController rejects requests if ASAAS_WEBHOOK_TOKEN is not conf
 
   const mockRepo = {};
   const mockPublisher = {};
-  const controller = new AsaasWebhookController(mockRepo, mockPublisher);
+  const useCase = new HandleAsaasWebhookUseCase(mockRepo, mockPublisher);
+  const controller = new AsaasWebhookController(useCase);
 
   await assert.rejects(
     () => controller.handleWebhook({ id: 'evt_1' }, { 'asaas-access-token': 'any-token' }),
@@ -24,7 +26,8 @@ test('AsaasWebhookController rejects requests with invalid or missing tokens', a
 
   const mockRepo = {};
   const mockPublisher = {};
-  const controller = new AsaasWebhookController(mockRepo, mockPublisher);
+  const useCase = new HandleAsaasWebhookUseCase(mockRepo, mockPublisher);
+  const controller = new AsaasWebhookController(useCase);
 
   // Missing token
   await assert.rejects(
@@ -57,7 +60,8 @@ test('AsaasWebhookController accepts correct token, saves event, and publishes t
     }
   };
 
-  const controller = new AsaasWebhookController(mockRepo, mockPublisher);
+  const useCase = new HandleAsaasWebhookUseCase(mockRepo, mockPublisher);
+  const controller = new AsaasWebhookController(useCase);
 
   const payload = {
     id: 'evt_asaas_123',
@@ -98,7 +102,8 @@ test('AsaasWebhookController handles duplicate events gracefully without republi
     }
   };
 
-  const controller = new AsaasWebhookController(mockRepo, mockPublisher);
+  const useCase = new HandleAsaasWebhookUseCase(mockRepo, mockPublisher);
+  const controller = new AsaasWebhookController(useCase);
 
   const response = await controller.handleWebhook(
     { id: 'evt_asaas_123', event: 'PAYMENT_RECEIVED' },

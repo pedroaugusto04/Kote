@@ -58,5 +58,13 @@ export {
 } from './push/push-subscription.use-cases.js';
 export { SetNotePinnedUseCase } from './notes/set-note-pinned.use-case.js';
 export { FindRelatedNotesUseCase } from './notes/find-related-notes.use-case.js';
+export { GetPlansUseCase } from './billing/get-plans.use-case.js';
+export { GetSubscriptionStatusUseCase } from './billing/get-subscription-status.use-case.js';
+export { UpdateSubscriptionUseCase } from './billing/update-subscription.use-case.js';
+export { CancelPaymentUseCase } from './billing/cancel-payment.use-case.js';
+export { CancelScheduledChangeUseCase } from './billing/cancel-scheduled-change.use-case.js';
+export { HandleAsaasWebhookUseCase } from './webhooks/asaas/handle-asaas-webhook.use-case.js';
+
+
 
 
