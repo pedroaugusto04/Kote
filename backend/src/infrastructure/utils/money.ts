@@ -8,7 +8,7 @@ export const DEFAULT_MONEY_SCALE = 4;
 
 export type MoneyInput = string | number;
 type DecimalLikeInput = unknown;
-type DecimalType = InstanceType<typeof Decimal>;
+type DecimalType = any;
 
 /**
  * Normaliza string de valor monetário
@@ -42,7 +42,7 @@ function parseNumberAmount(value: number): DecimalType {
  */
 export function parseMoneyDecimal(value: MoneyInput): DecimalType {
   if (typeof value === 'number') {
-    return parseNumberAmount(value).toDecimalPlaces(DEFAULT_MONEY_SCALE, Decimal.ROUND_HALF_UP);
+    return parseNumberAmount(value).toDecimalPlaces(DEFAULT_MONEY_SCALE, (Decimal as any).ROUND_HALF_UP);
   }
   return new Decimal(normalizeStringAmount(value));
 }
@@ -79,7 +79,7 @@ function parseDecimalLoose(value: DecimalLikeInput): DecimalType {
  */
 export function toMoneyDecimal(value: DecimalLikeInput, scale = DEFAULT_MONEY_SCALE): DecimalType {
   const decimal = parseDecimalLoose(value);
-  return decimal.toDecimalPlaces(scale, Decimal.ROUND_HALF_UP);
+  return decimal.toDecimalPlaces(scale, (Decimal as any).ROUND_HALF_UP);
 }
 
 /**
@@ -109,7 +109,7 @@ export function isSameMoney(left: DecimalLikeInput, right: DecimalLikeInput, sca
  */
 export function formatMoneyDecimal(value: DecimalLikeInput, scale = DEFAULT_MONEY_SCALE): string {
   const decimal = parseDecimalLoose(value);
-  return decimal.toDecimalPlaces(scale, Decimal.ROUND_HALF_UP).toFixed(scale);
+  return decimal.toDecimalPlaces(scale, (Decimal as any).ROUND_HALF_UP).toFixed(scale);
 }
 
 /**

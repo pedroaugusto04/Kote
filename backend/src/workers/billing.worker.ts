@@ -1,4 +1,4 @@
-import nodeCron from 'node-cron';
+import { schedule } from 'node-cron';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { SubscriptionCancellationService } from '../application/services/billing/SubscriptionCancellationService.js';
 import { AppLogger } from '../observability/logger.js';
@@ -41,7 +41,7 @@ export class BillingWorker implements OnModuleInit {
     this.logger.info(`[worker] MAX_DAYS_PAST_DUE=${MAX_DAYS_PAST_DUE}`);
     this.logger.info(`[worker] BILLING_WORKER_AUTORUN=${BILLING_WORKER_AUTORUN}`);
 
-    nodeCron.schedule(
+    schedule(
       '05 0 * * *', // todo dia 00:05 (America/Sao_Paulo)
       async () => {
         await this.runPastDueJob();

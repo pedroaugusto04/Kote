@@ -1,4 +1,4 @@
-import nodeCron from 'node-cron';
+import { schedule } from 'node-cron';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { BillingWebhookEventRepository } from '../application/ports/billing/billing-repositories.js';
 import { BillingQueuePublisher } from '../application/ports/billing/billing-queue.publisher.js';
@@ -42,7 +42,7 @@ export class WebhookOutboxRelayWorker implements OnModuleInit {
     this.logger.info(`[worker] WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS=${WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS}`);
     this.logger.info(`[worker] WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS=${WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS}`);
 
-    nodeCron.schedule(
+    schedule(
       WEBHOOK_OUTBOX_RELAY_CRON,
       async () => {
         await this.runWebhookOutboxRelayJob();

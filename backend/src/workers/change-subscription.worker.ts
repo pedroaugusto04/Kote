@@ -1,4 +1,4 @@
-import nodeCron from 'node-cron';
+import { schedule } from 'node-cron';
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { SubscriptionChangeService } from '../application/services/billing/SubscriptionChangeService.js';
 import { SubscriptionService } from '../application/services/billing/SubscriptionService.js';
@@ -31,7 +31,7 @@ export class ChangeSubscriptionWorker implements OnModuleInit {
     this.logger.info('[worker] change subscription worker started');
     this.logger.info(`[worker] CHANGE_SUBSCRIPTION_WORKER_AUTORUN=${CHANGE_SUBSCRIPTION_WORKER_AUTORUN}`);
 
-    nodeCron.schedule(
+    schedule(
       '10 0 * * *', // todo dia 00:10 (America/Sao_Paulo)
       async () => {
         await this.runChangeSubscriptionJob();
