@@ -192,7 +192,9 @@ export function SubscriptionPage() {
     hasCreditCardOnFile,
     choiceType,
   );
-  const hasOpenSubscription = Boolean(summary?.activeSub && isOpenSubscriptionStatus(summary.activeSub.status));
+  const hasOpenSubscription = Boolean(
+    summary?.latestSub && isOpenSubscriptionStatus(summary.latestSub.status),
+  );
 
   const latestPaymentDueDateUtcMs = useMemo(() => {
     const raw = latestPendingPayment?.dueDate;

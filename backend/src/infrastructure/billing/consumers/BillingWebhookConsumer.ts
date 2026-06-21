@@ -376,9 +376,21 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       const { creditCardToken, billingType: nextBillingType } = await this.resolveAndSyncCreditCardToken(userId, gateway, gatewayPaymentId, payment, intent);
 
       if (intent && (intent.status === 'pending' || intent.status === 'processing')) {
-        const claimedIntent = await this.billingIntentService.claimForProcessing(userId, intent.id);
-        if (claimedIntent) {
-          await this.processIntentPayload(userId, gatewayCustomerId, payment, intent, paidAt, creditCardToken, nextBillingType);
+        if (intent.type === 'new') {
+          await this.processNewSubscriptionIntent(
+            userId,
+            gatewayCustomerId,
+            payment,
+            intent,
+            paidAt,
+            creditCardToken,
+            nextBillingType,
+          );
+        } else {
+          const claimedIntent = await this.billingIntentService.claimForProcessing(userId, intent.id);
+          if (claimedIntent) {
+            await this.processIntentPayload(userId, gatewayCustomerId, payment, intent, paidAt, creditCardToken, nextBillingType);
+          }
         }
       }
     }
@@ -476,6 +488,80 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     return { billingType: BillingTypeEnum.PIX };
   }
 
+  private async processNewSubscriptionIntent(
+    userId: string,
+    gatewayCustomerId: string | undefined,
+    payment: any,
+    intent: any,
+    paidAt: Date | null,
+    creditCardToken?: string,
+    nextBillingType?: BillingTypeEnum
+  ): Promise<void> {
+    const existingSubscriptionByIntent = await this.subscriptionService.getSubscriptionByCreatedFromIntentId(
+      userId,
+      intent.id,
+    );
+
+    if (existingSubscriptionByIntent) {
+      this.logger.info('billing_webhook_consumer.new_intent_idempotent', {
+        intentId: intent.id,
+        subscriptionId: userId,
+      });
+      await this.billingIntentService.markDoneWithSubscription(userId, intent.id, userId);
+      return;
+    }
+
+    const claimed = await this.billingIntentService.claimForProcessing(userId, intent.id);
+    if (!claimed) {
+      const subscriptionCreatedByConcurrentWorker =
+        await this.subscriptionService.getSubscriptionByCreatedFromIntentId(userId, intent.id);
+
+      if (subscriptionCreatedByConcurrentWorker) {
+        this.logger.info('billing_webhook_consumer.new_intent_idempotent_after_claim', {
+          intentId: intent.id,
+          subscriptionId: userId,
+        });
+        await this.billingIntentService.markDoneWithSubscription(userId, intent.id, userId);
+        return;
+      }
+
+      throw new Error(`Billing intent already processing: ${intent.id}`);
+    }
+
+    try {
+      await this.subscriptionService.createNewSubscription({
+        gatewayCustomerId: gatewayCustomerId || '',
+        userId,
+        targetPlanId: intent.planId || '',
+        billingCycle: intent.billingCycle || 'monthly',
+        billingType: nextBillingType
+          ? (nextBillingType.toLowerCase() as any)
+          : (payment.billingType ? (payment.billingType.toLowerCase() as any) : undefined),
+        activationDate: paidAt || new Date(),
+        creditCardToken,
+        createdFromIntentId: intent.id,
+        gatewayName: payment.gateway || PAYMENT_GATEWAY.ASAAS,
+      });
+    } catch (error) {
+      const existingAfterError = await this.subscriptionService.getSubscriptionByCreatedFromIntentId(
+        userId,
+        intent.id,
+      );
+
+      if (existingAfterError) {
+        this.logger.info('billing_webhook_consumer.new_intent_idempotent_after_error', {
+          intentId: intent.id,
+          subscriptionId: userId,
+        });
+        await this.billingIntentService.markDoneWithSubscription(userId, intent.id, userId);
+        return;
+      }
+
+      await this.billingIntentService.markFailed(userId, intent.id);
+      throw error;
+    }
+  }
+
   private async processIntentPayload(
     userId: string,
     gatewayCustomerId: string | undefined,
@@ -485,34 +571,6 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     creditCardToken?: string,
     nextBillingType?: BillingTypeEnum
   ): Promise<void> {
-    if (intent.type === 'new') {
-      // Idempotência: verificar se subscription já foi criada para este intent
-      const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);
-      const existingSubscriptionByIntent = sub?.activeSub?.planId === intent.planId ? sub.activeSub : null;
-
-      if (existingSubscriptionByIntent) {
-        this.logger.info('billing_webhook_consumer.new_intent_idempotent', {
-          intentId: intent.id,
-          subscriptionId: userId,
-        });
-        await this.billingIntentService.markDoneWithSubscription(userId, intent.id, userId);
-        return;
-      }
-
-      await this.subscriptionService.createNewSubscription({
-        gatewayCustomerId: gatewayCustomerId || '',
-        userId,
-        targetPlanId: intent.planId || '',
-        billingCycle: intent.billingCycle || 'monthly',
-        billingType: nextBillingType ? (nextBillingType.toLowerCase() as any) : (payment.billingType ? (payment.billingType.toLowerCase() as any) : undefined),
-        activationDate: paidAt || new Date(),
-        creditCardToken,
-        createdFromIntentId: intent.id,
-        gatewayName: payment.gateway || PAYMENT_GATEWAY.ASAAS,
-      });
-      return;
-    }
-
     if (intent.type === 'upgrade') {
       const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);
       const activeSub = sub?.activeSub;

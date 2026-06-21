@@ -1,5 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, gt } from 'drizzle-orm';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 import {
   subscriptionChangeRequests,
@@ -92,9 +92,11 @@ export class SubscriptionChangeService {
 
   async getScheduledChange(userId: string) {
     const db = this.database.getDb();
+    const now = new Date();
     return await db.select().from(subscriptionChangeRequests).where(and(
       eq(subscriptionChangeRequests.userId, userId),
-      eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any)
+      eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any),
+      gt(subscriptionChangeRequests.effectiveAt, now),
     )).limit(1).then(r => r[0] || null);
   }
 

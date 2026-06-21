@@ -60,16 +60,7 @@ const mockStatus = {
     projects: 0,
   },
   summary: {
-    latestSub: {
-      userId: 'user-1',
-      planId: 'plan-free',
-      status: 'active',
-      currentPeriodStart: '2026-06-21T00:00:00Z',
-      currentPeriodEnd: '2026-07-21T00:00:00Z',
-      billingCycle: 'monthly',
-      billingType: null,
-      nextDueDate: null,
-    },
+    latestSub: null,
     activeSub: null,
     latestPendingPayment: null,
     scheduledChange: null,

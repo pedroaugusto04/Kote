@@ -27,6 +27,7 @@ import {
   PaymentStatus,
 } from '../../../domain/enums/billing.enums.js';
 import { FREE_PLAN_ID, SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
+import { formatGatewayDueDate, getNextDueDate } from '../../../domain/utils/subscription.utils.js';
 import { PAYMENT_GATEWAY, COUNTRY_CODE } from '../../../domain/constants/billing.constants.js';
 import { BillingIntentService } from './BillingIntentService.js';
 import { SubscriptionUpgradeService } from './SubscriptionUpgradeService.js';
@@ -268,24 +269,17 @@ export class SubscriptionService {
     const priceCents = isBrazil ? targetPlan.priceCents : targetPlan.priceUsdCents;
     const price = params.billingCycle === BillingCycle.YEARLY ? (priceCents * 12 * 0.8) / 100 : priceCents / 100;
 
-    const currentPeriodStart = params.activationDate || new Date();
-    const currentPeriodEnd = new Date(currentPeriodStart);
-
-    if (params.billingCycle === BillingCycle.YEARLY) {
-      currentPeriodEnd.setFullYear(currentPeriodEnd.getFullYear() + 1);
-    } else {
-      currentPeriodEnd.setMonth(currentPeriodEnd.getMonth() + 1);
-    }
-
-    const nextDueDate = new Date(currentPeriodEnd);
-    nextDueDate.setDate(nextDueDate.getDate() + 30);
+    const effectiveActivationDate = params.activationDate || new Date();
+    const nextDueDate = getNextDueDate(effectiveActivationDate, params.billingCycle);
+    const currentPeriodStart = effectiveActivationDate;
+    const currentPeriodEnd = nextDueDate;
 
     const gatewaySubscription = await gateway.createSubscription({
       customerId: params.gatewayCustomerId,
       billingType: toGatewayBillingType(params.billingType ?? BillingType.CREDIT_CARD),
       value: price,
       cycle: params.billingCycle === BillingCycle.YEARLY ? 'YEARLY' as any : 'MONTHLY' as any,
-      nextDueDate: nextDueDate.toISOString().split('T')[0],
+      nextDueDate: formatGatewayDueDate(nextDueDate),
       description: `Subscription ${targetPlan.displayName}`,
       creditCardToken: params.billingType === BillingType.CREDIT_CARD ? params.creditCardToken : undefined,
     });
@@ -303,6 +297,7 @@ export class SubscriptionService {
       billingType: params.billingType,
       nextDueDate,
       startedAt: new Date(),
+      createdFromIntentId: params.createdFromIntentId ?? null,
     };
 
     await db
@@ -527,6 +522,19 @@ export class SubscriptionService {
       .where(eq(userSubscriptions.userId, params.subscriptionId));
   }
 
+  async getSubscriptionByCreatedFromIntentId(userId: string, intentId: string) {
+    const db = this.database.getDb();
+    return db
+      .select()
+      .from(userSubscriptions)
+      .where(and(
+        eq(userSubscriptions.userId, userId),
+        eq(userSubscriptions.createdFromIntentId, intentId),
+      ))
+      .limit(1)
+      .then((rows) => rows[0] ?? null);
+  }
+
   async getSubscriptionStatusSummary(userId: string) {
     const db = this.database.getDb();
     
@@ -543,18 +551,7 @@ export class SubscriptionService {
       nextDueDate: subRow.nextDueDate ? subRow.nextDueDate.toISOString() : null,
       gatewayName: subRow.gatewayName,
       gatewayCustomerId: subRow.gatewayCustomerId,
-    } : {
-      userId,
-      planId: FREE_PLAN_ID,
-      status: SubscriptionStatus.ACTIVE,
-      currentPeriodStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString(),
-      currentPeriodEnd: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toISOString(),
-      billingCycle: BillingCycle.MONTHLY,
-      billingType: null,
-      nextDueDate: null,
-      gatewayName: null,
-      gatewayCustomerId: null,
-    };
+    } : null;
 
     const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === SubscriptionStatus.PAST_DUE)) ? latestSubSummary : null;
 

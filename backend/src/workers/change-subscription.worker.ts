@@ -6,7 +6,7 @@ import { AppLogger } from '../observability/logger.js';
 import { eq, and, lt } from 'drizzle-orm';
 import { PostgresDatabase } from '../infrastructure/persistence/database.js';
 import { subscriptionChangeRequests, userSubscriptions } from '../infrastructure/persistence/schema/index.js';
-import { SubscriptionChangeStatus } from '../domain/enums/billing.enums.js';
+import { SubscriptionChangeStatus, SubscriptionChangeType } from '../domain/enums/billing.enums.js';
 
 const CHANGE_SUBSCRIPTION_WORKER_AUTORUN = (() => {
   const raw = process.env.CHANGE_SUBSCRIPTION_WORKER_AUTORUN;
@@ -147,8 +147,10 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
       .select()
       .from(subscriptionChangeRequests)
       .where(and(
+        eq(subscriptionChangeRequests.type, SubscriptionChangeType.DOWNGRADE as any),
         eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any),
-        lt(subscriptionChangeRequests.effectiveAt, now)
+        lt(subscriptionChangeRequests.effectiveAt, now),
+        lt(subscriptionChangeRequests.attempts, 10),
       ))
       .limit(100);
   }
@@ -160,8 +162,10 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
       .select()
       .from(subscriptionChangeRequests)
       .where(and(
+        eq(subscriptionChangeRequests.type, SubscriptionChangeType.CHANGE_CYCLE as any),
         eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any),
-        lt(subscriptionChangeRequests.effectiveAt, now)
+        lt(subscriptionChangeRequests.effectiveAt, now),
+        lt(subscriptionChangeRequests.attempts, 10),
       ))
       .limit(100);
   }

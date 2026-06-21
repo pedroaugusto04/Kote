@@ -62,7 +62,7 @@ export interface ScheduledChangeDTO {
 }
 
 export interface SubscriptionSummaryDTO {
-  latestSub: SubscriptionDTO;
+  latestSub: SubscriptionDTO | null;
   activeSub: SubscriptionDTO | null;
   latestPendingPayment: PendingPaymentDTO | null;
   scheduledChange: ScheduledChangeDTO | null;

@@ -517,6 +517,7 @@ export const userSubscriptions = pgTable('kb_user_subscriptions', {
   startedAt: timestamp('started_at'),
   pastDueAt: timestamp('past_due_at'),
   canceledAt: timestamp('canceled_at'),
+  createdFromIntentId: uuid('created_from_intent_id'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
