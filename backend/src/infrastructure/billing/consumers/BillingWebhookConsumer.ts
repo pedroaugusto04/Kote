@@ -24,8 +24,23 @@ import {
   type PaymentGateway,
   type PaymentStatus,
   type PaymentKind,
+  type BillingType,
 } from '../../../infrastructure/persistence/schema/index.js';
 import { BillingTypeEnum } from '../gateways/IPaymentGateway.js';
+
+/**
+ * Maps gateway-layer BillingTypeEnum (uppercase, e.g. 'CREDIT_CARD') to the
+ * DB enum value (lowercase, e.g. 'credit_card') accepted by kb_billing_type_enum.
+ */
+function normalizeBillingTypeForDb(value: BillingTypeEnum | undefined | null): BillingType | null {
+  if (!value) return null;
+  switch (value) {
+    case BillingTypeEnum.CREDIT_CARD: return 'credit_card';
+    case BillingTypeEnum.PIX: return 'pix';
+    case BillingTypeEnum.BOLETO: return 'boleto';
+    default: return null;
+  }
+}
 
 const RECONNECT_DELAY_MS = 5_000;
 
@@ -335,7 +350,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       gateway,
       gatewayPaymentId,
       status: payStatus,
-      billingType: (payment.billingType as any) || null,
+      billingType: normalizeBillingTypeForDb(payment.billingType),
       kind: existingPayment?.kind || (intent?.type === 'upgrade' ? PAYMENT_KIND.UPGRADE : PAYMENT_KIND.RECURRING) as PaymentKind,
       gatewayStatus: payment.status || null,
       value,
