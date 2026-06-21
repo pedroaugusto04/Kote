@@ -29,7 +29,7 @@ export class AsaasWebhookController {
     const expectedToken = process.env.ASAAS_WEBHOOK_TOKEN;
     if (!expectedToken) {
       this.logger.error('ASAAS_WEBHOOK_TOKEN is not configured. Webhook rejected.');
-      throw new UnauthorizedException('Unauthorized webhook');
+      throw new Error('Asaas Webhook Token is missing.');
     }
 
     const rawToken =
