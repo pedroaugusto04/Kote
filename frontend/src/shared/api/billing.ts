@@ -139,6 +139,11 @@ export function subscribeToSubscriptionStatus(handler: SubscriptionStatusHandler
   function connect() {
     if (closed) return;
 
+    if (typeof EventSource === 'undefined') {
+      console.warn('[SSE] EventSource is not defined in this environment.');
+      return;
+    }
+
     es = new EventSource(url, { withCredentials: true });
     es.onmessage = onMessage;
 
