@@ -165,6 +165,7 @@ jobs:
           ASAAS_CUSTOMER_NOTIFICATIONS_DISABLED: ${{ vars.ASAAS_CUSTOMER_NOTIFICATIONS_DISABLED || 'false' }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY || '' }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET || '' }}
+          ONLY_STRIPE: ${{ vars.ONLY_STRIPE || 'false' }}
           CHANGE_SUBSCRIPTION_WORKER_AUTORUN: ${{ vars.CHANGE_SUBSCRIPTION_WORKER_AUTORUN || 'false' }}
           BILLING_WORKER_AUTORUN: ${{ vars.BILLING_WORKER_AUTORUN || 'false' }}
           MAX_DAYS_PAST_DUE: ${{ vars.MAX_DAYS_PAST_DUE || '7' }}

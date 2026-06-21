@@ -115,9 +115,10 @@ export class SubscriptionService {
     const type = billingType || BillingType.CREDIT_CARD;
     const normalizedCreditCardToken = creditCardToken?.trim() || undefined;
 
+    const onlyStripe = process.env.ONLY_STRIPE === 'true';
     const isBrazil = countryCode?.toUpperCase() === COUNTRY_CODE.BRAZIL;
-    const gatewayName = isBrazil ? PAYMENT_GATEWAY.ASAAS : PAYMENT_GATEWAY.STRIPE;
-    const gateway = isBrazil ? this.asaasPaymentGateway : this.stripePaymentGateway;
+    const gatewayName = onlyStripe ? PAYMENT_GATEWAY.STRIPE : (isBrazil ? PAYMENT_GATEWAY.ASAAS : PAYMENT_GATEWAY.STRIPE);
+    const gateway = onlyStripe ? this.stripePaymentGateway : (isBrazil ? this.asaasPaymentGateway : this.stripePaymentGateway);
 
     if (!isBrazil && (type === BillingType.PIX || type === BillingType.BOLETO)) {
       throw new BadRequestException('PIX and Boleto payments are only available for Brazilian users. Please select Credit Card.');
