@@ -261,6 +261,10 @@ export class StripePaymentGateway implements IPaymentGateway {
       };
     }
 
+    // Stripe automatically prorates and updates pending invoices when updating subscription
+    // The updatePendingPayments flag is handled automatically by Stripe's default behavior
+    // If proration behavior needs to be controlled, it can be done via proration_behavior parameter
+
     const data = await this.request<any>(`/subscriptions/${gatewaySubscriptionId}`, {
       method: 'POST',
       body: serializeToForm(body),
@@ -297,6 +301,7 @@ export class StripePaymentGateway implements IPaymentGateway {
       metadata: {
         externalReference: input.externalReference || '',
         userId: input.userId,
+        description: input.description || '',
       },
     };
 
@@ -315,9 +320,12 @@ export class StripePaymentGateway implements IPaymentGateway {
       id: data.id,
       status: data.status === 'succeeded' ? 'confirmed' : 'pending',
       value: data.amount / 100,
-      dueDate: new Date(),
+      dueDate: input.dueDate ? new Date(input.dueDate) : new Date(),
       billingType: BillingTypeEnum.CREDIT_CARD,
       paidAt: data.status === 'succeeded' ? new Date() : undefined,
+      description: input.description,
+      externalReference: input.externalReference,
+      subscription: input.subscriptionId,
     };
   }
 
@@ -328,10 +336,13 @@ export class StripePaymentGateway implements IPaymentGateway {
       body.amount = centsValue;
     }
     if (input.description) {
-      body.description = input.description;
+      body.metadata = {
+        description: input.description,
+      };
     }
     if (input.externalReference) {
       body.metadata = {
+        ...body.metadata,
         externalReference: input.externalReference,
       };
     }
@@ -345,8 +356,10 @@ export class StripePaymentGateway implements IPaymentGateway {
       id: data.id,
       status: data.status === 'succeeded' ? 'confirmed' : 'pending',
       value: data.amount / 100,
-      dueDate: new Date(),
+      dueDate: input.dueDate ? new Date(input.dueDate) : new Date(),
       billingType: BillingTypeEnum.CREDIT_CARD,
+      description: input.description,
+      externalReference: input.externalReference,
     };
   }
 
@@ -366,6 +379,9 @@ export class StripePaymentGateway implements IPaymentGateway {
         ? new Date(inv.status_transitions.paid_at * 1000)
         : undefined,
       invoiceUrl: inv.hosted_invoice_url || undefined,
+      subscription: inv.subscription || undefined,
+      description: inv.description || inv.metadata?.description || undefined,
+      externalReference: inv.metadata?.externalReference || undefined,
     }));
   }
 
@@ -386,7 +402,6 @@ export class StripePaymentGateway implements IPaymentGateway {
   }
 
   parseWebhook(body: Record<string, unknown>): GatewayWebhookEvent {
-    // Simple mock / parse implementation for Stripe webhooks
     const event = String(body.type || '');
     const dataObject = (body.data as any)?.object || {};
     
@@ -401,6 +416,22 @@ export class StripePaymentGateway implements IPaymentGateway {
         dueDate: dataObject.due_date ? new Date(dataObject.due_date * 1000) : new Date(),
         paidAt: dataObject.status_transitions?.paid_at ? new Date(dataObject.status_transitions.paid_at * 1000) : undefined,
         subscription: dataObject.subscription || undefined,
+        description: dataObject.description || dataObject.metadata?.description || undefined,
+        externalReference: dataObject.metadata?.externalReference || undefined,
+        billingType: BillingTypeEnum.CREDIT_CARD,
+        creditCardToken: dataObject.default_payment_method || undefined,
+      };
+    } else if (event.startsWith('payment_intent.')) {
+      payment = {
+        id: dataObject.id,
+        status: dataObject.status === 'succeeded' ? 'confirmed' : dataObject.status === 'processing' ? 'pending' : dataObject.status,
+        value: (dataObject.amount || 0) / 100,
+        dueDate: new Date(),
+        paidAt: dataObject.status === 'succeeded' ? new Date() : undefined,
+        description: dataObject.description || dataObject.metadata?.description || undefined,
+        externalReference: dataObject.metadata?.externalReference || undefined,
+        billingType: BillingTypeEnum.CREDIT_CARD,
+        creditCardToken: dataObject.payment_method || undefined,
       };
     } else if (event.startsWith('customer.subscription.')) {
       subscription = {
@@ -412,7 +443,7 @@ export class StripePaymentGateway implements IPaymentGateway {
 
     return {
       event,
-      eventCreatedAt: new Date(),
+      eventCreatedAt: body.created ? new Date((body.created as number) * 1000) : new Date(),
       payment,
       subscription,
       raw: body,
@@ -429,6 +460,10 @@ export class StripePaymentGateway implements IPaymentGateway {
         value: data.amount / 100,
         dueDate: new Date(),
         billingType: BillingTypeEnum.CREDIT_CARD,
+        description: data.metadata?.description || data.description || undefined,
+        externalReference: data.metadata?.externalReference || undefined,
+        subscription: data.metadata?.subscription || undefined,
+        creditCardToken: data.payment_method || undefined,
       };
     } catch {
       return null;

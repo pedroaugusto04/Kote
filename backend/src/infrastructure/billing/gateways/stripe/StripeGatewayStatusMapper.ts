@@ -40,8 +40,13 @@ export class StripeGatewayStatusMapper implements IGatewayStatusMapper {
       case 'processing':
         return 'pending';
 
+      case 'open':
+      case 'draft':
+        return 'pending';
+
       case 'failed':
       case 'canceled':
+      case 'void':
         return 'canceled';
 
       case 'refunded':
@@ -49,6 +54,9 @@ export class StripeGatewayStatusMapper implements IGatewayStatusMapper {
 
       case 'partially_refunded':
         return 'partially_refunded';
+
+      case 'uncollectible':
+        return 'overdue';
 
       default:
         return null;
