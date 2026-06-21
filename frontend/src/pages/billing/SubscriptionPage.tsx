@@ -237,7 +237,16 @@ export function SubscriptionPage() {
                 const displayPrice = billingCycle === 'yearly' ? plan.annualPrice : plan.price;
 
                 return (
-                  <div key={plan.id} className={`plan-card ${isCurrent ? 'current' : ''}`}>
+                  <div
+                    key={plan.id}
+                    className={`plan-card ${isCurrent ? 'current' : ''}`}
+                    style={{ cursor: !isCurrent ? 'pointer' : 'default' }}
+                    onClick={() => {
+                      if (!isCurrent) {
+                        handleOpenChoice(plan);
+                      }
+                    }}
+                  >
                     {isCurrent && <span className="current-badge">Current Plan</span>}
                     
                     <h3 className="plan-name">{plan.name}</h3>
@@ -276,14 +285,17 @@ export function SubscriptionPage() {
                     </ul>
 
                     {isCurrent ? (
-                      <button type="button" className="plan-button" disabled>
+                      <button type="button" className="plan-button secondary" disabled style={{ pointerEvents: 'none' }}>
                         Active
                       </button>
                     ) : (
                       <button
                         type="button"
-                        className={`plan-button ${isFree ? '' : 'primary'}`}
-                        onClick={() => handleOpenChoice(plan)}
+                        className={`plan-button ${isFree ? 'secondary' : 'primary'}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenChoice(plan);
+                        }}
                       >
                         {isFree ? 'Downgrade' : 'Upgrade Plan'}
                       </button>
@@ -386,7 +398,6 @@ export function SubscriptionPage() {
               </button>
               <button
                 className="icon-button"
-                style={{ background: 'var(--primary)', color: 'var(--bg)' }}
                 disabled={updateMutation.isPending}
                 type="button"
                 onClick={handleConfirmChoice}
@@ -458,7 +469,7 @@ export function SubscriptionPage() {
                     target="_blank"
                     rel="noreferrer"
                     className="icon-button"
-                    style={{ background: 'var(--primary)', color: 'var(--bg)', display: 'flex', gap: '8px', textDecoration: 'none' }}
+                    style={{ display: 'flex', gap: '8px', textDecoration: 'none' }}
                   >
                     Open Boleto PDF
                     <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

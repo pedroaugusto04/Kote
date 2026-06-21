@@ -79,7 +79,7 @@
   overflow: hidden;
 }
 
-.plan-card:hover {
+.plan-card:not(.current):hover {
   transform: translateY(-4px);
   border-color: var(--border-hover);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
@@ -167,29 +167,61 @@
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
-  border: 1px solid var(--border-subtle);
-  background: var(--surface-2);
-  color: var(--text-strong);
+  border: 1px solid var(--accent-border);
+  background: var(--surface-active);
+  color: var(--active-text);
 }
 
 .plan-button:hover:not(:disabled) {
-  background: var(--surface-hover);
-  border-color: var(--border-hover);
+  color: var(--active-text);
+  background: var(--surface-hover-accent);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 1px var(--surface-hover-accent);
+  transform: translateY(-1px);
 }
 
-.plan-button.primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: white;
+.plan-button.secondary {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text-soft);
 }
 
-.plan-button.primary:hover:not(:disabled) {
-  opacity: 0.9;
+.plan-button.secondary:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: none;
+  transform: translateY(-1px);
 }
 
 .plan-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Light mode overrides to exactly match theme-overrides.css */
+:root[data-theme="light"] .plan-button {
+  background: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .plan-button:hover:not(:disabled) {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: #ffffff;
+}
+
+:root[data-theme="light"] .plan-button.secondary {
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .plan-button.secondary:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--line);
+  color: var(--text);
 }
 
 /* Modals */
