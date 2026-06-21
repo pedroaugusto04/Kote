@@ -844,7 +844,7 @@ export class SubscriptionService {
       throw new BadRequestException('Cannot perform downgrade without an active subscription');
     }
 
-    const effectiveAt = new Date();
+    const effectiveAt = new Date(ctx.activeSub.nextDueDate || Date.now());
     effectiveAt.setDate(effectiveAt.getDate() - 1); // 1 day before due date
 
     await this.subscriptionChangeService.scheduleChange({
@@ -878,7 +878,7 @@ export class SubscriptionService {
       throw new BadRequestException('Cannot perform cycle change without an active subscription');
     }
 
-    const effectiveAt = new Date();
+    const effectiveAt = new Date(ctx.activeSub.nextDueDate || Date.now());
     effectiveAt.setDate(effectiveAt.getDate() - 1); // 1 day before due date
 
     await this.subscriptionChangeService.scheduleChange({

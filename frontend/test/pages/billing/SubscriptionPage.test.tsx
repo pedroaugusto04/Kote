@@ -149,4 +149,40 @@ describe('SubscriptionPage', () => {
 
     expect(await screen.findByText('Choose billing options')).toBeInTheDocument();
   });
+
+  it('shows API error message in the modal if update request fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/api/subscription/plans')) {
+        return Response.json(mockPlans);
+      }
+      if (url.includes('/api/subscription/status')) {
+        return Response.json(mockStatus);
+      }
+      if (url.endsWith('/api/subscription') && init?.method === 'POST') {
+        return new Response(JSON.stringify({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'A subscription payment is already pending. Please settle or cancel the pending payment before making a new request.'
+        }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+      return new Response(null, { status: 404 });
+    }));
+
+    renderWithAppProviders(<SubscriptionPage />);
+
+    // Click "Upgrade Plan" to open modal
+    const upgradeBtns = await screen.findAllByRole('button', { name: 'Upgrade Plan' });
+    fireEvent.click(upgradeBtns[0]);
+
+    // Click "Confirm" to submit
+    const confirmBtn = await screen.findByRole('button', { name: 'Confirm' });
+    fireEvent.click(confirmBtn);
+
+    // Assert error message appears in modal
+    expect(await screen.findByText('A subscription payment is already pending. Please settle or cancel the pending payment before making a new request.')).toBeInTheDocument();
+  });
 });
