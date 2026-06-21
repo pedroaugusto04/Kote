@@ -45,6 +45,7 @@ export interface PendingPaymentDTO {
   pixQrCode: string | null;
   pixQrCodeUrl: string | null;
   invoiceUrl: string | null;
+  stripeClientSecret?: string | null;
   canCancel: boolean;
 }
 

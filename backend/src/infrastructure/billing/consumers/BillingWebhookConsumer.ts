@@ -374,6 +374,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       pixQrCode,
       pixQrCodeUrl,
       description: payment.description || existingPayment?.description || null,
+      stripeClientSecret: payment.stripeClientSecret ?? existingPayment?.stripeClientSecret ?? null,
       lastGatewayEventAt: eventCreatedAt,
     };
 

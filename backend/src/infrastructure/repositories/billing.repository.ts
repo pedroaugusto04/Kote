@@ -216,6 +216,7 @@ export class PostgresBillingPaymentRepository extends BillingPaymentRepository {
         pixQrCode: data.pixQrCode,
         pixQrCodeUrl: data.pixQrCodeUrl,
         description: data.description,
+        stripeClientSecret: data.stripeClientSecret,
         lastGatewayEventAt: data.lastGatewayEventAt,
       })
       .onConflictDoUpdate({
@@ -234,6 +235,7 @@ export class PostgresBillingPaymentRepository extends BillingPaymentRepository {
           pixQrCode: data.pixQrCode,
           pixQrCodeUrl: data.pixQrCodeUrl,
           description: data.description,
+          stripeClientSecret: data.stripeClientSecret,
           lastGatewayEventAt: data.lastGatewayEventAt,
           updatedAt: new Date(),
         },

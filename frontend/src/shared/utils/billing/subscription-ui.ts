@@ -50,6 +50,7 @@ type MergeablePendingPayment = {
   pixQrCodeUrl?: string | null;
   bankSlipUrl?: string | null;
   invoiceUrl?: string | null;
+  stripeClientSecret?: string | null;
 };
 
 export function mergePendingPayment<T extends MergeablePendingPayment>(
@@ -66,5 +67,6 @@ export function mergePendingPayment<T extends MergeablePendingPayment>(
     pixQrCodeUrl: incoming.pixQrCodeUrl ?? current.pixQrCodeUrl ?? null,
     bankSlipUrl: incoming.bankSlipUrl ?? current.bankSlipUrl ?? null,
     invoiceUrl: incoming.invoiceUrl ?? current.invoiceUrl ?? null,
+    stripeClientSecret: incoming.stripeClientSecret ?? current.stripeClientSecret ?? null,
   };
 }

@@ -197,6 +197,7 @@ export class StripePaymentGateway implements IPaymentGateway {
       items: [{ price: priceId }],
       metadata: {
         externalReference: input.externalReference || '',
+        userId: input.userId || '',
       },
       payment_settings: {
         save_default_payment_method: 'on_subscription',
@@ -326,6 +327,7 @@ export class StripePaymentGateway implements IPaymentGateway {
       metadata: {
         externalReference: input.externalReference || '',
         userId: input.userId,
+        subscriptionId: input.subscriptionId || '',
         description: input.description || '',
       },
     };
@@ -491,7 +493,8 @@ export class StripePaymentGateway implements IPaymentGateway {
       paidAt: succeeded ? new Date() : undefined,
       description: data.metadata?.description || data.description || input?.description || undefined,
       externalReference: data.metadata?.externalReference || input?.externalReference || undefined,
-      subscription: data.metadata?.subscription || undefined,
+      subscription: data.metadata?.subscriptionId || data.metadata?.subscription || undefined,
+      stripeClientSecret: data.client_secret || undefined,
       creditCardToken: typeof data.payment_method === 'string'
         ? data.payment_method
         : data.payment_method?.id || undefined,

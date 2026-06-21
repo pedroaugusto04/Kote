@@ -39,6 +39,7 @@ export interface CreateSubscriptionInput {
   creditCardToken?: string;
   description?: string;
   externalReference?: string;
+  userId?: string;
 }
 
 export interface UpdateSubscriptionInput {
@@ -69,6 +70,7 @@ export interface GatewayPayment {
   subscription?: string;
   description?: string;
   externalReference?: string;
+  stripeClientSecret?: string;
 }
 
 export interface CreatePaymentInput {

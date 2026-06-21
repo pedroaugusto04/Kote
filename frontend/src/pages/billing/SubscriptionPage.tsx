@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { loadStripe } from '@stripe/stripe-js';
 import {
   fetchPlans,
   fetchStripeConfig,
@@ -158,6 +159,7 @@ export function SubscriptionPage() {
         hadPendingPaymentRef.current = true;
         setActivePayment((current) => mergePendingPayment(current, pendingPayment));
         setIsPaymentModalOpen(true);
+        void confirmStripePaymentIfNeeded(pendingPayment);
         return;
       }
 
@@ -244,6 +246,36 @@ export function SubscriptionPage() {
   const showPendingChargeCard = Boolean(
     latestPendingPayment && isLatestPaymentPendingOrOverdue && !isFutureRenewalCharge,
   );
+
+  const confirmStripePaymentIfNeeded = async (payment: PendingPaymentDTO | null) => {
+    if (!payment?.stripeClientSecret) return;
+
+    if (!stripePublishableKey) {
+      notifyError('Stripe is not configured for international payments.');
+      return;
+    }
+
+    try {
+      const stripe = await loadStripe(stripePublishableKey);
+      if (!stripe) {
+        notifyError('Stripe is not available. Please try again.');
+        return;
+      }
+
+      const { error, paymentIntent } = await stripe.confirmCardPayment(payment.stripeClientSecret);
+      if (error) {
+        notifyError(error.message || 'Card authentication failed.');
+        return;
+      }
+
+      if (paymentIntent?.status === 'succeeded') {
+        notifySuccess('Payment confirmed successfully');
+        void queryClient.invalidateQueries({ queryKey: ['billing', 'status'] });
+      }
+    } catch (error) {
+      notifyError(error instanceof Error ? error.message : 'Unable to confirm Stripe payment.');
+    }
+  };
 
   const handleOpenChoice = (plan: PlanDTO) => {
     setSelectedPlan(plan);
@@ -853,6 +885,15 @@ export function SubscriptionPage() {
                   <span style={{ fontSize: '12px', color: 'var(--muted)', textAlign: 'center' }}>
                     Your card will be charged {formatCurrency(activePayment.value)}
                   </span>
+                  {activePayment.stripeClientSecret && (
+                    <button
+                      type="button"
+                      className="filter-chip"
+                      onClick={() => void confirmStripePaymentIfNeeded(activePayment)}
+                    >
+                      Confirm card authentication
+                    </button>
+                  )}
                 </div>
               )}
 

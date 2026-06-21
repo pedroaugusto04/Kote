@@ -36,6 +36,7 @@ export interface BillingPaymentRecord {
   pixQrCode?: string | null;
   pixQrCodeUrl?: string | null;
   description?: string | null;
+  stripeClientSecret?: string | null;
   lastGatewayEventAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;

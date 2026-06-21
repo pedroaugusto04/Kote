@@ -38,6 +38,10 @@ export class StripeGatewayStatusMapper implements IGatewayStatusMapper {
 
       case 'pending':
       case 'processing':
+      case 'requires_action':
+      case 'requires_confirmation':
+      case 'requires_capture':
+      case 'requires_payment_method':
         return 'pending';
 
       case 'open':

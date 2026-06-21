@@ -162,7 +162,7 @@ export class SubscriptionService {
       type === BillingType.CREDIT_CARD || cycle === BillingCycle.MONTHLY;
 
     if (shouldCheckCardOnFile && cycle === BillingCycle.MONTHLY && type !== BillingType.CREDIT_CARD) {
-      const customerRow = await db.select().from(billingCustomers).where(eq(billingCustomers.userId, userId)).limit(1).then(r => r[0] || null);
+      const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
       const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
       if (hasCreditCardOnFile) {
         throw new BadRequestException('With a registered card, monthly subscriptions must use credit card.');
@@ -170,23 +170,38 @@ export class SubscriptionService {
     }
 
     if (!isBrazil && type === BillingType.CREDIT_CARD) {
-      const customerRow = await db.select().from(billingCustomers).where(eq(billingCustomers.userId, userId)).limit(1).then(r => r[0] || null);
+      const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
       const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
       if (!hasCreditCardOnFile && !normalizedCreditCardToken) {
         throw new BadRequestException('Credit card details are required for international subscriptions.');
       }
     }
 
-    // Create gatewayCustomerId if necessary
-    let gatewayCustomerId = currentSub?.gatewayCustomerId || '';
+    // Create or sync the gateway customer id for the selected gateway.
+    let gatewayCustomerId = currentSub?.gatewayName === gatewayName ? (currentSub.gatewayCustomerId || '') : '';
     if (!gatewayCustomerId) {
       const customer = await gateway.createCustomer({
         name: userDisplayName || userEmail,
         email: userEmail,
         cpfCnpj: isBrazil ? (cpfCnpj || undefined) : undefined,
+        externalReference: userId,
       });
       gatewayCustomerId = customer.id;
     }
+
+    await db.insert(billingCustomers).values({
+      id: crypto.randomUUID(),
+      userId,
+      gateway: gatewayName as any,
+      gatewayCustomerId,
+      hasCreditCardOnFile: false,
+    }).onConflictDoUpdate({
+      target: [billingCustomers.userId, billingCustomers.gateway],
+      set: {
+        gatewayCustomerId,
+        updatedAt: new Date(),
+      },
+    });
 
     let activePlanRow = null;
     if (activeSubRow) {
@@ -291,6 +306,8 @@ export class SubscriptionService {
       nextDueDate: formatGatewayDueDate(nextDueDate),
       description: `Subscription ${targetPlan.displayName}`,
       creditCardToken: params.billingType === BillingType.CREDIT_CARD ? params.creditCardToken : undefined,
+      userId: params.userId,
+      externalReference: params.createdFromIntentId || params.userId,
     });
 
     const values = {
@@ -581,10 +598,12 @@ export class SubscriptionService {
       pixQrCode: paymentRow.pixQrCode,
       pixQrCodeUrl: paymentRow.pixQrCodeUrl,
       invoiceUrl: paymentRow.invoiceUrl,
+      stripeClientSecret: paymentRow.gateway === PAYMENT_GATEWAY.STRIPE ? paymentRow.stripeClientSecret ?? null : null,
       canCancel: canCancelPayment(paymentRow),
     } : null;
 
-    const customerRow = await db.select().from(billingCustomers).where(eq(billingCustomers.userId, userId)).limit(1).then(r => r[0] || null);
+    const customerGateway = (subRow?.gatewayName || PAYMENT_GATEWAY.ASAAS) as any;
+    const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, customerGateway))).limit(1).then(r => r[0] || null);
     const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
 
     const scheduledChange = await this.subscriptionChangeService.getScheduledChange(userId);
@@ -780,6 +799,7 @@ export class SubscriptionService {
       pixQrCode: payment.pixQrCode || null,
       pixQrCodeUrl: payment.pixQrCodeUrl || null,
       description: payment.description || paymentDescription,
+      stripeClientSecret: payment.stripeClientSecret || null,
     });
   }
 }

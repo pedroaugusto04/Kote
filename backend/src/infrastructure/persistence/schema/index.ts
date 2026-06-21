@@ -556,6 +556,7 @@ export const billingPayments = pgTable('kb_billing_payments', {
   pixQrCode: text('pix_qr_code'),
   pixQrCodeUrl: text('pix_qr_code_url'),
   description: text('description'),
+  stripeClientSecret: text('stripe_client_secret'),
   lastGatewayEventAt: timestamp('last_gateway_event_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
