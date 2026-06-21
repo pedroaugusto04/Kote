@@ -228,6 +228,11 @@ export class SubscriptionService {
       const gatewayName = isBrazil ? PAYMENT_GATEWAY.ASAAS : PAYMENT_GATEWAY.STRIPE;
       const gateway = isBrazil ? this.asaasPaymentGateway : this.stripePaymentGateway;
 
+      // Validate billing type compatibility with gateway
+      if (!isBrazil && (type === BillingType.PIX || type === BillingType.BOLETO)) {
+        throw new BadRequestException('PIX and Boleto payments are only available for Brazilian users. Please select Credit Card.');
+      }
+
       if (isBrazil) {
         const hasAsaas = Boolean(process.env.ASAAS_ACCESS_TOKEN);
         if (!hasAsaas) {
@@ -302,7 +307,7 @@ export class SubscriptionService {
       await db.insert(userSubscriptions).values({
         userId,
         planId: targetPlan.id,
-        status: type === BillingType.CREDIT_CARD ? SubscriptionStatus.ACTIVE : SubscriptionStatus.PENDING,
+        status: SubscriptionStatus.ACTIVE,
         currentPeriodStart,
         currentPeriodEnd,
         gatewayName,
@@ -315,7 +320,7 @@ export class SubscriptionService {
         target: [userSubscriptions.userId],
         set: {
           planId: targetPlan.id,
-          status: type === BillingType.CREDIT_CARD ? SubscriptionStatus.ACTIVE : SubscriptionStatus.PENDING,
+          status: SubscriptionStatus.ACTIVE,
           currentPeriodStart,
           currentPeriodEnd,
           gatewaySubscriptionId,
@@ -394,7 +399,7 @@ export class SubscriptionService {
       nextDueDate: null,
     };
 
-    const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === 'trialing')) ? latestSubSummary : null;
+    const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === SubscriptionStatus.PAST_DUE || subRow.status === SubscriptionStatus.TRIALING)) ? latestSubSummary : null;
 
     const paymentRow = await db
       .select()

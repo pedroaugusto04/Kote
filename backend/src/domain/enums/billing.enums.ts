@@ -12,6 +12,8 @@ export enum BillingType {
 export enum SubscriptionStatus {
   ACTIVE = 'active',
   PENDING = 'pending',
+  PAST_DUE = 'past_due',
+  TRIALING = 'trialing',
   CANCELED = 'canceled',
 }
 

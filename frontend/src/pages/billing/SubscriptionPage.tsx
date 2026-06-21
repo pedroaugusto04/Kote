@@ -114,7 +114,7 @@ export function SubscriptionPage() {
 
   const currentPlan = useMemo(() => {
     if (!status || !plans.length) return null;
-    return plans.find(p => p.id === summary?.latestSub?.planId) || null;
+    return plans.find(p => p.id === summary?.activeSub?.planId) || null;
   }, [status, plans, summary]);
 
   const handleOpenChoice = (plan: PlanDTO) => {
@@ -542,6 +542,34 @@ export function SubscriptionPage() {
                       {copied ? 'Copied!' : 'Copy'}
                     </button>
                   </div>
+                </div>
+              )}
+
+              {activePayment.billingType === BILLING_TYPE.CREDIT_CARD && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', padding: '24px 0' }}>
+                  <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--muted)' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h3a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75v3.75c0 .414.336.75.75.75z" />
+                  </svg>
+                  <span style={{ fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>
+                    Your credit card payment has been initiated
+                  </span>
+                  {activePayment.invoiceUrl && (
+                    <a
+                      href={activePayment.invoiceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="icon-button"
+                      style={{ display: 'flex', gap: '8px', textDecoration: 'none' }}
+                    >
+                      Open Invoice
+                      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                      </svg>
+                    </a>
+                  )}
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', textAlign: 'center' }}>
+                    Your card will be charged {formatCurrency(activePayment.value)}
+                  </span>
                 </div>
               )}
 
