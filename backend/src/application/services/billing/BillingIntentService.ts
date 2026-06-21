@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 import { billingIntents } from '../../../infrastructure/persistence/schema/index.js';
 import { BillingCycle } from '../../../domain/enums/billing.enums.js';
+import { buildExternalReference } from '../../../infrastructure/billing/gateways/asaas/AsaasHelpers.js';
 
 // Constants for Billing Intent Statuses
 export const INTENT_STATUS = {
@@ -78,7 +79,7 @@ export class BillingIntentService {
     }
     
     const intentId = crypto.randomUUID();
-    
+
     await db.insert(billingIntents).values({
       id: intentId,
       type: params.type === 'new' ? 'new' : 'upgrade',
@@ -90,7 +91,7 @@ export class BillingIntentService {
       creditCardToken: params.creditCardToken || null,
     });
 
-    const externalReference = `id=${intentId}`;
+    const externalReference = buildExternalReference(params.type, intentId);
     return { externalReference };
   }
 

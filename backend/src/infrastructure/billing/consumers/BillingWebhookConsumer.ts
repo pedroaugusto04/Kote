@@ -12,7 +12,6 @@ import { AsaasGatewayStatusMapper } from '../gateways/asaas/AsaasGatewayStatusMa
 import { StripeGatewayStatusMapper } from '../gateways/stripe/StripeGatewayStatusMapper.js';
 import { SubscriptionService } from '../../../application/services/billing/SubscriptionService.js';
 import { BillingIntentService } from '../../../application/services/billing/BillingIntentService.js';
-import { BillingType } from '../../../domain/enums/billing.enums.js';
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { BillingEventBus } from '../../../application/services/billing-event.bus.js';
@@ -284,8 +283,8 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     const gatewayPaymentId = String(payment.id);
 
     let payStatus: PaymentStatus | null = null;
-    const mapper = gateway === PAYMENT_GATEWAY.STRIPE 
-      ? this.stripeGatewayStatusMapper 
+    const mapper = gateway === PAYMENT_GATEWAY.STRIPE
+      ? this.stripeGatewayStatusMapper
       : this.asaasGatewayStatusMapper;
     payStatus = mapper.normalizePaymentStatus(payment.status, event.event);
 
@@ -485,7 +484,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
       // Idempotência: verificar se subscription já foi criada para este intent
       const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);
       const existingSubscriptionByIntent = sub?.activeSub?.planId === intent.planId ? sub.activeSub : null;
-      
+
       if (existingSubscriptionByIntent) {
         this.logger.info('billing_webhook_consumer.new_intent_idempotent', {
           intentId: intent.id,
@@ -512,7 +511,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     if (intent.type === 'upgrade') {
       const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);
       const activeSub = sub?.activeSub;
-      
+
       // Idempotência: verificar se subscription já foi atualizada para o plano alvo
       if (activeSub?.planId === intent.planId) {
         this.logger.info('billing_webhook_consumer.upgrade_intent_idempotent', {
@@ -524,18 +523,9 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      const gatewayCustomerId = activeSub?.gatewayCustomerId || '';
-      const gateway = activeSub?.gatewayName || PAYMENT_GATEWAY.ASAAS;
-      const price = intent.value || 0;
-      const billingType = intent.billingType || BillingType.CREDIT_CARD;
-      
       await this.subscriptionService.confirmUpgrade(
         userId,
-        intent.planId || '',
-        gateway,
-        gatewayCustomerId,
-        price,
-        billingType
+        intent.planId || ''
       );
       await this.billingIntentService.markDone(userId, intent.id);
     }

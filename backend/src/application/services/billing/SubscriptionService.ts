@@ -382,7 +382,7 @@ export class SubscriptionService {
     return { id: params.userId };
   }
 
-  async confirmUpgrade(subscriptionId: string, targetPlanId: string, gateway: string, gatewayCustomerId: string, price: number, billingType: BillingType): Promise<void> {
+  async confirmUpgrade(subscriptionId: string, targetPlanId: string): Promise<void> {
     const db = this.database.getDb();
     
     const sub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, subscriptionId)).limit(1).then(r => r[0] || null);
@@ -395,7 +395,7 @@ export class SubscriptionService {
       throw new BadRequestException('Plan not found');
     }
 
-    const paymentGateway = gateway === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
+    const paymentGateway = sub.gatewayName === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
     const billingCycle = (sub.billingCycle as string) === 'yearly' ? BillingCycle.YEARLY : BillingCycle.MONTHLY;
     const targetRecurringValue = this.resolvePlanValueForCycle(plan, billingCycle);
 
@@ -428,43 +428,6 @@ export class SubscriptionService {
         updatedAt: new Date(),
       })
       .where(eq(userSubscriptions.userId, subscriptionId));
-
-    // Create upgrade payment (if price was provided)
-    if (price > 0) {
-      const mapper = gateway === PAYMENT_GATEWAY.STRIPE ? this.stripeGatewayStatusMapper : this.asaasGatewayStatusMapper;
-      
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 1);
-
-      const payment = await paymentGateway.createPayment({
-        customerId: gatewayCustomerId,
-        userId: subscriptionId,
-        billingType: billingType === BillingType.PIX ? BillingTypeEnum.PIX : billingType === BillingType.BOLETO ? BillingTypeEnum.BOLETO : BillingTypeEnum.CREDIT_CARD,
-        value: price,
-        dueDate: dueDate.toISOString().split('T')[0],
-        description: `Upgrade to plan ${targetPlanId}`,
-        kind: 'upgrade' as any,
-      });
-
-      const normalizedStatus = mapper.normalizePaymentStatus(payment.status, null) ?? PaymentStatus.PENDING;
-
-      await db.insert(billingPayments).values({
-        id: crypto.randomUUID(),
-        subscriptionId,
-        userId: subscriptionId,
-        gateway: gateway as any,
-        gatewayPaymentId: payment.id,
-        status: normalizedStatus,
-        billingType: billingType,
-        kind: 'upgrade',
-        value: String(price),
-        dueDate,
-        invoiceUrl: payment.invoiceUrl || null,
-        bankSlipUrl: payment.bankSlipUrl || null,
-        pixQrCode: payment.pixQrCode || null,
-        pixQrCodeUrl: payment.pixQrCodeUrl || null,
-      });
-    }
   }
 
   async refreshSubscriptionFromPayments(params: {

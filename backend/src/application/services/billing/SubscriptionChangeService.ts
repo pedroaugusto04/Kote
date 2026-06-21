@@ -234,7 +234,7 @@ export class SubscriptionChangeService {
     newRecurringValue: number
   ) {
     const gateway = sub.gatewayName === GatewayNameEnum.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
-    const normalizedRecurringValue = newRecurringValue / 100; // Converte de cents para decimal
+    const normalizedRecurringValue = newRecurringValue;
 
     let gatewayPayments: Awaited<ReturnType<typeof gateway.getSubscriptionPayments>> = [];
 
@@ -287,7 +287,7 @@ export class SubscriptionChangeService {
         status: syncedStatus,
         billingType: normalizedBillingType,
         gatewayStatus: syncedPayment.status ?? payment.status ?? undefined,
-        value: (syncedPayment.value ?? normalizedRecurringValue) * 100, // Converte de decimal para cents
+        value: syncedPayment.value ?? normalizedRecurringValue,
         dueDate: syncedDueDate,
         paidAt: syncedPaidAt ?? null,
         invoiceUrl: syncedPayment.invoiceUrl ?? null,

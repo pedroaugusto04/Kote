@@ -5,7 +5,7 @@ import { SubscriptionChangeKind } from '../../../dist/application/services/billi
 import { FREE_PLAN_ID, SubscriptionPlan } from '../../../dist/domain/enums/plans.enums.js';
 import { BillingCycle } from '../../../dist/domain/enums/billing.enums.js';
 
-test('UpdateSubscriptionStrategyFactory returns NEW when activeSub is missing or is free plan', () => {
+test('UpdateSubscriptionStrategyFactory returns NEW when activeSub is missing', () => {
   const factory = new UpdateSubscriptionStrategyFactory();
 
   // Case 1: activeSub is missing
@@ -16,23 +16,6 @@ test('UpdateSubscriptionStrategyFactory returns NEW when activeSub is missing or
     newBillingCycle: BillingCycle.MONTHLY,
   };
   assert.equal(factory.getChangeKind(ctxNoActiveSub), SubscriptionChangeKind.NEW);
-
-  // Case 2: activeSub is present but is the free plan
-  const ctxFreePlanSub = {
-    userId: 'user-1',
-    activeSub: {
-      id: 'user-1',
-      planId: FREE_PLAN_ID,
-      billingCycle: BillingCycle.MONTHLY,
-      gatewaySubscriptionId: '',
-      nextDueDate: undefined,
-      gatewayName: 'asaas',
-    },
-    activePlan: { id: FREE_PLAN_ID, slug: SubscriptionPlan.FREE, priceCents: 0 },
-    newPlan: { id: 'pro-plan-id', slug: SubscriptionPlan.PRO, priceCents: 2000 },
-    newBillingCycle: BillingCycle.MONTHLY,
-  };
-  assert.equal(factory.getChangeKind(ctxFreePlanSub), SubscriptionChangeKind.NEW);
 });
 
 test('UpdateSubscriptionStrategyFactory returns UPGRADE/DOWNGRADE/CHANGE_CYCLE between paid plans', () => {

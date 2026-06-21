@@ -101,7 +101,7 @@ export class BillingWorker implements OnModuleInit, OnModuleDestroy {
       .from(userSubscriptions)
       .where(and(
         eq(userSubscriptions.status, SubscriptionStatus.PAST_DUE as any),
-        lt(userSubscriptions.updatedAt, cutoffDate)
+        lt(userSubscriptions.pastDueAt, cutoffDate)
       ))
       .limit(100);
   }
