@@ -199,6 +199,51 @@ describe('SubscriptionPage', () => {
 
     expect(await screen.findByText(/Scheduled Downgrade/)).toBeInTheDocument();
     expect(await screen.findByText(/Pending invoice/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).toBeInTheDocument();
+  });
+
+  it('shows card-on-file notice and hides cancel for recurring renewal charges', async () => {
+    const statusWithRenewal = {
+      ...mockStatus,
+      summary: {
+        ...mockStatus.summary,
+        hasCreditCardOnFile: true,
+        latestPendingPayment: {
+          id: 'pay-renewal',
+          subscriptionId: 'user-1',
+          userId: 'user-1',
+          gateway: 'asaas',
+          gatewayPaymentId: 'pay-gw-renewal',
+          status: 'pending',
+          billingType: 'credit_card',
+          kind: 'recurring',
+          value: 20,
+          dueDate: '2099-07-21T00:00:00Z',
+          bankSlipUrl: null,
+          pixQrCode: null,
+          pixQrCodeUrl: null,
+          invoiceUrl: 'https://invoice.example',
+          canCancel: false,
+        },
+      },
+    };
+
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/subscription/plans')) {
+        return Response.json(mockPlans);
+      }
+      if (url.includes('/api/subscription/status')) {
+        return Response.json(statusWithRenewal);
+      }
+      return new Response(null, { status: 404 });
+    }));
+
+    renderWithAppProviders(<SubscriptionPage />);
+
+    expect(await screen.findByText(/Card on file:/)).toBeInTheDocument();
+    expect(await screen.findByText(/Upcoming renewal/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancel invoice' })).not.toBeInTheDocument();
   });
 
   it('opens cycle choice modal when clicking upgrade plan', async () => {

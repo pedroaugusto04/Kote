@@ -31,6 +31,14 @@ export const SUBSCRIPTION_CHANGE_KIND = {
   NOOP: 'NOOP',
 } as const;
 
+export const SUBSCRIPTION_STATUS = {
+  PENDING: 'pending',
+  ACTIVE: 'active',
+  PAST_DUE: 'past_due',
+  CANCELED: 'canceled',
+  INACTIVE: 'inactive',
+} as const;
+
 export type SubscriptionChangeKind = typeof SUBSCRIPTION_CHANGE_KIND[keyof typeof SUBSCRIPTION_CHANGE_KIND];
 export type BillingCycle = typeof BILLING_CYCLE[keyof typeof BILLING_CYCLE];
 export type BillingType = typeof BILLING_TYPE[keyof typeof BILLING_TYPE];

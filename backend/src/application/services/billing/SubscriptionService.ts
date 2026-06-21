@@ -35,6 +35,7 @@ import type { SubscriptionChangeResult } from '../../models/subscription-change.
 import { SubscriptionChangeService } from './SubscriptionChangeService.js';
 import { PostgresBillingPaymentRepository } from '../../../infrastructure/repositories/billing.repository.js';
 import { UpdateSubscriptionStrategyFactory } from './subscriptionStrategy/UpdateSubscriptionStrategyFactory.js';
+import { canCancelPayment } from '../../../infrastructure/utils/billing/paymentUtils.js';
 
 
 @Injectable()
@@ -82,6 +83,7 @@ export class SubscriptionService {
     billingType?: BillingType,
     cpfCnpj?: string,
     countryCode?: string,
+    creditCardToken?: string,
   ): Promise<SubscriptionChangeResult> {
     const db = this.database.getDb();
 
@@ -109,6 +111,7 @@ export class SubscriptionService {
 
     const cycle = billingCycle || BillingCycle.MONTHLY;
     const type = billingType || BillingType.CREDIT_CARD;
+    const normalizedCreditCardToken = creditCardToken?.trim() || undefined;
 
     const isBrazil = countryCode?.toUpperCase() === COUNTRY_CODE.BRAZIL;
     const gatewayName = isBrazil ? PAYMENT_GATEWAY.ASAAS : PAYMENT_GATEWAY.STRIPE;
@@ -193,7 +196,7 @@ export class SubscriptionService {
       newPlan: targetPlan,
       newBillingCycle: cycle,
       newBillingType: type,
-      newCreditCardToken: undefined,
+      newCreditCardToken: normalizedCreditCardToken,
       user: {
         id: userId,
         name: userDisplayName || userEmail,
@@ -564,7 +567,7 @@ export class SubscriptionService {
       pixQrCode: paymentRow.pixQrCode,
       pixQrCodeUrl: paymentRow.pixQrCodeUrl,
       invoiceUrl: paymentRow.invoiceUrl,
-      canCancel: true,
+      canCancel: canCancelPayment(paymentRow),
     } : null;
 
     const customerRow = await db.select().from(billingCustomers).where(eq(billingCustomers.userId, userId)).limit(1).then(r => r[0] || null);

@@ -21,6 +21,7 @@ export class UpdateSubscriptionUseCase {
     billingType?: BillingType;
     cpfCnpj?: string;
     countryCode?: string;
+    creditCardToken?: string;
   }) {
     const result = await this.subscriptionService.registerOrUpdateSubscription(
       params.userId,
@@ -31,6 +32,7 @@ export class UpdateSubscriptionUseCase {
       params.billingType,
       params.cpfCnpj,
       params.countryCode,
+      params.creditCardToken,
     );
 
     this.billingEventBus.emit(params.userId);

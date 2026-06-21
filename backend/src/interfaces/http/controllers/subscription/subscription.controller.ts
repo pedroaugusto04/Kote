@@ -88,12 +88,19 @@ export class SubscriptionController {
   @ApiResponse({ status: 200, description: 'Subscription updated successfully' })
   async updateSubscription(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { planId: string; billingCycle?: BillingCycle; billingType?: BillingType; cpfCnpj?: string; countryCode?: string },
+    @Body() body: {
+      planId: string;
+      billingCycle?: BillingCycle;
+      billingType?: BillingType;
+      cpfCnpj?: string;
+      countryCode?: string;
+      creditCardToken?: string;
+    },
     @Headers('x-user-country') userCountryHeader?: string,
     @Headers('cf-ipcountry') cfCountryHeader?: string,
     @Headers('accept-language') acceptLanguageHeader?: string,
   ) {
-    const { planId, billingCycle, billingType, cpfCnpj } = body;
+    const { planId, billingCycle, billingType, cpfCnpj, creditCardToken } = body;
 
     let countryCode: string = body.countryCode || '';
     if (!countryCode) {
@@ -117,6 +124,7 @@ export class SubscriptionController {
       billingType,
       cpfCnpj,
       countryCode,
+      creditCardToken,
     });
   }
 

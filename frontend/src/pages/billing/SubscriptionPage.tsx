@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchPlans,
@@ -15,7 +15,15 @@ import {
 import { PageHead, Panel, InlineMessage } from '../../shared/ui/primitives';
 import { formatCpfCnpj, isValidCpfCnpjFormat } from '../../shared/utils/cpf-cnpj';
 import { detectUserCountry } from '../../shared/utils/location';
-import { BILLING_ERROR_MESSAGES, BILLING_CYCLE, BILLING_TYPE, SUBSCRIPTION_CHANGE_KIND, type BillingCycle, type BillingType } from '../../shared/constants/billing.constants';
+import { BILLING_ERROR_MESSAGES, BILLING_CYCLE, BILLING_TYPE, SUBSCRIPTION_CHANGE_KIND, SUBSCRIPTION_STATUS, type BillingCycle, type BillingType } from '../../shared/constants/billing.constants';
+import {
+  canChooseManualMonthlyPayment,
+  isManualBillingType,
+  isOpenSubscriptionStatus,
+  pendingChargeStatus,
+  resolveEffectiveMonthlyBillingType,
+  toUtcDateOnlyTimestamp,
+} from '../../shared/utils/billing/subscription-ui';
 import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 
 export function SubscriptionPage() {
@@ -50,36 +58,68 @@ export function SubscriptionPage() {
   const [isCancelScheduledModalOpen, setIsCancelScheduledModalOpen] = useState(false);
 
   const [copied, setCopied] = useState(false);
+  const hadPendingPaymentRef = useRef(false);
 
-  // SSE Subscription for real-time status updates
+  const statusQuery = useQuery({
+    queryKey: ['billing', 'status'],
+    queryFn: fetchSubscriptionStatus,
+  });
+
+  const summary = statusQuery.data?.summary;
+  const hasCreditCardOnFile = Boolean(summary?.hasCreditCardOnFile);
+  const latestPendingPayment = summary?.latestPendingPayment ?? null;
+  const latestSubStatus = summary?.latestSub?.status;
+
+  const shouldSubscribeSse = useMemo(() => {
+    if (!summary) return false;
+    return (
+      Boolean(latestPendingPayment) ||
+      latestSubStatus === SUBSCRIPTION_STATUS.PENDING ||
+      latestSubStatus === SUBSCRIPTION_STATUS.PAST_DUE
+    );
+  }, [summary, latestPendingPayment?.id, latestSubStatus]);
+
+  // SSE subscription while there is an open charge or pending/past-due subscription
   useEffect(() => {
+    if (!shouldSubscribeSse) return;
+
     const unsubscribe = subscribeToSubscriptionStatus((data) => {
-      if (data) {
-        queryClient.setQueryData(['billing', 'status'], data);
-        const pendingPayment = data.summary.latestPendingPayment;
-        if (pendingPayment) {
-          setActivePayment(pendingPayment);
-        } else {
-          setIsPaymentModalOpen(false);
-          setActivePayment(null);
-        }
+      if (!data) return;
+
+      const previousEntitledPlanId = statusQuery.data?.summary?.entitledPlanId;
+      const hadPendingPayment = hadPendingPaymentRef.current;
+
+      queryClient.setQueryData(['billing', 'status'], data);
+
+      const pendingPayment = data.summary.latestPendingPayment;
+      if (pendingPayment) {
+        hadPendingPaymentRef.current = true;
+        setActivePayment(pendingPayment);
+        return;
       }
+
+      setIsPaymentModalOpen(false);
+      setActivePayment(null);
+
+      if (
+        hadPendingPayment &&
+        previousEntitledPlanId &&
+        data.summary.entitledPlanId !== previousEntitledPlanId
+      ) {
+        notifySuccess('Subscription activated successfully');
+      }
+      hadPendingPaymentRef.current = false;
     });
 
     return () => {
       unsubscribe();
     };
-  }, [queryClient]);
+  }, [shouldSubscribeSse, queryClient, statusQuery.data?.summary?.entitledPlanId]);
 
   // Queries
   const plansQuery = useQuery({
     queryKey: ['billing', 'plans'],
     queryFn: fetchPlans,
-  });
-
-  const statusQuery = useQuery({
-    queryKey: ['billing', 'status'],
-    queryFn: fetchSubscriptionStatus,
   });
 
   // Mutations
@@ -99,6 +139,7 @@ export function SubscriptionPage() {
 
       const pendingPayment = data.summary.latestPendingPayment;
       if (pendingPayment) {
+        hadPendingPaymentRef.current = true;
         setActivePayment(pendingPayment);
         setIsPaymentModalOpen(true);
         return;
@@ -135,7 +176,6 @@ export function SubscriptionPage() {
 
   const plans = plansQuery.data || [];
   const status = statusQuery.data;
-  const summary = status?.summary;
   const savedCpfCnpj = status?.cpfCnpj || '';
 
   const defaultPlanId = useMemo(
@@ -144,6 +184,41 @@ export function SubscriptionPage() {
   );
 
   const entitledPlanId = summary?.entitledPlanId ?? defaultPlanId;
+  const allowManualMonthlyPayment = canChooseManualMonthlyPayment(hasCreditCardOnFile);
+  const modalCanChooseManualMethods = choiceCycle !== BILLING_CYCLE.MONTHLY || allowManualMonthlyPayment;
+  const modalEffectiveBillingType = resolveEffectiveMonthlyBillingType(
+    choiceCycle,
+    hasCreditCardOnFile,
+    choiceType,
+  );
+  const hasOpenSubscription = Boolean(summary?.activeSub && isOpenSubscriptionStatus(summary.activeSub.status));
+
+  const latestPaymentDueDateUtcMs = useMemo(() => {
+    const raw = latestPendingPayment?.dueDate;
+    if (!raw) return null;
+    return toUtcDateOnlyTimestamp(raw);
+  }, [latestPendingPayment?.dueDate]);
+
+  const todayUtcMs = useMemo(() => toUtcDateOnlyTimestamp(new Date()) ?? 0, []);
+
+  const isLatestPaymentPendingOrOverdue = Boolean(
+    latestPendingPayment && pendingChargeStatus(latestPendingPayment.status),
+  );
+  const isLatestPaymentFuture = Boolean(
+    latestPaymentDueDateUtcMs !== null && latestPaymentDueDateUtcMs > todayUtcMs,
+  );
+  const isPendingUpgradeCharge = Boolean(latestPendingPayment?.canCancel);
+  const isLatestPaymentManual = isManualBillingType(latestPendingPayment?.billingType);
+  const isLatestPaymentCard = latestPendingPayment?.billingType === BILLING_TYPE.CREDIT_CARD;
+  const isFutureRenewalCharge = Boolean(
+    latestPendingPayment &&
+    isLatestPaymentPendingOrOverdue &&
+    isLatestPaymentFuture &&
+    !isPendingUpgradeCharge,
+  );
+  const showPendingChargeCard = Boolean(
+    latestPendingPayment && isLatestPaymentPendingOrOverdue && !isFutureRenewalCharge,
+  );
 
   const handleOpenChoice = (plan: PlanDTO) => {
     setSelectedPlan(plan);
@@ -159,7 +234,13 @@ export function SubscriptionPage() {
     if (!selectedPlan) return;
 
     // CPF/CNPJ is required for PIX and Boleto
-    if (isBrazil && (choiceType === BILLING_TYPE.PIX || choiceType === BILLING_TYPE.BOLETO) && !cpfCnpj.trim()) {
+    const effectiveBillingType = resolveEffectiveMonthlyBillingType(
+      choiceCycle,
+      hasCreditCardOnFile,
+      choiceType,
+    ) as BillingType;
+
+    if (isBrazil && (effectiveBillingType === BILLING_TYPE.PIX || effectiveBillingType === BILLING_TYPE.BOLETO) && !cpfCnpj.trim()) {
       setCpfCnpjError(BILLING_ERROR_MESSAGES.CPF_CNPJ_REQUIRED);
       return;
     }
@@ -174,7 +255,7 @@ export function SubscriptionPage() {
     updateMutation.mutate({
       planId: selectedPlan.id,
       billingCycle: choiceCycle,
-      billingType: choiceType,
+      billingType: effectiveBillingType,
       cpfCnpj: isBrazil ? (cleanCpfCnpj || undefined) : undefined,
     });
   };
@@ -282,15 +363,14 @@ export function SubscriptionPage() {
               </div>
             )}
 
-            {/* Pending payment banner */}
-            {summary.latestPendingPayment && (
+            {showPendingChargeCard && latestPendingPayment && (
               <div className="status-banner warning">
                 <div className="status-banner-content">
                   <span className="status-banner-title">
                     Pending invoice
                   </span>
                   <span className="status-banner-desc">
-                    You have a pending invoice of {formatCurrency(summary.latestPendingPayment.value)} due on {formatDate(summary.latestPendingPayment.dueDate)}.
+                    You have a pending invoice of {formatCurrency(latestPendingPayment.value)} due on {formatDate(latestPendingPayment.dueDate)}.
                   </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -298,22 +378,50 @@ export function SubscriptionPage() {
                     type="button"
                     className="filter-chip"
                     onClick={() => {
-                      setActivePayment(summary.latestPendingPayment);
+                      setActivePayment(latestPendingPayment);
                       setIsPaymentModalOpen(true);
                     }}
                   >
                     View payment details
                   </button>
+                  {latestPendingPayment.canCancel && (
+                    <button
+                      type="button"
+                      className="filter-chip"
+                      style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.4)', color: 'rgb(220,38,38)' }}
+                      onClick={() => cancelPaymentMutation.mutate(latestPendingPayment.id)}
+                      disabled={cancelPaymentMutation.isPending}
+                    >
+                      {cancelPaymentMutation.isPending ? 'Canceling...' : 'Cancel invoice'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {isFutureRenewalCharge && latestPendingPayment && (
+              <div className="status-banner warning">
+                <div className="status-banner-content">
+                  <span className="status-banner-title">
+                    Upcoming renewal
+                  </span>
+                  <span className="status-banner-desc">
+                    {formatCurrency(latestPendingPayment.value)} due on {formatDate(latestPendingPayment.dueDate)}
+                    {isLatestPaymentCard ? '. Automatic renewal on card.' : '.'}
+                  </span>
+                </div>
+                {isLatestPaymentManual && (
                   <button
                     type="button"
                     className="filter-chip"
-                    style={{ background: 'transparent', border: '1px solid rgba(220,38,38,0.4)', color: 'rgb(220,38,38)' }}
-                    onClick={() => cancelPaymentMutation.mutate(summary.latestPendingPayment!.id)}
-                    disabled={cancelPaymentMutation.isPending}
+                    onClick={() => {
+                      setActivePayment(latestPendingPayment);
+                      setIsPaymentModalOpen(true);
+                    }}
                   >
-                    {cancelPaymentMutation.isPending ? 'Canceling...' : 'Cancel invoice'}
+                    View payment details
                   </button>
-                </div>
+                )}
               </div>
             )}
 
@@ -411,13 +519,23 @@ export function SubscriptionPage() {
                           handleOpenChoice(plan);
                         }}
                       >
-                        {isFree ? 'Downgrade' : 'Upgrade Plan'}
+                        {isFree
+                          ? 'Downgrade'
+                          : hasOpenSubscription
+                            ? 'Switch Plan'
+                            : 'Upgrade Plan'}
                       </button>
                     )}
                   </div>
                 );
               })}
             </div>
+
+            {hasCreditCardOnFile && (
+              <div className="inline-message" style={{ marginTop: '16px', fontSize: '12px' }}>
+                Card on file: monthly plans renew automatically on your saved card.
+              </div>
+            )}
           </>
         )}
       </Panel>
@@ -439,6 +557,12 @@ export function SubscriptionPage() {
                 New subscriptions and upgrades are activated after payment confirmation. Downgrades and billing cycle changes are scheduled for the next period.
               </div>
 
+              {hasCreditCardOnFile && choiceCycle === BILLING_CYCLE.MONTHLY && (
+                <div className="inline-message" style={{ fontSize: '12px' }}>
+                  With a saved card, monthly subscriptions use credit card automatically.
+                </div>
+              )}
+
               {/* Cycle chooser inside modal (Free is always monthly) */}
               {!selectedPlan.isDefault && (
                 <div>
@@ -449,7 +573,11 @@ export function SubscriptionPage() {
                       className={`cycle-btn ${choiceCycle === BILLING_CYCLE.MONTHLY ? 'active' : ''}`}
                       onClick={() => {
                         setChoiceCycle(BILLING_CYCLE.MONTHLY);
-                        if (choiceType === BILLING_TYPE.BOLETO) setChoiceType(BILLING_TYPE.CREDIT_CARD);
+                        if (hasCreditCardOnFile) {
+                          setChoiceType(BILLING_TYPE.CREDIT_CARD);
+                        } else if (choiceType === BILLING_TYPE.BOLETO) {
+                          setChoiceType(BILLING_TYPE.CREDIT_CARD);
+                        }
                         setCpfCnpjError('');
                       }}
                     >
@@ -488,7 +616,7 @@ export function SubscriptionPage() {
                       <span className="billing-option-label">Credit Card</span>
                     </div>
 
-                    {isBrazil && (
+                    {isBrazil && modalCanChooseManualMethods && (
                       <>
                         <div
                           className={`billing-option-card ${choiceType === BILLING_TYPE.PIX ? 'selected' : ''}`}
@@ -523,7 +651,7 @@ export function SubscriptionPage() {
               )}
 
               {/* CPF/CNPJ Field - Required for PIX and Boleto */}
-              {!selectedPlan.isDefault && isBrazil && (choiceType === BILLING_TYPE.PIX || choiceType === BILLING_TYPE.BOLETO) && (
+              {!selectedPlan.isDefault && isBrazil && (modalEffectiveBillingType === BILLING_TYPE.PIX || modalEffectiveBillingType === BILLING_TYPE.BOLETO) && (
                 <div className="form-field">
                   <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>
                     CPF/CNPJ <span style={{ color: 'rgb(220, 38, 38)' }}>*</span>

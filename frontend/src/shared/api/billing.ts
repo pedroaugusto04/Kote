@@ -98,6 +98,7 @@ export interface SubscriptionInput {
   billingType?: 'credit_card' | 'pix' | 'boleto';
   cpfCnpj?: string;
   countryCode?: string;
+  creditCardToken?: string;
 }
 
 export function fetchPlans(): Promise<PlanDTO[]> {
