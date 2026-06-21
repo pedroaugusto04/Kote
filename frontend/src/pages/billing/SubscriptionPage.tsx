@@ -126,6 +126,7 @@ export function SubscriptionPage() {
     setChoiceType(BILLING_TYPE.CREDIT_CARD);
     setCpfCnpj(savedCpfCnpj);
     setCpfCnpjError('');
+    updateMutation.reset();
     setIsChoiceModalOpen(true);
   };
 
@@ -521,6 +522,14 @@ export function SubscriptionPage() {
                 </div>
               )}
             </div>
+
+            {updateMutation.isError && (
+              <div style={{ padding: '0 24px', marginBottom: '16px' }}>
+                <InlineMessage tone="error">
+                  {updateMutation.error instanceof Error ? updateMutation.error.message : 'An error occurred'}
+                </InlineMessage>
+              </div>
+            )}
 
             <div className="form-actions">
               <button className="filter-chip" type="button" onClick={() => setIsChoiceModalOpen(false)}>
