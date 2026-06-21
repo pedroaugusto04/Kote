@@ -8,7 +8,8 @@ import {
 } from '../../../infrastructure/persistence/schema/index.js';
 import { SubscriptionChangeStatus, SubscriptionChangeType, SubscriptionStatus, BillingCycle, BillingType, PaymentStatus } from '../../../domain/enums/billing.enums.js';
 import { SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
-import { BillingTypeEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { BillingTypeEnum, GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { toGatewayBillingType } from '../../../infrastructure/billing/helpers/billingTypeMapper.js';
 import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
 import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
@@ -149,7 +150,7 @@ export class SubscriptionChangeService {
         await gateway.updateSubscription(sub.gatewaySubscriptionId, {
           value: targetRecurringValue,
           cycle: billingCycle === BillingCycle.YEARLY ? 'yearly' : 'monthly',
-          billingType: changeRequest.toBillingType as BillingType ?? BillingType.CREDIT_CARD,
+          billingType: toGatewayBillingType(changeRequest.toBillingType as BillingType) ?? BillingTypeEnum.CREDIT_CARD,
           updatePendingPayments: true,
         });
 

@@ -16,6 +16,7 @@ import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/s
 import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
 import { StripeGatewayStatusMapper } from '../../../infrastructure/billing/gateways/stripe/StripeGatewayStatusMapper.js';
 import { GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { toGatewayBillingType } from '../../../infrastructure/billing/helpers/billingTypeMapper.js';
 import {
   BillingCycle,
   BillingType,
@@ -278,7 +279,7 @@ export class SubscriptionService {
 
     const gatewaySubscription = await gateway.createSubscription({
       customerId: params.gatewayCustomerId,
-      billingType: params.billingType ?? BillingType.CREDIT_CARD,
+      billingType: toGatewayBillingType(params.billingType ?? BillingType.CREDIT_CARD),
       value: price,
       cycle: params.billingCycle === BillingCycle.YEARLY ? 'YEARLY' as any : 'MONTHLY' as any,
       nextDueDate: nextDueDate.toISOString().split('T')[0],
@@ -657,7 +658,7 @@ export class SubscriptionService {
     const payment = await gateway.createPayment({
       customerId: ctx.gatewayCustomerId,
       userId: ctx.userId,
-      billingType: ctx.newBillingType,
+      billingType: toGatewayBillingType(ctx.newBillingType),
       value: price,
       dueDate: dueDate.toISOString().split('T')[0],
       description: `First payment for plan ${ctx.newPlan.displayName} - ${ctx.user.name}`,
@@ -741,7 +742,7 @@ export class SubscriptionService {
     const payment = await gateway.createPayment({
       customerId: ctx.gatewayCustomerId,
       userId: ctx.userId,
-      billingType: ctx.newBillingType,
+      billingType: toGatewayBillingType(ctx.newBillingType),
       value: firstPaymentValue,
       dueDate: dueDate.toISOString().split('T')[0],
       description: `Upgrade payment for plan ${ctx.newPlan.displayName} - ${ctx.user.name}`,
