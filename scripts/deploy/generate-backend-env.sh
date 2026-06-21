@@ -11,7 +11,8 @@ write_kv() {
   local value="${2-}"
   value="${value//$'\r'/}"
   value="${value//$'\n'/\\n}"
-  printf '%s=%s\n' "$key" "$value" >> "$OUTPUT_FILE"
+  # Quote the value to prevent shell expansion of special chars like $
+  printf '%s="%s"\n' "$key" "$value" >> "$OUTPUT_FILE"
 }
 
 write_kv NODE_ENV production
