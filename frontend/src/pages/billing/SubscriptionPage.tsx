@@ -862,8 +862,13 @@ export function SubscriptionPage() {
 
               {activePayment.billingType === BILLING_TYPE.CREDIT_CARD && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', padding: '24px 0' }}>
-                  <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5" style={{ color: 'var(--muted)' }}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h3a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75v3.75c0 .414.336.75.75.75z" />
+                  <svg width="64" height="40" viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="0.5" y="0.5" width="63" height="39" rx="4.5" fill="#1E293B" stroke="#334155" strokeWidth="1"/>
+                    <rect x="4" y="12" width="56" height="8" rx="2" fill="#475569"/>
+                    <rect x="4" y="26" width="20" height="4" rx="1" fill="#64748B"/>
+                    <rect x="28" y="26" width="12" height="4" rx="1" fill="#64748B"/>
+                    <circle cx="52" cy="28" r="6" fill="#F59E0B"/>
+                    <circle cx="52" cy="28" r="4" fill="#FBBF24"/>
                   </svg>
                   <span style={{ fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>
                     Your credit card payment has been initiated
