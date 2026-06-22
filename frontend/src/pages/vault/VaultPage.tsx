@@ -132,6 +132,24 @@ export function VaultPage({
       touchStartY = e.changedTouches[0].screenY;
     };
 
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!tracking) return;
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+      const touchX = e.changedTouches[0].screenX;
+      const touchY = e.changedTouches[0].screenY;
+      const deltaX = touchStartX - touchX;
+      const deltaY = touchStartY - touchY;
+
+      // Only show swipe hint when gesture is clearly horizontal
+      if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        if (deltaX > 20) setSwipeDirection('left');
+        else if (deltaX < -20) setSwipeDirection('right');
+        else setSwipeDirection(null);
+      } else {
+        setSwipeDirection(null);
+      }
+    };
+
     const handleTouchEnd = (e: TouchEvent) => {
       if (!tracking) return;
       tracking = false;
@@ -149,25 +167,36 @@ export function VaultPage({
       if (now - lastNavigationAt < 400) return; // debounce rapid repeats
 
       const SWIPE_THRESHOLD = 30;
+      // keep a short visual hint after release
+      const clearHint = () => setTimeout(() => setSwipeDirection(null), 150);
+
       if (deltaX > SWIPE_THRESHOLD && nextNote) {
         lastNavigationAt = now;
         openNote(nextNote.id);
+        clearHint();
       } else if (deltaX < -SWIPE_THRESHOLD && previousNote) {
         lastNavigationAt = now;
         openNote(previousNote.id);
+        clearHint();
+      } else {
+        // no navigation; clear any transient hint
+        setSwipeDirection(null);
       }
     };
 
     const root: EventTarget = document.documentElement || document.body || window;
     root.addEventListener('touchstart', handleTouchStart as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
+    root.addEventListener('touchmove', handleTouchMove as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
     root.addEventListener('touchend', handleTouchEnd as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
 
     return () => {
       try {
         root.removeEventListener('touchstart', handleTouchStart as EventListener, { capture: true } as EventListenerOptions);
+        root.removeEventListener('touchmove', handleTouchMove as EventListener, { capture: true } as EventListenerOptions);
         root.removeEventListener('touchend', handleTouchEnd as EventListener, { capture: true } as EventListenerOptions);
       } catch (err) {
         window.removeEventListener('touchstart', handleTouchStart as EventListener);
+        window.removeEventListener('touchmove', handleTouchMove as EventListener);
         window.removeEventListener('touchend', handleTouchEnd as EventListener);
       }
     };
