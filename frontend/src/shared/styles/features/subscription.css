@@ -94,16 +94,19 @@
   position: absolute;
   top: 12px;
   right: 12px;
-  background: var(--primary);
-  color: #ffffff;
+  background: var(--surface-active);
+  color: var(--active-text);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 10px;
+  border: 1px solid var(--accent-border);
   border-radius: 20px;
   text-transform: uppercase;
 }
 
 :root[data-theme="light"] .current-badge {
+  background: var(--cyan);
+  border: 1px solid var(--cyan);
   color: #ffffff;
 }
 

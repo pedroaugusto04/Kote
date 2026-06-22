@@ -15,6 +15,7 @@
   --amber: #f0b95a;
   --red: #ff7a7a;
   --purple: #c084fc;
+  --danger: #ef4444;
   --body-overlay: linear-gradient(180deg, rgba(18, 29, 36, 0.82), rgba(9, 15, 20, 0.96));
   --body-radial: radial-gradient(circle at 68% 0%, rgba(83, 199, 222, 0.08), transparent 34%);
   --glass-panel: rgba(15, 23, 29, 0.88);
@@ -94,12 +95,11 @@
   --green: #15803d;
   --amber: #a16207;
   --red: #b91c1c;
+  --danger: #ef4444;
   --purple: #7e22ce;
-  --body-overlay: linear-gradient(
-    168deg,
-    rgba(248, 250, 252, 0.94) 0%,
-    rgba(241, 245, 249, 0.85) 100%
-  );
+  --body-overlay: linear-gradient(168deg,
+      rgba(248, 250, 252, 0.94) 0%,
+      rgba(241, 245, 249, 0.85) 100%);
   --body-radial:
     radial-gradient(ellipse 120% 60% at 72% -4%, rgba(3, 105, 161, 0.05), transparent 52%),
     radial-gradient(ellipse 90% 50% at 8% 18%, rgba(21, 128, 61, 0.03), transparent 44%);

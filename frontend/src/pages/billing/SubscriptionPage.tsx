@@ -54,7 +54,7 @@ export function SubscriptionPage() {
 
   const [billingCycle, setBillingCycle] = useState<BillingCycle>(BILLING_CYCLE.MONTHLY);
   const [selectedPlan, setSelectedPlan] = useState<PlanDTO | null>(null);
-  
+
   // Modals state
   const [isChoiceModalOpen, setIsChoiceModalOpen] = useState(false);
   const [choiceCycle, setChoiceCycle] = useState<BillingCycle>(BILLING_CYCLE.MONTHLY);
@@ -67,6 +67,7 @@ export function SubscriptionPage() {
 
   const [isCancelScheduledModalOpen, setIsCancelScheduledModalOpen] = useState(false);
   const [isPaymentCloseConfirmOpen, setIsPaymentCloseConfirmOpen] = useState(false);
+  const [isChoiceCloseConfirmOpen, setIsChoiceCloseConfirmOpen] = useState(false);
 
   const [copied, setCopied] = useState(false);
   const hadPendingPaymentRef = useRef(false);
@@ -283,7 +284,7 @@ export function SubscriptionPage() {
     setSelectedPlan(plan);
     setChoiceCycle(billingCycle);
     setChoiceType(BILLING_TYPE.CREDIT_CARD);
-    setCpfCnpj(savedCpfCnpj);
+    setCpfCnpj(formatCpfCnpj(savedCpfCnpj));
     setCpfCnpjError('');
     setStripeCardError('');
     updateMutation.reset();
@@ -352,8 +353,13 @@ export function SubscriptionPage() {
     setIsPaymentCloseConfirmOpen(true);
   };
 
+  const requestCloseChoiceModal = () => {
+    setIsChoiceCloseConfirmOpen(true);
+  };
+
   const handleCpfCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatCpfCnpj(e.target.value);
+    const onlyDigits = e.target.value.replace(/\D/g, '').slice(0, 14);
+    const formatted = formatCpfCnpj(onlyDigits);
     setCpfCnpj(formatted);
     setCpfCnpjError('');
   };
@@ -391,7 +397,7 @@ export function SubscriptionPage() {
           </button>
         </div>
         {isLoading && <div className="profile-state" role="status">Loading subscription details...</div>}
-        
+
         {plansQuery.isError && <InlineMessage tone="error">Failed to load available plans.</InlineMessage>}
         {statusQuery.isError && <InlineMessage tone="error">Failed to retrieve subscription status.</InlineMessage>}
 
@@ -416,7 +422,7 @@ export function SubscriptionPage() {
                         : `You will continue to have access to your current plan until ${formatDate(summary.scheduledChange.effectiveAt)}. After that, your plan will be changed to ${summary.scheduledChange.toPlan?.name || 'Free'} (${summary.scheduledChange.toBillingCycle === 'yearly' ? 'Yearly' : 'Monthly'}).`
                       }
                     </span>
-                    
+
                     <div className="scheduled-change-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginTop: '16px' }}>
                       <div style={{ background: 'var(--surface-1)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
                         <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600 }}>NEW PLAN</div>
@@ -445,7 +451,7 @@ export function SubscriptionPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <button
                     type="button"
                     className="filter-chip"
@@ -572,10 +578,10 @@ export function SubscriptionPage() {
                     }}
                   >
                     {isCurrent && <span className="current-badge">Current Plan</span>}
-                    
+
                     <h3 className="plan-name">{plan.name}</h3>
                     <p className="plan-desc">{plan.description}</p>
-                    
+
                     <div className="plan-price-wrapper">
                       <span className="plan-price">{formatCurrency(displayPrice)}</span>
                       <span className="plan-price-period">/{billingCycle === 'yearly' ? 'year' : 'month'}</span>
@@ -644,14 +650,14 @@ export function SubscriptionPage() {
 
       {/* 1. Modal: Billing Cycle & Payment Selection */}
       {isChoiceModalOpen && selectedPlan && (
-        <div className="modal-backdrop" onClick={() => setIsChoiceModalOpen(false)}>
+        <div className="modal-backdrop" onClick={requestCloseChoiceModal}>
           <section className="modal-panel integration-modal" onClick={e => e.stopPropagation()}>
             <div className="modal-head">
               <div>
                 <h2>Choose billing options</h2>
                 <p>Select cycle and payment details for <strong>{selectedPlan.name}</strong></p>
               </div>
-              <button className="modal-close" type="button" onClick={() => setIsChoiceModalOpen(false)}>x</button>
+              <button className="modal-close" type="button" onClick={requestCloseChoiceModal}>x</button>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', margin: '20px 0' }}>
@@ -799,7 +805,7 @@ export function SubscriptionPage() {
 
 
             <div className="form-actions">
-              <button className="filter-chip" type="button" onClick={() => setIsChoiceModalOpen(false)}>
+              <button className="filter-chip" type="button" onClick={requestCloseChoiceModal}>
                 Cancel
               </button>
               <button
@@ -809,6 +815,35 @@ export function SubscriptionPage() {
                 onClick={handleConfirmChoice}
               >
                 {updateMutation.isPending ? 'Confirming...' : 'Confirm'}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {isChoiceCloseConfirmOpen && (
+        <div className="modal-backdrop" onClick={() => setIsChoiceCloseConfirmOpen(false)}>
+          <section className="modal-panel integration-modal confirm-modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <h2>Close billing options</h2>
+                <p>Are you sure you want to close this modal? Your selections will be discarded.</p>
+              </div>
+              <button className="modal-close" type="button" onClick={() => setIsChoiceCloseConfirmOpen(false)}>x</button>
+            </div>
+            <div className="form-actions">
+              <button className="filter-chip" type="button" onClick={() => setIsChoiceCloseConfirmOpen(false)}>
+                Keep editing
+              </button>
+              <button
+                className="icon-button danger-button"
+                type="button"
+                onClick={() => {
+                  setIsChoiceCloseConfirmOpen(false);
+                  setIsChoiceModalOpen(false);
+                }}
+              >
+                Yes, close
               </button>
             </div>
           </section>
@@ -831,7 +866,7 @@ export function SubscriptionPage() {
               {activePayment.billingType === 'pix' && (
                 <div className="payment-qr-container">
                   <span style={{ fontSize: '13px', fontWeight: 600 }}>Scan QR Code via your bank app:</span>
-                  
+
                   {activePayment.pixQrCodeUrl && (
                     <div className="qr-code-image">
                       <img src={activePayment.pixQrCodeUrl} alt="PIX QR Code" width="160" height="160" />
@@ -841,7 +876,7 @@ export function SubscriptionPage() {
                   <span style={{ fontSize: '12px', color: 'var(--muted)', textAlign: 'center' }}>
                     Or copy the PIX code below:
                   </span>
-                  
+
                   <div className="pix-copy-box">
                     <input
                       readOnly
@@ -865,12 +900,12 @@ export function SubscriptionPage() {
               {activePayment.billingType === BILLING_TYPE.CREDIT_CARD && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', padding: '24px 0' }}>
                   <svg width="64" height="40" viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="0.5" y="0.5" width="63" height="39" rx="4.5" fill="#1E293B" stroke="#334155" strokeWidth="1"/>
-                    <rect x="4" y="12" width="56" height="8" rx="2" fill="#475569"/>
-                    <rect x="4" y="26" width="20" height="4" rx="1" fill="#64748B"/>
-                    <rect x="28" y="26" width="12" height="4" rx="1" fill="#64748B"/>
-                    <circle cx="52" cy="28" r="6" fill="#F59E0B"/>
-                    <circle cx="52" cy="28" r="4" fill="#FBBF24"/>
+                    <rect x="0.5" y="0.5" width="63" height="39" rx="4.5" fill="#1E293B" stroke="#334155" strokeWidth="1" />
+                    <rect x="4" y="12" width="56" height="8" rx="2" fill="#475569" />
+                    <rect x="4" y="26" width="20" height="4" rx="1" fill="#64748B" />
+                    <rect x="28" y="26" width="12" height="4" rx="1" fill="#64748B" />
+                    <circle cx="52" cy="28" r="6" fill="#F59E0B" />
+                    <circle cx="52" cy="28" r="4" fill="#FBBF24" />
                   </svg>
                   <span style={{ fontSize: '14px', fontWeight: 600, textAlign: 'center' }}>
                     Your credit card payment has been initiated
