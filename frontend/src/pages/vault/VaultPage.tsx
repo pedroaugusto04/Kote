@@ -107,6 +107,7 @@ export function VaultPage({
     let touchStartY = 0;
     let tracking = false;
     let lastNavigationAt = 0;
+    let navigatedDuringGesture = false;
 
     const isInteractiveElement = (el: EventTarget | null) => {
       try {
@@ -142,9 +143,28 @@ export function VaultPage({
 
       // Only show swipe hint when gesture is clearly horizontal
       if (Math.abs(deltaX) > Math.abs(deltaY)) {
+        // prevent vertical native scroll while user is clearly swiping horizontally
+        try { e.preventDefault(); } catch (err) { /* ignore */ }
+
         if (deltaX > 20) setSwipeDirection('left');
         else if (deltaX < -20) setSwipeDirection('right');
         else setSwipeDirection(null);
+
+        // If gesture exceeds threshold, navigate immediately (so one swipe works)
+        const SWIPE_THRESHOLD = 30;
+        const now = Date.now();
+        if (Math.abs(deltaX) > SWIPE_THRESHOLD && now - lastNavigationAt >= 400 && !navigatedDuringGesture) {
+          navigatedDuringGesture = true;
+          lastNavigationAt = now;
+          tracking = false;
+          if (deltaX > 0 && nextNote) {
+            openNote(nextNote.id);
+            setTimeout(() => setSwipeDirection(null), 150);
+          } else if (deltaX < 0 && previousNote) {
+            openNote(previousNote.id);
+            setTimeout(() => setSwipeDirection(null), 150);
+          }
+        }
       } else {
         setSwipeDirection(null);
       }
@@ -186,7 +206,8 @@ export function VaultPage({
 
     const root: EventTarget = document.documentElement || document.body || window;
     root.addEventListener('touchstart', handleTouchStart as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
-    root.addEventListener('touchmove', handleTouchMove as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
+    // touchmove must be non-passive so we can call preventDefault and stop native vertical scroll
+    root.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false, capture: true } as AddEventListenerOptions);
     root.addEventListener('touchend', handleTouchEnd as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
 
     return () => {
