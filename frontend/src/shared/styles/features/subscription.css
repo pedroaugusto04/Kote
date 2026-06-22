@@ -95,12 +95,20 @@
   top: 12px;
   right: 12px;
   background: var(--primary);
-  color: white;
+  color: #ffffff;
   font-size: 11px;
   font-weight: 700;
   padding: 3px 10px;
   border-radius: 20px;
   text-transform: uppercase;
+}
+
+:root[data-theme="light"] .current-badge {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .current-badge {
+  color: #e9fbff;
 }
 
 .plan-name {

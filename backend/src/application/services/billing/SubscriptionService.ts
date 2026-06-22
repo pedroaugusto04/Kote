@@ -59,7 +59,7 @@ export class SubscriptionService {
 
   async getPlans() {
     const db = this.database.getDb();
-    const activePlans = await db.select().from(plans).where(eq(plans.isActive, true));
+    const activePlans = await db.select().from(plans).where(eq(plans.isActive, true)).orderBy(plans.priceCents);
     return activePlans.map(plan => ({
       id: plan.id,
       name: plan.displayName,
@@ -118,14 +118,15 @@ export class SubscriptionService {
 
     const onlyStripe = process.env.ONLY_STRIPE === 'true';
     const isBrazil = countryCode?.toUpperCase() === COUNTRY_CODE.BRAZIL;
+    const isInternational = onlyStripe || !isBrazil;
     const gatewayName = onlyStripe ? PAYMENT_GATEWAY.STRIPE : (isBrazil ? PAYMENT_GATEWAY.ASAAS : PAYMENT_GATEWAY.STRIPE);
     const gateway = onlyStripe ? this.stripePaymentGateway : (isBrazil ? this.asaasPaymentGateway : this.stripePaymentGateway);
 
-    if (!isBrazil && (type === BillingType.PIX || type === BillingType.BOLETO)) {
+    if (isInternational && (type === BillingType.PIX || type === BillingType.BOLETO)) {
       throw new BadRequestException('PIX and Boleto payments are only available for Brazilian users. Please select Credit Card.');
     }
 
-    if (isBrazil) {
+    if (isBrazil && !onlyStripe) {
       const hasAsaas = Boolean(process.env.ASAAS_ACCESS_TOKEN);
       if (!hasAsaas) {
         throw new BadRequestException('ASAAS_ACCESS_TOKEN is not configured on the server.');
@@ -171,7 +172,7 @@ export class SubscriptionService {
       }
     }
 
-    if (!isBrazil && type === BillingType.CREDIT_CARD) {
+    if (isInternational && type === BillingType.CREDIT_CARD) {
       const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
       const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
       if (!hasCreditCardOnFile && !normalizedCreditCardToken) {
@@ -185,7 +186,7 @@ export class SubscriptionService {
       const customer = await gateway.createCustomer({
         name: userDisplayName || userEmail,
         email: userEmail,
-        cpfCnpj: isBrazil ? (cpfCnpj || undefined) : undefined,
+        cpfCnpj: !isInternational ? (cpfCnpj || undefined) : undefined,
         externalReference: userId,
       });
       gatewayCustomerId = customer.id;

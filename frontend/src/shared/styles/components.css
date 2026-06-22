@@ -932,6 +932,7 @@
   background: var(--surface-2);
   color: var(--text-strong);
   box-shadow: var(--shadow-strong);
+  cursor: pointer;
 }
 
 .kb-toast-title {

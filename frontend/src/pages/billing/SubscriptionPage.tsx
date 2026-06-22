@@ -209,13 +209,15 @@ export function SubscriptionPage() {
     hasCreditCardOnFile,
     choiceType,
   );
+  const stripePublishableKey = stripeConfig?.publishableKey || null;
+  const onlyStripe = stripeConfig?.onlyStripe || false;
+  const isInternational = onlyStripe || !isBrazil;
   const requiresStripeCardCapture = Boolean(
-    !isBrazil &&
+    isInternational &&
     modalEffectiveBillingType === BILLING_TYPE.CREDIT_CARD &&
     !hasCreditCardOnFile &&
     !selectedPlan?.isDefault,
   );
-  const stripePublishableKey = stripeConfig?.publishableKey || null;
   const hasOpenSubscription = Boolean(
     summary?.latestSub && isOpenSubscriptionStatus(summary.latestSub.status),
   );
@@ -298,13 +300,13 @@ export function SubscriptionPage() {
       choiceType,
     ) as BillingType;
 
-    if (isBrazil && (effectiveBillingType === BILLING_TYPE.PIX || effectiveBillingType === BILLING_TYPE.BOLETO) && !cpfCnpj.trim()) {
+    if (!isInternational && (effectiveBillingType === BILLING_TYPE.PIX || effectiveBillingType === BILLING_TYPE.BOLETO) && !cpfCnpj.trim()) {
       setCpfCnpjError(BILLING_ERROR_MESSAGES.CPF_CNPJ_REQUIRED);
       return;
     }
 
     // Validate CPF/CNPJ format
-    if (isBrazil && cpfCnpj.trim() && !isValidCpfCnpjFormat(cpfCnpj)) {
+    if (!isInternational && cpfCnpj.trim() && !isValidCpfCnpjFormat(cpfCnpj)) {
       setCpfCnpjError(BILLING_ERROR_MESSAGES.INVALID_CPF_CNPJ_FORMAT);
       return;
     }
@@ -329,7 +331,7 @@ export function SubscriptionPage() {
       planId: selectedPlan.id,
       billingCycle: choiceCycle,
       billingType: effectiveBillingType,
-      cpfCnpj: isBrazil ? (cleanCpfCnpj || undefined) : undefined,
+      cpfCnpj: !isInternational ? (cleanCpfCnpj || undefined) : undefined,
       creditCardToken,
     });
   };
@@ -357,9 +359,9 @@ export function SubscriptionPage() {
   };
 
   const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat(isBrazil ? 'pt-BR' : 'en-US', {
+    return new Intl.NumberFormat(isInternational ? 'en-US' : 'pt-BR', {
       style: 'currency',
-      currency: isBrazil ? 'BRL' : 'USD',
+      currency: isInternational ? 'USD' : 'BRL',
     }).format(val);
   };
 
@@ -434,7 +436,7 @@ export function SubscriptionPage() {
                           {(() => {
                             const p = summary.scheduledChange.toPlan;
                             if (!p) return 'Free';
-                            const priceVal = isBrazil
+                            const priceVal = !isInternational
                               ? (summary.scheduledChange.toBillingCycle === 'yearly' ? p.annualPrice : p.price)
                               : (summary.scheduledChange.toBillingCycle === 'yearly' ? p.annualPriceUsd : p.priceUsd);
                             return priceVal === 0 ? 'Free' : `${formatCurrency(priceVal)}/${summary.scheduledChange.toBillingCycle === 'yearly' ? 'year' : 'month'}`;
@@ -552,9 +554,9 @@ export function SubscriptionPage() {
               {plans.map(plan => {
                 const isCurrent = plan.id === entitledPlanId;
                 const isFree = plan.isDefault;
-                
+
                 // Calculate display price based on global state cycle selection and country
-                const displayPrice = isBrazil
+                const displayPrice = !isInternational
                   ? (billingCycle === 'yearly' ? plan.annualPrice : plan.price)
                   : (billingCycle === 'yearly' ? plan.annualPriceUsd : plan.priceUsd);
 
@@ -681,7 +683,7 @@ export function SubscriptionPage() {
                         setCpfCnpjError('');
                       }}
                     >
-                      Monthly ({formatCurrency(isBrazil ? selectedPlan.price : selectedPlan.priceUsd)})
+                      Monthly ({formatCurrency(!isInternational ? selectedPlan.price : selectedPlan.priceUsd)})
                     </button>
                     <button
                       type="button"
@@ -691,7 +693,7 @@ export function SubscriptionPage() {
                         setCpfCnpjError('');
                       }}
                     >
-                      Yearly ({formatCurrency(isBrazil ? selectedPlan.annualPrice : selectedPlan.annualPriceUsd)})
+                      Yearly ({formatCurrency(!isInternational ? selectedPlan.annualPrice : selectedPlan.annualPriceUsd)})
                       <span className="discount-badge">Save 20%</span>
                     </button>
                   </div>
@@ -716,7 +718,7 @@ export function SubscriptionPage() {
                       <span className="billing-option-label">Credit Card</span>
                     </div>
 
-                    {isBrazil && modalCanChooseManualMethods && (
+                    {isBrazil && !onlyStripe && modalCanChooseManualMethods && (
                       <>
                         <div
                           className={`billing-option-card ${choiceType === BILLING_TYPE.PIX ? 'selected' : ''}`}
@@ -751,7 +753,7 @@ export function SubscriptionPage() {
               )}
 
               {/* CPF/CNPJ Field - Required for PIX and Boleto */}
-              {!selectedPlan.isDefault && isBrazil && (modalEffectiveBillingType === BILLING_TYPE.PIX || modalEffectiveBillingType === BILLING_TYPE.BOLETO) && (
+              {!selectedPlan.isDefault && !isInternational && (modalEffectiveBillingType === BILLING_TYPE.PIX || modalEffectiveBillingType === BILLING_TYPE.BOLETO) && (
                 <div className="form-field">
                   <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--muted)', display: 'block', marginBottom: '8px' }}>
                     CPF/CNPJ <span style={{ color: 'rgb(220, 38, 38)' }}>*</span>

@@ -105,6 +105,7 @@ export interface SubscriptionInput {
 export interface StripeConfigDTO {
   publishableKey: string | null;
   configured: boolean;
+  onlyStripe: boolean;
 }
 
 export function fetchPlans(): Promise<PlanDTO[]> {
