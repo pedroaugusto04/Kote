@@ -137,6 +137,7 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .home-priority-row h3,

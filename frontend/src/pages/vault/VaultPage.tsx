@@ -12,7 +12,6 @@ import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
-import { animateScrollToTop } from '../../shared/ui/smooth-scroll';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
@@ -57,18 +56,18 @@ export function VaultPage({
 
   useEffect(() => {
     const scrollToTop = () => {
+      window.scrollTo(0, 0);
+      
       const content = document.querySelector('.content');
       const view = document.querySelector('.view');
       
-      let scrollContainer: Element | Window = window;
-      
       if (content && typeof (content as HTMLElement).scrollTo === 'function') {
-        scrollContainer = content;
-      } else if (view && typeof (view as HTMLElement).scrollTo === 'function') {
-        scrollContainer = view;
+        (content as HTMLElement).scrollTop = 0;
       }
       
-      animateScrollToTop(scrollContainer, 300);
+      if (view && typeof (view as HTMLElement).scrollTo === 'function') {
+        (view as HTMLElement).scrollTop = 0;
+      }
     };
 
     setContentOpacity(0);

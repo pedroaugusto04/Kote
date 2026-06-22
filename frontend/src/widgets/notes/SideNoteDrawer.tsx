@@ -6,7 +6,6 @@ import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import type { Project } from '../../shared/api/models/project';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, InlineMessage, Tags } from '../../shared/ui/primitives';
-import { animateScrollToTop } from '../../shared/ui/smooth-scroll';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { NoteBody, NoteAttachments } from './NoteReaderContent';
@@ -28,7 +27,7 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
 
   React.useEffect(() => {
     if (contentRef.current) {
-      animateScrollToTop(contentRef.current, 300);
+      contentRef.current.scrollTop = 0;
     }
   }, [noteId]);
 
