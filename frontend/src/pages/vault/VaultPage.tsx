@@ -12,6 +12,7 @@ import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
+import { animateScrollToTop } from '../../shared/ui/smooth-scroll';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
@@ -46,6 +47,7 @@ export function VaultPage({
     queryFn: () => fetchNotes({ page, projectSlug: effectiveProject, selectedId: noteId }),
     enabled: Boolean(noteId && effectiveProject),
   });
+  const [contentOpacity, setContentOpacity] = useState(1);
 
   useEffect(() => {
     if (noteQuery.data?.project && noteQuery.data.project !== selectedProject) {
@@ -55,21 +57,27 @@ export function VaultPage({
 
   useEffect(() => {
     const scrollToTop = () => {
-      window.scrollTo(0, 0);
-      
       const content = document.querySelector('.content');
-      if (typeof content?.scrollTo === 'function') {
-        content.scrollTo(0, 0);
+      const view = document.querySelector('.view');
+      
+      let scrollContainer: Element | Window = window;
+      
+      if (content && typeof (content as HTMLElement).scrollTo === 'function') {
+        scrollContainer = content;
+      } else if (view && typeof (view as HTMLElement).scrollTo === 'function') {
+        scrollContainer = view;
       }
       
-      const view = document.querySelector('.view');
-      if (typeof view?.scrollTo === 'function') {
-        view.scrollTo(0, 0);
-      }
+      animateScrollToTop(scrollContainer, 300);
     };
 
+    setContentOpacity(0);
     scrollToTop();
-    const timer = setTimeout(scrollToTop, 50);
+    
+    const timer = setTimeout(() => {
+      setContentOpacity(1);
+    }, 50);
+    
     return () => clearTimeout(timer);
   }, [noteId, noteQuery.data?.id]);
 
@@ -79,17 +87,32 @@ export function VaultPage({
 
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
+    setSwipeDirection(null);
     setTouchStart(e.targetTouches[0].clientX);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    const currentX = e.targetTouches[0].clientX;
+    setTouchEnd(currentX);
+    
+    if (touchStart) {
+      const distance = touchStart - currentX;
+      if (distance > 20) {
+        setSwipeDirection('left');
+      } else if (distance < -20) {
+        setSwipeDirection('right');
+      } else {
+        setSwipeDirection(null);
+      }
+    }
   };
 
   const handleTouchEnd = () => {
+    setSwipeDirection(null);
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
     const isLeftSwipe = distance > 50;
@@ -106,7 +129,41 @@ export function VaultPage({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      style={{ position: 'relative' }}
     >
+      {isMobile && swipeDirection && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            [swipeDirection === 'left' ? 'right' : 'left']: '20px',
+            transform: 'translateY(-50%)',
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            background: 'var(--surface-hover-accent)',
+            border: '1px solid var(--accent-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--active-text)',
+            opacity: 0.8,
+            pointerEvents: 'none',
+            zIndex: 1000,
+            transition: 'opacity 150ms ease',
+          }}
+        >
+          {swipeDirection === 'left' ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          )}
+        </div>
+      )}
       <PageHead
         title={noteQuery.data?.title || 'Note details'}
         subtitle={selectedProjectDetails?.displayName || ''}
@@ -153,6 +210,7 @@ export function VaultPage({
       />
       <article
         className="note-reader vault-reader"
+        style={{ opacity: contentOpacity, transition: 'opacity 200ms ease' }}
       >
 
         {noteQuery.data ? (

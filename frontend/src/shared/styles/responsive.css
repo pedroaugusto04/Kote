@@ -160,6 +160,10 @@
   .home-priority-row > .file-icon {
     justify-self: start;
   }
+
+  .home-priority-row h3 {
+    margin-top: 4px;
+  }
   
   .profile-detail-row { grid-template-columns: 1fr; gap: 6px; }
   .folder-browser-head-top { align-items: stretch; flex-direction: column; }
