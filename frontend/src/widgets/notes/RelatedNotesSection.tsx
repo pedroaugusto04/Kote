@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { fetchRelatedNotes } from '../../shared/api/client';
 import { Badge } from '../../shared/ui/primitives';
-import { noteTypeLabel, getCleanSummary, formatUsDate } from '../../shared/utils/format';
+import { noteTypeLabel, getCleanSummary, formatDateInUserTimeZone, formatTimeInUserTimeZone } from '../../shared/utils/format';
 import { SourceBadge } from './SourceBadge';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 
@@ -39,7 +39,7 @@ export function RelatedNotesSection({ noteId, openNote }: RelatedNotesSectionPro
             >
               <div className="related-note-card-meta">
                 <Badge value={noteTypeLabel(note.type)} tone={note.type} />
-                <span className="meta">{formatUsDate(note.date)}</span>
+                <span className="meta">{formatDateInUserTimeZone(note.date)} {formatTimeInUserTimeZone(note.date)}</span>
               </div>
               <h4>{note.title}</h4>
               <SourceBadge source={activeSource} style={{ marginBottom: '6px' }} />

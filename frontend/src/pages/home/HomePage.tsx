@@ -1,6 +1,6 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary, noteTypeLabel, getTimelineNodeColor } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatUsDateTime, formatDateInUserTimeZone, formatTimeInUserTimeZone, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary, noteTypeLabel, getTimelineNodeColor } from '../../shared/utils/format';
 import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
@@ -187,7 +187,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                         <div className="home-timeline-meta">
                           {displayTags.length ? <Tags items={displayTags} /> : null}
                           <span className="meta">
-                            {projectName(dashboard.projects, item.project)} / {formatUsDate(item.date)}
+                            {projectName(dashboard.projects, item.project)} / {formatDateInUserTimeZone(item.date)} {formatTimeInUserTimeZone(item.date)}
                           </span>
                           <AttachmentIndicator count={item.attachmentCount || 0} />
                           <Badge value={formatDisplayToken(item.status)} tone={item.status} />
