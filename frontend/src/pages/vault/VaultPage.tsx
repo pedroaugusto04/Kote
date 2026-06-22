@@ -12,6 +12,7 @@ import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
+import { useMobileSwipe } from '../../shared/ui/use-mobile-swipe';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
@@ -85,7 +86,15 @@ export function VaultPage({
   const previousNote = noteQuery.data?.navigation?.previous || null;
   const nextNote = noteQuery.data?.navigation?.next || null;
 
-  const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
+  const { swipeDirection } = useMobileSwipe({
+    enabled: isMobile,
+    onNext: () => {
+      if (nextNote) openNote(nextNote.id);
+    },
+    onPrev: () => {
+      if (previousNote) openNote(previousNote.id);
+    },
+  });
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -99,129 +108,6 @@ export function VaultPage({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previousNote, nextNote, openNote]);
-
-  useEffect(() => {
-    if (!isMobile) return;
-
-    let touchStartX = 0;
-    let touchStartY = 0;
-    let tracking = false;
-    let lastNavigationAt = 0;
-    let navigatedDuringGesture = false;
-
-    const isInteractiveElement = (el: EventTarget | null) => {
-      try {
-        const node = el as HTMLElement | null;
-        if (!node) return false;
-        const tag = node.tagName?.toLowerCase();
-        if (!tag) return false;
-        if (['input', 'textarea', 'select', 'button', 'a'].includes(tag)) return true;
-        if (node.closest && node.closest('button, a, input, textarea, select')) return true;
-        return false;
-      } catch (err) {
-        return false;
-      }
-    };
-
-    const handleTouchStart = (e: TouchEvent) => {
-      if (!e.changedTouches || e.changedTouches.length === 0) return;
-      // ignore gestures that start on interactive elements
-      if (isInteractiveElement(e.target)) return;
-
-      tracking = true;
-      touchStartX = e.changedTouches[0].screenX;
-      touchStartY = e.changedTouches[0].screenY;
-    };
-
-    const handleTouchMove = (e: TouchEvent) => {
-      if (!tracking) return;
-      if (!e.changedTouches || e.changedTouches.length === 0) return;
-      const touchX = e.changedTouches[0].screenX;
-      const touchY = e.changedTouches[0].screenY;
-      const deltaX = touchStartX - touchX;
-      const deltaY = touchStartY - touchY;
-
-      // Only show swipe hint when gesture is clearly horizontal
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        // prevent vertical native scroll while user is clearly swiping horizontally
-        try { e.preventDefault(); } catch (err) { /* ignore */ }
-
-        if (deltaX > 20) setSwipeDirection('left');
-        else if (deltaX < -20) setSwipeDirection('right');
-        else setSwipeDirection(null);
-
-        // If gesture exceeds threshold, navigate immediately (so one swipe works)
-        const SWIPE_THRESHOLD = 30;
-        const now = Date.now();
-        if (Math.abs(deltaX) > SWIPE_THRESHOLD && now - lastNavigationAt >= 400 && !navigatedDuringGesture) {
-          navigatedDuringGesture = true;
-          lastNavigationAt = now;
-          tracking = false;
-          if (deltaX > 0 && nextNote) {
-            openNote(nextNote.id);
-            setTimeout(() => setSwipeDirection(null), 150);
-          } else if (deltaX < 0 && previousNote) {
-            openNote(previousNote.id);
-            setTimeout(() => setSwipeDirection(null), 150);
-          }
-        }
-      } else {
-        setSwipeDirection(null);
-      }
-    };
-
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (!tracking) return;
-      tracking = false;
-      if (!e.changedTouches || e.changedTouches.length === 0) return;
-
-      const touchEndX = e.changedTouches[0].screenX;
-      const touchEndY = e.changedTouches[0].screenY;
-      const deltaX = touchStartX - touchEndX;
-      const deltaY = touchStartY - touchEndY;
-
-      // ignore mostly-vertical gestures
-      if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
-
-      const now = Date.now();
-      if (now - lastNavigationAt < 400) return; // debounce rapid repeats
-
-      const SWIPE_THRESHOLD = 30;
-      // keep a short visual hint after release
-      const clearHint = () => setTimeout(() => setSwipeDirection(null), 150);
-
-      if (deltaX > SWIPE_THRESHOLD && nextNote) {
-        lastNavigationAt = now;
-        openNote(nextNote.id);
-        clearHint();
-      } else if (deltaX < -SWIPE_THRESHOLD && previousNote) {
-        lastNavigationAt = now;
-        openNote(previousNote.id);
-        clearHint();
-      } else {
-        // no navigation; clear any transient hint
-        setSwipeDirection(null);
-      }
-    };
-
-    const root: EventTarget = document.documentElement || document.body || window;
-    root.addEventListener('touchstart', handleTouchStart as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
-    // touchmove must be non-passive so we can call preventDefault and stop native vertical scroll
-    root.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false, capture: true } as AddEventListenerOptions);
-    root.addEventListener('touchend', handleTouchEnd as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
-
-    return () => {
-      try {
-        root.removeEventListener('touchstart', handleTouchStart as EventListener, { capture: true } as EventListenerOptions);
-        root.removeEventListener('touchmove', handleTouchMove as EventListener, { capture: true } as EventListenerOptions);
-        root.removeEventListener('touchend', handleTouchEnd as EventListener, { capture: true } as EventListenerOptions);
-      } catch (err) {
-        window.removeEventListener('touchstart', handleTouchStart as EventListener);
-        window.removeEventListener('touchmove', handleTouchMove as EventListener);
-        window.removeEventListener('touchend', handleTouchEnd as EventListener);
-      }
-    };
-  }, [isMobile, previousNote, nextNote, openNote]);
 
   return (
     <div

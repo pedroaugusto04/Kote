@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import './HelpPage.css';
+import { useMediaQuery } from '../../shared/ui/use-media-query';
+import { useMobileSwipe } from '../../shared/ui/use-mobile-swipe';
 
 type SectionId = 'overview' | 'projects' | 'ai-chat' | 'messaging-integrations' | 'github-integration' | 'ai-integrations' | 'webhooks' | 'push-notifications' | 'cli' | 'vscode' | 'reminders' | 'map';
 
@@ -356,6 +358,17 @@ export function HelpPage() {
   const [activeSection, setActiveSection] = useState<SectionId>('overview');
   const current = sections.find((s) => s.id === activeSection)!;
   const currentIdx = sections.findIndex((s) => s.id === activeSection);
+  const isMobile = useMediaQuery('(max-width: 768px)');
+
+  const { swipeDirection } = useMobileSwipe({
+    enabled: isMobile,
+    onNext: () => {
+      if (currentIdx < sections.length - 1) setActiveSection(sections[currentIdx + 1].id);
+    },
+    onPrev: () => {
+      if (currentIdx > 0) setActiveSection(sections[currentIdx - 1].id);
+    },
+  });
 
   const handleSectionChange = (id: SectionId) => {
     setActiveSection(id);
@@ -363,6 +376,39 @@ export function HelpPage() {
 
   return (
     <div className="help-page">
+      {isMobile && swipeDirection && (
+        <div
+          style={{
+            position: 'fixed',
+            top: '50%',
+            [swipeDirection === 'left' ? 'right' : 'left']: '20px',
+            transform: 'translateY(-50%)',
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            background: 'var(--surface-hover-accent)',
+            border: '1px solid var(--accent-border)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--active-text)',
+            opacity: 0.8,
+            pointerEvents: 'none',
+            zIndex: 1000,
+            transition: 'opacity 150ms ease',
+          }}
+        >
+          {swipeDirection === 'left' ? (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" strokeWidth={2} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+          )}
+        </div>
+      )}
       {/* ── Sidebar ── */}
       <div className="help-sidebar">
         <div className="help-sidebar-header">
