@@ -128,7 +128,12 @@ export function isKnownHttpErrorCode(value: string): value is HttpErrorCode {
 }
 
 export function resolveHttpErrorCode(input: { code?: string; statusCode?: number }): HttpErrorCode {
-  if (input.code && isKnownHttpErrorCode(input.code)) return input.code;
+  if (input.code) {
+    if (isKnownHttpErrorCode(input.code)) return input.code;
+
+    const normalizedCode = input.code.toLowerCase();
+    if (isKnownHttpErrorCode(normalizedCode)) return normalizedCode;
+  }
   if (input.statusCode && input.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) return 'internal_server_error';
   return statusFallbackCode[input.statusCode || HttpStatus.INTERNAL_SERVER_ERROR] || 'internal_server_error';
 }

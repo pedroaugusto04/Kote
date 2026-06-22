@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { routes } from '../../app/routing/routes';
 import { ApiClientError } from '../api/request';
 
 interface QuotaExceededModalProps {
@@ -11,7 +12,7 @@ export function QuotaExceededModal({ error, onClose }: QuotaExceededModalProps) 
 
   const handleUpgrade = () => {
     onClose();
-    navigate('/settings/subscription');
+    navigate(routes.subscription);
   };
 
   const resourceType = error.details?.resourceType || error.code || 'Resource';
@@ -27,7 +28,7 @@ export function QuotaExceededModal({ error, onClose }: QuotaExceededModalProps) 
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <section className="modal-panel confirm-modal" onClick={(e) => e.stopPropagation()}>
+      <section aria-labelledby="quota-exceeded-title" aria-modal="true" className="modal-panel confirm-modal" onClick={(e) => e.stopPropagation()} role="dialog">
         <div className="modal-head" style={{ marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
@@ -44,7 +45,7 @@ export function QuotaExceededModal({ error, onClose }: QuotaExceededModalProps) 
               </svg>
             </div>
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: 650, color: 'var(--text-strong)' }}>Quota Limit Reached</h2>
+              <h2 id="quota-exceeded-title" style={{ fontSize: '18px', fontWeight: 650, color: 'var(--text-strong)' }}>Quota Limit Reached</h2>
               <p style={{ fontSize: '13px', color: 'var(--muted)', marginTop: '2px' }}>Upgrade to unlock higher limits</p>
             </div>
           </div>

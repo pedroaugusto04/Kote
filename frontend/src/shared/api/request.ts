@@ -80,7 +80,7 @@ function toApiClientError(response: Response, payload: unknown) {
   }
 
   const apiErr = new ApiClientError({ status: response.status, code, message, requestId, details });
-  if (code === 'QUOTA_EXCEEDED' && typeof window !== 'undefined') {
+  if ((code.toLowerCase() === 'quota_exceeded' || message.toLowerCase() === 'quota exceeded') && typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('quota-exceeded', { detail: apiErr }));
   }
   return apiErr;
