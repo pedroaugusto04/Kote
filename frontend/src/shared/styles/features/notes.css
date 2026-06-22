@@ -4,6 +4,19 @@
   min-height: 620px;
 }
 
+/* Ensure the reader prioritizes vertical panning but allows horizontal
+   swipe gestures to be detected by JS handlers on the viewport. This
+   avoids the browser consuming the horizontal gesture in certain
+   nested elements and requiring multiple swipes. */
+.note-reader,
+.note-body,
+.note-ai-summary,
+.note-attachments,
+.markdown {
+  touch-action: pan-y;
+  -ms-touch-action: pan-y;
+}
+
 .vault-reader {
   width: 100%;
 }

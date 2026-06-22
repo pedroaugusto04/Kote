@@ -148,8 +148,10 @@ export function VaultPage({
       // Only trigger navigation when the gesture is predominantly horizontal
       if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
 
-      const isLeftSwipe = deltaX > 50;
-      const isRightSwipe = deltaX < -50;
+      // Reduced threshold so a single, decisive swipe triggers navigation
+      const SWIPE_THRESHOLD = 30;
+      const isLeftSwipe = deltaX > SWIPE_THRESHOLD;
+      const isRightSwipe = deltaX < -SWIPE_THRESHOLD;
 
       if (isLeftSwipe && nextNote) {
         try { te.preventDefault(); } catch (err) { /* ignore */ }
