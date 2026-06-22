@@ -235,7 +235,13 @@ export function noteFromRow(row: Row): NoteRecord {
     folderId: field(row, 'folder_id', 'folderId') ? String(field(row, 'folder_id', 'folderId')) : null,
     status: fieldString(row, 'status', 'status', 'active'),
     tags: stringArray(row.tags),
-    occurredAt: toIsoTimestamp(field(row, 'occurred_at', 'occurredAt')),
+    // Preserve `occurred_at` semantics (business/event date). If it's
+    // missing, fall back to `created_at` (DB insertion timestamp)
+    occurredAt: field(row, 'occurred_at', 'occurredAt')
+      ? toIsoTimestamp(field(row, 'occurred_at', 'occurredAt'))
+      : field(row, 'created_at', 'createdAt')
+      ? toIsoTimestamp(field(row, 'created_at', 'createdAt'))
+      : '',
     sourceChannel: fieldString(row, 'source_channel', 'sourceChannel'),
     summary: fieldString(row, 'summary', 'summary'),
     markdown: fieldString(row, 'markdown', 'markdown'),
