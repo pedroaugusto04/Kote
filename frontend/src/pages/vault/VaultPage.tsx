@@ -160,25 +160,30 @@ export function VaultPage({
       }
     };
 
-    const container = document.querySelector('.note-reader.vault-reader') || document.querySelector('.note-reader');
-    if (container) {
-      // capture + non-passive so we can prevent vertical scroll when horizontal swipe detected
-      container.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
-      container.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false, capture: true });
-      container.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false, capture: true });
-    } else {
-      // fallback to window
-      window.addEventListener('touchstart', handleTouchStart, { passive: true });
-      window.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false });
-      window.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false });
+    // Attach touch listeners to the document root so the entire viewport
+    // participates in swipe detection on mobile devices. Use capture +
+    // non-passive for move/end so we can prevent vertical scroll when
+    // a clear horizontal gesture is detected.
+    const root = document.documentElement || document.body || window;
+
+    // note: Type narrowing for addEventListener options
+    try {
+      root.addEventListener('touchstart', handleTouchStart as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
+      root.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false, capture: true } as AddEventListenerOptions);
+      root.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false, capture: true } as AddEventListenerOptions);
+    } catch (err) {
+      // Fallback for older browsers or unexpected root types
+      window.addEventListener('touchstart', handleTouchStart as EventListener);
+      window.addEventListener('touchmove', handleTouchMove as EventListener);
+      window.addEventListener('touchend', handleTouchEnd as EventListener);
     }
 
     return () => {
-      if (container) {
-        container.removeEventListener('touchstart', handleTouchStart as EventListener);
-        container.removeEventListener('touchmove', handleTouchMove as EventListener);
-        container.removeEventListener('touchend', handleTouchEnd as EventListener);
-      } else {
+      try {
+        root.removeEventListener('touchstart', handleTouchStart as EventListener, { capture: true } as EventListenerOptions);
+        root.removeEventListener('touchmove', handleTouchMove as EventListener, { capture: true } as EventListenerOptions);
+        root.removeEventListener('touchend', handleTouchEnd as EventListener, { capture: true } as EventListenerOptions);
+      } catch (err) {
         window.removeEventListener('touchstart', handleTouchStart as EventListener);
         window.removeEventListener('touchmove', handleTouchMove as EventListener);
         window.removeEventListener('touchend', handleTouchEnd as EventListener);
