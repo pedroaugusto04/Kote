@@ -105,89 +105,69 @@ export function VaultPage({
 
     let touchStartX = 0;
     let touchStartY = 0;
-    let touchEndX = 0;
-    let touchEndY = 0;
+    let tracking = false;
+    let lastNavigationAt = 0;
 
-    const handleTouchStart = (e: Event) => {
-      const te = e as TouchEvent;
-      touchStartX = te.changedTouches[0].screenX;
-      touchStartY = te.changedTouches[0].screenY;
-      touchEndX = touchStartX;
-      touchEndY = touchStartY;
-    };
-
-    const handleTouchMove = (e: Event) => {
-      const te = e as TouchEvent;
-      touchEndX = te.changedTouches[0].screenX;
-      touchEndY = te.changedTouches[0].screenY;
-      const deltaX = touchStartX - touchEndX;
-      const deltaY = touchStartY - touchEndY;
-
-      // Only show swipe hint when gesture is clearly horizontal
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        // prevent vertical scrolling when user is performing a horizontal swipe
-        try { e.preventDefault(); } catch (err) { /* ignore */ }
-        if (deltaX > 20) {
-          setSwipeDirection('left');
-        } else if (deltaX < -20) {
-          setSwipeDirection('right');
-        } else {
-          setSwipeDirection(null);
-        }
-      } else {
-        setSwipeDirection(null);
+    const isInteractiveElement = (el: EventTarget | null) => {
+      try {
+        const node = el as HTMLElement | null;
+        if (!node) return false;
+        const tag = node.tagName?.toLowerCase();
+        if (!tag) return false;
+        if (['input', 'textarea', 'select', 'button', 'a'].includes(tag)) return true;
+        if (node.closest && node.closest('button, a, input, textarea, select')) return true;
+        return false;
+      } catch (err) {
+        return false;
       }
     };
 
-    const handleTouchEnd = (e: Event) => {
-      const te = e as TouchEvent;
-      setSwipeDirection(null);
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+      // ignore gestures that start on interactive elements
+      if (isInteractiveElement(e.target)) return;
+
+      tracking = true;
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    };
+
+    const handleTouchEnd = (e: TouchEvent) => {
+      if (!tracking) return;
+      tracking = false;
+      if (!e.changedTouches || e.changedTouches.length === 0) return;
+
+      const touchEndX = e.changedTouches[0].screenX;
+      const touchEndY = e.changedTouches[0].screenY;
       const deltaX = touchStartX - touchEndX;
       const deltaY = touchStartY - touchEndY;
 
-      // Only trigger navigation when the gesture is predominantly horizontal
+      // ignore mostly-vertical gestures
       if (Math.abs(deltaX) <= Math.abs(deltaY)) return;
 
-      // Reduced threshold so a single, decisive swipe triggers navigation
-      const SWIPE_THRESHOLD = 30;
-      const isLeftSwipe = deltaX > SWIPE_THRESHOLD;
-      const isRightSwipe = deltaX < -SWIPE_THRESHOLD;
+      const now = Date.now();
+      if (now - lastNavigationAt < 400) return; // debounce rapid repeats
 
-      if (isLeftSwipe && nextNote) {
-        try { te.preventDefault(); } catch (err) { /* ignore */ }
+      const SWIPE_THRESHOLD = 30;
+      if (deltaX > SWIPE_THRESHOLD && nextNote) {
+        lastNavigationAt = now;
         openNote(nextNote.id);
-      } else if (isRightSwipe && previousNote) {
-        try { te.preventDefault(); } catch (err) { /* ignore */ }
+      } else if (deltaX < -SWIPE_THRESHOLD && previousNote) {
+        lastNavigationAt = now;
         openNote(previousNote.id);
       }
     };
 
-    // Attach touch listeners to the document root so the entire viewport
-    // participates in swipe detection on mobile devices. Use capture +
-    // non-passive for move/end so we can prevent vertical scroll when
-    // a clear horizontal gesture is detected.
-    const root = document.documentElement || document.body || window;
-
-    // note: Type narrowing for addEventListener options
-    try {
-      root.addEventListener('touchstart', handleTouchStart as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
-      root.addEventListener('touchmove', handleTouchMove as EventListener, { passive: false, capture: true } as AddEventListenerOptions);
-      root.addEventListener('touchend', handleTouchEnd as EventListener, { passive: false, capture: true } as AddEventListenerOptions);
-    } catch (err) {
-      // Fallback for older browsers or unexpected root types
-      window.addEventListener('touchstart', handleTouchStart as EventListener);
-      window.addEventListener('touchmove', handleTouchMove as EventListener);
-      window.addEventListener('touchend', handleTouchEnd as EventListener);
-    }
+    const root: EventTarget = document.documentElement || document.body || window;
+    root.addEventListener('touchstart', handleTouchStart as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
+    root.addEventListener('touchend', handleTouchEnd as EventListener, { passive: true, capture: true } as AddEventListenerOptions);
 
     return () => {
       try {
         root.removeEventListener('touchstart', handleTouchStart as EventListener, { capture: true } as EventListenerOptions);
-        root.removeEventListener('touchmove', handleTouchMove as EventListener, { capture: true } as EventListenerOptions);
         root.removeEventListener('touchend', handleTouchEnd as EventListener, { capture: true } as EventListenerOptions);
       } catch (err) {
         window.removeEventListener('touchstart', handleTouchStart as EventListener);
-        window.removeEventListener('touchmove', handleTouchMove as EventListener);
         window.removeEventListener('touchend', handleTouchEnd as EventListener);
       }
     };
