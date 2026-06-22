@@ -82,6 +82,11 @@ beforeEach(() => {
     history: [],
     pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
   });
+  apiSpies.fetchLatestProjectBrief.mockResolvedValue({
+    ok: true,
+    source: 'none',
+    brief: null,
+  });
   apiSpies.fetchProjectBriefHistory.mockResolvedValue({
     items: [],
     pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
@@ -263,7 +268,8 @@ describe('SearchPage (Ask AI)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
 
     expect(screen.getByRole('region', { name: 'Project brief' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Generate brief' })).toBeInTheDocument();
+    // Wait for latestBriefQuery to resolve (source: 'none', brief: null) so WaitingState renders
+    expect(await screen.findByRole('button', { name: 'Generate brief' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Show history' })).toBeInTheDocument();
     expect(screen.getByText('Project Brief Assistant')).toBeInTheDocument();
   });
@@ -336,7 +342,7 @@ describe('SearchPage (Ask AI)', () => {
     renderSearchPage();
     fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate brief' }));
 
     expect(await screen.findByText('Platform is actively processing deployment work.')).toBeInTheDocument();
     expect(screen.getByText('Active with one open rollout item.')).toBeInTheDocument();
@@ -351,7 +357,7 @@ describe('SearchPage (Ask AI)', () => {
     renderSearchPage();
     fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate brief' }));
 
     expect(await screen.findByRole('button', { name: 'Generating...' })).toBeDisabled();
     resolveBrief({
@@ -372,7 +378,7 @@ describe('SearchPage (Ask AI)', () => {
     renderSearchPage();
     fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate brief' }));
 
     expect(await screen.findByRole('status')).toHaveTextContent('Showing the latest saved brief because generation failed.');
   });
@@ -382,7 +388,7 @@ describe('SearchPage (Ask AI)', () => {
     renderSearchPage();
     fireEvent.click(screen.getByRole('button', { name: 'Project Briefs' }));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Generate brief' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Generate brief' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Could not generate the project brief.');
   });
