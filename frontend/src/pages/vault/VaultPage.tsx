@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone, formatTimeInUserTimeZone, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
 import { fetchNotes } from '../../shared/api/client';
 import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
@@ -189,7 +189,7 @@ export function VaultPage({
           <>
             <header className="note-reader-head" style={{ borderBottom: 'none', paddingBottom: 0 }}>
               <div className="note-meta-row" style={{ marginTop: 0 }}>
-                <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
+                <span className="meta">{formatDateInUserTimeZone(noteQuery.data.date)} {formatTimeInUserTimeZone(noteQuery.data.date)}</span>
                 <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
                 <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
               </div>

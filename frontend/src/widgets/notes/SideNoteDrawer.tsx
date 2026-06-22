@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import React from 'react';
 
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone, formatTimeInUserTimeZone, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
 import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import type { Project } from '../../shared/api/models/project';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
@@ -74,7 +74,7 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
         ) : noteQuery.data ? (
           <>
             <div className="knowledge-map-drawer-meta-row">
-              <span className="meta">{formatUsDate(noteQuery.data.date)}</span>
+              <span className="meta">{formatDateInUserTimeZone(noteQuery.data.date)} {formatTimeInUserTimeZone(noteQuery.data.date)}</span>
               <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
               <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
             </div>
