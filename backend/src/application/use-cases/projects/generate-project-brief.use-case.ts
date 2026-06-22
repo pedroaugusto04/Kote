@@ -52,7 +52,7 @@ export class GenerateProjectBriefUseCase {
 
     const generatedAt = new Date().toISOString();
     const items = (await this.contentRepository.listNotes(userId))
-      .filter((note) => note.workspaceSlug === workspaceSlug && (isAll || note.projectId === projectId))
+      .filter((note) => note.workspaceSlug === workspaceSlug && (isAll || (note.projectId && note.projectId === projectId)))
       .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || left.title.localeCompare(right.title))
       .slice(0, CONTEXT_WINDOW)
       .map(toContextItem);

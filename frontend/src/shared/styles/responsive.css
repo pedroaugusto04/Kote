@@ -163,6 +163,9 @@
 
   .home-priority-row h3 {
     margin-top: 4px;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
   }
   
   .profile-detail-row { grid-template-columns: 1fr; gap: 6px; }

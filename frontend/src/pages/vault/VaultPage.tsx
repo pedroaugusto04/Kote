@@ -85,22 +85,35 @@ export function VaultPage({
   const previousNote = noteQuery.data?.navigation?.previous || null;
   const nextNote = noteQuery.data?.navigation?.next || null;
 
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | null>(null);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setSwipeDirection(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft' && previousNote) {
+        openNote(previousNote.id);
+      } else if (event.key === 'ArrowRight' && nextNote) {
+        openNote(nextNote.id);
+      }
+    };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const currentX = e.targetTouches[0].clientX;
-    setTouchEnd(currentX);
-    
-    if (touchStart) {
-      const distance = touchStart - currentX;
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [previousNote, nextNote, openNote]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+
+    let touchStartX = 0;
+    let touchEndX = 0;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartX = e.changedTouches[0].screenX;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      touchEndX = e.changedTouches[0].screenX;
+      const distance = touchStartX - touchEndX;
+      
       if (distance > 20) {
         setSwipeDirection('left');
       } else if (distance < -20) {
@@ -108,27 +121,36 @@ export function VaultPage({
       } else {
         setSwipeDirection(null);
       }
-    }
-  };
+    };
 
-  const handleTouchEnd = () => {
-    setSwipeDirection(null);
-    if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-    if (isLeftSwipe && nextNote) {
-      openNote(nextNote.id);
-    } else if (isRightSwipe && previousNote) {
-      openNote(previousNote.id);
-    }
-  };
+    const handleTouchEnd = (e: TouchEvent) => {
+      setSwipeDirection(null);
+      const distance = touchStartX - touchEndX;
+      const isLeftSwipe = distance > 50;
+      const isRightSwipe = distance < -50;
+      
+      if (isLeftSwipe && nextNote) {
+        e.preventDefault();
+        openNote(nextNote.id);
+      } else if (isRightSwipe && previousNote) {
+        e.preventDefault();
+        openNote(previousNote.id);
+      }
+    };
+
+    window.addEventListener('touchstart', handleTouchStart, { passive: true });
+    window.addEventListener('touchmove', handleTouchMove, { passive: true });
+    window.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+    return () => {
+      window.removeEventListener('touchstart', handleTouchStart);
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isMobile, previousNote, nextNote, openNote]);
 
   return (
     <div
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       style={{ position: 'relative' }}
     >
       {isMobile && swipeDirection && (
@@ -193,16 +215,6 @@ export function VaultPage({
                 >
                   <TrashIcon />
                 </button>
-              )}
-              {!isMobile && (
-                <div style={{ display: 'inline-flex', gap: '6px', marginLeft: '6px' }}>
-                  <button className="icon-button" disabled={!previousNote} type="button" onClick={() => previousNote && openNote(previousNote.id)}>
-                    Previous
-                  </button>
-                  <button className="icon-button" disabled={!nextNote} type="button" onClick={() => nextNote && openNote(nextNote.id)}>
-                    Next
-                  </button>
-                </div>
               )}
             </div>
           ) : undefined
