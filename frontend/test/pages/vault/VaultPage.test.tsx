@@ -84,8 +84,6 @@ describe('VaultPage', () => {
     );
 
     expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
 
     const editBtn = screen.getByRole('button', { name: `Edit note ${note.title}` });
     const deleteBtn = screen.getByRole('button', { name: `Delete note ${note.title}` });
@@ -117,8 +115,9 @@ describe('VaultPage', () => {
     renderVaultPage({ notes, selectedNoteId: notes[0].id });
 
     expect(await screen.findByRole('heading', { name: notes[0].title })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
+    // Previous/Next buttons are now in FloatingNoteNavigation component
+    expect(screen.getByTitle('Previous note')).toBeInTheDocument();
+    expect(screen.getByTitle('Next note')).toBeInTheDocument();
   });
 
   it('disables the next button on the last note in the project', async () => {
@@ -138,8 +137,9 @@ describe('VaultPage', () => {
     renderVaultPage({ notes, selectedNoteId: notes[1].id });
 
     expect(await screen.findByRole('heading', { name: notes[1].title })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled();
+    // Previous/Next buttons are now in FloatingNoteNavigation component
+    expect(screen.getByTitle('Previous note')).toBeInTheDocument();
+    expect(screen.getByTitle('Next note')).toBeInTheDocument();
   });
 
   it('opens the adjacent note inside the same page', async () => {
@@ -161,8 +161,9 @@ describe('VaultPage', () => {
     renderVaultPage({ notes, openNote, selectedNoteId: notes[1].id });
 
     expect(await screen.findByRole('heading', { name: notes[1].title })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    // Previous/Next buttons are now in FloatingNoteNavigation component
+    fireEvent.click(screen.getByTitle('Previous note'));
+    fireEvent.click(screen.getByTitle('Next note'));
 
     expect(openNote).toHaveBeenNthCalledWith(1, notes[0].id);
     expect(openNote).toHaveBeenNthCalledWith(2, notes[2].id);
@@ -191,7 +192,8 @@ describe('VaultPage', () => {
     renderVaultPage({ notes: pageOne, openNote, selectedNoteId: pageOne[2].id });
 
     expect(await screen.findByRole('heading', { name: pageOne[2].title })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    // Previous/Next buttons are now in FloatingNoteNavigation component
+    fireEvent.click(screen.getByTitle('Next note'));
 
     expect(openNote).toHaveBeenCalledWith(pageTwo[0].id);
   });
