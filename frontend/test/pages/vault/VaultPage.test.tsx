@@ -116,7 +116,8 @@ describe('VaultPage', () => {
 
     expect(await screen.findByRole('heading', { name: notes[0].title })).toBeInTheDocument();
     // Previous/Next buttons are now in FloatingNoteNavigation component
-    expect(screen.getByTitle('Previous note')).toBeInTheDocument();
+    // On first note, only Next button should be present
+    expect(screen.queryByTitle('Previous note')).not.toBeInTheDocument();
     expect(screen.getByTitle('Next note')).toBeInTheDocument();
   });
 
@@ -138,8 +139,9 @@ describe('VaultPage', () => {
 
     expect(await screen.findByRole('heading', { name: notes[1].title })).toBeInTheDocument();
     // Previous/Next buttons are now in FloatingNoteNavigation component
+    // On last note, only Previous button should be present
     expect(screen.getByTitle('Previous note')).toBeInTheDocument();
-    expect(screen.getByTitle('Next note')).toBeInTheDocument();
+    expect(screen.queryByTitle('Next note')).not.toBeInTheDocument();
   });
 
   it('opens the adjacent note inside the same page', async () => {
