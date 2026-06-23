@@ -23,14 +23,14 @@ export class CreateWorkspaceUseCase {
   ) {}
 
   async execute(input: CreateWorkspaceInput, userId: string) {
-    const quotaResult = await this.quotaService.checkQuota(userId, QuotaResourceType.WORKSPACE, 1);
+    const quotaResult = await (this.quotaService as QuotaService).checkQuota(userId, QuotaResourceType.WORKSPACE, 1);
     if (!quotaResult.allowed) {
       throw new QuotaExceededException('workspace', quotaResult.limit, quotaResult.current);
     }
 
     const now = new Date().toISOString();
     const workspaceSlug = slugify(input.workspaceSlug) || 'inbox';
-    const workspace = await this.contentRepository.upsertWorkspace(userId, {
+    let workspace = await this.contentRepository.upsertWorkspace(userId, {
       id: crypto.randomUUID(),
       workspaceSlug,
       displayName: input.displayName,
@@ -39,6 +39,8 @@ export class CreateWorkspaceUseCase {
       createdAt: now,
       updatedAt: now,
     });
+
+
     const initialProject = await this.contentRepository.upsertProject(userId, {
       id: crypto.randomUUID(),
       projectSlug: 'inbox',

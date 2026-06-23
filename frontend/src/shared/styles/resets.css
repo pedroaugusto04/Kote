@@ -18,6 +18,8 @@ body {
   font-family: var(--ui);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Prevent horizontal scrolling caused by layout/overflow issues */
+  overflow-x: hidden;
 }
 
 button,

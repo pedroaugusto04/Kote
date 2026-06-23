@@ -51,7 +51,7 @@ test('github app callback controller delegates completion and redirects the brow
   const controller = new GithubAppCallbackController({
     completeGithubForBrowser: async (input) => {
       calls.push(input);
-      return { redirectUrl: '/settings/integrations?integration=github-app&status=connected' };
+      return { redirectUrl: '/automations/integrations?integration=github-app&status=connected' };
     },
   });
   const response = {
@@ -69,8 +69,8 @@ test('github app callback controller delegates completion and redirects the brow
   );
 
   assert.deepEqual(calls, [{ userId: 'user-1', state: 'state-1', installationId: '42' }]);
-  assert.deepEqual(response.redirectCalls, [[302, '/settings/integrations?integration=github-app&status=connected']]);
-  assert.equal(result, '/settings/integrations?integration=github-app&status=connected');
+  assert.deepEqual(response.redirectCalls, [[302, '/automations/integrations?integration=github-app&status=connected']]);
+  assert.equal(result, '/automations/integrations?integration=github-app&status=connected');
 });
 
 test('dashboard controller delegates project, workspace and note reads to use cases', async () => {
@@ -198,13 +198,13 @@ test('projects and notes controllers delegate create requests to use cases', asy
   );
   assert.deepEqual(
     await notes.create({ projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
-    { ok: true, noteId: 'note-1', body: { projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },
+    { ok: true, noteId: 'note-1', body: { projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '', projectId: undefined }, userId: 'user-1' },
   );
   assert.deepEqual(
     await projects.update({ projectSlug: 'acme-api' }, { displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, user),
-    { ok: true, project: { projectSlug: 'acme-api', displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
+    { ok: true, project: { projectId: { projectSlug: 'acme-api' }, displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
   );
-  assert.deepEqual(await projects.remove({ projectSlug: 'acme-api' }, user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
+  assert.deepEqual(await projects.remove({ projectSlug: 'acme-api' }, user), { ok: true, projectSlug: { projectSlug: 'acme-api' }, userId: 'user-1' });
   assert.deepEqual(await projects.generateBrief({ projectSlug: 'acme-api' }, user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1' } });
   assert.deepEqual(await projects.getBrief({ projectSlug: 'acme-api' }, user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true } });
   assert.deepEqual(

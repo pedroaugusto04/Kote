@@ -641,7 +641,7 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
     const integrationsLink = await screen.findByRole('menuitem', { name: 'Integrations' });
-    expect(integrationsLink).toHaveAttribute('href', '/settings/integrations');
+    expect(integrationsLink).toHaveAttribute('href', '/automations/integrations');
 
     fireEvent.click(integrationsLink);
 
@@ -830,7 +830,7 @@ describe('AppShell', () => {
     stubLocalStorage();
     vi.stubGlobal('fetch', mockFetch());
 
-    renderWithAppProviders(<AppShell />, { route: '/settings/integrations' });
+    renderWithAppProviders(<AppShell />, { route: '/automations/integrations' });
 
     expect(await screen.findByRole('heading', { name: 'Integrations' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'GitHub App' })).toBeInTheDocument();
@@ -976,7 +976,7 @@ describe('AppShell', () => {
       value: { ...window.location, assign: assignSpy },
     });
 
-    renderWithAppProviders(<AppShell />, { route: '/settings/integrations' });
+    renderWithAppProviders(<AppShell />, { route: '/automations/integrations' });
 
     expect(await screen.findByRole('heading', { name: 'Integrations' })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: 'Connect GitHub' }));

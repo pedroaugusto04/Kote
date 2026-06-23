@@ -67,7 +67,7 @@ import { SetNoteAutoActionUseCase } from '../../application/use-cases/notes/set-
     ReindexAllEmbeddingsUseCase,
     NoteEventDispatcher,
     AutoActionWorker,
-    { provide: SettingsRepository, useExisting: PostgresSettingsRepository },
+    
     GetAutoActionGlobalUseCase,
     SetAutoActionGlobalUseCase,
     SetNoteAutoActionUseCase,

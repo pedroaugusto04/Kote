@@ -27,7 +27,7 @@
 .form-field-meta {
   color: var(--muted);
   font-size: 11px;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .form-field input,
@@ -122,4 +122,135 @@
   border-color: var(--info-border);
   background: var(--surface-info);
   color: var(--info-text);
+}
+/* Info Tooltip */
+.info-tooltip-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.info-tooltip-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: help;
+  transition: color 0.2s ease;
+}
+
+.info-tooltip-trigger:hover {
+  color: var(--text-strong);
+}
+
+.info-tooltip-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.info-tooltip-content {
+  margin-bottom: 8px;
+  padding: 8px 10px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text-strong);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+  max-width: 220px;
+  z-index: 1100;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.info-tooltip-content::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 5px solid var(--surface-3);
+}
+
+/* Dark mode tweaks for tooltip contrast */
+.dark .info-tooltip-content {
+  background: var(--surface-6);
+  border-color: var(--line);
+  color: var(--text-strong);
+}
+
+.dark .info-tooltip-content::after {
+  border-top-color: var(--surface-6);
+}
+
+/* Toggle switch focus and dark/light adjustments */
+.kb-toggle input:focus + span {
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.06);
+  outline: 0;
+}
+
+.kb-toggle span {
+  display: inline-flex;
+}
+
+.kb-toggle span > span {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* Ensure toggle is visible even if utility classes aren't applied */
+.kb-toggle {
+  display: inline-flex;
+  align-items: center;
+}
+
+.kb-toggle input + span {
+  display: inline-flex;
+  align-items: center;
+  width: 44px; /* matches w-11 */
+  height: 24px; /* matches h-6 */
+  padding: 2px; /* matches p-1 */
+  border-radius: 999px;
+  background: var(--surface-3, #e6e8eb);
+  transition: background .15s ease, box-shadow .15s ease;
+}
+
+.kb-toggle input:checked + span {
+  background: var(--cyan);
+}
+
+.kb-toggle input + span > span {
+  width: 16px; /* matches w-4 */
+  height: 16px; /* matches h-4 */
+  background: #ffffff;
+  border-radius: 999px;
+  display: block;
+  transform: translateX(0);
+  transition: transform .15s ease;
+}
+
+.kb-toggle input:checked + span > span {
+  transform: translateX(20px); /* translate to the right */
+}
+
+/* Dark theme tweaks */
+:root[data-theme="dark"] .kb-toggle input + span {
+  background: var(--surface-6, #2b2f35);
+}
+:root[data-theme="dark"] .kb-toggle input:checked + span {
+  background: var(--cyan);
+}
+:root[data-theme="dark"] .kb-toggle input + span > span {
+  background: var(--panel, #0f1720);
 }

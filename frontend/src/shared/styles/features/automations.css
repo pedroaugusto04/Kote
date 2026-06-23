@@ -1,0 +1,40 @@
+/* Automations management - based on subscription panel layout */
+.automation-panel {
+  width: min(100%, 1024px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-x: hidden;
+}
+
+/* Ensure form fields don't overflow horizontally */
+.automation-panel form {
+  overflow-x: hidden;
+}
+
+.automation-panel .form-field {
+  overflow-x: hidden;
+  min-width: 0;
+  max-width: 640px;
+}
+
+/* Mobile-optimized select and input sizes */
+.automation-panel .form-field label {
+  color: var(--text-strong);
+}
+
+.automation-panel .form-field .kb-toggle {
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .automation-panel .form-field input,
+  .automation-panel .form-field select,
+  .automation-panel .kb-select-trigger {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+}
+

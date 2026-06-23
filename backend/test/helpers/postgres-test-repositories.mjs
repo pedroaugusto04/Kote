@@ -197,6 +197,13 @@ export async function createPostgresTestRepositories(t) {
   // Truncate all tables to clean up before test (much faster than migrations)
   await truncateSchema(targetUrl, schemaName);
 
+  // Ensure the unique index required by `ON CONFLICT (user_id, workspace_id, provider)` exists
+  // Some test environments rely on the migrations in `BASE_SCHEMA_NAME`, but adding
+  // the index here guarantees the repository upsert using ON CONFLICT will work.
+  await (new Pool({ connectionString: targetUrl.toString() })).query(
+    `CREATE UNIQUE INDEX IF NOT EXISTS ${quoteIdent('kb_integration_credentials_scope_idx')} ON ${quoteIdent(schemaName)}.${quoteIdent('kb_integration_credentials')} (user_id, workspace_id, provider)`,
+  );
+
   const database = createDatabase(pool);
   const schemaMigrator = {
     async migrate() { }

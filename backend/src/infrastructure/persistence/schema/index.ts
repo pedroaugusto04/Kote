@@ -40,7 +40,7 @@ export const integrationCredentials = pgTable('kb_integration_credentials', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   revokedAt: timestamp('revoked_at'),
 }, (table) => ({
-  scopeIdx: index('kb_integration_credentials_scope_idx').on(table.userId, table.workspaceId, table.provider),
+  scopeIdx: uniqueIndex('kb_integration_credentials_scope_idx').on(table.userId, table.workspaceId, table.provider),
 }));
 
 // External Identities
@@ -91,6 +91,17 @@ export const workspaces = pgTable('kb_workspaces', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   userSlugIdx: index('kb_workspaces_user_slug_idx').on(table.userId, table.workspaceSlug),
+}));
+
+// User-scoped auto-action settings
+export const autoActionGlobal = pgTable('kb_auto_action_global', {
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  enabled: boolean('enabled').notNull().default(false),
+  action: text('action').notNull().default('none'),
+  afterHours: integer('after_hours'),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  userIdx: index('kb_auto_action_global_user_idx').on(table.userId),
 }));
 
 // Projects

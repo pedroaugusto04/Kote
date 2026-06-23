@@ -6,6 +6,6 @@ export type AutoActionGlobal = {
 };
 
 export abstract class SettingsRepository {
-  abstract getAutoActionGlobal(): Promise<AutoActionGlobal | null>;
-  abstract setAutoActionGlobal(input: { enabled: boolean; action: 'none' | 'resolved' | 'archived'; afterHours?: number | null }): Promise<AutoActionGlobal>;
+  abstract getAutoActionGlobal(userId: string): Promise<AutoActionGlobal | null>;
+  abstract setAutoActionGlobal(userId: string, input: { enabled: boolean; action: 'none' | 'resolved' | 'archived'; afterHours?: number | null }): Promise<AutoActionGlobal>;
 }

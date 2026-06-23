@@ -45,17 +45,24 @@ const persister = createSyncStoragePersister({
   key: 'kb-query-cache',
 });
 
-persistQueryClient({
-  queryClient,
-  persister,
-  maxAge: TWENTY_FOUR_HOURS_MS,
-  dehydrateOptions: {
-    shouldDehydrateQuery: (query) => {
-      // Only persist successful queries that are not auth-related
-      if (query.state.status !== 'success') return false;
-      const topKey = query.queryKey[0];
-      if (typeof topKey === 'string' && EXCLUDED_QUERY_KEY_PREFIXES.has(topKey)) return false;
-      return true;
+try {
+  persistQueryClient({
+    queryClient,
+    persister,
+    maxAge: TWENTY_FOUR_HOURS_MS,
+    dehydrateOptions: {
+      shouldDehydrateQuery: (query) => {
+        // Only persist successful queries that are not auth-related
+        if (query.state.status !== 'success') return false;
+        const topKey = query.queryKey[0];
+        if (typeof topKey === 'string' && EXCLUDED_QUERY_KEY_PREFIXES.has(topKey)) return false;
+        return true;
+      },
     },
-  },
-});
+  });
+} catch (err) {
+  // If persistence integration fails (version mismatch or environment), fall back
+  // to a non-persisted client instead of crashing the app.
+  // eslint-disable-next-line no-console
+  console.error('persistQueryClient failed, continuing without persistence', err);
+}

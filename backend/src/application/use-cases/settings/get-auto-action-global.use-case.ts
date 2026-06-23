@@ -5,7 +5,7 @@ import { SettingsRepository } from '../../ports/settings.repository.js';
 export class GetAutoActionGlobalUseCase {
   constructor(private readonly settingsRepository: SettingsRepository) {}
 
-  async execute() {
-    return this.settingsRepository.getAutoActionGlobal();
+  async execute(userId: string) {
+    return this.settingsRepository.getAutoActionGlobal(userId);
   }
 }

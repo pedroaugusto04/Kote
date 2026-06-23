@@ -6,11 +6,10 @@ import type { AuthenticatedUser } from '../../../../application/auth.js';
 import {
   CreateManualNoteUseCase,
   DeleteNoteUseCase,
-  GetNoteAttachmentContentUseCase,
+  GetNoteAttachmentContentUseCase, 
   UpdateNoteUseCase,
   SetNotePinnedUseCase,
   FindRelatedNotesUseCase,
-  SetNoteAutoActionUseCase,
   GetAutoActionGlobalUseCase,
   SetAutoActionGlobalUseCase,
 } from '../../../../application/use-cases/index.js';
@@ -145,8 +144,8 @@ export class NotesController {
   @Get('auto/global')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get global auto-action config' })
-  async getAutoActionGlobal() {
-    return await this.getAutoActionGlobalUseCase.execute();
+  async getAutoActionGlobal(@CurrentUser() user: AuthenticatedUser) {
+    return await this.getAutoActionGlobalUseCase.execute(user.id);
   }
 
   @Patch('auto/global')
@@ -155,7 +154,8 @@ export class NotesController {
   @ApiOperation({ summary: 'Set global auto-action config' })
   async setAutoActionGlobal(
     @Body(new ZodValidationPipe(autoActionGlobalSchema, 'invalid_auto_action_global_payload')) body: import('../../dto/note.dto.js').AutoActionGlobal,
+    @CurrentUser() user: AuthenticatedUser,
   ) {
-    return await this.setAutoActionGlobalUseCase.execute({ enabled: body.enabled, action: body.action, afterHours: body.afterHours ?? null });
+    return await this.setAutoActionGlobalUseCase.execute(user.id, { enabled: body.enabled, action: body.action, afterHours: body.afterHours ?? null });
   }
 }

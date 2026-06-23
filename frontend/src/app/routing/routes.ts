@@ -12,13 +12,13 @@ export const routes = {
   kanban: '/kanban',
   reminders: '/reminders',
   profile: '/profile',
-  integrations: '/settings/integrations',
-  subscription: '/settings/subscription',
-  settings: '/settings',
+  integrations: '/automations/integrations',
+  subscription: '/automations/subscription',
+  automations: '/automations',
   help: '/help',
 } as const;
 
-export type View = 'home' | 'map' | 'projects' | 'note' | 'search' | 'kanban' | 'reminders' | 'profile' | 'integrations' | 'subscription' | 'help' | 'settings';
+export type View = 'home' | 'map' | 'projects' | 'note' | 'search' | 'kanban' | 'reminders' | 'profile' | 'integrations' | 'subscription' | 'help' | 'automations';
 
 
 export const navItems: Array<{ view: View; label: string; path: string }> = [
@@ -28,5 +28,4 @@ export const navItems: Array<{ view: View; label: string; path: string }> = [
   { view: 'kanban', label: 'Kanban', path: routes.kanban },
   { view: 'reminders', label: 'Reminders', path: routes.reminders },
   { view: 'map', label: 'Map', path: routes.map },
-  { view: 'settings', label: 'Settings', path: routes.settings },
 ];

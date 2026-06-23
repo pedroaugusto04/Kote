@@ -61,8 +61,9 @@ export class AutoActionWorker implements OnModuleInit, OnModuleDestroy {
         [action, afterHours]
       );
 
-      if (res.rowCount > 0) {
-        this.logger.info(`[worker] applied auto-action='${action}' to ${res.rowCount} notes`);
+      const applied = Number(res.rowCount ?? 0);
+      if (applied > 0) {
+        this.logger.info(`[worker] applied auto-action='${action}' to ${applied} notes`);
       } else {
         this.logger.info('[worker] no notes eligible for auto-action');
       }

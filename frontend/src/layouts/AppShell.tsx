@@ -24,7 +24,7 @@ const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => 
 const SetupPage = lazy(() => import('../pages/setup/SetupPage').then(m => ({ default: m.SetupPage })));
 const AuthPage = lazy(() => import('../pages/auth/AuthPage').then(m => ({ default: m.AuthPage })));
 const HelpPage = lazy(() => import('../pages/help/HelpPage').then(m => ({ default: m.HelpPage })));
-const SettingsPage = lazy(() => import('../pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
+const AutomationsPage = lazy(() => import('../pages/automations/AutomationsPage').then((m: any) => ({ default: m?.default ?? m.AutomationsPage })));
 import { flattenFolders } from '../features/projects/projects.helpers';
 import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
 import type { ConfirmState, NoteModalState } from '../features/projects/projects.types';
@@ -55,6 +55,7 @@ function activeView(pathname: string): View {
   if (pathname.startsWith(routes.profile)) return 'profile';
   if (pathname.startsWith(routes.integrations)) return 'integrations';
   if (pathname.startsWith(routes.subscription)) return 'subscription';
+  if (pathname.startsWith(routes.automations)) return 'automations';
   if (pathname.startsWith(routes.help)) return 'help';
   return 'home';
 }
@@ -553,6 +554,9 @@ export function AppShell() {
                   <Link className="profile-menu-link" role="menuitem" to={routes.subscription}>
                     Subscription
                   </Link>
+                  <Link className="profile-menu-link" role="menuitem" to={routes.automations}>
+                    Automations
+                  </Link>
                   <Link className="profile-menu-link" role="menuitem" to={routes.help}>
                     {UI_MESSAGES.DOCUMENTATION}
                   </Link>
@@ -589,9 +593,9 @@ export function AppShell() {
               <Route path="/kanban" element={<KanbanPage {...pageContext} />} />
               <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
               <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
-              <Route path="/settings/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
-              <Route path="/settings/subscription" element={<SubscriptionPage />} />
-              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/automations/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
+              <Route path="/automations/subscription" element={<SubscriptionPage />} />
+              <Route path="/automations" element={<AutomationsPage />} />
               <Route path="/help" element={<HelpPage />} />
               <Route path="*" element={<HomePage {...pageContext} />} />
             </Routes>

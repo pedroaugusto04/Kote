@@ -9,7 +9,7 @@ function normalizeFrontendBasePath(value: string | undefined): string {
 }
 
 export const frontendBasePath = normalizeFrontendBasePath(import.meta.env.VITE_KB_FRONTEND_BASE_PATH);
-
+ 
 export function withFrontendBasePath(path: string): string {
   if (!path.startsWith('/')) return path;
   if (frontendBasePath === '/' || path === frontendBasePath || path.startsWith(`${frontendBasePath}/`)) return path;

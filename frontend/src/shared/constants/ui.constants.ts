@@ -89,7 +89,7 @@ export const UI_MESSAGES = {
   SIGN_OUT: 'Sign out',
   COULD_NOT_OPEN_NOTE: 'Could not open the note.',
   KNOWLEDGE_MAP: 'Knowledge Map',
-  SETTINGS: 'Settings',
+  SETTINGS: 'Automations',
   NOTE: 'Note',
   SEARCH: 'Search',
   KANBAN: 'Kanban',

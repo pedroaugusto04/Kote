@@ -1,16 +1,11 @@
 import type { MigrationBuilder } from 'node-pg-migrate';
 
 export async function up(pgm: MigrationBuilder): Promise<void> {
-  pgm.addColumn('kb_notes', {
-    auto_action: { type: 'text', notNull: true, default: 'none' },
-  });
-  pgm.addColumn('kb_notes', {
-    auto_after_hours: { type: 'integer' },
-  });
-  pgm.addColumn('kb_notes', {
-    auto_scheduled_at: { type: 'timestamp with time zone' },
-  });
-  pgm.createIndex('kb_notes', ['user_id', 'auto_action'], { name: 'idx_kb_notes_auto_action' });
+  // Use idempotent SQL to avoid failing when columns already exist (tests may run migrations multiple times)
+  pgm.sql("ALTER TABLE kb_notes ADD COLUMN IF NOT EXISTS auto_action text NOT NULL DEFAULT 'none'");
+  pgm.sql("ALTER TABLE kb_notes ADD COLUMN IF NOT EXISTS auto_after_hours integer");
+  pgm.sql("ALTER TABLE kb_notes ADD COLUMN IF NOT EXISTS auto_scheduled_at timestamp with time zone");
+  pgm.sql("CREATE INDEX IF NOT EXISTS idx_kb_notes_auto_action ON kb_notes (user_id, auto_action)");
 }
 
 export async function down(pgm: MigrationBuilder): Promise<void> {

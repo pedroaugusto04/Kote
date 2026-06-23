@@ -16,9 +16,9 @@ test('connection command parser accepts English connect verb', () => {
 test('connection redirect helpers reject unsafe values and preserve base paths', () => {
   assert.equal(normalizeBrowserOrigin('javascript:alert(1)'), '');
   assert.equal(normalizeBrowserOrigin('https://kb.example.com/path'), 'https://kb.example.com');
-  assert.equal(normalizeReturnToPath('//evil.example.com', '/settings/integrations'), '/settings/integrations');
+  assert.equal(normalizeReturnToPath('//evil.example.com', '/automations/integrations'), '/automations/integrations');
 
-  const url = buildBrowserRedirectUrl('https://kb.example.com/knowledge-base', '/settings/integrations');
+  const url = buildBrowserRedirectUrl('https://kb.example.com/knowledge-base', '/automations/integrations');
   url.searchParams.set('status', 'connected');
-  assert.equal(url.toString(), 'https://kb.example.com/knowledge-base/settings/integrations?status=connected');
+  assert.equal(url.toString(), 'https://kb.example.com/knowledge-base/automations/integrations?status=connected');
 });

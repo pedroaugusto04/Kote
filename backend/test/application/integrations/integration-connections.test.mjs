@@ -522,7 +522,7 @@ test('github callback fallback redirect preserves base path from public base url
     };
 
     const result = await connections.completeGithub({ userId: user.id, state: stateFromRedirect(setup), installationId: '42' });
-    assert.equal(result.redirectUrl, 'https://kb.example.com/knowledge-base/settings/integrations?integration=github-app&status=connected&workspaceSlug=default');
+    assert.equal(result.redirectUrl, 'https://kb.example.com/knowledge-base/automations/integrations?integration=github-app&status=connected&workspaceSlug=default');
   } finally {
     globalThis.fetch = originalFetch;
     process.env.KB_PUBLIC_BASE_URL = previousPublicBaseUrl;
