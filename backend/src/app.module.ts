@@ -18,6 +18,7 @@ import { OperationsModule } from './infrastructure/modules/operations.module.js'
 import { IntegrationsModule } from './infrastructure/modules/integrations.module.js';
 import { QuotaModule } from './infrastructure/modules/quota.module.js';
 import { BillingModule } from './infrastructure/modules/billing.module.js';
+import { EmailModule } from './infrastructure/modules/email.module.js';
 
 import { HealthController } from './interfaces/http/controllers/index.js';
 import { GlobalRateLimitGuard } from './interfaces/http/auth.guards.js';
@@ -41,6 +42,7 @@ import { GlobalRateLimitGuard } from './interfaces/http/auth.guards.js';
     IntegrationsModule,
     QuotaModule,
     BillingModule,
+    EmailModule,
   ],
   controllers: [HealthController],
   providers: [

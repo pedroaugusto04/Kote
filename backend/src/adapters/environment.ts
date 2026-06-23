@@ -67,6 +67,18 @@ export type RuntimeEnvironment = {
   databaseSslRejectUnauthorized: boolean | null;
   adminEmail: string;
   adminPassword: string;
+  emailProvider: 'resend' | 'smtp' | 'fake';
+  emailResendApiKey: string;
+  emailFrom: string;
+  emailSmtpHost: string;
+  emailSmtpPort: number;
+  emailSmtpUser: string;
+  emailSmtpPass: string;
+  emailSmtpSecure: boolean;
+  emailQueueExchange: string;
+  emailQueueName: string;
+  emailQueueRoutingKey: string;
+  emailWorkerAutorun: boolean;
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   accessTokenTtlSeconds: number;
@@ -139,6 +151,18 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
       : String(env.KB_DATABASE_SSL_REJECT_UNAUTHORIZED || '').trim().toLowerCase() === 'true',
     adminEmail: String(env.KB_ADMIN_EMAIL || '').trim().toLowerCase(),
     adminPassword: String(env.KB_ADMIN_PASSWORD || '').trim(),
+    emailProvider: (String(env.KB_EMAIL_PROVIDER || 'resend').trim().toLowerCase() as RuntimeEnvironment['emailProvider']),
+    emailResendApiKey: String(env.KB_EMAIL_RESEND_API_KEY || '').trim(),
+    emailFrom: String(env.KB_EMAIL_FROM || env.KB_ADMIN_EMAIL || 'Knowledge Base <no-reply@knowledge-base.local>').trim(),
+    emailSmtpHost: String(env.KB_EMAIL_SMTP_HOST || '').trim(),
+    emailSmtpPort: Number(env.KB_EMAIL_SMTP_PORT || 587),
+    emailSmtpUser: String(env.KB_EMAIL_SMTP_USER || '').trim(),
+    emailSmtpPass: String(env.KB_EMAIL_SMTP_PASS || '').trim(),
+    emailSmtpSecure: String(env.KB_EMAIL_SMTP_SECURE || 'false').trim().toLowerCase() === 'true',
+    emailQueueExchange: String(env.KB_EMAIL_QUEUE_EXCHANGE || 'kb.email').trim(),
+    emailQueueName: String(env.KB_EMAIL_QUEUE_NAME || 'kb.email.send').trim(),
+    emailQueueRoutingKey: String(env.KB_EMAIL_QUEUE_ROUTING_KEY || 'kb.email.send').trim(),
+    emailWorkerAutorun: String(env.KB_EMAIL_WORKER_AUTORUN || 'true').trim().toLowerCase() === 'true',
     jwtAccessSecret: String(env.KB_JWT_ACCESS_SECRET || '').trim(),
     jwtRefreshSecret: String(env.KB_JWT_REFRESH_SECRET || '').trim(),
     accessTokenTtlSeconds: Number(env.KB_ACCESS_TOKEN_TTL_SECONDS || 15 * 60),

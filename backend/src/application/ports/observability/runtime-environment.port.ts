@@ -48,6 +48,18 @@ export type RuntimeEnvironment = {
   databaseUrl: string;
   adminEmail: string;
   adminPassword: string;
+  emailProvider: 'resend' | 'smtp' | 'fake';
+  emailResendApiKey: string;
+  emailFrom: string;
+  emailSmtpHost: string;
+  emailSmtpPort: number;
+  emailSmtpUser: string;
+  emailSmtpPass: string;
+  emailSmtpSecure: boolean;
+  emailQueueExchange: string;
+  emailQueueName: string;
+  emailQueueRoutingKey: string;
+  emailWorkerAutorun: boolean;
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   accessTokenTtlSeconds: number;
