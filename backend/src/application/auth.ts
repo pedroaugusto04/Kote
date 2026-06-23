@@ -6,6 +6,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException, 
 import type { KbUser } from './models/repository-records.models.js';
 import { JwtTokenType } from '../contracts/enums.js';
 import { GoogleOAuthGateway, type GoogleOAuthProfile } from './ports/auth/google-oauth.gateway.js';
+import { WelcomeEmailService } from './use-cases/welcome-email.use-case.js';
 import { ObjectStorage, ObjectStorageMissingContentError } from './ports/notes/object-storage.js';
 import { SchemaMigrator, UserRepository } from './ports/auth/auth.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
@@ -231,6 +232,7 @@ export class AuthService implements OnModuleInit {
     private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => readEnvironment() },
     private readonly googleOAuth?: GoogleOAuthGateway,
     private readonly objectStorage?: ObjectStorage,
+    private readonly welcomeEmail?: WelcomeEmailService,
   ) {}
 
   async onModuleInit() {
@@ -267,6 +269,10 @@ export class AuthService implements OnModuleInit {
       passwordHash: await hashPassword(password),
       role: 'user',
     });
+    // Fire-and-forget welcome email (keeps signup fast and non-blocking)
+    if (this.welcomeEmail) {
+      this.welcomeEmail.sendWelcomeEmail(user).catch(() => undefined);
+    }
     return { user: toAuthenticatedUser(user), tokens: this.issueTokens(user) };
   }
 
