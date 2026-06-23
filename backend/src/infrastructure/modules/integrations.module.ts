@@ -9,6 +9,7 @@ import { NotesModule } from './notes.module.js';
 import { RemindersModule } from './reminders.module.js';
 import { OperationsModule } from './operations.module.js';
 import { WorkspacesModule } from './workspaces.module.js';
+import { EmailModule } from './email.module.js';
 
 import {
   IntegrationConnectionService,
@@ -36,6 +37,7 @@ import {
   WebhookSubscriptionsController,
   GithubAppCallbackController,
 } from '../../interfaces/http/controllers/index.js';
+import { NotifyHighSeverityFindingsService } from '../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
 
 @Module({
   imports: [
@@ -49,6 +51,7 @@ import {
     RemindersModule,
     OperationsModule,
     WorkspacesModule,
+    EmailModule,
   ],
   controllers: [
     UserIntegrationsController,
@@ -64,6 +67,7 @@ import {
     HandleGithubPushUseCase,
     HandleWhatsappWebhookUseCase,
     HandleTelegramWebhookUseCase,
+    NotifyHighSeverityFindingsService,
     WebhookDeliveryService,
     WebhookDeliveryWorker,
     ListWebhookSubscriptionsUseCase,

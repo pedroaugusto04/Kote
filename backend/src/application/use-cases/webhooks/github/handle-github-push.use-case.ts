@@ -5,6 +5,7 @@ import { buildTelegramCodeReviewMessage, buildWhatsappHighSeverityCodeReviewMess
 import { buildGithubReviewEvent } from '../../../github-review.js';
 import type { GithubPushWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
+import { NotifyHighSeverityFindingsService } from '../../notifications/notify-high-severity-findings.use-case.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
 import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.sender.js';
@@ -57,6 +58,7 @@ export class HandleGithubPushUseCase {
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
+    private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
   ) {}
 
   async execute(input: GithubPushWebhookRequest) {
@@ -216,6 +218,11 @@ export class HandleGithubPushUseCase {
         chatJid,
         text: buildWhatsappHighSeverityCodeReviewMessage(payload, noteLink),
       });
+      // Also send email to workspace owner (if available)
+      // trigger email notification in a separated service (fire-and-forget)
+      if (this.notifyHighSeverity) {
+        void this.notifyHighSeverity.sendEmailForHighFindings(payload, userId, noteLink);
+      }
       return result.ok
         ? { sent: true }
         : { sent: false, error: result.error || 'whatsapp_send_failed' };
@@ -223,4 +230,12 @@ export class HandleGithubPushUseCase {
       return { sent: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
+
+  // small helper to escape HTML inlined messages
+  // keep minimal to avoid adding deps
+  private static escapeMap: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+}
+
+function escapeHtml(input: string): string {
+  return String(input || '').replace(/[&<>"']/g, (c) => (HandleGithubPushUseCase as any).escapeMap[c] || c);
 }
