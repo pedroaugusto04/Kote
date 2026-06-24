@@ -1,19 +1,36 @@
 <h1>Hello, {{displayName}}!</h1>
 <p>Here is your weekly activity summary on {{appName}}.</p>
 
-{{#projects}}
-  <h3 style="margin: 16px 0 8px;">{{projectName}} — {{count}} note(s)</h3>
-  <ul>
-    {{#notes}}
-      <li>{{title}} — {{date}}</li>
-    {{/notes}}
-  </ul>
-{{/projects}}
+<h2 style="margin: 24px 0 12px;">Overview</h2>
+<p>{{aiSummary.overview}}</p>
 
-<p style="margin-top: 18px;">
+<h2 style="margin: 24px 0 12px;">Key Highlights</h2>
+<ul>
+  {{#aiSummary.keyHighlights}}
+    <li>{{this}}</li>
+  {{/aiSummary.keyHighlights}}
+</ul>
+
+<h2 style="margin: 24px 0 12px;">By Project</h2>
+{{#aiSummary.byProject}}
+  <h3 style="margin: 16px 0 8px;">{{projectName}} — {{noteCount}} note(s)</h3>
+  <p>{{summary}}</p>
+  {{#notableNotes}}
+    <p style="margin: 8px 0 4px;"><strong>{{title}}</strong>: {{summary}}</p>
+  {{/notableNotes}}
+{{/aiSummary.byProject}}
+
+<h2 style="margin: 24px 0 12px;">Recommendations</h2>
+<ul>
+  {{#aiSummary.recommendations}}
+    <li>{{this}}</li>
+  {{/aiSummary.recommendations}}
+</ul>
+
+<p style="margin-top: 24px;">
   <a href="{{frontUrl}}/"
-     style="display:inline-block; padding:12px 24px; background-color:#53c7de; color:#090f14; text-decoration:none; border-radius:8px;">
-     Open Kote
+     style="display:inline-block; padding:12px 24px; background-color:#000000; color:#ffffff; text-decoration:none; border-radius:8px;">
+     Open {{appName}}
   </a>
 </p>
 

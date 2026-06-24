@@ -3,8 +3,9 @@ import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInpu
 import { runChatCompletion, runStructuredChatCompletion, type ChatConfig } from '../infrastructure/ai/openai-compatible-chat.js';
 import { buildConversationAgentSystemPrompt, buildConversationAgentTurnPrompt, type ConversationAgentTurnPayload } from '../infrastructure/ai/prompts/conversation-agent.prompt.js';
 import { buildReviewAnalysisSystemPrompt, parseReviewAnalysis, reviewAnalysisFallback, type ReviewAnalysis } from '../infrastructure/ai/prompts/review-analysis.prompt.js';
+import { buildWeeklySummarySystemPrompt, parseWeeklySummary, weeklySummaryFallback, type WeeklySummaryAnalysis } from '../infrastructure/ai/prompts/weekly-summary.prompt.js';
 
-export type { ChatConfig, ConversationAgentTurnPayload, ReviewAnalysis };
+export type { ChatConfig, ConversationAgentTurnPayload, ReviewAnalysis, WeeklySummaryAnalysis };
 
 export async function generateReviewAnalysis(
   config: ChatConfig,
@@ -31,4 +32,19 @@ export async function decideConversationAgentTurn(
     buildConversationAgentTurnPrompt(payload),
     (parsed) => conversationAgentDecisionSchema.parse(normalizeConversationAgentDecisionInput(parsed)),
   );
+}
+
+export async function generateWeeklySummary(
+  config: ChatConfig,
+  promptPayload: unknown,
+): Promise<WeeklySummaryAnalysis> {
+  if (config.provider === AiProvider.None || !config.apiKey || !config.model) return weeklySummaryFallback;
+
+  const content = await runChatCompletion(
+    config,
+    buildWeeklySummarySystemPrompt(),
+    JSON.stringify(promptPayload),
+  );
+  if (!content) return weeklySummaryFallback;
+  return parseWeeklySummary(JSON.parse(content));
 }

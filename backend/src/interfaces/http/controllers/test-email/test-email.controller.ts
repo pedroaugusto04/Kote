@@ -76,17 +76,26 @@ export class TestEmailController {
     const start = new Date(end.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     // Use the shared method from WeeklySummaryService
-    const totalNotes = await this.weeklySummaryService.sendWeeklySummaryToUserForRange(
+    const result = await this.weeklySummaryService.sendWeeklySummaryToUserForRange(
       user.id,
       start.toISOString(),
       end.toISOString(),
     );
 
-    if (totalNotes === 0) {
-      return { message: 'No notes found in the last 7 days for this user', email: user.email };
+    if (!result.sent) {
+      if (result.reason === 'no_notes') {
+        return { message: 'No notes found in the last 7 days for this user', email: user.email };
+      }
+      if (result.reason === 'review_ai_inactive') {
+        return { message: 'Review AI integration is not active globally. Weekly summary requires review AI to be configured.', email: user.email };
+      }
+      if (result.reason === 'user_review_ai_inactive') {
+        return { message: 'Review AI is not enabled for this user\'s workspace. Weekly summary requires review AI to be activated in the workspace settings.', email: user.email };
+      }
+      return { message: 'Weekly summary email was not sent', email: user.email, reason: result.reason };
     }
 
-    return { message: 'Weekly summary email sent successfully', email: user.email, totalNotes };
+    return { message: 'Weekly summary email sent successfully', email: user.email, totalNotes: result.totalNotes };
   }
 
   @Post('code-review-alert')

@@ -5,8 +5,12 @@ import { PostgresDatabase } from '../../infrastructure/persistence/database.js';
 import { EmailService } from './email.service.js';
 import { AppLogger } from '../../observability/logger.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
-import { users, notes, projects } from '../../infrastructure/persistence/schema/index.js';
+import { users, notes, projects, workspaces } from '../../infrastructure/persistence/schema/index.js';
 import { UserRepository } from '../ports/auth/auth.repository.js';
+import { CredentialRepository } from '../ports/integrations/integrations.repository.js';
+import { WeeklySummaryGateway } from '../ports/weekly-summary/weekly-summary.port.js';
+import { AiProvider, IntegrationProvider } from '../../contracts/enums.js';
+import type { WeeklySummaryAnalysis } from '../../infrastructure/ai/prompts/weekly-summary.prompt.js';
 
 @Injectable()
 export class WeeklySummaryService {
@@ -16,6 +20,8 @@ export class WeeklySummaryService {
     private readonly users: UserRepository,
     private readonly logger: AppLogger,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly weeklySummaryGateway: WeeklySummaryGateway,
+    private readonly credentialRepository: CredentialRepository,
   ) {}
 
   async runForRange(startIso: string, endIso: string) {
@@ -91,31 +97,86 @@ export class WeeklySummaryService {
 
   async sendWeeklySummaryToUser(user: { id: string; email: string; displayName?: string }, userNotesByProject: Record<string, any[]>) {
     const totalNotes = Object.values(userNotesByProject).reduce((s, arr) => s + arr.length, 0);
-    if (totalNotes === 0) return 0;
+    if (totalNotes === 0) return { sent: false, reason: 'no_notes', totalNotes: 0 };
 
     const environment = this.environmentProvider.read();
     const appName = (environment.emailFrom || 'Kote').split('@')[0];
+
+    // Check if review AI is active globally
+    if (environment.reviewAiProvider === AiProvider.None) {
+      this.logger.info('weekly_summary.skipped_review_ai_inactive_global', { userId: user.id });
+      return { sent: false, reason: 'review_ai_inactive', totalNotes };
+    }
+
+    // Check if user has review AI enabled in their workspace credentials
+    const userWorkspaces = await this.db.getDb().select({ workspaceSlug: workspaces.workspaceSlug })
+      .from(workspaces)
+      .where(eq(workspaces.userId, user.id));
+    
+    let hasUserReviewAiEnabled = false;
+    for (const ws of userWorkspaces as any[]) {
+      const credential = await this.credentialRepository.findCredential(user.id, ws.workspaceSlug, IntegrationProvider.AiReview);
+      if (credential && credential.status === 'connected') {
+        hasUserReviewAiEnabled = true;
+        break;
+      }
+    }
+
+    if (!hasUserReviewAiEnabled) {
+      this.logger.info('weekly_summary.skipped_user_review_ai_inactive', { userId: user.id });
+      return { sent: false, reason: 'user_review_ai_inactive', totalNotes };
+    }
+
+    // Prepare payload for AI generation
+    const aiPayload = {
+      user: { displayName: user.displayName },
+      projects: Object.entries(userNotesByProject).map(([projectSlug, items]) => ({
+        projectName: projectSlug,
+        noteCount: items.length,
+        notes: (items as any[]).map((item) => ({
+          title: item.title,
+          summary: item.summary || '',
+          date: new Date(item.createdAt).toISOString().slice(0, 10),
+        })),
+      })),
+    };
+
+    // Generate AI summary
+    const aiSummary: WeeklySummaryAnalysis = await this.weeklySummaryGateway.generate(
+      {
+        provider: environment.reviewAiProvider,
+        baseUrl: environment.reviewAiBaseUrl || '',
+        model: environment.reviewAiModel || '',
+        apiKey: environment.reviewAiApiKey || '',
+      },
+      aiPayload,
+    );
+
     const subject = `${appName} — Weekly summary (${totalNotes} new note${totalNotes > 1 ? 's' : ''})`;
 
     const textParts: string[] = [];
     textParts.push(`Hi ${user.displayName || ''},`);
-    textParts.push('Here is your weekly activity summary:');
-    for (const [project, items] of Object.entries(userNotesByProject)) {
-      textParts.push(`\nProject: ${project} — ${items.length} note${items.length > 1 ? 's' : ''}`);
-      for (const item of items as any[]) {
-        textParts.push(`- ${item.title} (${new Date(item.createdAt).toISOString().slice(0, 10)})`);
+    textParts.push('\n' + aiSummary.overview);
+    textParts.push('\nKey Highlights:');
+    for (const highlight of aiSummary.keyHighlights) {
+      textParts.push(`- ${highlight}`);
+    }
+    textParts.push('\nBy Project:');
+    for (const project of aiSummary.byProject) {
+      textParts.push(`\n${project.projectName} (${project.noteCount} notes)`);
+      textParts.push(project.summary);
+      if (project.notableNotes.length > 0) {
+        textParts.push('Notable notes:');
+        for (const note of project.notableNotes) {
+          textParts.push(`- ${note.title}: ${note.summary}`);
+        }
       }
     }
+    textParts.push('\nRecommendations:');
+    for (const rec of aiSummary.recommendations) {
+      textParts.push(`- ${rec}`);
+    }
     textParts.push('\nThanks — sent by your KB');
-
-    const projects = Object.entries(userNotesByProject).map(([projectSlug, items]) => ({
-      projectName: projectSlug,
-      count: items.length,
-      notes: (items as any[]).map((item) => ({
-        title: item.title,
-        date: new Date(item.createdAt).toISOString().slice(0, 10),
-      })),
-    }));
 
     await this.emailService.sendEmail({
       to: user.email,
@@ -125,14 +186,14 @@ export class WeeklySummaryService {
       templateData: {
         displayName: user.displayName || '',
         appName,
-        projects,
+        aiSummary,
       },
     });
 
-    return totalNotes;
+    return { sent: true, reason: 'sent', totalNotes };
   }
 
-  async sendWeeklySummaryToUserForRange(userId: string, startIso: string, endIso: string): Promise<number> {
+  async sendWeeklySummaryToUserForRange(userId: string, startIso: string, endIso: string): Promise<{ sent: boolean; reason: string; totalNotes: number }> {
     const db = this.db.getDb();
 
     const noteRows = await db
