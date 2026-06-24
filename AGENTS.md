@@ -74,6 +74,7 @@ Keep dependency injection aligned with the current framework. This project uses 
 - Keep persistence behind repository interfaces/ports.
 - Schema or storage contract changes must update repositories, mappers, seed/setup logic when applicable, docs, and impacted tests.
 - Never edit old applied migration files if migrations exist.
+- **Never rename or alter the timestamp of existing migration files.** Always create new migrations with unique, higher timestamps to fix issues. Renaming existing migrations causes ordering conflicts in production databases where the old migration name is already recorded as applied.
 - Database changes must be delivered as a new migration under `backend/src/infrastructure/persistence/migrations/**`, not as ad-hoc SQL hidden in repositories, bootstrap code, or tests.
 - Do not rely on `down` migrations as the primary production rollback plan. Treat `down` as local/dev support unless the user explicitly asks for a rollback workflow.
 - When changing schema, also review and update:
