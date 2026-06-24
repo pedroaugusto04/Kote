@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/Kote-Brand.png" alt="Kote" width="200">
+  <img src="frontend/public/Kote-Brand.png" alt="Kote" width="600">
 </p>
 
 https://knowledgebase.sbs/kote
