@@ -14,7 +14,7 @@ export abstract class GoogleOAuthGateway {
     codeChallenge: string;
   }): string;
 
-  abstract authenticate(input: {
+  abstract authenticate(input: { 
     clientId: string;
     clientSecret: string;
     redirectUri: string;
