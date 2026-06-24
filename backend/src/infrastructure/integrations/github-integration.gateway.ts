@@ -9,7 +9,7 @@ import {
 import {
   GithubIntegrationGateway,
   type GithubComparePayload,
-  type GithubInstallationRepository,
+  type GithubInstallationRepository, 
 } from '../../application/ports/integrations/github-integration.port.js';
 
 @Injectable()
