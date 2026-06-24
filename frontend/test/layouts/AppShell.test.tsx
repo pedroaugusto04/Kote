@@ -594,7 +594,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />, { route: '/auth?mode=signup' });
 
-    expect(await screen.findByRole('heading', { name: 'Create your knowledge base' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Create your Kote workspace' })).toBeInTheDocument();
     expect(screen.getByLabelText('Name')).toBeInTheDocument();
   });
 
@@ -1047,7 +1047,7 @@ describe('AppShell', () => {
 
     fireEvent.click(screen.getByRole('link', { name: 'Create account' }));
 
-    expect(await screen.findByRole('heading', { name: 'Create your knowledge base' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Create your Kote workspace' })).toBeInTheDocument();
     expect(screen.getByText('Start capturing the technical context your future self will need.')).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).at(-1)!);
