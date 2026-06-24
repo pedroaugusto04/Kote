@@ -1,8 +1,11 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
 import Handlebars from 'handlebars';
 import { Resend } from 'resend';
 import { Injectable } from '@nestjs/common';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 import type { EmailSendPayload } from '../../../application/models/email.models.js';
 import { EmailProvider } from '../../../application/ports/email/email-provider.js';
