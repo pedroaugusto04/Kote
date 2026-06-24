@@ -481,6 +481,7 @@ export function ProjectsWorkspace({
           }}
           projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
           initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : noteModal.folderId}
+          projects={dashboard.projects}
           workspaceSlug={workspaceSlug}
         />
       ) : null}
