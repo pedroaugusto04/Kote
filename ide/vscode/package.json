@@ -22,7 +22,7 @@
     "search",
     "context"
   ],
-  "icon": "resources/kb-icon.png",
+  "icon": "resources/Kote-Logo.png",
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -33,7 +33,7 @@
         {
           "id": "kote-sidebar-container",
           "title": "Kote",
-          "icon": "resources/kb-icon.svg"
+          "icon": "resources/Kote-Logo.svg"
         }
       ]
     },

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../ide/vscode/resources/kb-icon.svg" alt="kb-cli Logo" width="120" height="120">
+  <img src="../ide/vscode/resources/Kote-Logo.svg" alt="kb-cli Logo" width="120" height="120">
 </p>
 
 # kote-cli

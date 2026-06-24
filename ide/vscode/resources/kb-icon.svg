@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-  <!-- Outer Folder shape -->
-  <path d="M3 7a2 2 0 0 1 2-2h4.5a1 1 0 0 1 .7.3l2.1 2.1a1 1 0 0 0 .7.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-  <!-- K -->
-  <path d="M7 10v6" stroke-width="2" />
-  <path d="M11 10L7 13l4 3" stroke-width="2" />
-  <!-- V -->
-  <path d="M13 10.5l2 5.2 2-5.2" stroke-width="2" />
-</svg>

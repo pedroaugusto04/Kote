@@ -1,4 +1,7 @@
-# Kote
+<p align="center">
+  <img src="frontend/public/Kote-Brand.png" alt="Kote" width="200">
+</p>
+
 https://knowledgebase.sbs/kote
 
 **Kote** centralizes your team's operational knowledge and decisions in one place, preventing knowledge fragmentation and accelerating the integration of new team members into your workflow.

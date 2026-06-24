@@ -56,7 +56,7 @@ export class ChatPanelProvider {
   ) {
     this._panel = panel;
 
-    panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'kb-icon.png');
+    panel.iconPath = vscode.Uri.joinPath(context.extensionUri, 'resources', 'Kote-Logo.svg');
     panel.webview.options = { enableScripts: true, localResourceRoots: [context.extensionUri] };
     panel.webview.html = this._buildHtml(panel.webview, context.extensionUri);
 

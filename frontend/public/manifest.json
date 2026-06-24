@@ -10,12 +10,12 @@
   "categories": ["productivity", "business"],
   "icons": [
     {
-      "src": "icon-512.png",
+      "src": "Kote-Logo.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "icon-512.png",
+      "src": "Kote-Logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

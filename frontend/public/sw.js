@@ -24,7 +24,7 @@ const SHELL_CACHE = `kb-shell-${CACHE_VERSION}`;
 const SHELL_URLS = [
   './',
   'manifest.json',
-  'icon-512.png',
+  'Kote-Logo.png',
 ];
 
 // ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Knowledge Base';
   // Resolve icon URL relative to sw.js location (same directory)
   const swDir = self.location.href.replace(/\/[^\/]*$/, '/');
-  const defaultIcon = swDir + 'icon-512.png';
+  const defaultIcon = swDir + 'Kote-Logo.png';
   const options = {
     body: data.body || 'Novo lembrete recebido.',
     icon: data.icon || defaultIcon,
