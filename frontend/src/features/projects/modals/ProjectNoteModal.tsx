@@ -102,7 +102,7 @@ export function ProjectNoteModal({
       };
       return globalLoading.trackPromise(mode === 'create'
         ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual' })
-        : updateNote(note?.id || '', payload));
+        : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug }));
     },
     onSuccess: async (result) => {
       closeGuard.resetCloseGuard();
@@ -125,7 +125,7 @@ export function ProjectNoteModal({
           <div className="modal-head">
             <div>
               <h2 id="note-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_NOTE : UI_MESSAGES.EDIT_NOTE}</h2>
-              {!(mode === 'create' && projects && projects.length > 0) && <p>{selectedProjectSlug}</p>}
+              {!(projects && projects.length > 0) && <p>{selectedProjectSlug}</p>}
             </div>
             <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
@@ -138,8 +138,8 @@ export function ProjectNoteModal({
               (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
             )}
           >
-            {mode === 'create' && projects && projects.length > 0 && (
-              <FormField name="projectSlug" label="Project" required>
+            {projects && projects.length > 0 && (
+              <FormField name="projectSlug" label="Project" required={mode === 'create'}>
                 {(fieldProps) => (
                   <Select
                     ariaDescribedBy={fieldProps['aria-describedby']}

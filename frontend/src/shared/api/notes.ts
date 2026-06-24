@@ -71,6 +71,7 @@ export function createNote(params: CreateNoteParams) {
 }
 
 export type UpdateNoteParams = {
+  projectSlug?: string;
   folderId?: string;
   title?: string;
   rawText: string;

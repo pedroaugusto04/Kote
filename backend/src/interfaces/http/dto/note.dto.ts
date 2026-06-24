@@ -64,6 +64,7 @@ export const noteAttachmentContentParamSchema = z.object({
 
 export const updateNoteBodySchema = z
   .object({
+    projectSlug: z.string().trim().optional(),
     folderId: z.string().trim().optional().default(''),
     title: z.string().trim().max(160, 'Use at most 160 characters.').optional().default(''),
     rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
@@ -76,6 +77,7 @@ export const updateNoteBodySchema = z
   })
   .strict()
   .transform((body) => ({
+    projectSlug: body.projectSlug ? slugify(body.projectSlug) || 'inbox' : undefined,
     folderId: body.folderId.trim() || undefined,
     title: body.title,
     rawText: body.rawText,

@@ -25,6 +25,10 @@ export function buildUpdatedNote(
   nextFolder: ProjectFolderRecord | null,
   input: UpdatedNoteInput,
   reminderTimeZone: string,
+  projectSlug?: string,
+  projectId?: string,
+  workspaceSlug?: string,
+  workspaceId?: string,
 ) {
   const title = trimText(input.title, note.title || input.rawText);
   const rawText = stripTitleHeader(normalizeMultiline(input.rawText), title);
@@ -43,10 +47,14 @@ export function buildUpdatedNote(
     hasReminder: Boolean(reminderFields.reminderDate || reminderFields.reminderAt),
   });
   const structuredNote = parseStructuredNoteMarkdown(note.markdown, note.title);
+  const effectiveProjectSlug = (projectSlug ?? note.projectSlug) || '';
+  const effectiveProjectId = projectId ?? note.projectId;
+  const effectiveWorkspaceSlug = (workspaceSlug ?? note.workspaceSlug) || '';
+  const effectiveWorkspaceId = workspaceId ?? note.workspaceId;
   const frontmatter = {
     type: noteType,
-    workspace: note.workspaceSlug || '',
-    project: note.projectSlug || '',
+    workspace: effectiveWorkspaceSlug,
+    project: effectiveProjectSlug,
     status: nextStatus,
     tags,
     occurred_at: note.occurredAt,
@@ -59,13 +67,13 @@ export function buildUpdatedNote(
 
   return {
     id: note.id,
-    projectId: note.projectId,
-    workspaceId: note.workspaceId,
-    path: relocateNotePath(note.path, note.projectSlug || '', previousFolder?.fullSlugPath || '', nextFolder?.fullSlugPath || ''),
+    projectId: effectiveProjectId,
+    workspaceId: effectiveWorkspaceId,
+    path: relocateNotePath(note.path, effectiveProjectSlug, previousFolder?.fullSlugPath || '', nextFolder?.fullSlugPath || ''),
     type: noteType,
     title,
-    projectSlug: note.projectSlug || '',
-    workspaceSlug: note.workspaceSlug || '',
+    projectSlug: effectiveProjectSlug,
+    workspaceSlug: effectiveWorkspaceSlug,
     folderId: nextFolder?.id || null,
     status: nextStatus,
     tags,

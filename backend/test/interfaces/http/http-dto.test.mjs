@@ -139,6 +139,7 @@ test('create note dto normalizes project, tags and keeps reminder date as transp
     status: undefined,
     categoryIds: undefined,
     folderId: undefined,
+    projectSlug: undefined,
   });
   assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', status: 'active' }), {
     title: 'Deploy',
@@ -150,6 +151,7 @@ test('create note dto normalizes project, tags and keeps reminder date as transp
     status: 'active',
     categoryIds: undefined,
     folderId: undefined,
+    projectSlug: undefined,
   });
   assert.deepEqual(createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto' }).categoryIds, []);
 });
