@@ -186,7 +186,7 @@ function mockFetch() {
         provider: 'whatsapp',
         session: { id: '11111111-1111-4111-8111-111111111111', provider: 'whatsapp', status: 'pending', workspaceSlug: 'default', expiresAt: '2026-04-27T10:10:00.000Z', consumedAt: null },
         verificationCode: 'ABC123',
-        instruction: '/kb connect ABC123',
+        instruction: '/kote connect ABC123',
         steps: ['Envie a mensagem no chat.'],
       });
     }
@@ -844,7 +844,7 @@ describe('AppShell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Connect WhatsApp' }));
     expect(await screen.findByRole('dialog')).toBeInTheDocument();
     expect(await screen.findByLabelText('Connection code')).toHaveTextContent('ABC123');
-    expect(await screen.findByText(/Send \/kb connect ABC123 to/)).toBeInTheDocument();
+    expect(await screen.findByText(/Send \/kote connect ABC123 to/)).toBeInTheDocument();
   });
 
   it('redirects authenticated users without workspace to the setup wizard', async () => {

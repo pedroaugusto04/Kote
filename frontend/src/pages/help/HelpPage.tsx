@@ -139,7 +139,7 @@ const sections: HelpSection[] = [
           `Send it to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
           'Click "Open WhatsApp" to open the chat with the message pre-filled',
         ],
-        code: `/kb connect <token>   ← send this to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
+        code: `/kote connect <token>   ← send this to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
         tip: 'You can also send documents, images, and other files directly to the WhatsApp bot — they will be attached to the created note. Use /ask to ask questions and retrieve files from your Kote.',
       },
       {
@@ -151,7 +151,7 @@ const sections: HelpSection[] = [
           `Send it to @${import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot'}`,
           'Click "Open Telegram bot" to open the chat directly',
         ],
-        code: `/kb connect <token>   ← send this to @${import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot'}`,
+        code: `/kote connect <token>   ← send this to @${import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot'}`,
       },
     ],
   },

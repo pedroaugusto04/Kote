@@ -137,7 +137,7 @@ function whatsappInput(code, overrides = {}) {
       userId: 'attacker-user-id',
       data: {
         key: { remoteJid: '120363@g.us' },
-        message: { conversation: `/kb conectar ${code}` },
+        message: { conversation: `/kote conectar ${code}` },
       },
       token: 'payload-token',
       nested: { apiKey: 'nested-key', keep: 'visible' },
@@ -156,7 +156,7 @@ function telegramInput(code, overrides = {}) {
     body: {
       message: {
         chat: { id: '987654321' },
-        text: `/kb conectar ${code}`,
+        text: `/kote conectar ${code}`,
       },
       token: 'payload-token',
       ...(overrides.body || {}),
@@ -284,7 +284,7 @@ test('whatsapp connection command binds the chat even when authored by the conne
   const result = await whatsapp.execute(whatsappInput(setup.verificationCode, {
     data: {
       key: { remoteJid: '120363@g.us', fromMe: true, id: 'connect-msg', participant: '5511999999999@s.whatsapp.net' },
-      message: { conversation: `/kb conectar ${setup.verificationCode}` },
+      message: { conversation: `/kote conectar ${setup.verificationCode}` },
     },
   }));
   assert.equal(result.resolvedUserId, user.id);
@@ -313,7 +313,7 @@ test('whatsapp connection command binds a private chat jid to the workspace', as
   const result = await whatsapp.execute(whatsappInput(setup.verificationCode, {
     data: {
       key: { remoteJid: '5511999999999@s.whatsapp.net', id: 'private-connect-msg', fromMe: false },
-      message: { conversation: `/kb conectar ${setup.verificationCode}` },
+      message: { conversation: `/kote conectar ${setup.verificationCode}` },
     },
   }));
   assert.equal(result.resolvedUserId, user.id);
@@ -334,7 +334,7 @@ test('whatsapp connection rejects an already-bound private chat jid for another 
   await whatsapp.execute(whatsappInput(setup.verificationCode, {
     data: {
       key: { remoteJid: '5511999999999@s.whatsapp.net', id: 'private-connect-owner', fromMe: false },
-      message: { conversation: `/kb conectar ${setup.verificationCode}` },
+      message: { conversation: `/kote conectar ${setup.verificationCode}` },
     },
   }));
 

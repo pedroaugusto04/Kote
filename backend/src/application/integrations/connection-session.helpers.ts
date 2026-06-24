@@ -128,6 +128,6 @@ export function buildBrowserRedirectUrl(baseUrl: string | undefined, path: strin
 }
 
 export function extractConnectionCommandCode(text: string): string {
-  const match = text.trim().match(/^\/kb\s+connect\s+([a-z0-9-]{4,20})$/i);
+  const match = text.trim().match(/^\/kote\s+connect\s+([a-z0-9-]{4,20})$/i);
   return match?.[1]?.trim().toUpperCase() || '';
 }

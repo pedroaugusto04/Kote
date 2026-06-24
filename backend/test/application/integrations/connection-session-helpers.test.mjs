@@ -9,7 +9,7 @@ import {
 } from '../../../dist/application/integrations/connection-session.helpers.js';
 
 test('connection command parser accepts English connect verb', () => {
-  assert.equal(extractConnectionCommandCode('/kb connect AB12CD'), 'AB12CD');
+  assert.equal(extractConnectionCommandCode('/kote connect AB12CD'), 'AB12CD');
   assert.equal(extractConnectionCommandCode('hello'), '');
 });
 

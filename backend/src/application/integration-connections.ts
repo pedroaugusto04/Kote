@@ -398,7 +398,7 @@ export class IntegrationConnectionService {
         label: input.label,
       },
       verificationCode,
-      instruction: `/kb connect ${verificationCode}`,
+      instruction: `/kote connect ${verificationCode}`,
       steps: input.steps,
     };
   }
