@@ -51,6 +51,8 @@ services:
       KB_EMAIL_QUEUE_NAME: ${KB_EMAIL_QUEUE_NAME:-kb.email.send}
       KB_EMAIL_QUEUE_ROUTING_KEY: ${KB_EMAIL_QUEUE_ROUTING_KEY:-kb.email.send}
       KB_EMAIL_WORKER_AUTORUN: ${KB_EMAIL_WORKER_AUTORUN:-false}
+      DEV_EMAIL_INTERCEPT: ${DEV_EMAIL_INTERCEPT:-false}
+      DEV_EMAIL: ${DEV_EMAIL:-pedroaugustoaduarte@gmail.com}
     command: sh -c "umask 000 && npm install && npm run dev:api"
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"

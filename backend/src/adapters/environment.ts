@@ -79,6 +79,8 @@ export type RuntimeEnvironment = {
   emailQueueName: string;
   emailQueueRoutingKey: string;
   emailWorkerAutorun: boolean;
+  devEmailIntercept: boolean;
+  devEmail: string;
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   accessTokenTtlSeconds: number;
@@ -163,6 +165,8 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     emailQueueName: String(env.KB_EMAIL_QUEUE_NAME || 'kb.email.send').trim(),
     emailQueueRoutingKey: String(env.KB_EMAIL_QUEUE_ROUTING_KEY || 'kb.email.send').trim(),
     emailWorkerAutorun: String(env.KB_EMAIL_WORKER_AUTORUN || 'true').trim().toLowerCase() === 'true',
+    devEmailIntercept: String(env.DEV_EMAIL_INTERCEPT || 'false').trim().toLowerCase() === 'true',
+    devEmail: String(env.DEV_EMAIL || 'pedroaugustoaduarte@gmail.com').trim(),
     jwtAccessSecret: String(env.KB_JWT_ACCESS_SECRET || '').trim(),
     jwtRefreshSecret: String(env.KB_JWT_REFRESH_SECRET || '').trim(),
     accessTokenTtlSeconds: Number(env.KB_ACCESS_TOKEN_TTL_SECONDS || 15 * 60),

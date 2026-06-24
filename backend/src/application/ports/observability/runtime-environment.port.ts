@@ -60,6 +60,8 @@ export type RuntimeEnvironment = {
   emailQueueName: string;
   emailQueueRoutingKey: string;
   emailWorkerAutorun: boolean;
+  devEmailIntercept: boolean;
+  devEmail: string;
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   accessTokenTtlSeconds: number;
