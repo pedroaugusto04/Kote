@@ -1,4 +1,5 @@
 # Knowledge Vault
+https://knowledgebase.sbs/knowledge-base
 
 **Knowledge Vault** centralizes your team's operational knowledge and decisions in one place, preventing knowledge fragmentation and accelerating the integration of new team members into your workflow.
 
