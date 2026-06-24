@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { EmailService } from '../services/email.service.js';
 import { AppLogger } from '../../observability/logger.js';
-import type { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
+import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 
 type UserMinimal = { id: string; email: string; displayName: string };
 
