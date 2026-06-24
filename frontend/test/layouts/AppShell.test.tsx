@@ -1039,7 +1039,7 @@ describe('AppShell', () => {
 
     expect(await screen.findByRole('heading', { name: 'Your team writes the code. Let us capture the context.' })).toBeInTheDocument();
     expect(screen.getByText('Keep notes, WhatsApp & Telegram logs, GitHub PR reviews, decisions, and reminders unified. Turn unstructured engineering chat into searchable context.')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'With Knowledge Vault, you don\'t need to guess.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'With Kote, you don\'t need to guess.' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Semantic Search & AI Assistant' })).toBeInTheDocument();
     expect(screen.getByText('Context & Evidence')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/auth');

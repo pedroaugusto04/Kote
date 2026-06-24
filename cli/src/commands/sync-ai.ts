@@ -487,7 +487,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
     }
 
     const selected = await clack.select({
-      message: 'Select an AI session to import/sync to Knowledge Vault:',
+      message: 'Select an AI session to import/sync to Kote:',
       options: selectOptions,
     });
 
@@ -508,7 +508,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
   const session = selectedSession;
   const titleWithDate = getTitleWithDate(session);
   const rawText = getMarkdownText(session);
-  s.start(`Saving "${titleWithDate}" as note to Knowledge Vault...`);
+  s.start(`Saving "${titleWithDate}" as note to Kote...`);
 
   try {
     const config = loadConfig();
@@ -523,7 +523,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
     });
 
     s.stop(pc.green('Import complete!'));
-    console.log(pc.cyan(`\nNote saved to Knowledge Vault successfully!`));
+    console.log(pc.cyan(`\nNote saved to Kote successfully!`));
   } catch (error: any) {
     s.stop(pc.red('Save failed'));
     if (error instanceof ApiClientError) {

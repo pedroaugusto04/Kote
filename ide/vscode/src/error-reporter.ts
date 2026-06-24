@@ -9,7 +9,7 @@ import * as vscode from 'vscode';
  *  - (Future) send structured logs to an output channel for diagnostics
  */
 
-const OUTPUT_CHANNEL_NAME = 'Knowledge Vault';
+const OUTPUT_CHANNEL_NAME = 'Kote';
 let _channel: vscode.OutputChannel | undefined;
 
 function getChannel(): vscode.OutputChannel {

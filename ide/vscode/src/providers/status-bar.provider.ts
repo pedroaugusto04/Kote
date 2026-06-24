@@ -6,7 +6,7 @@ export class StatusBarProvider {
   constructor() {
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
     this.statusBarItem.command = 'kb.openChat';
-    this.statusBarItem.tooltip = 'Knowledge Vault — click to open chat';
+    this.statusBarItem.tooltip = 'Kote — click to open chat';
     this.setNotConfigured();
     this.statusBarItem.show();
   }
@@ -27,12 +27,12 @@ export class StatusBarProvider {
     this.statusBarItem.text = `$(database) KB: ${projectSlug}`;
     this.statusBarItem.color = undefined;
     this.statusBarItem.backgroundColor = undefined;
-    this.statusBarItem.tooltip = `Knowledge Vault — project: ${projectSlug}\nClick to open AI chat`;
+    this.statusBarItem.tooltip = `Kote — project: ${projectSlug}\nClick to open AI chat`;
   }
 
   setError(message: string) {
     this.statusBarItem.text = '$(warning) KB: error';
-    this.statusBarItem.tooltip = `Knowledge Vault — ${message}`;
+    this.statusBarItem.tooltip = `Kote — ${message}`;
     this.statusBarItem.color = new vscode.ThemeColor('statusBarItem.errorForeground');
     this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
   }

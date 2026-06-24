@@ -25,7 +25,7 @@ export class WelcomeEmailService {
 
     const text = `Hello ${user.displayName || 'user'},\n\n` +
       `Thank you for creating your account on ${appName}! We're happy to have you with us!\n\n` +
-      `Knowledge Vault centralizes your team's operational knowledge, preventing context loss and accelerating the integration of new team members.\n\n` +
+      `Kote centralizes your team's operational knowledge, preventing context loss and accelerating the integration of new team members.\n\n` +
       `KEY FEATURES:\n` +
       `• GitHub Push Integration: Automatically capture commits with AI analysis\n` +
       `• WhatsApp & Telegram: Send audio/text to generate structured notes\n` +

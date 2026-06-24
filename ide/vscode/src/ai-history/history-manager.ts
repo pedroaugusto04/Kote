@@ -535,7 +535,7 @@ export class AiHistoryManager {
         sessionId: session.sessionId,
       });
 
-      vscode.window.showInformationMessage('Note saved to Knowledge Vault successfully!');
+      vscode.window.showInformationMessage('Note saved to Kote successfully!');
       vscode.commands.executeCommand('kb.refresh');
       return true;
     } catch (err: any) {
@@ -558,7 +558,7 @@ export class AiHistoryManager {
       });
 
       vscode.commands.executeCommand('kb.refresh');
-      vscode.window.showInformationMessage(`AI session auto-saved to Knowledge Vault — project: ${session.projectSlug || client.defaultProjectSlug || 'inbox'}.`);
+      vscode.window.showInformationMessage(`AI session auto-saved to Kote — project: ${session.projectSlug || client.defaultProjectSlug || 'inbox'}.`);
       return true;
     } catch (err: any) {
       logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);

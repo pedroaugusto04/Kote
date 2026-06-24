@@ -53,7 +53,7 @@ export function registerAskCommand(
                     sourceChannel: 'ai-chat',
                     source: 'open-code',
                   });
-                  vscode.window.showInformationMessage('Note saved to Knowledge Vault.');
+                  vscode.window.showInformationMessage('Note saved to Kote.');
                 } catch (err: unknown) {
                   reportError('save-note (from ask)', err);
                 }

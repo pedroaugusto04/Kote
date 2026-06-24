@@ -1,5 +1,5 @@
 /* ===========================================================================
-   Knowledge Vault — Service Worker
+   Kote — Service Worker
    Handles:
      1. Static asset caching (app shell) for offline and fast loads
      2. Push notification display and click handling

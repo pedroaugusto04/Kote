@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';" />
-  <title>Knowledge Vault</title>
+  <title>Kote</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -244,7 +244,7 @@
 
   <!-- Header -->
   <div class="header">
-    <span class="workspace-name" id="workspaceName">Knowledge Vault</span>
+    <span class="workspace-name" id="workspaceName">Kote</span>
     <div style="display:flex;align-items:center;gap:6px">
       <button class="icon-btn" id="btnRefresh" title="Refresh">↺</button>
       <div class="status-dot loading" id="statusDot"></div>
@@ -412,7 +412,7 @@
         break;
 
       case 'init': {
-        document.getElementById('workspaceName').textContent = msg.workspace || 'Knowledge Vault';
+        document.getElementById('workspaceName').textContent = msg.workspace || 'Kote';
         renderProjects(msg.projects, msg.project);
         renderNotes(msg.notes);
         renderReminders(msg.reminders);
