@@ -118,6 +118,8 @@ keys=(
   KB_EMAIL_WORKER_AUTORUN
   DEV_EMAIL
   DEV_EMAIL_INTERCEPT
+  # Test email authentication secret
+  KB_TEST_EMAIL_AUTH_SECRET
   # Email branding
   APP_NAME
   APP_LOGO_URL

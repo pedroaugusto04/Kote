@@ -53,6 +53,8 @@ services:
       KB_EMAIL_WORKER_AUTORUN: ${KB_EMAIL_WORKER_AUTORUN:-false}
       DEV_EMAIL_INTERCEPT: ${DEV_EMAIL_INTERCEPT:-false}
       DEV_EMAIL: ${DEV_EMAIL:-pedroaugustoaduarte@gmail.com}
+      # Test email authentication secret
+      KB_TEST_EMAIL_AUTH_SECRET: ${KB_TEST_EMAIL_AUTH_SECRET:-}
       # Email branding
       APP_NAME: ${APP_NAME:-Kote}
       APP_LOGO_URL: ${APP_LOGO_URL:-}
