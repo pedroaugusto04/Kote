@@ -21,24 +21,24 @@ export class WelcomeEmailService {
     const rawFrom = String(env.emailFrom || '');
     const displayFromMatch = rawFrom.match(/^\s*([^<]+)\s*</);
     const appName = displayFromMatch && displayFromMatch[1] ? displayFromMatch[1].trim() : 'Knowledge Base';
-    const subject = `Bem-vindo ao ${appName}!`;
+    const subject = `Welcome to ${appName}!`;
 
-    const text = `Olá ${user.displayName || 'usuário'},\n\n` +
-      `Obrigado por criar sua conta no ${appName}! Estamos felizes em tê-lo com a gente!\n\n` +
-      `O Knowledge Vault centraliza o conhecimento operacional da sua equipe, evitando perda de contexto e acelerando a integração de novos membros.\n\n` +
-      `RECURSOS PRINCIPAIS:\n` +
-      `• GitHub Push Integration: Capture commits automaticamente com análise de IA\n` +
-      `• WhatsApp & Telegram: Envie áudio/texto para gerar notas estruturadas\n` +
-      `• AI-Powered Conversations: Chat integrado para perguntar sobre sua base de conhecimento\n` +
-      `• CLI Tool & VS Code: Sync arquivos e sessões de IA direto do seu editor\n\n` +
-      `COMO COMEÇAR:\n` +
-      `1. Acesse sua conta e explore o Dashboard\n` +
-      `2. Configure suas Integrações (WhatsApp, Telegram, GitHub)\n` +
-      `3. Crie seu primeiro Projeto e adicione notas\n` +
-      `4. Experimente o Chat AI para buscar conhecimento\n` +
-      `5. Instale o CLI ou VS Code Extension para captura rápida\n\n` +
-      `Acesse sua conta em: ${env.publicBaseUrl || 'http://localhost:5173'}\n\n` +
-      `Obrigado por fazer parte da nossa equipe!`;
+    const text = `Hello ${user.displayName || 'user'},\n\n` +
+      `Thank you for creating your account on ${appName}! We're happy to have you with us!\n\n` +
+      `Knowledge Vault centralizes your team's operational knowledge, preventing context loss and accelerating the integration of new team members.\n\n` +
+      `KEY FEATURES:\n` +
+      `• GitHub Push Integration: Automatically capture commits with AI analysis\n` +
+      `• WhatsApp & Telegram: Send audio/text to generate structured notes\n` +
+      `• AI-Powered Conversations: Integrated chat to ask questions about your knowledge base\n` +
+      `• CLI Tool & VS Code: Sync files and AI sessions directly from your editor\n\n` +
+      `GETTING STARTED:\n` +
+      `1. Access your account and explore the Dashboard\n` +
+      `2. Configure your Integrations (WhatsApp, Telegram, GitHub)\n` +
+      `3. Create your first Project and add notes\n` +
+      `4. Try the AI Chat to search for knowledge\n` +
+      `5. Install the CLI or VS Code Extension for quick capture\n\n` +
+      `Access your account at: ${env.publicBaseUrl || 'http://localhost:5173'}\n\n` +
+      `Thank you for being part of our team!`;
 
     try {
       await this.emailService.sendEmail({

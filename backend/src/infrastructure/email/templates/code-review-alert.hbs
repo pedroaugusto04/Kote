@@ -1,36 +1,36 @@
-<h1>Alerta de Code Review AI</h1>
+<h1>AI Code Review Alert</h1>
 
-<p>A análise de IA identificou <strong>possíveis problemas de alta severidade</strong> neste commit. Este alerta é enviado apenas quando são encontrados problemas críticos ou de alta prioridade que requerem atenção.</p>
+<p>AI analysis has identified <strong>potential high-severity issues</strong> in this commit. This alert is only sent when critical or high-priority issues requiring attention are found.</p>
 
-<p><strong>Projeto:</strong> {{projectSlug}}</p>
-<p><strong>Repositório:</strong> {{repoFullName}}</p>
+<p><strong>Project:</strong> {{projectSlug}}</p>
+<p><strong>Repository:</strong> {{repoFullName}}</p>
 <p><strong>Commit:</strong> {{commitSha}}</p>
 {{#if compareUrl}}
-<p><strong>Comparar:</strong> <a href="{{compareUrl}}">{{compareUrl}}</a></p>
+<p><strong>Compare:</strong> <a href="{{compareUrl}}">{{compareUrl}}</a></p>
 {{/if}}
 {{#if noteLink}}
-<p><strong>Detalhes da nota:</strong> <a href="{{noteLink}}">{{noteLink}}</a></p>
+<p><strong>Note details:</strong> <a href="{{noteLink}}">{{noteLink}}</a></p>
 {{/if}}
 
-<h2 style="margin: 16px 0 8px;">Resumo</h2>
+<h2 style="margin: 16px 0 8px;">Summary</h2>
 <p>{{summary}}</p>
 {{#if impact}}
-<p><strong>Impacto:</strong></p>
+<p><strong>Impact:</strong></p>
 <p>{{impact}}</p>
 {{/if}}
 
-<h2 style="margin: 16px 0 8px;">Problemas Importantes</h2>
+<h2 style="margin: 16px 0 8px;">Important Issues</h2>
 {{#each findings}}
 <div style="margin: 12px 0; padding: 12px; background-color: #fef2f2; border-left: 4px solid #dc2626; border-radius: 4px;">
   <p style="margin: 0 0 8px;"><strong>{{severity}}</strong>{{#if file}} ({{file}}){{/if}}</p>
-  <p style="margin: 0 0 8px;"><strong>Problema:</strong> {{summary}}</p>
-  <p style="margin: 0;"><strong>Como corrigir:</strong> {{recommendation}}</p>
+  <p style="margin: 0 0 8px;"><strong>Issue:</strong> {{summary}}</p>
+  <p style="margin: 0;"><strong>How to fix:</strong> {{recommendation}}</p>
 </div>
 {{/each}}
 
 <p style="margin-top: 18px;">
   <a href="{{frontUrl}}/"
      style="display:inline-block; padding:12px 24px; background-color:#53c7de; color:#090f14; text-decoration:none; border-radius:8px;">
-     Abrir Knowledge Base
+     Open Knowledge Base
   </a>
 </p>
