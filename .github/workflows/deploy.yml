@@ -190,6 +190,9 @@ jobs:
           WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS: ${{ vars.WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS || '10' }}
           DEV_EMAIL: ${{ vars.DEV_EMAIL || '' }}
           DEV_EMAIL_INTERCEPT: ${{ vars.DEV_EMAIL_INTERCEPT || 'false' }}
+          # Email branding
+          APP_NAME: ${{ vars.APP_NAME || 'Knowledge Base' }}
+          APP_LOGO_URL: ${{ vars.APP_LOGO_URL || '' }}
         run: bash scripts/deploy/generate-backend-env.sh .deploy/backend.env
 
       - name: Validate production environment config
@@ -226,6 +229,9 @@ jobs:
           KB_EMAIL_SMTP_USER: ${{ secrets.SMTP_USER || '' }}
           KB_EMAIL_SMTP_PASS: ${{ secrets.SMTP_PASS || '' }}
           STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY || '' }}
+          # Email branding
+          APP_NAME: ${{ vars.APP_NAME || 'Knowledge Base' }}
+          APP_LOGO_URL: ${{ vars.APP_LOGO_URL || '' }}
         run: |
           set -euo pipefail
           test -n "$VPS_HOST" || { echo "Missing secret: VPS_HOST"; exit 1; }

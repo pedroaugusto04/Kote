@@ -27,16 +27,11 @@ export class WelcomeEmailService {
       `Obrigado por criar sua conta em ${appName}. Estamos felizes em tê-lo com a gente.\n\n` +
       `Acesse sua conta e comece a usar o serviço.`;
 
-    const html = `<p>Olá ${user.displayName || 'usuário'},</p>` +
-      `<p>Obrigado por criar sua conta em <strong>${appName}</strong>. Estamos felizes em tê-lo com a gente.</p>` +
-      `<p>Comece acessando sua conta e explorando o produto.</p>`;
-
     try {
       await this.emailService.sendEmail({
         to: user.email,
         subject,
         text,
-        html,
         templateName: 'welcome',
         templateData: { name: user.displayName, appName },
       });

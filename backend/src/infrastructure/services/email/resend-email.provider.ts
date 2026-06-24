@@ -1,3 +1,6 @@
+import fs from 'fs';
+import path from 'path';
+import Handlebars from 'handlebars';
 import { Resend } from 'resend';
 import { Injectable } from '@nestjs/common';
 
@@ -5,6 +8,7 @@ import type { EmailSendPayload } from '../../../application/models/email.models.
 import { EmailProvider } from '../../../application/ports/email/email-provider.js';
 import { RuntimeEnvironmentProvider } from '../../../application/ports/observability/runtime-environment.port.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { resolveEmailAppName, resolveEmailFrontUrl, resolveEmailLogoUrl } from '../../email/emailBranding.js';
 
 @Injectable()
 export class ResendEmailProvider extends EmailProvider {
@@ -42,11 +46,38 @@ export class ResendEmailProvider extends EmailProvider {
       });
     }
 
+    const frontUrl = resolveEmailFrontUrl();
+    let bodyHtml = payload.html ?? '';
+
+    if (payload.templateName) {
+      const templatePath = path.join(__dirname, '../../email/templates', `${payload.templateName}.hbs`);
+      const templateSource = fs.readFileSync(templatePath, 'utf8');
+      const template = Handlebars.compile(templateSource);
+
+      bodyHtml = template({
+        ...payload.templateData,
+        frontUrl,
+      });
+    }
+
+    // template base
+    const baseTemplatePath = path.join(__dirname, '../../email/templates', 'base.hbs');
+    const baseSource = fs.readFileSync(baseTemplatePath, 'utf8');
+    const baseTemplate = Handlebars.compile(baseSource);
+
+    const html = baseTemplate({
+      body: bodyHtml,
+      subject: payload.subject,
+      year: new Date().getFullYear(),
+      appName: resolveEmailAppName(),
+      appLogoUrl: resolveEmailLogoUrl(frontUrl),
+    });
+
     await this.getClient().emails.send({
       from,
       to: payload.to,
       subject: payload.subject,
-      html: payload.html ?? undefined,
+      html,
       text: payload.text ?? undefined,
       headers: {
         'X-KB-Service': 'Knowledge Base',

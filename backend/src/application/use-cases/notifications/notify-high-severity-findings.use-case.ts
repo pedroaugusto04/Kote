@@ -21,22 +21,35 @@ export class NotifyHighSeverityFindingsService {
       if (!to) return;
 
       const text = buildWhatsappHighSeverityCodeReviewMessage(payload, noteLink);
-      const html = `<div style="font-family:system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; white-space:pre-wrap">${this.escapeHtml(text)}</div>`;
+
+      const sections = payload.content.sections;
+      const findings = (sections.reviewFindings || []).filter((finding) => ['high', 'critical'].includes(finding.severity));
+      const sha = String(payload.metadata.headSha || '').trim();
+      const commitSha = sha ? sha.slice(0, 12) : 'unknown';
 
       await this.emailService.sendEmail({
         to,
         subject: `AI code review alert — ${String(payload.event?.projectSlug || '')}`,
         text,
-        html,
         templateName: 'code-review-alert',
-        templateData: { payload, noteLink },
+        templateData: {
+          projectSlug: payload.event.projectSlug,
+          repoFullName: String(payload.metadata.repoFullName || '').trim() || payload.source.conversationId || 'unknown',
+          commitSha,
+          compareUrl: String(payload.metadata.compareUrl || ''),
+          noteLink: noteLink || '',
+          summary: sections.summary || payload.content.rawText,
+          impact: sections.impact || '',
+          findings: findings.slice(0, 5).map((finding) => ({
+            severity: finding.severity.toUpperCase(),
+            file: finding.file || '',
+            summary: finding.summary,
+            recommendation: finding.recommendation || 'Review this issue before moving forward with the change.',
+          })),
+        },
       });
     } catch (error) {
       this.logger.warn('notify_high_findings.email_failed', { error: error instanceof Error ? error.message : String(error) });
     }
-  }
-
-  private escapeHtml(input: string): string {
-    return String(input || '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
   }
 }

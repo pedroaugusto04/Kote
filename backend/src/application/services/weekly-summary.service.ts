@@ -96,13 +96,25 @@ export class WeeklySummaryService {
           }
           textParts.push('\nThanks — sent by your KB');
 
-          const html = `<p>Hi ${user.displayName || ''},</p><p>Here is your weekly activity summary:</p>${Object.entries(userNotesByProject).map(([project, items])=>`<h4>${project} — ${items.length} note${(items as any[]).length>1?'s':''}</h4><ul>${(items as any[]).map(i=>`<li>${i.title} — ${new Date(i.createdAt).toISOString().slice(0,10)}</li>`).join('')}</ul>`).join('')}<p>Thanks — sent by your KB</p>`;
+          const projects = Object.entries(userNotesByProject).map(([projectSlug, items]) => ({
+            projectName: projectSlug,
+            count: items.length,
+            notes: (items as any[]).map((item) => ({
+              title: item.title,
+              date: new Date(item.createdAt).toISOString().slice(0, 10),
+            })),
+          }));
 
           await this.emailService.sendEmail({
             to: user.email,
             subject,
             text: textParts.join('\n'),
-            html,
+            templateName: 'weekly-summary',
+            templateData: {
+              displayName: user.displayName || '',
+              appName,
+              projects,
+            },
           });
         } catch (err) {
           this.logger.error('weekly_summary.failed_send', { userId: uid, error: err instanceof Error ? err.message : String(err) });

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{subject}}</title>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f9fafb;
+      color: #111827;
+      margin: 0;
+      padding: 0;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    .email-header {
+      background-color: #0284c7;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .email-header h2 {
+      color: #ffffff !important;
+      margin: 0;
+    }
+    .email-header img {
+      height: auto;
+      max-width: 72px;
+      max-height: 72px;
+      width: auto;
+      display: block;
+      margin: 0 auto 10px;
+    }
+    .email-body {
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .email-body h1 {
+      color: #1f2937;
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .email-body a {
+      display: inline-block;
+      background-color: #0284c7;
+      color: white !important;
+      text-decoration: none;
+      padding: 10px 20px;
+      border-radius: 5px;
+      margin-top: 10px;
+    }
+    .email-footer {
+      background-color: #f3f4f6;
+      color: #6b7280;
+      text-align: center;
+      font-size: 12px;
+      padding: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="email-header">
+      {{#if appLogoUrl}}
+      <img src="{{appLogoUrl}}" alt="{{appName}} Logo" />
+      {{/if}}
+      <h2 style="color: #ffffff; margin: 0;">{{appName}}</h2>
+    </div>
+    <div class="email-body">
+      {{{body}}}
+    </div>
+    <div class="email-footer">
+      &copy; {{year}} {{appName}}. Todos os direitos reservados.
+    </div>
+  </div>
+</body>
+</html>

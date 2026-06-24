@@ -24,7 +24,7 @@ services:
       # Email configuration
       KB_EMAIL_PROVIDER: ${KB_EMAIL_PROVIDER:-resend}
       KB_EMAIL_RESEND_API_KEY: ${KB_EMAIL_RESEND_API_KEY:-}
-      KB_EMAIL_FROM: ${KB_EMAIL_FROM:-KnowledgeBase <onboarding@resend.dev>}
+      KB_EMAIL_FROM: ${KB_EMAIL_FROM:-Knowledge Base <onboarding@resend.dev>}
       KB_EMAIL_SMTP_HOST: ${KB_EMAIL_SMTP_HOST:-}
       KB_EMAIL_SMTP_PORT: ${KB_EMAIL_SMTP_PORT:-587}
       KB_EMAIL_SMTP_USER: ${KB_EMAIL_SMTP_USER:-}
@@ -36,6 +36,9 @@ services:
       KB_EMAIL_WORKER_AUTORUN: ${KB_EMAIL_WORKER_AUTORUN:-true}
       DEV_EMAIL_INTERCEPT: ${DEV_EMAIL_INTERCEPT:-false}
       DEV_EMAIL: ${DEV_EMAIL:-pedroaugustoaduarte@gmail.com}
+      # Email branding (production defaults)
+      APP_NAME: ${APP_NAME:-Knowledge Base}
+      APP_LOGO_URL: ${APP_LOGO_URL:-}
       
       KB_EMBEDDING_AI_PROVIDER: ${KB_EMBEDDING_AI_PROVIDER:-gemini}
       KB_EMBEDDING_AI_BASE_URL: ${KB_EMBEDDING_AI_BASE_URL}

@@ -117,6 +117,9 @@ keys=(
   KB_EMAIL_QUEUE_ROUTING_KEY
   KB_EMAIL_WORKER_AUTORUN
   DEV_EMAIL
+  # Email branding
+  APP_NAME
+  APP_LOGO_URL
 )
 
 for key in "${keys[@]}"; do
