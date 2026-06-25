@@ -146,11 +146,20 @@ export class SubscriptionUpgradeService {
   }
 
   private priceForCycle(
-    plan: { priceCents: number; priceUsdCents: number },
+    plan: { priceCents: number; priceUsdCents: number; slug: string },
     cycle: BillingCycle,
     gateway: GatewayNameEnum,
   ): number {
     const unitCents = resolvePlanPriceCentsForGateway(plan, gateway);
+
+    // Free plan has price 0 by design
+    if (plan.slug === 'free') {
+      return 0;
+    }
+
+    if (unitCents <= 0) {
+      throw new BadRequestException(`Plan price not configured for ${gateway === GatewayNameEnum.STRIPE ? 'Stripe' : 'Asaas'}`);
+    }
 
     if (cycle === BillingCycle.YEARLY) {
       const annualPrice = (unitCents * 12 * 0.8) / 100;
