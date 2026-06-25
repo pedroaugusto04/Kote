@@ -18,6 +18,7 @@ import { StripeCardCapture, type StripeCardCaptureHandle } from '../../features/
 import { PageHead, Panel, InlineMessage } from '../../shared/ui/primitives';
 import { formatCpfCnpj, isValidCpfCnpjFormat } from '../../shared/utils/cpf-cnpj';
 import { detectUserCountry } from '../../shared/utils/location';
+import { useGlobalLoading } from '../../app/global-loading';
 import { BILLING_ERROR_MESSAGES, BILLING_CYCLE, BILLING_TYPE, SUBSCRIPTION_CHANGE_KIND, SUBSCRIPTION_STATUS, type BillingCycle, type BillingType } from '../../shared/constants/billing.constants';
 import {
   canChooseManualMonthlyPayment,
@@ -32,6 +33,7 @@ import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 
 export function SubscriptionPage() {
   const queryClient = useQueryClient();
+  const globalLoading = useGlobalLoading();
 
   const { data: countryData } = useQuery({
     queryKey: ['billing', 'detectedCountry'],
@@ -142,7 +144,7 @@ export function SubscriptionPage() {
 
   // Mutations
   const updateMutation = useMutation({
-    mutationFn: updateSubscription,
+    mutationFn: (params: Parameters<typeof updateSubscription>[0]) => globalLoading.trackPromise(updateSubscription(params)),
     onSuccess: (data) => {
       queryClient.setQueryData(['billing', 'status'], data);
       setIsChoiceModalOpen(false);

@@ -75,6 +75,14 @@
   color: #ffffff;
 }
 
+:root[data-theme="light"] .icon-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--surface-2);
+  border-color: var(--line);
+  color: var(--text-soft);
+}
+
 :root[data-theme="light"] .icon-button.secondary {
   background: var(--surface-2);
   border-color: var(--line);
