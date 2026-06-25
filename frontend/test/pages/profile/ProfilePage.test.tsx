@@ -26,10 +26,38 @@ describe('ProfilePage', () => {
   });
 
   it('shows the current user and workspace details', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({
-      ok: true,
-      user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl: null },
-    })));
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === '/api/auth/me') {
+        return Response.json({
+          ok: true,
+          user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl: null },
+        });
+      }
+      if (url === '/api/billing/status') {
+        return Response.json({
+          ok: true,
+          plan: 'free',
+          status: 'active',
+          currentPeriodEnd: '2026-07-01T00:00:00Z',
+          cpfCnpj: '',
+          limits: {
+            storage: 10737418240,
+            aiCredits: 100,
+            workspaces: 3,
+            projects: 10,
+          },
+          usage: {
+            storage: 5368709120,
+            aiCredits: 25,
+            workspaces: 1,
+            projects: 5,
+          },
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
 
     renderWithAppProviders(<ProfilePage workspace={workspace} />);
 
@@ -57,6 +85,27 @@ describe('ProfilePage', () => {
         return Response.json({
           ok: true,
           user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl },
+        });
+      }
+      if (url === '/api/billing/status') {
+        return Response.json({
+          ok: true,
+          plan: 'free',
+          status: 'active',
+          currentPeriodEnd: '2026-07-01T00:00:00Z',
+          cpfCnpj: '',
+          limits: {
+            storage: 10737418240,
+            aiCredits: 100,
+            workspaces: 3,
+            projects: 10,
+          },
+          usage: {
+            storage: 5368709120,
+            aiCredits: 25,
+            workspaces: 1,
+            projects: 5,
+          },
         });
       }
       if (url === '/api/auth/avatar' && init?.method === 'PUT') {
@@ -91,6 +140,27 @@ describe('ProfilePage', () => {
           user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl: null },
         });
       }
+      if (url === '/api/billing/status') {
+        return Response.json({
+          ok: true,
+          plan: 'free',
+          status: 'active',
+          currentPeriodEnd: '2026-07-01T00:00:00Z',
+          cpfCnpj: '',
+          limits: {
+            storage: 10737418240,
+            aiCredits: 100,
+            workspaces: 3,
+            projects: 10,
+          },
+          usage: {
+            storage: 5368709120,
+            aiCredits: 25,
+            workspaces: 1,
+            projects: 5,
+          },
+        });
+      }
       if (url === '/api/auth/avatar' && init?.method === 'PUT') {
         return Response.json({
           ok: false,
@@ -122,6 +192,27 @@ describe('ProfilePage', () => {
         return Response.json({
           ok: true,
           user: { id: 'user-1', email: 'ada@example.com', displayName: 'Ada Lovelace', role: 'owner', avatarUrl },
+        });
+      }
+      if (url === '/api/billing/status') {
+        return Response.json({
+          ok: true,
+          plan: 'free',
+          status: 'active',
+          currentPeriodEnd: '2026-07-01T00:00:00Z',
+          cpfCnpj: '',
+          limits: {
+            storage: 10737418240,
+            aiCredits: 100,
+            workspaces: 3,
+            projects: 10,
+          },
+          usage: {
+            storage: 5368709120,
+            aiCredits: 25,
+            workspaces: 1,
+            projects: 5,
+          },
         });
       }
       if (url === '/api/auth/avatar' && init?.method === 'DELETE') {
