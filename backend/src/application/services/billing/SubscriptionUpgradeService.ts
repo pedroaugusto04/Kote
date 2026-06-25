@@ -2,12 +2,14 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { eq } from 'drizzle-orm';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 import { plans } from '../../../infrastructure/persistence/schema/index.js';
-import { BillingCycle } from '../../../domain/enums/billing.enums.js';
+import { BillingCycle, BillingType } from '../../../domain/enums/billing.enums.js';
 import { resolvePlanPriceCentsForGateway, resolvePlanValueForCycle } from '../../../domain/utils/plan-pricing.utils.js';
+import { formatGatewayDueDate } from '../../../domain/utils/subscription.utils.js';
 import { compareMoney, PLAN_PRICE_SCALE, toMoneyDecimal, toMoneyNumber } from '../../../infrastructure/utils/money.js';
 import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
 import { GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { toGatewayBillingType } from '../../../infrastructure/billing/helpers/billingTypeMapper.js';
 import { AppLogger } from '../../../observability/logger.js';
 import type { SubscriptionContext } from './subscriptionStrategy/subscriptionContext.js';
 
@@ -37,19 +39,36 @@ export class SubscriptionUpgradeService {
       ? this.stripePaymentGateway
       : this.asaasPaymentGateway;
 
-    const gatewaySubscription = await gateway.getSubscriptionByGatewayId(ctx.activeSub.gatewaySubscriptionId);
+    let gatewaySubscription = await gateway.getSubscriptionByGatewayId(ctx.activeSub.gatewaySubscriptionId);
+    
+    // If subscription doesn't exist in gateway, create it
     if (!gatewaySubscription?.nextDueDate) {
-      this.logger.error('subscription_upgrade.gateway_subscription_missing', {
+      this.logger.warn('subscription_upgrade.gateway_subscription_missing_creating', {
         gatewaySubscriptionId: ctx.activeSub.gatewaySubscriptionId,
         gateway: ctx.gateway,
         userId: ctx.userId,
         activePlanId: ctx.activePlan?.id,
         newPlanId: ctx.newPlan?.id,
       });
-      throw new BadRequestException('Unable to change subscription plan. The subscription could not be found in the payment gateway. Please contact support.');
+
+      const price = resolvePlanValueForCycle(ctx.activePlan, ctx.activeSub.billingCycle, ctx.gateway);
+      const nextDueDate = ctx.activeSub.nextDueDate || new Date();
+      const newGatewaySubscription = await gateway.createSubscription({
+        customerId: ctx.gatewayCustomerId,
+        billingType: toGatewayBillingType(ctx.newBillingType),
+        value: price,
+        cycle: ctx.activeSub.billingCycle,
+        nextDueDate: formatGatewayDueDate(nextDueDate),
+        description: `Subscription ${ctx.activePlan.displayName}`,
+        creditCardToken: ctx.newCreditCardToken,
+        userId: ctx.userId,
+        externalReference: ctx.userId,
+      });
+
+      gatewaySubscription = newGatewaySubscription;
     }
 
-    const periodEnd = ctx.activeSub.nextDueDate ?? new Date(gatewaySubscription.nextDueDate);
+    const periodEnd = ctx.activeSub.nextDueDate ?? (gatewaySubscription.nextDueDate ? new Date(gatewaySubscription.nextDueDate) : new Date());
     const deltaPrice = await this.calculateProrationUpgradeValue({
       currentPlanId: ctx.activePlan.id,
       newPlanId: ctx.newPlan.id,
