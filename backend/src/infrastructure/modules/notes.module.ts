@@ -36,7 +36,6 @@ import { AutoActionWorker } from '../../workers/auto-action.worker.js';
 import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
 import { SettingsRepository } from '../../application/ports/settings.repository.js';
 import { NotesController } from '../../interfaces/http/controllers/index.js';
-import { SetNoteAutoActionUseCase } from '../../application/use-cases/notes/set-note-auto-action.use-case.js';
 
 @Module({
   imports: [
@@ -59,7 +58,6 @@ import { SetNoteAutoActionUseCase } from '../../application/use-cases/notes/set-
     CreateManualNoteUseCase,
     UpdateNoteUseCase,
     DeleteNoteUseCase,
-    SetNoteAutoActionUseCase,
     GetNoteAttachmentContentUseCase,
     GetNoteDetailUseCase,
     EmbeddingWorker,
@@ -70,7 +68,6 @@ import { SetNoteAutoActionUseCase } from '../../application/use-cases/notes/set-
     
     GetAutoActionGlobalUseCase,
     SetAutoActionGlobalUseCase,
-    SetNoteAutoActionUseCase,
     AskKnowledgeUseCase,
     ResolveWhatsappAskAttachmentsUseCase,
     RunAskAiUseCase,

@@ -20,7 +20,6 @@ import {
   noteAttachmentContentParamSchema,
   noteIdParamSchema,
   updateNoteBodySchema,
-  autoActionBodySchema,
   autoActionGlobalSchema,
   pinNoteBodySchema,
   type CreateNoteBody,

@@ -102,12 +102,6 @@ export type NoteIdParam = z.infer<typeof noteIdParamSchema>;
 export type NoteAttachmentContentParam = z.infer<typeof noteAttachmentContentParamSchema>;
 export type UpdateNoteBody = z.infer<typeof updateNoteBodySchema>;
 
-export const autoActionBodySchema = z.object({
-  autoAction: z.enum(['none', 'resolved', 'archived']),
-  autoAfterHours: z.number().int().positive().optional().nullable(),
-}).strict();
-export type AutoActionBody = z.infer<typeof autoActionBodySchema>;
-
 export const autoActionGlobalSchema = z.object({
   enabled: z.boolean(),
   action: z.enum(['none', 'resolved', 'archived']),
