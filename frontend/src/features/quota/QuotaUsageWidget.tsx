@@ -84,16 +84,6 @@ export function QuotaUsageWidget({ status, compact, hideTitle, aiOnly }: QuotaUs
         <MetricBar key={metric.label} metric={metric} compact={compact} />
       ))}
 
-      {hasWarning && !compact && (
-        <div className="quota-warning-callout" role="alert">
-          <span>⚠️</span>
-          <span>
-            You are approaching your monthly limit.{' '}
-            <Link to="/subscription">Upgrade your plan</Link> to continue without interruption.
-          </span>
-        </div>
-      )}
-
       {compact && hasWarning && (
         <Link to="/subscription" className="quota-upgrade-link" title="Upgrade plan">
           ↑ Upgrade plan

@@ -368,6 +368,15 @@ export function AppShell() {
   return (
     <div className="app-shell">
       <OfflineBanner />
+      {showQuotaWarningDot && (
+        <div className="global-banner warning" style={{ padding: '12px 16px', background: 'var(--surface-warning)', borderBottom: '1px solid var(--warning-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+          <span style={{ fontSize: '16px' }}>⚠️</span>
+          <span style={{ fontSize: '14px', color: 'var(--warning-text)' }}>
+            You are approaching your monthly limit.{' '}
+            <Link to="/automations/subscription" style={{ color: 'var(--warning-text)', textDecoration: 'underline', fontWeight: 600 }}>Upgrade your plan</Link> to continue without interruption.
+          </span>
+        </div>
+      )}
       <button
         aria-label={UI_MESSAGES.CLOSE_NAVIGATION}
         aria-hidden={!isMobileNavOpen}

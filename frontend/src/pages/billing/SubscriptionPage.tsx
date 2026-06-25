@@ -529,17 +529,6 @@ export function SubscriptionPage() {
               </div>
             )}
 
-            {/* Current Usage Panel */}
-            <div style={{ marginBottom: '24px', padding: '20px', background: 'var(--surface-2)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-strong)' }}>Current Usage</h2>
-                <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 500 }}>
-                  AI Credits: 5 per ask · 3 per agent turn · 10 per code review
-                </span>
-              </div>
-              <QuotaUsageWidget status={status} />
-            </div>
-
             {/* Plan Display Header & Toggle */}
             <div className="subscription-header-row">
               <div>

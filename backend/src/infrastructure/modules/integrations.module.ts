@@ -10,6 +10,7 @@ import { RemindersModule } from './reminders.module.js';
 import { OperationsModule } from './operations.module.js';
 import { WorkspacesModule } from './workspaces.module.js';
 import { EmailModule } from './email.module.js';
+import { QuotaModule } from './quota.module.js';
 
 import {
   IntegrationConnectionService,
@@ -52,6 +53,7 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     OperationsModule,
     WorkspacesModule,
     EmailModule,
+    QuotaModule,
   ],
   controllers: [
     UserIntegrationsController,

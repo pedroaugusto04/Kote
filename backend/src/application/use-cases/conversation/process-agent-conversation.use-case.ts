@@ -145,7 +145,7 @@ export class ProcessAgentConversationUseCase {
         });
         return this.reply(
           AgentConversationAction.Ask,
-          `⚠️ You have used all your AI credits for this month (${quotaResult.current}/${quotaResult.limit} credits). Your quota resets at the start of next month.`,
+          `⚠️ You have used all your AI credits for this month (${quotaResult.current}/${quotaResult.limit} credits). Your quota resets at the start of next month.\n\n💡 Upgrade your plan to get more AI credits: https://kote.ai/automations/subscription`,
           null,
           state,
         );
