@@ -100,7 +100,9 @@ export class WeeklySummaryService {
     if (totalNotes === 0) return { sent: false, reason: 'no_notes', totalNotes: 0 };
 
     const environment = this.environmentProvider.read();
-    const appName = (environment.emailFrom || 'Kote').split('@')[0];
+    const rawFrom = String(environment.emailFrom || '');
+    const displayFromMatch = rawFrom.match(/^\s*([^<]+)\s*</);
+    const appName = displayFromMatch && displayFromMatch[1] ? displayFromMatch[1].trim() : 'Kote';
 
     // Check if review AI is active globally
     if (environment.reviewAiProvider === AiProvider.None) {
