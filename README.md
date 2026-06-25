@@ -144,7 +144,19 @@ Save code snippets or entire files directly from your editor. Right-click select
 
 For complete extension documentation, see [ide/vscode/README.md](ide/vscode/README.md).
 
+## Quality Gates
+
+Run the project checks from the repository root:
+
+```bash
+npm run lint              # ESLint baseline for backend, frontend, CLI, and extensions
+npm run lint:architecture # Layering/import boundary checks
+npm run lint:security     # Security-focused ESLint rules
+npm run quality           # Lint, builds, and test suites
+```
+
+The ESLint baseline is intentionally incremental: architecture violations are errors, while security and cleanup findings start as warnings because the existing codebase has known legacy findings that need triage before they can safely block CI.
+
 ## License
 
 See [LICENSE](LICENSE) for terms of use.
-
