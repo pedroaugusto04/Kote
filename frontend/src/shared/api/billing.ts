@@ -12,7 +12,7 @@ export interface PlanDTO {
   priceUsd: number;
   annualPriceUsd: number;
   maxStorageBytes: number;
-  maxAiRequestsPerMonth: number;
+  maxAiCreditsPerMonth: number;
   maxWorkspaces: number;
   maxProjectsPerWorkspace: number;
   isDefault: boolean;
@@ -79,13 +79,13 @@ export interface QuotaAndBillingStatusDTO {
   cpfCnpj?: string;
   limits: {
     storage: number;
-    aiRequests: number;
+    aiCredits: number;
     workspaces: number;
     projects: number;
   };
   usage: {
     storage: number;
-    aiRequests: number;
+    aiCredits: number;
     workspaces: number;
     projects: number;
   };

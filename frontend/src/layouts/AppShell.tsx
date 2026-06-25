@@ -6,6 +6,9 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
 import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite } from '../shared/api/client';
+import { fetchSubscriptionStatus } from '../shared/api/billing';
+import { QuotaUsageWidget } from '../features/quota/QuotaUsageWidget';
+import { hasQuotaWarning } from '../features/quota/quota.utils';
 import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { HomePage } from '../pages/home/HomePage';
@@ -133,6 +136,16 @@ export function AppShell() {
     enabled: Boolean(dashboard && activeWorkspace && !isSetupRoute),
   });
   const currentUser = currentUserQuery.data?.user;
+
+  // Quota status — loaded lazily, refreshed every 60s, used for compact sidebar widget
+  const quotaStatusQuery = useQuery({
+    queryKey: ['billing', 'status'],
+    queryFn: fetchSubscriptionStatus,
+    staleTime: 60_000,
+    enabled: Boolean(dashboard && activeWorkspace && !isSetupRoute),
+  });
+  const quotaStatus = quotaStatusQuery.data;
+  const showQuotaWarningDot = quotaStatus ? hasQuotaWarning(quotaStatus) : false;
 
   useLayoutEffect(() => {
     if (dashboardQuery.isLoading && !dashboardQuery.data) {
@@ -523,6 +536,7 @@ export function AppShell() {
                 onClick={() => setIsProfileMenuOpen((current) => !current)}
                 title={UI_MESSAGES.USER_MENU}
                 type="button"
+                style={{ position: 'relative' }}
               >
                 <UserAvatar
                   avatarUrl={currentUser?.avatarUrl}
@@ -530,6 +544,21 @@ export function AppShell() {
                   displayName={currentUser?.displayName}
                   email={currentUser?.email}
                 />
+                {showQuotaWarningDot && (
+                  <span
+                    title="AI credit quota is running low"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: 'hsl(38, 90%, 52%)',
+                      border: '2px solid var(--surface-1)',
+                    }}
+                  />
+                )}
               </button>
               {isProfileMenuOpen ? (
                 <div className="profile-menu-popover" role="menu">
@@ -554,6 +583,11 @@ export function AppShell() {
                   <Link className="profile-menu-link" role="menuitem" to={routes.subscription}>
                     Subscription
                   </Link>
+                  {quotaStatus && (
+                    <div style={{ padding: '12px 12px 4px', borderTop: '1px solid var(--border-subtle)', marginTop: 4 }}>
+                      <QuotaUsageWidget status={quotaStatus} compact aiOnly hideTitle={false} />
+                    </div>
+                  )}
                   <Link className="profile-menu-link" role="menuitem" to={routes.automations}>
                     Automations
                   </Link>

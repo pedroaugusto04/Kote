@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { QuotaRepository } from '../ports/quota/quota.repository.js';
 import { UserRepository } from '../ports/auth/auth.repository.js';
-import { QuotaResourceType, SubscriptionPlan } from '../../domain/enums/plans.enums.js';
+import { QuotaResourceType, AiOperationType, SubscriptionPlan } from '../../domain/enums/plans.enums.js';
+import { AI_CREDIT_COSTS } from '../../domain/constants/ai-credits.constants.js';
 import type { PlanRecord } from '../models/repository-records.models.js';
 
 export interface QuotaStatus {
@@ -11,13 +12,13 @@ export interface QuotaStatus {
   cpfCnpj?: string;
   limits: {
     storage: number;
-    aiRequests: number;
+    aiCredits: number;
     workspaces: number;
     projects: number;
   };
   usage: {
     storage: number;
-    aiRequests: number;
+    aiCredits: number;
     workspaces: number;
     projects: number;
   };
@@ -36,7 +37,6 @@ export class QuotaService {
     requestedAmount = 1,
     context?: { workspaceId?: string },
   ): Promise<{ allowed: boolean; limit: number; current: number }> {
-    // 1. Get active user subscription or default to free plan
     const activeSub = await this.quotaRepository.getSubscription(userId);
     let plan: PlanRecord;
     let periodStart = new Date(0);
@@ -52,22 +52,15 @@ export class QuotaService {
         throw new Error('Default "free" plan not found in database. Seed must be run.');
       }
       plan = freePlan;
-      // For free tier users, quota usage (like AI requests) resets monthly based on the calendar month
       const now = new Date();
       periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
       periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     }
 
-    // 2. Fetch base plan limit
     const baseLimit = Number(this.getBaseLimit(plan, resourceType));
-
-    // 3. Fetch active adjustments for this resource type
     const adjustments = await this.quotaRepository.getActiveAdjustments(userId, resourceType);
     const extraLimit = adjustments.reduce((acc, adj) => acc + adj.amount, 0);
-
     const totalLimit = baseLimit === -1 ? -1 : baseLimit + extraLimit;
-
-    // 4. Fetch current usage
     const currentUsage = await this.getCurrentUsage(userId, resourceType, periodStart, periodEnd, context);
 
     return {
@@ -93,11 +86,40 @@ export class QuotaService {
     });
   }
 
+  /**
+   * Convenience method for AI operations: checks the AI credit quota and, if
+   * allowed, immediately records the usage event in a single call.
+   *
+   * Credit cost is resolved from AI_CREDIT_COSTS (domain/constants/ai-credits.constants.ts).
+   *
+   * @returns `{ allowed: false }` when quota is exceeded — callers must handle
+   *          this gracefully (e.g. friendly WPP message) instead of throwing.
+   */
+  async checkAndIncrementAiUsage(
+    userId: string,
+    operation: AiOperationType,
+    metadata?: Record<string, unknown>,
+  ): Promise<{ allowed: boolean; limit: number; current: number }> {
+    const credits = AI_CREDIT_COSTS[operation] ?? 1;
+    const result = await this.checkQuota(userId, QuotaResourceType.AI_REQUEST, credits);
+    if (!result.allowed) {
+      return result;
+    }
+    await this.incrementUsage(
+      userId,
+      QuotaResourceType.AI_REQUEST,
+      credits,
+      operation,
+      metadata,
+    );
+    return result;
+  }
+
   async getQuotaStatus(userId: string): Promise<QuotaStatus> {
     const activeSub = await this.quotaRepository.getSubscription(userId);
     let plan: PlanRecord;
     let status = 'active';
-    let currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days fallback
+    let currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     let periodStart = new Date(0);
     let periodEnd = new Date(32503680000000);
 
@@ -113,14 +135,12 @@ export class QuotaService {
         throw new Error('Default "free" plan not found in database. Seed must be run.');
       }
       plan = freePlan;
-      // For free tier users, quota usage resets monthly based on the calendar month
       const now = new Date();
       periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
       periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
       currentPeriodEnd = periodEnd.toISOString();
     }
 
-    // Fetch user's cpfCnpj
     const user = await this.userRepository.findUserById(userId);
     const cpfCnpj = user?.cpfCnpj || '';
 
@@ -130,8 +150,8 @@ export class QuotaService {
     const storageLimitTotal = storageLimitBase === -1 ? -1 : storageLimitBase + storageAdjustments.reduce((acc, a) => acc + a.amount, 0);
     const storageUsage = await this.quotaRepository.getAttachmentStorageUsage(userId);
 
-    // AI Requests
-    const aiLimitBase = Number(plan.maxAiRequestsPerMonth);
+    // AI Credits
+    const aiLimitBase = Number(plan.maxAiCreditsPerMonth);
     const aiAdjustments = await this.quotaRepository.getActiveAdjustments(userId, QuotaResourceType.AI_REQUEST);
     const aiLimitTotal = aiLimitBase === -1 ? -1 : aiLimitBase + aiAdjustments.reduce((acc, a) => acc + a.amount, 0);
     const aiUsage = await this.quotaRepository.getCurrentUsage(userId, QuotaResourceType.AI_REQUEST, periodStart, periodEnd);
@@ -142,7 +162,7 @@ export class QuotaService {
     const workspacesLimitTotal = workspacesLimitBase === -1 ? -1 : workspacesLimitBase + workspacesAdjustments.reduce((acc, a) => acc + a.amount, 0);
     const workspacesUsage = await this.quotaRepository.getWorkspaceCount(userId);
 
-    // Projects (we return limits representing the project count per workspace, so we don't count across any specific workspace here)
+    // Projects (per-workspace cap)
     const projectsLimitBase = Number(plan.maxProjectsPerWorkspace);
     const projectsAdjustments = await this.quotaRepository.getActiveAdjustments(userId, QuotaResourceType.PROJECT);
     const projectsLimitTotal = projectsLimitBase === -1 ? -1 : projectsLimitBase + projectsAdjustments.reduce((acc, a) => acc + a.amount, 0);
@@ -154,15 +174,15 @@ export class QuotaService {
       cpfCnpj,
       limits: {
         storage: storageLimitTotal,
-        aiRequests: aiLimitTotal,
+        aiCredits: aiLimitTotal,
         workspaces: workspacesLimitTotal,
         projects: projectsLimitTotal,
       },
       usage: {
         storage: storageUsage,
-        aiRequests: aiUsage,
+        aiCredits: aiUsage,
         workspaces: workspacesUsage,
-        projects: 0, // dynamic in workspace context
+        projects: 0,
       },
     };
   }
@@ -172,7 +192,7 @@ export class QuotaService {
       case QuotaResourceType.STORAGE:
         return plan.maxStorageBytes;
       case QuotaResourceType.AI_REQUEST:
-        return plan.maxAiRequestsPerMonth;
+        return plan.maxAiCreditsPerMonth;
       case QuotaResourceType.WORKSPACE:
         return plan.maxWorkspaces;
       case QuotaResourceType.PROJECT:

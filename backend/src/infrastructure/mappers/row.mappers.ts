@@ -342,7 +342,7 @@ export function planFromRow(row: Row): PlanRecord {
     displayName: fieldString(row, 'display_name', 'displayName'),
     description: fieldString(row, 'description', 'description'),
     maxStorageBytes: Number(field(row, 'max_storage_bytes', 'maxStorageBytes') || 0),
-    maxAiRequestsPerMonth: Number(field(row, 'max_ai_requests_per_month', 'maxAiRequestsPerMonth') || 0),
+    maxAiCreditsPerMonth: Number(field(row, 'max_ai_credits_per_month', 'maxAiCreditsPerMonth') || 0),
     maxWorkspaces: Number(field(row, 'max_workspaces', 'maxWorkspaces') || 0),
     maxProjectsPerWorkspace: Number(field(row, 'max_projects_per_workspace', 'maxProjectsPerWorkspace') || 0),
     priceCents: Number(field(row, 'price_cents', 'priceCents') || 0),

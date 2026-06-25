@@ -8,7 +8,7 @@ export interface SubscriptionPlanDTO {
   priceCents: number;
   priceUsdCents: number;
   maxStorageBytes: number;
-  maxAiRequestsPerMonth: number;
+  maxAiCreditsPerMonth: number;
   maxWorkspaces: number;
   maxProjectsPerWorkspace: number;
   isActive: boolean;

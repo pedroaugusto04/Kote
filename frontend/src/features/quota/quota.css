@@ -1,0 +1,139 @@
+/* QuotaUsageWidget — standalone CSS */
+
+.quota-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── Compact variant (sidebar / header) ──────────────────────────────────── */
+.quota-widget--compact {
+  gap: 8px;
+}
+
+.quota-widget--compact .quota-metric-label {
+  font-size: 11px;
+}
+
+.quota-widget--compact .quota-metric-values {
+  font-size: 11px;
+}
+
+.quota-widget--compact .quota-bar {
+  height: 3px;
+}
+
+/* ── Metric row ──────────────────────────────────────────────────────────── */
+.quota-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quota-metric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.quota-metric-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted, #888);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quota-metric-values {
+  font-size: 12px;
+  color: var(--text-strong, #e0e0e0);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.quota-metric-values--unlimited {
+  color: var(--text-muted, #888);
+}
+
+/* ── Progress bar ────────────────────────────────────────────────────────── */
+.quota-bar-track {
+  width: 100%;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--surface-3, rgba(255,255,255,0.08));
+  overflow: hidden;
+}
+
+.quota-bar {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 2px;
+}
+
+.quota-bar--success { background: hsl(150, 60%, 45%); }
+.quota-bar--warning { background: hsl(38, 90%, 52%); }
+.quota-bar--danger  { background: hsl(0, 70%, 55%); }
+.quota-bar--unlimited { background: var(--surface-4, rgba(255,255,255,0.12)); }
+
+/* ── Section header ─────────────────────────────────────────────────────── */
+.quota-widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.quota-widget-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-strong, #e0e0e0);
+  letter-spacing: 0.01em;
+}
+
+.quota-reset-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  background: var(--surface-3, rgba(255,255,255,0.06));
+  border: 1px solid var(--border-subtle, rgba(255,255,255,0.08));
+  padding: 2px 8px;
+  border-radius: 99px;
+}
+
+/* ── Warning callout ────────────────────────────────────────────────────── */
+.quota-warning-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface-warning, rgba(245, 158, 11, 0.08));
+  border: 1px solid var(--warning-border, rgba(245, 158, 11, 0.25));
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--warning-text, hsl(38, 90%, 60%));
+}
+
+.quota-warning-callout a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Upgrade prompt ─────────────────────────────────────────────────────── */
+.quota-upgrade-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--accent, #7c6af5);
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 2px;
+  transition: opacity 0.15s;
+}
+
+.quota-upgrade-link:hover { opacity: 0.8; }

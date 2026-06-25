@@ -499,7 +499,7 @@ export const plans = pgTable('kb_plans', {
   displayName: text('display_name').notNull(),
   description: text('description').notNull().default(''),
   maxStorageBytes: bigint('max_storage_bytes', { mode: 'number' }).notNull(),
-  maxAiRequestsPerMonth: integer('max_ai_requests_per_month').notNull(),
+  maxAiCreditsPerMonth: integer('max_ai_credits_per_month').notNull(),
   maxWorkspaces: integer('max_workspaces').notNull(),
   maxProjectsPerWorkspace: integer('max_projects_per_workspace').notNull(),
   priceCents: integer('price_cents').notNull().default(0),

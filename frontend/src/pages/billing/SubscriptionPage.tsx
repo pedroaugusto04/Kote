@@ -15,6 +15,7 @@ import {
   type ScheduledChangeDTO
 } from '../../shared/api/billing';
 import { StripeCardCapture, type StripeCardCaptureHandle } from '../../features/billing/StripeCardCapture';
+import { QuotaUsageWidget } from '../../features/quota/QuotaUsageWidget';
 import { PageHead, Panel, InlineMessage } from '../../shared/ui/primitives';
 import { formatCpfCnpj, isValidCpfCnpjFormat } from '../../shared/utils/cpf-cnpj';
 import { detectUserCountry } from '../../shared/utils/location';
@@ -528,6 +529,17 @@ export function SubscriptionPage() {
               </div>
             )}
 
+            {/* Current Usage Panel */}
+            <div style={{ marginBottom: '24px', padding: '20px', background: 'var(--surface-2)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-strong)' }}>Current Usage</h2>
+                <span style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 500 }}>
+                  AI Credits: 5 per ask · 3 per agent turn · 10 per code review
+                </span>
+              </div>
+              <QuotaUsageWidget status={status} />
+            </div>
+
             {/* Plan Display Header & Toggle */}
             <div className="subscription-header-row">
               <div>
@@ -606,7 +618,7 @@ export function SubscriptionPage() {
                         <svg className="plan-feature-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                         </svg>
-                        {plan.maxAiRequestsPerMonth === -1 ? 'Unlimited' : plan.maxAiRequestsPerMonth} AI Queries / month
+                        {plan.maxAiCreditsPerMonth === -1 ? 'Unlimited' : plan.maxAiCreditsPerMonth} AI Credits / month
                       </li>
                       <li className="plan-feature-item">
                         <svg className="plan-feature-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">

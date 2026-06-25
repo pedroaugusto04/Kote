@@ -228,7 +228,7 @@ export type PlanRecord = {
   displayName: string;
   description: string;
   maxStorageBytes: number;
-  maxAiRequestsPerMonth: number;
+  maxAiCreditsPerMonth: number;
   maxWorkspaces: number;
   maxProjectsPerWorkspace: number;
   priceCents: number;

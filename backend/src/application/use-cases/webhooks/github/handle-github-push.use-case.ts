@@ -15,6 +15,8 @@ import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.r
 import { absoluteUrl } from '../../../utils/integration-status.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
+import { QuotaService } from '../../../services/quota.service.js';
+import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 
 type GithubPushPayload = {
   ref?: string;
@@ -55,6 +57,7 @@ export class HandleGithubPushUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
+    private readonly quotaService?: QuotaService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
@@ -116,7 +119,16 @@ export class HandleGithubPushUseCase {
           ignored: 'github_repository_not_selected',
         };
       }
-      const aiCredential = this.credentials
+      // Check AI credit quota — if exceeded, degrade gracefully (ingest without AI analysis).
+      const quotaOk = this.quotaService
+        ? await this.quotaService.checkAndIncrementAiUsage(
+            identity.userId,
+            AiOperationType.GITHUB_CODE_REVIEW,
+            { repoFullName, source: 'github_push_webhook' },
+          ).then((r) => r.allowed)
+        : true;
+
+      const aiCredential = this.credentials && quotaOk
         ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.AiReview)
         : null;
       const aiEnabled = Boolean(aiCredential && aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);

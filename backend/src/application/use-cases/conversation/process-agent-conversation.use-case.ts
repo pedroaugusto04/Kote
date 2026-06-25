@@ -23,6 +23,8 @@ import { buildProjectFolderTree } from '../../utils/project-folder.utils.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { ConversationAgentPresenter } from './services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './services/conversation-folder-resolution.service.js';
+import { QuotaService } from '../../services/quota.service.js';
+import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import {
   buildAgentConversationPayload as buildAgentPayload,
   buildNextAgentConversationState,
@@ -63,6 +65,7 @@ export class ProcessAgentConversationUseCase {
     private readonly conversationAgentGateway: ConversationAgentGateway,
     private readonly presenter: ConversationAgentPresenter,
     private readonly folderResolutionService: ConversationFolderResolutionService,
+    private readonly quotaService?: QuotaService,
     private readonly credentials?: CredentialRepository,
     private readonly logger?: AppLogger,
   ) {}
@@ -124,12 +127,38 @@ export class ProcessAgentConversationUseCase {
   ): Promise<AgentConversationResult> {
     const messageText = String(input.messageText || '').trim();
     const environment = this.environmentProvider.read();
+
+    // Check AI credit quota before invoking the LLM.
+    // Graceful degradation: return friendly message instead of throwing to avoid crashing the WPP flow.
+    if (this.quotaService) {
+      const quotaResult = await this.quotaService.checkAndIncrementAiUsage(
+        userId,
+        AiOperationType.AGENT_CONVERSATION_TURN,
+        { workspaceSlug, source: 'agent_conversation' },
+      );
+      if (!quotaResult.allowed) {
+        this.logger?.warn('conversation.agent.quota_exceeded', {
+          userId,
+          workspaceSlug,
+          limit: quotaResult.limit,
+          current: quotaResult.current,
+        });
+        return this.reply(
+          AgentConversationAction.Ask,
+          `⚠️ You have used all your AI credits for this month (${quotaResult.current}/${quotaResult.limit} credits). Your quota resets at the start of next month.`,
+          null,
+          state,
+        );
+      }
+    }
+
     const { candidateProjectSlug, candidateFolders, decision } = await this.requestAgentDecision(
       input,
       userId,
       workspaceSlug,
       state,
     );
+
     if (this.isEmptyAgentDraftAsk(decision)) {
       return this.reply(AgentConversationAction.Ask, this.presenter.couldNotUnderstand(), null, state);
     }
