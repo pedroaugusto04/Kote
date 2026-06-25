@@ -131,10 +131,14 @@ export class ChatPanelProvider {
   private _buildHtml(webview: vscode.Webview, extensionUri: vscode.Uri): string {
     const nonce = crypto.randomBytes(16).toString('hex');
     const htmlPath = path.join(extensionUri.fsPath, 'webview', 'chat.html');
+    const logoUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(extensionUri, 'resources', 'Kote-Logo.png'),
+    ).toString();
 
     let html = fs.readFileSync(htmlPath, 'utf8');
     html = html.replace(/\$\{nonce\}/g, nonce);
     html = html.replace(/\$\{cspSource\}/g, webview.cspSource);
+    html = html.replace(/\$\{logoUri\}/g, logoUri);
     return html;
   }
 

@@ -251,10 +251,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     const nonce = crypto.randomBytes(16).toString('hex');
     const templateName = isConfigured() ? 'chat.html' : 'login.html';
     const htmlPath = path.join(this._extensionUri.fsPath, 'webview', templateName);
+    const logoUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, 'resources', 'Kote-Logo.png'),
+    ).toString();
 
     let html = fs.readFileSync(htmlPath, 'utf8');
     html = html.replace(/\$\{nonce\}/g, nonce);
     html = html.replace(/\$\{cspSource\}/g, webview.cspSource);
+    html = html.replace(/\$\{logoUri\}/g, logoUri);
     return html;
   }
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';" />
+        content="default-src 'none'; style-src 'unsafe-inline'; img-src ${cspSource} data:; script-src 'nonce-${nonce}';" />
   <title>Kote: Ask AI</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -317,9 +317,10 @@
       color: var(--vscode-foreground);
     }
     .top-logo-icon {
-      width: 14px;
-      height: 14px;
-      color: var(--vscode-textLink-foreground);
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      object-fit: cover;
     }
     .logout-btn {
       background: none;
@@ -341,12 +342,7 @@
 
   <div class="top-bar">
     <span class="top-title">
-      <svg class="top-logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 7a2 2 0 0 1 2-2h4.5a1 1 0 0 1 .7.3l2.1 2.1a1 1 0 0 0 .7.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-        <path d="M7 10v6" stroke-width="2" />
-        <path d="M11 10L7 13l4 3" stroke-width="2" />
-        <path d="M13 10.5l2 5.2 2-5.2" stroke-width="2" />
-      </svg>
+      <img class="top-logo-icon" src="${logoUri}" alt="Kote" />
       Kote
     </span>
     <button class="logout-btn" id="logoutBtn" title="Logout">Logout</button>
@@ -356,12 +352,7 @@
   <div id="messages">
     <div class="empty-state" id="emptyState">
       <div class="empty-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 7a2 2 0 0 1 2-2h4.5a1 1 0 0 1 .7.3l2.1 2.1a1 1 0 0 0 .7.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-          <path d="M7 10v6" stroke-width="2" />
-          <path d="M11 10L7 13l4 3" stroke-width="2" />
-          <path d="M13 10.5l2 5.2 2-5.2" stroke-width="2" />
-        </svg>
+        <img src="${logoUri}" alt="Kote" style="width:52px;height:52px;border-radius:10px;object-fit:cover;opacity:0.7;" />
       </div>
       <h2>Kote</h2>
       <p>Type normal text to save it as a note, or start with <code>/ask</code> to search your Kote.</p>

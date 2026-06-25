@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';" />
+        content="default-src 'none'; style-src 'unsafe-inline'; img-src ${cspSource} data:; script-src 'nonce-${nonce}';" />
   <title>Kote: Authentication</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -55,10 +55,11 @@
       justify-content: center;
       align-items: center;
     }
-    .logo svg {
-      width: 48px;
-      height: 48px;
-      color: var(--vscode-button-background);
+    .logo img {
+      width: 56px;
+      height: 56px;
+      border-radius: 10px;
+      object-fit: cover;
     }
     h2 {
       font-size: 16px;
@@ -258,12 +259,7 @@
 
   <div class="header">
     <div class="logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 7a2 2 0 0 1 2-2h4.5a1 1 0 0 1 .7.3l2.1 2.1a1 1 0 0 0 .7.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-        <path d="M7 10v6" stroke-width="2" />
-        <path d="M11 10L7 13l4 3" stroke-width="2" />
-        <path d="M13 10.5l2 5.2 2-5.2" stroke-width="2" />
-      </svg>
+      <img src="${logoUri}" alt="Kote" />
     </div>
     <h2>Kote</h2>
     <div class="subtitle">Connect your account to synchronize notes</div>

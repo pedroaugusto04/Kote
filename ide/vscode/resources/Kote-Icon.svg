@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- Circuit connector lines (left protrusions) -->
+  <line x1="24" y1="34" x2="6" y2="34" stroke="black" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="6" cy="34" r="4.5" fill="black"/>
+  <line x1="24" y1="50" x2="6" y2="50" stroke="black" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="6" cy="50" r="4.5" fill="black"/>
+  <line x1="24" y1="66" x2="6" y2="66" stroke="black" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="6" cy="66" r="4.5" fill="black"/>
+
+  <!-- Rounded square border (open at bottom-right for the pin) -->
+  <path d="M24 20 Q24 10 34 10 L78 10 Q88 10 88 20 L88 68"
+        stroke="black" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M24 80 L24 20"
+        stroke="black" stroke-width="8" stroke-linecap="round" fill="none"/>
+  <path d="M24 80 Q24 90 34 90 L62 90"
+        stroke="black" stroke-width="8" stroke-linecap="round" fill="none"/>
+
+  <!-- K letter -->
+  <line x1="38" y1="27" x2="38" y2="73" stroke="black" stroke-width="7.5" stroke-linecap="round"/>
+  <line x1="38" y1="50" x2="60" y2="27" stroke="black" stroke-width="7.5" stroke-linecap="round"/>
+  <line x1="38" y1="50" x2="60" y2="73" stroke="black" stroke-width="7.5" stroke-linecap="round"/>
+
+  <!-- Location pin hanging from bottom-right of square -->
+  <line x1="88" y1="68" x2="88" y2="84" stroke="black" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="88" cy="91" r="6" fill="black"/>
+</svg>
