@@ -21,14 +21,12 @@ import { PushNotificationService } from '../../application/services/push-notific
 import { PushNotificationReminderListener } from '../../application/services/push-notification-reminder.listener.js';
 import { TelegramReminderListener } from '../../application/services/telegram-reminder.listener.js';
 import { VapidService } from '../../application/services/vapid.service.js';
-import { WeeklySummaryService } from '../../application/services/weekly-summary.service.js';
 import { WhatsappReplySender } from '../../application/ports/integrations/whatsapp-reply.sender.js';
 import { WhatsappMediaDownloader } from '../../application/ports/integrations/whatsapp-media.downloader.js';
 import { TelegramMessageSender } from '../../application/ports/integrations/telegram-message.sender.js';
 import { ReminderDeliveryGateway } from '../../application/ports/reminders/reminder-delivery.gateway.js';
 import { EvolutionWhatsappReplySender, EvolutionReminderDeliveryGateway, EvolutionWhatsappMediaDownloader } from '../../adapters/evolution.js';
 import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../../adapters/telegram.js';
-import { WeeklySummaryWorker } from '../../application/services/workers/weekly-summary.worker.js';
 
 @Module({
   imports: [
@@ -52,9 +50,6 @@ import { WeeklySummaryWorker } from '../../application/services/workers/weekly-s
     PushNotificationReminderListener,
     TelegramReminderListener,
     VapidService,
-    // Weekly summary
-    WeeklySummaryService,
-    WeeklySummaryWorker,
     EvolutionWhatsappReplySender,
     EvolutionReminderDeliveryGateway,
     EvolutionWhatsappMediaDownloader,
@@ -64,9 +59,6 @@ import { WeeklySummaryWorker } from '../../application/services/workers/weekly-s
     { provide: WhatsappMediaDownloader, useExisting: EvolutionWhatsappMediaDownloader },
     { provide: TelegramMessageSender, useExisting: TelegramHttpMessageSender },
     { provide: ReminderDeliveryGateway, useExisting: EvolutionReminderDeliveryGateway },
-    // export weekly summary worker/service
-    WeeklySummaryService,
-    WeeklySummaryWorker,
   ],
   exports: [
     BuildReminderDispatchUseCase,

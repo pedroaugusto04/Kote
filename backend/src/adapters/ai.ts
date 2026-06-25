@@ -3,7 +3,8 @@ import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInpu
 import { runChatCompletion, runStructuredChatCompletion, type ChatConfig } from '../infrastructure/ai/openai-compatible-chat.js';
 import { buildConversationAgentSystemPrompt, buildConversationAgentTurnPrompt, type ConversationAgentTurnPayload } from '../infrastructure/ai/prompts/conversation-agent.prompt.js';
 import { buildReviewAnalysisSystemPrompt, parseReviewAnalysis, reviewAnalysisFallback, type ReviewAnalysis } from '../infrastructure/ai/prompts/review-analysis.prompt.js';
-import { buildWeeklySummarySystemPrompt, parseWeeklySummary, weeklySummaryFallback, type WeeklySummaryAnalysis } from '../infrastructure/ai/prompts/weekly-summary.prompt.js';
+import { buildWeeklySummarySystemPrompt, parseWeeklySummary, weeklySummaryFallback } from '../infrastructure/ai/prompts/weekly-summary.prompt.js';
+import type { WeeklySummaryAnalysis } from '../contracts/weekly-summary.js';
 
 export type { ChatConfig, ConversationAgentTurnPayload, ReviewAnalysis, WeeklySummaryAnalysis };
 

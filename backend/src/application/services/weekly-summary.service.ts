@@ -10,7 +10,7 @@ import { UserRepository } from '../ports/auth/auth.repository.js';
 import { CredentialRepository } from '../ports/integrations/integrations.repository.js';
 import { WeeklySummaryGateway } from '../ports/weekly-summary/weekly-summary.port.js';
 import { AiProvider, IntegrationProvider } from '../../contracts/enums.js';
-import type { WeeklySummaryAnalysis } from '../../infrastructure/ai/prompts/weekly-summary.prompt.js';
+import type { WeeklySummaryAnalysis } from '../../contracts/weekly-summary.js';
 
 @Injectable()
 export class WeeklySummaryService {

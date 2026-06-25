@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from './logger.module.js';
 import { EnvModule } from './env.module.js';
 import { DatabaseModule } from './database.module.js';
+import { WeeklySummaryModule } from './weekly-summary.module.js';
 import { EmailService } from '../../application/services/email.service.js';
 import { EmailProvider } from '../../application/ports/email/email-provider.js';
 import { EmailQueuePublisher } from '../../application/ports/email/email-queue.publisher.js';
@@ -15,12 +16,11 @@ import { AppLogger } from '../../observability/logger.js';
 import { RuntimeEnvironmentProvider } from '../../application/ports/observability/runtime-environment.port.js';
 import { TestEmailController } from '../../interfaces/http/controllers/test-email/test-email.controller.js';
 import { WelcomeEmailService } from '../../application/use-cases/welcome-email.use-case.js';
-import { WeeklySummaryService } from '../../application/services/weekly-summary.service.js';
 import { NotifyHighSeverityFindingsService } from '../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
 import { UserService } from '../../application/services/user.service.js';
 
 @Module({
-  imports: [LoggerModule, EnvModule, DatabaseModule],
+  imports: [LoggerModule, EnvModule, DatabaseModule, WeeklySummaryModule],
   providers: [
     AppLogger,
     RabbitMqEmailQueuePublisher,
@@ -30,7 +30,6 @@ import { UserService } from '../../application/services/user.service.js';
     SmtpEmailProvider,
     FakeEmailProvider,
     WelcomeEmailService,
-    WeeklySummaryService,
     NotifyHighSeverityFindingsService,
     UserService,
     {

@@ -1,5 +1,5 @@
 import type { AiProvider } from '../../../contracts/enums.js';
-import type { WeeklySummaryAnalysis } from '../../../infrastructure/ai/prompts/weekly-summary.prompt.js';
+import type { WeeklySummaryAnalysis } from '../../../contracts/weekly-summary.js';
 
 export type WeeklySummaryConfig = {
   provider: AiProvider;

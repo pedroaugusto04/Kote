@@ -1,17 +1,4 @@
-export type WeeklySummaryAnalysis = {
-  overview: string;
-  keyHighlights: string[];
-  byProject: Array<{
-    projectName: string;
-    summary: string;
-    noteCount: number;
-    notableNotes: Array<{
-      title: string;
-      summary: string;
-    }>;
-  }>;
-  recommendations: string[];
-};
+import type { WeeklySummaryAnalysis } from '../../../contracts/weekly-summary.js';
 
 export const weeklySummaryFallback: WeeklySummaryAnalysis = {
   overview: 'Weekly summary is available.',
