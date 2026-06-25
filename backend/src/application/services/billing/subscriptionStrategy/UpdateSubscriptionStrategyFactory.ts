@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { SubscriptionChangeKind } from '../../../../domain/enums/billing.enums.js';
 import { resolvePlanPriceCentsForGateway } from '../../../../domain/utils/plan-pricing.utils.js';
 import { SubscriptionContext } from './subscriptionContext.js';
@@ -15,7 +15,7 @@ export class UpdateSubscriptionStrategyFactory {
 
     // Validate: cannot mix gateways for existing subscriptions
     if (activeSub.gatewayName && ctx.gateway !== activeSub.gatewayName) {
-      throw new Error(`Cannot change gateway from ${activeSub.gatewayName} to ${ctx.gateway}. Please cancel current subscription first.`);
+      throw new BadRequestException(`Cannot change gateway from ${activeSub.gatewayName} to ${ctx.gateway}. Please cancel current subscription first.`);
     }
 
     const activePriceCents = resolvePlanPriceCentsForGateway(
