@@ -51,7 +51,7 @@ export class SubscriptionUpgradeService {
         newPlanId: ctx.newPlan?.id,
       });
 
-      const price = resolvePlanValueForCycle(ctx.activePlan, ctx.activeSub.billingCycle, ctx.gateway);
+      const price = resolvePlanValueForCycle(ctx.newPlan, ctx.activeSub.billingCycle, ctx.gateway);
       const nextDueDate = ctx.activeSub.nextDueDate || new Date();
       const newGatewaySubscription = await gateway.createSubscription({
         customerId: ctx.gatewayCustomerId,
@@ -59,7 +59,7 @@ export class SubscriptionUpgradeService {
         value: price,
         cycle: ctx.activeSub.billingCycle,
         nextDueDate: formatGatewayDueDate(nextDueDate),
-        description: `Subscription ${ctx.activePlan.displayName}`,
+        description: `Subscription ${ctx.newPlan.displayName}`,
         creditCardToken: ctx.newCreditCardToken,
         userId: ctx.userId,
         externalReference: ctx.userId,
