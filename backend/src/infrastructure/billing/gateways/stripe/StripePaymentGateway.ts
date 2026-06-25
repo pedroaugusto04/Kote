@@ -342,6 +342,7 @@ export class StripePaymentGateway implements IPaymentGateway {
     }
 
     const centsValue = Math.round(input.value * 100);
+    const returnUrl = process.env.KB_PUBLIC_BASE_URL || process.env.APP_URL || 'http://localhost:5173';
     const body: any = {
       amount: centsValue,
       currency: 'usd',
@@ -360,6 +361,7 @@ export class StripePaymentGateway implements IPaymentGateway {
       body.confirm = true;
       body.off_session = false;
       body.setup_future_usage = 'off_session';
+      body.return_url = `${returnUrl}/subscription`;
     } else {
       body.automatic_payment_methods = {
         enabled: true,
