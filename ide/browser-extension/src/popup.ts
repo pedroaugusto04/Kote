@@ -1,8 +1,8 @@
 import type { ClipPayload } from './parser.js';
 
 interface ProjectInfo {
-  slug: string;
-  name: string;
+  projectSlug: string;
+  displayName: string;
 }
 
 // Global state
@@ -283,7 +283,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (res.ok) {
         const data = await res.json();
+        console.log('Projects API response:', data);
         const list: ProjectInfo[] = data.projects ?? data.items ?? [];
+        console.log('Projects list:', list);
 
         // Clear default option
         selectProject.innerHTML = '';
@@ -297,8 +299,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Add projects from API
         for (const proj of list) {
           const opt = document.createElement('option');
-          opt.value = proj.slug;
-          opt.textContent = proj.name || proj.slug;
+          opt.value = proj.projectSlug;
+          opt.textContent = proj.displayName || proj.projectSlug;
           selectProject.appendChild(opt);
         }
       } else {
