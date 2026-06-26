@@ -72,13 +72,14 @@ export function clearGoogleOAuthStateCookie(response: Response) {
 
 export function assertTrustedBrowserOrigin(request: Request) {
   const originOrReferer = request.headers.origin || request.headers.referer;
+  console.log('Origin check - headers:', { origin: request.headers.origin, referer: request.headers.referer, originOrReferer });
   if (!originOrReferer) return;
   const actualOrigin = new URL(String(originOrReferer)).origin;
   if (actualOrigin.startsWith('chrome-extension://')) {
     const extensionId = actualOrigin.replace('chrome-extension://', '');
     const environment = readEnvironment();
     const allowedIds = environment.allowedExtensionIds;
-    console.log('Extension origin check:', { actualOrigin, extensionId, allowedIds });
+    console.log('Extension origin check:', { actualOrigin, extensionId, allowedIds, length: allowedIds.length });
     if (allowedIds.length > 0) {
       if (allowedIds.includes(extensionId)) {
         return;
