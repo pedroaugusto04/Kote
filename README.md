@@ -147,7 +147,7 @@ For complete extension documentation, see [ide/vscode/README.md](ide/vscode/READ
 ### Browser Extension
 
 <p align="center">
-  <img src="frontend/public/browser-extension-window.png" alt="Browser Extension" width="80%" style="max-height: 400px;">
+  <img src="frontend/public/browser-extension-window.png" alt="Browser Extension" width="70%" style="max-height: 350px;">
   <br><em>Browser extension for quick web clipping and saving content to your Kote.</em>
 </p>
 
