@@ -38,10 +38,13 @@ export class ResolveWhatsappAskAttachmentsUseCase {
       input.relatedNotes,
     );
 
+    console.log('[resolve-attachments] workspaceSlug:', input.workspaceSlug, 'noteIds:', noteIds, 'sources:', input.sources, 'relatedNotes:', input.relatedNotes);
+
     // 1. Gather all attachments across the identified notes
     const allAttachments: Array<{ noteId: string; attachment: any }> = [];
     for (const noteId of noteIds) {
       const attachments = await this.contentRepository.listAttachments(input.userId, noteId);
+      console.log('[resolve-attachments] noteId:', noteId, 'attachments found:', attachments.length);
       for (const attachment of attachments) {
         allAttachments.push({ noteId, attachment });
       }
@@ -64,15 +67,23 @@ export class ResolveWhatsappAskAttachmentsUseCase {
     let missingContentCount = 0;
     const media: WhatsappAskAttachmentMedia[] = [];
 
+    console.log('[resolve-attachments] allAttachments:', allAttachments.length, 'attachmentsToSend:', attachmentsToSend.length);
+
     for (const { noteId, attachment } of attachmentsToSend) {
+      console.log('[resolve-attachments] processing attachment:', attachment.fileName, 'size:', attachment.sizeBytes, 'storageKey:', attachment.storageKey);
       if (attachment.sizeBytes > maxAttachmentBytes) {
         oversizedCount += 1;
+        console.log('[resolve-attachments] attachment oversized, skipping');
         continue;
       }
-      if (media.length >= maxAttachmentsPerReply) continue;
+      if (media.length >= maxAttachmentsPerReply) {
+        console.log('[resolve-attachments] max attachments reached, skipping');
+        continue;
+      }
 
       try {
         const body = await this.objectStorage.get(attachment.storageKey);
+        console.log('[resolve-attachments] successfully loaded attachment from storage, size:', body.length);
         media.push({
           noteId,
           attachmentId: attachment.id,
@@ -83,6 +94,7 @@ export class ResolveWhatsappAskAttachmentsUseCase {
           mediaBase64: body.toString('base64'),
         });
       } catch (error) {
+        console.log('[resolve-attachments] error loading attachment:', error);
         if (error instanceof ObjectStorageMissingContentError) {
           missingContentCount += 1;
           continue;
@@ -90,6 +102,8 @@ export class ResolveWhatsappAskAttachmentsUseCase {
         throw error;
       }
     }
+
+    console.log('[resolve-attachments] final result:', { noteCount: noteIds.length, attachmentCount: allAttachments.length, mediaCount: media.length, oversizedCount, missingContentCount });
 
     return {
       requested: true,

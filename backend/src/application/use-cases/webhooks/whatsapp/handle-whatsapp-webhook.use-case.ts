@@ -370,9 +370,11 @@ export class HandleWhatsappWebhookUseCase {
   private async sendAskAttachments(chatJid: string, attachmentResolution: WhatsappAskAttachmentResolution) {
     let sentCount = 0;
     let failedCount = 0;
+    console.log('[send-attachments] chatJid:', chatJid, 'requested:', attachmentResolution.requested, 'mediaCount:', attachmentResolution.media.length, 'whatsappReplySender configured:', !!this.whatsappReplySender);
     if (!attachmentResolution.requested || !this.whatsappReplySender) return { sentCount, failedCount };
 
     for (const media of attachmentResolution.media) {
+      console.log('[send-attachments] sending media:', media.fileName, 'type:', media.mediaType, 'size:', media.mediaBase64.length);
       const result = await this.whatsappReplySender.sendMedia({
         chatJid,
         mediaType: media.mediaType,
@@ -380,6 +382,7 @@ export class HandleWhatsappWebhookUseCase {
         fileName: media.fileName,
         mediaBase64: media.mediaBase64,
       });
+      console.log('[send-attachments] send result:', result);
       if (result.ok) {
         sentCount += 1;
       } else {
@@ -394,6 +397,7 @@ export class HandleWhatsappWebhookUseCase {
       }
     }
 
+    console.log('[send-attachments] final counts:', { sentCount, failedCount });
     return { sentCount, failedCount };
   }
 
