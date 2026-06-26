@@ -53,11 +53,11 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
 
   // Auto-focus display name input on mount
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const frame = requestAnimationFrame(() => {
       const input = formRef.current?.querySelector('input[name="displayName"]') as HTMLInputElement | null;
       input?.focus();
-    }, 100);
-    return () => clearTimeout(timer);
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
   const createWorkspaceMutation = useMutation({
