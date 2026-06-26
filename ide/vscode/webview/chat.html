@@ -563,6 +563,8 @@
   let lastQuestion = '';
   let conversationHistory = vscode.getState()?.history ?? [];
   let historyLoaded = false;
+  let askHistory = vscode.getState()?.askHistory ?? [];
+  let visibleMessageCount = vscode.getState()?.visibleMessageCount ?? 20;
 
   // ── Tab switching ─────────────────────────────────────────────────────────
 
@@ -573,9 +575,16 @@
     document.getElementById('tabChat').classList.toggle('active', isChat);
     document.getElementById('tabHistory').classList.toggle('active', !isChat);
 
-    if (!isChat && !historyLoaded) {
-      historyLoaded = true;
-      vscode.postMessage({ type: 'loadHistory' });
+    if (!isChat) {
+      if (askHistory.length > 0) {
+        renderHistory(askHistory);
+      } else if (!historyLoaded) {
+        historyLoaded = true;
+        // Show loading state
+        const container = document.getElementById('historyContent');
+        container.innerHTML = '<div class="history-empty">Loading history…</div>';
+        vscode.postMessage({ type: 'loadHistory' });
+      }
     }
   }
 
@@ -586,6 +595,8 @@
 
   document.getElementById('clearHistoryBtn').addEventListener('click', () => {
     if (confirm('Clear all ask history?')) {
+      askHistory = [];
+      vscode.setState({ ...vscode.getState(), askHistory });
       vscode.postMessage({ type: 'clearHistory' });
     }
   });
@@ -889,7 +900,9 @@
       }
 
       case 'historyLoaded': {
-        renderHistory(msg.entries);
+        askHistory = msg.entries;
+        vscode.setState({ ...vscode.getState(), askHistory });
+        renderHistory(askHistory);
         break;
       }
 
@@ -1096,23 +1109,65 @@
   function restoreConversationHistory() {
     if (conversationHistory.length > 0) {
       hideEmpty();
-      conversationHistory.forEach((turn) => {
-        addUserMessage(turn.question);
-        const el = document.createElement('div');
-        el.className = 'msg kb';
-        el.innerHTML = `
-          <div class="msg-sender">Kote</div>
-          <div class="bubble">${renderMarkdown(turn.answer)}</div>
-          <div class="bubble-actions">
-            <button class="action-btn" data-action="save" data-idx="${conversationHistory.indexOf(turn)}">Save as note</button>
-            <button class="action-btn" data-action="copy" data-idx="${conversationHistory.indexOf(turn)}">Copy</button>
-          </div>
-        `;
-        document.getElementById('messages').appendChild(el);
-      });
+      renderVisibleMessages();
       scrollToBottom();
     }
   }
+
+  function renderVisibleMessages() {
+    const messagesContainer = document.getElementById('messages');
+    const startIndex = Math.max(0, conversationHistory.length - visibleMessageCount);
+    const visibleTurns = conversationHistory.slice(startIndex);
+
+    // Clear existing messages except empty state
+    const existingMessages = messagesContainer.querySelectorAll('.msg');
+    existingMessages.forEach(el => el.remove());
+
+    visibleTurns.forEach((turn) => {
+      const idx = conversationHistory.indexOf(turn);
+      addUserMessage(turn.question);
+      const el = document.createElement('div');
+      el.className = 'msg kb';
+      el.innerHTML = `
+        <div class="msg-sender">Kote</div>
+        <div class="bubble">${renderMarkdown(turn.answer)}</div>
+        <div class="bubble-actions">
+          <button class="action-btn" data-action="save" data-idx="${idx}">Save as note</button>
+          <button class="action-btn" data-action="copy" data-idx="${idx}">Copy</button>
+        </div>
+      `;
+      messagesContainer.appendChild(el);
+    });
+
+    // Add load more indicator if there are more messages
+    if (conversationHistory.length > visibleMessageCount) {
+      const loadMoreEl = document.createElement('div');
+      loadMoreEl.id = 'loadMoreIndicator';
+      loadMoreEl.style.textAlign = 'center';
+      loadMoreEl.style.padding = '10px';
+      loadMoreEl.style.color = 'var(--vscode-descriptionForeground)';
+      loadMoreEl.style.fontSize = '11px';
+      loadMoreEl.style.cursor = 'pointer';
+      loadMoreEl.textContent = '↑ Load older messages';
+      loadMoreEl.addEventListener('click', loadOlderMessages);
+      messagesContainer.insertBefore(loadMoreEl, messagesContainer.firstChild);
+    }
+  }
+
+  function loadOlderMessages() {
+    visibleMessageCount += 20;
+    renderVisibleMessages();
+    // Save the visible count to state
+    vscode.setState({ ...vscode.getState(), visibleMessageCount });
+  }
+
+  // Scroll-based lazy loading
+  document.getElementById('messages').addEventListener('scroll', () => {
+    const messagesContainer = document.getElementById('messages');
+    if (messagesContainer.scrollTop < 100 && conversationHistory.length > visibleMessageCount) {
+      loadOlderMessages();
+    }
+  });
 
   // Init
   restoreConversationHistory();
