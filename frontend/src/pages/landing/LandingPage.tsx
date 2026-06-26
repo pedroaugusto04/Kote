@@ -53,7 +53,7 @@ export function LandingPage() {
   return (
     <main className="landing-layout">
       <section className="landing-shell" aria-label="Kote landing page">
-        
+
         {/* HEADER / TOPBAR */}
         <header className="landing-topbar">
           <Link className="landing-brand" to={routes.auth} aria-label="Kote">
@@ -78,7 +78,7 @@ export function LandingPage() {
               Your team writes the code. Let us <span className="landing-highlight auth-typewriter-word" style={{ position: 'relative', display: 'inline-block' }}><span style={{ visibility: 'hidden', userSelect: 'none', pointerEvents: 'none' }}>{fullWord}</span><span style={{ position: 'absolute', left: 0, bottom: 0, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{animatedWord}<span className="auth-typewriter-cursor" aria-hidden="true" /></span></span> the context.
             </h1>
             <p className="landing-lead">
-              Keep notes, WhatsApp & Telegram logs, GitHub PR reviews, decisions, and reminders unified. 
+              Keep notes, WhatsApp & Telegram logs, GitHub PR reviews, decisions, and reminders unified.
               Turn unstructured engineering chat into searchable context.
             </p>
             <div className="landing-actions">
@@ -92,7 +92,7 @@ export function LandingPage() {
                 <div className="landing-mock-browser-dot" />
                 <div className="landing-mock-browser-dot" />
                 <div className="landing-mock-browser-dot" />
-                <div className="landing-mock-browser-url">https://pedro-duarte.ddns.net/kote/</div>
+                <div className="landing-mock-browser-url">https://knowledgebase.sbs/kote/</div>
               </div>
               <img src={withFrontendBasePath('/dashboard-screenshot.png')} alt="Kote Dashboard" className="landing-real-screenshot" />
             </div>
@@ -106,7 +106,7 @@ export function LandingPage() {
               <span className="landing-kicker">The Context Gap</span>
               <h2 id="timeline-title">The repository is clear. The reasons, not so much.</h2>
               <p>
-                Standard git history tells you what changed, but rarely explains the why behind critical decisions. 
+                Standard git history tells you what changed, but rarely explains the why behind critical decisions.
                 We bridge that context gap.
               </p>
             </header>
@@ -156,7 +156,7 @@ export function LandingPage() {
               <span className="landing-kicker">Unified Context</span>
               <h2 id="integrations-title">Where engineering memory lives.</h2>
               <p>
-                Kote seamlessly bridges the gap between your communication channels and your codebase, 
+                Kote seamlessly bridges the gap between your communication channels and your codebase,
                 automatically grouping files and discussions.
               </p>
             </header>
@@ -167,7 +167,7 @@ export function LandingPage() {
                 <strong>Active Context Hub</strong>
                 <span>Unified Knowledge</span>
               </div>
-              
+
               <svg className="landing-integration-svg" viewBox="0 0 1000 380" aria-hidden="true">
                 <defs>
                   <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -212,13 +212,13 @@ export function LandingPage() {
             </header>
 
             <div className="landing-features-grid">
-              
+
               <div className="landing-feature-card reveal-left">
                 <div className="landing-feature-copy">
                   <span>Context & Evidence</span>
                   <h3>Save context where work actually happens.</h3>
                   <p>
-                    Turn chats, manual logs, pull requests, and bug reports into structured 
+                    Turn chats, manual logs, pull requests, and bug reports into structured
                     records without breaking your flow.
                   </p>
                 </div>
@@ -241,7 +241,7 @@ export function LandingPage() {
                   <span>Impact & Priorities</span>
                   <h3>Prioritize what needs engineering alignment.</h3>
                   <p>
-                    Identify knowledge gaps, critical architectural changes, and overdue review findings 
+                    Identify knowledge gaps, critical architectural changes, and overdue review findings
                     based on real-world updates and repository history.
                   </p>
                 </div>
@@ -286,7 +286,7 @@ export function LandingPage() {
               <div className="landing-ai-search-info reveal-up">
                 <h3>Find context by meaning, not just keywords.</h3>
                 <p>
-                  Engineering discussions and notes are fragmented. Our AI Search queries the semantic 
+                  Engineering discussions and notes are fragmented. Our AI Search queries the semantic
                   intent of your query, finding relevant context even when keywords don't match.
                 </p>
                 <div className="landing-ai-search-features">
@@ -313,7 +313,7 @@ export function LandingPage() {
                     <div className="landing-mock-browser-dot" />
                     <div className="landing-mock-browser-dot" />
                     <div className="landing-mock-browser-dot" />
-                    <div className="landing-mock-browser-url">https://pedro-duarte.ddns.net/knowledge-base/search</div>
+                    <div className="landing-mock-browser-url">https://knowledgebase.sbs/knowledge-base/search</div>
                   </div>
                   <img src={withFrontendBasePath('/search-screenshot.png')} alt="Ask AI Assistant" className="landing-real-screenshot" />
                 </div>
@@ -328,7 +328,7 @@ export function LandingPage() {
             <div className="landing-cta-banner reveal-scale">
               <h2>Bring clarity to your codebase.</h2>
               <p>
-                Start capturing knowledge where engineering already happens and keep your technical context 
+                Start capturing knowledge where engineering already happens and keep your technical context
                 connected to the projects that need them next.
               </p>
               <div className="landing-actions" style={{ marginBottom: 0 }}>

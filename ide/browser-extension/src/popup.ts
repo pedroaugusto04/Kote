@@ -45,11 +45,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const panelSettings = document.getElementById('panel-settings')!;
   const panelClipper = document.getElementById('panel-clipper')!;
   const btnSettingsToggle = document.getElementById('btn-settings-toggle')!;
-  
+
   const inputApiUrl = document.getElementById('input-api-url') as HTMLInputElement;
   const inputToken = document.getElementById('input-token') as HTMLInputElement;
   const btnSaveSettings = document.getElementById('btn-save-settings') as HTMLButtonElement;
-  
+
   const badgeClipType = document.getElementById('badge-clip-type')!;
   const textSourceUrl = document.getElementById('text-source-url')!;
   const inputTitle = document.getElementById('input-title') as HTMLInputElement;
@@ -58,12 +58,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnClip = document.getElementById('btn-clip') as HTMLButtonElement;
   const btnClipText = document.getElementById('btn-clip-text')!;
   const btnClipSpinner = document.getElementById('btn-clip-spinner')!;
-  
+
   const statusBanner = document.getElementById('status-banner')!;
 
   // Load stored configuration
   const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'defaultProject']);
-  const defaultApiUrl = 'https://pedro-duarte.ddns.net/kote';
+  const defaultApiUrl = 'https://knowledgebase.sbs/kote';
   let apiUrl = config.apiUrl || defaultApiUrl;
 
   apiUrl = apiUrl.trim().replace(/\/$/, '');
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       showStatus('Connection successful!', 'success');
-      
+
       // Load Clipper view
       setTimeout(async () => {
         panelSettings.classList.add('hidden');
@@ -233,7 +233,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (result && result.success && result.result) {
         currentClip = result.result;
-        
+
         // Populate UI Fields
         inputTitle.value = result.result.title;
         textSourceUrl.textContent = result.result.url;
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load Projects list from backend
   async function loadProjects() {
     const config = await chrome.storage.local.get(['apiUrl', 'connectionToken']);
-    let currentApiUrl = config.apiUrl || 'https://pedro-duarte.ddns.net/kote';
+    let currentApiUrl = config.apiUrl || 'https://knowledgebase.sbs/kote';
     currentApiUrl = currentApiUrl.trim().replace(/\/$/, '');
     if (currentApiUrl.endsWith('/api')) {
       currentApiUrl = currentApiUrl.slice(0, -4);
@@ -274,16 +274,16 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (res.ok) {
         const data = await res.json();
         const list: ProjectInfo[] = data.projects ?? data.items ?? [];
-        
+
         // Clear default option
         selectProject.innerHTML = '';
-        
+
         // Always add Inbox option first
         const inboxOpt = document.createElement('option');
         inboxOpt.value = 'inbox';
         inboxOpt.textContent = 'Inbox (Default)';
         selectProject.appendChild(inboxOpt);
-        
+
         // Add projects from API
         for (const proj of list) {
           const opt = document.createElement('option');

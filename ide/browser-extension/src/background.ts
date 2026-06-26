@@ -80,7 +80,7 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
     'defaultProject',
   ]);
 
-  const resolvedApiUrl = apiUrl || 'https://pedro-duarte.ddns.net/kote';
+  const resolvedApiUrl = apiUrl || 'https://knowledgebase.sbs/kote';
 
   if (!connectionToken) {
     throw new Error('Connection Token not configured. Please open extension settings.');

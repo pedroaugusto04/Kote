@@ -21,18 +21,21 @@ function parseSetCookie(cookieHeaders: string[]): Record<string, string> {
 export class ApiClient {
   private async request(path: string, options: RequestInit = {}): Promise<Response> {
     const config = loadConfig();
-    const apiBase = config.apiUrl.replace(/\/$/, '');
-    let cleanPath = path;
-    if (apiBase.endsWith('/api') && path.startsWith('/api')) {
-      cleanPath = path.substring(4);
+    const apiBase = config.apiUrl.replace(/\/$/, ''); // Remove trailing slash
+    let cleanPath = path.replace(/^\//, ''); // Remove leading slash
+
+    // If base URL already ends with /api, don't add it again from the path
+    if (apiBase.endsWith('/api') && cleanPath.startsWith('api/')) {
+      cleanPath = cleanPath.substring(4); // Remove 'api/' prefix
     }
-    const url = `${apiBase}/${cleanPath.replace(/^\//, '')}`;
+
+    const url = `${apiBase}/${cleanPath}`;
 
     const headers = new Headers(options.headers || {});
-    if (config.cookies.kote_access_token || config.cookies.kote_refresh_token) {
+    if (config.cookies.kb_access_token || config.cookies.kb_refresh_token) {
       const cookieParts: string[] = [];
-      if (config.cookies.kote_access_token) cookieParts.push(`kote_access_token=${config.cookies.kote_access_token}`);
-      if (config.cookies.kote_refresh_token) cookieParts.push(`kote_refresh_token=${config.cookies.kote_refresh_token}`);
+      if (config.cookies.kb_access_token) cookieParts.push(`kb_access_token=${config.cookies.kb_access_token}`);
+      if (config.cookies.kb_refresh_token) cookieParts.push(`kb_refresh_token=${config.cookies.kb_refresh_token}`);
       headers.set('Cookie', cookieParts.join('; '));
     }
 
@@ -59,7 +62,7 @@ export class ApiClient {
     if (response.status === 401 && !path.includes('auth/login') && !path.includes('auth/refresh')) {
       const config = loadConfig();
       let refreshed = false;
-      if (config.cookies?.kote_refresh_token) {
+      if (config.cookies?.kb_refresh_token) {
         try {
           const refreshResponse = await this.request('/api/auth/refresh', { method: 'POST' });
           if (refreshResponse.ok) {

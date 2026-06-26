@@ -150,11 +150,11 @@ program
 
 async function checkAuth() {
   const config = loadConfig();
-  if (!config.cookies?.kote_access_token) {
+  if (!config.cookies?.kb_access_token) {
     console.log(pc.yellow('No active session found. You must log in first to use the CLI.'));
     await runInit();
     const newConfig = loadConfig();
-    if (!newConfig.cookies?.kote_access_token) {
+    if (!newConfig.cookies?.kb_access_token) {
       console.error(pc.red('Authentication required. Exiting.'));
       process.exit(1);
     }

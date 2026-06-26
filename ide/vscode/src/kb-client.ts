@@ -142,12 +142,15 @@ export class KbClient {
   }
 
   private buildUrl(urlPath: string): string {
-    const apiBase = this.apiUrl;
-    let cleanPath = urlPath;
-    if (apiBase.endsWith('/api') && urlPath.startsWith('/api')) {
-      cleanPath = urlPath.substring(4);
+    const apiBase = this.apiUrl.replace(/\/$/, ''); // Remove trailing slash
+    let cleanPath = urlPath.replace(/^\//, ''); // Remove leading slash
+
+    // If base URL already ends with /api, don't add it again from the path
+    if (apiBase.endsWith('/api') && cleanPath.startsWith('api/')) {
+      cleanPath = cleanPath.substring(4); // Remove 'api/' prefix
     }
-    return `${apiBase}/${cleanPath.replace(/^\//, '')}`;
+
+    return `${apiBase}/${cleanPath}`;
   }
 
   private async fetch<T = unknown>(urlPath: string, options: RequestOptions = {}): Promise<T> {

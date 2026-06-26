@@ -35,6 +35,6 @@ export function runConfigList(): void {
   console.log(`${pc.bold('API URL:')} ${config.apiUrl}`);
   console.log(`${pc.bold('Workspace:')} ${config.workspaceSlug}`);
   console.log(`${pc.bold('Default Project:')} ${config.defaultProjectSlug}`);
-  const hasAccessToken = !!config.cookies.kote_access_token;
+  const hasAccessToken = !!config.cookies.kb_access_token;
   console.log(`${pc.bold('Authentication Status:')} ${hasAccessToken ? pc.green('Logged In') : pc.red('Not Logged In')}`);
 }
