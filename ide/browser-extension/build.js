@@ -27,6 +27,11 @@ async function build() {
       platform: 'browser',
       target: 'es2020',
       format: 'esm',
+      define: {
+        'process.env.NODE_ENV': '"production"',
+        'process.env.LOG_PERF': 'undefined',
+        'process.env': '{}',
+      },
     });
     console.log('Build compiled successfully.');
   } catch (error) {
