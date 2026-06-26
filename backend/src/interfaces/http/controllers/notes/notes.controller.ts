@@ -49,7 +49,7 @@ export class NotesController {
   ) {}
 
   @Post()
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(ProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a manual note' })
   @ApiResponse({ status: 201, description: 'Note created successfully' })
