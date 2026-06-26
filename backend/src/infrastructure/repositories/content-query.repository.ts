@@ -15,6 +15,7 @@ import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, workspaces, projects, categories, noteCategories } from '../persistence/schema/index.js';
 import { PostgresNoteRepository } from './note.repository.js';
+import { PostgresAttachmentRepository } from './attachment.repository.js';
 
 @Injectable()
 export class PostgresContentQueryRepository extends ContentQueryRepository {
@@ -22,6 +23,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     private readonly database: PostgresDatabase,
     private readonly contentObjectStorage: ContentObjectStorageService,
     private readonly noteRepository: PostgresNoteRepository,
+    private readonly attachmentRepository: PostgresAttachmentRepository,
   ) {
     super();
   }
@@ -156,11 +158,14 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     const note = result[0] ? await this.hydrateMarkdown(noteFromRow(result[0])) : null;
     if (!note) return null;
 
-    const neighbors = await this.noteRepository.getNoteNeighbors(userId, id, {
-      projectId: note.projectId,
-      workspaceId: note.workspaceId,
-    });
-    return noteDetail(note, [], neighbors);
+    const [noteAttachments, neighbors] = await Promise.all([
+      this.attachmentRepository.list(userId, id),
+      this.noteRepository.getNoteNeighbors(userId, id, {
+        projectId: note.projectId,
+        workspaceId: note.workspaceId,
+      }),
+    ]);
+    return noteDetail(note, noteAttachments, neighbors);
   }
 
   async getNoteNeighbors(userId: string, noteId: string, input?: { projectId?: string; workspaceId?: string; folderId?: string; status?: string }) {
