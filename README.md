@@ -47,7 +47,7 @@ graph TD
 1. **Development & AI Sessions:** The VS Code extension automatically logs local AI conversations and saves highlighted code snippets to your knowledge base.
 2. **Git Workflow:** The GitHub integration analyzes commit diffs on push, generating technical summaries and flagging potential operational issues.
 3. **Quick Notes:** Send text or audio messages to Kote's messaging integrations to log quick notes or environment configurations.
-4. **Query & Retrieval:** Query the accumulated knowledge base using natural language directly from the Web Application, the VS Code sidebar, or via WhatsApp/Telegram to locate solutions, documents, and files.
+4. **Query & Retrieval:** Query the accumulated knowledge base using natural language directly from the Web Application, the VS Code sidebar, WhatsApp or via CLI to locate solutions, documents, and files.
 
 ---
 
