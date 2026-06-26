@@ -150,12 +150,6 @@ Interfaces to manage, search, and visualize captured knowledge.
 
 ---
 
-## Development & Self-Hosting
-
-If you are looking to contribute to the codebase or run a self-hosted instance, refer to [DEVELOPMENT.md](DEVELOPMENT.md) for environment configuration and local Docker setup.
-
----
-
 ## License
 
 See [LICENSE](LICENSE) for terms of use.
