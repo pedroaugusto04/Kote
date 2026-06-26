@@ -1,56 +1,38 @@
-import TurndownService from 'turndown';
+import { NodeHtmlMarkdown } from 'node-html-markdown';
 
-// Re-export ClipPayload and extractPageMetadata from the Turndown-free extractor
-// module so that content-extractor.ts can import from extractor.ts directly
-// without bundling Turndown (and its broken shouldUseActiveX probe) into the
-// injected content script.
+// Re-export from the Turndown-free extractor module so that
+// content-extractor.ts can import from extractor.ts directly.
 export type { ClipPayload } from './extractor.js';
 export { extractPageMetadata } from './extractor.js';
 
-// Helper to initialize Turndown with options
-export function getTurndownService(): TurndownService {
-  const turndownService = new TurndownService({
-    headingStyle: 'atx',
-    hr: '---',
-    bulletListMarker: '-',
-    codeBlockStyle: 'fenced',
+// Singleton instance with options matching the old Turndown configuration
+const nhm = new NodeHtmlMarkdown(
+  {
     emDelimiter: '*',
     strongDelimiter: '**',
-    linkStyle: 'inlined',
-  });
-
-  // Keep code blocks clean
-  turndownService.addRule('pre-code', {
-    filter: (node) => {
-      return node.nodeName === 'PRE' && node.firstElementChild?.nodeName === 'CODE';
-    },
-    replacement: (content, node) => {
-      const codeElem = node.firstElementChild as HTMLElement | null;
-      if (!codeElem) return `\n\n\`\`\`\n${content?.trim() ?? ''}\n\`\`\`\n\n`;
-      const className = codeElem.className || '';
-      const match = className.match(/language-(\w+)/);
-      const lang = match ? match[1] : '';
-      return `\n\n\`\`\`${lang}\n${codeElem.textContent?.trim()}\n\`\`\`\n\n`;
-    },
-  });
-
-  // Strip scripts, styles, and other non-content elements
-  turndownService.addRule('strip-tags', {
-    filter: (node) => ['script', 'style', 'noscript', 'iframe', 'svg'].includes(node.nodeName.toLowerCase()),
-    replacement: () => '',
-  });
-
-  return turndownService;
-}
+    bulletMarker: '-',
+    codeBlockStyle: 'fenced',
+    codeFence: '```',
+    ignore: ['script', 'style', 'noscript', 'iframe', 'svg'],
+    preferNativeParser: false,
+  },
+  // Custom translator: <hr> → ---
+  {
+    hr: { content: '\n\n---\n\n', recurse: false },
+  },
+);
 
 // Convert HTML to Markdown (used in Background SW)
 export function convertHtmlToMarkdown(html: string): string {
-  const turndown = getTurndownService();
-  return turndown.turndown(html);
+  return nhm.translate(html);
 }
 
 // Format note content with Frontmatter metadata (used in Background SW)
-export function formatNoteWithFrontmatter(payload: import('./extractor.js').ClipPayload, markdown: string, tags: string[] = []): string {
+export function formatNoteWithFrontmatter(
+  payload: import('./extractor.js').ClipPayload,
+  markdown: string,
+  tags: string[] = [],
+): string {
   const frontmatter = [
     '---',
     `title: "${payload.title.replace(/"/g, '\\"')}"`,
@@ -75,7 +57,7 @@ export function formatNoteWithFrontmatter(payload: import('./extractor.js').Clip
 
   frontmatter.push('---');
   frontmatter.push('');
-  
+
   if (payload.excerpt) {
     frontmatter.push(`> ${payload.excerpt}`);
     frontmatter.push('');

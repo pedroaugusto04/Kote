@@ -1,4 +1,3 @@
-import './shims.js';
 import { convertHtmlToMarkdown, formatNoteWithFrontmatter, type ClipPayload } from './parser.js';
 
 // Setup right-click context menu on installation
