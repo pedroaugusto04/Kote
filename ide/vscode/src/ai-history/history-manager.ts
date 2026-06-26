@@ -4,6 +4,9 @@ import type { KbClient } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 
 type SessionPromptAction = 'Auto-save' | 'Preview & Edit' | 'Ignore';
+type AiSessionSaveMode = 'auto-save' | 'ask' | 'ignore-all';
+
+const SESSION_MODE_PICKED_KEY = 'kote.aiSessionModePicked';
 
 const SESSION_PROMPT_TIMEOUT_MS = 2 * 60 * 1000;
 
@@ -260,6 +263,56 @@ export class AiHistoryManager {
     return action;
   }
 
+  private getAiSessionSaveMode(): AiSessionSaveMode {
+    return vscode.workspace
+      .getConfiguration('kote')
+      .get<AiSessionSaveMode>('aiSessionSaveMode', 'auto-save');
+  }
+
+  async promptModeSelection(context: vscode.ExtensionContext): Promise<void> {
+    interface ModeItem extends vscode.QuickPickItem { mode: AiSessionSaveMode }
+
+    const currentMode = this.getAiSessionSaveMode();
+
+    const items: ModeItem[] = [
+      {
+        label: '$(zap) Auto-save (Recommended)',
+        description: currentMode === 'auto-save' ? '\u2713 current' : '',
+        detail: 'Saves AI sessions automatically in the background. A light notification appears when saved.',
+        mode: 'auto-save',
+      },
+      {
+        label: '$(comment-discussion) Ask before saving',
+        description: currentMode === 'ask' ? '\u2713 current' : '',
+        detail: 'Shows a confirmation popup for each detected AI session before saving.',
+        mode: 'ask',
+      },
+      {
+        label: '$(mute) Ignore all sessions',
+        description: currentMode === 'ignore-all' ? '\u2713 current' : '',
+        detail: 'Does not save or prompt for any AI session. Sessions can still be imported manually via the history view.',
+        mode: 'ignore-all',
+      },
+    ];
+
+    const picked = await vscode.window.showQuickPick(items, {
+      title: 'Kote \u2014 AI Session Save Mode',
+      placeHolder: 'How should Kote handle newly detected AI sessions?',
+      ignoreFocusOut: true,
+    });
+
+    if (!picked) return;
+
+    await vscode.workspace
+      .getConfiguration('kote')
+      .update('aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Global);
+
+    context.globalState.update(SESSION_MODE_PICKED_KEY, true);
+
+    const label = picked.mode === 'auto-save' ? 'Auto-save' : picked.mode === 'ask' ? 'Ask before saving' : 'Ignore all sessions';
+    vscode.window.showInformationMessage(`Kote: AI session mode set to "${label}".`);
+  }
+
   private async handleChangedSession(client: KbClient, provider: AiHistoryProvider, session: AiSession) {
     const key = `${provider.id}:${session.sessionId}`;
     const hash = this.computeSessionHash(session);
@@ -295,6 +348,21 @@ export class AiHistoryManager {
     if (this.ignoredSessions.has(key)) {
       this.rememberSessionHash(key, hash);
       this.pendingPromptSessions.delete(key);
+      return;
+    }
+
+    // In auto-save mode: save new sessions immediately without prompting.
+    if (this.getAiSessionSaveMode() === 'auto-save') {
+      this.markSessionAsSaved(provider.id, session.sessionId);
+      const saved = await this.autoSaveSessionToVault(client, session);
+      if (saved) this.rememberSessionHash(key, hash);
+      else this.forgetSessionHash(key);
+      return;
+    }
+
+    // In ignore-all mode: silently discard new sessions without saving or prompting.
+    if (this.getAiSessionSaveMode() === 'ignore-all') {
+      this.rememberSessionHash(key, hash);
       return;
     }
 

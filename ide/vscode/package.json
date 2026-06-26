@@ -2,7 +2,7 @@
   "name": "kote-vscode",
   "displayName": "Kote",
   "description": "Integrate your Kote directly into VS Code — search, ask AI, save notes without leaving your editor.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "publisher": "kote",
   "license": "MIT",
   "repository": {
@@ -77,6 +77,12 @@
         "title": "Kote: View Recent AI Sessions",
         "category": "Kote",
         "icon": "$(history)"
+      },
+      {
+        "command": "kote.configureAiSessionMode",
+        "title": "Kote: Configure AI Session Save Mode",
+        "category": "Kote",
+        "icon": "$(settings-gear)"
       }
     ],
     "keybindings": [
@@ -104,8 +110,29 @@
           "command": "kote.showRecentAiSessions",
           "when": "view == kote.sidebarView",
           "group": "navigation"
+        },
+        {
+          "command": "kote.configureAiSessionMode",
+          "when": "view == kote.sidebarView",
+          "group": "navigation"
         }
       ]
+    }
+  },
+  "configuration": {
+    "title": "Kote",
+    "properties": {
+      "kote.aiSessionSaveMode": {
+        "type": "string",
+        "enum": ["auto-save", "ask", "ignore-all"],
+        "enumDescriptions": [
+          "Automatically saves all detected AI sessions in the background. A light notification appears in the corner.",
+          "Asks before saving each detected AI session (shows a confirmation popup).",
+          "Does not save or prompt for any AI session. Sessions can still be imported manually."
+        ],
+        "default": "auto-save",
+        "description": "Controls how Kote handles newly detected AI sessions."
+      }
     }
   },
   "scripts": {

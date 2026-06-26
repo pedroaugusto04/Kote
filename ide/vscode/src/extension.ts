@@ -95,10 +95,22 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.commands.registerCommand('kote.showRecentAiSessions', () => {
       historyManager.showRecentSessions(kbClient);
+    }),
+
+    vscode.commands.registerCommand('kote.configureAiSessionMode', () => {
+      historyManager.promptModeSelection(context);
     })
   );
 
   historyManager.startWatching(kbClient, context);
+
+  // Show mode-selection onboarding on first activation
+  const modePicked = context.globalState.get<boolean>('kote.aiSessionModePicked', false);
+  if (!modePicked) {
+    setTimeout(() => {
+      historyManager.promptModeSelection(context);
+    }, 2000);
+  }
 
   registerAskCommand(context, kbClient, () => sidebarProvider.activeProject ?? activeProject ?? kbClient.defaultProjectSlug);
   registerSaveNoteCommand(
