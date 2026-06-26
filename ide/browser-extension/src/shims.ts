@@ -15,15 +15,25 @@ if (typeof globalThis.DOMParser === 'undefined' || (globalThis.DOMParser as any)
   globalThis.DOMParser = ShimmedDOMParser as any;
 }
 
+// Turndown detects its environment with:
+//   root = typeof window !== "undefined" ? window : {}
+// In a service worker, `window` is undefined so `root` becomes {}, making
+// root.DOMParser undefined and canParseHTMLNatively() return false.
+// That fallback path (createHTMLParser) calls doc.write() which @xmldom/xmldom
+// doesn't implement, leaving the document empty → getElementById returns null
+// → collapseWhitespace crashes with "Cannot read properties of null (reading 'firstChild')".
+// Aliasing globalThis as window makes Turndown find our shimmed DOMParser and
+// use the native-parse path, which calls parseFromString() directly — safe.
+if (typeof (globalThis as any).window === 'undefined') {
+  (globalThis as any).window = globalThis;
+}
+
 if (typeof globalThis.document === 'undefined') {
   const shimDoc = new DOMImplementation().createDocument('http://www.w3.org/1999/xhtml', 'html', null) as any;
 
-  // Turndown's shouldUseActiveX() probe calls:
-  //   document.implementation.createHTMLDocument("").open()
-  // @xmldom/xmldom documents don't have .open()/.write()/.close(), so we
-  // patch the DOMImplementation to return documents with those no-ops.
-  // The probe only enables ActiveX if window.ActiveXObject exists (it never
-  // does in a service worker), so a no-op is semantically correct.
+  // Belt-and-suspenders: if Turndown's shouldUseActiveX() probe is ever reached,
+  // .open()/.write()/.close() must not throw. The probe only enables ActiveX when
+  // window.ActiveXObject exists (never true in a service worker), so no-ops are safe.
   const originalCreateHTMLDocument = shimDoc.implementation.createHTMLDocument?.bind(shimDoc.implementation);
   if (originalCreateHTMLDocument) {
     shimDoc.implementation.createHTMLDocument = (title?: string) => {
@@ -39,3 +49,4 @@ if (typeof globalThis.document === 'undefined') {
 
   globalThis.document = shimDoc;
 }
+

@@ -25,7 +25,8 @@ export function getTurndownService(): TurndownService {
       return node.nodeName === 'PRE' && node.firstElementChild?.nodeName === 'CODE';
     },
     replacement: (content, node) => {
-      const codeElem = node.firstElementChild as HTMLElement;
+      const codeElem = node.firstElementChild as HTMLElement | null;
+      if (!codeElem) return `\n\n\`\`\`\n${content?.trim() ?? ''}\n\`\`\`\n\n`;
       const className = codeElem.className || '';
       const match = className.match(/language-(\w+)/);
       const lang = match ? match[1] : '';
