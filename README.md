@@ -138,7 +138,7 @@ For complete CLI documentation, see [cli/README.md](cli/README.md).
   <br><em>Integrated sidebar with AI chat and quick-save commands for code selections.</em>
 </p>
 
-Save code snippets or entire files directly from your editor. Right-click selections to save, use keyboard shortcuts for quick AI questions, and view AI session history for import.
+The extension automatically captures your AI conversations and saves them to your Kote. You can also save code snippets or entire files directly from your editor. Right-click selections to save, use keyboard shortcuts for quick AI questions, and view AI session history.
 
 **Installation:** Search for "Kote" in the VS Code Extension Marketplace.
 
