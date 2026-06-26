@@ -153,7 +153,9 @@ For complete extension documentation, see [ide/vscode/README.md](ide/vscode/READ
 
 The browser extension allows you to quickly save web pages, selections, or entire articles to your Kote with one click. It automatically converts HTML to Markdown, adds frontmatter metadata, and lets you choose the target project and tags. Perfect for capturing research, documentation, or inspiration from the web.
 
-**Installation:** Load the unpacked extension from `ide/browser-extension/dist` in Chrome Developer Mode.
+**Installation:**
+
+- **Chrome Web Store:** Install directly from the [Chrome Web Store](https://chrome.google.com/webstore/detail/kote-clipper)
 
 For complete extension documentation, see [ide/browser-extension/README.md](ide/browser-extension/README.md).
 

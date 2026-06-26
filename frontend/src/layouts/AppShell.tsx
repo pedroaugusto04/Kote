@@ -27,6 +27,7 @@ const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => 
 const SetupPage = lazy(() => import('../pages/setup/SetupPage').then(m => ({ default: m.SetupPage })));
 const AuthPage = lazy(() => import('../pages/auth/AuthPage').then(m => ({ default: m.AuthPage })));
 const HelpPage = lazy(() => import('../pages/help/HelpPage').then(m => ({ default: m.HelpPage })));
+const ExtensionPrivacyPage = lazy(() => import('../pages/extension/ExtensionPrivacyPage').then(m => ({ default: m.ExtensionPrivacyPage })));
 const AutomationsPage = lazy(() => import('../pages/automations/AutomationsPage').then((m: any) => ({ default: m?.default ?? m.AutomationsPage })));
 import { flattenFolders } from '../features/projects/projects.helpers';
 import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
@@ -642,6 +643,7 @@ export function AppShell() {
               <Route path="/automations/subscription" element={<SubscriptionPage />} />
               <Route path="/automations" element={<AutomationsPage />} />
               <Route path="/help" element={<HelpPage />} />
+              <Route path="/kote/extension/privacy" element={<ExtensionPrivacyPage />} />
               <Route path="*" element={<HomePage {...pageContext} />} />
             </Routes>
           </Suspense>
