@@ -27,9 +27,14 @@ async function getOrExchangeAccessToken(currentApiUrl: string, connectionToken: 
     }
   }
 
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (chrome.runtime.id) {
+    headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
+  }
+  
   const exchangeRes = await fetch(`${currentApiUrl}/api/auth/exchange-connection-token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ connectionToken }),
   });
   if (!exchangeRes.ok) {
@@ -263,12 +268,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const accessToken = await getOrExchangeAccessToken(currentApiUrl, config.connectionToken);
 
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      };
+      if (chrome.runtime.id) {
+        headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
+      }
+
       const res = await fetch(`${currentApiUrl}/api/projects?page=1&pageSize=100`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
+        headers,
       });
 
       if (res.ok) {

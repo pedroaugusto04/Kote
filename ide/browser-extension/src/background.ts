@@ -115,9 +115,14 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
       }
     } catch {
       // Exchange connection token via HTTP API
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (chrome.runtime.id) {
+        headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
+      }
+      
       const exchangeRes = await fetch(`${cleanApiUrl}/api/auth/exchange-connection-token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({ connectionToken }),
       });
       if (!exchangeRes.ok) {
@@ -132,12 +137,17 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
   }
 
   // POST note request
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${accessToken}`,
+  };
+  if (chrome.runtime.id) {
+    headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
+  }
+
   const response = await fetch(`${cleanApiUrl}/api/notes`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-    },
+    headers,
     body: JSON.stringify({
       projectSlug: project,
       title: clip.title,
