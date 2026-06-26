@@ -562,7 +562,6 @@
   let isThinking = false;
   let lastQuestion = '';
   let conversationHistory = vscode.getState()?.history ?? [];
-  let historyLoaded = false;
   let askHistory = vscode.getState()?.askHistory ?? [];
   let visibleMessageCount = vscode.getState()?.visibleMessageCount ?? 20;
 
@@ -576,15 +575,15 @@
     document.getElementById('tabHistory').classList.toggle('active', !isChat);
 
     if (!isChat) {
+      // Always show cached data immediately (if available), then refresh from filesystem
       if (askHistory.length > 0) {
         renderHistory(askHistory);
-      } else if (!historyLoaded) {
-        historyLoaded = true;
-        // Show loading state
+      } else {
         const container = document.getElementById('historyContent');
         container.innerHTML = '<div class="history-empty">Loading history…</div>';
-        vscode.postMessage({ type: 'loadHistory' });
       }
+      // Always fetch fresh data from the filesystem (source of truth)
+      vscode.postMessage({ type: 'loadHistory' });
     }
   }
 
@@ -1171,6 +1170,9 @@
 
   // Init
   restoreConversationHistory();
+  // Prime the in-memory ask history cache on load so the History tab
+  // shows data immediately if it was already open before a webview reload.
+  vscode.postMessage({ type: 'loadHistory' });
   vscode.postMessage({ type: 'ready' });
 </script>
 </body>
