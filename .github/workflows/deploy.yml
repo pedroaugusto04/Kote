@@ -316,13 +316,15 @@ jobs:
             set -euo pipefail
             cd "$VPS_APP_DIR"
             chmod 600 backend.env
-            cp backend.env .env.prod
+            # Force overwrite .env.prod with fresh backend.env
+            cp -f backend.env .env.prod
             GITHUB_AUTH_HEADER="$(printf 'x-access-token:%s' "$VPS_GITHUB_REPO_TOKEN" | base64 | tr -d '\n')"
             git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $GITHUB_AUTH_HEADER" fetch --all --prune
             git checkout main
             # Keep VPS working tree deterministic for deploys; discard local tracked drift.
             git reset --hard origin/main
-            cp backend.env .env.prod
+            # Force overwrite again after git pull to ensure latest env
+            cp -f backend.env .env.prod
             sudo docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --remove-orphans api
             sudo docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T api node backend/dist/infrastructure/persistence/run-migrations.js
             sudo docker image prune -f
