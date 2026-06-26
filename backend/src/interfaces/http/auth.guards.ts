@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 
 import { readEnvironment } from '../../adapters/environment.js';
@@ -41,6 +41,56 @@ export class AccessTokenAuthGuard implements CanActivate {
 export class TrustedOriginGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     assertTrustedBrowserOrigin(context.switchToHttp().getRequest<Request>());
+    return true;
+  }
+}
+
+@Injectable()
+export class BrowserExtensionGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const request = context.switchToHttp().getRequest<Request>();
+    const originOrReferer = request.headers.origin || request.headers.referer;
+
+    if (!originOrReferer) {
+      return true;
+    }
+
+    const originString = String(originOrReferer);
+
+    // Validate chrome-extension:// origins first (URL parsing doesn't work with chrome-extension://)
+    if (originString.startsWith('chrome-extension://')) {
+      const extensionId = originString.replace('chrome-extension://', '');
+      const environment = readEnvironment();
+      const allowedIds = environment.allowedExtensionIds;
+
+      // Allow if no IDs are configured (backward compatibility)
+      if (allowedIds.length === 0) {
+        return true;
+      }
+
+      // Allow if ID is in the allowed list
+      if (allowedIds.includes(extensionId)) {
+        return true;
+      }
+
+      throw new ForbiddenException('invalid_origin');
+    }
+
+    // Validate web origins
+    const actualOrigin = new URL(originString).origin;
+    const environment = readEnvironment();
+    const allowedOrigins = new Set<string>();
+    for (const origin of environment.allowedOrigins) {
+      allowedOrigins.add(new URL(origin).origin);
+    }
+    if (environment.publicBaseUrl) {
+      allowedOrigins.add(new URL(environment.publicBaseUrl).origin);
+    }
+
+    if (!allowedOrigins.has(actualOrigin)) {
+      throw new ForbiddenException('invalid_origin');
+    }
+
     return true;
   }
 }

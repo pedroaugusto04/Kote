@@ -6,13 +6,14 @@ import type { AuthenticatedUser } from '../../../../application/auth.js';
 import {
   CreateManualNoteUseCase,
   DeleteNoteUseCase,
-  GetNoteAttachmentContentUseCase, 
+  GetNoteAttachmentContentUseCase,
   UpdateNoteUseCase,
   SetNotePinnedUseCase,
   FindRelatedNotesUseCase,
   GetAutoActionGlobalUseCase,
   SetAutoActionGlobalUseCase,
 } from '../../../../application/use-cases/index.js';
+import { BrowserExtensionGuard } from '../../auth.guards.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
 import {
@@ -49,7 +50,7 @@ export class NotesController {
   ) {}
 
   @Post()
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(BrowserExtensionGuard, ProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a manual note' })
   @ApiResponse({ status: 201, description: 'Note created successfully' })

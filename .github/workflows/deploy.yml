@@ -325,7 +325,9 @@ jobs:
             git reset --hard origin/main
             # Force overwrite again after git pull to ensure latest env
             cp -f backend.env .env.prod
-            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build --remove-orphans api
+            # Force rebuild without cache to ensure latest code
+            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml build --no-cache api
+            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans api
             sudo docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T api node backend/dist/infrastructure/persistence/run-migrations.js
             sudo docker image prune -f
 

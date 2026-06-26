@@ -5,7 +5,7 @@ import type { Request, Response } from 'express';
 
 import { AuthService, avatarMaxSizeBytes, type AuthenticatedUser } from '../../../../application/auth.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, AuthRateLimitGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, AuthRateLimitGuard, BrowserExtensionGuard, TrustedOriginGuard } from '../../auth.guards.js';
 import { exchangeConnectionTokenBodySchema, loginBodySchema, signupBodySchema, updateProfileBodySchema, type ExchangeConnectionTokenBody, type LoginBody, type SignupBody, type UpdateProfileBody } from '../../dto/auth.dto.js';
 import { clearAuthCookies, clearGoogleOAuthStateCookie, googleOAuthStateFromRequest, refreshTokenFromRequest, setAuthCookies, setGoogleOAuthStateCookie } from '../../http-security.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
@@ -97,8 +97,8 @@ export class AuthController {
     return { ok: true, connectionToken: token };
   }
 
-  @Post('exchange-connection-token') 
-  @UseGuards(AuthRateLimitGuard, TrustedOriginGuard)
+  @Post('exchange-connection-token')
+  @UseGuards(AuthRateLimitGuard, BrowserExtensionGuard)
   @ApiOperation({ summary: 'Exchange connection token for user session tokens' })
   @ApiResponse({ status: 200, description: 'Tokens issued successfully' })
   @ApiResponse({ status: 401, description: 'Invalid or expired connection token' })
