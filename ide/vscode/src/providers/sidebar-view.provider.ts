@@ -3,9 +3,9 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import * as vscode from 'vscode';
 import { KbClient, isConfigured } from '../kb-client';
-import type { KbProject, ChatToWebview, ChatFromWebview } from '../types';
+import type { KbProject, ChatToWebview, ChatFromWebview, AskHistoryEntry } from '../types';
 import { toMessage, logInfo } from '../error-reporter';
-import { loadAskHistory, clearAskHistory } from '../utils/ask-history';
+import { loadAskHistory, clearAskHistory, addAskEntry } from '../utils/ask-history';
 
 // ---------------------------------------------------------------------------
 // Provider for Sidebar (Chat + Login Setup)
@@ -120,6 +120,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           this._post({ type: 'thinking' });
           try {
             const result = await this._client.ask(msg.question, msg.projectSlug || undefined);
+            
+            // Persist to local history
+            addAskEntry({
+              question: msg.question,
+              answer: result.answer,
+              projectSlug: msg.projectSlug || '',
+            });
+
             this._post({
               type: 'answer',
               answer: result.answer,
@@ -200,8 +208,50 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           break;
 
         case 'loadHistory': {
-          const entries = loadAskHistory();
-          this._post({ type: 'historyLoaded', entries });
+          try {
+            if (isConfigured()) {
+              const res = await this._client.getAskHistory();
+              const backendEntries: AskHistoryEntry[] = (res?.history || []).map((item: any) => ({
+                id: item.id,
+                question: item.question,
+                answer: item.answer,
+                projectSlug: item.projectSlug || '',
+                timestamp: item.createdAt || new Date().toISOString(),
+              }));
+
+              const localEntries = loadAskHistory();
+
+              const seen = new Set<string>();
+              const merged: AskHistoryEntry[] = [];
+
+              for (const entry of backendEntries) {
+                const key = `${entry.question.trim().toLowerCase()}|||${entry.answer.trim().toLowerCase()}`;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  merged.push(entry);
+                }
+              }
+
+              for (const entry of localEntries) {
+                const key = `${entry.question.trim().toLowerCase()}|||${entry.answer.trim().toLowerCase()}`;
+                if (!seen.has(key)) {
+                  seen.add(key);
+                  merged.push(entry);
+                }
+              }
+
+              merged.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+              this._post({ type: 'historyLoaded', entries: merged });
+            } else {
+              const entries = loadAskHistory();
+              this._post({ type: 'historyLoaded', entries });
+            }
+          } catch (err: unknown) {
+            logInfo('SidebarProvider', `Failed to load history from backend: ${toMessage(err)}. Falling back to local.`);
+            const entries = loadAskHistory();
+            this._post({ type: 'historyLoaded', entries });
+          }
           break;
         }
 

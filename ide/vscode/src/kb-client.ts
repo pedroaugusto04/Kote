@@ -304,6 +304,13 @@ export class KbClient {
     });
   }
 
+  async getAskHistory(projectSlug?: string, page = 1, pageSize = 50): Promise<{ history: any[] }> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (projectSlug) params.set('projectSlug', projectSlug);
+    return this.fetch<{ history: any[] }>(`/api/ask/history?${params.toString()}`);
+  }
+
+
   async createNote(payload: KbCreateNotePayload): Promise<KbCreateNoteResult> {
     return this.fetch<KbCreateNoteResult>('/api/notes', {
       method: 'POST',
