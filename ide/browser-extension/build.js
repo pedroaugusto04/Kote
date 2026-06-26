@@ -40,7 +40,7 @@ async function build() {
   }
 
   console.log('Copying static assets...');
-  const assets = ['manifest.json', 'popup.html', 'popup.css'];
+  const assets = ['manifest.json', 'popup.html', 'popup.css', 'icon.png'];
   for (const asset of assets) {
     const srcPath = path.join(srcDir, asset);
     const destPath = path.join(distDir, asset);

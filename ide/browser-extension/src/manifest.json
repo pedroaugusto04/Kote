@@ -19,7 +19,17 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Kote Clipper"
+    "default_title": "Kote Clipper",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
   },
   "commands": {
     "_execute_action": {

@@ -98,7 +98,7 @@ export class AuthController {
   }
 
   @Post('exchange-connection-token')
-  @UseGuards(AuthRateLimitGuard)
+  @UseGuards(AuthRateLimitGuard, TrustedOriginGuard)
   @ApiOperation({ summary: 'Exchange connection token for user session tokens' })
   @ApiResponse({ status: 200, description: 'Tokens issued successfully' })
   @ApiResponse({ status: 401, description: 'Invalid or expired connection token' })

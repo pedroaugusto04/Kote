@@ -1,22 +1,22 @@
-/* Modern CSS Reset & Vars */
+/* Modern CSS Reset & Vars - Kote Color Palette */
 :root {
-  --bg-primary: #0f172a;
-  --bg-card: #1e293b;
-  --bg-input: #0f172a;
+  --bg-primary: #090f14;
+  --bg-card: #0f171d;
+  --bg-input: #0b1319;
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #d8e2ea;
+  --text-secondary: #8da0ae;
+  --text-muted: #60717e;
   
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-glow: rgba(99, 102, 241, 0.25);
+  --accent: #53c7de;
+  --accent-hover: #3ba8c0;
+  --accent-glow: rgba(83, 199, 222, 0.25);
   
-  --border: #334155;
-  --border-focus: #475569;
+  --border: #24323c;
+  --border-focus: #53c7de;
   
-  --success: #10b981;
-  --error: #ef4444;
+  --success: #7dd3a5;
+  --error: #ff7a7a;
   
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -50,7 +50,7 @@ body {
   align-items: center;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
-  background-color: rgba(30, 41, 59, 0.5);
+  background-color: rgba(15, 23, 29, 0.88);
   backdrop-filter: blur(8px);
 }
 
@@ -189,7 +189,7 @@ select {
   font-weight: 700;
   text-transform: uppercase;
   background-color: var(--accent-glow);
-  color: #a5b4fc;
+  color: #d8f7ff;
   padding: 2px 6px;
   border-radius: 4px;
   letter-spacing: 0.05em;
@@ -242,7 +242,7 @@ select {
 }
 
 .btn-success:hover {
-  background-color: #059669;
+  background-color: #5fb886;
 }
 
 .btn-success:active {
@@ -274,15 +274,15 @@ select {
 }
 
 .status-banner.success {
-  background-color: rgba(16, 185, 129, 0.15);
-  color: #a7f3d0;
-  border-top-color: rgba(16, 185, 129, 0.3);
+  background-color: rgba(125, 211, 165, 0.15);
+  color: #d3fae4;
+  border-top-color: rgba(125, 211, 165, 0.3);
 }
 
 .status-banner.error {
-  background-color: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  border-top-color: rgba(239, 68, 68, 0.3);
+  background-color: rgba(255, 122, 122, 0.15);
+  color: #ffd7d7;
+  border-top-color: rgba(255, 122, 122, 0.3);
 }
 
 /* Animations */
