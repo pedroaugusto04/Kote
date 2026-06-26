@@ -136,7 +136,7 @@ chrome.commands.onCommand.addListener(async (command) => {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: koteSpin 1s linear infinite">
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            <span>Capturing page...</span>
+            <span>Capturing page to Kote...</span>
           `;
           
           const style = document.createElement('style');
@@ -176,7 +176,7 @@ chrome.commands.onCommand.addListener(async (command) => {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
-                <span>Saved successfully!</span>
+                <span>Saved successfully to Kote!</span>
               `;
               setTimeout(() => {
                 indicator.style.animation = 'koteSlideOut 0.3s ease-in forwards';
