@@ -108,6 +108,53 @@ chrome.commands.onCommand.addListener(async (command) => {
         return;
       }
 
+      // Show immediate visual feedback on the page
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () => {
+          const indicator = document.createElement('div');
+          indicator.id = 'kote-clip-indicator';
+          indicator.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 999999;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            animation: koteSlideIn 0.3s ease-out;
+          `;
+          indicator.innerHTML = `
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: koteSpin 1s linear infinite">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            <span>Capturando página...</span>
+          `;
+          
+          const style = document.createElement('style');
+          style.textContent = `
+            @keyframes koteSlideIn {
+              from { transform: translateX(100%); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes koteSpin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `;
+          document.head.appendChild(style);
+          document.body.appendChild(indicator);
+        },
+      });
+
       // Extract content-extractor results
       const results = await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -117,10 +164,59 @@ chrome.commands.onCommand.addListener(async (command) => {
 
       if (result && result.success && result.result) {
         await saveClippedNote(result.result, ['quick-clip']);
+        
+        // Update indicator to show success
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const indicator = document.getElementById('kote-clip-indicator');
+            if (indicator) {
+              indicator.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+              indicator.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                <span>Salvo com sucesso!</span>
+              `;
+              setTimeout(() => {
+                indicator.style.animation = 'koteSlideOut 0.3s ease-in forwards';
+                setTimeout(() => indicator.remove(), 300);
+              }, 2000);
+            }
+            
+            const style = document.createElement('style');
+            style.textContent = `
+              @keyframes koteSlideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+              }
+            `;
+            document.head.appendChild(style);
+          },
+        });
       } else {
+        // Remove indicator on error
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const indicator = document.getElementById('kote-clip-indicator');
+            if (indicator) indicator.remove();
+          },
+        });
         showNotification('Error', result?.error || 'Failed to extract page content.');
       }
     } catch (err: any) {
+      // Remove indicator on error
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab?.id) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            const indicator = document.getElementById('kote-clip-indicator');
+            if (indicator) indicator.remove();
+          },
+        }).catch(() => {});
+      }
       showNotification('Error', err.message || 'Failed to quick clip page.');
     }
   }
