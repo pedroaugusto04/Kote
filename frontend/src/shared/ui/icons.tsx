@@ -105,6 +105,9 @@ export function InfoIcon({ className, style }: { className?: string; style?: Rea
 export function SourceIcon({ source, className, style }: { source?: string | null; className?: string; style?: React.CSSProperties }) {
   if (!source) return null;
   const normalized = source.toLowerCase().trim();
+  if (normalized === 'kote') {
+    return <SparklesIcon className={className} style={style} />;
+  }
   if (normalized.includes('whatsapp') || normalized.includes('evolution')) {
     return <WhatsAppIcon className={className} style={style} />;
   }

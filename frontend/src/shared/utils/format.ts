@@ -157,6 +157,11 @@ type SourceRule = SourceConfig & { matches: (normalizedSource: string) => boolea
 
 const sourceRules: SourceRule[] = [
   {
+    label: 'Kote',
+    tagClass: 'kote',
+    matches: (source) => source === 'kote',
+  },
+  {
     label: 'WhatsApp',
     tagClass: 'whatsapp',
     matches: (source) => source.includes('whatsapp') || source.includes('evolution'),

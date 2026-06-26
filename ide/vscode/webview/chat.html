@@ -1091,7 +1091,31 @@
     });
   }
 
+  // ── Restore conversation history on init ───────────────────────────────────
+
+  function restoreConversationHistory() {
+    if (conversationHistory.length > 0) {
+      hideEmpty();
+      conversationHistory.forEach((turn) => {
+        addUserMessage(turn.question);
+        const el = document.createElement('div');
+        el.className = 'msg kb';
+        el.innerHTML = `
+          <div class="msg-sender">Kote</div>
+          <div class="bubble">${renderMarkdown(turn.answer)}</div>
+          <div class="bubble-actions">
+            <button class="action-btn" data-action="save" data-idx="${conversationHistory.indexOf(turn)}">Save as note</button>
+            <button class="action-btn" data-action="copy" data-idx="${conversationHistory.indexOf(turn)}">Copy</button>
+          </div>
+        `;
+        document.getElementById('messages').appendChild(el);
+      });
+      scrollToBottom();
+    }
+  }
+
   // Init
+  restoreConversationHistory();
   vscode.postMessage({ type: 'ready' });
 </script>
 </body>
