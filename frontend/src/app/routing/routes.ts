@@ -16,7 +16,7 @@ export const routes = {
   subscription: '/automations/subscription',
   automations: '/automations',
   help: '/help',
-  extensionPrivacy: '/kote/extension/privacy',
+  extensionPrivacy: '/extension/privacy',
 } as const;
 
 export type View = 'home' | 'map' | 'projects' | 'note' | 'search' | 'kanban' | 'reminders' | 'profile' | 'integrations' | 'subscription' | 'help' | 'automations';
