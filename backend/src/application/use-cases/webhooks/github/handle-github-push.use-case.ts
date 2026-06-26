@@ -62,7 +62,7 @@ export class HandleGithubPushUseCase {
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
     private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
-  ) {}
+  ) { }
 
   async execute(input: GithubPushWebhookRequest) {
     const environment = this.environmentProvider.read();
@@ -122,10 +122,10 @@ export class HandleGithubPushUseCase {
       // Check AI credit quota — if exceeded, degrade gracefully (ingest without AI analysis).
       const quotaOk = this.quotaService
         ? await this.quotaService.checkAndIncrementAiUsage(
-            identity.userId,
-            AiOperationType.GITHUB_CODE_REVIEW,
-            { repoFullName, source: 'github_push_webhook' },
-          ).then((r) => r.allowed)
+          identity.userId,
+          AiOperationType.GITHUB_CODE_REVIEW,
+          { repoFullName, source: 'github_push_webhook' },
+        ).then((r) => r.allowed)
         : true;
 
       const aiCredential = this.credentials && quotaOk
@@ -149,6 +149,17 @@ export class HandleGithubPushUseCase {
         ingestResult.noteId,
         environment.publicBaseUrl,
       );
+      if (this.notifyHighSeverity) {
+        const hasHighSeverityFinding = resolvedPayload.content.sections.reviewFindings.some((finding) =>
+          ['high', 'critical'].includes(finding.severity)
+        );
+        if (hasHighSeverityFinding) {
+          const noteLink = ingestResult.noteId && environment.publicBaseUrl
+            ? absoluteUrl(environment.publicBaseUrl, `/vault/${encodeURIComponent(ingestResult.noteId)}`)
+            : '';
+          void this.notifyHighSeverity.sendEmailForHighFindings(resolvedPayload, identity.userId, noteLink);
+        }
+      }
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
         eventType: String(headers['x-github-event'] || 'push'),
@@ -230,11 +241,6 @@ export class HandleGithubPushUseCase {
         chatJid,
         text: buildWhatsappHighSeverityCodeReviewMessage(payload, noteLink),
       });
-      // Also send email to workspace owner (if available)
-      // trigger email notification in a separated service (fire-and-forget)
-      if (this.notifyHighSeverity) {
-        void this.notifyHighSeverity.sendEmailForHighFindings(payload, userId, noteLink);
-      }
       return result.ok
         ? { sent: true }
         : { sent: false, error: result.error || 'whatsapp_send_failed' };
@@ -242,12 +248,4 @@ export class HandleGithubPushUseCase {
       return { sent: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
-
-  // small helper to escape HTML inlined messages
-  // keep minimal to avoid adding deps
-  private static escapeMap: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-}
-
-function escapeHtml(input: string): string {
-  return String(input || '').replace(/[&<>"']/g, (c) => (HandleGithubPushUseCase as any).escapeMap[c] || c);
 }
