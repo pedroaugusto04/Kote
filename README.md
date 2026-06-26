@@ -144,6 +144,19 @@ The extension automatically captures your AI conversations and saves them to you
 
 For complete extension documentation, see [ide/vscode/README.md](ide/vscode/README.md).
 
+### Browser Extension
+
+<p align="center">
+  <img src="frontend/public/browser-extension-window.png" alt="Browser Extension" width="100%" style="max-height: 600px;">
+  <br><em>Browser extension for quick web clipping and saving content to your Kote.</em>
+</p>
+
+The browser extension allows you to quickly save web pages, selections, or entire articles to your Kote with one click. It automatically converts HTML to Markdown, adds frontmatter metadata, and lets you choose the target project and tags. Perfect for capturing research, documentation, or inspiration from the web.
+
+**Installation:** Load the unpacked extension from `ide/browser-extension/dist` in Chrome Developer Mode.
+
+For complete extension documentation, see [ide/browser-extension/README.md](ide/browser-extension/README.md).
+
 ## License
 
 See [LICENSE](LICENSE) for terms of use.
