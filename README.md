@@ -36,12 +36,21 @@ Kote integrates with your existing tools to collect and index technical knowledg
 
 ```mermaid
 graph TD
-    A[VS Code Chat / Saved Snippets] --> E[Kote API]
-    B[Git Push / Commit Diffs] --> E
-    C[CLI terminal AI sessions] --> E
-    D[WhatsApp / Telegram messages] --> E
-    E --> F[(Kote Cloud Database)]
-    F --> G[Semantic Search / Map View]
+    classDef source fill:#1e293b,stroke:#475569,stroke-width:1px,color:#f1f5f9;
+    classDef api fill:#0f3846,stroke:#53c7de,stroke-width:2px,color:#e0f7fa,font-weight:bold;
+    classDef db fill:#0f372d,stroke:#7dd3a5,stroke-width:2px,color:#e6f9f0,font-weight:bold;
+    classDef output fill:#2d1a47,stroke:#c084fc,stroke-width:2px,color:#f3e8ff,font-weight:bold;
+
+    A[VS Code Chat / Saved Snippets]:::source --> E[Kote API]:::api
+    B[Git Push / Commit Diffs]:::source --> E
+    C[CLI terminal AI sessions]:::source --> E
+    D[WhatsApp / Telegram messages]:::source --> E
+    E --> F[(Kote Cloud Database)]:::db
+    F --> G[Semantic Search / Map View]:::output
+
+    linkStyle 0,1,2,3 stroke:#53c7de,stroke-width:1px,stroke-dasharray: 3 3;
+    linkStyle 4 stroke:#7dd3a5,stroke-width:2px;
+    linkStyle 5 stroke:#c084fc,stroke-width:2px;
 ```
 
 1. **Development & AI Sessions:** The VS Code extension automatically logs local AI conversations and saves highlighted code snippets to your knowledge base.
