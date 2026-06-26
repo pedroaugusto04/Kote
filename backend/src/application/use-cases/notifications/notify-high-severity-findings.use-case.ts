@@ -5,7 +5,7 @@ import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { buildWhatsappHighSeverityCodeReviewMessage } from '../../../domain/notifications.js';
 import { type IngestPayload } from '../../../contracts/ingest.js';
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, and } from 'drizzle-orm';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 import { notes } from '../../../infrastructure/persistence/schema/index.js';
 
@@ -57,9 +57,13 @@ export class NotifyHighSeverityFindingsService {
     }
   }
 
-  async sendEmailForMostRecentNoteWithHighFindings(userId: string, noteLink?: string): Promise<{ sent: boolean; noteId?: string; message?: string; totalFindings?: number; highSeverityFindings?: number }> {
+  async sendEmailForMostRecentNoteWithHighFindings(
+    userId: string,
+    noteLink?: string,
+    noteId?: string,
+  ): Promise<{ sent: boolean; noteId?: string; message?: string; totalFindings?: number; highSeverityFindings?: number }> {
     const db = this.db.getDb();
-    const noteRows = await db
+    let noteQuery = db
       .select({
         id: notes.id,
         title: notes.title,
@@ -68,13 +72,18 @@ export class NotifyHighSeverityFindingsService {
         metadata: notes.metadata,
         createdAt: notes.createdAt,
       })
-      .from(notes)
-      .where(eq(notes.userId, userId))
-      .orderBy(desc(notes.createdAt))
-      .limit(1);
+      .from(notes);
+
+    if (noteId) {
+      noteQuery = noteQuery.where(and(eq(notes.userId, userId), eq(notes.id, noteId))) as any;
+    } else {
+      noteQuery = noteQuery.where(eq(notes.userId, userId)).orderBy(desc(notes.createdAt)).limit(1) as any;
+    }
+
+    const noteRows = await noteQuery;
 
     if (!noteRows.length) {
-      return { sent: false, message: 'No notes found for this user' };
+      return { sent: false, message: noteId ? 'Note not found' : 'No notes found for this user' };
     }
 
     const note = noteRows[0] as any;
@@ -82,7 +91,13 @@ export class NotifyHighSeverityFindingsService {
     const reviewFindings = metadata.reviewFindings || [];
 
     if (!reviewFindings.length) {
-      return { sent: false, noteId: note.id, message: 'No review findings found in the most recent note metadata' };
+      return { 
+        sent: false, 
+        noteId: note.id, 
+        message: noteId 
+          ? 'No review findings found in the note metadata' 
+          : 'No review findings found in the most recent note metadata' 
+      };
     }
 
     const hasHighSeverity = reviewFindings.some((f: any) => ['high', 'critical'].includes(f.severity));
@@ -90,7 +105,9 @@ export class NotifyHighSeverityFindingsService {
       return { 
         sent: false, 
         noteId: note.id, 
-        message: 'No high/critical severity findings found in the most recent note' 
+        message: noteId 
+          ? 'No high/critical severity findings found in the note' 
+          : 'No high/critical severity findings found in the most recent note' 
       };
     }
 

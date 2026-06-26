@@ -115,6 +115,7 @@ export class TestEmailController {
     const result = await this.notifyHighSeverityFindingsService.sendEmailForMostRecentNoteWithHighFindings(
       user.id,
       body.noteLink,
+      body.noteId,
     );
 
     if (!result.sent) {
