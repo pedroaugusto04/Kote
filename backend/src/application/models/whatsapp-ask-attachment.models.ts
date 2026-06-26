@@ -3,7 +3,7 @@ import type { WhatsappMediaType } from '../ports/integrations/whatsapp-reply.sen
 export type WhatsappAskAttachmentNoteRef = {
   id?: string;
   noteId?: string;
-  workspaceSlug?: string;
+  workspaceId?: string;
 };
 
 export type WhatsappAskAttachmentMedia = {

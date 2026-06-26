@@ -12,7 +12,7 @@ export type AnswerContextChunk = {
   title: string;
   path: string;
   projectSlug?: string;
-  workspaceSlug?: string;
+  workspaceId?: string;
   chunkText: string;
 };
 

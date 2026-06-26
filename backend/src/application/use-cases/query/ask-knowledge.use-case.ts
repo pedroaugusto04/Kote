@@ -104,7 +104,7 @@ export class AskKnowledgeUseCase {
           title: note.title,
           path: note.path,
           projectSlug: note.projectSlug,
-          workspaceSlug: note.workspaceSlug,
+          workspaceId: note.workspaceId,
           chunkText: chunk.chunkText,
         };
       })
@@ -151,7 +151,7 @@ export class AskKnowledgeUseCase {
           title: n.title,
           path: n.path,
           projectSlug: n.projectSlug,
-          workspaceSlug: n.workspaceSlug,
+          workspaceId: n.workspaceId,
         })),
     };
   }

@@ -21,6 +21,7 @@ import { AppLogger } from '../../../../observability/logger.js';
 import { parseWhatsappEvolutionMessage } from '../../../utils/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
+import { ContentRepository } from '../../../ports/notes/content.repository.js';
 
 type WhatsappWebhookContext = {
   headers: Record<string, string>;
@@ -46,6 +47,7 @@ export class HandleWhatsappWebhookUseCase {
     private readonly logger?: AppLogger,
     private readonly resolveWhatsappAskAttachmentsUseCase?: ResolveWhatsappAskAttachmentsUseCase,
     private readonly audioTranscriptionGateway?: AudioTranscriptionGateway,
+    private readonly contentRepository?: ContentRepository,
   ) {}
 
   async execute(input: WhatsappWebhookRequest) {
@@ -309,7 +311,15 @@ export class HandleWhatsappWebhookUseCase {
 
     const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceSlug });
 
-    const attachmentResolution = await this.resolveAskAttachments(userId, workspaceSlug, result);
+    // Resolve workspace ID from slug
+    let workspaceId = '';
+    if (this.contentRepository) {
+      const workspaces = await this.contentRepository.listWorkspaces(userId);
+      const workspace = workspaces.find((item: { workspaceSlug: string }) => item.workspaceSlug === workspaceSlug);
+      workspaceId = workspace?.id || '';
+    }
+
+    const attachmentResolution = await this.resolveAskAttachments(userId, workspaceId, result);
     const replyText = formatAskReply(result, attachmentResolution);
     const sendResult = await this.sendReply(input.chatId, replyText);
     const mediaDispatch = await this.sendAskAttachments(input.chatId, attachmentResolution);
@@ -351,7 +361,7 @@ export class HandleWhatsappWebhookUseCase {
 
   private async resolveAskAttachments(
     userId: string,
-    workspaceSlug: string,
+    workspaceId: string,
     result: Awaited<ReturnType<AskKnowledgeUseCase['execute']>>,
   ): Promise<WhatsappAskAttachmentResolution> {
     if (!this.resolveWhatsappAskAttachmentsUseCase) {
@@ -359,7 +369,7 @@ export class HandleWhatsappWebhookUseCase {
     }
     return this.resolveWhatsappAskAttachmentsUseCase.execute({
       userId,
-      workspaceSlug,
+      workspaceId,
       requestedAttachments: result.requestedAttachments,
       requestedAttachmentPattern: result.requestedAttachmentPattern,
       sources: result.sources,
@@ -370,11 +380,11 @@ export class HandleWhatsappWebhookUseCase {
   private async sendAskAttachments(chatJid: string, attachmentResolution: WhatsappAskAttachmentResolution) {
     let sentCount = 0;
     let failedCount = 0;
-    console.log('[send-attachments] chatJid:', chatJid, 'requested:', attachmentResolution.requested, 'mediaCount:', attachmentResolution.media.length, 'whatsappReplySender configured:', !!this.whatsappReplySender);
+
     if (!attachmentResolution.requested || !this.whatsappReplySender) return { sentCount, failedCount };
 
     for (const media of attachmentResolution.media) {
-      console.log('[send-attachments] sending media:', media.fileName, 'type:', media.mediaType, 'size:', media.mediaBase64.length);
+
       const result = await this.whatsappReplySender.sendMedia({
         chatJid,
         mediaType: media.mediaType,
@@ -382,7 +392,7 @@ export class HandleWhatsappWebhookUseCase {
         fileName: media.fileName,
         mediaBase64: media.mediaBase64,
       });
-      console.log('[send-attachments] send result:', result);
+
       if (result.ok) {
         sentCount += 1;
       } else {
@@ -397,7 +407,6 @@ export class HandleWhatsappWebhookUseCase {
       }
     }
 
-    console.log('[send-attachments] final counts:', { sentCount, failedCount });
     return { sentCount, failedCount };
   }
 

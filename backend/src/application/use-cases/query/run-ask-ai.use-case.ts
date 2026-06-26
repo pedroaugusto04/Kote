@@ -37,12 +37,13 @@ export class RunAskAiUseCase {
       if (result.requestedAttachments) {
         const workspaceSlug = options.workspaceSlug || 'default';
         const workspaces = await this.contentRepository.listWorkspaces(userId);
-        const workspace = workspaces.find((item) => item.workspaceSlug === workspaceSlug) || workspaces[0];
+        const workspace = workspaces.find((item: { workspaceSlug: string }) => item.workspaceSlug === workspaceSlug) || workspaces[0];
         const chatJid = String(workspace?.whatsappChatJid || '').trim();
+        const workspaceId = workspace?.id || '';
 
         const attachmentResolution = await this.resolveWhatsappAskAttachmentsUseCase.execute({
           userId,
-          workspaceSlug: workspace?.workspaceSlug || workspaceSlug,
+          workspaceId,
           requestedAttachments: result.requestedAttachments,
           requestedAttachmentPattern: result.requestedAttachmentPattern,
           sources: result.sources,
