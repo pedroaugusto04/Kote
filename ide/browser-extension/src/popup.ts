@@ -7,6 +7,7 @@ interface ProjectInfo {
 
 // Global state
 let currentClip: ClipPayload | null = null;
+let currentAuthMethod: 'token' | 'email' = 'token';
 
 async function getOrExchangeAccessToken(currentApiUrl: string, connectionToken: string): Promise<string> {
   const cached = await chrome.storage.local.get(['accessToken']);
@@ -53,7 +54,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const inputApiUrl = document.getElementById('input-api-url') as HTMLInputElement;
   const inputToken = document.getElementById('input-token') as HTMLInputElement;
+  const inputEmail = document.getElementById('input-email') as HTMLInputElement;
+  const inputPassword = document.getElementById('input-password') as HTMLInputElement;
   const btnSaveSettings = document.getElementById('btn-save-settings') as HTMLButtonElement;
+
+  const tabToken = document.getElementById('tab-token') as HTMLButtonElement;
+  const tabEmail = document.getElementById('tab-email') as HTMLButtonElement;
+  const authFormToken = document.getElementById('auth-form-token')!;
+  const authFormEmail = document.getElementById('auth-form-email')!;
 
   const badgeClipType = document.getElementById('badge-clip-type')!;
   const textSourceUrl = document.getElementById('text-source-url')!;
@@ -67,7 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const statusBanner = document.getElementById('status-banner')!;
 
   // Load stored configuration
-  const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'defaultProject']);
+  const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'defaultProject', 'authMethod']);
   const defaultApiUrl = 'https://knowledgebase.sbs/kote';
   let apiUrl = config.apiUrl || defaultApiUrl;
 
@@ -78,16 +86,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   inputApiUrl.value = apiUrl;
 
-  if (config.connectionToken) {
-    // Already configured (we have the token), show clipper
+  // Set auth method based on stored config or default to token
+  currentAuthMethod = config.authMethod || 'token';
+  updateAuthTabUI();
+
+  if (config.connectionToken || config.authMethod === 'email') {
+    // Already configured, show clipper
     panelSettings.classList.add('hidden');
     panelClipper.classList.remove('hidden');
-    inputToken.value = config.connectionToken;
+    if (config.connectionToken) {
+      inputToken.value = config.connectionToken;
+    }
     await initializeClipper();
   } else {
     // Not configured, force settings view (but API URL is already prefilled)
     panelSettings.classList.remove('hidden');
     panelClipper.classList.add('hidden');
+  }
+
+  // Auth Tab Switching
+  tabToken.addEventListener('click', () => {
+    currentAuthMethod = 'token';
+    updateAuthTabUI();
+  });
+
+  tabEmail.addEventListener('click', () => {
+    currentAuthMethod = 'email';
+    updateAuthTabUI();
+  });
+
+  function updateAuthTabUI() {
+    if (currentAuthMethod === 'token') {
+      tabToken.classList.add('active');
+      tabEmail.classList.remove('active');
+      authFormToken.classList.remove('hidden');
+      authFormEmail.classList.add('hidden');
+    } else {
+      tabToken.classList.remove('active');
+      tabEmail.classList.add('active');
+      authFormToken.classList.add('hidden');
+      authFormEmail.classList.remove('hidden');
+    }
   }
 
   // Settings Toggle Click
@@ -99,10 +138,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Save Settings Click
   btnSaveSettings.addEventListener('click', async () => {
     let url = inputApiUrl.value.trim().replace(/\/$/, '');
-    const token = inputToken.value.trim();
 
-    if (!url || !token) {
-      showStatus('Enter API URL and Connection Token.', 'error');
+    if (!url) {
+      showStatus('Enter API URL.', 'error');
       return;
     }
 
@@ -114,8 +152,71 @@ document.addEventListener('DOMContentLoaded', async () => {
     showStatus('Validating connection...', 'success');
 
     try {
-      // Exchange and validate connection token
-      const accessToken = await getOrExchangeAccessToken(url, token);
+      let accessToken: string;
+
+      if (currentAuthMethod === 'token') {
+        const token = inputToken.value.trim();
+        if (!token) {
+          showStatus('Enter Connection Token.', 'error');
+          btnSaveSettings.disabled = false;
+          return;
+        }
+
+        // Exchange and validate connection token
+        accessToken = await getOrExchangeAccessToken(url, token);
+
+        // Save credentials
+        await chrome.storage.local.set({
+          apiUrl: url,
+          connectionToken: token,
+          authMethod: 'token',
+        });
+      } else {
+        const email = inputEmail.value.trim();
+        const password = inputPassword.value.trim();
+
+        if (!email || !password) {
+          showStatus('Enter email and password.', 'error');
+          btnSaveSettings.disabled = false;
+          return;
+        }
+
+        // Login with email/password
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (chrome.runtime.id) {
+          headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
+        }
+
+        const loginRes = await fetch(`${url}/api/auth/login`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (!loginRes.ok) {
+          const errorData = await loginRes.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Login failed. Check your credentials.');
+        }
+
+        const loginData = await loginRes.json();
+        
+        // Backend returns tokens in response body for browser extensions
+        if (!loginData.accessToken || !loginData.refreshToken) {
+          throw new Error('Failed to extract authentication tokens.');
+        }
+        
+        accessToken = loginData.accessToken;
+        await chrome.storage.local.set({
+          accessToken: loginData.accessToken,
+          refreshToken: loginData.refreshToken,
+        });
+
+        // Save credentials
+        await chrome.storage.local.set({
+          apiUrl: url,
+          authMethod: 'email',
+        });
+      }
 
       // Check workspaces to verify full token validity
       const testRes = await fetch(`${url}/api/workspaces`, {
@@ -130,12 +231,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         throw new Error('Authentication rejected by backend.');
       }
 
-      // Save credentials
-      await chrome.storage.local.set({
-        apiUrl: url,
-        connectionToken: token,
-      });
-
       showStatus('Connection successful!', 'success');
 
       // Load Clipper view
@@ -146,7 +241,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       }, 1000);
 
     } catch (err: any) {
-      showStatus(`Connection failed: ${err.message || 'Check URL/Token.'}`, 'error');
+      showStatus(`Connection failed: ${err.message || 'Check credentials.'}`, 'error');
     } finally {
       btnSaveSettings.disabled = false;
     }
@@ -257,16 +352,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load Projects list from backend
   async function loadProjects() {
-    const config = await chrome.storage.local.get(['apiUrl', 'connectionToken']);
+    const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'authMethod', 'accessToken']);
     let currentApiUrl = config.apiUrl || 'https://knowledgebase.sbs/kote';
     currentApiUrl = currentApiUrl.trim().replace(/\/$/, '');
     if (currentApiUrl.endsWith('/api')) {
       currentApiUrl = currentApiUrl.slice(0, -4);
     }
-    if (!config.connectionToken) return;
+    
+    // Check if we have any auth method configured
+    if (!config.connectionToken && !config.authMethod) return;
 
     try {
-      const accessToken = await getOrExchangeAccessToken(currentApiUrl, config.connectionToken);
+      let accessToken: string;
+      
+      if (config.authMethod === 'email' && config.accessToken) {
+        accessToken = config.accessToken;
+      } else if (config.connectionToken) {
+        accessToken = await getOrExchangeAccessToken(currentApiUrl, config.connectionToken);
+      } else {
+        return;
+      }
 
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',

@@ -29,11 +29,23 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async login(
     @Body(new ZodValidationPipe(loginBodySchema, 'invalid_login_payload')) body: LoginBody,
-    @Req() _request: Request,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
     const { user, tokens } = await this.auth.login(body.email, body.password);
     setAuthCookies(response, tokens);
+    
+    // Return tokens in response body for browser extensions (they can't access Set-Cookie headers)
+    const isBrowserExtension = request.headers.origin?.startsWith('chrome-extension://');
+    if (isBrowserExtension) {
+      return { 
+        ok: true, 
+        user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      };
+    }
+    
     return { ok: true, user };
   }
 

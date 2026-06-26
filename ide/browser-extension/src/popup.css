@@ -115,6 +115,50 @@ body {
   margin-bottom: 4px;
 }
 
+/* Auth Tabs */
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  background-color: var(--bg-input);
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.auth-tab:hover {
+  color: var(--text-primary);
+}
+
+.auth-tab.active {
+  background-color: var(--bg-card);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form.hidden {
+  display: none !important;
+}
+
 /* Form Styles */
 .form-group {
   display: flex;
@@ -135,6 +179,7 @@ label {
 
 input[type="text"],
 input[type="url"],
+input[type="email"],
 input[type="password"],
 select {
   width: 100%;

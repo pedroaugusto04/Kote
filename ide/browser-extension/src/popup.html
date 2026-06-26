@@ -30,13 +30,36 @@
           <label for="input-api-url">API Server URL</label>
           <input type="url" id="input-api-url" placeholder="http://localhost:4310" value="http://localhost:4310">
         </div>
-        <div class="form-group">
-          <label for="input-token">Connection Token</label>
-          <input type="password" id="input-token" placeholder="Enter kbc_... token">
-          <small class="help-text">Obtain this token from your Kote profile settings page.</small>
+        
+        <!-- Auth Tabs -->
+        <div class="auth-tabs">
+          <button id="tab-token" class="auth-tab active">Connection Token</button>
+          <button id="tab-email" class="auth-tab">Email & Password</button>
         </div>
+
+        <!-- Token Auth Form -->
+        <div id="auth-form-token" class="auth-form">
+          <div class="form-group">
+            <label for="input-token">Connection Token</label>
+            <input type="password" id="input-token" placeholder="Enter kbc_... token">
+            <small class="help-text">Obtain this token from your Kote profile settings page.</small>
+          </div>
+        </div>
+
+        <!-- Email/Password Auth Form -->
+        <div id="auth-form-email" class="auth-form hidden">
+          <div class="form-group">
+            <label for="input-email">Email</label>
+            <input type="email" id="input-email" placeholder="your@email.com">
+          </div>
+          <div class="form-group">
+            <label for="input-password">Password</label>
+            <input type="password" id="input-password" placeholder="Enter your password">
+          </div>
+        </div>
+
         <div class="actions-row">
-          <button id="btn-save-settings" class="btn btn-primary">Save Connection</button>
+          <button id="btn-save-settings" class="btn btn-primary">Connect</button>
         </div>
       </section>
 
