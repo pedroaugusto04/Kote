@@ -38,6 +38,8 @@ services:
       KB_LOG_MAX_FILES: ${KB_LOG_MAX_FILES:-30}
       KB_LOG_MAX_SIZE: ${KB_LOG_MAX_SIZE:-20m}
       KB_LOG_LEVEL: ${KB_LOG_LEVEL:-debug}
+      # Browser extension IDs (comma-separated, for chrome-extension:// origins)
+      KB_ALLOWED_EXTENSION_IDS: ${KB_ALLOWED_EXTENSION_IDS:-}
       # Email configuration (defaults for local development)
       KB_EMAIL_PROVIDER: ${KB_EMAIL_PROVIDER:-resend}
       KB_EMAIL_RESEND_API_KEY: ${KB_EMAIL_RESEND_API_KEY:-}
