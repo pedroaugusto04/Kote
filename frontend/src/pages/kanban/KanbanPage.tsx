@@ -26,10 +26,22 @@ const DEFAULT_COLUMN_DATA = {
   hasPrevious: false,
 };
 
-export function KanbanPage({ dashboard, openNote }: PageContext) {
+export interface KanbanPageProps extends PageContext {
+  embedMode?: boolean;
+  projectSlug?: string;
+  onProjectChange?: (slug: string) => void;
+}
+
+export function KanbanPage({
+  dashboard,
+  openNote,
+  embedMode = false,
+  projectSlug: externalProjectSlug,
+  onProjectChange: externalOnProjectChange,
+}: KanbanPageProps) {
   const queryClient = useQueryClient();
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
-  const [projectSlug, setProjectSlug] = useState('');
+  const [internalProjectSlug, setInternalProjectSlug] = useState('');
   const [draggedId, setDraggedId] = useState('');
   const [columnPages, setColumnPages] = useState<Record<ReminderBoardColumnKey, number>>({
     overdue: 1,
@@ -37,6 +49,10 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
     resolved: 1,
     archived: 1,
   });
+
+  const projectSlug = externalProjectSlug !== undefined ? externalProjectSlug : internalProjectSlug;
+  const setProjectSlug = externalOnProjectChange !== undefined ? externalOnProjectChange : setInternalProjectSlug;
+
   const projectOptions = useMemo(() => [
     { value: '', label: 'All projects' },
     ...dashboard.projects
@@ -88,23 +104,25 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
 
   return (
     <>
-      <PageHead
-        title={(
-          <div className="page-head-title-row">
-            <h1>Kanban</h1>
-            <label className="sr-only" htmlFor="kanban-project-select">Filter by project</label>
-            <Select
-              ariaLabel="Filter by project"
-              className="page-head-select"
-              id="kanban-project-select"
-              options={projectOptions}
-              value={projectSlug}
-              onChange={handleProjectChange}
-            />
-          </div>
-        )}
-        subtitle=""
-      />
+      {!embedMode && (
+        <PageHead
+          title={(
+            <div className="page-head-title-row">
+              <h1>Kanban</h1>
+              <label className="sr-only" htmlFor="kanban-project-select">Filter by project</label>
+              <Select
+                ariaLabel="Filter by project"
+                className="page-head-select"
+                id="kanban-project-select"
+                options={projectOptions}
+                value={projectSlug}
+                onChange={handleProjectChange}
+              />
+            </div>
+          )}
+          subtitle=""
+        />
+      )}
       <div className="kanban-board" aria-busy={boardQuery.isFetching || statusMutation.isPending}>
         {kanbanBoardColumns.map((column) => {
           const data = board?.[column.key] || DEFAULT_COLUMN_DATA;

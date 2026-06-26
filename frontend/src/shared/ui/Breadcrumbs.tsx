@@ -74,7 +74,6 @@ function buildBreadcrumbItems(pathname: string, projects: Project[], note: Bread
   if (pathname.startsWith(routes.map)) return [home, ...buildKnowledgeMapBreadcrumbs(pathname, projects)];
   if (pathname.startsWith(routes.vault)) return [home, ...buildVaultBreadcrumbs(note, projects)];
   if (pathname === routes.search) return [home, { label: UI_MESSAGES.SEARCH }];
-  if (pathname === routes.kanban) return [home, { label: UI_MESSAGES.KANBAN }];
   if (pathname === routes.reminders) return [home, { label: UI_MESSAGES.REMINDERS }];
   if (pathname === routes.profile) return [home, { label: UI_MESSAGES.PROFILE }];
   if (pathname.startsWith(routes.integrations)) {

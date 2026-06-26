@@ -1717,3 +1717,37 @@
   background: #f1f5f9;
   border-color: #e2e8f0;
 }
+
+/* Reminders View Selector */
+.view-selector {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-3);
+  padding: 3px;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  margin-right: 8px;
+}
+
+.view-selector-btn {
+  padding: 4px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--ui);
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.view-selector-btn:hover {
+  color: var(--text-strong);
+}
+
+.view-selector-btn.active {
+  background: var(--surface-active);
+  color: var(--active-text);
+  box-shadow: var(--shadow-sm);
+}

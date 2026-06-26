@@ -21,7 +21,6 @@ import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
 
 const IntegrationsPage = lazy(() => import('../pages/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
 const SubscriptionPage = lazy(() => import('../pages/billing/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
-const KanbanPage = lazy(() => import('../pages/kanban/KanbanPage').then(m => ({ default: m.KanbanPage })));
 const ProjectKnowledgeMapPage = lazy(() => import('../features/projects/knowledge-map/ProjectKnowledgeMapPage').then(m => ({ default: m.ProjectKnowledgeMapPage })));
 const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const SetupPage = lazy(() => import('../pages/setup/SetupPage').then(m => ({ default: m.SetupPage })));
@@ -54,7 +53,6 @@ function activeView(pathname: string): View {
   if (pathname.startsWith(routes.projects)) return 'projects';
   if (pathname.startsWith(routes.vault)) return 'note';
   if (pathname.startsWith(routes.search)) return 'search';
-  if (pathname.startsWith(routes.kanban)) return 'kanban';
   if (pathname.startsWith(routes.reminders)) return 'reminders';
   if (pathname.startsWith(routes.profile)) return 'profile';
   if (pathname.startsWith(routes.integrations)) return 'integrations';
@@ -636,7 +634,6 @@ export function AppShell() {
               <Route path="/vault" element={<Navigate replace to={routes.projects} />} />
               <Route path="/vault/:noteId" element={shouldBlockNoteRoute ? null : <VaultPage {...pageContext} />} />
               <Route path="/search" element={<SearchPage {...pageContext} />} />
-              <Route path="/kanban" element={<KanbanPage {...pageContext} />} />
               <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
               <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
               <Route path="/automations/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />

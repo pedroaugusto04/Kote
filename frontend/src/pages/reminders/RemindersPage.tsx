@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../shared/utils/format';
@@ -16,6 +16,7 @@ import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { ReminderRow } from '../../widgets/reminders/ReminderRow';
 import { ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
+import { KanbanPage } from '../kanban/KanbanPage';
 
 const reminderStatusOptions = [
   { value: StatusFilter.Open, label: 'Open' },
@@ -82,7 +83,17 @@ function buildInitialReminderPage(reminders: Reminder[], workspaceSlug: string, 
   };
 }
 
-export function RemindersPage({ dashboard, openNote }: PageContext) {
+export function RemindersPage({
+  dashboard,
+  selectedProject,
+  selectedNoteId,
+  setSelectedProject,
+  openProject,
+  openNote,
+  editNote,
+  createNote,
+  deleteNote,
+}: PageContext) {
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
   const [status, setStatus] = useState(StatusFilter.Open);
   const remindersPaginationKey = `${workspaceSlug}:${status}`;
@@ -110,6 +121,40 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
   const queryClient = useQueryClient();
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [confirmBulk, setConfirmBulk] = useState<BulkReminderAction | null>(null);
+  
+  const [viewMode, setViewMode] = useState<'list' | 'board'>(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return (window.localStorage.getItem('kote-reminders-view-mode') as 'list' | 'board') || 'list';
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 'list';
+  });
+  const [projectSlug, setProjectSlug] = useState('');
+
+  const projectOptions = useMemo(() => [
+    { value: '', label: 'All projects' },
+    ...dashboard.projects
+      .filter((project) => !workspaceSlug || project.workspaceSlug === workspaceSlug)
+      .map((project) => ({ value: project.projectSlug, label: project.displayName })),
+  ], [dashboard.projects, workspaceSlug]);
+
+  const handleViewModeChange = (mode: 'list' | 'board') => {
+    setViewMode(mode);
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('kote-reminders-view-mode', mode);
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const handleProjectChange = (newProjectSlug: string) => {
+    setProjectSlug(newProjectSlug);
+  };
 
   const handleBulkUpdate = async (action: BulkReminderAction) => {
     if (!visibleReminders.length) return;
@@ -142,52 +187,103 @@ export function RemindersPage({ dashboard, openNote }: PageContext) {
         title={(
           <div className="page-head-title-row">
             <h1>Reminders</h1>
-            <label className="sr-only" htmlFor="reminders-page-status-select">Filter by status</label>
-            <Select
-              ariaLabel="Filter by status"
-              className="page-head-select"
-              id="reminders-page-status-select"
-              options={reminderStatusOptions}
-              value={status}
-              onChange={setStatus}
-            />
+            <div className="view-selector">
+              <button
+                type="button"
+                className={`view-selector-btn ${viewMode === 'list' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('list')}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                className={`view-selector-btn ${viewMode === 'board' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('board')}
+              >
+                Board
+              </button>
+            </div>
+            {viewMode === 'list' ? (
+              <>
+                <label className="sr-only" htmlFor="reminders-page-status-select">Filter by status</label>
+                <Select
+                  ariaLabel="Filter by status"
+                  className="page-head-select"
+                  id="reminders-page-status-select"
+                  options={reminderStatusOptions}
+                  value={status}
+                  onChange={setStatus}
+                />
+              </>
+            ) : (
+              <>
+                <label className="sr-only" htmlFor="reminders-page-project-select">Filter by project</label>
+                <Select
+                  ariaLabel="Filter by project"
+                  className="page-head-select"
+                  id="reminders-page-project-select"
+                  options={projectOptions}
+                  value={projectSlug}
+                  onChange={handleProjectChange}
+                />
+              </>
+            )}
           </div>
         )}
         subtitle=""
       />
-      {visibleReminders.length > 0 && (
-        <div className="bulk-actions" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-          <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk('resolve')}>
-            <ResolveIcon />
-            Resolve all
-          </button>
-          <span style={{ color: 'var(--line-soft)', fontSize: '12px' }}>|</span>
-          <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk('archive')}>
-            <ArchiveIcon />
-            Archive all
-          </button>
-        </div>
-      )}
-      <div className={`grid ${remindersQuery.isPlaceholderData ? 'stale-data' : ''}`}>
-        {Object.entries(grouped).map(([date, reminders]) => (
-          <Panel key={date}>
-            <h2>{date === 'no-date' ? 'No date' : formatUsDate(date)}</h2>
-            <div className="list">
-              {reminders.map((reminder) => (
-                <ReminderRow key={reminder.id} reminder={reminder} dashboard={dashboard} onOpenPath={() => openNote(reminder.id)} />
-              ))}
+      {viewMode === 'board' ? (
+        <KanbanPage
+          dashboard={dashboard}
+          openNote={openNote}
+          embedMode={true}
+          projectSlug={projectSlug}
+          onProjectChange={handleProjectChange}
+          selectedProject={selectedProject}
+          selectedNoteId={selectedNoteId}
+          setSelectedProject={setSelectedProject}
+          openProject={openProject}
+          editNote={editNote}
+          createNote={createNote}
+          deleteNote={deleteNote}
+        />
+      ) : (
+        <>
+          {visibleReminders.length > 0 && (
+            <div className="bulk-actions" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+              <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk('resolve')}>
+                <ResolveIcon />
+                Resolve all
+              </button>
+              <span style={{ color: 'var(--line-soft)', fontSize: '12px' }}>|</span>
+              <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk('archive')}>
+                <ArchiveIcon />
+                Archive all
+              </button>
             </div>
-          </Panel>
-        ))}
-        {!visibleReminders.length && !remindersQuery.isLoading && !remindersQuery.isError ? (
-          <EmptyState>No reminders found with these filters.</EmptyState>
-        ) : null}
-      </div>
-      {pagination ? (
-        isMobilePagination
-          ? <MobileInfinitePagination pagination={pagination} isLoading={remindersQuery.isFetching || pagination.page > loadedMobilePage} onPageChange={setPage} />
-          : <Pagination pagination={pagination} onPageChange={setPage} />
-      ) : null}
+          )}
+          <div className={`grid ${remindersQuery.isPlaceholderData ? 'stale-data' : ''}`}>
+            {Object.entries(grouped).map(([date, reminders]) => (
+              <Panel key={date}>
+                <h2>{date === 'no-date' ? 'No date' : formatUsDate(date)}</h2>
+                <div className="list">
+                  {reminders.map((reminder) => (
+                    <ReminderRow key={reminder.id} reminder={reminder} dashboard={dashboard} onOpenPath={() => openNote(reminder.id)} />
+                  ))}
+                </div>
+              </Panel>
+            ))}
+            {!visibleReminders.length && !remindersQuery.isLoading && !remindersQuery.isError ? (
+              <EmptyState>No reminders found with these filters.</EmptyState>
+            ) : null}
+          </div>
+          {pagination ? (
+            isMobilePagination
+              ? <MobileInfinitePagination pagination={pagination} isLoading={remindersQuery.isFetching || pagination.page > loadedMobilePage} onPageChange={setPage} />
+              : <Pagination pagination={pagination} onPageChange={setPage} />
+          ) : null}
+        </>
+      )}
 
       {confirmBulk && (
         <ConfirmationModal
