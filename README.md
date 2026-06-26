@@ -20,23 +20,23 @@
 
 ---
 
-## Core Features
+## How it works
 
-* **GitHub Push Integration:** Capture `git push` events, analyze commits/diffs with AI, and automatically send technical summaries to your Kote and team channels.
-  
-* **WhatsApp Integration:** Send audio or text messages to generate AI-structured notes, use `/ask` to search for information and inserted files, and receive automatic reminders directly in WhatsApp.
-  
-* **Telegram Integration:** Get pipeline failure alerts, review summaries, and interact directly with the bot for quick knowledge capture.
-  
-* **AI-Powered Conversations:** Integrated chat interface to ask questions about your Kote with project filters and conversation history.
-  
-* **CLI Tool:** Command-line interface for syncing local files and AI session histories directly from your terminal.
-  
-* **VS Code Extension:** Complete Kote integration with sidebar chat, quick shortcuts, and direct code/file saving from your editor.
-  
-* **Contextual Search:** Find answers instantly across your entire organizational history.
-  
-* **Project Briefs:** AI-generated operational technical summaries from the latest project items.
+Kote captures knowledge automatically where your team already works:
+
+1. **Push code to GitHub** → AI reviews changes with improvement suggestions and problem detection → Technical summaries saved to your Kote with WhatsApp/Email alerts for issues
+
+2. **Use AI tools in VS Code** → Extension captures conversations automatically → AI sessions saved to your Kote
+
+3. **Save code from VS Code** → Select code or files → One-click save with full context → Search and reuse code snippets anytime
+
+4. **Send messages or attachments to WhatsApp** → AI structures notes with embedded audio/files → Use `/ask` to search knowledge and retrieve files instantly, or search directly in the app
+
+5. **View Project Briefs** → AI generates summaries from latest project activity → Get up to speed on any project in seconds
+
+6. **Explore Knowledge Map** → Visual graph reveals connections between notes, projects, and topics → Discover related insights you might have missed
+
+7. **Sync from terminal** → Run `kote sync-ai` or `kote sync --dir` → Capture AI sessions and files dynamically without leaving your workflow
 
 ---
 
