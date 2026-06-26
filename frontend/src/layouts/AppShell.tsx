@@ -643,7 +643,7 @@ export function AppShell() {
               <Route path="/automations/subscription" element={<SubscriptionPage />} />
               <Route path="/automations" element={<AutomationsPage />} />
               <Route path="/help" element={<HelpPage />} />
-              <Route path="/kote/extension/privacy" element={<ExtensionPrivacyPage />} />
+              <Route path="/extension/privacy" element={<ExtensionPrivacyPage />} />
               <Route path="*" element={<HomePage {...pageContext} />} />
             </Routes>
           </Suspense>
