@@ -1,9 +1,17 @@
+export enum IntegrationProvider {
+  GithubApp = 'github-app',
+  Whatsapp = 'whatsapp',
+  Telegram = 'telegram',
+  PushNotifications = 'push-notifications',
+  PrContextAi = 'pr-context-ai',
+}
+
 export const INTEGRATION_LOGOS: Record<string, { src: string; label: string }> = {
-  'github-app': { src: 'https://cdn.simpleicons.org/github/ffffff', label: 'GitHub' },
-  whatsapp: { src: 'https://cdn.simpleicons.org/whatsapp/25D366', label: 'WhatsApp' },
-  telegram: { src: 'https://cdn.simpleicons.org/telegram/26A5E4', label: 'Telegram' },
-  'push-notifications': { src: 'https://cdn.simpleicons.org/pushover/3B5998', label: 'Push Notifications' },
-  'pr-context-ai': { src: 'https://cdn.simpleicons.org/github/0052CC', label: 'PR Context AI' },
+  [IntegrationProvider.GithubApp]: { src: 'https://cdn.simpleicons.org/github/ffffff', label: 'GitHub' },
+  [IntegrationProvider.Whatsapp]: { src: 'https://cdn.simpleicons.org/whatsapp/25D366', label: 'WhatsApp' },
+  [IntegrationProvider.Telegram]: { src: 'https://cdn.simpleicons.org/telegram/26A5E4', label: 'Telegram' },
+  [IntegrationProvider.PushNotifications]: { src: 'https://cdn.simpleicons.org/pushover/3B5998', label: 'Push Notifications' },
+  [IntegrationProvider.PrContextAi]: { src: 'https://cdn.simpleicons.org/github/0052CC', label: 'PR Context AI' },
 };
 
 export const INTEGRATION_MESSAGES = {
@@ -16,8 +24,8 @@ export const INTEGRATION_MESSAGES = {
   DEFAULT_STEP: 'Start the connection to enable this integration.',
   
   PROVIDER_LABELS: {
-    telegram: 'Telegram',
-    whatsapp: 'WhatsApp',
+    [IntegrationProvider.Telegram]: 'Telegram',
+    [IntegrationProvider.Whatsapp]: 'WhatsApp',
   },
   
   CONNECTION: {

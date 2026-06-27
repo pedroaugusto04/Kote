@@ -2,11 +2,19 @@ import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession } from './types';
 import type { KbClient } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
+import {
+  EXTENSION_COMMANDS,
+  GLOBAL_STATE_KEYS,
+  AI_SESSION_SAVE_MODES,
+  SESSION_PROMPT_ACTIONS,
+  DEFAULT_FALLBACK_PROJECT_SLUG,
+  SOURCE_CHANNELS
+} from '../constants';
 
-type SessionPromptAction = 'Auto-save' | 'Preview & Edit' | 'Ignore';
-type AiSessionSaveMode = 'auto-save' | 'ask' | 'ignore-all';
+type SessionPromptAction = typeof SESSION_PROMPT_ACTIONS[keyof typeof SESSION_PROMPT_ACTIONS];
+type AiSessionSaveMode = typeof AI_SESSION_SAVE_MODES[keyof typeof AI_SESSION_SAVE_MODES];
 
-const SESSION_MODE_PICKED_KEY = 'kote.aiSessionModePicked';
+const SESSION_MODE_PICKED_KEY = GLOBAL_STATE_KEYS.AI_SESSION_MODE_PICKED;
 
 const SESSION_PROMPT_TIMEOUT_MS = 2 * 60 * 1000;
 
@@ -53,7 +61,7 @@ export class AiHistoryManager {
 
     // Load persisted known session hashes
     try {
-      const persistedHashes = context.globalState.get<[string, string][]>('kote.knownSessionHashes') || [];
+      const persistedHashes = context.globalState.get<[string, string][]>(GLOBAL_STATE_KEYS.KNOWN_SESSION_HASHES) || [];
       this.knownSessionHashes = new Map(persistedHashes);
     } catch {
       this.knownSessionHashes = new Map();
@@ -61,14 +69,14 @@ export class AiHistoryManager {
 
     // Load persisted recent sessions
     try {
-      this.recentSessions = context.globalState.get<AiSession[]>('kote.recentSessions') || [];
+      this.recentSessions = context.globalState.get<AiSession[]>(GLOBAL_STATE_KEYS.RECENT_SESSIONS) || [];
     } catch {
       this.recentSessions = [];
     }
 
     // Load persisted saved session keys
     try {
-      const persistedSaved = context.globalState.get<[string, number][]>('kote.savedSessionsMap') || [];
+      const persistedSaved = context.globalState.get<[string, number][]>(GLOBAL_STATE_KEYS.SAVED_SESSIONS_MAP) || [];
       this.savedSessions = new Map(persistedSaved);
       this.enforceSessionLimits();
     } catch {
@@ -77,7 +85,7 @@ export class AiHistoryManager {
 
     // Load persisted ignored session keys
     try {
-      const persistedIgnored = context.globalState.get<[string, number][]>('kote.ignoredSessionsMap') || [];
+      const persistedIgnored = context.globalState.get<[string, number][]>(GLOBAL_STATE_KEYS.IGNORED_SESSIONS_MAP) || [];
       this.ignoredSessions = new Map(persistedIgnored);
       this.enforceSessionLimits();
     } catch {
@@ -223,10 +231,10 @@ export class AiHistoryManager {
     if (!this.context) return;
     try {
       const hashesArray = Array.from(this.knownSessionHashes.entries());
-      this.context.globalState.update('kote.knownSessionHashes', hashesArray);
-      this.context.globalState.update('kote.recentSessions', this.recentSessions);
-      this.context.globalState.update('kote.savedSessionsMap', Array.from(this.savedSessions.entries()));
-      this.context.globalState.update('kote.ignoredSessionsMap', Array.from(this.ignoredSessions.entries()));
+      this.context.globalState.update(GLOBAL_STATE_KEYS.KNOWN_SESSION_HASHES, hashesArray);
+      this.context.globalState.update(GLOBAL_STATE_KEYS.RECENT_SESSIONS, this.recentSessions);
+      this.context.globalState.update(GLOBAL_STATE_KEYS.SAVED_SESSIONS_MAP, Array.from(this.savedSessions.entries()));
+      this.context.globalState.update(GLOBAL_STATE_KEYS.IGNORED_SESSIONS_MAP, Array.from(this.ignoredSessions.entries()));
     } catch (err) {
       console.error('Failed to save AI sessions state:', err);
     }
@@ -274,9 +282,9 @@ export class AiHistoryManager {
     const action = await Promise.race([
       vscode.window.showInformationMessage(
         `Kote: New AI session detected from ${provider.name}. Do you want to save it as a note?`,
-        'Auto-save',
-        'Preview & Edit',
-        'Ignore'
+        SESSION_PROMPT_ACTIONS.AUTO_SAVE,
+        SESSION_PROMPT_ACTIONS.PREVIEW_EDIT,
+        SESSION_PROMPT_ACTIONS.IGNORE
       ) as Promise<SessionPromptAction | undefined>,
       timeoutPromise,
     ]);
@@ -294,9 +302,9 @@ export class AiHistoryManager {
 
   private getAiSessionSaveMode(): AiSessionSaveMode {
     if (this.context) {
-      return this.context.globalState.get<AiSessionSaveMode>('kote.aiSessionSaveMode', 'auto-save');
+      return this.context.globalState.get<AiSessionSaveMode>(GLOBAL_STATE_KEYS.AI_SESSION_SAVE_MODE, AI_SESSION_SAVE_MODES.AUTO_SAVE);
     }
-    return 'auto-save';
+    return AI_SESSION_SAVE_MODES.AUTO_SAVE;
   }
 
   async promptModeSelection(context: vscode.ExtensionContext): Promise<void> {
@@ -307,21 +315,21 @@ export class AiHistoryManager {
     const items: ModeItem[] = [
       {
         label: '$(zap) Auto-save (Recommended)',
-        description: currentMode === 'auto-save' ? '\u2713 current' : '',
+        description: currentMode === AI_SESSION_SAVE_MODES.AUTO_SAVE ? '\u2713 current' : '',
         detail: 'Saves AI sessions automatically in the background. A light notification appears when saved.',
-        mode: 'auto-save',
+        mode: AI_SESSION_SAVE_MODES.AUTO_SAVE,
       },
       {
         label: '$(comment-discussion) Ask before saving',
-        description: currentMode === 'ask' ? '\u2713 current' : '',
+        description: currentMode === AI_SESSION_SAVE_MODES.ASK ? '\u2713 current' : '',
         detail: 'Shows a confirmation popup for each detected AI session before saving.',
-        mode: 'ask',
+        mode: AI_SESSION_SAVE_MODES.ASK,
       },
       {
         label: '$(mute) Ignore all sessions',
-        description: currentMode === 'ignore-all' ? '\u2713 current' : '',
+        description: currentMode === AI_SESSION_SAVE_MODES.IGNORE_ALL ? '\u2713 current' : '',
         detail: 'Does not save or prompt for any AI session. Sessions can still be imported manually via the history view.',
-        mode: 'ignore-all',
+        mode: AI_SESSION_SAVE_MODES.IGNORE_ALL,
       },
     ];
 
@@ -333,14 +341,14 @@ export class AiHistoryManager {
     if (!picked) return;
 
     try {
-      await context.globalState.update('kote.aiSessionSaveMode', picked.mode);
+      await context.globalState.update(GLOBAL_STATE_KEYS.AI_SESSION_SAVE_MODE, picked.mode);
     } catch (err) {
       console.error('Failed to update kote.aiSessionSaveMode configuration:', err);
     }
 
     context.globalState.update(SESSION_MODE_PICKED_KEY, true);
 
-    const label = picked.mode === 'auto-save' ? 'Auto-save' : picked.mode === 'ask' ? 'Ask before saving' : 'Ignore all sessions';
+    const label = picked.mode === AI_SESSION_SAVE_MODES.AUTO_SAVE ? 'Auto-save' : picked.mode === AI_SESSION_SAVE_MODES.ASK ? 'Ask before saving' : 'Ignore all sessions';
     vscode.window.showInformationMessage(`Kote: AI session save mode set to ${label}.`);
   }
 
@@ -376,14 +384,14 @@ export class AiHistoryManager {
     }
 
     // In ignore-all mode: silently discard new sessions and updates.
-    if (this.getAiSessionSaveMode() === 'ignore-all') {
+    if (this.getAiSessionSaveMode() === AI_SESSION_SAVE_MODES.IGNORE_ALL) {
       this.rememberSessionHash(key, hash);
       this.pendingPromptSessions.delete(key);
       return;
     }
 
     // In auto-save mode: save new sessions and updates immediately.
-    if (this.getAiSessionSaveMode() === 'auto-save') {
+    if (this.getAiSessionSaveMode() === AI_SESSION_SAVE_MODES.AUTO_SAVE) {
       this.pendingPromptSessions.delete(key);
       this.markSessionAsSaved(provider.id, session.sessionId);
       const saved = await this.autoSaveSessionToVault(client, session);
@@ -406,7 +414,7 @@ export class AiHistoryManager {
     try {
       const action = await this.askSessionAction(provider);
 
-      if (action === 'Auto-save') {
+      if (action === SESSION_PROMPT_ACTIONS.AUTO_SAVE) {
         this.markSessionAsSaved(provider.id, session.sessionId);
         const saved = await this.saveSessionToVault(client, session);
         if (saved) {
@@ -415,10 +423,10 @@ export class AiHistoryManager {
           this.savedSessions.delete(key);
           this.forgetSessionHash(key);
         }
-      } else if (action === 'Preview & Edit') {
+      } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
         this.openPreview(session);
         this.rememberSessionHash(key, hash);
-      } else if (action === 'Ignore') {
+      } else if (action === SESSION_PROMPT_ACTIONS.IGNORE) {
         this.markSessionAsIgnored(provider.id, session.sessionId);
         this.rememberSessionHash(key, hash);
       } else if (action === undefined) {
@@ -566,13 +574,13 @@ export class AiHistoryManager {
       if (selected.session) {
         const action = await vscode.window.showInformationMessage(
           `Selected session: "${selected.label}"`,
-          'Auto-save',
-          'Preview & Edit'
+          SESSION_PROMPT_ACTIONS.AUTO_SAVE,
+          SESSION_PROMPT_ACTIONS.PREVIEW_EDIT
         );
-        if (action === 'Auto-save') {
+        if (action === SESSION_PROMPT_ACTIONS.AUTO_SAVE) {
           this.markSessionAsSaved(selected.session.providerId, selected.session.sessionId);
           await this.saveSessionToVault(client, selected.session);
-        } else if (action === 'Preview & Edit') {
+        } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
           await this.openPreview(selected.session);
         }
       }
@@ -620,12 +628,12 @@ export class AiHistoryManager {
       await vscode.window.showTextDocument(doc);
 
       const choice = await vscode.window.showInformationMessage(
-        'Kote: You are viewing the AI conversation. Edit the file as you wish, then choose Save Now.',
-        'Save Now'
-      );
-      if (choice === 'Save Now') {
-        await vscode.commands.executeCommand('kote.saveActiveFile', session.sessionId, session.providerId);
-      }
+          'Kote: You are viewing the AI conversation. Edit the file as you wish, then choose Save Now.',
+          'Save Now'
+        );
+        if (choice === 'Save Now') {
+          await vscode.commands.executeCommand(EXTENSION_COMMANDS.SAVE_ACTIVE_FILE, session.sessionId, session.providerId);
+        }
     } catch (err: unknown) {
       vscode.window.showErrorMessage(`Failed to open preview: ${toMessage(err)}`);
     }
@@ -638,8 +646,8 @@ export class AiHistoryManager {
       await client.createNote({
         title: titleWithDate,
         rawText,
-        projectSlug: session.projectSlug || client.defaultProjectSlug || 'inbox',
-        sourceChannel: 'ai-chat',
+        projectSlug: session.projectSlug || client.defaultProjectSlug || DEFAULT_FALLBACK_PROJECT_SLUG,
+        sourceChannel: SOURCE_CHANNELS.AI_CHAT,
         source: session.providerId,
         sessionId: session.sessionId,
         occurredAt: new Date(session.timestamp).toISOString(),
@@ -648,7 +656,7 @@ export class AiHistoryManager {
       if (!silent) {
         vscode.window.showInformationMessage('Note saved to Kote successfully!');
       }
-      vscode.commands.executeCommand('kote.refresh');
+      vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
       return true;
     } catch (err: unknown) {
       vscode.window.showErrorMessage(`Failed to save note: ${toMessage(err)}`);
@@ -660,18 +668,19 @@ export class AiHistoryManager {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
+      const projectSlug = session.projectSlug || client.defaultProjectSlug || DEFAULT_FALLBACK_PROJECT_SLUG;
       await client.createNote({
         title: titleWithDate,
         rawText,
-        projectSlug: session.projectSlug || client.defaultProjectSlug || 'inbox',
-        sourceChannel: 'ai-chat',
+        projectSlug,
+        sourceChannel: SOURCE_CHANNELS.AI_CHAT,
         source: session.providerId,
         sessionId: session.sessionId,
         occurredAt: new Date(session.timestamp).toISOString(),
       });
 
-      vscode.commands.executeCommand('kote.refresh');
-      vscode.window.showInformationMessage(`AI session auto-saved to Kote — project: ${session.projectSlug || client.defaultProjectSlug || 'inbox'}.`);
+      vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
+      vscode.window.showInformationMessage(`AI session auto-saved to Kote — project: ${projectSlug}.`);
       return true;
     } catch (err: unknown) {
       logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
@@ -798,10 +807,10 @@ export class AiHistoryManager {
             vscode.window.showInformationMessage(`Successfully synced ${unsynced.length} AI sessions to Kote.`);
           }
           // Notify the webview if it is active so it can reload
-          vscode.commands.executeCommand('kote.refresh');
+          vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
         } else if (choice === 'Review Sessions') {
-          await vscode.commands.executeCommand('kote.sidebarView.focus');
-          await vscode.commands.executeCommand('kote.openSyncTab');
+          await vscode.commands.executeCommand(EXTENSION_COMMANDS.SIDEBAR_VIEW_FOCUS);
+          await vscode.commands.executeCommand(EXTENSION_COMMANDS.OPEN_SYNC_TAB);
         }
       }
     } catch (err) {

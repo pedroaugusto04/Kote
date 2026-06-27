@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { KbClient } from '../kb-client';
 import { reportError } from '../error-reporter';
 import type { AiHistoryManager } from '../ai-history/history-manager';
+import { EXTENSION_COMMANDS, SOURCE_CHANNELS } from '../constants';
 
 /**
  * Right-click on a selection → "Kote: Save Selection as Note"
@@ -14,7 +15,7 @@ export function registerSaveNoteCommand(
   historyManager?: AiHistoryManager
 ): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('kote.saveSelection', async () => {
+    vscode.commands.registerCommand(EXTENSION_COMMANDS.SAVE_SELECTION, async () => {
       const editor = vscode.window.activeTextEditor;
       const selectedText = editor?.document.getText(editor.selection)?.trim();
       const fileName = editor ? vscode.workspace.asRelativePath(editor.document.fileName) : '';
@@ -50,12 +51,12 @@ export function registerSaveNoteCommand(
               rawText,
               title: context_ || (selectedText ? `Snippet from ${fileName}` : undefined),
               projectSlug: getProject(),
-              source: 'ide',
-              sourceChannel: 'ide',
+              source: SOURCE_CHANNELS.IDE,
+              sourceChannel: SOURCE_CHANNELS.IDE,
             });
             vscode.window.showInformationMessage(`Note saved to Kote — project: ${getProject()}`);
             // Trigger sidebar refresh
-            vscode.commands.executeCommand('kote.refresh');
+            vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
           } catch (err: unknown) {
             reportError('save-note', err);
           }
@@ -63,7 +64,7 @@ export function registerSaveNoteCommand(
       );
     }),
 
-    vscode.commands.registerCommand('kote.saveActiveFile', async (sessionIdParam?: string, providerIdParam?: string) => {
+    vscode.commands.registerCommand(EXTENSION_COMMANDS.SAVE_ACTIVE_FILE, async (sessionIdParam?: string, providerIdParam?: string) => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showWarningMessage('No active editor open.');
@@ -100,8 +101,8 @@ export function registerSaveNoteCommand(
 
       if (confirm === undefined) return;
 
-      let source = providerIdParam || 'ide';
-      let sourceChannel: string | undefined = providerIdParam ? 'ai-chat' : 'ide';
+      let source = providerIdParam || SOURCE_CHANNELS.IDE;
+      let sourceChannel: string | undefined = providerIdParam ? SOURCE_CHANNELS.AI_CHAT : SOURCE_CHANNELS.IDE;
       let sessionId: string | undefined = sessionIdParam;
 
       await vscode.window.withProgress(
@@ -120,7 +121,7 @@ export function registerSaveNoteCommand(
             if (sessionId && providerIdParam) {
               historyManager?.markSessionAsSaved(providerIdParam, sessionId);
             }
-            vscode.commands.executeCommand('kote.refresh');
+            vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
           } catch (err: unknown) {
             reportError('save-active-file', err);
           }

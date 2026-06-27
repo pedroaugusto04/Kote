@@ -4,6 +4,7 @@ import { KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
 import { noteStatusValues } from '../../../domain/note-status.js';
 import { slugify } from '../../../domain/strings.js';
 import { normalizeTime } from '../../../domain/time.js';
+import { AUTO_ACTION_NONE, AUTO_ACTION_RESOLVED, AUTO_ACTION_ARCHIVED } from '../../../domain/auto-action.constants.js';
 import { normalizedSlugList, optionalStringArraySchema } from './dto-normalizers.js';
 
 const noteStatusSchema = z.enum(noteStatusValues).optional();
@@ -106,7 +107,7 @@ export type UpdateNoteBody = z.infer<typeof updateNoteBodySchema>;
 
 export const autoActionGlobalSchema = z.object({
   enabled: z.boolean(),
-  action: z.enum(['none', 'resolved', 'archived']),
+  action: z.enum([AUTO_ACTION_NONE, AUTO_ACTION_RESOLVED, AUTO_ACTION_ARCHIVED]),
   afterHours: z.number().int().optional().nullable(),
 }).strict();
 export type AutoActionGlobal = z.infer<typeof autoActionGlobalSchema>;

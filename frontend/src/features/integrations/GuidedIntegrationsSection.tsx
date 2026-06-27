@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 
 import { formatDisplayToken } from '../../shared/utils/format';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
-import { INTEGRATION_LOGOS, INTEGRATION_MESSAGES } from './integrations.constants';
+import { INTEGRATION_LOGOS, INTEGRATION_MESSAGES, IntegrationProvider } from './integrations.constants';
 import {
   connectIntegration,
   fetchGithubRepositories,
@@ -29,15 +29,16 @@ import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
 import { useGlobalLoading } from '../../app/global-loading';
 import { withFrontendBasePath } from '../../app/base-path';
+import { StoredIntegrationStatus } from '../../shared/api/enums';
 
 const statusTone: Record<DisplayStatus | string, string> = {
-  connected: 'low',
-  missing: 'high',
-  revoked: 'medium',
-  pending: 'medium',
+  [StoredIntegrationStatus.Connected]: 'low',
+  [StoredIntegrationStatus.Missing]: 'high',
+  [StoredIntegrationStatus.Revoked]: 'medium',
+  [StoredIntegrationStatus.Pending]: 'medium',
+  [StoredIntegrationStatus.Error]: 'high',
+  [StoredIntegrationStatus.Disabled]: 'medium',
   expired: 'high',
-  error: 'high',
-  disabled: 'medium',
 };
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -74,13 +75,13 @@ function buildChatComposeUrl(connection: IntegrationConnectionResponse): string 
   const text = (connection.instruction || '').trim();
   if (!text) return '';
   const encoded = encodeURIComponent(text);
-  if (connection.provider === 'whatsapp') return `${INTEGRATION_MESSAGES.WHATSAPP_BASE_URL}${WHATSAPP_NUMBER}?text=${encoded}`;
-  if (connection.provider === 'telegram') return `${INTEGRATION_MESSAGES.TELEGRAM_BASE_URL}${TELEGRAM_BOT_USERNAME}`;
+  if (connection.provider === IntegrationProvider.Whatsapp) return `${INTEGRATION_MESSAGES.WHATSAPP_BASE_URL}${WHATSAPP_NUMBER}?text=${encoded}`;
+  if (connection.provider === IntegrationProvider.Telegram) return `${INTEGRATION_MESSAGES.TELEGRAM_BASE_URL}${TELEGRAM_BOT_USERNAME}`;
   return '';
 }
 
 function IntegrationLogo({ integration }: { integration: UserIntegration }) {
-  if (integration.provider === 'push-notifications') {
+  if (integration.provider === IntegrationProvider.PushNotifications) {
     return (
       <div
         className="integration-logo"
@@ -109,7 +110,7 @@ function IntegrationLogo({ integration }: { integration: UserIntegration }) {
   }
   const logo = INTEGRATION_LOGOS[integrationId(integration)];
   if (!logo) return <div className="integration-logo-fallback">{integration.name.slice(0, 2).toUpperCase()}</div>;
-  const logoClassName = integration.provider === 'github-app'
+  const logoClassName = integration.provider === IntegrationProvider.GithubApp
     ? 'integration-logo integration-logo-github-app'
     : 'integration-logo';
   return <img alt={`${logo.label} logo`} className={logoClassName} src={logo.src} />;
@@ -131,20 +132,20 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
   const sessionQuery = useQuery({
     queryKey: ['integration-session', workspaceSlug, connection.provider, session?.id],
     queryFn: () => fetchIntegrationSession({ provider: connection.provider, sessionId: session?.id || '' }),
-    enabled: session?.status === 'pending',
-    refetchInterval: (query) => query.state.data?.session.status === 'pending' ? 2500 : false,
+    enabled: session?.status === StoredIntegrationStatus.Pending,
+    refetchInterval: (query) => query.state.data?.session.status === StoredIntegrationStatus.Pending ? 2500 : false,
   });
   const currentSession = sessionQuery.data?.session || session;
-  const providerLabel = connection.provider === 'telegram' ? INTEGRATION_MESSAGES.PROVIDER_LABELS.telegram : INTEGRATION_MESSAGES.PROVIDER_LABELS.whatsapp;
+  const providerLabel = connection.provider === IntegrationProvider.Telegram ? INTEGRATION_MESSAGES.PROVIDER_LABELS[IntegrationProvider.Telegram] : INTEGRATION_MESSAGES.PROVIDER_LABELS[IntegrationProvider.Whatsapp];
 
   useEffect(() => {
-    if (currentSession?.status === 'connected') {
+    if (currentSession?.status === StoredIntegrationStatus.Connected) {
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     }
   }, [currentSession?.status, queryClient, workspaceSlug]);
 
-  const isWhatsApp = connection.provider === 'whatsapp';
+  const isWhatsApp = connection.provider === IntegrationProvider.Whatsapp;
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -290,7 +291,7 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
         <section aria-labelledby="github-repositories-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
-              <div className="card-kicker">github-app</div>
+              <div className="card-kicker">{IntegrationProvider.GithubApp}</div>
               <h2 id="github-repositories-title">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.TITLE}</h2>
             </div>
             <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
@@ -365,7 +366,7 @@ function IntegrationCard({
   const globalLoading = useGlobalLoading();
   const connectMutation = useMutation({
     mutationFn: async () => {
-      if (integration.provider === 'push-notifications') {
+      if (integration.provider === IntegrationProvider.PushNotifications) {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
           throw new Error(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.BROWSER_NOT_SUPPORTED);
         }
@@ -403,13 +404,13 @@ function IntegrationCard({
       return connectIntegration({ provider: integration.provider, workspaceSlug, returnToPath });
     },
     onSuccess: (result: any) => {
-      if (integration.provider === 'push-notifications') {
+      if (integration.provider === IntegrationProvider.PushNotifications) {
         notifySuccess(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.SUCCESS);
         queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
         return;
       }
       if (result.primaryAction?.url) {
-        openExternalIntegration(result.primaryAction.url, integration.provider === 'github-app' ? '_self' : '_blank');
+        openExternalIntegration(result.primaryAction.url, integration.provider === IntegrationProvider.GithubApp ? '_self' : '_blank');
         return;
       }
       if (result.session) onCodeConnection(result);
@@ -419,7 +420,7 @@ function IntegrationCard({
   });
   const revokeMutation = useMutation({
     mutationFn: async () => {
-      if (integration.provider === 'push-notifications') {
+      if (integration.provider === IntegrationProvider.PushNotifications) {
         if ('serviceWorker' in navigator && 'PushManager' in window) {
           const registration = await navigator.serviceWorker.ready;
           const subscription = await registration.pushManager.getSubscription();
@@ -440,7 +441,7 @@ function IntegrationCard({
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
     },
   });
-  const connected = integration.status === 'connected';
+  const connected = integration.status === StoredIntegrationStatus.Connected;
   const actionLabel = connected ? integration.primaryAction?.label || 'Revoke' : integration.primaryAction?.label || 'Connect';
   const actionError = connectMutation.isError
     ? getErrorMessage(connectMutation.error, INTEGRATION_MESSAGES.GENERAL.ACTIVATE_ERROR)
@@ -466,7 +467,7 @@ function IntegrationCard({
       <div className="integration-card-foot">
         <Badge value={formatDisplayToken(integration.status)} tone={statusTone[integration.status] || 'medium'} />
         <div className="integration-actions">
-          {integration.provider === 'github-app' && connected ? <button className="filter-chip" type="button" onClick={onGithubRepositories}>Repositories</button> : null}
+          {integration.provider === IntegrationProvider.GithubApp && connected ? <button className="filter-chip" type="button" onClick={onGithubRepositories}>Repositories</button> : null}
           <button
             className={connected ? 'filter-chip' : 'icon-button'}
             disabled={connectMutation.isPending || revokeMutation.isPending}
@@ -481,10 +482,10 @@ function IntegrationCard({
   );
 }
 
-export function IntegrationCallbackNotice({ status }: { status: 'connected' | 'error' }) {
+export function IntegrationCallbackNotice({ status }: { status: StoredIntegrationStatus.Connected | StoredIntegrationStatus.Error }) {
   return (
-    <InlineMessage tone={status === 'connected' ? 'success' : 'error'}>
-      {status === 'connected' ? 'GitHub connected. Select the workspace repositories.' : 'Could not complete the GitHub connection.'}
+    <InlineMessage tone={status === StoredIntegrationStatus.Connected ? 'success' : 'error'}>
+      {status === StoredIntegrationStatus.Connected ? 'GitHub connected. Select the workspace repositories.' : 'Could not complete the GitHub connection.'}
     </InlineMessage>
   );
 }
@@ -612,7 +613,7 @@ export function GuidedIntegrationsSection({
 
   useEffect(() => {
     if (didAutoOpen.current || !defaultOpenGithubRepositories) return;
-    if (integrations.some((integration) => integration.provider === 'github-app' && integration.status === 'connected')) {
+    if (integrations.some((integration) => integration.provider === IntegrationProvider.GithubApp && integration.status === StoredIntegrationStatus.Connected)) {
       setShowGithubSuccessModal(true);
       didAutoOpen.current = true;
     }
