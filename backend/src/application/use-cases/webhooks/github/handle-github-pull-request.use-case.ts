@@ -58,10 +58,10 @@ export class HandleGithubPullRequestUseCase {
     private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly answerGenerationGateway: AnswerGenerationGateway,
+    private readonly logger: AppLogger,
     private readonly quotaService?: QuotaService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
-    private readonly logger?: AppLogger,
   ) {}
 
   async execute(input: GithubPullRequestWebhookRequest) {
@@ -72,7 +72,7 @@ export class HandleGithubPullRequestUseCase {
     const installationId = String((body.installation as { id?: unknown } | undefined)?.id || '').trim();
     const externalIdentity = { provider: ExternalIdentityProvider.GithubApp, identityType: 'installation_id', externalId: installationId };
 
-    this.logger?.info('github_pr_webhook_received', {
+    this.logger.info('github_pr_webhook_received', {
       action: body.action,
       prNumber: body.pull_request?.number,
       repository: body.repository?.full_name,
@@ -104,7 +104,7 @@ export class HandleGithubPullRequestUseCase {
 
     const action = String(body.action || '').trim().toLowerCase();
     if (action !== 'opened' && action !== 'synchronize') {
-      this.logger?.info('github_pr_ignored_action', {
+      this.logger.info('github_pr_ignored_action', {
         action,
         prNumber: body.pull_request?.number,
         repository: body.repository?.full_name,
@@ -130,14 +130,14 @@ export class HandleGithubPullRequestUseCase {
       const repoFullName = String(body.repository?.full_name || '').trim();
       const projectSlug = await this.findSelectedProjectSlug(repoFullName, identity.userId, identity.workspaceSlug || '');
 
-      this.logger?.info('github_pr_project_resolved', {
+      this.logger.info('github_pr_project_resolved', {
         repository: repoFullName,
         projectSlug,
         userId: identity.userId,
       });
 
       if (!projectSlug) {
-        this.logger?.warn('github_pr_no_project', {
+        this.logger.warn('github_pr_no_project', {
           repository: repoFullName,
           userId: identity.userId,
         });
@@ -164,7 +164,7 @@ export class HandleGithubPullRequestUseCase {
         : null;
       const aiEnabled = !aiCredential || (aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
 
-      this.logger?.info('github_pr_ai_check', {
+      this.logger.info('github_pr_ai_check', {
         repository: repoFullName,
         projectSlug,
         aiEnabled,
@@ -172,7 +172,7 @@ export class HandleGithubPullRequestUseCase {
       });
 
       if (!aiEnabled) {
-        this.logger?.warn('github_pr_ai_disabled', {
+        this.logger.warn('github_pr_ai_disabled', {
           repository: repoFullName,
           projectSlug,
           userId: identity.userId,
@@ -203,7 +203,7 @@ export class HandleGithubPullRequestUseCase {
           ).then((r) => r.allowed)
         : true;
 
-      this.logger?.info('github_pr_quota_check', {
+      this.logger.info('github_pr_quota_check', {
         repository: repoFullName,
         projectSlug,
         quotaOk,
@@ -211,7 +211,7 @@ export class HandleGithubPullRequestUseCase {
       });
 
       if (!quotaOk) {
-        this.logger?.warn('github_pr_quota_exceeded', {
+        this.logger.warn('github_pr_quota_exceeded', {
           repository: repoFullName,
           projectSlug,
           userId: identity.userId,
@@ -254,7 +254,7 @@ export class HandleGithubPullRequestUseCase {
       const prDescription = String(body.pull_request?.body || '');
       const searchTerms = [prTitle, prDescription].filter(Boolean).join('\n').trim();
 
-      this.logger?.info('github_pr_semantic_search_start', {
+      this.logger.info('github_pr_semantic_search_start', {
         repository: repoFullName,
         projectSlug,
         prNumber: body.pull_request?.number,
@@ -279,7 +279,7 @@ export class HandleGithubPullRequestUseCase {
             minSimilarity: 0.65,
           });
 
-          this.logger?.info('github_pr_semantic_search_results', {
+          this.logger.info('github_pr_semantic_search_results', {
             repository: repoFullName,
             projectSlug,
             prNumber: body.pull_request?.number,
@@ -309,7 +309,7 @@ export class HandleGithubPullRequestUseCase {
       }
 
       if (contextChunks.length === 0) {
-        this.logger?.info('github_pr_no_context', {
+        this.logger.info('github_pr_no_context', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
@@ -339,7 +339,7 @@ export class HandleGithubPullRequestUseCase {
         apiKey: environment.prContextAiApiKey,
       };
 
-      this.logger?.info('github_pr_ai_comment_generation_start', {
+      this.logger.info('github_pr_ai_comment_generation_start', {
         repository: repoFullName,
         projectSlug,
         prNumber: body.pull_request?.number,
@@ -357,14 +357,14 @@ export class HandleGithubPullRequestUseCase {
           changedFiles,
           context: contextChunks,
         });
-        this.logger?.info('github_pr_ai_comment_generated', {
+        this.logger.info('github_pr_ai_comment_generated', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
           commentLength: commentText?.length || 0,
         });
       } catch (error) {
-        this.logger?.error('github_pr_ai_comment_generation_failed', {
+        this.logger.error('github_pr_ai_comment_generation_failed', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
@@ -374,7 +374,7 @@ export class HandleGithubPullRequestUseCase {
       }
 
       if (!commentText || commentText.trim() === 'NENHUM' || commentText.trim().toUpperCase() === 'NENHUM') {
-        this.logger?.info('github_pr_no_relevant_context', {
+        this.logger.info('github_pr_no_relevant_context', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
@@ -399,7 +399,7 @@ export class HandleGithubPullRequestUseCase {
       // Post the comment to the PR
       const prNumber = Number(body.pull_request?.number || 0);
 
-      this.logger?.info('github_pr_posting_comment', {
+      this.logger.info('github_pr_posting_comment', {
         repository: repoFullName,
         projectSlug,
         prNumber,
@@ -408,7 +408,7 @@ export class HandleGithubPullRequestUseCase {
 
       const posted = await this.githubIntegrationGateway.postPullRequestComment(repoFullName, prNumber, commentText, token);
 
-      this.logger?.info('github_pr_comment_posted', {
+      this.logger.info('github_pr_comment_posted', {
         repository: repoFullName,
         projectSlug,
         prNumber,

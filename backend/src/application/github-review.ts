@@ -48,7 +48,7 @@ export async function buildGithubReviewEvent(
   dependencies: {
     githubIntegrationGateway: GithubIntegrationGateway;
     reviewAnalysisGateway: ReviewAnalysisGateway;
-    logger?: AppLogger;
+    logger: AppLogger;
   },
 ): Promise<ReturnType<typeof ingestPayloadSchema.parse>> {
   const input = rawInput as { headers?: Record<string, string>; body?: GithubPushPayload; rawBody?: string };
@@ -56,7 +56,7 @@ export async function buildGithubReviewEvent(
   const body = input.body || {};
   const logger = dependencies.logger;
 
-  logger?.info('github_review_activated', {
+  logger.info('github_review_activated', {
     repository: body.repository?.full_name,
     ref: body.ref,
     pusher: body.pusher?.name,
@@ -121,7 +121,7 @@ export async function buildGithubReviewEvent(
         })),
   };
 
-  logger?.info('github_review_ai_payload', {
+  logger.info('github_review_ai_payload', {
     repository: repoFullName,
     branch: promptPayload.branch,
     headCommitSha: promptPayload.headCommit.sha,
@@ -142,14 +142,14 @@ export async function buildGithubReviewEvent(
       },
       promptPayload,
     );
-    logger?.info('github_review_ai_success', {
+    logger.info('github_review_ai_success', {
       repository: repoFullName,
       headCommitSha: promptPayload.headCommit.sha,
       summaryLength: analysis.summary?.length || 0,
       findingsCount: analysis.reviewFindings?.length || 0,
     });
   } catch (error) {
-    logger?.error('github_review_ai_failed', {
+    logger.error('github_review_ai_failed', {
       repository: repoFullName,
       headCommitSha: promptPayload.headCommit.sha,
       error: error instanceof Error ? error.message : String(error),

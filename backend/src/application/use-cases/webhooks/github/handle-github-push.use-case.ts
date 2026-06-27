@@ -58,12 +58,12 @@ export class HandleGithubPushUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
+    private readonly logger: AppLogger,
     private readonly quotaService?: QuotaService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
     private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
-    private readonly logger?: AppLogger,
   ) { }
 
   async execute(input: GithubPushWebhookRequest) {
@@ -135,7 +135,7 @@ export class HandleGithubPushUseCase {
         : null;
       const aiEnabled = Boolean(aiCredential && aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
 
-      this.logger?.info('github_push_review_start', {
+      this.logger.info('github_push_review_start', {
         repository: repoFullName,
         projectSlug,
         aiEnabled,
@@ -155,7 +155,7 @@ export class HandleGithubPushUseCase {
       const resolvedPayload = this.resolvePayloadProject(payload, projectSlug);
       const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug || '');
 
-      this.logger?.info('github_push_review_ingested', {
+      this.logger.info('github_push_review_ingested', {
         repository: repoFullName,
         projectSlug,
         noteId: ingestResult.noteId,
