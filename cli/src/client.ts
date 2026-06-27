@@ -204,7 +204,8 @@ export class ApiClient {
   }
 
   async listProjects(): Promise<CliProject[]> {
-    return this.fetch<CliProject[]>('/api/projects?limit=100');
+    const response = await this.fetch<{ projects: CliProject[] }>('/api/projects?limit=100');
+    return response.projects || [];
   }
 
   async listWorkspaces(): Promise<{ workspaces: CliWorkspace[] }> {

@@ -54,14 +54,14 @@ export interface CliConfig {
   };
 }
 
-const CONFIG_DIR = process.env.KOTE_CLI_CONFIG_DIR || path.join(os.homedir(), '.config', 'kote');
+const CONFIG_DIR = process.env.KB_CLI_CONFIG_DIR || path.join(os.homedir(), '.config', 'kote');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 export function loadConfig(): CliConfig {
   const defaults: CliConfig = {
-    apiUrl: process.env.KOTE_API_URL || process.env.KOTE_API_PUBLIC_BASE_URL || 'https://knowledgebase.sbs/kote/api',
-    workspaceSlug: process.env.KOTE_CLI_WORKSPACE || 'default',
-    defaultProjectSlug: process.env.KOTE_CLI_PROJECT || 'inbox',
+    apiUrl: process.env.KB_API_URL || process.env.KB_API_PUBLIC_BASE_URL || 'https://knowledgebase.sbs/kote/api',
+    workspaceSlug: process.env.KB_CLI_WORKSPACE || 'default',
+    defaultProjectSlug: process.env.KB_CLI_PROJECT || 'inbox',
     cookies: {},
   };
 

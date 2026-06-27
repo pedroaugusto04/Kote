@@ -307,7 +307,7 @@ test('ApiClient', async (t) => {
       const result = await client.listProjects();
 
       assert.ok(receivedUrl.includes('/projects'));
-      assert.equal(result.projects[0].projectSlug, 'inbox');
+      assert.equal(result[0].projectSlug, 'inbox');
     } finally {
       await server.close();
     }

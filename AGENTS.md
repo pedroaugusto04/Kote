@@ -45,29 +45,11 @@ Keep dependency injection aligned with the current framework. This project uses 
 - Prefer strict TypeScript types and avoid `any`; if `any` is necessary, keep it local and explain why in code or in the handoff.
 - For fixed sets with multiple string options, prefer `enum` or a reusable constant/schema pair instead of repeated raw string literals.
 - Do not keep reusable `types`, `interfaces`, `models`, `schemas`, `mappers`, `normalizers`, or similar structures embedded inside classes, controllers, services, React components, or page files just for convenience. Move them to dedicated files/folders owned by the appropriate module so those contracts can be read in isolation and the implementation files stay focused on behavior/rendering.
-- Place `types`, `models`, `mappers`, `schemas`, `normalizers`, and similar support files in the folder that matches their architectural responsibility. Do not drop these files into arbitrary feature folders or generic utility locations just because they are convenient.
-- Shared backend types should live in appropriate modules such as:
-  - `knowledge-base/src/domain/**` for domain concepts
-  - `knowledge-base/src/application/models/**` for application-facing models
-  - `knowledge-base/src/contracts/**` for cross-boundary contracts
-  - `knowledge-base/src/interfaces/http/dto/**` for HTTP DTOs
-- Backend placement rules:
-  - domain entities, value objects, domain enums, and pure domain mappers belong under `knowledge-base/src/domain/**`
-  - use-case input/output models, orchestration-facing types, and repository port models belong under `knowledge-base/src/application/**`
-  - transport DTOs, request/response schemas, and HTTP serialization/parsing helpers belong under `knowledge-base/src/interfaces/http/**`
-  - persistence mappers, ORM/storage serializers, and adapter-specific types belong next to the concrete repository/adapter under `knowledge-base/src/infrastructure/**` or `knowledge-base/src/adapters/**`
-  - if a mapper translates across layers, place it with the layer that owns the boundary being crossed, instead of in a generic `utils` folder
-- Shared frontend models and utility helpers should live in:
-  - `knowledge-base/frontend/src/shared/api/models/**`
-  - `knowledge-base/frontend/src/shared/utils/**` for shared formatting, text, and business logic helper functions
-  - `knowledge-base/frontend/src/features/**` when feature-scoped
-- Frontend placement rules:
-  - API request/response models, endpoint payload types, and API mappers belong under `knowledge-base/frontend/src/shared/api/**`
-  - shared formatters, text helpers, and helper-level normalizers belong under `knowledge-base/frontend/src/shared/utils/**`
-  - feature-local view models, form schemas, and feature mappers belong under `knowledge-base/frontend/src/features/**`
-  - reusable UI-only types and presentational helpers belong with the owning `shared`, `widgets`, or component module, not mixed into API or domain folders
-- Prefer colocating files with the module that owns them. Only promote a type/model/mapper to a broader shared folder when it is actually reused across module boundaries.
-- Keep in-file types only when they are truly private to that file, small enough not to hurt readability, and not part of a reusable contract.
+- Place files in the folder matching their architectural responsibility:
+  - Backend: domain entities/value objects under `src/domain/**`, use-case models under `src/application/**`, DTOs under `src/interfaces/http/dto/**`, persistence mappers next to concrete repositories under `src/infrastructure/**` or `src/adapters/**`
+  - Frontend: API models under `frontend/src/shared/api/**`, shared helpers under `frontend/src/shared/utils/**`, feature-local models under `frontend/src/features/**`
+- Prefer colocating files with the owning module. Only promote to shared folders when actually reused across boundaries.
+- Keep in-file types only when truly private, small, and not part of a reusable contract.
 
 ## Persistence
 
@@ -85,9 +67,9 @@ Keep dependency injection aligned with the current framework. This project uses 
 - Before concluding DB-related work, run the narrowest relevant verification and include it in the handoff. The default minimum expectation is:
 
 ```bash
-npm --prefix knowledge-base run build:api
-npm --prefix knowledge-base run migrate
-npm --prefix knowledge-base run test:api
+npm run build:api
+npm run migrate
+npm run test:api
 ```
 
 ## Frontend Architecture
@@ -143,19 +125,19 @@ Do not add new libraries only because they are convenient. Prefer existing depen
 
 Do not consider a code task done without running impacted tests.
 
+For new features or bug fixes, add tests that verify the logic works and prevent regressions (including edge cases and error paths). Business-rule or critical-flow changes require equivalent tests. For auth, credential storage, persistence, document-drive, and cross-layer API changes, add or update integration-style tests where supported.
+
 Use the narrowest meaningful checks first, then broader checks when the blast radius justifies it:
 
 ```bash
-npm --prefix knowledge-base run build:api
-npm --prefix knowledge-base run build:frontend
-npm --prefix knowledge-base run test:api
-npm --prefix knowledge-base run test:frontend
-npm --prefix knowledge-base test
+npm run build:api
+npm run build:frontend
+npm run build:cli
+npm run test:api
+npm run test:cli
+npm run test:frontend
+npm run test
 ```
-
-Business-rule or critical-flow changes require equivalent tests.
-
-For auth, credential storage, persistence, document-drive, and cross-layer API changes, add or update integration-style tests where the current test setup supports it.
 
 ## Scope Control
 

@@ -171,8 +171,8 @@ test('Integration: full authentication → query → list → logout lifecycle',
 
     // Step 3: List projects
     const projResult = await client.listProjects();
-    assert.equal(projResult.projects.length, 2);
-    assert.ok(projResult.projects.some((p) => p.projectSlug === 'platform'));
+    assert.equal(projResult.length, 2);
+    assert.ok(projResult.some((p) => p.projectSlug === 'platform'));
 
     // Step 4: Ask a question
     const askResult = await client.ask('How to deploy?', 'platform');
@@ -415,7 +415,7 @@ test('Integration: config persists across multiple ApiClient instances', async (
     const client2 = new ApiClient();
     const result = await client2.listProjects();
 
-    assert.equal(result.projects[0].projectSlug, 'inbox');
+    assert.equal(result[0].projectSlug, 'inbox');
 
     // Verify the second client sent the cookie from the first login
     const projectCall = server.calls.find((c) => c.url.includes('/projects'));
