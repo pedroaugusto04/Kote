@@ -17,6 +17,10 @@ export type RuntimeEnvironment = {
   projectBriefAiBaseUrl: string;
   projectBriefAiModel: string;
   projectBriefAiApiKey: string;
+  prContextAiProvider: AiProvider;
+  prContextAiBaseUrl: string;
+  prContextAiModel: string;
+  prContextAiApiKey: string;
   embeddingAiProvider: AiProvider;
   embeddingAiBaseUrl: string;
   embeddingAiModel: string;

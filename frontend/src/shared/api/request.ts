@@ -57,7 +57,7 @@ async function send(path: string, init: RequestInit = {}): Promise<RawResponse> 
 function toApiClientError(response: Response, payload: unknown) {
   let code = 'request_failed';
   let message = 'Request failed.';
-  let details: Record<string, any> = {};
+  let details: Record<string, unknown> = {};
   let requestId = response.headers.get('x-request-id') || '';
 
   if (isApiErrorEnvelope(payload)) {
@@ -66,7 +66,7 @@ function toApiClientError(response: Response, payload: unknown) {
     details = payload.error.details;
     if (payload.requestId) requestId = payload.requestId;
   } else if (payload && typeof payload === 'object') {
-    const raw = payload as any;
+    const raw = payload as Record<string, unknown>;
     if (typeof raw.code === 'string') {
       code = raw.code;
     } else if (typeof raw.error === 'string') {

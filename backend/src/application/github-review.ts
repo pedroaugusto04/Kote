@@ -5,6 +5,7 @@ import { slugify, trimText } from '../domain/strings.js';
 import { GithubIntegrationGateway } from './ports/integrations/github-integration.port.js';
 import { ReviewAnalysisGateway } from './ports/projects/review-analysis.port.js';
 import type { RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
+import type { AppLogger } from '../observability/logger.js';
 
 type GithubPushPayload = {
   ref?: string;
@@ -47,11 +48,21 @@ export async function buildGithubReviewEvent(
   dependencies: {
     githubIntegrationGateway: GithubIntegrationGateway;
     reviewAnalysisGateway: ReviewAnalysisGateway;
+    logger: AppLogger;
   },
 ): Promise<ReturnType<typeof ingestPayloadSchema.parse>> {
   const input = rawInput as { headers?: Record<string, string>; body?: GithubPushPayload; rawBody?: string };
   const headers = input.headers || {};
   const body = input.body || {};
+  const logger = dependencies.logger;
+
+  logger.info('github_review_activated', {
+    repository: body.repository?.full_name,
+    ref: body.ref,
+    pusher: body.pusher?.name,
+    headCommit: body.after,
+  });
+
   dependencies.githubIntegrationGateway.verifyWebhookSignature(
     environment.githubWebhookSecret,
     String(input.rawBody || ''),
@@ -110,15 +121,41 @@ export async function buildGithubReviewEvent(
         })),
   };
 
-  const analysis = await dependencies.reviewAnalysisGateway.generate(
-    {
-      provider: environment.reviewAiProvider,
-      baseUrl: environment.reviewAiBaseUrl,
-      model: environment.reviewAiModel,
-      apiKey: environment.reviewAiApiKey,
-    },
-    promptPayload,
-  );
+  logger.info('github_review_ai_payload', {
+    repository: repoFullName,
+    branch: promptPayload.branch,
+    headCommitSha: promptPayload.headCommit.sha,
+    commitsCount: promptPayload.commits.length,
+    filesCount: promptPayload.files.length,
+    aiProvider: environment.reviewAiProvider,
+    aiModel: environment.reviewAiModel,
+  });
+
+  let analysis;
+  try {
+    analysis = await dependencies.reviewAnalysisGateway.generate(
+      {
+        provider: environment.reviewAiProvider,
+        baseUrl: environment.reviewAiBaseUrl,
+        model: environment.reviewAiModel,
+        apiKey: environment.reviewAiApiKey,
+      },
+      promptPayload,
+    );
+    logger.info('github_review_ai_success', {
+      repository: repoFullName,
+      headCommitSha: promptPayload.headCommit.sha,
+      summaryLength: analysis.summary?.length || 0,
+      findingsCount: analysis.reviewFindings?.length || 0,
+    });
+  } catch (error) {
+    logger.error('github_review_ai_failed', {
+      repository: repoFullName,
+      headCommitSha: promptPayload.headCommit.sha,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    throw error;
+  }
 
   return ingestPayloadSchema.parse({
     source: {

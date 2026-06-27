@@ -521,10 +521,31 @@ export class PostgresNoteRepository {
   async upsert(userId: string, input: SaveNoteInput) {
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
 
-    if (input.id) {
-      const existing = await this.getById(userId, input.id);
+    let existingId = input.id;
+    if (!existingId && input.path) {
+      const db = this.database.getDb();
+      const existing = await db
+        .select({ id: notes.id })
+        .from(notes)
+        .where(and(eq(notes.userId, userId), eq(notes.path, input.path)))
+        .limit(1);
+      if (existing.length > 0) {
+        existingId = existing[0].id;
+      }
+    }
+
+    if (existingId) {
+      const existing = await this.getById(userId, existingId);
       if (existing) {
-        return this.update(userId, input);
+        await this.updateWithClient(this.database.getPool(), userId, { ...input, id: existingId }, markdownStorageKey);
+        if (existing.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
+          await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
+        }
+        const updated = await this.getById(userId, existingId);
+        if (!updated) {
+          throw new Error(`Note not found after update: ${existingId}`);
+        }
+        return updated;
       }
     }
 

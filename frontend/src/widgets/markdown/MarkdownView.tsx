@@ -114,8 +114,12 @@ export function MarkdownView({ markdown }: { markdown: string }) {
               {children}
             </PreContext.Provider>
           ),
-          code(props: any) {
-            const { children, className, node, ...rest } = props;
+          code({
+            children,
+            className,
+            node,
+            ...rest
+          }: React.ComponentPropsWithoutRef<'code'> & { node?: unknown }) {
             const isInsidePre = useContext(PreContext);
             const match = /language-(\w+)/.exec(className || '');
             

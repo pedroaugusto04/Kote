@@ -23,16 +23,19 @@ export const AI_CREDIT_COSTS: Record<string, number> = {
   agent_conversation_turn: 2,
 
   /** Full GitHub push review with AI analysis. */
-  github_code_review: 8,
+  github_code_review: 4,
 
   /** Audio transcription before processing (WPP voice notes). */
   audio_transcription: 2,
 
   /** Project brief generation from recent notes context. */
-  project_brief: 6,
+  project_brief: 4,
 
   /** AI review of a single note. */
   note_review: 2,
+
+  /** Pull Request historical context analysis. */
+  github_pr_context: 6,
 };
 
 //Plan credit limits (max AI credits per month)

@@ -23,4 +23,15 @@ export abstract class GithubIntegrationGateway {
     privateKey: string;
     installationId: string;
   }): Promise<GithubInstallationRepository[]>;
+  abstract postPullRequestComment(
+    repoFullName: string,
+    prNumber: number,
+    bodyText: string,
+    token: string,
+  ): Promise<boolean>;
+  abstract fetchPullRequestComments(
+    repoFullName: string,
+    prNumber: number,
+    token: string,
+  ): Promise<Array<{ id: number; body: string }>>;
 }

@@ -17,6 +17,7 @@ import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import { QuotaService } from '../../../services/quota.service.js';
 import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
+import { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPushPayload = {
   ref?: string;
@@ -50,6 +51,8 @@ function githubAuditPayload(body: GithubPushPayload): Record<string, unknown> {
 
 @Injectable()
 export class HandleGithubPushUseCase {
+  private readonly logger: AppLogger;
+
   constructor(
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly externalIdentities: ExternalIdentityRepository,
@@ -62,7 +65,9 @@ export class HandleGithubPushUseCase {
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
     private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
-  ) { }
+  ) {
+    this.logger = AppLogger.create();
+  }
 
   async execute(input: GithubPushWebhookRequest) {
     const environment = this.environmentProvider.read();
@@ -132,16 +137,34 @@ export class HandleGithubPushUseCase {
         ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.AiReview)
         : null;
       const aiEnabled = Boolean(aiCredential && aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
+
+      this.logger.info('github_push_review_start', {
+        repository: repoFullName,
+        projectSlug,
+        aiEnabled,
+        quotaOk,
+        userId: identity.userId,
+      });
+
       const payload = await buildGithubReviewEvent(
         input,
         aiEnabled ? environment : { ...environment, reviewAiProvider: AiProvider.None, reviewAiApiKey: '' },
         {
           githubIntegrationGateway: this.githubIntegrationGateway,
           reviewAnalysisGateway: this.reviewAnalysisGateway,
+          logger: this.logger,
         },
       );
       const resolvedPayload = this.resolvePayloadProject(payload, projectSlug);
       const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug || '');
+
+      this.logger.info('github_push_review_ingested', {
+        repository: repoFullName,
+        projectSlug,
+        noteId: ingestResult.noteId,
+        findingsCount: resolvedPayload.content.sections.reviewFindings.length,
+      });
+
       const whatsappNotification = await this.notifyWhatsappOnHighSeverityFindings(
         resolvedPayload,
         identity.userId,

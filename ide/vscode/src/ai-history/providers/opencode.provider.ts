@@ -49,7 +49,17 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
         ORDER BY s.time_updated DESC, m.time_created ASC, p.time_created ASC
       `;
 
-      const rows = db.prepare(query).all() as any[];
+      interface OpenCodeRow {
+        sessionId: string;
+        title?: string;
+        timestamp: string | number;
+        projectSlug?: string;
+        messageId?: string;
+        messageData?: string;
+        partData?: string;
+      }
+
+      const rows = db.prepare(query).all() as unknown as OpenCodeRow[];
       db.close();
 
       const sessionsMap = new Map<string, {

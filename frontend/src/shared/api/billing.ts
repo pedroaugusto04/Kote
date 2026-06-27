@@ -160,7 +160,7 @@ export type SubscriptionStatusHandler = (status: QuotaAndBillingStatusDTO | null
 export function subscribeToSubscriptionStatus(handler: SubscriptionStatusHandler): () => void {
   const url = resolveApiPath('/api/subscription/status/stream');
   let retryCount = 0;
-  let retryTimeout: any = null;
+  let retryTimeout: ReturnType<typeof setTimeout> | null = null;
   let closed = false;
   let es: EventSource | null = null;
 

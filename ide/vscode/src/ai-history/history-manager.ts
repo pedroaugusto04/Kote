@@ -585,8 +585,8 @@ export class AiHistoryManager {
       if (choice === 'Save Now') {
         await vscode.commands.executeCommand('kote.saveActiveFile', session.sessionId, session.providerId);
       }
-    } catch (err: any) {
-      vscode.window.showErrorMessage(`Failed to open preview: ${err.message || err}`);
+    } catch (err: unknown) {
+      vscode.window.showErrorMessage(`Failed to open preview: ${toMessage(err)}`);
     }
   }
 
@@ -606,8 +606,8 @@ export class AiHistoryManager {
       vscode.window.showInformationMessage('Note saved to Kote successfully!');
       vscode.commands.executeCommand('kote.refresh');
       return true;
-    } catch (err: any) {
-      vscode.window.showErrorMessage(`Failed to save note: ${err.message || err}`);
+    } catch (err: unknown) {
+      vscode.window.showErrorMessage(`Failed to save note: ${toMessage(err)}`);
       return false;
     }
   }
@@ -628,7 +628,7 @@ export class AiHistoryManager {
       vscode.commands.executeCommand('kote.refresh');
       vscode.window.showInformationMessage(`AI session auto-saved to Kote — project: ${session.projectSlug || client.defaultProjectSlug || 'inbox'}.`);
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
       return false;
     }

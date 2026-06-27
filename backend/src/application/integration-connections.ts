@@ -9,6 +9,7 @@ import { GithubIntegrationGateway } from './ports/integrations/github-integratio
 import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
+import { getAiProviderConfig } from './ai-providers-registry.js';
 import { GithubRepositoryResolutionService } from './services/github-repository-resolution.service.js';
 import { WhatsappReplySender } from './ports/integrations/whatsapp-reply.sender.js';
 import { TelegramMessageSender } from './ports/integrations/telegram-message.sender.js';
@@ -112,7 +113,7 @@ export class IntegrationConnectionService {
     if (input.provider === IntegrationProvider.GithubApp) return this.startGithubConnection(input.userId, workspace.workspaceSlug, input.returnToPath, input.browserOrigin);
     if (input.provider === IntegrationProvider.Whatsapp) return this.startWhatsappConnection(input.userId, workspace.workspaceSlug);
     if (input.provider === IntegrationProvider.Telegram) return this.startTelegramConnection(input.userId, workspace.workspaceSlug);
-    if (input.provider === IntegrationProvider.AiReview || input.provider === IntegrationProvider.AiConversation || input.provider === IntegrationProvider.ProjectBriefAi) return this.activateAi(input.userId, workspace.workspaceSlug, input.provider);
+    if (input.provider === IntegrationProvider.AiReview || input.provider === IntegrationProvider.AiConversation || input.provider === IntegrationProvider.ProjectBriefAi || input.provider === IntegrationProvider.PrContextAi) return this.activateAi(input.userId, workspace.workspaceSlug, input.provider);
     throw new NotFoundException('provider_not_found');
   }
 
@@ -174,6 +175,55 @@ export class IntegrationConnectionService {
     } catch {
       return { redirectUrl: redirectFromSession };
     }
+  }
+
+  async updateGithubInstallation(input: { userId: string; installationId: string }) {
+    const installationId = extractConnectionGithubInstallationId(input.installationId);
+    const environment = this.environment();
+
+    if (!environment.githubAppId || !environment.githubAppPrivateKey) {
+      throw new BadRequestException('github_app_installation_not_configured');
+    }
+
+    // Verify the installation is accessible
+    const installation = await this.verifyGithubInstallation(installationId);
+    const accountLogin = this.normalizeGithubAccountLogin(installation);
+
+    // Find existing GitHub App credential for this user
+    const existingCredential = await this.credentials.findCredential(input.userId, '', IntegrationProvider.GithubApp);
+    if (!existingCredential) {
+      throw new NotFoundException('github_integration_not_found');
+    }
+
+    // Update the credential with the new installation ID
+    const credential = await this.upsertConnectedCredential({
+      userId: input.userId,
+      workspaceSlug: existingCredential.workspaceSlug || '',
+      provider: IntegrationProvider.GithubApp,
+      encryptedConfig: { installationId, accountLogin },
+      publicMetadata: {
+        label: accountLogin ? `GitHub ${accountLogin}` : 'GitHub App',
+        connectedAccount: this.connectedAccount(accountLogin, installationId),
+      },
+    });
+
+    // Update the external identity
+    await this.upsertExternalIdentity({
+      userId: input.userId,
+      workspaceSlug: existingCredential.workspaceSlug || '',
+      provider: ExternalIdentityProvider.GithubApp,
+      identityType: 'installation_id',
+      externalId: installationId,
+      credentialId: credential.id,
+      publicMetadata: { accountLogin },
+    });
+
+    return {
+      ok: true as const,
+      provider: IntegrationProvider.GithubApp,
+      updatedInstallationId: installationId,
+      accountLogin,
+    };
   }
 
   async completeWhatsappFromWebhook(input: { code: string; chatJid: string }) {
@@ -317,7 +367,7 @@ export class IntegrationConnectionService {
     });
   }
 
-  private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi) {
+  private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi) {
     const environment = this.environment();
     const config = aiRuntimeConfig(environment, provider);
     const configured = config.provider !== 'none' && config.baseUrl && config.model && config.apiKey;
@@ -567,34 +617,7 @@ export class IntegrationConnectionService {
 
 function aiRuntimeConfig(
   environment: RuntimeEnvironment,
-  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi,
+  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi,
 ) {
-  if (provider === IntegrationProvider.AiReview) {
-    return {
-      provider: environment.reviewAiProvider,
-      baseUrl: environment.reviewAiBaseUrl,
-      model: environment.reviewAiModel,
-      apiKey: environment.reviewAiApiKey,
-      label: 'Review AI',
-      errorCode: 'review_ai_not_configured',
-    };
-  }
-  if (provider === IntegrationProvider.ProjectBriefAi) {
-    return {
-      provider: environment.projectBriefAiProvider,
-      baseUrl: environment.projectBriefAiBaseUrl,
-      model: environment.projectBriefAiModel,
-      apiKey: environment.projectBriefAiApiKey,
-      label: 'Project Brief AI',
-      errorCode: 'project_brief_ai_not_configured',
-    };
-  }
-  return {
-    provider: environment.conversationAiProvider,
-    baseUrl: environment.conversationAiBaseUrl,
-    model: environment.conversationAiModel,
-    apiKey: environment.conversationAiApiKey,
-    label: 'Conversation AI',
-    errorCode: 'conversation_ai_not_configured',
-  };
+  return getAiProviderConfig(provider, environment);
 }

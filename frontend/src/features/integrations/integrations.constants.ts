@@ -3,6 +3,7 @@ export const INTEGRATION_LOGOS: Record<string, { src: string; label: string }> =
   whatsapp: { src: 'https://cdn.simpleicons.org/whatsapp/25D366', label: 'WhatsApp' },
   telegram: { src: 'https://cdn.simpleicons.org/telegram/26A5E4', label: 'Telegram' },
   'push-notifications': { src: 'https://cdn.simpleicons.org/pushover/3B5998', label: 'Push Notifications' },
+  'pr-context-ai': { src: 'https://cdn.simpleicons.org/github/0052CC', label: 'PR Context AI' },
 };
 
 export const INTEGRATION_MESSAGES = {

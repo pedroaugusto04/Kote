@@ -84,7 +84,7 @@ function githubHandlerFixture(projects = []) {
       },
       async fetchComparePayload() {
         calls.compare += 1;
-        return { commits: [], files: [] };
+        return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
       },
     },
     {
@@ -194,7 +194,7 @@ test('github push is converted to canonical code review event', async () => {
           return '';
         },
         async fetchComparePayload() {
-          return { commits: [], files: [] };
+          return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
         },
       },
       reviewAnalysisGateway: {
@@ -320,7 +320,7 @@ test('github app push sends whatsapp alert for high severity AI review findings'
         return 'installation-token';
       },
       async fetchComparePayload() {
-        return { commits: [], files: [] };
+        return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
       },
     },
     {

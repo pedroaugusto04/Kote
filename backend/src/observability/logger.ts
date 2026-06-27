@@ -114,6 +114,15 @@ export class AppLogger implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  // Static method to create a standalone logger instance without DI
+  static create(): AppLogger {
+    const logger = new AppLogger();
+    if (isFileLoggingEnabled()) {
+      logger.initializeWinston();
+    }
+    return logger;
+  }
+
   private initializeWinston() {
     const logDir = process.env.KB_LOG_DIR || '/app/logs';
     const maxFiles = parseInt(process.env.KB_LOG_MAX_FILES || '30', 10);

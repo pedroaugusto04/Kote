@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/pedroaugusto04/knowledge-base/actions/workflows/deploy.yml"><img src="https://img.shields.io/github/actions/workflow/status/pedroaugusto04/knowledge-base/deploy.yml?branch=main&label=build&style=flat-square" alt="Build Status"></a>
   <img src="https://img.shields.io/badge/version-1.0.0-blue?style=flat-square" alt="Version">
-  <img src="https://img.shields.io/badge/license-Proprietary-red?style=flat-square" alt="License">
+  <img src="https://img.shields.io/badge/license-Fair--Code-7C3AED?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/NestJS-E0234E?style=flat-square&logo=nestjs&logoColor=white" alt="NestJS">
   <img src="https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React">
@@ -69,6 +69,41 @@ To start using Kote:
 
 ---
 
+## Self-Hosting (Docker)
+
+If you prefer to run Kote on your own infrastructure or local machine, you can launch the entire stack using Docker Compose:
+
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/pedroaugusto04/knowledge-base.git
+   cd knowledge-base
+   ```
+
+2. **Configure Environment Variables:**
+   Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+   Open the `.env` file and configure the **essential keys** to enable core features:
+   * **Admin Credentials:** Change `KB_ADMIN_EMAIL` and `KB_ADMIN_PASSWORD` (used for your initial login).
+   * **AI Integrations (Search/Chat/Voice):** Set `KB_AUDIO_AI_API_KEY` and `KB_EMBEDDING_AI_API_KEY` (Gemini API key is the default and highly recommended).
+   * **File Storage:** Fill in `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `KB_SUPABASE_STORAGE_BUCKET` to store notes and attachments.
+
+3. **Start Services:**
+   Launch the database, message broker, backend API, and web application (database migrations will run automatically on startup):
+   ```bash
+   docker compose up -d
+   ```
+
+Once running, access the local services:
+* **Web Application:** [http://localhost:4311](http://localhost:4311)
+* **API Server:** [http://localhost:4310](http://localhost:4310)
+
+> [!TIP]
+> Point your VS Code Extension (`knowledgeVault.apiUrl`) or CLI (`apiUrl` in `~/.kb-config.json`) to your self-hosted API URL (`http://localhost:4310`) to connect your editor and terminal to your local instance.
+
+---
+
 ## Features
 
 ### CLI Tool (kote)
@@ -110,12 +145,13 @@ For setup instructions, see [ide/browser-extension/README.md](ide/browser-extens
 
 ---
 
-### GitHub Push Integration
+### GitHub Integration
 
-Processes repository activity passively to record code changes.
+Processes repository activity passively to record code changes and retrieve context.
 
 * **Diff Analysis:** Summarizes changes on every push.
 * **Alert System:** Notifies the team via WhatsApp or Telegram if potential configuration or environmental issues are detected in a diff.
+* **PR Context AI:** Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.
 
 ---
 

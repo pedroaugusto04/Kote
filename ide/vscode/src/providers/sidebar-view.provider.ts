@@ -11,6 +11,20 @@ import { loadAskHistory, clearAskHistory, addAskEntry } from '../utils/ask-histo
 // Provider for Sidebar (Chat + Login Setup)
 // ---------------------------------------------------------------------------
 
+type SidebarWebviewMessage =
+  | { type: 'ready' }
+  | { type: 'loginGoogle'; token: string }
+  | { type: 'loginEmail'; email: string; password: string }
+  | { type: 'selectWorkspace'; workspaceSlug: string }
+  | { type: 'logout' }
+  | { type: 'ask'; question: string; projectSlug?: string }
+  | { type: 'downloadFile'; fileName: string; mediaBase64: string }
+  | { type: 'saveNote'; title?: string; content: string; projectSlug?: string; projectName?: string }
+  | { type: 'agentMessage'; messageText: string; projectSlug?: string }
+  | { type: 'loadHistory' }
+  | { type: 'clearHistory' }
+  | { type: 'changeProject'; projectSlug?: string };
+
 export class SidebarViewProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
   activeProject: string | null;
@@ -38,7 +52,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     // Load initial HTML based on whether we are authenticated
     webviewView.webview.html = this._buildHtml(webviewView.webview);
 
-    webviewView.webview.onDidReceiveMessage(async (msg: any) => {
+    webviewView.webview.onDidReceiveMessage(async (msg: SidebarWebviewMessage) => {
       switch (msg.type) {
         case 'ready':
           logInfo('SidebarProvider', 'Webview ready');
@@ -211,7 +225,15 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           try {
             if (isConfigured()) {
               const res = await this._client.getAskHistory();
-              const backendEntries: AskHistoryEntry[] = (res?.history || []).map((item: any) => ({
+              interface RawAskHistoryItem {
+                id: string;
+                question: string;
+                answer: string;
+                projectSlug?: string;
+                createdAt?: string;
+              }
+              const rawHistory = (res?.history as unknown as RawAskHistoryItem[]) || [];
+              const backendEntries: AskHistoryEntry[] = rawHistory.map((item) => ({
                 id: item.id,
                 question: item.question,
                 answer: item.answer,
@@ -298,7 +320,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     this._post({ type: 'injectQA', question, answer, projectSlug });
   }
 
-  private _post(msg: any) {
+  private _post(msg: Record<string, unknown>) {
     this._view?.webview.postMessage(msg);
   }
 

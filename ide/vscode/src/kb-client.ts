@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import https from 'node:https';
 import http from 'node:http';
-import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult } from './types';
+import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, AskHistoryEntry } from './types';
 
 // ---------------------------------------------------------------------------
 // Config (mirrors the CLI config file used by the extension)
@@ -220,7 +220,7 @@ export class KbClient {
     }
 
     if (response.status >= 400) {
-      throw new Error((parsed as any)?.message ?? `Request failed with status ${response.status}`);
+      throw new Error((parsed as { message?: string })?.message ?? `Request failed with status ${response.status}`);
     }
     return parsed as T;
   }
@@ -304,10 +304,10 @@ export class KbClient {
     });
   }
 
-  async getAskHistory(projectSlug?: string, page = 1, pageSize = 50): Promise<{ history: any[] }> {
+  async getAskHistory(projectSlug?: string, page = 1, pageSize = 50): Promise<{ history: AskHistoryEntry[] }> {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (projectSlug) params.set('projectSlug', projectSlug);
-    return this.fetch<{ history: any[] }>(`/api/ask/history?${params.toString()}`);
+    return this.fetch<{ history: AskHistoryEntry[] }>(`/api/ask/history?${params.toString()}`);
   }
 
 
@@ -324,19 +324,25 @@ export class KbClient {
     chatId: string;
     messageId: string;
     hasMedia?: boolean;
-    media?: any;
+    media?: unknown;
   }, workspaceSlug?: string, projectSlug?: string): Promise<{
     action: 'ask' | 'confirm' | 'cancel' | 'submit';
     replyText: string;
-    payload: any;
-    ingestResult?: any;
-    agent: any;
+    payload: unknown;
+    ingestResult?: unknown;
+    agent: { selectedProjectSlug?: string; [key: string]: unknown } | null | undefined;
   }> {
     const ws = workspaceSlug || this.config.workspaceSlug || 'default';
     const params = new URLSearchParams({ workspaceSlug: ws });
     if (projectSlug) params.set('projectSlug', projectSlug);
 
-    return this.fetch<any>(`/api/conversation/agent?${params}`, {
+    return this.fetch<{
+      action: 'ask' | 'confirm' | 'cancel' | 'submit';
+      replyText: string;
+      payload: unknown;
+      ingestResult?: unknown;
+      agent: { selectedProjectSlug?: string; [key: string]: unknown } | null | undefined;
+    }>(`/api/conversation/agent?${params}`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });

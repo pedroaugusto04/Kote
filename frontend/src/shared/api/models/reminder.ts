@@ -14,7 +14,12 @@ export type Reminder = {
   relativePath: string;
 };
 
-export type ReminderBoardColumnKey = 'overdue' | 'upcoming' | 'resolved' | 'archived';
+export enum ReminderBoardColumnKey {
+  Overdue = 'overdue',
+  Upcoming = 'upcoming',
+  Resolved = 'resolved',
+  Archived = 'archived',
+}
 
 export type ReminderBoardCard = Reminder;
 

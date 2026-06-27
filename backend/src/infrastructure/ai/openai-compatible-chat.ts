@@ -7,6 +7,7 @@ export type ChatConfig = {
   baseUrl: string;
   model: string;
   apiKey: string;
+  responseFormat?: { type: 'json_object' | 'text' };
 };
 
 export class AiChatCompletionError extends Error {
@@ -50,7 +51,7 @@ export async function runChatCompletion(
   const requestBody = JSON.stringify({
     model: config.model,
     temperature: 0.1,
-    response_format: { type: 'json_object' },
+    response_format: config.responseFormat || { type: 'json_object' },
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userContent },

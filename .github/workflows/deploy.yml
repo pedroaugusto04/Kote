@@ -153,6 +153,10 @@ jobs:
           KB_PROJECT_BRIEF_AI_BASE_URL: ${{ vars.KB_PROJECT_BRIEF_AI_BASE_URL || '' }}
           KB_PROJECT_BRIEF_AI_MODEL: ${{ vars.KB_PROJECT_BRIEF_AI_MODEL || '' }}
           KB_PROJECT_BRIEF_AI_API_KEY: ${{ secrets.KB_PROJECT_BRIEF_AI_API_KEY || '' }}
+          KB_PR_CONTEXT_AI_PROVIDER: ${{ vars.KB_PR_CONTEXT_AI_PROVIDER || '' }}
+          KB_PR_CONTEXT_AI_BASE_URL: ${{ vars.KB_PR_CONTEXT_AI_BASE_URL || '' }}
+          KB_PR_CONTEXT_AI_MODEL: ${{ vars.KB_PR_CONTEXT_AI_MODEL || '' }}
+          KB_PR_CONTEXT_AI_API_KEY: ${{ secrets.KB_PR_CONTEXT_AI_API_KEY || '' }}
           KB_EMBEDDING_AI_PROVIDER: ${{ vars.KB_EMBEDDING_AI_PROVIDER || 'gemini' }}
           KB_EMBEDDING_AI_BASE_URL: ${{ vars.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta' }}
           KB_EMBEDDING_AI_MODEL: ${{ vars.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001' }}

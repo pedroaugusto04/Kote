@@ -3,8 +3,7 @@ import { client, ApiClientError } from '../client.js';
 
 export async function runListProjects(): Promise<void> {
   try {
-    const result = await client.listProjects();
-    const projects = Array.isArray(result) ? result : result?.projects;
+    const projects = await client.listProjects();
 
     if (!projects || projects.length === 0) {
       console.log(pc.yellow('No active projects found.'));
@@ -31,7 +30,7 @@ export async function runListProjects(): Promise<void> {
 export async function runListWorkspaces(): Promise<void> {
   try {
     const result = await client.listWorkspaces();
-    const workspaces = Array.isArray(result) ? result : result?.workspaces;
+    const workspaces = result.workspaces;
 
     if (!workspaces || workspaces.length === 0) {
       console.log(pc.yellow('No workspaces found.'));

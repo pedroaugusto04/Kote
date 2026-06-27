@@ -6,6 +6,12 @@ export type GithubPushWebhookRequest = {
   rawBody?: string;
 };
 
+export type GithubPullRequestWebhookRequest = {
+  headers?: WebhookRequestHeaders;
+  body: Record<string, unknown>;
+  rawBody?: string;
+};
+
 export type WhatsappWebhookRequest = {
   headers?: WebhookRequestHeaders;
   body: Record<string, unknown>;

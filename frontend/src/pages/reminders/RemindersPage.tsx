@@ -5,7 +5,7 @@ import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../shared/utils/format';
 import { sortRemindersForList } from '../../shared/utils/reminders';
 import { fetchReminders, updateReminderStatus } from '../../shared/api/client';
-import { StatusFilter } from '../../shared/api/models/note-status';
+import { StatusFilter, NoteStatus } from '../../shared/api/models/note-status';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import type { Reminder } from '../../shared/api/models/reminder';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
@@ -17,36 +17,34 @@ import { ReminderRow } from '../../widgets/reminders/ReminderRow';
 import { ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { KanbanPage } from '../kanban/KanbanPage';
+import { RemindersViewMode, BulkReminderAction } from './enums';
 
 const reminderStatusOptions = [
   { value: StatusFilter.Open, label: 'Open' },
   { value: StatusFilter.All, label: 'All' },
-  { value: 'active', label: 'Active' },
-  ...['pending', 'overdue', 'sent', 'resolved', 'archived'].map((value) => ({
+  { value: NoteStatus.Active, label: 'Active' },
+  ...[NoteStatus.Pending, NoteStatus.Overdue, NoteStatus.Sent, NoteStatus.Resolved, NoteStatus.Archived].map((value) => ({
     value,
     label: formatDisplayToken(value),
   })),
 ];
 
-type BulkReminderAction = 'resolve' | 'archive';
-type ReminderStatus = 'resolved' | 'archived';
-
 const bulkActionConfig: Record<BulkReminderAction, {
-  nextStatus: ReminderStatus;
+  nextStatus: NoteStatus.Resolved | NoteStatus.Archived;
   title: string;
   confirmLabel: string;
   description: (count: number) => string;
   errorMessage: string;
 }> = {
-  resolve: {
-    nextStatus: 'resolved',
+  [BulkReminderAction.Resolve]: {
+    nextStatus: NoteStatus.Resolved,
     title: 'Resolve all items',
     confirmLabel: 'Resolve all',
     description: (count) => `Are you sure you want to resolve all ${count} reminders currently listed?`,
     errorMessage: 'Failed to resolve some reminders.',
   },
-  archive: {
-    nextStatus: 'archived',
+  [BulkReminderAction.Archive]: {
+    nextStatus: NoteStatus.Archived,
     title: 'Archive all items',
     confirmLabel: 'Archive all',
     description: (count) => `Are you sure you want to archive all ${count} reminders currently listed?`,
@@ -57,7 +55,7 @@ const bulkActionConfig: Record<BulkReminderAction, {
 function matchesReminderStatus(reminder: Reminder, status: string) {
   const statusFilter = status || StatusFilter.Open;
   if (statusFilter === StatusFilter.All) return true;
-  if (statusFilter === StatusFilter.Open) return reminder.status !== 'resolved' && reminder.status !== 'archived';
+  if (statusFilter === StatusFilter.Open) return reminder.status !== NoteStatus.Resolved && reminder.status !== NoteStatus.Archived;
   return reminder.status === statusFilter;
 }
 
@@ -122,15 +120,15 @@ export function RemindersPage({
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [confirmBulk, setConfirmBulk] = useState<BulkReminderAction | null>(null);
   
-  const [viewMode, setViewMode] = useState<'list' | 'board'>(() => {
+  const [viewMode, setViewMode] = useState<RemindersViewMode>(() => {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        return (window.localStorage.getItem('kote-reminders-view-mode') as 'list' | 'board') || 'list';
+        return (window.localStorage.getItem('kote-reminders-view-mode') as RemindersViewMode) || RemindersViewMode.List;
       }
     } catch (e) {
       // ignore
     }
-    return 'list';
+    return RemindersViewMode.List;
   });
   const [projectSlug, setProjectSlug] = useState('');
 
@@ -141,7 +139,7 @@ export function RemindersPage({
       .map((project) => ({ value: project.projectSlug, label: project.displayName })),
   ], [dashboard.projects, workspaceSlug]);
 
-  const handleViewModeChange = (mode: 'list' | 'board') => {
+  const handleViewModeChange = (mode: RemindersViewMode) => {
     setViewMode(mode);
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
@@ -190,20 +188,20 @@ export function RemindersPage({
             <div className="view-selector">
               <button
                 type="button"
-                className={`view-selector-btn ${viewMode === 'list' ? 'active' : ''}`}
-                onClick={() => handleViewModeChange('list')}
+                className={`view-selector-btn ${viewMode === RemindersViewMode.List ? 'active' : ''}`}
+                onClick={() => handleViewModeChange(RemindersViewMode.List)}
               >
                 List
               </button>
               <button
                 type="button"
-                className={`view-selector-btn ${viewMode === 'board' ? 'active' : ''}`}
-                onClick={() => handleViewModeChange('board')}
+                className={`view-selector-btn ${viewMode === RemindersViewMode.Board ? 'active' : ''}`}
+                onClick={() => handleViewModeChange(RemindersViewMode.Board)}
               >
                 Board
               </button>
             </div>
-            {viewMode === 'list' ? (
+            {viewMode === RemindersViewMode.List ? (
               <>
                 <label className="sr-only" htmlFor="reminders-page-status-select">Filter by status</label>
                 <Select
@@ -212,7 +210,7 @@ export function RemindersPage({
                   id="reminders-page-status-select"
                   options={reminderStatusOptions}
                   value={status}
-                  onChange={setStatus}
+                  onChange={(val) => setStatus(val as StatusFilter)}
                 />
               </>
             ) : (
@@ -232,7 +230,7 @@ export function RemindersPage({
         )}
         subtitle=""
       />
-      {viewMode === 'board' ? (
+      {viewMode === RemindersViewMode.Board ? (
         <KanbanPage
           dashboard={dashboard}
           openNote={openNote}
@@ -251,12 +249,12 @@ export function RemindersPage({
         <>
           {visibleReminders.length > 0 && (
             <div className="bulk-actions" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-              <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk('resolve')}>
+              <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk(BulkReminderAction.Resolve)}>
                 <ResolveIcon />
                 Resolve all
               </button>
               <span style={{ color: 'var(--line-soft)', fontSize: '12px' }}>|</span>
-              <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk('archive')}>
+              <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk(BulkReminderAction.Archive)}>
                 <ArchiveIcon />
                 Archive all
               </button>
@@ -303,3 +301,4 @@ export function RemindersPage({
     </>
   );
 }
+

@@ -6,7 +6,9 @@ import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
-import type { ReminderBoardCard, ReminderBoardColumnKey } from '../../shared/api/models/reminder';
+import { ReminderBoardColumnKey } from '../../shared/api/models/reminder';
+import type { ReminderBoardCard, ReminderBoardColumn } from '../../shared/api/models/reminder';
+import type { Project } from '../../shared/api/models/project';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifyWarning } from '../../shared/ui/notifications';
 import { Badge, PageHead } from '../../shared/ui/primitives';
@@ -16,8 +18,8 @@ import { kanbanBoardColumns, type ReminderBoardTargetStatus } from './kanban-boa
 
 const BOARD_LIMIT = 5;
 
-const DEFAULT_COLUMN_DATA = {
-  items: [] as any[],
+const DEFAULT_COLUMN_DATA: ReminderBoardColumn = {
+  items: [],
   total: 0,
   page: 1,
   pageSize: BOARD_LIMIT,
@@ -44,10 +46,10 @@ export function KanbanPage({
   const [internalProjectSlug, setInternalProjectSlug] = useState('');
   const [draggedId, setDraggedId] = useState('');
   const [columnPages, setColumnPages] = useState<Record<ReminderBoardColumnKey, number>>({
-    overdue: 1,
-    upcoming: 1,
-    resolved: 1,
-    archived: 1,
+    [ReminderBoardColumnKey.Overdue]: 1,
+    [ReminderBoardColumnKey.Upcoming]: 1,
+    [ReminderBoardColumnKey.Resolved]: 1,
+    [ReminderBoardColumnKey.Archived]: 1,
   });
 
   const projectSlug = externalProjectSlug !== undefined ? externalProjectSlug : internalProjectSlug;
@@ -95,10 +97,10 @@ export function KanbanPage({
   function handleProjectChange(newProjectSlug: string) {
     setProjectSlug(newProjectSlug);
     setColumnPages({
-      overdue: 1,
-      upcoming: 1,
-      resolved: 1,
-      archived: 1,
+      [ReminderBoardColumnKey.Overdue]: 1,
+      [ReminderBoardColumnKey.Upcoming]: 1,
+      [ReminderBoardColumnKey.Resolved]: 1,
+      [ReminderBoardColumnKey.Archived]: 1,
     });
   }
 
@@ -149,7 +151,7 @@ export function KanbanPage({
 
 interface KanbanColumnProps {
   column: typeof kanbanBoardColumns[number];
-  data: typeof DEFAULT_COLUMN_DATA;
+  data: ReminderBoardColumn;
   isFetching: boolean;
   draggedId: string;
   setDraggedId: (id: string) => void;
@@ -157,7 +159,7 @@ interface KanbanColumnProps {
   handleDrop: (columnKey: ReminderBoardColumnKey) => void;
   handleColumnPageChange: (columnKey: ReminderBoardColumnKey, page: number) => void;
   openNote: (id: string) => void;
-  projects: any[];
+  projects: Project[];
 }
 
 function KanbanColumn({
@@ -261,3 +263,4 @@ function KanbanCard({
     </article>
   );
 }
+
