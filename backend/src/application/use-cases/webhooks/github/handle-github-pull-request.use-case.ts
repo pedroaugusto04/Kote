@@ -102,8 +102,19 @@ export class HandleGithubPullRequestUseCase {
 
     const identity = await this.externalIdentities.findExternalIdentity(ExternalIdentityProvider.GithubApp, 'installation_id', installationId);
     if (!identity) {
+      this.logger.error('github_pr_installation_identity_not_found', {
+        installationId,
+        repository: body.repository?.full_name,
+      });
       throw new NotFoundException('identity_not_found');
     }
+
+    this.logger.info('github_pr_installation_identity_found', {
+      installationId,
+      userId: identity.userId,
+      workspaceSlug: identity.workspaceSlug,
+      credentialId: identity.credentialId,
+    });
 
     const action = String(body.action || '').trim().toLowerCase();
     if (action !== 'opened' && action !== 'synchronize') {
@@ -243,7 +254,45 @@ export class HandleGithubPullRequestUseCase {
       });
 
       if (!token) {
+        this.logger.error('github_pr_token_fetch_failed', {
+          installationId,
+          repository: repoFullName,
+        });
         throw new Error('failed_to_retrieve_github_token');
+      }
+
+      this.logger.info('github_pr_token_fetched', {
+        installationId,
+        repository: repoFullName,
+        tokenLength: token.length,
+      });
+
+      // Verify the repository is accessible through this installation
+      const installationRepositories = await this.githubIntegrationGateway.fetchInstallationRepositories({
+        appId: environment.githubAppId,
+        privateKey: environment.githubAppPrivateKey,
+        installationId,
+      });
+
+      const repositoryAccessible = installationRepositories.some(
+        (repo) => repo.fullName.toLowerCase() === repoFullName.toLowerCase()
+      );
+
+      this.logger.info('github_pr_repository_access_check', {
+        installationId,
+        repository: repoFullName,
+        repositoryAccessible,
+        installationRepositoriesCount: installationRepositories.length,
+        installationRepositories: installationRepositories.map(r => r.fullName),
+      });
+
+      if (!repositoryAccessible) {
+        this.logger.error('github_pr_repository_not_accessible', {
+          installationId,
+          repository: repoFullName,
+          installationRepositories: installationRepositories.map(r => r.fullName),
+        });
+        throw new Error('repository_not_accessible_by_installation');
       }
 
       // Fetch comparison to get changed files and patches
