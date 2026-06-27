@@ -13,6 +13,7 @@ import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { EmbeddingGateway } from '../../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
 import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
+import type { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPullRequestPayload = {
   action?: string;
@@ -60,6 +61,7 @@ export class HandleGithubPullRequestUseCase {
     private readonly quotaService?: QuotaService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
+    private readonly logger?: AppLogger,
   ) {}
 
   async execute(input: GithubPullRequestWebhookRequest) {
@@ -69,6 +71,13 @@ export class HandleGithubPullRequestUseCase {
     const rawPayload = githubPrAuditPayload(body);
     const installationId = String((body.installation as { id?: unknown } | undefined)?.id || '').trim();
     const externalIdentity = { provider: ExternalIdentityProvider.GithubApp, identityType: 'installation_id', externalId: installationId };
+
+    this.logger?.info('github_pr_webhook_received', {
+      action: body.action,
+      prNumber: body.pull_request?.number,
+      repository: body.repository?.full_name,
+      sender: body.sender?.login,
+    });
 
     if (!environment.githubWebhookSecret) {
       throw new UnauthorizedException('github_webhook_secret_not_configured');
@@ -95,6 +104,11 @@ export class HandleGithubPullRequestUseCase {
 
     const action = String(body.action || '').trim().toLowerCase();
     if (action !== 'opened' && action !== 'synchronize') {
+      this.logger?.info('github_pr_ignored_action', {
+        action,
+        prNumber: body.pull_request?.number,
+        repository: body.repository?.full_name,
+      });
       return {
         ok: true,
         processed: false,
@@ -115,7 +129,18 @@ export class HandleGithubPullRequestUseCase {
     try {
       const repoFullName = String(body.repository?.full_name || '').trim();
       const projectSlug = await this.findSelectedProjectSlug(repoFullName, identity.userId, identity.workspaceSlug || '');
+
+      this.logger?.info('github_pr_project_resolved', {
+        repository: repoFullName,
+        projectSlug,
+        userId: identity.userId,
+      });
+
       if (!projectSlug) {
+        this.logger?.warn('github_pr_no_project', {
+          repository: repoFullName,
+          userId: identity.userId,
+        });
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
           eventType: String(headers['x-github-event'] || 'pull_request'),
@@ -138,7 +163,20 @@ export class HandleGithubPullRequestUseCase {
         ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.PrContextAi)
         : null;
       const aiEnabled = !aiCredential || (aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
+
+      this.logger?.info('github_pr_ai_check', {
+        repository: repoFullName,
+        projectSlug,
+        aiEnabled,
+        userId: identity.userId,
+      });
+
       if (!aiEnabled) {
+        this.logger?.warn('github_pr_ai_disabled', {
+          repository: repoFullName,
+          projectSlug,
+          userId: identity.userId,
+        });
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
           eventType: String(headers['x-github-event'] || 'pull_request'),
@@ -165,7 +203,19 @@ export class HandleGithubPullRequestUseCase {
           ).then((r) => r.allowed)
         : true;
 
+      this.logger?.info('github_pr_quota_check', {
+        repository: repoFullName,
+        projectSlug,
+        quotaOk,
+        userId: identity.userId,
+      });
+
       if (!quotaOk) {
+        this.logger?.warn('github_pr_quota_exceeded', {
+          repository: repoFullName,
+          projectSlug,
+          userId: identity.userId,
+        });
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
           eventType: String(headers['x-github-event'] || 'pull_request'),
@@ -204,6 +254,13 @@ export class HandleGithubPullRequestUseCase {
       const prDescription = String(body.pull_request?.body || '');
       const searchTerms = [prTitle, prDescription].filter(Boolean).join('\n').trim();
 
+      this.logger?.info('github_pr_semantic_search_start', {
+        repository: repoFullName,
+        projectSlug,
+        prNumber: body.pull_request?.number,
+        hasSearchTerms: Boolean(searchTerms),
+      });
+
       let contextChunks: any[] = [];
       if (searchTerms) {
         const embeddingConfig = {
@@ -220,6 +277,13 @@ export class HandleGithubPullRequestUseCase {
             limit: 8,
             workspaceSlug: identity.workspaceSlug,
             minSimilarity: 0.65,
+          });
+
+          this.logger?.info('github_pr_semantic_search_results', {
+            repository: repoFullName,
+            projectSlug,
+            prNumber: body.pull_request?.number,
+            similarChunksCount: similarChunks.length,
           });
 
           if (similarChunks.length > 0 && this.contentRepository) {
@@ -245,6 +309,11 @@ export class HandleGithubPullRequestUseCase {
       }
 
       if (contextChunks.length === 0) {
+        this.logger?.info('github_pr_no_context', {
+          repository: repoFullName,
+          projectSlug,
+          prNumber: body.pull_request?.number,
+        });
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
           eventType: String(headers['x-github-event'] || 'pull_request'),
@@ -270,14 +339,46 @@ export class HandleGithubPullRequestUseCase {
         apiKey: environment.prContextAiApiKey,
       };
 
-      const commentText = await this.answerGenerationGateway.generatePullRequestComment(prAiConfig, {
-        prTitle,
-        prDescription,
-        changedFiles,
-        context: contextChunks,
+      this.logger?.info('github_pr_ai_comment_generation_start', {
+        repository: repoFullName,
+        projectSlug,
+        prNumber: body.pull_request?.number,
+        contextChunksCount: contextChunks.length,
+        changedFilesCount: changedFiles.length,
+        aiProvider: environment.prContextAiProvider,
+        aiModel: environment.prContextAiModel,
       });
 
+      let commentText;
+      try {
+        commentText = await this.answerGenerationGateway.generatePullRequestComment(prAiConfig, {
+          prTitle,
+          prDescription,
+          changedFiles,
+          context: contextChunks,
+        });
+        this.logger?.info('github_pr_ai_comment_generated', {
+          repository: repoFullName,
+          projectSlug,
+          prNumber: body.pull_request?.number,
+          commentLength: commentText?.length || 0,
+        });
+      } catch (error) {
+        this.logger?.error('github_pr_ai_comment_generation_failed', {
+          repository: repoFullName,
+          projectSlug,
+          prNumber: body.pull_request?.number,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+
       if (!commentText || commentText.trim() === 'NENHUM' || commentText.trim().toUpperCase() === 'NENHUM') {
+        this.logger?.info('github_pr_no_relevant_context', {
+          repository: repoFullName,
+          projectSlug,
+          prNumber: body.pull_request?.number,
+        });
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
           eventType: String(headers['x-github-event'] || 'pull_request'),
@@ -297,7 +398,22 @@ export class HandleGithubPullRequestUseCase {
 
       // Post the comment to the PR
       const prNumber = Number(body.pull_request?.number || 0);
+
+      this.logger?.info('github_pr_posting_comment', {
+        repository: repoFullName,
+        projectSlug,
+        prNumber,
+        commentLength: commentText.length,
+      });
+
       const posted = await this.githubIntegrationGateway.postPullRequestComment(repoFullName, prNumber, commentText, token);
+
+      this.logger?.info('github_pr_comment_posted', {
+        repository: repoFullName,
+        projectSlug,
+        prNumber,
+        posted,
+      });
 
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
