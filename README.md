@@ -14,13 +14,13 @@
 <p align="center">
   A developer memory layer that automatically captures and organizes AI sessions, Git history and development context into searchable context.
   <br><br>
-  <a href="https://knowledgebase.sbs/kote">→ Open Kote Web App</a>
+  <a href="https://knowledgebase.sbs/kote" target="_blank">→ Open Kote Web App</a>
   <br><br>
   Available as cloud or self-hosted.
 </p>
 
 <p align="center">
-  <a href="https://knowledgebase.sbs/kote">Web Application</a> • 
+  <a href="https://knowledgebase.sbs/kote" target="_blank">Web Application</a> • 
   <a href="#getting-started">Getting Started</a> • 
   <a href="#how-it-works">How It Works</a>
 </p>
