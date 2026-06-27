@@ -294,8 +294,8 @@ export class AiHistoryManager {
 
   private getAiSessionSaveMode(): AiSessionSaveMode {
     return vscode.workspace
-      .getConfiguration('kote')
-      .get<AiSessionSaveMode>('aiSessionSaveMode', 'auto-save');
+      .getConfiguration()
+      .get<AiSessionSaveMode>('kote.aiSessionSaveMode', 'auto-save');
   }
 
   async promptModeSelection(context: vscode.ExtensionContext): Promise<void> {
@@ -332,19 +332,19 @@ export class AiHistoryManager {
 
     if (!picked) return;
 
-    const config = vscode.workspace.getConfiguration('kote');
-    const inspection = config.inspect('aiSessionSaveMode');
+    const config = vscode.workspace.getConfiguration();
+    const inspection = config.inspect('kote.aiSessionSaveMode');
 
     try {
+      await config.update('kote.aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Global);
+      if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+        await config.update('kote.aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Workspace);
+      }
       if (inspection?.workspaceFolderValue !== undefined) {
-        await config.update('aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.WorkspaceFolder);
+        await config.update('kote.aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.WorkspaceFolder);
       }
-      if (inspection?.workspaceValue !== undefined) {
-        await config.update('aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Workspace);
-      }
-      await config.update('aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Global);
     } catch (err) {
-      console.error('Failed to update aiSessionSaveMode configuration:', err);
+      console.error('Failed to update kote.aiSessionSaveMode configuration:', err);
     }
 
     context.globalState.update(SESSION_MODE_PICKED_KEY, true);
