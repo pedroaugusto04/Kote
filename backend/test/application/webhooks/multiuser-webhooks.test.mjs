@@ -112,7 +112,8 @@ const reviewGateway = {
 test('new users start with an empty scoped dashboard and cannot see another user notes', async (t) => {
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.embeddingQueuePublisher, repositories.quotaService, loggerMock);
   const dashboard = new BuildDashboardUseCase(
     repositories.contentRepository,
     repositories.contentQueryRepository,
@@ -162,7 +163,8 @@ test('github app webhook resolves user by installation id and rejects unknown id
     displayName: 'Default',
     workspaceSlug: 'default',
   }, user.id);
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.embeddingQueuePublisher, repositories.quotaService, loggerMock);
   const unusedGithubGateway = {
     verifyWebhookSignature() { },
     async fetchInstallationToken() {
@@ -184,7 +186,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     repositories.runtimeEnvironmentProvider,
     unusedGithubGateway,
     unusedReviewGateway,
-    undefined,
+    repositories.quotaService,
     repositories.contentRepository,
   );
 
@@ -268,7 +270,8 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     externalId: '42',
     publicMetadata: {},
   });
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.embeddingQueuePublisher, repositories.quotaService, loggerMock);
   const handler = new HandleGithubPushUseCase(
     ingest,
     repositories.externalIdentityRepository,
@@ -276,7 +279,7 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     repositories.runtimeEnvironmentProvider,
     githubGateway,
     reviewGateway,
-    undefined,
+    repositories.quotaService,
     repositories.contentRepository,
   );
 
@@ -453,7 +456,7 @@ test('github pull request webhook processes event, searches context, and posts c
     embeddingGatewayMock,
     noteEmbeddingRepositoryMock,
     answerGenerationGatewayMock,
-    undefined,
+    repositories.quotaService,
     repositories.contentRepository,
     repositories.credentialRepository,
   );
@@ -533,7 +536,7 @@ test('github pull request webhook skips processing when title contains skip-kote
     {} ,
     {} ,
     {} ,
-    undefined,
+    repositories.quotaService,
     repositories.contentRepository,
     repositories.credentialRepository,
   );
@@ -612,7 +615,7 @@ test('github pull request webhook skips posting comments when a comment already 
     {} ,
     {} ,
     {} ,
-    undefined,
+    repositories.quotaService,
     repositories.contentRepository,
     repositories.credentialRepository,
   );

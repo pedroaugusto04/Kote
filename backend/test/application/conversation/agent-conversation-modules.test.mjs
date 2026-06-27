@@ -349,7 +349,11 @@ test('process agent conversation auto-creates a missing project before submittin
         return '';
       },
     },
-    undefined,
+    {
+      async checkAndIncrementAiUsage() {
+        return { allowed: true, limit: -1, current: 0 };
+      },
+    },
     credentials,
   );
 

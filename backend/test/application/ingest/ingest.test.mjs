@@ -67,7 +67,21 @@ test('ingest persists one canonical note with derived reminder, attachment and w
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
-  const result = await new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider).execute(payload(), user.id, 'default');
+  const loggerMock = {
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+  };
+  const result = await new IngestEntryUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+    repositories.embeddingQueuePublisher,
+    repositories.quotaService,
+    loggerMock,
+  ).execute(payload(), user.id, 'default');
+
+
 
   assert.equal(result.ok, true);
   assert.match(result.eventPath, /^20 Inbox\/n8n-automations\//);
@@ -81,7 +95,7 @@ test('ingest persists one canonical note with derived reminder, attachment and w
   assert.equal(result.note.attachmentCount, 1);
 
   const notes = await repositories.contentRepository.listNotes(user.id);
-  assert.equal(notes.filter((note) => note.type === 'knowledge').length, 1);
+  assert.equal(notes.filter((note) => note.categories.some((c) => c.name === 'knowledge')).length, 1);
   const detail = await repositories.contentRepository.getNoteById(user.id, result.noteId);
   assert.equal(detail.metadata.reminderDate, '2026-04-28');
   assert.equal(detail.metadata.reminderTime, '12:30');
@@ -114,8 +128,20 @@ test('ingest fails when the target workspace does not exist', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
 
+  const loggerMock = {
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+  };
   await assert.rejects(
-    () => new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider).execute(payload(), user.id, 'default'),
+    () => new IngestEntryUseCase(
+      repositories.contentRepository,
+      repositories.runtimeEnvironmentProvider,
+      repositories.embeddingQueuePublisher,
+      repositories.quotaService,
+      loggerMock,
+    ).execute(payload(), user.id, 'default'),
     /workspace_not_found/,
   );
 });
@@ -123,7 +149,7 @@ test('ingest fails when the target workspace does not exist', async (t) => {
 test('manual note creation uses ingest and derives optional reminder from the note', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  await repositories.contentRepository.upsertWorkspace(user.id, {
+  const workspace = await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'default',
     displayName: 'Default',
     whatsappChatJid: '',
@@ -137,13 +163,26 @@ test('manual note creation uses ingest and derives optional reminder from the no
     projectSlug: 'acme-api',
     displayName: 'Acme API',
     repositories: [],
+    workspaceId: workspace.id,
     workspaceSlug: 'default',
     defaultTags: ['backend'],
     enabled: true,
   });
+  const loggerMock = {
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+  };
   const useCase = new CreateManualNoteUseCase(
     repositories.contentRepository,
-    new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider),
+    new IngestEntryUseCase(
+      repositories.contentRepository,
+      repositories.runtimeEnvironmentProvider,
+      repositories.embeddingQueuePublisher,
+      repositories.quotaService,
+      loggerMock,
+    ),
     repositories.runtimeEnvironmentProvider,
     { dispatch: async () => {} },
   );
@@ -174,7 +213,7 @@ test('manual note creation uses ingest and derives optional reminder from the no
   assert.equal(withReminder.note.reminderTime, '12:00');
   assert.equal(withReminder.note.reminderAt, '2026-04-28T12:00:00.000Z');
   const notes = await repositories.contentRepository.listNotes(user.id);
-  assert.equal(notes.filter((note) => note.type === 'event').length, 2);
+  assert.equal(notes.filter((note) => note.categories.some((c) => c.name === 'event')).length, 2);
   const reminders = await repositories.contentQueryRepository.listReminders(user.id);
   assert.equal(reminders.length, 1);
   assert.equal(reminders[0].id, withReminder.noteId);

@@ -137,7 +137,19 @@ test('updates existing manual note when matching sessionId and source instead of
   const user = await repositories.createTestUser();
   await seedProject(repositories, user.id);
 
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const loggerMock = {
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+  };
+  const ingest = new IngestEntryUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+    repositories.embeddingQueuePublisher,
+    repositories.quotaService,
+    loggerMock,
+  );
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
     repositories.contentRepository,
@@ -831,9 +843,18 @@ test('manages uncategorized notes creation and updates', async (t) => {
   const user = await repositories.createTestUser();
   await seedProject(repositories, user.id);
 
+  const loggerMock = {
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+  };
   const ingest = new IngestEntryUseCase(
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
+    repositories.embeddingQueuePublisher,
+    repositories.quotaService,
+    loggerMock,
   );
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(

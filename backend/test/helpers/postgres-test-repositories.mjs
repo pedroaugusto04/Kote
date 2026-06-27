@@ -315,5 +315,26 @@ export async function createPostgresTestRepositories(t) {
     runtimeEnvironmentProvider,
     pushSubscriptionRepository,
     schemaMigrator,
+    quotaService: {
+      async checkQuota(userId, resourceType, requestedAmount = 1) {
+        return { allowed: true, limit: -1, current: 0 };
+      },
+      async checkAndIncrementAiUsage(userId, operationType, context) {
+        return { allowed: true, limit: -1, current: 0 };
+      },
+      async incrementUsage(userId, resourceType, amount = 1) {},
+      async getQuotaStatus() {
+        return {
+          plan: 'free',
+          status: 'active',
+          currentPeriodEnd: new Date().toISOString(),
+          limits: { storage: -1, aiRequests: -1, workspaces: 1, projects: 1 },
+          usage: { storage: 0, aiRequests: 0, workspaces: 0, projects: 0 }
+        };
+      }
+    },
+    embeddingQueuePublisher: {
+      async publish(payload) {}
+    },
   };
 }

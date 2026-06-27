@@ -27,7 +27,7 @@ export class GenerateProjectBriefUseCase {
     private readonly historyRepository: ProjectBriefHistoryRepository,
     private readonly aiGateway: ProjectBriefAiGateway,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly quotaService?: QuotaService,
+    private readonly quotaService: QuotaService,
   ) {}
 
   async execute(userId: string, projectId: string) {
@@ -58,15 +58,13 @@ export class GenerateProjectBriefUseCase {
     await this.requireConnectedIntegration(userId, workspaceSlug);
 
     // Check AI credit quota before calling the LLM
-    if (this.quotaService) {
-      const quotaResult = await this.quotaService.checkAndIncrementAiUsage(
-        userId,
-        AiOperationType.PROJECT_BRIEF,
-        { projectSlug, workspaceSlug, source: 'project_brief_generation' },
-      );
-      if (!quotaResult.allowed) {
-        throw new QuotaExceededException('ai_credits', quotaResult.limit, quotaResult.current);
-      }
+    const quotaResult = await this.quotaService.checkAndIncrementAiUsage(
+      userId,
+      AiOperationType.PROJECT_BRIEF,
+      { projectSlug, workspaceSlug, source: 'project_brief_generation' },
+    );
+    if (!quotaResult.allowed) {
+      throw new QuotaExceededException('ai_credits', quotaResult.limit, quotaResult.current);
     }
 
     const generatedAt = new Date().toISOString();

@@ -17,6 +17,7 @@ import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classif
 import { QuotaService } from '../../services/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
+import { AppLogger } from '../../../observability/logger.js';
 
 
 type IngestExecutionOptions = {
@@ -33,6 +34,7 @@ export class IngestEntryUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly embeddingQueue: EmbeddingQueuePublisher,
     private readonly quotaService: QuotaService,
+    private readonly logger: AppLogger,
   ) { }
 
   async execute(input: IngestPayload, userId: string, workspaceSlug = '', options: IngestExecutionOptions = {}) {
@@ -48,7 +50,11 @@ export class IngestEntryUseCase {
 
     try {
       await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: result.noteId });
-    } catch { /* embedding queue failure must never block note save */ }
+      this.logger.info('Note published to embedding queue successfully', { noteId: result.noteId, userId });
+    } catch (error) {
+      this.logger.error('Failed to publish note to embedding queue', { noteId: result.noteId, userId, error: error instanceof Error ? error.message : String(error) });
+      /* embedding queue failure must never block note save */
+    }
 
     return result;
   }

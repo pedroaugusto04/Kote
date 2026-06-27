@@ -60,7 +60,7 @@ export class HandleGithubPullRequestUseCase {
     private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly answerGenerationGateway: AnswerGenerationGateway,
-    private readonly quotaService?: QuotaService,
+    private readonly quotaService: QuotaService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
   ) {
@@ -233,13 +233,11 @@ export class HandleGithubPullRequestUseCase {
       }
 
       // Check AI credit quota
-      const quotaOk = this.quotaService
-        ? await this.quotaService.checkAndIncrementAiUsage(
-            identity.userId,
-            AiOperationType.GITHUB_PR_CONTEXT,
-            { repoFullName, prNumber: body.pull_request?.number, source: 'github_pr_webhook' },
-          ).then((r) => r.allowed)
-        : true;
+      const quotaOk = await this.quotaService.checkAndIncrementAiUsage(
+        identity.userId,
+        AiOperationType.GITHUB_PR_CONTEXT,
+        { repoFullName, prNumber: body.pull_request?.number, source: 'github_pr_webhook' },
+      ).then((r) => r.allowed);
 
       this.logger.info('github_pr_quota_check', {
         repository: repoFullName,

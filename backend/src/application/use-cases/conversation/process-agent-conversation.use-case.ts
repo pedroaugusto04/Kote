@@ -65,7 +65,7 @@ export class ProcessAgentConversationUseCase {
     private readonly conversationAgentGateway: ConversationAgentGateway,
     private readonly presenter: ConversationAgentPresenter,
     private readonly folderResolutionService: ConversationFolderResolutionService,
-    private readonly quotaService?: QuotaService,
+    private readonly quotaService: QuotaService,
     private readonly credentials?: CredentialRepository,
     private readonly logger?: AppLogger,
   ) {}
@@ -130,14 +130,13 @@ export class ProcessAgentConversationUseCase {
 
     // Check AI credit quota before invoking the LLM.
     // Graceful degradation: return friendly message instead of throwing to avoid crashing the WPP flow.
-    if (this.quotaService) {
-      const quotaResult = await this.quotaService.checkAndIncrementAiUsage(
-        userId,
-        AiOperationType.AGENT_CONVERSATION_TURN,
-        { workspaceSlug, source: 'agent_conversation' },
-      );
-      if (!quotaResult.allowed) {
-        this.logger?.warn('conversation.agent.quota_exceeded', {
+    const quotaResult = await this.quotaService.checkAndIncrementAiUsage(
+      userId,
+      AiOperationType.AGENT_CONVERSATION_TURN,
+      { workspaceSlug, source: 'agent_conversation' },
+    );
+    if (!quotaResult.allowed) {
+      this.logger?.warn('conversation.agent.quota_exceeded', {
           userId,
           workspaceSlug,
           limit: quotaResult.limit,
@@ -150,7 +149,6 @@ export class ProcessAgentConversationUseCase {
           state,
         );
       }
-    }
 
     const { candidateProjectSlug, candidateFolders, decision } = await this.requestAgentDecision(
       input,

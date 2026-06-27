@@ -60,7 +60,7 @@ export class HandleGithubPushUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
-    private readonly quotaService?: QuotaService,
+    private readonly quotaService: QuotaService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
@@ -125,13 +125,11 @@ export class HandleGithubPushUseCase {
         };
       }
       // Check AI credit quota — if exceeded, degrade gracefully (ingest without AI analysis).
-      const quotaOk = this.quotaService
-        ? await this.quotaService.checkAndIncrementAiUsage(
-          identity.userId,
-          AiOperationType.GITHUB_CODE_REVIEW,
-          { repoFullName, source: 'github_push_webhook' },
-        ).then((r) => r.allowed)
-        : true;
+      const quotaOk = await this.quotaService.checkAndIncrementAiUsage(
+        identity.userId,
+        AiOperationType.GITHUB_CODE_REVIEW,
+        { repoFullName, source: 'github_push_webhook' },
+      ).then((r) => r.allowed);
 
       const aiCredential = this.credentials && quotaOk
         ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.AiReview)

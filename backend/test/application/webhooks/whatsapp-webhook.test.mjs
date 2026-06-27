@@ -161,7 +161,19 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     encryptedConfig: {},
     publicMetadata: {},
   });
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const loggerMock = {
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+  };
+  const ingest = new IngestEntryUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+    repositories.embeddingQueuePublisher,
+    repositories.quotaService,
+    loggerMock,
+  );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();
   const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
@@ -173,7 +185,9 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     new StubConversationAgentGateway(),
     presenter,
     folderResolution,
+    repositories.quotaService,
     repositories.credentialRepository,
+    loggerMock,
   );
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,

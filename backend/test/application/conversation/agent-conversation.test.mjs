@@ -72,7 +72,20 @@ async function createFixture(t, turns) {
     }),
   };
 
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const loggerMock = {
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+  };
+
+  const ingest = new IngestEntryUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+    repositories.embeddingQueuePublisher,
+    repositories.quotaService,
+    loggerMock,
+  );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();
   const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
@@ -84,8 +97,9 @@ async function createFixture(t, turns) {
     new StubConversationAgentGateway(turns),
     presenter,
     folderResolution,
-    undefined,
+    repositories.quotaService,
     repositories.credentialRepository,
+    loggerMock,
   );
   return { repositories, user, agentUseCase };
 }
@@ -482,5 +496,5 @@ test('agent conversation saves reminders as pending immediately', async (t) => {
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
   assert.equal(notes[0].status, 'pending');
-  assert.equal(notes[0].metadata.reminderDate, '2026-05-20');
+  assert.equal(notes[0].reminderDate, '2026-05-20');
 });
