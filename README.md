@@ -62,7 +62,7 @@ To start using Kote:
 
 1. **Sign In:** Go to [knowledgebase.sbs/kote](https://knowledgebase.sbs/kote) and authenticate your account.
 2. **Configure Integrations:** Connect your repository hosting (GitHub) and messaging channels (WhatsApp or Telegram) via the Integrations dashboard in the web application.
-3. **Install Client Tools:** 
+3. **Install Client Tools (optional):** 
    * **VS Code Extension:** Install **Kote** from the VS Code Marketplace to log AI chats and snippets.
    * **Browser Extension:** Install the Chrome/Firefox extension to clip web documentation.
    * **CLI:** Run `npm install -g @pedroaugusto04/kote-cli` to synchronize terminal agent logs or documentation files.
