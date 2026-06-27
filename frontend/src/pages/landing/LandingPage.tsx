@@ -78,7 +78,7 @@ export function LandingPage() {
               Your team writes the code. Let us <span className="landing-highlight auth-typewriter-word" style={{ position: 'relative', display: 'inline-block' }}><span style={{ visibility: 'hidden', userSelect: 'none', pointerEvents: 'none' }}>{fullWord}</span><span style={{ position: 'absolute', left: 0, bottom: 0, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{animatedWord}<span className="auth-typewriter-cursor" aria-hidden="true" /></span></span> the context.
             </h1>
             <p className="landing-lead">
-              Keep notes, WhatsApp & Telegram logs, GitHub PR reviews, decisions, and reminders unified.
+              Keep AI sessions, GitHub PR reviews, WhatsApp & Telegram messages, decisions, and reminders unified.
               Turn unstructured engineering chat into searchable context.
             </p>
             <div className="landing-actions">
