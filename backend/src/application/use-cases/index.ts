@@ -20,6 +20,7 @@ export { CreateManualNoteUseCase } from './notes/create-manual-note.use-case.js'
 export { DeleteNoteUseCase } from './notes/delete-manual-note.use-case.js';
 export { GetNoteAttachmentContentUseCase } from './notes/get-note-attachment-content.use-case.js';
 export { UpdateNoteUseCase } from './notes/update-manual-note.use-case.js';
+export { BulkUpdateNoteStatusUseCase } from './notes/bulk-update-note-status.use-case.js';
 export { GetNoteDetailUseCase } from './dashboard/get-note-detail.use-case.js';
 export { GetReviewDetailUseCase } from './dashboard/get-review-detail.use-case.js';
 export { QueryKnowledgeUseCase } from './query/query-knowledge.use-case.js';
@@ -37,6 +38,7 @@ export { ListPaginatedRemindersUseCase } from './reminders/list-paginated-remind
 export { MarkReminderAsSentUseCase } from './reminders/mark-reminder-as-sent.use-case.js';
 export { RefreshReminderStatusesUseCase } from './reminders/refresh-reminder-statuses.use-case.js';
 export { UpdateReminderStatusUseCase } from './reminders/update-reminder-status.use-case.js';
+export { BulkUpdateReminderStatusUseCase } from './reminders/bulk-update-reminder-status.use-case.js';
 export { HandleGithubPushUseCase } from './webhooks/github/handle-github-push.use-case.js';
 export { HandleGithubPullRequestUseCase } from './webhooks/github/handle-github-pull-request.use-case.js';
 export { HandleWhatsappWebhookUseCase } from './webhooks/whatsapp/handle-whatsapp-webhook.use-case.js';

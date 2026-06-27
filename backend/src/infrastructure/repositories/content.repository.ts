@@ -206,6 +206,14 @@ export class PostgresContentRepository extends ContentRepository {
     return this.noteRepository.updateReminderStatus(userId, id, status);
   }
 
+  async updateNoteStatuses(userId: string, ids: string[], status: string) {
+    return this.noteRepository.updateStatuses(userId, ids, status);
+  }
+
+  async updateReminderStatuses(userId: string, ids: string[], status: string) {
+    return this.noteRepository.updateReminderStatuses(userId, ids, status);
+  }
+
   async setNotePinned(userId: string, id: string, pinned: boolean) {
     return this.noteRepository.setPinned(userId, id, pinned);
   }

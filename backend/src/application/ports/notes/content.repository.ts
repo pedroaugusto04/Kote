@@ -52,6 +52,8 @@ export abstract class ContentRepository {
   abstract upsertNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;
   abstract updateNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;
   abstract updateReminderStatus(userId: string, id: string, status: string): Promise<NoteRecord | null>;
+  abstract updateNoteStatuses(userId: string, ids: string[], status: string): Promise<void>;
+  abstract updateReminderStatuses(userId: string, ids: string[], status: string): Promise<void>;
   abstract setNotePinned(userId: string, id: string, pinned: boolean): Promise<NoteRecord | null>;
   abstract deleteNote(userId: string, id: string): Promise<boolean>;
   abstract saveAttachment(userId: string, input: SaveAttachmentInput): Promise<AttachmentRecord>;

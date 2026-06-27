@@ -11,6 +11,7 @@ import {
   MarkReminderAsSentUseCase,
   RefreshReminderStatusesUseCase,
   UpdateReminderStatusUseCase,
+  BulkUpdateReminderStatusUseCase,
   ListPaginatedRemindersUseCase,
   ListReminderBoardUseCase,
 } from '../../application/use-cases/index.js';
@@ -42,6 +43,7 @@ import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../.
     MarkReminderAsSentUseCase,
     RefreshReminderStatusesUseCase,
     UpdateReminderStatusUseCase,
+    BulkUpdateReminderStatusUseCase,
     ListPaginatedRemindersUseCase,
     ListReminderBoardUseCase,
     ReminderDispatchWorker,
@@ -74,6 +76,7 @@ import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../.
     ListPaginatedRemindersUseCase,
     ListReminderBoardUseCase,
     UpdateReminderStatusUseCase,
+    BulkUpdateReminderStatusUseCase,
   ],
 })
 export class RemindersModule {}

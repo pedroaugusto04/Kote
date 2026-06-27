@@ -624,6 +624,31 @@ export class PostgresNoteRepository {
     return this.getById(userId, id);
   }
 
+  async updateStatuses(userId: string, ids: string[], status: string) {
+    if (ids.length === 0) return;
+    const db = this.database.getDb();
+    await db
+      .update(notes)
+      .set({ status: status as NoteStatus, updatedAt: new Date() })
+      .where(and(
+        eq(notes.userId, userId),
+        inArray(notes.id, ids)
+      ));
+  }
+
+  async updateReminderStatuses(userId: string, ids: string[], status: string) {
+    if (ids.length === 0) return;
+    const db = this.database.getDb();
+    await db
+      .update(notes)
+      .set({ status: status as NoteStatus, updatedAt: new Date() })
+      .where(and(
+        eq(notes.userId, userId),
+        inArray(notes.id, ids),
+        sql`(${notes.reminderDate} <> '' or ${notes.reminderAt} <> '')`
+      ));
+  }
+
   async setPinned(userId: string, id: string, pinned: boolean) {
     const db = this.database.getDb();
     await db

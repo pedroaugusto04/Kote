@@ -114,3 +114,9 @@ export const pinNoteBodySchema = z.object({
 });
 export type PinNoteBody = z.infer<typeof pinNoteBodySchema>;
 
+export const bulkUpdateNoteStatusBodySchema = z.object({
+  ids: z.array(z.string().trim().min(1)),
+  status: z.enum([KnowledgeStatus.Active, KnowledgeStatus.Resolved, KnowledgeStatus.Archived]),
+});
+export type BulkUpdateNoteStatusBody = z.infer<typeof bulkUpdateNoteStatusBodySchema>;
+

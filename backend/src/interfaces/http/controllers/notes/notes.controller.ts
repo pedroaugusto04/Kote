@@ -8,6 +8,7 @@ import {
   DeleteNoteUseCase,
   GetNoteAttachmentContentUseCase,
   UpdateNoteUseCase,
+  BulkUpdateNoteStatusUseCase,
   SetNotePinnedUseCase,
   FindRelatedNotesUseCase,
   GetAutoActionGlobalUseCase,
@@ -23,11 +24,13 @@ import {
   updateNoteBodySchema,
   autoActionGlobalSchema,
   pinNoteBodySchema,
+  bulkUpdateNoteStatusBodySchema,
   type CreateNoteBody,
   type NoteAttachmentContentParam,
   type NoteIdParam,
   type UpdateNoteBody,
   type PinNoteBody,
+  type BulkUpdateNoteStatusBody,
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { inlineContentDisposition } from '../../http-helpers.js';
@@ -41,6 +44,7 @@ export class NotesController {
   constructor(
     private readonly createManualNote: CreateManualNoteUseCase,
     private readonly updateNote: UpdateNoteUseCase,
+    private readonly bulkUpdateNoteStatus: BulkUpdateNoteStatusUseCase,
     private readonly deleteNote: DeleteNoteUseCase,
     private readonly getAttachmentContent: GetNoteAttachmentContentUseCase,
     private readonly setNotePinnedUseCase: SetNotePinnedUseCase,
@@ -61,6 +65,18 @@ export class NotesController {
     @ProjectId() projectId: string,
   ) {
     return this.createManualNote.execute({ ...body, projectId }, user.id);
+  }
+
+  @Patch('bulk/status')
+  @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk update note statuses' })
+  @ApiResponse({ status: 200, description: 'Note statuses updated successfully' })
+  bulkUpdateStatus(
+    @Body(new ZodValidationPipe(bulkUpdateNoteStatusBodySchema, 'invalid_bulk_update_note_status_payload')) body: BulkUpdateNoteStatusBody,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.bulkUpdateNoteStatus.execute(user.id, body.ids, body.status);
   }
 
   @Patch(':id')

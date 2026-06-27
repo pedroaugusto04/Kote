@@ -6,10 +6,6 @@ import { slugify } from '../../domain/strings.js';
 import type { NoteRecord, SaveAttachmentInput, SaveNoteInput } from '../models/repository-records.models.js';
 import { ObjectStorage } from '../ports/notes/object-storage.js';
 
-function normalizedObjectPath(path: string): string {
-  return path.replace(/\\/g, '/').split('/').map((segment) => segment.trim()).filter(Boolean).join('/');
-}
-
 function safeFileName(fileName: string): string {
   const normalized = String(fileName || '').trim().replace(/[\\/\u0000-\u001f\u007f]+/g, '_');
   if (!normalized) return 'attachment';
@@ -32,7 +28,7 @@ function attachmentStorageKey(userId: string, workspaceSlug: string, noteId: str
 
 @Injectable()
 export class ContentObjectStorageService {
-  constructor(private readonly objectStorage: ObjectStorage) {}
+  constructor(private readonly objectStorage: ObjectStorage) { }
 
   async hydrateMarkdown(note: NoteRecord): Promise<NoteRecord> {
     if (!note.markdownStorageKey) return note;

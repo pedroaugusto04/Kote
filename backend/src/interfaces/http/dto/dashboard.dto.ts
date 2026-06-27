@@ -79,6 +79,11 @@ export const updateReminderStatusBodySchema = z.object({
   status: z.nativeEnum(KnowledgeStatus),
 });
 
+export const bulkUpdateReminderStatusBodySchema = z.object({
+  ids: z.array(z.string().trim().min(1)),
+  status: z.nativeEnum(KnowledgeStatus),
+});
+
 export type NoteIdParam = z.infer<typeof noteIdParamSchema>;
 export type ReminderBoardQuery = z.infer<typeof reminderBoardQuerySchema>;
 export type ReminderIdParam = z.infer<typeof reminderIdParamSchema>;
@@ -88,3 +93,4 @@ export type NotesListQuery = z.infer<typeof notesListQuerySchema>;
 export type ReviewsListQuery = z.infer<typeof reviewsListQuerySchema>;
 export type RemindersListQuery = z.infer<typeof remindersListQuerySchema>;
 export type UpdateReminderStatusBody = z.infer<typeof updateReminderStatusBodySchema>;
+export type BulkUpdateReminderStatusBody = z.infer<typeof bulkUpdateReminderStatusBodySchema>;

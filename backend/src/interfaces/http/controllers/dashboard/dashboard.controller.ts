@@ -14,6 +14,7 @@ import {
   ListWorkspacesUseCase,
   QueryKnowledgeUseCase,
   UpdateReminderStatusUseCase,
+  BulkUpdateReminderStatusUseCase,
   RunAskAiUseCase,
   ListAskHistoryUseCase,
 } from '../../../../application/use-cases/index.js';
@@ -29,6 +30,7 @@ import {
   reviewIdParamSchema,
   reviewsListQuerySchema,
   updateReminderStatusBodySchema,
+  bulkUpdateReminderStatusBodySchema,
   type ReminderBoardQuery,
   type ReminderIdParam,
   type NoteIdParam,
@@ -38,6 +40,7 @@ import {
   type ReviewIdParam,
   type ReviewsListQuery,
   type UpdateReminderStatusBody,
+  type BulkUpdateReminderStatusBody,
 } from '../../dto/dashboard.dto.js';
 import { queryRequestSchema, type QueryRequest } from '../../dto/query.dto.js';
 import { askHistoryQuerySchema, askRequestSchema, type AskHistoryQuery, type AskRequest } from '../../dto/ask.dto.js';
@@ -60,6 +63,7 @@ export class DashboardController {
     private readonly listRemindersUseCase: ListPaginatedRemindersUseCase,
     private readonly listReminderBoardUseCase: ListReminderBoardUseCase,
     private readonly updateReminderStatusUseCase: UpdateReminderStatusUseCase,
+    private readonly bulkUpdateReminderStatusUseCase: BulkUpdateReminderStatusUseCase,
     private readonly getNoteDetail: GetNoteDetailUseCase,
     private readonly getReviewDetail: GetReviewDetailUseCase,
     private readonly queryKnowledge: QueryKnowledgeUseCase,
@@ -166,6 +170,18 @@ export class DashboardController {
     @Query(new ZodValidationPipe(reminderBoardQuerySchema, 'invalid_reminder_board_query')) query: ReminderBoardQuery,
   ) {
     return { ok: true, ...(await this.listReminderBoardUseCase.execute(user.id, query)) };
+  }
+
+  @Patch('reminders/bulk/status')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk update reminder statuses' })
+  @ApiResponse({ status: 200, description: 'Reminder statuses updated successfully' })
+  async bulkUpdateReminderStatus(
+    @Body(new ZodValidationPipe(bulkUpdateReminderStatusBodySchema, 'invalid_bulk_update_reminder_status_payload')) body: BulkUpdateReminderStatusBody,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.bulkUpdateReminderStatusUseCase.execute(user.id, body.ids, body.status);
+    return result;
   }
 
   @Patch('reminders/:id/status')
