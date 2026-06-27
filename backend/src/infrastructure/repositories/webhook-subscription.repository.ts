@@ -8,25 +8,12 @@ import type { WebhookSubscriptionRecord } from '../../application/models/webhook
 import { webhookSubscriptionFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { webhookSubscriptions, workspaces } from '../persistence/schema/index.js';
+import { resolveWorkspaceId } from './utils/id-resolution.helpers.js';
 
 @Injectable()
 export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRepository {
   constructor(private readonly database: PostgresDatabase) {
     super();
-  }
-
-  private async resolveWorkspaceId(userId: string, workspaceSlug: string): Promise<string> {
-    const db = this.database.getDb();
-    const result = await db
-      .select({ id: workspaces.id })
-      .from(workspaces)
-      .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
-      .limit(1);
-    
-    if (result.length === 0) {
-      throw new Error(`Workspace not found for slug: ${workspaceSlug}`);
-    }
-    return result[0].id;
   }
 
   async list(userId: string, workspaceSlug: string): Promise<WebhookSubscriptionRecord[]> {
@@ -84,7 +71,7 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
     const db = this.database.getDb();
     let workspaceId = input.workspaceId;
     if (!workspaceId && input.workspaceSlug) {
-      workspaceId = await this.resolveWorkspaceId(input.userId, input.workspaceSlug);
+      workspaceId = await resolveWorkspaceId(this.database, input.userId, input.workspaceSlug);
     }
     if (!workspaceId) {
       throw new Error('workspaceId or workspaceSlug is required');

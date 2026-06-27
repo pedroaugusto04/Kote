@@ -8,6 +8,7 @@ import type { ProjectBriefHistoryRecord, SaveProjectBriefHistoryInput } from '..
 import { ProjectBriefHistoryRepository } from '../../application/ports/projects/project-brief-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { projectBriefHistory, projects, workspaces } from '../persistence/schema/index.js';
+import { resolveIds } from './utils/id-resolution.helpers.js';
 
 type Row = Record<string, unknown>;
 
@@ -43,34 +44,9 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     super();
   }
 
-  private async resolveProjectId(userId: string, workspaceSlug: string, projectSlug: string): Promise<string | null> {
-    if (projectSlug === 'all') {
-      return null;
-    }
-
-    const db = this.database.getDb();
-    const result = await db
-      .select({ id: projects.id })
-      .from(projects)
-      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
-      .where(and(
-        eq(projects.userId, userId),
-        eq(workspaces.workspaceSlug, workspaceSlug),
-        eq(projects.projectSlug, projectSlug)
-      ))
-      .limit(1);
-
-    if (result.length === 0) {
-      throw new Error(`Project not found for slug: ${projectSlug} in workspace: ${workspaceSlug}`);
-    }
-    return result[0].id;
-  }
-
   async save(input: SaveProjectBriefHistoryInput) {
     const db = this.database.getDb();
-    const projectId = input.projectId !== undefined
-      ? input.projectId
-      : await this.resolveProjectId(input.userId, input.workspaceSlug, input.projectSlug);
+    const { projectId, workspaceId } = await resolveIds(this.database, input.userId, input.projectSlug === 'all' ? null : input.projectSlug, input.workspaceSlug);
     const result = await db
       .insert(projectBriefHistory)
       .values({

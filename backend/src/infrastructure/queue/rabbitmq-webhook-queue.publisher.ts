@@ -1,24 +1,19 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import amqplib, { type ChannelModel, type Channel } from 'amqplib';
+import { Injectable } from '@nestjs/common';
+import { type Channel } from 'amqplib';
 
 import { WebhookQueuePublisher } from '../../application/ports/webhooks/webhook-queue.publisher.js';
 import type { NoteEventPayload } from '../../domain/note-event.js';
 import { AppLogger } from '../../observability/logger.js';
+import { BaseRabbitMqPublisher } from './base-rabbitmq.publisher.js';
 
 const EXCHANGE_NAME = 'kb.webhook';
 const QUEUE_NAME = 'kb.webhook.delivery';
 const ROUTING_KEY = 'webhook.deliver';
-const RECONNECT_DELAY_MS = 5_000;
 
 @Injectable()
-export class RabbitMqWebhookQueuePublisher extends WebhookQueuePublisher implements OnModuleDestroy {
-  private connection: ChannelModel | null = null;
-  private channel: Channel | null = null;
-  private connecting = false;
-  private closed = false;
-
-  constructor(private readonly logger: AppLogger) {
-    super();
+export class RabbitMqWebhookQueuePublisher extends BaseRabbitMqPublisher implements WebhookQueuePublisher {
+  constructor(logger: AppLogger) {
+    super(logger);
   }
 
   async publish(payload: NoteEventPayload): Promise<void> {
@@ -44,74 +39,17 @@ export class RabbitMqWebhookQueuePublisher extends WebhookQueuePublisher impleme
     }
   }
 
-  async onModuleDestroy() {
-    this.closed = true;
-    try {
-      if (this.channel) await this.channel.close();
-    } catch { /* already closed */ }
-    try {
-      if (this.connection) await this.connection.close();
-    } catch { /* already closed */ }
-    this.channel = null;
-    this.connection = null;
-  }
-
-  private getUrl(): string {
-    return String(process.env.KB_RABBITMQ_URL || '').trim();
-  }
-
-  private async ensureChannel(url: string): Promise<Channel> {
-    if (this.channel) return this.channel;
-    if (this.connecting) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      if (this.channel) return this.channel;
-      throw new Error('webhook_queue.connection_in_progress');
-    }
-
-    this.connecting = true;
-    try {
-      const conn = await amqplib.connect(url);
-      this.connection = conn;
-
-      conn.on('error', (error: Error) => {
-        this.logger.error('webhook_queue.connection_error', { error: error.message });
-        this.channel = null;
-      });
-      conn.on('close', () => {
-        this.channel = null;
-        if (!this.closed) {
-          this.logger.warn('webhook_queue.connection_closed_reconnecting');
-          setTimeout(() => this.reconnect(url), RECONNECT_DELAY_MS);
-        }
-      });
-
-      const ch = await conn.createChannel();
-      await ch.assertExchange(EXCHANGE_NAME, 'direct', { durable: true });
-      await ch.assertQueue(QUEUE_NAME, {
-        durable: true,
-        arguments: { 'x-dead-letter-exchange': `${EXCHANGE_NAME}.dlx` },
-      });
-      await ch.bindQueue(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
-
-      // Dead-letter exchange for failed deliveries
-      await ch.assertExchange(`${EXCHANGE_NAME}.dlx`, 'direct', { durable: true });
-      await ch.assertQueue(`${QUEUE_NAME}.dlq`, { durable: true });
-      await ch.bindQueue(`${QUEUE_NAME}.dlq`, `${EXCHANGE_NAME}.dlx`, ROUTING_KEY);
-
-      this.channel = ch;
-      this.logger.info('webhook_queue.connected');
-      return ch;
-    } finally {
-      this.connecting = false;
-    }
-  }
-
-  private reconnect(url: string) {
-    if (this.closed) return;
-    void this.ensureChannel(url).catch((error: unknown) => {
-      this.logger.error('webhook_queue.reconnect_failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
+  protected async setupChannel(channel: Channel): Promise<void> {
+    await channel.assertExchange(EXCHANGE_NAME, 'direct', { durable: true });
+    await channel.assertQueue(QUEUE_NAME, {
+      durable: true,
+      arguments: { 'x-dead-letter-exchange': `${EXCHANGE_NAME}.dlx` },
     });
+    await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
+
+    // Dead-letter exchange for failed deliveries
+    await channel.assertExchange(`${EXCHANGE_NAME}.dlx`, 'direct', { durable: true });
+    await channel.assertQueue(`${QUEUE_NAME}.dlq`, { durable: true });
+    await channel.bindQueue(`${QUEUE_NAME}.dlq`, `${EXCHANGE_NAME}.dlx`, ROUTING_KEY);
   }
 }

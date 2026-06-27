@@ -18,6 +18,7 @@ import { noteSummary } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories } from '../persistence/schema/index.js';
+import { resolveIds } from './utils/id-resolution.helpers.js';
 
 @Injectable()
 export class PostgresNoteRepository {
@@ -28,34 +29,6 @@ export class PostgresNoteRepository {
 
   private async hydrateMarkdown(note: NoteRecord): Promise<NoteRecord> {
     return this.contentObjectStorage.hydrateMarkdown(note);
-  }
-
-  private async resolveIds(userId: string, projectSlug: string | null, workspaceSlug: string): Promise<{ projectId: string | null; workspaceId: string }> {
-    const db = this.database.getDb();
-
-    const wsResult = await db
-      .select({ id: workspaces.id })
-      .from(workspaces)
-      .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
-      .limit(1);
-
-    if (wsResult.length === 0) {
-      throw new Error(`Workspace not found for slug: ${workspaceSlug}`);
-    }
-    const workspaceId = wsResult[0].id;
-
-    let projectId: string | null = null;
-    if (projectSlug) {
-      const projResult = await db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
-        .limit(1);
-      if (projResult.length > 0) {
-        projectId = projResult[0].id;
-      }
-    }
-    return { projectId, workspaceId };
   }
 
   async list(userId: string) {
@@ -551,7 +524,7 @@ export class PostgresNoteRepository {
     }
 
     const db = this.database.getDb();
-    const { projectId, workspaceId } = await this.resolveIds(userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
+    const { projectId, workspaceId } = await resolveIds(this.database, userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
 
     const categoryIds = input.categoryIds || [];
 
