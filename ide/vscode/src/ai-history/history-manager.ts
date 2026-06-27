@@ -363,6 +363,18 @@ export class AiHistoryManager {
       return;
     }
 
+    // If the session is already marked as saved, auto-save updates silently.
+    if (this.savedSessions.has(key)) {
+      this.pendingPromptSessions.delete(key);
+      const saved = await this.autoSaveSessionToVault(client, session);
+      if (saved) {
+        this.rememberSessionHash(key, hash);
+        this.markSessionAsSaved(provider.id, session.sessionId);
+        await this.processPendingPromptSession(client, provider, key);
+      }
+      return;
+    }
+
     // In ignore-all mode: silently discard new sessions and updates.
     if (this.getAiSessionSaveMode() === 'ignore-all') {
       this.rememberSessionHash(key, hash);
