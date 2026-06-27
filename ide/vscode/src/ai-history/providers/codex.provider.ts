@@ -48,7 +48,7 @@ export class CodexHistoryProvider implements AiHistoryProvider {
 
     const sessions: AiSession[] = [];
     try {
-      const allFiles = this.getAllFiles(dir);
+      const allFiles = this.getAllFiles(dir).filter(filePath => filePath.endsWith('.json') || filePath.endsWith('.jsonl'));
       
       // Sort files by mtimeMs descending
       const fileStats = allFiles.map(filePath => {
@@ -64,10 +64,8 @@ export class CodexHistoryProvider implements AiHistoryProvider {
       const recentFiles = fileStats.slice(0, count).map(x => x.filePath);
 
       for (const filePath of recentFiles) {
-        if (filePath.endsWith('.json') || filePath.endsWith('.jsonl')) {
-          const session = this.parseFile(filePath);
-          if (session) sessions.push(session);
-        }
+        const session = this.parseFile(filePath);
+        if (session) sessions.push(session);
       }
     } catch (err) {
       console.error('Failed to read recent Codex sessions:', err);

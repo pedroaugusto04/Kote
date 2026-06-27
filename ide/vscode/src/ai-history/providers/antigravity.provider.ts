@@ -38,7 +38,11 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
         } catch {
           return { folder, folderPath, isDirectory: false, mtime: 0 };
         }
-      }).filter(x => x.isDirectory);
+      }).filter(x => {
+        if (!x.isDirectory) return false;
+        const logFilePath = path.join(x.folderPath, '.system_generated', 'logs', 'overview.txt');
+        return fs.existsSync(logFilePath);
+      });
 
       // Sort folders by mtime descending
       folderStats.sort((a, b) => b.mtime - a.mtime);
@@ -48,11 +52,9 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
       for (const f of recentFolders) {
         const logFilePath = path.join(f.folderPath, '.system_generated', 'logs', 'overview.txt');
-        if (fs.existsSync(logFilePath)) {
-          const session = this.parseFile(logFilePath, f.folder);
-          if (session) {
-            sessions.push(session);
-          }
+        const session = this.parseFile(logFilePath, f.folder);
+        if (session) {
+          sessions.push(session);
         }
       }
     } catch (err) {
