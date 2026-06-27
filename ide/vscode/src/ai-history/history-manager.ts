@@ -10,7 +10,7 @@ const SESSION_MODE_PICKED_KEY = 'kote.aiSessionModePicked';
 
 const SESSION_PROMPT_TIMEOUT_MS = 2 * 60 * 1000;
 
-const MAX_UNSYNCED_SESSIONS_CHECK = 200; // Limit for scanned unsynced sessions
+const MAX_UNSYNCED_SESSIONS_CHECK = 100; // Limit for scanned unsynced sessions
 
 export class AiHistoryManager {
   private providers = new Map<string, AiHistoryProvider>();
@@ -89,7 +89,7 @@ export class AiHistoryManager {
       try {
         const enabled = await provider.isEnabled();
         if (!enabled) continue;
-        const initial = await provider.getRecentSessions(1000); // Fetch all to populate known hashes of existing sessions
+        const initial = await provider.getRecentSessions(MAX_UNSYNCED_SESSIONS_CHECK); // Fetch all to populate known hashes of existing sessions
         for (const s of initial) {
           this.addOrUpdateRecentSession(s, true);
 
@@ -335,14 +335,17 @@ export class AiHistoryManager {
     const config = vscode.workspace.getConfiguration('kote');
     const inspection = config.inspect('aiSessionSaveMode');
 
-    let target = vscode.ConfigurationTarget.Global;
-    if (inspection?.workspaceValue !== undefined) {
-      target = vscode.ConfigurationTarget.Workspace;
-    } else if (inspection?.workspaceFolderValue !== undefined) {
-      target = vscode.ConfigurationTarget.WorkspaceFolder;
+    try {
+      if (inspection?.workspaceFolderValue !== undefined) {
+        await config.update('aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.WorkspaceFolder);
+      }
+      if (inspection?.workspaceValue !== undefined) {
+        await config.update('aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Workspace);
+      }
+      await config.update('aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Global);
+    } catch (err) {
+      console.error('Failed to update aiSessionSaveMode configuration:', err);
     }
-
-    await config.update('aiSessionSaveMode', picked.mode, target);
 
     context.globalState.update(SESSION_MODE_PICKED_KEY, true);
 
@@ -687,7 +690,7 @@ export class AiHistoryManager {
       try {
         const enabled = await provider.isEnabled();
         if (!enabled) continue;
-        const sessions = await provider.getRecentSessions(1000);
+        const sessions = await provider.getRecentSessions(MAX_UNSYNCED_SESSIONS_CHECK);
         for (const s of sessions) {
           const key = `${provider.id}:${s.sessionId}`;
           if (!this.savedSessions.has(key) && !this.ignoredSessions.has(key)) {
@@ -703,13 +706,25 @@ export class AiHistoryManager {
   }
 
   async syncSessions(client: KbClient, sessionsToSync: { providerId: string, sessionId: string }[]): Promise<boolean> {
-    // Resolve sessions and their timestamps first
     const resolvedSessions: { item: { providerId: string, sessionId: string }, session: AiSession }[] = [];
-    for (const item of sessionsToSync) {
-      const provider = this.providers.get(item.providerId);
-      if (!provider) continue;
+    // Group by providerId to avoid fetching recent sessions multiple times for the same provider
+    const sessionsByProvider = new Map<string, AiSession[]>();
+    const providerIds = new Set(sessionsToSync.map(item => item.providerId));
 
-      const sessions = await provider.getRecentSessions(1000);
+    for (const providerId of providerIds) {
+      const provider = this.providers.get(providerId);
+      if (!provider) continue;
+      try {
+        const sessions = await provider.getRecentSessions(MAX_UNSYNCED_SESSIONS_CHECK);
+        sessionsByProvider.set(providerId, sessions);
+      } catch (err) {
+        console.error(`Failed to load sessions for provider ${providerId}:`, err);
+      }
+    }
+
+    for (const item of sessionsToSync) {
+      const sessions = sessionsByProvider.get(item.providerId);
+      if (!sessions) continue;
       const session = sessions.find(s => s.sessionId === item.sessionId);
       if (session) {
         resolvedSessions.push({ item, session });
