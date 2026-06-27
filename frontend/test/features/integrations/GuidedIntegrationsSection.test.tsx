@@ -359,7 +359,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/github-app/repositories') {
+      if (url === API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES) {
         return Response.json({ ok: true });
       }
       return new Response(null, { status: 404 });
