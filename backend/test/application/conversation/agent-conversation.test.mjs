@@ -27,7 +27,7 @@ class StubConversationAgentGateway {
 async function createFixture(t, turns) {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  await repositories.contentRepository.upsertWorkspace(user.id, {
+  const workspace = await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'default',
     displayName: 'Default',
     whatsappChatJid: '',
@@ -39,6 +39,7 @@ async function createFixture(t, turns) {
     projectSlug: 'platform',
     displayName: 'Platform',
     repositories: [],
+    workspaceId: workspace.id,
     workspaceSlug: 'default',
     defaultTags: ['backend'],
     enabled: true,
@@ -47,6 +48,7 @@ async function createFixture(t, turns) {
     projectSlug: 'mobile-app',
     displayName: 'Mobile App',
     repositories: [],
+    workspaceId: workspace.id,
     workspaceSlug: 'default',
     defaultTags: ['app'],
     enabled: true,
@@ -82,6 +84,7 @@ async function createFixture(t, turns) {
     new StubConversationAgentGateway(turns),
     presenter,
     folderResolution,
+    undefined,
     repositories.credentialRepository,
   );
   return { repositories, user, agentUseCase };
@@ -145,7 +148,8 @@ test('agent conversation happy path suggests folder and saves with created folde
   assert.deepEqual(first.agent.suggestedFolderPath, ['Runbooks', 'API']);
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
-  const folders = await repositories.contentRepository.listProjectFolders(user.id, 'platform');
+  const project = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
+  const folders = await repositories.contentRepository.listProjectFolders(user.id, project.id);
   const finalFolder = folders.find((folder) => folder.fullSlugPath === 'runbooks/api');
   assert.ok(finalFolder);
   assert.equal(notes[0].folderId, finalFolder.id);

@@ -199,6 +199,9 @@ test('conversation agent state machine preserves a new project slug for submissi
 test('conversation folder resolution creates missing nested folders in order', async () => {
   const folders = [];
   const contentRepository = {
+    async getProjectBySlug() {
+      return { id: 'platform' };
+    },
     async listProjectFolders() {
       return folders;
     },
@@ -235,6 +238,9 @@ test('process agent conversation auto-creates a missing project before submittin
   const createdProjects = [];
   const ingested = [];
   const contentRepository = {
+    async getWorkspaceBySlug(_userId, workspaceSlug) {
+      return { id: 'workspace-1', workspaceSlug };
+    },
     async listProjects() {
       return [{ projectSlug: 'platform', displayName: 'Platform', workspaceSlug: 'default', repositories: [], defaultTags: [], enabled: true }];
     },
@@ -343,6 +349,7 @@ test('process agent conversation auto-creates a missing project before submittin
         return '';
       },
     },
+    undefined,
     credentials,
   );
 
@@ -358,8 +365,10 @@ test('process agent conversation auto-creates a missing project before submittin
   assert.equal(result.action, 'submit');
   assert.equal(createdProjects.length, 1);
   assert.deepEqual(createdProjects[0], {
+    id: createdProjects[0].id,
     projectSlug: 'projeto-x',
     displayName: 'Projeto X',
+    workspaceId: 'workspace-1',
     workspaceSlug: 'default',
     repositories: [],
     defaultTags: [],
@@ -369,3 +378,21 @@ test('process agent conversation auto-creates a missing project before submittin
   assert.equal(ingested.length, 1);
   assert.equal(ingested[0].event.projectSlug, 'projeto-x');
 });
+
+test('conversation agent prompt instructs LLM to preserve raw text without summarizing', () => {
+  const prompt = buildConversationAgentSystemPrompt();
+  const turnPrompt = buildConversationAgentTurnPrompt({
+    messageText: 'test note',
+    currentState: {},
+    availableProjects: [],
+    candidateProjectSlug: '',
+    candidateFolders: [],
+    timeZone: 'UTC',
+    currentLocalDate: '2026-05-20',
+    currentLocalTime: '12:00',
+  });
+
+  assert.match(prompt, /preserve the user's message\/note exactly as sent/i);
+  assert.match(turnPrompt, /preserve the user's message\/note exactly as sent/i);
+});
+

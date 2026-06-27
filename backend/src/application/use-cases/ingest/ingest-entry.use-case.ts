@@ -33,7 +33,7 @@ export class IngestEntryUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly embeddingQueue: EmbeddingQueuePublisher,
     private readonly quotaService: QuotaService,
-  ) {}
+  ) { }
 
   async execute(input: IngestPayload, userId: string, workspaceSlug = '', options: IngestExecutionOptions = {}) {
     const result = await saveIngestedNote(
@@ -59,16 +59,16 @@ function projectFromPayload(payload: IngestPayload, workspaceSlug: string): Proj
   const repoFullName = String(payload.metadata.repoFullName || '').trim();
   const repositories = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repoFullName)
     ? [{
-        id: '',
-        workspaceSlug,
-        externalId: '0',
-        fullName: repoFullName,
-        htmlUrl: null,
-        description: null,
-        defaultBranch: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }]
+      id: '',
+      workspaceSlug,
+      externalId: '0',
+      fullName: repoFullName,
+      htmlUrl: null,
+      description: null,
+      defaultBranch: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }]
     : [];
   return {
     projectSlug,
@@ -102,24 +102,24 @@ async function saveIngestedNote(
 
   const project: Project = isMatchingProject
     ? {
-        projectSlug: existingProject.projectSlug,
-        displayName: existingProject.displayName,
+      projectSlug: existingProject.projectSlug,
+      displayName: existingProject.displayName,
+      workspaceSlug: existingProject.workspaceSlug || workspaceSlug,
+      repositories: existingProject.repositories.map((repo) => ({
+        id: repo.id,
         workspaceSlug: existingProject.workspaceSlug || workspaceSlug,
-        repositories: existingProject.repositories.map((repo) => ({
-          id: repo.id,
-          workspaceSlug: existingProject.workspaceSlug || workspaceSlug,
-          externalId: repo.externalId,
-          fullName: repo.fullName,
-          htmlUrl: repo.htmlUrl,
-          description: repo.description,
-          defaultBranch: repo.defaultBranch,
-          createdAt: repo.createdAt,
-          updatedAt: repo.updatedAt,
-        })),
-        defaultTags: existingProject.defaultTags,
-        enabled: existingProject.enabled,
-        favorite: existingProject.favorite,
-      }
+        externalId: repo.externalId,
+        fullName: repo.fullName,
+        htmlUrl: repo.htmlUrl,
+        description: repo.description,
+        defaultBranch: repo.defaultBranch,
+        createdAt: repo.createdAt,
+        updatedAt: repo.updatedAt,
+      })),
+      defaultTags: existingProject.defaultTags,
+      enabled: existingProject.enabled,
+      favorite: existingProject.favorite,
+    }
     : projectFromPayload(parsed, workspaceSlug);
   const normalizedStatus = normalizeManualNoteStatus({
     requestedStatus: parsed.classification.status,
