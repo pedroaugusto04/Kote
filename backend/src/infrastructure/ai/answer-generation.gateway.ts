@@ -7,6 +7,8 @@ import {
   type AnswerGenerationConfig,
   type AnswerGenerationRequest,
   type AnswerGenerationResponse,
+  type PrContextAiConfig,
+  type AnswerContextChunk,
 } from '../../application/ports/query/answer-generation.gateway.js';
 import { runChatCompletion } from './openai-compatible-chat.js';
 import {
@@ -97,6 +99,56 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
       return String(parsed.rewrittenQuery || question).trim();
     } catch {
       return question;
+    }
+  }
+
+  async generatePullRequestComment(
+    config: PrContextAiConfig,
+    payload: {
+      prTitle: string;
+      prDescription: string;
+      changedFiles: string[];
+      context: AnswerContextChunk[];
+    },
+  ): Promise<string | null> {
+    if (config.provider === 'none' || !config.apiKey || !config.model) {
+      return null;
+    }
+
+    const systemPrompt = [
+      'You are Kote PR Context AI, a helpful coding assistant.',
+      'Your task is to analyze a GitHub Pull Request and provide relevant context and memory from the workspace notes (knowledge base) that could help the author or reviewers.',
+      'Acknowledge if any related projects, decisions, patterns, or architecture decisions from the workspace notes match the modified files or the PR intent.',
+      'Suggest relevant readings or link to note paths (e.g. `[Note Title](path/to/note)`) if they are relevant.',
+      'Keep the tone professional, concise, and constructive.',
+      'If no relevant notes or context are found in the search results, return null or a polite short message saying you could not find relevant context for this PR.',
+    ].join('\n');
+
+    const userContent = JSON.stringify({
+      prTitle: payload.prTitle,
+      prDescription: payload.prDescription,
+      changedFiles: payload.changedFiles,
+      notesContext: payload.context.map(c => ({
+        title: c.title,
+        path: c.path,
+        content: c.chunkText,
+      })),
+    });
+
+    try {
+      const content = await runChatCompletion(
+        {
+          provider: config.provider as AiProvider,
+          baseUrl: config.baseUrl,
+          model: config.model,
+          apiKey: config.apiKey,
+        },
+        systemPrompt,
+        userContent,
+      );
+      return content || null;
+    } catch {
+      return null;
     }
   }
 }

@@ -57,6 +57,10 @@ services:
       DEV_EMAIL: ${DEV_EMAIL:-pedroaugustoaduarte@gmail.com}
       # Test email authentication secret
       KB_TEST_EMAIL_AUTH_SECRET: ${KB_TEST_EMAIL_AUTH_SECRET:-}
+      KB_PR_CONTEXT_AI_PROVIDER: ${KB_PR_CONTEXT_AI_PROVIDER:-}
+      KB_PR_CONTEXT_AI_BASE_URL: ${KB_PR_CONTEXT_AI_BASE_URL:-}
+      KB_PR_CONTEXT_AI_MODEL: ${KB_PR_CONTEXT_AI_MODEL:-}
+      KB_PR_CONTEXT_AI_API_KEY: ${KB_PR_CONTEXT_AI_API_KEY:-}
       # Email branding
       APP_NAME: ${APP_NAME:-Kote}
       APP_LOGO_URL: ${APP_LOGO_URL:-}

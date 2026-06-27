@@ -145,12 +145,13 @@ For setup instructions, see [ide/browser-extension/README.md](ide/browser-extens
 
 ---
 
-### GitHub Push Integration
+### GitHub Integration
 
-Processes repository activity passively to record code changes.
+Processes repository activity passively to record code changes and retrieve context.
 
 * **Diff Analysis:** Summarizes changes on every push.
 * **Alert System:** Notifies the team via WhatsApp or Telegram if potential configuration or environmental issues are detected in a diff.
+* **PR Context AI:** Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.
 
 ---
 

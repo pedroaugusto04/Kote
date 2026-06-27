@@ -112,7 +112,7 @@ export class IntegrationConnectionService {
     if (input.provider === IntegrationProvider.GithubApp) return this.startGithubConnection(input.userId, workspace.workspaceSlug, input.returnToPath, input.browserOrigin);
     if (input.provider === IntegrationProvider.Whatsapp) return this.startWhatsappConnection(input.userId, workspace.workspaceSlug);
     if (input.provider === IntegrationProvider.Telegram) return this.startTelegramConnection(input.userId, workspace.workspaceSlug);
-    if (input.provider === IntegrationProvider.AiReview || input.provider === IntegrationProvider.AiConversation || input.provider === IntegrationProvider.ProjectBriefAi) return this.activateAi(input.userId, workspace.workspaceSlug, input.provider);
+    if (input.provider === IntegrationProvider.AiReview || input.provider === IntegrationProvider.AiConversation || input.provider === IntegrationProvider.ProjectBriefAi || input.provider === IntegrationProvider.PrContextAi) return this.activateAi(input.userId, workspace.workspaceSlug, input.provider);
     throw new NotFoundException('provider_not_found');
   }
 
@@ -317,7 +317,7 @@ export class IntegrationConnectionService {
     });
   }
 
-  private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi) {
+  private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi) {
     const environment = this.environment();
     const config = aiRuntimeConfig(environment, provider);
     const configured = config.provider !== 'none' && config.baseUrl && config.model && config.apiKey;
@@ -567,7 +567,7 @@ export class IntegrationConnectionService {
 
 function aiRuntimeConfig(
   environment: RuntimeEnvironment,
-  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi,
+  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi,
 ) {
   if (provider === IntegrationProvider.AiReview) {
     return {
@@ -587,6 +587,16 @@ function aiRuntimeConfig(
       apiKey: environment.projectBriefAiApiKey,
       label: 'Project Brief AI',
       errorCode: 'project_brief_ai_not_configured',
+    };
+  }
+  if (provider === IntegrationProvider.PrContextAi) {
+    return {
+      provider: environment.prContextAiProvider,
+      baseUrl: environment.prContextAiBaseUrl,
+      model: environment.prContextAiModel,
+      apiKey: environment.prContextAiApiKey,
+      label: 'PR Context AI',
+      errorCode: 'pr_context_ai_not_configured',
     };
   }
   return {

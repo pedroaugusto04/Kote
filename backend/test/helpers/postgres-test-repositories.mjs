@@ -180,12 +180,21 @@ async function truncateSchema(targetUrl, schemaName) {
   }
 }
 
+let baseSchemaPromise = null;
+
+async function ensureBaseSchemaOnce(targetUrl) {
+  if (!baseSchemaPromise) {
+    baseSchemaPromise = ensureBaseSchema(targetUrl);
+  }
+  return baseSchemaPromise;
+}
+
 export async function createPostgresTestRepositories(t) {
   const targetUrl = testDatabaseUrl();
   await ensureTestDatabase(targetUrl);
 
   // Ensure base schema exists with migrations (runs once)
-  await ensureBaseSchema(targetUrl);
+  await ensureBaseSchemaOnce(targetUrl);
 
   // Use the base schema directly for all tests
   const schemaName = BASE_SCHEMA_NAME;

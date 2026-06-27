@@ -136,3 +136,23 @@ export async function fetchGithubInstallationRepositories(input: {
     }))
     .filter((repo) => repo.fullName);
 }
+
+export async function postGithubPullRequestComment(
+  repoFullName: string,
+  prNumber: number,
+  bodyText: string,
+  token: string,
+): Promise<boolean> {
+  if (!repoFullName || !prNumber || !bodyText || !token) return false;
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ body: bodyText }),
+  });
+  return response.ok;
+}

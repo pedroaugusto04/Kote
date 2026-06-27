@@ -57,6 +57,7 @@ export class CreateWorkspaceUseCase {
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.AiReview),
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.AiConversation),
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.ProjectBriefAi),
+      this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.PrContextAi),
     ]);
 
     return {
@@ -69,19 +70,23 @@ export class CreateWorkspaceUseCase {
   private async provisionManagedAiIntegration(
     userId: string,
     workspaceSlug: string,
-    provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi,
+    provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi,
   ) {
     const environment = this.runtimeEnvironmentProvider.read();
     const runtimeProvider = provider === IntegrationProvider.AiReview
       ? environment.reviewAiProvider
       : provider === IntegrationProvider.ProjectBriefAi
         ? environment.projectBriefAiProvider
-        : environment.conversationAiProvider;
+        : provider === IntegrationProvider.PrContextAi
+          ? environment.prContextAiProvider
+          : environment.conversationAiProvider;
     const label = provider === IntegrationProvider.AiReview
       ? 'Review AI'
       : provider === IntegrationProvider.ProjectBriefAi
         ? 'Project Brief AI'
-        : 'Conversation AI';
+        : provider === IntegrationProvider.PrContextAi
+          ? 'PR Context AI'
+          : 'Conversation AI';
 
     await this.credentialRepository.upsertCredential({
       userId,

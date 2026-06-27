@@ -26,6 +26,7 @@ export enum AiOperationType {
   AUDIO_TRANSCRIPTION = 'audio_transcription',
   PROJECT_BRIEF = 'project_brief',
   NOTE_REVIEW = 'note_review',
+  GITHUB_PR_CONTEXT = 'github_pr_context',
 }
 
 export interface PlanLimits {

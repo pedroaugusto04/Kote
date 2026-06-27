@@ -5,6 +5,7 @@ import {
   fetchGithubInstallationRepositories,
   fetchGithubInstallationToken,
   verifyGithubSignature,
+  postGithubPullRequestComment,
 } from '../../adapters/github.js';
 import {
   GithubIntegrationGateway,
@@ -32,5 +33,14 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
     installationId: string;
   }): Promise<GithubInstallationRepository[]> {
     return fetchGithubInstallationRepositories(input);
+  }
+
+  postPullRequestComment(
+    repoFullName: string,
+    prNumber: number,
+    bodyText: string,
+    token: string,
+  ): Promise<boolean> {
+    return postGithubPullRequestComment(repoFullName, prNumber, bodyText, token);
   }
 }

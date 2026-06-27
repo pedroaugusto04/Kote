@@ -20,6 +20,7 @@ import {
 } from '../../application/credentials.js';
 import {
   HandleGithubPushUseCase,
+  HandleGithubPullRequestUseCase,
   HandleWhatsappWebhookUseCase,
   HandleTelegramWebhookUseCase,
   ListWebhookSubscriptionsUseCase,
@@ -67,6 +68,7 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     IntegrationConnectionService,
     IntegrationCredentialService,
     HandleGithubPushUseCase,
+    HandleGithubPullRequestUseCase,
     HandleWhatsappWebhookUseCase,
     HandleTelegramWebhookUseCase,
     NotifyHighSeverityFindingsService,
