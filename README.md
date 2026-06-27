@@ -72,7 +72,8 @@ To start using Kote:
 
 ---
 
-## Self-Hosting (Docker)
+<details>
+<summary><strong>Self-Hosting (Docker)</strong></summary>
 
 If you prefer to run Kote on your own infrastructure or local machine, you can launch the entire stack using Docker Compose:
 
@@ -105,11 +106,14 @@ Once running, access the local services:
 > [!TIP]
 > Point your VS Code Extension (`knowledgeVault.apiUrl`) or CLI (`apiUrl` in `~/.kb-config.json`) to your self-hosted API URL (`http://localhost:4310`) to connect your editor and terminal to your local instance.
 
+</details>
+
 ---
 
 ## Features
 
-### CLI Tool (kote)
+<details>
+<summary><strong>CLI Tool (kote)</strong></summary>
 
 Synchronize terminal session histories and import local directories or files.
 
@@ -120,9 +124,12 @@ Synchronize terminal session histories and import local directories or files.
 
 For installation steps and command options, see [cli/README.md](cli/README.md).
 
+</details>
+
 ---
 
-### VS Code Extension
+<details>
+<summary><strong>VS Code Extension</strong></summary>
 
 Integrates directly with your editor to capture context during development.
 
@@ -133,9 +140,12 @@ Integrates directly with your editor to capture context during development.
 
 For configuration details, see [ide/vscode/README.md](ide/vscode/README.md).
 
+</details>
+
 ---
 
-### Browser Extension
+<details>
+<summary><strong>Browser Extension</strong></summary>
 
 Save documentation, issues, and articles directly from the web browser.
 
@@ -146,9 +156,12 @@ Save documentation, issues, and articles directly from the web browser.
 
 For setup instructions, see [ide/browser-extension/README.md](ide/browser-extension/README.md).
 
+</details>
+
 ---
 
-### GitHub Integration
+<details>
+<summary><strong>GitHub Integration</strong></summary>
 
 Processes repository activity passively to record code changes and retrieve context.
 
@@ -156,9 +169,12 @@ Processes repository activity passively to record code changes and retrieve cont
 * **Alert System:** Notifies the team via WhatsApp or Telegram if potential configuration or environmental issues are detected in a diff.
 * **PR Context AI:** Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.
 
+</details>
+
 ---
 
-### Messaging Integrations (WhatsApp & Telegram)
+<details>
+<summary><strong>Messaging Integrations (WhatsApp & Telegram)</strong></summary>
 
 Provides channels for logging quick notes and querying the database.
 
@@ -171,9 +187,12 @@ Provides channels for logging quick notes and querying the database.
 * **Image Capture:** Upload screenshots or whiteboard diagrams to attach to projects.
 * **Interactive Querying:** Search the knowledge base using the `/ask` command.
 
+</details>
+
 ---
 
-### Web Application & Knowledge Map
+<details>
+<summary><strong>Web Application & Knowledge Map</strong></summary>
 
 Interfaces to manage, search, and visualize captured knowledge.
 
@@ -191,6 +210,8 @@ Interfaces to manage, search, and visualize captured knowledge.
   <img src="docs/screenshots/map-overview.png" alt="Knowledge Node Graph Map" width="100%">
   <br><em>Visual node graph illustrating relations between projects and notes.</em>
 </p>
+
+</details>
 
 ---
 
