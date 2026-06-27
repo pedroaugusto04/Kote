@@ -157,6 +157,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     repositories.contentRepository,
     repositories.credentialRepository,
     repositories.runtimeEnvironmentProvider,
+    { checkQuota: async () => ({ allowed: true, limit: -1, current: 0 }) },
   ).execute({
     displayName: 'Default',
     workspaceSlug: 'default',
@@ -251,6 +252,7 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     defaultBranch: null,
   });
   await repositories.contentRepository.upsertProject(user.id, {
+    workspaceId: workspace.id,
     projectSlug: 'platform',
     displayName: 'Platform',
     repositories: [repo],
@@ -350,6 +352,7 @@ test('github pull request webhook processes event, searches context, and posts c
     defaultBranch: null,
   });
   await repositories.contentRepository.upsertProject(user.id, {
+    workspaceId: workspace.id,
     projectSlug: 'platform',
     displayName: 'Platform',
     repositories: [repo],
@@ -372,14 +375,16 @@ test('github pull request webhook processes event, searches context, and posts c
     },
   };
 
+  let createdNoteId = '';
+
   const noteEmbeddingRepositoryMock = {
     async findSimilar() {
-      return [{ noteId: 'note-1', chunkText: 'Found PR AI architecture context.' }];
+      return [{ noteId: createdNoteId, chunkText: 'Found PR AI architecture context.' }];
     },
   };
 
-  await repositories.contentRepository.upsertNote(user.id, {
-    id: 'note-1',
+  const createdNote = await repositories.contentRepository.upsertNote(user.id, {
+    id: '00000000-0000-0000-0000-000000000001',
     workspaceSlug: 'default',
     projectSlug: 'platform',
     title: 'PR AI Architecture',
@@ -408,6 +413,7 @@ test('github pull request webhook processes event, searches context, and posts c
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
+  createdNoteId = createdNote.id;
 
   let prCommentPosted = false;
   let postedBody = '';
@@ -417,8 +423,14 @@ test('github pull request webhook processes event, searches context, and posts c
     async fetchInstallationToken() {
       return 'github-token';
     },
+    async fetchInstallationRepositories() {
+      return [{ fullName: 'acme/api' }];
+    },
     async fetchComparePayload() {
       return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
+    },
+    async fetchPullRequestComments() {
+      return [];
     },
     async postPullRequestComment(repoFullName, prNumber, bodyText) {
       prCommentPosted = true;
@@ -452,10 +464,165 @@ test('github pull request webhook processes event, searches context, and posts c
   assert.equal(result.processed, true);
   assert.equal(result.commentPosted, true);
   assert.equal(prCommentPosted, true);
-  assert.equal(postedBody, 'Aqui está o contexto relevante para este PR.');
+  assert.ok(postedBody.includes('Aqui está o contexto relevante para este PR.'));
+  assert.ok(postedBody.includes('<!-- sha: 2222222 -->'));
 
   const event = await repositories.getLastWebhookEvent();
   assert.equal(event.status, 'processed');
   assert.equal(event.rawPayload.prNumber, 77);
 });
+
+test('github pull request webhook skips processing when title contains skip-kote keyword', async (t) => {
+  configureEnv();
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.userRepository.createUser({ email: 'pr-skip@example.com', displayName: 'PR User', passwordHash: 'hash', role: 'user' });
+  const workspace = await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappChatJid: '',
+    telegramChatId: '',
+    githubRepos: ['acme/api'],
+    projectSlugs: ['inbox', 'platform'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
+  const repo = await repositories.contentRepository.upsertRepository({
+    workspaceId: workspace.id,
+    workspaceSlug: 'default',
+    externalId: '0',
+    fullName: 'acme/api',
+    htmlUrl: 'https://github.com/acme/api',
+    description: null,
+    defaultBranch: null,
+  });
+  await repositories.contentRepository.upsertProject(user.id, {
+    workspaceId: workspace.id,
+    projectSlug: 'platform',
+    displayName: 'Platform',
+    repositories: [repo],
+    workspaceSlug: 'default',
+    defaultTags: ['backend'],
+    enabled: true,
+  });
+  await repositories.externalIdentityRepository.upsertExternalIdentity({
+    userId: user.id,
+    workspaceSlug: 'default',
+    provider: 'github-app',
+    identityType: 'installation_id',
+    externalId: '42',
+    publicMetadata: {},
+  });
+
+  let prCommentPosted = false;
+  const githubPrGatewayMock = {
+    verifyWebhookSignature() {},
+    async fetchInstallationToken() { return 'github-token'; },
+    async fetchComparePayload() { return { commits: [], files: [] }; },
+    async fetchPullRequestComments() { return []; },
+    async postPullRequestComment() {
+      prCommentPosted = true;
+      return true;
+    },
+  };
+
+  const handler = new HandleGithubPullRequestUseCase(
+    repositories.externalIdentityRepository,
+    repositories.webhookEventRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubPrGatewayMock,
+    {} ,
+    {} ,
+    {} ,
+    undefined,
+    repositories.contentRepository,
+    repositories.credentialRepository,
+  );
+
+  const payload = githubPrBody('opened', 78);
+  payload.pull_request.title = 'feat: something [skip-kote] new';
+  const result = await handler.execute(signedGithubPrInput(payload));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.processed, false);
+  assert.equal(result.ignored, 'skipped_by_title_keyword');
+  assert.equal(prCommentPosted, false);
+});
+
+test('github pull request webhook skips posting comments when a comment already exists for current headSha', async (t) => {
+  configureEnv();
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.userRepository.createUser({ email: 'pr-dup@example.com', displayName: 'PR User', passwordHash: 'hash', role: 'user' });
+  const workspace = await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappChatJid: '',
+    telegramChatId: '',
+    githubRepos: ['acme/api'],
+    projectSlugs: ['inbox', 'platform'],
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
+  const repo = await repositories.contentRepository.upsertRepository({
+    workspaceId: workspace.id,
+    workspaceSlug: 'default',
+    externalId: '0',
+    fullName: 'acme/api',
+    htmlUrl: 'https://github.com/acme/api',
+    description: null,
+    defaultBranch: null,
+  });
+  await repositories.contentRepository.upsertProject(user.id, {
+    workspaceId: workspace.id,
+    projectSlug: 'platform',
+    displayName: 'Platform',
+    repositories: [repo],
+    workspaceSlug: 'default',
+    defaultTags: ['backend'],
+    enabled: true,
+  });
+  await repositories.externalIdentityRepository.upsertExternalIdentity({
+    userId: user.id,
+    workspaceSlug: 'default',
+    provider: 'github-app',
+    identityType: 'installation_id',
+    externalId: '42',
+    publicMetadata: {},
+  });
+
+  let prCommentPosted = false;
+  const githubPrGatewayMock = {
+    verifyWebhookSignature() {},
+    async fetchInstallationToken() { return 'github-token'; },
+    async fetchInstallationRepositories() { return [{ fullName: 'acme/api' }]; },
+    async fetchComparePayload() { return { commits: [], files: [] }; },
+    async fetchPullRequestComments() {
+      return [{ id: 1234, body: 'Some previous comment\n\n<!-- sha: 2222222 -->' }];
+    },
+    async postPullRequestComment() {
+      prCommentPosted = true;
+      return true;
+    },
+  };
+
+  const handler = new HandleGithubPullRequestUseCase(
+    repositories.externalIdentityRepository,
+    repositories.webhookEventRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubPrGatewayMock,
+    {} ,
+    {} ,
+    {} ,
+    undefined,
+    repositories.contentRepository,
+    repositories.credentialRepository,
+  );
+
+  const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 79)));
+
+  assert.equal(result.ok, true);
+  assert.equal(result.processed, false);
+  assert.equal(result.ignored, 'comment_already_exists_for_sha');
+  assert.equal(prCommentPosted, false);
+});
+
 

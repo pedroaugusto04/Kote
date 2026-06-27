@@ -29,4 +29,9 @@ export abstract class GithubIntegrationGateway {
     bodyText: string,
     token: string,
   ): Promise<boolean>;
+  abstract fetchPullRequestComments(
+    repoFullName: string,
+    prNumber: number,
+    token: string,
+  ): Promise<Array<{ id: number; body: string }>>;
 }

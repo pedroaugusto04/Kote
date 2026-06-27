@@ -14,6 +14,7 @@ import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations/integrations.repository.js';
 import { PushSubscriptionRepository } from './ports/push/push-subscription.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
+import { getAiProviderConfig, AI_PROVIDERS_REGISTRY } from './ai-providers-registry.js';
 
 export { IntegrationProvider };
 export const guidedProviders = [
@@ -178,43 +179,21 @@ function connectedSteps(provider: GuidedIntegrationProvider): string[] {
 
 function aiEnvStatus(provider: string, environmentProvider: RuntimeEnvironmentProvider) {
   const environment = environmentProvider.read();
-  const flags = provider === IntegrationProvider.AiReview
-    ? {
-        provider: environment.reviewAiProvider,
-        baseUrl: environment.reviewAiBaseUrl,
-        model: environment.reviewAiModel,
-        apiKey: environment.reviewAiApiKey,
-      }
-    : provider === IntegrationProvider.ProjectBriefAi
-      ? {
-          provider: environment.projectBriefAiProvider,
-          baseUrl: environment.projectBriefAiBaseUrl,
-          model: environment.projectBriefAiModel,
-          apiKey: environment.projectBriefAiApiKey,
-        }
-      : provider === IntegrationProvider.PrContextAi
-        ? {
-            provider: environment.prContextAiProvider,
-            baseUrl: environment.prContextAiBaseUrl,
-            model: environment.prContextAiModel,
-            apiKey: environment.prContextAiApiKey,
-          }
-        : {
-          provider: environment.conversationAiProvider,
-          baseUrl: environment.conversationAiBaseUrl,
-          model: environment.conversationAiModel,
-          apiKey: environment.conversationAiApiKey,
-        };
+  const aiProvider = provider as keyof typeof AI_PROVIDERS_REGISTRY;
+  if (!(aiProvider in AI_PROVIDERS_REGISTRY)) {
+    return { configured: false, missing: ['provider'], provider: 'none' };
+  }
+  const config = getAiProviderConfig(aiProvider, environment);
   const missing = [
-    flags.provider === 'none' ? 'provider' : '',
-    !flags.baseUrl ? 'baseUrl' : '',
-    !flags.model ? 'model' : '',
-    !flags.apiKey ? 'apiKey' : '',
+    config.provider === 'none' ? 'provider' : '',
+    !config.baseUrl ? 'baseUrl' : '',
+    !config.model ? 'model' : '',
+    !config.apiKey ? 'apiKey' : '',
   ].filter(Boolean);
   return {
     configured: missing.length === 0,
     missing,
-    provider: flags.provider,
+    provider: config.provider,
   };
 }
 

@@ -167,3 +167,25 @@ export async function postGithubPullRequestComment(
   }
   return response.ok;
 }
+
+export async function fetchGithubPullRequestComments(
+  repoFullName: string,
+  prNumber: number,
+  token: string,
+): Promise<Array<{ id: number; body: string }>> {
+  if (!repoFullName || !prNumber || !token) return [];
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments?per_page=100`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (!response.ok) return [];
+  const data = (await response.json()) as Array<{ id?: number; body?: string }>;
+  return data.map((comment) => ({
+    id: Number(comment.id || 0),
+    body: String(comment.body || ''),
+  }));
+}
+

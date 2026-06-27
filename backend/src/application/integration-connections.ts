@@ -9,6 +9,7 @@ import { GithubIntegrationGateway } from './ports/integrations/github-integratio
 import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
+import { getAiProviderConfig } from './ai-providers-registry.js';
 import { GithubRepositoryResolutionService } from './services/github-repository-resolution.service.js';
 import { WhatsappReplySender } from './ports/integrations/whatsapp-reply.sender.js';
 import { TelegramMessageSender } from './ports/integrations/telegram-message.sender.js';
@@ -618,42 +619,5 @@ function aiRuntimeConfig(
   environment: RuntimeEnvironment,
   provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi,
 ) {
-  if (provider === IntegrationProvider.AiReview) {
-    return {
-      provider: environment.reviewAiProvider,
-      baseUrl: environment.reviewAiBaseUrl,
-      model: environment.reviewAiModel,
-      apiKey: environment.reviewAiApiKey,
-      label: 'Review AI',
-      errorCode: 'review_ai_not_configured',
-    };
-  }
-  if (provider === IntegrationProvider.ProjectBriefAi) {
-    return {
-      provider: environment.projectBriefAiProvider,
-      baseUrl: environment.projectBriefAiBaseUrl,
-      model: environment.projectBriefAiModel,
-      apiKey: environment.projectBriefAiApiKey,
-      label: 'Project Brief AI',
-      errorCode: 'project_brief_ai_not_configured',
-    };
-  }
-  if (provider === IntegrationProvider.PrContextAi) {
-    return {
-      provider: environment.prContextAiProvider,
-      baseUrl: environment.prContextAiBaseUrl,
-      model: environment.prContextAiModel,
-      apiKey: environment.prContextAiApiKey,
-      label: 'PR Context AI',
-      errorCode: 'pr_context_ai_not_configured',
-    };
-  }
-  return {
-    provider: environment.conversationAiProvider,
-    baseUrl: environment.conversationAiBaseUrl,
-    model: environment.conversationAiModel,
-    apiKey: environment.conversationAiApiKey,
-    label: 'Conversation AI',
-    errorCode: 'conversation_ai_not_configured',
-  };
+  return getAiProviderConfig(provider, environment);
 }

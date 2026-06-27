@@ -7,6 +7,7 @@ import type { CreateWorkspaceInput } from '../../models/workspace-input.models.j
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { getAiProviderConfig } from '../../ai-providers-registry.js';
 import { QuotaService } from '../../services/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
@@ -73,20 +74,7 @@ export class CreateWorkspaceUseCase {
     provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi,
   ) {
     const environment = this.runtimeEnvironmentProvider.read();
-    const runtimeProvider = provider === IntegrationProvider.AiReview
-      ? environment.reviewAiProvider
-      : provider === IntegrationProvider.ProjectBriefAi
-        ? environment.projectBriefAiProvider
-        : provider === IntegrationProvider.PrContextAi
-          ? environment.prContextAiProvider
-          : environment.conversationAiProvider;
-    const label = provider === IntegrationProvider.AiReview
-      ? 'Review AI'
-      : provider === IntegrationProvider.ProjectBriefAi
-        ? 'Project Brief AI'
-        : provider === IntegrationProvider.PrContextAi
-          ? 'PR Context AI'
-          : 'Conversation AI';
+    const config = getAiProviderConfig(provider, environment);
 
     await this.credentialRepository.upsertCredential({
       userId,
@@ -95,8 +83,8 @@ export class CreateWorkspaceUseCase {
       status: CredentialRecordStatus.Connected,
       encryptedConfig: encryptConfig({ enabled: true }, this.runtimeEnvironmentProvider),
       publicMetadata: {
-        label,
-        connectedAccount: runtimeProvider && runtimeProvider !== 'none' ? runtimeProvider : null,
+        label: config.label,
+        connectedAccount: config.provider && config.provider !== 'none' ? config.provider : null,
       },
     });
   }

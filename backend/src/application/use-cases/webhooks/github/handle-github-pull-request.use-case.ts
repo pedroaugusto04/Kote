@@ -116,6 +116,30 @@ export class HandleGithubPullRequestUseCase {
       credentialId: identity.credentialId,
     });
 
+    const prTitle = String(body.pull_request?.title || '');
+    if (prTitle.toLowerCase().includes('[skip-kote]')) {
+      this.logger.info('github_pr_skipped_by_title_keyword', {
+        prNumber: body.pull_request?.number,
+        repository: body.repository?.full_name,
+        title: prTitle,
+      });
+      await this.webhookEvents.recordWebhookEvent({
+        provider: IntegrationProvider.GithubApp,
+        eventType: String(headers['x-github-event'] || 'pull_request'),
+        status: WebhookEventStatus.Ignored,
+        resolvedUserId: identity.userId,
+        externalIdentity,
+        rawHeaders: headers,
+        rawPayload,
+        error: 'skipped_by_title_keyword',
+      });
+      return {
+        ok: true,
+        processed: false,
+        ignored: 'skipped_by_title_keyword',
+      };
+    }
+
     const action = String(body.action || '').trim().toLowerCase();
     if (action !== 'opened' && action !== 'synchronize') {
       this.logger.info('github_pr_ignored_action', {
@@ -298,12 +322,37 @@ export class HandleGithubPullRequestUseCase {
       // Fetch comparison to get changed files and patches
       const baseSha = String(body.pull_request?.base?.sha || '');
       const headSha = String(body.pull_request?.head?.sha || '');
+
+      // Check if we have already posted a comment for the current headSha
+      const prNumber = Number(body.pull_request?.number || 0);
+      const existingComments = await this.githubIntegrationGateway.fetchPullRequestComments(repoFullName, prNumber, token);
+      const duplicateMarker = `<!-- sha: ${headSha} -->`;
+      const alreadyCommented = existingComments.some(comment => comment.body.includes(duplicateMarker));
+      if (alreadyCommented) {
+        this.logger.info('github_pr_comment_already_exists_for_sha', {
+          repository: repoFullName,
+          prNumber,
+          headSha,
+        });
+        await this.webhookEvents.recordWebhookEvent({
+          provider: IntegrationProvider.GithubApp,
+          eventType: String(headers['x-github-event'] || 'pull_request'),
+          status: WebhookEventStatus.Ignored,
+          resolvedUserId: identity.userId,
+          externalIdentity,
+          rawHeaders: headers,
+          rawPayload,
+          error: 'comment_already_exists_for_sha',
+        });
+        return {
+          ok: true,
+          processed: false,
+          ignored: 'comment_already_exists_for_sha',
+        };
+      }
+
       const comparePayload = await this.githubIntegrationGateway.fetchComparePayload(repoFullName, baseSha, headSha, token);
-      const changedFiles = comparePayload.files.map(f => ({
-        filename: f.filename,
-        status: f.status,
-        patch: f.patch,
-      }));
+      const changedFiles = filterAndTruncateChangedFiles(comparePayload.files);
 
       // Perform semantic search
       const prTitle = String(body.pull_request?.title || '');
@@ -463,16 +512,27 @@ export class HandleGithubPullRequestUseCase {
       }
 
       // Post the comment to the PR
-      const prNumber = Number(body.pull_request?.number || 0);
+      const commentWithSha = `${commentText}\n\n<!-- sha: ${headSha} -->`;
+      
+      const GITHUB_COMMENT_LIMIT = 65000;
+      let finalComment = commentWithSha;
+      if (finalComment.length > GITHUB_COMMENT_LIMIT) {
+        this.logger.warn('github_pr_comment_exceeded_limit', {
+          repository: repoFullName,
+          prNumber,
+          originalLength: finalComment.length,
+        });
+        finalComment = finalComment.substring(0, GITHUB_COMMENT_LIMIT - 150) + '\n\n... [Comment truncated due to GitHub character limit] \n\n' + `<!-- sha: ${headSha} -->`;
+      }
 
       this.logger.info('github_pr_posting_comment', {
         repository: repoFullName,
         projectSlug,
         prNumber,
-        commentLength: commentText.length,
+        commentLength: finalComment.length,
       });
 
-      const posted = await this.githubIntegrationGateway.postPullRequestComment(repoFullName, prNumber, commentText, token);
+      const posted = await this.githubIntegrationGateway.postPullRequestComment(repoFullName, prNumber, finalComment, token);
 
       this.logger.info('github_pr_comment_posted', {
         repository: repoFullName,
@@ -521,4 +581,71 @@ export class HandleGithubPullRequestUseCase {
     );
     return project?.projectSlug || null;
   }
+}
+
+const IGNORED_EXTENSIONS = ['.map', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip', '.gz', '.tar', '.mp4'];
+const IGNORED_FILENAMES = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'composer.lock', 'go.sum', 'cargo.lock'];
+
+function isIgnoredFile(filename: string): boolean {
+  const lower = filename.toLowerCase();
+  if (IGNORED_FILENAMES.some(f => lower.endsWith(f))) {
+    return true;
+  }
+  if (IGNORED_EXTENSIONS.some(ext => lower.endsWith(ext))) {
+    return true;
+  }
+  return false;
+}
+
+export function filterAndTruncateChangedFiles(
+  files: Array<{ filename: string; status: string; patch?: string }>,
+  maxIndividualPatchLength = 10000,
+  maxTotalPatchLength = 40000,
+): Array<{ filename: string; status: string; patch: string }> {
+  let accumulatedLength = 0;
+  const processedFiles: Array<{ filename: string; status: string; patch: string }> = [];
+
+  for (const file of files) {
+    if (isIgnoredFile(file.filename)) {
+      processedFiles.push({
+        filename: file.filename,
+        status: file.status,
+        patch: '[Lockfile / binary / generated file diff omitted]',
+      });
+      continue;
+    }
+
+    let patch = file.patch || '';
+    if (!patch) {
+      processedFiles.push({
+        filename: file.filename,
+        status: file.status,
+        patch: '',
+      });
+      continue;
+    }
+
+    // Cap individual patch
+    if (patch.length > maxIndividualPatchLength) {
+      patch = patch.substring(0, maxIndividualPatchLength) + `\n\n[Diff truncated for ${file.filename} due to size...]`;
+    }
+
+    // Check total limit
+    if (accumulatedLength + patch.length > maxTotalPatchLength) {
+      processedFiles.push({
+        filename: file.filename,
+        status: file.status,
+        patch: '[Diff patch omitted due to total size limit]',
+      });
+    } else {
+      accumulatedLength += patch.length;
+      processedFiles.push({
+        filename: file.filename,
+        status: file.status,
+        patch,
+      });
+    }
+  }
+
+  return processedFiles;
 }

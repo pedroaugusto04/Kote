@@ -234,6 +234,7 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
           baseUrl: config.baseUrl,
           model: config.model,
           apiKey: config.apiKey,
+          responseFormat: { type: 'text' },
         },
         systemPrompt,
         userContent,
