@@ -19,6 +19,6 @@ export interface AiHistoryProvider {
   id: string;
   name: string;
   isEnabled(): Promise<boolean>;
-  getRecentSessions(): Promise<AiSession[]>;
+  getRecentSessions(limit?: number): Promise<AiSession[]>;
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable;
 }

@@ -27,7 +27,7 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
     }
   }
 
-  async getRecentSessions(): Promise<AiSession[]> {
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
     const dbPath = this.getDbPath();
     if (!fs.existsSync(dbPath)) return [];
 
@@ -35,6 +35,7 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
       const sqlite = await import('node:sqlite');
       const db = new sqlite.DatabaseSync(dbPath, { readOnly: true });
 
+      const limitCount = limit !== undefined ? Math.floor(limit) : 20;
       const query = `
         SELECT 
           s.id as sessionId,
@@ -45,7 +46,7 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
           m.data as messageData,
           p.data as partData
         FROM (
-          SELECT * FROM session ORDER BY time_updated DESC LIMIT 20
+          SELECT * FROM session ORDER BY time_updated DESC LIMIT ${limitCount}
         ) s
         JOIN message m ON m.session_id = s.id
         LEFT JOIN part p ON p.message_id = m.id

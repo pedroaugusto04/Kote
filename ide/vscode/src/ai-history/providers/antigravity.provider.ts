@@ -23,7 +23,7 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
     }
   }
 
-  async getRecentSessions(): Promise<AiSession[]> {
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
     const dir = this.getHistoryDir();
     if (!fs.existsSync(dir)) return [];
 
@@ -40,10 +40,11 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
         }
       }).filter(x => x.isDirectory);
 
-      // Sort folders by mtime descending to only read/parse the 20 most recent
+      // Sort folders by mtime descending
       folderStats.sort((a, b) => b.mtime - a.mtime);
 
-      const recentFolders = folderStats.slice(0, 20);
+      const count = limit !== undefined ? limit : 20;
+      const recentFolders = folderStats.slice(0, count);
 
       for (const f of recentFolders) {
         const logFilePath = path.join(f.folderPath, '.system_generated', 'logs', 'overview.txt');

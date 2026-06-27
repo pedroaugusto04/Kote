@@ -47,9 +47,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   }
 
   // -------------------------------------------------------------------------
+  // AI Session Watchers
+  // -------------------------------------------------------------------------
+  const historyManager = new AiHistoryManager();
+  historyManager.registerProvider(new ClaudeCodeHistoryProvider());
+  historyManager.registerProvider(new CodexHistoryProvider());
+  historyManager.registerProvider(new AntigravityHistoryProvider());
+  historyManager.registerProvider(new OpenCodeHistoryProvider());
+
+  // -------------------------------------------------------------------------
   // Sidebar (Loads either Chat or Login form)
   // -------------------------------------------------------------------------
-  sidebarProvider = new SidebarViewProvider(context.extensionUri, kbClient, activeProject);
+  sidebarProvider = new SidebarViewProvider(context.extensionUri, kbClient, activeProject, historyManager);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider('kote.sidebarView', sidebarProvider, {
       webviewOptions: { retainContextWhenHidden: true },
@@ -89,15 +98,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
 
-  // -------------------------------------------------------------------------
-  // AI Session Watchers
-  // -------------------------------------------------------------------------
-  const historyManager = new AiHistoryManager();
-  historyManager.registerProvider(new ClaudeCodeHistoryProvider());
-  historyManager.registerProvider(new CodexHistoryProvider());
-  historyManager.registerProvider(new AntigravityHistoryProvider());
-  historyManager.registerProvider(new OpenCodeHistoryProvider());
-
   context.subscriptions.push(
     vscode.commands.registerCommand('kote.showRecentAiSessions', () => {
       historyManager.showRecentSessions(kbClient);
@@ -105,6 +105,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     vscode.commands.registerCommand('kote.configureAiSessionMode', () => {
       historyManager.promptModeSelection(context);
+    }),
+
+    vscode.commands.registerCommand('kote.openSyncTab', () => {
+      sidebarProvider.switchToTab('sync');
     })
   );
 

@@ -6,6 +6,7 @@ import { KbClient, isConfigured } from '../kb-client';
 import type { KbProject, ChatToWebview, ChatFromWebview, AskHistoryEntry } from '../types';
 import { toMessage, logInfo } from '../error-reporter';
 import { loadAskHistory, clearAskHistory, addAskEntry } from '../utils/ask-history';
+import { AiHistoryManager } from '../ai-history/history-manager';
 
 // ---------------------------------------------------------------------------
 // Provider for Sidebar (Chat + Login Setup)
@@ -23,7 +24,9 @@ type SidebarWebviewMessage =
   | { type: 'agentMessage'; messageText: string; projectSlug?: string }
   | { type: 'loadHistory' }
   | { type: 'clearHistory' }
-  | { type: 'changeProject'; projectSlug?: string };
+  | { type: 'changeProject'; projectSlug?: string }
+  | { type: 'getUnsyncedSessions' }
+  | { type: 'syncSessions'; sessions: Array<{ providerId: string; sessionId: string }> };
 
 export class SidebarViewProvider implements vscode.WebviewViewProvider {
   private _view?: vscode.WebviewView;
@@ -33,6 +36,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private readonly _extensionUri: vscode.Uri,
     private readonly _client: KbClient,
     initialProject: string | null,
+    private readonly _historyManager: AiHistoryManager,
   ) {
     this.activeProject = null; // Default to All Projects
   }
@@ -58,6 +62,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           logInfo('SidebarProvider', 'Webview ready');
           if (isConfigured()) {
             await this._loadProjects();
+            this._historyManager.checkUnsyncedAndPrompt(this._client).catch((err) => {
+              console.error('Failed to check unsynced sessions on ready:', err);
+            });
           }
           break;
 
@@ -287,6 +294,27 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           logInfo('SidebarProvider', `Active project changed by user: ${msg.projectSlug}`);
           this.activeProject = msg.projectSlug || null;
           break;
+
+        case 'getUnsyncedSessions': {
+          try {
+            const unsynced = await this._historyManager.getUnsyncedSessions();
+            this._post({ type: 'unsyncedSessionsLoaded', sessions: unsynced });
+          } catch (err: unknown) {
+            vscode.window.showErrorMessage(`Failed to load unsynced sessions: ${toMessage(err)}`);
+          }
+          break;
+        }
+
+        case 'syncSessions': {
+          try {
+            await this._historyManager.syncSessions(this._client, msg.sessions);
+            const unsynced = await this._historyManager.getUnsyncedSessions();
+            this._post({ type: 'unsyncedSessionsLoaded', sessions: unsynced });
+          } catch (err: unknown) {
+            vscode.window.showErrorMessage(`Failed to sync sessions: ${toMessage(err)}`);
+          }
+          break;
+        }
       }
     });
 
@@ -294,6 +322,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     webviewView.onDidChangeVisibility(async () => {
       if (webviewView.visible && isConfigured()) {
         await this._loadProjects();
+        this._historyManager.checkUnsyncedAndPrompt(this._client).catch((err) => {
+          console.error('Failed to check unsynced sessions on visibility change:', err);
+        });
       }
     });
   }
@@ -304,6 +335,10 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
+  switchToTab(tab: string) {
+    this._post({ type: 'switchTab', tab });
+  }
+
   async setActiveProject(projectSlug: string) {
     this.activeProject = projectSlug;
     this._post({ type: 'setProject', projectSlug });
@@ -312,6 +347,12 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
   async refresh() {
     if (isConfigured()) {
       await this._loadProjects();
+      try {
+        const unsynced = await this._historyManager.getUnsyncedSessions();
+        this._post({ type: 'unsyncedSessionsLoaded', sessions: unsynced });
+      } catch (err) {
+        console.error('Failed to reload unsynced sessions on refresh:', err);
+      }
     }
   }
 

@@ -489,6 +489,75 @@
       transition: background .1s;
     }
     .history-action-btn:hover { background: var(--vscode-list-hoverBackground); }
+
+    /* ── Sync panel ─────────────────────────────────── */
+    #syncPanel {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      flex-direction: column;
+    }
+    #syncPanel.visible { display: flex; }
+    .sync-entry {
+      border-bottom: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.15));
+    }
+    .sync-entry-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+      gap: 10px;
+    }
+    .sync-entry-header:hover { background: var(--vscode-list-hoverBackground); }
+    .sync-checkbox {
+      cursor: pointer;
+      width: 14px;
+      height: 14px;
+      accent-color: var(--vscode-button-background);
+    }
+    .sync-q-preview {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--vscode-foreground);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sync-meta {
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sync-chevron {
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+      transition: transform .15s;
+      flex-shrink: 0;
+    }
+    .sync-entry.open .sync-chevron { transform: rotate(90deg); }
+    .sync-body {
+      display: none;
+      padding: 0 14px 12px 38px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sync-entry.open .sync-body { display: flex; }
+    .sync-turns-text {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--vscode-foreground);
+      background: var(--vscode-input-background);
+      border: 1px solid var(--vscode-input-border, transparent);
+      border-radius: 6px;
+      padding: 8px 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
@@ -505,6 +574,7 @@
   <div class="tab-bar" id="tabBar">
     <button class="tab-btn active" id="tabChat" data-tab="chat">Chat</button>
     <button class="tab-btn" id="tabHistory" data-tab="history">History</button>
+    <button class="tab-btn" id="tabSync" data-tab="sync">Sync</button>
   </div>
 
   <!-- Chat panel -->
@@ -555,6 +625,21 @@
   </div>
   <!-- /History panel -->
 
+  <!-- Sync panel -->
+  <div id="syncPanel">
+    <div class="history-toolbar" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <span id="syncCount">No unsynced sessions</span>
+      <div style="display: flex; gap: 6px;">
+        <button class="history-action-btn" id="syncSelectedBtn" style="display: none;">Sync Selected</button>
+        <button class="history-action-btn" id="syncAllBtn" style="display: none;">Sync All</button>
+      </div>
+    </div>
+    <div id="syncContent">
+      <div class="history-empty">Loading unsynced sessions…</div>
+    </div>
+  </div>
+  <!-- /Sync panel -->
+
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   let isThinking = false;
@@ -564,16 +649,24 @@
   let visibleMessageCount = vscode.getState()?.visibleMessageCount ?? 20;
   let visibleHistoryCount = vscode.getState()?.visibleHistoryCount ?? 20;
 
+  let unsyncedSessions = [];
+
   // ── Tab switching ─────────────────────────────────────────────────────────
 
   function switchTab(tab) {
     const isChat = tab === 'chat';
-    document.getElementById('chatPanel').classList.toggle('hidden', !isChat);
-    document.getElementById('historyPanel').classList.toggle('visible', !isChat);
-    document.getElementById('tabChat').classList.toggle('active', isChat);
-    document.getElementById('tabHistory').classList.toggle('active', !isChat);
+    const isHistory = tab === 'history';
+    const isSync = tab === 'sync';
 
-    if (!isChat) {
+    document.getElementById('chatPanel').classList.toggle('hidden', !isChat);
+    document.getElementById('historyPanel').classList.toggle('visible', isHistory);
+    document.getElementById('syncPanel').classList.toggle('visible', isSync);
+
+    document.getElementById('tabChat').classList.toggle('active', isChat);
+    document.getElementById('tabHistory').classList.toggle('active', isHistory);
+    document.getElementById('tabSync').classList.toggle('active', isSync);
+
+    if (isHistory) {
       // Always show cached data immediately (if available), then refresh from filesystem
       if (askHistory.length > 0) {
         renderHistory(askHistory);
@@ -583,6 +676,10 @@
       }
       // Always fetch fresh data from the filesystem (source of truth)
       vscode.postMessage({ type: 'loadHistory' });
+    } else if (isSync) {
+      const container = document.getElementById('syncContent');
+      container.innerHTML = '<div class="history-empty">Loading unsynced sessions…</div>';
+      vscode.postMessage({ type: 'getUnsyncedSessions' });
     }
   }
 
@@ -923,6 +1020,14 @@
         setThinking(false);
         addError(msg.message);
         break;
+
+      case 'switchTab':
+        switchTab(msg.tab);
+        break;
+
+      case 'unsyncedSessionsLoaded':
+        renderSyncSessions(msg.sessions);
+        break;
     }
   });
 
@@ -1188,6 +1293,122 @@
       vscode.setState({ ...vscode.getState(), visibleHistoryCount });
       renderHistory(askHistory);
     }
+  });
+
+  // ── Sync rendering ──────────────────────────────────────────────────────────
+
+  function renderSyncSessions(sessions) {
+    unsyncedSessions = sessions || [];
+    const container = document.getElementById('syncContent');
+    const countEl = document.getElementById('syncCount');
+    const syncSelectedBtn = document.getElementById('syncSelectedBtn');
+    const syncAllBtn = document.getElementById('syncAllBtn');
+    const tabSyncBtn = document.getElementById('tabSync');
+
+    // Update tab label with badge count if count > 0
+    if (unsyncedSessions.length > 0) {
+      tabSyncBtn.textContent = `Sync (${unsyncedSessions.length})`;
+      countEl.textContent = `${unsyncedSessions.length} unsynced session${unsyncedSessions.length !== 1 ? 's' : ''}`;
+      syncSelectedBtn.style.display = 'inline-block';
+      syncAllBtn.style.display = 'inline-block';
+    } else {
+      tabSyncBtn.textContent = 'Sync';
+      countEl.textContent = 'No unsynced sessions';
+      syncSelectedBtn.style.display = 'none';
+      syncAllBtn.style.display = 'none';
+      container.innerHTML = '<div class="history-empty">All sessions are synchronized with Kote!</div>';
+      return;
+    }
+
+    const listEl = document.createElement('div');
+    listEl.className = 'sync-list';
+
+    unsyncedSessions.forEach((session, i) => {
+      const entryEl = document.createElement('div');
+      entryEl.className = 'sync-entry';
+      
+      // format turns preview text
+      let previewText = '';
+      if (session.turns && session.turns.length > 0) {
+        session.turns.forEach(turn => {
+          const roleName = turn.role === 'user' ? '👤 User' : '🤖 Assistant';
+          previewText += `### ${roleName}\n${turn.content}\n\n`;
+        });
+      } else {
+        previewText = '*(No turns found)*';
+      }
+
+      entryEl.innerHTML = `
+        <div class="sync-entry-header">
+          <input type="checkbox" class="sync-checkbox" data-idx="${i}" />
+          <div class="sync-q-preview" style="flex: 1;">${escHtml(session.title)}</div>
+          <span class="sync-meta">
+            <span>${escHtml(session.providerId)}</span>
+            <span>${formatRelativeTime(session.timestamp)}</span>
+            <span class="sync-chevron">►</span>
+          </span>
+        </div>
+        <div class="sync-body">
+          <div class="sync-turns-text">${renderMarkdown(previewText)}</div>
+        </div>
+      `;
+
+      // Prevent checkbox from opening detail, but toggle open when clicking other elements
+      entryEl.querySelector('.sync-q-preview').addEventListener('click', (e) => {
+        entryEl.classList.toggle('open');
+      });
+      entryEl.querySelector('.sync-meta').addEventListener('click', (e) => {
+        entryEl.classList.toggle('open');
+      });
+
+      entryEl.querySelector('.sync-checkbox').addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      listEl.appendChild(entryEl);
+    });
+
+    container.innerHTML = '';
+    container.appendChild(listEl);
+  }
+
+  // Bind sync button clicks
+  document.getElementById('syncSelectedBtn').addEventListener('click', () => {
+    const checkboxes = document.querySelectorAll('.sync-checkbox:checked');
+    const sessionsToSync = [];
+    checkboxes.forEach(cb => {
+      const idx = parseInt(cb.getAttribute('data-idx') || '0', 10);
+      const session = unsyncedSessions[idx];
+      if (session) {
+        sessionsToSync.push({ providerId: session.providerId, sessionId: session.sessionId });
+      }
+    });
+
+    if (sessionsToSync.length === 0) {
+      return;
+    }
+
+    const container = document.getElementById('syncContent');
+    container.innerHTML = '<div class="history-empty">Synchronizing selected sessions…</div>';
+    document.getElementById('syncSelectedBtn').style.display = 'none';
+    document.getElementById('syncAllBtn').style.display = 'none';
+
+    vscode.postMessage({ type: 'syncSessions', sessions: sessionsToSync });
+  });
+
+  document.getElementById('syncAllBtn').addEventListener('click', () => {
+    const sessionsToSync = unsyncedSessions.map(s => ({ providerId: s.providerId, sessionId: s.sessionId }));
+    
+    if (sessionsToSync.length === 0) {
+      return;
+    }
+
+    const container = document.getElementById('syncContent');
+    container.innerHTML = '<div class="history-empty">Synchronizing all sessions…</div>';
+    document.getElementById('syncSelectedBtn').style.display = 'none';
+    document.getElementById('syncAllBtn').style.display = 'none';
+
+    vscode.postMessage({ type: 'syncSessions', sessions: sessionsToSync });
   });
 
   // Init

@@ -87,7 +87,7 @@ export class AiHistoryManager {
       try {
         const enabled = await provider.isEnabled();
         if (!enabled) continue;
-        const initial = await provider.getRecentSessions();
+        const initial = await provider.getRecentSessions(1000); // Fetch all to populate known hashes of existing sessions
         for (const s of initial) {
           this.addOrUpdateRecentSession(s, true);
 
@@ -137,6 +137,16 @@ export class AiHistoryManager {
       }
     }, 15000);
     this.activeDisposables.push(new vscode.Disposable(() => clearInterval(interval)));
+
+    // Prompt save mode selection on first extension launch
+    const modePicked = context.globalState.get<boolean>(SESSION_MODE_PICKED_KEY);
+    if (!modePicked) {
+      setTimeout(() => {
+        this.promptModeSelection(context).catch((err) => {
+          console.error('Failed to prompt AI session mode selection:', err);
+        });
+      }, 1000);
+    }
   }
 
   markSessionAsSaved(providerId: string, sessionId: string) {
@@ -648,6 +658,86 @@ export class AiHistoryManager {
     } catch (err: unknown) {
       logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
       return false;
+    }
+  }
+
+  private lastSyncPromptTime = 0;
+  private readonly SYNC_PROMPT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours cooldown
+
+  async getUnsyncedSessions(): Promise<AiSession[]> {
+    const unsynced: AiSession[] = [];
+    for (const provider of this.providers.values()) {
+      try {
+        const enabled = await provider.isEnabled();
+        if (!enabled) continue;
+        const sessions = await provider.getRecentSessions(1000);
+        for (const s of sessions) {
+          const key = `${provider.id}:${s.sessionId}`;
+          if (!this.savedSessions.has(key) && !this.ignoredSessions.has(key)) {
+            unsynced.push(s);
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to scan unsynced sessions for provider ${provider.id}:`, err);
+      }
+    }
+    unsynced.sort((a, b) => b.timestamp - a.timestamp);
+    return unsynced;
+  }
+
+  async syncSessions(client: KbClient, sessionsToSync: { providerId: string, sessionId: string }[]): Promise<void> {
+    for (const item of sessionsToSync) {
+      const provider = this.providers.get(item.providerId);
+      if (!provider) continue;
+
+      const sessions = await provider.getRecentSessions(1000);
+      const session = sessions.find(s => s.sessionId === item.sessionId);
+      if (session) {
+        this.markSessionAsSaved(item.providerId, item.sessionId);
+        const saved = await this.saveSessionToVault(client, session);
+        if (saved) {
+          const key = `${item.providerId}:${item.sessionId}`;
+          const hash = this.computeSessionHash(session);
+          this.rememberSessionHash(key, hash);
+        } else {
+          // clean up so they can retry
+          const key = `${item.providerId}:${item.sessionId}`;
+          this.savedSessions.delete(key);
+          this.saveState();
+        }
+      }
+    }
+  }
+
+  async checkUnsyncedAndPrompt(client: KbClient) {
+    const now = Date.now();
+    if (now - this.lastSyncPromptTime < this.SYNC_PROMPT_COOLDOWN_MS) {
+      return;
+    }
+    this.lastSyncPromptTime = now;
+
+    try {
+      const unsynced = await this.getUnsyncedSessions();
+      if (unsynced.length > 0) {
+        const choice = await vscode.window.showInformationMessage(
+          `Kote: You have ${unsynced.length} unsynced AI chat sessions. Do you want to sync them with Kote?`,
+          'Sync All',
+          'Review Sessions',
+          'Later'
+        );
+        if (choice === 'Sync All') {
+          const sessionsToSync = unsynced.map(s => ({ providerId: s.providerId, sessionId: s.sessionId }));
+          await this.syncSessions(client, sessionsToSync);
+          vscode.window.showInformationMessage(`Successfully synced ${unsynced.length} AI sessions to Kote.`);
+          // Notify the webview if it is active so it can reload
+          vscode.commands.executeCommand('kote.refresh');
+        } else if (choice === 'Review Sessions') {
+          await vscode.commands.executeCommand('kote.sidebarView.focus');
+          await vscode.commands.executeCommand('kote.openSyncTab');
+        }
+      }
+    } catch (err) {
+      console.error('Failed checking unsynced sessions:', err);
     }
   }
 

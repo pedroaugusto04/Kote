@@ -42,7 +42,7 @@ export class CodexHistoryProvider implements AiHistoryProvider {
     return results;
   }
 
-  async getRecentSessions(): Promise<AiSession[]> {
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
     const dir = this.getHistoryDir();
     if (!fs.existsSync(dir)) return [];
 
@@ -50,7 +50,7 @@ export class CodexHistoryProvider implements AiHistoryProvider {
     try {
       const allFiles = this.getAllFiles(dir);
       
-      // Sort files by mtimeMs descending to only read/parse the 20 most recent
+      // Sort files by mtimeMs descending
       const fileStats = allFiles.map(filePath => {
         try {
           return { filePath, mtime: fs.statSync(filePath).mtimeMs };
@@ -60,7 +60,8 @@ export class CodexHistoryProvider implements AiHistoryProvider {
       });
       fileStats.sort((a, b) => b.mtime - a.mtime);
 
-      const recentFiles = fileStats.slice(0, 20).map(x => x.filePath);
+      const count = limit !== undefined ? limit : 20;
+      const recentFiles = fileStats.slice(0, count).map(x => x.filePath);
 
       for (const filePath of recentFiles) {
         if (filePath.endsWith('.json') || filePath.endsWith('.jsonl')) {
