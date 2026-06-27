@@ -65,12 +65,10 @@ To start using Kote:
 
 1. **Sign In:** Go to [knowledgebase.sbs/kote](https://knowledgebase.sbs/kote) and authenticate your account.
 
-2. **Configure Integrations:** Connect your repository hosting (GitHub) and messaging channels (WhatsApp or Telegram) via the Integrations dashboard in the web application.
+2. **Configure Integrations:** Connect your repository hosting (GitHub) via the Integrations dashboard in the web application.
 
-3. **Install Client Tools:**
-   * **VS Code Extension:** Install **Kote** from the VS Code Marketplace to capture AI sessions and code snippets directly from your editor.
-   * **CLI:** Run `npm install -g @pedroaugusto04/kote-cli` to sync terminal activity and import local files or logs.
-   * **Browser Extension:** Install the Chrome/Firefox extension to clip web documentation into your Kote.
+3. **Install the VS Code Extension:**
+   Install **Kote** from the VS Code Marketplace and sign in. Kote passively captures AI sessions in the background and lets you query your knowledge base using AI directly from VS Code.
      
 4. **Start Capturing Context Automatically:**
 Once set up, Kote runs in the background and continuously captures AI sessions (Antigravity, Codex, Claude Code, OpenCode, etc.), GitHub activity (pushes and pull requests), and development context. Everything you work on becomes searchable knowledge that you can query to understand what you've done, why decisions were made, and how your system evolved over time.
