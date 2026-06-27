@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
 import { collapseWhitespace } from '../../utils/text.js';
+import { watchRecursive } from '../../utils/watcher.js';
 
 export class CodexHistoryProvider implements AiHistoryProvider {
   readonly id = 'codex-cli';
@@ -48,7 +49,20 @@ export class CodexHistoryProvider implements AiHistoryProvider {
     const sessions: AiSession[] = [];
     try {
       const allFiles = this.getAllFiles(dir);
-      for (const filePath of allFiles) {
+      
+      // Sort files by mtimeMs descending to only read/parse the 20 most recent
+      const fileStats = allFiles.map(filePath => {
+        try {
+          return { filePath, mtime: fs.statSync(filePath).mtimeMs };
+        } catch {
+          return { filePath, mtime: 0 };
+        }
+      });
+      fileStats.sort((a, b) => b.mtime - a.mtime);
+
+      const recentFiles = fileStats.slice(0, 20).map(x => x.filePath);
+
+      for (const filePath of recentFiles) {
         if (filePath.endsWith('.json') || filePath.endsWith('.jsonl')) {
           const session = this.parseFile(filePath);
           if (session) sessions.push(session);
@@ -62,14 +76,9 @@ export class CodexHistoryProvider implements AiHistoryProvider {
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const historyDir = this.getHistoryDir();
-    const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(historyDir, '**/*.{json,jsonl}')
-    );
-
     const timeouts = new Map<string, NodeJS.Timeout>();
 
-    const handleFile = (uri: vscode.Uri) => {
-      const fsPath = uri.fsPath;
+    const handleFile = (fsPath: string) => {
       if (timeouts.has(fsPath)) {
         clearTimeout(timeouts.get(fsPath)!);
       }
@@ -85,8 +94,11 @@ export class CodexHistoryProvider implements AiHistoryProvider {
       timeouts.set(fsPath, timeout);
     };
 
-    watcher.onDidChange(handleFile);
-    watcher.onDidCreate(handleFile);
+    const watcher = watchRecursive(
+      historyDir,
+      (fileName) => fileName.endsWith('.json') || fileName.endsWith('.jsonl'),
+      (filePath) => handleFile(filePath)
+    );
 
     return new vscode.Disposable(() => {
       for (const t of timeouts.values()) {

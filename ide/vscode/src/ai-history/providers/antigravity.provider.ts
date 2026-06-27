@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
 import { collapseWhitespace } from '../../utils/text.js';
+import { watchRecursive } from '../../utils/watcher.js';
 
 export class AntigravityHistoryProvider implements AiHistoryProvider {
   readonly id = 'antigravity';
@@ -29,16 +30,27 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
     const sessions: AiSession[] = [];
     try {
       const folders = fs.readdirSync(dir);
-      for (const folder of folders) {
+      const folderStats = folders.map(folder => {
         const folderPath = path.join(dir, folder);
-        const stat = fs.statSync(folderPath);
-        if (stat.isDirectory()) {
-          const logFilePath = path.join(folderPath, '.system_generated', 'logs', 'overview.txt');
-          if (fs.existsSync(logFilePath)) {
-            const session = this.parseFile(logFilePath, folder);
-            if (session) {
-              sessions.push(session);
-            }
+        try {
+          const stat = fs.statSync(folderPath);
+          return { folder, folderPath, isDirectory: stat.isDirectory(), mtime: stat.mtimeMs };
+        } catch {
+          return { folder, folderPath, isDirectory: false, mtime: 0 };
+        }
+      }).filter(x => x.isDirectory);
+
+      // Sort folders by mtime descending to only read/parse the 20 most recent
+      folderStats.sort((a, b) => b.mtime - a.mtime);
+
+      const recentFolders = folderStats.slice(0, 20);
+
+      for (const f of recentFolders) {
+        const logFilePath = path.join(f.folderPath, '.system_generated', 'logs', 'overview.txt');
+        if (fs.existsSync(logFilePath)) {
+          const session = this.parseFile(logFilePath, f.folder);
+          if (session) {
+            sessions.push(session);
           }
         }
       }
@@ -50,15 +62,9 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const historyDir = this.getHistoryDir();
-    // Watch recursively for all overview.txt files in brain subdirectories
-    const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(historyDir, '**/overview.txt')
-    );
-
     const timeouts = new Map<string, NodeJS.Timeout>();
 
-    const handleFile = (uri: vscode.Uri) => {
-      const fsPath = uri.fsPath;
+    const handleFile = (fsPath: string) => {
       if (timeouts.has(fsPath)) {
         clearTimeout(timeouts.get(fsPath)!);
       }
@@ -80,8 +86,11 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       timeouts.set(fsPath, timeout);
     };
 
-    watcher.onDidChange(handleFile);
-    watcher.onDidCreate(handleFile);
+    const watcher = watchRecursive(
+      historyDir,
+      (fileName) => fileName === 'overview.txt',
+      (filePath) => handleFile(filePath)
+    );
 
     return new vscode.Disposable(() => {
       for (const t of timeouts.values()) {

@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
+import { watchFile } from '../../utils/watcher.js';
 
 export class OpenCodeHistoryProvider implements AiHistoryProvider {
   readonly id = 'open-code';
@@ -43,7 +44,9 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
           m.id as messageId,
           m.data as messageData,
           p.data as partData
-        FROM session s
+        FROM (
+          SELECT * FROM session ORDER BY time_updated DESC LIMIT 20
+        ) s
         JOIN message m ON m.session_id = s.id
         LEFT JOIN part p ON p.message_id = m.id
         ORDER BY s.time_updated DESC, m.time_created ASC, p.time_created ASC
@@ -137,29 +140,25 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const dbPath = this.getDbPath();
-    const watcher = vscode.workspace.createFileSystemWatcher(dbPath);
-
     const timeouts = new Map<string, NodeJS.Timeout>();
 
-    const handleFile = async (uri: vscode.Uri) => {
-      const fsPath = uri.fsPath;
-      if (timeouts.has(fsPath)) {
-        clearTimeout(timeouts.get(fsPath)!);
+    const handleFile = async () => {
+      if (timeouts.has(dbPath)) {
+        clearTimeout(timeouts.get(dbPath)!);
       }
 
       const timeout = setTimeout(async () => {
-        timeouts.delete(fsPath);
+        timeouts.delete(dbPath);
         const sessions = await this.getRecentSessions();
         if (sessions && sessions.length > 0) {
           callback(sessions[0]);
         }
       }, 1000); // 1s debounce to wait for write transaction to complete
 
-      timeouts.set(fsPath, timeout);
+      timeouts.set(dbPath, timeout);
     };
 
-    watcher.onDidChange(handleFile);
-    watcher.onDidCreate(handleFile);
+    const watcher = watchFile(dbPath, handleFile);
 
     return new vscode.Disposable(() => {
       for (const t of timeouts.values()) {

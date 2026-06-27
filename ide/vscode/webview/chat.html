@@ -548,7 +548,6 @@
   <div id="historyPanel">
     <div class="history-toolbar">
       <span id="historyCount">No history yet</span>
-      <button class="history-clear-btn" id="clearHistoryBtn">Clear all</button>
     </div>
     <div id="historyContent">
       <div class="history-empty">No questions asked yet.<br>Use Ctrl+Shift+K to ask Kote.</div>
@@ -563,6 +562,7 @@
   let conversationHistory = vscode.getState()?.history ?? [];
   let askHistory = vscode.getState()?.askHistory ?? [];
   let visibleMessageCount = vscode.getState()?.visibleMessageCount ?? 20;
+  let visibleHistoryCount = vscode.getState()?.visibleHistoryCount ?? 20;
 
   // ── Tab switching ─────────────────────────────────────────────────────────
 
@@ -589,14 +589,6 @@
   document.getElementById('tabBar').addEventListener('click', (e) => {
     const btn = e.target.closest('.tab-btn');
     if (btn) switchTab(btn.getAttribute('data-tab'));
-  });
-
-  document.getElementById('clearHistoryBtn').addEventListener('click', () => {
-    if (confirm('Clear all ask history?')) {
-      askHistory = [];
-      vscode.setState({ ...vscode.getState(), askHistory });
-      vscode.postMessage({ type: 'clearHistory' });
-    }
   });
 
   // ── Markdown renderer ─────────────────────────────────────────────────────
@@ -1044,7 +1036,10 @@
     const listEl = document.createElement('div');
     listEl.className = 'history-list';
 
-    entries.forEach((entry, i) => {
+    // Show only the first visibleHistoryCount entries
+    const visibleEntries = entries.slice(0, visibleHistoryCount);
+
+    visibleEntries.forEach((entry, i) => {
       const entryEl = document.createElement('div');
       entryEl.className = 'history-entry';
       entryEl.innerHTML = `
@@ -1054,7 +1049,7 @@
             ${entry.projectSlug ? `<span>${escHtml(entry.projectSlug)}</span>` : ''}
             <span>${formatRelativeTime(entry.timestamp)}</span>
           </span>
-          <span class="history-chevron">\u25BA</span>
+          <span class="history-chevron">►</span>
         </div>
         <div class="history-body">
           <div class="history-answer-text">${renderMarkdown(entry.answer)}</div>
@@ -1075,6 +1070,24 @@
 
     container.innerHTML = '';
     container.appendChild(listEl);
+
+    // Add Load More button if there are more entries remaining
+    if (entries.length > visibleHistoryCount) {
+      const loadMoreEl = document.createElement('div');
+      loadMoreEl.id = 'loadMoreHistoryIndicator';
+      loadMoreEl.style.textAlign = 'center';
+      loadMoreEl.style.padding = '10px';
+      loadMoreEl.style.color = 'var(--vscode-descriptionForeground)';
+      loadMoreEl.style.fontSize = '11px';
+      loadMoreEl.style.cursor = 'pointer';
+      loadMoreEl.textContent = 'Load older history';
+      loadMoreEl.addEventListener('click', () => {
+        visibleHistoryCount += 20;
+        vscode.setState({ ...vscode.getState(), visibleHistoryCount });
+        renderHistory(entries);
+      });
+      container.appendChild(loadMoreEl);
+    }
 
     // Delegate history actions
     listEl.addEventListener('click', (e) => {
@@ -1164,6 +1177,16 @@
     const messagesContainer = document.getElementById('messages');
     if (messagesContainer.scrollTop < 100 && conversationHistory.length > visibleMessageCount) {
       loadOlderMessages();
+    }
+  });
+
+  // Scroll-based lazy loading for history
+  document.getElementById('historyPanel').addEventListener('scroll', () => {
+    const historyPanel = document.getElementById('historyPanel');
+    if (historyPanel.scrollHeight - historyPanel.scrollTop - historyPanel.clientHeight < 50 && askHistory.length > visibleHistoryCount) {
+      visibleHistoryCount += 20;
+      vscode.setState({ ...vscode.getState(), visibleHistoryCount });
+      renderHistory(askHistory);
     }
   });
 

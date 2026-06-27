@@ -120,6 +120,23 @@ export class AiHistoryManager {
         console.error(`Failed to start watcher for provider ${provider.id}:`, err);
       }
     }
+
+    // Watch for window focus to trigger a check immediately
+    const focusDisposable = vscode.window.onDidChangeWindowState(async (e) => {
+      if (e.focused) {
+        await this.checkAllProviders(client);
+      }
+    });
+    this.activeDisposables.push(focusDisposable);
+    context.subscriptions.push(focusDisposable);
+
+    // Periodic check every 15 seconds (only when window is active to conserve resources)
+    const interval = setInterval(async () => {
+      if (vscode.window.state.focused) {
+        await this.checkAllProviders(client);
+      }
+    }, 15000);
+    this.activeDisposables.push(new vscode.Disposable(() => clearInterval(interval)));
   }
 
   markSessionAsSaved(providerId: string, sessionId: string) {
@@ -631,6 +648,21 @@ export class AiHistoryManager {
     } catch (err: unknown) {
       logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
       return false;
+    }
+  }
+
+  private async checkAllProviders(client: KbClient) {
+    for (const provider of this.providers.values()) {
+      try {
+        const enabled = await provider.isEnabled();
+        if (!enabled) continue;
+        const sessions = await provider.getRecentSessions();
+        for (const s of sessions) {
+          await this.handleChangedSession(client, provider, s);
+        }
+      } catch {
+        // silent fallback
+      }
     }
   }
 }
