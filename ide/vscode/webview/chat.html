@@ -1323,7 +1323,9 @@
     const listEl = document.createElement('div');
     listEl.className = 'sync-list';
 
-    unsyncedSessions.forEach((session, i) => {
+    const visibleSessions = unsyncedSessions.slice(0, 20);
+
+    visibleSessions.forEach((session, i) => {
       const entryEl = document.createElement('div');
       entryEl.className = 'sync-entry';
       

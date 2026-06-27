@@ -293,9 +293,10 @@ export class AiHistoryManager {
   }
 
   private getAiSessionSaveMode(): AiSessionSaveMode {
-    return vscode.workspace
-      .getConfiguration()
-      .get<AiSessionSaveMode>('kote.aiSessionSaveMode', 'auto-save');
+    if (this.context) {
+      return this.context.globalState.get<AiSessionSaveMode>('kote.aiSessionSaveMode', 'auto-save');
+    }
+    return 'auto-save';
   }
 
   async promptModeSelection(context: vscode.ExtensionContext): Promise<void> {
@@ -325,24 +326,14 @@ export class AiHistoryManager {
     ];
 
     const picked = await vscode.window.showQuickPick(items, {
-      title: 'Kote \u2014 AI Session Save Mode',
-      placeHolder: 'How should Kote handle newly detected AI sessions?',
+      placeHolder: 'Select how Kote should handle newly detected AI sessions',
       ignoreFocusOut: true,
     });
 
     if (!picked) return;
 
-    const config = vscode.workspace.getConfiguration();
-    const inspection = config.inspect('kote.aiSessionSaveMode');
-
     try {
-      await config.update('kote.aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Global);
-      if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-        await config.update('kote.aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.Workspace);
-      }
-      if (inspection?.workspaceFolderValue !== undefined) {
-        await config.update('kote.aiSessionSaveMode', picked.mode, vscode.ConfigurationTarget.WorkspaceFolder);
-      }
+      await context.globalState.update('kote.aiSessionSaveMode', picked.mode);
     } catch (err) {
       console.error('Failed to update kote.aiSessionSaveMode configuration:', err);
     }
@@ -350,7 +341,7 @@ export class AiHistoryManager {
     context.globalState.update(SESSION_MODE_PICKED_KEY, true);
 
     const label = picked.mode === 'auto-save' ? 'Auto-save' : picked.mode === 'ask' ? 'Ask before saving' : 'Ignore all sessions';
-    vscode.window.showInformationMessage(`Kote: AI session mode set to "${label}".`);
+    vscode.window.showInformationMessage(`Kote: AI session save mode set to ${label}.`);
   }
 
   private async handleChangedSession(client: KbClient, provider: AiHistoryProvider, session: AiSession) {
