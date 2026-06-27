@@ -44,9 +44,9 @@ Kote is designed to capture these workflows passively, organizing them into a un
 Kote integrates with your existing tools to collect and index technical knowledge automatically:
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/diagram-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/diagram-light.svg">
-  <img alt="Kote Flow Diagram" src="docs/diagram-dark.svg" width="100%">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/diagram-dark-horizontal.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/diagram-light-horizontal.svg">
+  <img alt="Kote Flow Diagram" src="docs/diagram-dark-horizontal.svg" width="100%">
 </picture>
 
 1. **Development & AI Sessions:** The VS Code extension automatically logs local AI conversations and saves highlighted code snippets to your knowledge base.
