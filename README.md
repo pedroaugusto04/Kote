@@ -14,13 +14,13 @@
 <p align="center">
   A developer memory layer that automatically captures and organizes AI sessions, Git history and development context into searchable context.
   <br><br>
-  <a href="https://knowledgebase.sbs/kote" target="_blank">→ Open Kote Web App</a>
+  <a href="https://knowledgebase.sbs/kote">→ Open Kote Web App</a>
   <br><br>
   Available as cloud or self-hosted.
 </p>
 
 <p align="center">
-  <a href="https://knowledgebase.sbs/kote" target="_blank">Web Application</a> • 
+  <a href="https://knowledgebase.sbs/kote">Web Application</a> • 
   <a href="#getting-started">Getting Started</a> • 
   <a href="#how-it-works">How It Works</a>
 </p>
@@ -63,7 +63,7 @@ Kote integrates with your existing tools to collect and index technical knowledg
 
 To start using Kote:
 
-1. **Sign In:** Go to <a href="https://knowledgebase.sbs/kote" target="_blank">knowledgebase.sbs/kote</a> and authenticate your account.
+1. **Sign In:** Go to [knowledgebase.sbs/kote](https://knowledgebase.sbs/kote) and authenticate your account.
 2. **Configure Integrations:** Connect your repository hosting (GitHub) and messaging channels (WhatsApp or Telegram) via the Integrations dashboard in the web application.
 3. **Install Client Tools (optional):** 
    * **VS Code Extension:** Install **Kote** from the VS Code Marketplace to log AI chats and snippets.
@@ -100,8 +100,8 @@ If you prefer to run Kote on your own infrastructure or local machine, you can l
    ```
 
 Once running, access the local services:
-* **Web Application:** <a href="http://localhost:4311" target="_blank">http://localhost:4311</a>
-* **API Server:** <a href="http://localhost:4310" target="_blank">http://localhost:4310</a>
+* **Web Application:** [http://localhost:4311](http://localhost:4311)
+* **API Server:** [http://localhost:4310](http://localhost:4310)
 
 </details>
 
