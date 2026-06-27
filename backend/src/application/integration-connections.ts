@@ -176,6 +176,55 @@ export class IntegrationConnectionService {
     }
   }
 
+  async updateGithubInstallation(input: { userId: string; installationId: string }) {
+    const installationId = extractConnectionGithubInstallationId(input.installationId);
+    const environment = this.environment();
+
+    if (!environment.githubAppId || !environment.githubAppPrivateKey) {
+      throw new BadRequestException('github_app_installation_not_configured');
+    }
+
+    // Verify the installation is accessible
+    const installation = await this.verifyGithubInstallation(installationId);
+    const accountLogin = this.normalizeGithubAccountLogin(installation);
+
+    // Find existing GitHub App credential for this user
+    const existingCredential = await this.credentials.findCredential(input.userId, '', IntegrationProvider.GithubApp);
+    if (!existingCredential) {
+      throw new NotFoundException('github_integration_not_found');
+    }
+
+    // Update the credential with the new installation ID
+    const credential = await this.upsertConnectedCredential({
+      userId: input.userId,
+      workspaceSlug: existingCredential.workspaceSlug || '',
+      provider: IntegrationProvider.GithubApp,
+      encryptedConfig: { installationId, accountLogin },
+      publicMetadata: {
+        label: accountLogin ? `GitHub ${accountLogin}` : 'GitHub App',
+        connectedAccount: this.connectedAccount(accountLogin, installationId),
+      },
+    });
+
+    // Update the external identity
+    await this.upsertExternalIdentity({
+      userId: input.userId,
+      workspaceSlug: existingCredential.workspaceSlug || '',
+      provider: ExternalIdentityProvider.GithubApp,
+      identityType: 'installation_id',
+      externalId: installationId,
+      credentialId: credential.id,
+      publicMetadata: { accountLogin },
+    });
+
+    return {
+      ok: true as const,
+      provider: IntegrationProvider.GithubApp,
+      updatedInstallationId: installationId,
+      accountLogin,
+    };
+  }
+
   async completeWhatsappFromWebhook(input: { code: string; chatJid: string }) {
     return this.completeCodeBasedConnection({
       code: input.code,

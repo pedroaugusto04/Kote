@@ -30,6 +30,23 @@ export class GithubAppCallbackController {
     @CurrentUser() currentUser: AuthenticatedUser,
     @Res() response: Response,
   ) {
+    // Handle installation update (setup_action=update) without state
+    if (query.setup_action === 'update' && !query.state) {
+      try {
+        await this.connections.updateGithubInstallation({
+          userId: currentUser.id,
+          installationId: query.installation_id,
+        });
+        const environment = readEnvironment();
+        const redirectUrl = `${environment.publicBaseUrl || ''}/settings/integrations?integration=GithubApp&status=updated`;
+        return response.redirect(302, redirectUrl);
+      } catch (error) {
+        const environment = readEnvironment();
+        const redirectUrl = `${environment.publicBaseUrl || ''}/settings/integrations?integration=GithubApp&status=error`;
+        return response.redirect(302, redirectUrl);
+      }
+    }
+
     const result = await this.connections.completeGithubForBrowser({
       userId: currentUser.id,
       state: query.state,
