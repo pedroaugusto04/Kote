@@ -12,8 +12,15 @@
 </p>
 
 <p align="center">
-  <strong>Continuous operational knowledge capture for development teams.</strong><br>
-  Kote aggregates technical decisions, AI coding sessions, and codebase updates into a centralized, searchable index.
+  <strong>
+    <a href="https://knowledgebase.sbs/kote">
+      AI knowledge base for developers
+    </a>
+  </strong>
+  <br><br>
+  Available as Cloud or self-hosted.
+  <br>
+  Automatically capture AI coding sessions, technical decisions, Git history, and codebase updates into a centralized, searchable index.
 </p>
 
 <p align="center">
