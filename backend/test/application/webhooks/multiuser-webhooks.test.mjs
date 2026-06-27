@@ -93,7 +93,7 @@ const githubGateway = {
     return 'github-token';
   },
   async fetchComparePayload() {
-    return { commits: [], files: [] };
+    return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
   },
 };
 
@@ -418,7 +418,7 @@ test('github pull request webhook processes event, searches context, and posts c
       return 'github-token';
     },
     async fetchComparePayload() {
-      return { commits: [], files: [{ filename: 'src/app.ts' }] };
+      return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
     },
     async postPullRequestComment(repoFullName, prNumber, bodyText) {
       prCommentPosted = true;

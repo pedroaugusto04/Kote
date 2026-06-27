@@ -107,7 +107,7 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
     payload: {
       prTitle: string;
       prDescription: string;
-      changedFiles: string[];
+      changedFiles: Array<{ filename: string; status: string; patch: string }>;
       context: AnswerContextChunk[];
     },
   ): Promise<string | null> {
@@ -118,16 +118,34 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
     const systemPrompt = [
       'You are Kote PR Context AI, a helpful coding assistant.',
       'Your task is to analyze a GitHub Pull Request and provide relevant context and memory from the workspace notes (knowledge base) that could help the author or reviewers.',
-      'Acknowledge if any related projects, decisions, patterns, or architecture decisions from the workspace notes match the modified files or the PR intent.',
-      'Suggest relevant readings or link to note paths (e.g. `[Note Title](path/to/note)`) if they are relevant.',
+      'You will receive:',
+      '1. The PR title and description',
+      '2. A list of changed files with their diffs (patches)',
+      '3. Relevant notes from the knowledge base that were semantically matched to the PR',
+      '',
+      'Analyze the diffs to understand what code is being changed. Then check if the knowledge base notes contain relevant context such as:',
+      '- Architecture decisions or design patterns that apply to the changed code',
+      '- Previous discussions or decisions about similar changes',
+      '- Documentation about the affected modules or systems',
+      '- Related projects or dependencies',
+      '',
+      'If you find relevant context, provide a helpful comment that:',
+      '- References specific notes by title and path (e.g. `[Note Title](path/to/note)`)',
+      '- Explains why those notes are relevant to this PR',
+      '- Highlights any important patterns or decisions the author/reviewer should be aware of',
+      '',
       'Keep the tone professional, concise, and constructive.',
-      'If no relevant notes or context are found in the search results, return null or a polite short message saying you could not find relevant context for this PR.',
+      'If no relevant notes or context are found in the search results, return exactly "NONE" (without quotes).',
     ].join('\n');
 
     const userContent = JSON.stringify({
       prTitle: payload.prTitle,
       prDescription: payload.prDescription,
-      changedFiles: payload.changedFiles,
+      changedFiles: payload.changedFiles.map(f => ({
+        filename: f.filename,
+        status: f.status,
+        patch: f.patch || '',
+      })),
       notesContext: payload.context.map(c => ({
         title: c.title,
         path: c.path,

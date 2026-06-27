@@ -44,7 +44,7 @@ function githubIntegrationGateway() {
       return String(payload.token || '');
     },
     async fetchComparePayload() {
-      return { files: [], commits: [] };
+      return { files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }], commits: [] };
     },
     async fetchInstallationRepositories() {
       const response = await fetch('https://api.github.com/installation/repositories?per_page=100');

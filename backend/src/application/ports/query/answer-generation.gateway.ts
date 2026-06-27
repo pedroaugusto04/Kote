@@ -58,7 +58,7 @@ export abstract class AnswerGenerationGateway {
     payload: {
       prTitle: string;
       prDescription: string;
-      changedFiles: string[];
+      changedFiles: Array<{ filename: string; status: string; patch: string }>;
       context: AnswerContextChunk[];
     },
   ): Promise<string | null>;

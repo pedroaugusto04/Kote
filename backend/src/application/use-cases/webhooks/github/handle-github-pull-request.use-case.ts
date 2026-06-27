@@ -246,11 +246,15 @@ export class HandleGithubPullRequestUseCase {
         throw new Error('failed_to_retrieve_github_token');
       }
 
-      // Fetch comparison to get changed files
+      // Fetch comparison to get changed files and patches
       const baseSha = String(body.pull_request?.base?.sha || '');
       const headSha = String(body.pull_request?.head?.sha || '');
       const comparePayload = await this.githubIntegrationGateway.fetchComparePayload(repoFullName, baseSha, headSha, token);
-      const changedFiles = comparePayload.files.map(f => f.filename);
+      const changedFiles = comparePayload.files.map(f => ({
+        filename: f.filename,
+        status: f.status,
+        patch: f.patch,
+      }));
 
       // Perform semantic search
       const prTitle = String(body.pull_request?.title || '');
@@ -376,7 +380,17 @@ export class HandleGithubPullRequestUseCase {
         throw error;
       }
 
-      if (!commentText || commentText.trim() === 'NENHUM' || commentText.trim().toUpperCase() === 'NENHUM') {
+      this.logger.info('github_pr_ai_comment_raw_response', {
+        repository: repoFullName,
+        projectSlug,
+        prNumber: body.pull_request?.number,
+        commentText,
+        commentLength: commentText?.length || 0,
+        commentTrimmed: commentText?.trim(),
+        commentTrimmedUpper: commentText?.trim().toUpperCase(),
+      });
+
+      if (!commentText || commentText.trim() === 'NONE' || commentText.trim().toUpperCase() === 'NONE') {
         this.logger.info('github_pr_no_relevant_context', {
           repository: repoFullName,
           projectSlug,
