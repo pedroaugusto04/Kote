@@ -7,11 +7,13 @@ const sessionErrorCodes = new Set([
   'invalid_token',
   'invalid_token_type',
 ]);
-const authRetryExcludedPaths = new Set([
-  '/api/auth/login',
-  '/api/auth/signup',
-  '/api/auth/logout',
-  '/api/auth/refresh',
+import { API_PATHS } from './api-paths.constants';
+
+const authRetryExcludedPaths = new Set<string>([
+  API_PATHS.AUTH_LOGIN,
+  API_PATHS.AUTH_SIGNUP,
+  API_PATHS.AUTH_LOGOUT,
+  API_PATHS.AUTH_REFRESH,
 ]);
 
 type RawResponse = {
@@ -97,7 +99,7 @@ function shouldAttemptRefresh(path: string, response: Response, payload: unknown
 async function refreshSession() {
   if (!refreshPromise) {
     refreshPromise = (async () => {
-      const { response, payload } = await send('/api/auth/refresh', { method: 'POST' });
+      const { response, payload } = await send(API_PATHS.AUTH_REFRESH, { method: 'POST' });
       if (!response.ok) {
         throw toApiClientError(response, payload);
       }
@@ -111,7 +113,7 @@ async function refreshSession() {
 
 async function logoutSilently() {
   try {
-    await send('/api/auth/logout', { method: 'POST' });
+    await send(API_PATHS.AUTH_LOGOUT, { method: 'POST' });
   } catch {
     // Ignore network failures while clearing HttpOnly cookies best-effort.
   }

@@ -2,6 +2,7 @@ import { request } from './request';
 import { detectUserCountry } from '../utils/location';
 import { resolveApiPath } from './api-path';
 import type { SubscriptionChangeKind } from '../constants/billing.constants';
+import { API_PATHS } from './api-paths.constants';
 
 export interface PlanDTO {
   id: string;
@@ -109,28 +110,28 @@ export interface StripeConfigDTO {
 }
 
 export function fetchPlans(): Promise<PlanDTO[]> {
-  return request<PlanDTO[]>('/api/subscription/plans', {
+  return request<PlanDTO[]>(API_PATHS.SUBSCRIPTION_PLANS, {
     headers: { 'x-user-country': detectUserCountry() },
   });
 }
 
 export function fetchDetectedCountry(): Promise<{ country: string }> {
-  return request<{ country: string }>('/api/subscription/country');
+  return request<{ country: string }>(API_PATHS.SUBSCRIPTION_COUNTRY);
 }
 
 export function fetchStripeConfig(): Promise<StripeConfigDTO> {
-  return request<StripeConfigDTO>('/api/subscription/stripe/config');
+  return request<StripeConfigDTO>(API_PATHS.SUBSCRIPTION_STRIPE_CONFIG);
 }
 
 export function fetchSubscriptionStatus(): Promise<QuotaAndBillingStatusDTO> {
-  return request<QuotaAndBillingStatusDTO>('/api/subscription/status', {
+  return request<QuotaAndBillingStatusDTO>(API_PATHS.SUBSCRIPTION_STATUS, {
     headers: { 'x-user-country': detectUserCountry() },
   });
 }
 
 export function updateSubscription(input: SubscriptionInput): Promise<QuotaAndBillingStatusDTO> {
   const country = detectUserCountry();
-  return request<QuotaAndBillingStatusDTO>('/api/subscription', {
+  return request<QuotaAndBillingStatusDTO>(API_PATHS.SUBSCRIPTION_STATUS, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -144,13 +145,13 @@ export function updateSubscription(input: SubscriptionInput): Promise<QuotaAndBi
 }
 
 export function cancelPendingPayment(paymentId: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`/api/subscription/payment/${encodeURIComponent(paymentId)}`, {
+  return request<{ ok: true }>(`${API_PATHS.SUBSCRIPTION_STATUS}/payment/${encodeURIComponent(paymentId)}`, {
     method: 'DELETE',
   });
 }
 
 export function cancelScheduledChange(changeId: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`/api/subscription/scheduled-change/${encodeURIComponent(changeId)}`, {
+  return request<{ ok: true }>(`${API_PATHS.SUBSCRIPTION_STATUS}/scheduled-change/${encodeURIComponent(changeId)}`, {
     method: 'DELETE',
   });
 }
@@ -158,7 +159,7 @@ export function cancelScheduledChange(changeId: string): Promise<{ ok: true }> {
 export type SubscriptionStatusHandler = (status: QuotaAndBillingStatusDTO | null) => void;
 
 export function subscribeToSubscriptionStatus(handler: SubscriptionStatusHandler): () => void {
-  const url = resolveApiPath('/api/subscription/status/stream');
+  const url = resolveApiPath(API_PATHS.SUBSCRIPTION_STATUS_STREAM);
   let retryCount = 0;
   let retryTimeout: ReturnType<typeof setTimeout> | null = null;
   let closed = false;

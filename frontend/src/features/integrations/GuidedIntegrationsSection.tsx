@@ -321,7 +321,7 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
                   />
                   <span>
                     <strong>{repository.fullName}</strong>
-                    <small>{repository.private ? 'Private' : 'Public'}</small>
+                    <small>{repository.private ? UI_MESSAGES.PRIVATE : UI_MESSAGES.PUBLIC}</small>
                   </span>
                 </label>
               ))}
@@ -485,7 +485,7 @@ function IntegrationCard({
 export function IntegrationCallbackNotice({ status }: { status: StoredIntegrationStatus.Connected | StoredIntegrationStatus.Error }) {
   return (
     <InlineMessage tone={status === StoredIntegrationStatus.Connected ? 'success' : 'error'}>
-      {status === StoredIntegrationStatus.Connected ? 'GitHub connected. Select the workspace repositories.' : 'Could not complete the GitHub connection.'}
+      {status === StoredIntegrationStatus.Connected ? UI_MESSAGES.GITHUB_CONNECTED_SUCCESS : UI_MESSAGES.GITHUB_CONNECTION_ERROR}
     </InlineMessage>
   );
 }
@@ -551,7 +551,7 @@ function GithubSuccessInfoModal({ onClose, onNext }: { onClose: () => void; onNe
 
         <div style={{ textAlign: 'center' }}>
           <h2 id="github-success-title" style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 12px 0', background: 'linear-gradient(135deg, var(--cyan) 0%, var(--primary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-            GitHub Connected!
+            {UI_MESSAGES.GITHUB_CONNECTED}
           </h2>
           <p style={{ color: 'var(--text)', lineHeight: 1.6, fontSize: '15px', margin: 0 }}>
             You're all set! Just push to any allowed repository, and Kote will automatically create a note containing the commit details along with an AI-generated review.
@@ -560,10 +560,10 @@ function GithubSuccessInfoModal({ onClose, onNext }: { onClose: () => void; onNe
 
         <div className="form-actions" style={{ width: '100%', justifyContent: 'center', marginTop: '8px', gap: '12px' }}>
           <button className="filter-chip" type="button" onClick={onClose} style={{ minWidth: '100px', cursor: 'pointer' }}>
-            Done
+            {UI_MESSAGES.DONE}
           </button>
           <button className="icon-button" type="button" onClick={onNext} style={{ minWidth: '180px', cursor: 'pointer' }}>
-            Select Repositories
+            {UI_MESSAGES.SELECT_REPOSITORIES}
           </button>
         </div>
       </section>

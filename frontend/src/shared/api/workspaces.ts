@@ -1,9 +1,10 @@
 import type { CategoryRecord } from './models/category';
 import type { CreateWorkspaceResponse } from './models/workspace';
 import { request } from './request';
+import { API_PATHS } from './api-paths.constants';
 
 export function createWorkspace(params: { displayName: string; workspaceSlug?: string }) {
-  return request<CreateWorkspaceResponse>('/api/workspaces', {
+  return request<CreateWorkspaceResponse>(API_PATHS.WORKSPACES, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(params),
@@ -11,6 +12,6 @@ export function createWorkspace(params: { displayName: string; workspaceSlug?: s
 }
 
 export async function fetchWorkspaceCategories(workspaceSlug: string): Promise<CategoryRecord[]> {
-  const result = await request<{ ok: true; categories: CategoryRecord[] }>(`/api/workspaces/${encodeURIComponent(workspaceSlug)}/categories`);
+  const result = await request<{ ok: true; categories: CategoryRecord[] }>(`${API_PATHS.WORKSPACES}/${encodeURIComponent(workspaceSlug)}/categories`);
   return result.categories;
 }

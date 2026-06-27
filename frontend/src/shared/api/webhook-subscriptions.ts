@@ -1,13 +1,14 @@
 import type { WebhookSubscription, WebhookTriggersResponse } from './models/webhook-subscription';
 import { request } from './request';
+import { API_PATHS } from './api-paths.constants';
 
 export function fetchWebhookTriggers(): Promise<WebhookTriggersResponse> {
-  return request<WebhookTriggersResponse>('/api/webhook-subscriptions/triggers');
+  return request<WebhookTriggersResponse>(API_PATHS.WEBHOOK_SUBSCRIPTIONS_TRIGGERS);
 }
 
 export function fetchWebhookSubscriptions(workspaceSlug: string): Promise<WebhookSubscription[]> {
   const search = new URLSearchParams({ workspaceSlug });
-  return request<WebhookSubscription[]>(`/api/webhook-subscriptions?${search.toString()}`);
+  return request<WebhookSubscription[]>(`${API_PATHS.WEBHOOK_SUBSCRIPTIONS}?${search.toString()}`);
 }
 
 export function createWebhookSubscription(input: {
@@ -17,7 +18,7 @@ export function createWebhookSubscription(input: {
   secret?: string;
   events: string[];
 }): Promise<WebhookSubscription> {
-  return request<WebhookSubscription>('/api/webhook-subscriptions', {
+  return request<WebhookSubscription>(API_PATHS.WEBHOOK_SUBSCRIPTIONS, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
@@ -28,7 +29,7 @@ export function updateWebhookSubscription(
   id: string,
   input: { label?: string; url?: string; secret?: string; events?: string[]; enabled?: boolean },
 ): Promise<WebhookSubscription> {
-  return request<WebhookSubscription>(`/api/webhook-subscriptions/${encodeURIComponent(id)}`, {
+  return request<WebhookSubscription>(`${API_PATHS.WEBHOOK_SUBSCRIPTIONS}/${encodeURIComponent(id)}`, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
@@ -36,7 +37,7 @@ export function updateWebhookSubscription(
 }
 
 export function deleteWebhookSubscription(id: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`/api/webhook-subscriptions/${encodeURIComponent(id)}`, {
+  return request<{ ok: true }>(`${API_PATHS.WEBHOOK_SUBSCRIPTIONS}/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
 }

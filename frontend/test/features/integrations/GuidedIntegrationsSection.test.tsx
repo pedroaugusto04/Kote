@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { GuidedIntegrationsSection } from '../../../src/features/integrations/GuidedIntegrationsSection';
+import { API_PATHS } from '../../../src/shared/api/api-paths.constants';
+import { UI_MESSAGES } from '../../../src/shared/constants/ui.constants';
 
 const notificationSpies = vi.hoisted(() => ({
   notifySuccess: vi.fn(),
@@ -26,7 +28,7 @@ describe('GuidedIntegrationsSection', () => {
   it('auto-opens the repositories modal after returning connected from the github callback flow', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === '/api/integrations?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -48,7 +50,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -69,9 +71,9 @@ describe('GuidedIntegrationsSection', () => {
       />,
     );
 
-    expect(await screen.findByRole('dialog', { name: 'GitHub Connected!' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: UI_MESSAGES.GITHUB_CONNECTED })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Select Repositories' }));
+    fireEvent.click(screen.getByRole('button', { name: UI_MESSAGES.SELECT_REPOSITORIES }));
 
     expect(await screen.findByRole('dialog', { name: 'Select repositories' })).toBeInTheDocument();
     expect(notificationSpies.notifySuccess).not.toHaveBeenCalled();
@@ -80,7 +82,7 @@ describe('GuidedIntegrationsSection', () => {
   it('closes the repositories modal immediately when nothing changed', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === '/api/integrations?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -102,7 +104,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -127,7 +129,7 @@ describe('GuidedIntegrationsSection', () => {
   it('asks for confirmation before discarding repository selection changes and closes after confirmation', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === '/api/integrations?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -149,7 +151,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -177,7 +179,7 @@ describe('GuidedIntegrationsSection', () => {
   it('keeps repository selection changes when discard is canceled', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === '/api/integrations?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -199,7 +201,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -228,7 +230,7 @@ describe('GuidedIntegrationsSection', () => {
   it('shows the backend message inline when an integration activation fails', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === '/api/integrations?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -250,7 +252,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/whatsapp/connect') {
+      if (url === `${API_PATHS.INTEGRATIONS_CONNECT.replace('{provider}', 'whatsapp')}`) {
         return Response.json({
           ok: false,
           error: {
@@ -277,7 +279,7 @@ describe('GuidedIntegrationsSection', () => {
   it('shows inline query errors for the GitHub repositories modal', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === '/api/integrations?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -299,7 +301,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES}?workspaceSlug=default`) {
         return Response.json({
           ok: false,
           error: {
@@ -326,7 +328,7 @@ describe('GuidedIntegrationsSection', () => {
   it('emits a success toast after saving GitHub repositories', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === '/api/integrations?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -348,7 +350,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -377,7 +379,7 @@ describe('GuidedIntegrationsSection', () => {
   it('shows backend field errors inline when saving GitHub repositories fails', async () => {
     vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url === '/api/integrations?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',
@@ -399,7 +401,7 @@ describe('GuidedIntegrationsSection', () => {
           ],
         });
       }
-      if (url === '/api/integrations/github-app/repositories?workspaceSlug=default') {
+      if (url === `${API_PATHS.INTEGRATIONS_GITHUB_REPOSITORIES}?workspaceSlug=default`) {
         return Response.json({
           ok: true,
           workspaceSlug: 'default',

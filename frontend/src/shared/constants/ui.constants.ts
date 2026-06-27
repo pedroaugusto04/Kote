@@ -132,6 +132,21 @@ export const UI_MESSAGES = {
   PRODUCTION_WEBHOOK: 'Production webhook',
   EXAMPLE_WEBHOOK_URL: 'https://example.com/webhook',
   MY_WORKSPACE: 'My Workspace',
+
+  // Repository visibility labels
+  PRIVATE: 'Private',
+  PUBLIC: 'Public',
+
+  // Modal labels
+  DISCARD_CHANGES: 'Discard changes?',
+  CLOSE_WITHOUT_SAVING: 'Close without saving',
+  KEEP_EDITING: 'Keep editing',
+
+  // GitHub integration labels
+  GITHUB_CONNECTED: 'GitHub Connected!',
+  GITHUB_CONNECTED_SUCCESS: 'GitHub connected. Select the workspace repositories.',
+  GITHUB_CONNECTION_ERROR: 'Could not complete the GitHub connection.',
+  DONE: 'Done',
 } as const;
 
 export type UIMessageKey = keyof typeof UI_MESSAGES;
