@@ -53,19 +53,30 @@ export class SubscriptionUpgradeService {
 
       const price = resolvePlanValueForCycle(ctx.newPlan, ctx.activeSub.billingCycle, ctx.gateway);
       const nextDueDate = ctx.activeSub.nextDueDate || new Date();
-      const newGatewaySubscription = await gateway.createSubscription({
-        customerId: ctx.gatewayCustomerId,
-        billingType: toGatewayBillingType(ctx.newBillingType),
-        value: price,
-        cycle: ctx.activeSub.billingCycle,
-        nextDueDate: formatGatewayDueDate(nextDueDate),
-        description: `Subscription ${ctx.newPlan.displayName}`,
-        creditCardToken: ctx.newCreditCardToken,
-        userId: ctx.userId,
-        externalReference: ctx.userId,
-      });
+      try {
+        const newGatewaySubscription = await gateway.createSubscription({
+          customerId: ctx.gatewayCustomerId,
+          billingType: toGatewayBillingType(ctx.newBillingType),
+          value: price,
+          cycle: ctx.activeSub.billingCycle,
+          nextDueDate: formatGatewayDueDate(nextDueDate),
+          description: `Subscription ${ctx.newPlan.displayName}`,
+          creditCardToken: ctx.newCreditCardToken,
+          userId: ctx.userId,
+          externalReference: ctx.userId,
+        });
 
-      gatewaySubscription = newGatewaySubscription;
+        gatewaySubscription = newGatewaySubscription;
+      } catch (error) {
+        this.logger.error('subscription_upgrade.gateway_subscription_creation_failed', {
+          error: error instanceof Error ? error.message : String(error),
+          userId: ctx.userId,
+        });
+      }
+    }
+
+    if (!gatewaySubscription) {
+      throw new BadRequestException('Unable to change subscription plan. Please try again later.');
     }
 
     const periodEnd = ctx.activeSub.nextDueDate ?? (gatewaySubscription.nextDueDate ? new Date(gatewaySubscription.nextDueDate) : new Date());

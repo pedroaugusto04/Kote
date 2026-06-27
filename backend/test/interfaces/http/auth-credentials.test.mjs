@@ -658,7 +658,7 @@ test('guided connection rejects identity hijacking', async (t) => {
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
   const secondController = new UserIntegrationsController(secondCredentials, secondConnections);
-  const secondToken = secondAuth.issueTokens(secondUser).accessToken;
+  const secondToken = secondAuth.jwtService.issueTokens(secondUser).accessToken;
   const secondCurrentUser = { id: secondUser.id, email: secondUser.email, displayName: secondUser.displayName, role: secondUser.role };
   const secondSetup = await secondController.connect(
     { provider: 'whatsapp' },

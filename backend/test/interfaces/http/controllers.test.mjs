@@ -201,12 +201,12 @@ test('projects and notes controllers delegate create requests to use cases', asy
     { ok: true, noteId: 'note-1', body: { projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '', projectId: undefined }, userId: 'user-1' },
   );
   assert.deepEqual(
-    await projects.update({ projectSlug: 'acme-api' }, { displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, user),
-    { ok: true, project: { projectId: { projectSlug: 'acme-api' }, displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
+    await projects.update('acme-api', { displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, user),
+    { ok: true, project: { projectId: 'acme-api', displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
   );
-  assert.deepEqual(await projects.remove({ projectSlug: 'acme-api' }, user), { ok: true, projectSlug: { projectSlug: 'acme-api' }, userId: 'user-1' });
-  assert.deepEqual(await projects.generateBrief({ projectSlug: 'acme-api' }, user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1' } });
-  assert.deepEqual(await projects.getBrief({ projectSlug: 'acme-api' }, user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true } });
+  assert.deepEqual(await projects.remove('acme-api', user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
+  assert.deepEqual(await projects.generateBrief('acme-api', user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1' } });
+  assert.deepEqual(await projects.getBrief('acme-api', user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true } });
   assert.deepEqual(
     await notes.update({ id: 'note-1' }, { title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
     { ok: true, noteId: 'note-1', body: { id: 'note-1', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },

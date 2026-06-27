@@ -551,7 +551,7 @@ export class PostgresNoteRepository {
 
     const db = this.database.getDb();
     const { projectId, workspaceId } = await this.resolveIds(userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
-    const noteId = crypto.randomUUID();
+    const noteId = input.id || crypto.randomUUID();
 
     const categoryIds = input.categoryIds || [];
 
@@ -610,11 +610,17 @@ export class PostgresNoteRepository {
 
   async updateReminderStatus(userId: string, id: string, status: string) {
     const db = this.database.getDb();
-    await db
+    const result = await db
       .update(notes)
       .set({ status: status as NoteStatus, updatedAt: new Date() })
-      .where(and(eq(notes.userId, userId), eq(notes.id, id)));
+      .where(and(
+        eq(notes.userId, userId),
+        eq(notes.id, id),
+        sql`(${notes.reminderDate} <> '' or ${notes.reminderAt} <> '')`
+      ))
+      .returning();
 
+    if (result.length === 0) return null;
     return this.getById(userId, id);
   }
 

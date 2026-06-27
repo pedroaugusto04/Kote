@@ -19,6 +19,15 @@ async function createStoreWithReminder(t) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   });
+  await repositories.contentRepository.upsertProject(user.id, {
+    projectSlug: 'n8n-automations',
+    displayName: 'n8n-automations',
+    workspaceSlug: 'default',
+    repositories: [],
+    defaultTags: [],
+    enabled: true,
+    favorite: false,
+  });
   await repositories.contentRepository.upsertNote(user.id, {
     id: '11111111-1111-1111-1111-111111111111',
     path: '20 Inbox/n8n-automations/deploy.md',
@@ -39,6 +48,8 @@ async function createStoreWithReminder(t) {
       reminderTime: '09:00',
       reminderAt: '2099-12-31T12:00:00.000Z',
     },
+    reminderDate: '2099-12-31',
+    reminderAt: '2099-12-31T12:00:00.000Z',
     origin: 'postgres',
     source: 'test',
     links: [],
@@ -47,13 +58,40 @@ async function createStoreWithReminder(t) {
 }
 
 async function insertReminder(repositories, userId, input) {
+  const workspaceSlug = input.workspaceSlug || 'default';
+  const ws = await repositories.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
+  if (!ws) {
+    await repositories.contentRepository.upsertWorkspace(userId, {
+      workspaceSlug,
+      displayName: workspaceSlug === 'default' ? 'Default' : workspaceSlug,
+      whatsappChatJid: workspaceSlug === 'default' ? '120363-default@g.us' : '',
+      telegramChatId: workspaceSlug === 'default' ? 'telegram-chat-1' : '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  const projectSlug = input.projectSlug || 'n8n-automations';
+  const proj = await repositories.contentRepository.getProjectBySlug(userId, projectSlug);
+  if (!proj) {
+    await repositories.contentRepository.upsertProject(userId, {
+      projectSlug,
+      displayName: projectSlug,
+      workspaceSlug,
+      repositories: [],
+      defaultTags: [],
+      enabled: true,
+      favorite: false,
+    });
+  }
+
   const rawText = input.rawText || input.title;
   return repositories.contentRepository.upsertNote(userId, {
     path: input.path,
     type: 'event',
     title: input.title,
-    projectSlug: input.projectSlug || 'n8n-automations',
-    workspaceSlug: input.workspaceSlug || 'default',
+    projectSlug,
+    workspaceSlug,
     status: input.status || 'pending',
     tags: [],
     occurredAt: input.occurredAt || input.metadata.reminderAt || `${input.metadata.reminderDate}T00:00:00.000Z`,
@@ -65,6 +103,8 @@ async function insertReminder(repositories, userId, input) {
       rawText,
       ...input.metadata,
     },
+    reminderDate: input.metadata.reminderDate || '',
+    reminderAt: input.metadata.reminderAt || '',
     origin: 'postgres',
     source: 'test',
     links: [],

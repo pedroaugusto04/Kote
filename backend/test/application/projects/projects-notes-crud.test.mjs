@@ -51,7 +51,7 @@ function githubIntegrationGateway() {
 }
 
 async function seedProject(repositories, userId) {
-  await repositories.contentRepository.upsertWorkspace(userId, {
+  const workspace = await repositories.contentRepository.upsertWorkspace(userId, {
     workspaceSlug: 'default',
     displayName: 'Default',
     whatsappChatJid: '',
@@ -62,7 +62,7 @@ async function seedProject(repositories, userId) {
     updatedAt: '2026-04-27T10:00:00.000Z',
   });
   const repo = await repositories.contentRepository.upsertRepository({
-    workspaceSlug: 'default',
+    workspaceId: workspace.id,
     externalId: '0',
     fullName: 'acme/api',
     htmlUrl: 'https://github.com/acme/api',

@@ -14,7 +14,7 @@ export class UpdateSubscriptionStrategyFactory {
     }
 
     // Validate: cannot mix gateways for existing subscriptions
-    if (activeSub.gatewayName && ctx.gateway !== activeSub.gatewayName) {
+    if (activeSub.gatewayName && ctx.gateway.toLowerCase() !== activeSub.gatewayName.toLowerCase()) {
       throw new BadRequestException(`Cannot change gateway from ${activeSub.gatewayName} to ${ctx.gateway}. Please cancel current subscription first.`);
     }
 

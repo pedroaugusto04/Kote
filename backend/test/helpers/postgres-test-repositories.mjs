@@ -127,8 +127,13 @@ async function dropSchema(targetUrl, schemaName) {
 async function ensureBaseSchema(targetUrl) {
   const adminPool = new Pool({ connectionString: targetUrl.toString() });
   try {
-    await adminPool.query(`drop schema if exists ${quoteIdent(BASE_SCHEMA_NAME)} cascade`);
-    await adminPool.query(`create schema ${quoteIdent(BASE_SCHEMA_NAME)}`);
+    const schemaExists = await adminPool.query(
+      `select 1 from information_schema.schemata where schema_name = $1`,
+      [BASE_SCHEMA_NAME]
+    );
+    if (!schemaExists.rows[0]) {
+      await adminPool.query(`create schema ${quoteIdent(BASE_SCHEMA_NAME)}`);
+    }
   } finally {
     await adminPool.end();
   }
@@ -149,11 +154,11 @@ async function ensureBaseSchema(targetUrl) {
 async function truncateSchema(targetUrl, schemaName) {
   const pool = new Pool({ connectionString: targetUrl.toString() });
   try {
-    // Get all tables in the schema
+    // Get all tables in the schema except migrations table
     const tables = await pool.query(`
       SELECT table_name 
       FROM information_schema.tables 
-      WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+      WHERE table_schema = $1 AND table_type = 'BASE TABLE' AND table_name <> 'kb_schema_migrations'
     `, [schemaName]);
 
     // Truncate all tables (disable foreign key checks temporarily)
@@ -209,7 +214,7 @@ export async function createPostgresTestRepositories(t) {
   // Ensure the unique index required by `ON CONFLICT (user_id, workspace_id, provider)` exists
   // Some test environments rely on the migrations in `BASE_SCHEMA_NAME`, but adding
   // the index here guarantees the repository upsert using ON CONFLICT will work.
-  await (new Pool({ connectionString: targetUrl.toString() })).query(
+  await pool.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS ${quoteIdent('kb_integration_credentials_scope_idx')} ON ${quoteIdent(schemaName)}.${quoteIdent('kb_integration_credentials')} (user_id, workspace_id, provider)`,
   );
 

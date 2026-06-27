@@ -351,7 +351,7 @@ test('whatsapp connection rejects an already-bound private chat jid for another 
     () => whatsapp.execute(whatsappInput(sameUserSetup.verificationCode, {
       data: {
         key: { remoteJid: '5511999999999@s.whatsapp.net', id: 'private-connect-same-user-other-workspace', fromMe: false },
-        message: { conversation: `/kb conectar ${sameUserSetup.verificationCode}` },
+        message: { conversation: `/kote conectar ${sameUserSetup.verificationCode}` },
       },
     })),
     /external_identity_already_bound/,
@@ -371,7 +371,7 @@ test('whatsapp connection rejects an already-bound private chat jid for another 
     () => whatsapp.execute(whatsappInput(otherUserSetup.verificationCode, {
       data: {
         key: { remoteJid: '5511999999999@s.whatsapp.net', id: 'private-connect-other-user', fromMe: false },
-        message: { conversation: `/kb conectar ${otherUserSetup.verificationCode}` },
+        message: { conversation: `/kote conectar ${otherUserSetup.verificationCode}` },
       },
     })),
     /external_identity_already_bound/,

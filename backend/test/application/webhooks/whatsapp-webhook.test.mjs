@@ -202,6 +202,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     undefined,
     options.askAttachments === false ? undefined : new ResolveWhatsappAskAttachmentsUseCase(repositories.contentRepository, repositories.objectStorage),
     options.audioTranscription,
+    repositories.contentRepository,
   );
   return { repositories, whatsapp, sender, user, mediaDownloader };
 }
@@ -308,7 +309,7 @@ async function seedAskNoteWithAttachment(repositories, userId, input = {}) {
 test('linked whatsapp chat processes free text and sends the first conversation reply', async (t) => {
   const { whatsapp, sender } = await fixture(t);
 
-  const result = await whatsapp.execute(evolutionInput('/kb corrigi timeout no webhook'));
+  const result = await whatsapp.execute(evolutionInput('/kote corrigi timeout no webhook'));
 
   assert.equal(result.ok, true);
   assert.equal(result.processed, true);
@@ -379,7 +380,7 @@ test('linked whatsapp private chats keep users and workspaces isolated', async (
 test('linked whatsapp chat saves note without explicit confirmation', async (t) => {
   const { repositories, whatsapp, user } = await fixture(t);
 
-  const result = await whatsapp.execute(evolutionInput('/kb corrigi timeout no webhook'));
+  const result = await whatsapp.execute(evolutionInput('/kote corrigi timeout no webhook'));
 
   assert.equal(result.action, 'submit');
   assert.match(result.message, /^Note saved successfully:/);
@@ -394,7 +395,7 @@ test('revoked whatsapp integration ignores linked chat messages before invoking 
   const { repositories, whatsapp, sender, user } = await fixture(t);
   await repositories.credentialRepository.revokeCredential(user.id, 'default', 'whatsapp', { revoked: true });
 
-  const result = await whatsapp.execute(evolutionInput('/kb corrigi timeout no webhook'));
+  const result = await whatsapp.execute(evolutionInput('/kote corrigi timeout no webhook'));
 
   assert.equal(result.ok, true);
   assert.equal(result.processed, false);
@@ -406,7 +407,7 @@ test('revoked whatsapp integration ignores linked chat messages before invoking 
 
 test('whatsapp webhook is idempotent for duplicate message deliveries', async (t) => {
   const { whatsapp, sender } = await fixture(t);
-  const input = evolutionInput('/kb corrigi timeout no webhook', {
+  const input = evolutionInput('/kote corrigi timeout no webhook', {
     data: {
       key: {
         remoteJid: '120363@g.us',
@@ -414,7 +415,7 @@ test('whatsapp webhook is idempotent for duplicate message deliveries', async (t
         id: 'duplicate-message-id',
         fromMe: false,
       },
-      message: { conversation: '/kb corrigi timeout no webhook' },
+      message: { conversation: '/kote corrigi timeout no webhook' },
     },
   });
 
@@ -432,7 +433,7 @@ test('whatsapp webhook rate limits chatty senders with a clear throttled notice'
   const { whatsapp, sender } = await fixture(t);
   const results = [];
   for (let index = 0; index < 7; index += 1) {
-    results.push(await whatsapp.execute(evolutionInput(`/kb mensagem ${index}`, {
+    results.push(await whatsapp.execute(evolutionInput(`/kote mensagem ${index}`, {
       data: {
         key: {
           remoteJid: '120363@g.us',
@@ -440,7 +441,7 @@ test('whatsapp webhook rate limits chatty senders with a clear throttled notice'
           id: `rate-limit-${index}`,
           fromMe: false,
         },
-        message: { conversation: `/kb mensagem ${index}` },
+        message: { conversation: `/kote mensagem ${index}` },
       },
     })));
   }
@@ -488,7 +489,7 @@ test('linked whatsapp chat saves captioned media as a Supabase-backed attachment
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'media-caption', fromMe: false },
       message: {
         imageMessage: {
-          caption: '/kb corrigi timeout no webhook',
+          caption: '/kote corrigi timeout no webhook',
           mimetype: 'image/png',
           fileLength: 11,
           fileName: 'erro.png',
@@ -517,7 +518,7 @@ test('linked whatsapp chat normalizes attachment storage keys for accented filen
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'media-accented-name', fromMe: false },
       message: {
         documentMessage: {
-          caption: '/kb corrigi timeout no webhook',
+          caption: '/kote corrigi timeout no webhook',
           mimetype: 'application/pdf',
           fileLength: 11,
           fileName: 'FéConect-52e25237-dd8a-4511-ba6b-1e394674930f (11).pdf',
@@ -549,7 +550,7 @@ test('direct whatsapp webhook downloads media when Evolution payload has metadat
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'media-download', fromMe: false },
       message: {
         imageMessage: {
-          caption: '/kb corrigi timeout no webhook',
+          caption: '/kote corrigi timeout no webhook',
           mimetype: 'image/png',
           fileLength: 16,
           fileName: 'erro.png',
@@ -570,7 +571,7 @@ test('whatsapp /ask command replies with semantic AI answer scoped to the worksp
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
 
-  const result = await whatsapp.execute(evolutionInput('/kb /ask como fazer deploy?'));
+  const result = await whatsapp.execute(evolutionInput('/kote /ask como fazer deploy?'));
 
   assert.equal(result.action, 'ask');
   assert.equal(result.replySent, true);
@@ -603,7 +604,7 @@ test('whatsapp /ask command sends related note attachments only when requested',
   askKnowledge.result.relatedNotes = [{ id: note.id, title: note.title, path: note.path, workspaceSlug: note.workspaceSlug }];
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kb /ask quero o PDF do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o PDF do deploy'));
 
   assert.equal(result.action, 'ask');
   assert.equal(result.replySent, true);
@@ -636,7 +637,7 @@ test('whatsapp /ask command limits media replies to 3 attachments', async (t) =>
   askKnowledge.result.relatedNotes = seeded.map(({ note }) => ({ id: note.id, workspaceSlug: note.workspaceSlug }));
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kb /ask quero os anexos do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote /ask quero os anexos do deploy'));
 
   assert.equal(result.mediaSent, 3);
   assert.equal(sender.media.length, 3);
@@ -663,7 +664,7 @@ test('whatsapp /ask command filters attachments by requestedAttachmentPattern wh
   askKnowledge.result.requestedAttachments = true;
   askKnowledge.result.requestedAttachmentPattern = 'resumo';
 
-  const result = await whatsapp.execute(evolutionInput('/kb /ask quero o PDF de resumo'));
+  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o PDF de resumo'));
 
   assert.equal(result.mediaSent, 1);
   assert.equal(sender.media.length, 1);
@@ -685,7 +686,7 @@ test('whatsapp /ask command falls back to all attachments when requestedAttachme
   askKnowledge.result.requestedAttachments = true;
   askKnowledge.result.requestedAttachmentPattern = 'nao-existente';
 
-  const result = await whatsapp.execute(evolutionInput('/kb /ask quero o PDF de nao-existente'));
+  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o PDF de nao-existente'));
 
   assert.equal(result.mediaSent, 1);
   assert.equal(sender.media.length, 1);
@@ -704,7 +705,7 @@ test('whatsapp /ask command skips attachments over 15 MB and mentions the size l
   askKnowledge.result.relatedNotes = [{ id: note.id, workspaceSlug: note.workspaceSlug }];
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kb /ask quero o arquivo do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o arquivo do deploy'));
 
   assert.equal(result.mediaSent, 0);
   assert.equal(result.mediaOversized, 1);
@@ -742,7 +743,7 @@ test('whatsapp /ask command reports no attachments when related notes have none'
   askKnowledge.result.relatedNotes = [{ id: emptyNote.id, workspaceSlug: emptyNote.workspaceSlug }];
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kb /ask quero o arquivo do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o arquivo do deploy'));
 
   assert.equal(result.mediaSent, 0);
   assert.equal(sender.media.length, 0);
@@ -772,7 +773,7 @@ test('whatsapp /ask attachments stay scoped to the linked workspace', async (t) 
   askKnowledge.result.relatedNotes = [{ id: note.id, workspaceSlug: note.workspaceSlug }];
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kb /ask quero o arquivo do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o arquivo do deploy'));
 
   assert.equal(result.mediaSent, 0);
   assert.equal(sender.media.length, 0);
@@ -782,8 +783,8 @@ test('whatsapp /ask command keeps each question isolated from previous turns', a
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { whatsapp, repositories, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
 
-  await whatsapp.execute(evolutionInput('/kb /ask qual é o deploy checklist?'));
-  await whatsapp.execute(evolutionInput('/kb /ask e como executa?'));
+  await whatsapp.execute(evolutionInput('/kote /ask qual é o deploy checklist?'));
+  await whatsapp.execute(evolutionInput('/kote /ask e como executa?'));
 
   assert.equal(askKnowledge.calls.length, 2);
   assert.deepEqual(askKnowledge.calls[0].options, { workspaceSlug: 'default' });
@@ -809,10 +810,10 @@ test('whatsapp webhook ignores only bot-prefixed self messages', async (t) => {
 test('whatsapp webhook processes self-authored messages without bot prefix', async (t) => {
   const { whatsapp, sender } = await fixture(t);
 
-  const result = await whatsapp.execute(evolutionInput('/kb corrigi timeout no webhook', {
+  const result = await whatsapp.execute(evolutionInput('/kote corrigi timeout no webhook', {
     data: {
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: 'from-me-user', fromMe: true },
-      message: { conversation: '/kb corrigi timeout no webhook' },
+      message: { conversation: '/kote corrigi timeout no webhook' },
     },
   }));
 
@@ -827,10 +828,10 @@ test('unknown whatsapp chat is still rejected', async (t) => {
   const { whatsapp } = await fixture(t);
 
   await assert.rejects(
-    () => whatsapp.execute(evolutionInput('/kb mensagem normal', {
+    () => whatsapp.execute(evolutionInput('/kote mensagem normal', {
       data: {
         key: { remoteJid: 'unknown@g.us', participant: '5511999999999@s.whatsapp.net', id: 'unknown', fromMe: false },
-        message: { conversation: '/kb mensagem normal' },
+        message: { conversation: '/kote mensagem normal' },
       },
     })),
     /identity_not_found/,
@@ -841,7 +842,7 @@ test('evolution send failure returns replySent false after saving without duplic
   const sender = new CapturingWhatsappSender(false);
   const { repositories, whatsapp, user } = await fixture(t, sender);
 
-  const result = await whatsapp.execute(evolutionInput('/kb corrigi timeout no webhook'));
+  const result = await whatsapp.execute(evolutionInput('/kote corrigi timeout no webhook'));
 
   assert.equal(result.conversationResult.action, 'submit');
   assert.equal(result.replySent, false);
@@ -867,7 +868,7 @@ test('whatsapp private media without caption asks for text and does not save att
   assert.equal(sender.sent.length, 1);
 });
 
-test('group messages without /kb prefix are ignored before creating notes or replies', async (t) => {
+test('group messages without /kote prefix are ignored before creating notes or replies', async (t) => {
   const { repositories, whatsapp, sender, user } = await fixture(t);
 
   const result = await whatsapp.execute(evolutionInput('corrigi timeout no webhook'));
@@ -932,7 +933,7 @@ test('linked whatsapp chat computes attachment size from downloaded base64 when 
       key: { remoteJid: '120363@g.us', participant: '5511999999999@s.whatsapp.net', id: `media-missing-size-${Math.random()}`, fromMe: false },
       message: {
         imageMessage: {
-          caption: '/kb corrigi timeout no webhook',
+          caption: '/kote corrigi timeout no webhook',
           mimetype: 'image/png',
           fileName: 'erro.png',
           // fileLength is missing

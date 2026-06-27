@@ -59,7 +59,7 @@ export function userFromRow(row: Row): KbUser {
     id: String(row.id),
     email: String(row.email),
     displayName: String(field(row, 'display_name', 'displayName') || row.email),
-    passwordHash: field(row, 'password_hash', 'passwordHash') == null ? null : String(field(row, 'password_hash', 'passwordHash')),
+    passwordHash: !field(row, 'password_hash', 'passwordHash') ? null : String(field(row, 'password_hash', 'passwordHash')),
     role: String(row.role),
     avatar: fieldString(row, 'avatar', 'avatar'),
     cpfCnpj: fieldString(row, 'cpf_cnpj', 'cpfCnpj', ''),

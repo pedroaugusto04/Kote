@@ -70,7 +70,14 @@ export class PostgresProjectRepository {
     const client = await this.database.getPool().connect();
     try {
       await client.query('BEGIN');
-      const workspaceId = input.workspaceId;
+      let workspaceId = input.workspaceId;
+      if (!workspaceId && input.workspaceSlug) {
+        const workspaceResult = await client.query(
+          'select id from kb_workspaces where user_id = $1 and workspace_slug = $2 limit 1',
+          [userId, input.workspaceSlug]
+        );
+        workspaceId = workspaceResult.rows[0]?.id;
+      }
 
       const result = await client.query(
         `insert into kb_projects (id, user_id, project_slug, display_name, workspace_id, enabled, is_favorite)
