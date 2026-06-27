@@ -1,16 +1,42 @@
-Copyright (c) 2026 Pedro Duarte
+# Kote Sustainable Use License (SUL)
 
-All Rights Reserved.
+Copyright (c) 2026 Pedro Duarte. All rights reserved.
 
-This repository and its source code are made available solely for viewing and reference purposes. 
-You are strictly prohibited from using, copying, modifying, merging, publishing, distributing, 
-sublicensing, or selling copies of the software, or portions thereof, for any purpose 
-(commercial or non-commercial), without prior explicit written permission from the copyright holder.
+## Acceptance
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+By using, copying, modifying, or distributing the software, you agree to all of the terms and conditions below.
+
+## Copyright License
+
+Subject to the limitations and conditions below, the licensor hereby grants you a non-exclusive, royalty-free, worldwide, non-sublicensable, non-transferable license to use, copy, distribute, make available, and prepare derivative works of the software.
+
+## Limitations
+
+### 1. Non-Competing Use
+You may not make the software available to others as a commercial product or service. Prohibited activities include, but are not limited to:
+* Hosting or running the software as a service (SaaS) for third parties.
+* White-labeling or selling the software under another brand.
+* Embedding the software into another commercial product or service without prior explicit written permission from the copyright holder.
+
+### 2. Permitted Uses
+You are permitted to use, run, and modify the software for:
+* Your own internal business purposes.
+* Personal, non-commercial use.
+* Educational or academic research.
+
+### 3. Redistribution
+You may distribute copies of the software or your modifications to others only if you do so free of charge, under this same license, and without removing any copyright or license notices.
+
+### 4. Notices and Trademarks
+* You may not alter, remove, or obscure any licensing, copyright, or other notices of the licensor in the software.
+* This license does not grant you any rights to use the licensor's trademarks, trade names, service marks, or product names.
+
+## Patents
+
+To the extent your use for a Permitted Use would necessarily infringe the licensor's patents, this license includes a patent license under those patents. If you make any patent infringement claim against the licensor or any party using this software, your license to the software ends immediately.
+
+## Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS" AND WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABILITY, TITLE OR NON-INFRINGEMENT.
+
+IN NO EVENT WILL THE LICENSOR HAVE ANY LIABILITY TO YOU ARISING OUT OF OR RELATED TO THE SOFTWARE, INCLUDING INDIRECT, SPECIAL, INCIDENTAL OR CONSEQUENTIAL DAMAGES, EVEN IF THE LICENSOR HAS BEEN INFORMED OF THEIR POSSIBILITY IN ADVANCE.
