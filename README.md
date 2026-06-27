@@ -38,7 +38,7 @@ Software development generates a high volume of technical context that rarely ma
 * Rationale behind architectural changes, which is often omitted in brief commit messages.
 * Infrastructure exceptions, environment configurations, and setup notes.
 
-Kote is designed to capture these workflows passively, organizing them into a unified knowledge base without requiring developers to write traditional documentation from scratch.
+Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed.
 
 ---
 
