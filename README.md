@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  A developer memory layer that captures AI sessions, Git history, and development context, turning them into searchable context.
+  A developer memory layer that captures AI sessions, Git history and development context, turning them into searchable context.
   <br><br>
   <a href="https://knowledgebase.sbs/kote">→ Open Kote Web App</a>
   <br><br>
