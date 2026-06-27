@@ -13,7 +13,7 @@ import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { EmbeddingGateway } from '../../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
 import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
-import type { AppLogger } from '../../../../observability/logger.js';
+import { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPullRequestPayload = {
   action?: string;
@@ -50,6 +50,8 @@ function githubPrAuditPayload(body: GithubPullRequestPayload): Record<string, un
 
 @Injectable()
 export class HandleGithubPullRequestUseCase {
+  private readonly logger: AppLogger;
+
   constructor(
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
@@ -58,11 +60,12 @@ export class HandleGithubPullRequestUseCase {
     private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly answerGenerationGateway: AnswerGenerationGateway,
-    private readonly logger: AppLogger,
     private readonly quotaService?: QuotaService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
-  ) {}
+  ) {
+    this.logger = AppLogger.create();
+  }
 
   async execute(input: GithubPullRequestWebhookRequest) {
     const environment = this.environmentProvider.read();

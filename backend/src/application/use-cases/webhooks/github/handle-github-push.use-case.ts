@@ -17,7 +17,7 @@ import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import { QuotaService } from '../../../services/quota.service.js';
 import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
-import type { AppLogger } from '../../../../observability/logger.js';
+import { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPushPayload = {
   ref?: string;
@@ -51,6 +51,8 @@ function githubAuditPayload(body: GithubPushPayload): Record<string, unknown> {
 
 @Injectable()
 export class HandleGithubPushUseCase {
+  private readonly logger: AppLogger;
+
   constructor(
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly externalIdentities: ExternalIdentityRepository,
@@ -58,13 +60,14 @@ export class HandleGithubPushUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
-    private readonly logger: AppLogger,
     private readonly quotaService?: QuotaService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
     private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
-  ) { }
+  ) {
+    this.logger = AppLogger.create();
+  }
 
   async execute(input: GithubPushWebhookRequest) {
     const environment = this.environmentProvider.read();
