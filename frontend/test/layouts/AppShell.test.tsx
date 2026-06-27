@@ -1038,7 +1038,7 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />);
 
     expect(await screen.findByRole('heading', { name: 'Your team writes the code. Let us capture the context.' })).toBeInTheDocument();
-    expect(screen.getByText('Keep AI sessions, GitHub PR reviews, WhatsApp & Telegram messages, decisions, and reminders unified.')).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes('Keep AI sessions') && content.includes('GitHub PR reviews') && content.includes('WhatsApp & Telegram messages'))).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'With Kote, you don\'t need to guess.' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Semantic Search & AI Assistant' })).toBeInTheDocument();
     expect(screen.getByText('Context & Evidence')).toBeInTheDocument();

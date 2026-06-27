@@ -73,7 +73,9 @@ To start using Kote:
    * **Browser Extension:** Install the Chrome/Firefox extension to clip web documentation into your Kote.
      
 4. **Start Capturing Context Automatically:**
-Once set up, Kote runs in the background and continuously captures AI sessions (Antigravity, Codex, Claude Code, OpenCode, etc.), GitHub activity (pushes and pull requests), and development context. Everything you work on becomes searchable knowledge that you can query to understand what you’ve done, why decisions were made, and how your system evolved over time.
+Once set up, Kote runs in the background and continuously captures AI sessions (Antigravity, Codex, Claude Code, OpenCode, etc.), GitHub activity (pushes and pull requests), and development context. Everything you work on becomes searchable knowledge that you can query to understand what you've done, why decisions were made, and how your system evolved over time.
+
+---
 
 <details>
 <summary><strong>Self-Hosting (Docker)</strong></summary>
