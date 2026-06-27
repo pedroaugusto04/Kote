@@ -12,8 +12,6 @@
 </p>
 
 <p align="center">
-  <strong>Capture and reuse your development context automatically.</strong>
-  <br><br>
   A developer memory layer that captures AI sessions, Git history, and engineering decisions, turning them into searchable context.
   <br><br>
   <a href="https://knowledgebase.sbs/kote">→ Open Kote Web App</a>
