@@ -100,6 +100,11 @@ function githubHandlerFixture(projects = []) {
       },
     },
     {
+      async checkAndIncrementAiUsage() {
+        return { allowed: true };
+      },
+    },
+    {
       async listProjects() {
         return projects;
       },
@@ -207,6 +212,12 @@ test('github push is converted to canonical code review event', async () => {
             reviewFindings: [],
           };
         },
+      },
+      logger: {
+        info() {},
+        warn() {},
+        error() {},
+        debug() {},
       },
     },
   );
@@ -342,6 +353,11 @@ test('github app push sends whatsapp alert for high severity AI review findings'
       },
     },
     {
+      async checkAndIncrementAiUsage() {
+        return { allowed: true };
+      },
+    },
+    {
       async listProjects() {
         return [
           {
@@ -365,6 +381,17 @@ test('github app push sends whatsapp alert for high severity AI review findings'
             updatedAt: '2026-04-27T10:00:00.000Z',
           },
         ];
+      },
+      async getWorkspaceBySlug(userId, workspaceSlug) {
+        return {
+          id: 'workspace-id-1',
+          workspaceSlug: 'default',
+          displayName: 'Default',
+          whatsappChatJid: '5511999999999@s.whatsapp.net',
+          telegramChatId: '',
+          createdAt: '2026-04-27T10:00:00.000Z',
+          updatedAt: '2026-04-27T10:00:00.000Z',
+        };
       },
     },
     {

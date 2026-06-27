@@ -63,6 +63,7 @@ export function noteDetail(
     markdown: record.markdown,
     frontmatter: {
       id: record.id,
+      type: resolveCanonicalTypeFromCategories(record.categories || [], (record.categories || []).map((c) => c.id)),
       categories: record.categories.map((c) => c.name),
       workspace: record.workspaceSlug || '',
       source_channel: record.sourceChannel,

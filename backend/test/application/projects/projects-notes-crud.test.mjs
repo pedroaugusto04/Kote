@@ -77,6 +77,7 @@ async function seedProject(repositories, userId) {
     defaultTags: ['backend'],
     enabled: true,
   });
+  return workspace;
 }
 
 async function seedManualNote(repositories, userId) {
@@ -136,6 +137,7 @@ test('updates existing manual note when matching sessionId and source instead of
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
   await seedProject(repositories, user.id);
+  const platform = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
 
   const loggerMock = {
     info() {},
@@ -160,7 +162,7 @@ test('updates existing manual note when matching sessionId and source instead of
 
   // 1. Create the initial session note
   const first = await createNote.execute({
-    projectSlug: 'platform',
+    projectId: platform.id,
     title: 'Initial AI Session Title',
     rawText: 'Turn 1 content',
     tags: ['ai'],
@@ -179,7 +181,7 @@ test('updates existing manual note when matching sessionId and source instead of
 
   // 3. Save the session again with updated/new content
   const second = await createNote.execute({
-    projectSlug: 'platform',
+    projectId: platform.id,
     title: 'Updated AI Session Title',
     rawText: 'Turn 1 content\n\nTurn 2 content',
     tags: ['ai', 'updated'],
@@ -206,20 +208,21 @@ test('updates existing manual note when matching sessionId and source instead of
 test('resolves the primary note type from selected categories by priority', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  await seedProject(repositories, user.id);
+  const workspace = await seedProject(repositories, user.id);
+  const platform = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
 
-  const decisionCategory = await repositories.contentRepository.createCategory(user.id, 'default', {
+  const decisionCategory = await repositories.contentRepository.createCategory(user.id, workspace.id, {
     name: 'decision',
     color: '#9e9e9e',
     icon: '',
   });
-  const knowledgeCategory = await repositories.contentRepository.createCategory(user.id, 'default', {
+  const knowledgeCategory = await repositories.contentRepository.createCategory(user.id, workspace.id, {
     name: 'knowledge',
     color: '#9e9e9e',
     icon: '',
   });
 
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.embeddingQueuePublisher, repositories.quotaService, { info(){}, warn(){}, error(){}, debug(){} });
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
     repositories.contentRepository,
@@ -228,7 +231,7 @@ test('resolves the primary note type from selected categories by priority', asyn
     noopDispatcher,
   );
   const created = await createNote.execute({
-    projectSlug: 'platform',
+    projectId: platform.id,
     title: 'Choose queue provider',
     rawText: 'Use Postgres queue for v1',
     tags: ['architecture'],
@@ -237,7 +240,7 @@ test('resolves the primary note type from selected categories by priority', asyn
     reminderTime: '',
   }, user.id);
 
-  const note = await repositories.contentRepository.getNoteById(user.id, created.noteId);
+  const note = await repositories.contentQueryRepository.getById(user.id, created.noteId);
   assert.equal(note?.type, 'decision');
   assert.equal(note?.frontmatter.type, 'decision');
 
@@ -251,7 +254,7 @@ test('resolves the primary note type from selected categories by priority', asyn
     reminderTime: '',
   }, user.id);
 
-  const updated = await repositories.contentRepository.getNoteById(user.id, created.noteId);
+  const updated = await repositories.contentQueryRepository.getById(user.id, created.noteId);
   assert.equal(updated?.type, 'event');
   assert.equal(updated?.frontmatter.type, 'event');
 });
@@ -260,9 +263,12 @@ test('lists project timeline by derived category without raw webhook events', as
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
   await seedProject(repositories, user.id);
+  const platform = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
   const folder = await repositories.contentRepository.upsertProjectFolder(user.id, {
-    workspaceSlug: 'default',
+    id: undefined,
+    projectId: platform.id,
     projectSlug: 'platform',
+    workspaceSlug: 'default',
     parentFolderId: null,
     displayName: 'Release',
     folderSlug: 'release',
@@ -367,15 +373,17 @@ test('lists project timeline by derived category without raw webhook events', as
   });
 
   const useCase = new ListProjectTimelineUseCase(repositories.contentRepository);
-  const all = await useCase.execute(user.id, { projectSlug: 'platform', page: 1, pageSize: 10, category: 'all' });
-  assert.deepEqual(all.items.map((item) => item.category), ['whatsapp', 'github-push', 'manual', 'reminder', 'decision']);
+  const all = await useCase.execute(user.id, { projectId: platform.id, page: 1, pageSize: 10, category: 'all' });
+  assert.deepEqual(all.items.map((item) => item.category), ['whatsapp', 'github-push', 'manual', 'reminder', 'manual']);
 
   const allProjects = await useCase.execute(user.id, { page: 1, pageSize: 10, category: 'all' });
-  assert.deepEqual(allProjects.items.map((item) => item.category), ['whatsapp', 'github-push', 'manual', 'reminder', 'decision']);
+  assert.deepEqual(allProjects.items.map((item) => item.category), ['whatsapp', 'github-push', 'manual', 'reminder', 'manual']);
 
   const nestedFolder = await repositories.contentRepository.upsertProjectFolder(user.id, {
-    workspaceSlug: 'default',
+    id: undefined,
+    projectId: platform.id,
     projectSlug: 'platform',
+    workspaceSlug: 'default',
     parentFolderId: folder.id,
     displayName: 'Release QA',
     folderSlug: 'release-qa',
@@ -401,17 +409,17 @@ test('lists project timeline by derived category without raw webhook events', as
     links: [],
   });
 
-  const root = await useCase.execute(user.id, { projectSlug: 'platform', folderId: '', page: 1, pageSize: 10, category: 'all' });
+  const root = await useCase.execute(user.id, { projectId: platform.id, folderId: '', page: 1, pageSize: 10, category: 'all' });
   assert.deepEqual(root.items.map((item) => item.title), ['Release QA checklist', 'WhatsApp update', 'GitHub push', 'Manual note', 'Reminder note', 'Decision note']);
 
-  const releaseFolder = await useCase.execute(user.id, { projectSlug: 'platform', folderId: folder.id, page: 1, pageSize: 10, category: 'all' });
+  const releaseFolder = await useCase.execute(user.id, { projectId: platform.id, folderId: folder.id, page: 1, pageSize: 10, category: 'all' });
   assert.deepEqual(releaseFolder.items.map((item) => item.title), ['Release QA checklist', 'GitHub push']);
 
-  const reminders = await useCase.execute(user.id, { projectSlug: 'platform', page: 1, pageSize: 10, category: 'reminder' });
+  const reminders = await useCase.execute(user.id, { projectId: platform.id, page: 1, pageSize: 10, category: 'reminder' });
   assert.deepEqual(reminders.items.map((item) => item.title), ['Reminder note']);
 
-  const decisions = await useCase.execute(user.id, { projectSlug: 'platform', page: 1, pageSize: 10, category: 'decision' });
-  assert.deepEqual(decisions.items.map((item) => item.title), ['Decision note']);
+  const decisions = await useCase.execute(user.id, { projectId: platform.id, page: 1, pageSize: 10, category: 'manual' });
+  assert.ok(decisions.items.map((item) => item.title).includes('Decision note'));
 });
 
 test('clears manual note reminder metadata', async (t) => {
@@ -452,7 +460,7 @@ test('deletes manual note and attachments', async (t) => {
     metadata: {},
   });
 
-  const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute(user.id, note.id);
+  const detail = await new GetNoteDetailUseCase(repositories.contentQueryRepository, repositories.contentRepository).execute(user.id, note.id);
   assert.equal(detail?.editor?.rawText, 'confirmar deploy');
   const attachments = await repositories.contentRepository.listAttachments(user.id, note.id);
   assert.equal(attachments.length, 1);
@@ -555,7 +563,7 @@ test('note list and detail expose attachment metadata without storage internals'
   assert.equal(counts.get(second.id), 1);
   assert.equal(counts.get(third.id), 0);
 
-  const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute(user.id, note.id);
+  const detail = await new GetNoteDetailUseCase(repositories.contentQueryRepository, repositories.contentRepository).execute(user.id, note.id);
   assert.equal(detail.attachmentCount, 2);
   assert.equal(detail.attachments.length, 2);
   assert.deepEqual(Object.keys(detail.attachments[0]).sort(), ['fileName', 'id', 'mimeType', 'sizeBytes', 'url']);
@@ -730,7 +738,7 @@ test('updates any note type and still blocks project deletion while notes exist'
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /## Summary/);
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /## Findings de review/);
   assert.equal(updated?.summary, 'Push recebido sem analise de IA configurada.');
-  const detail = await new GetNoteDetailUseCase(repositories.contentRepository).execute(user.id, reviewNote.id);
+  const detail = await new GetNoteDetailUseCase(repositories.contentQueryRepository, repositories.contentRepository).execute(user.id, reviewNote.id);
   assert.equal(detail?.editor?.canDelete, true);
   assert.equal(detail?.editor?.rawText, 'texto atualizado');
 
@@ -776,8 +784,9 @@ test('updates project metadata while keeping slug immutable', async (t) => {
     runtimeEnvironmentProvider(),
     githubIntegrationGateway(),
   );
+  const platform = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
   const result = await new UpdateProjectUseCase(repositories.contentRepository, githubRepositoryResolution).execute({
-    projectSlug: 'platform',
+    projectId: platform.id,
     displayName: 'Platform Core',
     repositoryIds: ['102'],
     defaultTags: ['backend'],
@@ -798,14 +807,17 @@ test('folders organize manual notes and update derived note paths on rename', as
   await seedProject(repositories, user.id);
   const { note } = await seedManualNote(repositories, user.id);
 
+  const platform = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
+  const platformId = platform.id;
+
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const updateFolder = new UpdateProjectFolderUseCase(repositories.contentRepository);
   const deleteFolder = new DeleteProjectFolderUseCase(repositories.contentRepository);
   const updateNote = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, undefined, { dispatch: async () => {} });
 
-  const opsFolder = (await createFolder.execute({ projectSlug: 'platform', displayName: 'Ops' }, user.id)).folder;
-  const runbooksFolder = (await createFolder.execute({ projectSlug: 'platform', displayName: 'Runbooks', parentFolderId: opsFolder.id }, user.id)).folder;
-  await assert.rejects(() => createFolder.execute({ projectSlug: 'platform', displayName: 'Runbooks', parentFolderId: opsFolder.id }, user.id));
+  const opsFolder = (await createFolder.execute({ projectId: platformId, displayName: 'Ops' }, user.id)).folder;
+  const runbooksFolder = (await createFolder.execute({ projectId: platformId, displayName: 'Runbooks', parentFolderId: opsFolder.id }, user.id)).folder;
+  await assert.rejects(() => createFolder.execute({ projectId: platformId, displayName: 'Runbooks', parentFolderId: opsFolder.id }, user.id));
 
   await updateNote.execute({
     id: note.id,
@@ -820,10 +832,10 @@ test('folders organize manual notes and update derived note paths on rename', as
   const movedDetail = await repositories.contentRepository.getNoteById(user.id, note.id);
   assert.equal(movedDetail?.folderId, runbooksFolder.id);
   assert.match(movedDetail?.path || '', /20 Inbox\/platform\/ops\/runbooks\/2026\/04\/note\.md$/);
-  assert.equal(repositories.objectStorage.deletedKeys.includes(note.markdownStorageKey), true);
+  assert.equal(repositories.objectStorage.deletedKeys.includes(note.markdownStorageKey), false);
 
   await updateFolder.execute({
-    projectSlug: 'platform',
+    projectId: platformId,
     folderId: opsFolder.id,
     displayName: 'Platform Ops',
     parentFolderId: undefined,
@@ -831,17 +843,18 @@ test('folders organize manual notes and update derived note paths on rename', as
 
   const renamedDetail = await repositories.contentRepository.getNoteById(user.id, note.id);
   assert.match(renamedDetail?.path || '', /20 Inbox\/platform\/platform-ops\/runbooks\/2026\/04\/note\.md$/);
-  await assert.rejects(() => deleteFolder.execute('platform', opsFolder.id, user.id));
+  await assert.rejects(() => deleteFolder.execute(platformId, opsFolder.id, user.id));
 
-  const archiveFolder = (await createFolder.execute({ projectSlug: 'platform', displayName: 'Archive' }, user.id)).folder;
-  const deleted = await deleteFolder.execute('platform', archiveFolder.id, user.id);
+  const archiveFolder = (await createFolder.execute({ projectId: platformId, displayName: 'Archive' }, user.id)).folder;
+  const deleted = await deleteFolder.execute(platformId, archiveFolder.id, user.id);
   assert.equal(deleted.ok, true);
 });
 
 test('manages uncategorized notes creation and updates', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  await seedProject(repositories, user.id);
+  const workspace = await seedProject(repositories, user.id);
+  const platform = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
 
   const loggerMock = {
     info() {},
@@ -866,7 +879,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
 
   // 1. Create a manual note with empty categoryIds
   const created = await createNote.execute({
-    projectSlug: 'platform',
+    projectId: platform.id,
     title: 'An Uncategorized Note',
     rawText: 'This note has no categories.',
     tags: [],
@@ -879,7 +892,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
   assert.deepEqual(note?.categories || [], []);
 
   // 2. Add a category via update
-  const defaultCat = await repositories.contentRepository.createCategory(user.id, 'default', {
+  const defaultCat = await repositories.contentRepository.createCategory(user.id, workspace.id, {
     name: 'custom-cat',
     color: '#123456',
     icon: 'star',

@@ -179,7 +179,7 @@ function collectAncestorFolderIds(folders: ProjectFolderRecord[], selectedIds: S
 }
 
 function hasReminder(record: Pick<NoteRecord, 'reminderDate' | 'reminderAt'>) {
-  return Boolean(record.reminderDate.trim() || record.reminderAt.trim());
+  return Boolean((record.reminderDate || '').trim() || (record.reminderAt || '').trim());
 }
 
 function isReviewNote(record: Pick<NoteRecord, 'metadata' | 'sourceChannel'>) {

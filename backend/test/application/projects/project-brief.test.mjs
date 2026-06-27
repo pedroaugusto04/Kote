@@ -21,8 +21,9 @@ async function setup(t) {
     repositories.contentRepository,
     repositories.credentialRepository,
     repositories.runtimeEnvironmentProvider,
+    repositories.quotaService,
   ).execute({ displayName: 'Default', workspaceSlug: 'default' }, user.id);
-  await repositories.contentRepository.upsertProject(user.id, {
+  const project = await repositories.contentRepository.upsertProject(user.id, {
     projectSlug: 'platform',
     displayName: 'Platform',
     repositories: [],
@@ -30,7 +31,7 @@ async function setup(t) {
     defaultTags: [],
     enabled: true,
   });
-  return { repositories, user };
+  return { repositories, user, project };
 }
 
 function useCase(repositories, gateway) {
@@ -40,11 +41,12 @@ function useCase(repositories, gateway) {
     repositories.projectBriefHistoryRepository,
     gateway,
     repositories.runtimeEnvironmentProvider,
+    repositories.quotaService,
   );
 }
 
 test('generate project brief uses recent project items, filters invalid sources and saves history', async (t) => {
-  const { repositories, user } = await setup(t);
+  const { repositories, user, project } = await setup(t);
   for (let index = 0; index < 32; index += 1) {
     await repositories.contentRepository.upsertNote(user.id, {
       path: `20 Inbox/platform/item-${index}.md`,
@@ -89,7 +91,7 @@ test('generate project brief uses recent project items, filters invalid sources 
     },
   };
 
-  const result = await useCase(repositories, gateway).execute(user.id, 'platform');
+  const result = await useCase(repositories, gateway).execute(user.id, project.id);
 
   assert.equal(result.ok, true);
   assert.equal(result.fallback, false);
@@ -109,10 +111,10 @@ test('generate project brief uses recent project items, filters invalid sources 
 });
 
 test('generate project brief saves deterministic empty brief when project has no items', async (t) => {
-  const { repositories, user } = await setup(t);
+  const { repositories, user, project } = await setup(t);
   const gateway = { async generate() { throw new Error('should_not_call_ai'); } };
 
-  const result = await useCase(repositories, gateway).execute(user.id, 'platform');
+  const result = await useCase(repositories, gateway).execute(user.id, project.id);
 
   assert.equal(result.ok, true);
   assert.equal(result.fallback, false);
@@ -126,7 +128,7 @@ test('generate project brief saves deterministic empty brief when project has no
 });
 
 test('generate project brief returns latest saved brief as fallback after AI failure', async (t) => {
-  const { repositories, user } = await setup(t);
+  const { repositories, user, project } = await setup(t);
   await repositories.contentRepository.upsertNote(user.id, {
     path: '20 Inbox/platform/item.md',
     type: 'event',
@@ -162,10 +164,10 @@ test('generate project brief returns latest saved brief as fallback after AI fai
       };
     },
   };
-  await useCase(repositories, firstGateway).execute(user.id, 'platform');
+  await useCase(repositories, firstGateway).execute(user.id, project.id);
 
   const failingGateway = { async generate() { throw new Error('ai_down'); } };
-  const result = await useCase(repositories, failingGateway).execute(user.id, 'platform');
+  const result = await useCase(repositories, failingGateway).execute(user.id, project.id);
 
   assert.equal(result.ok, true);
   assert.equal(result.fallback, true);
@@ -174,7 +176,7 @@ test('generate project brief returns latest saved brief as fallback after AI fai
 });
 
 test('get project brief returns latest saved brief without calling AI', async (t) => {
-  const { repositories, user } = await setup(t);
+  const { repositories, user, project } = await setup(t);
   const generated = await useCase(repositories, {
     async generate(_config, payload) {
       return {
@@ -190,12 +192,12 @@ test('get project brief returns latest saved brief without calling AI', async (t
         sources: [],
       };
     },
-  }).execute(user.id, 'platform');
+  }).execute(user.id, project.id);
 
   const result = await new GetProjectBriefUseCase(
     repositories.contentRepository,
     repositories.projectBriefHistoryRepository,
-  ).execute(user.id, 'platform');
+  ).execute(user.id, project.id);
 
   assert.equal(result.ok, true);
   assert.equal(result.source, 'history');
@@ -203,20 +205,20 @@ test('get project brief returns latest saved brief without calling AI', async (t
 });
 
 test('get project brief returns null when no saved brief exists', async (t) => {
-  const { repositories, user } = await setup(t);
+  const { repositories, user, project } = await setup(t);
 
   const result = await new GetProjectBriefUseCase(
     repositories.contentRepository,
     repositories.projectBriefHistoryRepository,
-  ).execute(user.id, 'platform');
+  ).execute(user.id, project.id);
 
   assert.deepEqual(result, { ok: true, source: 'none', brief: null });
 });
 
 test('generate project brief rejects missing project, disconnected AI, and AI failure without history', async (t) => {
-  const { repositories, user } = await setup(t);
+  const { repositories, user, project } = await setup(t);
 
-  await assert.rejects(() => useCase(repositories, { async generate() { return null; } }).execute(user.id, 'missing'));
+  await assert.rejects(() => useCase(repositories, { async generate() { return null; } }).execute(user.id, '00000000-0000-0000-0000-000000000000'), /project_not_found/);
 
   await repositories.credentialRepository.revokeCredential(
     user.id,
@@ -225,7 +227,7 @@ test('generate project brief rejects missing project, disconnected AI, and AI fa
     { revoked: true },
   );
   await assert.rejects(
-    () => useCase(repositories, { async generate() { return null; } }).execute(user.id, 'platform'),
+    () => useCase(repositories, { async generate() { return null; } }).execute(user.id, project.id),
     /project_brief_ai_not_connected/,
   );
 });

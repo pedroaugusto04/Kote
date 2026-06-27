@@ -137,7 +137,7 @@ function whatsappInput(code, overrides = {}) {
       userId: 'attacker-user-id',
       data: {
         key: { remoteJid: '120363@g.us' },
-        message: { conversation: `/kote conectar ${code}` },
+        message: { conversation: `/kote connect ${code}` },
       },
       token: 'payload-token',
       nested: { apiKey: 'nested-key', keep: 'visible' },
@@ -156,7 +156,7 @@ function telegramInput(code, overrides = {}) {
     body: {
       message: {
         chat: { id: '987654321' },
-        text: `/kote conectar ${code}`,
+        text: `/kote connect ${code}`,
       },
       token: 'payload-token',
       ...(overrides.body || {}),
@@ -203,6 +203,14 @@ test('github app callback validates state, installation ownership, conflicts and
   );
 
   const secondUser = await repositories.userRepository.createUser({ email: 'other@example.com', displayName: 'Other', passwordHash: 'hash', role: 'user' });
+  await repositories.contentRepository.upsertWorkspace(secondUser.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappChatJid: '',
+    telegramChatId: '',
+    createdAt: '2026-04-27T00:00:00.000Z',
+    updatedAt: '2026-04-27T00:00:00.000Z',
+  });
   await repositories.externalIdentityRepository.upsertExternalIdentity({
     userId: secondUser.id,
     workspaceSlug: 'default',
@@ -284,7 +292,7 @@ test('whatsapp connection command binds the chat even when authored by the conne
   const result = await whatsapp.execute(whatsappInput(setup.verificationCode, {
     data: {
       key: { remoteJid: '120363@g.us', fromMe: true, id: 'connect-msg', participant: '5511999999999@s.whatsapp.net' },
-      message: { conversation: `/kote conectar ${setup.verificationCode}` },
+      message: { conversation: `/kote connect ${setup.verificationCode}` },
     },
   }));
   assert.equal(result.resolvedUserId, user.id);
@@ -313,7 +321,7 @@ test('whatsapp connection command binds a private chat jid to the workspace', as
   const result = await whatsapp.execute(whatsappInput(setup.verificationCode, {
     data: {
       key: { remoteJid: '5511999999999@s.whatsapp.net', id: 'private-connect-msg', fromMe: false },
-      message: { conversation: `/kote conectar ${setup.verificationCode}` },
+      message: { conversation: `/kote connect ${setup.verificationCode}` },
     },
   }));
   assert.equal(result.resolvedUserId, user.id);
@@ -334,7 +342,7 @@ test('whatsapp connection rejects an already-bound private chat jid for another 
   await whatsapp.execute(whatsappInput(setup.verificationCode, {
     data: {
       key: { remoteJid: '5511999999999@s.whatsapp.net', id: 'private-connect-owner', fromMe: false },
-      message: { conversation: `/kote conectar ${setup.verificationCode}` },
+      message: { conversation: `/kote connect ${setup.verificationCode}` },
     },
   }));
 
@@ -351,7 +359,7 @@ test('whatsapp connection rejects an already-bound private chat jid for another 
     () => whatsapp.execute(whatsappInput(sameUserSetup.verificationCode, {
       data: {
         key: { remoteJid: '5511999999999@s.whatsapp.net', id: 'private-connect-same-user-other-workspace', fromMe: false },
-        message: { conversation: `/kote conectar ${sameUserSetup.verificationCode}` },
+        message: { conversation: `/kote connect ${sameUserSetup.verificationCode}` },
       },
     })),
     /external_identity_already_bound/,
@@ -371,7 +379,7 @@ test('whatsapp connection rejects an already-bound private chat jid for another 
     () => whatsapp.execute(whatsappInput(otherUserSetup.verificationCode, {
       data: {
         key: { remoteJid: '5511999999999@s.whatsapp.net', id: 'private-connect-other-user', fromMe: false },
-        message: { conversation: `/kote conectar ${otherUserSetup.verificationCode}` },
+        message: { conversation: `/kote connect ${otherUserSetup.verificationCode}` },
       },
     })),
     /external_identity_already_bound/,
@@ -522,7 +530,7 @@ test('github callback fallback redirect preserves base path from public base url
     };
 
     const result = await connections.completeGithub({ userId: user.id, state: stateFromRedirect(setup), installationId: '42' });
-    assert.equal(result.redirectUrl, 'https://kb.example.com/kote/automations/integrations?integration=github-app&status=connected&workspaceSlug=default');
+    assert.equal(result.redirectUrl, 'https://kb.example.com/kote/settings/integrations?integration=github-app&status=connected&workspaceSlug=default');
   } finally {
     globalThis.fetch = originalFetch;
     process.env.KB_PUBLIC_BASE_URL = previousPublicBaseUrl;
@@ -604,8 +612,8 @@ test('sends automatic introduction message when whatsapp/telegram connects', asy
 
   assert.equal(mockWhatsappSender.sentTextCalls.length, 1);
   assert.equal(mockWhatsappSender.sentTextCalls[0].chatJid, '5511999999999@s.whatsapp.net');
-  assert.ok(mockWhatsappSender.sentTextCalls[0].text.startsWith('Conexão realizada com sucesso!'));
-  assert.ok(mockWhatsappSender.sentTextCalls[0].text.includes('Este é o seu canal do WhatsApp'));
+  assert.ok(mockWhatsappSender.sentTextCalls[0].text.startsWith('Connection established successfully!'));
+  assert.ok(mockWhatsappSender.sentTextCalls[0].text.includes('This is your WhatsApp channel'));
 
   // 2. Telegram Connection
   const tgSetup = await connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'telegram' });
@@ -616,7 +624,7 @@ test('sends automatic introduction message when whatsapp/telegram connects', asy
 
   assert.equal(mockTelegramSender.sentTextCalls.length, 1);
   assert.equal(mockTelegramSender.sentTextCalls[0].chatId, '987654321');
-  assert.ok(mockTelegramSender.sentTextCalls[0].text.startsWith('Conexão realizada com sucesso!'));
-  assert.ok(mockTelegramSender.sentTextCalls[0].text.includes('Este é o seu canal do Telegram'));
+  assert.ok(mockTelegramSender.sentTextCalls[0].text.startsWith('Connection established successfully!'));
+  assert.ok(mockTelegramSender.sentTextCalls[0].text.includes('This is your Telegram channel'));
 });
 

@@ -213,10 +213,10 @@ export class PostgresContentRepository extends ContentRepository {
   async deleteNote(userId: string, id: string) {
     const note = await this.noteRepository.getById(userId, id);
     if (!note) return false;
-    const attachmentKeys = await this.attachmentRepository.listByNoteId(userId, id);
+    const attachmentStorageKeys = await this.attachmentRepository.listByNoteId(userId, id);
     const deleted = await this.noteRepository.delete(userId, id, note.markdownStorageKey);
-    if (deleted) {
-      await this.attachmentRepository.deleteByNoteId(userId, id);
+    if (deleted && attachmentStorageKeys.length > 0) {
+      await this.contentObjectStorage.deleteObjects(attachmentStorageKeys);
     }
     return deleted;
   }

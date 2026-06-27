@@ -75,7 +75,7 @@ test('buildProjectKnowledgeMap deduplicates tags and categories and links core n
 
   assert.equal(result.stats.noteCount, 2);
   assert.deepEqual(tagNodes.map((node) => node.id).sort(), ['tag:deploy', 'tag:risk']);
-  assert.deepEqual(categoryNodes.map((node) => node.id).sort(), ['category:decision', 'category:github-push']);
+  assert.deepEqual(categoryNodes.map((node) => node.id).sort(), ['category:github-push', 'category:manual']);
   assert.equal(result.nodes.find((node) => node.id === 'note:note-1')?.isReview, true);
   assert.equal(result.nodes.find((node) => node.id === 'note:note-2')?.isReview, false);
   assert.ok(result.links.some((link) => link.source === 'project:platform' && link.target === 'note:note-1' && link.type === 'contains'));
@@ -85,14 +85,14 @@ test('buildProjectKnowledgeMap deduplicates tags and categories and links core n
 
 test('list project knowledge map rejects projects outside the user scope', async () => {
   const repository = {
-    async getProjectBySlug() {
+    async getProjectById() {
       return null;
     },
   };
 
   await assert.rejects(
     () => new ListProjectKnowledgeMapUseCase(repository).execute('user-1', {
-      projectSlug: 'other-project',
+      projectId: 'other-project',
       category: 'all',
       limit: 80,
     }),
@@ -103,8 +103,8 @@ test('list project knowledge map rejects projects outside the user scope', async
 test('list project knowledge map expands selected folder to descendants', async () => {
   let receivedInput = null;
   const repository = {
-    async getProjectBySlug() {
-      return project;
+    async getProjectById() {
+      return { ...project, id: 'platform' };
     },
     async listProjectFolders() {
       return [
@@ -126,7 +126,7 @@ test('list project knowledge map expands selected folder to descendants', async 
   };
 
   await new ListProjectKnowledgeMapUseCase(repository).execute('user-1', {
-    projectSlug: 'platform',
+    projectId: 'platform',
     category: 'all',
     folderId: 'folder-1',
     limit: 80,

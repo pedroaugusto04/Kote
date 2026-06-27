@@ -246,7 +246,12 @@ export async function createPostgresTestRepositories(t) {
     categoryRepository,
     contentObjectStorage
   );
-  const contentQueryRepository = new PostgresContentQueryRepository(database, contentObjectStorage);
+  const contentQueryRepository = new PostgresContentQueryRepository(
+    database,
+    contentObjectStorage,
+    noteRepository,
+    attachmentRepository
+  );
   const workflowStateRepository = new PostgresWorkflowStateRepository(database);
   const pushSubscriptionRepository = new PostgresPushSubscriptionRepository(database);
   const webhookEventRepository = new PostgresWebhookEventRepository(database);

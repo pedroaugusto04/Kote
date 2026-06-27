@@ -78,7 +78,7 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
           title: 'Deployment Guide',
           path: 'docs/deploy.md',
           projectSlug: 'infra',
-          workspaceSlug: 'default',
+          workspaceId: undefined,
           chunkText: 'Deploy to staging first.',
         },
       ]);
@@ -109,12 +109,17 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
     }),
   };
 
+  const mockQuotaService = {
+    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
+  };
+
   const useCase = new AskKnowledgeUseCase(
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
+    mockQuotaService,
   );
 
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'infra' });
@@ -132,7 +137,7 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
       title: 'Deployment Guide',
       path: 'docs/deploy.md',
       projectSlug: 'infra',
-      workspaceSlug: 'default',
+      workspaceId: undefined,
     },
   ]);
 });
@@ -285,12 +290,17 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
     }),
   };
 
+  const mockQuotaService = {
+    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
+  };
+
   const useCase = new AskKnowledgeUseCase(
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
+    mockQuotaService,
   );
 
   const history = [
@@ -379,12 +389,17 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
     }),
   };
 
+  const mockQuotaService = {
+    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
+  };
+
   const useCase = new AskKnowledgeUseCase(
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
+    mockQuotaService,
   );
 
   const history = [

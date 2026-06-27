@@ -97,14 +97,14 @@ test('ingest persists one canonical note with derived reminder, attachment and w
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.filter((note) => note.categories.some((c) => c.name === 'knowledge')).length, 1);
   const detail = await repositories.contentRepository.getNoteById(user.id, result.noteId);
-  assert.equal(detail.metadata.reminderDate, '2026-04-28');
+  assert.equal(detail.reminderDate, '2026-04-28');
   assert.equal(detail.metadata.reminderTime, '12:30');
-  assert.equal(detail.metadata.reminderAt, '2026-04-28T12:30:00.000Z');
+  assert.equal(detail.reminderAt, '2026-04-28T12:30:00.000Z');
   const reminders = await repositories.contentQueryRepository.listReminders(user.id);
   assert.equal(reminders.length, 1);
   assert.equal(reminders[0].id, result.noteId);
   assert.equal(reminders[0].relativePath, result.eventPath);
-  assert.match(detail.markdownStorageKey, new RegExp(`^users/${user.id}/workspaces/default/notes/20 Inbox/n8n-automations/`));
+  assert.match(detail.markdownStorageKey, new RegExp(`^users/${user.id}/workspaces/default/notes/${result.noteId}$`));
   assert.match(detail.markdown, /Deploy needs coordinated rollout/);
   assert.match((await repositories.objectStorage.get(detail.markdownStorageKey)).toString('utf8'), /Deploy needs coordinated rollout/);
   const attachments = await repositories.contentRepository.listAttachments(user.id, result.noteId);
@@ -159,7 +159,7 @@ test('manual note creation uses ingest and derives optional reminder from the no
     createdAt: '2026-04-27T00:00:00.000Z',
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
-  await repositories.contentRepository.upsertProject(user.id, {
+  const project = await repositories.contentRepository.upsertProject(user.id, {
     projectSlug: 'acme-api',
     displayName: 'Acme API',
     repositories: [],
@@ -188,7 +188,7 @@ test('manual note creation uses ingest and derives optional reminder from the no
   );
 
   const withoutReminder = await useCase.execute({
-    projectSlug: 'acme-api',
+    projectId: project.id,
     title: 'Nota manual',
     rawText: 'texto da nota',
     tags: ['deploy'],
@@ -196,7 +196,7 @@ test('manual note creation uses ingest and derives optional reminder from the no
     reminderTime: '',
   }, user.id);
   const withReminder = await useCase.execute({
-    projectSlug: 'acme-api',
+    projectId: project.id,
     title: 'Nota com lembrete',
     rawText: 'lembrar deploy',
     tags: [],

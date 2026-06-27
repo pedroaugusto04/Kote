@@ -519,8 +519,6 @@ export class PostgresNoteRepository {
   }
 
   async upsert(userId: string, input: SaveNoteInput) {
-    const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
-
     let existingId = input.id;
     if (!existingId && input.path) {
       const db = this.database.getDb();
@@ -533,6 +531,9 @@ export class PostgresNoteRepository {
         existingId = existing[0].id;
       }
     }
+
+    const noteId = existingId || input.id || crypto.randomUUID();
+    const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, { ...input, id: noteId });
 
     if (existingId) {
       const existing = await this.getById(userId, existingId);
@@ -551,7 +552,6 @@ export class PostgresNoteRepository {
 
     const db = this.database.getDb();
     const { projectId, workspaceId } = await this.resolveIds(userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
-    const noteId = input.id || crypto.randomUUID();
 
     const categoryIds = input.categoryIds || [];
 

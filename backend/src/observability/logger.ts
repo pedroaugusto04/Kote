@@ -58,6 +58,10 @@ function isPrettyConsoleLogsEnabled() {
 }
 
 function isFileLoggingEnabled() {
+  const isTest = process.env.NODE_ENV === 'test' || process.execArgv.includes('--test') || process.argv.includes('--test');
+  if (isTest) {
+    return resolveBooleanEnvironmentFlag(process.env.KB_LOG_FILE_ENABLED, false);
+  }
   const configuredValue = process.env.KB_LOG_FILE_ENABLED;
   return resolveBooleanEnvironmentFlag(configuredValue, true);
 }
