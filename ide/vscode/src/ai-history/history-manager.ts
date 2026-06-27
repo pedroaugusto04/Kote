@@ -356,10 +356,24 @@ export class AiHistoryManager {
 
     this.addOrUpdateRecentSession(session);
 
-    // Saved sessions should keep auto-saving even if an older prompt for the
-    // same session is still open or timed out.
-    if (this.savedSessions.has(key)) {
+    // If the session is explicitly ignored by the user, do nothing.
+    if (this.ignoredSessions.has(key)) {
+      this.rememberSessionHash(key, hash);
       this.pendingPromptSessions.delete(key);
+      return;
+    }
+
+    // In ignore-all mode: silently discard new sessions and updates.
+    if (this.getAiSessionSaveMode() === 'ignore-all') {
+      this.rememberSessionHash(key, hash);
+      this.pendingPromptSessions.delete(key);
+      return;
+    }
+
+    // In auto-save mode: save new sessions and updates immediately.
+    if (this.getAiSessionSaveMode() === 'auto-save') {
+      this.pendingPromptSessions.delete(key);
+      this.markSessionAsSaved(provider.id, session.sessionId);
       const saved = await this.autoSaveSessionToVault(client, session);
       if (saved) {
         this.rememberSessionHash(key, hash);
@@ -368,32 +382,11 @@ export class AiHistoryManager {
       return;
     }
 
-    // If a prompt is already open, keep the newest version pending. Do not mark
-    // the hash as known yet, otherwise the update is lost when the prompt closes.
+    // --- Mode is 'ask' ---
+
+    // If a prompt is already open, keep the newest version pending.
     if (this.promptingSessions.has(key)) {
       this.pendingPromptSessions.set(key, session);
-      return;
-    }
-
-    // If the session is ignored, do nothing until the user imports it manually.
-    if (this.ignoredSessions.has(key)) {
-      this.rememberSessionHash(key, hash);
-      this.pendingPromptSessions.delete(key);
-      return;
-    }
-
-    // In auto-save mode: save new sessions immediately without prompting.
-    if (this.getAiSessionSaveMode() === 'auto-save') {
-      this.markSessionAsSaved(provider.id, session.sessionId);
-      const saved = await this.autoSaveSessionToVault(client, session);
-      if (saved) this.rememberSessionHash(key, hash);
-      else this.forgetSessionHash(key);
-      return;
-    }
-
-    // In ignore-all mode: silently discard new sessions without saving or prompting.
-    if (this.getAiSessionSaveMode() === 'ignore-all') {
-      this.rememberSessionHash(key, hash);
       return;
     }
 
