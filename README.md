@@ -69,6 +69,41 @@ To start using Kote:
 
 ---
 
+## Self-Hosting (Docker)
+
+If you prefer to run Kote on your own infrastructure or local machine, you can launch the entire stack using Docker Compose:
+
+1. **Clone the Repository:**
+   ```bash
+   git clone https://github.com/pedroaugusto04/knowledge-base.git
+   cd knowledge-base
+   ```
+
+2. **Configure Environment Variables:**
+   Copy the example environment file:
+   ```bash
+   cp .env.example .env
+   ```
+   Open the `.env` file and configure the **essential keys** to enable core features:
+   * **Admin Credentials:** Change `KB_ADMIN_EMAIL` and `KB_ADMIN_PASSWORD` (used for your initial login).
+   * **AI Integrations (Search/Chat/Voice):** Set `KB_AUDIO_AI_API_KEY` and `KB_EMBEDDING_AI_API_KEY` (Gemini API key is the default and highly recommended).
+   * **File Storage:** Fill in `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `KB_SUPABASE_STORAGE_BUCKET` to store notes and attachments.
+
+3. **Start Services:**
+   Launch the database, message broker, backend API, and web application (database migrations will run automatically on startup):
+   ```bash
+   docker compose up -d
+   ```
+
+Once running, access the local services:
+* **Web Application:** [http://localhost:4311](http://localhost:4311)
+* **API Server:** [http://localhost:4310](http://localhost:4310)
+
+> [!TIP]
+> Point your VS Code Extension (`knowledgeVault.apiUrl`) or CLI (`apiUrl` in `~/.kb-config.json`) to your self-hosted API URL (`http://localhost:4310`) to connect your editor and terminal to your local instance.
+
+---
+
 ## Features
 
 ### CLI Tool (kote)
