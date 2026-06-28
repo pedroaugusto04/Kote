@@ -3,8 +3,9 @@ import { z } from 'zod';
 import { slugify } from '../domain/strings.js';
 import { buildUtcReminderFields, normalizeDate, normalizeTime } from '../domain/time.js';
 import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, ReviewFindingSeverity, SourceChannel } from './enums.js';
+import { parseSourceChannelString } from '../application/utils/source-channel.utils.js';
 
-export const sourceChannelSchema = z.nativeEnum(SourceChannel);
+export const sourceChannelSchema = z.string().trim().optional();
 export const eventTypeSchema = z.nativeEnum(EventType);
 export const kindSchema = z.nativeEnum(KnowledgeKind);
 export const canonicalTypeSchema = z.nativeEnum(CanonicalType);
@@ -74,6 +75,10 @@ export const ingestPayloadSchema = z
   })
   .transform((payload) => ({
     ...payload,
+    source: {
+      ...payload.source,
+      channel: parseSourceChannelString(payload.source.channel),
+    },
     event: {
       ...payload.event,
       projectSlug: slugify(payload.event.projectSlug) || 'inbox',
