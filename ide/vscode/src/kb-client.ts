@@ -154,6 +154,10 @@ export class KbClient {
   }
 
   private async fetch<T = unknown>(urlPath: string, options: RequestOptions = {}): Promise<T> {
+    if (!isConfigured()) {
+      throw new Error('Not authenticated');
+    }
+
     const url = this.buildUrl(urlPath);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -187,9 +191,12 @@ export class KbClient {
       }
 
       if (!refreshed) {
+        const wasConfigured = isConfigured();
         this.config.cookies = {};
         saveKbConfig({ cookies: {} });
-        this.onUnauthorized?.();
+        if (wasConfigured) {
+          this.onUnauthorized?.();
+        }
       }
     }
 

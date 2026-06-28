@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { KbClient } from '../kb-client';
+import { KbClient, isConfigured } from '../kb-client';
 
 export class KoteCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
@@ -16,6 +16,10 @@ export class KoteCodeLensProvider implements vscode.CodeLensProvider {
     document: vscode.TextDocument,
     token: vscode.CancellationToken
   ): Promise<vscode.CodeLens[]> {
+    if (!isConfigured()) {
+      return [];
+    }
+
     if (document.uri.scheme !== 'file') {
       return [];
     }

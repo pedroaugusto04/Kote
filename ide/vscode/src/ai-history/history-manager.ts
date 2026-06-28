@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession } from './types';
-import type { KbClient } from '../kb-client';
+import { KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import {
   EXTENSION_COMMANDS,
@@ -363,6 +363,10 @@ export class AiHistoryManager {
     }
 
     this.addOrUpdateRecentSession(session);
+
+    if (!isConfigured()) {
+      return;
+    }
 
     // If the session is explicitly ignored by the user, do nothing.
     if (this.ignoredSessions.has(key)) {
@@ -785,6 +789,9 @@ export class AiHistoryManager {
   }
 
   async checkUnsyncedAndPrompt(client: KbClient) {
+    if (!isConfigured()) {
+      return;
+    }
     const now = Date.now();
     if (now - this.lastSyncPromptTime < this.SYNC_PROMPT_COOLDOWN_MS) {
       return;
@@ -819,6 +826,9 @@ export class AiHistoryManager {
   }
 
   private async checkAllProviders(client: KbClient) {
+    if (!isConfigured()) {
+      return;
+    }
     for (const provider of this.providers.values()) {
       try {
         const enabled = await provider.isEnabled();
