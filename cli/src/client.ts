@@ -54,6 +54,8 @@ export interface CliAgentResponse {
 }
 
 export class ApiClient {
+  public onAuthCleared?: () => void;
+
   private async request(path: string, options: RequestInit = {}): Promise<Response> {
     const config = loadConfig();
     const apiBase = config.apiUrl.replace(/\/$/, ''); // Remove trailing slash
@@ -115,7 +117,11 @@ export class ApiClient {
         }
       }
       if (!refreshed) {
+        const wasConfigured = config.cookies?.kb_access_token || config.cookies?.kb_refresh_token;
         clearConfigAuth();
+        if (wasConfigured) {
+          this.onAuthCleared?.();
+        }
       }
     }
 

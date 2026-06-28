@@ -11,6 +11,7 @@ import { runLogout } from './commands/logout.js';
 import { runSync } from './commands/sync.js';
 import { runSyncAi } from './commands/sync-ai.js';
 import { loadConfig } from './config.js';
+import { client } from './client.js';
 
 const program = new Command();
 
@@ -160,6 +161,12 @@ async function checkAuth() {
     }
   }
 }
+
+// Setup auth failure callback to inform user when session expires
+client.onAuthCleared = () => {
+  console.error(pc.red('\nYour Kote session has expired.'));
+  console.error(pc.yellow('Please run ') + pc.cyan('kote init') + pc.yellow(' to authenticate again.\n'));
+};
 
 // Handle argument parsing
 async function main() {

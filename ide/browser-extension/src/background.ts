@@ -164,7 +164,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 
       if (result && result.success && result.result) {
         await saveClippedNote(result.result, ['quick-clip']);
-        
+
         // Update indicator to show success
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
@@ -183,7 +183,7 @@ chrome.commands.onCommand.addListener(async (command) => {
                 setTimeout(() => indicator.remove(), 300);
               }, 2000);
             }
-            
+
             const style = document.createElement('style');
             style.textContent = `
               @keyframes koteSlideOut {
@@ -195,26 +195,73 @@ chrome.commands.onCommand.addListener(async (command) => {
           },
         });
       } else {
-        // Remove indicator on error
+        // Update indicator to show error
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           func: () => {
             const indicator = document.getElementById('kote-clip-indicator');
-            if (indicator) indicator.remove();
+            if (indicator) {
+              indicator.style.background = 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)';
+              indicator.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                <span>Failed to extract page content</span>
+              `;
+              setTimeout(() => {
+                indicator.style.animation = 'koteSlideOut 0.3s ease-in forwards';
+                setTimeout(() => indicator.remove(), 300);
+              }, 3000);
+            }
+
+            const style = document.createElement('style');
+            style.textContent = `
+              @keyframes koteSlideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+              }
+            `;
+            document.head.appendChild(style);
           },
         });
         showNotification('Error', result?.error || 'Failed to extract page content.');
       }
     } catch (err: any) {
-      // Remove indicator on error
+      // Update indicator to show error
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab?.id) {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
-          func: () => {
+          func: (errorMessage: string) => {
             const indicator = document.getElementById('kote-clip-indicator');
-            if (indicator) indicator.remove();
+            if (indicator) {
+              indicator.style.background = 'linear-gradient(135deg, #f87171 0%, #dc2626 100%)';
+              indicator.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="15" y1="9" x2="9" y2="15" />
+                  <line x1="9" y1="9" x2="15" y2="15" />
+                </svg>
+                <span>${errorMessage || 'Failed to save to Kote'}</span>
+              `;
+              setTimeout(() => {
+                indicator.style.animation = 'koteSlideOut 0.3s ease-in forwards';
+                setTimeout(() => indicator.remove(), 300);
+              }, 4000);
+            }
+
+            const style = document.createElement('style');
+            style.textContent = `
+              @keyframes koteSlideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(100%); opacity: 0; }
+              }
+            `;
+            document.head.appendChild(style);
           },
+          args: [err.message || 'Failed to save to Kote'],
         }).catch(() => {});
       }
       showNotification('Error', err.message || 'Failed to quick clip page.');
@@ -312,16 +359,26 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
   }
 
   // POST note request
-  const response = await fetchWithAuth(`${cleanApiUrl}/api/notes`, {
-    method: 'POST',
-    body: JSON.stringify({
-      projectSlug: project,
-      title: clip.title,
-      rawText: formattedBody,
-      source: 'web-clipper',
-      tags: tags,
-    }),
-  }, cleanApiUrl);
+  let response;
+  try {
+    response = await fetchWithAuth(`${cleanApiUrl}/api/notes`, {
+      method: 'POST',
+      body: JSON.stringify({
+        projectSlug: project,
+        title: clip.title,
+        rawText: formattedBody,
+        source: 'web-clipper',
+        tags: tags,
+      }),
+    }, cleanApiUrl);
+  } catch (error: any) {
+    // Check if this is an auth/session error
+    if (error.message && (error.message.includes('Session expired') || error.message.includes('No refresh token'))) {
+      showNotification('Authentication Error', 'Your session has expired. Please open extension settings to log in again.');
+      throw new Error('Session expired. Please re-authenticate in extension settings.');
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     let errorMsg = 'Failed to create note';
@@ -329,6 +386,13 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
       const errData = await response.json();
       errorMsg = errData.message || errorMsg;
     } catch { }
+    
+    // Check for auth errors in response
+    if (response.status === 401) {
+      showNotification('Authentication Error', 'Your session has expired. Please open extension settings to log in again.');
+      throw new Error('Session expired. Please re-authenticate in extension settings.');
+    }
+    
     throw new Error(errorMsg);
   }
 
