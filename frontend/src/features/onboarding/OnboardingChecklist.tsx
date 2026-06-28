@@ -322,7 +322,7 @@ export function OnboardingChecklist({
               to={item.route}
               id={`onboarding-item-${item.id}`}
             >
-              <span className={`onboarding-item-check ${done ? 'checked' : ''}`} aria-hidden="true">
+              <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
                 {done ? '✓' : item.icon}
               </span>
               <div className="onboarding-item-copy">

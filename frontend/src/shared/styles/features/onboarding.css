@@ -141,6 +141,16 @@
   font-weight: 700;
 }
 
+.onboarding-item-check-github:not(.checked) {
+  background: #0f1419;
+  border-color: rgba(15, 20, 25, 0.18);
+}
+
+:root[data-theme="dark"] .onboarding-item-check-github:not(.checked) {
+  background: #1f2328;
+  border-color: rgba(31, 35, 40, 0.20);
+}
+
 .onboarding-item-copy {
   display: grid;
   gap: 2px;
