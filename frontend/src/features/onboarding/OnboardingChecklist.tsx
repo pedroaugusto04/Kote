@@ -69,7 +69,7 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     description: 'Download the Kote extension to sync local files and AI history.',
     priority: true,
     route: routes.profile,
-    icon: <img src={withFrontendBasePath('/vscode-logo.svg')} style={{ width: '16px', height: '16px', display: 'block' }} alt="VS Code" />,
+    icon: <img src={withFrontendBasePath('/kote/vscode-logo.svg')} style={{ width: '16px', height: '16px', display: 'block' }} alt="VS Code" />,
   },
   {
     id: 'vscode-sync-chat',
