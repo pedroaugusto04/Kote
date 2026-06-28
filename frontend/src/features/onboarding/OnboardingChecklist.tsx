@@ -81,7 +81,7 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     id: 'whatsapp',
     label: 'Connect WhatsApp',
     description: 'Capture notes and knowledge via WhatsApp messages.',
-    priority: true,
+    priority: false,
     route: routes.integrations,
     provider: 'whatsapp',
     icon: '💬',

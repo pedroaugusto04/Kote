@@ -106,14 +106,14 @@ export function VscodeIcon({ className, style }: { className?: string; style?: R
   return (
     <svg
       className={className}
-      style={style}
+      style={{ fill: 'currentColor', stroke: 'none', ...style }}
       viewBox="0 0 24 24"
-      fill="none"
+      fill="currentColor"
+      stroke="none"
       aria-hidden="true"
     >
       <path
         d="M23.986 6.57a1.537 1.537 0 0 0-.448-.992L18.507.575a1.537 1.537 0 0 0-2.181.085l-7.79 8.243L4.17 6.136a.768.768 0 0 0-1.077.06L.266 9.387a.768.768 0 0 0 .04 1.057l3.666 3.556-3.666 3.556a.768.768 0 0 0-.04 1.057l2.827 3.19a.768.768 0 0 0 1.077.06l4.366-2.767 7.79 8.243a1.537 1.537 0 0 0 2.18.085l5.032-5.003a1.537 1.537 0 0 0 .448-.992V7.562zM18.8 17.234l-3.323-2.735 3.323-2.735v5.47zM3.447 12.35l7.108 5.687-7.108 5.687V12.35z"
-        fill="currentColor"
       />
     </svg>
   );
