@@ -291,7 +291,7 @@ Body:
           'Select a note to view it in a Markdown preview with metadata',
           'Use the link in the preview to open the note in the Kote web application',
         ],
-        tip: 'This feature helps you quickly access relevant context and decisions without leaving your editor.',
+        tip: 'This feature helps you quickly access relevant context and decisions without leaving your editor. CodeLens not working? Make sure it\'s enabled in your VS Code settings ("editor.codeLens": true). It\'s enabled by default, but may have been disabled globally.',
       },
       { title: 'Extension documentation', body: 'For detailed extension features, keyboard shortcuts, and configuration options, check the VS Code extension documentation on GitHub.', tip: 'View VS Code extension README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/ide/vscode/README.md' },
     ],

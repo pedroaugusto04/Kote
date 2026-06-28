@@ -89,6 +89,9 @@ When you open a file that has associated notes or decisions in your Kote, a Code
 3. Select a note to view it in a Markdown preview
 4. The note preview includes metadata (source channel, project, creation date) and a link to open it in the Kote web application
 
+> [!TIP]
+> **CodeLens not working?** Make sure CodeLens is enabled in your VS Code settings (`"editor.codeLens": true`). It's enabled by default, but may have been disabled globally.
+
 This feature helps you quickly access relevant context and decisions without leaving your editor.
 
 ## Commands
