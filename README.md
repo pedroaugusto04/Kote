@@ -29,6 +29,14 @@
   <img src="docs/screenshots/home-overview.png" alt="Kote Home Overview" width="100%">
 </p>
 
+<p align="center">
+  <details>
+    <summary>🎥 <strong>Watch interactive demo (GIF)</strong></summary>
+    <br>
+    <img src="docs/gifs/Kote.gif" alt="Kote Demo" width="100%">
+  </details>
+</p>
+
 ---
 
 ## Overview
