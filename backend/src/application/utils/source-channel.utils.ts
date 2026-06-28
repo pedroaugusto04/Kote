@@ -31,6 +31,11 @@ export function resolveSourceChannel(context: SourceChannelContext): SourceChann
     return SourceChannel.Cli;
   }
   
+  // VS Code extension uses vscode-user/vscode-chat
+  if (senderId === 'vscode-user' && chatId === 'vscode-chat') {
+    return SourceChannel.Ide;
+  }
+  
   // WhatsApp typically uses phone numbers or JIDs (e.g., 5511999999999@s.whatsapp.net)
   if (senderId.includes('@') || chatId.includes('@') || /^\d+$/.test(senderId)) {
     return SourceChannel.Whatsapp;
