@@ -35,7 +35,7 @@ export class KoteCodeLensProvider implements vscode.CodeLensProvider {
 
       const range = new vscode.Range(0, 0, 0, 0);
       const command: vscode.Command = {
-        title: `💡 Kote: ${notes.length} ${notes.length === 1 ? 'nota' : 'notas'}/decisões sobre este arquivo`,
+        title: `💡 Kote: ${notes.length} ${notes.length === 1 ? 'note' : 'notes'}/decisions about this file`,
         command: 'kote.showFileNotes',
         arguments: [relativePath, notes],
       };

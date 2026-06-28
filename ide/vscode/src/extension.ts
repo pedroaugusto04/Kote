@@ -141,14 +141,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.commands.registerCommand('kote.showFileNotes', async (relativePath: string, notes: any[]) => {
       const items = notes.map((note) => ({
-        label: note.title || `Nota sem título (${note.id.slice(0, 8)})`,
-        description: note.summary || 'Sem resumo',
-        detail: `Canal: ${note.sourceChannel || 'Desconhecido'} | Criado em: ${new Date(note.createdAt).toLocaleDateString()}`,
+        label: note.title || `Untitled note (${note.id.slice(0, 8)})`,
+        description: note.summary || 'No summary',
+        detail: `Channel: ${note.sourceChannel || 'Unknown'} | Created at: ${new Date(note.createdAt).toLocaleDateString()}`,
         note,
       }));
 
       const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: `Kote: Selecione uma nota sobre ${relativePath}`,
+        placeHolder: `Kote: Select a note about ${relativePath}`,
       });
 
       if (!selected) return;
@@ -156,15 +156,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const note = selected.note;
       const uri = vscode.Uri.parse(`kote-note://note/${note.id}.md`);
       
+      const webBase = kbClient.apiUrl.replace(/\/api$/, '');
+      const noteWebUrl = `${webBase}/vault/${note.id}`;
+
       const markdownContent = `\
-# 💡 Kote: ${note.title || 'Sem título'}
+# 💡 Kote: ${note.title || 'Untitled'}
 
 > [!NOTE]
-> **Canal de Origem:** \`${note.sourceChannel || 'kote'}\` | **Projeto:** \`${note.projectSlug || 'Inbox'}\` | **Criado em:** \`${new Date(note.createdAt || Date.now()).toLocaleString()}\`
+> **Source Channel:** \`${note.sourceChannel || 'kote'}\` | **Project:** \`${note.projectSlug || 'Inbox'}\` | **Created at:** \`${new Date(note.createdAt || Date.now()).toLocaleString()}\`
+>
+> 🌐 **[Open in Kote Web](${noteWebUrl})**
 
 ---
 
-${note.markdown || note.rawText || note.summary || '_Sem conteúdo._'}
+${note.markdown || note.rawText || note.summary || '_No content._'}
 `;
       noteContentProvider.setNoteContent(note.id, markdownContent);
       

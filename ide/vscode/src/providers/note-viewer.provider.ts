@@ -11,11 +11,23 @@ export class KoteNoteContentProvider implements vscode.TextDocumentContentProvid
   }
 
   provideTextDocumentContent(uri: vscode.Uri): string {
-    const matches = uri.path.match(/\/note\/(.+)\.md$/);
-    if (!matches || !matches[1]) {
+    let noteId: string | undefined;
+
+    if (uri.authority === 'note') {
+      const matches = uri.path.match(/^\/(.+)\.md$/);
+      if (matches && matches[1]) {
+        noteId = matches[1];
+      }
+    } else {
+      const matches = uri.path.match(/\/note\/(.+)\.md$/);
+      if (matches && matches[1]) {
+        noteId = matches[1];
+      }
+    }
+
+    if (!noteId) {
       return '# Error\nInvalid note URI.';
     }
-    const noteId = matches[1];
     return this.notes.get(noteId) || '# Error\nNote content not loaded.';
   }
 }
