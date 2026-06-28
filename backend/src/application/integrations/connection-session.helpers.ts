@@ -85,9 +85,6 @@ export function extractGithubInstallationId(value: unknown): string {
   return installationId;
 }
 
-export function normalizeTrimmedValue(value: string): string {
-  return value.trim();
-}
 
 export function normalizeReturnToPath(value: string | undefined, fallback: string): string {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return fallback;
@@ -111,7 +108,7 @@ export function normalizeBrowserOrigin(value: string | undefined): string {
   }
 }
 
-export function buildBrowserRedirectUrl(baseUrl: string | undefined, path: string): URL {
+export function buildBrowserRedirectUrl(baseUrl: string | undefined, path: string | undefined): URL {
   const normalizedPath = normalizeReturnToPath(path, '/settings/integrations');
   const fallbackBase = new URL('https://kote.local');
   const base = baseUrl ? new URL(baseUrl) : fallbackBase;

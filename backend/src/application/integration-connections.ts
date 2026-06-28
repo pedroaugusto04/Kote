@@ -8,28 +8,27 @@ import type { IntegrationConnectionSessionRecord, WorkspaceRecord } from './mode
 import { GithubIntegrationGateway } from './ports/integrations/github-integration.port.js';
 import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations/integrations.repository.js';
-import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
+import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
 import { getAiProviderConfig } from './ai-providers-registry.js';
 import { GithubRepositoryResolutionService } from './services/github-repository-resolution.service.js';
 import { WhatsappReplySender } from './ports/integrations/whatsapp-reply.sender.js';
 import { TelegramMessageSender } from './ports/integrations/telegram-message.sender.js';
 import { AppLogger } from '../observability/logger.js';
 import {
-  appendQuery as appendConnectionQuery,
-  buildBrowserRedirectUrl as buildConnectionBrowserRedirectUrl,
-  CONNECTED_STATUS as CONNECTION_CONNECTED_STATUS,
-  expiresAt as connectionExpiresAt,
+  appendQuery,
+  buildBrowserRedirectUrl,
+  CONNECTED_STATUS,
+  expiresAt,
   extractConnectionCommandCode,
-  extractGithubInstallationId as extractConnectionGithubInstallationId,
-  normalizeBrowserOrigin as normalizeConnectionBrowserOrigin,
-  normalizeGithubAppInstallUrl as normalizeConnectionGithubAppInstallUrl,
-  normalizeReturnToPath as normalizeConnectionReturnToPath,
-  normalizeTrimmedValue as normalizeConnectionTrimmedValue,
-  PENDING_STATUS as CONNECTION_PENDING_STATUS,
-  publicSession as publicConnectionSession,
-  randomState as randomConnectionState,
-  randomVerificationCode as randomConnectionVerificationCode,
-  sha256 as connectionSha256,
+  extractGithubInstallationId,
+  normalizeBrowserOrigin,
+  normalizeGithubAppInstallUrl,
+  normalizeReturnToPath,
+  PENDING_STATUS,
+  publicSession,
+  randomState,
+  randomVerificationCode,
+  sha256,
   type ConnectionSessionMetadata,
   type ConnectionSessionView,
 } from './integrations/connection-session.helpers.js';
@@ -53,10 +52,6 @@ type CodeBasedConnectionSpec = {
   externalIdKey: ExternalIdKey;
   workspaceBinding: WorkspaceBindingField;
 };
-
-function normalizeWorkspaceSlug(value: string): string {
-  return slugify(value);
-}
 
 export function extractWhatsappConnectionCode(body: Record<string, unknown>): string {
   const data = body.data && typeof body.data === 'object' && !Array.isArray(body.data) ? body.data as Record<string, unknown> : undefined;
@@ -120,13 +115,13 @@ export class IntegrationConnectionService {
   async session(input: { userId: string; provider: string; sessionId: string }) {
     const session = await this.sessions.findConnectionSession(input.sessionId);
     if (!session || session.provider !== input.provider || session.userId !== input.userId) throw new NotFoundException('connection_session_not_found');
-    return { ok: true as const, session: publicConnectionSession(session) };
+    return { ok: true as const, session: publicSession(session) };
   }
 
   async completeGithub(input: { userId: string; state: string; installationId: string }) {
-    const session = await this.sessions.findActiveConnectionSessionByState(IntegrationProvider.GithubApp, connectionSha256(input.state), new Date().toISOString());
+    const session = await this.sessions.findActiveConnectionSessionByState(IntegrationProvider.GithubApp, sha256(input.state), new Date().toISOString());
     if (!session || session.userId !== input.userId) throw new UnauthorizedException('invalid_connection_state');
-    const installationId = extractConnectionGithubInstallationId(input.installationId);
+    const installationId = extractGithubInstallationId(input.installationId);
 
     try {
       const installation = await this.verifyGithubInstallation(installationId);
@@ -139,7 +134,7 @@ export class IntegrationConnectionService {
         encryptedConfig: { installationId, accountLogin },
         publicMetadata: {
           label: accountLogin ? `GitHub ${accountLogin}` : 'GitHub App',
-          connectedAccount: this.connectedAccount(accountLogin, installationId),
+          connectedAccount: accountLogin || installationId,
         },
       });
       await this.upsertExternalIdentity({
@@ -151,13 +146,13 @@ export class IntegrationConnectionService {
         credentialId: credential.id,
         publicMetadata: { accountLogin },
       });
-      const consumed = await this.consumeSessionAsConnected(session.id, { installationId, connectedAccount: this.connectedAccount(accountLogin, installationId) });
+      const consumed = await this.consumeSessionAsConnected(session.id, { installationId, connectedAccount: accountLogin || installationId });
       const finalSession = consumed || session;
       return {
         ok: true as const,
         provider: IntegrationProvider.GithubApp,
-        session: publicConnectionSession(finalSession),
-        connectedAccount: this.connectedAccount(accountLogin, installationId),
+        session: publicSession(finalSession),
+        connectedAccount: accountLogin || installationId,
         redirectUrl: this.buildGithubCallbackRedirect(finalSession, ConnectionCallbackStatus.Connected),
       };
     } catch (error) {
@@ -167,7 +162,7 @@ export class IntegrationConnectionService {
   }
 
   async completeGithubForBrowser(input: { userId: string; state: string; installationId: string }) {
-    const session = await this.sessions.findActiveConnectionSessionByState(IntegrationProvider.GithubApp, connectionSha256(input.state), new Date().toISOString());
+    const session = await this.sessions.findActiveConnectionSessionByState(IntegrationProvider.GithubApp, sha256(input.state), new Date().toISOString());
     const redirectFromSession = session ? this.buildGithubCallbackRedirect(session, ConnectionCallbackStatus.Error) : this.fallbackGithubCallbackRedirect();
     try {
       const result = await this.completeGithub(input);
@@ -178,7 +173,7 @@ export class IntegrationConnectionService {
   }
 
   async updateGithubInstallation(input: { userId: string; installationId: string }) {
-    const installationId = extractConnectionGithubInstallationId(input.installationId);
+    const installationId = extractGithubInstallationId(input.installationId);
     const environment = this.environment();
 
     if (!environment.githubAppId || !environment.githubAppPrivateKey) {
@@ -203,7 +198,7 @@ export class IntegrationConnectionService {
       encryptedConfig: { installationId, accountLogin },
       publicMetadata: {
         label: accountLogin ? `GitHub ${accountLogin}` : 'GitHub App',
-        connectedAccount: this.connectedAccount(accountLogin, installationId),
+        connectedAccount: accountLogin || installationId,
       },
     });
 
@@ -319,27 +314,27 @@ export class IntegrationConnectionService {
   private async startGithubConnection(userId: string, workspaceSlug: string, returnToPath?: string, browserOrigin?: string) {
     const environment = this.environment();
     if (!environment.githubAppInstallUrl) throw new BadRequestException('github_app_install_url_not_configured');
-    const state = randomConnectionState();
+    const state = randomState();
     const session = await this.createConnectionSession({
       userId,
       workspaceSlug,
       provider: IntegrationProvider.GithubApp,
-      stateHash: connectionSha256(state),
+      stateHash: sha256(state),
       verificationCodeHash: '',
-      status: CONNECTION_PENDING_STATUS,
+      status: PENDING_STATUS,
       metadata: {
-        browserOrigin: normalizeConnectionBrowserOrigin(browserOrigin),
-        returnToPath: normalizeConnectionReturnToPath(returnToPath, '/settings/integrations'),
+        browserOrigin: normalizeBrowserOrigin(browserOrigin),
+        returnToPath: normalizeReturnToPath(returnToPath, '/settings/integrations'),
       },
     });
     return {
       ok: true as const,
       provider: IntegrationProvider.GithubApp,
-      session: publicConnectionSession(session),
+      session: publicSession(session),
       primaryAction: {
         type: 'external_redirect',
         label: 'Connect GitHub',
-        url: appendConnectionQuery(normalizeConnectionGithubAppInstallUrl(environment.githubAppInstallUrl), { state }),
+        url: appendQuery(normalizeGithubAppInstallUrl(environment.githubAppInstallUrl), { state }),
       },
       steps: ['Install the GitHub App in the desired repositories.', 'Wait for the callback to finish the link.'],
     };
@@ -369,7 +364,7 @@ export class IntegrationConnectionService {
 
   private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi) {
     const environment = this.environment();
-    const config = aiRuntimeConfig(environment, provider);
+    const config = getAiProviderConfig(provider, environment);
     const configured = config.provider !== 'none' && config.baseUrl && config.model && config.apiKey;
     if (!configured) throw new BadRequestException(config.errorCode);
     const credential = await this.credentials.upsertCredential({
@@ -424,25 +419,25 @@ export class IntegrationConnectionService {
   ) {
     return this.sessions.createConnectionSession({
       ...input,
-      expiresAt: connectionExpiresAt(),
+      expiresAt: expiresAt(),
     });
   }
 
   private async startCodeBasedConnection(input: { userId: string; workspaceSlug: string; provider: CodeBasedProvider; label: string; steps: string[] }) {
-    const verificationCode = randomConnectionVerificationCode();
+    const verificationCode = randomVerificationCode();
     const session = await this.createConnectionSession({
       userId: input.userId,
       workspaceSlug: input.workspaceSlug,
       provider: input.provider,
       stateHash: '',
-      verificationCodeHash: connectionSha256(verificationCode),
-      status: CONNECTION_PENDING_STATUS,
+      verificationCodeHash: sha256(verificationCode),
+      status: PENDING_STATUS,
       metadata: {},
     });
     return {
       ok: true as const,
       provider: input.provider,
-      session: publicConnectionSession(session),
+      session: publicSession(session),
       primaryAction: {
         type: 'open_modal',
         label: input.label,
@@ -454,7 +449,7 @@ export class IntegrationConnectionService {
   }
 
   private async completeCodeBasedConnection(input: { code: string; externalId: string; spec: CodeBasedConnectionSpec }) {
-    const externalId = normalizeConnectionTrimmedValue(input.externalId);
+    const externalId = input.externalId.trim();
     if (!externalId) throw new UnauthorizedException('missing_external_identity');
     const session = await this.requireCodeSession(input.spec.provider, input.code);
     await this.assertExternalIdentityAvailable(input.spec.externalProvider, input.spec.identityType, externalId, session.userId, session.workspaceSlug);
@@ -505,14 +500,14 @@ export class IntegrationConnectionService {
       provider: input.spec.provider,
       resolvedUserId: session.userId,
       workspaceSlug: session.workspaceSlug,
-      session: publicConnectionSession(consumed || session),
+      session: publicSession(consumed || session),
     };
   }
 
   private async requireCodeSession(provider: CodeBasedProvider, code: string) {
-    const normalizedCode = normalizeConnectionTrimmedValue(code).toUpperCase();
+    const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode) throw new NotFoundException('connection_session_not_found');
-    const session = await this.sessions.findActiveConnectionSessionByCode(provider, connectionSha256(normalizedCode), new Date().toISOString());
+    const session = await this.sessions.findActiveConnectionSessionByCode(provider, sha256(normalizedCode), new Date().toISOString());
     if (!session) throw new NotFoundException('connection_session_not_found');
     return session;
   }
@@ -563,15 +558,11 @@ export class IntegrationConnectionService {
   }
 
   private async consumeSessionAsConnected(sessionId: string, metadata: Record<string, unknown>) {
-    return this.sessions.consumeConnectionSession(sessionId, CONNECTION_CONNECTED_STATUS, metadata);
+    return this.sessions.consumeConnectionSession(sessionId, CONNECTED_STATUS, metadata);
   }
 
   private normalizeGithubAccountLogin(installation: GithubInstallation) {
     return String(installation.account?.login ?? '').trim();
-  }
-
-  private connectedAccount(preferred: string, fallback: string) {
-    return preferred || fallback;
   }
 
   private async upsertWorkspaceBinding(
@@ -586,7 +577,7 @@ export class IntegrationConnectionService {
   }
 
   private async requireWorkspace(userId: string, workspaceSlug: string) {
-    const normalized = normalizeWorkspaceSlug(workspaceSlug);
+    const normalized = slugify(workspaceSlug);
     if (!normalized) throw new BadRequestException('workspace_slug_required');
     const workspace = (await this.content.listWorkspaces(userId)).find((item) => item.workspaceSlug === normalized);
     if (!workspace) throw new NotFoundException('workspace_not_found');
@@ -596,9 +587,8 @@ export class IntegrationConnectionService {
   private buildGithubCallbackRedirect(session: IntegrationConnectionSessionRecord, status: ConnectionCallbackStatus) {
     const environment = this.environment();
     const metadata = session.metadata as ConnectionSessionMetadata;
-    const origin = normalizeConnectionBrowserOrigin(metadata.browserOrigin) || environment.publicBaseUrl || '';
-    const returnToPath = normalizeConnectionReturnToPath(metadata.returnToPath, '/settings/integrations');
-    const base = buildConnectionBrowserRedirectUrl(origin || environment.publicBaseUrl || '', returnToPath);
+    const origin = normalizeBrowserOrigin(metadata.browserOrigin) || environment.publicBaseUrl || '';
+    const base = buildBrowserRedirectUrl(origin || environment.publicBaseUrl || '', metadata.returnToPath);
     base.searchParams.set('integration', IntegrationProvider.GithubApp);
     base.searchParams.set('status', status);
     base.searchParams.set('workspaceSlug', session.workspaceSlug || '');
@@ -608,16 +598,9 @@ export class IntegrationConnectionService {
   private fallbackGithubCallbackRedirect() {
     const environment = this.environment();
     const origin = environment.publicBaseUrl || '';
-    const base = buildConnectionBrowserRedirectUrl(origin, '/settings/integrations');
+    const base = buildBrowserRedirectUrl(origin, '/settings/integrations');
     base.searchParams.set('integration', IntegrationProvider.GithubApp);
     base.searchParams.set('status', 'error');
     return origin ? base.toString() : `${base.pathname}${base.search}`;
   }
-}
-
-function aiRuntimeConfig(
-  environment: RuntimeEnvironment,
-  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi,
-) {
-  return getAiProviderConfig(provider, environment);
 }
