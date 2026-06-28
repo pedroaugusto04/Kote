@@ -62,7 +62,7 @@ export class CreateManualNoteUseCase {
 
     const payload: IngestPayload = {
       source: {
-        channel: input.sourceChannel || (isAiChat ? SourceChannel.AiChat : SourceChannel.Cli),
+        channel: input.sourceChannel || SourceChannel.External,
         system: activeSource || 'manual-api',
         actor: '',
         conversationId: workspaceSlug,

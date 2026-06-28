@@ -34,8 +34,8 @@ export function buildConversationIngestPayload(payload: ConversationPayloadInput
   const reminderAt = buildReminderAt(payload.reminderDate, payload.reminderTime, payload.reminderTimeZone);
   return ingestPayloadSchema.parse({
     source: {
-      channel: payload.sourceChannel || SourceChannel.Whatsapp,
-      system: payload.sourceSystem || 'evolution-api',
+      channel: payload.sourceChannel || SourceChannel.External,
+      system: payload.sourceSystem || 'external',
       actor: payload.input.senderId,
       conversationId: payload.input.chatId,
       correlationId: `${payload.correlationPrefix}:${payload.input.messageId || Date.now().toString()}`,
