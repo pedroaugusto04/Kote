@@ -92,9 +92,9 @@ jobs:
       - name: Run security lint
         run: npm run lint:security
 
-      - name: Run API tests
+      - name: Run tests
         if: env.KB_RUN_INTEGRATION_TESTS == 'true'
-        run: npm run test:api
+        run: npm run test
 
       - name: Generate backend env file
         env:
@@ -358,9 +358,6 @@ jobs:
 
       - name: Run architecture lint
         run: npm run lint:architecture
-
-      - name: Run frontend tests
-        run: npm run test:frontend
 
       - name: Build frontend
         env:
