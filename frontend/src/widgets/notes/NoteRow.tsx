@@ -76,7 +76,7 @@ export function NoteRow({
           <Badge value={formatDisplayToken(note.status)} tone={note.status} />
         </div>
         <h3>{note.title}</h3>
-        <SourceBadge source={activeSource} />
+        <SourceBadge source={activeSource} iconSize={16} />
         <p>{getCleanSummary(note.summary)}</p>
       </div>
       <button

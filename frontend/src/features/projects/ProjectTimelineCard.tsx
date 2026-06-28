@@ -93,7 +93,7 @@ export function ProjectTimelineCard({
         <div className="project-timeline-body">
           <div>
             <h3>{item.title}</h3>
-            <SourceBadge source={activeSource} />
+            <SourceBadge source={activeSource} iconSize={16} />
             <p>{getCleanSummary(item.summary)}</p>
           </div>
           <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginTop: 'auto' }}>
