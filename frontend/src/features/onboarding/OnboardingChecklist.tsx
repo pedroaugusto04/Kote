@@ -8,7 +8,7 @@ import type { UserIntegration } from '../../shared/api/models/integration';
 import { routes } from '../../app/routing/routes';
 import { Panel } from '../../shared/ui/primitives';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
-import { VscodeIcon } from '../../shared/ui/icons';
+
 
 /** localStorage key for onboarding state. */
 const STORAGE_KEY = 'kb-onboarding-checklist';
@@ -67,7 +67,7 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     description: 'Download the Kote extension to sync local files and AI history.',
     priority: true,
     route: routes.profile,
-    icon: <VscodeIcon style={{ width: '16px', height: '16px', display: 'block' }} />,
+    icon: <img src="/vscode-logo.svg" style={{ width: '16px', height: '16px', display: 'block' }} alt="VS Code" />,
   },
   {
     id: 'vscode-sync-chat',
