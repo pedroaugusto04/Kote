@@ -1,5 +1,6 @@
 import type { QueryInput } from '../../contracts/query.js';
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
+import { SpecialQueryIntent, CanonicalType, KnowledgeStatus } from '../../contracts/enums.js';
 import type { VaultNoteSummary } from '../models/vault-note.models.js';
 
 function tokenizeQuery(query: string): string[] {
@@ -17,80 +18,92 @@ function scoreKnowledgeNote(note: VaultNoteSummary, tokens: string[]): number {
   return tokens.reduce((total, token) => total + (haystack.includes(token) ? 5 : 0), 0);
 }
 
-export function getSpecialQueryIntent(queryText: string): 'recent' | 'action_items' | 'decisions' | null {
+const SPECIAL_INTENT_PATTERNS = {
+  [SpecialQueryIntent.Recent]: {
+    phrases: [
+      'summarize my recent notes',
+      'summarize notes',
+      'recent notes',
+      'show recent notes',
+    ],
+    regex: /^(summarize\s+)?(my\s+)?(recent\s+)?notes$/i,
+  },
+  [SpecialQueryIntent.ActionItems]: {
+    phrases: [
+      'what are my action items',
+      'action items',
+      'my action items',
+      'show action items',
+    ],
+    regex: /^(what\s+are\s+)?(my\s+)?action\s+items$/i,
+  },
+  [SpecialQueryIntent.Decisions]: {
+    phrases: [
+      'review key decisions made',
+      'review key decisions',
+      'key decisions',
+      'decisions',
+    ],
+    regex: /^(review\s+)?(key\s+)?decisions(\s+made)?$/i,
+  },
+};
+
+const ACTION_INDICATOR_TAGS = ['action', 'action-item', CanonicalType.Followup.toLowerCase(), 'todo'];
+const ACTION_INDICATOR_CATEGORIES = ['action', CanonicalType.Followup.toLowerCase(), 'todo'];
+const ACTION_INDICATOR_TYPES = [CanonicalType.Followup.toLowerCase(), 'reminder', 'task'];
+
+const DECISION_INDICATOR_TAGS = [CanonicalType.Decision.toLowerCase(), 'decisions'];
+const DECISION_INDICATOR_CATEGORIES = [CanonicalType.Decision.toLowerCase()];
+
+export function getSpecialQueryIntent(queryText: string): SpecialQueryIntent | null {
   const normalized = queryText.trim().toLowerCase().replace(/[?.,!]/g, '');
 
-  if (
-    normalized === 'summarize my recent notes' ||
-    normalized === 'summarize notes' ||
-    normalized === 'recent notes' ||
-    normalized === 'show recent notes' ||
-    /^(summarize\s+)?(my\s+)?(recent\s+)?notes$/i.test(normalized)
-  ) {
-    return 'recent';
-  }
-
-  if (
-    normalized === 'what are my action items' ||
-    normalized === 'action items' ||
-    normalized === 'my action items' ||
-    normalized === 'show action items' ||
-    /^(what\s+are\s+)?(my\s+)?action\s+items$/i.test(normalized)
-  ) {
-    return 'action_items';
-  }
-
-  if (
-    normalized === 'review key decisions made' ||
-    normalized === 'review key decisions' ||
-    normalized === 'key decisions' ||
-    normalized === 'decisions' ||
-    /^(review\s+)?(key\s+)?decisions(\s+made)?$/i.test(normalized)
-  ) {
-    return 'decisions';
+  for (const [intent, pattern] of Object.entries(SPECIAL_INTENT_PATTERNS)) {
+    if (pattern.phrases.includes(normalized) || pattern.regex.test(normalized)) {
+      return intent as SpecialQueryIntent;
+    }
   }
 
   return null;
 }
 
-export function matchesIntent(note: VaultNoteSummary, intent: 'recent' | 'action_items' | 'decisions'): boolean {
-  if (intent === 'recent') {
+export function matchesIntent(note: VaultNoteSummary, intent: SpecialQueryIntent): boolean {
+  if (intent === SpecialQueryIntent.Recent) {
     return true;
   }
 
-  if (intent === 'action_items') {
+  if (intent === SpecialQueryIntent.ActionItems) {
     const status = note.status.toLowerCase();
-    const isActionStatus = ['pending', 'overdue'].includes(status);
+    const isActionStatus = [
+      KnowledgeStatus.Pending.toLowerCase(),
+      KnowledgeStatus.Overdue.toLowerCase(),
+    ].includes(status);
 
-    const hasActionTag = note.tags.some((tag) => {
-      const t = tag.toLowerCase();
-      return t === 'action' || t === 'action-item' || t === 'followup' || t === 'todo';
-    });
+    const hasActionTag = note.tags.some((tag) =>
+      ACTION_INDICATOR_TAGS.includes(tag.toLowerCase())
+    );
 
     const hasActionCategory = note.categories.some((cat) => {
       const name = cat.name.toLowerCase();
-      return name.includes('action') || name.includes('followup') || name.includes('todo');
+      return ACTION_INDICATOR_CATEGORIES.some((indicator) => name.includes(indicator));
     });
 
-    const type = note.type.toLowerCase();
-    const isActionType = type === 'followup' || type === 'reminder' || type === 'task';
+    const isActionType = ACTION_INDICATOR_TYPES.includes(note.type.toLowerCase());
 
     return isActionStatus || hasActionTag || hasActionCategory || isActionType;
   }
 
-  if (intent === 'decisions') {
-    const hasDecisionTag = note.tags.some((tag) => {
-      const t = tag.toLowerCase();
-      return t === 'decision' || t === 'decisions';
-    });
+  if (intent === SpecialQueryIntent.Decisions) {
+    const hasDecisionTag = note.tags.some((tag) =>
+      DECISION_INDICATOR_TAGS.includes(tag.toLowerCase())
+    );
 
     const hasDecisionCategory = note.categories.some((cat) => {
       const name = cat.name.toLowerCase();
-      return name.includes('decision');
+      return DECISION_INDICATOR_CATEGORIES.some((indicator) => name.includes(indicator));
     });
 
-    const type = note.type.toLowerCase();
-    const isDecisionType = type === 'decision';
+    const isDecisionType = note.type.toLowerCase() === CanonicalType.Decision.toLowerCase();
 
     return hasDecisionTag || hasDecisionCategory || isDecisionType;
   }

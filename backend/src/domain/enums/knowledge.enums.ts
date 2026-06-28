@@ -44,3 +44,9 @@ export enum KnowledgeStatus {
   Overdue = 'overdue',
   Sent = 'sent',
 }
+
+export enum SpecialQueryIntent {
+  Recent = 'recent',
+  ActionItems = 'action_items',
+  Decisions = 'decisions',
+}
