@@ -9,6 +9,7 @@ import { routes } from '../../app/routing/routes';
 import { withFrontendBasePath } from '../../app/base-path';
 import { Panel } from '../../shared/ui/primitives';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { CDNImage } from '../../shared/ui/CDNImage';
 
 
 /** localStorage key for onboarding state. */
@@ -52,7 +53,7 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     priority: true,
     route: routes.integrations,
     provider: 'github-app',
-    icon: '⌥',
+    icon: <CDNImage src="https://cdn.simpleicons.org/github/ffffff" style={{ width: '16px', height: '16px', display: 'block' }} alt="GitHub" fallback="⌥" />,
   },
   {
     id: 'github-push',
