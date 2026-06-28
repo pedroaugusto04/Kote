@@ -8,6 +8,7 @@ import type { UserIntegration } from '../../shared/api/models/integration';
 import { routes } from '../../app/routing/routes';
 import { Panel } from '../../shared/ui/primitives';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { VscodeIcon } from '../../shared/ui/icons';
 
 /** localStorage key for onboarding state. */
 const STORAGE_KEY = 'kb-onboarding-checklist';
@@ -39,7 +40,7 @@ type ChecklistItemDef = {
   priority: boolean;
   route: string;
   provider?: string;
-  icon: string;
+  icon: React.ReactNode;
 };
 
 const CHECKLIST_ITEMS: ChecklistItemDef[] = [
@@ -59,6 +60,22 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     priority: true,
     route: routes.projects,
     icon: '↑',
+  },
+  {
+    id: 'vscode-extension',
+    label: 'Install VS Code Extension',
+    description: 'Download the Kote extension to sync local files and AI history.',
+    priority: true,
+    route: routes.profile,
+    icon: <VscodeIcon style={{ width: '16px', height: '16px', display: 'block' }} />,
+  },
+  {
+    id: 'vscode-sync-chat',
+    label: 'Sync your First AI chat',
+    description: 'Save a AI session from VS Code to your Kote.',
+    priority: true,
+    route: routes.home,
+    icon: '⚡',
   },
   {
     id: 'whatsapp',
@@ -107,6 +124,7 @@ function isIntegrationConnected(integrations: UserIntegration[], provider: strin
 function getCompletedItems(
   integrations: UserIntegration[],
   dashboard: Dashboard,
+  vscodeInstalled: boolean,
 ): Set<string> {
   const completed = new Set<string>();
 
@@ -118,6 +136,15 @@ function getCompletedItems(
   const totalGithubPushes = dashboard.home.metrics.find((m) => m.id === 'total-github-pushes')?.value ?? 0;
   if (totalGithubPushes > 0) {
     completed.add('github-push');
+  }
+
+  if (vscodeInstalled) {
+    completed.add('vscode-extension');
+  }
+
+  const totalSyncedChats = dashboard.home.metrics.find((m) => m.id === 'total-synced-chats')?.value ?? 0;
+  if (totalSyncedChats > 0) {
+    completed.add('vscode-sync-chat');
   }
 
   if (isIntegrationConnected(integrations, 'whatsapp')) {
@@ -145,6 +172,7 @@ function getCompletedItems(
 function getVisibleItems(
   integrations: UserIntegration[],
   dashboard: Dashboard,
+  vscodeInstalled: boolean,
 ): ChecklistItemDef[] {
   const githubConnected = isIntegrationConnected(integrations, 'github-app')
     && dashboard.projects.some((p) => p.repositories.length > 0);
@@ -153,6 +181,7 @@ function getVisibleItems(
 
   return CHECKLIST_ITEMS.filter((item) => {
     if (item.id === 'github-push' && !githubConnected) return false;
+    if (item.id === 'vscode-sync-chat' && !vscodeInstalled) return false;
     if (item.id === 'ask-ai' && totalNotes < 3) return false;
     if (item.id === 'project-brief' && totalNotes < 3) return false;
     if (item.id === 'reminder' && !whatsappConnected) return false;
@@ -168,6 +197,13 @@ export function OnboardingChecklist({
   workspaceSlug: string;
 }) {
   const [storage, setStorage] = useState(loadStorage);
+  const [vscodeConfirmed, setVscodeConfirmed] = useState(() => {
+    try {
+      return localStorage.getItem('kb-vscode-installed') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   const integrationsQuery = useQuery({
     queryKey: ['integrations', workspaceSlug],
@@ -177,14 +213,17 @@ export function OnboardingChecklist({
 
   const integrations = integrationsQuery.data?.integrations ?? [];
 
+  const totalSyncedChats = dashboard.home.metrics.find((m) => m.id === 'total-synced-chats')?.value ?? 0;
+  const vscodeInstalled = vscodeConfirmed || totalSyncedChats > 0;
+
   const completed = useMemo(
-    () => getCompletedItems(integrations, dashboard),
-    [integrations, dashboard],
+    () => getCompletedItems(integrations, dashboard, vscodeInstalled),
+    [integrations, dashboard, vscodeInstalled],
   );
 
   const visibleItems = useMemo(
-    () => getVisibleItems(integrations, dashboard),
-    [integrations, dashboard],
+    () => getVisibleItems(integrations, dashboard, vscodeInstalled),
+    [integrations, dashboard, vscodeInstalled],
   );
 
   const completedCount = visibleItems.filter((item) => completed.has(item.id)).length;
@@ -287,6 +326,23 @@ export function OnboardingChecklist({
               <div className="onboarding-item-copy">
                 <strong>{item.label}</strong>
                 <span>{item.description}</span>
+                {item.id === 'vscode-extension' && !done && (
+                  <button
+                    className="onboarding-reminder-test-btn"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try {
+                        localStorage.setItem('kb-vscode-installed', 'true');
+                      } catch {
+                        // ignore
+                      }
+                      setVscodeConfirmed(true);
+                    }}
+                  >
+                    Confirm installation
+                  </button>
+                )}
                 {item.id === 'reminder' && !done && (
                   <button
                     className="onboarding-reminder-test-btn"

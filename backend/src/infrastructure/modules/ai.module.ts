@@ -19,6 +19,9 @@ import { DefaultAnswerGenerationGateway } from '../ai/answer-generation.gateway.
 import { DefaultAudioTranscriptionGateway } from '../ai/audio-transcription.gateway.js';
 import { DefaultGithubIntegrationGateway } from '../integrations/github-integration.gateway.js';
 import { DefaultWeeklySummaryGateway } from '../ai/weekly-summary.gateway.js';
+import { Gemini001EmbeddingStrategy } from '../ai/strategies/gemini-001-embedding.strategy.js';
+import { Gemini2EmbeddingStrategy } from '../ai/strategies/gemini-2-embedding.strategy.js';
+import { OpenAiEmbeddingStrategy } from '../ai/strategies/openai-embedding.strategy.js';
 
 const gateways = [
   DefaultConversationAgentGateway,
@@ -29,6 +32,9 @@ const gateways = [
   DefaultAudioTranscriptionGateway,
   DefaultGithubIntegrationGateway,
   DefaultWeeklySummaryGateway,
+  Gemini001EmbeddingStrategy,
+  Gemini2EmbeddingStrategy,
+  OpenAiEmbeddingStrategy,
   { provide: ConversationAgentGateway, useExisting: DefaultConversationAgentGateway },
   { provide: ProjectBriefAiGateway, useExisting: DefaultProjectBriefAiGateway },
   { provide: ReviewAnalysisGateway, useExisting: DefaultReviewAnalysisGateway },

@@ -5,6 +5,7 @@ import type { DashboardHomeSummary, HomePriority } from '../models/dashboard-hom
 import type { ReminderView } from '../models/reminder.models.js';
 import type { ReviewView } from '../models/review.models.js';
 import type { VaultNoteSummary } from '../models/vault-note.models.js';
+import { isAiSource } from '../../domain/notes.js';
 
 const HOME_WINDOW_DAYS = 7;
 const OPEN_REMINDER_STATUSES = new Set<string>([KnowledgeStatus.Pending, KnowledgeStatus.Overdue]);
@@ -209,6 +210,14 @@ export function buildDashboardHome(
         label: 'Total notes',
         value: notes.length,
         meta: 'total notes in workspace',
+        tone: 'active',
+      },
+
+      {
+        id: 'total-synced-chats',
+        label: 'Total Synced AI Chats',
+        value: notes.filter((note) => note.source === 'ai-chat' || isAiSource(note.source)).length,
+        meta: 'total synced AI chat sessions',
         tone: 'active',
       },
       {
