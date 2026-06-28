@@ -17,9 +17,14 @@ import {
   BulkUpdateReminderStatusUseCase,
   RunAskAiUseCase,
   ListAskHistoryUseCase,
+  FindNotesByFileUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import {
+  notesByFileQuerySchema,
+  type NotesByFileQuery,
+} from '../../dto/note.dto.js';
 import {
   noteIdParamSchema,
   notesListQuerySchema,
@@ -69,6 +74,7 @@ export class DashboardController {
     private readonly runAskAiUseCase: RunAskAiUseCase,
     private readonly listAskHistoryUseCase: ListAskHistoryUseCase,
     private readonly bulkUpdateReminderStatusUseCase: BulkUpdateReminderStatusUseCase,
+    private readonly findNotesByFileUseCase: FindNotesByFileUseCase,
   ) {}
 
   @Get('dashboard')
@@ -113,6 +119,18 @@ export class DashboardController {
       ok: true,
       ...paginatedResponse('notes', await this.listNotesUseCase.execute(user.id, { ...query, workspaceId, projectId })),
     };
+  }
+
+  @Get('notes/by-file')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Find notes by file path' })
+  @ApiQuery({ name: 'filePath', description: 'Relative file path to search notes for' })
+  @ApiResponse({ status: 200, description: 'Notes matching the file path retrieved successfully' })
+  async findByFile(
+    @Query(new ZodValidationPipe(notesByFileQuerySchema, 'invalid_notes_by_file_query')) query: NotesByFileQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.findNotesByFileUseCase.execute(user.id, query.filePath);
   }
 
   @Get('notes/:id')

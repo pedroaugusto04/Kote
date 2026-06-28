@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } from '@nestjs/swagger';
 import type { Response } from 'express';
 
@@ -11,7 +11,6 @@ import {
   BulkUpdateNoteStatusUseCase,
   SetNotePinnedUseCase,
   FindRelatedNotesUseCase,
-  FindNotesByFileUseCase,
   GetAutoActionGlobalUseCase,
   SetAutoActionGlobalUseCase,
 } from '../../../../application/use-cases/index.js';
@@ -26,14 +25,12 @@ import {
   autoActionGlobalSchema,
   pinNoteBodySchema,
   bulkUpdateNoteStatusBodySchema,
-  notesByFileQuerySchema,
   type CreateNoteBody,
   type NoteAttachmentContentParam,
   type NoteIdParam,
   type UpdateNoteBody,
   type PinNoteBody,
   type BulkUpdateNoteStatusBody,
-  type NotesByFileQuery,
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { inlineContentDisposition } from '../../http-helpers.js';
@@ -54,20 +51,7 @@ export class NotesController {
     private readonly getAutoActionGlobalUseCase: GetAutoActionGlobalUseCase,
     private readonly setAutoActionGlobalUseCase: SetAutoActionGlobalUseCase,
     private readonly bulkUpdateNoteStatus: BulkUpdateNoteStatusUseCase,
-    private readonly findNotesByFileUseCase: FindNotesByFileUseCase,
   ) {}
-
-  @Get('by-file')
-  @UseGuards(TrustedOriginGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find notes by file path' })
-  async findByFile(
-    @Query(new ZodValidationPipe(notesByFileQuerySchema, 'invalid_notes_by_file_query')) query: NotesByFileQuery,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.findNotesByFileUseCase.execute(user.id, query.filePath);
-  }
-
 
   @Post()
   @UseGuards(BrowserExtensionGuard, ProjectResolutionGuard)
