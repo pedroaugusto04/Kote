@@ -18,6 +18,7 @@ import {
   attachments,
   workspaces,
   projects,
+  notes,
 } from '../persistence/schema/index.js';
 import {
   planFromRow,
@@ -161,12 +162,21 @@ export class PostgresQuotaRepository extends QuotaRepository {
 
   async getAttachmentStorageUsage(userId: string): Promise<number> {
     const db = this.database.getDb();
-    const result = await db
-      .select({ total: sum(attachments.sizeBytes) })
-      .from(attachments)
-      .where(eq(attachments.userId, userId));
+    const [attachmentsResult, notesResult] = await Promise.all([
+      db
+        .select({ total: sum(attachments.sizeBytes) })
+        .from(attachments)
+        .where(eq(attachments.userId, userId)),
+      db
+        .select({ total: sum(notes.sizeBytes) })
+        .from(notes)
+        .where(eq(notes.userId, userId)),
+    ]);
 
-    return Number(result[0]?.total || 0);
+    const totalAttachments = Number(attachmentsResult[0]?.total || 0);
+    const totalNotes = Number(notesResult[0]?.total || 0);
+
+    return totalAttachments + totalNotes;
   }
 
   async getWorkspaceCount(userId: string): Promise<number> {

@@ -3,19 +3,17 @@ import { WebhookTrigger } from '../../../contracts/enums.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import type { UpdateNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
-import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
+import { NoteLifecycleService } from '../../services/note-lifecycle.service.js';
 
 @Injectable()
 export class UpdateNoteUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly embeddingQueue: EmbeddingQueuePublisher,
-    private readonly noteEventDispatcher: NoteEventDispatcher,
+    private readonly noteLifecycleService: NoteLifecycleService,
   ) {}
 
   async execute(input: UpdateNoteInput, userId: string) {
@@ -48,30 +46,22 @@ export class UpdateNoteUseCase {
       workspaceId = newProject.workspaceId;
     }
     
-    const updated = await this.contentRepository.updateNote(
+    const updatedNoteInput = {
+      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...normalizedInput, canonicalType }, reminderTimeZone, projectSlug, projectId, workspaceSlug, workspaceId),
+      categoryIds: input.categoryIds,
+    };
+
+    const { note: updated } = await this.noteLifecycleService.saveNote(
       userId,
       {
-        ...buildUpdatedNote(note, previousFolder, nextFolder, { ...normalizedInput, canonicalType }, reminderTimeZone, projectSlug, projectId, workspaceSlug, workspaceId),
-        categoryIds: input.categoryIds,
+        noteInput: updatedNoteInput,
       },
+      {
+        existingNoteId: note.id,
+        workspaceSlug: note.workspaceSlug || undefined,
+        projectSlug: note.projectSlug || undefined,
+      }
     );
-
-    try {
-      await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: updated.id });
-    } catch { /* embedding queue failure must never block note update */ }
-
-    try {
-      await this.noteEventDispatcher.dispatch({
-        event: WebhookTrigger.NoteUpdated,
-        noteId: updated.id,
-        userId,
-        workspaceSlug: note.workspaceSlug || '',
-        projectSlug: note.projectSlug || '',
-        title: normalizedInput.title || note.title,
-        content: updated.markdown,
-        occurredAt: new Date().toISOString(),
-      });
-    } catch { /* webhook dispatch must never block note update */ }
 
     // Global scheduling is handled by the batch worker; per-note scheduling removed
 

@@ -170,8 +170,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
   const ingest = new IngestEntryUseCase(
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
-    repositories.embeddingQueuePublisher,
-    repositories.quotaService,
+    repositories.noteLifecycleService,
     loggerMock,
   );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);

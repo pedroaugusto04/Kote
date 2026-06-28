@@ -549,6 +549,7 @@ export class PostgresNoteRepository {
         sessionId: input.sessionId ?? '',
         reminderDate: input.reminderDate ?? '',
         reminderAt: input.reminderAt ?? '',
+        sizeBytes: input.sizeBytes ?? (input.markdown ? Buffer.byteLength(input.markdown, 'utf8') : 0),
       } as typeof notes.$inferInsert);
 
     if (categoryIds.length > 0) {
@@ -682,6 +683,7 @@ export class PostgresNoteRepository {
            session_id = $16,
            reminder_date = $17,
            reminder_at = $18,
+           size_bytes = $19,
            updated_at = now()
        where user_id = $1 and id = $2
        returning *`,
@@ -704,6 +706,7 @@ export class PostgresNoteRepository {
         input.sessionId ?? '',
         input.reminderDate ?? '',
         input.reminderAt ?? '',
+        input.sizeBytes ?? (input.markdown ? Buffer.byteLength(input.markdown, 'utf8') : 0),
       ]
     );
 

@@ -22,6 +22,7 @@ import { PostgresNoteRepository } from '../../dist/infrastructure/repositories/n
 import { PostgresFolderRepository } from '../../dist/infrastructure/repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../../dist/infrastructure/repositories/attachment.repository.js';
 import { PostgresCategoryRepository } from '../../dist/infrastructure/repositories/category.repository.js';
+import { NoteLifecycleService } from '../../dist/application/services/note-lifecycle.service.js';
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '../../dist/infrastructure/persistence/schema/index.js';
@@ -301,6 +302,37 @@ export async function createPostgresTestRepositories(t) {
     return result.rows[0] ? webhookEventFromRow(result.rows[0]) : null;
   }
 
+  const quotaService = {
+    async checkQuota(userId, resourceType, requestedAmount = 1) {
+      return { allowed: true, limit: -1, current: 0 };
+    },
+    async checkAndIncrementAiUsage(userId, operationType, context) {
+      return { allowed: true, limit: -1, current: 0 };
+    },
+    async incrementUsage(userId, resourceType, amount = 1) {},
+    async getQuotaStatus() {
+      return {
+        plan: 'free',
+        status: 'active',
+        currentPeriodEnd: new Date().toISOString(),
+        limits: { storage: -1, aiRequests: -1, workspaces: 1, projects: 1 },
+        usage: { storage: 0, aiRequests: 0, workspaces: 0, projects: 0 }
+      };
+    }
+  };
+
+  const embeddingQueuePublisher = {
+    async publish(payload) {}
+  };
+
+  const noteLifecycleService = new NoteLifecycleService(
+    contentRepository,
+    quotaService,
+    embeddingQueuePublisher,
+    { dispatch: async () => {} },
+    { info() {}, warn() {}, error() {}, debug() {} }
+  );
+
   return {
     schemaName,
     pool,
@@ -325,26 +357,8 @@ export async function createPostgresTestRepositories(t) {
     runtimeEnvironmentProvider,
     pushSubscriptionRepository,
     schemaMigrator,
-    quotaService: {
-      async checkQuota(userId, resourceType, requestedAmount = 1) {
-        return { allowed: true, limit: -1, current: 0 };
-      },
-      async checkAndIncrementAiUsage(userId, operationType, context) {
-        return { allowed: true, limit: -1, current: 0 };
-      },
-      async incrementUsage(userId, resourceType, amount = 1) {},
-      async getQuotaStatus() {
-        return {
-          plan: 'free',
-          status: 'active',
-          currentPeriodEnd: new Date().toISOString(),
-          limits: { storage: -1, aiRequests: -1, workspaces: 1, projects: 1 },
-          usage: { storage: 0, aiRequests: 0, workspaces: 0, projects: 0 }
-        };
-      }
-    },
-    embeddingQueuePublisher: {
-      async publish(payload) {}
-    },
+    quotaService,
+    embeddingQueuePublisher,
+    noteLifecycleService,
   };
 }

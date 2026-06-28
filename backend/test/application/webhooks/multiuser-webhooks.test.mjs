@@ -113,7 +113,7 @@ test('new users start with an empty scoped dashboard and cannot see another user
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.embeddingQueuePublisher, repositories.quotaService, loggerMock);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock);
   const dashboard = new BuildDashboardUseCase(
     repositories.contentRepository,
     repositories.contentQueryRepository,
@@ -164,7 +164,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     workspaceSlug: 'default',
   }, user.id);
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.embeddingQueuePublisher, repositories.quotaService, loggerMock);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock);
   const unusedGithubGateway = {
     verifyWebhookSignature() { },
     async fetchInstallationToken() {
@@ -271,7 +271,7 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     publicMetadata: {},
   });
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.embeddingQueuePublisher, repositories.quotaService, loggerMock);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock);
   const handler = new HandleGithubPushUseCase(
     ingest,
     repositories.externalIdentityRepository,

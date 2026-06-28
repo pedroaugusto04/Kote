@@ -76,8 +76,7 @@ test('ingest persists one canonical note with derived reminder, attachment and w
   const result = await new IngestEntryUseCase(
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
-    repositories.embeddingQueuePublisher,
-    repositories.quotaService,
+    repositories.noteLifecycleService,
     loggerMock,
   ).execute(payload(), user.id, 'default');
 
@@ -138,8 +137,7 @@ test('ingest fails when the target workspace does not exist', async (t) => {
     () => new IngestEntryUseCase(
       repositories.contentRepository,
       repositories.runtimeEnvironmentProvider,
-      repositories.embeddingQueuePublisher,
-      repositories.quotaService,
+      repositories.noteLifecycleService,
       loggerMock,
     ).execute(payload(), user.id, 'default'),
     /workspace_not_found/,
@@ -179,8 +177,7 @@ test('manual note creation uses ingest and derives optional reminder from the no
     new IngestEntryUseCase(
       repositories.contentRepository,
       repositories.runtimeEnvironmentProvider,
-      repositories.embeddingQueuePublisher,
-      repositories.quotaService,
+      repositories.noteLifecycleService,
       loggerMock,
     ),
     repositories.runtimeEnvironmentProvider,

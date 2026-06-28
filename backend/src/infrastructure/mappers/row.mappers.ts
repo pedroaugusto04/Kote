@@ -259,6 +259,7 @@ export function noteFromRow(row: Row): NoteRecord {
     reminderAt: fieldString(row, 'reminder_at', 'reminderAt'),
     attachmentCount: Number(field(row, 'attachment_count', 'attachmentCount') || 0),
     isPinned: field(row, 'is_pinned', 'isPinned') === true,
+    sizeBytes: Number(field(row, 'size_bytes', 'sizeBytes') || 0),
   };
 }
 

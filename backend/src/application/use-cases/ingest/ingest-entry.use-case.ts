@@ -9,14 +9,11 @@ import { buildNotePaths, renderEventNote } from '../../../domain/notes.js';
 import type { Project } from '../../../domain/projects.js';
 import { slugify, trimText, calculateAttachmentSize } from '../../../domain/strings.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import type { SaveNoteResult } from '../../models/note-save-result.models.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
-import { QuotaService } from '../../services/quota.service.js';
-import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
-import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
+import { NoteLifecycleService } from '../../services/note-lifecycle.service.js';
 import { AppLogger } from '../../../observability/logger.js';
 
 
@@ -32,29 +29,20 @@ export class IngestEntryUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly embeddingQueue: EmbeddingQueuePublisher,
-    private readonly quotaService: QuotaService,
+    private readonly noteLifecycleService: NoteLifecycleService,
     private readonly logger: AppLogger,
-  ) { }
+  ) {}
 
   async execute(input: IngestPayload, userId: string, workspaceSlug = '', options: IngestExecutionOptions = {}) {
     const result = await saveIngestedNote(
       this.contentRepository,
-      this.quotaService,
+      this.noteLifecycleService,
       userId,
       input,
       this.environmentProvider.read().reminderTimeZone,
       workspaceSlug,
       options,
     );
-
-    try {
-      await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: result.noteId });
-      this.logger.info('Note published to embedding queue successfully', { noteId: result.noteId, userId });
-    } catch (error) {
-      this.logger.error('Failed to publish note to embedding queue', { noteId: result.noteId, userId, error: error instanceof Error ? error.message : String(error) });
-      /* embedding queue failure must never block note save */
-    }
 
     return result;
   }
@@ -89,7 +77,7 @@ function projectFromPayload(payload: IngestPayload, workspaceSlug: string): Proj
 
 async function saveIngestedNote(
   contentRepository: ContentRepository,
-  quotaService: QuotaService,
+  noteLifecycleService: NoteLifecycleService,
   userId: string,
   input: IngestPayload,
   reminderTimeZone: string,
@@ -212,57 +200,44 @@ async function saveIngestedNote(
     }
   }
 
-  const note = await contentRepository.upsertNote(userId, {
-    id: options.existingNoteId || undefined,
-    projectId,
-    workspaceId,
-    path: options.existingNotePath || paths.eventRelativePath.replace(/\\/g, '/'),
-    categoryIds,
-    title,
-    projectSlug: project.projectSlug,
-    workspaceSlug,
-    folderId: folder?.id || null,
-    status: payload.classification.status,
-    tags: payload.classification.tags,
-    occurredAt: payload.event.occurredAt,
-    sourceChannel: payload.source.channel,
-    summary: payload.content.sections.summary || payload.content.rawText,
-    markdown,
-    metadata: {
-      ...payload.metadata,
-      eventType: payload.event.type,
-      impact: payload.content.sections.impact,
-      reviewFindings: payload.content.sections.reviewFindings,
-      reminderTime: payload.actions.reminderTime,
+  const { note, attachments } = await noteLifecycleService.saveNote(
+    userId,
+    {
+      noteInput: {
+        id: options.existingNoteId || undefined,
+        projectId,
+        workspaceId,
+        path: options.existingNotePath || paths.eventRelativePath.replace(/\\/g, '/'),
+        categoryIds,
+        title,
+        projectSlug: project.projectSlug,
+        workspaceSlug,
+        folderId: folder?.id || null,
+        status: payload.classification.status,
+        tags: payload.classification.tags,
+        occurredAt: payload.event.occurredAt,
+        sourceChannel: payload.source.channel,
+        summary: payload.content.sections.summary || payload.content.rawText,
+        markdown,
+        metadata: {
+          ...payload.metadata,
+          eventType: payload.event.type,
+          impact: payload.content.sections.impact,
+          reviewFindings: payload.content.sections.reviewFindings,
+          reminderTime: payload.actions.reminderTime,
+        },
+        source: payload.source.system,
+        sessionId: payload.source.sessionId,
+        reminderDate: payload.actions.reminderDate,
+        reminderAt: payload.actions.reminderAt,
+      },
+      attachments: payload.content.attachments,
     },
-    source: payload.source.system,
-    sessionId: payload.source.sessionId,
-    reminderDate: payload.actions.reminderDate,
-    reminderAt: payload.actions.reminderAt,
-  });
-  let totalAttachmentSize = 0;
-  for (const attachment of payload.content.attachments) {
-    totalAttachmentSize += calculateAttachmentSize(attachment.sizeBytes, attachment.dataBase64);
-  }
-
-  if (totalAttachmentSize > 0) {
-    const quotaResult = await quotaService.checkQuota(userId, QuotaResourceType.STORAGE, totalAttachmentSize);
-    if (!quotaResult.allowed) {
-      throw new QuotaExceededException('storage', quotaResult.limit, quotaResult.current);
+    {
+      existingNoteId: options.existingNoteId,
+      workspaceSlug,
+      projectSlug: project.projectSlug,
     }
-  }
-
-  const attachments = await Promise.all(
-    payload.content.attachments.map((attachment) =>
-      contentRepository.saveAttachment(userId, {
-        noteId: note.id,
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        sizeBytes: attachment.sizeBytes,
-        dataBase64: attachment.dataBase64,
-        checksumSha256: crypto.createHash('sha256').update(attachment.dataBase64 || '', 'base64').digest('hex'),
-      }),
-    ),
   );
   const folderSummary = folder
     ? await buildFolderSummary(contentRepository, userId, projectId, folder)

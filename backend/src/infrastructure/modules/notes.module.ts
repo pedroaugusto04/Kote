@@ -34,6 +34,7 @@ import {
 import { EmbeddingWorker } from '../../application/services/embedding.worker.js';
 import { NoteChunkingService } from '../../application/services/note-chunking.service.js';
 import { NoteEventDispatcher } from '../../application/services/note-event-dispatcher.js';
+import { NoteLifecycleService } from '../../application/services/note-lifecycle.service.js';
 import { AutoActionWorker } from '../../workers/auto-action.worker.js';
 import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
 import { SettingsRepository } from '../../application/ports/settings.repository.js';
@@ -67,6 +68,7 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     NoteChunkingService,
     ReindexAllEmbeddingsUseCase,
     NoteEventDispatcher,
+    NoteLifecycleService,
     AutoActionWorker,
     
     GetAutoActionGlobalUseCase,
@@ -85,6 +87,7 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     EmbeddingWorker,
     NoteChunkingService,
     NoteEventDispatcher,
+    NoteLifecycleService,
     AskKnowledgeUseCase,
     ResolveWhatsappAskAttachmentsUseCase,
     RunAskAiUseCase,

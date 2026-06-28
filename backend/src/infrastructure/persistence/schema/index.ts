@@ -140,6 +140,7 @@ export const notes = pgTable('kb_notes', {
   reminderDate: text('reminder_date').notNull().default(''),
   reminderAt: text('reminder_at').notNull().default(''),
   isPinned: boolean('is_pinned').default(false),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
