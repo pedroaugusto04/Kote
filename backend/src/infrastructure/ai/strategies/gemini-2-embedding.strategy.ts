@@ -41,7 +41,7 @@ export class Gemini2EmbeddingStrategy implements EmbeddingStrategy {
         requests: batch.map((text) => ({
           model: `models/${config.model}`,
           content: { parts: [{ text }] },
-          // gemini-embedding-2 does not support taskType or outputDimensionality
+          outputDimensionality: 768,
         })),
       };
 
