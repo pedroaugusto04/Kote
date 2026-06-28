@@ -63,11 +63,6 @@ export class BrowserExtensionGuard implements CanActivate {
       const environment = readEnvironment();
       const allowedIds = environment.allowedExtensionIds;
 
-      // Allow if no IDs are configured (backward compatibility)
-      if (allowedIds.length === 0) {
-        return true;
-      }
-
       // Allow if ID is in the allowed list
       if (allowedIds.includes(extensionId)) {
         return true;

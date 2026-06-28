@@ -78,10 +78,6 @@ export function assertTrustedBrowserOrigin(request: Request) {
     const extensionId = actualOrigin.replace('chrome-extension://', '');
     const environment = readEnvironment();
     const allowedIds = environment.allowedExtensionIds;
-    // Allow if no IDs are configured (backward compatibility)
-    if (allowedIds.length === 0) {
-      return;
-    }
     // Allow if ID is in the allowed list
     if (allowedIds.includes(extensionId)) {
       return;
