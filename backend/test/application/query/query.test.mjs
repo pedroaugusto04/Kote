@@ -157,3 +157,150 @@ test('query filters textual matches by note status', async (t) => {
   assert.equal(result.ok, true);
   assert.deepEqual(result.matches.map((match) => match.title), ['Webhook resolvido']);
 });
+
+test('query handles special query: summarize my recent notes', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedDefaultWorkspace(repositories, user.id);
+
+  // Seed notes with different occurredAt dates
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/older.md',
+    type: 'event',
+    title: 'Older Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-20T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Older summary',
+    markdown: '',
+  });
+
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/newer.md',
+    type: 'event',
+    title: 'Newer Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Newer summary',
+    markdown: '',
+  });
+
+  const result = await new QueryKnowledgeUseCase(repositories.contentQueryRepository).execute(
+    { query: 'Summarize my recent notes', workspaceSlug: 'default', limit: 10 },
+    user.id,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 2);
+  // Should be sorted by date (newest first)
+  assert.deepEqual(result.matches.map((m) => m.title), ['Newer Note', 'Older Note']);
+});
+
+test('query handles special query: what are my action items?', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedDefaultWorkspace(repositories, user.id);
+
+  // Active note with followup tag
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/todo.md',
+    type: 'event',
+    title: 'Followup task',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: ['followup'],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Do something',
+    markdown: '',
+  });
+
+  // Active note without action items
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/regular.md',
+    type: 'event',
+    title: 'Regular Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Just info',
+    markdown: '',
+  });
+
+  const result = await new QueryKnowledgeUseCase(repositories.contentQueryRepository).execute(
+    { query: 'What are my action items?', workspaceSlug: 'default', limit: 10 },
+    user.id,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 1);
+  assert.equal(result.matches[0].title, 'Followup task');
+});
+
+test('query handles special query: review key decisions made', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const ws = await seedDefaultWorkspace(repositories, user.id);
+
+  const categoriesList = await repositories.contentRepository.listCategories(user.id, ws.id);
+  let decisionCategory = categoriesList.find((cat) => cat.name === 'decision');
+  if (!decisionCategory) {
+    decisionCategory = await repositories.contentRepository.createCategory(user.id, ws.id, {
+      name: 'decision',
+      color: '#4caf50',
+      icon: 'gavel',
+    });
+  }
+
+  // Note with type decision
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/decision.md',
+    type: 'decision',
+    title: 'Decision Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'We decided X',
+    markdown: '',
+    categoryIds: [decisionCategory.id],
+  });
+
+  // Regular note
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/regular.md',
+    type: 'event',
+    title: 'Regular Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Just info',
+    markdown: '',
+  });
+
+  const result = await new QueryKnowledgeUseCase(repositories.contentQueryRepository).execute(
+    { query: 'Review key decisions made', workspaceSlug: 'default', limit: 10 },
+    user.id,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 1);
+  assert.equal(result.matches[0].title, 'Decision Note');
+});
+

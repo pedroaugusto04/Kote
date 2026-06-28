@@ -411,3 +411,127 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
   assert.equal(rewriteCalled, false);
   assert.equal(result.requestedAttachmentPattern, 'monografia');
 });
+
+test('AskKnowledgeUseCase handles special query intent and retrieves matching notes directly, bypassing embedding generation and vector search', async () => {
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => {
+      assert.fail('Should not generate embeddings for special query intent');
+    },
+  };
+
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => {
+      assert.fail('Should not query similar chunks for special query intent');
+    },
+  };
+
+  const mockContentRepository = {
+    listNotes: async (userId) => {
+      assert.equal(userId, 'user-123');
+      return [
+        {
+          id: 'note-old',
+          path: 'docs/old.md',
+          categories: [{ id: 'cat-1', name: 'event' }],
+          title: 'Older Note',
+          projectSlug: 'infra',
+          workspaceSlug: 'default',
+          folderId: null,
+          status: 'active',
+          tags: [],
+          occurredAt: '2026-04-20T10:00:00.000Z',
+          sourceChannel: '',
+          summary: 'Older summary',
+          markdown: 'Older markdown content',
+          metadata: {},
+        },
+        {
+          id: 'note-new',
+          path: 'docs/new.md',
+          categories: [{ id: 'cat-1', name: 'event' }],
+          title: 'Newer Note',
+          projectSlug: 'infra',
+          workspaceSlug: 'default',
+          folderId: null,
+          status: 'active',
+          tags: [],
+          occurredAt: '2026-04-25T10:00:00.000Z',
+          sourceChannel: '',
+          summary: 'Newer summary',
+          markdown: 'Newer markdown content',
+          metadata: {},
+        },
+      ];
+    },
+  };
+
+  const mockAnswerGenerationGateway = {
+    generate: async (config, payload) => {
+      assert.equal(payload.question, 'Summarize my recent notes');
+      // Should receive the matching notes as context chunks, sorted newest first
+      assert.deepEqual(payload.context, [
+        {
+          noteId: 'note-new',
+          title: 'Newer Note',
+          path: 'docs/new.md',
+          projectSlug: 'infra',
+          workspaceId: undefined,
+          chunkText: 'Newer markdown content',
+        },
+        {
+          noteId: 'note-old',
+          title: 'Older Note',
+          path: 'docs/old.md',
+          projectSlug: 'infra',
+          workspaceId: undefined,
+          chunkText: 'Older markdown content',
+        },
+      ]);
+      return {
+        answer: 'Here is a summary of your recent notes.',
+        confidence: 'high',
+        requestedAttachments: false,
+        sources: [
+          { noteId: 'note-new', title: 'Newer Note', path: 'docs/new.md' },
+          { noteId: 'note-old', title: 'Older Note', path: 'docs/old.md' },
+        ],
+      };
+    },
+  };
+
+  const mockRuntimeEnv = {
+    read: () => ({
+      embeddingAiProvider: 'gemini',
+      embeddingAiBaseUrl: 'http://gemini.api',
+      embeddingAiModel: 'gemini-embedding-001',
+      embeddingAiApiKey: 'key-123',
+      conversationAiProvider: 'openai',
+      conversationAiBaseUrl: 'http://openai.api',
+      conversationAiModel: 'gpt-4',
+      conversationAiApiKey: 'key-456',
+    }),
+  };
+
+  const mockQuotaService = {
+    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
+  };
+
+  const useCase = new AskKnowledgeUseCase(
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    mockContentRepository,
+    mockAnswerGenerationGateway,
+    mockRuntimeEnv,
+    mockQuotaService,
+  );
+
+  const result = await useCase.execute('Summarize my recent notes', 'user-123', { projectSlug: 'infra', workspaceSlug: 'default' });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.answer, 'Here is a summary of your recent notes.');
+  assert.deepEqual(result.relatedNotes, [
+    { id: 'note-new', title: 'Newer Note', path: 'docs/new.md', projectSlug: 'infra', workspaceId: undefined },
+    { id: 'note-old', title: 'Older Note', path: 'docs/old.md', projectSlug: 'infra', workspaceId: undefined },
+  ]);
+});
+

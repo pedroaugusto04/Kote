@@ -11,6 +11,8 @@ import { ConversationConfidence } from '../../../contracts/enums.js';
 import { QuotaService } from '../../services/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
+import { getSpecialQueryIntent, matchesIntent } from '../../utils/query.utils.js';
+import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 
 @Injectable()
 export class AskKnowledgeUseCase {
@@ -56,59 +58,131 @@ export class AskKnowledgeUseCase {
       queryText = await this.answerGenerationGateway.rewriteQuery(answerConfig, question, conversationHistory);
     }
 
-    // 1. Generate embedding for the question
-    const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText]);
-    const questionEmbedding = embeddings[0];
+    const specialIntent = getSpecialQueryIntent(question);
+    let contextChunks: AnswerContextChunk[] = [];
+    let relatedNotesForResponse: { id: string; title: string; path: string; projectSlug: string; workspaceId: string }[] = [];
 
-    if (!questionEmbedding || questionEmbedding.length === 0) {
-      return {
-        ok: false,
-        answer: 'Failed to generate embedding for the question.',
-        confidence: ConversationConfidence.Low,
-        requestedAttachments: false,
-        sources: [],
-        relatedNotes: [],
-      };
-    }
+    if (specialIntent) {
+      const allNotes = await this.contentRepository.listNotes(userId);
+      const noteMap = new Map(allNotes.map((n) => [n.id, n]));
+      let vaultNotes = allNotes.map((n) => noteSummary(n));
 
-    // 2. Query similar chunks (limit: 8, threshold: 0.65)
-    const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
-      limit: 8,
-      workspaceSlug: options.workspaceSlug,
-      projectSlug: options.projectSlug,
-      minSimilarity: 0.65,
-    });
+      if (options.projectSlug) {
+        vaultNotes = vaultNotes.filter((n) => n.project === options.projectSlug);
+      }
+      if (options.workspaceSlug) {
+        vaultNotes = vaultNotes.filter((n) => n.workspace === options.workspaceSlug);
+      }
 
-    if (similarChunks.length === 0) {
-      return {
-        ok: true,
-        answer: 'No relevant information found in your Kote.',
-        confidence: ConversationConfidence.Low,
-        requestedAttachments: false,
-        sources: [],
-        relatedNotes: [],
-      };
-    }
+      vaultNotes = vaultNotes.filter((n) => matchesIntent(n, specialIntent));
 
-    // 3. Fetch notes metadata to enrich chunks using optimized single query
-    const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
-    const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
-    const noteMap = new Map(notes.map((n) => [n.id, n]));
+      // Sort by occurredAt/date descending
+      vaultNotes.sort((left, right) => {
+        const leftTime = new Date(left.date || 0).getTime();
+        const rightTime = new Date(right.date || 0).getTime();
+        return rightTime - leftTime;
+      });
 
-    const contextChunks = similarChunks
-      .map((chunk): AnswerContextChunk | null => {
-        const note = noteMap.get(chunk.noteId);
-        if (!note) return null;
+      const selectedNotes = vaultNotes.slice(0, 8);
+
+      if (selectedNotes.length === 0) {
         return {
-          noteId: chunk.noteId,
-          title: note.title,
-          path: note.path,
-          projectSlug: note.projectSlug,
-          workspaceId: note.workspaceId,
-          chunkText: chunk.chunkText,
+          ok: true,
+          answer: 'No relevant information found in your Kote.',
+          confidence: ConversationConfidence.Low,
+          requestedAttachments: false,
+          sources: [],
+          relatedNotes: [],
         };
-      })
-      .filter((c): c is AnswerContextChunk => c !== null);
+      }
+
+      contextChunks = selectedNotes.map((vn) => {
+        const original = noteMap.get(vn.id)!;
+        return {
+          noteId: vn.id,
+          title: vn.title,
+          path: vn.path,
+          projectSlug: vn.project,
+          workspaceId: original.workspaceId,
+          chunkText: original.markdown || original.summary || '',
+        };
+      });
+
+      relatedNotesForResponse = selectedNotes.map((vn) => {
+        const original = noteMap.get(vn.id)!;
+        return {
+          id: vn.id,
+          title: vn.title,
+          path: vn.path,
+          projectSlug: vn.project,
+          workspaceId: original.workspaceId,
+        };
+      });
+    } else {
+      // 1. Generate embedding for the question
+      const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText]);
+      const questionEmbedding = embeddings[0];
+
+      if (!questionEmbedding || questionEmbedding.length === 0) {
+        return {
+          ok: false,
+          answer: 'Failed to generate embedding for the question.',
+          confidence: ConversationConfidence.Low,
+          requestedAttachments: false,
+          sources: [],
+          relatedNotes: [],
+        };
+      }
+
+      // 2. Query similar chunks (limit: 8, threshold: 0.65)
+      const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
+        limit: 8,
+        workspaceSlug: options.workspaceSlug,
+        projectSlug: options.projectSlug,
+        minSimilarity: 0.65,
+      });
+
+      if (similarChunks.length === 0) {
+        return {
+          ok: true,
+          answer: 'No relevant information found in your Kote.',
+          confidence: ConversationConfidence.Low,
+          requestedAttachments: false,
+          sources: [],
+          relatedNotes: [],
+        };
+      }
+
+      // 3. Fetch notes metadata to enrich chunks using optimized single query
+      const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
+      const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
+      const noteMap = new Map(notes.map((n) => [n.id, n]));
+
+      contextChunks = similarChunks
+        .map((chunk): AnswerContextChunk | null => {
+          const note = noteMap.get(chunk.noteId);
+          if (!note) return null;
+          return {
+            noteId: chunk.noteId,
+            title: note.title,
+            path: note.path,
+            projectSlug: note.projectSlug,
+            workspaceId: note.workspaceId,
+            chunkText: chunk.chunkText,
+          };
+        })
+        .filter((c): c is AnswerContextChunk => c !== null);
+
+      relatedNotesForResponse = notes
+        .filter((n): n is NoteRecord => !!n)
+        .map((n) => ({
+          id: n.id,
+          title: n.title,
+          path: n.path,
+          projectSlug: n.projectSlug || '',
+          workspaceId: n.workspaceId,
+        }));
+    }
 
     // 4. Generate answer using AnswerGenerationGateway
     const answerConfig = {
@@ -144,15 +218,7 @@ export class AskKnowledgeUseCase {
       requestedAttachments: result.requestedAttachments,
       requestedAttachmentPattern: result.requestedAttachmentPattern,
       sources: result.sources,
-      relatedNotes: notes
-        .filter((n): n is NoteRecord => !!n)
-        .map((n) => ({
-          id: n.id,
-          title: n.title,
-          path: n.path,
-          projectSlug: n.projectSlug,
-          workspaceId: n.workspaceId,
-        })),
+      relatedNotes: relatedNotesForResponse,
     };
   }
 }

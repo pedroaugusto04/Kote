@@ -17,8 +17,91 @@ function scoreKnowledgeNote(note: VaultNoteSummary, tokens: string[]): number {
   return tokens.reduce((total, token) => total + (haystack.includes(token) ? 5 : 0), 0);
 }
 
+export function getSpecialQueryIntent(queryText: string): 'recent' | 'action_items' | 'decisions' | null {
+  const normalized = queryText.trim().toLowerCase().replace(/[?.,!]/g, '');
+
+  if (
+    normalized === 'summarize my recent notes' ||
+    normalized === 'summarize notes' ||
+    normalized === 'recent notes' ||
+    normalized === 'show recent notes' ||
+    /^(summarize\s+)?(my\s+)?(recent\s+)?notes$/i.test(normalized)
+  ) {
+    return 'recent';
+  }
+
+  if (
+    normalized === 'what are my action items' ||
+    normalized === 'action items' ||
+    normalized === 'my action items' ||
+    normalized === 'show action items' ||
+    /^(what\s+are\s+)?(my\s+)?action\s+items$/i.test(normalized)
+  ) {
+    return 'action_items';
+  }
+
+  if (
+    normalized === 'review key decisions made' ||
+    normalized === 'review key decisions' ||
+    normalized === 'key decisions' ||
+    normalized === 'decisions' ||
+    /^(review\s+)?(key\s+)?decisions(\s+made)?$/i.test(normalized)
+  ) {
+    return 'decisions';
+  }
+
+  return null;
+}
+
+export function matchesIntent(note: VaultNoteSummary, intent: 'recent' | 'action_items' | 'decisions'): boolean {
+  if (intent === 'recent') {
+    return true;
+  }
+
+  if (intent === 'action_items') {
+    const status = note.status.toLowerCase();
+    const isActionStatus = ['pending', 'overdue'].includes(status);
+
+    const hasActionTag = note.tags.some((tag) => {
+      const t = tag.toLowerCase();
+      return t === 'action' || t === 'action-item' || t === 'followup' || t === 'todo';
+    });
+
+    const hasActionCategory = note.categories.some((cat) => {
+      const name = cat.name.toLowerCase();
+      return name.includes('action') || name.includes('followup') || name.includes('todo');
+    });
+
+    const type = note.type.toLowerCase();
+    const isActionType = type === 'followup' || type === 'reminder' || type === 'task';
+
+    return isActionStatus || hasActionTag || hasActionCategory || isActionType;
+  }
+
+  if (intent === 'decisions') {
+    const hasDecisionTag = note.tags.some((tag) => {
+      const t = tag.toLowerCase();
+      return t === 'decision' || t === 'decisions';
+    });
+
+    const hasDecisionCategory = note.categories.some((cat) => {
+      const name = cat.name.toLowerCase();
+      return name.includes('decision');
+    });
+
+    const type = note.type.toLowerCase();
+    const isDecisionType = type === 'decision';
+
+    return hasDecisionTag || hasDecisionCategory || isDecisionType;
+  }
+
+  return false;
+}
+
 export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<QueryInput, 'query' | 'projectSlug' | 'workspaceSlug' | 'status' | 'limit'>) {
+  const intent = getSpecialQueryIntent(query.query);
   const tokens = tokenizeQuery(query.query);
+
   return notes
     .filter((note) =>
       (!query.projectSlug || note.project === query.projectSlug)
@@ -32,7 +115,12 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<Quer
       ),
     )
     .map((note) => {
-      const score = scoreKnowledgeNote(note, tokens);
+      let score = 0;
+      if (intent) {
+        score = matchesIntent(note, intent) ? 1 : 0;
+      } else {
+        score = scoreKnowledgeNote(note, tokens);
+      }
       return {
         id: note.id,
         path: note.path,
@@ -55,5 +143,15 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<Quer
       };
     })
     .filter((match) => match.score > 0)
-    .sort((left, right) => right.score - left.score || left.path.localeCompare(right.path));
+    .sort((left, right) => {
+      if (right.score !== left.score) {
+        return right.score - left.score;
+      }
+      const leftTime = new Date(left.date || 0).getTime();
+      const rightTime = new Date(right.date || 0).getTime();
+      if (leftTime !== rightTime) {
+        return rightTime - leftTime;
+      }
+      return left.path.localeCompare(right.path);
+    });
 }
