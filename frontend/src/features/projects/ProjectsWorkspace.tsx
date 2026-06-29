@@ -387,6 +387,7 @@ export function ProjectsWorkspace({
                 onPageChange={timelinePagination.setPage}
                 isStale={allProjectsTimelineQuery.isPlaceholderData}
                 resetKey={`all:${timelineCategory}:${timelineStatus}:timeline`}
+                allowPin={false}
               />
             </Panel>
           ) : selected ? (

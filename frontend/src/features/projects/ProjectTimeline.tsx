@@ -45,6 +45,7 @@ export function ProjectTimeline({
   onPageChange,
   isStale = false,
   resetKey,
+  allowPin = true,
 }: {
   dashboard: Dashboard;
   items: ProjectTimelineItem[];
@@ -60,6 +61,7 @@ export function ProjectTimeline({
   onPageChange: (page: number) => void;
   isStale?: boolean;
   resetKey: string;
+  allowPin?: boolean;
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const {
@@ -162,7 +164,7 @@ export function ProjectTimeline({
               onOpenFullPage={onOpenNoteFullPage}
               onEdit={onEditNote}
               onDelete={onDeleteNote}
-              onPin={(noteId, pinned) => pinMutation.mutate({ noteId, pinned })}
+              onPin={allowPin ? (noteId, pinned) => pinMutation.mutate({ noteId, pinned }) : undefined}
             />
           ))}
         </div>
