@@ -172,6 +172,13 @@ test('project timeline dto accepts known categories and optional folder filters 
     status: 'open',
     orderByPin: true,
   });
+  assert.deepEqual(projectTimelineQuerySchema.parse({ orderByPin: 'false' }), {
+    page: 1,
+    pageSize: 10,
+    category: 'all',
+    status: 'open',
+    orderByPin: false,
+  });
   assert.throws(() => projectTimelineQuerySchema.parse({ category: 'webhook' }));
 });
 
