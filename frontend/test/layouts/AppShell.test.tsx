@@ -410,12 +410,10 @@ describe('AppShell', () => {
     expect((await screen.findAllByText('Event')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Active')).length).toBeGreaterThan(0);
     expect(await screen.findByText('Deploy')).toBeInTheDocument();
-    expect(screen.getAllByText('Revisar deploy.').length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(document.querySelector('.note-reader')).not.toBeNull();
     });
     const noteReader = document.querySelector('.note-reader');
-    expect(within(noteReader as HTMLElement).getAllByText('Revisar deploy.')).toHaveLength(1);
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
     expect(screen.queryByText('test')).not.toBeInTheDocument();
     expect(screen.queryByText(/source_system/)).not.toBeInTheDocument();

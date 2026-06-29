@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { updateNote } from '../../../src/shared/api/client';
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { NoteRow } from '../../../src/widgets/notes/NoteRow';
+import { NoteStatus } from '../../../src/shared/api/models/note-status';
 
 vi.mock('../../../src/shared/api/client', () => ({
   updateNote: vi.fn().mockResolvedValue({ ok: true, noteId: 'note-3' }),
@@ -39,7 +40,7 @@ describe('NoteRow', () => {
           categories: [],
           tags: ['deploy'],
           date: '2026-04-27',
-          status: 'active',
+          status: NoteStatus.Active,
           summary: 'Resumo',
           source: 'manual-api',
           attachmentCount: 2,
@@ -100,7 +101,7 @@ describe('NoteRow', () => {
           categories: [],
           tags: ['deploy'],
           date: '2026-04-27',
-          status: 'resolved',
+          status: NoteStatus.Resolved,
           summary: 'Resumo',
           source: 'manual-api',
           attachmentCount: 0,
@@ -125,7 +126,7 @@ describe('NoteRow', () => {
       folderId: null,
       tags: ['deploy'],
       date: '2026-04-27',
-      status: 'archived',
+      status: NoteStatus.Archived,
       summary: 'Resumo',
       source: 'manual-api',
       attachmentCount: 0,
@@ -183,7 +184,7 @@ describe('NoteRow', () => {
           categories: [],
           tags: [],
           date: '2026-04-27',
-          status: 'active',
+          status: NoteStatus.Active,
           summary: 'Resumo',
           source: 'manual-api',
           attachmentCount: 0,
@@ -196,7 +197,7 @@ describe('NoteRow', () => {
   });
 
   it('renders the source icon when a source is provided', () => {
-    const { container } = renderWithAppProviders(
+    renderWithAppProviders(
       <NoteRow
         dashboard={{
           workspaces: [],
@@ -216,7 +217,7 @@ describe('NoteRow', () => {
           categories: [],
           tags: ['deploy'],
           date: '2026-04-27',
-          status: 'active',
+          status: NoteStatus.Active,
           summary: 'Resumo',
           source: 'whatsapp-webhook',
           attachmentCount: 0,
@@ -225,9 +226,8 @@ describe('NoteRow', () => {
       />,
     );
 
-    const sourceElement = container.querySelector('.source-tag');
+    const sourceElement = screen.getByTitle('Source: WhatsApp');
     expect(sourceElement).toBeInTheDocument();
-    expect(sourceElement).toHaveAttribute('title', 'Source: WhatsApp');
-    expect(sourceElement?.querySelector('svg')).toBeInTheDocument();
+    expect(sourceElement.querySelector('svg')).toBeInTheDocument();
   });
 });
