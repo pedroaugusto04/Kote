@@ -336,7 +336,7 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
         } else {
           const claimedIntent = await this.billingIntentService.claimForProcessing(userId, intent.id);
           if (claimedIntent) {
-            await this.processIntentPayload(userId, gatewayCustomerId, payment, intent, paidAt, creditCardToken, nextBillingType);
+            await this.processIntentPayload(userId, gatewayCustomerId);
             this.billingEventBus.emit(userId);
             return;
           }
@@ -372,7 +372,6 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
 
     if (externalReference) {
       try {
-        const parsedRef = parseExternalReference(externalReference);
         const resolved = await this.billingIntentService.resolveIntentFromExternalReference(externalReference);
         if (resolved.intent?.userId) {
           return resolved.intent.userId;
@@ -521,12 +520,7 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
 
   private async processIntentPayload(
     userId: string,
-    gatewayCustomerId: string | undefined,
-    payment: any,
     intent: any,
-    paidAt: Date | null,
-    creditCardToken?: string,
-    nextBillingType?: BillingTypeEnum
   ): Promise<void> {
     if (intent.type === BillingIntentType.UPGRADE) {
       const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);
