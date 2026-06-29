@@ -14,7 +14,7 @@ export async function generateReviewAnalysis(
 ): Promise<ReviewAnalysis> {
   if (config.provider === AiProvider.None || !config.apiKey || !config.model) return reviewAnalysisFallback;
 
-  const content = await runChatCompletion(
+  const content = await runChatCompletion( 
     config,
     buildReviewAnalysisSystemPrompt(),
     JSON.stringify(promptPayload),
