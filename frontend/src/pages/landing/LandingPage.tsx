@@ -7,7 +7,7 @@ import { useTypewriterWord } from '../../layouts/use-typewriter-word';
 import { logApplicationAccess } from '../../shared/api/client';
 import { BrandMark } from '../../shared/ui/brand-mark';
 import { ThemeToggle } from '../../shared/ui/theme-toggle';
-import { GitHubIcon, WhatsAppIcon, TelegramIcon, SparklesIcon, PencilIcon } from '../../shared/ui/icons';
+import { GitHubIcon, WhatsAppIcon, TelegramIcon, SparklesIcon, PencilIcon, MessagesIcon } from '../../shared/ui/icons';
 
 const typewriterWords = ['capture', 'organize', 'retrieve', 'connect'];
 
@@ -190,7 +190,7 @@ export function LandingPage() {
                 <span>AI Sessions</span>
               </div>
               <div className="landing-integration-card c3">
-                <span className="landing-integration-card-icon"><SparklesIcon /></span>
+                <span className="landing-integration-card-icon"><MessagesIcon /></span>
                 <span>Messages</span>
               </div>
               <div className="landing-integration-card c4">
