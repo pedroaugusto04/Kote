@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
@@ -37,6 +38,8 @@ import './SearchPage.css';
 
 export function SearchPage({ dashboard, openNote }: PageContext) {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'ask' | 'brief'>('ask');
   const [questionInput, setQuestionInput] = useState('');
   const [projectSlug, setProjectSlug] = useState('');
@@ -47,6 +50,12 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
 
   const [showBriefHistory, setShowBriefHistory] = useState(false);
   const [selectedBrief, setSelectedBrief] = useState<ProjectBriefPanelResponse | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('focus') === 'input' && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [searchParams]);
 
   const { page: historyPage, setPage: setHistoryPage } = usePaginationState(`ask-history:${projectSlug}`);
   const { page: briefHistoryPage, setPage: setBriefHistoryPage } = usePaginationState(`brief-history:${projectSlug}`);
@@ -187,6 +196,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
               <div className="ask-ai-input-row">
                 <AskAiIcon className="ask-ai-input-icon" />
                 <input
+                  ref={inputRef}
                   aria-label={SEARCH_MESSAGES.INPUT.PLACEHOLDER}
                   autoComplete="off"
                   enterKeyHint="send"

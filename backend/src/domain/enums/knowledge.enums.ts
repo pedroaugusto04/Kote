@@ -1,6 +1,6 @@
 export enum SourceChannel {
   Whatsapp = 'whatsapp',
-  GithubPush = 'github-push',
+  Github = 'github',
   External = 'external',
   AiChat = 'ai-chat',
   Ide = 'ide',

@@ -81,7 +81,7 @@ export const UI_MESSAGES = {
   SEARCH_NOTES_PATHS_OR_TAGS: 'Search notes, paths, or tags',
   SEARCHING: 'Searching...',
   NO_NOTES_FOUND: 'No notes found',
-  ASK_AI_SEMANTIC_SEARCH: 'Ask AI for semantic search',
+  ASK_AI_SEMANTIC_SEARCH: 'Search with AI',
   USER_MENU: 'User menu',
   LOADING_USER: 'Loading user...',
   LOADING_EMAIL: 'Loading email...',

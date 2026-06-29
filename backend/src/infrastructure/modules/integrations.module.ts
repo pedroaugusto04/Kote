@@ -27,6 +27,7 @@ import {
   CreateWebhookSubscriptionUseCase,
   UpdateWebhookSubscriptionUseCase,
   DeleteWebhookSubscriptionUseCase,
+  IngestEntryUseCase,
 } from '../../application/use-cases/index.js';
 import { WebhookDeliveryService } from '../../application/services/webhook-delivery.service.js';
 import { WebhookDeliveryWorker } from '../../application/services/webhook-delivery.worker.js';
@@ -76,6 +77,7 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     CreateWebhookSubscriptionUseCase,
     UpdateWebhookSubscriptionUseCase,
     DeleteWebhookSubscriptionUseCase,
+    IngestEntryUseCase,
   ],
   exports: [
     IntegrationConnectionService,

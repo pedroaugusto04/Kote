@@ -63,6 +63,7 @@ export class CreateManualNoteUseCase {
       source: {
         channel: parseSourceChannelString(input.sourceChannel),
         system: activeSource || 'manual-api',
+        source: '',
         actor: '',
         conversationId: workspaceSlug,
         correlationId: `manual:${crypto.randomUUID()}`,
