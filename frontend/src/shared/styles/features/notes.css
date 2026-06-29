@@ -306,6 +306,29 @@
   margin-top: 12px;
 }
 
+/* Source tag styling within related note cards */
+.related-note-card .source-tag {
+  font-size: 10px;
+  padding: 2px 5px;
+}
+
+.related-note-card .source-tag svg {
+  width: 10px;
+  height: 10px;
+}
+
+@media (max-width: 768px) {
+  .related-note-card .source-tag {
+    font-size: 9px;
+    padding: 1px 4px;
+  }
+
+  .related-note-card .source-tag svg {
+    width: 9px;
+    height: 9px;
+  }
+}
+
 /* Styled Markdown Code Blocks */
 .markdown-code-block {
   margin: 16px 0;
