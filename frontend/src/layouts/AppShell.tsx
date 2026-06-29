@@ -18,6 +18,7 @@ import { SearchPage } from '../pages/search/SearchPage';
 import { VaultPage } from '../pages/vault/VaultPage';
 import { LandingPage } from '../pages/landing/LandingPage';
 import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
+import { AskAiIcon } from '../widgets/ask/AskAiIcon';
 
 const IntegrationsPage = lazy(() => import('../pages/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
 const SubscriptionPage = lazy(() => import('../pages/billing/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
@@ -500,6 +501,15 @@ export function AppShell() {
                 onFocus={() => setIsPopoverOpen(true)}
                 onKeyDown={handleSearchKeyDown}
               />
+              <button
+                aria-label={UI_MESSAGES.ASK_AI_SEMANTIC_SEARCH}
+                className="ask-ai-shortcut-btn"
+                onClick={() => navigate(routes.search)}
+                title={UI_MESSAGES.ASK_AI_SEMANTIC_SEARCH}
+                type="button"
+              >
+                <AskAiIcon className="ask-ai-shortcut-icon" />
+              </button>
             </label>
             {isPopoverOpen && searchValue.trim() && (
               <div className="command-bar-popover" role="listbox">

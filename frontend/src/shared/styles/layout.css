@@ -152,6 +152,29 @@
   color: var(--text);
 }
 
+.ask-ai-shortcut-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 140ms ease;
+}
+
+.ask-ai-shortcut-btn:hover {
+  color: var(--cyan);
+  background: var(--surface-5);
+}
+
+.ask-ai-shortcut-icon {
+  width: 18px;
+  height: 18px;
+}
+
 .topbar-meta {
   display: flex;
   align-items: center;
