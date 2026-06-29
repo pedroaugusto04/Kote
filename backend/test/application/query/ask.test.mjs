@@ -18,7 +18,7 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
     findSimilar: async (userId, embedding, options) => {
       assert.equal(userId, 'user-123');
       assert.deepEqual(embedding, [0.1, 0.2, 0.3]);
-      assert.equal(options.limit, 8);
+      assert.equal(options.limit, 16);
       assert.equal(options.projectSlug, 'infra');
       return [
         {
