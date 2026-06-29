@@ -140,10 +140,6 @@ export class PostgresFolderRepository {
         input.fullSlugPath,
       ]
     );
-    return {
-      ...result.rows[0],
-      project_slug: input.projectSlug,
-      workspace_slug: input.workspaceSlug
-    };
+    return result.rows[0];
   }
 }

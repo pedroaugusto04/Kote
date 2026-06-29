@@ -80,10 +80,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       })
       .returning();
     
-    return credentialFromRow({
-      ...result[0],
-      workspace_slug: input.workspaceSlug
-    });
+    return credentialFromRow(result[0]);
   }
 
   async revokeCredential(userId: string, workspaceSlug: string, provider: string, encryptedConfig: unknown) {
@@ -104,10 +101,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       ))
       .returning();
     
-    return result[0] ? credentialFromRow({
-      ...result[0],
-      workspace_slug: workspaceSlug
-    }) : null;
+    return result[0] ? credentialFromRow(result[0]) : null;
   }
 
   async findCredential(userId: string, workspaceSlug: string, provider: string) {
@@ -216,10 +210,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       })
       .returning();
     
-    return identityFromRow({
-      ...result[0],
-      workspace_slug: input.workspaceSlug
-    });
+    return identityFromRow(result[0]);
   }
 
   async createConnectionSession(input: {
@@ -249,10 +240,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       })
       .returning();
     
-    return connectionSessionFromRow({
-      ...result[0],
-      workspace_slug: input.workspaceSlug
-    });
+    return connectionSessionFromRow(result[0]);
   }
 
   async findConnectionSession(id: string) {

@@ -53,8 +53,7 @@ export type ProjectBriefHistoryRecord = {
   id: string;
   userId: string;
   projectId?: string;
-  workspaceSlug: string;
-  projectSlug: string;
+  workspaceId?: string;
   brief: ProjectBrief;
   sourceRefs: ProjectBriefSource[];
   contextHash: string;
@@ -68,8 +67,7 @@ export type ProjectBriefHistoryRecord = {
 export type SaveProjectBriefHistoryInput = {
   userId: string;
   projectId?: string;
-  workspaceSlug: string;
-  projectSlug: string;
+  workspaceId?: string;
   brief: ProjectBrief;
   sourceRefs: ProjectBriefSource[];
   contextHash: string;

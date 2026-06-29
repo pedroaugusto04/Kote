@@ -20,7 +20,7 @@ export class PostgresProjectRepository {
     const result = await this.database.getPool().query(
       `${PROJECT_WITH_METADATA_SELECT_SQL}
        WHERE p.user_id = $1 AND p.enabled = true
-       ORDER BY p.is_favorite DESC, p.project_slug`,
+       ORDER BY p.is_favorite DESC, p.display_name`,
       [userId]
     );
     return result.rows.map(projectFromRow);
@@ -38,7 +38,7 @@ export class PostgresProjectRepository {
     const result = await this.database.getPool().query(
       `${PROJECT_WITH_METADATA_SELECT_SQL}
        WHERE p.user_id = $1 AND p.enabled = true
-       ORDER BY p.is_favorite DESC, p.project_slug
+       ORDER BY p.is_favorite DESC, p.display_name
        LIMIT $2 OFFSET $3`,
       [userId, pagination.pageSize, offset]
     );
@@ -123,7 +123,6 @@ export class PostgresProjectRepository {
       await client.query('COMMIT');
       return projectFromRow({ 
         ...project, 
-        workspace_slug: input.workspaceSlug,
         default_tags: defaultTags, 
         repositories
       });

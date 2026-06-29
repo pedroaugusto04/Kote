@@ -90,10 +90,7 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
       })
       .returning();
     
-    return webhookSubscriptionFromRow({
-      ...result[0],
-      workspace_slug: input.workspaceSlug
-    });
+    return webhookSubscriptionFromRow(result[0]);
   }
 
   async update(

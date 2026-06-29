@@ -43,8 +43,16 @@ export async function resolveIds(
   userId: string,
   projectSlug: string | null,
   workspaceSlug: string,
-): Promise<{ projectId: string | null; workspaceId: string }> {
-  const workspaceId = await resolveWorkspaceId(database, userId, workspaceSlug);
+): Promise<{ projectId: string | null; workspaceId: string | null }> {
+  let workspaceId: string | null = null;
+  if (workspaceSlug) {
+    try {
+      workspaceId = await resolveWorkspaceId(database, userId, workspaceSlug);
+    } catch {
+      // Workspace not found - return null
+      workspaceId = null;
+    }
+  }
 
   let projectId: string | null = null;
   if (projectSlug) {

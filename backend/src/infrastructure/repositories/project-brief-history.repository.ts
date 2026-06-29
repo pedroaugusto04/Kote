@@ -7,8 +7,7 @@ import { buildPaginationMeta } from '../../contracts/pagination.js';
 import type { ProjectBriefHistoryRecord, SaveProjectBriefHistoryInput } from '../../application/models/project-brief.models.js';
 import { ProjectBriefHistoryRepository } from '../../application/ports/projects/project-brief-history.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { projectBriefHistory, projects, workspaces } from '../persistence/schema/index.js';
-import { resolveIds } from './utils/id-resolution.helpers.js';
+import { projectBriefHistory } from '../persistence/schema/index.js';
 
 type Row = Record<string, unknown>;
 
@@ -21,8 +20,7 @@ function projectBriefHistoryFromRow(row: Row): ProjectBriefHistoryRecord {
     id: String(row.id || ''),
     userId: String(row.userId ?? ''),
     projectId: row.projectId ? String(row.projectId) : undefined,
-    workspaceSlug: String(row.workspaceSlug ?? ''),
-    projectSlug: String(row.projectSlug ?? ''),
+    workspaceId: row.workspaceId ? String(row.workspaceId) : undefined,
     brief: row.brief as ProjectBriefHistoryRecord['brief'],
     sourceRefs: Array.isArray(row.sourceRefs)
       ? row.sourceRefs as ProjectBriefHistoryRecord['sourceRefs']
@@ -46,15 +44,12 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
 
   async save(input: SaveProjectBriefHistoryInput) {
     const db = this.database.getDb();
-    const { projectId, workspaceId } = await resolveIds(this.database, input.userId, input.projectSlug === 'all' ? null : input.projectSlug, input.workspaceSlug);
     const result = await db
       .insert(projectBriefHistory)
       .values({
-        id: crypto.randomUUID(),
         userId: input.userId,
-        projectId,
-        workspaceSlug: input.workspaceSlug,
-        projectSlug: input.projectSlug,
+        projectId: input.projectId || null,
+        workspaceId: input.workspaceId || null,
         brief: input.brief,
         sourceRefs: input.sourceRefs,
         contextHash: input.contextHash,
@@ -68,17 +63,16 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     return projectBriefHistoryFromRow(result[0]);
   }
 
-  async findLatest(input: { userId: string; workspaceSlug: string; projectSlug: string; projectId?: string }) {
+  async findLatest(input: { userId: string; workspaceId: string; projectId?: string }) {
     const db = this.database.getDb();
-    
+
     const conditions = [
       eq(projectBriefHistory.userId, input.userId),
     ];
     if (input.projectId && input.projectId !== 'all') {
       conditions.push(eq(projectBriefHistory.projectId, input.projectId));
     } else {
-      conditions.push(eq(projectBriefHistory.workspaceSlug, input.workspaceSlug));
-      conditions.push(eq(projectBriefHistory.projectSlug, input.projectSlug));
+      conditions.push(eq(projectBriefHistory.workspaceId, input.workspaceId));
     }
 
     const result = await db
@@ -86,8 +80,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         id: projectBriefHistory.id,
         userId: projectBriefHistory.userId,
         projectId: projectBriefHistory.projectId,
-        workspaceSlug: projectBriefHistory.workspaceSlug,
-        projectSlug: projectBriefHistory.projectSlug,
+        workspaceId: projectBriefHistory.workspaceId,
         brief: projectBriefHistory.brief,
         sourceRefs: projectBriefHistory.sourceRefs,
         contextHash: projectBriefHistory.contextHash,
@@ -107,8 +100,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
 
   async list(input: {
     userId: string;
-    workspaceSlug: string;
-    projectSlug: string;
+    workspaceId: string;
     projectId?: string;
     page: number;
     pageSize: number;
@@ -120,8 +112,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
     if (input.projectId && input.projectId !== 'all') {
       conditions.push(eq(projectBriefHistory.projectId, input.projectId));
     } else {
-      conditions.push(eq(projectBriefHistory.workspaceSlug, input.workspaceSlug));
-      conditions.push(eq(projectBriefHistory.projectSlug, input.projectSlug));
+      conditions.push(eq(projectBriefHistory.workspaceId, input.workspaceId));
     }
 
     const countResult = await db
@@ -138,8 +129,7 @@ export class PostgresProjectBriefHistoryRepository extends ProjectBriefHistoryRe
         id: projectBriefHistory.id,
         userId: projectBriefHistory.userId,
         projectId: projectBriefHistory.projectId,
-        workspaceSlug: projectBriefHistory.workspaceSlug,
-        projectSlug: projectBriefHistory.projectSlug,
+        workspaceId: projectBriefHistory.workspaceId,
         brief: projectBriefHistory.brief,
         sourceRefs: projectBriefHistory.sourceRefs,
         contextHash: projectBriefHistory.contextHash,

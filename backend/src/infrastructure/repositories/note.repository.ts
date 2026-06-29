@@ -243,7 +243,7 @@ export class PostgresNoteRepository {
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
 
     const result = await this.database.getPool().query(
-      `select n.*, p.project_slug, count(distinct a.id)::int as attachment_count,
+      `select n.*, count(distinct a.id)::int as attachment_count,
               coalesce(
                 json_agg(
                   json_build_object(
@@ -266,7 +266,7 @@ export class PostgresNoteRepository {
        left join kb_note_categories nc on nc.note_id = n.id
        left join kb_categories cat on cat.id = nc.category_id
        where ${where}
-       group by n.id, p.project_slug
+       group by n.id
        order by ${(input.orderByPin ?? true) ? 'n.is_pinned desc, ' : ''}n.occurred_at desc, n.title asc
        limit $${values.length + 1} offset $${values.length + 2}`,
       [...values, pagination.pageSize, (pagination.page - 1) * pagination.pageSize]
@@ -290,7 +290,7 @@ export class PostgresNoteRepository {
     const where = clauses.join(' and ');
 
     const result = await this.database.getPool().query(
-      `select n.*, p.project_slug, count(distinct a.id)::int as attachment_count,
+      `select n.*, count(distinct a.id)::int as attachment_count,
               coalesce(
                 json_agg(
                   json_build_object(
@@ -313,7 +313,7 @@ export class PostgresNoteRepository {
        left join kb_note_categories nc on nc.note_id = n.id
        left join kb_categories cat on cat.id = nc.category_id
        where ${where}
-       group by n.id, p.project_slug
+       group by n.id
        order by n.is_pinned desc, n.occurred_at desc, n.title asc
        limit $${values.length + 1}`,
       [...values, input.limit]

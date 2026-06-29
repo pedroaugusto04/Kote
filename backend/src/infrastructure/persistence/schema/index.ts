@@ -204,7 +204,7 @@ export const reminderDispatchState = pgTable('kb_reminder_dispatch_state', {
 
 // Reminder Dispatch Failures
 export const reminderDispatchFailures = pgTable('kb_reminder_dispatch_failures', {
-  userId: uuid('user_id').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   mode: text('mode').notNull(),
   dispatchKey: text('dispatch_key').notNull(),
@@ -223,8 +223,7 @@ export const projectBriefHistory = pgTable('kb_project_brief_history', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
-  workspaceSlug: text('workspace_slug').notNull(),
-  projectSlug: text('project_slug').notNull(),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   brief: jsonb('brief').notNull(),
   sourceRefs: jsonb('source_refs').notNull().default('[]'),
   contextHash: text('context_hash').notNull(),
@@ -236,7 +235,7 @@ export const projectBriefHistory = pgTable('kb_project_brief_history', {
 }, (table) => ({
   userIdx: index('idx_project_brief_history_user').on(table.userId),
   projectIdx: index('idx_project_brief_history_project').on(table.userId, table.projectId),
-  userWorkspaceProjectIdx: index('idx_project_brief_history_user_workspace_project').on(table.userId, table.workspaceSlug, table.projectSlug),
+  userWorkspaceProjectIdx: index('idx_project_brief_history_user_workspace_project').on(table.userId, table.workspaceId, table.projectId),
 }));
 
 // Webhook Events
@@ -327,7 +326,8 @@ export const pushSubscriptions = pgTable('kb_push_subscriptions', {
 export const askHistory = pgTable('kb_ask_history', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  projectSlug: text('project_slug').notNull().default(''),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   question: text('question').notNull(),
   answer: text('answer').notNull(),
   confidence: askConfidenceEnum('confidence').notNull().default('low'),
@@ -336,7 +336,7 @@ export const askHistory = pgTable('kb_ask_history', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({
   userCreatedIdx: index('kb_ask_history_user_created_idx').on(table.userId, table.createdAt),
-  userProjectCreatedIdx: index('kb_ask_history_user_project_created_idx').on(table.userId, table.projectSlug, table.createdAt),
+  userProjectCreatedIdx: index('kb_ask_history_user_project_created_idx').on(table.userId, table.projectId, table.createdAt),
 }));
 
 // Webhook Subscriptions
@@ -522,7 +522,6 @@ export const userSubscriptions = pgTable('kb_user_subscriptions', {
   currentPeriodEnd: timestamp('current_period_end').notNull().defaultNow(),
   gatewayName: text('gateway_name').notNull().default('asaas'), // 'asaas', 'stripe', etc.
   gatewaySubscriptionId: text('gateway_subscription_id'),
-  gatewayCustomerId: text('gateway_customer_id'),
   billingCycle: billingCycleEnum('billing_cycle').notNull().default('monthly'),
   billingType: billingTypeEnum('billing_type'),
   nextDueDate: timestamp('next_due_date'),

@@ -13,29 +13,25 @@ export class ListProjectBriefHistoryUseCase {
 
   async execute(userId: string, input: PaginationInput & { projectId: string }) {
     const { projectId, page, pageSize } = input;
-    let workspaceSlug = '';
-    let projectSlug = '';
+    let workspaceId = '';
     let isAll = false;
     if (projectId === 'all') {
       isAll = true;
-      projectSlug = 'all';
       const workspaces = await this.contentRepository.listWorkspaces(userId);
       if (workspaces.length > 0) {
-        workspaceSlug = workspaces[0].workspaceSlug;
+        workspaceId = workspaces[0].id;
       } else {
         throw new NotFoundException('workspace_not_found');
       }
     } else {
       const project = await this.contentRepository.getProjectById(userId, projectId);
       if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-      workspaceSlug = project.workspaceSlug || '';
-      projectSlug = project.projectSlug;
+      workspaceId = project.workspaceId || '';
     }
 
     return this.historyRepository.list({
       userId,
-      workspaceSlug,
-      projectSlug,
+      workspaceId,
       projectId: isAll ? undefined : projectId,
       page,
       pageSize,

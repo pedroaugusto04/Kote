@@ -81,7 +81,6 @@ export interface UserSubscriptionRecord {
   currentPeriodEnd: Date;
   gatewayName: string;
   gatewaySubscriptionId?: string | null;
-  gatewayCustomerId?: string | null;
   billingCycle: BillingCycle;
   billingType?: BillingType | null;
   nextDueDate?: Date | null;

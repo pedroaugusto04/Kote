@@ -23,7 +23,7 @@ function nowIso(value: unknown): string {
 }
 
 function askHistoryFromRow(row: Row): AskHistoryItem {
-  const projectSlug = row.projectSlug;
+  const projectId = row.projectId;
   const relatedNotes = row.relatedNotes;
   const createdAt = row.createdAt;
   return {
@@ -31,7 +31,7 @@ function askHistoryFromRow(row: Row): AskHistoryItem {
     question: String(row.question || ''),
     answer: String(row.answer || ''),
     confidence: (row.confidence === 'high' || row.confidence === 'medium' ? row.confidence : 'low') as ConversationConfidence,
-    projectSlug: String(projectSlug || ''),
+    projectId: projectId ? String(projectId) : null,
     sources: Array.isArray(row.sources) ? row.sources as AskHistorySource[] : [],
     relatedNotes: Array.isArray(relatedNotes) ? relatedNotes as AskHistoryRelatedNote[] : [],
     createdAt: nowIso(createdAt),
@@ -51,7 +51,8 @@ export class PostgresAskHistoryRepository extends AskHistoryRepository {
       .values({
         id: crypto.randomUUID(),
         userId: input.userId,
-        projectSlug: input.projectSlug,
+        projectId: input.projectId || null,
+        workspaceId: input.workspaceId || null,
         question: input.question,
         answer: input.answer,
         confidence: input.confidence as any,
@@ -64,8 +65,8 @@ export class PostgresAskHistoryRepository extends AskHistoryRepository {
     const db = this.database.getDb();
     const conditions = [eq(askHistory.userId, input.userId)];
 
-    if (input.projectSlug) {
-      conditions.push(eq(askHistory.projectSlug, input.projectSlug));
+    if (input.projectId) {
+      conditions.push(eq(askHistory.projectId, input.projectId));
     }
 
     if (input.startDate) {

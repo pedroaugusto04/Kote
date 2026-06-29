@@ -7,10 +7,10 @@ import { AskHistoryRepository } from '../../ports/query/ask-history.repository.j
 export class ListAskHistoryUseCase {
   constructor(private readonly askHistoryRepository: AskHistoryRepository) {}
 
-  execute(userId: string, input: PaginationInput & { projectSlug?: string }) {
+  execute(userId: string, input: PaginationInput & { projectId?: string }) {
     return this.askHistoryRepository.list({
       userId,
-      projectSlug: input.projectSlug || '',
+      projectId: input.projectId,
       page: input.page,
       pageSize: input.pageSize,
     });

@@ -24,9 +24,28 @@ export class RunAskAiUseCase {
     });
     const media: any[] = [];
     if (result.ok) {
+      // Resolve slugs to UUIDs for proper data integrity
+      let projectId: string | null = null;
+      let workspaceId: string | null = null;
+
+      if (options.projectSlug) {
+        const project = await this.contentRepository.getProjectBySlug(userId, options.projectSlug);
+        if (project) {
+          projectId = project.id;
+          workspaceId = project.workspaceId;
+        }
+      } else if (options.workspaceSlug) {
+        const workspaces = await this.contentRepository.listWorkspaces(userId);
+        const workspace = workspaces.find((item: { workspaceSlug: string }) => item.workspaceSlug === options.workspaceSlug);
+        if (workspace) {
+          workspaceId = workspace.id;
+        }
+      }
+
       await this.askHistoryRepository.save({
         userId,
-        projectSlug: options.projectSlug || '',
+        projectId,
+        workspaceId,
         question,
         answer: result.answer,
         confidence: result.confidence as ConversationConfidence,
@@ -39,11 +58,11 @@ export class RunAskAiUseCase {
         const workspaces = await this.contentRepository.listWorkspaces(userId);
         const workspace = workspaces.find((item: { workspaceSlug: string }) => item.workspaceSlug === workspaceSlug) || workspaces[0];
         const chatJid = String(workspace?.whatsappChatJid || '').trim();
-        const workspaceId = workspace?.id || '';
+        const resolvedWorkspaceId = workspace?.id || '';
 
         const attachmentResolution = await this.resolveWhatsappAskAttachmentsUseCase.execute({
           userId,
-          workspaceId,
+          workspaceId: resolvedWorkspaceId,
           requestedAttachments: result.requestedAttachments,
           requestedAttachmentPattern: result.requestedAttachmentPattern,
           sources: result.sources,

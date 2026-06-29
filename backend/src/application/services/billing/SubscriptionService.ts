@@ -181,7 +181,11 @@ export class SubscriptionService {
     }
 
     // Create or sync the gateway customer id for the selected gateway.
-    let gatewayCustomerId = currentSub?.gatewayName === gatewayName ? (currentSub.gatewayCustomerId || '') : '';
+    let gatewayCustomerId = '';
+    const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
+    if (customerRow?.gatewayCustomerId) {
+      gatewayCustomerId = customerRow.gatewayCustomerId;
+    }
     if (!gatewayCustomerId) {
       const customer = await gateway.createCustomer({
         name: userDisplayName || userEmail,
@@ -579,7 +583,6 @@ export class SubscriptionService {
       billingType: subRow.billingType,
       nextDueDate: subRow.nextDueDate ? subRow.nextDueDate.toISOString() : null,
       gatewayName: subRow.gatewayName,
-      gatewayCustomerId: subRow.gatewayCustomerId,
     } : null;
 
     const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === SubscriptionStatus.PAST_DUE)) ? latestSubSummary : null;

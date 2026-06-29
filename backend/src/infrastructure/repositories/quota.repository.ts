@@ -42,7 +42,6 @@ export class PostgresQuotaRepository extends QuotaRepository {
         currentPeriodEnd: userSubscriptions.currentPeriodEnd,
         gatewayName: userSubscriptions.gatewayName,
         gatewaySubscriptionId: userSubscriptions.gatewaySubscriptionId,
-        gatewayCustomerId: userSubscriptions.gatewayCustomerId,
         createdAt: userSubscriptions.createdAt,
         updatedAt: userSubscriptions.updatedAt,
         // plan fields
@@ -76,7 +75,6 @@ export class PostgresQuotaRepository extends QuotaRepository {
       currentPeriodEnd: row.currentPeriodEnd.toISOString(),
       gatewayName: row.gatewayName,
       gatewaySubscriptionId: row.gatewaySubscriptionId,
-      gatewayCustomerId: row.gatewayCustomerId,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       plan: {

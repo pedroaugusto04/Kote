@@ -80,8 +80,7 @@ export class GenerateProjectBriefUseCase {
       await this.historyRepository.save({
         userId,
         projectId: isAll ? undefined : projectId,
-        workspaceSlug,
-        projectSlug,
+        workspaceId,
         brief,
         sourceRefs: brief.sources,
         contextHash,
@@ -104,8 +103,7 @@ export class GenerateProjectBriefUseCase {
       await this.historyRepository.save({
         userId,
         projectId: isAll ? undefined : projectId,
-        workspaceSlug,
-        projectSlug,
+        workspaceId,
         brief: normalized,
         sourceRefs: normalized.sources,
         contextHash,
@@ -119,8 +117,7 @@ export class GenerateProjectBriefUseCase {
       const latest = await this.historyRepository.findLatest({
         userId,
         projectId: isAll ? undefined : projectId,
-        workspaceSlug,
-        projectSlug,
+        workspaceId,
       });
       if (latest) {
         return {

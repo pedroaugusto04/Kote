@@ -127,12 +127,12 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
     if (workspaceFilter) {
       joinSql += ' JOIN kb_workspaces w ON w.id = n.workspace_id';
       values.push(workspaceFilter);
-      optionalClauses.push(`AND w.workspace_slug = $${values.length}`);
+      optionalClauses.push(`AND w.id = $${values.length}`);
     }
     if (projectFilter) {
       joinSql += ' LEFT JOIN kb_projects p ON p.id = n.project_id';
       values.push(projectFilter);
-      optionalClauses.push(`AND p.project_slug = $${values.length}`);
+      optionalClauses.push(`AND p.id = $${values.length}`);
     }
 
     const result = await this.database.getPool().query(

@@ -363,7 +363,6 @@ export function userSubscriptionFromRow(row: Row): UserSubscriptionRecord {
     currentPeriodEnd: toIsoTimestamp(field(row, 'current_period_end', 'currentPeriodEnd')),
     gatewayName: fieldString(row, 'gateway_name', 'gatewayName', 'asaas'),
     gatewaySubscriptionId: field(row, 'gateway_subscription_id', 'gatewaySubscriptionId') ? String(field(row, 'gateway_subscription_id', 'gatewaySubscriptionId')) : null,
-    gatewayCustomerId: field(row, 'gateway_customer_id', 'gatewayCustomerId') ? String(field(row, 'gateway_customer_id', 'gatewayCustomerId')) : null,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };

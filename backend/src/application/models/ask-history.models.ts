@@ -11,8 +11,8 @@ export type AskHistoryRelatedNote = {
   id: string;
   title: string;
   path: string;
-  projectSlug?: string;
-  workspaceSlug?: string;
+  projectId?: string;
+  workspaceId?: string;
 };
 
 export type AskHistoryItem = {
@@ -20,7 +20,7 @@ export type AskHistoryItem = {
   question: string;
   answer: string;
   confidence: ConversationConfidence;
-  projectSlug: string;
+  projectId: string | null;
   sources: AskHistorySource[];
   relatedNotes: AskHistoryRelatedNote[];
   createdAt: string;
@@ -28,7 +28,8 @@ export type AskHistoryItem = {
 
 export type SaveAskHistoryInput = {
   userId: string;
-  projectSlug: string;
+  projectId: string | null;
+  workspaceId: string | null;
   question: string;
   answer: string;
   confidence: ConversationConfidence;
@@ -38,7 +39,7 @@ export type SaveAskHistoryInput = {
 
 export type ListAskHistoryInput = {
   userId: string;
-  projectSlug?: string;
+  projectId?: string;
   startDate?: string;
   endDate?: string;
   page: number;
