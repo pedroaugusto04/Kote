@@ -168,7 +168,7 @@ export function SourceIcon({ source, className, style }: { source?: string | nul
   if (normalized.includes('github')) {
     return <GitHubIcon className={className} style={style} />;
   }
-  if (normalized.includes('n8n') || normalized.includes('api')) {
+  if (normalized.includes('api')) {
     return <ApiIcon className={className} style={style} />;
   }
   if (

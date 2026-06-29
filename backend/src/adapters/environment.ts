@@ -60,10 +60,10 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
       .map((id) => id.trim())
       .filter(Boolean),
     trustProxy: String(env.KB_TRUST_PROXY || 'false').toLowerCase() === 'true',
-    githubPushWebhookPath: String(env.KB_GITHUB_WEBHOOK_PATH || '/n8n/webhook/kb-github-push').trim(),
-    ingestWebhookPath: String(env.KB_INGEST_WEBHOOK_PATH || '/n8n/webhook/kb-event').trim(),
+    githubPushWebhookPath: String(env.KB_GITHUB_WEBHOOK_PATH || '/api/webhooks/github-push').trim(),
+    ingestWebhookPath: String(env.KB_INGEST_WEBHOOK_PATH || '/api/webhooks/ingest').trim(),
     whatsappWebhookPath: String(env.KB_WPP_WEBHOOK_PATH || '/api/webhooks/whatsapp').trim(),
-    queryWebhookPath: String(env.KB_QUERY_WEBHOOK_PATH || '/n8n/webhook/kb-query').trim(),
+    queryWebhookPath: String(env.KB_QUERY_WEBHOOK_PATH || '/api/webhooks/query').trim(),
     githubAppInstallUrl: String(env.KB_GITHUB_APP_INSTALL_URL || '').trim(),
     githubAppCallbackPath: normalizeGithubAppCallbackPath(env.KB_GITHUB_APP_CALLBACK_PATH),
     telegramBotToken: String(env.KB_TELEGRAM_BOT_TOKEN || '').trim(),

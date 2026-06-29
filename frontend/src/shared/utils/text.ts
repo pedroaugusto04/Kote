@@ -31,7 +31,6 @@ export function stripSourceHeader(rawText: string): string {
           'whatsapp',
           'evolution',
           'github',
-          'n8n',
           'api',
           'manual',
         ];

@@ -228,7 +228,7 @@ export function LandingPage() {
                     <div className="landing-mock-priority-item">
                       <div className="landing-mock-priority-header">
                         <span className="landing-badge danger">High Impact</span>
-                        <span className="landing-mock-meta">n8n-automations / 14 reports</span>
+                        <span className="landing-mock-meta">telemetry-service / 14 reports</span>
                       </div>
                       <h4>Fragmented staging telemetry</h4>
                       <p>Multiple trace drop events occurred on production webhook sync.</p>

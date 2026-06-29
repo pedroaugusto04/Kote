@@ -249,11 +249,6 @@ const sourceRules: SourceRule[] = [
     matches: (source) => source === SOURCE_VALUES.MANUAL_API || source === SOURCE_VALUES.MANUAL || source === SOURCE_VALUES.EXTERNAL,
   },
   {
-    label: 'n8n',
-    tagClass: SourceTagClass.Api,
-    matches: (source) => source.includes('n8n'),
-  },
-  {
     label: 'API',
     tagClass: SourceTagClass.Api,
     matches: (source) => source.includes('api'),

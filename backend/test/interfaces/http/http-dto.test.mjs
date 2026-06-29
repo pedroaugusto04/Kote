@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 
 import { agentConversationBodySchema } from '../../../dist/interfaces/http/dto/operations.dto.js';
 import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../../../dist/interfaces/http/dto/integration-credentials.dto.js';
-import { internalN8nIngestBodySchema } from '../../../dist/interfaces/http/dto/internal-n8n.dto.js';
 import { reminderBoardQuerySchema, updateReminderStatusBodySchema } from '../../../dist/interfaces/http/dto/dashboard.dto.js';
 import { markRemindersBodySchema, queryRequestSchema } from '../../../dist/interfaces/http/dto/query.dto.js';
 import { createNoteBodySchema, noteIdParamSchema, updateNoteBodySchema } from '../../../dist/interfaces/http/dto/note.dto.js';
@@ -206,20 +205,6 @@ test('agent conversation dto accepts valid payloads', () => {
 
   assert.equal(parsed.senderId, 'sender-1');
   assert.equal(parsed.messageText, 'deploy pronto');
-});
-
-test('internal n8n ingest dto accepts direct and wrapped payloads', () => {
-  const payload = {
-    source: { channel: 'external', system: 'test', actor: '', conversationId: '', correlationId: 'corr-1' },
-    event: { type: 'manual_note', occurredAt: '2026-04-27T10:00:00.000Z', projectSlug: 'N8N Automations' },
-    content: { rawText: 'texto', title: '', attachments: [], sections: {} },
-    classification: { kind: 'note', canonicalType: 'event', importance: 'low', tags: [], decisionFlag: false },
-    actions: {},
-    metadata: {},
-  };
-
-  assert.equal(internalN8nIngestBodySchema.parse(payload).payload.event.projectSlug, 'n8n-automations');
-  assert.equal(internalN8nIngestBodySchema.parse({ payload, externalId: '123' }).payload.event.projectSlug, 'n8n-automations');
 });
 
 test('whatsapp webhook dto rejects canonical ingest payloads', () => {

@@ -4,7 +4,6 @@ export { ApplicationAccessController } from './dashboard/application-access.cont
 export { DashboardController } from './dashboard/dashboard.controller.js';
 export { HealthController } from './dashboard/health.controller.js';
 export { InternalIntegrationsController } from './integrations/internal-integrations.controller.js';
-export { InternalN8NController } from './integrations/internal-n8n.controller.js';
 export { UserIntegrationsController } from './integrations/user-integrations.controller.js';
 export { NotesController } from './notes/notes.controller.js';
 export { OperationsController } from './operations/operations.controller.js';

@@ -34,7 +34,6 @@ import { WebhookDeliveryWorker } from '../../application/services/webhook-delive
 import {
   UserIntegrationsController,
   InternalIntegrationsController,
-  InternalN8NController,
   WebhookController,
   WebhookSubscriptionsController,
   GithubAppCallbackController,
@@ -59,7 +58,6 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
   controllers: [
     UserIntegrationsController,
     InternalIntegrationsController,
-    InternalN8NController,
     WebhookController,
     WebhookSubscriptionsController,
     GithubAppCallbackController,
