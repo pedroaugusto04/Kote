@@ -2,10 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { fetchRelatedNotes } from '../../shared/api/client';
 import { Badge } from '../../shared/ui/primitives';
 import { noteTypeLabel, getCleanSummary, formatDateInUserTimeZone, formatTimeInUserTimeZone } from '../../shared/utils/format';
-import { makeTitleClickable } from '../../shared/utils/text';
 import { SourceBadge } from './SourceBadge';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
-import { MarkdownView } from '../markdown/MarkdownView';
 
 type RelatedNotesSectionProps = {
   noteId: string;
@@ -43,7 +41,7 @@ export function RelatedNotesSection({ noteId, openNote }: RelatedNotesSectionPro
                 <Badge value={noteTypeLabel(note.type)} tone={note.type} />
                 <span className="meta">{formatDateInUserTimeZone(note.date)} {formatTimeInUserTimeZone(note.date)}</span>
               </div>
-              <h4><MarkdownView markdown={makeTitleClickable(note.title)} /></h4>
+              <h4>{note.title}</h4>
               <SourceBadge source={activeSource} iconSize={12} style={{ marginBottom: '6px' }} />
               <p>{getCleanSummary(note.summary)}</p>
             </div>

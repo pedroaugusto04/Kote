@@ -13,7 +13,6 @@ import { notifySuccess } from '../../shared/ui/notifications';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { SourceBadge } from './SourceBadge';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
-import { MarkdownView } from '../markdown/MarkdownView';
 
 function PinIcon({ active }: { active?: boolean }) {
   return (
@@ -56,6 +55,7 @@ export function NoteRow({
 
   const activeSource = note.source;
   const displayTags = buildNoteDisplayTags({ tags: note.tags, categories: note.categories });
+  const { text: titleText, url: titleUrl } = makeTitleClickable(note.title);
 
   return (
     <article className="list-row clickable" onClick={() => onOpen(note.id)} onDoubleClick={() => onDoubleClick?.(note.id)}>
@@ -77,7 +77,15 @@ export function NoteRow({
           <AttachmentIndicator count={note.attachmentCount || 0} />
           <Badge value={formatDisplayToken(note.status)} tone={note.status} />
         </div>
-        <h3><MarkdownView markdown={makeTitleClickable(note.title)} /></h3>
+        <h3>
+          {titleUrl ? (
+            <>
+              {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{titleUrl}</a>
+            </>
+          ) : (
+            note.title
+          )}
+        </h3>
         <SourceBadge source={activeSource} iconSize={16} />
         <p>{getCleanSummary(note.summary)}</p>
       </div>

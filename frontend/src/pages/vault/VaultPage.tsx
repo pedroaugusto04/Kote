@@ -4,7 +4,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone, formatTimeInUserTimeZone, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
-import { makeTitleClickable } from '../../shared/utils/text';
 import { fetchNotes } from '../../shared/api/client';
 import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
@@ -20,7 +19,6 @@ import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 import { NoteBody, NoteAttachments } from '../../widgets/notes/NoteReaderContent';
 import { RelatedNotesSection } from '../../widgets/notes/RelatedNotesSection';
 import { FloatingNoteNavigation } from '../../widgets/notes/FloatingNoteNavigation';
-import { MarkdownView } from '../../widgets/markdown/MarkdownView';
 
 type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
 
@@ -149,7 +147,7 @@ export function VaultPage({
         </div>
       )}
       <PageHead
-        title={<MarkdownView markdown={makeTitleClickable(noteQuery.data?.title || 'Note details')} />}
+        title={noteQuery.data?.title || 'Note details'}
         subtitle={selectedProjectDetails?.displayName || ''}
         onBack={() => navigate(-1)}
         action={

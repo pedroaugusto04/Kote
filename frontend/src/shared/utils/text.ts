@@ -53,17 +53,17 @@ export function stripSourceHeader(rawText: string): string {
   return rawText;
 }
 
-export function makeTitleClickable(title: string): string {
-  if (!title) return title;
+export function makeTitleClickable(title: string): { text: string; url?: string } {
+  if (!title) return { text: title };
   // Match URLs at the end of the title (pattern: " - https://..." or " - http://...")
   const urlPattern = / - (https?:\/\/[^\s]+)$/;
   const match = title.match(urlPattern);
   if (match) {
     const url = match[1];
-    const titleWithoutUrl = title.substring(0, match.index);
-    return `${titleWithoutUrl} - [${url}](${url})`;
+    const text = title.substring(0, match.index);
+    return { text, url };
   }
-  return title;
+  return { text: title };
 }
 
 
