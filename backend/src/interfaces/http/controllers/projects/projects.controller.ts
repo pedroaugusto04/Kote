@@ -61,7 +61,7 @@ export class ProjectsController {
     private readonly createProjectFolderUseCase: CreateProjectFolderUseCase,
     private readonly updateProjectFolderUseCase: UpdateProjectFolderUseCase,
     private readonly deleteProjectFolderUseCase: DeleteProjectFolderUseCase,
-  ) {}
+  ) { }
 
   @Post()
   @UseGuards(TrustedOriginGuard)
@@ -143,7 +143,7 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId });
+    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId, orderByPin: true });
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 
