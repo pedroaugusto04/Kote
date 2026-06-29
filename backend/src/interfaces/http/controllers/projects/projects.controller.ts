@@ -127,7 +127,7 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, query);
+    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, orderByPin: false });
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 

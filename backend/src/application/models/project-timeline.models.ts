@@ -34,6 +34,8 @@ export type ListProjectTimelineInput = {
   pageSize: number;
   category: ProjectTimelineCategory;
   status?: string;
+  /** When false, pinned notes are not sorted to the top. Defaults to true. */
+  orderByPin?: boolean;
 };
 
 export type PaginatedProjectTimeline = {
