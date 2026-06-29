@@ -190,7 +190,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     repositories.contentRepository,
   );
 
-  await assert.rejects(() => handler.execute(signedGithubInput(githubBody(404))), /identity_not_found/);
+  await assert.rejects(() => handler.execute(signedGithubInput(githubBody(404)), { synchronous: true }), /identity_not_found/);
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
 
   await repositories.externalIdentityRepository.upsertExternalIdentity({
@@ -202,7 +202,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     publicMetadata: {},
   });
 
-  const result = await handler.execute(signedGithubInput(githubBody(42)));
+  const result = await handler.execute(signedGithubInput(githubBody(42)), { synchronous: true });
   assert.equal(result.ok, true);
   assert.equal(result.processed, false);
   assert.equal(result.ignored, 'github_repository_not_selected');
@@ -283,7 +283,7 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     repositories.contentRepository,
   );
 
-  const result = await handler.execute(signedGithubInput(githubBody(42)));
+  const result = await handler.execute(signedGithubInput(githubBody(42)), { synchronous: true });
 
   assert.equal(result.payload.event.projectSlug, 'platform');
   assert.equal(result.ingestResult.project, 'platform');
@@ -457,11 +457,13 @@ test('github pull request webhook processes event, searches context, and posts c
     noteEmbeddingRepositoryMock,
     answerGenerationGatewayMock,
     repositories.quotaService,
+    null,
+    null,
     repositories.contentRepository,
     repositories.credentialRepository,
   );
 
-  const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 77)));
+  const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 77)), { synchronous: true });
 
   assert.equal(result.ok, true);
   assert.equal(result.processed, true);
@@ -537,13 +539,15 @@ test('github pull request webhook skips processing when title contains skip-kote
     {} ,
     {} ,
     repositories.quotaService,
+    null,
+    null,
     repositories.contentRepository,
     repositories.credentialRepository,
   );
 
   const payload = githubPrBody('opened', 78);
   payload.pull_request.title = 'feat: something [skip-kote] new';
-  const result = await handler.execute(signedGithubPrInput(payload));
+  const result = await handler.execute(signedGithubPrInput(payload), { synchronous: true });
 
   assert.equal(result.ok, true);
   assert.equal(result.processed, false);
@@ -616,11 +620,13 @@ test('github pull request webhook skips posting comments when a comment already 
     {} ,
     {} ,
     repositories.quotaService,
+    null,
+    null,
     repositories.contentRepository,
     repositories.credentialRepository,
   );
 
-  const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 79)));
+  const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 79)), { synchronous: true });
 
   assert.equal(result.ok, true);
   assert.equal(result.processed, false);

@@ -343,3 +343,69 @@ function buildPrRawText(prNumber: number, title: string, description: string, co
   }
   return `PR #${prNumber}: ${title}\n\n${description}`;
 }
+
+export function buildGithubPrContextNoteEvent(
+  rawInput: unknown,
+  commentText: string,
+  changedFiles: ChangedFile[],
+  contextSummary?: string,
+): ReturnType<typeof ingestPayloadSchema.parse> {
+  const input = rawInput as { headers?: Record<string, string>; body?: GithubPullRequestPayload; rawBody?: string };
+  const body = input.body || {};
+  const repoInfo = extractRepositoryInfo(body);
+  const prNumber = Number(body.pull_request?.number || 0);
+  const projectSlug = normalizeProjectSlug(repoInfo.name, repoInfo.fullName);
+  const rawText = buildPrRawText(prNumber, String(body.pull_request?.title || ''), String(body.pull_request?.body || ''), contextSummary);
+
+  return ingestPayloadSchema.parse({
+    source: {
+      channel: SourceChannel.Github,
+      system: 'github',
+      source: 'github pull request',
+      actor: String(body.sender?.login || ''),
+      conversationId: repoInfo.fullName,
+      correlationId: formatCorrelationId('pr', repoInfo.fullName, `${prNumber}:${String(body.pull_request?.head?.sha || '')}`),
+    },
+    event: {
+      type: EventType.CodeReview,
+      occurredAt: new Date().toISOString(),
+      projectSlug,
+    },
+    content: {
+      rawText: trimText(rawText, 'PR without description'),
+      title: `[PR #${prNumber}] ${String(body.pull_request?.title || '')}`,
+      attachments: [],
+      sections: {
+        summary: commentText,
+        impact: '',
+        risks: [],
+        nextSteps: [],
+        reviewFindings: [],
+      },
+    },
+    classification: {
+      kind: KnowledgeKind.Summary,
+      canonicalType: CanonicalType.Knowledge,
+      importance: defaultImportance(KnowledgeKind.Summary),
+      status: KnowledgeStatus.Active,
+      tags: ['code-review', 'pull-request', projectSlug],
+      decisionFlag: false,
+    },
+    actions: {
+      reminderDate: '',
+      reminderTime: '',
+      followUpBy: '',
+    },
+    metadata: {
+      repoFullName: repoInfo.fullName,
+      prNumber,
+      prTitle: String(body.pull_request?.title || ''),
+      prUrl: String(body.pull_request?.html_url || ''),
+      baseBranch: String(body.pull_request?.base?.ref || ''),
+      headBranch: String(body.pull_request?.head?.ref || ''),
+      baseSha: String(body.pull_request?.base?.sha || ''),
+      headSha: String(body.pull_request?.head?.sha || ''),
+      changedFiles: changedFiles.map(f => f.filename),
+    },
+  });
+}

@@ -69,7 +69,7 @@ export class HandleGithubPushUseCase {
     this.logger = AppLogger.create();
   }
 
-  async execute(input: GithubPushWebhookRequest) {
+  async execute(input: GithubPushWebhookRequest, options?: { synchronous?: boolean }) {
     const environment = this.environmentProvider.read();
     const headers = normalizeHeaders(input.headers || {});
     const body = (input.body || {}) as GithubPushPayload;
@@ -124,6 +124,46 @@ export class HandleGithubPushUseCase {
           ignored: 'github_repository_not_selected',
         };
       }
+
+      if (options?.synchronous) {
+        return this.processPush(input, identity, headers, rawPayload, externalIdentity, projectSlug);
+      }
+
+      void this.processPush(input, identity, headers, rawPayload, externalIdentity, projectSlug);
+
+      return {
+        ok: true,
+        processed: false,
+        status: 'queued',
+      };
+    } catch (error) {
+      await this.webhookEvents.recordWebhookEvent({
+        provider: IntegrationProvider.GithubApp,
+        eventType: String(headers['x-github-event'] || 'push'),
+        status: WebhookEventStatus.Failed,
+        resolvedUserId: identity.userId,
+        externalIdentity,
+        rawHeaders: headers,
+        rawPayload,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    }
+  }
+
+  private async processPush(
+    input: GithubPushWebhookRequest,
+    identity: { userId: string; workspaceSlug?: string | null; credentialId?: string | null },
+    headers: Record<string, string>,
+    rawPayload: Record<string, unknown>,
+    externalIdentity: { provider: ExternalIdentityProvider; identityType: string; externalId: string },
+    projectSlug: string,
+  ) {
+    const environment = this.environmentProvider.read();
+    const body = (input.body || {}) as GithubPushPayload;
+    const repoFullName = String(body.repository?.full_name || '').trim();
+
+    try {
       // Check AI credit quota — if exceeded, degrade gracefully (ingest without AI analysis).
       const quotaOk = await this.quotaService.checkAndIncrementAiUsage(
         identity.userId,
@@ -154,6 +194,13 @@ export class HandleGithubPushUseCase {
         },
       );
       const resolvedPayload = this.resolvePayloadProject(payload, projectSlug);
+
+      this.logger.info('github_push_review_ingest_start', {
+        repository: repoFullName,
+        projectSlug,
+        findingsCount: resolvedPayload.content.sections.reviewFindings.length,
+      });
+
       const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug || '');
 
       this.logger.info('github_push_review_ingested', {
@@ -198,6 +245,11 @@ export class HandleGithubPushUseCase {
         telegramMessage: buildTelegramCodeReviewMessage(resolvedPayload),
       };
     } catch (error) {
+      this.logger.error('github_push_review_failed', {
+        repository: repoFullName,
+        projectSlug,
+        error: error instanceof Error ? error.message : String(error),
+      });
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
         eventType: String(headers['x-github-event'] || 'push'),
