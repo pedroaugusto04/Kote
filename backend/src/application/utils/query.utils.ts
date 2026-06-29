@@ -3,7 +3,7 @@ import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.j
 import { SpecialQueryIntent, CanonicalType, KnowledgeStatus } from '../../contracts/enums.js';
 import type { VaultNoteSummary } from '../models/vault-note.models.js';
 
-function tokenizeQuery(query: string): string[] {
+export function tokenizeQuery(query: string): string[] {
   return query
     .toLowerCase()
     .normalize('NFKD')
@@ -13,9 +13,40 @@ function tokenizeQuery(query: string): string[] {
     .filter((token) => token.length >= 2);
 }
 
-function scoreKnowledgeNote(note: VaultNoteSummary, tokens: string[]): number {
-  const haystack = [note.title, note.path, note.summary, note.tags.join(' ')].join('\n').toLowerCase();
-  return tokens.reduce((total, token) => total + (haystack.includes(token) ? 5 : 0), 0);
+export function scoreKnowledgeNote(note: VaultNoteSummary, tokens: string[]): number {
+  if (!tokens.length) return 0;
+  const titleLower = (note.title || '').toLowerCase();
+  const pathLower = (note.path || '').toLowerCase();
+  const summaryLower = (note.summary || '').toLowerCase();
+  const tagsLower = (note.tags || []).map((t) => t.toLowerCase());
+
+  let totalScore = 0;
+  for (const token of tokens) {
+    let tokenMatched = false;
+    if (titleLower.includes(token)) {
+      totalScore += 25;
+      tokenMatched = true;
+    }
+    if (pathLower.includes(token)) {
+      totalScore += 20;
+      tokenMatched = true;
+    }
+    if (tagsLower.some((tag) => tag.includes(token))) {
+      totalScore += 20;
+      tokenMatched = true;
+    }
+    if (summaryLower.includes(token)) {
+      totalScore += 10;
+      tokenMatched = true;
+    }
+    if (!tokenMatched) {
+      const haystack = [note.title, note.path, note.summary, note.tags.join(' ')].join('\n').toLowerCase();
+      if (haystack.includes(token)) {
+        totalScore += 5;
+      }
+    }
+  }
+  return totalScore;
 }
 
 const SPECIAL_INTENT_PATTERNS = {
@@ -173,6 +204,7 @@ export function rankHybridKnowledgeMatches(
   notes: VaultNoteSummary[],
   similarChunks: Array<{ noteId: string; similarity: number }>,
   query: Pick<QueryInput, 'query' | 'projectSlug' | 'workspaceSlug' | 'status' | 'limit'>,
+  weights: { vector: number; keyword: number } = { vector: 0.4, keyword: 0.6 },
 ) {
   const intent = getSpecialQueryIntent(query.query);
   const tokens = tokenizeQuery(query.query);
@@ -199,13 +231,13 @@ export function rankHybridKnowledgeMatches(
       ),
     )
     .map((note) => {
-      // Combine vector similarity (weight 0.7) with keyword score (weight 0.3)
       const vectorScore = (similarityMap.get(note.id) || 0) * 100; // Scale to 0-100 range
-      const keywordScore = intent
+      const rawKeywordScore = intent
         ? (matchesIntent(note, intent) ? 100 : 0)
         : scoreKnowledgeNote(note, tokens);
+      const keywordScore = Math.min(100, rawKeywordScore);
 
-      const hybridScore = (vectorScore * 0.7) + (keywordScore * 0.3);
+      const hybridScore = (vectorScore * weights.vector) + (keywordScore * weights.keyword);
 
       return {
         id: note.id,

@@ -11,7 +11,7 @@ import { ConversationConfidence } from '../../../contracts/enums.js';
 import { QuotaService } from '../../services/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
-import { getSpecialQueryIntent, matchesIntent } from '../../utils/query.utils.js';
+import { getSpecialQueryIntent, matchesIntent, tokenizeQuery, scoreKnowledgeNote } from '../../utils/query.utils.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 
 @Injectable()
@@ -134,12 +134,12 @@ export class AskKnowledgeUseCase {
         };
       }
 
-      // 2. Query similar chunks (limit: 8, threshold: 0.65)
+      // 2. Query similar chunks with broader candidate limit and lower threshold for hybrid re-ranking
       const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
-        limit: 8,
+        limit: 16,
         workspaceSlug: options.workspaceSlug,
         projectSlug: options.projectSlug,
-        minSimilarity: 0.65,
+        minSimilarity: 0.35,
       });
 
       if (similarChunks.length === 0) {
@@ -153,35 +153,46 @@ export class AskKnowledgeUseCase {
         };
       }
 
-      // 3. Fetch notes metadata to enrich chunks using optimized single query
+      // 3. Fetch notes metadata to enrich chunks and perform semantic-heavy (0.8 vector / 0.2 keyword) hybrid re-ranking
       const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
       const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
       const noteMap = new Map(notes.map((n) => [n.id, n]));
+      const tokens = tokenizeQuery(queryText);
 
-      contextChunks = similarChunks
-        .map((chunk): AnswerContextChunk | null => {
+      const rankedChunks = similarChunks
+        .map((chunk) => {
           const note = noteMap.get(chunk.noteId);
           if (!note) return null;
-          return {
-            noteId: chunk.noteId,
-            title: note.title,
-            path: note.path,
-            projectSlug: note.projectSlug,
-            workspaceId: note.workspaceId,
-            chunkText: chunk.chunkText,
-          };
+          const vectorScore = chunk.similarity * 100;
+          const rawKeywordScore = scoreKnowledgeNote(noteSummary(note), tokens);
+          const keywordScore = Math.min(100, rawKeywordScore);
+          const hybridScore = (vectorScore * 0.8) + (keywordScore * 0.2);
+          return { chunk, note, hybridScore };
         })
-        .filter((c): c is AnswerContextChunk => c !== null);
+        .filter((item): item is { chunk: typeof similarChunks[0]; note: NoteRecord; hybridScore: number } => item !== null)
+        .sort((left, right) => right.hybridScore - left.hybridScore)
+        .slice(0, 8);
 
-      relatedNotesForResponse = notes
-        .filter((n): n is NoteRecord => !!n)
-        .map((n) => ({
-          id: n.id,
-          title: n.title,
-          path: n.path,
-          projectSlug: n.projectSlug || '',
-          workspaceId: n.workspaceId,
-        }));
+      contextChunks = rankedChunks.map(({ chunk, note }) => ({
+        noteId: chunk.noteId,
+        title: note.title,
+        path: note.path,
+        projectSlug: note.projectSlug,
+        workspaceId: note.workspaceId,
+        chunkText: chunk.chunkText,
+      }));
+
+      const topNotes = Array.from(new Set(rankedChunks.map((r) => r.note.id)))
+        .map((id) => noteMap.get(id)!)
+        .filter(Boolean);
+
+      relatedNotesForResponse = topNotes.map((n) => ({
+        id: n.id,
+        title: n.title,
+        path: n.path,
+        projectSlug: n.projectSlug || '',
+        workspaceId: n.workspaceId,
+      }));
     }
 
     // 4. Generate answer using AnswerGenerationGateway

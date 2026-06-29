@@ -24,6 +24,7 @@ export class QueryKnowledgeUseCase {
 
   async execute(input: QueryInput, userId: string) {
     const env = this.runtimeEnv.read();
+    const notes = await this.contentQueryRepository.list(userId);
     const embeddingConfig = {
       provider: env.embeddingAiProvider,
       baseUrl: env.embeddingAiBaseUrl,
@@ -45,12 +46,8 @@ export class QueryKnowledgeUseCase {
             minSimilarity: 0.3, // Lower threshold for hybrid search
           });
 
-          if (similarChunks.length > 0) {
-            const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
-            const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
-            const vaultNotes = notes.map(noteSummary);
-
-            const matches = rankHybridKnowledgeMatches(vaultNotes, similarChunks, input);
+          const matches = rankHybridKnowledgeMatches(notes, similarChunks, input, { vector: 0.4, keyword: 0.6 });
+          if (matches.length > 0) {
             const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || DEFAULT_PAGE_SIZE }, matches.length);
             const start = (pagination.page - 1) * pagination.pageSize;
 
@@ -79,7 +76,6 @@ export class QueryKnowledgeUseCase {
     }
 
     // Fallback to keyword-only search
-    const notes = await this.contentQueryRepository.list(userId);
     const matches = rankKnowledgeMatches(notes, input);
     const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || DEFAULT_PAGE_SIZE }, matches.length);
     const start = (pagination.page - 1) * pagination.pageSize;

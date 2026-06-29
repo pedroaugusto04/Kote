@@ -61,26 +61,35 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
         [userId, noteId, chunks.length],
       );
 
-      for (const chunk of chunks) {
-        await client.query(
-          `INSERT INTO kb_note_embeddings (user_id, note_id, chunk_index, chunk_text, embedding, model)
-           VALUES ($1, $2, $3, $4, $5::vector, $6)
-           ON CONFLICT (note_id, chunk_index)
-           DO UPDATE SET
-             chunk_text = EXCLUDED.chunk_text,
-             embedding = EXCLUDED.embedding,
-             model = EXCLUDED.model,
-             updated_at = now()`,
-          [
-            userId,
-            noteId,
-            chunk.chunkIndex,
-            chunk.chunkText,
-            formatEmbeddingForPg(chunk.embedding),
-            chunk.model,
-          ],
+      const values: unknown[] = [];
+      const valueRows: string[] = [];
+
+      chunks.forEach((chunk, i) => {
+        const offset = i * 6;
+        valueRows.push(
+          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::vector, $${offset + 6})`,
         );
-      }
+        values.push(
+          userId,
+          noteId,
+          chunk.chunkIndex,
+          chunk.chunkText,
+          formatEmbeddingForPg(chunk.embedding),
+          chunk.model,
+        );
+      });
+
+      await client.query(
+        `INSERT INTO kb_note_embeddings (user_id, note_id, chunk_index, chunk_text, embedding, model)
+         VALUES ${valueRows.join(', ')}
+         ON CONFLICT (note_id, chunk_index)
+         DO UPDATE SET
+           chunk_text = EXCLUDED.chunk_text,
+           embedding = EXCLUDED.embedding,
+           model = EXCLUDED.model,
+           updated_at = now()`,
+        values,
+      );
 
       await client.query('COMMIT');
     } catch (error) {
