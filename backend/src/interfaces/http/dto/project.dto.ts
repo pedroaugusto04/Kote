@@ -39,6 +39,7 @@ export const projectTimelineQuerySchema = paginationInputSchema.extend({
   category: z.enum(projectTimelineCategories).default('all'),
   folderId: z.string().trim().optional(),
   status: z.enum(notesListStatusFilterValues).default(StatusFilter.Open),
+  orderByPin: z.coerce.boolean().default(true),
 });
 
 export const projectKnowledgeMapQuerySchema = z.object({

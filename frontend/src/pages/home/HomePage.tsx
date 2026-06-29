@@ -25,8 +25,8 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
   const timelineQuery = useQuery({
     queryKey: ['home-project-timeline', selectedTimelineProject],
     queryFn: () => selectedTimelineProject
-      ? fetchProjectTimeline(selectedTimelineProject, { page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '' })
-      : fetchAllProjectsTimeline({ page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '' }),
+      ? fetchProjectTimeline(selectedTimelineProject, { page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '', orderByPin: false })
+      : fetchAllProjectsTimeline({ page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '', orderByPin: false }),
     staleTime: 0,
   });
 

@@ -127,7 +127,7 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, orderByPin: false });
+    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, orderByPin: query.orderByPin ?? false });
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 
@@ -143,7 +143,7 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId, orderByPin: true });
+    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId, orderByPin: query.orderByPin ?? true });
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 

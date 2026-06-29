@@ -70,7 +70,7 @@ export function fetchProjectFolders(projectSlug: string) {
   return request<{ ok: true; projectSlug: string; folders: ProjectFolder[] }>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/folders`);
 }
 
-export function fetchProjectTimeline(projectSlug: string, params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; folderId?: string; status?: string }) {
+export function fetchProjectTimeline(projectSlug: string, params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; folderId?: string; status?: string; orderByPin?: boolean }) {
   const search = new URLSearchParams({
     page: String(params.page || 1),
     pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
@@ -78,6 +78,7 @@ export function fetchProjectTimeline(projectSlug: string, params: { page?: numbe
   });
   if (params.folderId) search.set('folderId', params.folderId);
   if (params.status !== undefined) search.set('status', params.status);
+  if (params.orderByPin !== undefined) search.set('orderByPin', String(params.orderByPin));
   return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/timeline?${search.toString()}`);
 }
 
@@ -108,13 +109,14 @@ export function fetchProjectBriefHistory(projectSlug: string, params: { page?: n
   return request<ProjectBriefHistoryResponse>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/brief/history?${search.toString()}`);
 }
 
-export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; status?: string }) {
+export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; status?: string; orderByPin?: boolean }) {
   const search = new URLSearchParams({
     page: String(params.page || 1),
     pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
     category: params.category || 'all',
   });
   if (params.status !== undefined) search.set('status', params.status);
+  if (params.orderByPin !== undefined) search.set('orderByPin', String(params.orderByPin));
   return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`${API_PATHS.PROJECTS_TIMELINE}?${search.toString()}`);
 }
 
