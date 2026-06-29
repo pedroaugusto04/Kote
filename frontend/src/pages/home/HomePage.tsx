@@ -1,6 +1,7 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
 import { formatDisplayToken, formatUsDate, formatUsDateTime, formatDateInUserTimeZone, formatTimeInUserTimeZone, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary, noteTypeLabel, getTimelineNodeColor } from '../../shared/utils/format';
+import { makeTitleClickable } from '../../shared/utils/text';
 import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
@@ -193,7 +194,14 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                           <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                         </div>
                         <h3 className="home-timeline-title">
-                          {item.title}
+                          {(() => {
+                            const { text: titleText, url: titleUrl } = makeTitleClickable(item.title);
+                            return titleUrl ? (
+                              <>
+                                {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
+                              </>
+                            ) : item.title;
+                          })()}
                         </h3>
                         <SourceBadge source={activeSource} iconSize={16} />
                         <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>

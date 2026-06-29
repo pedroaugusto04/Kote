@@ -73,7 +73,7 @@ const TEXT_MIME_TYPES = new Set([
 export function NoteBody({ markdown, rawText, summary, title, source }: { markdown: string; rawText: string; summary: string; title: string; source?: string }) {
   const extraMarkdown = readerExtraSections(markdown, title);
   const hasExtra = Boolean(extraMarkdown);
-  const cleanedRawText = stripSourceHeader(rawText);
+  const cleanedRawText = stripSourceHeader(rawText).replace(/^---\n[\s\S]*?\n---\n?/, '');
   const cleanedSummary = stripSourceHeader(summary);
   const isAiNote = source ? getSourceTagClass(source) === 'ai' : false;
   const hasSummary = !isAiNote && Boolean(cleanedSummary) && normalizeReaderText(cleanedSummary) !== normalizeReaderText(cleanedRawText);
