@@ -34,7 +34,7 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     date: record.occurredAt || (record as any).createdAt || '',
     status: record.status,
     summary: record.summary,
-    source: record.source || record.sourceChannel,
+    source: record.sourceChannel || record.source,
     attachmentCount: record.attachmentCount || 0,
     isPinned: record.isPinned,
   };

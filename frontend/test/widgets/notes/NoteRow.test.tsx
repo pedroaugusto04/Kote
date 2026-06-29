@@ -219,7 +219,7 @@ describe('NoteRow', () => {
           date: '2026-04-27',
           status: NoteStatus.Active,
           summary: 'Resumo',
-          source: 'whatsapp-webhook',
+          source: 'whatsapp',
           attachmentCount: 0,
         }}
         onOpen={vi.fn()}
@@ -228,6 +228,6 @@ describe('NoteRow', () => {
 
     const sourceElement = screen.getByTitle('Source: WhatsApp');
     expect(sourceElement).toBeInTheDocument();
-    expect(sourceElement.querySelector('svg')).toBeInTheDocument();
+    expect(sourceElement.querySelector('svg, img')).toBeInTheDocument();
   });
 });

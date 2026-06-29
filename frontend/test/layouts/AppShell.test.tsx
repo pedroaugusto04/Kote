@@ -42,12 +42,12 @@ const dashboard = {
       date: '2026-04-27',
       status: 'active',
       summary: 'Revisar deploy.',
-          source: 'test',
-          categories: [{ id: 'category-event', name: 'event' }],
-          folderId: null,
-          attachmentCount: 0,
-        },
-      ],
+      source: 'test',
+      categories: [{ id: 'category-event', name: 'event' }],
+      folderId: null,
+      attachmentCount: 0,
+    },
+  ],
   reminders: [],
   home: {
     windowDays: 7,
@@ -1039,7 +1039,7 @@ describe('AppShell', () => {
     expect(screen.getByText((content) => content.includes('Keep AI sessions') && content.includes('GitHub PR reviews') && content.includes('WhatsApp & Telegram messages'))).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'With Kote, you don\'t need to guess.' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Semantic Search & AI Assistant' })).toBeInTheDocument();
-    expect(screen.getByText('Context & Evidence')).toBeInTheDocument();
+    expect(screen.getByText('Impact & Priorities')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/auth');
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/auth?mode=signup');
 

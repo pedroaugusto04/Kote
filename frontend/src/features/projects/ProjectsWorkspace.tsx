@@ -518,9 +518,9 @@ async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) 
 
 function deriveTimelineCategory(source: string | undefined): string {
   if (!source) return SOURCE_VALUES.MANUAL;
-  const s = source.toLowerCase();
-  if (s.includes('github')) return SOURCE_VALUES.GITHUB_PUSH;
-  if (s.includes('whatsapp') || s.includes('evolution')) return SOURCE_VALUES.WHATSAPP_CHANNEL;
-  if (s === SOURCE_VALUES.AI_CHAT || s.includes('antigravity') || s.includes('codex') || s.includes('claude') || s.includes('opencode') || s.includes('open-code')) return SOURCE_VALUES.AI_CHAT;
+  const s = source.toLowerCase().trim();
+  if (s === SOURCE_VALUES.GITHUB_PUSH || s === SOURCE_VALUES.GITHUB) return SOURCE_VALUES.GITHUB_PUSH;
+  if (s === SOURCE_VALUES.WHATSAPP || s === SOURCE_VALUES.WHATSAPP_CHANNEL) return SOURCE_VALUES.WHATSAPP_CHANNEL;
+  if (s === SOURCE_VALUES.AI_CHAT) return SOURCE_VALUES.AI_CHAT;
   return SOURCE_VALUES.MANUAL;
 }

@@ -156,11 +156,13 @@ export const SOURCE_VALUES = {
   KOTE: 'kote',
   WHATSAPP: 'whatsapp',
   GITHUB: 'github',
-  WEB_CLIPPER: 'web-clipper',
   GITHUB_PUSH: 'github-push',
   WHATSAPP_CHANNEL: 'whatsapp',
   AI_CHAT: 'ai-chat',
   CLI: 'cli',
+  IDE: 'ide',
+  EXTERNAL: 'external',
+  WEB_CLIPPER: 'web-clipper',
   MANUAL_API: 'manual-api',
   MANUAL: 'manual',
 } as const;
@@ -177,6 +179,7 @@ export enum SourceTagClass {
   AiCodex = 'ai-codex',
   AiClaude = 'ai-claude',
   Ai = 'ai',
+  Ide = 'ide',
   Manual = 'manual',
   Api = 'api',
 }
@@ -193,12 +196,12 @@ const sourceRules: SourceRule[] = [
   {
     label: 'WhatsApp',
     tagClass: SourceTagClass.WhatsApp,
-    matches: (source) => source.includes('whatsapp') || source.includes('evolution'),
+    matches: (source) => source === SOURCE_VALUES.WHATSAPP || source === SOURCE_VALUES.WHATSAPP_CHANNEL,
   },
   {
     label: 'GitHub',
     tagClass: SourceTagClass.GitHub,
-    matches: (source) => source.includes('github'),
+    matches: (source) => source === SOURCE_VALUES.GITHUB_PUSH || source === SOURCE_VALUES.GITHUB,
   },
   {
     label: 'Web Clipper',
@@ -206,24 +209,14 @@ const sourceRules: SourceRule[] = [
     matches: (source) => source === SOURCE_VALUES.WEB_CLIPPER || source.startsWith('http://') || source.startsWith('https://'),
   },
   {
-    label: 'Open Code',
-    tagClass: SourceTagClass.AiOpenCode,
-    matches: (source) => source.includes('open-code') || source.includes('opencode'),
+    label: 'VS Code',
+    tagClass: SourceTagClass.Ide,
+    matches: (source) => source === SOURCE_VALUES.IDE,
   },
   {
-    label: 'Antigravity',
-    tagClass: SourceTagClass.AiAntigravity,
-    matches: (source) => source.includes('antigravity'),
-  },
-  {
-    label: 'Codex',
-    tagClass: SourceTagClass.AiCodex,
-    matches: (source) => source.includes('codex'),
-  },
-  {
-    label: 'Claude Code',
-    tagClass: SourceTagClass.AiClaude,
-    matches: (source) => source.includes('claude'),
+    label: 'CLI',
+    tagClass: SourceTagClass.Manual,
+    matches: (source) => source === SOURCE_VALUES.CLI,
   },
   {
     label: 'AI',
@@ -233,12 +226,7 @@ const sourceRules: SourceRule[] = [
   {
     label: 'Manual',
     tagClass: SourceTagClass.Manual,
-    matches: (source) => source === SOURCE_VALUES.MANUAL_API || source === SOURCE_VALUES.MANUAL,
-  },
-  {
-    label: 'n8n',
-    tagClass: SourceTagClass.Api,
-    matches: (source) => source.includes('n8n'),
+    matches: (source) => source === SOURCE_VALUES.MANUAL_API || source === SOURCE_VALUES.MANUAL || source === SOURCE_VALUES.EXTERNAL,
   },
   {
     label: 'API',
