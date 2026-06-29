@@ -80,7 +80,7 @@ export function NoteRow({
         <h3>
           {titleUrl ? (
             <>
-              {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{titleUrl}</a>
+              {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
             </>
           ) : (
             note.title

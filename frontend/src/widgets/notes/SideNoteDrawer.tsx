@@ -56,7 +56,7 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
                 const { text: titleText, url: titleUrl } = makeTitleClickable(noteQuery.data.title);
                 return titleUrl ? (
                   <>
-                    {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer">{titleUrl}</a>
+                    {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
                   </>
                 ) : noteQuery.data.title;
               })()}

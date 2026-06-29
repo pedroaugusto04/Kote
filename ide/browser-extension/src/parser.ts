@@ -56,6 +56,7 @@ export function formatNoteWithFrontmatter(
 
   frontmatter.push('---');
   frontmatter.push('');
+  frontmatter.push('');
 
   if (payload.excerpt) {
     frontmatter.push(`> ${payload.excerpt}`);
