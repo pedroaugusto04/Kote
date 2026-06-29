@@ -88,6 +88,7 @@ const dashboard: Dashboard = {
       status: NoteStatus.Active,
       summary: 'Resumo',
       source: 'manual-api',
+      sourceChannel: 'manual',
       attachmentCount: 0,
     },
   ],
@@ -358,8 +359,7 @@ describe('ProjectsPage', () => {
         title: 'Revisar rollout',
         rawText: 'confirmar deploy',
         tags: ['deploy'],
-        reminderDate: '2026-04-29',
-        reminderTime: '09:30',
+        reminderAt: '2026-04-29T09:30',
       });
       return Response.json({ ok: true, project: 'platform', noteId: 'note-2', eventPath: 'path.md' });
     });
@@ -372,8 +372,7 @@ describe('ProjectsPage', () => {
     const tagsInput = screen.getByLabelText('Tags');
     fireEvent.change(tagsInput, { target: { value: 'deploy' } });
     fireEvent.keyDown(tagsInput, { key: 'Enter' });
-    fireEvent.change(screen.getByLabelText('Reminder date'), { target: { value: '2026-04-29' } });
-    fireEvent.change(screen.getByLabelText('Reminder time'), { target: { value: '09:30' } });
+    fireEvent.change(screen.getByLabelText('Reminder'), { target: { value: '2026-04-29T09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/notes', expect.objectContaining({ method: 'POST' })));
@@ -397,8 +396,7 @@ describe('ProjectsPage', () => {
           editor: {
             canDelete: true,
             rawText: 'confirmar deploy',
-            reminderDate: '2026-04-29',
-            reminderTime: '09:30',
+            reminderAt: '2026-04-29T09:30',
           },
         },
       });
@@ -410,7 +408,7 @@ describe('ProjectsPage', () => {
 
     expect(openNote).not.toHaveBeenCalled();
     expect(await screen.findByDisplayValue('confirmar deploy')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2026-04-29')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2026-04-29T09:30')).toBeInTheDocument();
   });
 
   it('updates a note without opening it after save', async () => {
@@ -430,8 +428,7 @@ describe('ProjectsPage', () => {
             editor: {
               canDelete: true,
               rawText: 'confirmar deploy',
-              reminderDate: '2026-04-29',
-              reminderTime: '09:30',
+              reminderAt: '2026-04-29T09:30',
             },
           },
         });
@@ -440,8 +437,7 @@ describe('ProjectsPage', () => {
         expect(JSON.parse(String(init.body))).toMatchObject({
           title: 'Deploy revisado',
           rawText: 'confirmar deploy atualizado',
-          reminderDate: '2026-04-29',
-          reminderTime: '09:30',
+          reminderAt: '2026-04-29T09:30',
         });
         return Response.json({ ok: true, noteId: 'note-1' });
       }
