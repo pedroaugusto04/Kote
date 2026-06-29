@@ -62,6 +62,15 @@ export function WhatsAppIcon({ className, style }: { className?: string; style?:
   );
 }
 
+export function TelegramIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m22 2-7 20-4-9-9-4 20-7z" />
+      <path d="M22 2 11 13" />
+    </svg>
+  );
+}
+
 export function SparklesIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

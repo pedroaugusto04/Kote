@@ -566,6 +566,12 @@
   height: 18px;
   display: grid;
   place-items: center;
+  color: var(--text-strong);
+}
+
+.landing-integration-card-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .landing-integration-card.c1 { top: 15%; left: 18%; }

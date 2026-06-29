@@ -7,6 +7,7 @@ import { useTypewriterWord } from '../../layouts/use-typewriter-word';
 import { logApplicationAccess } from '../../shared/api/client';
 import { BrandMark } from '../../shared/ui/brand-mark';
 import { ThemeToggle } from '../../shared/ui/theme-toggle';
+import { GitHubIcon, WhatsAppIcon, TelegramIcon, SparklesIcon, PencilIcon } from '../../shared/ui/icons';
 
 const typewriterWords = ['capture', 'organize', 'retrieve', 'connect'];
 
@@ -181,20 +182,20 @@ export function LandingPage() {
               </svg>
 
               <div className="landing-integration-card c1">
-                <span className="landing-integration-card-icon">🐙</span>
+                <span className="landing-integration-card-icon"><GitHubIcon /></span>
                 <span>GitHub Sync</span>
               </div>
               <div className="landing-integration-card c2">
-                <span className="landing-integration-card-icon">✈️</span>
-                <span>Telegram Bot</span>
+                <span className="landing-integration-card-icon"><SparklesIcon /></span>
+                <span>AI Sessions</span>
               </div>
               <div className="landing-integration-card c3">
-                <span className="landing-integration-card-icon">📲</span>
-                <span>WhatsApp Log</span>
+                <span className="landing-integration-card-icon"><WhatsAppIcon /></span>
+                <span>Messages</span>
               </div>
               <div className="landing-integration-card c4">
-                <span className="landing-integration-card-icon">📝</span>
-                <span>Manual Notes</span>
+                <span className="landing-integration-card-icon"><TelegramIcon /></span>
+                <span>Telegram</span>
               </div>
             </div>
           </div>
