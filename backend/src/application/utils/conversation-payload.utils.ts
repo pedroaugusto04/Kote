@@ -36,6 +36,7 @@ export function buildConversationIngestPayload(payload: ConversationPayloadInput
     source: {
       channel: payload.sourceChannel || SourceChannel.External,
       system: payload.sourceSystem || 'external',
+      source: '',
       actor: payload.input.senderId,
       conversationId: payload.input.chatId,
       correlationId: `${payload.correlationPrefix}:${payload.input.messageId || Date.now().toString()}`,

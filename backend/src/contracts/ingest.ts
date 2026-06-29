@@ -30,6 +30,7 @@ export const ingestPayloadSchema = z
     source: z.object({
       channel: sourceChannelSchema,
       system: z.string().min(1),
+      source: z.string().default(''),
       actor: z.string().default(''),
       conversationId: z.string().default(''),
       correlationId: z.string().min(1),

@@ -54,7 +54,7 @@ export function getSourceSystem(channel: SourceChannel): string {
       return 'kote-cli';
     case SourceChannel.Whatsapp:
       return 'evolution-api';
-    case SourceChannel.GithubPush:
+    case SourceChannel.Github:
       return 'github';
     case SourceChannel.AiChat:
       return 'ai-chat';
@@ -75,7 +75,7 @@ export function getCorrelationPrefix(channel: SourceChannel): string {
       return 'cli-agent';
     case SourceChannel.Whatsapp:
       return 'wpp-agent';
-    case SourceChannel.GithubPush:
+    case SourceChannel.Github:
       return 'github-agent';
     case SourceChannel.AiChat:
       return 'ai-chat-agent';
@@ -98,8 +98,10 @@ export function parseSourceChannelString(channelString?: string): SourceChannel 
   switch (normalized) {
     case 'whatsapp':
       return SourceChannel.Whatsapp;
+    case 'github':
     case 'github-push':
-      return SourceChannel.GithubPush;
+    case 'github-pull-request':
+      return SourceChannel.Github;
     case 'ai-chat':
       return SourceChannel.AiChat;
     case 'ide':

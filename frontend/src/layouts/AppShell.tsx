@@ -504,7 +504,7 @@ export function AppShell() {
               <button
                 aria-label={UI_MESSAGES.ASK_AI_SEMANTIC_SEARCH}
                 className="ask-ai-shortcut-btn"
-                onClick={() => navigate(routes.search)}
+                onClick={() => navigate(`${routes.search}?focus=input`)}
                 title={UI_MESSAGES.ASK_AI_SEMANTIC_SEARCH}
                 type="button"
               >

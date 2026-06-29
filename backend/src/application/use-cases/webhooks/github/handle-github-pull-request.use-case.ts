@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { buildGithubPrReviewEvent } from '../../../github-review.js';
 import type { GithubPullRequestWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
@@ -13,6 +14,8 @@ import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { EmbeddingGateway } from '../../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
 import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
+import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.port.js';
+import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPullRequestPayload = {
@@ -61,6 +64,8 @@ export class HandleGithubPullRequestUseCase {
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly answerGenerationGateway: AnswerGenerationGateway,
     private readonly quotaService: QuotaService,
+    private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
+    private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
   ) {
@@ -539,6 +544,67 @@ export class HandleGithubPullRequestUseCase {
         posted,
       });
 
+      // Generate and ingest a review note
+      const aiReviewCredential = this.credentials
+        ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.AiReview)
+        : null;
+      const aiReviewEnabled = Boolean(aiReviewCredential && aiReviewCredential.status === CredentialRecordStatus.Connected && !aiReviewCredential.revokedAt);
+
+      this.logger.info('github_pr_review_note_check', {
+        repository: repoFullName,
+        projectSlug,
+        aiReviewEnabled,
+        userId: identity.userId,
+      });
+
+      let noteId;
+      if (aiReviewEnabled) {
+        const quotaOk = await this.quotaService.checkAndIncrementAiUsage(
+          identity.userId,
+          AiOperationType.GITHUB_CODE_REVIEW,
+          { repoFullName, prNumber, source: 'github_pr_review_note' },
+        ).then((r) => r.allowed);
+
+        if (quotaOk) {
+          try {
+            const contextSummary = contextChunks.length > 0
+              ? contextChunks.map(c => `- ${c.title}: ${c.chunkText.substring(0, 200)}...`).join('\n')
+              : undefined;
+
+            const reviewPayload = await buildGithubPrReviewEvent(
+              input,
+              environment,
+              {
+                githubIntegrationGateway: this.githubIntegrationGateway,
+                reviewAnalysisGateway: this.reviewAnalysisGateway,
+                logger: this.logger,
+              },
+              changedFiles,
+              contextSummary,
+            );
+
+            const resolvedPayload = this.resolvePayloadProject(reviewPayload, projectSlug);
+            const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug || '');
+
+            this.logger.info('github_pr_review_note_ingested', {
+              repository: repoFullName,
+              projectSlug,
+              noteId: ingestResult.noteId,
+              findingsCount: resolvedPayload.content.sections.reviewFindings.length,
+            });
+
+            noteId = ingestResult.noteId;
+          } catch (error) {
+            this.logger.error('github_pr_review_note_failed', {
+              repository: repoFullName,
+              projectSlug,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't fail the entire webhook if note generation fails
+          }
+        }
+      }
+
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
         eventType: String(headers['x-github-event'] || 'pull_request'),
@@ -553,6 +619,7 @@ export class HandleGithubPullRequestUseCase {
         ok: true,
         processed: true,
         commentPosted: posted,
+        noteId,
       };
     } catch (error) {
       await this.webhookEvents.recordWebhookEvent({
@@ -578,6 +645,20 @@ export class HandleGithubPullRequestUseCase {
       (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.repositories.some(r => r.fullName.trim().toLowerCase() === normalizedRepoFullName),
     );
     return project?.projectSlug || null;
+  }
+
+  private resolvePayloadProject<T extends Awaited<ReturnType<typeof buildGithubPrReviewEvent>>>(payload: T, projectSlug: string): T {
+    return {
+      ...payload,
+      event: {
+        ...payload.event,
+        projectSlug,
+      },
+      classification: {
+        ...payload.classification,
+        tags: [...new Set(['code-review', ...payload.classification.tags.filter((tag) => tag !== payload.event.projectSlug)])],
+      },
+    };
   }
 }
 
