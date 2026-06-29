@@ -209,7 +209,7 @@ const sourceRules: SourceRule[] = [
     matches: (source) => source === SOURCE_VALUES.WEB_CLIPPER || source.startsWith('http://') || source.startsWith('https://'),
   },
   {
-    label: 'VS Code',
+    label: 'IDE',
     tagClass: SourceTagClass.Ide,
     matches: (source) => source === SOURCE_VALUES.IDE || source.includes('ide') || source.includes('vscode'),
   },
