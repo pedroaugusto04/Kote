@@ -172,6 +172,11 @@ const sourceRules: SourceRule[] = [
     matches: (source) => source.includes('github'),
   },
   {
+    label: 'Web Clipper',
+    tagClass: 'web-clipper',
+    matches: (source) => source.startsWith('http://') || source.startsWith('https://'),
+  },
+  {
     label: 'Open Code',
     tagClass: 'ai',
     matches: (source) => source.includes('open-code') || source.includes('opencode'),

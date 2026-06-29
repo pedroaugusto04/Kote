@@ -152,9 +152,9 @@ export function VaultPage({
           const title = noteQuery.data?.title || 'Note details';
           const { text: titleText, url: titleUrl } = makeTitleClickable(title);
           return titleUrl ? (
-            <span>
+            <h1>
               {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
-            </span>
+            </h1>
           ) : title;
         })()}
         subtitle={selectedProjectDetails?.displayName || ''}

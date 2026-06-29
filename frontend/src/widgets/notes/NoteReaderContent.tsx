@@ -76,7 +76,8 @@ export function NoteBody({ markdown, rawText, summary, title, source }: { markdo
   const cleanedRawText = stripSourceHeader(rawText).replace(/^---\n[\s\S]*?\n---\n?/, '');
   const cleanedSummary = stripSourceHeader(summary);
   const isAiNote = source ? getSourceTagClass(source) === 'ai' : false;
-  const hasSummary = !isAiNote && Boolean(cleanedSummary) && normalizeReaderText(cleanedSummary) !== normalizeReaderText(cleanedRawText);
+  const isWebClip = source ? (source.startsWith('http://') || source.startsWith('https://')) : false;
+  const hasSummary = !isAiNote && !isWebClip && Boolean(cleanedSummary) && normalizeReaderText(cleanedSummary) !== normalizeReaderText(cleanedRawText);
   const showLabel = hasExtra || hasSummary;
   const activeSource = source;
 
