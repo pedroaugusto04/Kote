@@ -101,6 +101,15 @@ export function reminderInputDateTime(input: { reminderAt?: string }) {
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
 }
 
+export function reminderAtToUtc(input: string | undefined): string | undefined {
+  if (!input) return undefined;
+  // Parse the datetime-local input (which is in user's local timezone)
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) return undefined;
+  // Convert to UTC ISO string
+  return date.toISOString();
+}
+
 function formatDateTimeInUserTimeZone(value: string | null | undefined) {
   const parts = dateTimePartsInUserTimeZone(value);
   if (!parts) return value || '';

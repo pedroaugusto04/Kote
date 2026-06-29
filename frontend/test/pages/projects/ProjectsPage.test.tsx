@@ -7,6 +7,23 @@ import { ProjectsPage } from '../../../src/pages/projects/ProjectsPage';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import { NoteStatus } from '../../../src/shared/api/models/note-status';
 
+// Mock reminderAtToUtc to have predictable timezone conversion for tests
+vi.mock('../../../src/shared/utils/format', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/shared/utils/format')>();
+  return {
+    ...actual,
+    reminderAtToUtc: vi.fn((input: string | undefined) => {
+      if (!input) return undefined;
+      // Simulate UTC-3 to UTC conversion: 09:30 UTC-3 = 12:30 UTC
+      const date = new Date(input);
+      if (input === '2026-04-29T09:30') {
+        return '2026-04-29T12:30:00.000Z';
+      }
+      return date.toISOString();
+    }),
+  };
+});
+
 function githubIntegrationsResponse(status: 'connected' | 'missing' = 'connected') {
   return {
     ok: true,
@@ -359,7 +376,7 @@ describe('ProjectsPage', () => {
         title: 'Revisar rollout',
         rawText: 'confirmar deploy',
         tags: ['deploy'],
-        reminderAt: '2026-04-29T09:30',
+        reminderAt: '2026-04-29T12:30:00.000Z',
       });
       return Response.json({ ok: true, project: 'platform', noteId: 'note-2', eventPath: 'path.md' });
     });
@@ -437,7 +454,7 @@ describe('ProjectsPage', () => {
         expect(JSON.parse(String(init.body))).toMatchObject({
           title: 'Deploy revisado',
           rawText: 'confirmar deploy atualizado',
-          reminderAt: '2026-04-29T09:30',
+          reminderAt: '2026-04-29T12:30:00.000Z',
         });
         return Response.json({ ok: true, noteId: 'note-1' });
       }

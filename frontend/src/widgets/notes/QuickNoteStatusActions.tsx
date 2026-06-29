@@ -8,6 +8,7 @@ import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
+import { reminderAtToUtc } from '../../shared/utils/format';
 
 type QuickStatusNote = Pick<NoteSummary, 'id' | 'title' | 'status' | 'project' | 'tags'> & {
   isOverdue?: boolean;
@@ -102,7 +103,7 @@ export function QuickNoteStatusActions({
         title: detail.title,
         rawText: detail.editor?.rawText || detail.title,
         tags: detail.tags,
-        reminderAt: detail.editor?.reminderAt || '',
+        reminderAt: reminderAtToUtc(detail.editor?.reminderAt),
         status: action.status,
       });
     },

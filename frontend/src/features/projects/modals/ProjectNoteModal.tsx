@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import { formatDisplayToken, reminderInputDateTime } from '../../../shared/utils/format';
+import { formatDisplayToken, reminderInputDateTime, reminderAtToUtc } from '../../../shared/utils/format';
 import { UI_MESSAGES } from '../../../shared/constants/ui.constants';
 import { createNote, updateNote, fetchProjectFolders, fetchWorkspaceCategories } from '../../../shared/api/client';
 import type { NoteDetail } from '../../../shared/api/models/note';
@@ -96,7 +96,7 @@ export function ProjectNoteModal({
         title: values.title,
         rawText: values.rawText,
         tags: values.tags,
-        reminderAt: values.reminderAt,
+        reminderAt: reminderAtToUtc(values.reminderAt),
       };
       return globalLoading.trackPromise(mode === 'create'
         ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual' })
