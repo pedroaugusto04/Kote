@@ -8,8 +8,6 @@ export type Reminder = {
   workspace?: string;
   status: NoteStatus;
   isOverdue: boolean;
-  reminderDate: string;
-  reminderTime: string;
   reminderAt: string;
   relativePath: string;
 };

@@ -24,16 +24,7 @@ export const noteFormSchema = z.object({
   title: z.string().trim().max(160, 'Use at most 160 characters.'),
   rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
   tags: z.array(z.string().trim().max(50)).max(10),
-  reminderDate: z.string(),
-  reminderTime: z.string(),
-}).superRefine((values, ctx) => {
-  if (values.reminderTime && !values.reminderDate) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['reminderTime'],
-      message: 'Enter the reminder date before the time.',
-    });
-  }
+  reminderAt: z.string().optional(),
 });
 
 export type NoteFormValues = z.infer<typeof noteFormSchema>;

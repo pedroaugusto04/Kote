@@ -172,7 +172,7 @@ export function RemindersPage({
   };
 
   const grouped = visibleReminders.reduce<Record<string, Reminder[]>>((acc, reminder) => {
-    const groupDate = reminder.reminderAt ? formatDateInUserTimeZone(reminder.reminderAt) : reminder.reminderDate;
+    const groupDate = reminder.reminderAt ? formatDateInUserTimeZone(reminder.reminderAt) : '';
     acc[groupDate || 'no-date'] ||= [];
     acc[groupDate || 'no-date'].push(reminder);
     return acc;

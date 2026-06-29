@@ -38,8 +38,6 @@ export type NoteDetail = NoteSummary & {
   editor: {
     canDelete: boolean;
     rawText: string;
-    reminderDate: string;
-    reminderTime: string;
     reminderAt: string;
   } | null;
   navigation: {

@@ -30,8 +30,6 @@ export type CreateNoteParams = {
   tags?: string[];
   status?: QuickNoteStatus;
   categoryIds?: string[];
-  reminderDate?: string;
-  reminderTime?: string;
   reminderAt?: string;
   sourceChannel?: string;
   source?: string;
@@ -55,8 +53,6 @@ export type CreateNoteResponse = {
     folderName: string;
     folderPath: string;
     eventPath: string;
-    reminderDate: string;
-    reminderTime: string;
     reminderAt: string;
     hasReminder: boolean;
     attachmentCount: number;
@@ -79,8 +75,6 @@ export type UpdateNoteParams = {
   tags?: string[];
   status?: QuickNoteStatus;
   categoryIds?: string[];
-  reminderDate?: string;
-  reminderTime?: string;
   reminderAt?: string;
 };
 

@@ -84,8 +84,7 @@ export function ProjectNoteModal({
       title: note?.title || '',
       rawText: note?.editor?.rawText || '',
       tags: note?.tags || [],
-      reminderDate: note?.editor ? reminderInputDate(note.editor) : '',
-      reminderTime: note?.editor ? reminderInputTime(note.editor) : '',
+      reminderAt: note?.editor?.reminderAt || '',
     },
   });
   const closeGuard = useModalCloseGuard({ isDirty, onClose });
@@ -97,8 +96,7 @@ export function ProjectNoteModal({
         title: values.title,
         rawText: values.rawText,
         tags: values.tags,
-        reminderDate: values.reminderDate,
-        reminderTime: values.reminderTime,
+        reminderAt: values.reminderAt,
       };
       return globalLoading.trackPromise(mode === 'create'
         ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual' })
@@ -268,11 +266,8 @@ export function ProjectNoteModal({
               )}
             </FormField>
             <div className="form-grid">
-              <FormField name="reminderDate" label="Reminder date" error={errors.reminderDate?.message} optional>
-                {(fieldProps) => <input type="date" {...fieldProps} {...register('reminderDate')} />}
-              </FormField>
-              <FormField name="reminderTime" label="Reminder time" error={errors.reminderTime?.message} optional>
-                {(fieldProps) => <input type="time" {...fieldProps} {...register('reminderTime')} />}
+              <FormField name="reminderAt" label="Reminder" error={errors.reminderAt?.message} optional>
+                {(fieldProps) => <input type="datetime-local" {...fieldProps} {...register('reminderAt')} />}
               </FormField>
             </div>
             <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === 'create' ? 'Create note' : 'Save note'} />

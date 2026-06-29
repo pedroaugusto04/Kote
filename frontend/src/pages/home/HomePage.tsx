@@ -67,7 +67,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
   }
 
   function priorityMeta(priority: HomePriority) {
-    if (priority.type === 'reminder' && (priority.reminderAt || priority.reminderDate)) {
+    if (priority.type === 'reminder' && priority.reminderAt) {
       return `${projectName(dashboard.projects, priority.project)} / ${reminderDisplayDateTime(priority)}`;
     }
     return `${projectName(dashboard.projects, priority.project)} / ${formatUsDate(priority.date)}`;

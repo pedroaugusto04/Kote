@@ -82,18 +82,17 @@ export function formatTimeInUserTimeZone(value: string | null | undefined) {
   return `${parts.hour}:${parts.minute}`;
 }
 
-export function reminderDisplayDateTime(input: { reminderAt?: string; reminderDate?: string; reminderTime?: string }) {
+export function reminderDisplayDateTime(input: { reminderAt?: string }) {
   if (input.reminderAt) return formatDateTimeInUserTimeZone(input.reminderAt);
-  if (!input.reminderDate) return '';
-  return `${input.reminderDate} ${input.reminderTime || '00:00'}:00`;
+  return '';
 }
 
-export function reminderInputDate(input: { reminderAt?: string; reminderDate?: string }) {
-  return input.reminderAt ? formatDateInUserTimeZone(input.reminderAt) : input.reminderDate || '';
+export function reminderInputDate(input: { reminderAt?: string }) {
+  return input.reminderAt ? formatDateInUserTimeZone(input.reminderAt) : '';
 }
 
-export function reminderInputTime(input: { reminderAt?: string; reminderTime?: string }) {
-  return input.reminderAt ? formatTimeInUserTimeZone(input.reminderAt) : input.reminderTime || '';
+export function reminderInputTime(input: { reminderAt?: string }) {
+  return input.reminderAt ? formatTimeInUserTimeZone(input.reminderAt) : '';
 }
 
 function formatDateTimeInUserTimeZone(value: string | null | undefined) {
