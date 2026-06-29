@@ -137,6 +137,7 @@ export function ProjectsWorkspace({
       category: timelineCategory,
       folderId: selectedFolderId || undefined,
       status: timelineStatus,
+      orderByPin: true,
     }),
     enabled: Boolean(selected?.projectSlug) && !hasSearchQuery,
     staleTime: 0,

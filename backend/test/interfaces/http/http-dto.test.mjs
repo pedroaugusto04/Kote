@@ -163,6 +163,7 @@ test('project timeline dto accepts known categories and optional folder filters 
     category: 'manual',
     folderId: 'folder-1',
     status: 'open',
+    orderByPin: true,
   });
   assert.deepEqual(projectTimelineQuerySchema.parse({}), {
     page: 1,
