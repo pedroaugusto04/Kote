@@ -190,11 +190,11 @@ export function LandingPage() {
                 <span>AI Sessions</span>
               </div>
               <div className="landing-integration-card c3">
-                <span className="landing-integration-card-icon"><WhatsAppIcon /></span>
+                <span className="landing-integration-card-icon"><SparklesIcon /></span>
                 <span>Messages</span>
               </div>
               <div className="landing-integration-card c4">
-                <span className="landing-integration-card-icon"><WhatsAppIcon /></span>
+                <span className="landing-integration-card-icon whatsapp-icon"><WhatsAppIcon /></span>
                 <span>WhatsApp</span>
               </div>
             </div>

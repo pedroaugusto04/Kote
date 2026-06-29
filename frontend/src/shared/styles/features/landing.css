@@ -574,6 +574,11 @@
   height: 100%;
 }
 
+.landing-integration-card-icon.whatsapp-icon img {
+  width: 14px;
+  height: 14px;
+}
+
 .landing-integration-card.c1 { top: 15%; left: 18%; }
 .landing-integration-card.c2 { top: 12%; right: 18%; }
 .landing-integration-card.c3 { bottom: 15%; left: 15%; }
