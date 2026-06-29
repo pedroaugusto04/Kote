@@ -231,7 +231,7 @@ test('github push is converted to canonical code review event', async () => {
 test('github app push ignores repositories not selected in the workspace', async () => {
   const { handler, events, calls } = githubHandlerFixture([]);
 
-  const result = await handler.execute(githubWebhookInput(githubWebhookBody()));
+  const result = await handler.execute(githubWebhookInput(githubWebhookBody()), { synchronous: true });
 
   assert.deepEqual(result, {
     ok: true,
@@ -274,7 +274,7 @@ test('github app push processes selected repositories with minimized audit paylo
     },
   ]);
 
-  const result = await handler.execute(githubWebhookInput(githubWebhookBody()));
+  const result = await handler.execute(githubWebhookInput(githubWebhookBody()), { synchronous: true });
 
   assert.equal(result.ok, true);
   assert.equal(result.payload.event.projectSlug, 'platform');
@@ -418,7 +418,7 @@ test('github app push sends whatsapp alert for high severity AI review findings'
     },
   );
 
-  const result = await handler.execute(githubWebhookInput(body));
+  const result = await handler.execute(githubWebhookInput(body), { synchronous: true });
 
   assert.equal(result.whatsappNotification.sent, true);
   assert.equal(whatsappMessages.length, 1);

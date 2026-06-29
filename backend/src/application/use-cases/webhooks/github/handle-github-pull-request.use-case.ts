@@ -1,8 +1,9 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
-import { buildGithubPrReviewEvent } from '../../../github-review.js';
+import { buildGithubPrReviewEvent, buildGithubPrContextNoteEvent } from '../../../github-review.js';
 import type { GithubPullRequestWebhookRequest } from '../../../models/webhook-request.models.js';
+import type { ChangedFile } from '../../../models/github-webhook.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
 import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
@@ -72,7 +73,7 @@ export class HandleGithubPullRequestUseCase {
     this.logger = AppLogger.create();
   }
 
-  async execute(input: GithubPullRequestWebhookRequest) {
+  async execute(input: GithubPullRequestWebhookRequest, options?: { synchronous?: boolean }) {
     const environment = this.environmentProvider.read();
     const headers = normalizeHeaders(input.headers || {});
     const body = (input.body || {}) as GithubPullRequestPayload;
@@ -169,38 +170,64 @@ export class HandleGithubPullRequestUseCase {
       rawPayload,
     });
 
-    try {
-      const repoFullName = String(body.repository?.full_name || '').trim();
-      const projectSlug = await this.findSelectedProjectSlug(repoFullName, identity.userId, identity.workspaceSlug || '');
+    const repoFullName = String(body.repository?.full_name || '').trim();
+    const projectSlug = await this.findSelectedProjectSlug(repoFullName, identity.userId, identity.workspaceSlug || '');
 
-      this.logger.info('github_pr_project_resolved', {
+    this.logger.info('github_pr_project_resolved', {
+      repository: repoFullName,
+      projectSlug,
+      userId: identity.userId,
+    });
+
+    if (!projectSlug) {
+      this.logger.warn('github_pr_no_project', {
         repository: repoFullName,
-        projectSlug,
         userId: identity.userId,
       });
+      await this.webhookEvents.recordWebhookEvent({
+        provider: IntegrationProvider.GithubApp,
+        eventType: String(headers['x-github-event'] || 'pull_request'),
+        status: WebhookEventStatus.Ignored,
+        resolvedUserId: identity.userId,
+        externalIdentity,
+        rawHeaders: headers,
+        rawPayload,
+        error: 'github_repository_not_selected',
+      });
+      return {
+        ok: true,
+        processed: false,
+        ignored: 'github_repository_not_selected',
+      };
+    }
 
-      if (!projectSlug) {
-        this.logger.warn('github_pr_no_project', {
-          repository: repoFullName,
-          userId: identity.userId,
-        });
-        await this.webhookEvents.recordWebhookEvent({
-          provider: IntegrationProvider.GithubApp,
-          eventType: String(headers['x-github-event'] || 'pull_request'),
-          status: WebhookEventStatus.Ignored,
-          resolvedUserId: identity.userId,
-          externalIdentity,
-          rawHeaders: headers,
-          rawPayload,
-          error: 'github_repository_not_selected',
-        });
-        return {
-          ok: true,
-          processed: false,
-          ignored: 'github_repository_not_selected',
-        };
-      }
+    if (options?.synchronous) {
+      return this.processPullRequest(input, identity, headers, rawPayload, externalIdentity, projectSlug);
+    }
 
+    void this.processPullRequest(input, identity, headers, rawPayload, externalIdentity, projectSlug);
+
+    return {
+      ok: true,
+      processed: false,
+      status: 'queued',
+    };
+  }
+
+  private async processPullRequest(
+    input: GithubPullRequestWebhookRequest,
+    identity: { userId: string; workspaceSlug?: string | null; credentialId?: string | null },
+    headers: Record<string, string>,
+    rawPayload: Record<string, unknown>,
+    externalIdentity: { provider: ExternalIdentityProvider; identityType: string; externalId: string },
+    projectSlug: string,
+  ) {
+    const environment = this.environmentProvider.read();
+    const body = (input.body || {}) as GithubPullRequestPayload;
+    const repoFullName = String(body.repository?.full_name || '').trim();
+    const installationId = String((body.installation as { id?: unknown } | undefined)?.id || '').trim();
+
+    try {
       // Check if PR Context AI is enabled (active by default if no credential record exists)
       const aiCredential = this.credentials
         ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.PrContextAi)
@@ -383,7 +410,7 @@ export class HandleGithubPullRequestUseCase {
         if (prEmbedding && prEmbedding.length > 0) {
           const similarChunks = await this.noteEmbeddingRepository.findSimilar(identity.userId, prEmbedding, {
             limit: 8,
-            workspaceSlug: identity.workspaceSlug,
+            workspaceSlug: identity.workspaceSlug || undefined,
             minSimilarity: 0.65,
           });
 
@@ -544,66 +571,11 @@ export class HandleGithubPullRequestUseCase {
         posted,
       });
 
-      // Generate and ingest a review note
-      const aiReviewCredential = this.credentials
-        ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.AiReview)
-        : null;
-      const aiReviewEnabled = Boolean(aiReviewCredential && aiReviewCredential.status === CredentialRecordStatus.Connected && !aiReviewCredential.revokedAt);
-
-      this.logger.info('github_pr_review_note_check', {
-        repository: repoFullName,
-        projectSlug,
-        aiReviewEnabled,
-        userId: identity.userId,
-      });
-
-      let noteId;
-      if (aiReviewEnabled) {
-        const quotaOk = await this.quotaService.checkAndIncrementAiUsage(
-          identity.userId,
-          AiOperationType.GITHUB_CODE_REVIEW,
-          { repoFullName, prNumber, source: 'github_pr_review_note' },
-        ).then((r) => r.allowed);
-
-        if (quotaOk) {
-          try {
-            const contextSummary = contextChunks.length > 0
-              ? contextChunks.map(c => `- ${c.title}: ${c.chunkText.substring(0, 200)}...`).join('\n')
-              : undefined;
-
-            const reviewPayload = await buildGithubPrReviewEvent(
-              input,
-              environment,
-              {
-                githubIntegrationGateway: this.githubIntegrationGateway,
-                reviewAnalysisGateway: this.reviewAnalysisGateway,
-                logger: this.logger,
-              },
-              changedFiles,
-              contextSummary,
-            );
-
-            const resolvedPayload = this.resolvePayloadProject(reviewPayload, projectSlug);
-            const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug || '');
-
-            this.logger.info('github_pr_review_note_ingested', {
-              repository: repoFullName,
-              projectSlug,
-              noteId: ingestResult.noteId,
-              findingsCount: resolvedPayload.content.sections.reviewFindings.length,
-            });
-
-            noteId = ingestResult.noteId;
-          } catch (error) {
-            this.logger.error('github_pr_review_note_failed', {
-              repository: repoFullName,
-              projectSlug,
-              error: error instanceof Error ? error.message : String(error),
-            });
-            // Don't fail the entire webhook if note generation fails
-          }
-        }
-      }
+      // Generate and ingest a review note based on the first AI analysis (commentText)
+      const contextSummary = contextChunks.length > 0
+        ? contextChunks.map(c => `- ${c.title}: ${c.chunkText.substring(0, 200)}...`).join('\n')
+        : undefined;
+      const noteId = await this.tryIngestPrNote(input, commentText, changedFiles, contextSummary, projectSlug, identity, repoFullName, prNumber);
 
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
@@ -659,6 +631,57 @@ export class HandleGithubPullRequestUseCase {
         tags: [...new Set(['code-review', ...payload.classification.tags.filter((tag) => tag !== payload.event.projectSlug)])],
       },
     };
+  }
+
+  private async tryIngestPrNote(
+    input: GithubPullRequestWebhookRequest,
+    commentText: string,
+    changedFiles: ChangedFile[],
+    contextSummary: string | undefined,
+    projectSlug: string,
+    identity: { userId: string; workspaceSlug?: string | null },
+    repoFullName: string,
+    prNumber: number,
+  ): Promise<string | undefined> {
+    this.logger.info('github_pr_review_note_ingest_start', {
+      repository: repoFullName,
+      projectSlug,
+      prNumber,
+      commentLength: commentText?.length ?? 0,
+      contextChunksCount: contextSummary ? contextSummary.split('\n').length : 0,
+    });
+
+    if (!this.ingestEntryUseCase) {
+      this.logger.warn('github_pr_review_note_skipped', {
+        repository: repoFullName,
+        projectSlug,
+        reason: 'ingest_use_case_not_available',
+      });
+      return undefined;
+    }
+
+    try {
+      const reviewPayload = buildGithubPrContextNoteEvent(input, commentText, changedFiles, contextSummary);
+      const resolvedPayload = this.resolvePayloadProject(reviewPayload, projectSlug);
+      const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug || '');
+
+      this.logger.info('github_pr_review_note_ingested', {
+        repository: repoFullName,
+        projectSlug,
+        prNumber,
+        noteId: ingestResult.noteId,
+      });
+
+      return ingestResult.noteId;
+    } catch (error) {
+      this.logger.error('github_pr_review_note_failed', {
+        repository: repoFullName,
+        projectSlug,
+        prNumber,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return undefined;
+    }
   }
 }
 
