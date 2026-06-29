@@ -194,8 +194,8 @@ export function LandingPage() {
                 <span>Messages</span>
               </div>
               <div className="landing-integration-card c4">
-                <span className="landing-integration-card-icon"><TelegramIcon /></span>
-                <span>Telegram</span>
+                <span className="landing-integration-card-icon"><WhatsAppIcon /></span>
+                <span>WhatsApp</span>
               </div>
             </div>
           </div>
@@ -214,30 +214,7 @@ export function LandingPage() {
 
             <div className="landing-features-grid">
 
-              <div className="landing-feature-card reveal-left">
-                <div className="landing-feature-copy">
-                  <span>Context & Evidence</span>
-                  <h3>Save context where work actually happens.</h3>
-                  <p>
-                    Turn chats, manual logs, pull requests, and bug reports into structured
-                    records without breaking your flow.
-                  </p>
-                </div>
-                <div className="landing-feature-visual">
-                  <div className="landing-mock-evidence">
-                    <div className="landing-mock-evidence-item">
-                      <strong>💬 "Transient timeouts on staging environment."</strong>
-                      <span>WhatsApp log</span>
-                    </div>
-                    <div className="landing-mock-evidence-item" style={{ borderLeft: '3px solid var(--cyan)' }}>
-                      <strong>🐙 PR Review: "Let's increase retry timeout to 5s."</strong>
-                      <span>GitHub webhook</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="landing-feature-card reveal-right">
+              <div className="landing-feature-card reveal-scale">
                 <div className="landing-feature-copy">
                   <span>Impact & Priorities</span>
                   <h3>Prioritize what needs engineering alignment.</h3>
