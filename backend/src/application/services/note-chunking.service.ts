@@ -50,18 +50,19 @@ export class NoteChunkingService {
     title: string;
     body: string;
     projectSlug: string;
+    path?: string;
     attachments?: NoteChunkAttachment[];
   }): NoteChunk[] {
-    const { title, body, projectSlug, attachments = [] } = params;
+    const { title, body, projectSlug, path = '', attachments = [] } = params;
 
     if (!body || body.trim().length < MIN_CHUNK_CHARS) {
       // Single chunk for very short notes
-      const text = this.buildPrefix(title, projectSlug, attachments) + (body || '').trim();
+      const text = this.buildPrefix(title, projectSlug, path, attachments) + (body || '').trim();
       if (text.trim().length < MIN_CHUNK_CHARS) return [];
       return [{ chunkIndex: 0, chunkText: text }];
     }
 
-    const prefix = this.buildPrefix(title, projectSlug, attachments);
+    const prefix = this.buildPrefix(title, projectSlug, path, attachments);
     const paragraphs = body.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
 
     const rawChunks = this.mergeParagraphs(paragraphs, prefix);
@@ -74,10 +75,14 @@ export class NoteChunkingService {
 
   // ---------------------------------------------------------------------------
 
-  private buildPrefix(title: string, projectSlug: string, attachments: NoteChunkAttachment[] = []): string {
+  private buildPrefix(title: string, projectSlug: string, path: string, attachments: NoteChunkAttachment[] = []): string {
     const parts: string[] = [];
     if (title) parts.push(`Title: ${title}`);
     if (projectSlug) parts.push(`Project: ${projectSlug}`);
+    if (path) {
+      const shortPath = formatShortPath(path);
+      if (shortPath) parts.push(`Path: ${shortPath}`);
+    }
     const attachmentSummary = formatAttachmentSummary(attachments);
     if (attachmentSummary) parts.push(`Attachments: ${attachmentSummary}`);
     return parts.length ? parts.join(' | ') + '\n\n' : '';
@@ -214,4 +219,13 @@ function formatSizeBytes(sizeBytes: number): string {
   if (sizeBytes < 1024) return `${sizeBytes} B`;
   if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
   return `${Math.round(sizeBytes / (1024 * 1024))} MB`;
+}
+
+function formatShortPath(path: string): string {
+  if (!path) return '';
+  const segments = path.replace(/^\//, '').split('/');
+  if (segments.length > 2) {
+    return segments.slice(-2).join('/');
+  }
+  return path;
 }

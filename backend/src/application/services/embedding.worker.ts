@@ -240,6 +240,7 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
       title: note.title,
       body: note.markdown,
       projectSlug: note.projectSlug || '',
+      path: note.path || '',
       attachments: attachments.map((attachment) => ({
         fileName: attachment.fileName,
         mimeType: attachment.mimeType,

@@ -267,7 +267,7 @@ export class PostgresNoteRepository {
        left join kb_categories cat on cat.id = nc.category_id
        where ${where}
        group by n.id, p.project_slug
-       order by n.is_pinned desc, n.occurred_at desc, n.title asc
+       order by n.occurred_at desc, n.title asc
        limit $${values.length + 1} offset $${values.length + 2}`,
       [...values, pagination.pageSize, (pagination.page - 1) * pagination.pageSize]
     );
