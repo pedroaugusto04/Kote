@@ -7,8 +7,6 @@ export type CreateManualNoteInput = {
   tags: string[];
   status?: string;
   categoryIds?: string[];
-  reminderDate: string;
-  reminderTime: string;
   reminderAt?: string;
   sourceChannel?: string;
   source?: string;
@@ -27,7 +25,5 @@ export type UpdateNoteInput = {
   tags: string[];
   status?: string;
   categoryIds?: string[];
-  reminderDate: string;
-  reminderTime: string;
   reminderAt?: string;
 };

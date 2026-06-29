@@ -84,7 +84,5 @@ function formatReminder(note: SaveNoteResult['note']) {
       return formatDateTimeInTimeZone(new Date(timestamp), REMINDER_DISPLAY_TIME_ZONE);
     }
   }
-  if (!note.reminderDate) return '';
-  const reminderTime = note.reminderTime || '00:00';
-  return formatDateTimeInTimeZone(new Date(`${note.reminderDate}T${reminderTime}:00.000Z`), REMINDER_DISPLAY_TIME_ZONE);
+  return '';
 }

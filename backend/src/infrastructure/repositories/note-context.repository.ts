@@ -43,7 +43,6 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,

@@ -112,29 +112,24 @@ test('create project dto normalizes slug and default tags', () => {
   });
 });
 
-test('create note dto normalizes project, tags and keeps reminder date as transport input', () => {
+test('create note dto normalizes project, tags and keeps reminderAt as transport input', () => {
   const parsed = createNoteBodySchema.parse({
     projectSlug: 'Acme API',
     title: 'Deploy',
     rawText: 'revisar deploy',
     tags: [' Deploy ', 'deploy'],
-    reminderDate: '29/04/2026',
-    reminderTime: '9:30',
+    reminderAt: '2026-04-29T09:30:00Z',
   });
 
   assert.equal(parsed.projectSlug, 'acme-api');
   assert.deepEqual(parsed.tags, ['deploy']);
-  assert.equal(parsed.reminderDate, '29/04/2026');
-  assert.equal(parsed.reminderTime, '09:30');
-  assert.throws(() => createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto', reminderTime: '09:00' }));
+  assert.equal(parsed.reminderAt, '2026-04-29T09:30:00Z');
   assert.equal(noteIdParamSchema.parse({ id: 'note-1' }).id, 'note-1');
-  assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', tags: [' Deploy '], reminderDate: '29/04/2026', reminderTime: '9:30' }), {
+  assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', tags: [' Deploy '], reminderAt: '2026-04-29T09:30:00Z' }), {
     title: 'Deploy',
     rawText: 'texto',
     tags: ['deploy'],
-    reminderDate: '29/04/2026',
-    reminderTime: '09:30',
-    reminderAt: '',
+    reminderAt: '2026-04-29T09:30:00Z',
     status: undefined,
     categoryIds: undefined,
     folderId: undefined,
@@ -144,8 +139,6 @@ test('create note dto normalizes project, tags and keeps reminder date as transp
     title: 'Deploy',
     rawText: 'texto',
     tags: [],
-    reminderDate: '',
-    reminderTime: '',
     reminderAt: '',
     status: 'active',
     categoryIds: undefined,

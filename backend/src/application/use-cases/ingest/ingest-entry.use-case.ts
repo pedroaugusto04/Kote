@@ -120,7 +120,6 @@ async function saveIngestedNote(
     currentStatus: KnowledgeStatus.Active,
     hadReminder: false,
     hasReminder: hasReminder({
-      reminderDate: parsed.actions.reminderDate,
       reminderAt: parsed.actions.reminderAt,
     }),
   });
@@ -224,11 +223,9 @@ async function saveIngestedNote(
           eventType: payload.event.type,
           impact: payload.content.sections.impact,
           reviewFindings: payload.content.sections.reviewFindings,
-          reminderTime: payload.actions.reminderTime,
         },
         source: payload.source.system,
         sessionId: payload.source.sessionId,
-        reminderDate: payload.actions.reminderDate,
         reminderAt: payload.actions.reminderAt,
       },
       attachments: payload.content.attachments,
@@ -242,8 +239,6 @@ async function saveIngestedNote(
   const folderSummary = folder
     ? await buildFolderSummary(contentRepository, userId, projectId, folder)
     : { folderName: 'Project root', folderPath: 'Project root' };
-  const reminderDate = String(payload.actions.reminderDate || '');
-  const reminderTime = String(payload.actions.reminderTime || '');
   const reminderAt = String(payload.actions.reminderAt || '');
   return {
     ok: true,
@@ -258,7 +253,7 @@ async function saveIngestedNote(
     note: {
       id: note.id,
       title: note.title,
-      type: hasReminder({ reminderDate, reminderAt }) ? 'reminder' : resolveCanonicalTypeFromCategories(note.categories || [], (note.categories || []).map((c) => c.id)),
+      type: hasReminder({ reminderAt }) ? 'reminder' : resolveCanonicalTypeFromCategories(note.categories || [], (note.categories || []).map((c) => c.id)),
       status: note.status,
       projectSlug: project.projectSlug,
       projectName: project.displayName || project.projectSlug,
@@ -267,10 +262,8 @@ async function saveIngestedNote(
       folderName: folderSummary.folderName,
       folderPath: folderSummary.folderPath,
       eventPath: note.path,
-      reminderDate,
-      reminderTime,
       reminderAt,
-      hasReminder: hasReminder({ reminderDate, reminderAt }),
+      hasReminder: hasReminder({ reminderAt }),
       attachmentCount: attachments.length,
     },
   };

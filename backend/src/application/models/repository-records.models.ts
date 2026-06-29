@@ -151,7 +151,6 @@ export type NoteRecord = {
   metadata: Record<string, unknown>;
   source: string;
   sessionId: string;
-  reminderDate: string;
   reminderAt: string;
   attachmentCount?: number;
   isPinned?: boolean;

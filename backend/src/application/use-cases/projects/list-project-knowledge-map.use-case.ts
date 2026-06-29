@@ -157,7 +157,7 @@ export function buildProjectKnowledgeMap(
   };
 }
 
-export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderDate' | 'reminderAt'>): ProjectKnowledgeMapNoteCategory {
+export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderAt'>): ProjectKnowledgeMapNoteCategory {
   if (hasReminder(record)) return 'reminder';
   if (record.sourceChannel === 'github-push') return 'github-push';
   if (record.sourceChannel === 'whatsapp') return 'whatsapp';
@@ -180,8 +180,8 @@ function collectAncestorFolderIds(folders: ProjectFolderRecord[], selectedIds: S
   return result;
 }
 
-function hasReminder(record: Pick<NoteRecord, 'reminderDate' | 'reminderAt'>) {
-  return Boolean((record.reminderDate || '').trim() || (record.reminderAt || '').trim());
+function hasReminder(record: Pick<NoteRecord, 'reminderAt'>) {
+  return Boolean(record.reminderAt);
 }
 
 function isReviewNote(record: Pick<NoteRecord, 'metadata' | 'sourceChannel'>) {

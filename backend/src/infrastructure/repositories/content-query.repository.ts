@@ -54,7 +54,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -119,7 +118,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -198,7 +196,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -255,7 +252,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         status: notes.status,
         summary: notes.summary,
         metadata: notes.metadata,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         recipientId: recipientField,
       })
@@ -264,7 +260,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .where(and(
         inArray(notes.status, reminderDispatchEligibleStatuses as any),
-        sql`(${notes.reminderDate} <> '' or ${notes.reminderAt} <> '')`,
+        sql`${notes.reminderAt} IS NOT NULL`,
         sql`coalesce(${recipientField}, '') <> ''`
       ));
 
@@ -273,9 +269,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         const metadata = (row.metadata || {}) as Record<string, unknown>;
         const noteText = String(metadata.rawText || '').trim() || String(row.summary || '').trim() || String(row.title || '').trim();
         const scheduledAt = resolveReminderScheduledAt({
-          reminderDate: String(row.reminderDate || ''),
-          reminderTime: String(metadata.reminderTime || ''),
-          reminderAt: String(row.reminderAt || ''),
+          reminderAt: row.reminderAt ? new Date(row.reminderAt).toISOString() : '',
         }, reminderTimeZone);
         if (!scheduledAt || scheduledAt > now) return null;
         return {

@@ -37,7 +37,7 @@ export type SaveAskHistoryInput = {
   relatedNotes: AskHistoryRelatedNote[];
 };
 
-export type ListAskHistoryInput = {
+export type ListAskHistoryInput = { 
   userId: string;
   projectId?: string;
   startDate?: string;

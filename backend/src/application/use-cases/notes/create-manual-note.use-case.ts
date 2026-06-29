@@ -43,8 +43,6 @@ export class CreateManualNoteUseCase {
     }
 
     const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
-    const reminderDate = normalizeDate(input.reminderDate, reminderTimeZone);
-    const reminderTime = normalizeTime(input.reminderTime);
     const reminderAt = input.reminderAt || '';
     const categoryIds = input.categoryIds || [];
     const categories = categoryIds.length > 0
@@ -55,7 +53,7 @@ export class CreateManualNoteUseCase {
       requestedStatus: input.status,
       currentStatus: KnowledgeStatus.Active,
       hadReminder: false,
-      hasReminder: hasReminder({ reminderDate, reminderAt }),
+      hasReminder: hasReminder({ reminderAt }),
     });
     const occurredAt = input.occurredAt || new Date().toISOString();
     const cleanedRawText = stripTitleHeader(input.rawText, input.title);
@@ -96,9 +94,7 @@ export class CreateManualNoteUseCase {
         decisionFlag: false,
       },
       actions: {
-        reminderDate,
-        reminderTime,
-        reminderAt,
+        reminderAt: input.reminderAt || '',
         followUpBy: '',
       },
       metadata: {

@@ -134,16 +134,14 @@ export function buildDashboardHome(
         type: HomePriorityType.Reminder,
         title: reminder.title,
         project: reminder.project,
-        date: reminder.reminderAt || reminder.reminderDate,
+        date: reminder.reminderAt,
         description: overdue ? 'Pending and overdue reminder' : reminder.status === KnowledgeStatus.Sent ? 'Reminder sent' : 'Pending reminder',
         status: reminder.status,
         isOverdue: overdue,
-        reminderDate: reminder.reminderDate,
-        reminderTime: reminder.reminderTime,
         reminderAt: reminder.reminderAt,
         target: relatedNote ? noteTarget(relatedNote) : { kind: HomeTargetKind.Note, path: reminder.relativePath },
         rank: overdue ? 0 : 1,
-        timestamp: timestamp || Date.parse(`${reminder.reminderDate}T${reminder.reminderTime || '00:00'}Z`) || Number.MAX_SAFE_INTEGER,
+        timestamp: timestamp || parseTimestamp(reminder.reminderAt) || Number.MAX_SAFE_INTEGER,
       };
     }),
     ...openHighFindings.map(({ review, finding }, index) => ({

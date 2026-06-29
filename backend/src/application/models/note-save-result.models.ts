@@ -10,8 +10,6 @@ export type SavedNoteSummary = {
   folderName: string;
   folderPath: string;
   eventPath: string;
-  reminderDate: string;
-  reminderTime: string;
   reminderAt: string;
   hasReminder: boolean;
   attachmentCount: number;

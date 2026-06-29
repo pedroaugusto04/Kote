@@ -37,8 +37,6 @@ export class BulkUpdateNoteStatusUseCase {
           tags: note.tags,
           status,
           canonicalType,
-          reminderDate: note.reminderDate,
-          reminderTime: String(note.metadata.reminderTime || '').trim(),
           reminderAt: note.reminderAt,
         };
 

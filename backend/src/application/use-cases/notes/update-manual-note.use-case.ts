@@ -19,14 +19,9 @@ export class UpdateNoteUseCase {
   async execute(input: UpdateNoteInput, userId: string) {
     const { note, previousFolder, nextFolder } = await this.loadEditableNote(userId, input.id, input.folderId);
     const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
-    const normalizedInput = {
-      ...input,
-      reminderDate: normalizeDate(input.reminderDate, reminderTimeZone),
-      reminderTime: normalizeTime(input.reminderTime),
-    };
-    const categoryIds = normalizedInput.categoryIds === undefined
+    const categoryIds = input.categoryIds === undefined
       ? note.categories.map((category) => category.id)
-      : normalizedInput.categoryIds;
+      : input.categoryIds;
     const categories = categoryIds.length > 0
       ? await this.contentRepository.listCategories(userId, note.workspaceId)
       : [];
@@ -37,17 +32,17 @@ export class UpdateNoteUseCase {
     let workspaceSlug = note.workspaceSlug || '';
     let workspaceId = note.workspaceId;
     
-    if (normalizedInput.projectSlug && normalizedInput.projectSlug !== note.projectSlug) {
-      const newProject = await this.contentRepository.getProjectBySlug(userId, normalizedInput.projectSlug);
+    if (input.projectSlug && input.projectSlug !== note.projectSlug) {
+      const newProject = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
       if (!newProject || !newProject.enabled) throw new NotFoundException('project_not_found');
-      projectSlug = normalizedInput.projectSlug;
+      projectSlug = input.projectSlug;
       projectId = newProject.id;
       workspaceSlug = newProject.workspaceSlug || '';
       workspaceId = newProject.workspaceId;
     }
     
     const updatedNoteInput = {
-      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...normalizedInput, canonicalType }, reminderTimeZone, projectSlug, projectId, workspaceSlug, workspaceId),
+      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...input, canonicalType }, reminderTimeZone, projectSlug, projectId, workspaceSlug, workspaceId),
       categoryIds: input.categoryIds,
     };
 

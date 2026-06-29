@@ -1,19 +1,14 @@
-import { buildUtcReminderFields, formatDateTimeInTimeZone, normalizeDate, normalizeTime } from '../../../domain/time.js';
-
-export const DEFAULT_REMINDER_TIME = '09:00';
+import { formatDateTimeInTimeZone } from '../../../domain/time.js';
 
 export function resolveReminderScheduledAt(
-  input: { reminderDate?: unknown; reminderTime?: unknown; reminderAt?: unknown },
+  input: { reminderAt?: unknown },
   timeZone = 'America/Sao_Paulo',
 ): string {
   const reminderAt = String(input.reminderAt || '').trim();
-  if (reminderAt) return buildUtcReminderFields({ reminderAt }).reminderAt;
-
-  const reminderDate = normalizeDate(String(input.reminderDate || ''), timeZone);
-  if (!reminderDate) return '';
-
-  const reminderTime = normalizeTime(String(input.reminderTime || '')) || DEFAULT_REMINDER_TIME;
-  return buildUtcReminderFields({ reminderDate, reminderTime, timeZone }).reminderAt;
+  if (!reminderAt) return '';
+  
+  // reminderAt is now a full ISO timestamp, return it directly
+  return reminderAt;
 }
 
 export function reminderDispatchKey(scheduledAt: string): string {

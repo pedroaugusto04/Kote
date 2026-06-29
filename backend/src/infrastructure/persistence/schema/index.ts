@@ -137,8 +137,7 @@ export const notes = pgTable('kb_notes', {
   metadata: jsonb('metadata').notNull().default('{}'),
   source: text('source').notNull().default(''),
   sessionId: text('session_id').notNull().default(''),
-  reminderDate: text('reminder_date').notNull().default(''),
-  reminderAt: text('reminder_at').notNull().default(''),
+  reminderAt: timestamp('reminder_at'),
   isPinned: boolean('is_pinned').default(false),
   sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -149,7 +148,6 @@ export const notes = pgTable('kb_notes', {
   userProjectFolderIdx: index('kb_notes_user_project_folder_idx').on(table.userId, table.projectId, table.folderId),
   userSourceSessionIdx: index('kb_notes_user_source_session_idx').on(table.userId, table.source, table.sessionId),
   reminderAtIdx: index('kb_notes_reminder_at_idx').on(table.reminderAt),
-  reminderDateIdx: index('kb_notes_reminder_date_idx').on(table.reminderDate),
 }));
 
 // Note Links

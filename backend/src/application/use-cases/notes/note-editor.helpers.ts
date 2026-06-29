@@ -13,8 +13,6 @@ export function buildNoteEditorState(note: NoteRecord) {
   return {
     canDelete: true,
     rawText: extractEditableRawText(note),
-    reminderDate: note.reminderDate,
-    reminderTime: String(note.metadata.reminderTime || '').trim(),
     reminderAt: note.reminderAt,
   };
 }
@@ -34,17 +32,12 @@ export function buildUpdatedNote(
   const rawText = stripTitleHeader(normalizeMultiline(input.rawText), title);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
   const noteType = input.canonicalType || CanonicalType.Event;
-  const reminderFields = buildUtcReminderFields({
-    reminderDate: input.reminderDate,
-    reminderTime: input.reminderTime,
-    reminderAt: input.reminderAt,
-    timeZone: reminderTimeZone,
-  });
+  const reminderAt = input.reminderAt || '';
   const nextStatus = normalizeManualNoteStatus({
     requestedStatus: input.status,
     currentStatus: note.status,
-    hadReminder: Boolean(note.reminderDate || note.reminderAt),
-    hasReminder: Boolean(reminderFields.reminderDate || reminderFields.reminderAt),
+    hadReminder: Boolean(note.reminderAt),
+    hasReminder: Boolean(reminderAt),
   });
   const structuredNote = parseStructuredNoteMarkdown(note.markdown, note.title);
   const effectiveProjectSlug = (projectSlug ?? note.projectSlug) || '';
@@ -62,7 +55,6 @@ export function buildUpdatedNote(
   const metadata = {
     ...note.metadata,
     rawText,
-    reminderTime: reminderFields.reminderTime,
   };
 
   return {
@@ -86,8 +78,7 @@ export function buildUpdatedNote(
     metadata,
     source: note.source,
     sessionId: note.sessionId,
-    reminderDate: reminderFields.reminderDate,
-    reminderAt: reminderFields.reminderAt,
+    reminderAt,
   };
 }
 

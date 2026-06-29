@@ -53,7 +53,6 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -166,7 +165,6 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -343,7 +341,6 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -399,7 +396,6 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -454,7 +450,6 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -547,8 +542,7 @@ export class PostgresNoteRepository {
         metadata: input.metadata,
         source: input.source,
         sessionId: input.sessionId ?? '',
-        reminderDate: input.reminderDate ?? '',
-        reminderAt: input.reminderAt ?? '',
+        reminderAt: input.reminderAt ? new Date(input.reminderAt) : null,
         sizeBytes: input.sizeBytes ?? (input.markdown ? Buffer.byteLength(input.markdown, 'utf8') : 0),
       } as typeof notes.$inferInsert);
 
@@ -590,7 +584,7 @@ export class PostgresNoteRepository {
       .where(and(
         eq(notes.userId, userId),
         eq(notes.id, id),
-        sql`(${notes.reminderDate} <> '' or ${notes.reminderAt} <> '')`
+        sql`${notes.reminderAt} IS NOT NULL`
       ))
       .returning();
 
@@ -619,7 +613,7 @@ export class PostgresNoteRepository {
       .where(and(
         eq(notes.userId, userId),
         inArray(notes.id, ids),
-        sql`(${notes.reminderDate} <> '' or ${notes.reminderAt} <> '')`
+        sql`${notes.reminderAt} IS NOT NULL`
       ));
   }
 
@@ -681,9 +675,8 @@ export class PostgresNoteRepository {
            metadata = $14::jsonb,
            source = $15,
            session_id = $16,
-           reminder_date = $17,
-           reminder_at = $18,
-           size_bytes = $19,
+           reminder_at = $17,
+           size_bytes = $18,
            updated_at = now()
        where user_id = $1 and id = $2
        returning *`,
@@ -704,8 +697,7 @@ export class PostgresNoteRepository {
         JSON.stringify(input.metadata),
         input.source,
         input.sessionId ?? '',
-        input.reminderDate ?? '',
-        input.reminderAt ?? '',
+        input.reminderAt ? new Date(input.reminderAt) : null,
         input.sizeBytes ?? (input.markdown ? Buffer.byteLength(input.markdown, 'utf8') : 0),
       ]
     );
@@ -823,7 +815,7 @@ function projectTimelineItem(record: NoteRecord) {
   };
 }
 
-function projectTimelineCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderDate' | 'reminderAt'>): ProjectTimelineFilterCategory {
+function projectTimelineCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderAt'>): ProjectTimelineFilterCategory {
   if (hasTimelineReminder(record)) return 'reminder';
   if (record.sourceChannel === 'github-push') return 'github-push';
   if (record.sourceChannel === 'whatsapp') return 'whatsapp';
@@ -833,8 +825,8 @@ function projectTimelineCategory(record: Pick<NoteRecord, 'metadata' | 'source' 
   return 'manual';
 }
 
-function hasTimelineReminder(record: Pick<NoteRecord, 'reminderDate' | 'reminderAt'>) {
-  return Boolean(record.reminderDate.trim() || record.reminderAt.trim());
+function hasTimelineReminder(record: Pick<NoteRecord, 'reminderAt'>) {
+  return Boolean(record.reminderAt);
 }
 
 function appendTimelineFolderClause(

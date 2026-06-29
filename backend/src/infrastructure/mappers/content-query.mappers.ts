@@ -111,9 +111,8 @@ export function reviewFromNote(record: NoteRecord): ReviewView | null {
 }
 
 export function reminderFromNote(record: NoteRecord): ReminderView | null {
-  const reminderDate = record.reminderDate;
   const reminderAt = record.reminderAt;
-  if (!reminderDate && !reminderAt) return null;
+  if (!reminderAt) return null;
   return {
     id: record.id,
     title: record.title,
@@ -122,8 +121,6 @@ export function reminderFromNote(record: NoteRecord): ReminderView | null {
     workspace: record.workspaceSlug || '',
     status: record.status,
     isOverdue: false,
-    reminderDate,
-    reminderTime: String(record.metadata.reminderTime || ''),
     reminderAt,
     relativePath: record.path,
   };
