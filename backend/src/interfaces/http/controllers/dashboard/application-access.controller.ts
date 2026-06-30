@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import type { Request } from 'express';
 
 import { LogApplicationAccessUseCase } from '../../../../application/use-cases/observability/log-application-access.use-case.js';
-import { TrustedOriginGuard } from '../../auth.guards.js';
+import { TrustedOriginGuard } from '../../guards/auth.guards.js';
 import { applicationAccessBodySchema, type ApplicationAccessBody } from '../../dto/application-access.dto.js';
 import { requestIp } from '../../request-ip.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';

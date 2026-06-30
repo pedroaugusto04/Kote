@@ -17,7 +17,7 @@ import {
   TrustedOriginGuard,
   InternalServiceTokenGuard,
   WebhookRateLimitGuard,
-} from '../../interfaces/http/auth.guards.js';
+} from '../../interfaces/http/guards/auth.guards.js';
 import { AuthController } from '../../interfaces/http/controllers/index.js';
 import { EmailModule } from './email.module.js';
 

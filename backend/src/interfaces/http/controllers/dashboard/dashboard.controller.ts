@@ -18,8 +18,8 @@ import {
   ListAskHistoryUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
-import { OptionalProjectResolutionGuard } from '../../project-resolution.guard.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
+import { OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
 import { ProjectId } from '../../project.decorators.js';
 import { WorkspaceId } from '../../workspace.decorators.js';
 import {

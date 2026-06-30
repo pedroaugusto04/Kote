@@ -32,7 +32,7 @@ export function buildUpdatedNote(
   const rawText = stripTitleHeader(normalizeMultiline(input.rawText), title);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
   const noteType = input.canonicalType || CanonicalType.Event;
-  const reminderAt = input.reminderAt || '';
+  const reminderAt = input.reminderAt !== undefined ? input.reminderAt : note.reminderAt || '';
   const nextStatus = normalizeManualNoteStatus({
     requestedStatus: input.status,
     currentStatus: note.status,

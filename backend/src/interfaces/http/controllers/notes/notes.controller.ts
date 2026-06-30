@@ -17,9 +17,9 @@ import {
   ListPaginatedNotesUseCase,
   FindNotesByFileUseCase,
 } from '../../../../application/use-cases/index.js';
-import { BrowserExtensionGuard } from '../../auth.guards.js';
+import { BrowserExtensionGuard } from '../../guards/auth.guards.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   createNoteBodySchema,
   noteAttachmentContentParamSchema,
@@ -41,7 +41,7 @@ import {
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
-import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../project-resolution.guard.js';
+import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
 import { ProjectId } from '../../project.decorators.js';
 import { WorkspaceId } from '../../workspace.decorators.js';
 

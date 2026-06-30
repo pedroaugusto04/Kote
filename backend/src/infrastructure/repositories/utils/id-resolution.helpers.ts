@@ -1,4 +1,5 @@
 import { eq, and } from 'drizzle-orm';
+import { NotFoundException } from '@nestjs/common';
 import { PostgresDatabase } from '../../persistence/database.js';
 import { workspaces, projects } from '../../persistence/schema/index.js';
 
@@ -15,7 +16,7 @@ export async function resolveWorkspaceId(
     .limit(1);
 
   if (result.length === 0) {
-    throw new Error(`Workspace not found for slug: ${workspaceSlug}`);
+    throw new NotFoundException('workspace_not_found');
   }
   return result[0].id;
 }
@@ -33,7 +34,7 @@ export async function resolveProjectId(
     .limit(1);
 
   if (result.length === 0) {
-    throw new Error(`Project not found for slug: ${projectSlug}`);
+    throw new NotFoundException('project_not_found');
   }
   return result[0].id;
 }

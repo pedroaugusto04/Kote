@@ -71,7 +71,6 @@ export const updateNoteBodySchema = z
   })
   .strict()
   .transform((body) => ({
-    projectSlug: body.projectSlug ? slugify(body.projectSlug) || undefined : undefined,
     folderId: body.folderId.trim() || undefined,
     title: body.title,
     rawText: body.rawText,

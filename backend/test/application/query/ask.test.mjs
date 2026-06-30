@@ -19,7 +19,7 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
       assert.equal(userId, 'user-123');
       assert.deepEqual(embedding, [0.1, 0.2, 0.3]);
       assert.equal(options.limit, 16);
-      assert.equal(options.projectSlug, 'infra');
+      assert.equal(options.projectId, undefined);
       return [
         {
           id: 'emb-1',
@@ -229,12 +229,12 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches re
   assert.deepEqual(askKnowledge.calls, [{
     question: 'How to deploy?',
     userId: 'user-123',
-    options: { projectId: 'project-1', workspaceId: 'workspace-1' },
+    options: { projectId: undefined, workspaceId: undefined },
   }]);
   assert.deepEqual(saved, [{
     userId: 'user-123',
-    projectId: 'project-1',
-    workspaceId: 'workspace-1',
+    projectId: null,
+    workspaceId: null,
     question: 'How to deploy?',
     answer: 'Deploy to staging first.',
     confidence: 'high',
@@ -266,9 +266,9 @@ test('ListAskHistoryUseCase delegates pagination and project filtering to reposi
   };
 
   const useCase = new ListAskHistoryUseCase(repository);
-  const result = await useCase.execute('user-123', { page: 2, pageSize: 5, projectSlug: 'platform' });
+  const result = await useCase.execute('user-123', { page: 2, pageSize: 5, projectId: 'project-1' });
 
-  assert.deepEqual(calls, [{ userId: 'user-123', page: 2, pageSize: 5, projectSlug: 'platform' }]);
+  assert.deepEqual(calls, [{ userId: 'user-123', page: 2, pageSize: 5, projectId: 'project-1' }]);
   assert.equal(result.pagination.page, 2);
 });
 

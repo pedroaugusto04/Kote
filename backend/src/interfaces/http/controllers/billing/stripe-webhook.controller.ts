@@ -1,7 +1,7 @@
 import { Controller, Post, Body, Headers, HttpCode, HttpStatus, UseGuards, Req } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request } from 'express';
-import { WebhookRateLimitGuard } from '../../auth.guards.js';
+import { WebhookRateLimitGuard } from '../../guards/auth.guards.js';
 import { HandleStripeWebhookUseCase } from '../../../../application/use-cases/index.js';
 
 interface RequestWithRawBody extends Request {

@@ -1,8 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@nestjs/common';
-import type { Response } from 'express';
-
-import { ContentRepository } from '../../application/ports/notes/content.repository.js';
-import type { WorkspaceRequest } from './workspace.decorators.js';
+import { ContentRepository } from '../../../application/ports/notes/content.repository.js';
+import type { WorkspaceRequest } from '../workspace.decorators.js';
+import { RESOLUTION_ERROR_MESSAGES } from './resolution-guards.constants.js';
 
 @Injectable()
 export class WorkspaceResolutionGuard implements CanActivate {
@@ -17,12 +16,12 @@ export class WorkspaceResolutionGuard implements CanActivate {
 
     const workspaceSlug = request.params.workspaceSlug || request.query.workspaceSlug || request.body.workspaceSlug;
     if (!workspaceSlug) {
-      throw new NotFoundException('workspace_slug_missing');
+      throw new NotFoundException(RESOLUTION_ERROR_MESSAGES.WORKSPACE_SLUG_MISSING);
     }
 
     const workspace = await this.contentRepository.getWorkspaceBySlug(user.id, String(workspaceSlug));
     if (!workspace) {
-      throw new NotFoundException('workspace_not_found');
+      throw new NotFoundException(RESOLUTION_ERROR_MESSAGES.WORKSPACE_NOT_FOUND);
     }
 
     request.workspaceId = workspace.id;

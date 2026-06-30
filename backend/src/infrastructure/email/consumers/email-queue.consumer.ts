@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy, BadRequestException } from '@nestjs/common';
 import amqplib, { type Channel, type ChannelModel, type ConsumeMessage } from 'amqplib';
 
 import { AppLogger } from '../../../observability/logger.js';
@@ -104,7 +104,7 @@ export class EmailQueueConsumer implements OnModuleInit, OnModuleDestroy {
     try {
       payload = JSON.parse(msg.content.toString()) as EmailSendPayload;
       if (!payload?.to || !payload?.subject) {
-        throw new Error('Invalid email payload');
+        throw new BadRequestException('invalid_email_payload');
       }
 
       await this.emailProvider.sendEmail(payload);

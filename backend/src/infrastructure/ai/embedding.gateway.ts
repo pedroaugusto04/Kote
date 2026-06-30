@@ -1,4 +1,4 @@
-import { Injectable, Inject, Optional } from '@nestjs/common';
+import { Injectable, Inject, Optional, InternalServerErrorException } from '@nestjs/common';
 
 import { AiProvider } from '../../contracts/enums.js';
 import { EmbeddingConfig, EmbeddingGateway } from '../../application/ports/notes/embedding.gateway.js';
@@ -23,19 +23,19 @@ export class DefaultEmbeddingGateway extends EmbeddingGateway {
     if (config.provider === AiProvider.Gemini) {
       if (config.model === 'gemini-embedding-2') {
         if (!this.gemini2Strategy) {
-          throw new Error('Gemini2EmbeddingStrategy not provided');
+          throw new InternalServerErrorException('Gemini2EmbeddingStrategy not provided');
         }
         return this.gemini2Strategy;
       }
 
       if (!this.gemini001Strategy) {
-        throw new Error('Gemini001EmbeddingStrategy not provided');
+        throw new InternalServerErrorException('Gemini001EmbeddingStrategy not provided');
       }
       return this.gemini001Strategy;
     }
 
     if (!this.openAiStrategy) {
-      throw new Error('OpenAiEmbeddingStrategy not provided');
+      throw new InternalServerErrorException('OpenAiEmbeddingStrategy not provided');
     }
     return this.openAiStrategy;
   }

@@ -1,6 +1,6 @@
 import { Controller, Post, Body, Headers, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { WebhookRateLimitGuard } from '../../auth.guards.js';
+import { WebhookRateLimitGuard } from '../../guards/auth.guards.js';
 import { HandleAsaasWebhookUseCase } from '../../../../application/use-cases/index.js';
 
 @ApiTags('Billing Webhooks')

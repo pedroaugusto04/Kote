@@ -6,7 +6,7 @@ import { readEnvironment } from '../../../../adapters/environment.js';
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { IntegrationConnectionService } from '../../../../application/integration-connections.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
 import { githubAppCallbackQuerySchema, type GithubAppCallbackQuery } from '../../dto/integration-credentials.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 

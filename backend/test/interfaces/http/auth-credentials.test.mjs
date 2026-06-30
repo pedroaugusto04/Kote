@@ -6,7 +6,7 @@ import { AuthService } from '../../../dist/application/auth.js';
 import { IntegrationConnectionService } from '../../../dist/application/integration-connections.js';
 import { IntegrationCredentialService } from '../../../dist/application/credentials.js';
 import { GithubRepositoryResolutionService } from '../../../dist/application/services/github-repository-resolution.service.js';
-import { TrustedOriginGuard } from '../../../dist/interfaces/http/auth.guards.js';
+import { TrustedOriginGuard } from '../../../dist/interfaces/http/guards/auth.guards.js';
 import { AuthController, InternalIntegrationsController, UserIntegrationsController } from '../../../dist/interfaces/http/controllers/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 

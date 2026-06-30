@@ -8,7 +8,7 @@ import {
 } from '../../../../application/use-cases/push/push-subscription.use-cases.js';
 import { VapidService } from '../../../../application/services/vapid.service.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   createPushSubscriptionBodySchema,
   deletePushSubscriptionBodySchema,

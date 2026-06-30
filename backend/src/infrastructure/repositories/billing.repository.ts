@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, or, isNull, lte, lt, sql, inArray, ne, desc } from 'drizzle-orm';
 
 import {
@@ -94,7 +94,7 @@ export class PostgresBillingCustomerRepository extends BillingCustomerRepository
   async getGatewayCustomerId(userId: string, gateway: PaymentGateway): Promise<string> {
     const customer = await this.getCustomerByUserId(userId, gateway);
     if (!customer?.gatewayCustomerId) {
-      throw new Error(`Gateway customer ID not registered for user ${userId}`);
+      throw new NotFoundException('gateway_customer_not_found');
     }
     return customer.gatewayCustomerId;
   }

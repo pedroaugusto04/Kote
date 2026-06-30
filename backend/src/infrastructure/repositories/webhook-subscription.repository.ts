@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { eq, and, sql } from 'drizzle-orm';
 
 import { WebhookSubscriptionRepository } from '../../application/ports/webhooks/webhook-subscription.repository.js';
@@ -74,7 +74,7 @@ export class PostgresWebhookSubscriptionRepository extends WebhookSubscriptionRe
       workspaceId = await resolveWorkspaceId(this.database, input.userId, input.workspaceSlug);
     }
     if (!workspaceId) {
-      throw new Error('workspaceId or workspaceSlug is required');
+      throw new BadRequestException('invalid_workspace_query');
     }
     const result = await db
       .insert(webhookSubscriptions)

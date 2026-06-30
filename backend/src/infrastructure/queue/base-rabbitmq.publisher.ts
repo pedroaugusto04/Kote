@@ -1,4 +1,4 @@
-import { OnModuleDestroy } from '@nestjs/common';
+import { OnModuleDestroy, InternalServerErrorException } from '@nestjs/common';
 import amqplib, { type ChannelModel, type Channel } from 'amqplib';
 import { AppLogger } from '../../observability/logger.js';
 
@@ -37,7 +37,7 @@ export abstract class BaseRabbitMqPublisher implements OnModuleDestroy {
     if (this.connecting) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       if (this.channel) return this.channel;
-      throw new Error('rabbitmq.connection_in_progress');
+      throw new InternalServerErrorException('internal_server_error');
     }
 
     this.connecting = true;

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 
 import { CredentialRecordStatus } from '../../contracts/enums.js';
@@ -24,7 +24,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       .limit(1);
     
     if (result.length === 0) {
-      throw new Error(`Workspace not found for slug: ${workspaceSlug}`);
+      throw new NotFoundException('workspace_not_found');
     }
     return result[0].id;
   }

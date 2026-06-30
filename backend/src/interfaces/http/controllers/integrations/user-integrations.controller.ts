@@ -5,7 +5,7 @@ import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { IntegrationConnectionService } from '../../../../application/integration-connections.js';
 import { IntegrationCredentialService } from '../../../../application/credentials.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   connectIntegrationBodySchema,
   githubRepositoriesBodySchema,

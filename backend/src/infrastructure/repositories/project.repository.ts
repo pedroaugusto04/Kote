@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { eq, and, desc } from 'drizzle-orm';
 
@@ -182,7 +182,7 @@ export class PostgresProjectRepository {
     
     const workspaceId = input.workspaceId;
     if (!workspaceId) {
-      throw new Error('Workspace ID is required');
+      throw new BadRequestException('invalid_workspace_query');
     }
 
     const result = await db

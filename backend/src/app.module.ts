@@ -23,7 +23,7 @@ import { WeeklySummaryModule } from './infrastructure/modules/weekly-summary.mod
 import { TestModule } from './infrastructure/modules/test.module.js';
 
 import { HealthController } from './interfaces/http/controllers/index.js';
-import { GlobalRateLimitGuard } from './interfaces/http/auth.guards.js';
+import { GlobalRateLimitGuard } from './interfaces/http/guards/auth.guards.js';
 
 @Module({
   imports: [

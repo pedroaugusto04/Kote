@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { type Channel } from 'amqplib';
 
 import { EmailQueuePublisher } from '../../application/ports/email/email-queue.publisher.js';
@@ -25,7 +25,7 @@ export class RabbitMqEmailQueuePublisher extends BaseRabbitMqPublisher implement
   async publishEmailMessage(payload: EmailSendPayload): Promise<void> {
     const url = this.getUrl();
     if (!url) {
-      throw new Error('KB_RABBITMQ_URL is not configured');
+      throw new InternalServerErrorException('KB_RABBITMQ_URL is not configured');
     }
 
     const channel = await this.ensureChannel(url);

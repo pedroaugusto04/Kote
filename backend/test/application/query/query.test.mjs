@@ -102,12 +102,12 @@ test('query returns ranked matches from the authenticated user repository scope'
 
   const result = await new QueryKnowledgeUseCase(
     queryRepository,
-    repositories.contentRepository,
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
   ).execute(
-    { query: 'timeout webhook deploy', projectSlug: 'n8n-automations', limit: 3 },
+    { query: 'timeout webhook deploy', projectId: undefined, limit: 3 },
     user.id,
   );
 
@@ -172,12 +172,12 @@ test('query filters textual matches by note status', async (t) => {
 
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    repositories.contentRepository,
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
   ).execute(
-    { query: 'webhook timeout', workspaceSlug: 'default', status: 'resolved', limit: 10 },
+    { query: 'webhook timeout', status: 'resolved', limit: 10 },
     user.id,
   );
 
@@ -228,12 +228,12 @@ test('query handles special query: summarize my recent notes', async (t) => {
 
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    repositories.contentRepository,
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
   ).execute(
-    { query: 'Summarize my recent notes', workspaceSlug: 'default', limit: 10 },
+    { query: 'Summarize my recent notes', limit: 10 },
     user.id,
   );
 
@@ -287,12 +287,12 @@ test('query handles special query: what are my action items?', async (t) => {
 
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    repositories.contentRepository,
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
   ).execute(
-    { query: 'What are my action items?', workspaceSlug: 'default', limit: 10 },
+    { query: 'What are my action items?', limit: 10 },
     user.id,
   );
 
@@ -356,12 +356,12 @@ test('query handles special query: review key decisions made', async (t) => {
 
   const result = await new QueryKnowledgeUseCase(
     repositories.contentQueryRepository,
-    repositories.contentRepository,
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
   ).execute(
-    { query: 'Review key decisions made', workspaceSlug: 'default', limit: 10 },
+    { query: 'Review key decisions made', limit: 10 },
     user.id,
   );
 

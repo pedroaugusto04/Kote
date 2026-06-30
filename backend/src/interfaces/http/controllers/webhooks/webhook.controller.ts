@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 import type { Request } from 'express';
 
 import { HandleGithubPushUseCase, HandleGithubPullRequestUseCase, HandleTelegramWebhookUseCase, HandleWhatsappWebhookUseCase } from '../../../../application/use-cases/index.js';
-import { WebhookRateLimitGuard } from '../../auth.guards.js';
+import { WebhookRateLimitGuard } from '../../guards/auth.guards.js';
 import { githubPushWebhookBodySchema, telegramWebhookBodySchema, whatsappWebhookBodySchema, type GithubPushWebhookBody, type TelegramWebhookBody, type WhatsappWebhookBody } from '../../dto/webhook.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 

@@ -101,8 +101,8 @@ test('generate project brief uses recent project items, filters invalid sources 
 
   const latest = await repositories.projectBriefHistoryRepository.findLatest({
     userId: user.id,
-    workspaceSlug: 'default',
-    projectSlug: 'platform',
+    workspaceId: project.workspaceId,
+    projectId: project.id,
   });
   assert.equal(latest.brief.summary, result.brief.summary);
   assert.equal(latest.contextWindow, 30);
@@ -121,8 +121,8 @@ test('generate project brief saves deterministic empty brief when project has no
   assert.match(result.brief.summary, /No recent project items/);
   const latest = await repositories.projectBriefHistoryRepository.findLatest({
     userId: user.id,
-    workspaceSlug: 'default',
-    projectSlug: 'platform',
+    workspaceId: project.workspaceId,
+    projectId: project.id,
   });
   assert.equal(latest.brief.summary, result.brief.summary);
 });

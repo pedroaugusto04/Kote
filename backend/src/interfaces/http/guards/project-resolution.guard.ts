@@ -1,6 +1,7 @@
 import { CanActivate, ExecutionContext, Injectable, NotFoundException } from '@nestjs/common';
-import { ContentRepository } from '../../application/ports/notes/content.repository.js';
-import type { ProjectRequest } from './project.decorators.js';
+import { ContentRepository } from '../../../application/ports/notes/content.repository.js';
+import type { ProjectRequest } from '../project.decorators.js';
+import { RESOLUTION_ERROR_MESSAGES, RESOLUTION_SPECIAL_VALUES } from './resolution-guards.constants.js';
 
 @Injectable()
 export class ProjectResolutionGuard implements CanActivate {
@@ -15,17 +16,17 @@ export class ProjectResolutionGuard implements CanActivate {
 
     const projectSlug = request.params.projectSlug || request.query.projectSlug || request.body?.projectSlug;
     if (!projectSlug) {
-      throw new NotFoundException('project_slug_missing');
+      throw new NotFoundException(RESOLUTION_ERROR_MESSAGES.PROJECT_SLUG_MISSING);
     }
 
-    if (projectSlug === 'all') {
-      request.projectId = 'all';
+    if (projectSlug === RESOLUTION_SPECIAL_VALUES.ALL_PROJECTS) {
+      request.projectId = RESOLUTION_SPECIAL_VALUES.ALL_PROJECTS;
       return true;
     }
 
     const project = await this.contentRepository.getProjectBySlug(user.id, String(projectSlug));
     if (!project || !project.enabled) {
-      throw new NotFoundException('project_not_found');
+      throw new NotFoundException(RESOLUTION_ERROR_MESSAGES.PROJECT_NOT_FOUND);
     }
 
     request.projectId = project.id;
@@ -58,14 +59,14 @@ export class OptionalProjectResolutionGuard implements CanActivate {
       return true;
     }
 
-    if (projectSlug === 'all') {
-      request.projectId = 'all';
+    if (projectSlug === RESOLUTION_SPECIAL_VALUES.ALL_PROJECTS) {
+      request.projectId = RESOLUTION_SPECIAL_VALUES.ALL_PROJECTS;
       return true;
     }
 
     const project = await this.contentRepository.getProjectBySlug(user.id, String(projectSlug));
     if (!project || !project.enabled) {
-      throw new NotFoundException('project_not_found');
+      throw new NotFoundException(RESOLUTION_ERROR_MESSAGES.PROJECT_NOT_FOUND);
     }
 
     request.projectId = project.id;

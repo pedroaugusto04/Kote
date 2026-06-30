@@ -18,7 +18,7 @@ import {
   UpdateProjectUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   createProjectBodySchema,
   createProjectFolderBodySchema,
@@ -40,7 +40,7 @@ import {
   type PaginationInput,
 } from '../../dto/project.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
-import { ProjectResolutionGuard } from '../../project-resolution.guard.js';
+import { ProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
 import { ProjectId } from '../../project.decorators.js';
 
 @ApiTags('Projects')

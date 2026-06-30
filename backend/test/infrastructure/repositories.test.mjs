@@ -116,10 +116,17 @@ test('postgres ask history repository saves and lists newest entries by user and
   const user = await repositories.createTestUser();
   const otherUser = await repositories.createTestUser();
 
+  const workspace = await repositories.contentRepository.upsertWorkspace(user.id, {
+    workspaceSlug: 'default',
+    displayName: 'Default',
+    whatsappChatJid: '',
+    telegramChatId: '',
+  });
+
   const platform = await repositories.contentRepository.upsertProject(user.id, {
     projectSlug: 'platform',
     displayName: 'Platform',
-    workspaceSlug: 'default',
+    workspaceId: workspace.id,
     repositories: [],
     defaultTags: [],
     enabled: true,
@@ -128,7 +135,7 @@ test('postgres ask history repository saves and lists newest entries by user and
   const billing = await repositories.contentRepository.upsertProject(user.id, {
     projectSlug: 'billing',
     displayName: 'Billing',
-    workspaceSlug: 'default',
+    workspaceId: workspace.id,
     repositories: [],
     defaultTags: [],
     enabled: true,

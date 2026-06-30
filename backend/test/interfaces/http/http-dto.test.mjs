@@ -120,7 +120,6 @@ test('create note dto normalizes project, tags and keeps reminderAt as transport
   assert.equal(parsed.reminderAt, '2026-04-29T09:30:00Z');
   assert.equal(noteIdParamSchema.parse({ id: 'note-1' }).id, 'note-1');
   assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', tags: [' Deploy '], reminderAt: '2026-04-29T09:30:00Z' }), {
-    projectSlug: undefined,
     title: 'Deploy',
     rawText: 'texto',
     tags: ['deploy'],

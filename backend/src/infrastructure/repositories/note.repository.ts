@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { eq, and, count, desc, sql, inArray, notInArray, or } from 'drizzle-orm';
 
@@ -512,7 +512,7 @@ export class PostgresNoteRepository {
         }
         const updated = await this.getById(userId, existingId);
         if (!updated) {
-          throw new Error(`Note not found after update: ${existingId}`);
+          throw new InternalServerErrorException('note_not_found');
         }
         return updated;
       }
@@ -557,7 +557,7 @@ export class PostgresNoteRepository {
 
     const created = await this.getById(userId, noteId);
     if (!created) {
-      throw new Error(`Note not found after creation: ${noteId}`);
+      throw new InternalServerErrorException('note_not_found');
     }
     return created;
   }
@@ -571,7 +571,7 @@ export class PostgresNoteRepository {
     }
     const updated = await this.getById(userId, String(input.id || ''));
     if (!updated) {
-      throw new Error(`Note not found after update: ${input.id}`);
+      throw new InternalServerErrorException('note_not_found');
     }
     return updated;
   }
@@ -647,7 +647,7 @@ export class PostgresNoteRepository {
     if ((!projectId && input.projectSlug) || (!workspaceId && input.workspaceSlug)) {
       const wsResult = await client.query('select id from kb_workspaces where user_id = $1 and workspace_slug = $2 limit 1', [userId, input.workspaceSlug]);
       if (wsResult.rows.length === 0) {
-        throw new Error(`Workspace not found for slug: ${input.workspaceSlug}`);
+        throw new NotFoundException('workspace_not_found');
       }
       workspaceId = wsResult.rows[0].id;
 

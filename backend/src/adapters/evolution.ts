@@ -1,11 +1,18 @@
 import { Injectable } from '@nestjs/common';
 
 import { ReminderDeliveryChannel } from '../contracts/enums.js';
-import { readEnvironment } from './environment.js';
 import { ReminderDeliveryGateway, type ReminderDeliveryResult, type ReminderSendTextInput } from '../application/ports/reminders/reminder-delivery.gateway.js';
 import { WhatsappMediaDownloader, type WhatsappMediaDownloadResult } from '../application/ports/integrations/whatsapp-media.downloader.js';
 import { WhatsappReplySender, type WhatsappSendMediaInput, type WhatsappSendTextResult } from '../application/ports/integrations/whatsapp-reply.sender.js';
 import { AppLogger } from '../observability/logger.js';
+import {
+  buildEvolutionUrl,
+  evolutionMessagePayload,
+  extractBase64,
+  getEvolutionConfig,
+  processMediaInput,
+  type EvolutionMessageBody,
+} from './evolution/evolution.helpers.js';
 
 @Injectable()
 export class EvolutionWhatsappReplySender extends WhatsappReplySender {
@@ -13,20 +20,23 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
     super();
   }
   async sendText(input: { chatJid: string; text: string }): Promise<WhatsappSendTextResult> {
-    const environment = readEnvironment();
-    if (!environment.evolutionApiUrl || !environment.evolutionApiKey || !environment.evolutionInstanceName) {
+    const config = getEvolutionConfig();
+    if (!config) {
       return { ok: false, error: 'evolution_api_not_configured' };
     }
 
-    const normalizedText = String(input.text || '').trim() || 'I could not build the reply. Please try again.';
-    const baseUrl = environment.evolutionApiUrl.replace(/\/+$/, '');
-    const url = `${baseUrl}/message/sendText/${encodeURIComponent(environment.evolutionInstanceName)}`;
+    const normalizedText = String(input.text || '').trim();
+    if (!normalizedText) {
+      return { ok: false, error: 'empty_text' };
+    }
+
+    const url = buildEvolutionUrl(config, 'message/sendText');
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          apikey: environment.evolutionApiKey,
+          apikey: config.apiKey,
         },
         body: JSON.stringify({
           number: input.chatJid,
@@ -41,45 +51,26 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
   }
 
   async sendMedia(input: WhatsappSendMediaInput): Promise<WhatsappSendTextResult> {
-    const environment = readEnvironment();
-    if (!environment.evolutionApiUrl || !environment.evolutionApiKey || !environment.evolutionInstanceName) {
+    const config = getEvolutionConfig();
+    if (!config) {
       return { ok: false, error: 'evolution_api_not_configured' };
     }
 
-    let mediaValue = input.mediaBase64;
-    const isUrl = /^(https?|ftp):\/\//i.test(mediaValue);
-    if (!isUrl) {
-      const marker = ';base64,';
-      const markerIndex = mediaValue.indexOf(marker);
-      if (markerIndex !== -1) {
-        mediaValue = mediaValue.slice(markerIndex + marker.length);
-      }
+    if (!input.mimeType) {
+      return { ok: false, error: 'missing_mime_type' };
     }
 
-    let fileName = input.fileName || 'attachment';
-    const parts = (input.mimeType || '').split('/');
-    let extension = '';
-    if (parts.length === 2) {
-      const ext = parts[1].toLowerCase();
-      extension = ext === 'jpeg' ? 'jpg' : ext;
-    }
+    const { mediaValue, fileName, isUrl } = processMediaInput({
+      mediaBase64: input.mediaBase64,
+      fileName: input.fileName,
+      mimeType: input.mimeType,
+      mediaType: input.mediaType,
+      caption: input.caption,
+    });
 
-    const lastDotIndex = fileName.lastIndexOf('.');
-    const currentExt = lastDotIndex !== -1 ? fileName.slice(lastDotIndex + 1).toLowerCase() : '';
-    const genericExtensions = ['image', 'video', 'audio', 'document', 'sticker'];
-
-    if (lastDotIndex === -1 || genericExtensions.includes(currentExt)) {
-      const baseName = lastDotIndex === -1 ? fileName : fileName.slice(0, lastDotIndex);
-      if (extension) {
-        fileName = `${baseName}.${extension}`;
-      }
-    }
-
-    const baseUrl = environment.evolutionApiUrl.replace(/\/+$/, '');
     const isAudio = input.mediaType === 'audio';
-    const url = isAudio
-      ? `${baseUrl}/message/sendWhatsAppAudio/${encodeURIComponent(environment.evolutionInstanceName)}`
-      : `${baseUrl}/message/sendMedia/${encodeURIComponent(environment.evolutionInstanceName)}`;
+    const endpoint = isAudio ? 'message/sendWhatsAppAudio' : 'message/sendMedia';
+    const url = buildEvolutionUrl(config, endpoint);
 
     const payload: Record<string, unknown> = isAudio
       ? {
@@ -93,7 +84,7 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
       : {
           number: input.chatJid,
           mediatype: input.mediaType,
-          mimetype: input.mimeType || 'application/octet-stream',
+          mimetype: input.mimeType,
           media: mediaValue,
           fileName,
         };
@@ -106,7 +97,7 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          apikey: environment.evolutionApiKey,
+          apikey: config.apiKey,
         },
         body: JSON.stringify(payload),
       });
@@ -151,24 +142,23 @@ export class EvolutionReminderDeliveryGateway extends ReminderDeliveryGateway {
 @Injectable()
 export class EvolutionWhatsappMediaDownloader extends WhatsappMediaDownloader {
   async downloadBase64(input: { body: Record<string, unknown> }): Promise<WhatsappMediaDownloadResult> {
-    const environment = readEnvironment();
-    if (!environment.evolutionApiUrl || !environment.evolutionApiKey || !environment.evolutionInstanceName) {
+    const config = getEvolutionConfig();
+    if (!config) {
       return { ok: false, error: 'evolution_api_not_configured' };
     }
 
-    const baseUrl = environment.evolutionApiUrl.replace(/\/+$/, '');
-    const url = `${baseUrl}/chat/getBase64FromMediaMessage/${encodeURIComponent(environment.evolutionInstanceName)}`;
+    const url = buildEvolutionUrl(config, 'chat/getBase64FromMediaMessage');
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          apikey: environment.evolutionApiKey,
+          apikey: config.apiKey,
         },
-        body: JSON.stringify({ message: evolutionMessagePayload(input.body) }),
+        body: JSON.stringify({ message: evolutionMessagePayload(input.body as EvolutionMessageBody) }),
       });
       if (!response.ok) return { ok: false, error: `evolution_api_http_${response.status}` };
-      const json = await response.json() as Record<string, unknown>;
+      const json = await response.json() as EvolutionMessageBody;
       const dataBase64 = extractBase64(json);
       return dataBase64 ? { ok: true, dataBase64 } : { ok: false, error: 'evolution_media_base64_missing' };
     } catch (error) {
@@ -177,33 +167,3 @@ export class EvolutionWhatsappMediaDownloader extends WhatsappMediaDownloader {
   }
 }
 
-function evolutionMessagePayload(body: Record<string, unknown>): Record<string, unknown> {
-  const data = body.data;
-  if (Array.isArray(data)) {
-    const first = data.find((entry) => entry && typeof entry === 'object' && !Array.isArray(entry));
-    return first ? first as Record<string, unknown> : body;
-  }
-  if (data && typeof data === 'object') return data as Record<string, unknown>;
-  return body;
-}
-
-function objectValue(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
-}
-
-function base64Value(value: unknown): string {
-  const raw = typeof value === 'string' || typeof value === 'number' ? String(value).trim() : '';
-  const marker = ';base64,';
-  const markerIndex = raw.indexOf(marker);
-  return markerIndex >= 0 ? raw.slice(markerIndex + marker.length).trim() : raw;
-}
-
-function extractBase64(json: Record<string, unknown>): string {
-  const data = objectValue(json.data);
-  const response = objectValue(json.response);
-  return base64Value(
-    json.base64 ||
-      data?.base64 ||
-      response?.base64,
-  );
-}

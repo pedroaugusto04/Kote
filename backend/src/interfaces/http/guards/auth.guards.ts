@@ -1,11 +1,12 @@
 import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 
-import { readEnvironment } from '../../adapters/environment.js';
-import { AuthService } from '../../application/auth.js';
-import type { AuthenticatedRequest } from './auth.decorators.js';
-import { accessTokenFromRequest, assertTrustedBrowserOrigin } from './http-security.js';
-import { requestIp } from './request-ip.js';
+import { readEnvironment } from '../../../adapters/environment.js';
+import { AuthService } from '../../../application/auth.js';
+import type { AuthenticatedRequest } from '../auth.decorators.js';
+import { accessTokenFromRequest, assertTrustedBrowserOrigin } from '../http-security.js';
+import { requestIp } from '../request-ip.js';
+import { AUTH_ERROR_MESSAGES, AUTH_HEADERS, RATE_LIMIT_CONFIG, RATE_LIMIT_NAMESPACES } from './auth-guards.constants.js';
 
 type RateLimitBucket = { 
   resetAt: number;
@@ -23,7 +24,7 @@ function assertRateLimit(request: Request, namespace: string, limit: number, win
     return;
   }
   current.count += 1;
-  if (current.count > limit) throw new HttpException('rate_limited', HttpStatus.TOO_MANY_REQUESTS);
+  if (current.count > limit) throw new HttpException(AUTH_ERROR_MESSAGES.RATE_LIMITED, HttpStatus.TOO_MANY_REQUESTS);
 }
 
 @Injectable()
@@ -58,8 +59,8 @@ export class BrowserExtensionGuard implements CanActivate {
     const originString = String(originOrReferer);
 
     // Validate chrome-extension:// origins first (URL parsing doesn't work with chrome-extension://)
-    if (originString.startsWith('chrome-extension://')) {
-      const extensionId = originString.replace('chrome-extension://', '');
+    if (originString.startsWith(AUTH_HEADERS.CHROME_EXTENSION_PREFIX)) {
+      const extensionId = originString.replace(AUTH_HEADERS.CHROME_EXTENSION_PREFIX, '');
       const environment = readEnvironment();
       const allowedIds = environment.allowedExtensionIds;
 
@@ -68,7 +69,7 @@ export class BrowserExtensionGuard implements CanActivate {
         return true;
       }
 
-      throw new ForbiddenException('invalid_origin');
+      throw new ForbiddenException(AUTH_ERROR_MESSAGES.INVALID_ORIGIN);
     }
 
     // Validate web origins
@@ -83,7 +84,7 @@ export class BrowserExtensionGuard implements CanActivate {
     }
 
     if (!allowedOrigins.has(actualOrigin)) {
-      throw new ForbiddenException('invalid_origin');
+      throw new ForbiddenException(AUTH_ERROR_MESSAGES.INVALID_ORIGIN);
     }
 
     return true;
@@ -95,9 +96,9 @@ export class InternalServiceTokenGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
     const authorization = request.headers.authorization || '';
-    const token = String(authorization).startsWith('Bearer ') ? String(authorization).slice('Bearer '.length) : '';
+    const token = String(authorization).startsWith(AUTH_HEADERS.BEARER_PREFIX) ? String(authorization).slice(AUTH_HEADERS.BEARER_PREFIX.length) : '';
     if (!readEnvironment().internalServiceToken || token !== readEnvironment().internalServiceToken) {
-      throw new UnauthorizedException('invalid_internal_token'); 
+      throw new UnauthorizedException(AUTH_ERROR_MESSAGES.INVALID_INTERNAL_TOKEN); 
     }
     return true;
   }
@@ -106,7 +107,12 @@ export class InternalServiceTokenGuard implements CanActivate {
 @Injectable()
 export class AuthRateLimitGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    assertRateLimit(context.switchToHttp().getRequest<Request>(), 'auth', 10, 60_000);
+    assertRateLimit(
+      context.switchToHttp().getRequest<Request>(),
+      RATE_LIMIT_NAMESPACES.AUTH,
+      RATE_LIMIT_CONFIG.AUTH.limit,
+      RATE_LIMIT_CONFIG.AUTH.windowMs,
+    );
     return true;
   }
 }
@@ -114,7 +120,12 @@ export class AuthRateLimitGuard implements CanActivate {
 @Injectable()
 export class GlobalRateLimitGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    assertRateLimit(context.switchToHttp().getRequest<Request>(), 'global', 300, 60_000);
+    assertRateLimit(
+      context.switchToHttp().getRequest<Request>(),
+      RATE_LIMIT_NAMESPACES.GLOBAL,
+      RATE_LIMIT_CONFIG.GLOBAL.limit,
+      RATE_LIMIT_CONFIG.GLOBAL.windowMs,
+    );
     return true;
   }
 }
@@ -122,7 +133,12 @@ export class GlobalRateLimitGuard implements CanActivate {
 @Injectable()
 export class WebhookRateLimitGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    assertRateLimit(context.switchToHttp().getRequest<Request>(), 'webhook', 60, 60_000);
+    assertRateLimit(
+      context.switchToHttp().getRequest<Request>(),
+      RATE_LIMIT_NAMESPACES.WEBHOOK,
+      RATE_LIMIT_CONFIG.WEBHOOK.limit,
+      RATE_LIMIT_CONFIG.WEBHOOK.windowMs,
+    );
     return true;
   }
 }

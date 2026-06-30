@@ -26,7 +26,7 @@ import {
   ListPaginatedReviewsUseCase,
 } from '../../application/use-cases/index.js';
 import { ProjectsController } from '../../interfaces/http/controllers/index.js';
-import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../interfaces/http/project-resolution.guard.js';
+import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../interfaces/http/guards/project-resolution.guard.js';
 
 @Module({
   imports: [

@@ -107,6 +107,7 @@ export const httpErrorCatalog = {
   plan_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Plan not found.', logLevel: HttpErrorLogLevel.Warn },
   gateway_subscription_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Gateway subscription not found.', logLevel: HttpErrorLogLevel.Warn },
   gateway_customer_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Gateway customer not found.', logLevel: HttpErrorLogLevel.Warn },
+  invalid_email_payload: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid email payload.', logLevel: HttpErrorLogLevel.Warn },
   quota_exceeded: { statusCode: HttpStatus.FORBIDDEN, safeMessage: 'Quota limit exceeded.', logLevel: HttpErrorLogLevel.Warn },
 } as const satisfies Record<string, HttpErrorDefinition>;
 
