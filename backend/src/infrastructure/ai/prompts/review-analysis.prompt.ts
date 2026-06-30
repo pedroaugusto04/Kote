@@ -14,7 +14,7 @@ export type ReviewAnalysis = {
 };
 
 export const reviewAnalysisFallback: ReviewAnalysis = {
-  summary: 'Push received. AI analysis is not available due to quota limits or missing configuration. Upgrade your plan to enable AI-powered code reviews: https://kote.ai/automations/subscription',
+  summary: 'Push received. AI analysis is not available due to quota limits or missing configuration. Upgrade your plan to enable AI-powered code reviews: [https://knowledgebase.sbs/kote/automations/subscription](https://knowledgebase.sbs/kote/automations/subscription)',
   impact: 'No additional impact was summarized.',
   risks: [],
   nextSteps: [],
