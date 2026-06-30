@@ -95,11 +95,10 @@ async function seedManualNote(repositories, userId) {
     summary: 'confirmar deploy',
     markdown: '# Deploy antigo\n\n## Summary\n\nconfirmar deploy\n',
     frontmatter: { id: 'manual:1' },
-    metadata: { manual: true, rawText: 'confirmar deploy', reminderTime: '09:30' },
+    metadata: { manual: true, rawText: 'confirmar deploy' },
     source: 'manual-api',
     sessionId: '',
-    reminderDate: '2026-04-29',
-    reminderAt: '',
+    reminderAt: '2026-04-29T09:30:00.000Z',
   });
   return { note };
 }
@@ -117,8 +116,7 @@ test('updates manual note content and reminder metadata only', async (t) => {
     title: 'Deploy revisado',
     rawText: 'validar deploy final',
     tags: ['release'],
-    reminderDate: '2026-05-01',
-    reminderTime: '10:15',
+    reminderAt: '2026-05-01T13:15:00.000Z',
   }, user.id);
 
   assert.equal(result.ok, true);
@@ -128,8 +126,6 @@ test('updates manual note content and reminder metadata only', async (t) => {
   assert.deepEqual(updated?.tags, ['release']);
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /validar deploy final/);
   assert.doesNotMatch((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /confirmar deploy/);
-  assert.equal(updated?.reminderDate, '2026-05-01');
-  assert.equal(updated?.metadata.reminderTime, '13:15');
   assert.equal(updated?.reminderAt, '2026-05-01T13:15:00.000Z');
 });
 
@@ -167,8 +163,7 @@ test('updates existing manual note when matching sessionId and source instead of
     tags: ['ai'],
     source: 'claude-code',
     sessionId: 'session-unique-123',
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   assert.equal(first.ok, true);
@@ -186,8 +181,7 @@ test('updates existing manual note when matching sessionId and source instead of
     tags: ['ai', 'updated'],
     source: 'claude-code',
     sessionId: 'session-unique-123',
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   assert.equal(second.ok, true);
@@ -235,8 +229,7 @@ test('resolves the primary note type from selected categories by priority', asyn
     rawText: 'Use Postgres queue for v1',
     tags: ['architecture'],
     categoryIds: [knowledgeCategory.id, decisionCategory.id],
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   const note = await repositories.contentQueryRepository.getById(user.id, created.noteId);
@@ -249,8 +242,7 @@ test('resolves the primary note type from selected categories by priority', asyn
     rawText: 'Move this back to a regular event',
     tags: ['architecture'],
     categoryIds: [],
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   const updated = await repositories.contentQueryRepository.getById(user.id, created.noteId);
@@ -348,8 +340,7 @@ test('lists project timeline by derived category without raw webhook events', as
     metadata: {},
     source: 'manual-api',
     sessionId: '',
-    reminderDate: '2026-05-20',
-    reminderAt: '',
+    reminderAt: '2026-05-20T09:00:00.000Z',
   });
   await repositories.contentRepository.upsertNote(user.id, {
     path: '30 Knowledge/platform/2026/05/decision.md',
@@ -365,7 +356,7 @@ test('lists project timeline by derived category without raw webhook events', as
     summary: 'decision',
     markdown: '# Decision note',
     frontmatter: {},
-    metadata: { manual: true, reminderDate: '2026-05-21' },
+    metadata: { manual: true },
     origin: 'postgres',
     source: 'manual-api',
     links: [],
@@ -433,13 +424,10 @@ test('clears manual note reminder metadata', async (t) => {
     title: 'Deploy revisado',
     rawText: 'validar deploy final',
     tags: ['release'],
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   const updated = await repositories.contentRepository.getNoteById(user.id, note.id);
-  assert.equal(updated?.reminderDate, '');
-  assert.equal(updated?.metadata.reminderTime, '');
   assert.equal(updated?.reminderAt, '');
   assert.equal((await repositories.contentQueryRepository.listReminders(user.id)).length, 0);
 });
@@ -732,7 +720,6 @@ test('updates any note type and still blocks project deletion while notes exist'
   assert.equal(updated?.title, 'Review atualizada');
   assert.deepEqual(updated?.tags, ['review']);
   assert.equal(updated?.metadata.rawText, 'texto atualizado');
-  assert.equal(updated?.reminderDate, '2026-05-02');
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /texto atualizado/);
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /## Summary/);
   assert.match((await repositories.objectStorage.get(updated.markdownStorageKey)).toString('utf8'), /## Findings de review/);
@@ -824,8 +811,7 @@ test('folders organize manual notes and update derived note paths on rename', as
     title: 'Deploy runbook',
     rawText: 'validar deploy final',
     tags: ['ops'],
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   const movedDetail = await repositories.contentRepository.getNoteById(user.id, note.id);
@@ -882,8 +868,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
     rawText: 'This note has no categories.',
     tags: [],
     categoryIds: [],
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   const note = await repositories.contentRepository.getNoteById(user.id, created.noteId);
@@ -908,8 +893,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
     rawText: 'This note now has categories.',
     tags: [],
     categoryIds: [defaultCat.id],
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   const updatedNote = await repositories.contentRepository.getNoteById(user.id, created.noteId);
@@ -923,8 +907,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
     rawText: 'This note is uncategorized again.',
     tags: [],
     categoryIds: [],
-    reminderDate: '',
-    reminderTime: '',
+    reminderAt: '',
   }, user.id);
 
   const finalNote = await repositories.contentRepository.getNoteById(user.id, created.noteId);

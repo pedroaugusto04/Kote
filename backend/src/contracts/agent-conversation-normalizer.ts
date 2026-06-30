@@ -16,7 +16,7 @@ function enumValueOrUndefined<T extends string>(value: unknown, allowedValues: R
   return allowedValues.has(trimmed as T) ? trimmed as T : undefined;
 }
 
-function hasReminderDate(value: unknown) {
+function hasReminderAt(value: unknown) {
   return typeof value === 'string' && Boolean(value.trim());
 }
 
@@ -30,7 +30,7 @@ function normalizeDraft(input: unknown) {
   draft.kind = kind;
 
   const canonicalType = enumValueOrUndefined(draft.canonicalType, canonicalTypeValues);
-  if (hasReminderDate(draft.reminderDate) && (!canonicalType || canonicalType === CanonicalType.Event)) {
+  if (hasReminderAt(draft.reminderAt) && (!canonicalType || canonicalType === CanonicalType.Event)) {
     draft.canonicalType = CanonicalType.Followup;
   } else {
     draft.canonicalType = canonicalType;

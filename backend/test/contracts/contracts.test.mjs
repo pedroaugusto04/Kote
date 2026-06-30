@@ -63,8 +63,7 @@ test('agent conversation contract normalizes null AI fields to safe defaults', (
       canonicalType: 'event',
       importance: 'low',
       tags: null,
-      reminderDate: null,
-      reminderTime: null,
+      reminderAt: null,
     },
     selectedProjectSlug: 'inbox',
     selectedFolderId: null,
@@ -78,8 +77,7 @@ test('agent conversation contract normalizes null AI fields to safe defaults', (
   assert.equal(parsed.placeInRoot, false);
   assert.equal(parsed.resolvedDraft.title, '');
   assert.deepEqual(parsed.resolvedDraft.tags, []);
-  assert.equal(parsed.resolvedDraft.reminderDate, '');
-  assert.equal(parsed.resolvedDraft.reminderTime, '');
+  assert.equal(parsed.resolvedDraft.reminderAt, '');
 });
 
 test('agent conversation contract normalizes blank enum AI fields to safe defaults', () => {
@@ -92,8 +90,7 @@ test('agent conversation contract normalizes blank enum AI fields to safe defaul
       canonicalType: 'event',
       importance: 'low',
       tags: [],
-      reminderDate: '',
-      reminderTime: '',
+      reminderAt: '',
     },
     selectedProjectSlug: 'inbox',
     selectedFolderId: '',
@@ -115,8 +112,7 @@ test('agent conversation AI decision normalizer maps reminder kind to note', () 
       canonicalType: 'followup',
       importance: 'low',
       tags: [],
-      reminderDate: '2026-04-27',
-      reminderTime: '',
+      reminderAt: '2026-04-27T12:00:00.000Z',
     },
     selectedProjectSlug: 'inbox',
     selectedFolderId: '',
@@ -139,8 +135,7 @@ test('agent conversation AI decision normalizer maps dated event reminders to fo
       canonicalType: 'event',
       importance: 'low',
       tags: [],
-      reminderDate: '2026-04-27',
-      reminderTime: '',
+      reminderAt: '2026-04-27T12:00:00.000Z',
     },
     selectedProjectSlug: 'inbox',
     selectedFolderId: '',
@@ -163,8 +158,7 @@ test('agent conversation AI decision normalizer lets unknown enum values fall to
       canonicalType: 'todo',
       importance: 'urgent',
       tags: [],
-      reminderDate: '',
-      reminderTime: '',
+      reminderAt: '',
     },
     selectedProjectSlug: 'inbox',
     selectedFolderId: '',

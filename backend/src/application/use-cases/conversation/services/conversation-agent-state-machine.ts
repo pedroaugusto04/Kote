@@ -6,7 +6,7 @@ import {
 import type { ConversationInput } from '../../../../contracts/conversation.js';
 import { SourceChannel } from '../../../../contracts/enums.js';
 import { normalizeMultiline, slugify, trimText } from '../../../../domain/strings.js';
-import { normalizeDate, normalizeTime, nowIso } from '../../../../domain/time.js';
+import { nowIso } from '../../../../domain/time.js';
 import type { ProjectFolderRecord, ProjectRecord } from '../../../models/repository-records.models.js';
 import type { ConversationAgentFolderContext, ConversationAgentResponse } from '../../../ports/conversation/conversation-agent.gateway.js';
 import { buildConversationIngestPayload } from '../../../utils/conversation-payload.utils.js';
@@ -28,8 +28,7 @@ export function buildNextAgentConversationState(input: {
     ...input.current.draft,
     ...input.decision.resolvedDraft,
     rawText: normalizeMultiline(input.decision.resolvedDraft.rawText || normalizeMultiline(input.current.draft.rawText || input.messageText)),
-    reminderDate: normalizeDate(input.decision.resolvedDraft.reminderDate || input.current.draft.reminderDate || '', input.reminderTimeZone),
-    reminderTime: normalizeTime(input.decision.resolvedDraft.reminderTime || input.current.draft.reminderTime || ''),
+    reminderAt: input.decision.resolvedDraft.reminderAt || input.current.draft.reminderAt || '',
     tags: [...new Set([...(input.current.draft.tags || []), ...(input.decision.resolvedDraft.tags || [])].map((tag) => slugify(tag)).filter(Boolean))],
   });
   const selectedProjectSlug = selectedProjectSlugFromDecision || (draft.rawText ? 'inbox' : '');
@@ -114,8 +113,7 @@ export function buildAgentConversationPayload(input: ConversationInput, state: A
     canonicalType: state.draft.canonicalType,
     importance: state.draft.importance,
     tags: state.draft.tags,
-    reminderDate: state.draft.reminderDate,
-    reminderTime: state.draft.reminderTime,
+    reminderAt: state.draft.reminderAt,
     reminderTimeZone,
     metadata: {},
   });

@@ -24,14 +24,12 @@ type ConversationPayloadInput = {
   importance: Importance;
   status?: KnowledgeStatus;
   tags: string[];
-  reminderDate: string;
-  reminderTime: string;
+  reminderAt: string;
   reminderTimeZone: string;
   metadata?: Record<string, unknown>;
 };
 
 export function buildConversationIngestPayload(payload: ConversationPayloadInput): IngestPayload {
-  const reminderAt = buildReminderAt(payload.reminderDate, payload.reminderTime, payload.reminderTimeZone);
   return ingestPayloadSchema.parse({
     source: {
       channel: payload.sourceChannel || SourceChannel.External,
@@ -67,9 +65,7 @@ export function buildConversationIngestPayload(payload: ConversationPayloadInput
       decisionFlag: payload.canonicalType === CanonicalType.Decision,
     },
     actions: {
-      reminderDate: payload.reminderDate,
-      reminderTime: payload.reminderTime,
-      reminderAt,
+      reminderAt: payload.reminderAt,
       followUpBy: '',
     },
     metadata: payload.metadata || {},

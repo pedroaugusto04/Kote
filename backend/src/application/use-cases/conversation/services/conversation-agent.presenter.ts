@@ -63,7 +63,7 @@ export class ConversationAgentPresenter {
       `Project: ${projectText}`,
       `Folder: ${folderText}`,
       `Type: ${state.draft.kind}`,
-      `Reminder: ${state.draft.reminderDate ? `${state.draft.reminderDate}${state.draft.reminderTime ? ` ${state.draft.reminderTime}` : ''}` : 'no reminder'}`,
+      `Reminder: ${state.draft.reminderAt || 'no reminder'}`,
       state.draft.tags.length ? `Tags: ${state.draft.tags.join(', ')}` : '',
     ].filter(Boolean).join('\n');
   }

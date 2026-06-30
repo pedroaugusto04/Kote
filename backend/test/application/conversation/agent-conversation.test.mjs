@@ -73,10 +73,10 @@ async function createFixture(t, turns) {
   };
 
   const loggerMock = {
-    info() {},
-    warn() {},
-    error() {},
-    debug() {},
+    info() { },
+    warn() { },
+    error() { },
+    debug() { },
   };
 
   const ingest = new IngestEntryUseCase(
@@ -137,8 +137,7 @@ function decision(overrides = {}) {
       canonicalType: 'incident',
       importance: 'high',
       tags: ['backend'],
-      reminderDate: '',
-      reminderTime: '',
+      reminderAt: '',
     },
     selectedProjectSlug: 'platform',
     selectedFolderId: '',
@@ -230,8 +229,7 @@ test('agent conversation explains how to use it when the message is not useful t
         canonicalType: 'event',
         importance: 'low',
         tags: [],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
       selectedProjectSlug: '',
       selectedFolderId: '',
@@ -265,8 +263,7 @@ test('agent conversation saves root placement immediately when the agent selects
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['deploy'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -289,8 +286,7 @@ test('agent conversation saves separate captures without waiting for confirmatio
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['meeting'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
     ['corrigi o timeout do webhook novo', decision({
@@ -306,8 +302,7 @@ test('agent conversation saves separate captures without waiting for confirmatio
         canonicalType: 'incident',
         importance: 'high',
         tags: ['backend'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -336,8 +331,7 @@ test('agent conversation keeps nonexistent project, creates it and saves the not
         canonicalType: 'event',
         importance: 'medium',
         tags: [],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -370,8 +364,7 @@ test('agent conversation does not keep confirmation state after immediate save',
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['meeting'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -398,8 +391,7 @@ test('agent conversation saves natural capture without waiting for approval inte
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['meeting'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
     ['pode salvar', decision({
@@ -415,8 +407,7 @@ test('agent conversation saves natural capture without waiting for approval inte
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['meeting'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -455,8 +446,7 @@ test('agent conversation accepts AI reminder kind alias and saves immediately', 
         canonicalType: 'event',
         importance: 'low',
         tags: ['deploy'],
-        reminderDate: '2026-05-20',
-        reminderTime: '',
+        reminderAt: '2026-05-20T09:30:00Z',
       },
     })],
   ]);
@@ -482,8 +472,7 @@ test('agent conversation saves reminders as pending immediately', async (t) => {
         canonicalType: 'event',
         importance: 'low',
         tags: ['deploy'],
-        reminderDate: '2026-05-20',
-        reminderTime: '',
+        reminderAt: '2026-05-20T09:30:00Z',
       },
     })],
   ]);
@@ -495,5 +484,5 @@ test('agent conversation saves reminders as pending immediately', async (t) => {
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
   assert.equal(notes[0].status, 'pending');
-  assert.equal(notes[0].reminderDate, '2026-05-20');
+  assert.equal(notes[0].reminderAt, '2026-05-20T09:30:00.000Z');
 });
