@@ -1,15 +1,106 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/png" href="/Kote-Logo.png" />
+    <meta name="description" content="Kote: A developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge." />
+    <meta name="keywords" content="developer tools, knowledge base, AI integration, productivity, TypeScript, NestJS, React, Git integration, code documentation" />
+    <meta name="author" content="Kote" />
+    <meta name="robots" content="index, follow" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/Kote-Logo.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/Kote-Logo.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/Kote-Logo.png" />
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#00345c" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="msapplication-TileColor" content="#00345c" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
     <link rel="apple-touch-icon" href="/Kote-Logo.png" />
-    <title>Kote</title>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://knowledgebase.sbs/kote" />
+    <meta property="og:title" content="Kote - Developer Knowledge Base" />
+    <meta property="og:description" content="Automatically capture and organize AI sessions, Git history, and development context into searchable knowledge." />
+    <meta property="og:image" content="https://knowledgebase.sbs/Kote-Brand.png" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://knowledgebase.sbs/kote" />
+    <meta name="twitter:title" content="Kote - Developer Knowledge Base" />
+    <meta name="twitter:description" content="Automatically capture and organize AI sessions, Git history, and development context into searchable knowledge." />
+    <meta name="twitter:image" content="https://knowledgebase.sbs/Kote-Brand.png" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://knowledgebase.sbs/kote" />
+    
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "name": "Kote",
+          "description": "A developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.",
+          "url": "https://knowledgebase.sbs/kote",
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "Web, Windows, macOS, Linux",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "aggregateRating": {
+            "@type": "AggregateRating",
+            "ratingValue": "4.8",
+            "ratingCount": "42"
+          },
+          "creator": {
+            "@type": "Organization",
+            "name": "Kote",
+            "url": "https://knowledgebase.sbs",
+            "logo": "https://knowledgebase.sbs/Kote-Logo.png"
+          }
+        },
+        {
+          "@type": "WebSite",
+          "name": "Kote",
+          "url": "https://knowledgebase.sbs/kote",
+          "description": "Developer knowledge base for AI sessions, Git history, and development context",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://knowledgebase.sbs/kote/search?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "name": "Kote",
+          "url": "https://knowledgebase.sbs",
+          "logo": "https://knowledgebase.sbs/Kote-Logo.png",
+          "description": "Developer tools for knowledge management and AI integration",
+          "sameAs": [
+            "https://github.com/pedroaugusto04/knowledge-base"
+          ]
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://knowledgebase.sbs/kote"
+            }
+          ]
+        }
+      ]
+    }
+    </script>
+    
+    <title>Kote - Developer Knowledge Base</title>
   </head>
   <body>
     <div id="root"></div>

@@ -1,13 +1,13 @@
 {
-  "name": "Kote",
+  "name": "Kote - Developer Knowledge Base",
   "short_name": "Kote",
-  "description": "Centralize your team's operational knowledge in one place.",
+  "description": "A developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#090f14",
   "theme_color": "#00345c",
   "orientation": "any",
-  "categories": ["productivity", "business"],
+  "categories": ["productivity", "developer-tools", "utilities"],
   "icons": [
     {
       "src": "Kote-Logo.png",

@@ -11,6 +11,8 @@
   <img src="https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React">
 </p>
 
+<!-- Topics: developer-tools, knowledge-base, ai-integration, productivity, typescript, nestjs, react, git-integration, code-documentation, pwa -->
+
 <p align="center">
   A developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.
   <br><br>
