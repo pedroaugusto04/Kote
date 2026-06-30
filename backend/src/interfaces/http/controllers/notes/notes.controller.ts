@@ -44,6 +44,7 @@ import { inlineContentDisposition, paginatedResponse } from '../../http-helpers.
 import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
 import { ProjectId } from '../../project.decorators.js';
 import { WorkspaceId } from '../../workspace.decorators.js';
+import { toCreateManualNoteDto, toUpdateNoteDto } from '../../mappers/note.mapper.js';
 
 @ApiTags('Notes')
 @Controller('api/notes')
@@ -75,7 +76,8 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
     @ProjectId() projectId: string,
   ) {
-    return this.createManualNote.execute({ ...body, projectId }, user.id);
+    const dto = toCreateManualNoteDto(body, projectId);
+    return this.createManualNote.execute(dto, user.id);
   }
 
   @Patch('bulk/status')
@@ -103,7 +105,8 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
     @ProjectId() projectId?: string,
   ) {
-    return this.updateNote.execute({ ...body, id: params.id, projectId }, user.id);
+    const dto = toUpdateNoteDto(body, params.id, projectId);
+    return this.updateNote.execute(dto, user.id);
   }
 
   @Delete(':id')
