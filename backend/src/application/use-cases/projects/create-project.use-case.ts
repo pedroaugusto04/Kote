@@ -1,13 +1,13 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import type { CreateProjectInput } from '../../models/project-input.models.js';
+import type { CreateProjectDto } from '../../dto/project.dto.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { GithubRepositoryResolutionService } from '../../services/github-repository-resolution.service.js';
 import { QuotaService } from '../../services/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
-
-import crypto from 'node:crypto';
+import { toProjectRecord } from '../../mappers/project.mapper.js';
+import { requireWorkspace, assertProjectSlugUnique } from '../../helpers/resource-validation.helpers.js';
 
 @Injectable()
 export class CreateProjectUseCase {
@@ -17,10 +17,8 @@ export class CreateProjectUseCase {
     private readonly quotaService: QuotaService,
   ) { }
 
-  async execute(input: CreateProjectInput, userId: string) {
-    const workspaces = await this.contentRepository.listWorkspaces(userId);
-    const workspace = workspaces[0];
-    if (!workspace) throw new NotFoundException('workspace_not_found');
+  async execute(input: CreateProjectDto, userId: string) {
+    const workspace = await requireWorkspace(this.contentRepository, userId);
 
     const quotaResult = await this.quotaService.checkQuota(userId, QuotaResourceType.PROJECT, 1, {
       workspaceId: workspace.id,
@@ -29,13 +27,7 @@ export class CreateProjectUseCase {
       throw new QuotaExceededException('project', quotaResult.limit, quotaResult.current);
     }
 
-    const projects = await this.contentRepository.listProjects(userId);
-    if (projects.some((project) => project.enabled && project.projectSlug === input.projectSlug)) {
-      throw new ConflictException({
-        code: 'project_slug_already_exists',
-        details: { fieldErrors: { projectSlug: 'This project slug already exists.' } },
-      });
-    }
+    await assertProjectSlugUnique(this.contentRepository, userId, input.projectSlug);
 
     const selectedRepositories = await this.githubRepositoryResolution.resolveSelectedRepositories({
       userId,
@@ -43,17 +35,8 @@ export class CreateProjectUseCase {
       repositoryIds: input.repositoryIds,
     });
 
-    const project = await this.contentRepository.upsertProject(userId, {
-      id: crypto.randomUUID(),
-      projectSlug: input.projectSlug,
-      displayName: input.displayName,
-      workspaceId: workspace.id,
-      workspaceSlug: workspace.workspaceSlug,
-      repositories: selectedRepositories,
-      defaultTags: input.defaultTags,
-      enabled: true,
-      favorite: false,
-    });
+    const projectRecord = toProjectRecord(input, workspace.id, workspace.workspaceSlug, selectedRepositories);
+    const project = await this.contentRepository.upsertProject(userId, projectRecord);
 
     return {
       ok: true as const,

@@ -42,6 +42,7 @@ import {
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { ProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
 import { ProjectId } from '../../project.decorators.js';
+import { toCreateProjectDto, toUpdateProjectDto } from '../../mappers/project.mapper.js';
 
 @ApiTags('Projects')
 @Controller('api/projects')
@@ -73,7 +74,8 @@ export class ProjectsController {
     @Body(new ZodValidationPipe(createProjectBodySchema, 'invalid_create_project_payload')) body: CreateProjectBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.createProject.execute(body, user.id);
+    const dto = toCreateProjectDto(body);
+    return this.createProject.execute(dto, user.id);
   }
 
   @Patch(':projectSlug')
@@ -88,7 +90,8 @@ export class ProjectsController {
     @Body(new ZodValidationPipe(updateProjectBodySchema, 'invalid_update_project_payload')) body: UpdateProjectBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.updateProject.execute({ ...body, projectId }, user.id);
+    const dto = toUpdateProjectDto(body, projectId);
+    return this.updateProject.execute(dto, user.id);
   }
 
   @Delete(':projectSlug')

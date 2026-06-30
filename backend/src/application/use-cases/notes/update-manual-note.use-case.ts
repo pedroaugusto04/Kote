@@ -1,12 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { WebhookTrigger } from '../../../contracts/enums.js';
-import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
-import type { UpdateNoteInput } from '../../models/note-input.models.js';
+import { Injectable } from '@nestjs/common';
+import type { UpdateNoteDto } from '../../dto/note.dto.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
 import { NoteLifecycleService } from '../../services/note-lifecycle.service.js';
+import { requireProject, requireNote, requireProjectFolderOptional } from '../../helpers/resource-validation.helpers.js';
+import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 
 @Injectable()
 export class UpdateNoteUseCase {
@@ -16,8 +15,8 @@ export class UpdateNoteUseCase {
     private readonly noteLifecycleService: NoteLifecycleService,
   ) {}
 
-  async execute(input: UpdateNoteInput, userId: string) {
-    const { note, previousFolder, nextFolder } = await this.loadEditableNote(userId, input.id, input.folderId);
+  async execute(input: UpdateNoteDto, userId: string) {
+    const note = await requireNote(this.contentRepository, userId, input.id);
     const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
     const categoryIds = input.categoryIds === undefined
       ? note.categories.map((category) => category.id)
@@ -33,13 +32,18 @@ export class UpdateNoteUseCase {
     let workspaceId = note.workspaceId;
 
     if (input.projectId && input.projectId !== note.projectId) {
-      const project = await this.contentRepository.getProjectById(userId, input.projectId);
-      if (!project || !project.enabled) throw new NotFoundException('project_not_found');
+      const project = await requireProject(this.contentRepository, userId, input.projectId);
       projectSlug = project.projectSlug;
       projectId = project.id;
       workspaceSlug = project.workspaceSlug || '';
       workspaceId = project.workspaceId;
     }
+
+    const project = await this.contentRepository.getProjectById(userId, projectId);
+    const previousFolder = note.folderId
+      ? await requireProjectFolderOptional(this.contentRepository, userId, projectId, note.folderId)
+      : null;
+    const nextFolder = await requireProjectFolderOptional(this.contentRepository, userId, projectId, input.folderId);
 
     const updatedNoteInput = {
       ...buildUpdatedNote(note, previousFolder, nextFolder, { ...input, canonicalType }, reminderTimeZone, projectSlug, projectId, workspaceSlug, workspaceId),
@@ -58,24 +62,7 @@ export class UpdateNoteUseCase {
       }
     );
 
-    // Global scheduling is handled by the batch worker; per-note scheduling removed
-
     return { ok: true as const, noteId: updated.id };
   }
 
-  private async loadEditableNote(userId: string, noteId: string, folderId?: string) {
-    const note = await this.contentRepository.getNoteById(userId, noteId);
-    if (!note) throw new NotFoundException('note_not_found');
-
-    const project = await this.contentRepository.getProjectById(userId, note.projectId);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-    const previousFolder = note.folderId
-      ? await this.contentRepository.getProjectFolderById(userId, project.id, note.folderId)
-      : null;
-    const nextFolder = folderId
-      ? await this.contentRepository.getProjectFolderById(userId, project.id, folderId)
-      : null;
-    if (folderId && !nextFolder) throw new NotFoundException('folder_not_found');
-    return { note, previousFolder, nextFolder };
-  }
 }
