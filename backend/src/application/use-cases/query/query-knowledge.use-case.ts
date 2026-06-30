@@ -32,8 +32,22 @@ export class QueryKnowledgeUseCase {
       apiKey: env.embeddingAiApiKey,
     };
 
+    let workspaceId = '';
+    let projectId = '';
+
+    if (input.projectSlug) {
+      const project = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
+      projectId = project?.id || '';
+      workspaceId = project?.workspaceId || '';
+    } else if (input.workspaceSlug) {
+      const workspace = await this.contentRepository.getWorkspaceBySlug(userId, input.workspaceSlug);
+      workspaceId = workspace?.id || '';
+    }
+
+    const canUseVectorSearch = (!input.projectSlug || projectId) && (!input.workspaceSlug || workspaceId);
+
     // Try vector search first if embeddings are configured
-    if (embeddingConfig.provider && embeddingConfig.apiKey && embeddingConfig.model) {
+    if (canUseVectorSearch && embeddingConfig.provider && embeddingConfig.apiKey && embeddingConfig.model) {
       try {
         const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [input.query]);
         const queryEmbedding = embeddings[0];
@@ -41,8 +55,8 @@ export class QueryKnowledgeUseCase {
         if (queryEmbedding && queryEmbedding.length > 0) {
           const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
             limit: input.limit * 3, // Fetch more candidates for hybrid re-ranking
-            workspaceSlug: input.workspaceSlug,
-            projectSlug: input.projectSlug,
+            workspaceId: workspaceId || undefined,
+            projectId: projectId || undefined,
             minSimilarity: 0.3, // Lower threshold for hybrid search
           });
 

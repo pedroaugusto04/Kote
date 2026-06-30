@@ -18,30 +18,30 @@ export class RunAskAiUseCase {
   ) {}
 
   async execute(question: string, userId: string, options: { projectSlug?: string; workspaceSlug?: string } = {}) {
+    let projectId: string | null = null;
+    let workspaceId: string | null = null;
+
+    if (options.projectSlug) {
+      const project = await this.contentRepository.getProjectBySlug(userId, options.projectSlug);
+      if (!project) {
+        return emptyAskResult();
+      }
+      projectId = project.id;
+      workspaceId = project.workspaceId;
+    } else if (options.workspaceSlug) {
+      const workspace = await this.contentRepository.getWorkspaceBySlug(userId, options.workspaceSlug);
+      if (!workspace) {
+        return emptyAskResult();
+      }
+      workspaceId = workspace.id;
+    }
+
     const result = await this.askKnowledge.execute(question, userId, {
-      projectSlug: options.projectSlug,
-      workspaceSlug: options.workspaceSlug,
+      projectId: projectId || undefined,
+      workspaceId: workspaceId || undefined,
     });
     const media: any[] = [];
     if (result.ok) {
-      // Resolve slugs to UUIDs for proper data integrity
-      let projectId: string | null = null;
-      let workspaceId: string | null = null;
-
-      if (options.projectSlug) {
-        const project = await this.contentRepository.getProjectBySlug(userId, options.projectSlug);
-        if (project) {
-          projectId = project.id;
-          workspaceId = project.workspaceId;
-        }
-      } else if (options.workspaceSlug) {
-        const workspaces = await this.contentRepository.listWorkspaces(userId);
-        const workspace = workspaces.find((item: { workspaceSlug: string }) => item.workspaceSlug === options.workspaceSlug);
-        if (workspace) {
-          workspaceId = workspace.id;
-        }
-      }
-
       await this.askHistoryRepository.save({
         userId,
         projectId,
@@ -91,4 +91,17 @@ export class RunAskAiUseCase {
       media,
     };
   }
+}
+
+
+function emptyAskResult() {
+  return {
+    ok: true as const,
+    answer: 'No relevant information found in your Kote.',
+    confidence: ConversationConfidence.Low,
+    requestedAttachments: false as const,
+    sources: [],
+    relatedNotes: [],
+    media: [],
+  };
 }

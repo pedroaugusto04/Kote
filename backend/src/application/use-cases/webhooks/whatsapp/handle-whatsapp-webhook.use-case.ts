@@ -309,16 +309,13 @@ export class HandleWhatsappWebhookUseCase {
       return this.processed(context, { ok: true, resolvedUserId: userId, processed: false }, userId);
     }
 
-    const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceSlug });
-
-    // Resolve workspace ID from slug
     let workspaceId = '';
     if (this.contentRepository) {
-      const workspaces = await this.contentRepository.listWorkspaces(userId);
-      const workspace = workspaces.find((item: { workspaceSlug: string }) => item.workspaceSlug === workspaceSlug);
+      const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
       workspaceId = workspace?.id || '';
     }
 
+    const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceId: workspaceId || undefined });
     const attachmentResolution = await this.resolveAskAttachments(userId, workspaceId, result);
     const replyText = formatAskReply(result, attachmentResolution);
     const sendResult = await this.sendReply(input.chatId, replyText);

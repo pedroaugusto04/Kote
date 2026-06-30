@@ -397,6 +397,11 @@ export class HandleGithubPullRequestUseCase {
       });
 
       let contextChunks: any[] = [];
+      const workspace = identity.workspaceSlug && this.contentRepository
+        ? await this.contentRepository.getWorkspaceBySlug(identity.userId, identity.workspaceSlug)
+        : null;
+      const workspaceId = workspace?.id || '';
+
       if (searchTerms) {
         const embeddingConfig = {
           provider: environment.embeddingAiProvider,
@@ -410,7 +415,7 @@ export class HandleGithubPullRequestUseCase {
         if (prEmbedding && prEmbedding.length > 0) {
           const similarChunks = await this.noteEmbeddingRepository.findSimilar(identity.userId, prEmbedding, {
             limit: 8,
-            workspaceSlug: identity.workspaceSlug || undefined,
+            workspaceId: workspaceId || undefined,
             minSimilarity: 0.65,
           });
 

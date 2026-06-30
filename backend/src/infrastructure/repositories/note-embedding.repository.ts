@@ -7,7 +7,6 @@ import {
   type SimilarChunk,
 } from '../../application/ports/notes/note-embedding.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { resolveProjectId, resolveWorkspaceId } from './utils/id-resolution.helpers.js';
 
 function embeddingFromRow(row: Record<string, unknown>): NoteEmbeddingRecord {
   return {
@@ -114,25 +113,8 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
     options: FindSimilarOptions,
   ): Promise<SimilarChunk[]> {
     const minSimilarity = options.minSimilarity ?? 0.3;
-    let workspaceId = String(options.workspaceId || '').trim();
-    let projectId = String(options.projectId || '').trim();
-    const workspaceSlug = String(options.workspaceSlug || '').trim();
-    const projectSlug = String(options.projectSlug || '').trim();
-
-    if (!workspaceId && workspaceSlug) {
-      try {
-        workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
-      } catch {
-        return [];
-      }
-    }
-    if (!projectId && projectSlug) {
-      try {
-        projectId = await resolveProjectId(this.database, userId, projectSlug);
-      } catch {
-        return [];
-      }
-    }
+    const workspaceId = String(options.workspaceId || '').trim();
+    const projectId = String(options.projectId || '').trim();
 
     const values: unknown[] = [
       userId,

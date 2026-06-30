@@ -28,7 +28,7 @@ export class AskKnowledgeUseCase {
   async execute(
     question: string,
     userId: string,
-    options: { workspaceSlug?: string; projectSlug?: string; conversationHistory?: AskConversationTurn[] } = {},
+    options: { workspaceId?: string; projectId?: string; conversationHistory?: AskConversationTurn[] } = {},
   ) {
     const quotaResult = await this.quotaService.checkAndIncrementAiUsage(userId, AiOperationType.ASK_KNOWLEDGE);
     if (!quotaResult.allowed) {
@@ -67,11 +67,11 @@ export class AskKnowledgeUseCase {
       const noteMap = new Map(allNotes.map((n) => [n.id, n]));
       let vaultNotes = allNotes.map((n) => noteSummary(n));
 
-      if (options.projectSlug) {
-        vaultNotes = vaultNotes.filter((n) => n.project === options.projectSlug);
+      if (options.projectId) {
+        vaultNotes = vaultNotes.filter((n) => noteMap.get(n.id)?.projectId === options.projectId);
       }
-      if (options.workspaceSlug) {
-        vaultNotes = vaultNotes.filter((n) => n.workspace === options.workspaceSlug);
+      if (options.workspaceId) {
+        vaultNotes = vaultNotes.filter((n) => noteMap.get(n.id)?.workspaceId === options.workspaceId);
       }
 
       vaultNotes = vaultNotes.filter((n) => matchesIntent(n, specialIntent));
@@ -137,8 +137,8 @@ export class AskKnowledgeUseCase {
       // 2. Query similar chunks with broader candidate limit and lower threshold for hybrid re-ranking
       const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
         limit: 16,
-        workspaceSlug: options.workspaceSlug,
-        projectSlug: options.projectSlug,
+        workspaceId: options.workspaceId,
+        projectId: options.projectId,
         minSimilarity: 0.35,
       });
 
