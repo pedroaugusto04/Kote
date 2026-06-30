@@ -10,7 +10,11 @@ export const askRequestSchema = z
   })
   .pipe(askInputSchema);
 
-export const askHistoryQuerySchema = askHistoryInputSchema;
+export const askHistoryQuerySchema = z.object({
+  projectSlug: z.string().trim().optional().default(''),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+}).merge(paginationInputSchema);
 
 export type AskRequest = z.infer<typeof askRequestSchema>;
 export type AskHistoryQuery = z.infer<typeof askHistoryQuerySchema>;

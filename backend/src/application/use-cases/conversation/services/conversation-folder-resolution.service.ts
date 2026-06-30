@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { trimText } from '../../../../domain/strings.js';
 import type { AgentConversationState } from '../../../../contracts/agent-conversation.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
+import { resolveContentScopeFromSlugs } from '../../../utils/content-scope.utils.js';
 import { folderSlugFromDisplayName } from '../../../utils/project-folder.utils.js';
 import { CreateProjectFolderUseCase } from '../../projects/create-project-folder.use-case.js';
 
@@ -18,7 +19,10 @@ export class ConversationFolderResolutionService {
     if (state.folder.placeInRoot || state.folder.suggestedFolderPath.length === 0) return state.folder.selectedFolderId;
     if (state.folder.selectedFolderId) return state.folder.selectedFolderId;
 
-    const project = await this.contentRepository.getProjectBySlug(userId, state.project.selectedProjectSlug);
+    const scope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+      projectSlug: state.project.selectedProjectSlug,
+    });
+    const project = scope.project;
     if (!project) return '';
 
     let parentFolderId = '';

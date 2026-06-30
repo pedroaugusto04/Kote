@@ -27,6 +27,8 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     categories: record.categories,
     type: resolveCanonicalTypeFromCategories(record.categories || [], (record.categories || []).map((c) => c.id)),
     title: record.title,
+    projectId: record.projectId,
+    workspaceId: record.workspaceId,
     project: record.projectSlug || '',
     workspace: record.workspaceSlug || '',
     folderId: record.folderId,

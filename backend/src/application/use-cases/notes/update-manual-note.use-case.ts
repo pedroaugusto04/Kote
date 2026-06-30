@@ -5,6 +5,7 @@ import type { UpdateNoteInput } from '../../models/note-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { normalizeDate, normalizeTime } from '../../../domain/time.js';
+import { resolveContentScopeFromSlugs } from '../../utils/content-scope.utils.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
 import { NoteLifecycleService } from '../../services/note-lifecycle.service.js';
 
@@ -33,12 +34,14 @@ export class UpdateNoteUseCase {
     let workspaceId = note.workspaceId;
     
     if (input.projectSlug && input.projectSlug !== note.projectSlug) {
-      const newProject = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
-      if (!newProject || !newProject.enabled) throw new NotFoundException('project_not_found');
+      const scope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+        projectSlug: input.projectSlug,
+      });
+      if (!scope.project || !scope.project.enabled) throw new NotFoundException('project_not_found');
       projectSlug = input.projectSlug;
-      projectId = newProject.id;
-      workspaceSlug = newProject.workspaceSlug || '';
-      workspaceId = newProject.workspaceId;
+      projectId = scope.project.id;
+      workspaceSlug = scope.project.workspaceSlug || '';
+      workspaceId = scope.project.workspaceId;
     }
     
     const updatedNoteInput = {

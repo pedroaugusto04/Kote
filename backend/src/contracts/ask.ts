@@ -9,7 +9,7 @@ export const askInputSchema = z.object({
 });
 
 export const askHistoryInputSchema = z.object({
-  projectSlug: z.string().trim().optional().default(''),
+  projectId: z.string().trim().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
 }).merge(paginationInputSchema);

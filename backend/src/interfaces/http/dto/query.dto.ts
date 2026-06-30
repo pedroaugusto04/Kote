@@ -1,9 +1,9 @@
 import { z } from 'zod';
 
 import { paginationInputSchema } from '../../../contracts/pagination.js';
-import { queryInputSchema } from '../../../contracts/query.js';
 import { ReminderDispatchMode } from '../../../contracts/enums.js';
-import { StatusFilter } from '../../../contracts/status-filters.js';
+import { notesListStatusFilterValues, StatusFilter } from '../../../contracts/status-filters.js';
+import { slugify } from '../../../domain/strings.js';
 
 export const queryRequestSchema = z.object({
   query: z.string().default(''),
@@ -11,7 +11,15 @@ export const queryRequestSchema = z.object({
   projectSlug: z.string().default(''),
   status: z.string().default(StatusFilter.Open),
   limit: z.coerce.number().default(5),
-}).merge(paginationInputSchema).pipe(queryInputSchema);
+}).merge(paginationInputSchema).transform((input) => ({
+  ...input,
+  query: input.query.trim(),
+  workspaceSlug: slugify(input.workspaceSlug),
+  projectSlug: slugify(input.projectSlug),
+  status: notesListStatusFilterValues.includes(input.status.trim().toLowerCase() as typeof notesListStatusFilterValues[number])
+    ? input.status.trim().toLowerCase()
+    : StatusFilter.Open,
+}));
 
 export const markRemindersBodySchema = z
   .object({
