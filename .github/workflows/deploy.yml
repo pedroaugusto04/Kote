@@ -363,6 +363,9 @@ jobs:
       - name: Run architecture lint
         run: npm run lint:architecture
 
+      - name: Update sitemap lastmod date
+        run: bash scripts/deploy/update-sitemap.sh
+
       - name: Build frontend
         env:
           VITE_KB_FRONTEND_BASE_PATH: ${{ vars.VITE_KB_FRONTEND_BASE_PATH || '/kote/' }}
