@@ -17,7 +17,9 @@ export type SimilarChunk = NoteEmbeddingRecord & {
 export type FindSimilarOptions = {
   limit: number;
   minSimilarity?: number;
+  workspaceId?: string;
   workspaceSlug?: string;
+  projectId?: string;
   projectSlug?: string;
 };
 
