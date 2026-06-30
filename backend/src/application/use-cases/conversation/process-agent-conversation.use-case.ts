@@ -26,6 +26,7 @@ import { ConversationFolderResolutionService } from './services/conversation-fol
 import { QuotaService } from '../../services/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { resolveSourceChannel } from '../../utils/source-channel.utils.js';
+import { resolveContentScopeFromSlugs } from '../../utils/content-scope.utils.js';
 import {
   buildAgentConversationPayload as buildAgentPayload,
   buildNextAgentConversationState,
@@ -174,9 +175,11 @@ export class ProcessAgentConversationUseCase {
       if (selectedProjectSlug === candidateProjectSlug) {
         foldersForDecision = candidateFolders;
       } else {
-        const selectedProject = await this.contentRepository.getProjectBySlug(userId, selectedProjectSlug);
-        if (selectedProject && selectedProject.enabled) {
-          foldersForDecision = await this.contentRepository.listProjectFolders(userId, selectedProject.id);
+        const selectedScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+          projectSlug: selectedProjectSlug,
+        });
+        if (selectedScope.project?.enabled) {
+          foldersForDecision = await this.contentRepository.listProjectFolders(userId, selectedScope.project.id);
         }
       }
     }
@@ -256,9 +259,11 @@ export class ProcessAgentConversationUseCase {
     const candidateProjectSlug = sanitizeExistingAgentProjectSlug(state.project.selectedProjectSlug, projects);
     let candidateFolders: ProjectFolderRecord[] = [];
     if (candidateProjectSlug && candidateProjectSlug !== 'inbox') {
-      const candidateProject = await this.contentRepository.getProjectBySlug(userId, candidateProjectSlug);
-      if (candidateProject && candidateProject.enabled) {
-        candidateFolders = await this.contentRepository.listProjectFolders(userId, candidateProject.id);
+      const candidateScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+        projectSlug: candidateProjectSlug,
+      });
+      if (candidateScope.project?.enabled) {
+        candidateFolders = await this.contentRepository.listProjectFolders(userId, candidateScope.project.id);
       }
     }
     const environment = this.environmentProvider.read();
@@ -351,17 +356,19 @@ export class ProcessAgentConversationUseCase {
     const normalizedProjectSlug = slugify(projectSlug);
     if (!normalizedProjectSlug || normalizedProjectSlug === 'inbox') return;
 
-    const existing = await this.contentRepository.getProjectBySlug(userId, normalizedProjectSlug);
-    if (existing?.enabled) return;
+    const existingScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+      projectSlug: normalizedProjectSlug,
+    });
+    if (existingScope.project?.enabled) return;
 
-    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-    if (!workspace) return;
+    const workspaceScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, { workspaceSlug });
+    if (!workspaceScope.workspace) return;
 
     await this.contentRepository.upsertProject(userId, {
       id: crypto.randomUUID(),
       projectSlug: normalizedProjectSlug,
       displayName: displayNameFromProjectSlug(normalizedProjectSlug),
-      workspaceId: workspace.id,
+      workspaceId: workspaceScope.workspace.id,
       workspaceSlug,
       repositories: [],
       defaultTags: [],

@@ -11,35 +11,29 @@ import { whatsappWebhookBodySchema } from '../../../dist/interfaces/http/dto/web
 import { createWorkspaceBodySchema } from '../../../dist/interfaces/http/dto/workspace.dto.js';
 import { askHistoryQuerySchema } from '../../../dist/interfaces/http/dto/ask.dto.js';
 
-test('query dto normalizes limit and slugs', () => {
+test('query dto normalizes limit', () => {
   const parsed = queryRequestSchema.parse({
     query: 'deploy',
     limit: '7',
-    workspaceSlug: 'My Workspace',
-    projectSlug: 'N8N Automations',
   });
 
   assert.deepEqual(parsed, {
     query: 'deploy',
     limit: 7,
-    workspaceSlug: 'my-workspace',
-    projectSlug: 'n8n-automations',
     status: 'open',
     page: 1,
     pageSize: 10,
   });
 });
 
-test('ask history dto accepts pagination and optional project filter', () => {
-  assert.deepEqual(askHistoryQuerySchema.parse({ page: '2', pageSize: '10', projectSlug: ' platform ' }), {
+test('ask history dto accepts pagination', () => {
+  assert.deepEqual(askHistoryQuerySchema.parse({ page: '2', pageSize: '10' }), {
     page: 2,
     pageSize: 10,
-    projectSlug: 'platform',
   });
   assert.deepEqual(askHistoryQuerySchema.parse({}), {
     page: 1,
     pageSize: 10,
-    projectSlug: '',
   });
   assert.throws(() => askHistoryQuerySchema.parse({ page: '0' }));
 });
@@ -133,7 +127,6 @@ test('create note dto normalizes project, tags and keeps reminderAt as transport
     status: undefined,
     categoryIds: undefined,
     folderId: undefined,
-    projectSlug: undefined,
   });
   assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', status: 'active' }), {
     title: 'Deploy',
@@ -143,7 +136,6 @@ test('create note dto normalizes project, tags and keeps reminderAt as transport
     status: 'active',
     categoryIds: undefined,
     folderId: undefined,
-    projectSlug: undefined,
   });
   assert.deepEqual(createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto' }).categoryIds, []);
 });

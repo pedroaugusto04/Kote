@@ -6,6 +6,8 @@ export type VaultNoteSummary = {
   categories: CategoryRecord[];
   type: string;
   title: string;
+  projectId: string;
+  workspaceId: string;
   project: string;
   workspace: string;
   folderId: string | null;

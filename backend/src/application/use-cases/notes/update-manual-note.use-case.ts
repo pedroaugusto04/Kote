@@ -26,21 +26,21 @@ export class UpdateNoteUseCase {
       ? await this.contentRepository.listCategories(userId, note.workspaceId)
       : [];
     const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
-    
+
     let projectSlug = note.projectSlug || '';
     let projectId = note.projectId;
     let workspaceSlug = note.workspaceSlug || '';
     let workspaceId = note.workspaceId;
-    
-    if (input.projectSlug && input.projectSlug !== note.projectSlug) {
-      const newProject = await this.contentRepository.getProjectBySlug(userId, input.projectSlug);
-      if (!newProject || !newProject.enabled) throw new NotFoundException('project_not_found');
-      projectSlug = input.projectSlug;
-      projectId = newProject.id;
-      workspaceSlug = newProject.workspaceSlug || '';
-      workspaceId = newProject.workspaceId;
+
+    if (input.projectId && input.projectId !== note.projectId) {
+      const project = await this.contentRepository.getProjectById(userId, input.projectId);
+      if (!project || !project.enabled) throw new NotFoundException('project_not_found');
+      projectSlug = project.projectSlug;
+      projectId = project.id;
+      workspaceSlug = project.workspaceSlug || '';
+      workspaceId = project.workspaceId;
     }
-    
+
     const updatedNoteInput = {
       ...buildUpdatedNote(note, previousFolder, nextFolder, { ...input, canonicalType }, reminderTimeZone, projectSlug, projectId, workspaceSlug, workspaceId),
       categoryIds: input.categoryIds,

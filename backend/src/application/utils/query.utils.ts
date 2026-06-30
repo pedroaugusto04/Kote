@@ -142,14 +142,14 @@ export function matchesIntent(note: VaultNoteSummary, intent: SpecialQueryIntent
   return false;
 }
 
-export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<QueryInput, 'query' | 'projectSlug' | 'workspaceSlug' | 'status' | 'limit'>) {
+export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<QueryInput, 'query' | 'projectId' | 'workspaceId' | 'status' | 'limit'>) {
   const intent = getSpecialQueryIntent(query.query);
   const tokens = tokenizeQuery(query.query);
 
   return notes
     .filter((note) =>
-      (!query.projectSlug || note.project === query.projectSlug)
-      && (!query.workspaceSlug || note.workspace === query.workspaceSlug)
+      (!query.projectId || note.projectId === query.projectId)
+      && (!query.workspaceId || note.workspaceId === query.workspaceId)
       && (
         !('status' in query) || !query.status || (
           query.status === StatusFilter.Open
@@ -203,7 +203,7 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<Quer
 export function rankHybridKnowledgeMatches(
   notes: VaultNoteSummary[],
   similarChunks: Array<{ noteId: string; similarity: number }>,
-  query: Pick<QueryInput, 'query' | 'projectSlug' | 'workspaceSlug' | 'status' | 'limit'>,
+  query: Pick<QueryInput, 'query' | 'projectId' | 'workspaceId' | 'status' | 'limit'>,
   weights: { vector: number; keyword: number } = { vector: 0.4, keyword: 0.6 },
 ) {
   const intent = getSpecialQueryIntent(query.query);
@@ -220,8 +220,8 @@ export function rankHybridKnowledgeMatches(
 
   return notes
     .filter((note) =>
-      (!query.projectSlug || note.project === query.projectSlug)
-      && (!query.workspaceSlug || note.workspace === query.workspaceSlug)
+      (!query.projectId || note.projectId === query.projectId)
+      && (!query.workspaceId || note.workspaceId === query.workspaceId)
       && (
         !('status' in query) || !query.status || (
           query.status === StatusFilter.Open

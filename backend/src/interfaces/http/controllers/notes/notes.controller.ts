@@ -91,7 +91,7 @@ export class NotesController {
   }
 
   @Patch(':id')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a note' })
   @ApiParam({ name: 'id', description: 'Note ID' })
@@ -101,8 +101,9 @@ export class NotesController {
     @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
     @Body(new ZodValidationPipe(updateNoteBodySchema, 'invalid_update_note_payload')) body: UpdateNoteBody,
     @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId?: string,
   ) {
-    return this.updateNote.execute({ ...body, id: params.id }, user.id);
+    return this.updateNote.execute({ ...body, id: params.id, projectId }, user.id);
   }
 
   @Delete(':id')

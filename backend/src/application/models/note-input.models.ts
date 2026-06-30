@@ -18,7 +18,7 @@ export type CreateManualNoteInput = {
 
 export type UpdateNoteInput = {
   id: string;
-  projectSlug?: string;
+  projectId?: string;
   folderId?: string;
   title: string;
   rawText: string;

@@ -14,8 +14,6 @@ test('zod validation pipe parses successful payloads', () => {
   assert.deepEqual(parsed, {
     query: 'deploy',
     limit: 3,
-    workspaceSlug: '',
-    projectSlug: '',
     status: 'open',
     page: 1,
     pageSize: 10,
@@ -28,7 +26,6 @@ test('zod validation pipe returns normalized defaults', () => {
   const parsed = pipe.transform({ query: 'deploy' });
 
   assert.equal(parsed.limit, 5);
-  assert.equal(parsed.workspaceSlug, '');
   assert.equal(parsed.status, 'open');
 });
 

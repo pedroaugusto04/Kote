@@ -10,6 +10,7 @@ import { CredentialRepository, ExternalIdentityRepository } from '../../../ports
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
+import { resolveContentScopeFromSlugs } from '../../../utils/content-scope.utils.js';
 import { QuotaService } from '../../../services/quota.service.js';
 import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { EmbeddingGateway } from '../../../ports/notes/embedding.gateway.js';
@@ -397,10 +398,10 @@ export class HandleGithubPullRequestUseCase {
       });
 
       let contextChunks: any[] = [];
-      const workspace = identity.workspaceSlug && this.contentRepository
-        ? await this.contentRepository.getWorkspaceBySlug(identity.userId, identity.workspaceSlug)
+      const scope = identity.workspaceSlug && this.contentRepository
+        ? await resolveContentScopeFromSlugs(this.contentRepository, identity.userId, { workspaceSlug: identity.workspaceSlug })
         : null;
-      const workspaceId = workspace?.id || '';
+      const workspaceId = scope?.workspaceId || '';
 
       if (searchTerms) {
         const embeddingConfig = {

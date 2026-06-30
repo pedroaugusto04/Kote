@@ -4,12 +4,10 @@ import { paginationInputSchema } from './pagination.js';
 
 export const askInputSchema = z.object({
   question: z.string().trim().min(1, 'Question cannot be empty'),
-  projectSlug: z.string().trim().default(''),
-  workspaceSlug: z.string().trim().optional(),
 });
 
 export const askHistoryInputSchema = z.object({
-  projectSlug: z.string().trim().optional().default(''),
+  projectId: z.string().trim().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
 }).merge(paginationInputSchema);

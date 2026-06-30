@@ -13,6 +13,7 @@ import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.p
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { absoluteUrl } from '../../../utils/integration-status.utils.js';
+import { resolveContentScopeFromSlugs } from '../../../utils/content-scope.utils.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import { QuotaService } from '../../../services/quota.service.js';
@@ -304,7 +305,7 @@ export class HandleGithubPushUseCase {
     const connected = Boolean(credential && credential.status === CredentialRecordStatus.Connected && !credential.revokedAt);
     if (!connected) return { sent: false, skipped: 'whatsapp_not_connected' };
 
-    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
+    const { workspace } = await resolveContentScopeFromSlugs(this.contentRepository, userId, { workspaceSlug });
     const chatJid = String(workspace?.whatsappChatJid || '').trim();
     if (!chatJid) return { sent: false, skipped: 'whatsapp_chat_not_bound' };
     const noteLink = noteId && noteBaseUrl ? absoluteUrl(noteBaseUrl, `/vault/${encodeURIComponent(noteId)}`) : '';

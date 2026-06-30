@@ -22,6 +22,7 @@ import { parseWhatsappEvolutionMessage } from '../../../utils/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
+import { resolveWorkspaceIdFromSlug } from '../../../utils/content-scope.utils.js';
 
 type WhatsappWebhookContext = {
   headers: Record<string, string>;
@@ -311,8 +312,7 @@ export class HandleWhatsappWebhookUseCase {
 
     let workspaceId = '';
     if (this.contentRepository) {
-      const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-      workspaceId = workspace?.id || '';
+      workspaceId = (await resolveWorkspaceIdFromSlug(this.contentRepository, userId, workspaceSlug)) || '';
     }
 
     const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceId: workspaceId || undefined });

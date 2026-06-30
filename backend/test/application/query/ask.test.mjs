@@ -165,8 +165,20 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches re
     },
   };
   const contentRepository = {
+    async getProjectBySlug(_userId, projectSlug) {
+      if (projectSlug === 'platform') {
+        return {
+          id: 'project-1',
+          projectSlug: 'platform',
+          workspaceId: 'workspace-1',
+          workspaceSlug: 'default',
+          enabled: true,
+        };
+      }
+      return null;
+    },
     async listWorkspaces(userId) {
-      return [{ workspaceSlug: 'default', whatsappChatJid: '12345@c.us' }];
+      return [{ id: 'workspace-1', workspaceSlug: 'default', whatsappChatJid: '12345@c.us' }];
     },
   };
   const resolveWhatsappAskAttachmentsUseCase = {
@@ -214,10 +226,15 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches re
       mediaBase64: 'dGVzdA==',
     }],
   });
-  assert.deepEqual(askKnowledge.calls, [{ question: 'How to deploy?', userId: 'user-123', options: { projectSlug: 'platform', workspaceSlug: undefined } }]);
+  assert.deepEqual(askKnowledge.calls, [{
+    question: 'How to deploy?',
+    userId: 'user-123',
+    options: { projectId: 'project-1', workspaceId: 'workspace-1' },
+  }]);
   assert.deepEqual(saved, [{
     userId: 'user-123',
-    projectSlug: 'platform',
+    projectId: 'project-1',
+    workspaceId: 'workspace-1',
     question: 'How to deploy?',
     answer: 'Deploy to staging first.',
     confidence: 'high',
