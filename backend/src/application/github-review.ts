@@ -338,10 +338,7 @@ async function generateReviewAnalysis(
 }
 
 function buildPrRawText(prNumber: number, title: string, description: string, contextSummary?: string): string {
-  if (contextSummary) {
-    return `PR #${prNumber}: ${title}\n\n${description}\n\nContext:\n${contextSummary}`;
-  }
-  return `PR #${prNumber}: ${title}\n\n${description}`;
+  return `PR #${prNumber}: ${title}`;
 }
 
 export function buildGithubPrContextNoteEvent(

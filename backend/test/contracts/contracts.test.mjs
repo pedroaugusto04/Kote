@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput } from '../../dist/contracts/agent-conversation.js';
 import { ingestPayloadSchema, withDerivedReminderAt } from '../../dist/contracts/ingest.js';
 
-test('normalizes canonical ingest payload and derives reminderAt', () => {
+test('normalizes canonical ingest payload and uses reminderAt directly', () => {
   const parsed = withDerivedReminderAt(
     ingestPayloadSchema.parse({
       source: {
@@ -40,8 +40,7 @@ test('normalizes canonical ingest payload and derives reminderAt', () => {
         decisionFlag: false,
       },
       actions: {
-        reminderDate: '27/04/2026',
-        reminderTime: '9:15',
+        reminderAt: '2026-04-27T12:15:00.000Z',
         followUpBy: '',
       },
       metadata: {},
@@ -50,48 +49,9 @@ test('normalizes canonical ingest payload and derives reminderAt', () => {
 
   assert.equal(parsed.event.projectSlug, 'n8n-automations');
   assert.deepEqual(parsed.classification.tags, ['deploy', 'n8n']);
-  assert.equal(parsed.actions.reminderDate, '2026-04-27');
-  assert.equal(parsed.actions.reminderTime, '12:15');
   assert.equal(parsed.actions.reminderAt, '2026-04-27T12:15:00.000Z');
 });
 
-test('rejects reminder time without reminder date', () => {
-  assert.throws(() => {
-    ingestPayloadSchema.parse({
-      source: {
-        channel: 'external',
-        system: 'test',
-        actor: '',
-        conversationId: '',
-        correlationId: 'corr-2',
-      },
-      event: {
-        type: 'generic_record',
-        occurredAt: '2026-04-27T10:00:00.000Z',
-        projectSlug: 'inbox',
-      },
-      content: {
-        rawText: 'texto',
-        title: '',
-        attachments: [],
-        sections: {},
-      },
-      classification: {
-        kind: 'note',
-        canonicalType: 'event',
-        importance: 'low',
-        tags: [],
-        decisionFlag: false,
-      },
-      actions: {
-        reminderDate: '',
-        reminderTime: '09:00',
-        followUpBy: '',
-      },
-      metadata: {},
-    });
-  });
-});
 
 test('agent conversation contract normalizes null AI fields to safe defaults', () => {
   const parsed = conversationAgentDecisionSchema.parse({

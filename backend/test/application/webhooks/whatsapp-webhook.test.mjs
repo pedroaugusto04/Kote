@@ -578,13 +578,10 @@ test('whatsapp /ask command replies with semantic AI answer scoped to the worksp
   assert.doesNotMatch(result.message, /Confidence:/);
   assert.doesNotMatch(result.message, /Source:/);
   assert.equal(result.askResult, askKnowledge.result);
-  assert.deepEqual(askKnowledge.calls, [
-    {
-      question: 'como fazer deploy?',
-      userId: user.id,
-      options: { workspaceSlug: 'default' },
-    },
-  ]);
+  assert.equal(askKnowledge.calls.length, 1);
+  assert.equal(askKnowledge.calls[0].question, 'como fazer deploy?');
+  assert.equal(askKnowledge.calls[0].userId, user.id);
+  assert.ok(askKnowledge.calls[0].options.workspaceId);
   assert.equal(sender.sent.length, 1);
   assert.equal(sender.sent[0].chatJid, '120363@g.us');
   assert.equal(sender.sent[0].text, result.message);
@@ -786,8 +783,8 @@ test('whatsapp /ask command keeps each question isolated from previous turns', a
   await whatsapp.execute(evolutionInput('/kote /ask e como executa?'));
 
   assert.equal(askKnowledge.calls.length, 2);
-  assert.deepEqual(askKnowledge.calls[0].options, { workspaceSlug: 'default' });
-  assert.deepEqual(askKnowledge.calls[1].options, { workspaceSlug: 'default' });
+  assert.ok(askKnowledge.calls[0].options.workspaceId);
+  assert.ok(askKnowledge.calls[1].options.workspaceId);
   assert.equal(await repositories.countConversationStates(), 0);
 });
 

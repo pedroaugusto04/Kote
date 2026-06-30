@@ -457,7 +457,7 @@ test('global due reminder read model filters reminders by requested channel reci
     path: '20 Inbox/n8n-automations/date-only.md',
     title: 'Date only',
     metadata: {
-      reminderDate: '2026-05-05',
+      reminderAt: '2026-05-05T12:00:00.000Z',
     },
   });
   await insertReminder(repositories, user.id, {
@@ -653,43 +653,6 @@ test('telegram reminder dispatch use case remains compatible as an alternative a
   assert.equal(sent[0].recipientId, 'telegram-chat-1');
 });
 
-test('default reminder dispatch applies 09:00 fallback when reminder has only date', async (t) => {
-  const repositories = await createPostgresTestRepositories(t);
-  const user = await repositories.createTestUser();
-  await repositories.contentRepository.upsertWorkspace(user.id, {
-    workspaceSlug: 'default',
-    displayName: 'Default',
-    whatsappChatJid: '120363-default@g.us',
-    telegramChatId: 'telegram-chat-1',
-    createdAt: '2026-05-05T00:00:00.000Z',
-    updatedAt: '2026-05-05T00:00:00.000Z',
-  });
-  await insertReminder(repositories, user.id, {
-    path: '20 Inbox/n8n-automations/date-only.md',
-    title: 'Date only',
-    metadata: {
-      reminderDate: '2026-05-05',
-    },
-  });
-
-  const sent = [];
-  const markReminderAsSent = new MarkReminderAsSentUseCase(repositories.reminderDispatchRepository, repositories.contentRepository);
-  const useCase = new DispatchDueRemindersUseCase(
-    repositories.contentQueryRepository,
-    repositories.reminderDispatchRepository,
-    markReminderAsSent,
-    { sendText: async (input) => { sent.push(input); return { ok: true }; } },
-    createEventBusStub(),
-    createLoggerStub(),
-  );
-
-  const before = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2026-05-05T11:59:00.000Z');
-  const after = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2026-05-05T12:00:00.000Z');
-
-  assert.equal(before.sent, 0);
-  assert.equal(after.sent, 1);
-  assert.match(sent[0].text, /Scheduled for: 2026-05-05 09:00:00/);
-});
 
 test('default reminder dispatch does not mark reminder as sent when Evolution delivery fails', async (t) => {
   const { repositories, user } = await createStoreWithReminder(t);

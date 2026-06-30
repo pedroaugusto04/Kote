@@ -116,9 +116,28 @@ test('postgres ask history repository saves and lists newest entries by user and
   const user = await repositories.createTestUser();
   const otherUser = await repositories.createTestUser();
 
+  const platform = await repositories.contentRepository.upsertProject(user.id, {
+    projectSlug: 'platform',
+    displayName: 'Platform',
+    workspaceSlug: 'default',
+    repositories: [],
+    defaultTags: [],
+    enabled: true,
+    favorite: false,
+  });
+  const billing = await repositories.contentRepository.upsertProject(user.id, {
+    projectSlug: 'billing',
+    displayName: 'Billing',
+    workspaceSlug: 'default',
+    repositories: [],
+    defaultTags: [],
+    enabled: true,
+    favorite: false,
+  });
+
   await repositories.askHistoryRepository.save({
     userId: user.id,
-    projectSlug: 'platform',
+    projectId: platform.id,
     question: 'First?',
     answer: 'First answer',
     confidence: 'medium',
@@ -128,7 +147,7 @@ test('postgres ask history repository saves and lists newest entries by user and
   await new Promise((resolve) => setTimeout(resolve, 5));
   await repositories.askHistoryRepository.save({
     userId: user.id,
-    projectSlug: 'billing',
+    projectId: billing.id,
     question: 'Second?',
     answer: 'Second answer',
     confidence: 'high',
@@ -137,7 +156,7 @@ test('postgres ask history repository saves and lists newest entries by user and
   });
   await repositories.askHistoryRepository.save({
     userId: otherUser.id,
-    projectSlug: 'platform',
+    projectId: platform.id,
     question: 'Other?',
     answer: 'Other answer',
     confidence: 'low',
@@ -152,7 +171,7 @@ test('postgres ask history repository saves and lists newest entries by user and
   assert.equal(all.pagination.totalPages, 2);
   assert.equal(all.pagination.hasNext, true);
 
-  const filtered = await repositories.askHistoryRepository.list({ userId: user.id, projectSlug: 'platform', page: 1, pageSize: 5 });
+  const filtered = await repositories.askHistoryRepository.list({ userId: user.id, projectId: platform.id, page: 1, pageSize: 5 });
   assert.equal(filtered.items.length, 1);
   assert.equal(filtered.items[0].question, 'First?');
   assert.deepEqual(filtered.items[0].sources, [{ noteId: 'note-1', title: 'Deploy', path: 'docs/deploy.md' }]);
