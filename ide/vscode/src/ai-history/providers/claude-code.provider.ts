@@ -11,7 +11,8 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
   readonly name = 'Claude Code';
 
   private getHistoryDir(): string {
-    return path.join(os.homedir(), '.claude', 'projects');
+    const configPath = vscode.workspace.getConfiguration('kb').get<string>('claudeCodeLogPath');
+    return configPath || path.join(os.homedir(), '.claude', 'projects');
   }
 
   async isEnabled(): Promise<boolean> {

@@ -52,6 +52,12 @@ export interface CliConfig {
     kb_access_token?: string;
     kb_refresh_token?: string;
   };
+  aiProviders?: {
+    antigravityLogPath?: string;
+    claudeCodeLogPath?: string;
+    codexLogPath?: string;
+    opencodeDbPath?: string;
+  };
 }
 
 const CONFIG_DIR = process.env.KB_CLI_CONFIG_DIR || path.join(os.homedir(), '.config', 'kote');

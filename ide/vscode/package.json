@@ -136,6 +136,26 @@
         ],
         "default": "auto-save",
         "description": "Controls how Kote handles newly detected AI sessions."
+      },
+      "kote.antigravityLogPath": {
+        "type": "string",
+        "default": "",
+        "description": "Custom path to Antigravity brain directory. If not set, defaults to ~/.gemini/antigravity/brain"
+      },
+      "kote.claudeCodeLogPath": {
+        "type": "string",
+        "default": "",
+        "description": "Custom path to Claude Code projects directory. If not set, defaults to ~/.claude/projects"
+      },
+      "kote.codexLogPath": {
+        "type": "string",
+        "default": "",
+        "description": "Custom path to Codex CLI sessions directory. If not set, defaults to ~/.codex/sessions"
+      },
+      "kote.opencodeDbPath": {
+        "type": "string",
+        "default": "",
+        "description": "Custom path to OpenCode database file. If not set, defaults to ~/.local/share/opencode/opencode.db"
       }
     }
   },

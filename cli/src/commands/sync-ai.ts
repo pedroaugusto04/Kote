@@ -52,7 +52,8 @@ function getAllFiles(dir: string): string[] {
 // -------------------------------------------------------------------------
 
 function getClaudeCodeSessions(): CliAiSession[] {
-  const dir = path.join(os.homedir(), '.claude', 'projects');
+  const config = loadConfig();
+  const dir = config.aiProviders?.claudeCodeLogPath || path.join(os.homedir(), '.claude', 'projects');
   if (!fs.existsSync(dir)) return [];
 
   const sessions: CliAiSession[] = [];
@@ -119,7 +120,8 @@ function parseClaudeFile(filePath: string): CliAiSession | null {
 }
 
 function getCodexSessions(): CliAiSession[] {
-  const dir = path.join(os.homedir(), '.codex', 'sessions');
+  const config = loadConfig();
+  const dir = config.aiProviders?.codexLogPath || path.join(os.homedir(), '.codex', 'sessions');
   if (!fs.existsSync(dir)) return [];
 
   const sessions: CliAiSession[] = [];
@@ -225,7 +227,8 @@ function parseCodexFile(filePath: string): CliAiSession | null {
 }
 
 function getAntigravitySessions(): CliAiSession[] {
-  const dir = path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+  const config = loadConfig();
+  const dir = config.aiProviders?.antigravityLogPath || path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
   if (!fs.existsSync(dir)) return [];
 
   const sessions: CliAiSession[] = [];
@@ -360,7 +363,8 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
 }
 
 async function getOpenCodeSessions(): Promise<CliAiSession[]> {
-  const dbPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+  const config = loadConfig();
+  const dbPath = config.aiProviders?.opencodeDbPath || path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
   if (!fs.existsSync(dbPath)) return [];
 
   try {
