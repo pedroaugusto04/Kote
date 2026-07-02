@@ -104,16 +104,6 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
     || (latestBriefQuery.data?.brief ? latestBriefQuery.data : undefined)
     || undefined;
 
-  const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
-  const totalAskQueries = dashboard.home.metrics.find((m) => m.id === 'total-ask-queries')?.value ?? 0;
-  const firstGithubProject = dashboard.projects.find((project) => project.repositories.length > 0);
-  const onboardingPrompts = totalNotes >= 3 && totalAskQueries === 0 && firstGithubProject
-    ? [
-      `What changed in my recent commits for ${firstGithubProject.displayName}?`,
-      `Summarize the main risks captured for ${firstGithubProject.displayName}.`,
-      'What technical decisions are documented in my workspace?',
-    ]
-    : undefined;
 
   const handleAsk = async (overrideQuestion?: string) => {
     const question = (overrideQuestion ?? questionInput).trim();
@@ -247,7 +237,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
             ) : null}
 
             {!isAsking && !askAnswer ? (
-              <AskWaitingState prompts={onboardingPrompts} onPromptClick={handlePromptClick} />
+              <AskWaitingState onPromptClick={handlePromptClick} />
             ) : null}
 
             {askError ? <InlineMessage className="ask-error-message" tone="error">{askError}</InlineMessage> : null}

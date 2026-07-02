@@ -46,10 +46,10 @@ export const SEARCH_MESSAGES = {
   },
   
   SUGGESTED_PROMPTS: [
-    'Summarize my recent notes',
-    'What are my action items?',
-    'What is the status of platform?',
-    'Review key decisions made',
+    'What did I work on recently?',
+    'How is the system architecture organized?',
+    'What technical decisions were made?',
+    'What risks or issues were identified?',
   ],
   
   FILTER: {
