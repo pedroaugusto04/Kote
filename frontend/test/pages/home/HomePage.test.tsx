@@ -325,7 +325,9 @@ describe('HomePage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Getting Started' })).toBeInTheDocument();
     expect(screen.getByText('Connect GitHub')).toBeInTheDocument();
-    expect(screen.getByText('Connect WhatsApp')).toBeInTheDocument();
+    // WhatsApp is now in the collapsible "Optional integrations" section, not the main list.
+    expect(screen.getByRole('button', { name: /optional integrations/i })).toBeInTheDocument();
+    expect(screen.queryByText('Connect WhatsApp')).not.toBeInTheDocument();
   });
 
   it('calls createNote when the Quick note button is clicked', () => {
