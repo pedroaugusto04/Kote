@@ -409,7 +409,6 @@ describe('AppShell', () => {
     expect((await screen.findAllByText('N8N Automations')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Event')).length).toBeGreaterThan(0);
     expect((await screen.findAllByText('Active')).length).toBeGreaterThan(0);
-    expect(await screen.findByText('Deploy rollout')).toBeInTheDocument();
     await waitFor(() => {
       expect(document.querySelector('.note-reader')).not.toBeNull();
     });

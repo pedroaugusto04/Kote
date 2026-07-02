@@ -110,6 +110,58 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       const lines = content.trim().split('\n');
       
       const turns: AiTurn[] = [];
+      const sessionDir = path.join(path.dirname(filePath), '..', '..');
+      const MAX_CONTENT_SIZE = 400000; // Stay under 500k limit with room for metadata
+
+      // Read markdown artifacts from the session directory (these are the complete AI outputs)
+      const artifacts: string[] = [];
+      let totalSize = 0;
+      
+      if (fs.existsSync(sessionDir)) {
+        const mdFiles = fs.readdirSync(sessionDir)
+          .filter(f => f.endsWith('.md') && !f.startsWith('.'))
+          .filter(f => !f.includes('.resolved') && !f.includes('.metadata'))
+          .sort();
+        
+        for (const mdFile of mdFiles) {
+          const mdPath = path.join(sessionDir, mdFile);
+          try {
+            const mdContent = fs.readFileSync(mdPath, 'utf-8');
+            if (totalSize + mdContent.length > MAX_CONTENT_SIZE) {
+              artifacts.push('\n\n[Some artifacts omitted due to size limit]');
+              break;
+            }
+            artifacts.push(`## ${mdFile}\n\n${mdContent}`);
+            totalSize += mdContent.length;
+          } catch {
+            // ignore read errors
+          }
+        }
+      }
+
+      // Also check for artifacts subdirectory (some sessions store artifacts there)
+      const artifactsDir = path.join(sessionDir, 'artifacts');
+      if (fs.existsSync(artifactsDir)) {
+        const mdFiles = fs.readdirSync(artifactsDir)
+          .filter(f => f.endsWith('.md') && !f.startsWith('.'))
+          .filter(f => !f.includes('.resolved') && !f.includes('.metadata'))
+          .sort();
+        
+        for (const mdFile of mdFiles) {
+          const mdPath = path.join(artifactsDir, mdFile);
+          try {
+            const mdContent = fs.readFileSync(mdPath, 'utf-8');
+            if (totalSize + mdContent.length > MAX_CONTENT_SIZE) {
+              artifacts.push('\n\n[Some artifacts omitted due to size limit]');
+              break;
+            }
+            artifacts.push(`## artifacts/${mdFile}\n\n${mdContent}`);
+            totalSize += mdContent.length;
+          } catch {
+            // ignore read errors
+          }
+        }
+      }
 
       for (const line of lines) {
         if (!line.trim()) continue;
@@ -127,9 +179,18 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
           } else if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
             const text = record.content || '';
             const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
-            if (text && !hasToolCalls) {
+            
+            // If there are tool calls and we have artifacts, use the artifacts as the response
+            if (hasToolCalls && artifacts.length > 0) {
+              const fullContent = artifacts.join('\n\n---\n\n');
+              turns.push({ role: 'assistant', content: fullContent.trim() });
+              // Clear artifacts so we don't add them multiple times
+              artifacts.length = 0;
+            } else if (!hasToolCalls && text) {
+              // Only include direct responses without tool calls
               turns.push({ role: 'assistant', content: text.trim() });
             }
+            // Skip tool calls without artifacts or empty responses
           }
         } catch {
           // ignore malformed JSON lines
