@@ -55,6 +55,16 @@ export const INTEGRATION_MESSAGES = {
     SUCCESS_INSTRUCTION: "You're all set! Just push to any allowed repository, and Kote will automatically create a note containing the commit details along with an AI-generated review.",
     REPOSITORY_LIST_ARIA: 'GitHub repository list',
   },
+
+  GITHUB_BACKFILL: {
+    TITLE: 'Import recent commit history?',
+    DESCRIPTION: 'We can analyze your last {limit} commits and create AI code review notes. Each commit consumes AI credits like a normal GitHub push.',
+    IMPORT: 'Import {limit} commits',
+    SKIP: 'Not now',
+    STARTED: 'Import started. Reviews will appear on your timeline shortly.',
+    ERROR: 'Could not start the GitHub import.',
+    QUOTA_EXCEEDED: 'AI credit limit reached before the import finished.',
+  },
   
   PUSH_NOTIFICATIONS: {
     BROWSER_NOT_SUPPORTED: 'Navegador não suporta notificações Push.',

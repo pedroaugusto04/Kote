@@ -1,6 +1,8 @@
 import type {
   GithubIntegrationRepository,
   GithubRepositoriesResponse,
+  GithubBackfillStartResponse,
+  GithubBackfillStatusResponse,
   IntegrationConnectionResponse,
   IntegrationConnectionSession,
   IntegrationsResponse,
@@ -49,4 +51,17 @@ export function saveGithubRepositories(workspaceSlug: string, repositories: Arra
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ workspaceSlug, repositories }),
   });
+}
+
+export function startGithubBackfill(workspaceSlug: string, repositories: string[]): Promise<GithubBackfillStartResponse> {
+  return request<GithubBackfillStartResponse>(API_PATHS.INTEGRATIONS_GITHUB_BACKFILL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ workspaceSlug, repositories }),
+  });
+}
+
+export function fetchGithubBackfillStatus(workspaceSlug: string, jobId: string): Promise<GithubBackfillStatusResponse> {
+  const search = new URLSearchParams({ workspaceSlug, jobId });
+  return request<GithubBackfillStatusResponse>(`${API_PATHS.INTEGRATIONS_GITHUB_BACKFILL_STATUS}?${search.toString()}`);
 }

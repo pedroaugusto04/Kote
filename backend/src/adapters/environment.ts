@@ -5,6 +5,12 @@ import { normalizeTimeZone } from '../domain/time.js';
 export const defaultGithubAppCallbackPath = '/api/integrations/github-app/callback';
 export const defaultReminderTimeZone = 'America/Sao_Paulo';
 
+export function normalizeGithubBackfillLimit(value: string | undefined): number {
+  const parsed = Number.parseInt(String(value ?? '5').trim(), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return 5;
+  return Math.min(parsed, 50);
+}
+
 export function normalizeGithubAppCallbackPath(value: string | undefined): string {
   const trimmed = String(value || '').trim();
   if (!trimmed) return defaultGithubAppCallbackPath;
@@ -49,6 +55,7 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     audioAiApiKey: String(env.KB_AUDIO_AI_API_KEY || env.KB_EMBEDDING_AI_API_KEY || '').trim(),
     githubAppId: String(env.KB_GITHUB_APP_ID || '').trim(),
     githubAppPrivateKey: String(env.KB_GITHUB_APP_PRIVATE_KEY || '').trim(),
+    githubBackfillLimit: normalizeGithubBackfillLimit(env.KB_GITHUB_BACKFILL_LIMIT),
     publicBaseUrl: String(env.KB_PUBLIC_BASE_URL || env.WEBHOOK_URL || '').trim().replace(/\/$/, ''),
     apiPublicBaseUrl: String(env.KB_API_PUBLIC_BASE_URL || '').trim().replace(/\/$/, ''),
     allowedOrigins: String(env.KB_ALLOWED_ORIGINS || '')

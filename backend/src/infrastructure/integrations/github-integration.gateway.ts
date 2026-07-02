@@ -4,6 +4,7 @@ import {
   fetchComparePayload,
   fetchGithubInstallationRepositories,
   fetchGithubInstallationToken,
+  fetchRecentCommits,
   verifyGithubSignature,
   postGithubPullRequestComment,
   fetchGithubPullRequestComments,
@@ -26,6 +27,15 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
 
   fetchComparePayload(repoFullName: string, before: string, after: string, token: string): Promise<GithubComparePayload> {
     return fetchComparePayload(repoFullName, before, after, token);
+  }
+
+  fetchRecentCommits(input: {
+    repoFullName: string;
+    branch: string;
+    limit: number;
+    token: string;
+  }) {
+    return fetchRecentCommits(input);
   }
 
   fetchInstallationRepositories(input: {

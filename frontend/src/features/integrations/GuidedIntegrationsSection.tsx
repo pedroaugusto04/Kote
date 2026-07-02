@@ -10,11 +10,13 @@ import { INTEGRATION_LOGOS, INTEGRATION_MESSAGES, IntegrationProvider } from './
 import {
   connectIntegration,
   fetchGithubRepositories,
+  fetchGithubBackfillStatus,
   fetchIntegrations,
   fetchIntegrationSession,
   getErrorMessage,
   revokeIntegration,
   saveGithubRepositories,
+  startGithubBackfill,
   fetchPushPublicKey,
   subscribePush,
   unsubscribePush,
@@ -238,7 +240,71 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
   );
 }
 
-function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspaceSlug: string; onClose: () => void; onSaved?: () => void }) {
+function GithubBackfillOptInModal({
+  workspaceSlug,
+  repositories,
+  backfillLimit,
+  onClose,
+  onDeclined,
+  onStarted,
+}: {
+  workspaceSlug: string;
+  repositories: string[];
+  backfillLimit: number;
+  onClose: () => void;
+  onDeclined: () => void;
+  onStarted: (jobId: string) => void;
+}) {
+  const globalLoading = useGlobalLoading();
+  const startMutation = useMutation({
+    mutationFn: () => globalLoading.trackPromise(startGithubBackfill(workspaceSlug, repositories)),
+    onSuccess: (result) => {
+      notifySuccess(INTEGRATION_MESSAGES.GITHUB_BACKFILL.STARTED);
+      onStarted(result.jobId);
+      onClose();
+    },
+    onError: (error) => notifyGeneralFormError(error, INTEGRATION_MESSAGES.GITHUB_BACKFILL.ERROR),
+  });
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section
+        aria-labelledby="github-backfill-title"
+        aria-modal="true"
+        className="modal-panel integration-modal"
+        role="dialog"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="modal-head">
+          <div>
+            <div className="card-kicker">{IntegrationProvider.GithubApp}</div>
+            <h2 id="github-backfill-title">{INTEGRATION_MESSAGES.GITHUB_BACKFILL.TITLE}</h2>
+          </div>
+          <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={onClose}>x</button>
+        </div>
+        <p className="meta" style={{ marginBottom: '16px' }}>
+          {INTEGRATION_MESSAGES.GITHUB_BACKFILL.DESCRIPTION.replace('{limit}', String(backfillLimit))}
+        </p>
+        <p className="meta">{repositories.join(', ')}</p>
+        <div className="form-actions" style={{ marginTop: '20px' }}>
+          <button className="filter-chip" type="button" onClick={() => { onDeclined(); onClose(); }}>
+            {INTEGRATION_MESSAGES.GITHUB_BACKFILL.SKIP}
+          </button>
+          <button
+            className="icon-button"
+            disabled={startMutation.isPending}
+            type="button"
+            onClick={() => startMutation.mutate()}
+          >
+            {INTEGRATION_MESSAGES.GITHUB_BACKFILL.IMPORT.replace('{limit}', String(backfillLimit))}
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspaceSlug: string; onClose: () => void; onSaved?: (repositories: string[]) => void }) {
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
@@ -272,12 +338,15 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
       workspaceSlug,
       repositories.filter((repo) => values.repositories.includes(repo.id)).map((repo) => ({ id: repo.id, fullName: repo.fullName })),
     )),
-    onSuccess: () => {
+    onSuccess: (_result, values) => {
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       notifySuccess(INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SUCCESS);
       closeGuard.resetCloseGuard();
-      onSaved?.();
+      const savedRepositories = repositories
+        .filter((repo) => values.repositories.includes(repo.id))
+        .map((repo) => repo.fullName);
+      onSaved?.(savedRepositories);
       onClose();
     },
     onError: (error) => {
@@ -611,13 +680,14 @@ export function GuidedIntegrationsSection({
   returnToPath: string;
   providers?: string[];
   defaultOpenGithubRepositories?: boolean;
-  onGithubRepositoriesSaved?: () => void;
+  onGithubRepositoriesSaved?: (repositories: string[]) => void;
   onLoaded?: (integrations: UserIntegration[]) => void;
   children?: React.ReactNode;
 }) {
   const [codeConnection, setCodeConnection] = useState<IntegrationConnectionResponse | null>(null);
   const [showGithubRepositories, setShowGithubRepositories] = useState(false);
   const [showGithubSuccessModal, setShowGithubSuccessModal] = useState(false);
+  const [pendingBackfillRepositories, setPendingBackfillRepositories] = useState<string[] | null>(null);
   const didAutoOpen = useRef(false);
   const queryClient = useQueryClient();
   const integrationsQuery = useQuery({ queryKey: ['integrations', workspaceSlug], queryFn: () => fetchIntegrations(workspaceSlug), enabled: Boolean(workspaceSlug) });
@@ -645,6 +715,32 @@ export function GuidedIntegrationsSection({
       didAutoOpen.current = true;
     }
   }, [defaultOpenGithubRepositories, integrations]);
+
+  const backfillLimit = integrationsQuery.data?.githubBackfillLimit ?? 5;
+
+  function backfillDeclinedStorageKey() {
+    return `kb-github-backfill-declined-${workspaceSlug}`;
+  }
+
+  function backfillJobStorageKey() {
+    return `kb-github-backfill-job-${workspaceSlug}`;
+  }
+
+  function markBackfillDeclined() {
+    try {
+      localStorage.setItem(backfillDeclinedStorageKey(), new Date().toISOString());
+    } catch {
+      // ignore
+    }
+  }
+
+  function storeBackfillJob(jobId: string) {
+    try {
+      localStorage.setItem(backfillJobStorageKey(), jobId);
+    } catch {
+      // ignore
+    }
+  }
 
   if (!workspaceSlug) return <EmptyState>{INTEGRATION_MESSAGES.GENERAL.CREATE_WORKSPACE_REQUIRED}</EmptyState>;
   if (integrationsQuery.isLoading) return <EmptyState>{INTEGRATION_MESSAGES.GENERAL.LOADING}</EmptyState>;
@@ -677,7 +773,31 @@ export function GuidedIntegrationsSection({
           }}
         />
       ) : null}
-      {showGithubRepositories ? <GithubRepositoriesModal workspaceSlug={workspaceSlug} onClose={() => setShowGithubRepositories(false)} onSaved={onGithubRepositoriesSaved} /> : null}
+      {showGithubRepositories ? (
+        <GithubRepositoriesModal
+          workspaceSlug={workspaceSlug}
+          onClose={() => setShowGithubRepositories(false)}
+          onSaved={(repositories) => {
+            onGithubRepositoriesSaved?.(repositories);
+            if (repositories.length > 0) {
+              setPendingBackfillRepositories(repositories);
+            }
+          }}
+        />
+      ) : null}
+      {pendingBackfillRepositories?.length ? (
+        <GithubBackfillOptInModal
+          workspaceSlug={workspaceSlug}
+          repositories={pendingBackfillRepositories}
+          backfillLimit={backfillLimit}
+          onClose={() => setPendingBackfillRepositories(null)}
+          onDeclined={markBackfillDeclined}
+          onStarted={(jobId) => {
+            storeBackfillJob(jobId);
+            setPendingBackfillRepositories(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

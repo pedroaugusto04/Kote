@@ -137,6 +137,56 @@ export async function fetchGithubInstallationRepositories(input: {
     .filter((repo) => repo.fullName);
 }
 
+export type GithubRecentCommit = {
+  sha: string;
+  message: string;
+  timestamp: string;
+  url: string;
+  parentSha: string;
+};
+
+export async function fetchRecentCommits(input: {
+  repoFullName: string;
+  branch: string;
+  limit: number;
+  token: string;
+}): Promise<GithubRecentCommit[]> {
+  const { repoFullName, branch, limit, token } = input;
+  if (!repoFullName || !token || limit < 1) return [];
+  const params = new URLSearchParams({
+    sha: branch || 'main',
+    per_page: String(Math.min(limit, 100)),
+  });
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/commits?${params.toString()}`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (!response.ok) return [];
+  const data = (await response.json()) as Array<{
+    sha?: string;
+    html_url?: string;
+    commit?: { message?: string; author?: { date?: string } };
+    parents?: Array<{ sha?: string }>;
+  }>;
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((commit) => ({
+      sha: String(commit.sha || '').trim(),
+      message: trimText(String(commit.commit?.message || ''), 'no message'),
+      timestamp: String(commit.commit?.author?.date || new Date().toISOString()),
+      url: String(commit.html_url || '').trim(),
+      parentSha: String(commit.parents?.[0]?.sha || '').trim(),
+    }))
+    .filter((commit) => commit.sha && commit.parentSha && isValidCommitSha(commit.sha));
+}
+
+function isValidCommitSha(sha: string): boolean {
+  return !/^0+$/.test(String(sha || ''));
+}
+
 export async function postGithubPullRequestComment(
   repoFullName: string,
   prNumber: number,

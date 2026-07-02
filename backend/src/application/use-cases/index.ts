@@ -40,6 +40,7 @@ export { RefreshReminderStatusesUseCase } from './reminders/refresh-reminder-sta
 export { UpdateReminderStatusUseCase } from './reminders/update-reminder-status.use-case.js';
 export { BulkUpdateReminderStatusUseCase } from './reminders/bulk-update-reminder-status.use-case.js';
 export { HandleGithubPushUseCase } from './webhooks/github/handle-github-push.use-case.js';
+export { GithubBackfillUseCase } from './integrations/github-backfill.use-case.js';
 export { HandleGithubPullRequestUseCase } from './webhooks/github/handle-github-pull-request.use-case.js';
 export { HandleWhatsappWebhookUseCase } from './webhooks/whatsapp/handle-whatsapp-webhook.use-case.js';
 export { HandleTelegramWebhookUseCase } from './webhooks/telegram/handle-telegram-webhook.use-case.js';

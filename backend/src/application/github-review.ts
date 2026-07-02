@@ -29,6 +29,7 @@ export async function buildGithubReviewEvent(
     reviewAnalysisGateway: ReviewAnalysisGateway;
     logger: AppLogger;
   },
+  options?: { skipWebhookVerification?: boolean },
 ): Promise<ReturnType<typeof ingestPayloadSchema.parse>> {
   const input = rawInput as { headers?: Record<string, string>; body?: GithubPushPayload; rawBody?: string };
   const headers = input.headers || {};
@@ -45,7 +46,13 @@ export async function buildGithubReviewEvent(
     headCommit: body.after,
   });
 
-  verifyWebhookSignature(dependencies.githubIntegrationGateway, environment.githubWebhookSecret, input.rawBody, headers['x-hub-signature-256']);
+  verifyWebhookSignature(
+    dependencies.githubIntegrationGateway,
+    environment.githubWebhookSecret,
+    input.rawBody,
+    headers['x-hub-signature-256'],
+    options?.skipWebhookVerification === true,
+  );
   validatePushEvent(body);
 
   const githubToken = await fetchGithubToken(dependencies.githubIntegrationGateway, environment, body.installation?.id);
@@ -242,7 +249,9 @@ function verifyWebhookSignature(
   secret: string,
   rawBody: string | undefined,
   signature: string,
+  skip = false,
 ): void {
+  if (skip) return;
   gateway.verifyWebhookSignature(secret, String(rawBody || ''), String(signature || ''));
 }
 

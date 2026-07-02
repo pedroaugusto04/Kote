@@ -109,6 +109,25 @@ export const githubRepositoriesBodySchema = z
     };
   });
 
+export const githubBackfillBodySchema = z
+  .object({
+    workspaceSlug: requiredWorkspaceSlugSchema,
+    repositories: z.array(repoFullNameSchema).min(1).max(10),
+  })
+  .strict()
+  .transform((body) => ({
+    workspaceSlug: body.workspaceSlug,
+    repositories: [...new Set(body.repositories.map((repo) => repo.trim()).filter(Boolean))],
+  }));
+
+export const githubBackfillStatusQuerySchema = z.object({
+  workspaceSlug: requiredWorkspaceSlugSchema,
+  jobId: z.string().uuid('Invalid job ID.'),
+});
+
+export type GithubBackfillBody = z.infer<typeof githubBackfillBodySchema>;
+export type GithubBackfillStatusQuery = z.infer<typeof githubBackfillStatusQuerySchema>;
+
 export type ResolveIntegrationCredentialBody = z.infer<typeof resolveIntegrationCredentialBodySchema>;
 export type ProviderParam = z.infer<typeof providerParamSchema>;
 export type GuidedProviderParam = z.infer<typeof guidedProviderParamSchema>;

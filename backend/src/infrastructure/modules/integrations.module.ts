@@ -23,6 +23,7 @@ import {
   HandleGithubPullRequestUseCase,
   HandleWhatsappWebhookUseCase,
   HandleTelegramWebhookUseCase,
+  GithubBackfillUseCase,
   ListWebhookSubscriptionsUseCase,
   CreateWebhookSubscriptionUseCase,
   UpdateWebhookSubscriptionUseCase,
@@ -31,6 +32,7 @@ import {
 } from '../../application/use-cases/index.js';
 import { WebhookDeliveryService } from '../../application/services/webhook-delivery.service.js';
 import { WebhookDeliveryWorker } from '../../application/services/webhook-delivery.worker.js';
+import { ProcessGithubPushService } from '../../application/services/process-github-push.service.js';
 
 import {
   UserIntegrationsController,
@@ -66,10 +68,12 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
   providers: [
     IntegrationConnectionService,
     IntegrationCredentialService,
+    ProcessGithubPushService,
     HandleGithubPushUseCase,
     HandleGithubPullRequestUseCase,
     HandleWhatsappWebhookUseCase,
     HandleTelegramWebhookUseCase,
+    GithubBackfillUseCase,
     NotifyHighSeverityFindingsService,
     WebhookDeliveryService,
     WebhookDeliveryWorker,

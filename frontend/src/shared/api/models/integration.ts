@@ -4,6 +4,7 @@ export type IntegrationsResponse = {
   ok: true;
   workspaceSlug: string;
   integrations: UserIntegration[];
+  githubBackfillLimit: number;
 };
 
 export type UserIntegration = {
@@ -58,6 +59,33 @@ export type GithubRepositoriesResponse = {
   ok: true;
   workspaceSlug: string;
   repositories: GithubIntegrationRepository[];
+};
+
+export type GithubBackfillJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'quota_exceeded' | 'not_found';
+
+export type GithubBackfillStatusResponse = {
+  ok: boolean;
+  status?: 'not_found';
+  job?: {
+    id: string;
+    status: GithubBackfillJobStatus;
+    total: number;
+    processed: number;
+    imported: number;
+    skipped: number;
+    limit: number;
+    repositories: string[];
+    error: string | null;
+    startedAt: string;
+    updatedAt: string;
+    completedAt: string | null;
+  };
+};
+
+export type GithubBackfillStartResponse = {
+  ok: true;
+  jobId: string;
+  limit: number;
 };
 
 export type IntegrationTestResponse = {

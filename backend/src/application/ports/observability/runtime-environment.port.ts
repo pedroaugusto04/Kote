@@ -31,6 +31,7 @@ export type RuntimeEnvironment = {
   audioAiApiKey: string;
   githubAppId: string;
   githubAppPrivateKey: string;
+  githubBackfillLimit: number;
   publicBaseUrl: string;
   apiPublicBaseUrl: string;
   allowedOrigins: string[];

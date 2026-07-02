@@ -22,6 +22,8 @@ export const API_PATHS = {
   INTEGRATIONS_SESSIONS: '/api/integrations/{provider}/sessions/{sessionId}',
   INTEGRATIONS_TEST: '/api/integrations/{provider}/test',
   INTEGRATIONS_GITHUB_REPOSITORIES: '/api/integrations/github-app/repositories',
+  INTEGRATIONS_GITHUB_BACKFILL: '/api/integrations/github-app/backfill',
+  INTEGRATIONS_GITHUB_BACKFILL_STATUS: '/api/integrations/github-app/backfill/status',
 
   // Dashboard paths
   DASHBOARD: '/api/dashboard',

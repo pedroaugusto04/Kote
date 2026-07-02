@@ -104,6 +104,17 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
     || (latestBriefQuery.data?.brief ? latestBriefQuery.data : undefined)
     || undefined;
 
+  const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
+  const totalAskQueries = dashboard.home.metrics.find((m) => m.id === 'total-ask-queries')?.value ?? 0;
+  const firstGithubProject = dashboard.projects.find((project) => project.repositories.length > 0);
+  const onboardingPrompts = totalNotes >= 3 && totalAskQueries === 0 && firstGithubProject
+    ? [
+      `What changed in my recent commits for ${firstGithubProject.displayName}?`,
+      `Summarize the main risks captured for ${firstGithubProject.displayName}.`,
+      'What technical decisions are documented in my workspace?',
+    ]
+    : undefined;
+
   const handleAsk = async (overrideQuestion?: string) => {
     const question = (overrideQuestion ?? questionInput).trim();
     if (isAsking) return;
@@ -236,7 +247,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
             ) : null}
 
             {!isAsking && !askAnswer ? (
-              <AskWaitingState onPromptClick={handlePromptClick} />
+              <AskWaitingState prompts={onboardingPrompts} onPromptClick={handlePromptClick} />
             ) : null}
 
             {askError ? <InlineMessage className="ask-error-message" tone="error">{askError}</InlineMessage> : null}
@@ -407,7 +418,8 @@ function AskHistoryInline({
   );
 }
 
-function AskWaitingState({ onPromptClick }: { onPromptClick: (text: string) => void }) {
+function AskWaitingState({ prompts, onPromptClick }: { prompts?: string[]; onPromptClick: (text: string) => void }) {
+  const suggestedPrompts = prompts?.length ? prompts : SEARCH_MESSAGES.SUGGESTED_PROMPTS;
   return (
     <div className="ask-waiting-card">
       <div className="ask-waiting-visual">
@@ -427,7 +439,7 @@ function AskWaitingState({ onPromptClick }: { onPromptClick: (text: string) => v
       <div className="ask-suggested-prompts">
         <span className="suggested-title">{SEARCH_MESSAGES.WAITING_STATE.SUGGESTED_TITLE}</span>
         <div className="suggested-grid">
-          {SEARCH_MESSAGES.SUGGESTED_PROMPTS.map((prompt, i) => (
+          {suggestedPrompts.map((prompt, i) => (
             <button
               key={i}
               className="suggested-chip"

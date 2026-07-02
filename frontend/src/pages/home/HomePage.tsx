@@ -8,7 +8,7 @@ import { OnboardingChecklist } from '../../features/onboarding/OnboardingCheckli
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchAllProjectsTimeline, fetchProjectTimeline } from '../../shared/api/client';
+import { fetchAllProjectsTimeline, fetchGithubBackfillStatus, fetchProjectTimeline } from '../../shared/api/client';
 import { Select } from '../../shared/ui/select';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
@@ -17,6 +17,29 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
   const workspaceSlug = activeWorkspace?.workspaceSlug || '';
+  const backfillJobId = (() => {
+    if (!workspaceSlug) return null;
+    try {
+      return localStorage.getItem(`kb-github-backfill-job-${workspaceSlug}`);
+    } catch {
+      return null;
+    }
+  })();
+
+  const backfillStatusQuery = useQuery({
+    queryKey: ['home-github-backfill-status', workspaceSlug, backfillJobId],
+    queryFn: () => fetchGithubBackfillStatus(workspaceSlug, backfillJobId || ''),
+    enabled: Boolean(workspaceSlug && backfillJobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.job?.status;
+      if (!status || status === 'completed' || status === 'failed' || status === 'quota_exceeded') {
+        return false;
+      }
+      return 2500;
+    },
+  });
+  const backfillRunning = backfillStatusQuery.data?.job?.status === 'queued'
+    || backfillStatusQuery.data?.job?.status === 'running';
   const activityByDay = home.activityByDay.map((point) => ({ ...point, label: formatUsDate(point.date) }));
   const TIMELINE_SIZE = 5;
 
@@ -169,7 +192,11 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             ) : timelineQuery.isError ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--red)' }}>Failed to load timeline.</div>
             ) : timelineItems.length === 0 ? (
-              <EmptyState>No timeline events found for this project.</EmptyState>
+              <EmptyState>
+                {backfillRunning
+                  ? `Importing your recent GitHub commits… ${backfillStatusQuery.data?.job?.processed ?? 0}/${backfillStatusQuery.data?.job?.total ?? 0} processed.`
+                  : 'No timeline events found for this project.'}
+              </EmptyState>
             ) : (
               <div className="home-timeline">
                 {timelineItems.map((item) => {

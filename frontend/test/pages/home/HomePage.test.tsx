@@ -108,6 +108,7 @@ const dashboard: Dashboard = {
 };
 
 beforeEach(() => {
+  localStorage.clear();
   vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
     calendar: 'gregory',
     locale: 'en-US',
@@ -144,11 +145,15 @@ beforeEach(() => {
         pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       });
     }
+    if (url.includes('/api/integrations/github-app/backfill/status')) {
+      return Response.json({ ok: false, status: 'not_found' });
+    }
     if (url.includes('/api/integrations')) {
       return Response.json({
         ok: true,
         workspaceSlug: 'default',
         integrations: [],
+        githubBackfillLimit: 5,
       });
     }
     if (url.includes('/api/notes')) {
@@ -292,6 +297,7 @@ describe('HomePage', () => {
             { provider: 'github-app', name: 'GitHub App', description: 'GitHub', status: 'missing', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
             { provider: 'whatsapp', name: 'WhatsApp', description: 'WhatsApp', status: 'missing', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
           ],
+          githubBackfillLimit: 5,
         });
       }
       if (url.includes('/api/notes')) {

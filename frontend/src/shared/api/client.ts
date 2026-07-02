@@ -8,6 +8,8 @@ export {
   fetchIntegrationSession,
   revokeIntegration,
   saveGithubRepositories,
+  startGithubBackfill,
+  fetchGithubBackfillStatus,
   testIntegration,
 } from './integrations';
 export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, fetchRelatedNotes, bulkUpdateNoteStatuses } from './notes';

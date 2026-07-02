@@ -239,6 +239,7 @@ export class IntegrationCredentialService {
       ok: true as const,
       workspaceSlug,
       integrations,
+      githubBackfillLimit: this.environmentProvider.read().githubBackfillLimit,
     };
   }
 

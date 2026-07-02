@@ -38,3 +38,10 @@ test('readEnvironment lets Project Brief AI inherit Conversation AI settings', (
   assert.equal(environment.projectBriefAiModel, 'conversation-model');
   assert.equal(environment.projectBriefAiApiKey, 'conversation-key');
 });
+
+test('readEnvironment parses GitHub backfill limit with default and bounds', () => {
+  assert.equal(readEnvironment({}).githubBackfillLimit, 5);
+  assert.equal(readEnvironment({ KB_GITHUB_BACKFILL_LIMIT: '8' }).githubBackfillLimit, 8);
+  assert.equal(readEnvironment({ KB_GITHUB_BACKFILL_LIMIT: '0' }).githubBackfillLimit, 5);
+  assert.equal(readEnvironment({ KB_GITHUB_BACKFILL_LIMIT: '100' }).githubBackfillLimit, 50);
+});

@@ -1,23 +1,14 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
-import { buildTelegramCodeReviewMessage, buildWhatsappHighSeverityCodeReviewMessage } from '../../../../domain/notifications.js';
-import { buildGithubReviewEvent } from '../../../github-review.js';
+import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { buildTelegramCodeReviewMessage } from '../../../../domain/notifications.js';
 import type { GithubPushWebhookRequest } from '../../../models/webhook-request.models.js';
-import { ContentRepository } from '../../../ports/notes/content.repository.js';
-import { NotifyHighSeverityFindingsService } from '../../notifications/notify-high-severity-findings.use-case.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
-import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
-import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.sender.js';
-import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.port.js';
+import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
-import { absoluteUrl } from '../../../utils/integration-status.utils.js';
-import { resolveContentScopeFromSlugs } from '../../../utils/content-scope.utils.js';
+import { ProcessGithubPushService } from '../../../services/process-github-push.service.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
-import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
-import { QuotaService } from '../../../services/quota.service.js';
-import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPushPayload = {
@@ -55,17 +46,11 @@ export class HandleGithubPushUseCase {
   private readonly logger: AppLogger;
 
   constructor(
-    private readonly ingestEntryUseCase: IngestEntryUseCase,
+    private readonly processGithubPushService: ProcessGithubPushService,
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
-    private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
-    private readonly quotaService: QuotaService,
-    private readonly contentRepository?: ContentRepository,
-    private readonly credentials?: CredentialRepository,
-    private readonly whatsappReplySender?: WhatsappReplySender,
-    private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
   ) {
     this.logger = AppLogger.create();
   }
@@ -107,7 +92,11 @@ export class HandleGithubPushUseCase {
     });
     try {
       const repoFullName = String(body.repository?.full_name || '').trim();
-      const projectSlug = await this.findSelectedProjectSlug(repoFullName, identity.userId, identity.workspaceSlug || '');
+      const projectSlug = await this.processGithubPushService.findProjectSlugForRepo(
+        identity.userId,
+        identity.workspaceSlug || '',
+        repoFullName,
+      );
       if (!projectSlug) {
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
@@ -160,75 +149,37 @@ export class HandleGithubPushUseCase {
     externalIdentity: { provider: ExternalIdentityProvider; identityType: string; externalId: string },
     projectSlug: string,
   ) {
-    const environment = this.environmentProvider.read();
     const body = (input.body || {}) as GithubPushPayload;
     const repoFullName = String(body.repository?.full_name || '').trim();
 
     try {
-      // Check AI credit quota — if exceeded, degrade gracefully (ingest without AI analysis).
-      const quotaOk = await this.quotaService.checkAndIncrementAiUsage(
-        identity.userId,
-        AiOperationType.GITHUB_CODE_REVIEW,
-        { repoFullName, source: 'github_push_webhook' },
-      ).then((r) => r.allowed);
-
-      const aiCredential = this.credentials && quotaOk
-        ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.AiReview)
-        : null;
-      const aiEnabled = Boolean(aiCredential && aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
-
-      this.logger.info('github_push_review_start', {
-        repository: repoFullName,
-        projectSlug,
-        aiEnabled,
-        quotaOk,
+      const result = await this.processGithubPushService.execute({
+        body,
+        headers,
         userId: identity.userId,
-      });
-
-      const payload = await buildGithubReviewEvent(
-        input,
-        aiEnabled ? environment : { ...environment, reviewAiProvider: AiProvider.None, reviewAiApiKey: '' },
-        {
-          githubIntegrationGateway: this.githubIntegrationGateway,
-          reviewAnalysisGateway: this.reviewAnalysisGateway,
-          logger: this.logger,
-        },
-      );
-      const resolvedPayload = this.resolvePayloadProject(payload, projectSlug);
-
-      this.logger.info('github_push_review_ingest_start', {
-        repository: repoFullName,
+        workspaceSlug: identity.workspaceSlug || '',
         projectSlug,
-        findingsCount: resolvedPayload.content.sections.reviewFindings.length,
+        quotaSource: 'github_push_webhook',
       });
 
-      const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug || '');
-
-      this.logger.info('github_push_review_ingested', {
-        repository: repoFullName,
-        projectSlug,
-        noteId: ingestResult.noteId,
-        findingsCount: resolvedPayload.content.sections.reviewFindings.length,
-      });
-
-      const whatsappNotification = await this.notifyWhatsappOnHighSeverityFindings(
-        resolvedPayload,
-        identity.userId,
-        identity.workspaceSlug || '',
-        ingestResult.noteId,
-        environment.publicBaseUrl,
-      );
-      if (this.notifyHighSeverity) {
-        const hasHighSeverityFinding = resolvedPayload.content.sections.reviewFindings.some((finding) =>
-          ['high', 'critical'].includes(finding.severity)
-        );
-        if (hasHighSeverityFinding) {
-          const noteLink = ingestResult.noteId && environment.publicBaseUrl
-            ? absoluteUrl(environment.publicBaseUrl, `/vault/${encodeURIComponent(ingestResult.noteId)}`)
-            : '';
-          void this.notifyHighSeverity.sendEmailForHighFindings(resolvedPayload, identity.userId, noteLink);
-        }
+      if (!result.ok) {
+        await this.webhookEvents.recordWebhookEvent({
+          provider: IntegrationProvider.GithubApp,
+          eventType: String(headers['x-github-event'] || 'push'),
+          status: WebhookEventStatus.Ignored,
+          resolvedUserId: identity.userId,
+          externalIdentity,
+          rawHeaders: headers,
+          rawPayload,
+          error: result.skipped,
+        });
+        return {
+          ok: true,
+          processed: false,
+          ignored: result.skipped,
+        };
       }
+
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
         eventType: String(headers['x-github-event'] || 'push'),
@@ -240,10 +191,9 @@ export class HandleGithubPushUseCase {
       });
       return {
         ok: true,
-        payload: resolvedPayload,
-        ingestResult,
-        whatsappNotification,
-        telegramMessage: buildTelegramCodeReviewMessage(resolvedPayload),
+        payload: result.payload,
+        ingestResult: { noteId: result.noteId },
+        telegramMessage: buildTelegramCodeReviewMessage(result.payload),
       };
     } catch (error) {
       this.logger.error('github_push_review_failed', {
@@ -262,64 +212,6 @@ export class HandleGithubPushUseCase {
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
-    }
-  }
-
-  private async findSelectedProjectSlug(repoFullName: string, userId: string, workspaceSlug: string): Promise<string | null> {
-    const normalizedRepoFullName = repoFullName.trim().toLowerCase();
-    if (!normalizedRepoFullName) return null;
-    if (!this.contentRepository) return 'inbox';
-    const projects = await this.contentRepository.listProjects(userId);
-    const project = projects.find(
-      (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.repositories.some(r => r.fullName.trim().toLowerCase() === normalizedRepoFullName),
-    );
-    return project?.projectSlug || null;
-  }
-
-  private resolvePayloadProject<T extends Awaited<ReturnType<typeof buildGithubReviewEvent>>>(payload: T, projectSlug: string): T {
-    return {
-      ...payload,
-      event: {
-        ...payload.event,
-        projectSlug,
-      },
-      classification: {
-        ...payload.classification,
-        tags: [...new Set(['code-review', ...payload.classification.tags.filter((tag) => tag !== payload.event.projectSlug)])],
-      },
-    };
-  }
-
-  private async notifyWhatsappOnHighSeverityFindings(
-    payload: Awaited<ReturnType<typeof buildGithubReviewEvent>>,
-    userId: string,
-    workspaceSlug: string,
-    noteId: string,
-    noteBaseUrl: string,
-  ): Promise<{ sent: boolean; skipped?: string; error?: string }> {
-    const hasHighSeverityFinding = payload.content.sections.reviewFindings.some((finding) => ['high', 'critical'].includes(finding.severity));
-    if (!hasHighSeverityFinding) return { sent: false, skipped: 'no_high_severity_findings' };
-    if (!this.credentials || !this.contentRepository || !this.whatsappReplySender) return { sent: false, skipped: 'whatsapp_not_configured' };
-
-    const credential = await this.credentials.findCredential(userId, workspaceSlug, IntegrationProvider.Whatsapp);
-    const connected = Boolean(credential && credential.status === CredentialRecordStatus.Connected && !credential.revokedAt);
-    if (!connected) return { sent: false, skipped: 'whatsapp_not_connected' };
-
-    const { workspace } = await resolveContentScopeFromSlugs(this.contentRepository, userId, { workspaceSlug });
-    const chatJid = String(workspace?.whatsappChatJid || '').trim();
-    if (!chatJid) return { sent: false, skipped: 'whatsapp_chat_not_bound' };
-    const noteLink = noteId && noteBaseUrl ? absoluteUrl(noteBaseUrl, `/vault/${encodeURIComponent(noteId)}`) : '';
-
-    try {
-      const result = await this.whatsappReplySender.sendText({
-        chatJid,
-        text: buildWhatsappHighSeverityCodeReviewMessage(payload, noteLink),
-      });
-      return result.ok
-        ? { sent: true }
-        : { sent: false, error: result.error || 'whatsapp_send_failed' };
-    } catch (error) {
-      return { sent: false, error: error instanceof Error ? error.message : String(error) };
     }
   }
 }

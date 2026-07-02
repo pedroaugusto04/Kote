@@ -197,6 +197,7 @@ For configuration details, see [ide/vscode/README.md](ide/vscode/README.md).
 Processes repository activity passively to record code changes and retrieve context.
 
 * **Diff Analysis:** Summarizes changes on every push.
+* **Onboarding Backfill:** After linking a repository, users can opt in to import recent commits as review notes. Configure the offer size with `KB_GITHUB_BACKFILL_LIMIT` (default: `5`). Each imported commit consumes AI credits like a normal push review.
 * **Alert System:** Notifies the team via WhatsApp or Telegram if potential configuration or environmental issues are detected in a diff.
 * **PR Context AI:** Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.
 

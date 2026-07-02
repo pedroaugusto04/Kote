@@ -99,6 +99,7 @@ function mockFetch() {
       return Response.json({
         ok: true,
         workspaceSlug: 'default',
+        githubBackfillLimit: 5,
         integrations: [
           {
             provider: 'github-app',
