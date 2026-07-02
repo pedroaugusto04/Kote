@@ -58,7 +58,7 @@ export const INTEGRATION_MESSAGES = {
 
   GITHUB_BACKFILL: {
     TITLE: 'Import recent commit history?',
-    DESCRIPTION: 'We can analyze your last {limit} commits and create AI code review notes. Each commit consumes AI credits like a normal GitHub push.',
+    DESCRIPTION: 'We can analyze your last {limit} commits and create AI code review notes.',
     IMPORT: 'Import {limit} commits',
     SKIP: 'Not now',
     STARTED: 'Import started. Reviews will appear on your timeline shortly.',
