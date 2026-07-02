@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import {
   fetchComparePayload,
+  fetchCommitDiff,
   fetchGithubInstallationRepositories,
   fetchGithubInstallationToken,
   fetchRecentCommits,
@@ -12,7 +13,8 @@ import {
 import {
   GithubIntegrationGateway,
   type GithubComparePayload,
-  type GithubInstallationRepository, 
+  type GithubCommitDiff,
+  type GithubInstallationRepository,
 } from '../../application/ports/integrations/github-integration.port.js';
 
 @Injectable()
@@ -27,6 +29,10 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
 
   fetchComparePayload(repoFullName: string, before: string, after: string, token: string): Promise<GithubComparePayload> {
     return fetchComparePayload(repoFullName, before, after, token);
+  }
+
+  fetchCommitDiff(repoFullName: string, sha: string, token: string): Promise<GithubCommitDiff> {
+    return fetchCommitDiff(repoFullName, sha, token);
   }
 
   fetchRecentCommits(input: {

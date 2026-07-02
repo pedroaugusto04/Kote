@@ -3,6 +3,10 @@ export type GithubComparePayload = {
   commits: Array<{ sha: string; message: string }>;
 };
 
+export type GithubCommitDiff = {
+  files: Array<{ filename: string; status: string; patch: string }>;
+};
+
 export type GithubRecentCommit = {
   sha: string;
   message: string;
@@ -26,6 +30,7 @@ export abstract class GithubIntegrationGateway {
   abstract verifyWebhookSignature(secret: string, rawBody: string, signature: string): void;
   abstract fetchInstallationToken(input: { appId: string; privateKey: string; installationId: string }): Promise<string>;
   abstract fetchComparePayload(repoFullName: string, before: string, after: string, token: string): Promise<GithubComparePayload>;
+  abstract fetchCommitDiff(repoFullName: string, sha: string, token: string): Promise<GithubCommitDiff>;
   abstract fetchRecentCommits(input: {
     repoFullName: string;
     branch: string;

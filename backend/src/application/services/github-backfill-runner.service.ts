@@ -131,6 +131,26 @@ export class GithubBackfillRunnerService {
             continue;
           }
 
+          const commitDiff = await this.githubIntegrationGateway.fetchCommitDiff(
+            repository.fullName,
+            commit.sha,
+            token,
+          );
+
+          const added: string[] = [];
+          const modified: string[] = [];
+          const removed: string[] = [];
+
+          for (const file of commitDiff.files) {
+            if (file.status === 'added') {
+              added.push(file.filename);
+            } else if (file.status === 'modified') {
+              modified.push(file.filename);
+            } else if (file.status === 'removed') {
+              removed.push(file.filename);
+            }
+          }
+
           const result = await this.processGithubPushService.execute({
             body: {
               ref: `refs/heads/${branch}`,
@@ -152,9 +172,9 @@ export class GithubBackfillRunnerService {
               commits: [{
                 id: commit.sha,
                 message: commit.message,
-                added: [],
-                modified: [],
-                removed: [],
+                added,
+                modified,
+                removed,
               }],
               pusher: { name: 'github-backfill' },
               sender: { login: 'github-backfill' },

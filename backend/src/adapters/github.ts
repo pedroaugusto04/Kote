@@ -85,6 +85,36 @@ export async function fetchComparePayload(repoFullName: string, before: string, 
   };
 }
 
+export async function fetchCommitDiff(repoFullName: string, sha: string, token: string): Promise<{
+  files: Array<{ filename: string; status: string; patch: string }>;
+}> {
+  if (!repoFullName || !sha || !token) {
+    return { files: [] };
+  }
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/commits/${sha}`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (!response.ok) {
+    return { files: [] };
+  }
+  const data = (await response.json()) as {
+    files?: Array<{ filename?: string; status?: string; patch?: string }>;
+  };
+  return {
+    files: Array.isArray(data.files)
+      ? data.files.map((file) => ({
+          filename: String(file.filename || ''),
+          status: String(file.status || ''),
+          patch: String(file.patch || ''),
+        }))
+      : [],
+  };
+}
+
 export type GithubInstallationRepository = {
   id: number;
   fullName: string;

@@ -47,6 +47,7 @@ export abstract class ContentRepository {
   abstract listProjectTimeline(userId: string, input: ListProjectTimelineInput): Promise<PaginatedProjectTimeline>;
   abstract listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput): Promise<NoteRecord[]>;
   abstract getNoteById(userId: string, id: string): Promise<NoteRecord | null>;
+  abstract getNoteByPath(userId: string, path: string): Promise<NoteRecord | null>;
   abstract getNotesByIds(userId: string, ids: string[]): Promise<NoteRecord[]>;
   abstract getNoteBySourceAndSessionId(userId: string, source: string, sessionId: string): Promise<NoteRecord | null>;
   abstract upsertNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;

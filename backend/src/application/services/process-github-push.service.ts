@@ -168,7 +168,7 @@ export class ProcessGithubPushService {
 
   async noteExistsForPush(userId: string, repoFullName: string, afterSha: string): Promise<boolean> {
     const correlationId = formatCorrelationId('push', repoFullName, afterSha);
-    const existing = await this.contentRepository.getNoteById(userId, correlationId);
+    const existing = await this.contentRepository.getNoteByPath(userId, correlationId);
     return Boolean(existing);
   }
 

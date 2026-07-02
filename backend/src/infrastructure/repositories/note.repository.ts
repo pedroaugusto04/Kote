@@ -373,6 +373,59 @@ export class PostgresNoteRepository {
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
+  async getByPath(userId: string, path: string) {
+    const db = this.database.getDb();
+    const result = await db
+      .select({
+        id: notes.id,
+        userId: notes.userId,
+        path: notes.path,
+        title: notes.title,
+        projectId: notes.projectId,
+        workspaceId: notes.workspaceId,
+        projectSlug: projects.projectSlug,
+        folderId: notes.folderId,
+        status: notes.status,
+        tags: notes.tags,
+        occurredAt: notes.occurredAt,
+        sourceChannel: notes.sourceChannel,
+        source: notes.source,
+        summary: notes.summary,
+        markdownStorageKey: notes.markdownStorageKey,
+        metadata: notes.metadata,
+        sessionId: notes.sessionId,
+        reminderAt: notes.reminderAt,
+        isPinned: notes.isPinned,
+        createdAt: notes.createdAt,
+        updatedAt: notes.updatedAt,
+        categories: sql<any[]>`COALESCE(
+          json_agg(
+            json_build_object(
+              'id', ${categories.id},
+              'user_id', ${categories.userId},
+              'workspace_id', ${categories.workspaceId},
+              'name', ${categories.name},
+              'color', ${categories.color},
+              'icon', ${categories.icon},
+              'is_system', ${categories.isSystem},
+              'created_at', ${categories.createdAt},
+              'updated_at', ${categories.updatedAt}
+            )
+          ) FILTER (WHERE ${categories.id} IS NOT NULL),
+          '[]'::json
+        )`.as('categories'),
+      })
+      .from(notes)
+      .leftJoin(projects, eq(projects.id, notes.projectId))
+      .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
+      .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
+      .where(and(eq(notes.userId, userId), eq(notes.path, path)))
+      .groupBy(notes.id, projects.projectSlug)
+      .limit(1);
+
+    return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
+  }
+
   async getByIds(userId: string, ids: string[]) {
     if (ids.length === 0) return [];
     const db = this.database.getDb();
