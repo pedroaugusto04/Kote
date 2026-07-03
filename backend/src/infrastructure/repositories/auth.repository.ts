@@ -100,6 +100,14 @@ export class PostgresUserRepository extends UserRepository {
     return result[0] ? userFromRow(result[0]) : null;
   }
 
+  async markVscodeInstalled(userId: string): Promise<void> {
+    const db = this.database.getDb();
+    await db
+      .update(users)
+      .set({ vsCodeInstalledAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
   async findAuthIdentity(provider: string, providerUserId: string) {
     const db = this.database.getDb();
     const result = await db

@@ -250,6 +250,12 @@ export class KbClient {
   // API methods
   // -------------------------------------------------------------------------
 
+  /** Notifies the backend that this user has the VS Code extension installed.
+   * Called once after successful login. Idempotent. */
+  async reportVscodeInstalled(): Promise<void> {
+    await this.fetch<{ ok: boolean }>('/api/auth/vscode-installed', { method: 'POST' });
+  }
+
   async listProjects(): Promise<KbProject[]> {
     const allProjects: KbProject[] = [];
     let page = 1;

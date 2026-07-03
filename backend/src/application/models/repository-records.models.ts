@@ -10,6 +10,7 @@ export type KbUser = {
   role: string;
   avatar: string;
   cpfCnpj: string;
+  vsCodeInstalledAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

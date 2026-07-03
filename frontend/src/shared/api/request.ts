@@ -192,4 +192,5 @@ export type AuthUser = {
   displayName: string;
   role: string;
   avatarUrl: string | null;
+  vsCodeInstalledAt: string | null;
 };

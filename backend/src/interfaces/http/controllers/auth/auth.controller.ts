@@ -98,6 +98,17 @@ export class AuthController {
     return { ok: true, user };
   }
 
+  @Post('vscode-installed')
+  @UseGuards(AccessTokenAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Report VS Code extension installed (called by the extension after login)' })
+  @ApiResponse({ status: 200, description: 'Recorded successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async vsCodeInstalled(@CurrentUser() user: AuthenticatedUser) {
+    await this.auth.markVscodeInstalled(user.id);
+    return { ok: true };
+  }
+
   @Get('connection-token')
   @UseGuards(AccessTokenAuthGuard)
   @ApiBearerAuth()

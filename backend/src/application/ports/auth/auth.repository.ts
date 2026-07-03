@@ -11,6 +11,7 @@ export abstract class UserRepository {
   abstract updateUser(input: { userId: string; displayName?: string; cpfCnpj?: string }): Promise<KbUser | null>;
   abstract updateUserAvatar(input: { userId: string; storageKey: string; mimeType: string; sizeBytes: number }): Promise<KbUser | null>;
   abstract clearUserAvatar(userId: string): Promise<KbUser | null>;
+  abstract markVscodeInstalled(userId: string): Promise<void>;
   abstract findAuthIdentity(provider: string, providerUserId: string): Promise<AuthIdentityRecord | null>;
   abstract findUserAuthIdentity(userId: string, provider: string): Promise<AuthIdentityRecord | null>;
   abstract createAuthIdentity(input: {

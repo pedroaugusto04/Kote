@@ -61,3 +61,7 @@ export function buildGoogleAuthStartUrl(returnTo: string) {
 export async function fetchConnectionToken() {
   return request<{ ok: true; connectionToken: string }>(API_PATHS.AUTH_CONNECTION_TOKEN);
 }
+
+export async function reportVscodeInstalled() {
+  return request<{ ok: true }>(API_PATHS.AUTH_VSCODE_INSTALLED, { method: 'POST' });
+}

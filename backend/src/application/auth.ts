@@ -19,6 +19,7 @@ export type AuthenticatedUser = {
   displayName: string;
   role: string;
   avatarUrl: string | null;
+  vsCodeInstalledAt: string | null;
 };
 
 export type { AvatarContent, TokenPair };
@@ -46,6 +47,7 @@ function toAuthenticatedUser(user: KbUser): AuthenticatedUser {
     displayName: user.displayName,
     role: user.role,
     avatarUrl: user.avatar ? `/api/auth/avatar/content` : null,
+    vsCodeInstalledAt: user.vsCodeInstalledAt ?? null,
   };
 }
 
@@ -271,5 +273,9 @@ export class AuthService implements OnModuleInit {
       metadata: { pictureUrl: profile.pictureUrl },
     });
     return user;
+  }
+
+  async markVscodeInstalled(userId: string): Promise<void> {
+    await this.users.markVscodeInstalled(userId);
   }
 }

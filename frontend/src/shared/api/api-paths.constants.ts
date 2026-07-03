@@ -8,6 +8,7 @@ export const API_PATHS = {
   AUTH_GOOGLE_START: '/api/auth/google/start',
   AUTH_REFRESH: '/api/auth/refresh',
   AUTH_CONNECTION_TOKEN: '/api/auth/connection-token',
+  AUTH_VSCODE_INSTALLED: '/api/auth/vscode-installed',
 
   // Projects paths
   PROJECTS: '/api/projects',

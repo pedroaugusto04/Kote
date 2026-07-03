@@ -94,6 +94,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           activeProject = await detectActiveProject(kbClient, folders);
         } catch {}
         statusBarProvider.setProject(activeProject ?? kbClient.defaultProjectSlug);
+        // Fire-and-forget: notify the backend that the VS Code extension is installed
+        kbClient.reportVscodeInstalled().catch(() => { /* silent — best effort */ });
       } else {
         statusBarProvider.setNotConfigured();
       }

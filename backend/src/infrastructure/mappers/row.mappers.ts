@@ -63,6 +63,9 @@ export function userFromRow(row: Row): KbUser {
     role: String(row.role),
     avatar: fieldString(row, 'avatar', 'avatar'),
     cpfCnpj: fieldString(row, 'cpf_cnpj', 'cpfCnpj', ''),
+    vsCodeInstalledAt: field(row, 'vscode_installed_at', 'vsCodeInstalledAt')
+      ? toIsoTimestamp(field(row, 'vscode_installed_at', 'vsCodeInstalledAt'))
+      : null,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };

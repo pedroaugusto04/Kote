@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { fetchGithubBackfillStatus, fetchIntegrations, fetchGithubRepositories } from '../../shared/api/client';
+import { fetchGithubBackfillStatus, fetchIntegrations, fetchGithubRepositories, fetchCurrentUser } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
 import { routes } from '../../app/routing/routes';
@@ -10,6 +10,7 @@ import { withFrontendBasePath } from '../../app/base-path';
 import { useGlobalLoading } from '../../app/global-loading';
 import { Panel } from '../../shared/ui/primitives';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
 import { CDNImage } from '../../shared/ui/CDNImage';
 import { GithubBackfillOptInModal } from '../integrations/GithubBackfillOptInModal';
 import {
@@ -265,13 +266,13 @@ export function OnboardingChecklist({
   const [storage, setStorage] = useState(loadStorage);
   const [showOptional, setShowOptional] = useState(false);
   const [showBackfillModal, setShowBackfillModal] = useState(false);
-  const [vscodeConfirmed, setVscodeConfirmed] = useState(() => {
-    try {
-      return localStorage.getItem('kb-vscode-installed') === 'true';
-    } catch {
-      return false;
-    }
+
+  const currentUserQuery = useQuery({
+    queryKey: QUERY_KEYS.AUTH.ME,
+    queryFn: fetchCurrentUser,
+    staleTime: 30_000,
   });
+  const currentUser = currentUserQuery.data?.user;
 
   const globalLoading = useGlobalLoading();
 
@@ -325,15 +326,6 @@ export function OnboardingChecklist({
     window.open('https://marketplace.visualstudio.com/items?itemName=Kote.kote-vscode', '_blank', 'noopener,noreferrer');
   };
 
-  const handleVscodeConfirm = () => {
-    try {
-      localStorage.setItem('kb-vscode-installed', 'true');
-    } catch {
-      // ignore
-    }
-    setVscodeConfirmed(true);
-  };
-
   const handleBackfillStarted = (jobId: string) => {
     storeBackfillJob(workspaceSlug, jobId);
     setShowBackfillModal(false);
@@ -353,7 +345,7 @@ export function OnboardingChecklist({
   );
 
   const totalSyncedChats = dashboard.home.metrics.find((m) => m.id === 'total-synced-chats')?.value ?? 0;
-  const vscodeInstalled = vscodeConfirmed || totalSyncedChats > 0;
+  const vscodeInstalled = Boolean(currentUser?.vsCodeInstalledAt) || totalSyncedChats > 0;
 
   const completed = useMemo(
     () => getCompletedItems(integrations, dashboard, vscodeInstalled, backfillComplete),
@@ -511,18 +503,6 @@ export function OnboardingChecklist({
                 <div className="onboarding-item-copy">
                   <strong>{item.label}</strong>
                   <span>{item.description}</span>
-                  {item.id === 'vscode-extension' && !done && (
-                    <button
-                      className="onboarding-reminder-test-btn"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleVscodeConfirm();
-                      }}
-                    >
-                      Confirm installation
-                    </button>
-                  )}
                 </div>
                 {item.priority && !done ? (
                   <span className="onboarding-item-badge">Priority</span>

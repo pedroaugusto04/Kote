@@ -21,6 +21,7 @@ export const users = pgTable('kb_users', {
   role: text('role').notNull().default('user'),
   avatar: text('avatar').default(''),
   cpfCnpj: text('cpf_cnpj').default(''),
+  vsCodeInstalledAt: timestamp('vscode_installed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
