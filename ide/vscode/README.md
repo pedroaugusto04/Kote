@@ -150,10 +150,10 @@ The extension can automatically sync sessions from:
 
 ## Links
 
-- [Main Project Documentation](../../README.md)
-- [CLI Documentation](../../cli/README.md)
+- [Main Project Documentation](../../blob/main/README.md)
+- [CLI Documentation](../../blob/main/cli/README.md)
 - [Kote Repository](https://github.com/pedroaugusto04/kote)
 
 ## License
 
-See [LICENSE](../../LICENSE) for terms of use.
+See [LICENSE](../../blob/main/LICENSE) for terms of use.
