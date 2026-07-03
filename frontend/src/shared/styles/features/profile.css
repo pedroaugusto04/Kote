@@ -64,9 +64,9 @@
 
 .profile-detail-row {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-columns: 180px minmax(0, 1fr);
   gap: 18px;
-  padding: 12px 0;
+  padding: 16px 0;
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -102,8 +102,8 @@
 
 /* CLI / VS Code connection card */
 .profile-connection-section {
-  margin-top: 24px;
-  padding-top: 24px;
+  margin-top: 12px;
+  padding-top: 32px;
   border-top: 1px solid var(--line-soft);
 }
 
