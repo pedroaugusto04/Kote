@@ -247,6 +247,7 @@ export type UserSubscriptionRecord = {
   currentPeriodEnd: string;
   gatewayName: string;
   gatewaySubscriptionId: string | null;
+  billingCycle: string;
   createdAt: string;
   updatedAt: string;
 };

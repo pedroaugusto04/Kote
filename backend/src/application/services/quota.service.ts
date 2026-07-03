@@ -4,7 +4,8 @@ import { UserRepository } from '../ports/auth/auth.repository.js';
 import { ContentRepository } from '../ports/notes/content.repository.js';
 import { QuotaResourceType, AiOperationType, SubscriptionPlan } from '../../domain/enums/plans.enums.js';
 import { AI_CREDIT_COSTS } from '../../domain/constants/ai-credits.constants.js';
-import type { PlanRecord } from '../models/repository-records.models.js';
+import type { PlanRecord, UserSubscriptionWithPlan } from '../models/repository-records.models.js';
+import { getQuotaPeriod } from '../../domain/utils/subscription.utils.js';
 
 export interface QuotaStatus {
   plan: string;
@@ -46,8 +47,9 @@ export class QuotaService {
 
     if (activeSub) {
       plan = activeSub.plan;
-      periodStart = new Date(activeSub.currentPeriodStart);
-      periodEnd = new Date(activeSub.currentPeriodEnd);
+      const period = getQuotaPeriod(activeSub);
+      periodStart = period.start;
+      periodEnd = period.end;
     } else {
       const freePlan = await this.quotaRepository.getPlanBySlug(SubscriptionPlan.FREE);
       if (!freePlan) {
@@ -128,9 +130,10 @@ export class QuotaService {
     if (activeSub) {
       plan = activeSub.plan;
       status = activeSub.status;
-      currentPeriodEnd = activeSub.currentPeriodEnd;
-      periodStart = new Date(activeSub.currentPeriodStart);
-      periodEnd = new Date(activeSub.currentPeriodEnd);
+      const period = getQuotaPeriod(activeSub);
+      periodStart = period.start;
+      periodEnd = period.end;
+      currentPeriodEnd = periodEnd.toISOString();
     } else {
       const freePlan = await this.quotaRepository.getPlanBySlug(SubscriptionPlan.FREE);
       if (!freePlan) {
