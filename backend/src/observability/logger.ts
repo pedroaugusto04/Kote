@@ -107,9 +107,7 @@ export class AppLogger implements OnModuleInit, OnModuleDestroy {
   private winstonLogger: winston.Logger | null = null;
 
   onModuleInit() {
-    if (isFileLoggingEnabled()) {
-      this.initializeWinston();
-    }
+    this.tryInitializeWinston();
   }
 
   onModuleDestroy() {
@@ -121,10 +119,23 @@ export class AppLogger implements OnModuleInit, OnModuleDestroy {
   // Static method to create a standalone logger instance without DI
   static create(): AppLogger {
     const logger = new AppLogger();
-    if (isFileLoggingEnabled()) {
-      logger.initializeWinston();
-    }
+    logger.tryInitializeWinston();
     return logger;
+  }
+
+  private tryInitializeWinston() {
+    if (!isFileLoggingEnabled()) {
+      return;
+    }
+
+    try {
+      this.initializeWinston();
+    } catch (error) {
+      this.winstonLogger = null;
+      console.warn('logger_file_transport_disabled', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   private initializeWinston() {

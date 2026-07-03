@@ -13,9 +13,7 @@ import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { CDNImage } from '../../shared/ui/CDNImage';
 import { GithubBackfillOptInModal } from '../integrations/GithubBackfillOptInModal';
 import {
-  isBackfillDeclined,
   readBackfillJobId,
-  markBackfillDeclined,
   storeBackfillJob,
 } from '../integrations/backfill-storage';
 
@@ -74,7 +72,7 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
   {
     id: 'github-backfill',
     label: 'Import recent commits',
-    description: 'Optionally import your latest commits as searchable code review notes.',
+    description: 'Import recent commits to experience the sync flow and understand how it works.',
     priority: true,
     icon: '⤴',
   },
@@ -85,7 +83,6 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     priority: false,
     route: routes.projects,
     icon: '↑',
-    optional: true,
   },
   {
     id: 'vscode-extension',
@@ -284,10 +281,14 @@ export function OnboardingChecklist({
     enabled: Boolean(workspaceSlug),
   });
 
+  const integrations = integrationsQuery.data?.integrations ?? [];
+  const githubConnected = isIntegrationConnected(integrations, 'github-app')
+    && dashboard.projects.some((project) => project.repositories.length > 0);
+
   const githubRepositoriesQuery = useQuery({
     queryKey: ['github-repositories', workspaceSlug],
     queryFn: () => fetchGithubRepositories(workspaceSlug),
-    enabled: showBackfillModal,
+    enabled: githubConnected || showBackfillModal,
   });
 
   const backfillJobId = readBackfillJobId(workspaceSlug);
@@ -340,17 +341,13 @@ export function OnboardingChecklist({
   };
 
   const handleDeclineBackfill = () => {
-    markBackfillDeclined(workspaceSlug);
     setShowBackfillModal(false);
   };
 
-
-  const integrations = integrationsQuery.data?.integrations ?? [];
   const backfillJob = backfillStatusQuery.data?.job;
   const backfillRunning = backfillJob?.status === 'queued' || backfillJob?.status === 'running';
   const backfillComplete = Boolean(
-    isBackfillDeclined(workspaceSlug)
-    || backfillJob?.status === 'completed'
+    backfillJob?.status === 'completed'
     || backfillJob?.status === 'quota_exceeded'
     || (backfillJob?.imported ?? 0) > 0,
   );

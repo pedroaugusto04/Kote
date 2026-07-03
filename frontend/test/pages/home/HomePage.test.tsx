@@ -336,7 +336,7 @@ describe('HomePage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Getting Started' })).toBeInTheDocument();
     expect(screen.getByText('Connect GitHub')).toBeInTheDocument();
-    // WhatsApp is now in the collapsible "Optional integrations" section, not the main list.
+    // WhatsApp stays in the collapsible "Optional integrations" section, not the main list.
     expect(screen.getByRole('button', { name: /optional integrations/i })).toBeInTheDocument();
     expect(screen.queryByText('Connect WhatsApp')).not.toBeInTheDocument();
   });
@@ -408,10 +408,6 @@ describe('HomePage', () => {
     const connectGithubItem = screen.getByText('Connect GitHub').closest('.onboarding-item');
     expect(connectGithubItem).toHaveClass('done');
 
-    // Expand optional items section to see "Make first push"
-    const optionalToggle = screen.getByRole('button', { name: /Optional integrations/i });
-    fireEvent.click(optionalToggle);
-
     const makeFirstPushItem = screen.getByText('Make first push').closest('.onboarding-item');
     expect(makeFirstPushItem).toBeInTheDocument();
     expect(makeFirstPushItem).not.toHaveClass('done');
@@ -473,11 +469,75 @@ describe('HomePage', () => {
     const connectGithubItem = screen.getByText('Connect GitHub').closest('.onboarding-item');
     expect(connectGithubItem).toHaveClass('done');
 
-    // Expand optional items section to see "Make first push"
-    const optionalToggle = screen.getByRole('button', { name: /Optional integrations/i });
-    fireEvent.click(optionalToggle);
-
     const makeFirstPushItem = screen.getByText('Make first push').closest('.onboarding-item');
     expect(makeFirstPushItem).toHaveClass('done');
+  });
+
+  it('keeps import recent commits actionable after declining the modal', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/projects/timeline')) {
+        return Response.json({
+          ok: true,
+          timeline: [],
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/integrations/github-app/backfill/status')) {
+        return Response.json({ ok: false, status: 'not_found' });
+      }
+      if (url.includes('/api/integrations/github-app/repositories')) {
+        return Response.json({
+          ok: true,
+          workspaceSlug: 'default',
+          repositories: [
+            { id: '1', fullName: 'acme/repo', name: 'repo', owner: 'acme', private: true, htmlUrl: 'https://github.com/acme/repo', description: null, defaultBranch: 'main', selected: true },
+          ],
+        });
+      }
+      if (url.includes('/api/integrations')) {
+        return Response.json({
+          ok: true,
+          workspaceSlug: 'default',
+          integrations: [
+            { provider: 'github-app', name: 'GitHub App', description: 'GitHub', status: 'connected', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
+          ],
+          githubBackfillLimit: 5,
+        });
+      }
+      if (url.includes('/api/notes')) {
+        return Response.json({
+          ok: true,
+          notes: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/reminders')) {
+        return Response.json({
+          ok: true,
+          reminders: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHomeWithDashboard({
+      ...dashboard,
+      projects: dashboard.projects,
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Getting Started' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Import recent commits'));
+    expect(await screen.findByRole('dialog', { name: /import recent commit history/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByRole('dialog', { name: /import recent commit history/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Import recent commits')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Import recent commits'));
+    expect(await screen.findByRole('dialog', { name: /import recent commit history/i })).toBeInTheDocument();
   });
 });

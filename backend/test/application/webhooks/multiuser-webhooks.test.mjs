@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
+import { ProcessGithubPushService } from '../../../dist/application/services/process-github-push.service.js';
 import { BuildDashboardUseCase, CreateWorkspaceUseCase, HandleGithubPushUseCase, HandleGithubPullRequestUseCase, IngestEntryUseCase, RefreshReminderStatusesUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
@@ -165,6 +166,14 @@ test('github app webhook resolves user by installation id and rejects unknown id
   }, user.id);
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
   const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock);
+  const processGithubPushService = new ProcessGithubPushService(
+    ingest,
+    repositories.runtimeEnvironmentProvider,
+    githubGateway,
+    reviewGateway,
+    repositories.quotaService,
+    repositories.contentRepository,
+  );
   const unusedGithubGateway = {
     verifyWebhookSignature() { },
     async fetchInstallationToken() {
@@ -180,7 +189,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     },
   };
   const handler = new HandleGithubPushUseCase(
-    ingest,
+    processGithubPushService,
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
     repositories.runtimeEnvironmentProvider,
@@ -272,8 +281,16 @@ test('github push resolves project by explicit repository mapping', async (t) =>
   });
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
   const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock);
-  const handler = new HandleGithubPushUseCase(
+  const processGithubPushService = new ProcessGithubPushService(
     ingest,
+    repositories.runtimeEnvironmentProvider,
+    githubGateway,
+    reviewGateway,
+    repositories.quotaService,
+    repositories.contentRepository,
+  );
+  const handler = new HandleGithubPushUseCase(
+    processGithubPushService,
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
     repositories.runtimeEnvironmentProvider,
@@ -285,8 +302,8 @@ test('github push resolves project by explicit repository mapping', async (t) =>
 
   const result = await handler.execute(signedGithubInput(githubBody(42)), { synchronous: true });
 
-  assert.equal(result.payload.event.projectSlug, 'platform');
-  assert.equal(result.ingestResult.project, 'platform');
+  assert.equal(result.ok, true);
+  assert.equal(result.ingestResult.noteId.length > 0, true);
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes[0].projectSlug, 'platform');
   assert.equal(notes[0].metadata.repoFullName, 'acme/api');
