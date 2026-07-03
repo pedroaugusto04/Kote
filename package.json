@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.12.0"
+  },
   "scripts": {
     "clean": "node scripts/clean.mjs",
     "build:api": "npm run clean && tsc -p backend/tsconfig.json && cp -r backend/src/infrastructure/email/templates backend/dist/infrastructure/email/",
