@@ -13,6 +13,7 @@ type ProjectKnowledgeForceGraphProps = {
   paused: boolean;
   resetSignal: number;
   onOpenNote: (noteId: string) => void;
+  searchQuery?: string;
 };
 
 const DEFAULT_SIZE = { width: 1200, height: 760 };
@@ -23,6 +24,7 @@ export function ProjectKnowledgeForceGraph({
   paused,
   resetSignal,
   onOpenNote,
+  searchQuery = '',
 }: ProjectKnowledgeForceGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -32,6 +34,13 @@ export function ProjectKnowledgeForceGraph({
   const startDriftRef = useRef<(() => void) | null>(null);
   const pausedRef = useRef(paused);
   const [size, setSize] = useState(DEFAULT_SIZE);
+
+  const searchQueryRef = useRef(searchQuery);
+  const updateVisualsRef = useRef<((hoveredId: string | null, searchStr: string) => void) | null>(null);
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+  }, [searchQuery]);
 
   const graph = useMemo(() => ({
     nodes: nodes.map((node) => ({ ...node })),
@@ -74,6 +83,23 @@ export function ProjectKnowledgeForceGraph({
     svg.selectAll('*').remove();
     svg.attr('viewBox', `0 0 ${size.width} ${size.height}`);
 
+    // Add SVG definitions for shadows/glows
+    const defs = svg.append('defs');
+    const filter = defs.append('filter')
+      .attr('id', 'node-glow')
+      .attr('x', '-50%')
+      .attr('y', '-50%')
+      .attr('width', '200%')
+      .attr('height', '200%');
+
+    filter.append('feGaussianBlur')
+      .attr('stdDeviation', '4')
+      .attr('result', 'blur');
+
+    const feMerge = filter.append('feMerge');
+    feMerge.append('feMergeNode').attr('in', 'blur');
+    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
+
     const viewport = svg.append('g').attr('class', 'knowledge-map-viewport');
     const linkLayer = viewport.append('g').attr('class', 'knowledge-map-links');
     const nodeLayer = viewport.append('g').attr('class', 'knowledge-map-nodes');
@@ -115,15 +141,15 @@ export function ProjectKnowledgeForceGraph({
       .attr('aria-label', (item) => (item.type === 'note' && item.noteId ? `Open note ${item.label}` : `${knowledgeMapNodeStyles[item.type].label} ${item.label}`))
       .on('mouseenter focus', (_event, item) => {
         activeNodeId = item.id;
-        updateLabels();
+        updateVisuals(item.id, searchQueryRef.current);
       })
       .on('mouseleave blur', () => {
         activeNodeId = '';
-        updateLabels();
+        updateVisuals(null, searchQueryRef.current);
       })
       .on('click', (_event, item) => {
         activeNodeId = item.id;
-        updateLabels();
+        updateVisuals(item.id, searchQueryRef.current);
         if (item.type === 'note' && item.noteId) onOpenNote(item.noteId);
       })
       .on('keydown', (event, item) => {
@@ -139,6 +165,28 @@ export function ProjectKnowledgeForceGraph({
       .attr('fill', nodeColor)
       .attr('stroke', 'rgba(255,255,255,0.74)')
       .attr('stroke-width', 1.2);
+
+    // Append text icon symbol inside node circles
+    node
+      .append('text')
+      .attr('class', 'knowledge-map-node-icon')
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'central')
+      .attr('fill', '#ffffff')
+      .attr('font-size', (item) => {
+        const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
+        return `${radius * 0.95}px`;
+      })
+      .style('pointer-events', 'none')
+      .text((item) => {
+        if (item.type === 'project') return '★';
+        if (item.type === 'repository') return '⚙';
+        if (item.type === 'folder') return '📁';
+        if (item.type === 'note') return '📄';
+        if (item.type === 'tag') return '#';
+        if (item.type === 'category') return '🗂';
+        return '';
+      });
 
     const labels = node
       .append('text')
@@ -181,6 +229,97 @@ export function ProjectKnowledgeForceGraph({
         .attr('display', (item) => shouldShowLabel(item, zoomScale, activeNodeId) ? null : 'none');
     }
 
+    function updateVisuals(hoveredId: string | null, searchStr: string) {
+      const search = searchStr.trim().toLowerCase();
+      const hasSearch = search.length > 0;
+      const hasHover = hoveredId !== null;
+
+      const matchesSearch = new Set<string>();
+      if (hasSearch) {
+        graphNodes.forEach((n) => {
+          if (n.label.toLowerCase().includes(search)) {
+            matchesSearch.add(n.id);
+          }
+        });
+      }
+
+      const neighbors = new Set<string>();
+      if (hasHover) {
+        neighbors.add(hoveredId!);
+        graphLinks.forEach((l) => {
+          const sourceId = typeof l.source === 'object' ? l.source.id : String(l.source);
+          const targetId = typeof l.target === 'object' ? l.target.id : String(l.target);
+          if (sourceId === hoveredId) neighbors.add(targetId);
+          if (targetId === hoveredId) neighbors.add(sourceId);
+        });
+      }
+
+      // Update node opacity & glow
+      node.style('opacity', (d) => {
+        if (!hasSearch && !hasHover) return 1;
+        let active = false;
+        if (hasHover && neighbors.has(d.id)) active = true;
+        if (hasSearch && matchesSearch.has(d.id)) active = true;
+        return active ? 1 : 0.15;
+      });
+
+      node.selectAll('circle')
+        .style('filter', (d: any) => {
+          if (hoveredId === d.id) return 'url(#node-glow)';
+          if (hasSearch && matchesSearch.has(d.id)) return 'url(#node-glow)';
+          return null;
+        })
+        .attr('stroke-width', (d: any) => {
+          if (hoveredId === d.id || (hasSearch && matchesSearch.has(d.id))) return 2.2;
+          return 1.2;
+        });
+
+      // Update link styles
+      link
+        .style('opacity', (l) => {
+          const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
+          const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
+
+          if (!hasSearch && !hasHover) return 0.55;
+
+          let active = false;
+          if (hasHover && (sId === hoveredId || tId === hoveredId)) {
+            active = true;
+          }
+          if (hasSearch && (matchesSearch.has(sId) || matchesSearch.has(tId))) {
+            return 0.4;
+          }
+          if (hasHover) {
+            return active ? 0.95 : 0.05;
+          }
+          return 0.05;
+        })
+        .classed('flowing-link', (l) => {
+          if (!hasHover) return false;
+          const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
+          const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
+          return sId === hoveredId || tId === hoveredId;
+        });
+
+      // Update labels
+      labels
+        .attr('opacity', (d) => {
+          if (d.id === hoveredId) return 1;
+          if (hasSearch && matchesSearch.has(d.id)) return 1;
+          return shouldShowLabel(d, zoomScale, hoveredId || '') ? 1 : 0;
+        })
+        .attr('display', (d) => {
+          if (d.id === hoveredId) return null;
+          if (hasSearch && matchesSearch.has(d.id)) return null;
+          return shouldShowLabel(d, zoomScale, hoveredId || '') ? null : 'none';
+        });
+    }
+
+    updateVisualsRef.current = updateVisuals;
+    if (searchQueryRef.current) {
+      updateVisuals(null, searchQueryRef.current);
+    }
+
     function renderGraph(time: number) {
       link
         .attr('x1', (item) => graphNodePosition(graphLinkNode(item.source), time, reducedMotion || pausedRef.current).x)
@@ -211,6 +350,10 @@ export function ProjectKnowledgeForceGraph({
       startDriftRef.current = null;
     };
   }, [graph, onOpenNote, size.height, size.width]);
+
+  useEffect(() => {
+    updateVisualsRef.current?.(null, searchQuery);
+  }, [searchQuery]);
 
   useEffect(() => {
     const simulation = simulationRef.current;

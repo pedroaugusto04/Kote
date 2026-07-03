@@ -629,7 +629,7 @@
 
 .knowledge-map-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
   align-items: end;
   padding: 14px;
@@ -640,6 +640,36 @@
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   box-shadow: var(--shadow);
 }
+
+.knowledge-map-search-input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background-color: var(--input-bg);
+  color: var(--text);
+  padding: 0 12px;
+  font-size: 13px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.knowledge-map-search-input:focus {
+  outline: none;
+  border-color: var(--primary, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.flowing-link {
+  stroke-dasharray: 6, 4;
+  animation: flow 1.2s linear infinite;
+}
+
 
 .knowledge-map-controls > label {
   display: grid;
@@ -876,23 +906,28 @@
 }
 
 .knowledge-map-container-layout.has-drawer {
-  grid-template-columns: 1fr 420px;
+  grid-template-columns: 1fr;
 }
 
 .knowledge-map-drawer {
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  background: var(--surface-1);
+  background: var(--glass-panel, rgba(30, 41, 59, 0.78));
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
   box-shadow: var(--shadow-strong);
   display: flex;
   flex-direction: column;
-  height: clamp(700px, calc(100vh - 130px), 860px);
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  bottom: 14px;
+  width: 420px;
+  height: calc(100% - 28px);
   min-width: 0;
   overflow: hidden;
-  animation: slide-in-right 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  position: sticky;
-  top: 96px;
-  align-self: start;
+  animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 10;
 }
 
 .knowledge-map-drawer-head {

@@ -49,6 +49,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const [limit, setLimit] = useState<number>(80);
   const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapVisibleNodeType>>(() => new Set(defaultVisibleKnowledgeMapNodeTypes));
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const query = useQuery({
     queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit],
@@ -101,6 +102,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   useEffect(() => {
     setFolderId('');
     setSideNoteId(null);
+    setSearchQuery('');
     setResetSignal((current) => current + 1);
   }, [projectSlug]);
 
@@ -177,10 +179,12 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
             visibleTypes={visibleTypes}
             dateRange={dateRange}
             maxDateFilter={maxDateFilter}
+            searchQuery={searchQuery}
             onCategoryChange={setCategory}
             onFolderChange={setFolderId}
             onLimitChange={setLimit}
             onMaxDateFilterChange={setMaxDateFilter}
+            onSearchQueryChange={setSearchQuery}
             onTypeToggle={(type) => {
               setVisibleTypes((current) => {
                 const next = new Set(current);
@@ -213,6 +217,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
                   }}
                   paused={paused}
                   resetSignal={resetSignal}
+                  searchQuery={searchQuery}
                 />
                 {sideNoteId && (
                   <SideNoteDrawer
@@ -239,10 +244,12 @@ type KnowledgeMapControlsProps = {
   visibleTypes: Set<KnowledgeMapVisibleNodeType>;
   dateRange: { min: number; max: number } | null;
   maxDateFilter: number | null;
+  searchQuery: string;
   onCategoryChange: (category: ProjectTimelineCategory) => void;
   onFolderChange: (folderId: string) => void;
   onLimitChange: (limit: number) => void;
   onMaxDateFilterChange: (value: number) => void;
+  onSearchQueryChange: (value: string) => void;
   onTypeToggle: (type: KnowledgeMapVisibleNodeType) => void;
 };
 
@@ -254,14 +261,26 @@ function KnowledgeMapControls({
   visibleTypes,
   dateRange,
   maxDateFilter,
+  searchQuery,
   onCategoryChange,
   onFolderChange,
   onLimitChange,
   onMaxDateFilterChange,
+  onSearchQueryChange,
   onTypeToggle,
 }: KnowledgeMapControlsProps) {
   return (
     <div className="knowledge-map-controls" aria-label="Knowledge map filters">
+      <label>
+        <span>Search</span>
+        <input
+          className="knowledge-map-search-input"
+          placeholder="Search node names..."
+          type="text"
+          value={searchQuery}
+          onChange={(event) => onSearchQueryChange(event.target.value)}
+        />
+      </label>
       <label>
         <span>Category</span>
         <select aria-label="Knowledge map category" value={category} onChange={(event) => onCategoryChange(event.target.value as ProjectTimelineCategory)}>
