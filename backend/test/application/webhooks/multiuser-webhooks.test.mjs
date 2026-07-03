@@ -261,7 +261,7 @@ test('github push resolves project by explicit repository mapping', async (t) =>
   const repo = await repositories.contentRepository.upsertRepository({
     workspaceId: workspace.id,
     workspaceSlug: 'default',
-    externalId: '0',
+    externalId: '101',
     fullName: 'acme/api',
     htmlUrl: 'https://github.com/acme/api',
     description: null,
@@ -374,7 +374,7 @@ test('github pull request webhook processes event, searches context, and posts c
   const repo = await repositories.contentRepository.upsertRepository({
     workspaceId: workspace.id,
     workspaceSlug: 'default',
-    externalId: '0',
+    externalId: '101',
     fullName: 'acme/api',
     htmlUrl: 'https://github.com/acme/api',
     description: null,
@@ -527,7 +527,7 @@ test('github pull request webhook skips processing when title contains skip-kote
   const repo = await repositories.contentRepository.upsertRepository({
     workspaceId: workspace.id,
     workspaceSlug: 'default',
-    externalId: '0',
+    externalId: '101',
     fullName: 'acme/api',
     htmlUrl: 'https://github.com/acme/api',
     description: null,
@@ -612,7 +612,7 @@ test('github pull request webhook skips posting comments when a comment already 
   const repo = await repositories.contentRepository.upsertRepository({
     workspaceId: workspace.id,
     workspaceSlug: 'default',
-    externalId: '0',
+    externalId: '101',
     fullName: 'acme/api',
     htmlUrl: 'https://github.com/acme/api',
     description: null,
