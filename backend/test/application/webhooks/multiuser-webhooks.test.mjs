@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
 import { ProcessGithubPushService } from '../../../dist/application/services/process-github-push.service.js';
+import { GithubRepositoryResolutionService } from '../../../dist/application/services/github-repository-resolution.service.js';
 import { BuildDashboardUseCase, CreateWorkspaceUseCase, HandleGithubPushUseCase, HandleGithubPullRequestUseCase, IngestEntryUseCase, RefreshReminderStatusesUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
@@ -188,15 +189,19 @@ test('github app webhook resolves user by installation id and rejects unknown id
       throw new Error('review analysis should not run for unselected repositories');
     },
   };
+  const githubRepositoryResolution = new GithubRepositoryResolutionService(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+    unusedGithubGateway,
+  );
   const handler = new HandleGithubPushUseCase(
     processGithubPushService,
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
     repositories.runtimeEnvironmentProvider,
     unusedGithubGateway,
-    unusedReviewGateway,
-    repositories.quotaService,
-    repositories.contentRepository,
+    githubRepositoryResolution,
   );
 
   await assert.rejects(() => handler.execute(signedGithubInput(githubBody(404)), { synchronous: true }), /identity_not_found/);
@@ -289,15 +294,19 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     repositories.quotaService,
     repositories.contentRepository,
   );
+  const githubRepositoryResolution = new GithubRepositoryResolutionService(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubGateway,
+  );
   const handler = new HandleGithubPushUseCase(
     processGithubPushService,
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
     repositories.runtimeEnvironmentProvider,
     githubGateway,
-    reviewGateway,
-    repositories.quotaService,
-    repositories.contentRepository,
+    githubRepositoryResolution,
   );
 
   const result = await handler.execute(signedGithubInput(githubBody(42)), { synchronous: true });
@@ -465,6 +474,12 @@ test('github pull request webhook processes event, searches context, and posts c
     },
   };
 
+  const githubRepositoryResolution = new GithubRepositoryResolutionService(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubPrGatewayMock,
+  );
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -476,6 +491,7 @@ test('github pull request webhook processes event, searches context, and posts c
     repositories.quotaService,
     null,
     null,
+    githubRepositoryResolution,
     repositories.contentRepository,
     repositories.credentialRepository,
   );
@@ -547,6 +563,12 @@ test('github pull request webhook skips processing when title contains skip-kote
     },
   };
 
+  const githubRepositoryResolution = new GithubRepositoryResolutionService(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubPrGatewayMock,
+  );
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -558,6 +580,7 @@ test('github pull request webhook skips processing when title contains skip-kote
     repositories.quotaService,
     null,
     null,
+    githubRepositoryResolution,
     repositories.contentRepository,
     repositories.credentialRepository,
   );
@@ -628,6 +651,12 @@ test('github pull request webhook skips posting comments when a comment already 
     },
   };
 
+  const githubRepositoryResolution = new GithubRepositoryResolutionService(
+    repositories.contentRepository,
+    repositories.credentialRepository,
+    repositories.runtimeEnvironmentProvider,
+    githubPrGatewayMock,
+  );
   const handler = new HandleGithubPullRequestUseCase(
     repositories.externalIdentityRepository,
     repositories.webhookEventRepository,
@@ -639,6 +668,7 @@ test('github pull request webhook skips posting comments when a comment already 
     repositories.quotaService,
     null,
     null,
+    githubRepositoryResolution,
     repositories.contentRepository,
     repositories.credentialRepository,
   );

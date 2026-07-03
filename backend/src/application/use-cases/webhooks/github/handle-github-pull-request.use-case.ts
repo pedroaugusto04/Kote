@@ -18,6 +18,7 @@ import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.rep
 import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
 import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.port.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
+import { GithubRepositoryResolutionService } from '../../../services/github-repository-resolution.service.js';
 import { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPullRequestPayload = {
@@ -68,6 +69,7 @@ export class HandleGithubPullRequestUseCase {
     private readonly quotaService: QuotaService,
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
+    private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
     private readonly contentRepository?: ContentRepository,
     private readonly credentials?: CredentialRepository,
   ) {
@@ -172,7 +174,12 @@ export class HandleGithubPullRequestUseCase {
     });
 
     const repoFullName = String(body.repository?.full_name || '').trim();
-    const projectSlug = await this.findSelectedProjectSlug(repoFullName, identity.userId, identity.workspaceSlug || '');
+    const projectSlug = await this.githubRepositoryResolution.resolveProjectAndSyncRepoName({
+      userId: identity.userId,
+      workspaceSlug: identity.workspaceSlug || '',
+      repositoryId: body.repository?.id || '0',
+      repositoryFullName: repoFullName,
+    });
 
     this.logger.info('github_pr_project_resolved', {
       repository: repoFullName,
@@ -614,16 +621,6 @@ export class HandleGithubPullRequestUseCase {
     }
   }
 
-  private async findSelectedProjectSlug(repoFullName: string, userId: string, workspaceSlug: string): Promise<string | null> {
-    const normalizedRepoFullName = repoFullName.trim().toLowerCase();
-    if (!normalizedRepoFullName) return null;
-    if (!this.contentRepository) return 'inbox';
-    const projects = await this.contentRepository.listProjects(userId);
-    const project = projects.find(
-      (item) => item.enabled && item.workspaceSlug === workspaceSlug && item.repositories.some(r => r.fullName.trim().toLowerCase() === normalizedRepoFullName),
-    );
-    return project?.projectSlug || null;
-  }
 
   private resolvePayloadProject<T extends Awaited<ReturnType<typeof buildGithubPrReviewEvent>>>(payload: T, projectSlug: string): T {
     return {

@@ -106,6 +106,16 @@ function githubHandlerFixture(projects = []) {
       },
     },
     {
+      async resolveProjectAndSyncRepoName(input) {
+        const project = projects.find((item) =>
+          item.enabled
+            && item.workspaceSlug === input.workspaceSlug
+            && item.repositories.some((repo) => String(repo.externalId) === String(input.repositoryId) || repo.fullName === input.repositoryFullName),
+        );
+        return project?.projectSlug || null;
+      }
+    },
+    {
       async generate() {
         calls.review += 1;
         return {
@@ -385,6 +395,23 @@ test('github app push sends whatsapp alert for high severity AI review findings'
       async fetchComparePayload() {
         return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
       },
+    },
+    {
+      async resolveProjectAndSyncRepoName(input) {
+        const project = [
+          {
+            projectSlug: 'platform',
+            workspaceSlug: 'default',
+            enabled: true,
+            repositories: [{ fullName: 'acme/api' }],
+          },
+        ].find((item) =>
+          item.enabled
+            && item.workspaceSlug === input.workspaceSlug
+            && item.repositories.some((repo) => repo.fullName === input.repositoryFullName),
+        );
+        return project?.projectSlug || null;
+      }
     },
     {
       async generate() {

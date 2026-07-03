@@ -81,6 +81,41 @@ export class GithubRepositoryResolutionService {
     }));
   }
 
+  async resolveProjectAndSyncRepoName(input: {
+    userId: string;
+    workspaceSlug: string;
+    repositoryId: string | number;
+    repositoryFullName: string;
+  }): Promise<string | null> {
+    const normalizedRepoId = String(input.repositoryId).trim();
+    const normalizedFullName = input.repositoryFullName.trim();
+    if (!normalizedRepoId || normalizedRepoId === '0' || !normalizedFullName) return null;
+
+    const projects = await this.contentRepository.listProjects(input.userId);
+    const project = projects.find(
+      (item) => item.enabled
+        && item.workspaceSlug === input.workspaceSlug
+        && item.repositories.some((repo) => String(repo.externalId) === normalizedRepoId),
+    );
+
+    if (!project) return null;
+
+    const matchedRepo = project.repositories.find((repo) => String(repo.externalId) === normalizedRepoId);
+    if (matchedRepo && matchedRepo.fullName.trim().toLowerCase() !== normalizedFullName.toLowerCase()) {
+      await this.contentRepository.upsertRepository({
+        id: matchedRepo.id,
+        workspaceId: matchedRepo.workspaceId,
+        externalId: matchedRepo.externalId,
+        fullName: normalizedFullName,
+        htmlUrl: matchedRepo.htmlUrl,
+        description: matchedRepo.description,
+        defaultBranch: matchedRepo.defaultBranch,
+      });
+    }
+
+    return project.projectSlug;
+  }
+
   markSelectedRepositories(availableRepositories: GithubInstallationRepository[], selectedRepositoryFullNames: Set<string>) {
     return availableRepositories.map((repository) => ({
       ...repository,

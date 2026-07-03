@@ -8,6 +8,7 @@ import { ExternalIdentityRepository } from '../../../ports/integrations/integrat
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { ProcessGithubPushService } from '../../../services/process-github-push.service.js';
+import { GithubRepositoryResolutionService } from '../../../services/github-repository-resolution.service.js';
 import { normalizeHeaders } from '../../../utils/webhook.utils.js';
 import { AppLogger } from '../../../../observability/logger.js';
 
@@ -51,6 +52,7 @@ export class HandleGithubPushUseCase {
     private readonly webhookEvents: WebhookEventRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
+    private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
   ) {
     this.logger = AppLogger.create();
   }
@@ -92,11 +94,12 @@ export class HandleGithubPushUseCase {
     });
     try {
       const repoFullName = String(body.repository?.full_name || '').trim();
-      const projectSlug = await this.processGithubPushService.findProjectSlugForRepo(
-        identity.userId,
-        identity.workspaceSlug || '',
-        repoFullName,
-      );
+      const projectSlug = await this.githubRepositoryResolution.resolveProjectAndSyncRepoName({
+        userId: identity.userId,
+        workspaceSlug: identity.workspaceSlug || '',
+        repositoryId: body.repository?.id || '0',
+        repositoryFullName: repoFullName,
+      });
       if (!projectSlug) {
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
