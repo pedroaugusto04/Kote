@@ -92,6 +92,7 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     label: 'Install VS Code Extension',
     description: 'Download the Kote extension to sync local files and AI history.',
     priority: true,
+    route: '#', // Placeholder route to render as Link
     icon: <img src={withFrontendBasePath('/kote/vscode-logo.svg')} style={{ width: '16px', height: '16px', display: 'block' }} alt="VS Code" />,
   },
   {
@@ -323,6 +324,15 @@ export function OnboardingChecklist({
     window.open('https://marketplace.visualstudio.com/items?itemName=Kote.kote-vscode', '_blank', 'noopener,noreferrer');
   };
 
+  const handleVscodeConfirm = () => {
+    try {
+      localStorage.setItem('kb-vscode-installed', 'true');
+    } catch {
+      // ignore
+    }
+    setVscodeConfirmed(true);
+  };
+
   const handleBackfillStarted = (jobId: string) => {
     storeBackfillJob(workspaceSlug, jobId);
     setShowBackfillModal(false);
@@ -499,6 +509,18 @@ export function OnboardingChecklist({
                 <div className="onboarding-item-copy">
                   <strong>{item.label}</strong>
                   <span>{item.description}</span>
+                  {item.id === 'vscode-extension' && !done && (
+                    <button
+                      className="onboarding-reminder-test-btn"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleVscodeConfirm();
+                      }}
+                    >
+                      Confirm installation
+                    </button>
+                  )}
                 </div>
                 {item.priority && !done ? (
                   <span className="onboarding-item-badge">Priority</span>

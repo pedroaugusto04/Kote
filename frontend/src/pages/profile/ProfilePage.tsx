@@ -146,12 +146,6 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
               </div>
             </dl>
 
-            {quotaStatus && (
-              <div style={{ marginTop: '24px', padding: '20px', background: 'var(--surface-2)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
-                <QuotaUsageWidget status={quotaStatus} />
-              </div>
-            )}
-
             <div className="profile-connection-section">
               <div className="profile-connection-header">
                 <h3 className="profile-connection-title">CLI & VS Code Connection</h3>
@@ -192,6 +186,12 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
                 </button>
               )}
             </div>
+
+            {quotaStatus && (
+              <div style={{ marginTop: '24px', padding: '20px', background: 'var(--surface-2)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+                <QuotaUsageWidget status={quotaStatus} />
+              </div>
+            )}
           </div>
         ) : null}
       </Panel>
