@@ -269,21 +269,43 @@ export class IntegrationConnectionService {
       missingCredentialError: MissingCredentialError.NotFound,
     });
 
+    // Build set of currently selected repository full names
+    const selectedRepoFullNames = new Set(input.repositories.map((repo) => repo.fullName));
+
+    // Get existing workspace projects to handle deselections
+    const existingProjects = await this.content.listProjects(input.userId);
+    const workspaceProjects = existingProjects.filter((p) => p.workspaceSlug === workspaceSlug);
+
+    // Disable projects whose repositories were deselected
+    const deselectedProjects = workspaceProjects.filter((project) =>
+      project.repositories.length > 0 && !selectedRepoFullNames.has(project.repositories[0].fullName)
+    );
+    await Promise.all(deselectedProjects.map((project) =>
+      this.content.upsertProject(input.userId, {
+        ...project,
+        enabled: false,
+      }),
+    ));
+
+    // Create/update projects for selected repositories
     const projects = await Promise.all(savedRepositories.map((repo) => {
       const repositoryName = repo.fullName.split('/').pop() || repo.fullName;
       const projectSlug = slugify(repositoryName) || 'inbox';
+      // Try to find existing project for this repository
+      const existingProject = workspaceProjects.find((p) => p.repositories[0]?.fullName === repo.fullName);
       return this.content.upsertProject(input.userId, {
-        id: crypto.randomUUID(),
+        id: existingProject?.id || crypto.randomUUID(),
         projectSlug,
         displayName: repositoryName,
         workspaceId: workspace.id,
         workspaceSlug,
         repositories: [repo],
-        defaultTags: [],
+        defaultTags: existingProject?.defaultTags || [],
         enabled: true,
-        favorite: false,
+        favorite: existingProject?.favorite || false,
       });
     }));
+
     return {
       ok: true as const,
       workspaceSlug,
