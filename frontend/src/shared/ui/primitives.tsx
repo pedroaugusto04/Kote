@@ -47,7 +47,7 @@ export function PageHead({ title, subtitle, action, onBack, backLabel = 'Back' }
           </button>
         ) : null}
         {typeof title === 'string' ? <h1>{title}</h1> : title}
-        <p>{subtitle}</p>
+        {subtitle ? <p>{subtitle}</p> : null}
       </div>
       {action}
     </div>
