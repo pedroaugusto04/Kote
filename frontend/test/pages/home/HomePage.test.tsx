@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import { HomePage } from '../../../src/pages/home/HomePage';
+import { GlobalLoadingProvider } from '../../../src/app/global-loading';
 import { render } from '@testing-library/react';
 import { HomePriorityType, HomeTargetKind } from '../../../src/shared/api/enums';
 
@@ -108,7 +109,15 @@ const dashboard: Dashboard = {
 };
 
 beforeEach(() => {
-  localStorage.clear();
+  // Mock localStorage
+  const localStorageMock = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+  };
+  vi.stubGlobal('localStorage', localStorageMock);
+
   vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
     calendar: 'gregory',
     locale: 'en-US',
@@ -195,21 +204,23 @@ function renderHomeWithDashboard(inputDashboard: Dashboard, createNote = vi.fn()
     },
   });
   render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <HomePage
-          dashboard={inputDashboard}
-          selectedProject="n8n-automations"
-          selectedNoteId=""
-          openNote={openNote}
-          setSelectedProject={setSelectedProject}
-          openProject={openProject}
-          editNote={vi.fn()}
-          deleteNote={vi.fn()}
-          createNote={createNote}
-        />
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <GlobalLoadingProvider>
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <HomePage
+            dashboard={inputDashboard}
+            selectedProject="n8n-automations"
+            selectedNoteId=""
+            openNote={openNote}
+            setSelectedProject={setSelectedProject}
+            openProject={openProject}
+            editNote={vi.fn()}
+            deleteNote={vi.fn()}
+            createNote={createNote}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </GlobalLoadingProvider>,
   );
   return { openNote, openProject, createNote };
 }
@@ -397,6 +408,10 @@ describe('HomePage', () => {
     const connectGithubItem = screen.getByText('Connect GitHub').closest('.onboarding-item');
     expect(connectGithubItem).toHaveClass('done');
 
+    // Expand optional items section to see "Make first push"
+    const optionalToggle = screen.getByRole('button', { name: /Optional integrations/i });
+    fireEvent.click(optionalToggle);
+
     const makeFirstPushItem = screen.getByText('Make first push').closest('.onboarding-item');
     expect(makeFirstPushItem).toBeInTheDocument();
     expect(makeFirstPushItem).not.toHaveClass('done');
@@ -457,6 +472,10 @@ describe('HomePage', () => {
     
     const connectGithubItem = screen.getByText('Connect GitHub').closest('.onboarding-item');
     expect(connectGithubItem).toHaveClass('done');
+
+    // Expand optional items section to see "Make first push"
+    const optionalToggle = screen.getByRole('button', { name: /Optional integrations/i });
+    fireEvent.click(optionalToggle);
 
     const makeFirstPushItem = screen.getByText('Make first push').closest('.onboarding-item');
     expect(makeFirstPushItem).toHaveClass('done');
