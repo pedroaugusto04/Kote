@@ -14,6 +14,8 @@ import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.
 
 import crypto from 'node:crypto';
 
+import { DEFAULT_SYSTEM_CATEGORIES } from '../../../domain/constants/category.constants.js';
+
 @Injectable()
 export class CreateWorkspaceUseCase {
   constructor(
@@ -40,6 +42,19 @@ export class CreateWorkspaceUseCase {
       createdAt: now,
       updatedAt: now,
     });
+
+    // Seed default system categories for the new workspace
+    await Promise.all(
+      DEFAULT_SYSTEM_CATEGORIES.map((cat) =>
+        this.contentRepository.createCategory(userId, workspace.id, {
+          name: cat.name,
+          color: cat.color,
+          colorDark: cat.colorDark,
+          icon: cat.icon,
+          isSystem: cat.isSystem,
+        })
+      )
+    );
 
 
     const initialProject = await this.contentRepository.upsertProject(userId, {

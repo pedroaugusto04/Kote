@@ -43,7 +43,11 @@ export class PostgresContentRepository extends ContentRepository {
     return this.categoryRepository.getById(userId, categoryId);
   }
 
-  async createCategory(userId: string, workspaceId: string, input: { name: string; color?: string; icon?: string }) {
+  async createCategory(
+    userId: string,
+    workspaceId: string,
+    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean }
+  ) {
     return this.categoryRepository.create(userId, workspaceId, input);
   }
 

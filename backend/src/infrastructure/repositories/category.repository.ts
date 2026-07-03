@@ -57,7 +57,7 @@ export class PostgresCategoryRepository {
   async create(
     userId: string,
     workspaceId: string,
-    input: { name: string; color?: string; icon?: string; isSystem?: boolean }
+    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean }
   ): Promise<CategoryRecord> {
     const db = this.database.getDb();
 
@@ -69,6 +69,7 @@ export class PostgresCategoryRepository {
         workspaceId,
         name: input.name,
         color: input.color || '#9e9e9e',
+        colorDark: input.colorDark || null,
         icon: input.icon || '',
         isSystem: input.isSystem || false,
       })

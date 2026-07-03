@@ -22,7 +22,11 @@ import type { VaultNoteDetail, VaultNoteSummary } from '../../models/vault-note.
 export abstract class ContentRepository {
   abstract listCategories(userId: string, workspaceId: string): Promise<CategoryRecord[]>;
   abstract getCategoryById(userId: string, categoryId: string): Promise<CategoryRecord | null>;
-  abstract createCategory(userId: string, workspaceId: string, input: { name: string; color?: string; icon?: string }): Promise<CategoryRecord>;
+  abstract createCategory(
+    userId: string,
+    workspaceId: string,
+    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean }
+  ): Promise<CategoryRecord>;
   abstract findCategoryByName(userId: string, workspaceId: string, name: string): Promise<CategoryRecord | null>;
 
   abstract listWorkspaces(userId: string): Promise<SaveWorkspaceInput[]>;

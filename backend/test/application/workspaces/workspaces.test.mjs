@@ -80,6 +80,12 @@ test('create workspace persists the workspace and the initial Inbox project', as
   assert.equal(result.ok, true);
   assert.equal(result.workspace.workspaceSlug, 'acme-team');
   assert.equal(result.initialProject.projectSlug, 'inbox');
+  const categoriesList = await repositories.contentRepository.listCategories(user.id, result.workspace.id);
+  assert.equal(categoriesList.length, 5);
+  assert.deepEqual(
+    categoriesList.map((c) => c.name).sort(),
+    ['decision', 'event', 'followup', 'incident', 'knowledge']
+  );
   assert.deepEqual((await repositories.contentRepository.listWorkspaces(user.id)).map((workspace) => workspace.workspaceSlug), ['acme-team']);
   assert.deepEqual((await repositories.contentRepository.listProjects(user.id)).map((project) => project.projectSlug), ['inbox']);
   const credentials = await repositories.credentialRepository.listCredentials(user.id, 'acme-team');
