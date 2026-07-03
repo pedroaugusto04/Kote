@@ -35,13 +35,27 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const isMobile = useMediaQuery('(max-width: 768px)');
   const params = useParams();
   const navigate = useNavigate();
-  const projectSlug = params.projectSlug
-    ? decodeURIComponent(params.projectSlug)
-    : selectedProject || dashboard.projects[0]?.projectSlug || '';
-  const project = useMemo(
-    () => dashboard.projects.find((item) => item.projectSlug === projectSlug) || null,
-    [dashboard.projects, projectSlug],
-  );
+  const project = useMemo(() => {
+    if (params.projectSlug) {
+      const slug = decodeURIComponent(params.projectSlug);
+      return dashboard.projects.find((item) => item.projectSlug === slug) || null;
+    }
+
+    if (selectedProject) {
+      const found = dashboard.projects.find((item) => item.projectSlug === selectedProject);
+      if (found) return found;
+    }
+
+    const favoriteProject = dashboard.projects.find((item) => item.favorite);
+    if (favoriteProject) return favoriteProject;
+
+    const inboxProject = dashboard.projects.find((item) => item.projectSlug === 'inbox');
+    if (inboxProject) return inboxProject;
+
+    return dashboard.projects[0] || null;
+  }, [dashboard.projects, params.projectSlug, selectedProject]);
+
+  const projectSlug = project?.projectSlug || '';
   const [paused, setPaused] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
   const [category, setCategory] = useState<ProjectTimelineCategory>('all');

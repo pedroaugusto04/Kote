@@ -235,6 +235,105 @@ describe('ProjectKnowledgeMapPage', () => {
     expect(screen.getByLabelText('Knowledge map node types')).toBeInTheDocument();
     await waitFor(() => expect(screen.queryByRole('img', { name: 'Project knowledge map' })).not.toBeInTheDocument());
   });
+
+  it('resolves fallback project in the correct order: favorite, then inbox, then first project', async () => {
+    const mockDashboard: Dashboard = {
+      workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
+      projects: [
+        {
+          projectSlug: 'inbox',
+          displayName: 'Inbox',
+          repositories: [],
+          workspaceSlug: 'default',
+          defaultTags: [],
+          enabled: true,
+          favorite: false,
+        },
+        {
+          projectSlug: 'other',
+          displayName: 'Other Project',
+          repositories: [],
+          workspaceSlug: 'default',
+          defaultTags: [],
+          enabled: true,
+          favorite: false,
+        },
+        {
+          projectSlug: 'my-favorite',
+          displayName: 'My Favorite Project',
+          repositories: [],
+          workspaceSlug: 'default',
+          defaultTags: [],
+          enabled: true,
+          favorite: true,
+        },
+      ],
+      notes: [],
+      reminders: [],
+      home: dashboard.home,
+    };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/folders') || url.includes('/knowledge-map')) {
+        return Response.json({ ok: true, nodes: [], links: [], stats: { noteCount: 0, tagCount: 0, folderCount: 0, repositoryCount: 0 } });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // 1. Favorite fallback should win
+    const { unmount: unmount1 } = renderWithAppProviders(
+      <Routes>
+        <Route path="/map" element={<ProjectKnowledgeMapPage dashboard={mockDashboard} openNote={vi.fn()} selectedProject="" />} />
+      </Routes>,
+      { route: '/map' },
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/projects/my-favorite/knowledge-map'), expect.anything());
+    });
+
+    unmount1();
+    fetchMock.mockClear();
+
+    // 2. If no favorite, inbox should win
+    const mockDashboardNoFav = {
+      ...mockDashboard,
+      projects: mockDashboard.projects.map(p => ({ ...p, favorite: false }))
+    };
+
+    const { unmount: unmount2 } = renderWithAppProviders(
+      <Routes>
+        <Route path="/map" element={<ProjectKnowledgeMapPage dashboard={mockDashboardNoFav} openNote={vi.fn()} selectedProject="" />} />
+      </Routes>,
+      { route: '/map' },
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/projects/inbox/knowledge-map'), expect.anything());
+    });
+
+    unmount2();
+    fetchMock.mockClear();
+
+    // 3. If no favorite and no inbox, first project should win
+    const mockDashboardNoFavNoInbox = {
+      ...mockDashboard,
+      projects: mockDashboard.projects.filter(p => p.projectSlug !== 'inbox').map(p => ({ ...p, favorite: false }))
+    };
+
+    renderWithAppProviders(
+      <Routes>
+        <Route path="/map" element={<ProjectKnowledgeMapPage dashboard={mockDashboardNoFavNoInbox} openNote={vi.fn()} selectedProject="" />} />
+      </Routes>,
+      { route: '/map' },
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('/api/projects/other/knowledge-map'), expect.anything());
+    });
+  });
 });
 
 describe('filterKnowledgeMapDataset', () => {

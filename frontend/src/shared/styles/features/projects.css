@@ -930,6 +930,25 @@
   z-index: 10;
 }
 
+/* Projects workspace specific sticky sidebar override */
+.knowledge-map-container-layout.spaced.has-drawer {
+  grid-template-columns: 1fr 420px;
+}
+
+.knowledge-map-container-layout.spaced .knowledge-map-drawer {
+  position: sticky;
+  top: 96px;
+  right: auto;
+  bottom: auto;
+  height: clamp(700px, calc(100vh - 130px), 860px);
+  align-self: start;
+  background: var(--surface-1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: slide-in-right 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: auto;
+}
+
 .knowledge-map-drawer-head {
   padding: 14px 16px;
   border-bottom: 1px solid var(--line-soft);
