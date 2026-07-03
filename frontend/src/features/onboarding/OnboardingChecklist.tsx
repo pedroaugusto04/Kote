@@ -97,7 +97,7 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
   {
     id: 'vscode-sync-chat',
     label: 'Sync your First AI chat',
-    description: 'Save an AI session from VS Code to your Kote. (in the Sync tab or passively with extension active)',
+    description: 'Save an AI session from VS Code Extension to your Kote. (in the Sync tab or passively with auto-save active)',
     priority: true,
     route: routes.home,
     icon: '⚡',

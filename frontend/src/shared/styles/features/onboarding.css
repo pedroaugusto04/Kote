@@ -97,6 +97,7 @@
   background: var(--surface-1);
   text-decoration: none;
   color: var(--text);
+  text-align: left;
   transition: all 180ms ease;
 }
 
