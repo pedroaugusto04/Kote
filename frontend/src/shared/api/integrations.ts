@@ -32,7 +32,7 @@ export function fetchIntegrationSession(params: { provider: string; sessionId: s
 
 export function revokeIntegration(provider: string, workspaceSlug: string) {
   const search = new URLSearchParams({ workspaceSlug });
-  return request(`${buildApiPath(API_PATHS.INTEGRATIONS_CONNECT, { provider })}?${search.toString()}`, { method: 'DELETE' });
+  return request(`/api/integrations/${encodeURIComponent(provider)}?${search.toString()}`, { method: 'DELETE' });
 }
 
 export function testIntegration(provider: string, workspaceSlug: string): Promise<IntegrationTestResponse> {
