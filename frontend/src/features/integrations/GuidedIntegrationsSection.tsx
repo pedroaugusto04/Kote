@@ -33,6 +33,8 @@ import { useGlobalLoading } from '../../app/global-loading';
 import { withFrontendBasePath } from '../../app/base-path';
 import { StoredIntegrationStatus } from '../../shared/api/enums';
 import { CDNImage } from '../../shared/ui/CDNImage';
+import { GitHubIcon } from '../../shared/ui/icons';
+import { BrandMark } from '../../shared/ui/brand-mark';
 import { GithubBackfillOptInModal } from './GithubBackfillOptInModal';
 import {
   markBackfillDeclined,
@@ -554,36 +556,94 @@ function GithubSuccessInfoModal({ onClose, onNext }: { onClose: () => void; onNe
           overflow: 'hidden',
           boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
           border: '1px solid var(--accent-border)',
-          background: 'var(--surface-hover)',
+          background: 'radial-gradient(circle at center, rgba(125, 211, 165, 0.08) 0%, rgba(9, 15, 20, 0.6) 100%)',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
+          gap: '32px',
+          position: 'relative',
         }}>
-          <CDNImage
-            src={withFrontendBasePath('/github-push-success.png')}
-            alt="GitHub integration workflow"
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-            fallback={
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-                height: '100%',
-                background: 'var(--surface-hover)',
-                color: 'var(--muted)',
-                fontFamily: 'var(--mono)',
-                fontSize: '12px',
-                animation: 'brief-skeleton-fade 1.8s infinite ease-in-out',
-              }}>
-                Loading GitHub workflow guide...
-              </div>
+          <style>{`
+            @keyframes link-pulse {
+              0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 12px rgba(125, 211, 165, 0.2); }
+              50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 24px rgba(125, 211, 165, 0.6); }
+              100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 12px rgba(125, 211, 165, 0.2); }
             }
-          />
+            @keyframes line-flow {
+              0% { stroke-dashoffset: 24; }
+              100% { stroke-dashoffset: 0; }
+            }
+          `}</style>
+
+          {/* Left element: Kote brand mark */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            background: 'var(--brand-mark-bg)',
+            border: '1px solid var(--brand-mark-border)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 2,
+          }}>
+            <BrandMark />
+          </div>
+
+          {/* Connection line in between with animated path flow */}
+          <div style={{
+            position: 'relative',
+            width: '100px',
+            height: '40px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1,
+          }}>
+            <svg width="100%" height="100%" viewBox="0 0 100 40" fill="none" style={{ overflow: 'visible' }}>
+              <path
+                d="M 0,20 Q 50,20 100,20"
+                stroke="var(--success-border, var(--green))"
+                strokeWidth="3"
+                strokeDasharray="6 4"
+                style={{ animation: 'line-flow 1.5s infinite linear' }}
+              />
+            </svg>
+            <div style={{
+              position: 'absolute',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: 'var(--green)',
+              border: '2px solid var(--panel)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--bg)',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              animation: 'link-pulse 2s infinite ease-in-out',
+            }}>
+              ✓
+            </div>
+          </div>
+
+          {/* Right element: GitHub logo */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--accent-border)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 2,
+          }}>
+            <GitHubIcon style={{ width: '28px', height: '28px', color: 'var(--text-strong)' }} />
+          </div>
         </div>
 
         <div style={{ textAlign: 'center' }}>
