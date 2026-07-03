@@ -64,7 +64,7 @@ export function getQuotaPeriod(
     return { start: lastStart < start ? start : lastStart, end };
   }
 
-  const monthsDiff = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
+  const monthsDiff = (now.getUTCFullYear() - start.getUTCFullYear()) * 12 + (now.getUTCMonth() - start.getUTCMonth());
 
   let candidateStart = addMonths(start, monthsDiff);
   let candidateEnd = addMonths(start, monthsDiff + 1);
@@ -86,11 +86,11 @@ export function getQuotaPeriod(
 
 export function addMonths(date: Date, months: number): Date {
   const result = new Date(date);
-  const targetMonth = result.getMonth() + months;
-  result.setMonth(targetMonth);
+  const targetMonth = result.getUTCMonth() + months;
+  result.setUTCMonth(targetMonth);
   const expectedMonth = ((targetMonth % 12) + 12) % 12;
-  if (result.getMonth() !== expectedMonth) {
-    result.setDate(0);
+  if (result.getUTCMonth() !== expectedMonth) {
+    result.setUTCDate(0);
   }
   return result;
 }

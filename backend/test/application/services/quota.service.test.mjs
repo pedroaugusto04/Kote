@@ -44,6 +44,12 @@ test('QuotaService monthly slicing for annual plans', async (t) => {
         this.lastEnd = end;
         return 150;
       },
+      async getAttachmentStorageUsage() {
+        return 500;
+      },
+      async getWorkspaceCount() {
+        return 2;
+      },
       lastStart: null,
       lastEnd: null,
     };
