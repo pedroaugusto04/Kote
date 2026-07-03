@@ -41,12 +41,13 @@ export function parseCookies(cookieHeader: string | undefined): Record<string, s
 }
 
 function toAuthenticatedUser(user: KbUser): AuthenticatedUser {
+  const timestamp = user.updatedAt ? new Date(user.updatedAt).getTime() : Date.now();
   return {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
     role: user.role,
-    avatarUrl: user.avatar ? `/api/auth/avatar/content` : null,
+    avatarUrl: user.avatar ? `/api/auth/avatar/content?t=${timestamp}` : null,
     vsCodeInstalledAt: user.vsCodeInstalledAt ?? null,
   };
 }

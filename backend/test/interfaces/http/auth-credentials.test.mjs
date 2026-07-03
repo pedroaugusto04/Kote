@@ -253,7 +253,7 @@ test('avatar upload stores bytes and returns the updated user', async (t) => {
 
   const storedUser = await repositories.userRepository.findUserById(login.user.id);
   assert.equal(result.ok, true);
-  assert.match(result.user.avatarUrl, /^\/api\/auth\/avatar\/content$/);
+  assert.match(result.user.avatarUrl, /^\/api\/auth\/avatar\/content\?t=\d+$/);
   assert.match(storedUser.avatar, new RegExp(`^users/${login.user.id}/profile/avatar-\\d+\\.png$`));
   assert.deepEqual(repositories.objectStorage.objects.get(storedUser.avatar), image);
 });

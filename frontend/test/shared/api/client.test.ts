@@ -169,7 +169,10 @@ describe('api client', () => {
   });
 
   it('deduplicates concurrent refresh attempts across requests', async () => {
-    const refreshBarrier = Promise.withResolvers<void>();
+    let resolveBarrier!: () => void;
+    const refreshBarrierPromise = new Promise<void>((resolve) => {
+      resolveBarrier = resolve;
+    });
     let refreshCalls = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -192,7 +195,7 @@ describe('api client', () => {
       }
       if (url === '/api/auth/refresh') {
         refreshCalls += 1;
-        await refreshBarrier.promise;
+        await refreshBarrierPromise;
         return Response.json({ ok: true });
       }
       return new Response(null, { status: 404 });
@@ -201,7 +204,7 @@ describe('api client', () => {
 
     const dashboardPromise = fetchDashboard();
     const queryPromise = runQuery({ query: 'Nota1', workspaceSlug: 'workspace1' });
-    refreshBarrier.resolve();
+    resolveBarrier();
 
     await expect(Promise.all([dashboardPromise, queryPromise])).resolves.toEqual([
       { ok: true, projects: [], workspaces: [] },
