@@ -7,6 +7,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
 import { routes } from '../../app/routing/routes';
 import { withFrontendBasePath } from '../../app/base-path';
+import { useGlobalLoading } from '../../app/global-loading';
 import { Panel } from '../../shared/ui/primitives';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { CDNImage } from '../../shared/ui/CDNImage';
@@ -91,13 +92,12 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     label: 'Install VS Code Extension',
     description: 'Download the Kote extension to sync local files and AI history.',
     priority: true,
-    route: routes.profile,
     icon: <img src={withFrontendBasePath('/kote/vscode-logo.svg')} style={{ width: '16px', height: '16px', display: 'block' }} alt="VS Code" />,
   },
   {
     id: 'vscode-sync-chat',
     label: 'Sync your First AI chat',
-    description: 'Save an AI session from VS Code to your Kote.',
+    description: 'Save an AI session from VS Code to your Kote. (in the Sync tab or passively with extension active)',
     priority: true,
     route: routes.home,
     icon: '⚡',
@@ -275,6 +275,8 @@ export function OnboardingChecklist({
     }
   });
 
+  const globalLoading = useGlobalLoading();
+
   const integrationsQuery = useQuery({
     queryKey: ['integrations', workspaceSlug],
     queryFn: () => fetchIntegrations(workspaceSlug),
@@ -307,11 +309,18 @@ export function OnboardingChecklist({
   const selectedRepositories = repositories.filter((repo) => repo.selected).map((repo) => repo.fullName);
 
   const handleBackfillAction = () => {
+    if (backfillComplete) {
+      return; // Do nothing if backfill is already complete
+    }
     if (selectedRepositories.length === 0) {
       navigate(routes.integrations);
       return;
     }
     setShowBackfillModal(true);
+  };
+
+  const handleVscodeExtensionClick = () => {
+    window.open('https://marketplace.visualstudio.com/items?itemName=Kote.kote-vscode', '_blank', 'noopener,noreferrer');
   };
 
   const handleBackfillStarted = (jobId: string) => {
@@ -364,6 +373,17 @@ export function OnboardingChecklist({
       saveStorage(next);
     }
   }, [storage]);
+
+  // Update global loading message when backfill is running
+  useEffect(() => {
+    if (backfillRunning && backfillJob) {
+      const imported = backfillJob.imported ?? 0;
+      const total = backfillJob.total ?? 0;
+      globalLoading.setMessage(`Importing notes… ${imported}/${total}`);
+    } else {
+      globalLoading.setMessage(null);
+    }
+  }, [backfillRunning, backfillJob, globalLoading]);
 
   const isHiddenByShowLater = storage.showLaterAt
     ? new Date(storage.showLaterAt).getTime() > Date.now()
@@ -426,10 +446,6 @@ export function OnboardingChecklist({
       <div className="onboarding-checklist-head">
         <div>
           <h2>{UI_MESSAGES.GETTING_STARTED}</h2>
-          <p className="meta">Turn your Git history and AI sessions into searchable technical memory.</p>
-          {backfillRunning && backfillJob ? (
-            <p className="meta">Importing GitHub history… {backfillJob.processed}/{backfillJob.total} processed.</p>
-          ) : null}
         </div>
         <div className="onboarding-checklist-progress">
           <div className="onboarding-progress-ring" aria-label={`${progressPercent}% complete`}>
@@ -462,8 +478,12 @@ export function OnboardingChecklist({
       <div className="onboarding-checklist-items">
         {coreItems.map((item) => {
           const done = completed.has(item.id);
-          const itemAction = item.id === 'github-backfill' ? handleBackfillAction : undefined;
-          
+          const itemAction = item.id === 'github-backfill' 
+            ? handleBackfillAction 
+            : item.id === 'vscode-extension'
+            ? handleVscodeExtensionClick
+            : undefined;
+
           if (item.route) {
             return (
               <Link
@@ -473,45 +493,29 @@ export function OnboardingChecklist({
                 id={`onboarding-item-${item.id}`}
                 onClick={itemAction}
               >
-              <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
-                {done ? '✓' : item.icon}
-              </span>
-              <div className="onboarding-item-copy">
-                <strong>{item.label}</strong>
-                <span>{item.description}</span>
-                {item.id === 'vscode-extension' && !done && (
-                  <button
-                    className="onboarding-reminder-test-btn"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      try {
-                        localStorage.setItem('kb-vscode-installed', 'true');
-                      } catch {
-                        // ignore
-                      }
-                      setVscodeConfirmed(true);
-                    }}
-                  >
-                    Confirm installation
-                  </button>
-                )}
-              </div>
-              {item.priority && !done ? (
-                <span className="onboarding-item-badge">Priority</span>
-              ) : null}
-              <span className="onboarding-item-arrow" aria-hidden="true">→</span>
-            </Link>
-          );
+                <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
+                  {done ? '✓' : item.icon}
+                </span>
+                <div className="onboarding-item-copy">
+                  <strong>{item.label}</strong>
+                  <span>{item.description}</span>
+                </div>
+                {item.priority && !done ? (
+                  <span className="onboarding-item-badge">Priority</span>
+                ) : null}
+                <span className="onboarding-item-arrow" aria-hidden="true">→</span>
+              </Link>
+            );
           }
-          
+
           return (
             <button
-              className={`onboarding-item ${done ? 'done' : ''} ${item.priority ? 'priority' : ''}`}
+              className={`onboarding-item ${done ? 'done' : ''} ${item.priority ? 'priority' : ''} ${item.id === 'github-backfill' && backfillComplete ? 'disabled' : ''}`}
               key={item.id}
               id={`onboarding-item-${item.id}`}
               type="button"
               onClick={itemAction}
+              disabled={item.id === 'github-backfill' && backfillComplete}
             >
               <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
                 {done ? '✓' : item.icon}
@@ -545,7 +549,7 @@ export function OnboardingChecklist({
             <div className="onboarding-checklist-items onboarding-optional-items">
               {optionalItems.map((item) => {
                 const done = completed.has(item.id);
-                
+
                 if (item.route) {
                   return (
                     <Link
@@ -554,34 +558,34 @@ export function OnboardingChecklist({
                       to={item.route}
                       id={`onboarding-item-${item.id}`}
                     >
-                    <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
-                      {done ? '✓' : item.icon}
-                    </span>
-                    <div className="onboarding-item-copy">
-                      <strong>{item.label}</strong>
-                      <span>{item.description}</span>
-                      {item.id === 'reminder' && !done && (
-                        <button
-                          className="onboarding-reminder-test-btn"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const message = 'Remind me to check the onboarding checklist in 1 minute';
-                            const number = import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889';
-                            const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
-                            window.open(url, '_blank', 'noopener,noreferrer');
-                          }}
-                        >
-                          Send test reminder (1 min)
-                        </button>
-                      )}
-                    </div>
-                    <span className="onboarding-item-badge optional-badge">Optional</span>
-                    <span className="onboarding-item-arrow" aria-hidden="true">→</span>
-                  </Link>
-                );
+                      <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
+                        {done ? '✓' : item.icon}
+                      </span>
+                      <div className="onboarding-item-copy">
+                        <strong>{item.label}</strong>
+                        <span>{item.description}</span>
+                        {item.id === 'reminder' && !done && (
+                          <button
+                            className="onboarding-reminder-test-btn"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const message = 'Remind me to check the onboarding checklist in 1 minute';
+                              const number = import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889';
+                              const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                            }}
+                          >
+                            Send test reminder (1 min)
+                          </button>
+                        )}
+                      </div>
+                      <span className="onboarding-item-badge optional-badge">Optional</span>
+                      <span className="onboarding-item-arrow" aria-hidden="true">→</span>
+                    </Link>
+                  );
                 }
-                
+
                 return (
                   <button
                     className={`onboarding-item optional ${done ? 'done' : ''}`}

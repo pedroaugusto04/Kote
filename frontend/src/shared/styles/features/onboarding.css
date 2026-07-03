@@ -120,6 +120,18 @@
   opacity: 0.85;
 }
 
+.onboarding-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.onboarding-item.disabled:hover {
+  border-color: var(--line-soft);
+  background: var(--surface-1);
+  transform: none;
+  box-shadow: none;
+}
+
 .onboarding-item-check {
   width: 32px;
   height: 32px;

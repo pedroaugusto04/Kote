@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or, desc } from 'drizzle-orm';
 
 import {
   GithubBackfillJobRepository,
@@ -100,5 +100,26 @@ export class PostgresGithubBackfillJobRepository extends GithubBackfillJobReposi
       .update(githubBackfillJobs)
       .set(values)
       .where(eq(githubBackfillJobs.id, jobId));
+  }
+
+  async findCompletedByWorkspace(userId: string, workspaceSlug: string): Promise<GithubBackfillJobRecord | null> {
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(githubBackfillJobs)
+      .where(
+        and(
+          eq(githubBackfillJobs.userId, userId),
+          eq(githubBackfillJobs.workspaceSlug, workspaceSlug),
+          or(
+            eq(githubBackfillJobs.status, 'completed'),
+            eq(githubBackfillJobs.status, 'quota_exceeded'),
+          ),
+        ),
+      )
+      .orderBy(desc(githubBackfillJobs.completedAt))
+      .limit(1);
+
+    return result[0] ? rowToRecord(result[0] as Record<string, unknown>) : null;
   }
 }

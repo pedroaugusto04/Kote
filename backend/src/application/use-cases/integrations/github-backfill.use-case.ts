@@ -68,6 +68,15 @@ export class GithubBackfillUseCase {
       throw new BadRequestException('repositories_required');
     }
 
+    // Check if a backfill has already been completed for this workspace
+    const existingBackfill = await this.githubBackfillJobRepository.findCompletedByWorkspace(
+      input.userId,
+      input.workspaceSlug,
+    );
+    if (existingBackfill) {
+      throw new BadRequestException('backfill_already_completed');
+    }
+
     const credential = await this.credentialRepository.findCredential(
       input.userId,
       input.workspaceSlug,

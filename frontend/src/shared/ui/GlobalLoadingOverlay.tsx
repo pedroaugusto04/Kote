@@ -1,4 +1,4 @@
-export function GlobalLoadingOverlay() {
+export function GlobalLoadingOverlay({ message }: { message: string | null }) {
   return (
     <div
       aria-busy="true"
@@ -7,7 +7,10 @@ export function GlobalLoadingOverlay() {
       role="status"
     >
       <div aria-hidden="true" className="global-loading-spinner" />
-      <span className="sr-only">Loading</span>
+      {message && (
+        <div className="global-loading-message">{message}</div>
+      )}
+      <span className="sr-only">Loading {message && `- ${message}`}</span>
     </div>
   );
 }

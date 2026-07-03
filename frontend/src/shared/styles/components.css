@@ -914,6 +914,17 @@
   animation: global-loading-spin 0.8s linear infinite;
 }
 
+.global-loading-message {
+  position: absolute;
+  bottom: 40px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: center;
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+
 .confirm-modal {
   width: min(520px, 100%);
 }

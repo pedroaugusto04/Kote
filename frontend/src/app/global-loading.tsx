@@ -8,6 +8,8 @@ type GlobalLoadingContextValue = {
   startImmediate: () => void;
   stop: () => void;
   trackPromise: <T>(promise: Promise<T>) => Promise<T>;
+  message: string | null;
+  setMessage: (message: string | null) => void;
 };
 
 type GlobalLoadingProviderProps = {
@@ -24,6 +26,7 @@ export function GlobalLoadingProvider({
   showDelayMs = 120,
 }: GlobalLoadingProviderProps) {
   const [visible, setVisible] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
   const activeCountRef = useRef(0);
   const visibleRef = useRef(false);
   const visibleSinceRef = useRef<number | null>(null);
@@ -148,12 +151,14 @@ export function GlobalLoadingProvider({
     startImmediate,
     stop,
     trackPromise,
-  }), [start, startImmediate, stop, trackPromise, visible]);
+    message,
+    setMessage,
+  }), [start, startImmediate, stop, trackPromise, visible, message]);
 
   return (
     <GlobalLoadingContext.Provider value={value}>
       {children}
-      {visible ? <GlobalLoadingOverlay /> : null}
+      {visible ? <GlobalLoadingOverlay message={message} /> : null}
     </GlobalLoadingContext.Provider>
   );
 }

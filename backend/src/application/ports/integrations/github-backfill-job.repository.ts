@@ -42,4 +42,6 @@ export abstract class GithubBackfillJobRepository {
   /** Find by job ID only — for internal use by the queue consumer (no userId available). */
   abstract findByIdUnchecked(jobId: string): Promise<GithubBackfillJobRecord | null>;
   abstract update(jobId: string, patch: UpdateGithubBackfillJobInput): Promise<void>;
+  /** Find any completed backfill for a workspace (for deduplication). */
+  abstract findCompletedByWorkspace(userId: string, workspaceSlug: string): Promise<GithubBackfillJobRecord | null>;
 }
