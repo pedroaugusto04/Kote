@@ -925,6 +925,98 @@
   font-family: var(--mono);
 }
 
+/* ─── Background Task Toast ─── */
+.bg-task-toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 var(--surface-highlight);
+  animation: bg-task-slide-in 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  min-width: 220px;
+  max-width: 300px;
+}
+
+@keyframes bg-task-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.bg-task-spinner {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(83, 199, 222, 0.2);
+  border-top-color: var(--cyan);
+  animation: bg-task-spin 700ms linear infinite;
+}
+
+@keyframes bg-task-spin {
+  to { transform: rotate(360deg); }
+}
+
+.bg-task-body {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.bg-task-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bg-task-progress-bar {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--line-soft);
+  overflow: hidden;
+}
+
+.bg-task-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cyan);
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.bg-task-count {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--cyan);
+  letter-spacing: -0.01em;
+}
+
+.bg-task-count-sep {
+  opacity: 0.5;
+  margin: 0 1px;
+}
+
+
+
 .confirm-modal {
   width: min(520px, 100%);
 }

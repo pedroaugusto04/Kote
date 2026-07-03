@@ -371,24 +371,29 @@ export function OnboardingChecklist({
   const allDone = completedCount === coreItems.length && coreItems.length > 0;
 
   useEffect(() => {
-    if (!storage.dismissedAt) return;
+    if (!storage.dismissedAt || storage.dismissed) return;
     const dismissedDate = new Date(storage.dismissedAt);
     const daysSince = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSince >= AUTO_HIDE_DAYS && !storage.dismissed) {
+    if (daysSince >= AUTO_HIDE_DAYS) {
       const next = { ...storage, dismissed: true };
       setStorage(next);
       saveStorage(next);
     }
-  }, [storage]);
+  // Only re-run when dismissedAt or dismissed flag changes, not entire storage object
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storage.dismissedAt, storage.dismissed]);
 
-  // Update global loading message when backfill is running
   useEffect(() => {
     if (backfillRunning && backfillJob) {
       const imported = backfillJob.imported ?? 0;
       const total = backfillJob.total ?? 0;
-      globalLoading.setMessage(`Importing notes… ${imported}/${total}`);
+      globalLoading.setBackgroundTask({
+        label: 'Importing commits',
+        count: imported,
+        total,
+      });
     } else {
-      globalLoading.setMessage(null);
+      globalLoading.setBackgroundTask(null);
     }
   }, [backfillRunning, backfillJob, globalLoading]);
 
