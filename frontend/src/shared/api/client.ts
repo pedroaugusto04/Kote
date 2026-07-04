@@ -33,7 +33,7 @@ export {
 } from './projects';
 export { fetchReminderBoard, fetchReminders, updateReminderStatus, bulkUpdateReminderStatuses } from './reminders';
 export { runQuery } from './query';
-export { fetchAskHistory, runAsk } from './ask';
+export { fetchAskHistory, runAsk, fetchAskConversations, fetchConversationTurns } from './ask';
 export { ApiClientError, type AuthUser } from './request';
 export { getErrorMessage } from './error-message';
 export { createWorkspace, fetchWorkspaceCategories } from './workspaces';

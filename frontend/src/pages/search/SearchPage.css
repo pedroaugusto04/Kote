@@ -536,3 +536,173 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Conversational AI Chat Layout ─── */
+.ask-conversation-container {
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--surface-1), var(--surface-2));
+  padding: 24px;
+  margin-top: 14px;
+  box-shadow: var(--shadow);
+}
+
+.ask-messages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-height: 520px;
+  overflow-y: auto;
+  padding-right: 12px;
+}
+
+/* Custom Scrollbar for Message List */
+.ask-messages-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ask-messages-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ask-messages-list::-webkit-scrollbar-thumb {
+  background: var(--line-soft);
+  border-radius: 4px;
+}
+
+.ask-messages-list::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+.ask-message-bubble {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  animation: fadeIn 220ms ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* User Message specific alignment (Right align) */
+.ask-message-bubble.user {
+  flex-direction: row-reverse;
+}
+
+.ask-message-bubble.user .message-content-wrapper {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ask-message-bubble.user .message-body {
+  background: var(--surface-hover-accent);
+  border: 1px solid var(--accent-border);
+  color: var(--active-text);
+  border-radius: 16px 4px 16px 16px;
+  padding: 12px 18px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Assistant Message specific alignment (Left align) */
+.ask-message-bubble.assistant .message-body {
+  background: var(--surface-3);
+  border: 1px solid var(--line-soft);
+  color: var(--text);
+  border-radius: 4px 16px 16px 16px;
+  padding: 16px 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  box-shadow: var(--shadow-sm);
+  width: 100%;
+}
+
+.message-avatar-wrapper {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--surface-3);
+  border: 1px solid var(--line-soft);
+}
+
+.chat-user-avatar {
+  width: 100%;
+  height: 100%;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.message-assistant-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--cyan);
+  filter: drop-shadow(0 0 3px rgba(83, 199, 222, 0.3));
+}
+
+.message-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 82%;
+  min-width: 0;
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.ask-message-bubble.user .message-meta {
+  flex-direction: row-reverse;
+}
+
+/* loading bubble */
+.loading-bubble .message-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface-3) !important;
+  border-color: var(--line-soft) !important;
+}
+
+.skeleton-line.pulse {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+
+/* Button style for New Chat */
+.ask-ai-new-chat-btn {
+  margin-left: auto;
+  border: 1px solid var(--line-soft) !important;
+  background: var(--surface-hover) !important;
+  color: var(--muted) !important;
+  transition: all 140ms ease;
+}
+
+.ask-ai-new-chat-btn:hover {
+  background: var(--surface-hover-strong) !important;
+  color: var(--text-strong) !important;
+  border-color: var(--line) !important;
+}

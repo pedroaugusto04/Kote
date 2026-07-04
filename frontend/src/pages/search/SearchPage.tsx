@@ -12,16 +12,19 @@ import {
   fetchProjectBriefHistory,
   generateProjectBrief,
   runAsk,
+  fetchAskConversations,
+  fetchConversationTurns,
+  fetchCurrentUser,
 } from '../../shared/api/client';
 import { getErrorMessage } from '../../shared/api/error-message';
 import { formatDateIso } from '../../shared/utils/format';
-import type { AskHistoryResponse } from '../../shared/api/models/ask';
+import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
+import type { ChatMessage, AskConversationTurn, AskConversationsResponse } from '../../shared/api/models/ask';
 import type {
   ProjectBriefPanelResponse,
   ProjectBriefHistoryResponse,
   ProjectBriefHistoryRecord,
 } from '../../shared/api/models/project-brief';
-import type { AskAnswerCardItem } from '../../widgets/ask/ask-answer-card.models';
 import { AskAnswerCard, projectLabel } from '../../widgets/ask/AskAnswerCard';
 import { AskAiIcon } from '../../widgets/ask/AskAiIcon';
 import { AskAnswerSkeleton } from '../../widgets/ask/AskAnswerSkeleton';
@@ -33,6 +36,8 @@ import { Select } from '../../shared/ui/select';
 import { notifyWarning } from '../../shared/ui/notifications';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
+import { UserAvatar } from '../../shared/ui/user-avatar';
+import { MarkdownView } from '../../widgets/markdown/MarkdownView';
 import './SearchPage.css';
 
 
@@ -40,13 +45,16 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   const [activeTab, setActiveTab] = useState<'ask' | 'brief'>(() => {
     const tabParam = searchParams.get('tab');
     return tabParam === 'brief' ? 'brief' : 'ask';
   });
   const [questionInput, setQuestionInput] = useState('');
   const [projectSlug, setProjectSlug] = useState('');
-  const [askAnswer, setAskAnswer] = useState<AskAnswerCardItem | null>(null);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isAsking, setIsAsking] = useState(false);
   const [askError, setAskError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
@@ -54,11 +62,23 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   const [showBriefHistory, setShowBriefHistory] = useState(false);
   const [selectedBrief, setSelectedBrief] = useState<ProjectBriefPanelResponse | null>(null);
 
+  const currentUserQuery = useQuery({
+    queryKey: QUERY_KEYS.AUTH.ME,
+    queryFn: fetchCurrentUser,
+  });
+  const currentUser = currentUserQuery.data?.user;
+
   useEffect(() => {
     if (searchParams.get('focus') === 'input' && inputRef.current) {
       inputRef.current.focus();
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isAsking]);
 
   const { page: historyPage, setPage: setHistoryPage } = usePaginationState(`ask-history:${projectSlug}`);
   const { page: briefHistoryPage, setPage: setBriefHistoryPage } = usePaginationState(`brief-history:${projectSlug}`);
@@ -70,8 +90,8 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   const selectedProjectLabel = projectLabel(projectSlug, dashboard.projects);
 
   const historyQuery = useQuery({
-    queryKey: ['ask-history', projectSlug, historyPage],
-    queryFn: () => fetchAskHistory({ projectSlug, page: historyPage, pageSize: 5 }),
+    queryKey: ['ask-conversations', projectSlug, historyPage],
+    queryFn: () => fetchAskConversations({ projectSlug, page: historyPage, pageSize: 5 }),
     enabled: showHistory,
     placeholderData: keepPreviousData,
   });
@@ -118,20 +138,57 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
 
     setIsAsking(true);
     setAskError(null);
-    setAskAnswer(null);
+
+    const userMsg: ChatMessage = {
+      id: String(Date.now()),
+      role: 'user',
+      content: question,
+      timestamp: new Date().toISOString(),
+    };
+
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setQuestionInput('');
+
+    // Sliced conversation history for sliding window (last 5 turns)
+    const historyTurns: AskConversationTurn[] = [];
+    for (let i = 0; i < nextMessages.length - 1; i++) {
+      const current = nextMessages[i];
+      const next = nextMessages[i + 1];
+      if (current.role === 'user' && next.role === 'assistant') {
+        historyTurns.push({
+          question: current.content,
+          answer: next.content,
+          projectSlug: projectSlug,
+          timestamp: current.timestamp,
+        });
+      }
+    }
+    const conversationHistory = historyTurns.slice(-5);
 
     try {
-      const result = await runAsk({ question, projectSlug });
+      const result = await runAsk({
+        question,
+        projectSlug: projectSlug || undefined,
+        conversationId: activeConversationId || undefined,
+        conversationHistory,
+      });
       if (result?.ok) {
-        setAskAnswer({
-          question,
-          answer: result.answer,
-          projectSlug,
+        const assistantMsg: ChatMessage = {
+          id: String(Date.now() + 1),
+          role: 'assistant',
+          content: result.answer,
+          timestamp: new Date().toISOString(),
           sources: result.sources || [],
-        });
+          relatedNotes: result.relatedNotes || [],
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        if (result.conversationId) {
+          setActiveConversationId(result.conversationId);
+        }
         setAskError(null);
         setHistoryPage(1);
-        await queryClient.invalidateQueries({ queryKey: ['ask-history'] });
+        await queryClient.invalidateQueries({ queryKey: ['ask-conversations'] });
       } else {
         setAskError(SEARCH_MESSAGES.ERRORS.COULD_NOT_GENERATE_ANSWER);
       }
@@ -145,6 +202,49 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   const handlePromptClick = (promptText: string) => {
     setQuestionInput(promptText);
     void handleAsk(promptText);
+  };
+
+  const handleSelectConversation = async (conversationId: string) => {
+    setIsAsking(true);
+    setAskError(null);
+    try {
+      const response = await fetchConversationTurns(conversationId);
+      if (response?.ok && response.turns) {
+        const chatMessages: ChatMessage[] = [];
+        response.turns.forEach((turn) => {
+          chatMessages.push({
+            id: `${turn.id}-q`,
+            role: 'user',
+            content: turn.question,
+            timestamp: turn.createdAt,
+          });
+          chatMessages.push({
+            id: `${turn.id}-a`,
+            role: 'assistant',
+            content: turn.answer,
+            timestamp: turn.createdAt,
+            sources: turn.sources || [],
+            relatedNotes: turn.relatedNotes || [],
+          });
+        });
+        setMessages(chatMessages);
+        setActiveConversationId(conversationId);
+        setShowHistory(false);
+      } else {
+        setAskError(SEARCH_MESSAGES.ERRORS.UNEXPECTED_ERROR);
+      }
+    } catch (error: unknown) {
+      setAskError(error instanceof Error ? error.message : SEARCH_MESSAGES.ERRORS.UNEXPECTED_ERROR);
+    } finally {
+      setIsAsking(false);
+    }
+  };
+
+  const handleNewConversation = () => {
+    setActiveConversationId(null);
+    setMessages([]);
+    setQuestionInput('');
+    setAskError(null);
   };
 
   return (
@@ -166,7 +266,8 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
             value={projectSlug}
             onChange={(nextProjectSlug) => {
               setProjectSlug(nextProjectSlug);
-              setAskAnswer(null);
+              setActiveConversationId(null);
+              setMessages([]);
               setAskError(null);
               setSelectedBrief(null);
               setShowBriefHistory(false);
@@ -219,6 +320,15 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                 <button className="icon-button ask-ai-send-btn" disabled={isAsking} type="button" onClick={() => handleAsk()}>
                   {isAsking ? UI_MESSAGES.ASKING : SEARCH_MESSAGES.INPUT.ASK_BUTTON}
                 </button>
+                {messages.length > 0 && (
+                  <button
+                    className="icon-button secondary ask-ai-new-chat-btn"
+                    type="button"
+                    onClick={handleNewConversation}
+                  >
+                    New Chat
+                  </button>
+                )}
                 <button
                   aria-expanded={showHistory}
                   className={`icon-button secondary ask-ai-history-toggle ${showHistory ? 'active' : ''}`}
@@ -230,16 +340,85 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
               </div>
             </section>
 
-            {/* AI Answer */}
-            {isAsking ? <AskAnswerSkeleton question={questionInput.trim()} projectLabel={selectedProjectLabel} /> : null}
-
-            {!isAsking && askAnswer ? (
-              <Panel className="ai-answer-card-panel">
-                <AskAnswerCard item={askAnswer} openNote={openNote} projects={dashboard.projects} />
-              </Panel>
+            {/* Chat Messages List */}
+            {messages.length > 0 ? (
+              <div className="ask-conversation-container">
+                <div className="ask-messages-list">
+                  {messages.map((msg) => (
+                    <div key={msg.id} className={`ask-message-bubble ${msg.role}`}>
+                      <div className="message-avatar-wrapper">
+                        {msg.role === 'user' ? (
+                          <UserAvatar
+                            avatarUrl={currentUser?.avatarUrl}
+                            displayName={currentUser?.displayName}
+                            email={currentUser?.email}
+                            className="chat-user-avatar"
+                          />
+                        ) : (
+                          <AskAiIcon className="message-assistant-icon" />
+                        )}
+                      </div>
+                      <div className="message-content-wrapper">
+                        <div className="message-meta">
+                          <strong>{msg.role === 'user' ? (currentUser?.displayName || 'You') : 'Assistant'}</strong>
+                          {msg.role === 'assistant' && msg.sources && (
+                            <span className="ask-source-count">
+                              Based on {msg.sources.length} {msg.sources.length === 1 ? 'source' : 'sources'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="message-body">
+                          {msg.role === 'user' ? (
+                            <span className="question-text">{msg.content}</span>
+                          ) : (
+                            <MarkdownView markdown={msg.content} />
+                          )}
+                        </div>
+                        {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 ? (
+                          <div className="ask-sources-footer">
+                            <span className="sources-label">Sources:</span>
+                            <div className="sources-list">
+                              {msg.sources.map((source) => (
+                                <button
+                                  className="source-link-btn"
+                                  key={source.noteId}
+                                  type="button"
+                                  onClick={() => openNote(source.noteId)}
+                                >
+                                  {source.title || source.path}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ) : msg.role === 'assistant' ? (
+                          <div className="inline-message warning">No source notes were returned for this answer.</div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))}
+                  {isAsking && (
+                    <div className="ask-message-bubble assistant loading-bubble">
+                      <div className="message-avatar-wrapper">
+                        <AskAiIcon className="message-assistant-icon" />
+                      </div>
+                      <div className="message-content-wrapper">
+                        <div className="message-meta">
+                          <strong>Assistant</strong>
+                        </div>
+                        <div className="message-body">
+                          <div className="skeleton-line pulse" style={{ width: '40%', height: '14px', borderRadius: '4px', background: 'var(--line-soft)', marginBottom: '8px' }} />
+                          <div className="skeleton-line pulse" style={{ width: '85%', height: '14px', borderRadius: '4px', background: 'var(--line-soft)', marginBottom: '8px' }} />
+                          <div className="skeleton-line pulse" style={{ width: '60%', height: '14px', borderRadius: '4px', background: 'var(--line-soft)' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+              </div>
             ) : null}
 
-            {!isAsking && !askAnswer ? (
+            {messages.length === 0 && !isAsking ? (
               <AskWaitingState onPromptClick={handlePromptClick} />
             ) : null}
 
@@ -250,19 +429,10 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
           {showHistory ? (
             <div className="ask-ai-history-pane">
               <AskHistoryInline
-                historyQuery={historyQuery}
+                conversationsQuery={historyQuery}
                 projects={dashboard.projects}
                 setPage={handleHistoryPageChange}
-                onSelect={(item) => {
-                  setAskAnswer({
-                    question: item.question,
-                    answer: item.answer,
-                    projectSlug: item.projectSlug,
-                    sources: item.sources,
-                  });
-                  setAskError(null);
-                  setShowHistory(false);
-                }}
+                onSelect={handleSelectConversation}
               />
             </div>
           ) : null}
@@ -363,47 +533,49 @@ function BriefHistoryInline({
 }
 
 function AskHistoryInline({
-  historyQuery,
+  conversationsQuery,
   projects,
   setPage,
   onSelect,
 }: {
-  historyQuery: UseQueryResult<AskHistoryResponse>;
+  conversationsQuery: UseQueryResult<AskConversationsResponse>;
   projects: PageContext['dashboard']['projects'];
   setPage: (page: number) => void;
-  onSelect: (item: AskAnswerCardItem) => void;
+  onSelect: (conversationId: string) => void;
 }) {
-  const history = historyQuery.data?.history || [];
+  const conversations = conversationsQuery.data?.conversations || [];
 
   return (
     <Panel className="ask-ai-history-panel">
       <h2>{SEARCH_MESSAGES.HISTORY.ASK_HISTORY_TITLE}</h2>
 
-      {historyQuery.isLoading ? (
+      {conversationsQuery.isLoading ? (
         <div className="inline-message">{SEARCH_MESSAGES.HISTORY.LOADING}</div>
-      ) : historyQuery.isError ? (
+      ) : conversationsQuery.isError ? (
         <InlineMessage tone="error">{SEARCH_MESSAGES.HISTORY.COULD_NOT_LOAD_ASK_HISTORY}</InlineMessage>
-      ) : history.length === 0 ? (
+      ) : conversations.length === 0 ? (
         <EmptyState>{SEARCH_MESSAGES.HISTORY.NO_ASK_HISTORY}</EmptyState>
       ) : (
         <>
-          <div className={`ask-history-list ${historyQuery.isPlaceholderData ? 'stale-data' : ''}`}>
-            {history.map((item) => (
-              <button className="ask-history-item" key={item.id} type="button" onClick={() => onSelect(item)}>
-                <div className="ask-history-item-header">
-                  <span className="ask-history-question">{item.question}</span>
-                  <span className={`confidence-dot ${item.confidence || 'medium'}`} title={`Confidence: ${item.confidence || 'medium'}`} />
-                </div>
-                <div className="ask-history-item-meta">
-                  <span className="ask-history-project">{projectLabel(item.projectSlug, projects)}</span>
-                  <span className="ask-history-date">{formatDateIso(item.createdAt)}</span>
-                </div>
-                <span className="ask-history-answer">{item.answer}</span>
-              </button>
-            ))}
+          <div className={`ask-history-list ${conversationsQuery.isPlaceholderData ? 'stale-data' : ''}`}>
+            {conversations.map((item) => {
+              const project = projects.find((p) => p.id === item.projectId);
+              const projectSlug = project?.projectSlug || '';
+              return (
+                <button className="ask-history-item" key={item.conversationId} type="button" onClick={() => onSelect(item.conversationId)}>
+                  <div className="ask-history-item-header">
+                    <span className="ask-history-question">{item.title}</span>
+                  </div>
+                  <div className="ask-history-item-meta">
+                    <span className="ask-history-project">{projectLabel(projectSlug, projects)}</span>
+                    <span className="ask-history-date">{formatDateIso(item.createdAt)}</span>
+                  </div>
+                </button>
+              );
+            })}
           </div>
-          {historyQuery.data?.pagination ? (
-            <Pagination compact disableScrollToTop pagination={historyQuery.data.pagination} onPageChange={setPage} />
+          {conversationsQuery.data?.pagination ? (
+            <Pagination compact disableScrollToTop pagination={conversationsQuery.data.pagination} onPageChange={setPage} />
           ) : null}
         </>
       )}

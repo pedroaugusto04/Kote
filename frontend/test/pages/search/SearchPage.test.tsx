@@ -14,6 +14,9 @@ const apiSpies = vi.hoisted(() => ({
   fetchLatestProjectBrief: vi.fn(),
   fetchProjectBriefHistory: vi.fn(),
   generateProjectBrief: vi.fn(),
+  fetchAskConversations: vi.fn(),
+  fetchConversationTurns: vi.fn(),
+  fetchCurrentUser: vi.fn(),
 }));
 
 const notificationSpies = vi.hoisted(() => ({
@@ -29,6 +32,9 @@ vi.mock('../../../src/shared/api/client', () => ({
   fetchLatestProjectBrief: apiSpies.fetchLatestProjectBrief,
   fetchProjectBriefHistory: apiSpies.fetchProjectBriefHistory,
   generateProjectBrief: apiSpies.generateProjectBrief,
+  fetchAskConversations: apiSpies.fetchAskConversations,
+  fetchConversationTurns: apiSpies.fetchConversationTurns,
+  fetchCurrentUser: apiSpies.fetchCurrentUser,
 }));
 
 vi.mock('../../../src/shared/ui/notifications', async () => {
@@ -43,6 +49,7 @@ const dashboard: Dashboard = {
   workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
   projects: [
     {
+      id: 'project-platform',
       projectSlug: 'platform',
       displayName: 'Platform',
       repositories: [],
@@ -73,6 +80,9 @@ beforeEach(() => {
   apiSpies.fetchLatestProjectBrief.mockReset();
   apiSpies.fetchProjectBriefHistory.mockReset();
   apiSpies.generateProjectBrief.mockReset();
+  apiSpies.fetchAskConversations.mockReset();
+  apiSpies.fetchConversationTurns.mockReset();
+  apiSpies.fetchCurrentUser.mockReset();
   notificationSpies.notifyError.mockReset();
   notificationSpies.notifySuccess.mockReset();
   notificationSpies.notifyInfo.mockReset();
@@ -80,6 +90,14 @@ beforeEach(() => {
   apiSpies.fetchAskHistory.mockResolvedValue({
     ok: true,
     history: [],
+    pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+  });
+  apiSpies.fetchCurrentUser.mockResolvedValue({
+    user: { id: 'user-123', email: 'user@example.com', displayName: 'User', avatarUrl: null },
+  });
+  apiSpies.fetchAskConversations.mockResolvedValue({
+    ok: true,
+    conversations: [],
     pagination: { page: 1, pageSize: 5, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
   });
   apiSpies.fetchLatestProjectBrief.mockResolvedValue({
@@ -122,10 +140,12 @@ describe('SearchPage (Ask AI)', () => {
       expect(apiSpies.runAsk).toHaveBeenCalledWith({
         question: 'How should I deploy?',
         projectSlug: 'platform',
+        conversationId: undefined,
+        conversationHistory: [],
       });
     });
     await screen.findByText('Based on 1 source');
-    expect(view.container.querySelector('.ask-answer-body strong')).toHaveTextContent('platform');
+    expect(view.container.querySelector('.message-body strong')).toHaveTextContent('platform');
     expect(screen.getByRole('button', { name: 'Active note' })).toBeInTheDocument();
   });
 
@@ -154,29 +174,21 @@ describe('SearchPage (Ask AI)', () => {
   });
 
   it('opens inline Ask AI history and filters it by selected project', async () => {
-    apiSpies.fetchAskHistory.mockResolvedValueOnce({
+    apiSpies.fetchAskConversations.mockResolvedValueOnce({
       ok: true,
-      history: [{
-        id: 'ask-1',
-        question: 'How should I deploy?',
-        answer: 'Use the rollout notes.',
-        confidence: 'high',
-        projectSlug: '',
-        sources: [{ noteId: 'active-1', title: 'Active note', path: '20 Inbox/platform/note.md' }],
-        relatedNotes: [],
+      conversations: [{
+        conversationId: 'conv-1',
+        title: 'How should I deploy?',
+        projectId: '',
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
       pagination: { page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
     }).mockResolvedValueOnce({
       ok: true,
-      history: [{
-        id: 'ask-2',
-        question: 'Platform deploy?',
-        answer: 'Deploy platform from staging.',
-        confidence: 'medium',
-        projectSlug: 'platform',
-        sources: [],
-        relatedNotes: [],
+      conversations: [{
+        conversationId: 'conv-2',
+        title: 'Platform deploy?',
+        projectId: 'project-platform',
         createdAt: '2026-05-23T11:00:00.000Z',
       }],
       pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
@@ -184,43 +196,35 @@ describe('SearchPage (Ask AI)', () => {
 
     renderSearchPage('/search');
 
-    expect(apiSpies.fetchAskHistory).not.toHaveBeenCalled();
-    expect(screen.queryByText('Use the rollout notes.')).not.toBeInTheDocument();
+    expect(apiSpies.fetchAskConversations).not.toHaveBeenCalled();
+    expect(screen.queryByText('How should I deploy?')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /show history/i }));
 
-    expect(await screen.findByText('Use the rollout notes.')).toBeInTheDocument();
+    expect(await screen.findByText('How should I deploy?')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Filter by project'));
     fireEvent.click(screen.getByRole('option', { name: 'Platform' }));
 
-    expect(await screen.findByText('Deploy platform from staging.')).toBeInTheDocument();
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: '' });
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: 'platform' });
+    expect(await screen.findByText('Platform deploy?')).toBeInTheDocument();
+    expect(apiSpies.fetchAskConversations).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: '' });
+    expect(apiSpies.fetchAskConversations).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: 'platform' });
   });
 
   it('uses Ask AI history pagination controls', async () => {
-    apiSpies.fetchAskHistory.mockResolvedValueOnce({
+    apiSpies.fetchAskConversations.mockResolvedValueOnce({
       ok: true,
-      history: [{
-        id: 'ask-1',
-        question: 'First page?',
-        answer: 'First answer.',
-        confidence: 'high',
-        projectSlug: '',
-        sources: [],
-        relatedNotes: [],
+      conversations: [{
+        conversationId: 'conv-1',
+        title: 'First conversation?',
+        projectId: '',
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
       pagination: { page: 1, pageSize: 5, total: 10, totalPages: 2, hasNext: true, hasPrevious: false },
     }).mockResolvedValueOnce({
       ok: true,
-      history: [{
-        id: 'ask-2',
-        question: 'Second page?',
-        answer: 'Second answer.',
-        confidence: 'low',
-        projectSlug: '',
-        sources: [],
-        relatedNotes: [],
+      conversations: [{
+        conversationId: 'conv-2',
+        title: 'Second conversation?',
+        projectId: '',
         createdAt: '2026-05-23T09:00:00.000Z',
       }],
       pagination: { page: 2, pageSize: 5, total: 10, totalPages: 2, hasNext: false, hasPrevious: true },
@@ -229,17 +233,28 @@ describe('SearchPage (Ask AI)', () => {
     renderSearchPage('/search');
 
     fireEvent.click(screen.getByRole('button', { name: /show history/i }));
-    expect(await screen.findByText('First answer.')).toBeInTheDocument();
+    expect(await screen.findByText('First conversation?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
 
-    expect(await screen.findByText('Second answer.')).toBeInTheDocument();
-    expect(apiSpies.fetchAskHistory).toHaveBeenCalledWith({ page: 2, pageSize: 5, projectSlug: '' });
+    expect(await screen.findByText('Second conversation?')).toBeInTheDocument();
+    expect(apiSpies.fetchAskConversations).toHaveBeenCalledWith({ page: 2, pageSize: 5, projectSlug: '' });
   });
 
   it('selects a history item as the current answer', async () => {
-    apiSpies.fetchAskHistory.mockResolvedValueOnce({
+    apiSpies.fetchAskConversations.mockResolvedValueOnce({
       ok: true,
-      history: [{
+      conversations: [{
+        conversationId: 'conv-1',
+        title: 'How should I deploy?',
+        projectId: '',
+        createdAt: '2026-05-23T10:00:00.000Z',
+      }],
+      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
+    });
+
+    apiSpies.fetchConversationTurns.mockResolvedValueOnce({
+      ok: true,
+      turns: [{
         id: 'ask-1',
         question: 'How should I deploy?',
         answer: 'Use the selected history answer.',
@@ -249,7 +264,6 @@ describe('SearchPage (Ask AI)', () => {
         relatedNotes: [],
         createdAt: '2026-05-23T10:00:00.000Z',
       }],
-      pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
     });
 
     renderSearchPage('/search');
@@ -257,8 +271,7 @@ describe('SearchPage (Ask AI)', () => {
     fireEvent.click(screen.getByRole('button', { name: /show history/i }));
     fireEvent.click(await screen.findByRole('button', { name: /how should i deploy/i }));
 
-    // The text appears both in the history list and in the AI answer card
-    expect(screen.getAllByText('Use the selected history answer.').length).toBeGreaterThanOrEqual(1);
+    expect(await screen.findByText('Use the selected history answer.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Active note' })).toBeInTheDocument();
     expect(screen.getByText('Based on 1 source')).toBeInTheDocument();
   });

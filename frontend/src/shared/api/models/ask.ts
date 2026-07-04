@@ -70,3 +70,23 @@ export type AskHistoryResponse = {
   history: AskHistoryItem[];
   pagination: PaginationMeta;
 };
+
+export type ChatMessage = {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  sources?: Array<{
+    noteId: string;
+    title: string;
+    path: string;
+  }>;
+  relatedNotes?: Array<{
+    id: string;
+    title: string;
+    path: string;
+    projectSlug?: string;
+    workspaceSlug?: string;
+  }>;
+};
+
