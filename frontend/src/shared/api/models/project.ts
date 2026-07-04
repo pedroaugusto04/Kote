@@ -11,6 +11,7 @@ export type Repository = {
 };
 
 export type Project = {
+  id?: string;
   projectSlug: string;
   displayName: string;
   repositories: Repository[];
