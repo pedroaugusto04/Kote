@@ -54,7 +54,7 @@ export class ApiClient {
     urlParams.set('limit', '10');
 
     // Add workspace and project headers/query values if applicable
-    let path = `api/query?${urlParams.toString()}`;
+    let path = `query?${urlParams.toString()}`;
     const headers = new Headers();
     headers.set('x-workspace-slug', this.config.workspaceSlug);
     if (activeProject) {
@@ -70,7 +70,7 @@ export class ApiClient {
   }
 
   async getNoteDetail(id: string): Promise<ApiNoteDetail> {
-    const response = await this.request(`api/notes/${encodeURIComponent(id)}`, {
+    const response = await this.request(`notes/${encodeURIComponent(id)}`, {
       method: 'GET',
     });
     const data = await response.json() as { ok: boolean; note: ApiNoteDetail };
@@ -95,7 +95,7 @@ export class ApiClient {
     headers.set('x-workspace-slug', this.config.workspaceSlug);
     headers.set('x-project-slug', activeProject);
 
-    const response = await this.request('api/notes', {
+    const response = await this.request('notes', {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -105,7 +105,7 @@ export class ApiClient {
   }
 
   async listProjects(): Promise<ApiProject[]> {
-    const response = await this.request('api/projects?limit=100', {
+    const response = await this.request('projects?limit=100', {
       method: 'GET',
     });
     const data = await response.json() as { ok: boolean; projects: ApiProject[] };
