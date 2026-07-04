@@ -423,13 +423,17 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                   {isAsking && (
                     <div className="ask-message-bubble assistant loading-bubble">
                       <div className="message-avatar-wrapper">
-                        <AskAiIcon className="message-assistant-icon ask-ai-pulse" />
+                        <AskAiIcon className="message-assistant-icon" />
                       </div>
                       <div className="message-content-wrapper">
                         <div className="message-meta">
-                          <strong>{SEARCH_MESSAGES.SKELETON.THINKING}</strong>
+                          <strong>Kote Assistant</strong>
                         </div>
                         <div className="message-body">
+                          <div className="ask-ai-identity">
+                            <AskAiIcon className="ask-ai-identity-icon ask-ai-pulse" />
+                            <strong>{SEARCH_MESSAGES.SKELETON.THINKING}</strong>
+                          </div>
                           <div className="ask-skeleton-lines">
                             <div className="skeleton-line line-1"></div>
                             <div className="skeleton-line line-2"></div>

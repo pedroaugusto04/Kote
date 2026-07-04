@@ -748,11 +748,12 @@
   width: 100%;
 }
 
-.loading-bubble .message-meta strong {
+.loading-bubble .ask-ai-identity {
   color: var(--cyan) !important;
   font-weight: 700;
   letter-spacing: 0.05em;
   animation: techPulse 2s infinite alternate;
+  margin-bottom: 4px;
 }
 
 .loading-bubble .skeleton-line {
