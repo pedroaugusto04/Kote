@@ -76,7 +76,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
 
   let currentStreak = 0;
   let weeklyAiData: { label: string; sessions: number }[] = [];
-  let hourlyCounts: { hour: number; label: string; Atividade: number }[] = [];
+  let hourlyCounts: { hour: number; label: string; Activity: number }[] = [];
   let totalAiInteractions = 0;
 
   if (pInsights) {
@@ -125,7 +125,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
       };
 
       weeklyAiData.push({
-        label: `${formatShortDate(startStr)} a ${formatShortDate(endStr)}`,
+        label: `${formatShortDate(startStr)} to ${formatShortDate(endStr)}`,
         sessions: count,
       });
     }
@@ -134,7 +134,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
     hourlyCounts = Array.from({ length: 24 }, (_, hour) => ({
       hour,
       label: `${String(hour).padStart(2, '0')}:00`,
-      Atividade: 0,
+      Activity: 0,
     }));
 
     const thirtyDaysAgoStr = getOffsetDateStr(-30);
@@ -143,7 +143,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
       const dayStr = formatDateStr(d);
       if (dayStr >= thirtyDaysAgoStr) {
         const hour = d.getHours();
-        hourlyCounts[hour].Atividade += 1;
+        hourlyCounts[hour].Activity += 1;
       }
     });
   }
@@ -234,12 +234,12 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
           {pInsights && (
             <article className="home-kpi insights-kpi-card" key="streak-kpi">
               <div className="home-kpi-head">
-                <span className="card-kicker">Streak de Uso</span>
+                <span className="card-kicker">Usage Streak</span>
                 <span className="kpi-symbol">🔥</span>
               </div>
               <div className="home-kpi-body">
-                <strong>{currentStreak} {currentStreak === 1 ? 'dia' : 'dias'}</strong>
-                <span className="home-kpi-meta active">Dias seguidos ativos</span>
+                <strong>{currentStreak} {currentStreak === 1 ? 'day' : 'days'}</strong>
+                <span className="home-kpi-meta active">Consecutive active days</span>
               </div>
             </article>
           )}
@@ -248,12 +248,12 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
           {pInsights && (
             <article className="home-kpi insights-kpi-card" key="ai-kpi">
               <div className="home-kpi-head">
-                <span className="card-kicker">Interações IA</span>
+                <span className="card-kicker">AI Interactions</span>
                 <span className="kpi-symbol">🤖</span>
               </div>
               <div className="home-kpi-body">
                 <strong>{totalAiInteractions}</strong>
-                <span className="home-kpi-meta">Buscas e Chats resolvidos</span>
+                <span className="home-kpi-meta">AI searches & chats</span>
               </div>
             </article>
           )}
@@ -294,7 +294,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                   className={`tab-btn ${activeActivityTab === 'notes' ? 'active' : ''}`}
                   onClick={() => setActiveActivityTab('notes')}
                 >
-                  Anotações (7d)
+                  Notes (7d)
                 </button>
                 {pInsights && (
                   <>
@@ -303,22 +303,22 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                       className={`tab-btn ${activeActivityTab === 'ai' ? 'active' : ''}`}
                       onClick={() => setActiveActivityTab('ai')}
                     >
-                      Sessões AI
+                      AI Sessions
                     </button>
                     <button
                       type="button"
                       className={`tab-btn ${activeActivityTab === 'hours' ? 'active' : ''}`}
                       onClick={() => setActiveActivityTab('hours')}
                     >
-                      Picos (24h)
+                      Peak Hours (24h)
                     </button>
                   </>
                 )}
               </div>
               <span className="meta">
-                {activeActivityTab === 'notes' && `${home.activityByDay.reduce((total, point) => total + point.count, 0)} notas`}
-                {activeActivityTab === 'ai' && `${totalAiInteractions} totais`}
-                {activeActivityTab === 'hours' && `Padrões de 30 dias`}
+                {activeActivityTab === 'notes' && `${home.activityByDay.reduce((total, point) => total + point.count, 0)} notes`}
+                {activeActivityTab === 'ai' && `${totalAiInteractions} total`}
+                {activeActivityTab === 'hours' && `30-day pattern`}
               </span>
             </div>
             <div className="chart-box" aria-label="Activity chart">
@@ -336,12 +336,6 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                   </AreaChart>
                 ) : activeActivityTab === 'ai' ? (
                   <AreaChart data={weeklyAiData} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="homeAiGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.0}/>
-                      </linearGradient>
-                    </defs>
                     <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
                     <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
                     <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
@@ -349,7 +343,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                       contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
                       labelStyle={{ color: 'var(--chart-tooltip-text)' }}
                     />
-                    <Area type="monotone" dataKey="sessions" name="Sessões AI" stroke="var(--accent)" fill="url(#homeAiGradient)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="sessions" name="AI Sessions" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
                   </AreaChart>
                 ) : (
                   <BarChart data={hourlyCounts} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
@@ -360,7 +354,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                       contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
                       labelStyle={{ color: 'var(--chart-tooltip-text)' }}
                     />
-                    <Bar dataKey="Atividade" fill="var(--chart-bar-fill)" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="Activity" fill="var(--chart-bar-fill)" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 )}
               </ResponsiveContainer>
