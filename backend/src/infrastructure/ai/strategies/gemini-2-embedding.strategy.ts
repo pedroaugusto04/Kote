@@ -4,6 +4,7 @@ import type { EmbeddingConfig } from '../../../application/ports/notes/embedding
 import type { EmbeddingStrategy } from './embedding.strategy.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { truncateForLog } from '../../utils/logging.js';
+import { EmbeddingTaskType } from '../../../contracts/enums.js';
 
 /**
  * Max texts per Gemini batchEmbedContents request (API limit is 100).
@@ -28,6 +29,7 @@ export class Gemini2EmbeddingStrategy implements EmbeddingStrategy {
   async generateEmbeddings(
     config: EmbeddingConfig,
     texts: string[],
+    taskType?: EmbeddingTaskType,
   ): Promise<number[][]> {
     if (!texts.length) return [];
 
@@ -41,9 +43,11 @@ export class Gemini2EmbeddingStrategy implements EmbeddingStrategy {
         requests: batch.map((text) => ({
           model: `models/${config.model}`,
           content: { parts: [{ text }] },
+          taskType: taskType === EmbeddingTaskType.Query ? 'RETRIEVAL_QUERY' : 'RETRIEVAL_DOCUMENT',
           outputDimensionality: 768,
         })),
       };
+
 
       this.logger.info('[Embedding] Gemini-2 batchEmbedContents', {
         count: batch.length,

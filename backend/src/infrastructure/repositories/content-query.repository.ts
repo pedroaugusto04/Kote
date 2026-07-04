@@ -72,12 +72,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         const tokens = tokenizeQuery(filters.query);
         if (tokens.length > 0) {
           const tsQueryStr = tokens.map((token) => `${token}:*`).join(' | ');
-          const textCondition = sql`((
-            to_tsvector('english', ${notes.title}) ||
-            to_tsvector('english', ${notes.summary}) ||
-            to_tsvector('english', ${notes.path}) ||
-            to_tsvector('english', cast(${notes.tags} as text))
-          ) @@ to_tsquery('english', ${tsQueryStr}))`;
+          const textCondition = sql`(${notes}.search_vector @@ to_tsquery('english', ${tsQueryStr}))`;
 
           if (searchCondition) {
             searchCondition = sql`(${searchCondition} OR ${textCondition})`;

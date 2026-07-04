@@ -10,3 +10,9 @@ export enum ConversationConfidence {
   Medium = 'medium',
   Low = 'low',
 }
+
+export enum EmbeddingTaskType {
+  Document = 'document',
+  Query = 'query',
+}
+

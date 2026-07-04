@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus, EmbeddingTaskType } from '../../../../contracts/enums.js';
 import { buildGithubPrReviewEvent, buildGithubPrContextNoteEvent } from '../../../github-review.js';
 import type { GithubPullRequestWebhookRequest } from '../../../models/webhook-request.models.js';
 import type { ChangedFile } from '../../../models/github-webhook.models.js';
@@ -417,7 +417,7 @@ export class HandleGithubPullRequestUseCase {
           model: environment.embeddingAiModel,
           apiKey: environment.embeddingAiApiKey,
         };
-        const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [searchTerms]);
+        const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [searchTerms], EmbeddingTaskType.Query);
         const prEmbedding = embeddings[0];
 
         if (prEmbedding && prEmbedding.length > 0) {

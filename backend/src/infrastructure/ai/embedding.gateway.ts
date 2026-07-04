@@ -1,12 +1,12 @@
-import { Injectable, Inject, Optional, InternalServerErrorException } from '@nestjs/common';
-
-import { AiProvider } from '../../contracts/enums.js';
+import { Injectable, Optional, InternalServerErrorException } from '@nestjs/common';
+import { AiProvider, EmbeddingTaskType } from '../../contracts/enums.js';
 import { EmbeddingConfig, EmbeddingGateway } from '../../application/ports/notes/embedding.gateway.js';
 import { AppLogger } from '../../observability/logger.js';
 import type { EmbeddingStrategy } from './strategies/embedding.strategy.js';
 import { Gemini001EmbeddingStrategy } from './strategies/gemini-001-embedding.strategy.js';
 import { Gemini2EmbeddingStrategy } from './strategies/gemini-2-embedding.strategy.js';
 import { OpenAiEmbeddingStrategy } from './strategies/openai-embedding.strategy.js';
+
 
 @Injectable()
 export class DefaultEmbeddingGateway extends EmbeddingGateway {
@@ -43,6 +43,7 @@ export class DefaultEmbeddingGateway extends EmbeddingGateway {
   async generateEmbeddings(
     config: EmbeddingConfig,
     texts: string[],
+    taskType?: EmbeddingTaskType,
   ): Promise<number[][]> {
     if (!texts.length) return [];
 
@@ -56,6 +57,7 @@ export class DefaultEmbeddingGateway extends EmbeddingGateway {
     }
 
     const strategy = this.getStrategy(config);
-    return strategy.generateEmbeddings(config, texts);
+    return strategy.generateEmbeddings(config, texts, taskType);
   }
 }
+

@@ -9,6 +9,7 @@ import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-en
 import { rankKnowledgeMatches, rankHybridKnowledgeMatches } from '../../utils/query.utils.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { EmbeddingTaskType } from '../../../contracts/enums.js';
 
 @Injectable()
 export class QueryKnowledgeUseCase {
@@ -38,8 +39,9 @@ export class QueryKnowledgeUseCase {
     // Try vector search first if embeddings are configured
     if (embeddingConfig.provider && embeddingConfig.apiKey && embeddingConfig.model) {
       try {
-        const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [input.query]);
+        const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [input.query], EmbeddingTaskType.Query);
         const queryEmbedding = embeddings[0];
+
 
         if (queryEmbedding && queryEmbedding.length > 0) {
           similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {

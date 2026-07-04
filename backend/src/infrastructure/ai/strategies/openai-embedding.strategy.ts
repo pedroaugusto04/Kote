@@ -4,6 +4,7 @@ import type { EmbeddingConfig } from '../../../application/ports/notes/embedding
 import type { EmbeddingStrategy } from './embedding.strategy.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { truncateForLog } from '../../utils/logging.js';
+import { EmbeddingTaskType } from '../../../contracts/enums.js';
 
 /**
  * Max texts per OpenAI-compatible /embeddings request.
@@ -28,10 +29,12 @@ export class OpenAiEmbeddingStrategy implements EmbeddingStrategy {
   async generateEmbeddings(
     config: EmbeddingConfig,
     texts: string[],
+    taskType?: EmbeddingTaskType,
   ): Promise<number[][]> {
     if (!texts.length) return [];
 
     const batches = chunk(texts, OPENAI_BATCH_SIZE);
+
     const allEmbeddings: number[][] = [];
 
     for (const batch of batches) {

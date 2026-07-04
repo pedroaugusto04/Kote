@@ -7,7 +7,7 @@ import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/qu
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
-import { ConversationConfidence } from '../../../contracts/enums.js';
+import { ConversationConfidence, EmbeddingTaskType } from '../../../contracts/enums.js';
 import { QuotaService } from '../../services/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
@@ -116,8 +116,9 @@ export class AskKnowledgeUseCase {
       });
     } else {
       // 1. Generate embedding for the question
-      const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText]);
+      const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText], EmbeddingTaskType.Query);
       const questionEmbedding = embeddings[0];
+
 
       if (!questionEmbedding || questionEmbedding.length === 0) {
         return {
