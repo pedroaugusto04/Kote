@@ -1,6 +1,6 @@
 export { buildGoogleAuthStartUrl, deleteCurrentUserAvatar, fetchCurrentUser, login, logout, signup, uploadCurrentUserAvatar, fetchConnectionToken, reportVscodeInstalled } from './auth';
 export { logApplicationAccess } from './application';
-export { fetchDashboard } from './dashboard';
+export { fetchDashboard, fetchProductivityInsights } from './dashboard';
 export {
   connectIntegration,
   fetchGithubRepositories,

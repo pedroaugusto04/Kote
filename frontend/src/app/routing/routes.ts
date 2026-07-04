@@ -11,6 +11,7 @@ export const routes = {
   search: '/search',
   reminders: '/reminders',
   profile: '/profile',
+  insights: '/insights',
   integrations: '/automations/integrations',
   subscription: '/automations/subscription',
   automations: '/automations',
@@ -18,7 +19,7 @@ export const routes = {
   extensionPrivacy: '/extension/privacy',
 } as const;
 
-export type View = 'home' | 'map' | 'projects' | 'note' | 'search' | 'reminders' | 'profile' | 'integrations' | 'subscription' | 'help' | 'automations';
+export type View = 'home' | 'map' | 'projects' | 'note' | 'search' | 'reminders' | 'profile' | 'integrations' | 'subscription' | 'help' | 'automations' | 'insights';
 
 
 export const navItems: Array<{ view: View; label: string; path: string }> = [
@@ -27,4 +28,5 @@ export const navItems: Array<{ view: View; label: string; path: string }> = [
   { view: 'search', label: 'Ask AI', path: routes.search },
   { view: 'reminders', label: 'Reminders', path: routes.reminders },
   { view: 'map', label: 'Map', path: routes.map },
+  { view: 'insights', label: 'Insights', path: routes.insights },
 ];

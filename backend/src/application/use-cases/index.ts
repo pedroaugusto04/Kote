@@ -1,4 +1,5 @@
 export { BuildDashboardUseCase, buildDashboardHome } from './dashboard/build-dashboard.use-case.js';
+export { GetProductivityInsightsRawUseCase } from './dashboard/get-productivity-insights-raw.use-case.js';
 export { LogApplicationAccessUseCase } from './observability/log-application-access.use-case.js';
 export { CreateWorkspaceUseCase } from './workspaces/create-workspace.use-case.js';
 export { ListWorkspaceRepositoriesUseCase } from './workspaces/list-workspace-repositories.use-case.js';

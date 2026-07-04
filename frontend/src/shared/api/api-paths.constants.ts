@@ -29,6 +29,7 @@ export const API_PATHS = {
 
   // Dashboard paths
   DASHBOARD: '/api/dashboard',
+  PRODUCTIVITY_INSIGHTS: '/api/productivity/insights',
 
   // Ask paths
   ASK: '/api/ask',

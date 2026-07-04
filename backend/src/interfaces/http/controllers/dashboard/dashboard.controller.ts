@@ -18,6 +18,7 @@ import {
   ListAskHistoryUseCase,
   ListAskConversationsUseCase,
   GetAskConversationTurnsUseCase,
+  GetProductivityInsightsRawUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
@@ -86,6 +87,7 @@ export class DashboardController {
     private readonly listAskConversationsUseCase: ListAskConversationsUseCase,
     private readonly getAskConversationTurnsUseCase: GetAskConversationTurnsUseCase,
     private readonly bulkUpdateReminderStatusUseCase: BulkUpdateReminderStatusUseCase,
+    private readonly getProductivityInsightsUseCase: GetProductivityInsightsRawUseCase,
   ) {}
 
   @Get('dashboard')
@@ -94,6 +96,14 @@ export class DashboardController {
   @ApiResponse({ status: 200, description: 'Dashboard data retrieved successfully' })
   dashboard(@CurrentUser() user: AuthenticatedUser) {
     return this.buildDashboard.execute(user.id);
+  }
+
+  @Get('productivity/insights')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get developer productivity insights' })
+  @ApiResponse({ status: 200, description: 'Productivity insights retrieved successfully' })
+  getProductivityInsights(@CurrentUser() user: AuthenticatedUser) {
+    return this.getProductivityInsightsUseCase.execute(user.id);
   }
 
   @Get('projects')

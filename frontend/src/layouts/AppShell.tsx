@@ -24,6 +24,7 @@ const IntegrationsPage = lazy(() => import('../pages/integrations/IntegrationsPa
 const SubscriptionPage = lazy(() => import('../pages/billing/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
 const ProjectKnowledgeMapPage = lazy(() => import('../features/projects/knowledge-map/ProjectKnowledgeMapPage').then(m => ({ default: m.ProjectKnowledgeMapPage })));
 const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const InsightsPage = lazy(() => import('../pages/insights/InsightsPage').then(m => ({ default: m.InsightsPage })));
 const SetupPage = lazy(() => import('../pages/setup/SetupPage').then(m => ({ default: m.SetupPage })));
 const AuthPage = lazy(() => import('../pages/auth/AuthPage').then(m => ({ default: m.AuthPage })));
 const HelpPage = lazy(() => import('../pages/help/HelpPage').then(m => ({ default: m.HelpPage })));
@@ -649,6 +650,7 @@ export function AppShell() {
               <Route path="/search" element={<SearchPage {...pageContext} />} />
               <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
               <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
+              <Route path="/insights" element={<InsightsPage />} />
               <Route path="/automations/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
               <Route path="/automations/subscription" element={<SubscriptionPage />} />
               <Route path="/automations" element={<AutomationsPage />} />

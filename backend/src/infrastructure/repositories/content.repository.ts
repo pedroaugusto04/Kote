@@ -20,6 +20,8 @@ import { PostgresNoteRepository } from './note.repository.js';
 import { PostgresFolderRepository } from './folder.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
 import { PostgresCategoryRepository } from './category.repository.js';
+import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
+
 
 @Injectable()
 export class PostgresContentRepository extends ContentRepository {
@@ -243,5 +245,9 @@ export class PostgresContentRepository extends ContentRepository {
 
   async listAttachments(userId: string, noteId: string) {
     return this.attachmentRepository.list(userId, noteId);
+  }
+
+  async getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw> {
+    return this.noteRepository.getProductivityInsightsRaw(userId);
   }
 }

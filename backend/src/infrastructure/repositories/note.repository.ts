@@ -2,7 +2,8 @@ import crypto from 'node:crypto';
 
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
-import { eq, and, count, desc, sql, inArray, notInArray, or } from 'drizzle-orm';
+import { eq, and, count, desc, sql, inArray, notInArray, or, gte } from 'drizzle-orm';
+
 
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
@@ -17,8 +18,11 @@ import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.j
 import { noteSummary } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories } from '../persistence/schema/index.js';
+import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory } from '../persistence/schema/index.js';
 import { resolveIds } from './utils/id-resolution.helpers.js';
+import { isAiSource } from '../../domain/notes.js';
+import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
+
 
 @Injectable()
 export class PostgresNoteRepository {
@@ -865,7 +869,68 @@ export class PostgresNoteRepository {
       next: row?.next_id ? { id: row.next_id, title: row.next_title ?? '' } : null,
     };
   }
+
+  async getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw> {
+    const db = this.database.getDb();
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const [dbNotes, dbAsks, dbCategories] = await Promise.all([
+      db
+        .select({
+          createdAt: notes.createdAt,
+          sourceChannel: notes.sourceChannel,
+          source: notes.source,
+        })
+        .from(notes)
+        .where(and(eq(notes.userId, userId), gte(notes.createdAt, ninetyDaysAgo))),
+      db
+        .select({
+          createdAt: askHistory.createdAt,
+        })
+        .from(askHistory)
+        .where(and(eq(askHistory.userId, userId), gte(askHistory.createdAt, ninetyDaysAgo))),
+      db
+        .select({
+          id: categories.id,
+          name: categories.name,
+          color: categories.color,
+          count: count(noteCategories.noteId),
+        })
+        .from(categories)
+        .innerJoin(noteCategories, eq(noteCategories.categoryId, categories.id))
+        .innerJoin(notes, eq(noteCategories.noteId, notes.id))
+        .where(and(eq(notes.userId, userId), gte(notes.createdAt, ninetyDaysAgo)))
+        .groupBy(categories.id, categories.name, categories.color),
+    ]);
+
+    const activities = [
+      ...dbNotes.map((n) => ({
+        createdAt: n.createdAt.toISOString(),
+        type: 'note' as const,
+        isAi: n.sourceChannel === 'ai-chat' || isAiSource(n.source),
+      })),
+      ...dbAsks.map((a) => ({
+        createdAt: a.createdAt.toISOString(),
+        type: 'ask' as const,
+        isAi: true,
+      })),
+    ];
+
+    const categoriesResult = dbCategories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      color: c.color,
+      count: Number(c.count || 0),
+    }));
+
+    return {
+      activities,
+      categories: categoriesResult,
+    };
+  }
 }
+
 
 function projectTimelineItem(record: NoteRecord) {
   const summary = noteSummary(record);

@@ -18,6 +18,8 @@ import type { ListProjectTimelineInput, PaginatedProjectTimeline } from '../../m
 import type { ListProjectsInput, PaginatedProjects } from '../../models/project-list.models.js';
 import type { ReviewView } from '../../models/review.models.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../models/vault-note.models.js';
+import type { ProductivityInsightsRaw } from '../../models/productivity.models.js';
+
 
 export abstract class ContentRepository {
   abstract listCategories(userId: string, workspaceId: string): Promise<CategoryRecord[]>;
@@ -63,6 +65,7 @@ export abstract class ContentRepository {
   abstract deleteNote(userId: string, id: string): Promise<boolean>;
   abstract saveAttachment(userId: string, input: SaveAttachmentInput): Promise<AttachmentRecord>;
   abstract listAttachments(userId: string, noteId: string): Promise<AttachmentRecord[]>;
+  abstract getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw>;
 }
 
 export abstract class ContentQueryRepository {
