@@ -17,7 +17,7 @@ export function toCreateManualNoteDto(httpBody: CreateNoteBody, projectId: strin
     occurredAt: httpBody.occurredAt,
     path: httpBody.path,
     metadata: httpBody.metadata || {},
-    attachments: httpBody.attachments,
+    attachments: httpBody.attachments || [],
   };
 }
 
