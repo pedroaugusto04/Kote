@@ -1,0 +1,24 @@
+{
+  "name": "@pedroaugusto04/kote-mcp",
+  "version": "1.0.0",
+  "description": "Model Context Protocol (MCP) server for Kote",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "kote-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "typescript": "^5.9.2"
+  }
+}
