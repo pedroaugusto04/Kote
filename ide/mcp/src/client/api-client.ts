@@ -4,6 +4,7 @@ import os from 'node:os';
 
 import { StderrLogger } from '../logger/stderr.logger.js';
 import { CONFIG_CONSTANTS, ENV_VARS } from '../constants/mcp.constants.js';
+import { clearPersistedCookies, maybeExchangeConnectionToken } from '../config/connection-token.js';
 import type { CliConfig } from '../types/mcp.types.js';
 import type { ApiProject, ApiSearchResponse, ApiNoteDetail, ApiCreateNoteResponse } from '../types/kote-api.types.js';
 
@@ -97,10 +98,34 @@ export class ApiClient {
         }
       }
 
-      if (!refreshed && response.status === 401) {
-        let errorBody = '';
-        try { errorBody = await response.text(); } catch { /* ignore */ }
-        throw new Error(`API Request failed with status ${response.status} (${response.statusText}): ${errorBody}`);
+      if (!refreshed) {
+        // Refresh failed — try a live connection-token re-exchange if available
+        const connectionToken = process.env[ENV_VARS.ConnectionToken];
+        if (connectionToken) {
+          try {
+            StderrLogger.info('Token refresh failed — attempting connection-token re-exchange...');
+            // Clear stale cookies so maybeExchangeConnectionToken proceeds
+            clearPersistedCookies(this.config);
+            await maybeExchangeConnectionToken(this.config);
+            // Retry original request with freshly exchanged tokens
+            response = await this.rawRequest(urlPath, options);
+            if (response.ok || response.status !== 401) {
+              // Re-exchange worked — carry on
+            } else {
+              let errorBody = '';
+              try { errorBody = await response.text(); } catch { /* ignore */ }
+              throw new Error(`API Request failed with status ${response.status} (${response.statusText}): ${errorBody}`);
+            }
+          } catch (reExchangeErr) {
+            // Re-exchange itself failed — clear cookies so next startup retries
+            clearPersistedCookies(this.config);
+            throw reExchangeErr;
+          }
+        } else {
+          let errorBody = '';
+          try { errorBody = await response.text(); } catch { /* ignore */ }
+          throw new Error(`API Request failed with status ${response.status} (${response.statusText}): ${errorBody}`);
+        }
       }
     }
 

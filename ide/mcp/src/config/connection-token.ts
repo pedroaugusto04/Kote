@@ -13,7 +13,50 @@ interface ExchangeResult {
 }
 
 /**
- * If KOTE_CONNECTION_TOKEN is set and no valid session already exists,
+ * Returns true if the JWT string is present and not yet expired.
+ */
+function isTokenStillValid(token: string | undefined): boolean {
+  if (!token) return false;
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(Buffer.from(parts[1]!, 'base64url').toString('utf8')) as { exp?: number };
+    return typeof payload.exp === 'number' && payload.exp > Math.floor(Date.now() / 1000);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Removes persisted cookies from the shared CLI config file.
+ * Called by ApiClient after a failed token refresh so the next startup
+ * forces a fresh connection-token exchange.
+ */
+export function clearPersistedCookies(config: CliConfig): void {
+  config.cookies.kb_access_token = '';
+  config.cookies.kb_refresh_token = '';
+
+  try {
+    const configDir = process.env[ENV_VARS.ConfigDir] || path.join(
+      os.homedir(),
+      CONFIG_CONSTANTS.DefaultConfigDirName,
+      CONFIG_CONSTANTS.DefaultConfigAppName,
+    );
+    const configFile = path.join(configDir, CONFIG_CONSTANTS.ConfigFileName);
+    let existing: Record<string, unknown> = {};
+    try {
+      existing = JSON.parse(fs.readFileSync(configFile, 'utf8')) as Record<string, unknown>;
+    } catch { /* ignore */ }
+    const updated = { ...existing, cookies: {} };
+    fs.writeFileSync(configFile, JSON.stringify(updated, null, 2), 'utf8');
+    StderrLogger.debug('Cleared persisted session cookies from config file.');
+  } catch (err) {
+    StderrLogger.error('Could not clear persisted cookies from config file:', err);
+  }
+}
+
+/**
+ * If KOTE_CONNECTION_TOKEN is set and no *valid* session already exists,
  * exchanges the connection token for an access+refresh pair and persists
  * it to the shared CLI config file (~/.config/kote/config.json).
  *
@@ -27,9 +70,11 @@ export async function maybeExchangeConnectionToken(config: CliConfig): Promise<v
   const connectionToken = process.env[ENV_VARS.ConnectionToken];
   if (!connectionToken) return;
 
-  // Skip exchange if a valid session is already present (e.g. from shared CLI config)
-  if (config.cookies.kb_access_token || config.cookies.kb_refresh_token) {
-    StderrLogger.debug('KOTE_CONNECTION_TOKEN set but session already exists — skipping exchange.');
+  // Skip exchange only when the access_token is still valid. If it's expired
+  // (but refresh_token may still be present), fall through so the exchange
+  // produces a fresh pair — the stale access_token would cause immediate 401s.
+  if (isTokenStillValid(config.cookies.kb_access_token)) {
+    StderrLogger.debug('KOTE_CONNECTION_TOKEN set but valid session already exists — skipping exchange.');
     return;
   }
 
