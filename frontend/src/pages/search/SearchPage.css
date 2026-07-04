@@ -592,31 +592,25 @@
   }
 }
 
-/* User Message specific alignment (Right align) */
-.ask-message-bubble.user {
-  flex-direction: row-reverse;
-}
-
-.ask-message-bubble.user .message-content-wrapper {
-  align-items: flex-end;
-  text-align: right;
-}
-
+/* User Message specific alignment (Left align, styled) */
 .ask-message-bubble.user .message-body {
-  background: var(--surface-hover-accent);
-  border: 1px solid var(--accent-border);
-  color: var(--active-text);
-  border-radius: 16px 4px 16px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--muted);
+  color: var(--text-strong);
+  border-radius: 4px 16px 16px 16px;
   padding: 12px 18px;
   font-size: 13.5px;
   line-height: 1.5;
   box-shadow: var(--shadow-sm);
+  width: 100%;
 }
 
-/* Assistant Message specific alignment (Left align) */
+/* Assistant Message specific alignment (Left align, styled) */
 .ask-message-bubble.assistant .message-body {
   background: var(--surface-3);
   border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--cyan);
   color: var(--text);
   border-radius: 4px 16px 16px 16px;
   padding: 16px 20px;
@@ -669,9 +663,7 @@
   color: var(--muted);
 }
 
-.ask-message-bubble.user .message-meta {
-  flex-direction: row-reverse;
-}
+/* Removed row-reverse user message meta override */
 
 /* loading bubble */
 .loading-bubble .message-body {

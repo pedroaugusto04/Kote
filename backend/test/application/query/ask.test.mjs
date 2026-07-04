@@ -242,7 +242,7 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches re
   assert.deepEqual(askKnowledge.calls, [{
     question: 'How to deploy?',
     userId: 'user-123',
-    options: { projectId: undefined, workspaceId: undefined },
+    options: { projectId: undefined, workspaceId: undefined, conversationHistory: undefined },
   }]);
   
   assert.equal(typeof saved[0]?.conversationId, 'string');

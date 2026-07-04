@@ -198,7 +198,7 @@ describe('SearchPage (Ask AI)', () => {
 
     expect(apiSpies.fetchAskConversations).not.toHaveBeenCalled();
     expect(screen.queryByText('How should I deploy?')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /show history/i }));
+    fireEvent.click(screen.getByRole('button', { name: /show conversations/i }));
 
     expect(await screen.findByText('How should I deploy?')).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText('Filter by project'));
@@ -232,7 +232,7 @@ describe('SearchPage (Ask AI)', () => {
 
     renderSearchPage('/search');
 
-    fireEvent.click(screen.getByRole('button', { name: /show history/i }));
+    fireEvent.click(screen.getByRole('button', { name: /show conversations/i }));
     expect(await screen.findByText('First conversation?')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
 
@@ -268,7 +268,7 @@ describe('SearchPage (Ask AI)', () => {
 
     renderSearchPage('/search');
 
-    fireEvent.click(screen.getByRole('button', { name: /show history/i }));
+    fireEvent.click(screen.getByRole('button', { name: /show conversations/i }));
     fireEvent.click(await screen.findByRole('button', { name: /how should i deploy/i }));
 
     expect(await screen.findByText('Use the selected history answer.')).toBeInTheDocument();
