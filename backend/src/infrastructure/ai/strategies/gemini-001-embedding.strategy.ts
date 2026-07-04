@@ -24,7 +24,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 @Injectable()
 export class Gemini001EmbeddingStrategy implements EmbeddingStrategy {
-  constructor(private readonly logger: AppLogger) {}
+  constructor(private readonly logger: AppLogger) { }
 
   async generateEmbeddings(
     config: EmbeddingConfig,
