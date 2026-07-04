@@ -1,27 +1,64 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+
 import { StderrLogger } from '../logger/stderr.logger.js';
+import { CONFIG_CONSTANTS, ENV_VARS } from '../constants/mcp.constants.js';
 import type { CliConfig } from '../types/mcp.types.js';
 import type { ApiProject, ApiSearchResponse, ApiNoteDetail, ApiCreateNoteResponse } from '../types/kote-api.types.js';
 
 export class ApiClient {
-  constructor(private readonly config: CliConfig) {}
+  constructor(private config: CliConfig) {}
 
-  private async request(path: string, options: RequestInit = {}): Promise<Response> {
+  private buildCookieHeader(): string {
+    const { kb_access_token, kb_refresh_token } = this.config.cookies;
+    return [
+      kb_access_token && `kb_access_token=${kb_access_token}`,
+      kb_refresh_token && `kb_refresh_token=${kb_refresh_token}`,
+    ]
+      .filter(Boolean)
+      .join('; ');
+  }
+
+  private persistCookies(setCookieHeaders: string[]): void {
+    for (const header of setCookieHeaders) {
+      const [kv] = header.split(';');
+      const eqIdx = kv?.indexOf('=') ?? -1;
+      if (eqIdx === -1) continue;
+      const key = kv.slice(0, eqIdx).trim();
+      const value = kv.slice(eqIdx + 1).trim();
+      if (key === 'kb_access_token') this.config.cookies.kb_access_token = value;
+      if (key === 'kb_refresh_token') this.config.cookies.kb_refresh_token = value;
+    }
+
+    // Write back to the shared config file so other tools see the refreshed tokens
+    try {
+      const configDir = process.env[ENV_VARS.ConfigDir] || path.join(
+        os.homedir(),
+        CONFIG_CONSTANTS.DefaultConfigDirName,
+        CONFIG_CONSTANTS.DefaultConfigAppName,
+      );
+      const configFile = path.join(configDir, CONFIG_CONSTANTS.ConfigFileName);
+      let existing: Record<string, unknown> = {};
+      try {
+        existing = JSON.parse(fs.readFileSync(configFile, 'utf8')) as Record<string, unknown>;
+      } catch { /* ignore */ }
+      const updated = { ...existing, cookies: { ...(existing.cookies as object ?? {}), ...this.config.cookies } };
+      fs.writeFileSync(configFile, JSON.stringify(updated, null, 2), 'utf8');
+    } catch { /* ignore */ }
+  }
+
+  private async rawRequest(urlPath: string, options: RequestInit = {}): Promise<Response> {
     const apiBase = this.config.apiUrl.replace(/\/$/, '');
-    const cleanPath = path.replace(/^\//, '');
+    const cleanPath = urlPath.replace(/^\//, '');
     const url = `${apiBase}/${cleanPath}`;
 
     const headers = new Headers(options.headers || {});
-    
+
     // Attach authorization cookies
-    if (this.config.cookies.kb_access_token || this.config.cookies.kb_refresh_token) {
-      const cookieParts: string[] = [];
-      if (this.config.cookies.kb_access_token) {
-        cookieParts.push(`kb_access_token=${this.config.cookies.kb_access_token}`);
-      }
-      if (this.config.cookies.kb_refresh_token) {
-        cookieParts.push(`kb_refresh_token=${this.config.cookies.kb_refresh_token}`);
-      }
-      headers.set('Cookie', cookieParts.join('; '));
+    const cookieHeader = this.buildCookieHeader();
+    if (cookieHeader) {
+      headers.set('Cookie', cookieHeader);
     }
 
     // Set common headers
@@ -30,9 +67,43 @@ export class ApiClient {
     }
 
     StderrLogger.debug(`HTTP Request: ${options.method || 'GET'} ${url}`);
-    
-    const response = await fetch(url, { ...options, headers });
-    
+
+    return fetch(url, { ...options, headers });
+  }
+
+  private async request(urlPath: string, options: RequestInit = {}): Promise<Response> {
+    let response = await this.rawRequest(urlPath, options);
+
+    // On 401 attempt a token refresh (mirrors CLI and VS Code extension behaviour)
+    if (response.status === 401 && !urlPath.includes('auth/refresh')) {
+      let refreshed = false;
+      if (this.config.cookies.kb_refresh_token) {
+        try {
+          const refreshResponse = await this.rawRequest('/api/auth/refresh', { method: 'POST' });
+          if (refreshResponse.ok) {
+            const setCookieHeaders =
+              typeof refreshResponse.headers.getSetCookie === 'function'
+                ? refreshResponse.headers.getSetCookie()
+                : [];
+            if (setCookieHeaders.length > 0) {
+              this.persistCookies(setCookieHeaders);
+            }
+            // Retry original request with refreshed cookies
+            response = await this.rawRequest(urlPath, options);
+            refreshed = true;
+          }
+        } catch {
+          // Ignore refresh errors — fall through to error handling below
+        }
+      }
+
+      if (!refreshed && response.status === 401) {
+        let errorBody = '';
+        try { errorBody = await response.text(); } catch { /* ignore */ }
+        throw new Error(`API Request failed with status ${response.status} (${response.statusText}): ${errorBody}`);
+      }
+    }
+
     if (!response.ok) {
       const statusText = response.statusText;
       let errorBody = '';

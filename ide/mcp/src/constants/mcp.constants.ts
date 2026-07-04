@@ -24,5 +24,6 @@ export const ENV_VARS = {
   DefaultProject: 'KB_CLI_PROJECT',
   ConfigDir: 'KB_CLI_CONFIG_DIR',
   AccessToken: 'KOTE_ACCESS_TOKEN',
-  SessionCookie: 'KOTE_SESSION_COOKIE'
+  SessionCookie: 'KOTE_SESSION_COOKIE',
+  ConnectionToken: 'KOTE_CONNECTION_TOKEN',
 } as const;

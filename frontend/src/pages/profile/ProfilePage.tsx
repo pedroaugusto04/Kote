@@ -148,9 +148,9 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
 
             <div className="profile-connection-section">
               <div className="profile-connection-header">
-                <h3 className="profile-connection-title">CLI & VS Code Connection</h3>
+                <h3 className="profile-connection-title">IDE & CLI Connection</h3>
                 <p className="profile-connection-desc">
-                  Generate a unified connection token to authenticate your VS Code extension or command line interface (CLI). This token contains refresh capability and will keep you logged in.
+                  Generate a unified connection token to authenticate your VS Code extension, CLI, or MCP server. This token contains refresh capability and will keep you logged in.
                 </p>
               </div>
 

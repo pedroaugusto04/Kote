@@ -306,7 +306,7 @@ Body:
       { title: 'Installation', body: 'Install the CLI globally via npm and initialize it with your API token.', code: 'npm install -g @pedroaugusto04/kote-cli\nkote init' },
       { title: 'Syncing AI sessions', body: 'Sync AI assistant sessions (Claude Code, Codex, Antigravity, OpenCode) to your Kote.', code: 'kote sync-ai' },
       { title: 'Syncing files and directories', body: 'Send individual files or entire directories to your Kote.', code: 'kote sync --file ./README.md\nkote sync --dir ./docs' },
-      { title: 'Finding your API token', body: 'Go to Profile → CLI & VS Code Connection in the app to generate a unified connection token. This token authenticates both the VS Code extension and CLI.' },
+      { title: 'Finding your API token', body: 'Go to Profile → IDE & CLI Connection in the app to generate a unified connection token. This token authenticates the VS Code extension, CLI, and MCP server.' },
       { title: 'CLI documentation', body: 'For complete CLI commands, usage examples, and advanced configuration, refer to the CLI documentation on GitHub.', tip: 'View CLI README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/cli/README.md' },
     ],
   },
@@ -315,7 +315,7 @@ Body:
     label: 'MCP Server',
     icon: <IconPlug />,
     title: 'MCP Server',
-    description: 'The Kote MCP Server allows AI agents (like Cursor, Claude Desktop, and Cline) to query and save developer memory directly.',
+    description: 'The Kote MCP Server allows AI agents (like Cursor, Claude Desktop, and Cline) to query and save developer memory directly. It authenticates automatically using the same session stored by the CLI.',
     items: [
       {
         title: 'Running via npx',
@@ -336,7 +336,27 @@ Body:
         body: 'To use the Kote MCP Server with local coding assistants like Antigravity or Codex, configure the stdio transport in their respective configuration settings (such as "mcp.json" or workspace configuration files):',
         code: '{\n  "mcpServers": {\n    "kote": {\n      "command": "npx",\n      "args": ["-y", "@pedroaugusto04/kote-mcp"]\n    }\n  }\n}',
       },
-      { title: 'Auto-authentication', body: 'The MCP server automatically reads authenticated credentials from your local CLI configuration. Ensure you have installed and logged in via the Kote CLI ("kote login") first.' },
+      {
+        title: 'Authentication — shared CLI session (recommended)',
+        body: 'The MCP server automatically reads credentials from the same config file used by the Kote CLI (~/.config/kote/config.json). If the access token expires, the server transparently refreshes it and saves the new tokens back to disk — no manual intervention needed.',
+        steps: [
+          'Install the CLI: npm install -g @pedroaugusto04/kote-cli',
+          'Log in once: kote login (or kote init)',
+          'Start the MCP server — it will pick up your session automatically',
+        ],
+        tip: 'Logging out from the CLI (kote logout) will clear the shared session. Re-run kote login to restore access.',
+      },
+      {
+        title: 'Authentication — KOTE_CONNECTION_TOKEN env var',
+        body: 'If you prefer not to install the CLI, pass a Connection Token via the KOTE_CONNECTION_TOKEN environment variable. The MCP server will exchange it for a full session on startup and save the result to disk — no further action needed.',
+        steps: [
+          'Go to Profile → IDE & CLI Connection',
+          'Click "Reveal Connection Token" and copy the token',
+          'Add KOTE_CONNECTION_TOKEN to your MCP client config (see below)',
+        ],
+        code: '{\n  "mcpServers": {\n    "kote": {\n      "command": "npx",\n      "args": ["-y", "@pedroaugusto04/kote-mcp"],\n      "env": {\n        "KOTE_CONNECTION_TOKEN": "<paste your connection token here>"\n      }\n    }\n  }\n}',
+        tip: 'The Connection Token is only needed once — after the first startup it is replaced by long-lived session tokens that auto-refresh. If you ever need to re-authenticate, generate a new token from the Profile page.',
+      },
       { title: 'MCP documentation', body: 'For advanced options, environment variable configuration, and troubleshooting, view the documentation on GitHub.', tip: 'View MCP README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/ide/mcp/README.md' },
     ],
   },

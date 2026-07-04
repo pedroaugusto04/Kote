@@ -8,7 +8,7 @@ async function main() {
   StderrLogger.info('Starting Kote MCP Server...');
   
   try {
-    const koteServer = new KoteMcpServer();
+    const koteServer = await KoteMcpServer.create();
     const transport = new StdioServerTransport();
     
     await koteServer.getMcpServerInstance().connect(transport);

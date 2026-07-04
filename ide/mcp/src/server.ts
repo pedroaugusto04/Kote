@@ -7,6 +7,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { loadCliConfig } from './config/env.config.js';
+import { maybeExchangeConnectionToken } from './config/connection-token.js';
 import { ApiClient } from './client/api-client.js';
 import { StderrLogger } from './logger/stderr.logger.js';
 import { McpTool } from './tools/base.tool.js';
@@ -19,7 +20,7 @@ export class KoteMcpServer {
   private readonly apiClient: ApiClient;
   private readonly tools = new Map<string, McpTool>();
 
-  constructor() {
+  private constructor(apiClient: ApiClient) {
     this.server = new Server(
       {
         name: 'kote-mcp-server',
@@ -32,9 +33,7 @@ export class KoteMcpServer {
       }
     );
 
-    // Load credentials and create the HTTP API client
-    const config = loadCliConfig();
-    this.apiClient = new ApiClient(config);
+    this.apiClient = apiClient;
 
     // Register tools
     this.registerTool(new SearchNotesTool());
@@ -43,6 +42,14 @@ export class KoteMcpServer {
 
     // Setup request handlers
     this.setupHandlers();
+  }
+
+  /** Async factory — call this instead of `new KoteMcpServer()`. */
+  static async create(): Promise<KoteMcpServer> {
+    const config = loadCliConfig();
+    // Exchange KOTE_CONNECTION_TOKEN → access+refresh if needed
+    await maybeExchangeConnectionToken(config);
+    return new KoteMcpServer(new ApiClient(config));
   }
 
   private registerTool(tool: McpTool): void {
@@ -79,7 +86,7 @@ export class KoteMcpServer {
       try {
         StderrLogger.debug(`Calling tool "${name}" with args:`, args);
         const result = await tool.execute(args || {}, this.apiClient);
-        
+
         return {
           content: [
             {
@@ -90,7 +97,7 @@ export class KoteMcpServer {
         };
       } catch (error) {
         StderrLogger.error(`Error executing tool "${name}":`, error);
-        
+
         return {
           isError: true,
           content: [
