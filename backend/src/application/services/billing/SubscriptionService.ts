@@ -508,6 +508,18 @@ export class SubscriptionService {
       return;
     }
 
+    const subRow = await db
+      .select()
+      .from(userSubscriptions)
+      .where(eq(userSubscriptions.userId, params.subscriptionId))
+      .limit(1)
+      .then(r => r[0] || null);
+
+    if (!subRow) {
+      this.logger.warn(`Subscription row not found in database: ${params.subscriptionId}`);
+      return;
+    }
+
     const latestPaymentDueDate = latestRecurringPayment?.dueDate ?? null;
     const hasRecurringPaymentInRealDebt = 
       await this.billingPaymentRepository.hasRecurringPaymentInRealDebt(params.userId, params.subscriptionId);
@@ -543,6 +555,20 @@ export class SubscriptionService {
         ? (!gatewayNextDueDate || gatewayNextDueDate > latestPaymentDueDate ? latestPaymentDueDate : gatewayNextDueDate)
         : (gatewayNextDueDate ?? latestPaymentDueDate);
 
+    // Calculate new currentPeriodEnd and currentPeriodStart based on nextDueDate and billingCycle
+    let currentPeriodStart: Date | undefined;
+    let currentPeriodEnd: Date | undefined;
+
+    if (nextDueDate) {
+      currentPeriodEnd = new Date(nextDueDate);
+      currentPeriodStart = new Date(nextDueDate);
+      if (subRow.billingCycle === BillingCycle.YEARLY) {
+        currentPeriodStart.setUTCFullYear(currentPeriodStart.getUTCFullYear() - 1);
+      } else {
+        currentPeriodStart.setUTCMonth(currentPeriodStart.getUTCMonth() - 1);
+      }
+    }
+
     // update due date based on last payment
     await db
       .update(userSubscriptions)
@@ -550,6 +576,8 @@ export class SubscriptionService {
         status: newStatus ?? undefined,
         pastDueAt,
         nextDueDate: nextDueDate ?? undefined,
+        currentPeriodStart: currentPeriodStart ?? undefined,
+        currentPeriodEnd: currentPeriodEnd ?? undefined,
         updatedAt: new Date(),
       })
       .where(eq(userSubscriptions.userId, params.subscriptionId));
