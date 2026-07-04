@@ -29,7 +29,7 @@ export const createManualNoteSchema = z
     occurredAt: z.string().optional(),
     path: z.string().optional(),
     metadata: z.record(z.string(), z.unknown()).optional().default({}),
-    attachments: z.array(noteAttachmentSchema).optional(),
+    attachments: z.array(noteAttachmentSchema).optional().default([]),
   })
   .strict();
 

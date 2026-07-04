@@ -1,6 +1,6 @@
 {
   "name": "@pedroaugusto04/kote-cli",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "CLI client for the Kote AI system",
   "type": "module",
   "engines": {

@@ -35,7 +35,7 @@ export const createNoteBodySchema = z
     occurredAt: z.string().trim().optional(),
     path: z.string().trim().optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
-    attachments: z.array(noteAttachmentSchema).optional(),
+    attachments: z.array(noteAttachmentSchema).optional().default([]),
   })
   .strict()
   .transform((body) => ({
