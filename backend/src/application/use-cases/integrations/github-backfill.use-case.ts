@@ -10,7 +10,7 @@ import { GithubBackfillJobRepository } from '../../ports/integrations/github-bac
 import { BackfillQueuePublisher } from '../../ports/integrations/backfill-queue.publisher.js';
 import { AppLogger } from '../../../observability/logger.js';
 
-export type GithubBackfillJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'quota_exceeded';
+export type GithubBackfillJobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'quota_exceeded' | 'cancelled';
 
 export type GithubBackfillJob = {
   id: string;
@@ -60,6 +60,22 @@ export class GithubBackfillUseCase {
     return this.githubBackfillJobRepository.findById(jobId, userId);
   }
 
+  async cancel(jobId: string, userId: string): Promise<boolean> {
+    const job = await this.githubBackfillJobRepository.findById(jobId, userId);
+    if (!job) {
+      throw new BadRequestException('job_not_found');
+    }
+    if (job.status === 'completed' || job.status === 'failed' || job.status === 'quota_exceeded' || job.status === 'cancelled') {
+      throw new BadRequestException('job_already_finished');
+    }
+    await this.githubBackfillJobRepository.update(jobId, {
+      status: 'cancelled',
+      completedAt: new Date().toISOString(),
+    });
+    this.logger.info('github_backfill.cancelled', { jobId, userId });
+    return true;
+  }
+
   async start(input: StartGithubBackfillInput) {
     const environment = this.environmentProvider.read();
     const limit = environment.githubBackfillLimit;
@@ -107,7 +123,7 @@ export class GithubBackfillUseCase {
       userId: input.userId,
       workspaceSlug: input.workspaceSlug,
       repositories,
-      total: repositories.length * limit,
+      total: limit,
       limit,
     });
 

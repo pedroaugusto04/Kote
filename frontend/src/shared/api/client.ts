@@ -10,6 +10,7 @@ export {
   saveGithubRepositories,
   startGithubBackfill,
   fetchGithubBackfillStatus,
+  cancelGithubBackfill,
   testIntegration,
 } from './integrations';
 export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, fetchRelatedNotes, bulkUpdateNoteStatuses } from './notes';

@@ -125,8 +125,14 @@ export const githubBackfillStatusQuerySchema = z.object({
   jobId: z.string().uuid('Invalid job ID.'),
 });
 
+export const githubBackfillCancelBodySchema = z.object({
+  workspaceSlug: requiredWorkspaceSlugSchema,
+  jobId: z.string().uuid('Invalid job ID.'),
+});
+
 export type GithubBackfillBody = z.infer<typeof githubBackfillBodySchema>;
 export type GithubBackfillStatusQuery = z.infer<typeof githubBackfillStatusQuerySchema>;
+export type GithubBackfillCancelBody = z.infer<typeof githubBackfillCancelBodySchema>;
 
 export type ResolveIntegrationCredentialBody = z.infer<typeof resolveIntegrationCredentialBodySchema>;
 export type ProviderParam = z.infer<typeof providerParamSchema>;

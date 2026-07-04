@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { fetchGithubBackfillStatus, fetchIntegrations, fetchGithubRepositories, fetchCurrentUser } from '../../shared/api/client';
+import { fetchGithubBackfillStatus, fetchIntegrations, fetchGithubRepositories, fetchCurrentUser, cancelGithubBackfill } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
 import { routes } from '../../app/routing/routes';
 import { withFrontendBasePath } from '../../app/base-path';
 import { useGlobalLoading } from '../../app/global-loading';
 import { Panel } from '../../shared/ui/primitives';
+import { notifySuccess } from '../../shared/ui/notifications';
+import { notifyGeneralFormError } from '../../shared/forms/errors';
+import { INTEGRATION_MESSAGES } from '../integrations/integrations.constants';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
 import { CDNImage } from '../../shared/ui/CDNImage';
@@ -383,11 +386,21 @@ export function OnboardingChecklist({
         label: 'Importing commits',
         count: imported,
         total,
+        onCancel: async () => {
+          try {
+            await cancelGithubBackfill(workspaceSlug, backfillJob.id);
+            notifySuccess(INTEGRATION_MESSAGES.GITHUB_BACKFILL.CANCEL_SUCCESS);
+            void queryClient.invalidateQueries({ queryKey: ['github-backfill-status'] });
+          } catch (error) {
+            notifyGeneralFormError(error, INTEGRATION_MESSAGES.GITHUB_BACKFILL.CANCEL_ERROR);
+          }
+        },
       });
     } else {
       globalLoading.setBackgroundTask(null);
     }
-  }, [backfillRunning, backfillJob, globalLoading]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backfillRunning, backfillJob, globalLoading, workspaceSlug, queryClient]);
 
   const isHiddenByShowLater = storage.showLaterAt
     ? new Date(storage.showLaterAt).getTime() > Date.now()

@@ -64,6 +64,12 @@ export const INTEGRATION_MESSAGES = {
     STARTED: 'Import started. Reviews will appear on your timeline shortly.',
     ERROR: 'Could not start the GitHub import.',
     QUOTA_EXCEEDED: 'AI credit limit reached before the import finished.',
+    CANCEL_TITLE: 'Cancel Import',
+    CANCEL_DESCRIPTION: 'Are you sure you want to cancel the import of recent commits?',
+    CANCEL_CONFIRM: 'Yes, cancel',
+    CANCEL_KEEP: 'No, keep importing',
+    CANCEL_SUCCESS: 'Import cancelled successfully.',
+    CANCEL_ERROR: 'Could not cancel the import.',
   },
   
   PUSH_NOTIFICATIONS: {

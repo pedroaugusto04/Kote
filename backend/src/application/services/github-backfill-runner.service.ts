@@ -76,15 +76,34 @@ export class GithubBackfillRunnerService {
       let currentSkipped = job.skipped;
       let currentTotal = job.total;
 
+      const allCommits: Array<{
+        commit: {
+          sha: string;
+          parentSha: string;
+          message: string;
+          timestamp: string;
+          url: string;
+        };
+        repository: {
+          id: number;
+          fullName: string;
+          name: string;
+          private: boolean;
+        };
+        projectSlug: string;
+        branch: string;
+      }> = [];
+
       for (const repoFullName of job.repositories) {
+        // Check if job was cancelled
+        const currentJob = await this.githubBackfillJobRepository.findById(jobId, userId);
+        if (currentJob && currentJob.status === 'cancelled') {
+          this.logger.info('github_backfill_runner.cancelled', { jobId });
+          return;
+        }
+
         const repository = repositoryByFullName.get(repoFullName.toLowerCase());
         if (!repository) {
-          currentSkipped += job.limit;
-          currentProcessed += job.limit;
-          await this.githubBackfillJobRepository.update(jobId, {
-            processed: currentProcessed,
-            skipped: currentSkipped,
-          });
           continue;
         }
 
@@ -94,12 +113,6 @@ export class GithubBackfillRunnerService {
           repository.fullName,
         );
         if (!projectSlug) {
-          currentSkipped += job.limit;
-          currentProcessed += job.limit;
-          await this.githubBackfillJobRepository.update(jobId, {
-            processed: currentProcessed,
-            skipped: currentSkipped,
-          });
           continue;
         }
 
@@ -111,108 +124,138 @@ export class GithubBackfillRunnerService {
           token,
         });
 
-        currentTotal = Math.max(currentTotal, currentProcessed + commits.length);
-        await this.githubBackfillJobRepository.update(jobId, { total: currentTotal });
-
-        for (const commit of [...commits].reverse()) {
-          currentProcessed += 1;
-
-          const alreadyExists = await this.processGithubPushService.noteExistsForPush(
-            userId,
-            repository.fullName,
-            commit.sha,
-          );
-          if (alreadyExists) {
-            currentSkipped += 1;
-            await this.githubBackfillJobRepository.update(jobId, {
-              processed: currentProcessed,
-              skipped: currentSkipped,
-            });
-            continue;
-          }
-
-          const commitDiff = await this.githubIntegrationGateway.fetchCommitDiff(
-            repository.fullName,
-            commit.sha,
-            token,
-          );
-
-          const added: string[] = [];
-          const modified: string[] = [];
-          const removed: string[] = [];
-
-          for (const file of commitDiff.files) {
-            if (file.status === 'added') {
-              added.push(file.filename);
-            } else if (file.status === 'modified') {
-              modified.push(file.filename);
-            } else if (file.status === 'removed') {
-              removed.push(file.filename);
-            }
-          }
-
-          const result = await this.processGithubPushService.execute({
-            body: {
-              ref: `refs/heads/${branch}`,
-              before: commit.parentSha,
-              after: commit.sha,
-              installation: { id: installationId },
-              repository: {
-                id: repository.id,
-                full_name: repository.fullName,
-                name: repository.name,
-                private: repository.private,
-              },
-              head_commit: {
-                id: commit.sha,
-                message: commit.message,
-                timestamp: commit.timestamp,
-                url: commit.url,
-              },
-              commits: [{
-                id: commit.sha,
-                message: commit.message,
-                added,
-                modified,
-                removed,
-              }],
-              pusher: { name: 'github-backfill' },
-              sender: { login: 'github-backfill' },
-            },
-            userId,
-            workspaceSlug: job.workspaceSlug,
+        for (const commit of commits) {
+          allCommits.push({
+            commit,
+            repository,
             projectSlug,
-            skipWebhookVerification: true,
-            quotaSource: 'github_backfill',
-          });
-
-          if (!result.ok) {
-            if (result.skipped === 'quota_exceeded') {
-              const now = new Date().toISOString();
-              await this.githubBackfillJobRepository.update(jobId, {
-                status: 'quota_exceeded',
-                error: 'quota_exceeded',
-                processed: currentProcessed,
-                skipped: currentSkipped,
-                imported: currentImported,
-                completedAt: now,
-              });
-              return;
-            }
-            currentSkipped += 1;
-            await this.githubBackfillJobRepository.update(jobId, {
-              processed: currentProcessed,
-              skipped: currentSkipped,
-            });
-            continue;
-          }
-
-          currentImported += 1;
-          await this.githubBackfillJobRepository.update(jobId, {
-            processed: currentProcessed,
-            imported: currentImported,
+            branch,
           });
         }
+      }
+
+      // Sort all commits by timestamp descending (latest first)
+      allCommits.sort((a, b) => {
+        const timeA = new Date(a.commit.timestamp).getTime();
+        const timeB = new Date(b.commit.timestamp).getTime();
+        return timeB - timeA;
+      });
+
+      // Keep only the top limit commits overall
+      const targetCommits = allCommits.slice(0, job.limit);
+
+      // Reverse to process from oldest to newest (to match normal push chronological order)
+      const targetCommitsInOrder = [...targetCommits].reverse();
+
+      currentTotal = targetCommitsInOrder.length;
+      await this.githubBackfillJobRepository.update(jobId, { total: currentTotal });
+
+      for (const item of targetCommitsInOrder) {
+        // Check if job was cancelled
+        const currentJob = await this.githubBackfillJobRepository.findById(jobId, userId);
+        if (currentJob && currentJob.status === 'cancelled') {
+          this.logger.info('github_backfill_runner.cancelled', { jobId });
+          return;
+        }
+
+        currentProcessed += 1;
+        const { commit, repository, projectSlug, branch } = item;
+
+        const alreadyExists = await this.processGithubPushService.noteExistsForPush(
+          userId,
+          repository.fullName,
+          commit.sha,
+        );
+        if (alreadyExists) {
+          currentSkipped += 1;
+          await this.githubBackfillJobRepository.update(jobId, {
+            processed: currentProcessed,
+            skipped: currentSkipped,
+          });
+          continue;
+        }
+
+        const commitDiff = await this.githubIntegrationGateway.fetchCommitDiff(
+          repository.fullName,
+          commit.sha,
+          token,
+        );
+
+        const added: string[] = [];
+        const modified: string[] = [];
+        const removed: string[] = [];
+
+        for (const file of commitDiff.files) {
+          if (file.status === 'added') {
+            added.push(file.filename);
+          } else if (file.status === 'modified') {
+            modified.push(file.filename);
+          } else if (file.status === 'removed') {
+            removed.push(file.filename);
+          }
+        }
+
+        const result = await this.processGithubPushService.execute({
+          body: {
+            ref: `refs/heads/${branch}`,
+            before: commit.parentSha,
+            after: commit.sha,
+            installation: { id: installationId },
+            repository: {
+              id: repository.id,
+              full_name: repository.fullName,
+              name: repository.name,
+              private: repository.private,
+            },
+            head_commit: {
+              id: commit.sha,
+              message: commit.message,
+              timestamp: commit.timestamp,
+              url: commit.url,
+            },
+            commits: [{
+              id: commit.sha,
+              message: commit.message,
+              added,
+              modified,
+              removed,
+            }],
+            pusher: { name: 'github-backfill' },
+            sender: { login: 'github-backfill' },
+          },
+          userId,
+          workspaceSlug: job.workspaceSlug,
+          projectSlug,
+          skipWebhookVerification: true,
+          quotaSource: 'github_backfill',
+        });
+
+        if (!result.ok) {
+          if (result.skipped === 'quota_exceeded') {
+            const now = new Date().toISOString();
+            await this.githubBackfillJobRepository.update(jobId, {
+              status: 'quota_exceeded',
+              error: 'quota_exceeded',
+              processed: currentProcessed,
+              skipped: currentSkipped,
+              imported: currentImported,
+              completedAt: now,
+            });
+            return;
+          }
+          currentSkipped += 1;
+          await this.githubBackfillJobRepository.update(jobId, {
+            processed: currentProcessed,
+            skipped: currentSkipped,
+          });
+          continue;
+        }
+
+        currentImported += 1;
+        await this.githubBackfillJobRepository.update(jobId, {
+          processed: currentProcessed,
+          imported: currentImported,
+        });
       }
 
       const now = new Date().toISOString();

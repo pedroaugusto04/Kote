@@ -11,6 +11,7 @@ import {
   connectIntegrationBodySchema,
   githubBackfillBodySchema,
   githubBackfillStatusQuerySchema,
+  githubBackfillCancelBodySchema,
   githubRepositoriesBodySchema,
   guidedProviderParamSchema,
   aiProviderParamSchema,
@@ -20,6 +21,7 @@ import {
   type ConnectIntegrationBody,
   type GithubBackfillBody,
   type GithubBackfillStatusQuery,
+  type GithubBackfillCancelBody,
   type GithubRepositoriesBody,
   type GuidedProviderParam,
   type SessionParam,
@@ -93,6 +95,19 @@ export class UserIntegrationsController {
         completedAt: job.completedAt,
       },
     };
+  }
+
+  @Post('github-app/backfill/cancel')
+  @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel running GitHub backfill job' })
+  @ApiResponse({ status: 200, description: 'Backfill cancelled successfully' })
+  async cancelGithubBackfill(
+    @Body(new ZodValidationPipe(githubBackfillCancelBodySchema, 'invalid_github_backfill_cancel_payload')) body: GithubBackfillCancelBody,
+    @CurrentUser() currentUser: AuthenticatedUser,
+  ) {
+    const success = await this.githubBackfill.cancel(body.jobId, currentUser.id);
+    return { ok: success };
   }
 
   @Post(':provider/connect')

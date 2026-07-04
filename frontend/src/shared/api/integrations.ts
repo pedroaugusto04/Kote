@@ -65,3 +65,11 @@ export function fetchGithubBackfillStatus(workspaceSlug: string, jobId: string):
   const search = new URLSearchParams({ workspaceSlug, jobId });
   return request<GithubBackfillStatusResponse>(`${API_PATHS.INTEGRATIONS_GITHUB_BACKFILL_STATUS}?${search.toString()}`);
 }
+
+export function cancelGithubBackfill(workspaceSlug: string, jobId: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(API_PATHS.INTEGRATIONS_GITHUB_BACKFILL_CANCEL, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ workspaceSlug, jobId }),
+  });
+}

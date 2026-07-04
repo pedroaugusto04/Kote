@@ -10,6 +10,8 @@ export type BackgroundTask = {
   count: number;
   /** Total items to process */
   total: number;
+  /** Optional handler to trigger cancel */
+  onCancel?: () => void;
 };
 
 type GlobalLoadingContextValue = {
