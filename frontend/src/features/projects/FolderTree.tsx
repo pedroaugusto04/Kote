@@ -22,7 +22,7 @@ export function FolderTree({ folders, selectedFolderId, onSelect }: FolderTreePr
         type="button"
         onClick={() => onSelect(ROOT_FOLDER_ID)}
       >
-        Raiz
+        Root
       </button>
       {folders.map((folder) => (
         <FolderTreeNode key={folder.id} folder={folder} selectedFolderId={selectedFolderId} onSelect={onSelect} depth={0} />
