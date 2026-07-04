@@ -327,6 +327,40 @@
     width: 9px;
     height: 9px;
   }
+
+  /* Prevent horizontal scroll / text cutoff inside the note reader on mobile */
+  .note-reader {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  .note-reader pre,
+  .note-reader code {
+    white-space: pre-wrap !important;
+    word-break: break-all !important;
+    overflow-wrap: break-word !important;
+  }
+
+  .note-reader table {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .note-reader p,
+  .note-reader li,
+  .note-reader span,
+  .note-reader a,
+  .note-reader h1,
+  .note-reader h2,
+  .note-reader h3,
+  .note-reader h4,
+  .note-reader div {
+    max-width: 100% !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
+  }
 }
 
 /* Styled Markdown Code Blocks */

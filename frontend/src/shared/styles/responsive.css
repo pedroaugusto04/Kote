@@ -451,6 +451,8 @@
     overflow: visible !important;
     text-overflow: clip !important;
     padding-right: 36px !important; /* Leave space for absolute pin button */
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
   }
 
   .list-row-body p,
@@ -464,6 +466,8 @@
     overflow: hidden !important;
     text-overflow: ellipsis;
     color: var(--text-soft) !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
   }
 
   .list-row-body .meta-row,
