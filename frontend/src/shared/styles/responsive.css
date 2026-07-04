@@ -732,8 +732,13 @@
   }
 
   /* Attachment viewer on mobile */
+  .attachment-viewer-backdrop {
+    padding: 12px !important;
+  }
+
   .attachment-viewer-panel {
-    width: 96vw;
+    width: 100% !important;
+    max-width: 100% !important;
     max-height: 92dvh;
     border-radius: 12px;
   }
