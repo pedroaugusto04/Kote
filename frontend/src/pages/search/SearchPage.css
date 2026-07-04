@@ -740,25 +740,23 @@
 /* loading bubble */
 .loading-bubble .message-body {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
   background: linear-gradient(145deg, var(--surface-1), var(--surface-3)) !important;
   border-color: var(--accent-border) !important;
   box-shadow: 0 0 15px rgba(6, 182, 212, 0.15);
-  width: 100%;
+  width: fit-content;
+  padding: 10px 16px;
 }
 
-.loading-bubble .ask-ai-identity {
+.loading-bubble .message-body strong {
   color: var(--cyan) !important;
-  font-weight: 700;
+  font-family: var(--mono);
+  font-size: 12px;
+  text-transform: uppercase;
   letter-spacing: 0.05em;
   animation: techPulse 2s infinite alternate;
-  margin-bottom: 4px;
-}
-
-.loading-bubble .skeleton-line {
-  background: var(--line-soft) !important;
-  height: 14px;
 }
 
 /* Button style for New Chat */

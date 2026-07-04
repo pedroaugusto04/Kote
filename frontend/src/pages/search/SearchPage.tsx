@@ -430,15 +430,8 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                           <strong>Kote Assistant</strong>
                         </div>
                         <div className="message-body">
-                          <div className="ask-ai-identity">
-                            <AskAiIcon className="ask-ai-identity-icon ask-ai-pulse" />
-                            <strong>{SEARCH_MESSAGES.SKELETON.THINKING}</strong>
-                          </div>
-                          <div className="ask-skeleton-lines">
-                            <div className="skeleton-line line-1"></div>
-                            <div className="skeleton-line line-2"></div>
-                            <div className="skeleton-line line-3"></div>
-                          </div>
+                          <AskAiIcon className="ask-ai-identity-icon ask-ai-pulse" />
+                          <strong>{SEARCH_MESSAGES.SKELETON.THINKING}</strong>
                         </div>
                       </div>
                     </div>
