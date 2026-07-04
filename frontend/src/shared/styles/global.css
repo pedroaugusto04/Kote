@@ -1,25 +1,36 @@
 /* ==========================================================================
-   Global Style Sheet entrypoint
-   Aggregates modular style sub-files.
+   Global Style Sheet - Tailwind CSS Base
    ========================================================================== */
 
 /* 1. Theme CSS variables and color schemes */
 @import "./variables.css";
 
-/* 2. Base resets, wildfire selectors, core animations and typographies */
-@import "./resets.css";
+/* 2. Global styling rules */
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
 
-/* 3. Core layouts, grids, app shell layouts, sidebars, topbars and content views */
-@import "./layout.css";
+/* Custom Scrollbar for modern web experience */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
 
-/* 4. Common UI components: buttons, select options, toast nodes, badge/tags */
-@import "./components.css";
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 
-/* 5. Feature pages modules: Kanban, Map graphs, note reading, home, settings */
-@import "./features.css";
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 9999px;
+}
 
-/* 6. Contrast overrides and refinements for light theme */
-@import "./theme-overrides.css";
-
-/* 7. Responsive CSS media queries for mobile/tablet screens adaptation */
-@import "./responsive.css";
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

@@ -369,39 +369,39 @@ export function AppShell() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell flex h-screen w-screen overflow-hidden bg-background text-text font-sans antialiased">
       <OfflineBanner />
       {showQuotaWarningDot && (
-        <div className="quota-warning-banner" role="alert" aria-live="polite">
-          <span style={{ fontSize: '14px' }}>⚠️</span>
-          <span style={{ fontSize: '12px' }}>
+        <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-b border-amber-500/20 px-4 py-2 text-xs flex items-center justify-center gap-2" role="alert" aria-live="polite">
+          <span>⚠️</span>
+          <span>
             You are approaching your monthly limit.{' '}
-            <Link to="/profile" style={{ color: 'inherit', textDecoration: 'underline', fontWeight: 600 }}>See quota usage</Link>
+            <Link to="/profile" className="font-semibold underline hover:text-amber-700 dark:hover:text-amber-300">See quota usage</Link>
             {' · '}
-            <Link to="/automations/subscription" style={{ color: 'inherit', textDecoration: 'underline', fontWeight: 600 }}>Upgrade your plan</Link>
+            <Link to="/automations/subscription" className="font-semibold underline hover:text-amber-700 dark:hover:text-amber-300">Upgrade your plan</Link>
           </span>
         </div>
       )}
       <button
         aria-label={UI_MESSAGES.CLOSE_NAVIGATION}
         aria-hidden={!isMobileNavOpen}
-        className={`mobile-nav-backdrop ${isMobileNavOpen ? 'visible' : ''}`}
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-40 lg:hidden transition-opacity duration-300 cursor-pointer ${isMobileNavOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsMobileNavOpen(false)}
         tabIndex={isMobileNavOpen ? 0 : -1}
         type="button"
       />
-      <aside className={`sidebar ${isMobileNavOpen ? 'open' : ''}`} aria-label={UI_MESSAGES.VAULT_NAVIGATION} id="app-sidebar">
-        <Link className="brand" to={routes.home} aria-label={UI_MESSAGES.GO_TO_HOME}>
+      <aside className={`sidebar fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-panel border-r border-line/40 transition-transform duration-300 lg:translate-x-0 lg:static lg:h-screen lg:z-auto ${isMobileNavOpen ? 'translate-x-0 open' : '-translate-x-full'}`} aria-label={UI_MESSAGES.VAULT_NAVIGATION} id="app-sidebar">
+        <Link className="brand flex items-center gap-3 px-6 py-5 border-b border-line/30 hover:opacity-90 transition-opacity" to={routes.home} aria-label={UI_MESSAGES.GO_TO_HOME}>
           <BrandMark />
-          <div>
-            <strong>{UI_MESSAGES.KNOWLEDGE_VAULT}</strong>
-            <span>{UI_MESSAGES.DEVELOPER_KNOWLEDGE_BASE}</span>
+          <div className="flex flex-col">
+            <strong className="text-sm font-semibold tracking-tight text-text-strong">{UI_MESSAGES.KNOWLEDGE_VAULT}</strong>
+            <span className="text-[10px] uppercase tracking-wider text-muted font-medium mt-0.5">{UI_MESSAGES.DEVELOPER_KNOWLEDGE_BASE}</span>
           </div>
         </Link>
-        <nav className="main-nav" aria-label={UI_MESSAGES.MAIN_SECTIONS}>
+        <nav className="main-nav flex-1 px-4 py-6 space-y-1 overflow-y-auto" aria-label={UI_MESSAGES.MAIN_SECTIONS}>
           {navItems.map((item) => (
             <NavLink
-              className={({ isActive }) => `nav-item ${isActive || view === item.view ? 'active' : ''}`}
+              className={({ isActive }) => `nav-item flex items-center px-4 py-2.5 text-sm font-medium rounded-lg text-text hover:bg-line/20 hover:text-text-strong transition-all duration-200 ${isActive || view === item.view ? 'bg-line/45 text-text-strong font-semibold shadow-sm border border-line/10 active' : ''}`}
               end={item.path === routes.home}
               key={item.view}
               onClick={() => setIsMobileNavOpen(false)}
@@ -411,31 +411,31 @@ export function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <section className="sidebar-section">
-          <div className="section-label">{UI_MESSAGES.WORKSPACE}</div>
-          <div className="workspace-pill workspace-pill-static" aria-label={`${UI_MESSAGES.CURRENT_WORKSPACE} ${activeWorkspace.workspaceSlug}`} role="status">
-            <span className="status-dot" />
-            <span className="workspace-pill-copy">
-              <strong>{activeWorkspace.displayName}</strong>
-              <small>{activeWorkspace.workspaceSlug}</small>
+        <section className="px-4 py-4 border-t border-line/30">
+          <div className="px-4 text-[10px] font-semibold uppercase tracking-wider text-muted mb-2">{UI_MESSAGES.WORKSPACE}</div>
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-line/20 border border-line/35" aria-label={`${UI_MESSAGES.CURRENT_WORKSPACE} ${activeWorkspace.workspaceSlug}`} role="status">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="flex flex-col text-left">
+              <strong className="text-xs font-semibold text-text-strong">{activeWorkspace.displayName}</strong>
+              <small className="text-[10px] text-muted font-medium mt-0.5">{activeWorkspace.workspaceSlug}</small>
             </span>
           </div>
         </section>
-        <section className="sidebar-section">
-          <div className="section-label">{UI_MESSAGES.PROJECTS}</div>
-          <div className="tree">
+        <section className="px-4 py-4 border-t border-line/30">
+          <div className="px-4 text-[10px] font-semibold uppercase tracking-wider text-muted mb-2">{UI_MESSAGES.PROJECTS}</div>
+          <div className="space-y-1 max-h-[220px] overflow-y-auto">
             {dashboard.projects.map((project) => (
-              <div className="tree-item-row" key={project.projectSlug}>
+              <div className="flex items-center justify-between group rounded-lg hover:bg-line/20 transition-colors" key={project.projectSlug}>
                 <button
-                  className={`tree-item ${project.projectSlug === pageContext.selectedProject ? 'active' : ''}`}
+                  className={`flex items-center flex-1 gap-2.5 px-4 py-2 text-xs font-medium text-left text-text hover:text-text-strong truncate cursor-pointer ${project.projectSlug === pageContext.selectedProject ? 'text-text-strong font-semibold bg-line/25' : ''}`}
                   type="button"
                   onClick={() => {
                     pageContext.openProject(project.projectSlug);
                     setIsMobileNavOpen(false);
                   }}
                 >
-                  <span className="file-icon">P</span>
-                  <span>{project.displayName}</span>
+                  <span className="flex items-center justify-center w-5 h-5 rounded bg-line/40 text-[10px] font-semibold text-text-strong">P</span>
+                  <span className="truncate">{project.displayName}</span>
                   {project.activitySparkline && (
                     <div className="project-sparkline" style={{ width: '40px', height: '16px', marginLeft: 'auto', marginRight: '4px', flexShrink: 0 }}>
                       <ResponsiveContainer width="100%" height="100%">
@@ -443,7 +443,7 @@ export function AppShell() {
                           <Line
                             type="monotone"
                             dataKey="count"
-                            stroke={project.projectSlug === pageContext.selectedProject ? 'var(--text)' : 'var(--muted)'}
+                            stroke={project.projectSlug === pageContext.selectedProject ? 'var(--text-strong)' : 'var(--muted)'}
                             strokeWidth={1.5}
                             dot={false}
                           />
@@ -454,14 +454,14 @@ export function AppShell() {
                 </button>
                 <button
                   aria-label={project.favorite ? UI_MESSAGES.UNSTAR : UI_MESSAGES.STAR}
-                  className={`favorite-star ${project.favorite ? 'active' : ''}`}
+                  className={`p-2 text-muted hover:text-amber-500 focus:opacity-100 transition-all cursor-pointer ${project.favorite ? 'text-amber-500 opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     toggleFavoriteMutation.mutate({ slug: project.projectSlug, favorite: !project.favorite });
                   }}
                   type="button"
                 >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" fill={project.favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
+                  <svg aria-hidden="true" className="w-4 h-4" viewBox="0 0 24 24" fill={project.favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
                     <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z" />
                   </svg>
                 </button>
@@ -470,31 +470,32 @@ export function AppShell() {
           </div>
         </section>
       </aside>
-      <main className="content">
-        <header className="topbar">
-          <div className="topbar-leading">
+      <main className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden bg-background">
+        <header className="flex items-center justify-between h-16 px-6 border-b border-line/40 bg-panel/85 backdrop-blur-md sticky top-0 z-30">
+          <div className="flex items-center gap-4">
             <button
               aria-label={UI_MESSAGES.MENU}
               aria-controls="app-sidebar"
               aria-expanded={isMobileNavOpen}
-              className="mobile-nav-toggle"
+              className="lg:hidden p-2 -ml-2 rounded-lg text-text hover:bg-line/35 transition-colors cursor-pointer"
               onClick={() => setIsMobileNavOpen((current) => !current)}
               type="button"
             >
-              <svg aria-hidden="true" viewBox="0 0 24 24" fill="none">
+              <svg aria-hidden="true" className="w-5 h-5" viewBox="0 0 24 24" fill="none">
                 <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeLinecap="round" strokeWidth="1.8" />
               </svg>
             </button>
-            <div className="topbar-context" aria-live="polite">
-              <strong>{topbarTitle}</strong>
-              <span>{activeWorkspace.displayName}</span>
+            <div className="flex flex-col text-left" aria-live="polite">
+              <strong className="text-sm font-semibold tracking-tight text-text-strong">{topbarTitle}</strong>
+              <span className="text-[10px] text-muted mt-0.5">{activeWorkspace.displayName}</span>
             </div>
           </div>
-          <div className="command-bar-container" ref={commandBarRef}>
-            <label className="command-bar">
-              <span>&gt;_</span>
+          <div className="relative max-w-md w-full mx-4 hidden md:block" ref={commandBarRef}>
+            <label className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-line/60 bg-background/50 focus-within:border-cyan-500/50 focus-within:ring-2 focus-within:ring-cyan-500/10 transition-all w-full cursor-text">
+              <span className="text-xs font-semibold text-muted">&gt;_</span>
               <input
                 type="search"
+                className="bg-transparent border-0 outline-none text-sm placeholder:text-muted/70 text-text w-full py-0.5"
                 placeholder={UI_MESSAGES.SEARCH_NOTES_PATHS_OR_TAGS}
                 value={searchValue}
                 onChange={(event) => {
@@ -507,23 +508,23 @@ export function AppShell() {
               />
               <button
                 aria-label={UI_MESSAGES.ASK_AI_SEMANTIC_SEARCH}
-                className="ask-ai-shortcut-btn"
+                className="p-1 text-muted hover:text-cyan-500 transition-colors rounded hover:bg-line/30 cursor-pointer"
                 onClick={() => navigate(`${routes.search}?focus=input`)}
                 title={UI_MESSAGES.ASK_AI_SEMANTIC_SEARCH}
                 type="button"
               >
-                <AskAiIcon className="ask-ai-shortcut-icon" />
+                <AskAiIcon className="w-4 h-4" />
               </button>
             </label>
             {isPopoverOpen && searchValue.trim() && (
-              <div className="command-bar-popover" role="listbox">
+              <div className="absolute top-full left-0 right-0 mt-1.5 bg-panel/95 border border-line/50 rounded-xl shadow-lg dark:shadow-card-dark overflow-hidden py-1 z-50 max-h-[320px] overflow-y-auto backdrop-blur-md" role="listbox">
                 {isSearching ? (
-                  <div className="command-bar-popover-status">{UI_MESSAGES.SEARCHING}</div>
+                  <div className="px-4 py-3 text-xs text-muted text-center">{UI_MESSAGES.SEARCHING}</div>
                 ) : searchQuery.data?.matches?.length ? (
                   searchQuery.data.matches.map((match, index) => (
                     <button
                       key={match.id}
-                      className={`command-bar-result-item ${index === focusedIndex ? 'focused' : ''}`}
+                      className={`flex items-center justify-between w-full px-4 py-2.5 text-left hover:bg-line/25 transition-colors focus:bg-line/25 outline-none cursor-pointer ${index === focusedIndex ? 'bg-line/30' : ''}`}
                       onClick={() => {
                         pageContext.openNote(match.id);
                         setSearchValue('');
@@ -534,95 +535,85 @@ export function AppShell() {
                       role="option"
                       aria-selected={index === focusedIndex}
                     >
-                      <div className="result-main">
-                        <span className="result-title">{match.title}</span>
-                        {match.path ? <span className="result-path">{match.path}</span> : null}
+                      <div className="flex flex-col min-w-0 pr-4">
+                        <span className="text-xs font-semibold text-text-strong truncate">{match.title}</span>
+                        {match.path ? <span className="text-[10px] text-muted truncate mt-0.5">{match.path}</span> : null}
                       </div>
-                      <div className="result-meta">
-                        <span className="result-project-badge">{match.project}</span>
+                      <div className="flex-shrink-0">
+                        <span className="text-[9px] font-semibold px-2 py-0.5 rounded bg-line/50 text-text-soft border border-line/20">{match.project}</span>
                       </div>
                     </button>
                   ))
                 ) : (
-                  <div className="command-bar-popover-status">{UI_MESSAGES.NO_NOTES_FOUND}</div>
+                  <div className="px-4 py-3 text-xs text-muted text-center">{UI_MESSAGES.NO_NOTES_FOUND}</div>
                 )}
               </div>
             )}
           </div>
-          <div className="topbar-meta">
-            <div className="profile-menu" ref={profileMenuRef}>
+          <div className="topbar-meta flex items-center gap-4">
+            <div className="relative" ref={profileMenuRef}>
               <button
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="menu"
                 aria-label={UI_MESSAGES.USER_MENU}
-                className={`topbar-link topbar-icon ${view === 'profile' || view === 'integrations' || view === 'subscription' ? 'active' : ''}`}
+                className={`topbar-link topbar-icon flex items-center justify-center p-1 rounded-full border border-transparent hover:border-line/45 transition-colors cursor-pointer relative ${view === 'profile' || view === 'integrations' || view === 'subscription' ? 'border-line/45 bg-line/20 active' : ''}`}
                 onClick={() => setIsProfileMenuOpen((current) => !current)}
                 title={UI_MESSAGES.USER_MENU}
                 type="button"
-                style={{ position: 'relative' }}
               >
                 <UserAvatar
                   avatarUrl={currentUser?.avatarUrl}
-                  className="topbar-avatar"
+                  className="w-7 h-7 rounded-full"
                   displayName={currentUser?.displayName}
                   email={currentUser?.email}
                 />
                 {showQuotaWarningDot && (
                   <span
                     title="AI credit quota is running low"
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      right: 0,
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      background: 'hsl(38, 90%, 52%)',
-                      border: '2px solid var(--surface-1)',
-                    }}
+                    className="absolute top-0 right-0 w-2.5 h-2.5 rounded-full bg-amber-500 border-2 border-panel"
                   />
                 )}
               </button>
               {isProfileMenuOpen ? (
-                <div className="profile-menu-popover" role="menu">
-                  <div className="profile-menu-user">
+                <div className="absolute right-0 mt-2 w-64 bg-panel/95 border border-line/50 rounded-xl shadow-lg dark:shadow-card-dark overflow-hidden p-1.5 z-50 backdrop-blur-md" role="menu">
+                  <div className="flex items-center gap-3 p-3 border-b border-line/30 mb-1">
                     <UserAvatar
                       avatarUrl={currentUser?.avatarUrl}
-                      className="profile-menu-avatar"
+                      className="w-9 h-9 rounded-full"
                       displayName={currentUser?.displayName}
                       email={currentUser?.email}
                     />
-                    <div className="profile-menu-copy">
-                      <strong>{currentUser?.displayName || UI_MESSAGES.LOADING_USER}</strong>
-                      <span>{currentUser?.email || UI_MESSAGES.LOADING_EMAIL}</span>
+                    <div className="flex flex-col text-left min-w-0">
+                      <strong className="text-xs font-semibold text-text-strong truncate">{currentUser?.displayName || UI_MESSAGES.LOADING_USER}</strong>
+                      <span className="text-[10px] text-muted truncate">{currentUser?.email || UI_MESSAGES.LOADING_EMAIL}</span>
                     </div>
                   </div>
-                  <Link className="profile-menu-link" role="menuitem" to={routes.profile}>
+                  <Link className="flex w-full items-center px-3 py-2 text-xs font-medium rounded-lg text-text hover:bg-line/20 hover:text-text-strong transition-all" role="menuitem" to={routes.profile}>
                     {UI_MESSAGES.MY_PROFILE}
                   </Link>
-                  <Link className="profile-menu-link" role="menuitem" to={routes.integrations}>
+                  <Link className="flex w-full items-center px-3 py-2 text-xs font-medium rounded-lg text-text hover:bg-line/20 hover:text-text-strong transition-all" role="menuitem" to={routes.integrations}>
                     {UI_MESSAGES.INTEGRATIONS}
                   </Link>
-                  <Link className="profile-menu-link" role="menuitem" to={routes.subscription}>
+                  <Link className="flex w-full items-center px-3 py-2 text-xs font-medium rounded-lg text-text hover:bg-line/20 hover:text-text-strong transition-all" role="menuitem" to={routes.subscription}>
                     Subscription
                   </Link>
                   {quotaStatus && (
-                    <div style={{ padding: '12px 12px 4px', borderTop: '1px solid var(--border-subtle)', marginTop: 4 }}>
+                    <div className="px-3 py-2 border-t border-line/30 my-1 pt-3">
                       <QuotaUsageWidget status={quotaStatus} compact aiOnly hideTitle={false} />
                     </div>
                   )}
-                  <Link className="profile-menu-link" role="menuitem" to={routes.automations}>
+                  <Link className="flex w-full items-center px-3 py-2 text-xs font-medium rounded-lg text-text hover:bg-line/20 hover:text-text-strong transition-all" role="menuitem" to={routes.automations}>
                     Automations
                   </Link>
-                  <Link className="profile-menu-link" role="menuitem" to={routes.help}>
+                  <Link className="flex w-full items-center px-3 py-2 text-xs font-medium rounded-lg text-text hover:bg-line/20 hover:text-text-strong transition-all" role="menuitem" to={routes.help}>
                     {UI_MESSAGES.DOCUMENTATION}
                   </Link>
                 </div>
               ) : null}
             </div>
-            <ThemeToggle className="topbar-link theme-toggle" />
+            <ThemeToggle className="p-2 rounded-lg text-text hover:bg-line/30 transition-colors cursor-pointer" />
             <button
-              className="topbar-link"
+              className="text-xs font-medium text-text-soft hover:text-text-strong px-3 py-1.5 rounded-lg border border-line/50 hover:bg-line/20 transition-all cursor-pointer"
               type="button"
               onClick={() => {
                 void globalLoading.trackPromise(logout()).finally(() => {
@@ -635,7 +626,7 @@ export function AppShell() {
             </button>
           </div>
         </header>
-        <section className="view" aria-live="polite">
+        <section className="flex-1 overflow-y-auto px-6 py-6 space-y-6" aria-live="polite">
           <Breadcrumbs projects={dashboard.projects} />
           <Suspense fallback={<GlobalLoadingOverlay />}>
             <Routes>

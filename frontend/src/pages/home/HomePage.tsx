@@ -206,176 +206,180 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
         subtitle={`Relevant updates from the last ${home.windowDays} days.`}
         action={
           createNote ? (
-            <button className="icon-button" type="button" onClick={() => createNote()}>
+            <button className="px-4 py-2 text-xs font-semibold rounded-lg bg-cyan-500 hover:bg-cyan-600 text-black shadow-sm transition-colors cursor-pointer" type="button" onClick={() => createNote()}>
               Quick note
             </button>
           ) : undefined
         }
       />
-      <section className="home-layout">
+      <div className="space-y-6">
         {activeWorkspace ? (
           <OnboardingChecklist dashboard={dashboard} workspaceSlug={workspaceSlug} />
         ) : null}
 
-        <section className="home-kpis" aria-label="Operational indicators">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" aria-label="Operational indicators">
           {home.metrics.slice(0, 4).map((metric) => (
-            <article className="home-kpi" key={metric.id}>
-              <div className="home-kpi-head">
-                <span className="card-kicker">{metric.label}</span>
+            <article className="bg-panel border border-line/40 rounded-xl p-5 shadow-card dark:shadow-card-dark flex flex-col justify-between transition-all hover:border-line/70 duration-300" key={metric.id}>
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">{metric.label}</span>
               </div>
-              <div className="home-kpi-body">
-                <strong>{metric.value}</strong>
-                <span className={`home-kpi-meta ${metric.tone || ''}`}>{metric.meta}</span>
+              <div className="flex flex-col text-left">
+                <strong className="text-2xl font-bold text-text-strong tracking-tight">{metric.value}</strong>
+                <span className={`text-[11px] mt-1 ${metric.tone === 'success' || metric.tone === 'active' ? 'text-emerald-500 font-medium' : metric.tone === 'error' || metric.tone === 'failed' ? 'text-rose-500 font-medium' : 'text-muted'}`}>{metric.meta}</span>
               </div>
             </article>
           ))}
 
           {/* New Streak KPI Card */}
           {pInsights && (
-            <article className="home-kpi insights-kpi-card" key="streak-kpi">
-              <div className="home-kpi-head">
-                <span className="card-kicker">Usage Streak</span>
-                <span className="kpi-symbol">🔥</span>
+            <article className="bg-panel border border-line/40 rounded-xl p-5 shadow-card dark:shadow-card-dark flex flex-col justify-between transition-all hover:border-line/70 duration-300" key="streak-kpi">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">Usage Streak</span>
+                <span className="text-base">🔥</span>
               </div>
-              <div className="home-kpi-body">
-                <strong>{currentStreak} {currentStreak === 1 ? 'day' : 'days'}</strong>
-                <span className="home-kpi-meta active">Consecutive active days</span>
+              <div className="flex flex-col text-left">
+                <strong className="text-2xl font-bold text-text-strong tracking-tight">{currentStreak} {currentStreak === 1 ? 'day' : 'days'}</strong>
+                <span className="text-[11px] text-emerald-500 font-medium mt-1">Consecutive active days</span>
               </div>
             </article>
           )}
 
           {/* New AI Interactions KPI Card */}
           {pInsights && (
-            <article className="home-kpi insights-kpi-card" key="ai-kpi">
-              <div className="home-kpi-head">
-                <span className="card-kicker">AI Interactions</span>
-                <span className="kpi-symbol">✨</span>
+            <article className="bg-panel border border-line/40 rounded-xl p-5 shadow-card dark:shadow-card-dark flex flex-col justify-between transition-all hover:border-line/70 duration-300" key="ai-kpi">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted">AI Interactions</span>
+                <span className="text-base">✨</span>
               </div>
-              <div className="home-kpi-body">
-                <strong>{totalAiInteractions}</strong>
-                <span className="home-kpi-meta">AI searches & chats</span>
+              <div className="flex flex-col text-left">
+                <strong className="text-2xl font-bold text-text-strong tracking-tight">{totalAiInteractions}</strong>
+                <span className="text-[11px] text-muted mt-1">AI searches & chats</span>
               </div>
             </article>
           )}
         </section>
 
-        <section className="home-main-grid" aria-label="Operational summary">
-          <Panel className="home-panel home-panel-priorities">
-            <div className="panel-head">
-              <h2>Priorities</h2>
-              <span className="meta">top 5</span>
-            </div>
-            {home.priorities.length ? (
-              <div className="list">
-                {home.priorities.slice(0, 5).map((priority) => (
-                  <article className="list-row clickable home-priority-row" key={priority.id} onClick={() => openTarget(priority.target)}>
-                    <div className="list-row-body">
-                      <div className="meta-row">
-                        <Badge value={formatDisplayToken(priorityLabel(priority))} tone={priorityTone(priority)} />
-                        <span className="meta">{priorityMeta(priority)}</span>
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-6" aria-label="Operational summary">
+          <Panel className="home-panel home-panel-priorities lg:col-span-6 flex flex-col h-full justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-line/30">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-text-strong">Priorities</h2>
+                <span className="text-[10px] text-muted font-medium uppercase tracking-wider">top 5</span>
+              </div>
+              {home.priorities.length ? (
+                <div className="space-y-3">
+                  {home.priorities.slice(0, 5).map((priority) => (
+                    <article className="flex items-start justify-between p-3.5 rounded-lg border border-line/30 hover:border-line/60 bg-panel/30 hover:bg-line/10 transition-all cursor-pointer" key={priority.id} onClick={() => openTarget(priority.target)}>
+                      <div className="flex-1 min-w-0 pr-4 text-left">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <Badge value={formatDisplayToken(priorityLabel(priority))} tone={priorityTone(priority)} />
+                          <span className="text-[10px] text-muted font-medium">{priorityMeta(priority)}</span>
+                        </div>
+                        <h3 className="text-xs font-semibold text-text-strong truncate">{priority.title}</h3>
+                        <p className="text-[11px] text-muted mt-1 line-clamp-2 leading-relaxed">{priority.description}</p>
                       </div>
-                      <h3>{priority.title}</h3>
-                      <p>{priority.description}</p>
-                    </div>
-                    <span className="file-icon">{priority.type === 'finding' ? 'R' : '!'}</span>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <EmptyState>No open priorities in this window.</EmptyState>
-            )}
-          </Panel>
-
-          <Panel className="home-panel home-panel-activity insights-tabbed-panel">
-            <div className="panel-head tab-header-container">
-              <div className="tab-buttons">
-                <button
-                  type="button"
-                  className={`tab-btn ${activeActivityTab === 'notes' ? 'active' : ''}`}
-                  onClick={() => setActiveActivityTab('notes')}
-                >
-                  Notes (7d)
-                </button>
-                {pInsights && (
-                  <>
-                    <button
-                      type="button"
-                      className={`tab-btn ${activeActivityTab === 'ai' ? 'active' : ''}`}
-                      onClick={() => setActiveActivityTab('ai')}
-                    >
-                      AI Sessions
-                    </button>
-                    <button
-                      type="button"
-                      className={`tab-btn ${activeActivityTab === 'hours' ? 'active' : ''}`}
-                      onClick={() => setActiveActivityTab('hours')}
-                    >
-                      Peak Hours (24h)
-                    </button>
-                  </>
-                )}
-              </div>
-              <span className="meta">
-                {activeActivityTab === 'notes' && `${home.activityByDay.reduce((total, point) => total + point.count, 0)} notes`}
-                {activeActivityTab === 'ai' && `${totalAiInteractions} total`}
-                {activeActivityTab === 'hours' && `30-day pattern`}
-              </span>
-            </div>
-            <div className="chart-box" aria-label="Activity chart">
-              <ResponsiveContainer width="100%" height="100%">
-                {activeActivityTab === 'notes' ? (
-                  <AreaChart data={activityByDay} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
-                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
-                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
-                    />
-                    <Area type="monotone" dataKey="count" name="Notes" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
-                  </AreaChart>
-                ) : activeActivityTab === 'ai' ? (
-                  <AreaChart data={weeklyAiData} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
-                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
-                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
-                    />
-                    <Area type="monotone" dataKey="sessions" name="AI Sessions" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
-                  </AreaChart>
-                ) : (
-                  <BarChart data={hourlyCounts} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
-                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={11} interval={2} />
-                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
-                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
-                    />
-                    <Bar dataKey="Activity" fill="var(--chart-bar-fill)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
+                      <span className="flex items-center justify-center w-5 h-5 rounded bg-line/45 text-[10px] font-semibold text-text-strong flex-shrink-0">{priority.type === 'finding' ? 'R' : '!'}</span>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState>No open priorities in this window.</EmptyState>
+              )}
             </div>
           </Panel>
 
-          <Panel className="home-panel home-panel-timeline">
-            <div className="panel-head">
-              <h2>Project Activity Timeline</h2>
+          <Panel className="home-panel home-panel-activity lg:col-span-6 flex flex-col h-full justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-line/30">
+                <div className="flex gap-1">
+                  <button
+                    type="button"
+                    className={`px-3 py-1 text-xs font-medium rounded-md hover:bg-line/25 text-text hover:text-text-strong transition-all cursor-pointer ${activeActivityTab === 'notes' ? 'bg-line/40 text-text-strong font-semibold shadow-sm border border-line/10' : ''}`}
+                    onClick={() => setActiveActivityTab('notes')}
+                  >
+                    Notes (7d)
+                  </button>
+                  {pInsights && (
+                    <>
+                      <button
+                        type="button"
+                        className={`px-3 py-1 text-xs font-medium rounded-md hover:bg-line/25 text-text hover:text-text-strong transition-all cursor-pointer ${activeActivityTab === 'ai' ? 'bg-line/40 text-text-strong font-semibold shadow-sm border border-line/10' : ''}`}
+                        onClick={() => setActiveActivityTab('ai')}
+                      >
+                        AI Sessions
+                      </button>
+                      <button
+                        type="button"
+                        className={`px-3 py-1 text-xs font-medium rounded-md hover:bg-line/25 text-text hover:text-text-strong transition-all cursor-pointer ${activeActivityTab === 'hours' ? 'bg-line/40 text-text-strong font-semibold shadow-sm border border-line/10' : ''}`}
+                        onClick={() => setActiveActivityTab('hours')}
+                      >
+                        Peak Hours (24h)
+                      </button>
+                    </>
+                  )}
+                </div>
+                <span className="text-[10px] text-muted font-medium uppercase tracking-wider">
+                  {activeActivityTab === 'notes' && `${home.activityByDay.reduce((total, point) => total + point.count, 0)} notes`}
+                  {activeActivityTab === 'ai' && `${totalAiInteractions} total`}
+                  {activeActivityTab === 'hours' && `30-day pattern`}
+                </span>
+              </div>
+              <div className="h-[240px] w-full flex items-center justify-center" aria-label="Activity chart">
+                <ResponsiveContainer width="100%" height="100%">
+                  {activeActivityTab === 'notes' ? (
+                    <AreaChart data={activityByDay} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                      <CartesianGrid stroke="var(--border-subtle)" vertical={false} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--muted)" fontSize={11} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--muted)" fontSize={11} width={24} />
+                      <Tooltip
+                        contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border-strong)', borderRadius: 8, color: 'var(--text-strong)', fontSize: 11 }}
+                        labelStyle={{ color: 'var(--text)' }}
+                      />
+                      <Area type="monotone" dataKey="count" name="Notes" stroke="var(--cyan)" fill="rgba(83, 199, 222, 0.08)" strokeWidth={2} />
+                    </AreaChart>
+                  ) : activeActivityTab === 'ai' ? (
+                    <AreaChart data={weeklyAiData} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                      <CartesianGrid stroke="var(--border-subtle)" vertical={false} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--muted)" fontSize={11} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--muted)" fontSize={11} width={24} />
+                      <Tooltip
+                        contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border-strong)', borderRadius: 8, color: 'var(--text-strong)', fontSize: 11 }}
+                        labelStyle={{ color: 'var(--text)' }}
+                      />
+                      <Area type="monotone" dataKey="sessions" name="AI Sessions" stroke="var(--cyan)" fill="rgba(83, 199, 222, 0.08)" strokeWidth={2} />
+                    </AreaChart>
+                  ) : (
+                    <BarChart data={hourlyCounts} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                      <CartesianGrid stroke="var(--border-subtle)" vertical={false} />
+                      <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--muted)" fontSize={10} interval={2} />
+                      <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--muted)" fontSize={11} width={24} />
+                      <Tooltip
+                        contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border-strong)', borderRadius: 8, color: 'var(--text-strong)', fontSize: 11 }}
+                        labelStyle={{ color: 'var(--text)' }}
+                      />
+                      <Bar dataKey="Activity" fill="var(--green)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </Panel>
+
+          <Panel className="home-panel home-panel-timeline lg:col-span-8 flex flex-col">
+            <div className="flex items-center justify-between pb-4 mb-4 border-b border-line/30">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-text-strong">Project Activity Timeline</h2>
               <Select
                 ariaLabel="Filter timeline by project"
-                className="timeline-project-select"
+                className="text-xs text-text-soft bg-panel/50 border border-line/60 rounded px-2 py-1 outline-none"
                 options={projectOptions}
                 value={selectedTimelineProject}
                 onChange={setSelectedTimelineProject}
               />
             </div>
             {timelineQuery.isPending ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>Loading timeline...</div>
+              <div className="py-8 text-center text-xs text-muted">Loading timeline...</div>
             ) : timelineQuery.isError ? (
-              <div style={{ padding: '24px', textAlign: 'center', color: 'var(--red)' }}>Failed to load timeline.</div>
+              <div className="py-8 text-center text-xs text-rose-500">Failed to load timeline.</div>
             ) : timelineItems.length === 0 ? (
               <EmptyState>
                 {backfillRunning
@@ -383,42 +387,44 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                   : 'No timeline events found for this project.'}
               </EmptyState>
             ) : (
-              <div className="home-timeline">
+              <div className="relative border-l border-line/50 pl-5 ml-2.5 py-1 space-y-4">
                 {timelineItems.map((item) => {
                   const activeSource = item.source || item.sourceChannel;
                   const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
                   return (
-                    <article className="home-timeline-item clickable" key={item.id} onClick={() => openNote(item.noteId)}>
+                    <article className="relative flex items-start gap-4 p-4 rounded-xl border border-line/30 hover:border-line/75 bg-panel/20 hover:bg-line/10 transition-all cursor-pointer text-left" key={item.id} onClick={() => openNote(item.noteId)}>
                       <div
-                        className="home-timeline-dot"
+                        className="absolute -left-[26px] top-6 w-2.5 h-2.5 rounded-full ring-4 ring-background"
                         style={{
                           color: getTimelineNodeColor(item.category, item.type),
                           backgroundColor: getTimelineNodeColor(item.category, item.type),
                         }}
                       />
-                      <div className="home-timeline-content">
-                        <div className="home-timeline-meta">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1.5">
                           {displayTags.length ? <Tags items={displayTags} /> : null}
-                          <span className="meta">
+                          <span className="text-[10px] text-muted font-medium">
                             {projectName(dashboard.projects, item.project)} / {formatDateInUserTimeZone(item.date)} {formatTimeInUserTimeZone(item.date)}
                           </span>
                           <AttachmentIndicator count={item.attachmentCount || 0} />
                           <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                         </div>
-                        <h3 className="home-timeline-title">
+                        <h3 className="text-xs font-semibold text-text-strong leading-snug">
                           {(() => {
                             const { text: titleText, url: titleUrl } = makeTitleClickable(item.title);
                             return titleUrl ? (
                               <>
-                                {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
+                                {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="text-cyan-500 underline hover:text-cyan-400">{titleUrl}</a>
                               </>
                             ) : item.title;
                           })()}
                         </h3>
-                        <SourceBadge source={activeSource} iconSize={16} />
-                        <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>
+                        <div className="mt-1.5 flex items-center">
+                          <SourceBadge source={activeSource} iconSize={14} />
+                        </div>
+                        <p className="text-[11px] text-muted mt-2 leading-relaxed line-clamp-2">{getCleanSummary(item.summary)}</p>
                       </div>
-                      <span className="file-icon">{typeIcon(item.type)}</span>
+                      <span className="flex items-center justify-center w-5 h-5 rounded bg-line/40 text-[10px] font-semibold text-text-strong flex-shrink-0">{typeIcon(item.type)}</span>
                     </article>
                   );
                 })}
@@ -426,40 +432,42 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             )}
           </Panel>
 
-          <Panel className="home-panel home-panel-projects">
-            <div className="panel-head">
-              <h2>Active projects</h2>
-              <span className="meta">top 5</span>
-            </div>
-            {home.activityByProject.length ? (
-              <div className="chart-box compact" aria-label="Activity chart by project">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={home.activityByProject} layout="vertical" margin={{ left: 4, right: 18, top: 8, bottom: 8 }}>
-                    <CartesianGrid stroke="var(--chart-grid)" horizontal={false} />
-                    <XAxis type="number" hide allowDecimals={false} />
-                    <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={116} stroke="var(--chart-axis)" fontSize={12} />
-                    <Tooltip
-                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
-                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
-                    />
-                    <Bar dataKey="count" name="Notes" fill="var(--chart-bar-fill)" radius={[0, 6, 6, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+          <Panel className="home-panel home-panel-projects lg:col-span-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-line/30">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-text-strong">Active projects</h2>
+                <span className="text-[10px] text-muted font-medium uppercase tracking-wider">top 5</span>
               </div>
-            ) : (
-              <EmptyState>No recent activity by project.</EmptyState>
-            )}
-            <div className="compact-links spaced">
-              {home.activityByProject.slice(0, 5).map((project) => (
-                <button className="home-project-link" type="button" key={project.project} onClick={() => openProject(project.project)}>
-                  <span>{project.label}</span>
-                  <Badge value={project.count} tone="active" />
-                </button>
-              ))}
+              {home.activityByProject.length ? (
+                <div className="h-[180px] w-full flex items-center justify-center" aria-label="Activity chart by project">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={home.activityByProject} layout="vertical" margin={{ left: 4, right: 18, top: 8, bottom: 8 }}>
+                      <CartesianGrid stroke="var(--border-subtle)" horizontal={false} />
+                      <XAxis type="number" hide allowDecimals={false} />
+                      <YAxis type="category" dataKey="label" tickLine={false} axisLine={false} width={80} stroke="var(--muted)" fontSize={11} />
+                      <Tooltip
+                        contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border-strong)', borderRadius: 8, color: 'var(--text-strong)', fontSize: 11 }}
+                        labelStyle={{ color: 'var(--text)' }}
+                      />
+                      <Bar dataKey="count" name="Notes" fill="var(--green)" radius={[0, 6, 6, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                <EmptyState>No recent activity by project.</EmptyState>
+              )}
+              <div className="space-y-2 mt-4">
+                {home.activityByProject.slice(0, 5).map((project) => (
+                  <button className="flex items-center justify-between w-full p-2.5 rounded-lg border border-line/30 hover:border-line/60 hover:bg-line/15 transition-all text-xs font-medium text-text-soft hover:text-text-strong cursor-pointer" type="button" key={project.project} onClick={() => openProject(project.project)}>
+                    <span>{project.label}</span>
+                    <Badge value={project.count} tone="active" />
+                  </button>
+                ))}
+              </div>
             </div>
           </Panel>
         </section>
-      </section>
+      </div>
     </>
   );
 }

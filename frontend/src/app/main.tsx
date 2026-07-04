@@ -10,6 +10,7 @@ import { registerServiceWorker } from './register-sw';
 import { ThemeProvider } from './providers/theme';
 import { AppShell } from '../layouts/AppShell';
 import '../shared/styles/global.css';
+import '../shared/styles/tailwind.css';
 import { NotificationsProvider } from '../shared/ui/notifications';
 import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
 
