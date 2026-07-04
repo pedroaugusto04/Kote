@@ -1,4 +1,4 @@
-export function GlobalLoadingOverlay({ message }: { message: string | null }) {
+export function GlobalLoadingOverlay({ message = null }: { message?: string | null }) {
   return (
     <div
       aria-busy="true"

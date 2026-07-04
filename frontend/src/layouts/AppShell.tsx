@@ -95,6 +95,7 @@ export function AppShell() {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const commandBarRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const view = activeView(location.pathname);
   const routeProject = routeParam(location.pathname, `${routes.projects}/`);
@@ -174,6 +175,9 @@ export function AppShell() {
     const handleClickOutside = (event: MouseEvent) => {
       if (commandBarRef.current && !commandBarRef.current.contains(event.target as Node)) {
         setIsPopoverOpen(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -546,7 +550,7 @@ export function AppShell() {
             )}
           </div>
           <div className="topbar-meta">
-            <div className="profile-menu">
+            <div className="profile-menu" ref={profileMenuRef}>
               <button
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="menu"

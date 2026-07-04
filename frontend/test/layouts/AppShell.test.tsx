@@ -628,6 +628,26 @@ describe('AppShell', () => {
     expect(screen.getAllByText('default').length).toBeGreaterThan(0);
   });
 
+  it('closes the user menu when clicking outside', async () => {
+    stubLocalStorage();
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(<AppShell />);
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    
+    // Open user menu
+    const userMenuButton = screen.getByRole('button', { name: 'User menu' });
+    fireEvent.click(userMenuButton);
+    expect(await screen.findByText('Ada Lovelace')).toBeInTheDocument();
+
+    // Click outside
+    fireEvent.mouseDown(document.body);
+
+    // Should close and Ada Lovelace should be gone
+    expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
+  });
+
   it('moves integrations from the sidebar into the user menu', async () => {
     stubLocalStorage();
     vi.stubGlobal('fetch', mockFetch());
