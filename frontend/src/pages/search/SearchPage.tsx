@@ -46,6 +46,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
   const [searchParams] = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const bottomInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<'ask' | 'brief'>(() => {
     const tabParam = searchParams.get('tab');
@@ -189,6 +190,9 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
         setAskError(null);
         setHistoryPage(1);
         await queryClient.invalidateQueries({ queryKey: ['ask-conversations'] });
+        setTimeout(() => {
+          bottomInputRef.current?.focus();
+        }, 50);
       } else {
         setAskError(SEARCH_MESSAGES.ERRORS.COULD_NOT_GENERATE_ANSWER);
       }
@@ -230,6 +234,9 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
         setMessages(chatMessages);
         setActiveConversationId(conversationId);
         setShowHistory(false);
+        setTimeout(() => {
+          bottomInputRef.current?.focus();
+        }, 50);
       } else {
         setAskError(SEARCH_MESSAGES.ERRORS.UNEXPECTED_ERROR);
       }
@@ -296,31 +303,14 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
       {activeTab === 'ask' ? (
         <div className={`ask-ai-workspace ${showHistory ? 'has-history' : ''}`}>
           <div className="ask-ai-main-pane">
-            {/* Question input */}
-            <section className="search-box ask-ai-input-section">
-              <div className="ask-ai-input-row">
-                <AskAiIcon className="ask-ai-input-icon" />
-                <input
-                  ref={inputRef}
-                  aria-label={SEARCH_MESSAGES.INPUT.PLACEHOLDER}
-                  autoComplete="off"
-                  enterKeyHint="send"
-                  spellCheck={false}
-                  type="text"
-                  value={questionInput}
-                  onChange={(event) => setQuestionInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === KEYBOARD_KEYS.ENTER) {
-                      event.preventDefault();
-                      handleAsk();
-                    }
-                  }}
-                  placeholder={UI_MESSAGES.ASK_ANYTHING}
-                />
-                <button className="icon-button ask-ai-send-btn" disabled={isAsking} type="button" onClick={() => handleAsk()}>
-                  {isAsking ? UI_MESSAGES.ASKING : SEARCH_MESSAGES.INPUT.ASK_BUTTON}
-                </button>
-                {messages.length > 0 && (
+            {/* Top Action Bar when chat is active, otherwise welcome input section */}
+            {messages.length > 0 ? (
+              <div className="ask-ai-active-header">
+                <div className="ask-ai-header-left">
+                  <AskAiIcon className="ask-ai-input-icon" />
+                  <h2>Conversations</h2>
+                </div>
+                <div className="ask-ai-header-actions">
                   <button
                     className="icon-button secondary ask-ai-new-chat-btn"
                     type="button"
@@ -328,17 +318,51 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                   >
                     New Chat
                   </button>
-                )}
-                <button
-                  aria-expanded={showHistory}
-                  className={`icon-button secondary ask-ai-history-toggle ${showHistory ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => setShowHistory((current) => !current)}
-                >
-                  {showHistory ? SEARCH_MESSAGES.INPUT.HIDE_HISTORY : SEARCH_MESSAGES.INPUT.SHOW_HISTORY}
-                </button>
+                  <button
+                    aria-expanded={showHistory}
+                    className={`icon-button secondary ask-ai-history-toggle ${showHistory ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => setShowHistory((current) => !current)}
+                  >
+                    {showHistory ? SEARCH_MESSAGES.INPUT.HIDE_HISTORY : SEARCH_MESSAGES.INPUT.SHOW_HISTORY}
+                  </button>
+                </div>
               </div>
-            </section>
+            ) : (
+              <section className="search-box ask-ai-input-section">
+                <div className="ask-ai-input-row">
+                  <AskAiIcon className="ask-ai-input-icon" />
+                  <input
+                    ref={inputRef}
+                    aria-label={SEARCH_MESSAGES.INPUT.PLACEHOLDER}
+                    autoComplete="off"
+                    enterKeyHint="send"
+                    spellCheck={false}
+                    type="text"
+                    value={questionInput}
+                    onChange={(event) => setQuestionInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === KEYBOARD_KEYS.ENTER) {
+                        event.preventDefault();
+                        handleAsk();
+                      }
+                    }}
+                    placeholder={UI_MESSAGES.ASK_ANYTHING}
+                  />
+                  <button className="icon-button ask-ai-send-btn" disabled={isAsking} type="button" onClick={() => handleAsk()}>
+                    {isAsking ? UI_MESSAGES.ASKING : SEARCH_MESSAGES.INPUT.ASK_BUTTON}
+                  </button>
+                  <button
+                    aria-expanded={showHistory}
+                    className={`icon-button secondary ask-ai-history-toggle ${showHistory ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => setShowHistory((current) => !current)}
+                  >
+                    {showHistory ? SEARCH_MESSAGES.INPUT.HIDE_HISTORY : SEARCH_MESSAGES.INPUT.SHOW_HISTORY}
+                  </button>
+                </div>
+              </section>
+            )}
 
             {/* Chat Messages List */}
             {messages.length > 0 ? (
@@ -414,6 +438,33 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                     </div>
                   )}
                   <div ref={messagesEndRef} />
+                </div>
+
+                {/* Bottom Input for Active Chat turns */}
+                <div className="ask-ai-bottom-input-container">
+                  <div className="ask-ai-input-row">
+                    <input
+                      ref={bottomInputRef}
+                      aria-label={SEARCH_MESSAGES.INPUT.PLACEHOLDER}
+                      autoComplete="off"
+                      enterKeyHint="send"
+                      spellCheck={false}
+                      type="text"
+                      value={questionInput}
+                      onChange={(event) => setQuestionInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === KEYBOARD_KEYS.ENTER) {
+                          event.preventDefault();
+                          handleAsk();
+                        }
+                      }}
+                      placeholder="Type a message..."
+                      disabled={isAsking}
+                    />
+                    <button className="icon-button ask-ai-send-btn" disabled={isAsking || !questionInput.trim()} type="button" onClick={() => handleAsk()}>
+                      {isAsking ? UI_MESSAGES.ASKING : SEARCH_MESSAGES.INPUT.ASK_BUTTON}
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : null}
