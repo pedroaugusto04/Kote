@@ -63,16 +63,12 @@ export class AskKnowledgeUseCase {
     let relatedNotesForResponse: { id: string; title: string; path: string; projectSlug: string; workspaceId: string }[] = [];
 
     if (specialIntent) {
-      const allNotes = await this.contentRepository.listNotes(userId);
+      const allNotes = await this.contentRepository.listNotes(userId, {
+        projectId: options.projectId,
+        workspaceId: options.workspaceId,
+      });
       const noteMap = new Map(allNotes.map((n) => [n.id, n]));
       let vaultNotes = allNotes.map((n) => noteSummary(n));
-
-      if (options.projectId) {
-        vaultNotes = vaultNotes.filter((n) => noteMap.get(n.id)?.projectId === options.projectId);
-      }
-      if (options.workspaceId) {
-        vaultNotes = vaultNotes.filter((n) => noteMap.get(n.id)?.workspaceId === options.workspaceId);
-      }
 
       vaultNotes = vaultNotes.filter((n) => matchesIntent(n, specialIntent));
 

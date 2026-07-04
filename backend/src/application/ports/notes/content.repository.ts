@@ -46,7 +46,7 @@ export abstract class ContentRepository {
   abstract upsertProjectFolder(userId: string, input: SaveProjectFolderInput): Promise<ProjectFolderRecord>;
   abstract updateProjectFolderTree(userId: string, input: { folders: SaveProjectFolderInput[]; notes: SaveNoteInput[] }): Promise<void>;
   abstract deleteProjectFolder(userId: string, projectId: string, folderId: string): Promise<boolean>;
-  abstract listNotes(userId: string): Promise<NoteRecord[]>;
+  abstract listNotes(userId: string, filters?: { projectId?: string; workspaceId?: string }): Promise<NoteRecord[]>;
   abstract listNotesPage(userId: string, input: ListNotesInput): Promise<PaginatedNotes>;
   abstract listProjectTimeline(userId: string, input: ListProjectTimelineInput): Promise<PaginatedProjectTimeline>;
   abstract listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput): Promise<NoteRecord[]>;
@@ -66,7 +66,16 @@ export abstract class ContentRepository {
 }
 
 export abstract class ContentQueryRepository {
-  abstract list(userId: string): Promise<VaultNoteSummary[]>;
+  abstract list(
+    userId: string,
+    filters?: {
+      projectId?: string;
+      workspaceId?: string;
+      status?: string;
+      query?: string;
+      ids?: string[];
+    }
+  ): Promise<VaultNoteSummary[]>;
   abstract getById(userId: string, id: string): Promise<VaultNoteDetail | null>;
   abstract getNoteNeighbors(userId: string, noteId: string, input?: { projectId?: string; workspaceId?: string; folderId?: string; status?: string }): Promise<{ previous: { id: string; title: string } | null; next: { id: string; title: string } | null }>;
   abstract listReviews(userId: string): Promise<ReviewView[]>;

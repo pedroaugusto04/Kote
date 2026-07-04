@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, count, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, count, desc, sql, inArray, notInArray } from 'drizzle-orm';
 
+import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
+import { tokenizeQuery, getSpecialQueryIntent } from '../../application/utils/query.utils.js';
 import { readEnvironment } from '../../adapters/environment.js';
 import { ReminderDeliveryChannel } from '../../contracts/enums.js';
 import type { DueReminderView, ReminderView } from '../../application/models/reminder.models.js';
@@ -32,8 +34,64 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     return this.contentObjectStorage.hydrateMarkdown(note);
   }
 
-  private async loadNotes(userId: string) {
+  private async loadNotes(
+    userId: string,
+    filters?: {
+      projectId?: string;
+      workspaceId?: string;
+      status?: string;
+      query?: string;
+      ids?: string[];
+    }
+  ) {
     const db = this.database.getDb();
+    const conditions = [eq(notes.userId, userId)];
+
+    if (filters?.workspaceId) {
+      conditions.push(eq(notes.workspaceId, filters.workspaceId));
+    }
+    if (filters?.projectId) {
+      conditions.push(eq(notes.projectId, filters.projectId));
+    }
+    if (filters?.status) {
+      if (filters.status === StatusFilter.Open) {
+        conditions.push(notInArray(notes.status, [...terminalStatuses]));
+      } else {
+        conditions.push(eq(notes.status, filters.status as any));
+      }
+    }
+
+    let searchCondition: any = null;
+    if (filters?.ids && filters.ids.length > 0) {
+      searchCondition = inArray(notes.id, filters.ids);
+    }
+
+    if (filters?.query) {
+      const intent = getSpecialQueryIntent(filters.query);
+      if (!intent) {
+        const tokens = tokenizeQuery(filters.query);
+        if (tokens.length > 0) {
+          const tsQueryStr = tokens.map((token) => `${token}:*`).join(' | ');
+          const textCondition = sql`((
+            to_tsvector('english', ${notes.title}) ||
+            to_tsvector('english', ${notes.summary}) ||
+            to_tsvector('english', ${notes.path}) ||
+            to_tsvector('english', cast(${notes.tags} as text))
+          ) @@ to_tsquery('english', ${tsQueryStr}))`;
+
+          if (searchCondition) {
+            searchCondition = sql`(${searchCondition} OR ${textCondition})`;
+          } else {
+            searchCondition = textCondition;
+          }
+        }
+      }
+    }
+
+    if (searchCondition) {
+      conditions.push(searchCondition);
+    }
+
     const result = await db
       .select({
         id: notes.id,
@@ -85,15 +143,24 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       ))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
-      .where(eq(notes.userId, userId))
+      .where(and(...conditions))
       .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
       .orderBy(desc(notes.occurredAt), notes.title);
     
     return result.map(noteFromRow);
   }
 
-  async list(userId: string) {
-    return (await this.loadNotes(userId)).map(noteSummary);
+  async list(
+    userId: string,
+    filters?: {
+      projectId?: string;
+      workspaceId?: string;
+      status?: string;
+      query?: string;
+      ids?: string[];
+    }
+  ) {
+    return (await this.loadNotes(userId, filters)).map(noteSummary);
   }
 
   async getById(userId: string, id: string) {

@@ -170,8 +170,8 @@ export class PostgresContentRepository extends ContentRepository {
     return this.folderRepository.delete(userId, projectId, folderId);
   }
 
-  async listNotes(userId: string) {
-    return this.noteRepository.list(userId);
+  async listNotes(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
+    return this.noteRepository.list(userId, filters);
   }
 
   async listNotesPage(userId: string, input: ListNotesInput) {

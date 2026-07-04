@@ -31,8 +31,17 @@ export class PostgresNoteRepository {
     return this.contentObjectStorage.hydrateMarkdown(note);
   }
 
-  async list(userId: string) {
+  async list(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
     const db = this.database.getDb();
+    const conditions = [eq(notes.userId, userId)];
+
+    if (filters?.workspaceId) {
+      conditions.push(eq(notes.workspaceId, filters.workspaceId));
+    }
+    if (filters?.projectId) {
+      conditions.push(eq(notes.projectId, filters.projectId));
+    }
+
     const result = await db
       .select({
         id: notes.id,
@@ -84,7 +93,7 @@ export class PostgresNoteRepository {
       ))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
-      .where(eq(notes.userId, userId))
+      .where(and(...conditions))
       .groupBy(notes.id, projects.projectSlug, workspaces.workspaceSlug)
       .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title);
 

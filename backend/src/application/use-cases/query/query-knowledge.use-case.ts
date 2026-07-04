@@ -22,7 +22,6 @@ export class QueryKnowledgeUseCase {
 
   async execute(input: QueryInput, userId: string) {
     const env = this.runtimeEnv.read();
-    const notes = await this.contentQueryRepository.list(userId);
     const embeddingConfig = {
       provider: env.embeddingAiProvider,
       baseUrl: env.embeddingAiBaseUrl,
@@ -33,6 +32,9 @@ export class QueryKnowledgeUseCase {
     const projectId = input.projectId;
     const workspaceId = input.workspaceId;
 
+    let similarChunks: Array<{ noteId: string; similarity: number }> = [];
+    let candidateIds: string[] | undefined = undefined;
+
     // Try vector search first if embeddings are configured
     if (embeddingConfig.provider && embeddingConfig.apiKey && embeddingConfig.model) {
       try {
@@ -40,31 +42,13 @@ export class QueryKnowledgeUseCase {
         const queryEmbedding = embeddings[0];
 
         if (queryEmbedding && queryEmbedding.length > 0) {
-          const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
+          similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
             limit: input.limit * 3, // Fetch more candidates for hybrid re-ranking
             workspaceId,
             projectId,
             minSimilarity: 0.3, // Lower threshold for hybrid search
           });
-
-          const matches = rankHybridKnowledgeMatches(notes, similarChunks, input, { vector: 0.4, keyword: 0.6 });
-          if (matches.length > 0) {
-            const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || DEFAULT_PAGE_SIZE }, matches.length);
-            const start = (pagination.page - 1) * pagination.pageSize;
-
-            return {
-              ok: true,
-              query: input.query,
-              matches: matches.slice(start, start + pagination.pageSize),
-              pagination,
-              answer: matches.length
-                ? {
-                    answer: `I found ${matches.length} relevant note(s) for "${input.query}".`,
-                    bullets: matches.map((match: { title: string; snippet: string }) => `${match.title}: ${match.snippet}`),
-                  }
-                : { answer: `I did not find relevant notes for: ${input.query}`, bullets: [] },
-            };
-          }
+          candidateIds = similarChunks.map((c) => c.noteId);
         }
       } catch (error) {
         // Fall back to keyword search if vector search fails
@@ -73,6 +57,36 @@ export class QueryKnowledgeUseCase {
           query: input.query,
           error: error instanceof Error ? error.message : String(error),
         });
+      }
+    }
+
+    // Fetch only candidate notes matching projectId/workspaceId/status and matching chunks or query keywords
+    const notes = await this.contentQueryRepository.list(userId, {
+      projectId,
+      workspaceId,
+      status: input.status,
+      query: input.query,
+      ids: candidateIds,
+    });
+
+    if (candidateIds && candidateIds.length > 0) {
+      const matches = rankHybridKnowledgeMatches(notes, similarChunks, input, { vector: 0.4, keyword: 0.6 });
+      if (matches.length > 0) {
+        const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || DEFAULT_PAGE_SIZE }, matches.length);
+        const start = (pagination.page - 1) * pagination.pageSize;
+
+        return {
+          ok: true,
+          query: input.query,
+          matches: matches.slice(start, start + pagination.pageSize),
+          pagination,
+          answer: matches.length
+            ? {
+                answer: `I found ${matches.length} relevant note(s) for "${input.query}".`,
+                bullets: matches.map((match: { title: string; snippet: string }) => `${match.title}: ${match.snippet}`),
+              }
+            : { answer: `I did not find relevant notes for: ${input.query}`, bullets: [] },
+        };
       }
     }
 

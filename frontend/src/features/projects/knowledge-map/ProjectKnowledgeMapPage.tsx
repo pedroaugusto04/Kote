@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { useDebouncedValue } from '../../../shared/ui/use-debounced-value';
 import type { ProjectsPageContext } from '../../../app/page-context';
 import { routes } from '../../../app/routing/routes';
 import { formatDisplayToken } from '../../../shared/utils/format';
@@ -63,7 +64,8 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const [limit, setLimit] = useState<number>(80);
   const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapVisibleNodeType>>(() => new Set(defaultVisibleKnowledgeMapNodeTypes));
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQueryInput, setSearchQueryInput] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQueryInput, 300);
 
   const query = useQuery({
     queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit],
@@ -116,7 +118,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   useEffect(() => {
     setFolderId('');
     setSideNoteId(null);
-    setSearchQuery('');
+    setSearchQueryInput('');
     setResetSignal((current) => current + 1);
   }, [projectSlug]);
 
@@ -193,12 +195,12 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
             visibleTypes={visibleTypes}
             dateRange={dateRange}
             maxDateFilter={maxDateFilter}
-            searchQuery={searchQuery}
+            searchQuery={searchQueryInput}
             onCategoryChange={setCategory}
             onFolderChange={setFolderId}
             onLimitChange={setLimit}
             onMaxDateFilterChange={setMaxDateFilter}
-            onSearchQueryChange={setSearchQuery}
+            onSearchQueryChange={setSearchQueryInput}
             onTypeToggle={(type) => {
               setVisibleTypes((current) => {
                 const next = new Set(current);
@@ -231,7 +233,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
                   }}
                   paused={paused}
                   resetSignal={resetSignal}
-                  searchQuery={searchQuery}
+                  searchQuery={debouncedSearchQuery}
                 />
                 {sideNoteId && (
                   <SideNoteDrawer

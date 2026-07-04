@@ -241,6 +241,19 @@ export function ProjectKnowledgeForceGraph({
             matchesSearch.add(n.id);
           }
         });
+
+        graphLinks.forEach((l) => {
+          if (l.type === 'tagged-with') {
+            const sourceId = typeof l.source === 'object' ? l.source.id : String(l.source);
+            const targetId = typeof l.target === 'object' ? l.target.id : String(l.target);
+            if (matchesSearch.has(targetId)) {
+              matchesSearch.add(sourceId);
+            }
+            if (matchesSearch.has(sourceId)) {
+              matchesSearch.add(targetId);
+            }
+          }
+        });
       }
 
       const neighbors = new Set<string>();

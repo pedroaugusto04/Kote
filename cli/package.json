@@ -1,6 +1,6 @@
 {
   "name": "@pedroaugusto04/kote-cli",
-  "version": "1.4.2",
+  "version": "1.4.3",
   "description": "CLI client for the Kote AI system",
   "type": "module",
   "engines": {
@@ -14,7 +14,7 @@
   ],
   "dependencies": {
     "@clack/prompts": "^1.5.0",
-    "@pedroaugusto04/kote-cli": "^1.4.2",
+    "@pedroaugusto04/kote-cli": "^1.4.3",
     "commander": "^15.0.0",
     "picocolors": "^1.1.1"
   }
