@@ -755,6 +755,11 @@
   animation: techPulse 2s infinite alternate;
 }
 
+.loading-bubble .skeleton-line {
+  background: var(--line-soft) !important;
+  height: 14px;
+}
+
 /* Button style for New Chat */
 .ask-ai-new-chat-btn {
   margin-left: auto;
