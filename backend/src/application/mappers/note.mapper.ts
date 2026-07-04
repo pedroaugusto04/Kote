@@ -54,7 +54,7 @@ export function toIngestPayload(
     content: {
       rawText: cleanedRawText,
       title: dto.title,
-      attachments: [],
+      attachments: dto.attachments || [],
       sections: {
         summary: cleanedRawText,
         impact: '',

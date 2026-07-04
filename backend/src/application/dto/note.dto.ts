@@ -6,6 +6,13 @@ import { KnowledgeStatus } from '../../contracts/enums.js';
 const noteStatusSchema = z.enum(noteStatusValues).optional();
 const editableNoteStatusSchema = z.enum([KnowledgeStatus.Active, KnowledgeStatus.Resolved, KnowledgeStatus.Archived]).optional();
 
+const noteAttachmentSchema = z.object({
+  fileName: z.string().min(1),
+  mimeType: z.string().default('application/octet-stream'),
+  sizeBytes: z.number().int().nonnegative().default(0),
+  dataBase64: z.string().default(''),
+});
+
 export const createManualNoteSchema = z
   .object({
     projectId: z.string().min(1, 'projectId is required'),
@@ -22,6 +29,7 @@ export const createManualNoteSchema = z
     occurredAt: z.string().optional(),
     path: z.string().optional(),
     metadata: z.record(z.string(), z.unknown()).optional().default({}),
+    attachments: z.array(noteAttachmentSchema).optional(),
   })
   .strict();
 

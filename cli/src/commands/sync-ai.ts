@@ -28,6 +28,12 @@ interface CliAiSession {
   turns: CliAiTurn[];
   timestamp: number;
   projectSlug?: string;
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 }
 
 function getAllFiles(dir: string): string[] {
@@ -355,6 +361,29 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
       }
     }
 
+    const folderPath = path.dirname(path.dirname(path.dirname(filePath)));
+    const attachments: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }> = [];
+    try {
+      if (fs.existsSync(folderPath)) {
+        const files = fs.readdirSync(folderPath);
+        for (const file of files) {
+          if (file.endsWith('.md')) {
+            const fullPath = path.join(folderPath, file);
+            const fileStat = fs.statSync(fullPath);
+            if (fileStat.isFile()) {
+              const fileContent = fs.readFileSync(fullPath);
+              attachments.push({
+                fileName: file,
+                mimeType: 'text/markdown',
+                sizeBytes: fileStat.size,
+                dataBase64: fileContent.toString('base64'),
+              });
+            }
+          }
+        }
+      }
+    } catch {}
+
     return {
       providerId: 'antigravity',
       providerName: 'Antigravity',
@@ -362,6 +391,7 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
       title,
       turns,
       timestamp: fs.statSync(filePath).mtimeMs,
+      attachments,
     };
   } catch {
     return null;
@@ -605,6 +635,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
       sourceChannel: 'ai-chat',
       source: session.providerId,
       sessionId: session.sessionId,
+      attachments: session.attachments,
     });
 
     s.stop(pc.green('Import complete!'));

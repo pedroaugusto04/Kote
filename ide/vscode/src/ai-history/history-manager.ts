@@ -655,6 +655,7 @@ export class AiHistoryManager {
         source: session.providerId,
         sessionId: session.sessionId,
         occurredAt: new Date(session.timestamp).toISOString(),
+        attachments: session.attachments,
       });
 
       if (!silent) {
@@ -681,6 +682,7 @@ export class AiHistoryManager {
         source: session.providerId,
         sessionId: session.sessionId,
         occurredAt: new Date(session.timestamp).toISOString(),
+        attachments: session.attachments,
       });
 
       vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);

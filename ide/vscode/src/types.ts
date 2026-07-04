@@ -85,6 +85,12 @@ export interface KbCreateNotePayload {
     changedFiles?: string[];
     [key: string]: any;
   };
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 }
 
 export interface KbCreateNoteResult {

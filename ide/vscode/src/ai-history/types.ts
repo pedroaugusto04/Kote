@@ -13,6 +13,12 @@ export interface AiSession {
   turns: AiTurn[];
   timestamp: number;
   projectSlug?: string;
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 }
 
 export interface AiHistoryProvider {

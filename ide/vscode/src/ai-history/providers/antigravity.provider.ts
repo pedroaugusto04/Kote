@@ -197,12 +197,38 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
         }
       }
 
+      const folderPath = path.dirname(path.dirname(path.dirname(filePath)));
+      const attachments: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }> = [];
+      try {
+        if (fs.existsSync(folderPath)) {
+          const files = fs.readdirSync(folderPath);
+          for (const file of files) {
+            if (file.endsWith('.md')) {
+              const fullFilePath = path.join(folderPath, file);
+              const fileStat = fs.statSync(fullFilePath);
+              if (fileStat.isFile()) {
+                const fileContent = fs.readFileSync(fullFilePath);
+                attachments.push({
+                  fileName: file,
+                  mimeType: 'text/markdown',
+                  sizeBytes: fileStat.size,
+                  dataBase64: fileContent.toString('base64'),
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // ignore errors
+      }
+
       return {
         providerId: this.id,
         sessionId,
         title,
         turns,
         timestamp: fs.statSync(filePath).mtimeMs,
+        attachments,
       };
     } catch (err) {
       console.error(`Failed to parse Antigravity file ${filePath}:`, err);

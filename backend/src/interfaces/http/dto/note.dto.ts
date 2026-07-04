@@ -12,6 +12,13 @@ import { notesListStatusFilterValues, StatusFilter } from '../../../contracts/st
 const noteStatusSchema = z.enum(noteStatusValues).optional();
 const editableNoteStatusSchema = z.enum([KnowledgeStatus.Active, KnowledgeStatus.Resolved, KnowledgeStatus.Archived]).optional();
 
+const noteAttachmentSchema = z.object({
+  fileName: z.string().min(1),
+  mimeType: z.string().default('application/octet-stream'),
+  sizeBytes: z.number().int().nonnegative().default(0),
+  dataBase64: z.string().default(''),
+});
+
 export const createNoteBodySchema = z
   .object({
     projectSlug: z.string().trim().min(1, 'Enter the project.'),
@@ -28,6 +35,7 @@ export const createNoteBodySchema = z
     occurredAt: z.string().trim().optional(),
     path: z.string().trim().optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
+    attachments: z.array(noteAttachmentSchema).optional(),
   })
   .strict()
   .transform((body) => ({
@@ -45,6 +53,7 @@ export const createNoteBodySchema = z
     occurredAt: body.occurredAt,
     path: body.path,
     metadata: body.metadata,
+    attachments: body.attachments,
   }));
 
 export type CreateNoteBody = z.infer<typeof createNoteBodySchema>;
