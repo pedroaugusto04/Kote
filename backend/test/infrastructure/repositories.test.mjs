@@ -145,6 +145,7 @@ test('postgres ask history repository saves and lists newest entries by user and
   await repositories.askHistoryRepository.save({
     userId: user.id,
     projectId: platform.id,
+    conversationId: crypto.randomUUID(),
     question: 'First?',
     answer: 'First answer',
     confidence: 'medium',
@@ -155,6 +156,7 @@ test('postgres ask history repository saves and lists newest entries by user and
   await repositories.askHistoryRepository.save({
     userId: user.id,
     projectId: billing.id,
+    conversationId: crypto.randomUUID(),
     question: 'Second?',
     answer: 'Second answer',
     confidence: 'high',
@@ -164,6 +166,7 @@ test('postgres ask history repository saves and lists newest entries by user and
   await repositories.askHistoryRepository.save({
     userId: otherUser.id,
     projectId: platform.id,
+    conversationId: crypto.randomUUID(),
     question: 'Other?',
     answer: 'Other answer',
     confidence: 'low',

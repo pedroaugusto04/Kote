@@ -226,7 +226,9 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches re
   );
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'platform' });
 
-  assert.deepEqual(result, {
+  assert.equal(typeof result.conversationId, 'string');
+  const { conversationId: resConvId, ...resRest } = result;
+  assert.deepEqual(resRest, {
     ...askKnowledge.result,
     media: [{
       noteId: 'note-1',
@@ -242,7 +244,10 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches re
     userId: 'user-123',
     options: { projectId: undefined, workspaceId: undefined },
   }]);
-  assert.deepEqual(saved, [{
+  
+  assert.equal(typeof saved[0]?.conversationId, 'string');
+  const { conversationId: savedConvId, ...savedRest } = saved[0];
+  assert.deepEqual(savedRest, {
     userId: 'user-123',
     projectId: null,
     workspaceId: null,
@@ -251,7 +256,7 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches re
     confidence: 'high',
     sources: [{ noteId: 'note-1', title: 'Deploy', path: 'docs/deploy.md' }],
     relatedNotes: [{ id: 'note-1', title: 'Deploy', path: 'docs/deploy.md', projectSlug: 'platform', workspaceSlug: 'default' }],
-  }]);
+  });
 
   assert.equal(resolveWhatsappAskAttachmentsUseCase.calls.length, 1);
   assert.deepEqual(sentMedia, [{
