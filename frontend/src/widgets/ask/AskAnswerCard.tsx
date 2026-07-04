@@ -25,7 +25,7 @@ export function AskAnswerCard({
         <div className="ask-answer-header">
           <div className="ask-ai-identity">
             <AskAiIcon className="ask-ai-identity-icon" />
-            <strong>Assistant</strong>
+            <strong>Kote Assistant</strong>
           </div>
           <span className="ask-source-count">Based on {sourceCount} {sourceCount === 1 ? 'source' : 'sources'}</span>
         </div>

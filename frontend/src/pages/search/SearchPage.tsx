@@ -384,7 +384,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                       </div>
                       <div className="message-content-wrapper">
                         <div className="message-meta">
-                          <strong>{msg.role === 'user' ? (currentUser?.displayName || 'You') : 'Assistant'}</strong>
+                          <strong>{msg.role === 'user' ? (currentUser?.displayName || 'You') : 'Kote Assistant'}</strong>
                           {msg.role === 'assistant' && msg.sources && (
                             <span className="ask-source-count">
                               Based on {msg.sources.length} {msg.sources.length === 1 ? 'source' : 'sources'}
@@ -423,16 +423,18 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                   {isAsking && (
                     <div className="ask-message-bubble assistant loading-bubble">
                       <div className="message-avatar-wrapper">
-                        <AskAiIcon className="message-assistant-icon" />
+                        <AskAiIcon className="message-assistant-icon ask-ai-pulse" />
                       </div>
                       <div className="message-content-wrapper">
                         <div className="message-meta">
-                          <strong>Assistant</strong>
+                          <strong>{SEARCH_MESSAGES.SKELETON.THINKING}</strong>
                         </div>
                         <div className="message-body">
-                          <div className="skeleton-line pulse" style={{ width: '40%', height: '14px', borderRadius: '4px', background: 'var(--line-soft)', marginBottom: '8px' }} />
-                          <div className="skeleton-line pulse" style={{ width: '85%', height: '14px', borderRadius: '4px', background: 'var(--line-soft)', marginBottom: '8px' }} />
-                          <div className="skeleton-line pulse" style={{ width: '60%', height: '14px', borderRadius: '4px', background: 'var(--line-soft)' }} />
+                          <div className="ask-skeleton-lines">
+                            <div className="skeleton-line line-1"></div>
+                            <div className="skeleton-line line-2"></div>
+                            <div className="skeleton-line line-3"></div>
+                          </div>
                         </div>
                       </div>
                     </div>
