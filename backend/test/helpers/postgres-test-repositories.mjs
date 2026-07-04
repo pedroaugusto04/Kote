@@ -175,7 +175,7 @@ async function truncateSchema(targetUrl, schemaName) {
     const sequences = await pool.query(`
       SELECT sequence_name 
       FROM information_schema.sequences 
-      WHERE sequence_schema = $1
+      WHERE sequence_schema = $1 AND sequence_name NOT LIKE '%kb_schema_migrations%'
     `, [schemaName]);
 
     for (const seq of sequences.rows) {
