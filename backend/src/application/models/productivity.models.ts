@@ -4,14 +4,6 @@ export type ProductivityActivityRaw = {
   isAi: boolean;
 };
 
-export type CategoryActivityRaw = {
-  id: string;
-  name: string;
-  color: string;
-  count: number;
-};
-
 export type ProductivityInsightsRaw = {
   activities: ProductivityActivityRaw[];
-  categories: CategoryActivityRaw[];
 };

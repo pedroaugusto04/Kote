@@ -94,11 +94,14 @@ test('dashboard controller delegates project, workspace and note reads to use ca
     { execute: async (query, userId) => ({ ok: true, query, userId }) },
     { execute: async (question, userId, options) => ({ ok: true, question, userId, options }) },
     { execute: async (userId, query) => ({ items: [{ id: 'ask-1', userId, ...query }], pagination: { page: query.page } }) },
-    { execute: async (_userId, body) => ({ ok: true, ...body }) },
+    { execute: async (conversationId) => ({ turns: [] }) },
+    { execute: async (userId, ids, status) => ({ ok: true }) },
+    { execute: async (userId) => ({ activities: [] }) },
   );
 
   assert.deepEqual(await controller.projects(user, {}), { ok: true, projects: dashboard.projects, pagination: {} });
   assert.deepEqual(await controller.workspaces(user), { ok: true, workspaces: dashboard.workspaces });
+  assert.deepEqual(await controller.getProductivityInsights(user), { activities: [] });
 });
 
 test('operations controller normalizes reminder dispatch and mark-sent inputs', async () => {

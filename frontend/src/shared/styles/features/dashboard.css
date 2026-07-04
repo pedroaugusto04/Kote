@@ -11,7 +11,7 @@
 
 .home-kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 12px;
 }
 
@@ -322,3 +322,61 @@
   padding: 0 12px 0 10px;
   font-size: 13px;
 }
+
+/* Productivity insights styles inside homepage */
+.insights-kpi-card .home-kpi-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.insights-kpi-card .kpi-symbol {
+  font-size: 20px;
+  line-height: 1;
+  background: var(--surface-3);
+  padding: 6px;
+  border-radius: 8px;
+}
+
+.insights-tabbed-panel .tab-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tab-buttons {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-3);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--line-soft);
+}
+
+.tab-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  color: var(--text-strong);
+  background: var(--surface-highlight);
+}
+
+.tab-btn.active {
+  color: var(--text-strong);
+  background: var(--surface-1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+

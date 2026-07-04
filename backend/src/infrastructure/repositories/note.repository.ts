@@ -875,7 +875,7 @@ export class PostgresNoteRepository {
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-    const [dbNotes, dbAsks, dbCategories] = await Promise.all([
+    const [dbNotes, dbAsks] = await Promise.all([
       db
         .select({
           createdAt: notes.createdAt,
@@ -890,18 +890,6 @@ export class PostgresNoteRepository {
         })
         .from(askHistory)
         .where(and(eq(askHistory.userId, userId), gte(askHistory.createdAt, ninetyDaysAgo))),
-      db
-        .select({
-          id: categories.id,
-          name: categories.name,
-          color: categories.color,
-          count: count(noteCategories.noteId),
-        })
-        .from(categories)
-        .innerJoin(noteCategories, eq(noteCategories.categoryId, categories.id))
-        .innerJoin(notes, eq(noteCategories.noteId, notes.id))
-        .where(and(eq(notes.userId, userId), gte(notes.createdAt, ninetyDaysAgo)))
-        .groupBy(categories.id, categories.name, categories.color),
     ]);
 
     const activities = [
@@ -917,16 +905,8 @@ export class PostgresNoteRepository {
       })),
     ];
 
-    const categoriesResult = dbCategories.map((c) => ({
-      id: c.id,
-      name: c.name,
-      color: c.color,
-      count: Number(c.count || 0),
-    }));
-
     return {
       activities,
-      categories: categoriesResult,
     };
   }
 }

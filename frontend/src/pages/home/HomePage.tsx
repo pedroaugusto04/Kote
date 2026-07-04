@@ -8,7 +8,7 @@ import { OnboardingChecklist } from '../../features/onboarding/OnboardingCheckli
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchAllProjectsTimeline, fetchGithubBackfillStatus, fetchProjectTimeline } from '../../shared/api/client';
+import { fetchAllProjectsTimeline, fetchGithubBackfillStatus, fetchProjectTimeline, fetchProductivityInsights } from '../../shared/api/client';
 import { Select } from '../../shared/ui/select';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
@@ -44,6 +44,109 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
   const TIMELINE_SIZE = 5;
 
   const [selectedTimelineProject, setSelectedTimelineProject] = useState<string>('');
+  const [activeActivityTab, setActiveActivityTab] = useState<'notes' | 'ai' | 'hours'>('notes');
+
+  const productivityQuery = useQuery({
+    queryKey: ['home-productivity-insights'],
+    queryFn: fetchProductivityInsights,
+    staleTime: 60_000,
+  });
+
+  const pInsights = productivityQuery.data;
+
+  // Helpers for timezone mapping
+  const formatDateStr = (dt: Date) =>
+    `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+
+  const addDays = (dateStr: string, days: number): string => {
+    const d = new Date(`${dateStr}T12:00:00`); // Parse mid-day to avoid DST edge-cases
+    d.setDate(d.getDate() + days);
+    return formatDateStr(d);
+  };
+
+  const getOffsetDateStr = (daysOffset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    return formatDateStr(d);
+  };
+
+  const nowDt = new Date();
+  const todayStr = formatDateStr(nowDt);
+  const yesterdayStr = formatDateStr(new Date(nowDt.getTime() - 24 * 60 * 60 * 1000));
+
+  let currentStreak = 0;
+  let weeklyAiData: { label: string; sessions: number }[] = [];
+  let hourlyCounts: { hour: number; label: string; Atividade: number }[] = [];
+  let totalAiInteractions = 0;
+
+  if (pInsights) {
+    const activities = pInsights.activities || [];
+    totalAiInteractions = activities.filter((a) => a.isAi).length;
+
+    // 1. Calculate active usage streak
+    const activeDays = new Set(
+      activities.map((a) => {
+        const d = new Date(a.createdAt);
+        return formatDateStr(d);
+      })
+    );
+
+    let startCheckingFrom: string | null = null;
+    if (activeDays.has(todayStr)) {
+      startCheckingFrom = todayStr;
+    } else if (activeDays.has(yesterdayStr)) {
+      startCheckingFrom = yesterdayStr;
+    }
+
+    if (startCheckingFrom) {
+      let currentCheckStr = startCheckingFrom;
+      while (activeDays.has(currentCheckStr)) {
+        currentStreak++;
+        currentCheckStr = addDays(currentCheckStr, -1);
+      }
+    }
+
+    // 2. Weekly AI Sessions (last 4 weeks)
+    for (let i = 3; i >= 0; i--) {
+      const startOffset = -i * 7 - 6;
+      const endOffset = -i * 7;
+      const startStr = getOffsetDateStr(startOffset);
+      const endStr = getOffsetDateStr(endOffset);
+
+      const count = activities.filter((a) => {
+        const d = new Date(a.createdAt);
+        const dayStr = formatDateStr(d);
+        return a.isAi && dayStr >= startStr && dayStr <= endStr;
+      }).length;
+
+      const formatShortDate = (str: string) => {
+        const [, m, d] = str.split('-');
+        return `${d}/${m}`;
+      };
+
+      weeklyAiData.push({
+        label: `${formatShortDate(startStr)} a ${formatShortDate(endStr)}`,
+        sessions: count,
+      });
+    }
+
+    // 3. Hourly Activity (last 30 days)
+    hourlyCounts = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      label: `${String(hour).padStart(2, '0')}:00`,
+      Atividade: 0,
+    }));
+
+    const thirtyDaysAgoStr = getOffsetDateStr(-30);
+    activities.forEach((a) => {
+      const d = new Date(a.createdAt);
+      const dayStr = formatDateStr(d);
+      if (dayStr >= thirtyDaysAgoStr) {
+        const hour = d.getHours();
+        hourlyCounts[hour].Atividade += 1;
+      }
+    });
+  }
 
   const timelineQuery = useQuery({
     queryKey: ['home-project-timeline', selectedTimelineProject],
@@ -126,6 +229,34 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
               </div>
             </article>
           ))}
+
+          {/* New Streak KPI Card */}
+          {pInsights && (
+            <article className="home-kpi insights-kpi-card" key="streak-kpi">
+              <div className="home-kpi-head">
+                <span className="card-kicker">Streak de Uso</span>
+                <span className="kpi-symbol">🔥</span>
+              </div>
+              <div className="home-kpi-body">
+                <strong>{currentStreak} {currentStreak === 1 ? 'dia' : 'dias'}</strong>
+                <span className="home-kpi-meta active">Dias seguidos ativos</span>
+              </div>
+            </article>
+          )}
+
+          {/* New AI Interactions KPI Card */}
+          {pInsights && (
+            <article className="home-kpi insights-kpi-card" key="ai-kpi">
+              <div className="home-kpi-head">
+                <span className="card-kicker">Interações IA</span>
+                <span className="kpi-symbol">🤖</span>
+              </div>
+              <div className="home-kpi-body">
+                <strong>{totalAiInteractions}</strong>
+                <span className="home-kpi-meta">Buscas e Chats resolvidos</span>
+              </div>
+            </article>
+          )}
         </section>
 
         <section className="home-main-grid" aria-label="Operational summary">
@@ -155,23 +286,83 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             )}
           </Panel>
 
-          <Panel className="home-panel home-panel-activity">
-            <div className="panel-head">
-              <h2>Activity from the last 7 days</h2>
-              <span className="meta">{home.activityByDay.reduce((total, point) => total + point.count, 0)} notes</span>
+          <Panel className="home-panel home-panel-activity insights-tabbed-panel">
+            <div className="panel-head tab-header-container">
+              <div className="tab-buttons">
+                <button
+                  type="button"
+                  className={`tab-btn ${activeActivityTab === 'notes' ? 'active' : ''}`}
+                  onClick={() => setActiveActivityTab('notes')}
+                >
+                  Anotações (7d)
+                </button>
+                {pInsights && (
+                  <>
+                    <button
+                      type="button"
+                      className={`tab-btn ${activeActivityTab === 'ai' ? 'active' : ''}`}
+                      onClick={() => setActiveActivityTab('ai')}
+                    >
+                      Sessões AI
+                    </button>
+                    <button
+                      type="button"
+                      className={`tab-btn ${activeActivityTab === 'hours' ? 'active' : ''}`}
+                      onClick={() => setActiveActivityTab('hours')}
+                    >
+                      Picos (24h)
+                    </button>
+                  </>
+                )}
+              </div>
+              <span className="meta">
+                {activeActivityTab === 'notes' && `${home.activityByDay.reduce((total, point) => total + point.count, 0)} notas`}
+                {activeActivityTab === 'ai' && `${totalAiInteractions} totais`}
+                {activeActivityTab === 'hours' && `Padrões de 30 dias`}
+              </span>
             </div>
-            <div className="chart-box" aria-label="Activity chart by day">
+            <div className="chart-box" aria-label="Activity chart">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activityByDay} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
-                    labelStyle={{ color: 'var(--chart-tooltip-text)' }}
-                  />
-                  <Area type="monotone" dataKey="count" name="Notes" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
-                </AreaChart>
+                {activeActivityTab === 'notes' ? (
+                  <AreaChart data={activityByDay} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                    />
+                    <Area type="monotone" dataKey="count" name="Notes" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
+                  </AreaChart>
+                ) : activeActivityTab === 'ai' ? (
+                  <AreaChart data={weeklyAiData} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="homeAiGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                    />
+                    <Area type="monotone" dataKey="sessions" name="Sessões AI" stroke="var(--accent)" fill="url(#homeAiGradient)" strokeWidth={2} />
+                  </AreaChart>
+                ) : (
+                  <BarChart data={hourlyCounts} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={11} interval={2} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                    />
+                    <Bar dataKey="Atividade" fill="var(--chart-bar-fill)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
               </ResponsiveContainer>
             </div>
           </Panel>
