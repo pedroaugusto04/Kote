@@ -616,7 +616,7 @@ export class AiHistoryManager {
     rawText += `\n---\n\n`;
 
     for (const turn of session.turns) {
-      const roleHeader = turn.role === 'user' ? '👤 User' : '🤖 Assistant';
+      const roleHeader = turn.role === 'user' ? '👤 User' : '✨ Assistant';
       rawText += `### ${roleHeader}\n${turn.content}\n\n`;
     }
     return rawText;

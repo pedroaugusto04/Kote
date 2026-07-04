@@ -249,7 +249,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             <article className="home-kpi insights-kpi-card" key="ai-kpi">
               <div className="home-kpi-head">
                 <span className="card-kicker">AI Interactions</span>
-                <span className="kpi-symbol">🤖</span>
+                <span className="kpi-symbol">✨</span>
               </div>
               <div className="home-kpi-body">
                 <strong>{totalAiInteractions}</strong>

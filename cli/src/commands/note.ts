@@ -100,7 +100,7 @@ export async function runNote(noteText: string, options: { file?: string; projec
 
       if (action === 'ask') {
         s.stop(pc.cyan('Clarification needed'));
-        console.log('\n' + pc.magenta('🤖 ' + replyText));
+        console.log('\n' + pc.magenta('✨ ' + replyText));
 
         const userReply = await clackText({
           message: 'Your reply:',

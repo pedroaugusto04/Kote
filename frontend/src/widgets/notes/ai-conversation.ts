@@ -16,7 +16,7 @@ export type AiConversationTurn = { role: 'user' | 'assistant'; content: string }
 export function parseAiConversationTurns(markdown: string): AiConversationTurn[] {
   if (!markdown) return [];
   const normalized = markdown.replace(/\r\n/g, '\n');
-  if (!/^### (?:👤 User|🤖 Assistant)\s*$/m.test(normalized)) return [];
+  if (!/^### (?:👤 User|(?:🤖|✨) Assistant)\s*$/m.test(normalized)) return [];
 
   const turns: AiConversationTurn[] = [];
   let currentRole: 'user' | 'assistant' | null = null;
@@ -33,7 +33,7 @@ export function parseAiConversationTurns(markdown: string): AiConversationTurn[]
       flush();
       currentRole = 'user';
       currentLines = [];
-    } else if (/^### 🤖 Assistant\s*$/.test(line)) {
+    } else if (/^### (?:🤖|✨) Assistant\s*$/.test(line)) {
       flush();
       currentRole = 'assistant';
       currentLines = [];

@@ -11,7 +11,7 @@ export function AiConversationView({ turns }: { turns: AiConversationTurn[] }) {
         >
           <div className="ai-conversation-role">
             <span className="ai-conversation-role-icon" aria-hidden="true">
-              {turn.role === 'user' ? '👤' : '🤖'}
+              {turn.role === 'user' ? '👤' : '✨'}
             </span>
             <span className="ai-conversation-role-label">
               {turn.role === 'user' ? 'User' : 'Assistant'}

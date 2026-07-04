@@ -1333,7 +1333,7 @@
       let previewText = '';
       if (session.turns && session.turns.length > 0) {
         session.turns.forEach(turn => {
-          const roleName = turn.role === 'user' ? '👤 User' : '🤖 Assistant';
+          const roleName = turn.role === 'user' ? '👤 User' : '✨ Assistant';
           previewText += `### ${roleName}\n${turn.content}\n\n`;
         });
       } else {
