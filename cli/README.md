@@ -6,11 +6,18 @@
 
 CLI client for the Kote AI system - interact with your Kote directly from the terminal.
 
-## About
+## About Kote
+
+**Kote** is a developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.
+
+For more details, visit the [GitHub Repository](https://github.com/pedroaugusto04/Kote) or the [original link](https://knowledgebase.sbs/kote).
+
+## About kote-cli
 
 `kote-cli` is the official command-line interface for Kote. It allows you to sync local files and directories, capture AI session histories, and interact with your Kote without leaving your terminal.
 
 Perfect for automating knowledge capture in CI/CD pipelines, local development scripts, or any workflow where the terminal is your primary interface.
+
 
 ## Installation
 

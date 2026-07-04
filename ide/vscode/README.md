@@ -2,6 +2,12 @@
 
 Integrate your Kote directly into VS Code — search, ask AI, save notes without leaving your editor.
 
+## About Kote
+
+**Kote** is a developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.
+
+For more details, visit the [GitHub Repository](https://github.com/pedroaugusto04/Kote) or the [original link](https://knowledgebase.sbs/kote).
+
 [![Visual Studio Marketplace](https://img.shields.io/badge/VS%20Code-Marketplace-blue?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=kote.kote-vscode)
 
 ## Features

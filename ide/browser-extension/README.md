@@ -2,6 +2,12 @@
 
 A browser extension for quickly saving web pages, selections, and articles to your Kote knowledge base. Automatically converts HTML to Markdown, adds frontmatter metadata, and lets you choose the target project and tags.
 
+## About Kote
+
+**Kote** is a developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.
+
+For more details, visit the [GitHub Repository](https://github.com/pedroaugusto04/Kote) or the [original link](https://knowledgebase.sbs/kote).
+
 ## Installation
 
 ### Chrome Web Store (Recommended)
