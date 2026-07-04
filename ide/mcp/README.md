@@ -67,3 +67,36 @@ Add the server configuration to your Claude Desktop config file (usually located
   }
 }
 ```
+
+### 3. Antigravity & Codex
+
+Add the server configuration block to your agent configuration settings (such as `mcp.json` or workspace configurations):
+
+```json
+{
+  "mcpServers": {
+    "kote": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/knowledge-base/ide/mcp/dist/index.js"
+      ]
+    }
+  }
+}
+```
+
+Alternatively, if you run them globally, you can invoke the server using `npx`:
+
+```json
+{
+  "mcpServers": {
+    "kote": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@pedroaugusto04/kote-mcp"
+      ]
+    }
+  }
+}
+```

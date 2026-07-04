@@ -3,7 +3,7 @@ import './HelpPage.css';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { useMobileSwipe } from '../../shared/ui/use-mobile-swipe';
 
-type SectionId = 'overview' | 'projects' | 'ai-chat' | 'messaging-integrations' | 'github-integration' | 'ai-integrations' | 'webhooks' | 'push-notifications' | 'cli' | 'vscode' | 'reminders' | 'map';
+type SectionId = 'overview' | 'projects' | 'ai-chat' | 'messaging-integrations' | 'github-integration' | 'ai-integrations' | 'webhooks' | 'push-notifications' | 'cli' | 'vscode' | 'mcp' | 'reminders' | 'map';
 
 interface HelpItem {
   title: string;
@@ -308,6 +308,36 @@ Body:
       { title: 'Syncing files and directories', body: 'Send individual files or entire directories to your Kote.', code: 'kote sync --file ./README.md\nkote sync --dir ./docs' },
       { title: 'Finding your API token', body: 'Go to Profile → CLI & VS Code Connection in the app to generate a unified connection token. This token authenticates both the VS Code extension and CLI.' },
       { title: 'CLI documentation', body: 'For complete CLI commands, usage examples, and advanced configuration, refer to the CLI documentation on GitHub.', tip: 'View CLI README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/cli/README.md' },
+    ],
+  },
+  {
+    id: 'mcp',
+    label: 'MCP Server',
+    icon: <IconPlug />,
+    title: 'MCP Server',
+    description: 'The Kote MCP Server allows AI agents (like Cursor, Claude Desktop, and Cline) to query and save developer memory directly.',
+    items: [
+      {
+        title: 'Running via npx',
+        body: 'You can run the Kote MCP Server directly from npm using npx in your IDE or client configurations.',
+        code: 'npx -y @pedroaugusto04/kote-mcp',
+      },
+      {
+        title: 'Cursor Integration',
+        body: 'Open Cursor Settings → Features → MCP → Click "+ Add New MCP Server":\n- Name: kote\n- Type: stdio\n- Command: npx -y @pedroaugusto04/kote-mcp',
+      },
+      {
+        title: 'Claude Desktop Integration',
+        body: 'Add the following block to your "claude_desktop_config.json" file:',
+        code: '{\n  "mcpServers": {\n    "kote": {\n      "command": "npx",\n      "args": ["-y", "@pedroaugusto04/kote-mcp"]\n    }\n  }\n}',
+      },
+      {
+        title: 'Antigravity & Codex Integration',
+        body: 'To use the Kote MCP Server with local coding assistants like Antigravity or Codex, configure the stdio transport in their respective configuration settings (such as "mcp.json" or workspace configuration files):',
+        code: '{\n  "mcpServers": {\n    "kote": {\n      "command": "npx",\n      "args": ["-y", "@pedroaugusto04/kote-mcp"]\n    }\n  }\n}',
+      },
+      { title: 'Auto-authentication', body: 'The MCP server automatically reads authenticated credentials from your local CLI configuration. Ensure you have installed and logged in via the Kote CLI ("kote login") first.' },
+      { title: 'MCP documentation', body: 'For advanced options, environment variable configuration, and troubleshooting, view the documentation on GitHub.', tip: 'View MCP README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/ide/mcp/README.md' },
     ],
   },
   {
