@@ -535,6 +535,78 @@
   .suggested-grid {
     grid-template-columns: 1fr;
   }
+
+  /* active header layout on mobile */
+  .ask-ai-active-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .ask-ai-header-left {
+    justify-content: flex-start;
+  }
+
+  .ask-ai-header-actions {
+    display: flex;
+    gap: 8px;
+  }
+
+  .ask-ai-header-actions button {
+    flex: 1;
+    justify-content: center;
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  /* message bubbles layout on mobile */
+  .ask-conversation-container {
+    padding: 12px;
+  }
+
+  .ask-messages-list {
+    gap: 16px;
+    padding-right: 4px;
+    max-height: 400px;
+  }
+
+  .ask-message-bubble {
+    gap: 10px;
+  }
+
+  .message-content-wrapper {
+    max-width: calc(100% - 46px); /* 36px avatar + 10px gap */
+  }
+
+  .ask-message-bubble.assistant .message-body,
+  .ask-message-bubble.user .message-body {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
+
+  /* Keep the bottom chat input inline (row layout) on mobile */
+  .ask-ai-bottom-input-container {
+    margin-top: 14px;
+    padding-top: 12px;
+  }
+
+  .ask-ai-bottom-input-container .ask-ai-input-row {
+    flex-direction: row;
+    align-items: center;
+    padding: 6px 8px 6px 12px;
+    gap: 8px;
+  }
+
+  .ask-ai-bottom-input-container .ask-ai-input-row input {
+    padding: 8px 0;
+  }
+
+  .ask-ai-bottom-input-container .ask-ai-send-btn {
+    min-height: 32px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
 }
 
 /* ─── Conversational AI Chat Layout ─── */
