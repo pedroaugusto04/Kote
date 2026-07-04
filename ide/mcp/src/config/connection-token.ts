@@ -84,7 +84,7 @@ export async function maybeExchangeConnectionToken(config: CliConfig): Promise<v
 
   let result: ExchangeResult;
   try {
-    const response = await fetch(`${apiBase}/api/auth/exchange-connection-token`, {
+    const response = await fetch(`${apiBase}/auth/exchange-connection-token`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ connectionToken }),
