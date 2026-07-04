@@ -13,6 +13,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
+const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
+
 interface CliAiTurn {
   role: 'user' | 'assistant';
   content: string;
@@ -243,18 +245,35 @@ function parseCodexFile(filePath: string): CliAiSession | null {
 
 function getAntigravitySessions(): CliAiSession[] {
   const config = loadConfig();
-  const dir = config.aiProviders?.antigravityLogPath || path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+  let dir = config.aiProviders?.antigravityLogPath;
+  if (!dir) {
+    const idePath = path.join(os.homedir(), '.gemini', 'antigravity-ide', 'brain');
+    if (fs.existsSync(idePath)) {
+      dir = idePath;
+    } else {
+      dir = path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+    }
+  }
+
   if (!fs.existsSync(dir)) return [];
 
   const sessions: CliAiSession[] = [];
   try {
     const folders = fs.readdirSync(dir);
+    const logFiles = ['transcript.jsonl', 'transcript_full.jsonl', 'overview.txt'];
     for (const folder of folders) {
       const folderPath = path.join(dir, folder);
       const stat = fs.statSync(folderPath);
       if (stat.isDirectory()) {
-        const logFilePath = path.join(folderPath, '.system_generated', 'logs', 'overview.txt');
-        if (fs.existsSync(logFilePath)) {
+        let logFilePath: string | null = null;
+        for (const file of logFiles) {
+          const p = path.join(folderPath, '.system_generated', 'logs', file);
+          if (fs.existsSync(p)) {
+            logFilePath = p;
+            break;
+          }
+        }
+        if (logFilePath) {
           const session = parseAntigravityFile(logFilePath, folder);
           if (session) sessions.push(session);
         }
@@ -283,45 +302,44 @@ function cleanAntigravityContent(raw: string): string {
     .trim();
 }
 
+function parseAntigravityRecord(record: any): CliAiTurn | null {
+  if (record.source === 'USER_EXPLICIT' && record.type === 'USER_INPUT') {
+    const rawContent = record.content || '';
+    const match = rawContent.match(USER_REQUEST_REGEX);
+    const text = match ? match[1] : rawContent.replace(/^<USER_REQUEST>\s*/i, '');
+    const cleaned = cleanAntigravityContent(text);
+    if (cleaned) {
+      return { role: 'user', content: cleaned };
+    }
+  }
+
+  if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
+    const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
+    if (!hasToolCalls) {
+      const cleaned = cleanAntigravityContent(record.content || '');
+      if (cleaned) {
+        return { role: 'assistant', content: cleaned };
+      }
+    }
+  }
+
+  return null;
+}
+
 function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession | null {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.trim().split('\n');
     const turns: CliAiTurn[] = [];
-    const userRequestRegex = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
 
     for (const line of lines) {
-      if (!line.trim()) continue;
+      const trimmed = line.trim();
+      if (!trimmed) continue;
       try {
-        const record = JSON.parse(line);
-
-        if (record.source === 'USER_EXPLICIT' && record.type === 'USER_INPUT') {
-          // Extract only the user's actual message, stripping system metadata tags.
-          // overview.txt may truncate long lines, so the closing tag may be absent.
-          const rawContent = record.content || '';
-          const match = rawContent.match(userRequestRegex);
-          let text: string;
-          if (match) {
-            text = match[1];
-          } else {
-            // Closing tag was truncated: strip the opening tag
-            text = rawContent.replace(/^<USER_REQUEST>\s*/i, '');
-          }
-          text = cleanAntigravityContent(text);
-          if (text) {
-            turns.push({ role: 'user', content: text });
-          }
-        } else if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
-          const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
-
-          // Only capture final responses: turns with no tool_calls are the actual
-          // reply the user sees. Turns with tool_calls are intermediate reasoning steps.
-          if (!hasToolCalls) {
-            const text = cleanAntigravityContent(record.content || '');
-            if (text) {
-              turns.push({ role: 'assistant', content: text });
-            }
-          }
+        const record = JSON.parse(trimmed);
+        const turn = parseAntigravityRecord(record);
+        if (turn) {
+          turns.push(turn);
         }
       } catch {}
     }
@@ -352,7 +370,21 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
 
 async function getOpenCodeSessions(): Promise<CliAiSession[]> {
   const config = loadConfig();
-  const dbPath = config.aiProviders?.opencodeDbPath || path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+  let dbPath = config.aiProviders?.opencodeDbPath;
+  if (!dbPath) {
+    const standardPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+    if (fs.existsSync(standardPath)) {
+      dbPath = standardPath;
+    } else {
+      const prodPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode-prod.db');
+      if (fs.existsSync(prodPath)) {
+        dbPath = prodPath;
+      } else {
+        dbPath = standardPath;
+      }
+    }
+  }
+
   if (!fs.existsSync(dbPath)) return [];
 
   try {

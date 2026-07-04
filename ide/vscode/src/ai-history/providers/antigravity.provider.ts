@@ -6,13 +6,30 @@ import { AiHistoryProvider, AiSession, AiTurn } from '../types';
 import { collapseWhitespace } from '../../utils/text.js';
 import { watchRecursive } from '../../utils/watcher.js';
 
+const ANTIGRAVITY_LOG_FILES = ['transcript.jsonl', 'transcript_full.jsonl', 'overview.txt'] as const;
+const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
+
 export class AntigravityHistoryProvider implements AiHistoryProvider {
   readonly id = 'antigravity';
   readonly name = 'Antigravity';
 
   private getHistoryDir(): string {
     const configPath = vscode.workspace.getConfiguration('kb').get<string>('antigravityLogPath');
-    return configPath || path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+    if (configPath) return configPath;
+
+    const idePath = path.join(os.homedir(), '.gemini', 'antigravity-ide', 'brain');
+    if (fs.existsSync(idePath)) {
+      return idePath;
+    }
+    return path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+  }
+
+  private getLogFilePath(folderPath: string): string | null {
+    for (const file of ANTIGRAVITY_LOG_FILES) {
+      const p = path.join(folderPath, '.system_generated', 'logs', file);
+      if (fs.existsSync(p)) return p;
+    }
+    return null;
   }
 
   async isEnabled(): Promise<boolean> {
@@ -40,8 +57,7 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
         }
       }).filter(x => {
         if (!x.isDirectory) return false;
-        const logFilePath = path.join(x.folderPath, '.system_generated', 'logs', 'overview.txt');
-        return fs.existsSync(logFilePath);
+        return this.getLogFilePath(x.folderPath) !== null;
       });
 
       // Sort folders by mtime descending
@@ -51,10 +67,12 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       const recentFolders = folderStats.slice(0, count);
 
       for (const f of recentFolders) {
-        const logFilePath = path.join(f.folderPath, '.system_generated', 'logs', 'overview.txt');
-        const session = this.parseFile(logFilePath, f.folder);
-        if (session) {
-          sessions.push(session);
+        const logFilePath = this.getLogFilePath(f.folderPath);
+        if (logFilePath) {
+          const session = this.parseFile(logFilePath, f.folder);
+          if (session) {
+            sessions.push(session);
+          }
         }
       }
     } catch (err) {
@@ -75,7 +93,7 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       const timeout = setTimeout(() => {
         timeouts.delete(fsPath);
         
-        // Extract conversation ID from the path: .../brain/<conversation-id>/.system_generated/logs/overview.txt
+        // Extract conversation ID from the path: .../brain/<conversation-id>/.system_generated/logs/overview.txt (or transcript.jsonl)
         const parts = fsPath.split(path.sep);
         const brainIdx = parts.lastIndexOf('brain');
         const sessionId = brainIdx !== -1 && parts[brainIdx + 1] ? parts[brainIdx + 1] : path.basename(path.dirname(path.dirname(path.dirname(fsPath))));
@@ -91,7 +109,7 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
     const watcher = watchRecursive(
       historyDir,
-      (fileName) => fileName === 'overview.txt',
+      (fileName) => fileName === 'transcript.jsonl' || fileName === 'transcript_full.jsonl' || fileName === 'overview.txt',
       (filePath) => handleFile(filePath)
     );
 
@@ -122,6 +140,30 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       .trim();
   }
 
+  private parseRecord(record: any): AiTurn | null {
+    if (record.source === 'USER_EXPLICIT' && record.type === 'USER_INPUT') {
+      const rawContent = record.content || '';
+      const match = rawContent.match(USER_REQUEST_REGEX);
+      const text = match ? match[1] : rawContent.replace(/^<USER_REQUEST>\s*/i, '');
+      const cleaned = this.cleanContent(text);
+      if (cleaned) {
+        return { role: 'user', content: cleaned };
+      }
+    }
+
+    if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
+      const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
+      if (!hasToolCalls) {
+        const cleaned = this.cleanContent(record.content || '');
+        if (cleaned) {
+          return { role: 'assistant', content: cleaned };
+        }
+      }
+    }
+
+    return null;
+  }
+
   private parseFile(filePath: string, sessionId: string): AiSession | null {
     try {
       if (!fs.existsSync(filePath)) return null;
@@ -129,40 +171,15 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       const lines = content.trim().split('\n');
       
       const turns: AiTurn[] = [];
-      const userRequestRegex = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
 
       for (const line of lines) {
-        if (!line.trim()) continue;
+        const trimmed = line.trim();
+        if (!trimmed) continue;
         try {
-          const record = JSON.parse(line);
-
-          if (record.source === 'USER_EXPLICIT' && record.type === 'USER_INPUT') {
-            // Extract only the user's actual message, stripping system metadata tags.
-            // overview.txt may truncate long lines, so the closing tag may be absent.
-            const rawContent = record.content || '';
-            const match = rawContent.match(userRequestRegex);
-            let text: string;
-            if (match) {
-              text = match[1];
-            } else {
-              // Closing tag was truncated: strip the opening tag
-              text = rawContent.replace(/^<USER_REQUEST>\s*/i, '');
-            }
-            text = this.cleanContent(text);
-            if (text) {
-              turns.push({ role: 'user', content: text });
-            }
-          } else if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
-            const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
-
-            // Only capture final responses: turns with no tool_calls are the actual
-            // reply the user sees. Turns with tool_calls are intermediate reasoning steps.
-            if (!hasToolCalls) {
-              const text = this.cleanContent(record.content || '');
-              if (text) {
-                turns.push({ role: 'assistant', content: text });
-              }
-            }
+          const record = JSON.parse(trimmed);
+          const turn = this.parseRecord(record);
+          if (turn) {
+            turns.push(turn);
           }
         } catch {
           // ignore malformed JSON lines

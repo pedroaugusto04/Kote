@@ -11,7 +11,17 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
 
   private getDbPath(): string {
     const configPath = vscode.workspace.getConfiguration('kb').get<string>('opencodeDbPath');
-    return configPath || path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+    if (configPath) return configPath;
+
+    const standardPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+    if (fs.existsSync(standardPath)) {
+      return standardPath;
+    }
+    const prodPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode-prod.db');
+    if (fs.existsSync(prodPath)) {
+      return prodPath;
+    }
+    return standardPath;
   }
 
   async isEnabled(): Promise<boolean> {
