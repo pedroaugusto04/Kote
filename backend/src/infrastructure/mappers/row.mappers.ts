@@ -262,6 +262,7 @@ export function noteFromRow(row: Row): NoteRecord {
     attachmentCount: Number(field(row, 'attachment_count', 'attachmentCount') || 0),
     isPinned: field(row, 'is_pinned', 'isPinned') === true,
     sizeBytes: Number(field(row, 'size_bytes', 'sizeBytes') || 0),
+    ftsRank: field(row, 'ts_rank', 'tsRank') != null ? Number(field(row, 'ts_rank', 'tsRank')) : undefined,
   };
 }
 

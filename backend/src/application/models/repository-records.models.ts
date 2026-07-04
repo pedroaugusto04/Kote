@@ -156,6 +156,7 @@ export type NoteRecord = {
   attachmentCount?: number;
   isPinned?: boolean;
   sizeBytes?: number;
+  ftsRank?: number;
   createdAt?: string;
   updatedAt?: string;
 };

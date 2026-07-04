@@ -40,6 +40,7 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     sourceChannel: record.sourceChannel,
     attachmentCount: record.attachmentCount || 0,
     isPinned: record.isPinned,
+    ftsRank: record.ftsRank,
   };
 }
 

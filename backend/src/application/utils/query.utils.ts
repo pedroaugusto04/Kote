@@ -163,7 +163,9 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<Quer
       if (intent) {
         score = matchesIntent(note, intent) ? 1 : 0;
       } else {
-        score = scoreKnowledgeNote(note, tokens);
+        score = (note.ftsRank !== undefined && note.ftsRank > 0)
+          ? note.ftsRank
+          : scoreKnowledgeNote(note, tokens);
       }
       return {
         id: note.id,
@@ -218,48 +220,86 @@ export function rankHybridKnowledgeMatches(
     }
   }
 
-  return notes
-    .filter((note) =>
-      (!query.projectId || note.projectId === query.projectId)
-      && (!query.workspaceId || note.workspaceId === query.workspaceId)
-      && (
-        !('status' in query) || !query.status || (
-          query.status === StatusFilter.Open
-            ? !terminalStatuses.includes(note.status.toLowerCase() as (typeof terminalStatuses)[number])
-            : note.status.toLowerCase() === query.status
-        )
-      ),
-    )
-    .map((note) => {
-      const vectorScore = (similarityMap.get(note.id) || 0) * 100; // Scale to 0-100 range
-      const rawKeywordScore = intent
-        ? (matchesIntent(note, intent) ? 100 : 0)
-        : scoreKnowledgeNote(note, tokens);
-      const keywordScore = Math.min(100, rawKeywordScore);
+  const filteredNotes = notes.filter((note) =>
+    (!query.projectId || note.projectId === query.projectId)
+    && (!query.workspaceId || note.workspaceId === query.workspaceId)
+    && (
+      !('status' in query) || !query.status || (
+        query.status === StatusFilter.Open
+          ? !terminalStatuses.includes(note.status.toLowerCase() as (typeof terminalStatuses)[number])
+          : note.status.toLowerCase() === query.status
+      )
+    ),
+  );
 
-      const hybridScore = (vectorScore * weights.vector) + (keywordScore * weights.keyword);
+  const scoredNotes = filteredNotes.map((note) => {
+    const vectorScore = similarityMap.get(note.id) || 0;
+    const keywordScore = intent
+      ? (matchesIntent(note, intent) ? 100 : 0)
+      : (note.ftsRank !== undefined && note.ftsRank > 0)
+      ? note.ftsRank
+      : scoreKnowledgeNote(note, tokens);
+    return { note, vectorScore, keywordScore };
+  });
 
-      return {
-        id: note.id,
-        path: note.path,
-        title: note.title,
-        type: note.type,
-        project: note.project,
-        workspace: note.workspace,
-        folderId: note.folderId,
-        categories: note.categories,
-        tags: note.tags,
-        date: note.date,
-        status: note.status,
-        summary: note.summary,
-        source: note.source,
-        projectSlug: note.project,
-        score: hybridScore,
-        snippet: note.summary || note.title,
-        attachmentCount: note.attachmentCount,
-        isPinned: note.isPinned,
-      };
-    })
+  // Rank by Vector Score (descending)
+  const vectorRanked = [...scoredNotes]
+    .filter((sn) => sn.vectorScore > 0)
+    .sort((a, b) => {
+      if (b.vectorScore !== a.vectorScore) return b.vectorScore - a.vectorScore;
+      return a.note.id.localeCompare(b.note.id); // Stable tie-breaker
+    });
+
+  const vectorRankMap = new Map<string, number>();
+  vectorRanked.forEach((sn, index) => {
+    vectorRankMap.set(sn.note.id, index + 1);
+  });
+
+  // Rank by Keyword Score (descending)
+  const keywordRanked = [...scoredNotes]
+    .filter((sn) => sn.keywordScore > 0)
+    .sort((a, b) => {
+      if (b.keywordScore !== a.keywordScore) return b.keywordScore - a.keywordScore;
+      return a.note.id.localeCompare(b.note.id); // Stable tie-breaker
+    });
+
+  const keywordRankMap = new Map<string, number>();
+  keywordRanked.forEach((sn, index) => {
+    keywordRankMap.set(sn.note.id, index + 1);
+  });
+
+  const k = 60;
+  const mappedMatches = scoredNotes.map(({ note }) => {
+    const vectorRank = vectorRankMap.get(note.id);
+    const keywordRank = keywordRankMap.get(note.id);
+
+    const rrfVector = vectorRank ? (weights.vector / (k + vectorRank)) : 0;
+    const rrfKeyword = keywordRank ? (weights.keyword / (k + keywordRank)) : 0;
+    const hybridScore = rrfVector + rrfKeyword;
+
+    return {
+      id: note.id,
+      path: note.path,
+      title: note.title,
+      type: note.type,
+      project: note.project,
+      workspace: note.workspace,
+      folderId: note.folderId,
+      categories: note.categories,
+      tags: note.tags,
+      date: note.date,
+      status: note.status,
+      summary: note.summary,
+      source: note.source,
+      projectSlug: note.project,
+      score: hybridScore,
+      snippet: note.summary || note.title,
+      attachmentCount: note.attachmentCount,
+      isPinned: note.isPinned,
+    };
+  });
+
+  return mappedMatches
     .filter((match) => match.score > 0)
     .sort((left, right) => {
       if (right.score !== left.score) {

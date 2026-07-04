@@ -18,7 +18,6 @@ export class PostgresAttachmentRepository {
   ) {}
 
   async save(userId: string, input: SaveAttachmentInput) {
-    const attachmentId = input.id || crypto.randomUUID();
     const sizeBytes = calculateAttachmentSize(input.sizeBytes, input.dataBase64);
 
     const db = this.database.getDb();
@@ -31,6 +30,37 @@ export class PostgresAttachmentRepository {
     
     const workspaceSlug = noteResult[0]?.workspaceSlug || 'default';
     const storageKey = await this.contentObjectStorage.saveAttachmentData(userId, workspaceSlug, input);
+
+    // Check if attachment with same noteId and fileName already exists
+    const existing = await db
+      .select()
+      .from(attachments)
+      .where(
+        and(
+          eq(attachments.userId, userId),
+          eq(attachments.noteId, input.noteId),
+          eq(attachments.fileName, input.fileName)
+        )
+      )
+      .limit(1);
+
+    if (existing[0]) {
+      const result = await db
+        .update(attachments)
+        .set({
+          mimeType: input.mimeType,
+          sizeBytes,
+          storageKey,
+          checksumSha256: input.checksumSha256,
+          createdAt: new Date(),
+        })
+        .where(eq(attachments.id, existing[0].id))
+        .returning();
+      
+      return attachmentFromRow(result[0]);
+    }
+
+    const attachmentId = input.id || crypto.randomUUID();
     const result = await db
       .insert(attachments)
       .values({

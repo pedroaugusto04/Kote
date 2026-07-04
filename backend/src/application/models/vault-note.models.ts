@@ -19,6 +19,7 @@ export type VaultNoteSummary = {
   sourceChannel: string;
   attachmentCount: number;
   isPinned?: boolean;
+  ftsRank?: number;
 };
 
 export type VaultNoteAttachment = {

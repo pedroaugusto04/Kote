@@ -229,17 +229,62 @@ export class AskKnowledgeUseCase {
       const noteMap = new Map(notes.map((n) => [n.id, n]));
       const tokens = tokenizeQuery(queryText);
 
-      const rankedChunks = similarChunks
+      const scoredChunks = similarChunks
         .map((chunk) => {
           const note = noteMap.get(chunk.noteId);
           if (!note) return null;
-          const vectorScore = chunk.similarity * 100;
-          const rawKeywordScore = scoreKnowledgeNote(noteSummary(note), tokens);
-          const keywordScore = Math.min(100, rawKeywordScore);
-          const hybridScore = (vectorScore * hybridVectorWeight) + (keywordScore * hybridKeywordWeight);
-          return { chunk, note, hybridScore };
+          const vectorScore = chunk.similarity;
+          const keywordScore = scoreKnowledgeNote(noteSummary(note), tokens);
+          return { chunk, note, vectorScore, keywordScore };
         })
-        .filter((item): item is { chunk: typeof similarChunks[0]; note: NoteRecord; hybridScore: number } => item !== null)
+        .filter((item): item is NonNullable<typeof item> => item !== null);
+
+      // Rank by Vector Similarity (descending)
+      const vectorRanked = [...scoredChunks]
+        .filter((sc) => sc.vectorScore > 0)
+        .sort((a, b) => {
+          if (b.vectorScore !== a.vectorScore) return b.vectorScore - a.vectorScore;
+          const aKey = `${a.chunk.noteId}_${a.chunk.chunkIndex}`;
+          const bKey = `${b.chunk.noteId}_${b.chunk.chunkIndex}`;
+          return aKey.localeCompare(bKey);
+        });
+
+      const vectorRankMap = new Map<string, number>();
+      vectorRanked.forEach((sc, index) => {
+        const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
+        vectorRankMap.set(key, index + 1);
+      });
+
+      // Rank by Keyword Score (descending)
+      const keywordRanked = [...scoredChunks]
+        .filter((sc) => sc.keywordScore > 0)
+        .sort((a, b) => {
+          if (b.keywordScore !== a.keywordScore) return b.keywordScore - a.keywordScore;
+          const aKey = `${a.chunk.noteId}_${a.chunk.chunkIndex}`;
+          const bKey = `${b.chunk.noteId}_${b.chunk.chunkIndex}`;
+          return aKey.localeCompare(bKey);
+        });
+
+      const keywordRankMap = new Map<string, number>();
+      keywordRanked.forEach((sc, index) => {
+        const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
+        keywordRankMap.set(key, index + 1);
+      });
+
+      const k = 60;
+      const rankedChunks = scoredChunks
+        .map((sc) => {
+          const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
+          const vectorRank = vectorRankMap.get(key);
+          const keywordRank = keywordRankMap.get(key);
+
+          const rrfVector = vectorRank ? (hybridVectorWeight / (k + vectorRank)) : 0;
+          const rrfKeyword = keywordRank ? (hybridKeywordWeight / (k + keywordRank)) : 0;
+          const hybridScore = rrfVector + rrfKeyword;
+
+          return { chunk: sc.chunk, note: sc.note, hybridScore };
+        })
+        .filter((item) => item.hybridScore > 0)
         .sort((left, right) => right.hybridScore - left.hybridScore)
         .slice(0, topChunksLimit);
 
@@ -300,9 +345,11 @@ export class AskKnowledgeUseCase {
     const tokens = tokenizeQuery(queryText);
     const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
 
+    const rankMap = new Map(candidateNotes.map((n) => [n.id, n.ftsRank || 0]));
+
     const rankedNotes = notes
       .map((note) => {
-        const score = scoreKnowledgeNote(noteSummary(note), tokens);
+        const score = rankMap.get(note.id) || scoreKnowledgeNote(noteSummary(note), tokens);
         return { note, score };
       })
       .sort((left, right) => right.score - left.score)
