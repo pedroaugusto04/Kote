@@ -1,13 +1,14 @@
 import { Injectable } from '@nestjs/common';
 
-import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingGateway } from '../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
+import { AppLogger } from '../../../observability/logger.js';
 import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/query/answer-generation.gateway.js';
-import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
-import { ConversationConfidence, EmbeddingTaskType } from '../../../contracts/enums.js';
+import { ConversationConfidence, EmbeddingTaskType, SpecialQueryIntent } from '../../../contracts/enums.js';
 import { QuotaService } from '../../services/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
@@ -16,6 +17,8 @@ import { noteSummary } from '../../../infrastructure/mappers/content-query.mappe
 
 @Injectable()
 export class AskKnowledgeUseCase {
+  private readonly env: RuntimeEnvironment;
+
   constructor(
     private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
@@ -23,7 +26,11 @@ export class AskKnowledgeUseCase {
     private readonly answerGenerationGateway: AnswerGenerationGateway,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly quotaService: QuotaService,
-  ) {}
+    private readonly contentQueryRepository: ContentQueryRepository,
+    private readonly logger: AppLogger,
+  ) {
+    this.env = this.runtimeEnv.read();
+  }
 
   async execute(
     question: string,
@@ -35,12 +42,11 @@ export class AskKnowledgeUseCase {
       throw new QuotaExceededException('ai_credits', quotaResult.limit, quotaResult.current);
     }
 
-    const env = this.runtimeEnv.read();
     const embeddingConfig = {
-      provider: env.embeddingAiProvider,
-      baseUrl: env.embeddingAiBaseUrl,
-      model: env.embeddingAiModel,
-      apiKey: env.embeddingAiApiKey,
+      provider: this.env.embeddingAiProvider,
+      baseUrl: this.env.embeddingAiBaseUrl,
+      model: this.env.embeddingAiModel,
+      apiKey: this.env.embeddingAiApiKey,
     };
 
     const conversationHistory = shouldUseConversationHistory(question)
@@ -50,154 +56,42 @@ export class AskKnowledgeUseCase {
     let queryText = question;
     if (conversationHistory && conversationHistory.length > 0) {
       const answerConfig = {
-        conversationAiProvider: env.conversationAiProvider,
-        conversationAiBaseUrl: env.conversationAiBaseUrl,
-        conversationAiModel: env.conversationAiModel,
-        conversationAiApiKey: env.conversationAiApiKey,
+        conversationAiProvider: this.env.conversationAiProvider,
+        conversationAiBaseUrl: this.env.conversationAiBaseUrl,
+        conversationAiModel: this.env.conversationAiModel,
+        conversationAiApiKey: this.env.conversationAiApiKey,
       };
       queryText = await this.answerGenerationGateway.rewriteQuery(answerConfig, question, conversationHistory);
     }
 
     const specialIntent = getSpecialQueryIntent(question);
-    let contextChunks: AnswerContextChunk[] = [];
-    let relatedNotesForResponse: { id: string; title: string; path: string; projectSlug: string; workspaceId: string }[] = [];
+    
+    // Resolve Context Chunks & Related Notes using strategy helper
+    const { contextChunks, relatedNotes } = await this.resolveContext(
+      userId,
+      queryText,
+      specialIntent,
+      options,
+      embeddingConfig,
+    );
 
-    if (specialIntent) {
-      const allNotes = await this.contentRepository.listNotes(userId, {
-        projectId: options.projectId,
-        workspaceId: options.workspaceId,
-      });
-      const noteMap = new Map(allNotes.map((n) => [n.id, n]));
-      let vaultNotes = allNotes.map((n) => noteSummary(n));
-
-      vaultNotes = vaultNotes.filter((n) => matchesIntent(n, specialIntent));
-
-      // Sort by occurredAt/date descending
-      vaultNotes.sort((left, right) => {
-        const leftTime = new Date(left.date || 0).getTime();
-        const rightTime = new Date(right.date || 0).getTime();
-        return rightTime - leftTime;
-      });
-
-      const selectedNotes = vaultNotes.slice(0, 8);
-
-      if (selectedNotes.length === 0) {
-        return {
-          ok: true,
-          answer: 'No relevant information found in your Kote.',
-          confidence: ConversationConfidence.Low,
-          requestedAttachments: false,
-          sources: [],
-          relatedNotes: [],
-        };
-      }
-
-      contextChunks = selectedNotes.map((vn) => {
-        const original = noteMap.get(vn.id)!;
-        return {
-          noteId: vn.id,
-          title: vn.title,
-          path: vn.path,
-          projectSlug: vn.project,
-          workspaceId: original.workspaceId,
-          chunkText: original.markdown || original.summary || '',
-        };
-      });
-
-      relatedNotesForResponse = selectedNotes.map((vn) => {
-        const original = noteMap.get(vn.id)!;
-        return {
-          id: vn.id,
-          title: vn.title,
-          path: vn.path,
-          projectSlug: vn.project,
-          workspaceId: original.workspaceId,
-        };
-      });
-    } else {
-      // 1. Generate embedding for the question
-      const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText], EmbeddingTaskType.Query);
-      const questionEmbedding = embeddings[0];
-
-
-      if (!questionEmbedding || questionEmbedding.length === 0) {
-        return {
-          ok: false,
-          answer: 'Failed to generate embedding for the question.',
-          confidence: ConversationConfidence.Low,
-          requestedAttachments: false,
-          sources: [],
-          relatedNotes: [],
-        };
-      }
-
-      // 2. Query similar chunks with broader candidate limit and lower threshold for hybrid re-ranking
-      const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
-        limit: 16,
-        workspaceId: options.workspaceId,
-        projectId: options.projectId,
-        minSimilarity: 0.35,
-      });
-
-      if (similarChunks.length === 0) {
-        return {
-          ok: true,
-          answer: 'No relevant information found in your Kote.',
-          confidence: ConversationConfidence.Low,
-          requestedAttachments: false,
-          sources: [],
-          relatedNotes: [],
-        };
-      }
-
-      // 3. Fetch notes metadata to enrich chunks and perform semantic-heavy (0.8 vector / 0.2 keyword) hybrid re-ranking
-      const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
-      const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
-      const noteMap = new Map(notes.map((n) => [n.id, n]));
-      const tokens = tokenizeQuery(queryText);
-
-      const rankedChunks = similarChunks
-        .map((chunk) => {
-          const note = noteMap.get(chunk.noteId);
-          if (!note) return null;
-          const vectorScore = chunk.similarity * 100;
-          const rawKeywordScore = scoreKnowledgeNote(noteSummary(note), tokens);
-          const keywordScore = Math.min(100, rawKeywordScore);
-          const hybridScore = (vectorScore * 0.8) + (keywordScore * 0.2);
-          return { chunk, note, hybridScore };
-        })
-        .filter((item): item is { chunk: typeof similarChunks[0]; note: NoteRecord; hybridScore: number } => item !== null)
-        .sort((left, right) => right.hybridScore - left.hybridScore)
-        .slice(0, 8);
-
-      contextChunks = rankedChunks.map(({ chunk, note }) => ({
-        noteId: chunk.noteId,
-        title: note.title,
-        path: note.path,
-        projectSlug: note.projectSlug,
-        workspaceId: note.workspaceId,
-        chunkText: chunk.chunkText,
-      }));
-
-      const topNotes = Array.from(new Set(rankedChunks.map((r) => r.note.id)))
-        .map((id) => noteMap.get(id)!)
-        .filter(Boolean);
-
-      relatedNotesForResponse = topNotes.map((n) => ({
-        id: n.id,
-        title: n.title,
-        path: n.path,
-        projectSlug: n.projectSlug || '',
-        workspaceId: n.workspaceId,
-      }));
+    if (contextChunks.length === 0) {
+      return {
+        ok: true,
+        answer: 'No relevant information found in your Kote.',
+        confidence: ConversationConfidence.Low,
+        requestedAttachments: false,
+        sources: [],
+        relatedNotes: [],
+      };
     }
 
-    // 4. Generate answer using AnswerGenerationGateway
+    // Generate answer using AnswerGenerationGateway
     const answerConfig = {
-      conversationAiProvider: env.conversationAiProvider,
-      conversationAiBaseUrl: env.conversationAiBaseUrl,
-      conversationAiModel: env.conversationAiModel,
-      conversationAiApiKey: env.conversationAiApiKey,
+      conversationAiProvider: this.env.conversationAiProvider,
+      conversationAiBaseUrl: this.env.conversationAiBaseUrl,
+      conversationAiModel: this.env.conversationAiModel,
+      conversationAiApiKey: this.env.conversationAiApiKey,
     };
 
     const result = await this.answerGenerationGateway.generate(answerConfig, {
@@ -217,8 +111,6 @@ export class AskKnowledgeUseCase {
       };
     }
 
-    // Credits already recorded by checkAndIncrementAiUsage at the start of this use case.
-
     return {
       ok: true,
       answer: result.answer,
@@ -226,8 +118,214 @@ export class AskKnowledgeUseCase {
       requestedAttachments: result.requestedAttachments,
       requestedAttachmentPattern: result.requestedAttachmentPattern,
       sources: result.sources,
-      relatedNotes: relatedNotesForResponse,
+      relatedNotes,
     };
+  }
+
+  private async resolveContext(
+    userId: string,
+    queryText: string,
+    specialIntent: SpecialQueryIntent | null,
+    options: { workspaceId?: string; projectId?: string },
+    embeddingConfig: any,
+  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
+    if (specialIntent) {
+      return this.resolveSpecialIntentContext(userId, specialIntent, options);
+    }
+
+    // Try vector search
+    const vectorResult = await this.resolveVectorContext(userId, queryText, options, embeddingConfig);
+    if (vectorResult.contextChunks.length > 0) {
+      return vectorResult;
+    }
+
+    // Try FTS fallback
+    return this.resolveFtsContext(userId, queryText, options);
+  }
+
+  private async resolveSpecialIntentContext(
+    userId: string,
+    specialIntent: SpecialQueryIntent,
+    options: { workspaceId?: string; projectId?: string }
+  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
+    const allNotes = await this.contentRepository.listNotes(userId, {
+      projectId: options.projectId,
+      workspaceId: options.workspaceId,
+    });
+    const noteMap = new Map(allNotes.map((n) => [n.id, n]));
+    let vaultNotes = allNotes.map((n) => noteSummary(n));
+
+    vaultNotes = vaultNotes.filter((n) => matchesIntent(n, specialIntent));
+
+    // Sort by occurredAt/date descending
+    vaultNotes.sort((left, right) => {
+      const leftTime = new Date(left.date || 0).getTime();
+      const rightTime = new Date(right.date || 0).getTime();
+      return rightTime - leftTime;
+    });
+
+    const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
+    const selectedNotes = vaultNotes.slice(0, topChunksLimit);
+
+    const contextChunks = selectedNotes.map((vn) => {
+      const original = noteMap.get(vn.id)!;
+      return {
+        noteId: vn.id,
+        title: vn.title,
+        path: vn.path,
+        projectSlug: vn.project,
+        workspaceId: original.workspaceId,
+        chunkText: original.markdown || original.summary || '',
+      };
+    });
+
+    const relatedNotes = selectedNotes.map((vn) => {
+      const original = noteMap.get(vn.id)!;
+      return {
+        id: vn.id,
+        title: vn.title,
+        path: vn.path,
+        projectSlug: vn.project,
+        workspaceId: original.workspaceId,
+      };
+    });
+
+    return { contextChunks, relatedNotes };
+  }
+
+  private async resolveVectorContext(
+    userId: string,
+    queryText: string,
+    options: { workspaceId?: string; projectId?: string },
+    embeddingConfig: any,
+  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
+    try {
+      const candidateLimit = this.env.ragCandidateLimit ?? 16;
+      const minSimilarity = this.env.ragMinSimilarity ?? 0.35;
+      const hybridVectorWeight = this.env.ragHybridVectorWeight ?? 0.8;
+      const hybridKeywordWeight = this.env.ragHybridKeywordWeight ?? 0.2;
+      const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
+
+      const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText], EmbeddingTaskType.Query);
+      const questionEmbedding = embeddings[0];
+
+      if (!questionEmbedding || questionEmbedding.length === 0) {
+        return { contextChunks: [], relatedNotes: [] };
+      }
+
+      const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
+        limit: candidateLimit,
+        workspaceId: options.workspaceId,
+        projectId: options.projectId,
+        minSimilarity: minSimilarity,
+      });
+
+      if (similarChunks.length === 0) {
+        return { contextChunks: [], relatedNotes: [] };
+      }
+
+      const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
+      const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
+      const noteMap = new Map(notes.map((n) => [n.id, n]));
+      const tokens = tokenizeQuery(queryText);
+
+      const rankedChunks = similarChunks
+        .map((chunk) => {
+          const note = noteMap.get(chunk.noteId);
+          if (!note) return null;
+          const vectorScore = chunk.similarity * 100;
+          const rawKeywordScore = scoreKnowledgeNote(noteSummary(note), tokens);
+          const keywordScore = Math.min(100, rawKeywordScore);
+          const hybridScore = (vectorScore * hybridVectorWeight) + (keywordScore * hybridKeywordWeight);
+          return { chunk, note, hybridScore };
+        })
+        .filter((item): item is { chunk: typeof similarChunks[0]; note: NoteRecord; hybridScore: number } => item !== null)
+        .sort((left, right) => right.hybridScore - left.hybridScore)
+        .slice(0, topChunksLimit);
+
+      const contextChunks = rankedChunks.map(({ chunk, note }) => ({
+        noteId: chunk.noteId,
+        title: note.title,
+        path: note.path,
+        projectSlug: note.projectSlug,
+        workspaceId: note.workspaceId,
+        chunkText: chunk.chunkText,
+      }));
+
+      const topNotes = Array.from(new Set(rankedChunks.map((r) => r.note.id)))
+        .map((id) => noteMap.get(id)!)
+        .filter(Boolean);
+
+      const relatedNotes = topNotes.map((n) => ({
+        id: n.id,
+        title: n.title,
+        path: n.path,
+        projectSlug: n.projectSlug || '',
+        workspaceId: n.workspaceId,
+      }));
+
+      return { contextChunks, relatedNotes };
+    } catch (error) {
+      this.logger.warn('ask_knowledge.vector_search_failed', {
+        userId,
+        query: queryText,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      return { contextChunks: [], relatedNotes: [] };
+    }
+  }
+
+  private async resolveFtsContext(
+    userId: string,
+    queryText: string,
+    options: { workspaceId?: string; projectId?: string }
+  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
+    if (!this.contentQueryRepository) {
+      return { contextChunks: [], relatedNotes: [] };
+    }
+
+    const candidateNotes = await this.contentQueryRepository.list(userId, {
+      projectId: options.projectId,
+      workspaceId: options.workspaceId,
+      query: queryText,
+    });
+
+    if (candidateNotes.length === 0) {
+      return { contextChunks: [], relatedNotes: [] };
+    }
+
+    const noteIds = candidateNotes.map((n) => n.id);
+    const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
+    const tokens = tokenizeQuery(queryText);
+    const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
+
+    const rankedNotes = notes
+      .map((note) => {
+        const score = scoreKnowledgeNote(noteSummary(note), tokens);
+        return { note, score };
+      })
+      .sort((left, right) => right.score - left.score)
+      .slice(0, topChunksLimit);
+
+    const contextChunks = rankedNotes.map(({ note }) => ({
+      noteId: note.id,
+      title: note.title,
+      path: note.path,
+      projectSlug: note.projectSlug,
+      workspaceId: note.workspaceId,
+      chunkText: note.markdown || note.summary || '',
+    }));
+
+    const relatedNotes = rankedNotes.map(({ note }) => ({
+      id: note.id,
+      title: note.title,
+      path: note.path,
+      projectSlug: note.projectSlug || '',
+      workspaceId: note.workspaceId,
+    }));
+
+    return { contextChunks, relatedNotes };
   }
 }
 

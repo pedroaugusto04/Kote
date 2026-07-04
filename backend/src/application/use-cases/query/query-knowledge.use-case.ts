@@ -5,7 +5,7 @@ import { buildPaginationMeta, DEFAULT_PAGE_SIZE } from '../../../contracts/pagin
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingGateway } from '../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
-import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
 import { rankKnowledgeMatches, rankHybridKnowledgeMatches } from '../../utils/query.utils.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -13,21 +13,24 @@ import { EmbeddingTaskType } from '../../../contracts/enums.js';
 
 @Injectable()
 export class QueryKnowledgeUseCase {
+  private readonly env: RuntimeEnvironment;
+
   constructor(
     private readonly contentQueryRepository: ContentQueryRepository,
     private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
-  ) {}
+  ) {
+    this.env = this.runtimeEnv.read();
+  }
 
   async execute(input: QueryInput, userId: string) {
-    const env = this.runtimeEnv.read();
     const embeddingConfig = {
-      provider: env.embeddingAiProvider,
-      baseUrl: env.embeddingAiBaseUrl,
-      model: env.embeddingAiModel,
-      apiKey: env.embeddingAiApiKey,
+      provider: this.env.embeddingAiProvider,
+      baseUrl: this.env.embeddingAiBaseUrl,
+      model: this.env.embeddingAiModel,
+      apiKey: this.env.embeddingAiApiKey,
     };
 
     const projectId = input.projectId;
@@ -45,10 +48,10 @@ export class QueryKnowledgeUseCase {
 
         if (queryEmbedding && queryEmbedding.length > 0) {
           similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
-            limit: input.limit * 3, // Fetch more candidates for hybrid re-ranking
+            limit: input.limit * (this.env.searchCandidateLimitMultiplier ?? 3), // Fetch more candidates for hybrid re-ranking
             workspaceId,
             projectId,
-            minSimilarity: 0.3, // Lower threshold for hybrid search
+            minSimilarity: this.env.searchMinSimilarity ?? 0.3, // Lower threshold for hybrid search
           });
           candidateIds = similarChunks.map((c) => c.noteId);
         }
@@ -72,7 +75,10 @@ export class QueryKnowledgeUseCase {
     });
 
     if (candidateIds && candidateIds.length > 0) {
-      const matches = rankHybridKnowledgeMatches(notes, similarChunks, input, { vector: 0.4, keyword: 0.6 });
+      const matches = rankHybridKnowledgeMatches(notes, similarChunks, input, {
+        vector: this.env.searchHybridVectorWeight ?? 0.4,
+        keyword: this.env.searchHybridKeywordWeight ?? 0.6,
+      });
       if (matches.length > 0) {
         const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || DEFAULT_PAGE_SIZE }, matches.length);
         const start = (pagination.page - 1) * pagination.pageSize;

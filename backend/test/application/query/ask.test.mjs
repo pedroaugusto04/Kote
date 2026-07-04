@@ -112,6 +112,15 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
   const mockQuotaService = {
     async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
   };
+  const dummyContentQueryRepository = {
+    list: async () => [],
+  };
+  const dummyLogger = {
+    warn: () => {},
+    error: () => {},
+    info: () => {},
+    debug: () => {},
+  };
 
   const useCase = new AskKnowledgeUseCase(
     mockEmbeddingGateway,
@@ -120,6 +129,8 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
     mockQuotaService,
+    dummyContentQueryRepository,
+    dummyLogger,
   );
 
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'infra' });
@@ -310,6 +321,15 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
   const mockQuotaService = {
     async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
   };
+  const dummyContentQueryRepository = {
+    list: async () => [],
+  };
+  const dummyLogger = {
+    warn: () => {},
+    error: () => {},
+    info: () => {},
+    debug: () => {},
+  };
 
   const useCase = new AskKnowledgeUseCase(
     mockEmbeddingGateway,
@@ -318,6 +338,8 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
     mockQuotaService,
+    dummyContentQueryRepository,
+    dummyLogger,
   );
 
   const history = [
@@ -409,6 +431,15 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
   const mockQuotaService = {
     async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
   };
+  const dummyContentQueryRepository = {
+    list: async () => [],
+  };
+  const dummyLogger = {
+    warn: () => {},
+    error: () => {},
+    info: () => {},
+    debug: () => {},
+  };
 
   const useCase = new AskKnowledgeUseCase(
     mockEmbeddingGateway,
@@ -417,6 +448,8 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
     mockQuotaService,
+    dummyContentQueryRepository,
+    dummyLogger,
   );
 
   const history = [
@@ -532,6 +565,15 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
   const mockQuotaService = {
     async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
   };
+  const dummyContentQueryRepository = {
+    list: async () => [],
+  };
+  const dummyLogger = {
+    warn: () => {},
+    error: () => {},
+    info: () => {},
+    debug: () => {},
+  };
 
   const useCase = new AskKnowledgeUseCase(
     mockEmbeddingGateway,
@@ -540,6 +582,8 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
     mockQuotaService,
+    dummyContentQueryRepository,
+    dummyLogger,
   );
 
   const result = await useCase.execute('Summarize my recent notes', 'user-123', { projectSlug: 'infra', workspaceSlug: 'default' });
@@ -551,4 +595,122 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
     { id: 'note-old', title: 'Older Note', path: 'docs/old.md', projectSlug: 'infra', workspaceId: undefined },
   ]);
 });
+
+test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddings fails', async () => {
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => {
+      throw new Error('Embedding API is offline');
+    },
+  };
+
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => {
+      return [];
+    },
+  };
+
+  let listNotesQueryCalled = false;
+  const mockContentQueryRepository = {
+    list: async (userId, filters) => {
+      listNotesQueryCalled = true;
+      assert.equal(userId, 'user-123');
+      assert.equal(filters.query, 'How to deploy?');
+      return [
+        {
+          id: 'note-fts-1',
+          title: 'FTS Note 1',
+          path: 'docs/fts-1.md',
+          project: 'infra',
+          workspaceId: 'ws-123',
+          tags: ['deploy'],
+        },
+      ];
+    },
+  };
+
+  const mockContentRepository = {
+    getNotesByIds: async (userId, ids) => {
+      assert.deepEqual(ids, ['note-fts-1']);
+      return [
+        {
+          id: 'note-fts-1',
+          userId: 'user-123',
+          title: 'FTS Note 1',
+          path: 'docs/fts-1.md',
+          projectSlug: 'infra',
+          workspaceId: 'ws-123',
+          markdown: 'To deploy, run npm run deploy.',
+          summary: 'Deployment guide',
+          tags: ['deploy'],
+        },
+      ];
+    },
+  };
+
+  let generateCalled = false;
+  const mockAnswerGenerationGateway = {
+    generate: async (config, input) => {
+      generateCalled = true;
+      assert.equal(input.question, 'How to deploy?');
+      assert.equal(input.context.length, 1);
+      assert.equal(input.context[0].noteId, 'note-fts-1');
+      assert.equal(input.context[0].chunkText, 'To deploy, run npm run deploy.');
+      return {
+        answer: 'FTS Answer: Run npm run deploy.',
+        confidence: 'high',
+        requestedAttachments: false,
+        sources: [{ noteId: 'note-fts-1', title: 'FTS Note 1', path: 'docs/fts-1.md' }],
+      };
+    },
+  };
+
+  const mockRuntimeEnv = {
+    read: () => ({
+      embeddingAiProvider: 'gemini',
+      embeddingAiBaseUrl: 'http://gemini.api',
+      embeddingAiModel: 'gemini-embedding-001',
+      embeddingAiApiKey: 'key-123',
+      conversationAiProvider: 'openai',
+      conversationAiBaseUrl: 'http://openai.api',
+      conversationAiModel: 'gpt-4',
+      conversationAiApiKey: 'key-456',
+    }),
+  };
+
+  const mockQuotaService = {
+    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
+  };
+
+  let loggerWarnCalled = false;
+  const mockLogger = {
+    warn: (msg, meta) => {
+      loggerWarnCalled = true;
+      assert.equal(msg, 'ask_knowledge.vector_search_failed');
+      assert.equal(meta.error, 'Embedding API is offline');
+    },
+  };
+
+  const useCase = new AskKnowledgeUseCase(
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    mockContentRepository,
+    mockAnswerGenerationGateway,
+    mockRuntimeEnv,
+    mockQuotaService,
+    mockContentQueryRepository,
+    mockLogger,
+  );
+
+  const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'infra', workspaceId: 'ws-123' });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.answer, 'FTS Answer: Run npm run deploy.');
+  assert.equal(listNotesQueryCalled, true);
+  assert.equal(generateCalled, true);
+  assert.equal(loggerWarnCalled, true);
+  assert.deepEqual(result.relatedNotes, [
+    { id: 'note-fts-1', title: 'FTS Note 1', path: 'docs/fts-1.md', projectSlug: 'infra', workspaceId: 'ws-123' },
+  ]);
+});
+
 

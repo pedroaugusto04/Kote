@@ -81,6 +81,15 @@ export type RuntimeEnvironment = {
   internalServiceToken: string;
   disableEmbeddingWorker: boolean;
   testEmailAuthSecret: string;
+  searchMinSimilarity: number;
+  searchCandidateLimitMultiplier: number;
+  searchHybridVectorWeight: number;
+  searchHybridKeywordWeight: number;
+  ragMinSimilarity: number;
+  ragCandidateLimit: number;
+  ragHybridVectorWeight: number;
+  ragHybridKeywordWeight: number;
+  ragTopChunksLimit: number;
 };
 
 export abstract class RuntimeEnvironmentProvider {

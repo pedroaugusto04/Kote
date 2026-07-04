@@ -11,6 +11,13 @@ export function normalizeGithubBackfillLimit(value: string | undefined): number 
   return Math.min(parsed, 50);
 }
 
+export function normalizeNumber(value: string | undefined, defaultValue: number): number {
+  if (value === undefined) return defaultValue;
+  const parsed = Number.parseFloat(String(value).trim());
+  if (Number.isNaN(parsed) || !Number.isFinite(parsed)) return defaultValue;
+  return parsed;
+}
+
 export function normalizeGithubAppCallbackPath(value: string | undefined): string {
   const trimmed = String(value || '').trim();
   if (!trimmed) return defaultGithubAppCallbackPath;
@@ -113,5 +120,14 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     internalServiceToken: String(env.KB_INTERNAL_SERVICE_TOKEN || '').trim(),
     disableEmbeddingWorker: String(env.KB_DISABLE_EMBEDDING_WORKER || 'false').trim().toLowerCase() === 'true',
     testEmailAuthSecret: String(env.KB_TEST_EMAIL_AUTH_SECRET || '').trim(),
+    searchMinSimilarity: normalizeNumber(env.KB_SEARCH_MIN_SIMILARITY, 0.3),
+    searchCandidateLimitMultiplier: normalizeNumber(env.KB_SEARCH_CANDIDATE_LIMIT_MULTIPLIER, 3),
+    searchHybridVectorWeight: normalizeNumber(env.KB_SEARCH_HYBRID_VECTOR_WEIGHT, 0.4),
+    searchHybridKeywordWeight: normalizeNumber(env.KB_SEARCH_HYBRID_KEYWORD_WEIGHT, 0.6),
+    ragMinSimilarity: normalizeNumber(env.KB_RAG_MIN_SIMILARITY, 0.35),
+    ragCandidateLimit: normalizeNumber(env.KB_RAG_CANDIDATE_LIMIT, 16),
+    ragHybridVectorWeight: normalizeNumber(env.KB_RAG_HYBRID_VECTOR_WEIGHT, 0.8),
+    ragHybridKeywordWeight: normalizeNumber(env.KB_RAG_HYBRID_KEYWORD_WEIGHT, 0.2),
+    ragTopChunksLimit: normalizeNumber(env.KB_RAG_TOP_CHUNKS_LIMIT, 8),
   };
 }
