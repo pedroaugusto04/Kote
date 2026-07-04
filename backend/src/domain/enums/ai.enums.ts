@@ -2,6 +2,7 @@ export enum AiProvider {
   OpenRouter = 'openrouter',
   OpenAi = 'openai',
   Gemini = 'gemini',
+  Ollama = 'ollama',
   None = 'none',
 }
 

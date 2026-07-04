@@ -134,9 +134,18 @@ services:
       timeout: 5s
       retries: 10
 
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "${KB_OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - kb_ollama_data:/root/.ollama
+
 volumes:
   kb_postgres_data:
   kb_api_node_modules:
   kb_frontend_node_modules:
   kb_rabbitmq_data:
   kb_api_logs:
+  kb_ollama_data:

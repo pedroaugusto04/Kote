@@ -115,5 +115,14 @@ services:
       timeout: 5s
       retries: 10
 
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - kb_ollama_data:/root/.ollama
+
 volumes:
   kb_rabbitmq_data:
+  kb_ollama_data:

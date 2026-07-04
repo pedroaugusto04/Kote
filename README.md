@@ -120,7 +120,7 @@ If you prefer to run Kote on your own infrastructure or local machine, you can l
    ```
    Open the `.env` file and configure the **essential keys** to enable core features:
    * **Admin Credentials:** Change `KB_ADMIN_EMAIL` and `KB_ADMIN_PASSWORD` (used for your initial login).
-   * **AI Integrations (Search/Chat/Voice):** Set `KB_AUDIO_AI_API_KEY` and `KB_EMBEDDING_AI_API_KEY` (Gemini API key is the default and highly recommended).
+   * **AI Integrations (Search/Chat/Voice):** Set `KB_AUDIO_AI_API_KEY` and `KB_EMBEDDING_AI_API_KEY` (Gemini API key is the default). Alternatively, you can self-host embeddings using the local **Ollama** service (e.g. `nomic-embed-text-v2-moe`) by configuring the `KB_EMBEDDING_AI_PROVIDER=ollama` environment variables.
    * **File Storage:** Fill in `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `KB_SUPABASE_STORAGE_BUCKET` to store notes and attachments.
 
 3. **Start Services:**

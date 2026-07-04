@@ -198,6 +198,7 @@ jobs:
           KB_RABBITMQ_PORT: ${{ vars.KB_RABBITMQ_PORT || '5672' }}
           KB_RABBITMQ_MANAGEMENT_PORT: ${{ vars.KB_RABBITMQ_MANAGEMENT_PORT || '15672' }}
           KB_DISABLE_EMBEDDING_WORKER: ${{ vars.KB_DISABLE_EMBEDDING_WORKER || 'false' }}
+          KB_OLLAMA_PORT: ${{ vars.KB_OLLAMA_PORT || '11434' }}
           KB_VAPID_PUBLIC_KEY: ${{ vars.KB_VAPID_PUBLIC_KEY || '' }}
           KB_VAPID_PRIVATE_KEY: ${{ secrets.KB_VAPID_PRIVATE_KEY || '' }}
           ASAAS_ACCESS_TOKEN: ${{ secrets.ASAAS_ACCESS_TOKEN || '' }}

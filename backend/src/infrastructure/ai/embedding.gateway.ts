@@ -34,10 +34,14 @@ export class DefaultEmbeddingGateway extends EmbeddingGateway {
       return this.gemini001Strategy;
     }
 
-    if (!this.openAiStrategy) {
-      throw new InternalServerErrorException('OpenAiEmbeddingStrategy not provided');
+    if (config.provider === AiProvider.Ollama || config.provider === AiProvider.OpenAi) {
+      if (!this.openAiStrategy) {
+        throw new InternalServerErrorException('OpenAiEmbeddingStrategy not provided');
+      }
+      return this.openAiStrategy;
     }
-    return this.openAiStrategy;
+
+    throw new InternalServerErrorException(`Unsupported embedding provider: ${config.provider}`);
   }
 
   async generateEmbeddings(
@@ -47,7 +51,8 @@ export class DefaultEmbeddingGateway extends EmbeddingGateway {
   ): Promise<number[][]> {
     if (!texts.length) return [];
 
-    if (config.provider === AiProvider.None || !config.apiKey || !config.model) {
+    const isApiKeyRequired = config.provider !== AiProvider.Ollama;
+    if (config.provider === AiProvider.None || (isApiKeyRequired && !config.apiKey) || !config.model) {
       this.logger.warn('[Embedding] Skipped — missing configuration', {
         provider: config.provider,
         apiKeySet: !!config.apiKey,
@@ -57,7 +62,11 @@ export class DefaultEmbeddingGateway extends EmbeddingGateway {
     }
 
     const strategy = this.getStrategy(config);
-    return strategy.generateEmbeddings(config, texts, taskType);
+    const strategyConfig = {
+      ...config,
+      apiKey: config.apiKey || 'ollama',
+    };
+    return strategy.generateEmbeddings(strategyConfig, texts, taskType);
   }
 }
 
