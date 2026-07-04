@@ -390,4 +390,57 @@
   white-space: pre !important;
 }
 
+/* AI Conversation turn styling */
+.ai-conversation {
+  display: grid;
+  gap: 6px;
+}
+
+.ai-conversation-turn {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+}
+
+.ai-conversation-turn--user {
+  border-left-color: var(--muted);
+  background: var(--surface-3);
+}
+
+.ai-conversation-turn--assistant {
+  border-left-color: var(--accent);
+  background: var(--surface-4);
+}
+
+.ai-conversation-role {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.ai-conversation-role-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.ai-conversation-role-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ai-conversation-turn--user .ai-conversation-role-label {
+  color: var(--muted);
+}
+
+.ai-conversation-turn--assistant .ai-conversation-role-label {
+  color: var(--accent);
+}
+
+.ai-conversation-content .markdown {
+  font-size: 14px;
+}
 

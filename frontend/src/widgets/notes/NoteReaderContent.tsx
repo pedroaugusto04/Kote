@@ -11,6 +11,8 @@ import { MarkdownView } from '../markdown/MarkdownView';
 import { SourceIcon } from '../../shared/ui/icons';
 import { CDNImage } from '../../shared/ui/CDNImage';
 import { SourceBadge } from './SourceBadge';
+import { AiConversationView } from './AiConversationView';
+import { parseAiConversationTurns } from './ai-conversation';
 
 type AttachmentPreviewKind = 'image' | 'audio' | 'pdf' | 'markdown' | 'text' | 'none';
 
@@ -80,6 +82,8 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
   const hasSummary = isGithubPush && Boolean(cleanedSummary) && normalizeReaderText(cleanedSummary) !== normalizeReaderText(cleanedRawText);
   const showLabel = hasExtra || hasSummary;
   const activeSource = source;
+  const aiTurns = parseAiConversationTurns(cleanedRawText);
+  const isAiConversation = aiTurns.length > 0;
 
   return (
     <div className="note-body">
@@ -90,8 +94,10 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
       )}
       {cleanedRawText ? (
         <section className="note-body-section">
-          {showLabel ? <h2 className="note-body-label">Original text</h2> : null}
-          <MarkdownView markdown={cleanedRawText} />
+          {showLabel && !isAiConversation ? <h2 className="note-body-label">Original text</h2> : null}
+          {isAiConversation
+            ? <AiConversationView turns={aiTurns} />
+            : <MarkdownView markdown={cleanedRawText} />}
         </section>
       ) : null}
       {hasSummary ? (
