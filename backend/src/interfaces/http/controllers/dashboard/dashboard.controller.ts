@@ -16,6 +16,8 @@ import {
   BulkUpdateReminderStatusUseCase,
   RunAskAiUseCase,
   ListAskHistoryUseCase,
+  ListAskConversationsUseCase,
+  GetAskConversationTurnsUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
@@ -41,7 +43,7 @@ import {
   type BulkUpdateReminderStatusBody,
 } from '../../dto/dashboard.dto.js';
 import { queryRequestSchema, type QueryRequest } from '../../dto/query.dto.js';
-import { askHistoryQuerySchema, askRequestSchema, type AskHistoryQuery, type AskRequest } from '../../dto/ask.dto.js';
+import { askHistoryQuerySchema, askRequestSchema, conversationIdParamSchema, type AskHistoryQuery, type AskRequest, type ConversationIdParam } from '../../dto/ask.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { paginatedResponse } from '../../http-helpers.js';
 
@@ -81,6 +83,8 @@ export class DashboardController {
     private readonly queryKnowledge: QueryKnowledgeUseCase,
     private readonly runAskAiUseCase: RunAskAiUseCase,
     private readonly listAskHistoryUseCase: ListAskHistoryUseCase,
+    private readonly listAskConversationsUseCase: ListAskConversationsUseCase,
+    private readonly getAskConversationTurnsUseCase: GetAskConversationTurnsUseCase,
     private readonly bulkUpdateReminderStatusUseCase: BulkUpdateReminderStatusUseCase,
   ) {}
 
@@ -223,10 +227,52 @@ export class DashboardController {
     @ProjectId() projectId?: string,
     @WorkspaceId() workspaceId?: string,
   ) {
-    return this.runAskAiUseCase.execute(body.question, user.id, {
-      projectId: normalizeScopeId(projectId),
-      workspaceId: normalizeScopeId(workspaceId),
-    });
+    return this.runAskAiUseCase.execute(
+      body.question,
+      user.id,
+      {
+        projectId: normalizeScopeId(projectId),
+        workspaceId: normalizeScopeId(workspaceId),
+      },
+      body.conversationId,
+      body.conversationHistory,
+    );
+  }
+
+  @Get('ask/conversations')
+  @UseGuards(OptionalProjectResolutionGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get AI conversation list' })
+  @ApiResponse({ status: 200, description: 'Conversations retrieved successfully' })
+  async askConversations(
+    @Query(new ZodValidationPipe(askHistoryQuerySchema, 'invalid_ask_conversations_query')) query: AskHistoryQuery,
+    @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId?: string,
+  ) {
+    return {
+      ok: true,
+      ...paginatedResponse('conversations', await this.listAskConversationsUseCase.execute(user.id, {
+        page: query.page,
+        pageSize: query.pageSize,
+        projectId: normalizeScopeId(projectId),
+      })),
+    };
+  }
+
+  @Get('ask/conversations/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get turns for a single AI conversation' })
+  @ApiParam({ name: 'id', description: 'Conversation ID (UUID)' })
+  @ApiResponse({ status: 200, description: 'Conversation turns retrieved successfully' })
+  async askConversationTurns(
+    @Param(new ZodValidationPipe(conversationIdParamSchema, 'invalid_conversation_id')) params: ConversationIdParam,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const turns = await this.getAskConversationTurnsUseCase.execute(params.id);
+    return {
+      ok: true,
+      turns,
+    };
   }
 
   @Get('ask/history')

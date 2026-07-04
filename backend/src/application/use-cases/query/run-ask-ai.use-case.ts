@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';
@@ -6,6 +7,7 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ResolveWhatsappAskAttachmentsUseCase } from './resolve-whatsapp-ask-attachments.use-case.js';
 import { WhatsappReplySender } from '../../ports/integrations/whatsapp-reply.sender.js';
 import { ConversationConfidence } from '../../../contracts/enums.js';
+import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 
 export type RunAskAiScope = {
   projectId?: string;
@@ -22,13 +24,21 @@ export class RunAskAiUseCase {
     private readonly whatsappReplySender: WhatsappReplySender,
   ) {}
 
-  async execute(question: string, userId: string, scope: RunAskAiScope = {}) {
+  async execute(
+    question: string,
+    userId: string,
+    scope: RunAskAiScope = {},
+    conversationId?: string | null,
+    conversationHistory?: AskConversationTurn[],
+  ) {
     const projectId = scope.projectId || null;
     const workspaceId = scope.workspaceId || null;
+    const resolvedConversationId = conversationId || crypto.randomUUID();
 
     const result = await this.askKnowledge.execute(question, userId, {
       projectId: projectId || undefined,
       workspaceId: workspaceId || undefined,
+      conversationHistory,
     });
     const media: any[] = [];
     if (result.ok) {
@@ -36,6 +46,7 @@ export class RunAskAiUseCase {
         userId,
         projectId,
         workspaceId,
+        conversationId: resolvedConversationId,
         question,
         answer: result.answer,
         confidence: result.confidence as ConversationConfidence,
@@ -79,6 +90,7 @@ export class RunAskAiUseCase {
     }
     return {
       ...result,
+      conversationId: resolvedConversationId,
       media,
     };
   }

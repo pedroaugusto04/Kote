@@ -28,6 +28,8 @@ export { AskKnowledgeUseCase } from './query/ask-knowledge.use-case.js';
 export { ResolveWhatsappAskAttachmentsUseCase } from './query/resolve-whatsapp-ask-attachments.use-case.js';
 export { RunAskAiUseCase } from './query/run-ask-ai.use-case.js';
 export { ListAskHistoryUseCase } from './query/list-ask-history.use-case.js';
+export { ListAskConversationsUseCase } from './query/list-ask-conversations.use-case.js';
+export { GetAskConversationTurnsUseCase } from './query/get-ask-conversation-turns.use-case.js';
 export { IngestEntryUseCase } from './ingest/ingest-entry.use-case.js';
 export { ProcessAgentConversationUseCase } from './conversation/process-agent-conversation.use-case.js';
 export { BuildReminderDispatchUseCase } from './reminders/build-reminder-dispatch.use-case.js';

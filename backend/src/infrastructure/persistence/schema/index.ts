@@ -327,6 +327,7 @@ export const askHistory = pgTable('kb_ask_history', {
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
   workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+  conversationId: uuid('conversation_id').notNull(),
   question: text('question').notNull(),
   answer: text('answer').notNull(),
   confidence: askConfidenceEnum('confidence').notNull().default('low'),
@@ -336,6 +337,7 @@ export const askHistory = pgTable('kb_ask_history', {
 }, (table) => ({
   userCreatedIdx: index('kb_ask_history_user_created_idx').on(table.userId, table.createdAt),
   userProjectCreatedIdx: index('kb_ask_history_user_project_created_idx').on(table.userId, table.projectId, table.createdAt),
+  conversationIdIdx: index('kb_ask_history_conversation_id_idx').on(table.conversationId),
 }));
 
 // Webhook Subscriptions

@@ -70,7 +70,7 @@ export class ProcessAgentConversationUseCase {
     private readonly quotaService: QuotaService,
     private readonly credentials?: CredentialRepository,
     private readonly logger?: AppLogger,
-  ) {}
+  ) { }
 
   async execute(input: ConversationInput, userId: string, workspaceSlug = 'default', projectSlug?: string): Promise<AgentConversationResult> {
     const normalizedWorkspaceSlug = slugify(workspaceSlug) || 'default';
@@ -145,18 +145,18 @@ export class ProcessAgentConversationUseCase {
     );
     if (!quotaResult.allowed) {
       this.logger?.warn('conversation.agent.quota_exceeded', {
-          userId,
-          workspaceSlug,
-          limit: quotaResult.limit,
-          current: quotaResult.current,
-        });
-        return this.reply(
-          AgentConversationAction.Ask,
-          `⚠️ You have used all your AI credits for this month (${quotaResult.current}/${quotaResult.limit} credits). Your quota resets at the start of next month.\n\n💡 Upgrade your plan to get more AI credits: https://kote.ai/automations/subscription`,
-          null,
-          state,
-        );
-      }
+        userId,
+        workspaceSlug,
+        limit: quotaResult.limit,
+        current: quotaResult.current,
+      });
+      return this.reply(
+        AgentConversationAction.Ask,
+        `⚠️ You have used all your AI credits for this month (${quotaResult.current}/${quotaResult.limit} credits). Your quota resets at the start of next month.\n\n💡 Upgrade your plan to get more AI credits: https://knowledgebase.sbs/kote/automations/subscription`,
+        null,
+        state,
+      );
+    }
 
     const { candidateProjectSlug, candidateFolders, decision } = await this.requestAgentDecision(
       input,

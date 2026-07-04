@@ -1,7 +1,15 @@
 import type { PaginationMeta } from './pagination';
 
+export type AskConversationTurn = {
+  question: string;
+  answer: string;
+  projectSlug: string;
+  timestamp: string;
+};
+
 export type AskResponse = {
   ok: boolean;
+  conversationId: string;
   answer: string;
   confidence: 'high' | 'medium' | 'low';
   sources: Array<{
@@ -16,6 +24,24 @@ export type AskResponse = {
     projectSlug?: string;
     workspaceSlug?: string;
   }>;
+};
+
+export type AskConversationSummary = {
+  conversationId: string;
+  title: string;
+  projectId: string | null;
+  createdAt: string;
+};
+
+export type AskConversationsResponse = {
+  ok: true;
+  conversations: AskConversationSummary[];
+  pagination: PaginationMeta;
+};
+
+export type AskConversationDetailResponse = {
+  ok: true;
+  turns: AskHistoryItem[];
 };
 
 export type AskHistoryItem = {

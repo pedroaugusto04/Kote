@@ -17,6 +17,7 @@ export type AskHistoryRelatedNote = {
 
 export type AskHistoryItem = {
   id: string;
+  conversationId: string;
   question: string;
   answer: string;
   confidence: ConversationConfidence;
@@ -30,11 +31,19 @@ export type SaveAskHistoryInput = {
   userId: string;
   projectId: string | null;
   workspaceId: string | null;
+  conversationId: string;
   question: string;
   answer: string;
   confidence: ConversationConfidence;
   sources: AskHistorySource[];
   relatedNotes: AskHistoryRelatedNote[];
+};
+
+export type AskConversationSummary = {
+  conversationId: string;
+  title: string;
+  projectId: string | null;
+  createdAt: string;
 };
 
 export type ListAskHistoryInput = { 

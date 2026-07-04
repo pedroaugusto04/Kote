@@ -1,6 +1,6 @@
 {
   "name": "@pedroaugusto04/kote-mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Model Context Protocol (MCP) server for Kote",
   "type": "module",
   "main": "dist/index.js",
