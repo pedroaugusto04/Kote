@@ -14,6 +14,7 @@ type ProjectKnowledgeForceGraphProps = {
   resetSignal: number;
   onOpenNote: (noteId: string) => void;
   searchQuery?: string;
+  hiddenNodeIds?: Set<string> | null;
 };
 
 const DEFAULT_SIZE = { width: 1200, height: 760 };
@@ -25,6 +26,7 @@ export function ProjectKnowledgeForceGraph({
   resetSignal,
   onOpenNote,
   searchQuery = '',
+  hiddenNodeIds,
 }: ProjectKnowledgeForceGraphProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
@@ -37,6 +39,10 @@ export function ProjectKnowledgeForceGraph({
 
   const searchQueryRef = useRef(searchQuery);
   const updateVisualsRef = useRef<((hoveredId: string | null, searchStr: string) => void) | null>(null);
+  // Refs to D3 selections so we can update visibility without rebuilding the simulation
+  const nodeSelectionRef = useRef<d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown> | null>(null);
+  const linkSelectionRef = useRef<d3.Selection<SVGLineElement, GraphLink, SVGGElement, unknown> | null>(null);
+  const hiddenNodeIdsRef = useRef<Set<string> | null | undefined>(hiddenNodeIds);
 
   useEffect(() => {
     searchQueryRef.current = searchQuery;
@@ -129,7 +135,8 @@ export function ProjectKnowledgeForceGraph({
       .join('line')
       .attr('stroke', (item) => knowledgeMapLinkStyles[item.type].stroke)
       .attr('stroke-opacity', 0.55)
-      .attr('stroke-width', (item) => knowledgeMapLinkStyles[item.type].width);
+      .attr('stroke-width', (item) => knowledgeMapLinkStyles[item.type].width)
+      .style('transition', 'opacity 0.25s ease');
 
     const node = nodeLayer
       .selectAll<SVGGElement, GraphNode>('g')
@@ -139,6 +146,13 @@ export function ProjectKnowledgeForceGraph({
       .attr('role', (item) => (item.type === 'note' && item.noteId ? 'button' : 'img'))
       .attr('tabindex', (item) => (item.type === 'note' && item.noteId ? 0 : -1))
       .attr('aria-label', (item) => (item.type === 'note' && item.noteId ? `Open note ${item.label}` : `${knowledgeMapNodeStyles[item.type].label} ${item.label}`))
+      .style('transition', 'opacity 0.25s ease');
+
+    // Store selections in refs for lightweight filter updates
+    nodeSelectionRef.current = node as unknown as d3.Selection<SVGGElement, GraphNode, SVGGElement, unknown>;
+    linkSelectionRef.current = link as unknown as d3.Selection<SVGLineElement, GraphLink, SVGGElement, unknown>;
+
+    node
       .on('mouseenter focus', (_event, item) => {
         activeNodeId = item.id;
         updateVisuals(item.id, searchQueryRef.current);
@@ -267,8 +281,10 @@ export function ProjectKnowledgeForceGraph({
         });
       }
 
-      // Update node opacity & glow
+      // Update node opacity & glow (respect timeline-hidden nodes)
+      const currentHidden = hiddenNodeIdsRef.current ?? new Set<string>();
       node.style('opacity', (d) => {
+        if (currentHidden.has(d.id)) return 0;
         if (!hasSearch && !hasHover) return 1;
         let active = false;
         if (hasHover && neighbors.has(d.id)) active = true;
@@ -287,11 +303,14 @@ export function ProjectKnowledgeForceGraph({
           return 1.2;
         });
 
-      // Update link styles
+      // Update link styles (respect timeline-hidden nodes)
       link
         .style('opacity', (l) => {
           const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
           const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
+
+          // Always hide links connected to hidden nodes
+          if (currentHidden.has(sId) || currentHidden.has(tId)) return 0;
 
           if (!hasSearch && !hasHover) return 0.55;
 
@@ -361,8 +380,31 @@ export function ProjectKnowledgeForceGraph({
       if (renderFrameRef.current) window.cancelAnimationFrame(renderFrameRef.current);
       renderFrameRef.current = null;
       startDriftRef.current = null;
+      nodeSelectionRef.current = null;
+      linkSelectionRef.current = null;
     };
   }, [graph, onOpenNote, size.height, size.width]);
+
+  // Lightweight effect: apply visibility mask from hiddenNodeIds without rebuilding the simulation
+  useEffect(() => {
+    hiddenNodeIdsRef.current = hiddenNodeIds;
+    const nodeSelection = nodeSelectionRef.current;
+    const linkSelection = linkSelectionRef.current;
+    if (!nodeSelection || !linkSelection) return;
+
+    const hidden = hiddenNodeIds ?? new Set<string>();
+
+    nodeSelection
+      .style('opacity', (d) => (hidden.has(d.id) ? 0 : null))
+      .style('pointer-events', (d) => (hidden.has(d.id) ? 'none' : null))
+      .attr('aria-hidden', (d) => (hidden.has(d.id) ? 'true' : null));
+
+    linkSelection.style('opacity', (l) => {
+      const sId = typeof l.source === 'object' ? (l.source as GraphNode).id : String(l.source);
+      const tId = typeof l.target === 'object' ? (l.target as GraphNode).id : String(l.target);
+      return hidden.has(sId) || hidden.has(tId) ? 0 : null;
+    });
+  }, [hiddenNodeIds]);
 
   useEffect(() => {
     updateVisualsRef.current?.(null, searchQuery);

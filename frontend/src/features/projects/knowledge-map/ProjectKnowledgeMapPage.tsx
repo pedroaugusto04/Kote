@@ -110,10 +110,38 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
     }
   }, [dateRange]);
 
-  const filteredGraph = useMemo(
-    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes, maxDateFilter) : null,
-    [graph, visibleTypes, maxDateFilter],
+  // Base graph: type-filtered only (no date filter) — used for simulation layout
+  const baseGraph = useMemo(
+    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes) : null,
+    [graph, visibleTypes],
   );
+
+  // Hidden node IDs: derived from the date filter applied on top of baseGraph
+  const hiddenNodeIds = useMemo(() => {
+    if (!baseGraph || maxDateFilter === null) return null;
+    const hidden = new Set<string>();
+    baseGraph.nodes.forEach((node) => {
+      if (node.type === 'note' && node.date) {
+        if (new Date(node.date).getTime() > maxDateFilter) {
+          hidden.add(node.id);
+        }
+      }
+    });
+    // Also hide structural nodes (folders, tags, etc.) that only connect to hidden notes
+    const visibleNoteIds = new Set(
+      baseGraph.nodes.filter((n) => n.type === 'note' && !hidden.has(n.id)).map((n) => n.id),
+    );
+    baseGraph.nodes.forEach((node) => {
+      if (node.type === 'note' || node.type === 'project') return;
+      const connectedNotes = baseGraph.links.filter((l) => {
+        const sId = l.source;
+        const tId = l.target;
+        return (sId === node.id && visibleNoteIds.has(tId)) || (tId === node.id && visibleNoteIds.has(sId));
+      });
+      if (connectedNotes.length === 0) hidden.add(node.id);
+    });
+    return hidden;
+  }, [baseGraph, maxDateFilter]);
 
   useEffect(() => {
     setFolderId('');
@@ -216,11 +244,12 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
             <EmptyState>No notes match the current map filters.</EmptyState>
           ) : (
             <>
-              <KnowledgeMapLegend presentTypes={new Set(filteredGraph?.nodes.map(knowledgeMapVisibleTypeFromNode) || [])} />
+              <KnowledgeMapLegend presentTypes={new Set(baseGraph?.nodes.map(knowledgeMapVisibleTypeFromNode) || [])} />
               <div className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''}`}>
                 <ProjectKnowledgeForceGraph
-                  links={filteredGraph?.links || []}
-                  nodes={filteredGraph?.nodes || []}
+                  links={baseGraph?.links || []}
+                  nodes={baseGraph?.nodes || []}
+                  hiddenNodeIds={hiddenNodeIds}
                   onOpenNote={(id) => {
                     if (isMobile) {
                       openNote(id);
