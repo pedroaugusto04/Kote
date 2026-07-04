@@ -324,18 +324,9 @@
 }
 
 /* Productivity insights styles inside homepage */
-.insights-kpi-card .home-kpi-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .insights-kpi-card .kpi-symbol {
   font-size: 20px;
   line-height: 1;
-  background: var(--surface-3);
-  padding: 6px;
-  border-radius: 8px;
 }
 
 .insights-tabbed-panel .tab-header-container {
