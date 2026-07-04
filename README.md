@@ -238,6 +238,35 @@ For setup instructions, see [ide/browser-extension/README.md](ide/browser-extens
 ---
 
 <details>
+<summary><strong>Model Context Protocol (MCP) Server</strong></summary>
+
+Provides developer memory retrieval and persistence directly to AI assistants (such as Cursor, Claude Desktop, Cline, and Antigravity).
+
+**Key Features:**
+- **kote_search_notes**: Search developer notes, design decisions, and PR summaries using hybrid keyword and vector search, returning optimized snippets.
+- **kote_get_note**: Fetch the full Markdown body of a specific note by ID.
+- **kote_create_note**: Persistently save important development decisions or notes straight into your Kote memory graph.
+
+**Integration Quick Start:**
+You can run the Kote MCP Server directly from npm using `npx`:
+```json
+{
+  "mcpServers": {
+    "kote": {
+      "command": "npx",
+      "args": ["-y", "@pedroaugusto04/kote-mcp"]
+    }
+  }
+}
+```
+
+For advanced configuration and setup, see [ide/mcp/README.md](ide/mcp/README.md).
+
+</details>
+
+---
+
+<details>
 <summary><strong>Messaging Integrations (WhatsApp & Telegram)</strong></summary>
 
 Provides channels for logging quick notes and querying the database.
