@@ -407,7 +407,21 @@ export function OnboardingChecklist({
     : false;
 
   if (storage.dismissed || isHiddenByShowLater) return null;
-  if (integrationsQuery.isLoading) return null;
+  if (integrationsQuery.isLoading) {
+    return (
+      <Panel className="onboarding-checklist skeleton-checklist" style={{ minHeight: '240px', opacity: 0.6, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ background: 'var(--surface-5)', height: '24px', width: '180px', borderRadius: '4px', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+          <div style={{ background: 'var(--surface-5)', height: '36px', width: '36px', borderRadius: '50%', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+          <div style={{ background: 'var(--surface-5)', height: '48px', width: '100%', borderRadius: '8px', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+          <div style={{ background: 'var(--surface-5)', height: '48px', width: '100%', borderRadius: '8px', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+          <div style={{ background: 'var(--surface-5)', height: '48px', width: '100%', borderRadius: '8px', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+        </div>
+      </Panel>
+    );
+  }
 
   if (allDone && !storage.completionAcknowledged) {
     return (
