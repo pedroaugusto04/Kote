@@ -165,8 +165,8 @@ export class AskKnowledgeUseCase {
 
     const candidateLimit = this.env.ragCandidateLimit ?? 16;
     const minSimilarity = this.env.ragMinSimilarity ?? 0.45;
-    const hybridVectorWeight = this.env.ragHybridVectorWeight ?? 0.8;
-    const hybridKeywordWeight = this.env.ragHybridKeywordWeight ?? 0.2;
+    const hybridVectorWeight = this.env.ragHybridVectorWeight ?? 0.7;
+    const hybridKeywordWeight = this.env.ragHybridKeywordWeight ?? 0.3;
     const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
 
     this.logger.info('ask_knowledge.rag_config', {
