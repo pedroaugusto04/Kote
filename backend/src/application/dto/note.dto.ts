@@ -2,14 +2,19 @@ import { z } from 'zod';
 
 import { noteStatusValues } from '../../domain/note-status.js';
 import { KnowledgeStatus } from '../../contracts/enums.js';
+import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
+import { readEnvironment } from '../../adapters/environment.js';
 
 const noteStatusSchema = z.enum(noteStatusValues).optional();
 const editableNoteStatusSchema = z.enum([KnowledgeStatus.Active, KnowledgeStatus.Resolved, KnowledgeStatus.Archived]).optional();
 
+const environment = readEnvironment();
+const attachmentMaxSize = environment.attachmentMaxSizeBytes;
+
 const noteAttachmentSchema = z.object({
   fileName: z.string().min(1),
   mimeType: z.string().default('application/octet-stream'),
-  sizeBytes: z.number().int().nonnegative().max(10 * 1024 * 1024, 'Attachment must be 10 MB or smaller.').default(0),
+  sizeBytes: z.number().int().nonnegative().max(attachmentMaxSize, `Attachment must be ${attachmentMaxSize / (1024 * 1024)} MB or smaller.`).default(0),
   dataBase64: z.string().default(''),
 });
 

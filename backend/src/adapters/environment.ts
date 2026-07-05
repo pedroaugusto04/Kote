@@ -129,5 +129,7 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     ragHybridVectorWeight: normalizeNumber(env.KB_RAG_HYBRID_VECTOR_WEIGHT, 0.8),
     ragHybridKeywordWeight: normalizeNumber(env.KB_RAG_HYBRID_KEYWORD_WEIGHT, 0.2),
     ragTopChunksLimit: normalizeNumber(env.KB_RAG_TOP_CHUNKS_LIMIT, 8),
+    attachmentMaxSizeBytes: Number(env.KB_ATTACHMENT_MAX_SIZE_BYTES || 10 * 1024 * 1024),
+    avatarMaxSizeBytes: Number(env.KB_AVATAR_MAX_SIZE_BYTES || 3 * 1024 * 1024),
   };
 }

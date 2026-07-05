@@ -3,7 +3,11 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes, ApiQuery, Api
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 
-import { AuthService, avatarMaxSizeBytes, type AuthenticatedUser } from '../../../../application/auth.js';
+import { AuthService, type AuthenticatedUser } from '../../../../application/auth.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../../../application/ports/observability/runtime-environment.port.js';
+import { readEnvironment } from '../../../../adapters/environment.js';
+
+const AVATAR_MAX_SIZE_BYTES = readEnvironment().avatarMaxSizeBytes ?? 3 * 1024 * 1024;
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, AuthRateLimitGuard, BrowserExtensionGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import { exchangeConnectionTokenBodySchema, loginBodySchema, signupBodySchema, updateProfileBodySchema, type ExchangeConnectionTokenBody, type LoginBody, type SignupBody, type UpdateProfileBody } from '../../dto/auth.dto.js';
@@ -20,7 +24,18 @@ type UploadedAvatarFile = {
 @ApiTags('Authentication')
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) { }
+  private readonly environment: RuntimeEnvironment;
+
+  constructor(
+    private readonly auth: AuthService,
+    private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => readEnvironment() },
+  ) {
+    this.environment = this.environmentProvider.read();
+  }
+
+  private getAvatarMaxSizeBytes(): number {
+    return this.environment.avatarMaxSizeBytes ?? 3 * 1024 * 1024;
+  }
 
   @Post('login')
   @UseGuards(AuthRateLimitGuard, BrowserExtensionGuard)
@@ -154,7 +169,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: 'Avatar uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Invalid file' })
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: avatarMaxSizeBytes } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: AVATAR_MAX_SIZE_BYTES } }))
   async uploadAvatar(@CurrentUser() user: AuthenticatedUser, @UploadedFile() file: UploadedAvatarFile | undefined) {
     if (!file) throw new BadRequestException('avatar_file_required');
     return {

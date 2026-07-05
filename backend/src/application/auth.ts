@@ -80,7 +80,7 @@ export class AuthService implements OnModuleInit {
       this.googleOAuthService = new GoogleOAuthService(this.googleOAuth, this.environmentProvider);
     }
     if (this.objectStorage) {
-      this.avatarService = new AvatarService(this.objectStorage);
+      this.avatarService = new AvatarService(this.objectStorage, this.environmentProvider);
     }
   }
 

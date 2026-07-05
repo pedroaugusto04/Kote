@@ -1,8 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { ObjectStorage, ObjectStorageMissingContentError } from '../ports/notes/object-storage.js';
+import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 
-export const avatarMaxSizeBytes = 2 * 1024 * 1024;
+export const avatarMaxSizeBytes = 3 * 1024 * 1024;
 const avatarMimeTypes = new Map([
   ['image/png', 'png'],
   ['image/jpeg', 'jpg'],
@@ -18,7 +19,14 @@ export type AvatarContent = {
 
 @Injectable()
 export class AvatarService {
-  constructor(private readonly objectStorage: ObjectStorage) {}
+  private maxAvatarSizeBytes: number;
+
+  constructor(
+    private readonly objectStorage: ObjectStorage,
+    private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => ({ avatarMaxSizeBytes: 3 * 1024 * 1024 }) as any },
+  ) {
+    this.maxAvatarSizeBytes = this.environmentProvider.read().avatarMaxSizeBytes;
+  }
 
   private requireAvatarStorage(): ObjectStorage {
     if (!this.objectStorage) throw new Error('avatar_storage_not_configured');
@@ -59,7 +67,7 @@ export class AvatarService {
   }): Promise<{ storageKey: string; mimeType: string; sizeBytes: number }> {
     if (!avatarMimeTypes.has(input.mimeType)) throw new BadRequestException('unsupported_avatar_type');
     if (!input.buffer.length || input.sizeBytes <= 0) throw new BadRequestException('avatar_file_required');
-    if (input.sizeBytes > avatarMaxSizeBytes || input.buffer.length > avatarMaxSizeBytes) throw new BadRequestException('avatar_file_too_large');
+    if (input.sizeBytes > this.maxAvatarSizeBytes || input.buffer.length > this.maxAvatarSizeBytes) throw new BadRequestException('avatar_file_too_large');
 
     const storage = this.requireAvatarStorage();
     const storageKey = this.avatarStorageKey(input.userId, input.mimeType);
@@ -97,6 +105,6 @@ export class AvatarService {
   }
 
   getMaxSizeBytes(): number {
-    return avatarMaxSizeBytes;
+    return this.maxAvatarSizeBytes;
   }
 }

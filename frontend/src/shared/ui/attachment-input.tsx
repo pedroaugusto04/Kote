@@ -15,6 +15,8 @@ type AttachmentInputProps = {
   disabled?: boolean;
 };
 
+const MAX_SIZE = Number(import.meta.env.VITE_ATTACHMENT_MAX_SIZE_BYTES || 10 * 1024 * 1024);
+
 export const fileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -37,12 +39,11 @@ export function AttachmentInput({
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
-    const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
     const newAttachments = [...value];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       if (file.size > MAX_SIZE) {
-        notifyError(`File ${file.name} is too large. Max size is 10 MB.`);
+        notifyError(`File ${file.name} is too large. Max size is ${(MAX_SIZE / (1024 * 1024)).toFixed(0)} MB.`);
         continue;
       }
       try {

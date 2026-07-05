@@ -90,6 +90,8 @@ export type RuntimeEnvironment = {
   ragHybridVectorWeight: number;
   ragHybridKeywordWeight: number;
   ragTopChunksLimit: number;
+  attachmentMaxSizeBytes: number;
+  avatarMaxSizeBytes: number;
 };
 
 export abstract class RuntimeEnvironmentProvider {

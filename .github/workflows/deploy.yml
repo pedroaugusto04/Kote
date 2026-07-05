@@ -175,6 +175,8 @@ jobs:
           KB_RAG_HYBRID_VECTOR_WEIGHT: ${{ vars.KB_RAG_HYBRID_VECTOR_WEIGHT || '0.8' }}
           KB_RAG_HYBRID_KEYWORD_WEIGHT: ${{ vars.KB_RAG_HYBRID_KEYWORD_WEIGHT || '0.2' }}
           KB_RAG_TOP_CHUNKS_LIMIT: ${{ vars.KB_RAG_TOP_CHUNKS_LIMIT || '8' }}
+          KB_ATTACHMENT_MAX_SIZE_BYTES: ${{ vars.KB_ATTACHMENT_MAX_SIZE_BYTES || '10485760' }}
+          KB_AVATAR_MAX_SIZE_BYTES: ${{ vars.KB_AVATAR_MAX_SIZE_BYTES || '3145728' }}
           KB_AUDIO_AI_PROVIDER: ${{ vars.KB_AUDIO_AI_PROVIDER || 'gemini' }}
           KB_AUDIO_AI_BASE_URL: ${{ vars.KB_AUDIO_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta' }}
           KB_AUDIO_AI_MODEL: ${{ vars.KB_AUDIO_AI_MODEL || 'gemini-2.5-flash' }}
@@ -381,6 +383,7 @@ jobs:
         env:
           VITE_KB_FRONTEND_BASE_PATH: ${{ vars.VITE_KB_FRONTEND_BASE_PATH || '/kote/' }}
           VITE_KB_API_BASE_PATH: ${{ vars.VITE_KB_API_BASE_PATH || '/kote/api' }}
+          VITE_ATTACHMENT_MAX_SIZE_BYTES: ${{ vars.VITE_ATTACHMENT_MAX_SIZE_BYTES || '10485760' }}
         run: npm run build:frontend
 
       - name: Ensure rsync is available on GitHub runner
