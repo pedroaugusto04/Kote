@@ -70,10 +70,9 @@ export async function maybeExchangeConnectionToken(config: CliConfig): Promise<v
   const connectionToken = process.env[ENV_VARS.ConnectionToken];
   if (!connectionToken) return;
 
-  // Skip exchange only when the access_token is still valid. If it's expired
-  // (but refresh_token may still be present), fall through so the exchange
-  // produces a fresh pair — the stale access_token would cause immediate 401s.
-  if (isTokenStillValid(config.cookies.kb_access_token)) {
+  // Skip exchange when either access_token or refresh_token is still valid.
+  // If refresh_token is valid, the auto-refresh mechanism will handle access token renewal.
+  if (isTokenStillValid(config.cookies.kb_access_token) || isTokenStillValid(config.cookies.kb_refresh_token)) {
     StderrLogger.debug('KOTE_CONNECTION_TOKEN set but valid session already exists — skipping exchange.');
     return;
   }
