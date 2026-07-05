@@ -64,10 +64,10 @@ export class QueryKnowledgeUseCase {
           const queryEmbedding = embeddings[0];
           if (queryEmbedding && queryEmbedding.length > 0) {
             const chunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
-              limit: input.limit * (this.env.searchCandidateLimitMultiplier ?? 3),
+              limit: input.limit * (this.env.searchCandidateLimitMultiplier ?? 4),
               workspaceId,
               projectId,
-              minSimilarity: this.env.searchMinSimilarity ?? 0.3,
+              minSimilarity: this.env.searchMinSimilarity ?? 0.35,
             });
             this.logger.info('query_knowledge.vector_search_complete', {
               resultCount: chunks.length,

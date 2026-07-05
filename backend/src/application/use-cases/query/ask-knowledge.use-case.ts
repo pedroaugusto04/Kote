@@ -297,7 +297,6 @@ export class AskKnowledgeUseCase {
     });
     
     const noteMap = new Map(notes.map((n) => [n.id, n]));
-    const tokens = tokenizeQuery(queryText);
 
     const scoredChunks = allChunks
       .map((chunk) => {
@@ -305,22 +304,13 @@ export class AskKnowledgeUseCase {
         if (!note) return null;
         const vectorScore = chunk.similarity;
         const noteSummaryData = noteSummary(note);
-        
-        // Calculate chunk-specific keyword match score
-        const chunkTextLower = (chunk.chunkText || '').toLowerCase();
-        let chunkKeywordScore = 0;
-        for (const token of tokens) {
-          if (chunkTextLower.includes(token)) {
-            chunkKeywordScore += 10;
-          }
-        }
 
+        // Use ts_rank from PostgreSQL FTS for keyword scoring
         const noteScore = (noteSummaryData.ftsRank !== undefined && noteSummaryData.ftsRank > 0)
           ? noteSummaryData.ftsRank
           : 0;
 
-        // Combine chunk-specific matches with note-level context as a bonus
-        const keywordScore = chunkKeywordScore + (noteScore * 0.1);
+        const keywordScore = noteScore;
 
         return { chunk, note, vectorScore, keywordScore };
       })
