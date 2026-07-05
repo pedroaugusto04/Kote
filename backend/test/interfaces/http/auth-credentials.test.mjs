@@ -214,7 +214,7 @@ test('avatar upload rejects unsupported MIME types', async (t) => {
   );
 });
 
-test('avatar upload rejects files over 2MB', async (t) => {
+test('avatar upload rejects files over 3MB', async (t) => {
   const { auth } = await fixture(t);
   const controller = new AuthController(auth);
   const login = await controller.login(
@@ -225,9 +225,9 @@ test('avatar upload rejects files over 2MB', async (t) => {
 
   await assert.rejects(
     () => controller.uploadAvatar(login.user, {
-      buffer: Buffer.alloc((2 * 1024 * 1024) + 1),
+      buffer: Buffer.alloc((3 * 1024 * 1024) + 1),
       mimetype: 'image/png',
-      size: (2 * 1024 * 1024) + 1,
+      size: (3 * 1024 * 1024) + 1,
       originalname: 'avatar.png',
     }),
     /avatar_file_too_large/,
