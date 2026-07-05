@@ -34,6 +34,12 @@ export type CreateNoteParams = {
   sourceChannel?: string;
   source?: string;
   sessionId?: string;
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 };
 
 export type CreateNoteResponse = {
