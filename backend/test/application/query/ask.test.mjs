@@ -628,6 +628,22 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
         },
       ];
     },
+    getNotesEmbeddings: async (userId, noteIds) => {
+      assert.deepEqual(noteIds, ['note-fts-1']);
+      return [
+        {
+          id: 'emb-fts-1',
+          userId: 'user-123',
+          noteId: 'note-fts-1',
+          chunkIndex: 0,
+          chunkText: 'To deploy, run npm run deploy.',
+          embedding: [0.1, 0.2, 0.3],
+          model: 'gemini-embedding-001',
+          createdAt: '',
+          updatedAt: '',
+        },
+      ];
+    },
   };
 
   let listNotesQueryCalled = false;
@@ -761,6 +777,22 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
     },
     getNoteEmbeddings: async (userId, noteId) => {
       assert.equal(noteId, 'note-fts');
+      return [
+        {
+          id: 'emb-2',
+          userId: 'user-123',
+          noteId: 'note-fts',
+          chunkIndex: 0,
+          chunkText: 'FTS text content.',
+          embedding: [0.1, 0.2, 0.3],
+          model: 'gemini-embedding-001',
+          createdAt: '',
+          updatedAt: '',
+        },
+      ];
+    },
+    getNotesEmbeddings: async (userId, noteIds) => {
+      assert.deepEqual(noteIds, ['note-fts']);
       return [
         {
           id: 'emb-2',

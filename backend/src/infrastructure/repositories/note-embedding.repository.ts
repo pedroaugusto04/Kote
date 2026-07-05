@@ -161,4 +161,16 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
     );
     return result.rows.map(embeddingFromRow);
   }
+
+  async getNotesEmbeddings(userId: string, noteIds: string[]): Promise<NoteEmbeddingRecord[]> {
+    if (noteIds.length === 0) return [];
+
+    const result = await this.database.getPool().query(
+      `SELECT * FROM kb_note_embeddings
+       WHERE user_id = $1 AND note_id = ANY($2)
+       ORDER BY note_id, chunk_index ASC`,
+      [userId, noteIds],
+    );
+    return result.rows.map(embeddingFromRow);
+  }
 }

@@ -195,12 +195,8 @@ export class AskKnowledgeUseCase {
     let additionalChunks: any[] = [];
     if (missingFtsNoteIds.length > 0) {
       try {
-        const additionalChunksList = await Promise.all(
-          missingFtsNoteIds.map((noteId) =>
-            this.noteEmbeddingRepository.getNoteEmbeddings(userId, noteId),
-          ),
-        );
-        additionalChunks = additionalChunksList.flat().map((c) => ({
+        const additionalChunksList = await this.noteEmbeddingRepository.getNotesEmbeddings(userId, missingFtsNoteIds);
+        additionalChunks = additionalChunksList.map((c) => ({
           ...c,
           similarity: 0.0, // baseline vector similarity for pure keyword matches
         }));
@@ -230,7 +226,10 @@ export class AskKnowledgeUseCase {
         const note = noteMap.get(chunk.noteId);
         if (!note) return null;
         const vectorScore = chunk.similarity;
-        const keywordScore = scoreKnowledgeNote(noteSummary(note), tokens);
+        const noteSummaryData = noteSummary(note);
+        const keywordScore = (noteSummaryData.ftsRank !== undefined && noteSummaryData.ftsRank > 0)
+          ? noteSummaryData.ftsRank
+          : scoreKnowledgeNote(noteSummaryData, tokens);
         return { chunk, note, vectorScore, keywordScore };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
