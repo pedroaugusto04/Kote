@@ -44,6 +44,7 @@ type GithubPushPayload = {
 export type ProcessGithubPushInput = {
   body: GithubPushPayload;
   headers?: Record<string, string>;
+  rawBody?: string;
   userId: string;
   workspaceSlug: string;
   projectSlug: string;
@@ -106,7 +107,7 @@ export class ProcessGithubPushService {
     const webhookInput = {
       headers,
       body,
-      rawBody: '',
+      rawBody: input.rawBody || '',
     };
 
     const payload = await buildGithubReviewEvent(

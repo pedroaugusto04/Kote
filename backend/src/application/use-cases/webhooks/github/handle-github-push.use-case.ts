@@ -201,6 +201,7 @@ export class HandleGithubPushUseCase {
       const result = await this.processGithubPushService.execute({
         body,
         headers,
+        rawBody: input.rawBody,
         userId: identity.userId,
         workspaceSlug: identity.workspaceSlug || '',
         projectSlug,
