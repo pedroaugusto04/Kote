@@ -72,7 +72,7 @@ export class HandleGithubPushUseCase {
       ref: rawPayload.ref,
     });
 
-    if (!environment.githubWebhookSecret) {
+    if (!environment.githubWebhookSecret) { 
       this.logger.warn('github_push_webhook_secret_not_configured');
       throw new UnauthorizedException('github_webhook_secret_not_configured');
     }
