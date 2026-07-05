@@ -184,14 +184,21 @@ export class AskKnowledgeUseCase {
           const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText], EmbeddingTaskType.Query);
           this.logger.info('ask_knowledge.embedding_generated', {
             embeddingDim: embeddings[0]?.length,
+            embeddingFirstValues: embeddings[0]?.slice(0, 3),
+            embeddingValid: Boolean(embeddings[0] && embeddings[0].length > 0),
           });
-          
+
           const questionEmbedding = embeddings[0];
           if (!questionEmbedding || questionEmbedding.length === 0) {
             this.logger.warn('ask_knowledge.embedding_empty');
             return [];
           }
-          
+
+          this.logger.info('ask_knowledge.vector_search_start', {
+            minSimilarity,
+            candidateLimit,
+          });
+
           const results = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
             limit: candidateLimit,
             workspaceId: options.workspaceId,
@@ -201,6 +208,9 @@ export class AskKnowledgeUseCase {
           this.logger.info('ask_knowledge.vector_search_complete', {
             resultCount: results.length,
             avgSimilarity: results.length > 0 ? results.reduce((sum, r) => sum + r.similarity, 0) / results.length : 0,
+            maxSimilarity: results.length > 0 ? Math.max(...results.map(r => r.similarity)) : 0,
+            minSimilarityFound: results.length > 0 ? Math.min(...results.map(r => r.similarity)) : 0,
+            top3Similarities: results.slice(0, 3).map(r => r.similarity),
           });
           return results;
         } catch (error) {
@@ -316,11 +326,26 @@ export class AskKnowledgeUseCase {
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
+    const vectorScores = scoredChunks.map(sc => sc.vectorScore);
+    const keywordScores = scoredChunks.map(sc => sc.keywordScore);
+
     this.logger.info('ask_knowledge.chunks_scored', {
       totalChunks: allChunks.length,
       scoredChunks: scoredChunks.length,
-      avgVectorScore: scoredChunks.length > 0 ? scoredChunks.reduce((sum, sc) => sum + sc.vectorScore, 0) / scoredChunks.length : 0,
-      avgKeywordScore: scoredChunks.length > 0 ? scoredChunks.reduce((sum, sc) => sum + sc.keywordScore, 0) / scoredChunks.length : 0,
+      avgVectorScore: scoredChunks.length > 0 ? vectorScores.reduce((sum, sc) => sum + sc, 0) / scoredChunks.length : 0,
+      maxVectorScore: scoredChunks.length > 0 ? Math.max(...vectorScores) : 0,
+      minVectorScore: scoredChunks.length > 0 ? Math.min(...vectorScores) : 0,
+      zeroVectorScoreCount: vectorScores.filter(s => s === 0).length,
+      avgKeywordScore: scoredChunks.length > 0 ? keywordScores.reduce((sum, sc) => sum + sc, 0) / scoredChunks.length : 0,
+      maxKeywordScore: scoredChunks.length > 0 ? Math.max(...keywordScores) : 0,
+      minKeywordScore: scoredChunks.length > 0 ? Math.min(...keywordScores) : 0,
+      zeroKeywordScoreCount: keywordScores.filter(s => s === 0).length,
+      sampleChunks: scoredChunks.slice(0, 3).map(sc => ({
+        noteId: sc.chunk.noteId,
+        vectorScore: sc.vectorScore,
+        keywordScore: sc.keywordScore,
+        ftsRank: noteSummary(sc.note).ftsRank,
+      })),
     });
 
     // 4. Rank by Vector Similarity (descending)
