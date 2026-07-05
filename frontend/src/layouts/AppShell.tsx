@@ -11,12 +11,6 @@ import { QuotaUsageWidget } from '../features/quota/QuotaUsageWidget';
 import { hasQuotaWarning } from '../features/quota/quota.utils';
 import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
-import { HomePage } from '../pages/home/HomePage';
-import { ProjectsPage } from '../pages/projects/ProjectsPage';
-import { RemindersPage } from '../pages/reminders/RemindersPage';
-import { SearchPage } from '../pages/search/SearchPage';
-import { VaultPage } from '../pages/vault/VaultPage';
-import { LandingPage } from '../pages/landing/LandingPage';
 import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
 import { AskAiIcon } from '../widgets/ask/AskAiIcon';
 
@@ -28,9 +22,15 @@ const SetupPage = lazy(() => import('../pages/setup/SetupPage').then(m => ({ def
 const AuthPage = lazy(() => import('../pages/auth/AuthPage').then(m => ({ default: m.AuthPage })));
 const HelpPage = lazy(() => import('../pages/help/HelpPage').then(m => ({ default: m.HelpPage })));
 const AutomationsPage = lazy(() => import('../pages/automations/AutomationsPage').then((m: any) => ({ default: m?.default ?? m.AutomationsPage })));
+const HomePage = lazy(() => import('../pages/home/HomePage').then(m => ({ default: m.HomePage })));
+const ProjectsPage = lazy(() => import('../pages/projects/ProjectsPage').then(m => ({ default: m.ProjectsPage })));
+const RemindersPage = lazy(() => import('../pages/reminders/RemindersPage').then(m => ({ default: m.RemindersPage })));
+const SearchPage = lazy(() => import('../pages/search/SearchPage').then(m => ({ default: m.SearchPage })));
+const VaultPage = lazy(() => import('../pages/vault/VaultPage').then(m => ({ default: m.VaultPage })));
+const LandingPage = lazy(() => import('../pages/landing/LandingPage').then(m => ({ default: m.LandingPage })));
 import { flattenFolders } from '../features/projects/projects.helpers';
 import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
-import type { ConfirmState, NoteModalState } from '../features/projects/projects.types';
+import { ConfirmKind, WorkspaceModalMode, type ConfirmState, type NoteModalState } from '../features/projects/projects.types';
 import { notifyGeneralFormError } from '../shared/forms/errors';
 import { ConfirmationModal } from '../shared/ui/confirmation-modal';
 import { QuotaExceededModal } from '../shared/ui/QuotaExceededModal';
@@ -45,7 +45,7 @@ import { useGlobalLoading } from '../app/global-loading';
 import { useDebouncedValue } from '../shared/ui/use-debounced-value';
 import { OfflineBanner } from '../shared/ui/offline-banner';
 import { Breadcrumbs } from '../shared/ui/Breadcrumbs';
-import { Line, LineChart, ResponsiveContainer } from 'recharts';
+import { Sparkline } from '../shared/ui/Sparkline';
 
 
 function activeView(pathname: string): View {
@@ -213,9 +213,9 @@ export function AppShell() {
   }, [isProfileMenuOpen]);
 
   const noteFoldersQuery = useQuery({
-    queryKey: QUERY_KEYS.PROJECTS.FOLDERS(noteModal?.mode === 'edit' ? noteModal.note.project : ''),
-    queryFn: () => fetchProjectFolders(noteModal?.mode === 'edit' ? noteModal.note.project : ''),
-    enabled: noteModal?.mode === 'edit',
+    queryKey: QUERY_KEYS.PROJECTS.FOLDERS(noteModal?.mode === WorkspaceModalMode.Edit ? noteModal.note.project : ''),
+    queryFn: () => fetchProjectFolders(noteModal?.mode === WorkspaceModalMode.Edit ? noteModal.note.project : ''),
+    enabled: noteModal?.mode === WorkspaceModalMode.Edit,
   });
   const noteModalFolders = useMemo(
     () => flattenFolders(noteFoldersQuery.data?.folders || []),
@@ -223,7 +223,7 @@ export function AppShell() {
   );
   const loadNoteMutation = useMutation({
     mutationFn: (id: string) => globalLoading.trackPromise(fetchNote(id)),
-    onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
+    onSuccess: (note) => setNoteModal({ mode: WorkspaceModalMode.Edit, note }),
     onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_LOAD_NOTE_FOR_EDITING),
   });
   const deleteNoteMutation = useMutation({
@@ -295,10 +295,10 @@ export function AppShell() {
       },
       createNote: (projectSlug?: string) => {
         const slug = projectSlug || currentProject || dashboard.projects[0]?.projectSlug || UI_MESSAGES.DEFAULT_PROJECT_SLUG;
-        setNoteModal({ mode: 'create', projectSlug: slug });
+        setNoteModal({ mode: WorkspaceModalMode.Create, projectSlug: slug });
       },
       deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => {
-        setConfirmState({ kind: 'note', note: { ...note } as NoteSummary });
+        setConfirmState({ kind: ConfirmKind.Note, note: { ...note } as NoteSummary });
       },
     };
   }, [activeRouteNote?.project, dashboard, globalLoading, isProjectsRoot, navigate, queryClient, routeNoteId, routeProject, selectedNoteId, selectedProject, view]);
@@ -438,17 +438,13 @@ export function AppShell() {
                   <span>{project.displayName}</span>
                   {project.activitySparkline && (
                     <div className="project-sparkline" style={{ width: '40px', height: '16px', marginLeft: 'auto', marginRight: '4px', flexShrink: 0 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={project.activitySparkline}>
-                          <Line
-                            type="monotone"
-                            dataKey="count"
-                            stroke={project.projectSlug === pageContext.selectedProject ? 'var(--text)' : 'var(--muted)'}
-                            strokeWidth={1.5}
-                            dot={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
+                      <Sparkline
+                        data={project.activitySparkline}
+                        width={40}
+                        height={16}
+                        stroke={project.projectSlug === pageContext.selectedProject ? 'var(--text)' : 'var(--muted)'}
+                        strokeWidth={1.5}
+                      />
                     </div>
                   )}
                 </button>
@@ -660,19 +656,19 @@ export function AppShell() {
       </main>
       {noteModal ? (
         <ProjectNoteModal
-          key={noteModal.mode === 'edit' ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}`}
-          folders={noteModal.mode === 'edit' ? noteModalFolders : undefined}
+          key={noteModal.mode === WorkspaceModalMode.Edit ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}`}
+          folders={noteModal.mode === WorkspaceModalMode.Edit ? noteModalFolders : undefined}
           mode={noteModal.mode}
-          note={noteModal.mode === 'edit' ? noteModal.note : undefined}
+          note={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note : undefined}
           onClose={() => setNoteModal(null)}
           onSaved={async (noteId, mode) => {
             setNoteModal(null);
-            notifySuccess(mode === 'create' ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
+            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
             await refreshDashboard(queryClient);
           }}
-          projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
-          initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : undefined}
-          initialAttachments={noteModal.mode === 'edit' ? noteModal.note.attachments?.map(att => ({
+          projectSlug={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug}
+          initialFolderId={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.folderId || undefined : undefined}
+          initialAttachments={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.attachments?.map(att => ({
             fileName: att.fileName,
             mimeType: att.mimeType,
             sizeBytes: att.sizeBytes,
@@ -682,7 +678,7 @@ export function AppShell() {
           workspaceSlug={workspaceSlug}
         />
       ) : null}
-      {confirmState?.kind === 'note' ? (
+      {confirmState?.kind === ConfirmKind.Note ? (
         <ConfirmationModal
           busy={deleteNoteMutation.isPending}
           cancelLabel={UI_MESSAGES.CANCEL}

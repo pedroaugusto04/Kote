@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../../src/app/test-utils';
@@ -388,7 +388,9 @@ describe('AppShell', () => {
     expect(overlay).toHaveClass('global-loading-overlay');
     expect(screen.getByText('Loading')).toHaveClass('sr-only');
 
-    deferred.resolve(Response.json(dashboard));
+    await act(async () => {
+      deferred.resolve(Response.json(dashboard));
+    });
 
     expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
     await waitFor(() => {
