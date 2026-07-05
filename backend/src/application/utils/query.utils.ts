@@ -207,6 +207,7 @@ export function rankHybridKnowledgeMatches(
   similarChunks: Array<{ noteId: string; similarity: number }>,
   query: Pick<QueryInput, 'query' | 'projectId' | 'workspaceId' | 'status' | 'limit'>,
   weights: { vector: number; keyword: number } = { vector: 0.4, keyword: 0.6 },
+  k = 60,
 ) {
   const intent = getSpecialQueryIntent(query.query);
   const tokens = tokenizeQuery(query.query);
@@ -268,7 +269,7 @@ export function rankHybridKnowledgeMatches(
     keywordRankMap.set(sn.note.id, index + 1);
   });
 
-  const k = 60;
+  // k parameter is passed as argument
   const mappedMatches = scoredNotes.map(({ note }) => {
     const vectorRank = vectorRankMap.get(note.id);
     const keywordRank = keywordRankMap.get(note.id);

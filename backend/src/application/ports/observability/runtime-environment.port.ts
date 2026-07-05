@@ -85,11 +85,13 @@ export type RuntimeEnvironment = {
   searchCandidateLimitMultiplier: number;
   searchHybridVectorWeight: number;
   searchHybridKeywordWeight: number;
+  searchRrfK: number;
   ragMinSimilarity: number;
   ragCandidateLimit: number;
   ragHybridVectorWeight: number;
   ragHybridKeywordWeight: number;
   ragTopChunksLimit: number;
+  ragRrfK: number;
   attachmentMaxSizeBytes: number;
   avatarMaxSizeBytes: number;
 };

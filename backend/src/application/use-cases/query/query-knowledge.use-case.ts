@@ -81,33 +81,11 @@ export class QueryKnowledgeUseCase {
     candidateIds = vectorResult.candidateIds;
     const notes = ftsNotes;
 
-    // Fetch embeddings for FTS notes that didn't appear in vector search (complementary source)
-    if (candidateIds && candidateIds.length > 0 && notes.length > 0) {
-      const ftsNoteIds = notes.map((n) => n.id);
-      const missingFtsNoteIds = ftsNoteIds.filter((id) => !candidateIds.includes(id));
-      if (missingFtsNoteIds.length > 0) {
-        try {
-          const additionalChunksList = await this.noteEmbeddingRepository.getNotesEmbeddings(userId, missingFtsNoteIds);
-          const additionalChunks = additionalChunksList.map((c) => ({
-            noteId: c.noteId,
-            similarity: 0.0, // baseline vector similarity for pure keyword matches
-          }));
-          similarChunks = [...similarChunks, ...additionalChunks];
-        } catch (error) {
-          this.logger.warn('query_knowledge.fts_chunks_load_failed', {
-            userId,
-            missingFtsNoteIds,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
-    }
-
     if (candidateIds && candidateIds.length > 0 || similarChunks.length > 0) {
       const matches = rankHybridKnowledgeMatches(notes, similarChunks, input, {
         vector: this.env.searchHybridVectorWeight ?? 0.4,
         keyword: this.env.searchHybridKeywordWeight ?? 0.6,
-      });
+      }, this.env.searchRrfK);
       if (matches.length > 0) {
         const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || DEFAULT_PAGE_SIZE }, matches.length);
         const start = (pagination.page - 1) * pagination.pageSize;

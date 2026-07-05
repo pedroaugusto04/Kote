@@ -267,7 +267,7 @@ export class AskKnowledgeUseCase {
     });
 
     // 6. Perform RRF (Reciprocal Rank Fusion)
-    const k = 60;
+    const k = this.env.ragRrfK;
     const rankedChunks = scoredChunks
       .map((sc) => {
         const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;

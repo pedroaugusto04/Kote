@@ -63,9 +63,24 @@ export class NoteChunkingService {
     }
 
     const prefix = this.buildPrefix(title, projectSlug, path, attachments);
-    const paragraphs = body.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+    
+    // Split alternating code blocks and plain text
+    const segments: string[] = [];
+    const parts = body.split(/(\`\`\`[\s\S]*?\`\`\`)/g);
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (!part) continue;
+      if (i % 2 === 1) {
+        // Code block segment - keep intact as one segment
+        segments.push(part);
+      } else {
+        // Normal text segment - split by paragraphs
+        const paras = part.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+        segments.push(...paras);
+      }
+    }
 
-    const rawChunks = this.mergeParagraphs(paragraphs, prefix);
+    const rawChunks = this.mergeParagraphs(segments, prefix);
 
     return rawChunks.map((text, i) => ({
       chunkIndex: i,
@@ -89,9 +104,9 @@ export class NoteChunkingService {
   }
 
   /**
-   * Merge paragraphs into chunks of approximately `TARGET_CHUNK_TOKENS`.
-   * When a single paragraph exceeds the target, split it by sentences with
-   * overlap.
+   * Merge paragraphs/code-blocks into chunks of approximately `TARGET_CHUNK_TOKENS`.
+   * When a single item exceeds the target, split it by sentences (for text)
+   * or by lines (for code blocks) with overlap.
    */
   private mergeParagraphs(paragraphs: string[], prefix: string): string[] {
     const chunks: string[] = [];
@@ -111,10 +126,15 @@ export class NoteChunkingService {
         buffer = '';
       }
 
-      // If the paragraph alone exceeds target, split by sentences
+      // If the paragraph/code-block alone exceeds target, split it
       if (estimateTokens(prefix + para) > TARGET_CHUNK_TOKENS) {
-        const sentenceChunks = this.splitBySentences(para, prefix);
-        chunks.push(...sentenceChunks);
+        if (para.startsWith('```')) {
+          const codeChunks = this.splitCodeBlockByLines(para, prefix);
+          chunks.push(...codeChunks);
+        } else {
+          const sentenceChunks = this.splitBySentences(para, prefix);
+          chunks.push(...sentenceChunks);
+        }
       } else {
         buffer = para;
       }
@@ -126,6 +146,48 @@ export class NoteChunkingService {
     }
 
     return chunks.filter((c) => c.trim().length >= MIN_CHUNK_CHARS);
+  }
+
+  /**
+   * Split a long code block into line-level chunks with line-level overlap,
+   * wrapped back in triple-backticks to preserve syntax structure.
+   */
+  private splitCodeBlockByLines(text: string, prefix: string): string[] {
+    const match = text.match(/^```(\w*)/);
+    const lang = match ? match[1] : '';
+    const content = text.replace(/^```\w*\n?/, '').replace(/\n?```$/, '');
+    const lines = content.split('\n');
+
+    if (lines.length <= 1) {
+      return [prefix + text];
+    }
+
+    const chunks: string[] = [];
+    let lineBuffer: string[] = [];
+
+    for (const line of lines) {
+      const candidateLines = [...lineBuffer, line];
+      const candidateBlock = `\`\`\`${lang}\n${candidateLines.join('\n')}\n\`\`\``;
+
+      if (estimateTokens(prefix + candidateBlock) <= TARGET_CHUNK_TOKENS) {
+        lineBuffer.push(line);
+        continue;
+      }
+
+      if (lineBuffer.length > 0) {
+        chunks.push(prefix + `\`\`\`${lang}\n${lineBuffer.join('\n')}\n\`\`\``);
+        // Overlap: keep the last 3 lines for context if possible
+        lineBuffer = lineBuffer.slice(-3);
+      }
+
+      lineBuffer.push(line);
+    }
+
+    if (lineBuffer.length > 0) {
+      chunks.push(prefix + `\`\`\`${lang}\n${lineBuffer.join('\n')}\n\`\`\``);
+    }
+
+    return chunks;
   }
 
   /**
@@ -200,25 +262,15 @@ export class NoteChunkingService {
 }
 
 function formatAttachmentSummary(attachments: NoteChunkAttachment[]): string {
-  return attachments
-    .map((attachment) => {
-      const fileName = String(attachment.fileName || '').trim();
-      if (!fileName) return '';
-      const details = [
-        String(attachment.mimeType || '').trim(),
-        formatSizeBytes(attachment.sizeBytes),
-      ].filter(Boolean);
-      return details.length ? `${fileName} (${details.join(', ')})` : fileName;
-    })
-    .filter(Boolean)
-    .join('; ');
-}
+  const fileNames = attachments
+    .map((attachment) => String(attachment.fileName || '').trim())
+    .filter(Boolean);
 
-function formatSizeBytes(sizeBytes: number): string {
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return '';
-  if (sizeBytes < 1024) return `${sizeBytes} B`;
-  if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
-  return `${Math.round(sizeBytes / (1024 * 1024))} MB`;
+  if (fileNames.length === 0) return '';
+  if (fileNames.length <= 3) {
+    return fileNames.join(', ');
+  }
+  return `${fileNames.slice(0, 3).join(', ')}... and ${fileNames.length - 3} more`;
 }
 
 function formatShortPath(path: string): string {
