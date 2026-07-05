@@ -98,6 +98,7 @@ test('query returns ranked matches from the authenticated user repository scope'
   };
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
   };
 
   const result = await new QueryKnowledgeUseCase(
@@ -168,6 +169,7 @@ test('query filters textual matches by note status', async (t) => {
   };
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
   };
 
   const result = await new QueryKnowledgeUseCase(
@@ -224,6 +226,7 @@ test('query handles special query: summarize my recent notes', async (t) => {
   };
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
   };
 
   const result = await new QueryKnowledgeUseCase(
@@ -283,6 +286,7 @@ test('query handles special query: what are my action items?', async (t) => {
   };
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
   };
 
   const result = await new QueryKnowledgeUseCase(
@@ -352,6 +356,7 @@ test('query handles special query: review key decisions made', async (t) => {
   };
   const mockNoteEmbeddingRepository = {
     findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
   };
 
   const result = await new QueryKnowledgeUseCase(

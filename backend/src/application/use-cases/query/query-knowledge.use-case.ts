@@ -39,42 +39,71 @@ export class QueryKnowledgeUseCase {
     let similarChunks: Array<{ noteId: string; similarity: number }> = [];
     let candidateIds: string[] | undefined = undefined;
 
-    // Try vector search first if embeddings are configured
-    if (embeddingConfig.provider && embeddingConfig.apiKey && embeddingConfig.model) {
-      try {
-        const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [input.query], EmbeddingTaskType.Query);
-        const queryEmbedding = embeddings[0];
-
-
-        if (queryEmbedding && queryEmbedding.length > 0) {
-          similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
-            limit: input.limit * (this.env.searchCandidateLimitMultiplier ?? 3), // Fetch more candidates for hybrid re-ranking
-            workspaceId,
-            projectId,
-            minSimilarity: this.env.searchMinSimilarity ?? 0.3, // Lower threshold for hybrid search
-          });
-          candidateIds = similarChunks.map((c) => c.noteId);
+    // Try vector search and FTS in parallel if embeddings are configured
+    const [vectorResult, ftsNotes] = await Promise.all([
+      (async () => {
+        if (!embeddingConfig.provider || !embeddingConfig.apiKey || !embeddingConfig.model) {
+          return { chunks: [], candidateIds: undefined };
         }
-      } catch (error) {
-        // Fall back to keyword search if vector search fails
-        this.logger.warn('query_knowledge.vector_search_failed', {
-          userId,
+        try {
+          const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [input.query], EmbeddingTaskType.Query);
+          const queryEmbedding = embeddings[0];
+          if (queryEmbedding && queryEmbedding.length > 0) {
+            const chunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
+              limit: input.limit * (this.env.searchCandidateLimitMultiplier ?? 3),
+              workspaceId,
+              projectId,
+              minSimilarity: this.env.searchMinSimilarity ?? 0.3,
+            });
+            return { chunks, candidateIds: chunks.map((c) => c.noteId) };
+          }
+          return { chunks: [], candidateIds: undefined };
+        } catch (error) {
+          this.logger.warn('query_knowledge.vector_search_failed', {
+            userId,
+            query: input.query,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return { chunks: [], candidateIds: undefined };
+        }
+      })(),
+      (async () => {
+        return this.contentQueryRepository.list(userId, {
+          projectId,
+          workspaceId,
+          status: input.status,
           query: input.query,
-          error: error instanceof Error ? error.message : String(error),
         });
+      })(),
+    ]);
+
+    similarChunks = vectorResult.chunks;
+    candidateIds = vectorResult.candidateIds;
+    const notes = ftsNotes;
+
+    // Fetch embeddings for FTS notes that didn't appear in vector search (complementary source)
+    if (candidateIds && candidateIds.length > 0 && notes.length > 0) {
+      const ftsNoteIds = notes.map((n) => n.id);
+      const missingFtsNoteIds = ftsNoteIds.filter((id) => !candidateIds.includes(id));
+      if (missingFtsNoteIds.length > 0) {
+        try {
+          const additionalChunksList = await this.noteEmbeddingRepository.getNotesEmbeddings(userId, missingFtsNoteIds);
+          const additionalChunks = additionalChunksList.map((c) => ({
+            noteId: c.noteId,
+            similarity: 0.0, // baseline vector similarity for pure keyword matches
+          }));
+          similarChunks = [...similarChunks, ...additionalChunks];
+        } catch (error) {
+          this.logger.warn('query_knowledge.fts_chunks_load_failed', {
+            userId,
+            missingFtsNoteIds,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     }
 
-    // Fetch only candidate notes matching projectId/workspaceId/status and matching chunks or query keywords
-    const notes = await this.contentQueryRepository.list(userId, {
-      projectId,
-      workspaceId,
-      status: input.status,
-      query: input.query,
-      ids: candidateIds,
-    });
-
-    if (candidateIds && candidateIds.length > 0) {
+    if (candidateIds && candidateIds.length > 0 || similarChunks.length > 0) {
       const matches = rankHybridKnowledgeMatches(notes, similarChunks, input, {
         vector: this.env.searchHybridVectorWeight ?? 0.4,
         keyword: this.env.searchHybridKeywordWeight ?? 0.6,
