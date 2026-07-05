@@ -152,7 +152,7 @@ export class HandleGithubPushUseCase {
         repoFullName,
       });
 
-      if (options?.synchronous) {
+      if (options?.synchronous) { 
         this.logger.info('github_push_webhook_processing_synchronous', { projectSlug });
         return this.processPush(input, identity, headers, rawPayload, externalIdentity, projectSlug);
       }
