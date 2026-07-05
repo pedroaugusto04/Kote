@@ -127,7 +127,7 @@ test('create note dto normalizes project, tags and keeps reminderAt as transport
     status: undefined,
     categoryIds: undefined,
     folderId: undefined,
-    attachments: [],
+    attachments: undefined,
   });
   assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', status: 'active' }), {
     title: 'Deploy',
@@ -137,7 +137,7 @@ test('create note dto normalizes project, tags and keeps reminderAt as transport
     status: 'active',
     categoryIds: undefined,
     folderId: undefined,
-    attachments: [],
+    attachments: undefined,
   });
   assert.deepEqual(createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto' }).categoryIds, []);
 });
