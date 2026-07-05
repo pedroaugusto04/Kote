@@ -424,7 +424,7 @@ export class HandleGithubPullRequestUseCase {
           const similarChunks = await this.noteEmbeddingRepository.findSimilar(identity.userId, prEmbedding, {
             limit: 8,
             workspaceId: workspaceId || undefined,
-            minSimilarity: 0.65,
+            minSimilarity: environment.ragMinSimilarity ?? 0.45,
           });
 
           this.logger.info('github_pr_semantic_search_results', {

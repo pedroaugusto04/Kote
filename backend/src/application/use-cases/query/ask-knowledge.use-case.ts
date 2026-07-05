@@ -134,7 +134,7 @@ export class AskKnowledgeUseCase {
     }
 
     const candidateLimit = this.env.ragCandidateLimit ?? 16;
-    const minSimilarity = this.env.ragMinSimilarity ?? 0.35;
+    const minSimilarity = this.env.ragMinSimilarity ?? 0.45;
     const hybridVectorWeight = this.env.ragHybridVectorWeight ?? 0.8;
     const hybridKeywordWeight = this.env.ragHybridKeywordWeight ?? 0.2;
     const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
@@ -227,9 +227,24 @@ export class AskKnowledgeUseCase {
         if (!note) return null;
         const vectorScore = chunk.similarity;
         const noteSummaryData = noteSummary(note);
-        const keywordScore = (noteSummaryData.ftsRank !== undefined && noteSummaryData.ftsRank > 0)
+        
+        // Calculate chunk-specific keyword match score
+        const chunkTextLower = (chunk.chunkText || '').toLowerCase();
+        let chunkKeywordScore = 0;
+        for (const token of tokens) {
+          if (chunkTextLower.includes(token)) {
+            chunkKeywordScore += 10;
+          }
+        }
+
+        // Get global note-level keyword score
+        const noteScore = (noteSummaryData.ftsRank !== undefined && noteSummaryData.ftsRank > 0)
           ? noteSummaryData.ftsRank
           : scoreKnowledgeNote(noteSummaryData, tokens);
+
+        // Combine chunk-specific matches with note-level context as a bonus
+        const keywordScore = chunkKeywordScore + (noteScore * 0.1);
+
         return { chunk, note, vectorScore, keywordScore };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);

@@ -125,7 +125,7 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     searchHybridVectorWeight: normalizeNumber(env.KB_SEARCH_HYBRID_VECTOR_WEIGHT, 0.4),
     searchHybridKeywordWeight: normalizeNumber(env.KB_SEARCH_HYBRID_KEYWORD_WEIGHT, 0.6),
     searchRrfK: normalizeNumber(env.KB_SEARCH_RRF_K, 20),
-    ragMinSimilarity: normalizeNumber(env.KB_RAG_MIN_SIMILARITY, 0.65),
+    ragMinSimilarity: normalizeNumber(env.KB_RAG_MIN_SIMILARITY, 0.45),
     ragCandidateLimit: normalizeNumber(env.KB_RAG_CANDIDATE_LIMIT, 16),
     ragHybridVectorWeight: normalizeNumber(env.KB_RAG_HYBRID_VECTOR_WEIGHT, 0.7),
     ragHybridKeywordWeight: normalizeNumber(env.KB_RAG_HYBRID_KEYWORD_WEIGHT, 0.3),

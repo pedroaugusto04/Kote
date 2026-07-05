@@ -165,7 +165,10 @@ async function truncateSchema(targetUrl, schemaName) {
     // Truncate all tables (disable foreign key checks temporarily)
     await pool.query('SET session_replication_role = replica');
 
-    for (const table of tables.rows) {
+    // Sort tables to avoid deadlocks (truncate in consistent order)
+    const sortedTables = tables.rows.sort((a, b) => a.table_name.localeCompare(b.table_name));
+
+    for (const table of sortedTables) {
       await pool.query(`truncate table ${quoteIdent(schemaName)}.${quoteIdent(table.table_name)} cascade`);
     }
 
