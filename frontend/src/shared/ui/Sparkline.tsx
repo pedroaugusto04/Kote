@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 
 type SparklineProps = {
   data: { count: number }[];
@@ -32,6 +32,16 @@ export function Sparkline({
       .join(' ');
   }, [data, width, height]);
 
+  const polylineRef = useRef<SVGPolylineElement>(null);
+  const [pathLength, setPathLength] = useState<number>(0);
+
+  useEffect(() => {
+    if (polylineRef.current) {
+      const length = polylineRef.current.getTotalLength();
+      setPathLength(length);
+    }
+  }, [points]);
+
   if (!data || data.length < 2) return null;
 
   return (
@@ -44,7 +54,7 @@ export function Sparkline({
       <style>{`
         @keyframes drawLine {
           from {
-            stroke-dashoffset: 1000;
+            stroke-dashoffset: ${pathLength};
             opacity: 0;
           }
           to {
@@ -53,12 +63,13 @@ export function Sparkline({
           }
         }
         .sparkline-path {
-          stroke-dasharray: 1000;
-          stroke-dashoffset: 1000;
+          stroke-dasharray: ${pathLength};
+          stroke-dashoffset: ${pathLength};
           animation: drawLine 0.6s ease-out forwards;
         }
       `}</style>
       <polyline
+        ref={polylineRef}
         className="sparkline-path"
         fill="none"
         stroke={stroke}
