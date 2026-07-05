@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
 import { withFrontendBasePath } from '../../app/base-path';
 import { useTypewriterWord } from '../../layouts/use-typewriter-word';
-import { logApplicationAccess } from '../../shared/api/client';
 import { BrandMark } from '../../shared/ui/brand-mark';
 import { ThemeToggle } from '../../shared/ui/theme-toggle';
 import { GitHubIcon, WhatsAppIcon, TelegramIcon, SparklesIcon, PencilIcon, MessagesIcon } from '../../shared/ui/icons';
@@ -13,12 +12,6 @@ const typewriterWords = ['capture', 'organize', 'retrieve', 'connect'];
 
 export function LandingPage() {
   const { typed: animatedWord, full: fullWord } = useTypewriterWord(typewriterWords);
-
-  useEffect(() => {
-    void logApplicationAccess().catch(() => {
-      // Best-effort telemetry: landing access should not block rendering.
-    });
-  }, []);
 
   useEffect(() => {
     const selector = '.reveal-up, .reveal-left, .reveal-right, .reveal-scale';
