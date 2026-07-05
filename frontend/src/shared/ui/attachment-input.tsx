@@ -1,5 +1,6 @@
 import React from 'react';
 import { notifyError } from './notifications';
+import { isMimeTypeSupported, getAcceptAttribute } from '../constants/attachment-types';
 
 export type PendingAttachment = {
   fileName: string;
@@ -42,6 +43,10 @@ export function AttachmentInput({
     const newAttachments = [...value];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!isMimeTypeSupported(file.type, file.name)) {
+        notifyError(`Unsupported file type: ${file.name}. Only common images, documents, audio, video, archives, and code files are supported.`);
+        continue;
+      }
       if (file.size > MAX_SIZE) {
         notifyError(`File ${file.name} is too large. Max size is ${(MAX_SIZE / (1024 * 1024)).toFixed(0)} MB.`);
         continue;
@@ -85,6 +90,7 @@ export function AttachmentInput({
           multiple={multiple}
           disabled={disabled}
           onChange={handleFileChange}
+          accept={getAcceptAttribute()}
           style={{ position: 'absolute', inset: 0, opacity: 0, zIndex: 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
           aria-label="Upload files"
         />

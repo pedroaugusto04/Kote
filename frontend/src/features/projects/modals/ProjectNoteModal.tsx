@@ -90,6 +90,7 @@ export function ProjectNoteModal({
     register,
     setError,
     setValue,
+    clearErrors,
   } = useForm<NoteFormValues>({
     resolver: zodResolver(noteFormSchema),
     shouldFocusError: false,
@@ -100,8 +101,21 @@ export function ProjectNoteModal({
       rawText: note?.editor?.rawText || '',
       tags: note?.tags || [],
       reminderAt: reminderInputDateTime({ reminderAt: note?.editor?.reminderAt }),
+      attachments: initialAttachments || [],
     },
   });
+
+  const attachmentError = useMemo(() => {
+    if (!errors.attachments) return undefined;
+    if (errors.attachments.message) return errors.attachments.message;
+    const errArray = errors.attachments as any;
+    if (Array.isArray(errArray)) {
+      const firstErr = errArray.find(Boolean);
+      return firstErr?.mimeType?.message || firstErr?.sizeBytes?.message || firstErr?.message;
+    }
+    return undefined;
+  }, [errors.attachments]);
+
   const closeGuard = useModalCloseGuard({ isDirty, onClose });
   const mutation = useMutation({
     mutationFn: (values: NoteFormValues) => {
@@ -262,11 +276,15 @@ export function ProjectNoteModal({
             <FormField name="rawText" label="Text" error={errors.rawText?.message} required>
               {(fieldProps) => <textarea {...fieldProps} {...register('rawText')} />}
             </FormField>
-            <FormField name="attachments" label="Attachments" optional>
+            <FormField name="attachments" label="Attachments" error={attachmentError} optional>
               {() => (
                 <AttachmentInput
                   value={attachments}
-                  onChange={setAttachments}
+                  onChange={(newAttachments) => {
+                    setAttachments(newAttachments);
+                    setValue('attachments', newAttachments, { shouldDirty: true });
+                    clearErrors('attachments');
+                  }}
                   disabled={mutation.isPending}
                 />
               )}
