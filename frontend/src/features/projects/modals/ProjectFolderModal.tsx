@@ -99,7 +99,7 @@ export function ProjectFolderModal({
             )}
           >
             <FormField name="displayName" label="Name" error={errors.displayName?.message} required>
-              {(fieldProps) => <input {...fieldProps} {...register('displayName')} />}
+              {(fieldProps) => <input {...fieldProps} {...register('displayName')} maxLength={120} />}
             </FormField>
             <FormField name="parentFolderId" label="Parent folder" error={errors.parentFolderId?.message} optional>
               {(fieldProps) => (
