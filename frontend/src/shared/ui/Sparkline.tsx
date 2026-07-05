@@ -41,7 +41,25 @@ export function Sparkline({
       viewBox={`0 0 ${width} ${height}`}
       style={{ display: 'block', overflow: 'visible' }}
     >
+      <style>{`
+        @keyframes drawLine {
+          from {
+            stroke-dashoffset: 1000;
+            opacity: 0;
+          }
+          to {
+            stroke-dashoffset: 0;
+            opacity: 1;
+          }
+        }
+        .sparkline-path {
+          stroke-dasharray: 1000;
+          stroke-dashoffset: 1000;
+          animation: drawLine 0.6s ease-out forwards;
+        }
+      `}</style>
       <polyline
+        className="sparkline-path"
         fill="none"
         stroke={stroke}
         strokeWidth={strokeWidth}
