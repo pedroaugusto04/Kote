@@ -13,7 +13,18 @@ export type FolderModalState =
   | { mode: 'edit'; projectSlug: string; folder: ProjectFolder };
 
 export type NoteModalState =
-  | { mode: 'create'; projectSlug: string; folderId?: string }
+  | {
+      mode: 'create';
+      projectSlug: string;
+      folderId?: string;
+      initialTitle?: string;
+      initialAttachments?: Array<{
+        fileName: string;
+        mimeType: string;
+        sizeBytes: number;
+        dataBase64: string;
+      }>;
+    }
   | { mode: 'edit'; note: NoteDetail };
 
 export type ConfirmState =

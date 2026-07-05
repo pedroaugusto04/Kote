@@ -13,6 +13,7 @@ import { FormActions, FormField } from '../../../shared/forms/fields';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { Select } from '../../../shared/ui/select';
 import { TagInput } from '../../../shared/ui/tag-input';
+import { AttachmentInput, type PendingAttachment } from '../../../shared/ui/attachment-input';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
@@ -32,6 +33,13 @@ type ProjectNoteModalProps = {
   initialFolderId?: string;
   projects?: Project[];
   workspaceSlug: string;
+  initialTitle?: string;
+  initialAttachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 };
 
 export function ProjectNoteModal({
@@ -44,11 +52,17 @@ export function ProjectNoteModal({
   initialFolderId,
   projects,
   workspaceSlug,
+  initialTitle,
+  initialAttachments,
 }: ProjectNoteModalProps) {
   const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedProjectSlug, setSelectedProjectSlug] = useState(
     mode === 'edit' && note ? note.project : projectSlug
+  );
+
+  const [attachments, setAttachments] = useState<PendingAttachment[]>(
+    initialAttachments || []
   );
 
   const foldersQuery = useQuery({
@@ -81,7 +95,7 @@ export function ProjectNoteModal({
     defaultValues: {
       folderId: note?.folderId || initialFolderId || '',
       categoryIds: note?.categories?.map((c) => c.id) || [],
-      title: note?.title || '',
+      title: note?.title || initialTitle || '',
       rawText: note?.editor?.rawText || '',
       tags: note?.tags || [],
       reminderAt: reminderInputDateTime({ reminderAt: note?.editor?.reminderAt }),
@@ -99,7 +113,7 @@ export function ProjectNoteModal({
         reminderAt: reminderAtToUtc(values.reminderAt),
       };
       return globalLoading.trackPromise(mode === 'create'
-        ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual' })
+        ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual', attachments })
         : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug }));
     },
     onSuccess: async (result) => {
@@ -247,6 +261,17 @@ export function ProjectNoteModal({
             <FormField name="rawText" label="Text" error={errors.rawText?.message} required>
               {(fieldProps) => <textarea {...fieldProps} {...register('rawText')} />}
             </FormField>
+            {mode === 'create' && (
+              <FormField name="attachments" label="Attachments" optional>
+                {() => (
+                  <AttachmentInput
+                    value={attachments}
+                    onChange={setAttachments}
+                    disabled={mutation.isPending}
+                  />
+                )}
+              </FormField>
+            )}
             <FormField name="tags" label="Tags" error={errors.tags?.message} optional>
               {(fieldProps) => (
                 <Controller

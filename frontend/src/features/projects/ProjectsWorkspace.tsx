@@ -45,6 +45,7 @@ import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { SearchIcon } from '../../shared/ui/icons';
+import { fileToBase64 } from '../../shared/ui/attachment-input';
 
 const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
   { value: StatusFilter.Open, label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
@@ -108,6 +109,70 @@ export function ProjectsWorkspace({
   useEffect(() => {
     setSearchInput('');
   }, [selectedSlug]);
+  // Drag and drop / file upload queue state
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [pendingNotesQueue, setPendingNotesQueue] = useState<
+    Array<{
+      title: string;
+      attachments: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }>;
+    }>
+  >([]);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+
+    const pendingNotes: Array<{
+      title: string;
+      attachments: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }>;
+    }> = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      try {
+        const base64 = await fileToBase64(file);
+        pendingNotes.push({
+          title: file.name,
+          attachments: [
+            {
+              fileName: file.name,
+              mimeType: file.type || 'application/octet-stream',
+              sizeBytes: file.size,
+              dataBase64: base64,
+            },
+          ],
+        });
+      } catch (error) {
+        console.error('Failed to parse dropped file:', error);
+      }
+    }
+
+    if (pendingNotes.length === 0) return;
+
+    const firstNote = pendingNotes[0];
+    const remainingNotes = pendingNotes.slice(1);
+    setPendingNotesQueue(remainingNotes);
+
+    setNoteModal({
+      mode: 'create',
+      projectSlug: selectedSlug || 'inbox',
+      folderId: selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
+      initialTitle: firstNote.title,
+      initialAttachments: firstNote.attachments,
+    });
+  };
 
   const foldersQuery = useQuery({
     queryKey: QUERY_KEYS.PROJECTS.FOLDERS(selected?.projectSlug || ''),
@@ -325,7 +390,31 @@ export function ProjectsWorkspace({
         />
       </section>
 
-      <div className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}>
+      <div
+        className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ position: 'relative' }}
+      >
+        {isDraggingOver && (
+          <div className="drag-drop-overlay">
+            <div className="drag-drop-card">
+              <svg viewBox="0 0 16 16" width="32" height="32" className="drag-drop-icon">
+                <path
+                  d="M4.5 12.5v-7a3 3 0 016 0v7a1.5 1.5 0 01-3 0v-6.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <h3>Import documents</h3>
+              <p>Drop files here to create pre-filled notes automatically</p>
+            </div>
+          </div>
+        )}
         <div style={{ minWidth: 0 }}>
           {hasSearchQuery ? (
             /* Search results mode */
@@ -473,14 +562,43 @@ export function ProjectsWorkspace({
           folders={flatFolders}
           mode={noteModal.mode}
           note={noteModal.mode === 'edit' ? noteModal.note : undefined}
-          onClose={() => setNoteModal(null)}
+          onClose={() => {
+            if (pendingNotesQueue.length > 0) {
+              const nextNote = pendingNotesQueue[0];
+              setPendingNotesQueue(pendingNotesQueue.slice(1));
+              setNoteModal({
+                mode: 'create',
+                projectSlug: noteModal.mode === 'create' ? noteModal.projectSlug : selectedSlug || 'inbox',
+                folderId: noteModal.mode === 'create' ? noteModal.folderId : selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
+                initialTitle: nextNote.title,
+                initialAttachments: nextNote.attachments,
+              });
+            } else {
+              setNoteModal(null);
+            }
+          }}
           onSaved={async (noteId, mode) => {
-            setNoteModal(null);
             notifySuccess(mode === 'create' ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
             await refreshDashboard(queryClient);
+
+            if (pendingNotesQueue.length > 0) {
+              const nextNote = pendingNotesQueue[0];
+              setPendingNotesQueue(pendingNotesQueue.slice(1));
+              setNoteModal({
+                mode: 'create',
+                projectSlug: noteModal.mode === 'create' ? noteModal.projectSlug : selectedSlug || 'inbox',
+                folderId: noteModal.mode === 'create' ? noteModal.folderId : selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
+                initialTitle: nextNote.title,
+                initialAttachments: nextNote.attachments,
+              });
+            } else {
+              setNoteModal(null);
+            }
           }}
           projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
           initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : noteModal.folderId}
+          initialTitle={noteModal.mode === 'create' ? noteModal.initialTitle : undefined}
+          initialAttachments={noteModal.mode === 'create' ? noteModal.initialAttachments : undefined}
           projects={dashboard.projects}
           workspaceSlug={workspaceSlug}
         />
