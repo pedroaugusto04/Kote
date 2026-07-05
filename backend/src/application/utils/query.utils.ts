@@ -13,42 +13,6 @@ export function tokenizeQuery(query: string): string[] {
     .filter((token) => token.length >= 2);
 }
 
-export function scoreKnowledgeNote(note: VaultNoteSummary, tokens: string[]): number {
-  if (!tokens.length) return 0;
-  const titleLower = (note.title || '').toLowerCase();
-  const pathLower = (note.path || '').toLowerCase();
-  const summaryLower = (note.summary || '').toLowerCase();
-  const tagsLower = (note.tags || []).map((t) => t.toLowerCase());
-
-  let totalScore = 0;
-  for (const token of tokens) {
-    let tokenMatched = false;
-    if (titleLower.includes(token)) {
-      totalScore += 25;
-      tokenMatched = true;
-    }
-    if (pathLower.includes(token)) {
-      totalScore += 20;
-      tokenMatched = true;
-    }
-    if (tagsLower.some((tag) => tag.includes(token))) {
-      totalScore += 20;
-      tokenMatched = true;
-    }
-    if (summaryLower.includes(token)) {
-      totalScore += 10;
-      tokenMatched = true;
-    }
-    if (!tokenMatched) {
-      const haystack = [note.title, note.path, note.summary, note.tags.join(' ')].join('\n').toLowerCase();
-      if (haystack.includes(token)) {
-        totalScore += 5;
-      }
-    }
-  }
-  return totalScore;
-}
-
 const SPECIAL_INTENT_PATTERNS = {
   [SpecialQueryIntent.Recent]: {
     phrases: [
@@ -163,9 +127,7 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<Quer
       if (intent) {
         score = matchesIntent(note, intent) ? 1 : 0;
       } else {
-        score = (note.ftsRank !== undefined && note.ftsRank > 0)
-          ? note.ftsRank
-          : scoreKnowledgeNote(note, tokens);
+        score = (note.ftsRank !== undefined && note.ftsRank > 0) ? note.ftsRank : 0;
       }
       return {
         id: note.id,
@@ -235,11 +197,10 @@ export function rankHybridKnowledgeMatches(
 
   const scoredNotes = filteredNotes.map((note) => {
     const vectorScore = similarityMap.get(note.id) || 0;
+    // Use only ts_rank from PostgreSQL FTS, no manual scoring fallback
     const keywordScore = intent
       ? (matchesIntent(note, intent) ? 100 : 0)
-      : (note.ftsRank !== undefined && note.ftsRank > 0)
-      ? note.ftsRank
-      : scoreKnowledgeNote(note, tokens);
+      : (note.ftsRank !== undefined && note.ftsRank > 0) ? note.ftsRank : 0;
     return { note, vectorScore, keywordScore };
   });
 

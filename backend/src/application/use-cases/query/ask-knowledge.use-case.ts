@@ -12,7 +12,7 @@ import { ConversationConfidence, EmbeddingTaskType, SpecialQueryIntent } from '.
 import { QuotaService } from '../../services/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
-import { getSpecialQueryIntent, matchesIntent, tokenizeQuery, scoreKnowledgeNote } from '../../utils/query.utils.js';
+import { getSpecialQueryIntent, matchesIntent, tokenizeQuery } from '../../utils/query.utils.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 
 @Injectable()
@@ -315,10 +315,9 @@ export class AskKnowledgeUseCase {
           }
         }
 
-        // Get global note-level keyword score
         const noteScore = (noteSummaryData.ftsRank !== undefined && noteSummaryData.ftsRank > 0)
           ? noteSummaryData.ftsRank
-          : scoreKnowledgeNote(noteSummaryData, tokens);
+          : 0;
 
         // Combine chunk-specific matches with note-level context as a bonus
         const keywordScore = chunkKeywordScore + (noteScore * 0.1);
