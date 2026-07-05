@@ -235,7 +235,6 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             <article className="home-kpi insights-kpi-card" key="streak-kpi">
               <div className="home-kpi-head">
                 <span className="card-kicker">Usage Streak</span>
-                <span className="kpi-symbol">🔥</span>
               </div>
               <div className="home-kpi-body">
                 <strong>{currentStreak} {currentStreak === 1 ? 'day' : 'days'}</strong>
@@ -249,7 +248,6 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             <article className="home-kpi insights-kpi-card" key="ai-kpi">
               <div className="home-kpi-head">
                 <span className="card-kicker">AI Interactions</span>
-                <span className="kpi-symbol">✨</span>
               </div>
               <div className="home-kpi-body">
                 <strong>{totalAiInteractions}</strong>
