@@ -212,7 +212,7 @@ export function ProjectKnowledgeForceGraph({
     node.append('title').text((item) => [item.label, item.subtitle, item.date].filter(Boolean).join('\n'));
 
     const simulation = d3.forceSimulation<GraphNode>(graphNodes)
-      .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength((item) => item.strength || 0.2).distance(linkDistance))
+      .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength(linkStrength).distance(linkDistance))
       .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap)))
       .force('center', d3.forceCenter(size.width / 2, size.height / 2))
       .force('collide', d3.forceCollide<GraphNode>().radius(collisionRadius))
@@ -432,9 +432,78 @@ export function ProjectKnowledgeForceGraph({
     if (!paused) simulationRef.current?.alpha(0.7).restart();
   }, [paused, resetSignal]);
 
+  const handleZoomIn = () => {
+    const svgElement = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svgElement || !zoom) return;
+    d3.select(svgElement).transition().duration(250).call(zoom.scaleBy, 1.3);
+  };
+
+  const handleZoomOut = () => {
+    const svgElement = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svgElement || !zoom) return;
+    d3.select(svgElement).transition().duration(250).call(zoom.scaleBy, 1 / 1.3);
+  };
+
+  const handleFitScreen = () => {
+    const svgElement = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svgElement || !zoom) return;
+
+    const currentNodes = graph.nodes as GraphNode[];
+    if (currentNodes.length === 0) {
+      d3.select(svgElement).transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+      return;
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let validCount = 0;
+    const hidden = hiddenNodeIds ?? new Set<string>();
+
+    currentNodes.forEach((n) => {
+      if (n.x === undefined || n.y === undefined || hidden.has(n.id)) return;
+      minX = Math.min(minX, n.x);
+      minY = Math.min(minY, n.y);
+      maxX = Math.max(maxX, n.x);
+      maxY = Math.max(maxY, n.y);
+      validCount += 1;
+    });
+
+    if (validCount === 0) {
+      d3.select(svgElement).transition().duration(250).call(zoom.transform, d3.zoomIdentity);
+      return;
+    }
+
+    const padding = 50;
+    const graphW = maxX - minX + padding * 2;
+    const graphH = maxY - minY + padding * 2;
+    const centerX = (minX + maxX) / 2;
+    const centerY = (minY + maxY) / 2;
+
+    const scale = Math.min(
+      size.width / graphW,
+      size.height / graphH,
+      1.5
+    );
+    const finalScale = Math.max(0.25, scale);
+
+    const transform = d3.zoomIdentity
+      .translate(size.width / 2, size.height / 2)
+      .scale(finalScale)
+      .translate(-centerX, -centerY);
+
+    d3.select(svgElement).transition().duration(400).call(zoom.transform, transform);
+  };
+
   return (
     <div className="knowledge-map-canvas" ref={containerRef}>
       <svg ref={svgRef} aria-label="Project knowledge map" role="img" />
+      <div className="knowledge-map-zoom-controls">
+        <button onClick={handleZoomIn} title="Zoom In" aria-label="Zoom In">+</button>
+        <button onClick={handleZoomOut} title="Zoom Out" aria-label="Zoom Out">-</button>
+        <button onClick={handleFitScreen} title="Fit to Screen" aria-label="Fit to Screen">⊙</button>
+      </div>
     </div>
   );
 }
@@ -444,29 +513,40 @@ function graphLinkNode(value: string | number | GraphNode) {
 }
 
 function linkDistance(item: GraphLink) {
-  if (item.type === 'contains') return 190;
-  if (item.type === 'filed-in' || item.type === 'from-repository') return 170;
-  return 150;
+  if (item.type === 'contains') return 110;
+  if (item.type === 'filed-in' || item.type === 'from-repository') return 100;
+  return 90;
+}
+
+function linkStrength(item: GraphLink) {
+  if (item.strength !== undefined) return item.strength;
+  if (item.type === 'contains') return 0.75;
+  if (item.type === 'filed-in') return 0.6;
+  if (item.type === 'from-repository') return 0.45;
+  return 0.15;
 }
 
 function chargeStrength(item: GraphNode, denseMap: boolean) {
-  const base = item.type === 'project' ? -720 : item.type === 'note' ? -500 : -520;
-  return denseMap ? base * 1.28 : base;
+  const base = item.type === 'project' ? -350 : item.type === 'note' ? -120 : -150;
+  return denseMap ? base * 1.3 : base;
 }
 
 function collisionRadius(item: GraphNode) {
   const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
-  if (isReviewNote(item)) return radius + 28;
-  const noteLabelAllowance = Math.min(150, Math.max(64, item.label.length * 5.8));
-  const labelAllowance = item.type === 'note' ? noteLabelAllowance : item.type === 'tag' ? 38 : 48;
+  if (isReviewNote(item)) return radius + 14;
+  const labelAllowance = item.type === 'note' ? 24 : item.type === 'tag' ? 20 : 28;
   return radius + labelAllowance;
 }
 
 function shouldShowLabel(item: GraphNode, zoomScale: number, activeNodeId: string) {
   if (item.id === activeNodeId) return true;
-  if (isReviewNote(item)) return zoomScale >= 1.55;
-  if (item.type === 'project' || item.type === 'repository' || item.type === 'folder' || item.type === 'category' || item.type === 'tag' || item.type === 'note') return true;
-  return zoomScale >= (item.type === 'note' ? 1.25 : 1.7);
+  if (item.type === 'project' || item.type === 'repository' || item.type === 'folder') return true;
+  if (item.type === 'note') {
+    if (isReviewNote(item)) return zoomScale >= 1.35;
+    return zoomScale >= 0.95;
+  }
+  if (item.type === 'tag' || item.type === 'category') return zoomScale >= 1.25;
+  return zoomScale >= 1.5;
 }
 
 function nodeColor(item: GraphNode) {
