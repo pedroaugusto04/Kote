@@ -30,7 +30,12 @@ export function applyBackendFieldErrors<TFieldValues extends FieldValues>(
 }
 
 export function notifyGeneralFormError(error: unknown, fallbackMessage: string) {
-  if (Object.keys(getBackendFieldErrors(error)).length > 0) return;
+  const fieldErrors = getBackendFieldErrors(error);
+  if (Object.keys(fieldErrors).length > 0) {
+    const firstMessage = Object.values(fieldErrors)[0];
+    notifyError(firstMessage);
+    return;
+  }
   notifyError(getErrorMessage(error, fallbackMessage));
 }
 
