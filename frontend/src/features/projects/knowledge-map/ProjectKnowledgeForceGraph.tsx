@@ -36,6 +36,7 @@ export function ProjectKnowledgeForceGraph({
   const startDriftRef = useRef<(() => void) | null>(null);
   const pausedRef = useRef(paused);
   const [size, setSize] = useState(DEFAULT_SIZE);
+  const prevResetSignalRef = useRef(resetSignal);
 
   const searchQueryRef = useRef(searchQuery);
   const updateVisualsRef = useRef<((hoveredId: string | null, searchStr: string) => void) | null>(null);
@@ -237,6 +238,18 @@ export function ProjectKnowledgeForceGraph({
     node.call(drag);
     updateLabels();
 
+    // Pre-tick the simulation to get initial stable positions before fitting
+    simulation.tick(60);
+
+    // Fit to screen on initial load
+    const initialTransform = computeFitTransform(
+      graphNodes,
+      hiddenNodeIdsRef.current,
+      size.width,
+      size.height
+    );
+    svg.call(zoom.transform, initialTransform);
+
     function updateLabels() {
       labels
         .attr('opacity', (item) => shouldShowLabel(item, zoomScale, activeNodeId) ? 1 : 0)
@@ -425,12 +438,14 @@ export function ProjectKnowledgeForceGraph({
   }, [paused]);
 
   useEffect(() => {
-    const svgElement = svgRef.current;
-    const zoom = zoomRef.current;
-    if (!svgElement || !zoom) return;
-    d3.select(svgElement).call(zoom.transform, d3.zoomIdentity);
-    if (!paused) simulationRef.current?.alpha(0.7).restart();
-  }, [paused, resetSignal]);
+    if (resetSignal !== prevResetSignalRef.current) {
+      prevResetSignalRef.current = resetSignal;
+      handleFitScreen();
+      if (!paused) {
+        simulationRef.current?.alpha(0.7).restart();
+      }
+    }
+  }, [resetSignal, paused]);
 
   const handleZoomIn = () => {
     const svgElement = svgRef.current;
@@ -451,47 +466,12 @@ export function ProjectKnowledgeForceGraph({
     const zoom = zoomRef.current;
     if (!svgElement || !zoom) return;
 
-    const currentNodes = graph.nodes as GraphNode[];
-    if (currentNodes.length === 0) {
-      d3.select(svgElement).transition().duration(250).call(zoom.transform, d3.zoomIdentity);
-      return;
-    }
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    let validCount = 0;
-    const hidden = hiddenNodeIds ?? new Set<string>();
-
-    currentNodes.forEach((n) => {
-      if (n.x === undefined || n.y === undefined || hidden.has(n.id)) return;
-      minX = Math.min(minX, n.x);
-      minY = Math.min(minY, n.y);
-      maxX = Math.max(maxX, n.x);
-      maxY = Math.max(maxY, n.y);
-      validCount += 1;
-    });
-
-    if (validCount === 0) {
-      d3.select(svgElement).transition().duration(250).call(zoom.transform, d3.zoomIdentity);
-      return;
-    }
-
-    const padding = 50;
-    const graphW = maxX - minX + padding * 2;
-    const graphH = maxY - minY + padding * 2;
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
-
-    const scale = Math.min(
-      size.width / graphW,
-      size.height / graphH,
-      1.5
+    const transform = computeFitTransform(
+      graph.nodes as GraphNode[],
+      hiddenNodeIds,
+      size.width,
+      size.height
     );
-    const finalScale = Math.max(0.25, scale);
-
-    const transform = d3.zoomIdentity
-      .translate(size.width / 2, size.height / 2)
-      .scale(finalScale)
-      .translate(-centerX, -centerY);
 
     d3.select(svgElement).transition().duration(400).call(zoom.transform, transform);
   };
@@ -576,4 +556,50 @@ function hashNodeId(id: string) {
     hash = (hash * 31 + id.charCodeAt(index)) >>> 0;
   }
   return hash;
+}
+
+function computeFitTransform(
+  nodes: GraphNode[],
+  hiddenNodeIds: Set<string> | null | undefined,
+  width: number,
+  height: number
+): d3.ZoomTransform {
+  if (nodes.length === 0) {
+    return d3.zoomIdentity;
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let validCount = 0;
+  const hidden = hiddenNodeIds ?? new Set<string>();
+
+  nodes.forEach((n) => {
+    if (n.x === undefined || n.y === undefined || hidden.has(n.id)) return;
+    minX = Math.min(minX, n.x);
+    minY = Math.min(minY, n.y);
+    maxX = Math.max(maxX, n.x);
+    maxY = Math.max(maxY, n.y);
+    validCount += 1;
+  });
+
+  if (validCount === 0) {
+    return d3.zoomIdentity;
+  }
+
+  const padding = 50;
+  const graphW = maxX - minX + padding * 2;
+  const graphH = maxY - minY + padding * 2;
+  const centerX = (minX + maxX) / 2;
+  const centerY = (minY + maxY) / 2;
+
+  const scale = Math.min(
+    width / graphW,
+    height / graphH,
+    1.5
+  );
+  const finalScale = Math.max(0.25, scale);
+
+  return d3.zoomIdentity
+    .translate(width / 2, height / 2)
+    .scale(finalScale)
+    .translate(-centerX, -centerY);
 }
