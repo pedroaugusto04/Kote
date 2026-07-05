@@ -79,17 +79,32 @@ export class NoteLifecycleService {
     }
 
     // 5. Save Attachments
+    if (options.existingNoteId) {
+      const existingList = await this.contentRepository.listAttachments(userId, note.id);
+      const incomingNames = incomingAttachments.map((att) => att.fileName);
+      
+      // Delete attachments that are no longer in the list
+      await Promise.all(
+        existingList
+          .filter((att) => !incomingNames.includes(att.fileName))
+          .map((att) => this.contentRepository.deleteAttachment(userId, note.id, att.fileName))
+      );
+    }
+
+    // Save only new/updated attachments (i.e. those with dataBase64 payload)
     const attachments = await Promise.all(
-      incomingAttachments.map((att) =>
-        this.contentRepository.saveAttachment(userId, {
-          noteId: note.id,
-          fileName: att.fileName,
-          mimeType: att.mimeType,
-          sizeBytes: att.sizeBytes || 0,
-          dataBase64: att.dataBase64 || '',
-          checksumSha256: crypto.createHash('sha256').update(att.dataBase64 || '', 'base64').digest('hex'),
-        })
-      )
+      incomingAttachments
+        .filter((att) => Boolean(att.dataBase64))
+        .map((att) =>
+          this.contentRepository.saveAttachment(userId, {
+            noteId: note.id,
+            fileName: att.fileName,
+            mimeType: att.mimeType,
+            sizeBytes: att.sizeBytes || 0,
+            dataBase64: att.dataBase64 || '',
+            checksumSha256: crypto.createHash('sha256').update(att.dataBase64 || '', 'base64').digest('hex'),
+          })
+        )
     );
 
     // 6. Queue Embedding Indexing

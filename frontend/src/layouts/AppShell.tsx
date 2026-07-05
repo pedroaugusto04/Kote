@@ -660,6 +660,7 @@ export function AppShell() {
       </main>
       {noteModal ? (
         <ProjectNoteModal
+          key={noteModal.mode === 'edit' ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}`}
           folders={noteModal.mode === 'edit' ? noteModalFolders : undefined}
           mode={noteModal.mode}
           note={noteModal.mode === 'edit' ? noteModal.note : undefined}
@@ -671,6 +672,12 @@ export function AppShell() {
           }}
           projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
           initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : undefined}
+          initialAttachments={noteModal.mode === 'edit' ? noteModal.note.attachments?.map(att => ({
+            fileName: att.fileName,
+            mimeType: att.mimeType,
+            sizeBytes: att.sizeBytes,
+            dataBase64: '',
+          })) : undefined}
           projects={dashboard.projects}
           workspaceSlug={workspaceSlug}
         />

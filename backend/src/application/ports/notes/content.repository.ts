@@ -64,6 +64,7 @@ export abstract class ContentRepository {
   abstract setNotePinned(userId: string, id: string, pinned: boolean): Promise<NoteRecord | null>;
   abstract deleteNote(userId: string, id: string): Promise<boolean>;
   abstract saveAttachment(userId: string, input: SaveAttachmentInput): Promise<AttachmentRecord>;
+  abstract deleteAttachment(userId: string, noteId: string, fileName: string): Promise<void>;
   abstract listAttachments(userId: string, noteId: string): Promise<AttachmentRecord[]>;
   abstract getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw>;
 }

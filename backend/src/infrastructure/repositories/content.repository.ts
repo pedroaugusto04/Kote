@@ -243,6 +243,10 @@ export class PostgresContentRepository extends ContentRepository {
     return this.attachmentRepository.save(userId, input);
   }
 
+  async deleteAttachment(userId: string, noteId: string, fileName: string) {
+    return this.attachmentRepository.deleteByNoteIdAndFileName(userId, noteId, fileName);
+  }
+
   async listAttachments(userId: string, noteId: string) {
     return this.attachmentRepository.list(userId, noteId);
   }

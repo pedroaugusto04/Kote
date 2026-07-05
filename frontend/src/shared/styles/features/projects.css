@@ -1507,12 +1507,14 @@
 }
 
 .note-attachment-upload:not(.disabled),
-.note-attachment-upload:not(.disabled) * {
+.note-attachment-upload:not(.disabled) *,
+.note-attachment-upload:not(.disabled) input[type="file"]::-webkit-file-upload-button {
   cursor: pointer !important;
 }
 
 .note-attachment-upload.disabled,
-.note-attachment-upload.disabled * {
+.note-attachment-upload.disabled *,
+.note-attachment-upload.disabled input[type="file"]::-webkit-file-upload-button {
   cursor: not-allowed !important;
 }
 

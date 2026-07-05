@@ -193,7 +193,7 @@ test('projects and notes controllers delegate create requests to use cases', asy
   assert.deepEqual(await projects.getBrief('acme-api', user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true } });
   assert.deepEqual( 
     await notes.update({ id: 'note-1' }, { title: 'Deploy', rawText: 'texto', tags: [], reminderAt: ''}, user, undefined),
-    { ok: true, noteId: 'note-1', body: { id: 'note-1', folderId: undefined, status: undefined, categoryIds: undefined, title: 'Deploy', rawText: 'texto', tags: [], reminderAt: '', projectId: undefined }, userId: 'user-1' },
+    { ok: true, noteId: 'note-1', body: { id: 'note-1', folderId: undefined, status: undefined, categoryIds: undefined, title: 'Deploy', rawText: 'texto', tags: [], reminderAt: '', projectId: undefined, attachments: [] }, userId: 'user-1' },
   );
   assert.deepEqual(await notes.remove({ id: 'note-1' }, user), { ok: true, noteId: 'note-1', userId: 'user-1' });
 });

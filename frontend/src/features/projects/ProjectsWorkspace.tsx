@@ -559,6 +559,7 @@ export function ProjectsWorkspace({
       ) : null}
        {noteModal ? (
         <ProjectNoteModal
+          key={noteModal.mode === 'edit' ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}-${noteModal.folderId || ''}-${noteModal.initialTitle || ''}`}
           folders={flatFolders}
           mode={noteModal.mode}
           note={noteModal.mode === 'edit' ? noteModal.note : undefined}
@@ -598,7 +599,12 @@ export function ProjectsWorkspace({
           projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
           initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : noteModal.folderId}
           initialTitle={noteModal.mode === 'create' ? noteModal.initialTitle : undefined}
-          initialAttachments={noteModal.mode === 'create' ? noteModal.initialAttachments : undefined}
+          initialAttachments={noteModal.mode === 'edit' ? noteModal.note.attachments?.map(att => ({
+            fileName: att.fileName,
+            mimeType: att.mimeType,
+            sizeBytes: att.sizeBytes,
+            dataBase64: '',
+          })) : noteModal.mode === 'create' ? noteModal.initialAttachments : undefined}
           projects={dashboard.projects}
           workspaceSlug={workspaceSlug}
         />

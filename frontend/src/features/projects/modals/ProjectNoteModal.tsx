@@ -261,17 +261,15 @@ export function ProjectNoteModal({
             <FormField name="rawText" label="Text" error={errors.rawText?.message} required>
               {(fieldProps) => <textarea {...fieldProps} {...register('rawText')} />}
             </FormField>
-            {mode === 'create' && (
-              <FormField name="attachments" label="Attachments" optional>
-                {() => (
-                  <AttachmentInput
-                    value={attachments}
-                    onChange={setAttachments}
-                    disabled={mutation.isPending}
-                  />
-                )}
-              </FormField>
-            )}
+            <FormField name="attachments" label="Attachments" optional>
+              {() => (
+                <AttachmentInput
+                  value={attachments}
+                  onChange={setAttachments}
+                  disabled={mutation.isPending}
+                />
+              )}
+            </FormField>
             <FormField name="tags" label="Tags" error={errors.tags?.message} optional>
               {(fieldProps) => (
                 <Controller

@@ -113,4 +113,32 @@ export class PostgresAttachmentRepository {
     
     await this.contentObjectStorage.deleteObjects(keys);
   }
+
+  async deleteByNoteIdAndFileName(userId: string, noteId: string, fileName: string) {
+    const db = this.database.getDb();
+    const result = await db
+      .select({ storageKey: attachments.storageKey })
+      .from(attachments)
+      .where(
+        and(
+          eq(attachments.userId, userId),
+          eq(attachments.noteId, noteId),
+          eq(attachments.fileName, fileName)
+        )
+      );
+
+    const keys = result.map((row) => row.storageKey || '').filter(Boolean);
+    if (keys.length > 0) {
+      await db
+        .delete(attachments)
+        .where(
+          and(
+            eq(attachments.userId, userId),
+            eq(attachments.noteId, noteId),
+            eq(attachments.fileName, fileName)
+          )
+        );
+      await this.contentObjectStorage.deleteObjects(keys);
+    }
+  }
 }

@@ -54,6 +54,7 @@ export class UpdateNoteUseCase {
       userId,
       {
         noteInput: updatedNoteInput,
+        attachments: input.attachments,
       },
       {
         existingNoteId: note.id,

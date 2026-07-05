@@ -32,5 +32,6 @@ export function toUpdateNoteDto(httpBody: UpdateNoteBody, noteId: string, projec
     status: httpBody.status,
     categoryIds: httpBody.categoryIds,
     reminderAt: httpBody.reminderAt || '',
+    attachments: httpBody.attachments || [],
   };
 }
