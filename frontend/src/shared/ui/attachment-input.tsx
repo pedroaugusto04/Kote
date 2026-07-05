@@ -62,7 +62,7 @@ export function AttachmentInput({
   return (
     <div className="attachments-field">
       <label className={`icon-button note-attachment-upload ${disabled ? 'disabled' : ''}`} tabIndex={disabled ? -1 : 0}>
-        <svg viewBox="0 0 16 16" width="14" height="14" style={{ marginRight: '6px' }}>
+        <svg viewBox="0 0 16 16" width="14" height="14" style={{ marginRight: '6px', pointerEvents: 'none' }}>
           <path
             d="M4.5 12.5v-7a3 3 0 016 0v7a1.5 1.5 0 01-3 0v-6.5"
             fill="none"
@@ -72,13 +72,13 @@ export function AttachmentInput({
             strokeLinejoin="round"
           />
         </svg>
-        Attach file
+        <span style={{ pointerEvents: 'none' }}>Attach file</span>
         <input
           type="file"
           multiple={multiple}
           disabled={disabled}
           onChange={handleFileChange}
-          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: disabled ? 'not-allowed' : 'pointer' }}
+          style={{ position: 'absolute', inset: 0, opacity: 0, zIndex: 1, cursor: disabled ? 'not-allowed' : 'pointer' }}
           aria-label="Upload files"
         />
       </label>
