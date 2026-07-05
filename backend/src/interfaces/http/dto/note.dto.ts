@@ -15,7 +15,7 @@ const editableNoteStatusSchema = z.enum([KnowledgeStatus.Active, KnowledgeStatus
 const noteAttachmentSchema = z.object({
   fileName: z.string().min(1),
   mimeType: z.string().default('application/octet-stream'),
-  sizeBytes: z.number().int().nonnegative().default(0),
+  sizeBytes: z.number().int().nonnegative().max(10 * 1024 * 1024, 'Attachment must be 10 MB or smaller.').default(0),
   dataBase64: z.string().default(''),
 });
 

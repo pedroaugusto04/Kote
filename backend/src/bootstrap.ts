@@ -21,7 +21,7 @@ function saveRawBody(request: Request & { rawBody?: Buffer }, _response: Respons
 export async function createApp(): Promise<NestExpressApplication> {
   const environment = readEnvironment();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false, logger: ['error', 'warn'] });
-  const bodyLimit = process.env.KB_BODY_LIMIT || '10mb';
+  const bodyLimit = process.env.KB_BODY_LIMIT || '15mb';
   app.use(json({ limit: bodyLimit, verify: saveRawBody }));
   app.use(urlencoded({ extended: true, limit: bodyLimit, verify: saveRawBody }));
   if (environment.trustProxy) {

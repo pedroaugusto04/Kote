@@ -1,4 +1,5 @@
 import React from 'react';
+import { notifyError } from './notifications';
 
 export type PendingAttachment = {
   fileName: string;
@@ -36,9 +37,14 @@ export function AttachmentInput({
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
+    const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
     const newAttachments = [...value];
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (file.size > MAX_SIZE) {
+        notifyError(`File ${file.name} is too large. Max size is 10 MB.`);
+        continue;
+      }
       try {
         const base64 = await fileToBase64(file);
         newAttachments.push({
