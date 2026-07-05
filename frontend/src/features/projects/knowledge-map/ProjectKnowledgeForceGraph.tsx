@@ -113,9 +113,11 @@ export function ProjectKnowledgeForceGraph({
     const graphNodes = graph.nodes as GraphNode[];
     const graphLinks = graph.links as GraphLink[];
     const denseMap = graphNodes.length > 90;
+    const isLargeGraph = graphNodes.length > 80;
     const reducedMotion = typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
       : true;
+    const isDriftDisabled = reducedMotion || pausedRef.current || isLargeGraph;
     let zoomScale = 1;
     let activeNodeId = '';
 
@@ -174,7 +176,7 @@ export function ProjectKnowledgeForceGraph({
         onOpenNote(item.noteId);
       });
 
-    node
+    const circles = node
       .append('circle')
       .attr('r', (item) => item.size || knowledgeMapNodeStyles[item.type].radius)
       .attr('fill', nodeColor)
@@ -239,7 +241,7 @@ export function ProjectKnowledgeForceGraph({
     updateLabels();
 
     // Pre-tick the simulation to get initial stable positions before fitting
-    simulation.tick(60);
+    simulation.tick(denseMap ? 150 : 90);
 
     // Fit to screen on initial load
     const initialTransform = computeFitTransform(
@@ -252,8 +254,8 @@ export function ProjectKnowledgeForceGraph({
 
     function updateLabels() {
       labels
-        .attr('opacity', (item) => shouldShowLabel(item, zoomScale, activeNodeId) ? 1 : 0)
-        .attr('display', (item) => shouldShowLabel(item, zoomScale, activeNodeId) ? null : 'none');
+        .attr('opacity', (item) => shouldShowLabel(item, zoomScale, activeNodeId, isLargeGraph) ? 1 : 0)
+        .attr('display', (item) => shouldShowLabel(item, zoomScale, activeNodeId, isLargeGraph) ? null : 'none');
     }
 
     function updateVisuals(hoveredId: string | null, searchStr: string) {
@@ -305,13 +307,13 @@ export function ProjectKnowledgeForceGraph({
         return active ? 1 : 0.15;
       });
 
-      node.selectAll('circle')
-        .style('filter', (d: any) => {
+      circles
+        .style('filter', (d) => {
           if (hoveredId === d.id) return 'url(#node-glow)';
           if (hasSearch && matchesSearch.has(d.id)) return 'url(#node-glow)';
           return null;
         })
-        .attr('stroke-width', (d: any) => {
+        .attr('stroke-width', (d) => {
           if (hoveredId === d.id || (hasSearch && matchesSearch.has(d.id))) return 2.2;
           return 1.2;
         });
@@ -351,12 +353,12 @@ export function ProjectKnowledgeForceGraph({
         .attr('opacity', (d) => {
           if (d.id === hoveredId) return 1;
           if (hasSearch && matchesSearch.has(d.id)) return 1;
-          return shouldShowLabel(d, zoomScale, hoveredId || '') ? 1 : 0;
+          return shouldShowLabel(d, zoomScale, hoveredId || '', isLargeGraph) ? 1 : 0;
         })
         .attr('display', (d) => {
           if (d.id === hoveredId) return null;
           if (hasSearch && matchesSearch.has(d.id)) return null;
-          return shouldShowLabel(d, zoomScale, hoveredId || '') ? null : 'none';
+          return shouldShowLabel(d, zoomScale, hoveredId || '', isLargeGraph) ? null : 'none';
         });
     }
 
@@ -367,22 +369,22 @@ export function ProjectKnowledgeForceGraph({
 
     function renderGraph(time: number) {
       link
-        .attr('x1', (item) => graphNodePosition(graphLinkNode(item.source), time, reducedMotion || pausedRef.current).x)
-        .attr('y1', (item) => graphNodePosition(graphLinkNode(item.source), time, reducedMotion || pausedRef.current).y)
-        .attr('x2', (item) => graphNodePosition(graphLinkNode(item.target), time, reducedMotion || pausedRef.current).x)
-        .attr('y2', (item) => graphNodePosition(graphLinkNode(item.target), time, reducedMotion || pausedRef.current).y);
+        .attr('x1', (item) => graphNodePosition(graphLinkNode(item.source), time, isDriftDisabled).x)
+        .attr('y1', (item) => graphNodePosition(graphLinkNode(item.source), time, isDriftDisabled).y)
+        .attr('x2', (item) => graphNodePosition(graphLinkNode(item.target), time, isDriftDisabled).x)
+        .attr('y2', (item) => graphNodePosition(graphLinkNode(item.target), time, isDriftDisabled).y);
       node.attr('transform', (item) => {
-        const position = graphNodePosition(item, time, reducedMotion || pausedRef.current);
+        const position = graphNodePosition(item, time, isDriftDisabled);
         return `translate(${position.x},${position.y})`;
       });
     }
 
     function animate(time: number) {
       renderGraph(time);
-      renderFrameRef.current = reducedMotion || pausedRef.current ? null : window.requestAnimationFrame(animate);
+      renderFrameRef.current = isDriftDisabled ? null : window.requestAnimationFrame(animate);
     }
     function startDrift() {
-      if (reducedMotion || pausedRef.current || renderFrameRef.current) return;
+      if (isDriftDisabled || renderFrameRef.current) return;
       renderFrameRef.current = window.requestAnimationFrame(animate);
     }
     startDriftRef.current = startDrift;
@@ -514,15 +516,18 @@ function collisionRadius(item: GraphNode) {
   return radius + labelAllowance;
 }
 
-function shouldShowLabel(item: GraphNode, zoomScale: number, activeNodeId: string) {
+function shouldShowLabel(item: GraphNode, zoomScale: number, activeNodeId: string, isLargeGraph: boolean) {
   if (item.id === activeNodeId) return true;
   if (item.type === 'project' || item.type === 'repository' || item.type === 'folder') return true;
+  
+  const thresholdOffset = isLargeGraph ? 0.3 : 0;
+  
   if (item.type === 'note') {
-    if (isReviewNote(item)) return zoomScale >= 1.35;
-    return zoomScale >= 0.95;
+    if (isReviewNote(item)) return zoomScale >= (1.35 + thresholdOffset);
+    return zoomScale >= (0.95 + thresholdOffset);
   }
-  if (item.type === 'tag' || item.type === 'category') return zoomScale >= 1.25;
-  return zoomScale >= 1.5;
+  if (item.type === 'tag' || item.type === 'category') return zoomScale >= (1.25 + thresholdOffset);
+  return zoomScale >= (1.5 + thresholdOffset);
 }
 
 function nodeColor(item: GraphNode) {

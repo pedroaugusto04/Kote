@@ -116,6 +116,8 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
     [graph, visibleTypes],
   );
 
+  const isLargeGraph = (baseGraph?.nodes?.length || 0) > 80;
+
   // Hidden node IDs: derived from the date filter applied on top of baseGraph
   const hiddenNodeIds = useMemo(() => {
     if (!baseGraph || maxDateFilter === null) return null;
@@ -184,8 +186,14 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
         subtitle=""
         action={(
           <div className="knowledge-map-actions">
-            <button className="icon-button secondary" type="button" onClick={() => setPaused((current) => !current)}>
-              {paused ? 'Resume' : 'Pause'}
+            <button
+              className="icon-button secondary"
+              type="button"
+              disabled={isLargeGraph}
+              title={isLargeGraph ? 'Animation disabled for performance' : undefined}
+              onClick={() => setPaused((current) => !current)}
+            >
+              {isLargeGraph ? 'Animation paused' : paused ? 'Resume' : 'Pause'}
             </button>
             <button className="icon-button" type="button" onClick={() => setResetSignal((current) => current + 1)}>
               Reset view
