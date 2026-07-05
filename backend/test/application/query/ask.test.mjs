@@ -612,6 +612,22 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
     findSimilar: async () => {
       return [];
     },
+    getNoteEmbeddings: async (userId, noteId) => {
+      assert.equal(noteId, 'note-fts-1');
+      return [
+        {
+          id: 'emb-fts-1',
+          userId: 'user-123',
+          noteId: 'note-fts-1',
+          chunkIndex: 0,
+          chunkText: 'To deploy, run npm run deploy.',
+          embedding: [0.1, 0.2, 0.3],
+          model: 'gemini-embedding-001',
+          createdAt: '',
+          updatedAt: '',
+        },
+      ];
+    },
   };
 
   let listNotesQueryCalled = false;
@@ -690,7 +706,7 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
   const mockLogger = {
     warn: (msg, meta) => {
       loggerWarnCalled = true;
-      assert.equal(msg, 'ask_knowledge.vector_search_failed');
+      assert.equal(msg, 'ask_knowledge.vector_search_failed_in_hybrid');
       assert.equal(meta.error, 'Embedding API is offline');
     },
   };
@@ -717,5 +733,149 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
     { id: 'note-fts-1', title: 'FTS Note 1', path: 'docs/fts-1.md', projectSlug: 'infra', workspaceId: 'ws-123' },
   ]);
 });
+
+test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking context', async () => {
+  // Vector search returns 'note-vector'
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async (config, texts) => {
+      return [[0.1, 0.2, 0.3]];
+    },
+  };
+
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => {
+      return [
+        {
+          id: 'emb-1',
+          userId: 'user-123',
+          noteId: 'note-vector',
+          chunkIndex: 0,
+          chunkText: 'Vector text content.',
+          embedding: [0.1, 0.2, 0.3],
+          model: 'gemini-embedding-001',
+          createdAt: '',
+          updatedAt: '',
+          similarity: 0.8,
+        },
+      ];
+    },
+    getNoteEmbeddings: async (userId, noteId) => {
+      assert.equal(noteId, 'note-fts');
+      return [
+        {
+          id: 'emb-2',
+          userId: 'user-123',
+          noteId: 'note-fts',
+          chunkIndex: 0,
+          chunkText: 'FTS text content.',
+          embedding: [0.1, 0.2, 0.3],
+          model: 'gemini-embedding-001',
+          createdAt: '',
+          updatedAt: '',
+        },
+      ];
+    },
+  };
+
+  // FTS returns 'note-fts'
+  const mockContentQueryRepository = {
+    list: async () => {
+      return [
+        {
+          id: 'note-fts',
+          title: 'FTS Title',
+          path: 'docs/fts.md',
+          project: 'infra',
+          workspaceId: 'ws-123',
+          tags: [],
+        },
+      ];
+    },
+  };
+
+  const mockContentRepository = {
+    getNotesByIds: async (userId, ids) => {
+      // Must fetch both note-vector and note-fts
+      assert.deepEqual(ids.sort(), ['note-fts', 'note-vector'].sort());
+      return [
+        {
+          id: 'note-vector',
+          title: 'Vector Note',
+          path: 'docs/vector.md',
+          projectSlug: 'infra',
+          workspaceId: 'ws-123',
+          markdown: 'Vector text content.',
+          summary: '',
+          tags: [],
+        },
+        {
+          id: 'note-fts',
+          title: 'FTS Note',
+          path: 'docs/fts.md',
+          projectSlug: 'infra',
+          workspaceId: 'ws-123',
+          markdown: 'FTS text content.',
+          summary: '',
+          tags: [],
+        },
+      ];
+    },
+  };
+
+  let generateCalled = false;
+  const mockAnswerGenerationGateway = {
+    generate: async (config, input) => {
+      generateCalled = true;
+      assert.equal(input.context.length, 2);
+      // Both must be present in the context
+      const noteIds = input.context.map(c => c.noteId);
+      assert.ok(noteIds.includes('note-vector'));
+      assert.ok(noteIds.includes('note-fts'));
+      return {
+        answer: 'Hybrid answer',
+        confidence: 'high',
+        requestedAttachments: false,
+        sources: [],
+      };
+    },
+  };
+
+  const mockRuntimeEnv = {
+    read: () => ({
+      embeddingAiProvider: 'gemini',
+      embeddingAiBaseUrl: 'http://gemini.api',
+      embeddingAiModel: 'gemini-embedding-001',
+      embeddingAiApiKey: 'key-123',
+      conversationAiProvider: 'openai',
+      conversationAiBaseUrl: 'http://openai.api',
+      conversationAiModel: 'gpt-4',
+      conversationAiApiKey: 'key-456',
+    }),
+  };
+
+  const mockQuotaService = {
+    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
+  };
+
+  const mockLogger = {
+    warn: () => {},
+  };
+
+  const useCase = new AskKnowledgeUseCase(
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    mockContentRepository,
+    mockAnswerGenerationGateway,
+    mockRuntimeEnv,
+    mockQuotaService,
+    mockContentQueryRepository,
+    mockLogger,
+  );
+
+  const result = await useCase.execute('fts', 'user-123', { projectSlug: 'infra', workspaceId: 'ws-123' });
+  assert.equal(result.ok, true);
+  assert.equal(generateCalled, true);
+});
+
 
 

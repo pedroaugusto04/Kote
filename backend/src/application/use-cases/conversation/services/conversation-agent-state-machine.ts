@@ -156,6 +156,19 @@ function resolveFolderSelection(input: {
   if (exactMatch) {
     return { selectedFolderId: exactMatch.id, suggestedFolderPath: path, placeInRoot: false };
   }
+
+  // Fallback: If no exact hierarchy match, check if the leaf folder exists anywhere in the project
+  const leafDisplayName = path[path.length - 1];
+  const leafSlug = folderSlugFromDisplayName(leafDisplayName);
+  const leafMatch = input.folders.find((folder) => folder.folderSlug === leafSlug);
+  if (leafMatch) {
+    return {
+      selectedFolderId: leafMatch.id,
+      suggestedFolderPath: leafMatch.fullSlugPath.split('/').filter(Boolean),
+      placeInRoot: false,
+    };
+  }
+
   return { selectedFolderId: '', suggestedFolderPath: path, placeInRoot: false };
 }
 

@@ -392,3 +392,39 @@ test('conversation agent prompt instructs LLM to preserve raw text without summa
   assert.match(turnPrompt, /preserve the user's message\/note exactly as sent/i);
 });
 
+test('conversation agent state machine resolves to nested folder by leaf folder slug fallback', () => {
+  const folders = [
+    { id: 'folder-1', parentFolderId: null, folderSlug: 'runbooks', fullSlugPath: 'runbooks' },
+    { id: 'folder-2', parentFolderId: 'folder-1', folderSlug: 'api', fullSlugPath: 'runbooks/api' },
+  ];
+  const next = buildNextAgentConversationState({
+    current: emptyAgentConversationState,
+    messageText: 'save in api folder',
+    media: emptyAgentConversationState.media,
+    decision: {
+      replyText: 'Ready to save.',
+      resolvedDraft: {
+        rawText: 'save in api folder',
+        title: '',
+        kind: 'note',
+        canonicalType: 'event',
+        importance: 'medium',
+        tags: [],
+        reminderAt: '',
+      },
+      selectedProjectSlug: 'platform',
+      selectedFolderId: '',
+      suggestedFolderPath: ['api'], // matches nested leaf folder slug
+      placeInRoot: false,
+      confidence: 'high',
+      action: 'confirm',
+    },
+    candidateFolders: folders,
+    reminderTimeZone: 'UTC',
+  });
+
+  assert.equal(next.folder.selectedFolderId, 'folder-2');
+  assert.deepEqual(next.folder.suggestedFolderPath, ['runbooks', 'api']);
+});
+
+

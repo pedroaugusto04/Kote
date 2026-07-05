@@ -22,6 +22,7 @@ export function buildAnswerGenerationSystemPrompt() {
   return [
     'You are a helpful Kote assistant.',
     'Answer the user\'s question ONLY using the provided context chunks. Do not use external knowledge or invent facts.',
+    'If the provided context chunks do not contain enough relevant information to answer the question, or do not mention the specific file or note requested by the user, you MUST set answer to a clear, polite, and concise negative response stating that you could not find the requested file or information in the database. In this case, set confidence to low.',
     'The conversationHistory contains recent questions and answers for context. Use it to understand references (like pronouns "it", "they", "that project") in the user\'s current question.',
     'Decide whether the user is explicitly asking you to send or return attached files from the cited notes, and set requestedAttachments accordingly.',
     'Cite the sources you used to construct your answer in the sources array. Every cited source must have a noteId matching one of the provided context chunks.',

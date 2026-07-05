@@ -133,14 +133,180 @@ export class AskKnowledgeUseCase {
       return this.resolveSpecialIntentContext(userId, specialIntent, options);
     }
 
-    // Try vector search
-    const vectorResult = await this.resolveVectorContext(userId, queryText, options, embeddingConfig);
-    if (vectorResult.contextChunks.length > 0) {
-      return vectorResult;
+    const candidateLimit = this.env.ragCandidateLimit ?? 16;
+    const minSimilarity = this.env.ragMinSimilarity ?? 0.35;
+    const hybridVectorWeight = this.env.ragHybridVectorWeight ?? 0.8;
+    const hybridKeywordWeight = this.env.ragHybridKeywordWeight ?? 0.2;
+    const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
+
+    // 1. Fetch vector search candidate chunks and FTS candidate notes in parallel
+    const [vectorChunks, ftsNotes] = await Promise.all([
+      (async () => {
+        try {
+          const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText], EmbeddingTaskType.Query);
+          const questionEmbedding = embeddings[0];
+          if (!questionEmbedding || questionEmbedding.length === 0) {
+            return [];
+          }
+          return await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
+            limit: candidateLimit,
+            workspaceId: options.workspaceId,
+            projectId: options.projectId,
+            minSimilarity: minSimilarity,
+          });
+        } catch (error) {
+          this.logger.warn('ask_knowledge.vector_search_failed_in_hybrid', {
+            userId,
+            query: queryText,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return [];
+        }
+      })(),
+      (async () => {
+        if (!this.contentQueryRepository) return [];
+        try {
+          return await this.contentQueryRepository.list(userId, {
+            projectId: options.projectId,
+            workspaceId: options.workspaceId,
+            query: queryText,
+          });
+        } catch (error) {
+          this.logger.warn('ask_knowledge.fts_search_failed_in_hybrid', {
+            userId,
+            query: queryText,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return [];
+        }
+      })(),
+    ]);
+
+    if (vectorChunks.length === 0 && ftsNotes.length === 0) {
+      return { contextChunks: [], relatedNotes: [] };
     }
 
-    // Try FTS fallback
-    return this.resolveFtsContext(userId, queryText, options);
+    // 2. Resolve any missing notes from FTS notes that did not appear in vector chunks
+    const existingNoteIdsInVector = new Set(vectorChunks.map((c) => c.noteId));
+    const missingFtsNoteIds = ftsNotes
+      .map((n) => n.id)
+      .filter((id) => !existingNoteIdsInVector.has(id));
+
+    let additionalChunks: any[] = [];
+    if (missingFtsNoteIds.length > 0) {
+      try {
+        const additionalChunksList = await Promise.all(
+          missingFtsNoteIds.map((noteId) =>
+            this.noteEmbeddingRepository.getNoteEmbeddings(userId, noteId),
+          ),
+        );
+        additionalChunks = additionalChunksList.flat().map((c) => ({
+          ...c,
+          similarity: 0.0, // baseline vector similarity for pure keyword matches
+        }));
+      } catch (error) {
+        this.logger.warn('ask_knowledge.fts_chunks_load_failed', {
+          userId,
+          missingFtsNoteIds,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    // Combine chunks
+    const allChunks = [...vectorChunks, ...additionalChunks];
+    if (allChunks.length === 0) {
+      return { contextChunks: [], relatedNotes: [] };
+    }
+
+    // 3. Fetch all referenced notes to calculate keyword scores
+    const noteIds = Array.from(new Set(allChunks.map((c) => c.noteId)));
+    const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
+    const noteMap = new Map(notes.map((n) => [n.id, n]));
+    const tokens = tokenizeQuery(queryText);
+
+    const scoredChunks = allChunks
+      .map((chunk) => {
+        const note = noteMap.get(chunk.noteId);
+        if (!note) return null;
+        const vectorScore = chunk.similarity;
+        const keywordScore = scoreKnowledgeNote(noteSummary(note), tokens);
+        return { chunk, note, vectorScore, keywordScore };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    // 4. Rank by Vector Similarity (descending)
+    const vectorRanked = [...scoredChunks]
+      .filter((sc) => sc.vectorScore > 0)
+      .sort((a, b) => {
+        if (b.vectorScore !== a.vectorScore) return b.vectorScore - a.vectorScore;
+        const aKey = `${a.chunk.noteId}_${a.chunk.chunkIndex}`;
+        const bKey = `${b.chunk.noteId}_${b.chunk.chunkIndex}`;
+        return aKey.localeCompare(bKey);
+      });
+
+    const vectorRankMap = new Map<string, number>();
+    vectorRanked.forEach((sc, index) => {
+      const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
+      vectorRankMap.set(key, index + 1);
+    });
+
+    // 5. Rank by Keyword Score (descending)
+    const keywordRanked = [...scoredChunks]
+      .filter((sc) => sc.keywordScore > 0)
+      .sort((a, b) => {
+        if (b.keywordScore !== a.keywordScore) return b.keywordScore - a.keywordScore;
+        const aKey = `${a.chunk.noteId}_${a.chunk.chunkIndex}`;
+        const bKey = `${b.chunk.noteId}_${b.chunk.chunkIndex}`;
+        return aKey.localeCompare(bKey);
+      });
+
+    const keywordRankMap = new Map<string, number>();
+    keywordRanked.forEach((sc, index) => {
+      const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
+      keywordRankMap.set(key, index + 1);
+    });
+
+    // 6. Perform RRF (Reciprocal Rank Fusion)
+    const k = 60;
+    const rankedChunks = scoredChunks
+      .map((sc) => {
+        const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
+        const vectorRank = vectorRankMap.get(key);
+        const keywordRank = keywordRankMap.get(key);
+
+        const rrfVector = vectorRank ? hybridVectorWeight / (k + vectorRank) : 0;
+        const rrfKeyword = keywordRank ? hybridKeywordWeight / (k + keywordRank) : 0;
+        const hybridScore = rrfVector + rrfKeyword;
+
+        return { chunk: sc.chunk, note: sc.note, hybridScore };
+      })
+      .filter((item) => item.hybridScore > 0)
+      .sort((left, right) => right.hybridScore - left.hybridScore)
+      .slice(0, topChunksLimit);
+
+    const contextChunks = rankedChunks.map(({ chunk, note }) => ({
+      noteId: chunk.noteId,
+      title: note.title,
+      path: note.path,
+      projectSlug: note.projectSlug,
+      workspaceId: note.workspaceId,
+      chunkText: chunk.chunkText,
+    }));
+
+    const topNotes = Array.from(new Set(rankedChunks.map((r) => r.note.id)))
+      .map((id) => noteMap.get(id)!)
+      .filter(Boolean);
+
+    const relatedNotes = topNotes.map((n) => ({
+      id: n.id,
+      title: n.title,
+      path: n.path,
+      projectSlug: n.projectSlug || '',
+      workspaceId: n.workspaceId,
+    }));
+
+    return { contextChunks, relatedNotes };
   }
 
   private async resolveSpecialIntentContext(
@@ -189,188 +355,6 @@ export class AskKnowledgeUseCase {
         workspaceId: original.workspaceId,
       };
     });
-
-    return { contextChunks, relatedNotes };
-  }
-
-  private async resolveVectorContext(
-    userId: string,
-    queryText: string,
-    options: { workspaceId?: string; projectId?: string },
-    embeddingConfig: any,
-  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
-    try {
-      const candidateLimit = this.env.ragCandidateLimit ?? 16;
-      const minSimilarity = this.env.ragMinSimilarity ?? 0.35;
-      const hybridVectorWeight = this.env.ragHybridVectorWeight ?? 0.8;
-      const hybridKeywordWeight = this.env.ragHybridKeywordWeight ?? 0.2;
-      const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
-
-      const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText], EmbeddingTaskType.Query);
-      const questionEmbedding = embeddings[0];
-
-      if (!questionEmbedding || questionEmbedding.length === 0) {
-        return { contextChunks: [], relatedNotes: [] };
-      }
-
-      const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
-        limit: candidateLimit,
-        workspaceId: options.workspaceId,
-        projectId: options.projectId,
-        minSimilarity: minSimilarity,
-      });
-
-      if (similarChunks.length === 0) {
-        return { contextChunks: [], relatedNotes: [] };
-      }
-
-      const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
-      const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
-      const noteMap = new Map(notes.map((n) => [n.id, n]));
-      const tokens = tokenizeQuery(queryText);
-
-      const scoredChunks = similarChunks
-        .map((chunk) => {
-          const note = noteMap.get(chunk.noteId);
-          if (!note) return null;
-          const vectorScore = chunk.similarity;
-          const keywordScore = scoreKnowledgeNote(noteSummary(note), tokens);
-          return { chunk, note, vectorScore, keywordScore };
-        })
-        .filter((item): item is NonNullable<typeof item> => item !== null);
-
-      // Rank by Vector Similarity (descending)
-      const vectorRanked = [...scoredChunks]
-        .filter((sc) => sc.vectorScore > 0)
-        .sort((a, b) => {
-          if (b.vectorScore !== a.vectorScore) return b.vectorScore - a.vectorScore;
-          const aKey = `${a.chunk.noteId}_${a.chunk.chunkIndex}`;
-          const bKey = `${b.chunk.noteId}_${b.chunk.chunkIndex}`;
-          return aKey.localeCompare(bKey);
-        });
-
-      const vectorRankMap = new Map<string, number>();
-      vectorRanked.forEach((sc, index) => {
-        const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
-        vectorRankMap.set(key, index + 1);
-      });
-
-      // Rank by Keyword Score (descending)
-      const keywordRanked = [...scoredChunks]
-        .filter((sc) => sc.keywordScore > 0)
-        .sort((a, b) => {
-          if (b.keywordScore !== a.keywordScore) return b.keywordScore - a.keywordScore;
-          const aKey = `${a.chunk.noteId}_${a.chunk.chunkIndex}`;
-          const bKey = `${b.chunk.noteId}_${b.chunk.chunkIndex}`;
-          return aKey.localeCompare(bKey);
-        });
-
-      const keywordRankMap = new Map<string, number>();
-      keywordRanked.forEach((sc, index) => {
-        const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
-        keywordRankMap.set(key, index + 1);
-      });
-
-      const k = 60;
-      const rankedChunks = scoredChunks
-        .map((sc) => {
-          const key = `${sc.chunk.noteId}_${sc.chunk.chunkIndex}`;
-          const vectorRank = vectorRankMap.get(key);
-          const keywordRank = keywordRankMap.get(key);
-
-          const rrfVector = vectorRank ? (hybridVectorWeight / (k + vectorRank)) : 0;
-          const rrfKeyword = keywordRank ? (hybridKeywordWeight / (k + keywordRank)) : 0;
-          const hybridScore = rrfVector + rrfKeyword;
-
-          return { chunk: sc.chunk, note: sc.note, hybridScore };
-        })
-        .filter((item) => item.hybridScore > 0)
-        .sort((left, right) => right.hybridScore - left.hybridScore)
-        .slice(0, topChunksLimit);
-
-      const contextChunks = rankedChunks.map(({ chunk, note }) => ({
-        noteId: chunk.noteId,
-        title: note.title,
-        path: note.path,
-        projectSlug: note.projectSlug,
-        workspaceId: note.workspaceId,
-        chunkText: chunk.chunkText,
-      }));
-
-      const topNotes = Array.from(new Set(rankedChunks.map((r) => r.note.id)))
-        .map((id) => noteMap.get(id)!)
-        .filter(Boolean);
-
-      const relatedNotes = topNotes.map((n) => ({
-        id: n.id,
-        title: n.title,
-        path: n.path,
-        projectSlug: n.projectSlug || '',
-        workspaceId: n.workspaceId,
-      }));
-
-      return { contextChunks, relatedNotes };
-    } catch (error) {
-      this.logger.warn('ask_knowledge.vector_search_failed', {
-        userId,
-        query: queryText,
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
-      });
-      return { contextChunks: [], relatedNotes: [] };
-    }
-  }
-
-  private async resolveFtsContext(
-    userId: string,
-    queryText: string,
-    options: { workspaceId?: string; projectId?: string }
-  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
-    if (!this.contentQueryRepository) {
-      return { contextChunks: [], relatedNotes: [] };
-    }
-
-    const candidateNotes = await this.contentQueryRepository.list(userId, {
-      projectId: options.projectId,
-      workspaceId: options.workspaceId,
-      query: queryText,
-    });
-
-    if (candidateNotes.length === 0) {
-      return { contextChunks: [], relatedNotes: [] };
-    }
-
-    const noteIds = candidateNotes.map((n) => n.id);
-    const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
-    const tokens = tokenizeQuery(queryText);
-    const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
-
-    const rankMap = new Map(candidateNotes.map((n) => [n.id, n.ftsRank || 0]));
-
-    const rankedNotes = notes
-      .map((note) => {
-        const score = rankMap.get(note.id) || scoreKnowledgeNote(noteSummary(note), tokens);
-        return { note, score };
-      })
-      .sort((left, right) => right.score - left.score)
-      .slice(0, topChunksLimit);
-
-    const contextChunks = rankedNotes.map(({ note }) => ({
-      noteId: note.id,
-      title: note.title,
-      path: note.path,
-      projectSlug: note.projectSlug,
-      workspaceId: note.workspaceId,
-      chunkText: note.markdown || note.summary || '',
-    }));
-
-    const relatedNotes = rankedNotes.map(({ note }) => ({
-      id: note.id,
-      title: note.title,
-      path: note.path,
-      projectSlug: note.projectSlug || '',
-      workspaceId: note.workspaceId,
-    }));
 
     return { contextChunks, relatedNotes };
   }
