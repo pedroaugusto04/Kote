@@ -1,11 +1,12 @@
 import { useEffect, useState, useRef } from 'react';
 
-export interface CDNImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src' | 'onLoad' | 'onError'> {
+export interface CDNImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'src' | 'onLoad' | 'onError' | 'loading'> {
   src: string;
   fallback?: React.ReactNode;
   maxRetries?: number;
   retryDelay?: number;
   timeout?: number;
+  loading?: 'lazy' | 'eager' | boolean;
   onLoad?: (event: React.SyntheticEvent<HTMLImageElement>) => void;
   onError?: (error: Error) => void;
 }
@@ -17,12 +18,15 @@ export function CDNImage({
   maxRetries = 3,
   retryDelay = 1500,
   timeout = 8000,
+  loading,
   className,
   style,
   onLoad,
   onError,
   ...props
 }: CDNImageProps) {
+  // Convert boolean loading to HTML attribute value
+  const loadingAttr = loading === true ? 'lazy' : loading === false ? undefined : loading;
   const [imageState, setImageState] = useState<{
     status: 'loading' | 'loaded' | 'error';
     retryCount: number;
@@ -184,6 +188,7 @@ export function CDNImage({
         src={imageState.currentSrc}
         alt={alt}
         className={className}
+        loading={loadingAttr}
         style={{
           ...style,
           display: isLoaded ? displayStyle : 'block',
