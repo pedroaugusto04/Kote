@@ -64,7 +64,16 @@ export class HandleGithubPushUseCase {
     const rawPayload = githubAuditPayload(body);
     const installationId = String((body.installation as { id?: unknown } | undefined)?.id || '').trim();
     const externalIdentity = { provider: ExternalIdentityProvider.GithubApp, identityType: 'installation_id', externalId: installationId };
+
+    this.logger.info('github_push_webhook_start', {
+      installationId,
+      repositoryFullName: rawPayload.repositoryFullName,
+      repositoryId: rawPayload.repositoryId,
+      ref: rawPayload.ref,
+    });
+
     if (!environment.githubWebhookSecret) {
+      this.logger.warn('github_push_webhook_secret_not_configured');
       throw new UnauthorizedException('github_webhook_secret_not_configured');
     }
     try {
@@ -74,15 +83,25 @@ export class HandleGithubPushUseCase {
         String(headers['x-hub-signature-256'] || ''),
       );
     } catch (error) {
+      this.logger.warn('github_push_webhook_signature_invalid', {
+        error: error instanceof Error ? error.message : String(error),
+      });
       throw new UnauthorizedException('invalid_github_signature');
     }
     if (!installationId) {
+      this.logger.warn('github_push_webhook_missing_installation_id');
       throw new UnauthorizedException('missing_installation_id');
     }
     const identity = await this.externalIdentities.findExternalIdentity(ExternalIdentityProvider.GithubApp, 'installation_id', installationId);
     if (!identity) {
+      this.logger.warn('github_push_webhook_identity_not_found', { installationId });
       throw new NotFoundException('identity_not_found');
     }
+
+    this.logger.info('github_push_webhook_identity_resolved', {
+      userId: identity.userId,
+      workspaceSlug: identity.workspaceSlug,
+    });
     await this.webhookEvents.recordWebhookEvent({
       provider: IntegrationProvider.GithubApp,
       eventType: String(headers['x-github-event'] || 'push'),
@@ -94,6 +113,12 @@ export class HandleGithubPushUseCase {
     });
     try {
       const repoFullName = String(body.repository?.full_name || '').trim();
+      this.logger.info('github_push_webhook_resolving_project', {
+        repoFullName,
+        userId: identity.userId,
+        workspaceSlug: identity.workspaceSlug,
+      });
+
       const projectSlug = await this.githubRepositoryResolution.resolveProjectAndSyncRepoName({
         userId: identity.userId,
         workspaceSlug: identity.workspaceSlug || '',
@@ -101,6 +126,10 @@ export class HandleGithubPushUseCase {
         repositoryFullName: repoFullName,
       });
       if (!projectSlug) {
+        this.logger.warn('github_push_webhook_repository_not_selected', {
+          repoFullName,
+          userId: identity.userId,
+        });
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
           eventType: String(headers['x-github-event'] || 'push'),
@@ -118,10 +147,17 @@ export class HandleGithubPushUseCase {
         };
       }
 
+      this.logger.info('github_push_webhook_project_resolved', {
+        projectSlug,
+        repoFullName,
+      });
+
       if (options?.synchronous) {
+        this.logger.info('github_push_webhook_processing_synchronous', { projectSlug });
         return this.processPush(input, identity, headers, rawPayload, externalIdentity, projectSlug);
       }
 
+      this.logger.info('github_push_webhook_queued', { projectSlug });
       void this.processPush(input, identity, headers, rawPayload, externalIdentity, projectSlug);
 
       return {
@@ -155,6 +191,12 @@ export class HandleGithubPushUseCase {
     const body = (input.body || {}) as GithubPushPayload;
     const repoFullName = String(body.repository?.full_name || '').trim();
 
+    this.logger.info('github_push_webhook_processing_start', {
+      projectSlug,
+      repoFullName,
+      userId: identity.userId,
+    });
+
     try {
       const result = await this.processGithubPushService.execute({
         body,
@@ -166,6 +208,10 @@ export class HandleGithubPushUseCase {
       });
 
       if (!result.ok) {
+        this.logger.warn('github_push_webhook_processing_skipped', {
+          projectSlug,
+          reason: result.skipped,
+        });
         await this.webhookEvents.recordWebhookEvent({
           provider: IntegrationProvider.GithubApp,
           eventType: String(headers['x-github-event'] || 'push'),
@@ -182,6 +228,11 @@ export class HandleGithubPushUseCase {
           ignored: result.skipped,
         };
       }
+
+      this.logger.info('github_push_webhook_processing_success', {
+        projectSlug,
+        noteId: result.noteId,
+      });
 
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.GithubApp,
