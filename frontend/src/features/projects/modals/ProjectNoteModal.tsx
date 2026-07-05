@@ -133,7 +133,7 @@ export function ProjectNoteModal({
   return (
     <>
       <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
-        <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
+        <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal project-note-modal-panel" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
               <h2 id="note-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_NOTE : UI_MESSAGES.EDIT_NOTE}</h2>

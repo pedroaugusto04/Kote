@@ -1502,3 +1502,18 @@
   to { opacity: 1; }
 }
 
+.project-note-modal-panel {
+  max-height: min(880px, calc(100vh - 48px));
+}
+
+.note-attachment-upload:not(.disabled),
+.note-attachment-upload:not(.disabled) * {
+  cursor: pointer !important;
+}
+
+.note-attachment-upload.disabled,
+.note-attachment-upload.disabled * {
+  cursor: not-allowed !important;
+}
+
+
