@@ -2,19 +2,30 @@ import type { NoteDetail, NoteSummary } from '../../shared/api/models/note';
 import type { ProjectFolder } from '../../shared/api/models/project-folder';
 import type { Project } from '../../shared/api/models/project';
 
+export enum WorkspaceModalMode {
+  Create = 'create',
+  Edit = 'edit',
+}
+
+export enum ConfirmKind {
+  Project = 'project',
+  Folder = 'folder',
+  Note = 'note',
+}
+
 export type FlatProjectFolder = ProjectFolder & { depth: number };
 
 export type ProjectModalState =
-  | { mode: 'create' }
-  | { mode: 'edit'; project: Project };
+  | { mode: WorkspaceModalMode.Create }
+  | { mode: WorkspaceModalMode.Edit; project: Project };
 
 export type FolderModalState =
-  | { mode: 'create'; projectSlug: string; parentFolderId?: string }
-  | { mode: 'edit'; projectSlug: string; folder: ProjectFolder };
+  | { mode: WorkspaceModalMode.Create; projectSlug: string; parentFolderId?: string }
+  | { mode: WorkspaceModalMode.Edit; projectSlug: string; folder: ProjectFolder };
 
 export type NoteModalState =
   | {
-      mode: 'create';
+      mode: WorkspaceModalMode.Create;
       projectSlug: string;
       folderId?: string;
       initialTitle?: string;
@@ -25,9 +36,9 @@ export type NoteModalState =
         dataBase64: string;
       }>;
     }
-  | { mode: 'edit'; note: NoteDetail };
+  | { mode: WorkspaceModalMode.Edit; note: NoteDetail };
 
 export type ConfirmState =
-  | { kind: 'project'; project: Project }
-  | { kind: 'folder'; projectSlug: string; folder: ProjectFolder }
-  | { kind: 'note'; note: NoteSummary };
+  | { kind: ConfirmKind.Project; project: Project }
+  | { kind: ConfirmKind.Folder; projectSlug: string; folder: ProjectFolder }
+  | { kind: ConfirmKind.Note; note: NoteSummary };

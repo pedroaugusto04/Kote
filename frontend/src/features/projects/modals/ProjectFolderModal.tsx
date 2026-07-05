@@ -15,14 +15,15 @@ import { useGlobalLoading } from '../../../app/global-loading';
 import { collectFolderAndDescendantIds } from '../projects.helpers';
 import { folderFormSchema, type FolderFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
+import { WorkspaceModalMode } from '../projects.types';
 
 type ProjectFolderModalProps = {
   folders: FlatProjectFolder[];
-  mode: 'create' | 'edit';
+  mode: WorkspaceModalMode;
   folder?: ProjectFolder;
   initialParentFolderId?: string;
   onClose: () => void;
-  onSaved: (folderId: string, mode: 'create' | 'edit') => void | Promise<void>;
+  onSaved: (folderId: string, mode: WorkspaceModalMode) => void | Promise<void>;
   projectSlug: string;
 };
 
@@ -60,7 +61,7 @@ export function ProjectFolderModal({
         displayName: values.displayName,
         parentFolderId: values.parentFolderId || undefined,
       };
-      return globalLoading.trackPromise(mode === 'create'
+      return globalLoading.trackPromise(mode === WorkspaceModalMode.Create
         ? createProjectFolder(projectSlug, payload)
         : updateProjectFolder(projectSlug, folder?.id || '', payload));
     },
@@ -74,7 +75,7 @@ export function ProjectFolderModal({
         window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
         return;
       }
-      notifyGeneralFormError(error, mode === 'create' ? 'Could not create the folder.' : 'Could not update the folder.');
+      notifyGeneralFormError(error, mode === WorkspaceModalMode.Create ? 'Could not create the folder.' : 'Could not update the folder.');
     },
   });
 
@@ -84,7 +85,7 @@ export function ProjectFolderModal({
         <section aria-labelledby="folder-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
-              <h2 id="folder-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_FOLDER : UI_MESSAGES.EDIT_FOLDER}</h2>
+              <h2 id="folder-modal-title">{mode === WorkspaceModalMode.Create ? UI_MESSAGES.NEW_FOLDER : UI_MESSAGES.EDIT_FOLDER}</h2>
               <p>{projectSlug}</p>
             </div>
             <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
@@ -130,7 +131,7 @@ export function ProjectFolderModal({
                 />
               )}
             </FormField>
-            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === 'create' ? 'Create folder' : 'Save folder'} />
+            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === WorkspaceModalMode.Create ? 'Create folder' : 'Save folder'} />
           </form>
         </section>
       </div>

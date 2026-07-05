@@ -18,6 +18,7 @@ import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../sha
 import { useGlobalLoading } from '../../../app/global-loading';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
+import { WorkspaceModalMode } from '../projects.types';
 import { flattenFolders } from '../projects.helpers';
 
 const MAX_TAGS = 10;
@@ -25,10 +26,10 @@ const MAX_TAG_LENGTH = 50;
 
 type ProjectNoteModalProps = {
   folders?: FlatProjectFolder[];
-  mode: 'create' | 'edit';
+  mode: WorkspaceModalMode;
   note?: NoteDetail;
   onClose: () => void;
-  onSaved: (noteId: string, mode: 'create' | 'edit') => void | Promise<void>;
+  onSaved: (noteId: string, mode: WorkspaceModalMode) => void | Promise<void>;
   projectSlug: string;
   initialFolderId?: string;
   projects?: Project[];
@@ -58,7 +59,7 @@ export function ProjectNoteModal({
   const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedProjectSlug, setSelectedProjectSlug] = useState(
-    mode === 'edit' && note ? note.project : projectSlug
+    mode === WorkspaceModalMode.Edit && note ? note.project : projectSlug
   );
 
   const [attachments, setAttachments] = useState<PendingAttachment[]>(
@@ -112,7 +113,7 @@ export function ProjectNoteModal({
         tags: values.tags,
         reminderAt: reminderAtToUtc(values.reminderAt),
       };
-      return globalLoading.trackPromise(mode === 'create'
+      return globalLoading.trackPromise(mode === WorkspaceModalMode.Create
         ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual', attachments })
         : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug, attachments }));
     },
@@ -126,7 +127,7 @@ export function ProjectNoteModal({
         window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
         return;
       }
-      notifyGeneralFormError(error, mode === 'create' ? 'Could not create the note.' : 'Could not update the note.');
+      notifyGeneralFormError(error, mode === WorkspaceModalMode.Create ? 'Could not create the note.' : 'Could not update the note.');
     },
   });
 
@@ -136,7 +137,7 @@ export function ProjectNoteModal({
         <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal project-note-modal-panel" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
-              <h2 id="note-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_NOTE : UI_MESSAGES.EDIT_NOTE}</h2>
+              <h2 id="note-modal-title">{mode === WorkspaceModalMode.Create ? UI_MESSAGES.NEW_NOTE : UI_MESSAGES.EDIT_NOTE}</h2>
               {!(projects && projects.length > 0) && <p>{selectedProjectSlug}</p>}
             </div>
             <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
@@ -151,7 +152,7 @@ export function ProjectNoteModal({
             )}
           >
             {projects && projects.length > 0 && (
-              <FormField name="projectSlug" label="Project" required={mode === 'create'}>
+              <FormField name="projectSlug" label="Project" required={mode === WorkspaceModalMode.Create}>
                 {(fieldProps) => (
                   <Select
                     ariaDescribedBy={fieldProps['aria-describedby']}
@@ -293,7 +294,7 @@ export function ProjectNoteModal({
                 {(fieldProps) => <input type="datetime-local" {...fieldProps} {...register('reminderAt')} />}
               </FormField>
             </div>
-            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === 'create' ? 'Create note' : 'Save note'} />
+            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === WorkspaceModalMode.Create ? 'Create note' : 'Save note'} />
           </form>
         </section>
       </div>

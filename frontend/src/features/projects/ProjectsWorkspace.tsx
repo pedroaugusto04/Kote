@@ -40,7 +40,14 @@ import { ProjectNoteModal } from './modals/ProjectNoteModal';
 import { ProjectModal } from './modals/ProjectModal';
 import { ProjectsBrowser } from './ProjectsBrowser';
 import { flattenFolders } from './projects.helpers';
-import type { ConfirmState, FolderModalState, NoteModalState, ProjectModalState } from './projects.types';
+import {
+  ConfirmKind,
+  WorkspaceModalMode,
+  type ConfirmState,
+  type FolderModalState,
+  type NoteModalState,
+  type ProjectModalState,
+} from './projects.types';
 import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
@@ -166,7 +173,7 @@ export function ProjectsWorkspace({
     setPendingNotesQueue(remainingNotes);
 
     setNoteModal({
-      mode: 'create',
+      mode: WorkspaceModalMode.Create,
       projectSlug: selectedSlug || 'inbox',
       folderId: selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
       initialTitle: firstNote.title,
@@ -285,7 +292,7 @@ export function ProjectsWorkspace({
   const workspaceRepositories = repositoriesResponse?.repositories || [];
   const loadNoteMutation = useMutation({
     mutationFn: (id: string) => globalLoading.trackPromise(ensureNoteDetail(queryClient, id)),
-    onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
+    onSuccess: (note) => setNoteModal({ mode: WorkspaceModalMode.Edit, note }),
     onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_LOAD_NOTE_FOR_EDITING),
   });
   const searchPinMutation = useMutation({
@@ -367,7 +374,7 @@ export function ProjectsWorkspace({
                 {UI_MESSAGES.QUICK_NOTE}
               </button>
             ) : null}
-            <button className="icon-button" type="button" onClick={() => setProjectModal({ mode: 'create' })}>
+            <button className="icon-button" type="button" onClick={() => setProjectModal({ mode: WorkspaceModalMode.Create })}>
               {UI_MESSAGES.NEW_PROJECT}
             </button>
           </div>
@@ -439,7 +446,7 @@ export function ProjectsWorkspace({
                     onOpen={handleOpenNote}
                     onOpenFullPage={openNote}
                     onEdit={() => loadNoteMutation.mutate(item.noteId)}
-                    onDelete={(note) => setConfirmState({ kind: 'note', note })}
+                    onDelete={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
                     onPin={(noteId, pinned) => searchPinMutation.mutate({ noteId, pinned })}
                   />
                 ))}
@@ -470,7 +477,7 @@ export function ProjectsWorkspace({
                 }}
                 status={timelineStatus}
                 onStatusChange={setTimelineStatus}
-                onDeleteNote={(note) => setConfirmState({ kind: 'note', note })}
+                onDeleteNote={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
                 onEditNote={(note) => loadNoteMutation.mutate(note.id)}
                 onOpenNote={handleOpenNote}
                 onOpenNoteFullPage={openNote}
@@ -501,16 +508,16 @@ export function ProjectsWorkspace({
                 setSelectedFolderId(folderId);
                 timelinePagination.setPage(1);
               }}
-              onCreateNote={() => setNoteModal({ mode: 'create', projectSlug: selected.projectSlug, folderId: selectedFolderId || undefined })}
-              onCreateFolder={() => setFolderModal({ mode: 'create', projectSlug: selected.projectSlug, parentFolderId: selectedFolder?.id })}
-              onEditFolder={() => selectedFolder ? setFolderModal({ mode: 'edit', projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
-              onDeleteFolder={() => selectedFolder ? setConfirmState({ kind: 'folder', projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
+              onCreateNote={() => setNoteModal({ mode: WorkspaceModalMode.Create, projectSlug: selected.projectSlug, folderId: selectedFolderId || undefined })}
+              onCreateFolder={() => setFolderModal({ mode: WorkspaceModalMode.Create, projectSlug: selected.projectSlug, parentFolderId: selectedFolder?.id })}
+              onEditFolder={() => selectedFolder ? setFolderModal({ mode: WorkspaceModalMode.Edit, projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
+              onDeleteFolder={() => selectedFolder ? setConfirmState({ kind: ConfirmKind.Folder, projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
               onEditNote={(note) => loadNoteMutation.mutate(note.id)}
-              onDeleteNote={(note) => setConfirmState({ kind: 'note', note })}
+              onDeleteNote={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
               onOpenNote={handleOpenNote}
               onOpenNoteFullPage={openNote}
-              onEditProject={selected.projectSlug === 'inbox' ? undefined : () => setProjectModal({ mode: 'edit', project: selected })}
-              onDeleteProject={selectedProjectDeleteBlockedReason ? undefined : () => setConfirmState({ kind: 'project', project: selected })}
+              onEditProject={selected.projectSlug === 'inbox' ? undefined : () => setProjectModal({ mode: WorkspaceModalMode.Edit, project: selected })}
+              onDeleteProject={selectedProjectDeleteBlockedReason ? undefined : () => setConfirmState({ kind: ConfirmKind.Project, project: selected })}
               deleteProjectLabel={selectedProjectDeleteBlockedReason || 'Delete project'}
               isStale={timelineQuery.isPlaceholderData}
               timelineResetKey={`${selected.projectSlug}:${selectedFolderId}:${timelineCategory}:${timelineStatus}:timeline`}
@@ -531,11 +538,11 @@ export function ProjectsWorkspace({
           githubConnected={githubConnected}
           workspaceRepositories={workspaceRepositories}
           mode={projectModal.mode}
-          project={projectModal.mode === 'edit' ? projectModal.project : undefined}
+          project={projectModal.mode === WorkspaceModalMode.Edit ? projectModal.project : undefined}
           onClose={() => setProjectModal(null)}
           onSaved={async (projectSlug, mode) => {
             setProjectModal(null);
-            notifySuccess(mode === 'create' ? UI_MESSAGES.PROJECT_CREATED : UI_MESSAGES.PROJECT_UPDATED);
+            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.PROJECT_CREATED : UI_MESSAGES.PROJECT_UPDATED);
             openProject(projectSlug);
             await refreshDashboard(queryClient);
           }}
@@ -545,13 +552,13 @@ export function ProjectsWorkspace({
         <ProjectFolderModal
           folders={flatFolders}
           mode={folderModal.mode}
-          folder={folderModal.mode === 'edit' ? folderModal.folder : undefined}
-          initialParentFolderId={folderModal.mode === 'create' ? folderModal.parentFolderId : undefined}
+          folder={folderModal.mode === WorkspaceModalMode.Edit ? folderModal.folder : undefined}
+          initialParentFolderId={folderModal.mode === WorkspaceModalMode.Create ? folderModal.parentFolderId : undefined}
           onClose={() => setFolderModal(null)}
           onSaved={async (folderId, mode) => {
             setFolderModal(null);
             setSelectedFolderId(folderId || ROOT_FOLDER_ID);
-            notifySuccess(mode === 'create' ? UI_MESSAGES.FOLDER_CREATED : UI_MESSAGES.FOLDER_UPDATED);
+            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.FOLDER_CREATED : UI_MESSAGES.FOLDER_UPDATED);
             await refreshDashboard(queryClient);
           }}
           projectSlug={folderModal.projectSlug}
@@ -559,18 +566,18 @@ export function ProjectsWorkspace({
       ) : null}
        {noteModal ? (
         <ProjectNoteModal
-          key={noteModal.mode === 'edit' ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}-${noteModal.folderId || ''}-${noteModal.initialTitle || ''}`}
-          folders={selected?.projectSlug === (noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug) ? flatFolders : undefined}
+          key={noteModal.mode === WorkspaceModalMode.Edit ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}-${noteModal.folderId || ''}-${noteModal.initialTitle || ''}`}
+          folders={selected?.projectSlug === (noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug) ? flatFolders : undefined}
           mode={noteModal.mode}
-          note={noteModal.mode === 'edit' ? noteModal.note : undefined}
+          note={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note : undefined}
           onClose={() => {
             if (pendingNotesQueue.length > 0) {
               const nextNote = pendingNotesQueue[0];
               setPendingNotesQueue(pendingNotesQueue.slice(1));
               setNoteModal({
-                mode: 'create',
-                projectSlug: noteModal.mode === 'create' ? noteModal.projectSlug : selectedSlug || 'inbox',
-                folderId: noteModal.mode === 'create' ? noteModal.folderId : selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
+                mode: WorkspaceModalMode.Create,
+                projectSlug: noteModal.mode === WorkspaceModalMode.Create ? noteModal.projectSlug : selectedSlug || 'inbox',
+                folderId: noteModal.mode === WorkspaceModalMode.Create ? noteModal.folderId : selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
                 initialTitle: nextNote.title,
                 initialAttachments: nextNote.attachments,
               });
@@ -579,16 +586,16 @@ export function ProjectsWorkspace({
             }
           }}
           onSaved={async (noteId, mode) => {
-            notifySuccess(mode === 'create' ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
+            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
             await refreshDashboard(queryClient);
 
             if (pendingNotesQueue.length > 0) {
               const nextNote = pendingNotesQueue[0];
               setPendingNotesQueue(pendingNotesQueue.slice(1));
               setNoteModal({
-                mode: 'create',
-                projectSlug: noteModal.mode === 'create' ? noteModal.projectSlug : selectedSlug || 'inbox',
-                folderId: noteModal.mode === 'create' ? noteModal.folderId : selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
+                mode: WorkspaceModalMode.Create,
+                projectSlug: noteModal.mode === WorkspaceModalMode.Create ? noteModal.projectSlug : selectedSlug || 'inbox',
+                folderId: noteModal.mode === WorkspaceModalMode.Create ? noteModal.folderId : selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
                 initialTitle: nextNote.title,
                 initialAttachments: nextNote.attachments,
               });
@@ -596,15 +603,15 @@ export function ProjectsWorkspace({
               setNoteModal(null);
             }
           }}
-          projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
-          initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : noteModal.folderId}
-          initialTitle={noteModal.mode === 'create' ? noteModal.initialTitle : undefined}
-          initialAttachments={noteModal.mode === 'edit' ? noteModal.note.attachments?.map(att => ({
+          projectSlug={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug}
+          initialFolderId={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.folderId || undefined : noteModal.folderId}
+          initialTitle={noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialTitle : undefined}
+          initialAttachments={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.attachments?.map(att => ({
             fileName: att.fileName,
             mimeType: att.mimeType,
             sizeBytes: att.sizeBytes,
             dataBase64: '',
-          })) : noteModal.mode === 'create' ? noteModal.initialAttachments : undefined}
+          })) : noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialAttachments : undefined}
           projects={dashboard.projects}
           workspaceSlug={workspaceSlug}
         />
@@ -614,24 +621,24 @@ export function ProjectsWorkspace({
           busy={deleteProjectMutation.isPending || deleteFolderMutation.isPending || deleteNoteMutation.isPending}
           cancelLabel={UI_MESSAGES.CANCEL}
           confirmLabel={UI_MESSAGES.CONFIRM_DELETION}
-          description={confirmState.kind === 'project'
+          description={confirmState.kind === ConfirmKind.Project
             ? PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_PROJECT.replace('{displayName}', confirmState.project.displayName)
-            : confirmState.kind === 'folder'
+            : confirmState.kind === ConfirmKind.Folder
               ? PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_FOLDER.replace('{displayName}', confirmState.folder.displayName)
               : PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_NOTE.replace('{title}', confirmState.note.title)}
           onCancel={() => setConfirmState(null)}
           onConfirm={() => {
-            if (confirmState.kind === 'project') {
+            if (confirmState.kind === ConfirmKind.Project) {
               deleteProjectMutation.mutate(confirmState.project.projectSlug);
               return;
             }
-            if (confirmState.kind === 'folder') {
+            if (confirmState.kind === ConfirmKind.Folder) {
               deleteFolderMutation.mutate({ projectSlug: confirmState.projectSlug, folderId: confirmState.folder.id });
               return;
             }
             deleteNoteMutation.mutate(confirmState.note.id);
           }}
-          title={confirmState.kind === 'project' ? UI_MESSAGES.DELETE_PROJECT : confirmState.kind === 'folder' ? UI_MESSAGES.DELETE_FOLDER : UI_MESSAGES.DELETE_NOTE}
+          title={confirmState.kind === ConfirmKind.Project ? UI_MESSAGES.DELETE_PROJECT : confirmState.kind === ConfirmKind.Folder ? UI_MESSAGES.DELETE_FOLDER : UI_MESSAGES.DELETE_NOTE}
         />
       ) : null}
     </>

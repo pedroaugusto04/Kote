@@ -14,6 +14,7 @@ import { TagInput } from '../../../shared/ui/tag-input';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
 import { projectFormSchema, type ProjectFormValues } from '../projects.forms';
+import { WorkspaceModalMode } from '../projects.types';
 
 const MAX_TAGS = 10;
 const MAX_TAG_LENGTH = 50;
@@ -21,10 +22,10 @@ const MAX_TAG_LENGTH = 50;
 type ProjectModalProps = {
   githubConnected: boolean;
   workspaceRepositories: GithubIntegrationRepository[];
-  mode: 'create' | 'edit';
+  mode: WorkspaceModalMode;
   project?: Project;
   onClose: () => void;
-  onSaved: (projectSlug: string, mode: 'create' | 'edit') => void | Promise<void>;
+  onSaved: (projectSlug: string, mode: WorkspaceModalMode) => void | Promise<void>;
 };
 
 export function ProjectModal({
@@ -61,7 +62,7 @@ export function ProjectModal({
         repositoryIds: values.repositoryIds,
         defaultTags: values.defaultTags,
       };
-      return globalLoading.trackPromise(mode === 'create'
+      return globalLoading.trackPromise(mode === WorkspaceModalMode.Create
         ? createProject({ ...payload, projectSlug: values.projectSlug || undefined })
         : updateProject(project?.projectSlug || '', payload));
     },
@@ -75,7 +76,7 @@ export function ProjectModal({
         window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
         return;
       }
-      notifyGeneralFormError(error, mode === 'create' ? 'Could not create the project.' : 'Could not update the project.');
+      notifyGeneralFormError(error, mode === WorkspaceModalMode.Create ? 'Could not create the project.' : 'Could not update the project.');
     },
   });
   const hasRepositoryOptions = workspaceRepositories.length > 0;
@@ -90,7 +91,7 @@ export function ProjectModal({
         <section aria-labelledby="project-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
-              <h2 id="project-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_PROJECT : UI_MESSAGES.EDIT_PROJECT}</h2>
+              <h2 id="project-modal-title">{mode === WorkspaceModalMode.Create ? UI_MESSAGES.NEW_PROJECT : UI_MESSAGES.EDIT_PROJECT}</h2>
               <p>Define the explicit link to a GitHub repository.</p>
             </div>
             <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
@@ -108,7 +109,7 @@ export function ProjectModal({
               <FormField name="displayName" label="Name" error={errors.displayName?.message} required>
                 {(fieldProps) => <input {...fieldProps} {...register('displayName')} />}
               </FormField>
-              {mode === 'create' ? (
+              {mode === WorkspaceModalMode.Create ? (
                 <FormField name="projectSlug" label="Slug" error={errors.projectSlug?.message} optional>
                   {(fieldProps) => <input {...fieldProps} {...register('projectSlug')} />}
                 </FormField>
@@ -189,7 +190,7 @@ export function ProjectModal({
                 )}
               </FormField>
             </div>
-            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === 'create' ? 'Create project' : 'Save project'} />
+            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === WorkspaceModalMode.Create ? 'Create project' : 'Save project'} />
           </form>
         </section>
       </div>
