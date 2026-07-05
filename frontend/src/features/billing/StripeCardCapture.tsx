@@ -10,7 +10,7 @@ type StripeCardCaptureProps = {
   disabled?: boolean;
 };
 
-// Card element options are created per-render so we can read CSS variables
+// Card element options are created per-render so we can read CSS variables 
 // (necessary because Stripe Elements runs in an iframe and CSS vars may
 // not resolve when passed as raw strings). We compute colors at runtime
 // to ensure dark-mode text is readable.

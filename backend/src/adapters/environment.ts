@@ -121,7 +121,7 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     disableEmbeddingWorker: String(env.KB_DISABLE_EMBEDDING_WORKER || 'false').trim().toLowerCase() === 'true',
     testEmailAuthSecret: String(env.KB_TEST_EMAIL_AUTH_SECRET || '').trim(),
     searchMinSimilarity: normalizeNumber(env.KB_SEARCH_MIN_SIMILARITY, 0.3),
-    searchCandidateLimitMultiplier: normalizeNumber(env.KB_SEARCH_CANDIDATE_LIMIT_MULTIPLIER, 3),
+    searchCandidateLimitMultiplier: normalizeNumber(env.KB_SEARCH_CANDIDATE_LIMIT_MULTIPLIER, 5),
     searchHybridVectorWeight: normalizeNumber(env.KB_SEARCH_HYBRID_VECTOR_WEIGHT, 0.4),
     searchHybridKeywordWeight: normalizeNumber(env.KB_SEARCH_HYBRID_KEYWORD_WEIGHT, 0.6),
     searchRrfK: normalizeNumber(env.KB_SEARCH_RRF_K, 20),

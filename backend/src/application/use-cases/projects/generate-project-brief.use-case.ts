@@ -17,7 +17,7 @@ import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.
 
 
 const CONTEXT_WINDOW = 30;
-const RAW_TEXT_LIMIT = 2_000;
+const RAW_TEXT_LIMIT = 6_000;
 
 @Injectable()
 export class GenerateProjectBriefUseCase {

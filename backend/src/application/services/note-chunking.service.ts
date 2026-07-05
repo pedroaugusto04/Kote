@@ -176,8 +176,8 @@ export class NoteChunkingService {
 
       if (lineBuffer.length > 0) {
         chunks.push(prefix + `\`\`\`${lang}\n${lineBuffer.join('\n')}\n\`\`\``);
-        // Overlap: keep the last 3 lines for context if possible
-        lineBuffer = lineBuffer.slice(-3);
+        // Overlap: keep the last 8 lines for context if possible
+        lineBuffer = lineBuffer.slice(-8);
       }
 
       lineBuffer.push(line);
