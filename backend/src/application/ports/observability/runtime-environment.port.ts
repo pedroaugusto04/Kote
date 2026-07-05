@@ -94,6 +94,11 @@ export type RuntimeEnvironment = {
   ragRrfK: number;
   attachmentMaxSizeBytes: number;
   avatarMaxSizeBytes: number;
+  chunkTargetTokens: number;
+  chunkOverlapTokens: number;
+  chunkMinChars: number;
+  chunkCodeBlockOverlapLines: number;
+  embeddingDimension: number;
 };
 
 export abstract class RuntimeEnvironmentProvider {

@@ -5,6 +5,7 @@ import { noteStatusValues } from '../../../domain/note-status.js';
 import { slugify } from '../../../domain/strings.js';
 import { normalizeTime } from '../../../domain/time.js';
 import { AUTO_ACTION_NONE, AUTO_ACTION_RESOLVED, AUTO_ACTION_ARCHIVED } from '../../../domain/auto-action.constants.js';
+import { isAttachmentMimeTypeSupported } from '../../../domain/constants/attachment.constants.js';
 import { normalizedSlugList, optionalStringArraySchema } from './dto-normalizers.js';
 import { paginationInputSchema } from '../../../contracts/pagination.js';
 import { notesListStatusFilterValues, StatusFilter } from '../../../contracts/status-filters.js';
@@ -18,7 +19,10 @@ const attachmentMaxSize = environment.attachmentMaxSizeBytes;
 
 const noteAttachmentSchema = z.object({
   fileName: z.string().min(1),
-  mimeType: z.string().default('application/octet-stream'),
+  mimeType: z.string().default('application/octet-stream').refine(
+    (value) => isAttachmentMimeTypeSupported(value),
+    'Unsupported file type. Only common images, documents, audio, video, archives, and code files are supported.'
+  ),
   sizeBytes: z.number().int().nonnegative().max(attachmentMaxSize, `Attachment must be ${attachmentMaxSize / (1024 * 1024)} MB or smaller.`).default(0),
   dataBase64: z.string().default(''),
 });

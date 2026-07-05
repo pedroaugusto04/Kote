@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
+
 export type NoteChunk = {
   chunkIndex: number;
   chunkText: string;
@@ -18,23 +20,29 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
 
-/**
- * Target chunk size in estimated tokens.
- */
-const TARGET_CHUNK_TOKENS = 500;
-
-/**
- * Overlap in estimated tokens between consecutive chunks.
- */
-const OVERLAP_TOKENS = 50;
-
-/**
- * Minimum chunk size in characters — skip tiny chunks.
- */
-const MIN_CHUNK_CHARS = 30;
-
 @Injectable()
 export class NoteChunkingService {
+  private readonly env: ReturnType<RuntimeEnvironmentProvider['read']>;
+
+  constructor(private readonly runtimeEnv: RuntimeEnvironmentProvider) {
+    this.env = this.runtimeEnv.read();
+  }
+
+  private get TARGET_CHUNK_TOKENS(): number {
+    return this.env.chunkTargetTokens;
+  }
+
+  private get OVERLAP_TOKENS(): number {
+    return this.env.chunkOverlapTokens;
+  }
+
+  private get MIN_CHUNK_CHARS(): number {
+    return this.env.chunkMinChars;
+  }
+
+  private get CODE_BLOCK_OVERLAP_LINES(): number {
+    return this.env.chunkCodeBlockOverlapLines;
+  }
   /**
    * Split a note into chunks suitable for embedding.
    *
@@ -55,10 +63,10 @@ export class NoteChunkingService {
   }): NoteChunk[] {
     const { title, body, projectSlug, path = '', attachments = [] } = params;
 
-    if (!body || body.trim().length < MIN_CHUNK_CHARS) {
+    if (!body || body.trim().length < this.MIN_CHUNK_CHARS) {
       // Single chunk for very short notes
       const text = this.buildPrefix(title, projectSlug, path, attachments) + (body || '').trim();
-      if (text.trim().length < MIN_CHUNK_CHARS) return [];
+      if (text.trim().length < this.MIN_CHUNK_CHARS) return [];
       return [{ chunkIndex: 0, chunkText: text }];
     }
 
@@ -115,7 +123,7 @@ export class NoteChunkingService {
     for (const para of paragraphs) {
       const candidate = buffer ? `${buffer}\n\n${para}` : para;
 
-      if (estimateTokens(prefix + candidate) <= TARGET_CHUNK_TOKENS) {
+      if (estimateTokens(prefix + candidate) <= this.TARGET_CHUNK_TOKENS) {
         buffer = candidate;
         continue;
       }
@@ -127,7 +135,7 @@ export class NoteChunkingService {
       }
 
       // If the paragraph/code-block alone exceeds target, split it
-      if (estimateTokens(prefix + para) > TARGET_CHUNK_TOKENS) {
+      if (estimateTokens(prefix + para) > this.TARGET_CHUNK_TOKENS) {
         if (para.startsWith('```')) {
           const codeChunks = this.splitCodeBlockByLines(para, prefix);
           chunks.push(...codeChunks);
@@ -145,7 +153,7 @@ export class NoteChunkingService {
       chunks.push(prefix + buffer);
     }
 
-    return chunks.filter((c) => c.trim().length >= MIN_CHUNK_CHARS);
+    return chunks.filter((c) => c.trim().length >= this.MIN_CHUNK_CHARS);
   }
 
   /**
@@ -169,15 +177,15 @@ export class NoteChunkingService {
       const candidateLines = [...lineBuffer, line];
       const candidateBlock = `\`\`\`${lang}\n${candidateLines.join('\n')}\n\`\`\``;
 
-      if (estimateTokens(prefix + candidateBlock) <= TARGET_CHUNK_TOKENS) {
+      if (estimateTokens(prefix + candidateBlock) <= this.TARGET_CHUNK_TOKENS) {
         lineBuffer.push(line);
         continue;
       }
 
       if (lineBuffer.length > 0) {
         chunks.push(prefix + `\`\`\`${lang}\n${lineBuffer.join('\n')}\n\`\`\``);
-        // Overlap: keep the last 8 lines for context if possible
-        lineBuffer = lineBuffer.slice(-8);
+        // Overlap: keep the last CODE_BLOCK_OVERLAP_LINES lines for context if possible
+        lineBuffer = lineBuffer.slice(-this.CODE_BLOCK_OVERLAP_LINES);
       }
 
       lineBuffer.push(line);
@@ -212,7 +220,7 @@ export class NoteChunkingService {
     for (const sentence of sentences) {
       const candidate = buffer ? `${buffer} ${sentence}` : sentence;
 
-      if (estimateTokens(prefix + candidate) <= TARGET_CHUNK_TOKENS) {
+      if (estimateTokens(prefix + candidate) <= this.TARGET_CHUNK_TOKENS) {
         buffer = candidate;
         continue;
       }
@@ -252,7 +260,7 @@ export class NoteChunkingService {
 
     for (let i = sentences.length - 1; i >= 0; i--) {
       const sentTokens = estimateTokens(sentences[i]);
-      if (tokens + sentTokens > OVERLAP_TOKENS) break;
+      if (tokens + sentTokens > this.OVERLAP_TOKENS) break;
       tokens += sentTokens;
       result.unshift(sentences[i]);
     }

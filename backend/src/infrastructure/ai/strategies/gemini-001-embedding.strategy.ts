@@ -5,6 +5,7 @@ import type { EmbeddingStrategy } from './embedding.strategy.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { truncateForLog } from '../../utils/logging.js';
 import { EmbeddingTaskType } from '../../../contracts/enums.js';
+import { RuntimeEnvironmentProvider } from '../../../application/ports/observability/runtime-environment.port.js';
 
 /**
  * Max texts per Gemini batchEmbedContents request (API limit is 100).
@@ -24,7 +25,14 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 @Injectable()
 export class Gemini001EmbeddingStrategy implements EmbeddingStrategy {
-  constructor(private readonly logger: AppLogger) { }
+  private readonly env: ReturnType<RuntimeEnvironmentProvider['read']>;
+
+  constructor(
+    private readonly logger: AppLogger,
+    private readonly runtimeEnv: RuntimeEnvironmentProvider,
+  ) {
+    this.env = this.runtimeEnv.read();
+  }
 
   async generateEmbeddings(
     config: EmbeddingConfig,
@@ -44,7 +52,7 @@ export class Gemini001EmbeddingStrategy implements EmbeddingStrategy {
           model: `models/${config.model}`,
           content: { parts: [{ text }] },
           taskType: taskType === EmbeddingTaskType.Query ? 'RETRIEVAL_QUERY' : 'RETRIEVAL_DOCUMENT',
-          outputDimensionality: 768,
+          outputDimensionality: this.env.embeddingDimension,
         })),
       };
 

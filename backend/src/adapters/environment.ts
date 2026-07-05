@@ -133,5 +133,10 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     ragRrfK: normalizeNumber(env.KB_RAG_RRF_K, 20),
     attachmentMaxSizeBytes: Number(env.KB_ATTACHMENT_MAX_SIZE_BYTES || 10 * 1024 * 1024),
     avatarMaxSizeBytes: Number(env.KB_AVATAR_MAX_SIZE_BYTES || 3 * 1024 * 1024),
+    chunkTargetTokens: normalizeNumber(env.KB_CHUNK_TARGET_TOKENS, 500),
+    chunkOverlapTokens: normalizeNumber(env.KB_CHUNK_OVERLAP_TOKENS, 50),
+    chunkMinChars: normalizeNumber(env.KB_CHUNK_MIN_CHARS, 30),
+    chunkCodeBlockOverlapLines: normalizeNumber(env.KB_CHUNK_CODE_BLOCK_OVERLAP_LINES, 8),
+    embeddingDimension: normalizeNumber(env.KB_EMBEDDING_DIMENSION, 768),
   };
 }

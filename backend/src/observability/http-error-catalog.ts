@@ -36,6 +36,7 @@ export const httpErrorCatalog = {
   avatar_file_required: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Choose a profile photo to upload.', logLevel: HttpErrorLogLevel.Warn },
   unsupported_avatar_type: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Profile photo must be a PNG, JPEG, or WebP image.', logLevel: HttpErrorLogLevel.Warn },
   avatar_file_too_large: { statusCode: HttpStatus.PAYLOAD_TOO_LARGE, safeMessage: 'Profile photo must be 2 MB or smaller.', logLevel: HttpErrorLogLevel.Warn },
+  unsupported_attachment_type: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Unsupported file type. Only common images, documents, audio, video, archives, and code files are supported.', logLevel: HttpErrorLogLevel.Warn },
   payload_too_large: { statusCode: HttpStatus.PAYLOAD_TOO_LARGE, safeMessage: 'The uploaded file or attachment is too large.', logLevel: HttpErrorLogLevel.Warn },
   avatar_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Profile photo not found.', logLevel: HttpErrorLogLevel.Info },
   invalid_query_payload: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid query payload.', logLevel: HttpErrorLogLevel.Warn },
