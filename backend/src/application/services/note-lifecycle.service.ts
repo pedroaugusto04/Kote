@@ -38,13 +38,22 @@ export class NoteLifecycleService {
       projectSlug?: string;
     } = {}
   ): Promise<{ note: NoteRecord; attachments: AttachmentRecord[] }> {
-    const { noteInput, attachments: incomingAttachments = [] } = input;
+    const { noteInput, attachments: incomingAttachments } = input;
 
     // 1. Calculate incoming sizes
     const markdownSize = Buffer.byteLength(noteInput.markdown || '', 'utf8');
-    const attachmentsSize = incomingAttachments.reduce((acc, att) => {
-      return acc + calculateAttachmentSize(att.sizeBytes, att.dataBase64);
-    }, 0);
+    let attachmentsSize = 0;
+    if (incomingAttachments !== undefined) {
+      attachmentsSize = incomingAttachments.reduce((acc, att) => {
+        return acc + calculateAttachmentSize(att.sizeBytes, att.dataBase64);
+      }, 0);
+    } else {
+      const targetNoteId = options.existingNoteId || noteInput.id;
+      if (targetNoteId) {
+        const existingAttachments = await this.contentRepository.listAttachments(userId, targetNoteId);
+        attachmentsSize = existingAttachments.reduce((acc, att) => acc + (att.sizeBytes || 0), 0);
+      }
+    }
     const incomingNoteSize = markdownSize + attachmentsSize;
 
     // 2. Calculate size difference if note exists
@@ -79,33 +88,40 @@ export class NoteLifecycleService {
     }
 
     // 5. Save Attachments
-    if (options.existingNoteId) {
-      const existingList = await this.contentRepository.listAttachments(userId, note.id);
-      const incomingNames = incomingAttachments.map((att) => att.fileName);
-      
-      // Delete attachments that are no longer in the list
-      await Promise.all(
-        existingList
-          .filter((att) => !incomingNames.includes(att.fileName))
-          .map((att) => this.contentRepository.deleteAttachment(userId, note.id, att.fileName))
-      );
-    }
+    let attachments: AttachmentRecord[] = [];
+    if (incomingAttachments !== undefined) {
+      if (options.existingNoteId) {
+        const existingList = await this.contentRepository.listAttachments(userId, note.id);
+        const incomingNames = incomingAttachments.map((att) => att.fileName);
+        
+        // Delete attachments that are no longer in the list
+        await Promise.all(
+          existingList
+            .filter((att) => !incomingNames.includes(att.fileName))
+            .map((att) => this.contentRepository.deleteAttachment(userId, note.id, att.fileName))
+        );
+      }
 
-    // Save only new/updated attachments (i.e. those with dataBase64 payload)
-    const attachments = await Promise.all(
-      incomingAttachments
-        .filter((att) => Boolean(att.dataBase64))
-        .map((att) =>
-          this.contentRepository.saveAttachment(userId, {
-            noteId: note.id,
-            fileName: att.fileName,
-            mimeType: att.mimeType,
-            sizeBytes: att.sizeBytes || 0,
-            dataBase64: att.dataBase64 || '',
-            checksumSha256: crypto.createHash('sha256').update(att.dataBase64 || '', 'base64').digest('hex'),
-          })
-        )
-    );
+      // Save only new/updated attachments (i.e. those with dataBase64 payload)
+      attachments = await Promise.all(
+        incomingAttachments
+          .filter((att) => Boolean(att.dataBase64))
+          .map((att) =>
+            this.contentRepository.saveAttachment(userId, {
+              noteId: note.id,
+              fileName: att.fileName,
+              mimeType: att.mimeType,
+              sizeBytes: att.sizeBytes || 0,
+              dataBase64: att.dataBase64 || '',
+              checksumSha256: crypto.createHash('sha256').update(att.dataBase64 || '', 'base64').digest('hex'),
+            })
+          )
+      );
+    } else {
+      if (options.existingNoteId) {
+        attachments = await this.contentRepository.listAttachments(userId, note.id);
+      }
+    }
 
     // 6. Queue Embedding Indexing
     try {

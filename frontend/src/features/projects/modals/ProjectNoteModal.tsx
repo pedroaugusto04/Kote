@@ -114,7 +114,7 @@ export function ProjectNoteModal({
       };
       return globalLoading.trackPromise(mode === 'create'
         ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual', attachments })
-        : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug }));
+        : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug, attachments }));
     },
     onSuccess: async (result) => {
       closeGuard.resetCloseGuard();

@@ -41,7 +41,7 @@ export class UpdateNoteUseCase {
 
     const project = await this.contentRepository.getProjectById(userId, projectId);
     const previousFolder = note.folderId
-      ? await requireProjectFolderOptional(this.contentRepository, userId, projectId, note.folderId)
+      ? await requireProjectFolderOptional(this.contentRepository, userId, note.projectId, note.folderId)
       : null;
     const nextFolder = await requireProjectFolderOptional(this.contentRepository, userId, projectId, input.folderId);
 

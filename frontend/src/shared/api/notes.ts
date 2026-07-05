@@ -82,6 +82,12 @@ export type UpdateNoteParams = {
   status?: QuickNoteStatus;
   categoryIds?: string[];
   reminderAt?: string;
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 };
 
 export function updateNote(id: string, params: UpdateNoteParams) {

@@ -46,7 +46,7 @@ export const updateNoteSchema = z
     status: editableNoteStatusSchema,
     categoryIds: z.array(z.string()).optional(),
     reminderAt: z.string().optional().default(''),
-    attachments: z.array(noteAttachmentSchema).optional().default([]),
+    attachments: z.array(noteAttachmentSchema).optional(),
   })
   .strict();
 
