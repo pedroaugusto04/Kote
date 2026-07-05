@@ -104,7 +104,12 @@ function FolderTreeNode({
         <button
           className="folder-select-btn"
           type="button"
-          onClick={() => onSelect(folder.id)}
+          onClick={() => {
+            onSelect(folder.id);
+            if (hasChildren) {
+              onToggle(folder.id);
+            }
+          }}
           title={folder.displayName}
         >
           {folder.displayName}
