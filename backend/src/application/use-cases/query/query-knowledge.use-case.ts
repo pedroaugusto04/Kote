@@ -26,6 +26,15 @@ export class QueryKnowledgeUseCase {
   }
 
   async execute(input: QueryInput, userId: string) {
+    this.logger.info('query_knowledge.start', {
+      userId,
+      query: input.query,
+      projectId: input.projectId,
+      workspaceId: input.workspaceId,
+      status: input.status,
+      limit: input.limit,
+    });
+
     const embeddingConfig = {
       provider: this.env.embeddingAiProvider,
       baseUrl: this.env.embeddingAiBaseUrl,
@@ -43,10 +52,15 @@ export class QueryKnowledgeUseCase {
     const [vectorResult, ftsNotes] = await Promise.all([
       (async () => {
         if (!embeddingConfig.provider || !embeddingConfig.apiKey || !embeddingConfig.model) {
+          this.logger.info('query_knowledge.embedding_not_configured');
           return { chunks: [], candidateIds: undefined };
         }
         try {
           const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [input.query], EmbeddingTaskType.Query);
+          this.logger.info('query_knowledge.embedding_generated', {
+            embeddingDim: embeddings[0]?.length,
+          });
+          
           const queryEmbedding = embeddings[0];
           if (queryEmbedding && queryEmbedding.length > 0) {
             const chunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
@@ -55,8 +69,13 @@ export class QueryKnowledgeUseCase {
               projectId,
               minSimilarity: this.env.searchMinSimilarity ?? 0.3,
             });
+            this.logger.info('query_knowledge.vector_search_complete', {
+              resultCount: chunks.length,
+              avgSimilarity: chunks.length > 0 ? chunks.reduce((sum, r) => sum + r.similarity, 0) / chunks.length : 0,
+            });
             return { chunks, candidateIds: chunks.map((c) => c.noteId) };
           }
+          this.logger.warn('query_knowledge.embedding_empty');
           return { chunks: [], candidateIds: undefined };
         } catch (error) {
           this.logger.warn('query_knowledge.vector_search_failed', {
@@ -68,14 +87,23 @@ export class QueryKnowledgeUseCase {
         }
       })(),
       (async () => {
-        return this.contentQueryRepository.list(userId, {
+        const results = await this.contentQueryRepository.list(userId, {
           projectId,
           workspaceId,
           status: input.status,
           query: input.query,
         });
+        this.logger.info('query_knowledge.fts_search_complete', {
+          resultCount: results.length,
+        });
+        return results;
       })(),
     ]);
+
+    this.logger.info('query_knowledge.search_phase_complete', {
+      vectorChunksCount: vectorResult.chunks.length,
+      ftsNotesCount: ftsNotes.length,
+    });
 
     similarChunks = vectorResult.chunks;
     candidateIds = vectorResult.candidateIds;
@@ -86,9 +114,22 @@ export class QueryKnowledgeUseCase {
         vector: this.env.searchHybridVectorWeight ?? 0.4,
         keyword: this.env.searchHybridKeywordWeight ?? 0.6,
       }, this.env.searchRrfK);
+      this.logger.info('query_knowledge.hybrid_ranking_complete', {
+        matchesCount: matches.length,
+        vectorWeight: this.env.searchHybridVectorWeight ?? 0.4,
+        keywordWeight: this.env.searchHybridKeywordWeight ?? 0.6,
+        rrfK: this.env.searchRrfK,
+      });
+      
       if (matches.length > 0) {
         const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || DEFAULT_PAGE_SIZE }, matches.length);
         const start = (pagination.page - 1) * pagination.pageSize;
+
+        this.logger.info('query_knowledge.complete', {
+          mode: 'hybrid',
+          totalMatches: matches.length,
+          returnedMatches: matches.slice(start, start + pagination.pageSize).length,
+        });
 
         return {
           ok: true,
@@ -107,8 +148,19 @@ export class QueryKnowledgeUseCase {
 
     // Fallback to keyword-only search
     const matches = rankKnowledgeMatches(notes, input);
+    this.logger.info('query_knowledge.keyword_ranking_complete', {
+      matchesCount: matches.length,
+    });
+    
     const pagination = buildPaginationMeta({ page: input.page || 1, pageSize: input.pageSize || DEFAULT_PAGE_SIZE }, matches.length);
     const start = (pagination.page - 1) * pagination.pageSize;
+
+    this.logger.info('query_knowledge.complete', {
+      mode: 'keyword_fallback',
+      totalMatches: matches.length,
+      returnedMatches: matches.slice(start, start + pagination.pageSize).length,
+    });
+
     return {
       ok: true,
       query: input.query,

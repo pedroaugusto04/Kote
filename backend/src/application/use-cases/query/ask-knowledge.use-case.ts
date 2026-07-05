@@ -37,6 +37,14 @@ export class AskKnowledgeUseCase {
     userId: string,
     options: { workspaceId?: string; projectId?: string; conversationHistory?: AskConversationTurn[] } = {},
   ) {
+    this.logger.info('ask_knowledge.start', {
+      userId,
+      question,
+      workspaceId: options.workspaceId,
+      projectId: options.projectId,
+      hasConversationHistory: Boolean(options.conversationHistory?.length),
+    });
+
     const quotaResult = await this.quotaService.checkAndIncrementAiUsage(userId, AiOperationType.ASK_KNOWLEDGE);
     if (!quotaResult.allowed) {
       throw new QuotaExceededException('ai_credits', quotaResult.limit, quotaResult.current);
@@ -62,9 +70,17 @@ export class AskKnowledgeUseCase {
         conversationAiApiKey: this.env.conversationAiApiKey,
       };
       queryText = await this.answerGenerationGateway.rewriteQuery(answerConfig, question, conversationHistory);
+      this.logger.info('ask_knowledge.query_rewrite', {
+        originalQuery: question,
+        rewrittenQuery: queryText,
+      });
     }
 
     const specialIntent = getSpecialQueryIntent(question);
+    this.logger.info('ask_knowledge.special_intent', {
+      specialIntent,
+      queryText,
+    });
     
     // Resolve Context Chunks & Related Notes using strategy helper
     const { contextChunks, relatedNotes } = await this.resolveContext(
@@ -74,8 +90,13 @@ export class AskKnowledgeUseCase {
       options,
       embeddingConfig,
     );
+    this.logger.info('ask_knowledge.context_resolved', {
+      contextChunksCount: contextChunks.length,
+      relatedNotesCount: relatedNotes.length,
+    });
 
     if (contextChunks.length === 0) {
+      this.logger.info('ask_knowledge.no_context');
       return {
         ok: true,
         answer: 'No relevant information found in your Kote.',
@@ -99,8 +120,12 @@ export class AskKnowledgeUseCase {
       context: contextChunks,
       conversationHistory,
     });
+    this.logger.info('ask_knowledge.answer_generated', {
+      confidence: result?.confidence,
+    });
 
     if (!result) {
+      this.logger.info('ask_knowledge.generation_failed');
       return {
         ok: false,
         answer: 'Failed to generate an answer from the AI model.',
@@ -110,6 +135,10 @@ export class AskKnowledgeUseCase {
         relatedNotes: [],
       };
     }
+
+    this.logger.info('ask_knowledge.complete', {
+      confidence: result.confidence,
+    });
 
     return {
       ok: true,
@@ -130,6 +159,7 @@ export class AskKnowledgeUseCase {
     embeddingConfig: any,
   ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
     if (specialIntent) {
+      this.logger.info('ask_knowledge.special_intent_mode', { specialIntent });
       return this.resolveSpecialIntentContext(userId, specialIntent, options);
     }
 
@@ -139,21 +169,40 @@ export class AskKnowledgeUseCase {
     const hybridKeywordWeight = this.env.ragHybridKeywordWeight ?? 0.2;
     const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
 
+    this.logger.info('ask_knowledge.rag_config', {
+      candidateLimit,
+      minSimilarity,
+      hybridVectorWeight,
+      hybridKeywordWeight,
+      topChunksLimit,
+    });
+
     // 1. Fetch vector search candidate chunks and FTS candidate notes in parallel
     const [vectorChunks, ftsNotes] = await Promise.all([
       (async () => {
         try {
           const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, [queryText], EmbeddingTaskType.Query);
+          this.logger.info('ask_knowledge.embedding_generated', {
+            embeddingDim: embeddings[0]?.length,
+          });
+          
           const questionEmbedding = embeddings[0];
           if (!questionEmbedding || questionEmbedding.length === 0) {
+            this.logger.warn('ask_knowledge.embedding_empty');
             return [];
           }
-          return await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
+          
+          const results = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
             limit: candidateLimit,
             workspaceId: options.workspaceId,
             projectId: options.projectId,
             minSimilarity: minSimilarity,
           });
+          this.logger.info('ask_knowledge.vector_search_complete', {
+            resultCount: results.length,
+            avgSimilarity: results.length > 0 ? results.reduce((sum, r) => sum + r.similarity, 0) / results.length : 0,
+          });
+          return results;
         } catch (error) {
           this.logger.warn('ask_knowledge.vector_search_failed_in_hybrid', {
             userId,
@@ -166,11 +215,15 @@ export class AskKnowledgeUseCase {
       (async () => {
         if (!this.contentQueryRepository) return [];
         try {
-          return await this.contentQueryRepository.list(userId, {
+          const results = await this.contentQueryRepository.list(userId, {
             projectId: options.projectId,
             workspaceId: options.workspaceId,
             query: queryText,
           });
+          this.logger.info('ask_knowledge.fts_search_complete', {
+            resultCount: results.length,
+          });
+          return results;
         } catch (error) {
           this.logger.warn('ask_knowledge.fts_search_failed_in_hybrid', {
             userId,
@@ -182,7 +235,13 @@ export class AskKnowledgeUseCase {
       })(),
     ]);
 
+    this.logger.info('ask_knowledge.rag_phase1_complete', {
+      vectorChunksCount: vectorChunks.length,
+      ftsNotesCount: ftsNotes.length,
+    });
+
     if (vectorChunks.length === 0 && ftsNotes.length === 0) {
+      this.logger.info('ask_knowledge.no_results_phase1');
       return { contextChunks: [], relatedNotes: [] };
     }
 
@@ -192,10 +251,19 @@ export class AskKnowledgeUseCase {
       .map((n) => n.id)
       .filter((id) => !existingNoteIdsInVector.has(id));
 
+    this.logger.info('ask_knowledge.missing_fts_notes', {
+      missingCount: missingFtsNoteIds.length,
+      totalFtsNotes: ftsNotes.length,
+    });
+
     let additionalChunks: any[] = [];
     if (missingFtsNoteIds.length > 0) {
       try {
         const additionalChunksList = await this.noteEmbeddingRepository.getNotesEmbeddings(userId, missingFtsNoteIds);
+        this.logger.info('ask_knowledge.fts_embeddings_fetched', {
+          requestedIds: missingFtsNoteIds.length,
+          fetchedChunks: additionalChunksList.length,
+        });
         additionalChunks = additionalChunksList.map((c) => ({
           ...c,
           similarity: 0.0, // baseline vector similarity for pure keyword matches
@@ -209,15 +277,25 @@ export class AskKnowledgeUseCase {
       }
     }
 
+    this.logger.info('ask_knowledge.rag_phase2_complete', {
+      additionalChunksCount: additionalChunks.length,
+    });
+
     // Combine chunks
     const allChunks = [...vectorChunks, ...additionalChunks];
     if (allChunks.length === 0) {
+      this.logger.info('ask_knowledge.no_chunks_after_phase2');
       return { contextChunks: [], relatedNotes: [] };
     }
 
     // 3. Fetch all referenced notes to calculate keyword scores
     const noteIds = Array.from(new Set(allChunks.map((c) => c.noteId)));
     const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
+    this.logger.info('ask_knowledge.notes_fetched', {
+      requestedIds: noteIds.length,
+      fetchedNotes: notes.length,
+    });
+    
     const noteMap = new Map(notes.map((n) => [n.id, n]));
     const tokens = tokenizeQuery(queryText);
 
@@ -248,6 +326,13 @@ export class AskKnowledgeUseCase {
         return { chunk, note, vectorScore, keywordScore };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
+
+    this.logger.info('ask_knowledge.chunks_scored', {
+      totalChunks: allChunks.length,
+      scoredChunks: scoredChunks.length,
+      avgVectorScore: scoredChunks.length > 0 ? scoredChunks.reduce((sum, sc) => sum + sc.vectorScore, 0) / scoredChunks.length : 0,
+      avgKeywordScore: scoredChunks.length > 0 ? scoredChunks.reduce((sum, sc) => sum + sc.keywordScore, 0) / scoredChunks.length : 0,
+    });
 
     // 4. Rank by Vector Similarity (descending)
     const vectorRanked = [...scoredChunks]
@@ -281,6 +366,11 @@ export class AskKnowledgeUseCase {
       keywordRankMap.set(key, index + 1);
     });
 
+    this.logger.info('ask_knowledge.ranking_complete', {
+      vectorRankedCount: vectorRanked.length,
+      keywordRankedCount: keywordRanked.length,
+    });
+
     // 6. Perform RRF (Reciprocal Rank Fusion)
     const k = this.env.ragRrfK ?? 20;
     const rankedChunks = scoredChunks
@@ -298,6 +388,14 @@ export class AskKnowledgeUseCase {
       .filter((item) => item.hybridScore > 0)
       .sort((left, right) => right.hybridScore - left.hybridScore)
       .slice(0, topChunksLimit);
+
+    this.logger.info('ask_knowledge.rrf_complete', {
+      k,
+      rrfK: k,
+      topChunksLimit,
+      rankedChunksCount: rankedChunks.length,
+      avgHybridScore: rankedChunks.length > 0 ? rankedChunks.reduce((sum, r) => sum + r.hybridScore, 0) / rankedChunks.length : 0,
+    });
 
     const contextChunks = rankedChunks.map(({ chunk, note }) => ({
       noteId: chunk.noteId,
@@ -319,6 +417,11 @@ export class AskKnowledgeUseCase {
       projectSlug: n.projectSlug || '',
       workspaceId: n.workspaceId,
     }));
+
+    this.logger.info('ask_knowledge.context_built', {
+      contextChunksCount: contextChunks.length,
+      relatedNotesCount: relatedNotes.length,
+    });
 
     return { contextChunks, relatedNotes };
   }
