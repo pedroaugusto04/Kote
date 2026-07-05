@@ -38,6 +38,17 @@ export function ProjectKnowledgeForceGraph({
   const [size, setSize] = useState(DEFAULT_SIZE);
   const prevResetSignalRef = useRef(resetSignal);
 
+  const onOpenNoteRef = useRef(onOpenNote);
+  const sizeRef = useRef(size);
+
+  useEffect(() => {
+    onOpenNoteRef.current = onOpenNote;
+  }, [onOpenNote]);
+
+  useEffect(() => {
+    sizeRef.current = size;
+  }, [size]);
+
   const searchQueryRef = useRef(searchQuery);
   const updateVisualsRef = useRef<((hoveredId: string | null, searchStr: string) => void) | null>(null);
   // Refs to D3 selections so we can update visibility without rebuilding the simulation
@@ -83,12 +94,14 @@ export function ProjectKnowledgeForceGraph({
     const svgElement = svgRef.current;
     if (!svgElement) return undefined;
 
+    const currentSize = sizeRef.current;
+
     simulationRef.current?.stop();
     if (renderFrameRef.current) window.cancelAnimationFrame(renderFrameRef.current);
     renderFrameRef.current = null;
     const svg = d3.select(svgElement);
     svg.selectAll('*').remove();
-    svg.attr('viewBox', `0 0 ${size.width} ${size.height}`);
+    svg.attr('viewBox', `0 0 ${currentSize.width} ${currentSize.height}`);
 
     // Add SVG definitions for shadows/glows
     const defs = svg.append('defs');
@@ -122,7 +135,7 @@ export function ProjectKnowledgeForceGraph({
     let activeNodeId = '';
 
     const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .extent([[0, 0], [size.width, size.height]])
+      .extent([[0, 0], [currentSize.width, currentSize.height]])
       .scaleExtent([0.25, 3])
       .on('zoom', (event) => {
         viewport.attr('transform', event.transform.toString());
@@ -167,13 +180,13 @@ export function ProjectKnowledgeForceGraph({
       .on('click', (_event, item) => {
         activeNodeId = item.id;
         updateVisuals(item.id, searchQueryRef.current);
-        if (item.type === 'note' && item.noteId) onOpenNote(item.noteId);
+        if (item.type === 'note' && item.noteId) onOpenNoteRef.current(item.noteId);
       })
       .on('keydown', (event, item) => {
         if (item.type !== 'note' || !item.noteId) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
-        onOpenNote(item.noteId);
+        onOpenNoteRef.current(item.noteId);
       });
 
     const circles = node
@@ -217,7 +230,7 @@ export function ProjectKnowledgeForceGraph({
     const simulation = d3.forceSimulation<GraphNode>(graphNodes)
       .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength(linkStrength).distance(linkDistance))
       .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap)))
-      .force('center', d3.forceCenter(size.width / 2, size.height / 2))
+      .force('center', d3.forceCenter(currentSize.width / 2, currentSize.height / 2))
       .force('collide', d3.forceCollide<GraphNode>().radius(collisionRadius))
       .on('tick', () => renderGraph(performance.now()));
     simulationRef.current = simulation;
@@ -247,8 +260,8 @@ export function ProjectKnowledgeForceGraph({
     const initialTransform = computeFitTransform(
       graphNodes,
       hiddenNodeIdsRef.current,
-      size.width,
-      size.height
+      currentSize.width,
+      currentSize.height
     );
     svg.call(zoom.transform, initialTransform);
 
@@ -398,7 +411,7 @@ export function ProjectKnowledgeForceGraph({
       nodeSelectionRef.current = null;
       linkSelectionRef.current = null;
     };
-  }, [graph, onOpenNote, size.height, size.width]);
+  }, [graph]);
 
   // Lightweight effect: apply visibility mask from hiddenNodeIds without rebuilding the simulation
   useEffect(() => {
@@ -444,6 +457,25 @@ export function ProjectKnowledgeForceGraph({
       handleFitScreen();
     }
   }, [resetSignal]);
+
+  // Handle container resizing without resetting zoom or clearing the SVG elements
+  useEffect(() => {
+    const svgElement = svgRef.current;
+    if (!svgElement) return;
+    const svg = d3.select(svgElement);
+    svg.attr('viewBox', `0 0 ${size.width} ${size.height}`);
+
+    if (zoomRef.current) {
+      zoomRef.current.extent([[0, 0], [size.width, size.height]]);
+    }
+
+    const simulation = simulationRef.current;
+    if (simulation) {
+      simulation.force('center', d3.forceCenter(size.width / 2, size.height / 2));
+      // Re-heat simulation slightly so nodes adjust to the new center
+      simulation.alpha(0.1).restart();
+    }
+  }, [size.width, size.height]);
 
   const handleZoomIn = () => {
     const svgElement = svgRef.current;
