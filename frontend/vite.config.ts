@@ -14,6 +14,11 @@ export default defineConfig({
   root: __dirname,
   base: frontendBasePath,
   plugins: [react()],
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/app/test-setup.ts'],
+  },
   build: {
     outDir: '../dist/frontend',
     emptyOutDir: true,
