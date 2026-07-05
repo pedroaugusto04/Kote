@@ -130,6 +130,7 @@ export function AppShell() {
   const activeRouteNote = routeNoteQuery.data || cachedRouteNote;
   const shouldBlockNoteRoute = Boolean(routeNoteId) && routeNoteQuery.isLoading && !activeRouteNote;
   const isUnauthorized = dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401;
+  // currentUser is critical for UI (avatar, menu) - load in parallel
   const currentUserQuery = useQuery({
     queryKey: QUERY_KEYS.AUTH.ME,
     queryFn: fetchCurrentUser,
@@ -137,15 +138,24 @@ export function AppShell() {
   });
   const currentUser = currentUserQuery.data?.user;
 
-  // Quota status — loaded lazily, refreshed every 60s, used for compact sidebar widget
+  // Quota status — non-critical (just warning dot), defer to improve FCP
+  const [enableQuotaQuery, setEnableQuotaQuery] = useState(false);
   const quotaStatusQuery = useQuery({
     queryKey: ['billing', 'status'],
     queryFn: fetchSubscriptionStatus,
     staleTime: 60_000,
-    enabled: Boolean(dashboard && activeWorkspace && !isSetupRoute),
+    enabled: enableQuotaQuery && Boolean(dashboard && activeWorkspace && !isSetupRoute),
   });
   const quotaStatus = quotaStatusQuery.data;
   const showQuotaWarningDot = quotaStatus ? hasQuotaWarning(quotaStatus) : false;
+
+  // Enable quota query after dashboard loads to improve FCP
+  useEffect(() => {
+    if (dashboard && activeWorkspace && !isSetupRoute) {
+      const timer = setTimeout(() => setEnableQuotaQuery(true), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [dashboard, activeWorkspace, isSetupRoute]);
 
   useLayoutEffect(() => {
     if (dashboardQuery.isLoading && !dashboardQuery.data) {

@@ -17,6 +17,20 @@ export default defineConfig({
   build: {
     outDir: '../dist/frontend',
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks for better caching
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'query-vendor': ['@tanstack/react-query', '@tanstack/react-query-persist-client', '@tanstack/query-sync-storage-persister'],
+          'ui-vendor': ['react-hook-form', '@hookform/resolvers', 'sonner'],
+          'markdown-vendor': ['react-markdown', 'dompurify', 'prismjs'],
+          'stripe-vendor': ['@stripe/react-stripe-js', '@stripe/stripe-js'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
   },
   server: {
     host: process.env.KB_FRONTEND_HOST || '127.0.0.1',
@@ -25,9 +39,5 @@ export default defineConfig({
     proxy: {
       '/api': apiProxyTarget,
     },
-  },
-  test: {
-    environment: 'jsdom',
-    setupFiles: './src/app/test-setup.ts',
   },
 });

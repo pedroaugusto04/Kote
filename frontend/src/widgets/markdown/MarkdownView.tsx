@@ -1,14 +1,29 @@
-import { useState, type ReactNode, Children, createContext, useContext, useMemo } from 'react';
+import { useState, type ReactNode, Children, createContext, useContext, useMemo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Prism from 'prismjs';
 import DOMPurify from 'dompurify';
 import 'prismjs/themes/prism-tomorrow.css';
-import 'prismjs/components/prism-typescript.js';
-import 'prismjs/components/prism-javascript.js';
-import 'prismjs/components/prism-python.js';
-import 'prismjs/components/prism-css.js';
-import 'prismjs/components/prism-json.js';
-import 'prismjs/components/prism-bash.js';
+
+// Lazy load PrismJS language components to reduce initial bundle size
+let prismLanguagesLoaded = false;
+const loadPrismLanguages = async () => {
+  if (typeof window === 'undefined' || prismLanguagesLoaded) return;
+  await Promise.all([
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-typescript.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-javascript.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-python.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-css.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-json.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-bash.js'),
+  ]);
+  prismLanguagesLoaded = true;
+};
 
 const severityClassNames: Record<string, string> = {
   INFO: 'markdown-severity markdown-severity-info',
@@ -98,6 +113,11 @@ function CodeBlockView({ code, language }: { code: string; language: string }) {
 }
 
 export function MarkdownView({ markdown }: { markdown: string }) {
+  // Load Prism languages on mount to reduce initial bundle size
+  useEffect(() => {
+    loadPrismLanguages();
+  }, []);
+
   return (
     <div className="markdown">
       <ReactMarkdown
