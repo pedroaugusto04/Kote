@@ -262,15 +262,29 @@ export class NoteChunkingService {
 }
 
 function formatAttachmentSummary(attachments: NoteChunkAttachment[]): string {
-  const fileNames = attachments
-    .map((attachment) => String(attachment.fileName || '').trim())
-    .filter(Boolean);
+  if (attachments.length === 0) return '';
+  
+  const formatted = attachments.map((attachment) => {
+    const fileName = String(attachment.fileName || '').trim();
+    if (!fileName) return '';
+    const details = [
+      String(attachment.mimeType || '').trim(),
+      formatSizeBytes(attachment.sizeBytes),
+    ].filter(Boolean);
+    return details.length ? `${fileName} (${details.join(', ')})` : fileName;
+  }).filter(Boolean);
 
-  if (fileNames.length === 0) return '';
-  if (fileNames.length <= 3) {
-    return fileNames.join(', ');
+  if (formatted.length <= 3) {
+    return formatted.join('; ');
   }
-  return `${fileNames.slice(0, 3).join(', ')}... and ${fileNames.length - 3} more`;
+  return `${formatted.slice(0, 3).join('; ')}... and ${formatted.length - 3} more`;
+}
+
+function formatSizeBytes(sizeBytes: number): string {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) return '';
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${Math.round(sizeBytes / 1024)} KB`;
+  return `${Math.round(sizeBytes / (1024 * 1024))} MB`;
 }
 
 function formatShortPath(path: string): string {
