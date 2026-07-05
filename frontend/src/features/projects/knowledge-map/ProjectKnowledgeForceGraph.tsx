@@ -427,25 +427,21 @@ export function ProjectKnowledgeForceGraph({
     const simulation = simulationRef.current;
     if (!simulation) return;
     if (paused) {
-      simulation.stop();
+      // Stop only the visual drift loop — don't kill the simulation internals
       if (renderFrameRef.current) window.cancelAnimationFrame(renderFrameRef.current);
       renderFrameRef.current = null;
       return;
     }
-    simulation.alphaTarget(0.12).restart();
+    // Resume only the drift animation — don't reheat the physics simulation
     startDriftRef.current?.();
-    window.setTimeout(() => simulation.alphaTarget(0), 450);
   }, [paused]);
 
   useEffect(() => {
     if (resetSignal !== prevResetSignalRef.current) {
       prevResetSignalRef.current = resetSignal;
       handleFitScreen();
-      if (!paused) {
-        simulationRef.current?.alpha(0.7).restart();
-      }
     }
-  }, [resetSignal, paused]);
+  }, [resetSignal]);
 
   const handleZoomIn = () => {
     const svgElement = svgRef.current;
