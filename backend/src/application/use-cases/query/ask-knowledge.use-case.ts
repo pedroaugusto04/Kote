@@ -305,7 +305,9 @@ export class AskKnowledgeUseCase {
       requestedIds: noteIds.length,
       fetchedNotes: notes.length,
     });
-    
+
+    // Fetch FTS notes to get ts_rank for keyword scoring
+    const ftsNotesMap = new Map(ftsNotes.map(n => [n.id, n]));
     const noteMap = new Map(notes.map((n) => [n.id, n]));
 
     const scoredChunks = allChunks
@@ -316,8 +318,9 @@ export class AskKnowledgeUseCase {
         const noteSummaryData = noteSummary(note);
 
         // Use ts_rank from PostgreSQL FTS for keyword scoring
-        const noteScore = (noteSummaryData.ftsRank !== undefined && noteSummaryData.ftsRank > 0)
-          ? noteSummaryData.ftsRank
+        const ftsNote = ftsNotesMap.get(chunk.noteId);
+        const noteScore = (ftsNote?.ftsRank !== undefined && ftsNote.ftsRank > 0)
+          ? ftsNote.ftsRank
           : 0;
 
         const keywordScore = noteScore;
