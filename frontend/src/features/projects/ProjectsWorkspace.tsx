@@ -560,7 +560,7 @@ export function ProjectsWorkspace({
        {noteModal ? (
         <ProjectNoteModal
           key={noteModal.mode === 'edit' ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}-${noteModal.folderId || ''}-${noteModal.initialTitle || ''}`}
-          folders={flatFolders}
+          folders={selected?.projectSlug === (noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug) ? flatFolders : undefined}
           mode={noteModal.mode}
           note={noteModal.mode === 'edit' ? noteModal.note : undefined}
           onClose={() => {
