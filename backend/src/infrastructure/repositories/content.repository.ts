@@ -145,22 +145,15 @@ export class PostgresContentRepository extends ContentRepository {
       previousMarkdownStorageKey: note.markdownStorageKey || '',
       markdownStorageKey: await this.contentObjectStorage.saveNoteMarkdown(userId, { ...note, markdownStorageKey: undefined }),
     })));
-    const client = await this.noteRepository['database'].getPool().connect();
-    try {
-      await client.query('BEGIN');
+    const db = this.noteRepository['database'].getDb();
+    await db.transaction(async (tx) => {
       for (const folder of input.folders) {
-        await this.folderRepository.upsertWithClient(client, userId, folder);
+        await this.folderRepository.upsertWithClient(tx, userId, folder);
       }
       for (const write of noteWrites) {
-        await this.noteRepository.updateWithClient(client, userId, write.note, write.markdownStorageKey);
+        await this.noteRepository.updateWithClient(tx, userId, write.note, write.markdownStorageKey);
       }
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
     await this.contentObjectStorage.deleteObjects(
       noteWrites
         .filter((write) => write.previousMarkdownStorageKey && write.previousMarkdownStorageKey !== write.markdownStorageKey)

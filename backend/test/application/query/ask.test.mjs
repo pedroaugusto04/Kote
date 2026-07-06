@@ -720,6 +720,7 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
 
   let loggerWarnCalled = false;
   const mockLogger = {
+    info: () => {},
     warn: (msg, meta) => {
       loggerWarnCalled = true;
       assert.equal(msg, 'ask_knowledge.vector_search_failed_in_hybrid');
@@ -890,6 +891,7 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
   };
 
   const mockLogger = {
+    info: () => {},
     warn: () => {},
   };
 

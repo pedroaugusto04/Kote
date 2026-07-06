@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone, formatTimeInUserTimeZone, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
+import { formatDisplayToken, formatDateInUserTimeZone, formatTimeInUserTimeZone } from '../../shared/utils/format';
 import { makeTitleClickable } from '../../shared/utils/text';
 import { fetchNotes } from '../../shared/api/client';
-import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
-import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
+import type { NoteSummary } from '../../shared/api/models/note';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
@@ -60,14 +59,14 @@ export function VaultPage({
   useEffect(() => {
     const scrollToTop = () => {
       window.scrollTo(0, 0);
-      
+
       const content = document.querySelector('.content');
       const view = document.querySelector('.view');
-      
+
       if (content && typeof (content as HTMLElement).scrollTo === 'function') {
         (content as HTMLElement).scrollTop = 0;
       }
-      
+
       if (view && typeof (view as HTMLElement).scrollTo === 'function') {
         (view as HTMLElement).scrollTop = 0;
       }
@@ -75,11 +74,11 @@ export function VaultPage({
 
     setContentOpacity(0);
     scrollToTop();
-    
+
     const timer = setTimeout(() => {
       setContentOpacity(1);
     }, 50);
-    
+
     return () => clearTimeout(timer);
   }, [noteId, noteQuery.data?.id]);
 
@@ -219,7 +218,7 @@ export function VaultPage({
           <EmptyState>{selectedProjectDetails ? 'Open a note to start reading details.' : 'Select a project and open a note to start reading details.'}</EmptyState>
         )}
       </article>
-      
+
       <FloatingNoteNavigation
         previousNoteId={previousNote?.id || null}
         nextNoteId={nextNote?.id || null}
@@ -229,24 +228,4 @@ export function VaultPage({
       />
     </div>
   );
-}
-
-
-
-
-
-
-
-
-
-function toNavigationNote(note: NoteSummary | undefined): NavigationNote | null {
-  return note ? { id: note.id, title: note.title } : null;
-}
-
-function firstNavigationNote(notes: NoteSummary[] | undefined): NavigationNote | null {
-  return toNavigationNote(notes?.[0]);
-}
-
-function lastNavigationNote(notes: NoteSummary[] | undefined): NavigationNote | null {
-  return toNavigationNote(notes?.at(-1));
 }

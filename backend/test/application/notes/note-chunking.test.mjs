@@ -4,7 +4,15 @@ import assert from 'node:assert/strict';
 import { NoteChunkingService } from '../../../dist/application/services/note-chunking.service.js';
 
 test('note chunking includes attachment metadata so ask can retrieve attached files', () => {
-  const chunks = new NoteChunkingService().chunkNote({
+  const mockRuntimeEnv = {
+    read: () => ({
+      chunkTargetTokens: 512,
+      chunkOverlapTokens: 64,
+      chunkMinChars: 100,
+      chunkCodeBlockOverlapLines: 3,
+    }),
+  };
+  const chunks = new NoteChunkingService(mockRuntimeEnv).chunkNote({
     title: 'Deploy checklist',
     projectSlug: 'n8n-automations',
     body: 'Checklist curto',

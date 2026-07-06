@@ -114,32 +114,31 @@ export class PostgresFolderRepository {
     return result.length > 0;
   }
 
-  async upsertWithClient(client: PoolClient, userId: string, input: SaveProjectFolderInput) {
+  async upsertWithClient(dbOrTx: any, userId: string, input: SaveProjectFolderInput) {
     const projectId = input.projectId;
-    const result = await client.query(
-      `insert into kb_project_folders (
-         id, user_id, project_id, parent_folder_id, display_name, folder_slug, full_slug_path
-       )
-       values ($1, $2, $3, $4, $5, $6, $7)
-       on conflict (id)
-       do update set
-         project_id = excluded.project_id,
-         parent_folder_id = excluded.parent_folder_id,
-         display_name = excluded.display_name,
-         folder_slug = excluded.folder_slug,
-         full_slug_path = excluded.full_slug_path,
-         updated_at = now()
-       returning *`,
-      [
-        input.id || crypto.randomUUID(),
+    const result = await dbOrTx
+      .insert(projectFolders)
+      .values({
+        id: input.id || crypto.randomUUID(),
         userId,
         projectId,
-        input.parentFolderId,
-        input.displayName,
-        input.folderSlug,
-        input.fullSlugPath,
-      ]
-    );
-    return result.rows[0];
+        parentFolderId: input.parentFolderId,
+        displayName: input.displayName,
+        folderSlug: input.folderSlug,
+        fullSlugPath: input.fullSlugPath,
+      })
+      .onConflictDoUpdate({
+        target: projectFolders.id,
+        set: {
+          projectId,
+          parentFolderId: input.parentFolderId,
+          displayName: input.displayName,
+          folderSlug: input.folderSlug,
+          fullSlugPath: input.fullSlugPath,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return result[0];
   }
 }

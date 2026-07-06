@@ -277,6 +277,14 @@ export const projectRepositories = pgTable('kb_project_repositories', {
   pk: index('kb_project_repositories_pk').on(table.projectId, table.repositoryId),
 }));
 
+// Project Default Tags
+export const projectDefaultTags = pgTable('kb_project_default_tags', {
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  tag: text('tag').notNull(),
+}, (table) => ({
+  pk: index('kb_project_default_tags_pk').on(table.projectId, table.tag),
+}));
+
 // Project Folders
 export const projectFolders = pgTable('kb_project_folders', {
   id: uuid('id').primaryKey().defaultRandom(),

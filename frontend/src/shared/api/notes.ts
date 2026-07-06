@@ -26,7 +26,7 @@ export type CreateNoteParams = {
   projectSlug: string;
   folderId?: string;
   title?: string;
-  rawText: string;
+  rawText?: string;
   tags?: string[];
   status?: QuickNoteStatus;
   categoryIds?: string[];
@@ -77,7 +77,7 @@ export type UpdateNoteParams = {
   projectSlug?: string;
   folderId?: string;
   title?: string;
-  rawText: string;
+  rawText?: string;
   tags?: string[];
   status?: QuickNoteStatus;
   categoryIds?: string[];

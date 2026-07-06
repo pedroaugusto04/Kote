@@ -139,7 +139,7 @@ test('create note dto normalizes project, tags and keeps reminderAt as transport
     folderId: undefined,
     attachments: undefined,
   });
-  assert.deepEqual(createNoteBodySchema.parse({ projectSlug: 'acme', rawText: 'texto' }).categoryIds, []);
+  assert.deepEqual(createNoteBodySchema.parse({ projectSlug: 'acme', title: 'Test', rawText: 'texto' }).categoryIds, []);
 });
 
 test('project timeline dto accepts known categories and optional folder filters only', () => {

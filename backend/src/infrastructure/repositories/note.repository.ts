@@ -573,7 +573,7 @@ export class PostgresNoteRepository {
     if (existingId) {
       const existing = await this.getById(userId, existingId);
       if (existing) {
-        await this.updateWithClient(this.database.getPool(), userId, { ...input, id: existingId }, markdownStorageKey);
+        await this.updateWithClient(this.database.getDb(), userId, { ...input, id: existingId }, markdownStorageKey);
         if (existing.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
           await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
         }
@@ -632,7 +632,7 @@ export class PostgresNoteRepository {
   async update(userId: string, input: SaveNoteInput) {
     const existing = await this.getById(userId, String(input.id || ''));
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
-    await this.updateWithClient(this.database.getPool(), userId, input, markdownStorageKey);
+    await this.updateWithClient(this.database.getDb(), userId, input, markdownStorageKey);
     if (existing?.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
       await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
     }
@@ -708,78 +708,75 @@ export class PostgresNoteRepository {
     return true;
   }
 
-  async updateWithClient(client: Pick<PoolClient, 'query'>, userId: string, input: SaveNoteInput, markdownStorageKey: string) {
+  async updateWithClient(dbOrTx: any, userId: string, input: SaveNoteInput, markdownStorageKey: string) {
     let projectId = input.projectId;
     let workspaceId = input.workspaceId;
+    
     if ((!projectId && input.projectSlug) || (!workspaceId && input.workspaceSlug)) {
-      const wsResult = await client.query('select id from kb_workspaces where user_id = $1 and workspace_slug = $2 limit 1', [userId, input.workspaceSlug]);
-      if (wsResult.rows.length === 0) {
+      const wsResult = await dbOrTx
+        .select({ id: workspaces.id })
+        .from(workspaces)
+        .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, input.workspaceSlug || 'default')))
+        .limit(1);
+      if (wsResult.length === 0) {
         throw new NotFoundException('workspace_not_found');
       }
-      workspaceId = wsResult.rows[0].id;
+      workspaceId = wsResult[0].id;
 
       if (input.projectSlug) {
-        const projResult = await client.query('select id from kb_projects where user_id = $1 and project_slug = $2 limit 1', [userId, input.projectSlug]);
-        if (projResult.rows.length > 0) {
-          projectId = projResult.rows[0].id;
+        const projResult = await dbOrTx
+          .select({ id: projects.id })
+          .from(projects)
+          .where(and(eq(projects.userId, userId), eq(projects.projectSlug, input.projectSlug)))
+          .limit(1);
+        if (projResult.length > 0) {
+          projectId = projResult[0].id;
         }
       }
     }
 
-    const updateResult = await client.query(
-      `update kb_notes
-       set path = $3,
-           title = $4,
-           project_id = $5,
-           workspace_id = $6,
-           folder_id = $7,
-           status = $8::note_status_enum,
-           tags = $9::jsonb,
-           occurred_at = $10,
-           source_channel = $11,
-           summary = $12,
-           markdown_storage_key = $13,
-           metadata = $14::jsonb,
-           source = $15,
-           session_id = $16,
-           reminder_at = $17,
-           size_bytes = $18,
-           updated_at = now()
-       where user_id = $1 and id = $2
-       returning *`,
-      [
-        userId,
-        input.id,
-        input.path,
-        input.title,
-        projectId || null,
-        workspaceId,
-        input.folderId,
-        input.status,
-        JSON.stringify(input.tags),
-        input.occurredAt ? new Date(input.occurredAt) : new Date(),
-        input.sourceChannel,
-        input.summary,
+    const updateResult = await dbOrTx
+      .update(notes)
+      .set({
+        path: input.path,
+        title: input.title,
+        projectId: projectId || null,
+        workspaceId: workspaceId!,
+        folderId: input.folderId,
+        status: input.status as NoteStatus,
+        tags: input.tags,
+        occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+        sourceChannel: input.sourceChannel,
+        summary: input.summary,
         markdownStorageKey,
-        JSON.stringify(input.metadata),
-        input.source,
-        input.sessionId ?? '',
-        input.reminderAt ? new Date(input.reminderAt) : null,
-        input.sizeBytes ?? (input.markdown ? Buffer.byteLength(input.markdown, 'utf8') : 0),
-      ]
-    );
+        metadata: input.metadata,
+        source: input.source,
+        sessionId: input.sessionId ?? '',
+        reminderAt: input.reminderAt ? new Date(input.reminderAt) : null,
+        sizeBytes: input.sizeBytes ?? (input.markdown ? Buffer.byteLength(input.markdown, 'utf8') : 0),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(notes.userId, userId), eq(notes.id, input.id!)))
+      .returning();
 
     if (input.categoryIds) {
-      await client.query('delete from kb_note_categories where note_id = $1', [input.id]);
-      for (const catId of input.categoryIds) {
-        await client.query(
-          'insert into kb_note_categories (note_id, category_id) values ($1, $2) on conflict do nothing',
-          [input.id, catId]
-        );
+      await dbOrTx
+        .delete(noteCategories)
+        .where(eq(noteCategories.noteId, input.id!));
+      
+      if (input.categoryIds.length > 0) {
+        await dbOrTx
+          .insert(noteCategories)
+          .values(
+            input.categoryIds.map((catId) => ({
+              noteId: input.id!,
+              categoryId: catId,
+            }))
+          )
+          .onConflictDoNothing();
       }
     }
-
-    return updateResult;
+    return { rows: updateResult };
   }
 
   private async resolveNotePage(input: ListNotesInput, whereCondition: any) {
