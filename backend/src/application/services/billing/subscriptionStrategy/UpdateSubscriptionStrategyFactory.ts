@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { SubscriptionChangeKind } from '../../../../domain/enums/billing.enums.js';
+import { FREE_PLAN_ID, SubscriptionPlan } from '../../../../domain/enums/plans.enums.js';
 import { resolvePlanPriceCentsForGateway } from '../../../../domain/utils/plan-pricing.utils.js';
 import { SubscriptionContext } from './subscriptionContext.js';
 import { compareMoney, PLAN_PRICE_SCALE } from '../../../../infrastructure/utils/money.js';
@@ -13,8 +14,9 @@ export class UpdateSubscriptionStrategyFactory {
       return SubscriptionChangeKind.NEW;
     }
 
-    // Validate: cannot mix gateways for existing subscriptions
-    if (activeSub.gatewayName && ctx.gateway.toLowerCase() !== activeSub.gatewayName.toLowerCase()) {
+    // Validate: cannot mix gateways for existing subscriptions, except when downgrading to free.
+    const isDowngradeToFree = ctx.newPlan.slug === SubscriptionPlan.FREE || ctx.newPlan.id === FREE_PLAN_ID;
+    if (!isDowngradeToFree && activeSub.gatewayName && ctx.gateway.toLowerCase() !== activeSub.gatewayName.toLowerCase()) {
       throw new BadRequestException(`Cannot change gateway from ${activeSub.gatewayName} to ${ctx.gateway}. Please cancel current subscription first.`);
     }
 
