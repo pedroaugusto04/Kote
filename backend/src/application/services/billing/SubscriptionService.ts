@@ -115,6 +115,7 @@ export class SubscriptionService {
     const cycle = billingCycle || BillingCycle.MONTHLY;
     const type = billingType || BillingType.CREDIT_CARD;
     const normalizedCreditCardToken = creditCardToken?.trim() || undefined;
+    const isFreePlan = targetPlan.slug === SubscriptionPlan.FREE;
 
     const onlyStripe = process.env.ONLY_STRIPE === 'true';
     const isBrazil = countryCode?.toUpperCase() === COUNTRY_CODE.BRAZIL;
@@ -172,7 +173,7 @@ export class SubscriptionService {
       }
     }
 
-    if (isInternational && type === BillingType.CREDIT_CARD) {
+    if (isInternational && type === BillingType.CREDIT_CARD && !isFreePlan) {
       const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
       const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
       if (!hasCreditCardOnFile && !normalizedCreditCardToken) {
