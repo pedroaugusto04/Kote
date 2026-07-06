@@ -102,6 +102,7 @@ jobs:
 
       - name: Generate backend env file
         env:
+          KB_REMINDER_TIMEZONE: ${{ vars.KB_REMINDER_TIMEZONE || 'America/Sao_Paulo' }}
           KB_API_HOST: ${{ vars.KB_API_HOST || '0.0.0.0' }}
           KB_API_PORT: ${{ vars.KB_API_PORT || '4310' }}
           KB_TRUST_PROXY: ${{ vars.KB_TRUST_PROXY || 'true' }}
@@ -130,8 +131,6 @@ jobs:
           KB_CREDENTIALS_ENCRYPTION_KEY: ${{ secrets.KB_CREDENTIALS_ENCRYPTION_KEY }}
           STRIPE_PUBLISHABLE_KEY: ${{ vars.STRIPE_PUBLISHABLE_KEY || '' }}
           KB_GITHUB_APP_INSTALL_URL: ${{ vars.KB_GITHUB_APP_INSTALL_URL || '' }}
-          KB_GITHUB_APP_CLIENT_ID: ${{ secrets.KB_GITHUB_APP_CLIENT_ID || '' }}
-          KB_GITHUB_APP_CLIENT_SECRET: ${{ secrets.KB_GITHUB_APP_CLIENT_SECRET || '' }}
           KB_GITHUB_APP_ID: ${{ secrets.KB_GITHUB_APP_ID || '' }}
           KB_GITHUB_APP_PRIVATE_KEY: ${{ secrets.KB_GITHUB_APP_PRIVATE_KEY || '' }}
           KB_GITHUB_APP_WEBHOOK_SECRET: ${{ secrets.KB_GITHUB_APP_WEBHOOK_SECRET || '' }}
@@ -146,6 +145,7 @@ jobs:
           KB_TELEGRAM_BOT_TOKEN: ${{ secrets.KB_TELEGRAM_BOT_TOKEN || '' }}
           KB_TELEGRAM_WEBHOOK_TOKEN: ${{ secrets.KB_TELEGRAM_WEBHOOK_TOKEN || '' }}
           KB_TELEGRAM_CHAT_ID: ${{ vars.KB_TELEGRAM_CHAT_ID || '' }}
+          WPP_CONVERSATION_TIMEOUT_MS: ${{ vars.WPP_CONVERSATION_TIMEOUT_MS || '600000' }}
           KB_REVIEW_AI_PROVIDER: ${{ vars.KB_REVIEW_AI_PROVIDER || 'openrouter' }}
           KB_REVIEW_AI_BASE_URL: ${{ vars.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1' }}
           KB_REVIEW_AI_MODEL: ${{ vars.KB_REVIEW_AI_MODEL || 'openrouter/auto' }}
@@ -390,6 +390,8 @@ jobs:
         env:
           VITE_KB_FRONTEND_BASE_PATH: ${{ vars.VITE_KB_FRONTEND_BASE_PATH || '/kote/' }}
           VITE_KB_API_BASE_PATH: ${{ vars.VITE_KB_API_BASE_PATH || '/kote/api' }}
+          VITE_WHATSAPP_NUMBER: ${{ vars.VITE_WHATSAPP_NUMBER || '' }}
+          VITE_TELEGRAM_BOT_USERNAME: ${{ vars.VITE_TELEGRAM_BOT_USERNAME || '' }}
           VITE_ATTACHMENT_MAX_SIZE_BYTES: ${{ vars.VITE_ATTACHMENT_MAX_SIZE_BYTES || '10485760' }}
         run: npm run build:frontend
 
