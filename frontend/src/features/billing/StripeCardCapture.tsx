@@ -101,7 +101,7 @@ export const StripeCardCapture = forwardRef<StripeCardCaptureHandle, StripeCardC
     );
 
     return (
-      <Elements stripe={stripePromise}>
+      <Elements stripe={stripePromise} options={{ locale: 'en' }}>
         <StripeCardCaptureInner ref={ref} disabled={disabled} />
       </Elements>
     );

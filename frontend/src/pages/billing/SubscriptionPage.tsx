@@ -1025,8 +1025,8 @@ export function SubscriptionPage() {
                 Keep scheduled change
               </button>
               <button
-                className="icon-button danger-button"
-                style={{ background: 'rgb(220, 38, 38)', color: '#ffffff', border: '1px solid rgb(220, 38, 38)' }}
+                className="filter-chip"
+                style={{ border: '1px solid var(--danger-border)', color: 'var(--danger-text)', background: 'var(--surface-danger)', fontWeight: 600, padding: '8px 16px', borderRadius: '6px' }}
                 disabled={cancelChangeMutation.isPending}
                 type="button"
                 onClick={() => {
