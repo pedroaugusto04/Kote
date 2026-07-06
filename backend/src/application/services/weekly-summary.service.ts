@@ -9,6 +9,7 @@ import { users, notes, projects, workspaces } from '../../infrastructure/persist
 import { UserRepository } from '../ports/auth/auth.repository.js';
 import { CredentialRepository } from '../ports/integrations/integrations.repository.js';
 import { WeeklySummaryGateway } from '../ports/weekly-summary/weekly-summary.port.js';
+import { WeeklySummaryQueuePublisher } from '../ports/weekly-summary/weekly-summary-queue.publisher.js';
 import { AiProvider, IntegrationProvider } from '../../contracts/enums.js';
 import type { WeeklySummaryAnalysis } from '../../contracts/weekly-summary.js';
 
@@ -21,6 +22,7 @@ export class WeeklySummaryService {
     private readonly logger: AppLogger,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly weeklySummaryGateway: WeeklySummaryGateway,
+    private readonly weeklySummaryQueuePublisher: WeeklySummaryQueuePublisher,
     private readonly credentialRepository: CredentialRepository,
   ) {}
 
@@ -51,42 +53,29 @@ export class WeeklySummaryService {
 
       const userMap = new Map(userRows.map((u: any) => [String(u.id), u]));
 
-      // fetch notes for these users in the given range
-      const noteRows = await db
-        .select({
-          id: notes.id,
-          userId: notes.userId,
-          title: notes.title,
-          summary: notes.summary,
-          projectId: notes.projectId,
-          createdAt: notes.createdAt,
-          projectSlug: projects.projectSlug,
-        })
-        .from(notes)
-        .leftJoin(projects, eq(projects.id, notes.projectId))
-        .where(and(inArray(notes.userId, userIds), gte(notes.createdAt, new Date(startIso)), lt(notes.createdAt, new Date(endIso))))
-        .orderBy(desc(notes.createdAt));
-
-      // group notes by user -> project
-      const grouped: Record<string, Record<string, any[]>> = {};
-      for (const r of noteRows as any[]) {
-        const uid = String(r.userId);
-        const slug = r.projectSlug || 'inbox';
-        grouped[uid] = grouped[uid] || {};
-        grouped[uid][slug] = grouped[uid][slug] || [];
-        grouped[uid][slug].push(r);
-      }
-
       for (const c of counts as any[]) {
         const uid = String(c.userId);
         try {
           const user = userMap.get(uid) || await this.users.findUserById(uid);
           if (!user || !user.email) continue;
 
-          const userNotesByProject = grouped[uid] || {};
-          await this.sendWeeklySummaryToUser(user, userNotesByProject);
+          await this.weeklySummaryQueuePublisher.publishWeeklySummaryJob({
+            userId: uid,
+            startIso,
+            endIso,
+          });
+
+          this.logger.info('weekly_summary.job_enqueued', {
+            userId: uid,
+            noteCount: Number(c.note_count || 0),
+          });
         } catch (err) {
-          this.logger.error('weekly_summary.failed_send', { userId: uid, error: err instanceof Error ? err.message : String(err) });
+          this.logger.error('weekly_summary.job_enqueue_failed', {
+            userId: uid,
+            error: err instanceof Error ? err.message : String(err),
+          });
+
+          await this.sendWeeklySummaryToUserForRange(uid, startIso, endIso);
         }
       }
 

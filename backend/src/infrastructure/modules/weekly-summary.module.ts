@@ -8,6 +8,9 @@ import { IntegrationsModule } from './integrations.module.js';
 
 import { WeeklySummaryService } from '../../application/services/weekly-summary.service.js';
 import { WeeklySummaryWorker } from '../../application/services/workers/weekly-summary.worker.js';
+import { WeeklySummaryQueuePublisher } from '../../application/ports/weekly-summary/weekly-summary-queue.publisher.js';
+import { RabbitMqWeeklySummaryQueuePublisher } from '../queue/rabbitmq-weekly-summary-queue.publisher.js';
+import { RabbitMqWeeklySummaryQueueConsumer } from '../queue/rabbitmq-weekly-summary-queue.consumer.js';
 
 @Module({
   imports: [
@@ -21,6 +24,9 @@ import { WeeklySummaryWorker } from '../../application/services/workers/weekly-s
   providers: [
     WeeklySummaryService,
     WeeklySummaryWorker,
+    RabbitMqWeeklySummaryQueuePublisher,
+    RabbitMqWeeklySummaryQueueConsumer,
+    { provide: WeeklySummaryQueuePublisher, useExisting: RabbitMqWeeklySummaryQueuePublisher },
   ],
   exports: [
     WeeklySummaryService,
