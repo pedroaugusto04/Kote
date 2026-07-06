@@ -833,6 +833,7 @@ describe('ProjectsPage', () => {
     renderProjects();
 
     fireEvent.click(screen.getByRole('button', { name: 'New note' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Confirm deploy' } });
     fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'confirmar deploy' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
 

@@ -270,10 +270,10 @@ export function ProjectNoteModal({
                 />
               )}
             </FormField>
-            <FormField name="title" label="Title" error={errors.title?.message} optional>
+            <FormField name="title" label="Title" error={errors.title?.message} required>
               {(fieldProps) => <input {...fieldProps} {...register('title')} />}
             </FormField>
-            <FormField name="rawText" label="Text" error={errors.rawText?.message} required>
+            <FormField name="rawText" label="Text" error={errors.rawText?.message} optional>
               {(fieldProps) => <textarea {...fieldProps} {...register('rawText')} />}
             </FormField>
             <FormField name="attachments" label="Attachments" error={attachmentError} optional>

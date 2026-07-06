@@ -21,8 +21,8 @@ export type FolderFormValues = z.infer<typeof folderFormSchema>;
 export const noteFormSchema = z.object({
   folderId: z.string(),
   categoryIds: z.array(z.string()),
-  title: z.string().trim().max(160, 'Use at most 160 characters.'),
-  rawText: z.string().trim().min(1, 'Enter the note text.').max(500000, 'Use at most 500000 characters.'),
+  title: z.string().trim().min(1, 'Enter the note title.').max(160, 'Use at most 160 characters.'),
+  rawText: z.string().trim().max(500000, 'Use at most 500000 characters.').optional(),
   tags: z.array(z.string().trim().max(50)).max(10),
   reminderAt: z.string().optional(),
   attachments: z.array(z.any()).optional(),
