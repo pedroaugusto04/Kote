@@ -112,6 +112,10 @@
     align-items: stretch;
     flex-direction: column;
   }
+
+  .page-head {
+    padding: 0 16px;
+  }
   
   .topbar {
     display: grid;

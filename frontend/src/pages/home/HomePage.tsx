@@ -251,7 +251,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
               </div>
               <div className="home-kpi-body">
                 <strong>{totalAiInteractions}</strong>
-                <span className="home-kpi-meta">AI searches & chats</span>
+                <span className="home-kpi-meta active">AI searches & chats</span>
               </div>
             </article>
           )}

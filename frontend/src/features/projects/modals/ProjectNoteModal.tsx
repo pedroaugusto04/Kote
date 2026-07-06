@@ -98,7 +98,7 @@ export function ProjectNoteModal({
       folderId: note?.folderId || initialFolderId || '',
       categoryIds: note?.categories?.map((c) => c.id) || [],
       title: note?.title || initialTitle || '',
-      rawText: note?.editor?.rawText || '',
+      rawText: note?.editor?.rawText || initialTitle || '',
       tags: note?.tags || [],
       reminderAt: reminderInputDateTime({ reminderAt: note?.editor?.reminderAt }),
       attachments: initialAttachments || [],
