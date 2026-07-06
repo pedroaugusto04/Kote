@@ -131,7 +131,7 @@ export function fetchSubscriptionStatus(): Promise<QuotaAndBillingStatusDTO> {
 
 export function updateSubscription(input: SubscriptionInput): Promise<QuotaAndBillingStatusDTO> {
   const country = detectUserCountry();
-  return request<QuotaAndBillingStatusDTO>(API_PATHS.SUBSCRIPTION_STATUS, {
+  return request<QuotaAndBillingStatusDTO>(API_PATHS.SUBSCRIPTION, {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -145,13 +145,13 @@ export function updateSubscription(input: SubscriptionInput): Promise<QuotaAndBi
 }
 
 export function cancelPendingPayment(paymentId: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`${API_PATHS.SUBSCRIPTION_STATUS}/payment/${encodeURIComponent(paymentId)}`, {
+  return request<{ ok: true }>(`${API_PATHS.SUBSCRIPTION}/payment/${encodeURIComponent(paymentId)}`, {
     method: 'DELETE',
   });
 }
 
 export function cancelScheduledChange(changeId: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`${API_PATHS.SUBSCRIPTION_STATUS}/scheduled-change/${encodeURIComponent(changeId)}`, {
+  return request<{ ok: true }>(`${API_PATHS.SUBSCRIPTION}/scheduled-change/${encodeURIComponent(changeId)}`, {
     method: 'DELETE',
   });
 }

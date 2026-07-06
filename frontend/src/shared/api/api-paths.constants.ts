@@ -51,6 +51,7 @@ export const API_PATHS = {
   SUBSCRIPTION_STRIPE_CONFIG: '/api/subscription/stripe/config',
   SUBSCRIPTION_STATUS: '/api/subscription/status',
   SUBSCRIPTION_STATUS_STREAM: '/api/subscription/status/stream',
+  SUBSCRIPTION: '/api/subscription',
 
   // Application paths
   APPLICATION_ACCESS: '/api/application/access',
