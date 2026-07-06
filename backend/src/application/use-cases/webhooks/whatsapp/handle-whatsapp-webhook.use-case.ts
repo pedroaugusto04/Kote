@@ -270,7 +270,9 @@ export class HandleWhatsappWebhookUseCase {
       action: conversationResult.action,
       replyText,
     });
-    const shouldReply = conversationResult.action !== 'cancel';
+    const shouldReply = conversationResult.action !== 'cancel' || (
+      conversationResult.action === 'cancel' && String(conversationResult.replyText || '').trim().length > 0
+    );
     const sendResult = shouldReply
       ? await this.sendReply(input.chatId, replyText)
       : { ok: false as const, error: 'reply_not_needed' };

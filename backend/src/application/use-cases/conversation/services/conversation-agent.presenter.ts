@@ -17,7 +17,7 @@ export class ConversationAgentPresenter {
   }
 
   captureCanceled() {
-    return 'Capture canceled. Send a new note whenever you want.';
+    return 'Conversation context cleared successfully. You can start fresh with a new note or command.';
   }
 
   noteSaved(result: SaveNoteResult) {

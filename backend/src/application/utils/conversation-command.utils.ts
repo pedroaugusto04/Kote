@@ -3,7 +3,7 @@ function normalizedCommandText(text: string): string {
 }
 
 export function isCancel(text: string): boolean {
-  return ['cancelar', 'cancel', 'cancela', 'sair', 'exit', 'stop', '0'].includes(normalizedCommandText(text));
+  return ['cancelar', 'cancel', 'cancela', '/clear', 'sair', 'exit', 'stop', '0'].includes(normalizedCommandText(text));
 }
 
 export function parseAskCommand(text: string): { question: string } | null {

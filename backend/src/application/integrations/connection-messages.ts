@@ -20,7 +20,7 @@ export const WHATSAPP_INTRO_MESSAGE = [
   '- You will receive automatic reminders and important notifications about your projects and notes directly here.',
   '',
   '*Cancellation*',
-  '- If you need to stop or cancel an AI conversation flow, just type `cancel`.',
+  '- If you need to clear the current conversation context and start fresh, type `/clear`.',
   '',
   'If you need anything, just send a message!'
 ].join('\n');
