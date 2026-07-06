@@ -4,9 +4,13 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.sql(`
     ALTER TABLE kb_notes ADD COLUMN IF NOT EXISTS search_vector tsvector GENERATED ALWAYS AS (
       to_tsvector('english', title) ||
+      to_tsvector('portuguese', title) ||
       to_tsvector('english', summary) ||
+      to_tsvector('portuguese', summary) ||
       to_tsvector('english', path) ||
-      to_tsvector('english', cast(tags as text))
+      to_tsvector('portuguese', path) ||
+      to_tsvector('english', cast(tags as text)) ||
+      to_tsvector('portuguese', cast(tags as text))
     ) STORED;
     
     DROP INDEX IF EXISTS idx_notes_fts;
@@ -24,9 +28,13 @@ export async function down(pgm: MigrationBuilder): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_notes_fts ON kb_notes USING gin(
       (
         to_tsvector('english', title) ||
+        to_tsvector('portuguese', title) ||
         to_tsvector('english', summary) ||
+        to_tsvector('portuguese', summary) ||
         to_tsvector('english', path) ||
-        to_tsvector('english', cast(tags as text))
+        to_tsvector('portuguese', path) ||
+        to_tsvector('english', cast(tags as text)) ||
+        to_tsvector('portuguese', cast(tags as text))
       )
     );
   `);

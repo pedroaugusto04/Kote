@@ -39,13 +39,17 @@ export async function generateWeeklySummary(
   config: ChatConfig,
   promptPayload: unknown,
 ): Promise<WeeklySummaryAnalysis> {
-  if (config.provider === AiProvider.None || !config.apiKey || !config.model) return weeklySummaryFallback;
+  if (config.provider === AiProvider.None || !config.apiKey || !config.model) {
+    throw new Error('Weekly summary AI provider is not configured');
+  }
 
   const content = await runChatCompletion(
     config,
     buildWeeklySummarySystemPrompt(),
     JSON.stringify(promptPayload),
   );
-  if (!content) return weeklySummaryFallback;
+  if (!content) {
+    throw new Error('Weekly summary AI returned an empty response');
+  }
   return parseWeeklySummary(JSON.parse(content));
 }

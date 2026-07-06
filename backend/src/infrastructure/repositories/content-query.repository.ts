@@ -73,8 +73,16 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         const tokens = tokenizeQuery(filters.query);
         if (tokens.length > 0) {
           const tsQueryStr = tokens.map((token) => `${token}:*`).join(' | ');
-          const textCondition = sql`(${notes}.search_vector @@ to_tsquery('english', ${tsQueryStr}))`;
-          tsRankField = sql<number>`ts_rank(${notes}.search_vector, to_tsquery('english', ${tsQueryStr}))`.as('ts_rank');
+          const textCondition = sql`(
+            ${notes}.search_vector @@ to_tsquery('english', ${tsQueryStr})
+            OR ${notes}.search_vector @@ to_tsquery('portuguese', ${tsQueryStr})
+            OR ${attachments.fileName} @@ to_tsquery('simple', ${tsQueryStr})
+          )`;
+          tsRankField = sql<number>`GREATEST(
+            ts_rank(${notes}.search_vector, to_tsquery('english', ${tsQueryStr})),
+            ts_rank(${notes}.search_vector, to_tsquery('portuguese', ${tsQueryStr})),
+            COALESCE(MAX(CASE WHEN ${attachments.fileName} @@ to_tsquery('simple', ${tsQueryStr}) THEN 1 ELSE 0 END), 0)
+          )`.as('ts_rank');
 
           if (searchCondition) {
             searchCondition = sql`(${searchCondition} OR ${textCondition})`;
