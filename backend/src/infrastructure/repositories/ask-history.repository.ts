@@ -58,7 +58,7 @@ export class PostgresAskHistoryRepository extends AskHistoryRepository {
         conversationId: input.conversationId,
         question: input.question,
         answer: input.answer,
-        confidence: input.confidence as any,
+        confidence: input.confidence as ConversationConfidence,
         sources: input.sources,
         relatedNotes: input.relatedNotes,
       });

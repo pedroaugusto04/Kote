@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { eq, and, sql } from 'drizzle-orm';
 
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/reminders/workflow-state.repository.js';
-import type { ReminderDispatchMode } from '../../contracts/enums.js';
+import { ReminderDispatchMode } from '../../contracts/enums.js';
 import type { RecordReminderDispatchFailureInput, ReminderDispatchRetryKey } from '../../application/models/reminder-dispatch.models.js';
 import { conversationStateFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -75,7 +75,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
       .where(and(
         eq(reminderDispatchState.userId, userId),
         eq(reminderDispatchState.workspaceId, workspaceId),
-        eq(reminderDispatchState.mode, mode as any),
+        eq(reminderDispatchState.mode, mode as ReminderDispatchMode),
         eq(reminderDispatchState.dispatchKey, dispatchKey),
         eq(reminderDispatchState.reminderId, reminderId)
       ))
@@ -92,7 +92,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
       .values({
         userId,
         workspaceId,
-        mode: mode as any,
+        mode: mode as ReminderDispatchMode,
         dispatchKey,
         reminderId,
       })
@@ -113,7 +113,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
       .where(and(
         eq(reminderDispatchFailures.userId, input.userId),
         eq(reminderDispatchFailures.workspaceId, workspaceId),
-        eq(reminderDispatchFailures.mode, input.mode as any),
+        eq(reminderDispatchFailures.mode, input.mode as ReminderDispatchMode),
         eq(reminderDispatchFailures.dispatchKey, input.dispatchKey),
         eq(reminderDispatchFailures.reminderId, input.reminderId),
         eq(reminderDispatchFailures.channel, input.channel)
@@ -180,7 +180,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
       .where(and(
         eq(reminderDispatchFailures.userId, input.userId),
         eq(reminderDispatchFailures.workspaceId, workspaceId),
-        eq(reminderDispatchFailures.mode, input.mode as any),
+        eq(reminderDispatchFailures.mode, input.mode as ReminderDispatchMode),
         eq(reminderDispatchFailures.dispatchKey, input.dispatchKey),
         eq(reminderDispatchFailures.reminderId, input.reminderId),
         eq(reminderDispatchFailures.channel, input.channel)

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import { EmbeddingGateway } from '../../ports/notes/embedding.gateway.js';
+import { EmbeddingGateway, type EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/query/answer-generation.gateway.js';
@@ -156,8 +156,8 @@ export class AskKnowledgeUseCase {
     queryText: string,
     specialIntent: SpecialQueryIntent | null,
     options: { workspaceId?: string; projectId?: string },
-    embeddingConfig: any,
-  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
+    embeddingConfig: EmbeddingConfig,
+  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: Array<{ id: string; title: string; path: string; projectSlug: string; workspaceId: string }> }> {
     if (specialIntent) {
       this.logger.info('ask_knowledge.special_intent_mode', { specialIntent });
       return this.resolveSpecialIntentContext(userId, specialIntent, options);
@@ -266,7 +266,12 @@ export class AskKnowledgeUseCase {
       totalFtsNotes: ftsNotes.length,
     });
 
-    let additionalChunks: any[] = [];
+    let additionalChunks: Array<{
+      noteId: string;
+      chunkIndex: number;
+      chunkText: string;
+      similarity: number;
+    }> = [];
     if (missingFtsNoteIds.length > 0) {
       try {
         const additionalChunksList = await this.noteEmbeddingRepository.getNotesEmbeddings(userId, missingFtsNoteIds);
@@ -447,7 +452,7 @@ export class AskKnowledgeUseCase {
     userId: string,
     specialIntent: SpecialQueryIntent,
     options: { workspaceId?: string; projectId?: string }
-  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: any[] }> {
+  ): Promise<{ contextChunks: AnswerContextChunk[]; relatedNotes: Array<{ id: string; title: string; path: string; projectSlug: string; workspaceId: string }> }> {
     const allNotes = await this.contentRepository.listNotes(userId, {
       projectId: options.projectId,
       workspaceId: options.workspaceId,

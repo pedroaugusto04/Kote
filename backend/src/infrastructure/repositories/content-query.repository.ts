@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, count, desc, sql, inArray, notInArray } from 'drizzle-orm';
+import { eq, and, count, desc, sql, inArray, notInArray, type SQL } from 'drizzle-orm';
 
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
 import { tokenizeQuery, getSpecialQueryIntent } from '../../application/utils/query.utils.js';
@@ -61,7 +61,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       }
     }
 
-    let tsRankField: any = sql<number>`0`.as('ts_rank');
+    let tsRankField = sql<number>`0`.as('ts_rank');
     let searchCondition: any = null;
     if (filters?.ids && filters.ids.length > 0) {
       searchCondition = inArray(notes.id, filters.ids);

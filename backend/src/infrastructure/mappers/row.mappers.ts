@@ -175,7 +175,7 @@ export function projectFromRow(row: Row): ProjectRecord {
     displayName: String(field(row, 'display_name', 'displayName') || field(row, 'project_slug', 'projectSlug')),
     workspaceId,
     ...(workspaceSlug ? { workspaceSlug } : {}),
-    repositories: (Array.isArray(row.repositories) ? row.repositories : []).map((r: any) => ({
+    repositories: (Array.isArray(row.repositories) ? row.repositories : []).map((r: Row) => ({
       id: String(r.id),
       workspaceId: String(r.workspace_id || r.workspaceId || workspaceId),
       workspaceSlug: String(r.workspace_slug || r.workspaceSlug || workspaceSlug || ''),
@@ -229,7 +229,7 @@ export function noteFromRow(row: Row): NoteRecord {
   const projectSlug = fieldString(row, 'project_slug', 'projectSlug', '');
   const workspaceSlug = fieldString(row, 'workspace_slug', 'workspaceSlug', '');
   const categoriesList = Array.isArray(row.categories)
-    ? row.categories.map((c: any) => categoryFromRow(c))
+    ? row.categories.map((c: Row) => categoryFromRow(c))
     : [];
   return {
     id: String(row.id),

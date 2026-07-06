@@ -63,7 +63,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
         userId: input.userId,
         workspaceId: workspaceId,
         provider: input.provider,
-        status: input.status as any,
+        status: input.status as CredentialRecordStatus,
         encryptedConfig: input.encryptedConfig,
         publicMetadata: input.publicMetadata,
         revokedAt: null,
@@ -71,7 +71,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       .onConflictDoUpdate({
         target: [integrationCredentials.userId, integrationCredentials.workspaceId, integrationCredentials.provider],
         set: {
-          status: input.status as any,
+          status: input.status as CredentialRecordStatus,
           encryptedConfig: input.encryptedConfig,
           publicMetadata: input.publicMetadata,
           updatedAt: new Date(),

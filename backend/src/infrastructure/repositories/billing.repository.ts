@@ -161,7 +161,7 @@ export class PostgresBillingPaymentRepository extends BillingPaymentRepository {
     const db = this.database.getDb();
     const { onlyIfLastGatewayEventAtLte, ...updateData } = data;
 
-    const updateFields: any = {
+    const updateFields: Record<string, unknown> = {
       ...updateData,
       updatedAt: new Date(),
     };
@@ -392,7 +392,10 @@ export class PostgresBillingWebhookEventRepository extends BillingWebhookEventRe
       .limit(1);
 
     if (result.length === 0) return null;
-    return result[0];
+    return {
+      ...result[0],
+      payload: (result[0].payload || {}) as Record<string, unknown>,
+    };
   }
 
   async markWebhookEventProcessing(id: string, maxAttempts: number): Promise<boolean> {

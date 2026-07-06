@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
-import { eq, and, count, desc, sql, inArray, notInArray, or, gte } from 'drizzle-orm';
+import { eq, and, count, desc, sql, inArray, notInArray, or, gte, type SQL } from 'drizzle-orm';
 
 
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
@@ -72,7 +72,7 @@ export class PostgresNoteRepository {
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
         attachmentCount: count(attachments.id).as('attachment_count'),
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -184,7 +184,7 @@ export class PostgresNoteRepository {
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
         attachmentCount: count(attachments.id).as('attachment_count'),
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -359,7 +359,7 @@ export class PostgresNoteRepository {
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -412,7 +412,7 @@ export class PostgresNoteRepository {
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -467,7 +467,7 @@ export class PostgresNoteRepository {
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -521,7 +521,7 @@ export class PostgresNoteRepository {
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
