@@ -99,8 +99,6 @@ export function parseSourceChannelString(channelString?: string): SourceChannel 
     case 'whatsapp':
       return SourceChannel.Whatsapp;
     case 'github':
-    case 'github-push':
-    case 'github-pull-request':
       return SourceChannel.Github;
     case 'ai-chat':
       return SourceChannel.AiChat;

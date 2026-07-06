@@ -169,9 +169,9 @@ test('project timeline dto accepts known categories and optional folder filters 
 });
 
 test('project knowledge map dto accepts bounded limit and project filters', () => {
-  assert.deepEqual(projectKnowledgeMapQuerySchema.parse({ limit: '120', category: 'github-push', folderId: ' folder-1 ' }), {
+  assert.deepEqual(projectKnowledgeMapQuerySchema.parse({ limit: '120', category: 'github', folderId: ' folder-1 ' }), {
     limit: 120,
-    category: 'github-push',
+    category: 'github',
     folderId: 'folder-1',
   });
   assert.deepEqual(projectKnowledgeMapQuerySchema.parse({}), {

@@ -7,6 +7,15 @@ export enum SourceChannel {
   Cli = 'cli',
 }
 
+export enum TimelineCategory {
+  All = 'all',
+  Whatsapp = 'whatsapp',
+  Github = 'github',
+  Manual = 'manual',
+  Reminder = 'reminder',
+  AiChat = 'ai-chat',
+}
+
 export enum EventType {
   ManualNote = 'manual_note',
   CodeReview = 'code_review',

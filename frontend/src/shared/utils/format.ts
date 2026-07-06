@@ -170,7 +170,7 @@ export const SOURCE_VALUES = {
   KOTE: 'kote',
   WHATSAPP: 'whatsapp',
   GITHUB: 'github',
-  GITHUB_PUSH: 'github-push',
+  GITHUB_PUSH: 'github',
   WHATSAPP_CHANNEL: 'whatsapp',
   AI_CHAT: 'ai-chat',
   CLI: 'cli',

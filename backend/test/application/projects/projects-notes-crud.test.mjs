@@ -295,13 +295,13 @@ test('lists project timeline by derived category without raw webhook events', as
     status: 'active',
     tags: [],
     occurredAt: '2026-05-04T10:00:00.000Z',
-    sourceChannel: 'github-push',
+    sourceChannel: 'github',
     summary: 'push received',
     markdown: '# GitHub push',
     frontmatter: {},
     metadata: {},
     origin: 'postgres',
-    source: 'github-push',
+    source: 'github',
     links: [],
   });
   await repositories.contentRepository.upsertNote(user.id, {
@@ -364,10 +364,10 @@ test('lists project timeline by derived category without raw webhook events', as
 
   const useCase = new ListProjectTimelineUseCase(repositories.contentRepository);
   const all = await useCase.execute(user.id, { projectId: platform.id, page: 1, pageSize: 10, category: 'all' });
-  assert.deepEqual(all.items.map((item) => item.category), ['whatsapp', 'github-push', 'manual', 'reminder', 'manual']);
+  assert.deepEqual(all.items.map((item) => item.category), ['whatsapp', 'github', 'manual', 'reminder', 'manual']);
 
   const allProjects = await useCase.execute(user.id, { page: 1, pageSize: 10, category: 'all' });
-  assert.deepEqual(allProjects.items.map((item) => item.category), ['whatsapp', 'github-push', 'manual', 'reminder', 'manual']);
+  assert.deepEqual(allProjects.items.map((item) => item.category), ['whatsapp', 'github', 'manual', 'reminder', 'manual']);
 
   const nestedFolder = await repositories.contentRepository.upsertProjectFolder(user.id, {
     id: undefined,
@@ -665,7 +665,7 @@ test('updates any note type and still blocks project deletion while notes exist'
     status: 'active',
     tags: [],
     occurredAt: '2026-04-27T10:00:00.000Z',
-    sourceChannel: 'github-push',
+    sourceChannel: 'github',
     summary: 'Push recebido sem analise de IA configurada.',
     markdown: [
       '# Review',
@@ -700,7 +700,7 @@ test('updates any note type and still blocks project deletion while notes exist'
     frontmatter: { id: 'review:1' },
     metadata: { manual: false },
     origin: 'postgres',
-    source: 'github-push',
+    source: 'github',
     links: [],
   });
 

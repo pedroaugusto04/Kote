@@ -5,7 +5,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
-import { formatDisplayToken } from '../../shared/utils/format';
+import { formatDisplayToken, SOURCE_VALUES } from '../../shared/utils/format';
 import { EmptyState } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
@@ -24,10 +24,20 @@ import { ProjectTimelineCard } from './ProjectTimelineCard';
 
 
 
+const CATEGORY_LABELS: Record<string, string> = {
+  all: 'All',
+  [SOURCE_VALUES.WHATSAPP]: 'WhatsApp',
+  [SOURCE_VALUES.GITHUB]: 'GitHub',
+  [SOURCE_VALUES.MANUAL]: 'Manual',
+  reminder: 'Reminder',
+  [SOURCE_VALUES.AI_CHAT]: 'AI Chat',
+};
+
 const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
   value,
-  label: formatDisplayToken(value),
+  label: CATEGORY_LABELS[value] ?? formatDisplayToken(value),
 }));
+
 
 
 export function ProjectTimeline({

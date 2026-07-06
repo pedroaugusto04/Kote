@@ -1,10 +1,18 @@
 import type { PaginationMeta } from './pagination.models.js';
 import type { CategoryRecord } from './repository-records.models.js';
+import { TimelineCategory } from '../../contracts/enums.js';
 
-export const projectTimelineCategories = ['all', 'whatsapp', 'github-push', 'manual', 'reminder', 'ai-chat'] as const;
+export const projectTimelineCategories = [
+  TimelineCategory.All,
+  TimelineCategory.Whatsapp,
+  TimelineCategory.Github,
+  TimelineCategory.Manual,
+  TimelineCategory.Reminder,
+  TimelineCategory.AiChat,
+] as const;
 
 export type ProjectTimelineCategory = (typeof projectTimelineCategories)[number];
-export type ProjectTimelineFilterCategory = Exclude<ProjectTimelineCategory, 'all'>;
+export type ProjectTimelineFilterCategory = Exclude<ProjectTimelineCategory, TimelineCategory.All>;
 
 export type ProjectTimelineItem = {
   id: string;

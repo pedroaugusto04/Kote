@@ -15,7 +15,7 @@ function structuredReviewNote() {
     status: 'active',
     tags: ['review'],
     occurredAt: '2026-05-07T12:00:00.000Z',
-    sourceChannel: 'github-push',
+    sourceChannel: 'github',
     summary: 'Push recebido sem analise de IA configurada.',
     markdown: [
       '---',
@@ -60,7 +60,7 @@ function structuredReviewNote() {
     frontmatter: { id: 'review:1' },
     metadata: { manual: false },
     origin: 'postgres',
-    source: 'github-push',
+    source: 'github',
     links: [],
   };
 }

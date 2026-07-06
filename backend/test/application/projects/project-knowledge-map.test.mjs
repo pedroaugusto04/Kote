@@ -66,7 +66,7 @@ function note(overrides = {}) {
 
 test('buildProjectKnowledgeMap deduplicates tags and categories and links core nodes', () => {
   const result = buildProjectKnowledgeMap(project, folders, [
-    note({ id: 'note-1', folderId: 'folder-1', tags: ['Deploy', 'deploy'], metadata: { repoFullName: 'acme/api' }, sourceChannel: 'github-push' }),
+    note({ id: 'note-1', folderId: 'folder-1', tags: ['Deploy', 'deploy'], metadata: { repoFullName: 'acme/api' }, sourceChannel: 'github' }),
     note({ id: 'note-2', type: 'decision', title: 'Decision', tags: ['deploy', 'risk'] }),
   ]);
 
@@ -75,7 +75,7 @@ test('buildProjectKnowledgeMap deduplicates tags and categories and links core n
 
   assert.equal(result.stats.noteCount, 2);
   assert.deepEqual(tagNodes.map((node) => node.id).sort(), ['tag:deploy', 'tag:risk']);
-  assert.deepEqual(categoryNodes.map((node) => node.id).sort(), ['category:github-push', 'category:manual']);
+  assert.deepEqual(categoryNodes.map((node) => node.id).sort(), ['category:github', 'category:manual']);
   assert.equal(result.nodes.find((node) => node.id === 'note:note-1')?.isReview, true);
   assert.equal(result.nodes.find((node) => node.id === 'note:note-2')?.isReview, false);
   assert.ok(result.links.some((link) => link.source === 'project:platform' && link.target === 'note:note-1' && link.type === 'contains'));

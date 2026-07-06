@@ -15,6 +15,7 @@ import type { NoteRecord, SaveNoteInput } from '../../application/models/reposit
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
+import { SourceChannel, TimelineCategory } from '../../contracts/enums.js';
 import { noteSummary } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -923,13 +924,13 @@ function projectTimelineItem(record: NoteRecord) {
 }
 
 function projectTimelineCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderAt'>): ProjectTimelineFilterCategory {
-  if (hasTimelineReminder(record)) return 'reminder';
-  if (record.sourceChannel === 'github-push') return 'github-push';
-  if (record.sourceChannel === 'whatsapp') return 'whatsapp';
-  if (record.sourceChannel === 'ai-chat') return 'ai-chat';
-  if (record.sourceChannel === 'cli') return 'manual';
-  if (record.sourceChannel === 'ide') return 'manual';
-  return 'manual';
+  if (hasTimelineReminder(record)) return TimelineCategory.Reminder;
+  if (record.sourceChannel === SourceChannel.Github || record.sourceChannel === 'github-push') return TimelineCategory.Github;
+  if (record.sourceChannel === SourceChannel.Whatsapp) return TimelineCategory.Whatsapp;
+  if (record.sourceChannel === SourceChannel.AiChat) return TimelineCategory.AiChat;
+  if (record.sourceChannel === SourceChannel.Cli) return TimelineCategory.Manual;
+  if (record.sourceChannel === SourceChannel.Ide) return TimelineCategory.Manual;
+  return TimelineCategory.Manual;
 }
 
 function hasTimelineReminder(record: Pick<NoteRecord, 'reminderAt'>) {
@@ -959,25 +960,25 @@ function appendTimelineFolderClause(
 
 function appendTimelineCategoryClause(clauses: string[], category: ListProjectTimelineInput['category']) {
   const noReminder = "(n.reminder_at IS NULL)";
-  if (category === 'all') return;
-  if (category === 'reminder') {
+  if (category === TimelineCategory.All) return;
+  if (category === TimelineCategory.Reminder) {
     clauses.push("(n.reminder_at IS NOT NULL)");
     return;
   }
   clauses.push(noReminder);
-  if (category === 'github-push') {
-    clauses.push("n.source_channel = 'github-push'");
+  if (category === TimelineCategory.Github) {
+    clauses.push(`n.source_channel = '${SourceChannel.Github}'`);
     return;
   }
-  if (category === 'whatsapp') {
-    clauses.push("n.source_channel = 'whatsapp'");
+  if (category === TimelineCategory.Whatsapp) {
+    clauses.push(`n.source_channel = '${SourceChannel.Whatsapp}'`);
     return;
   }
-  if (category === 'ai-chat') {
-    clauses.push("n.source_channel = 'ai-chat'");
+  if (category === TimelineCategory.AiChat) {
+    clauses.push(`n.source_channel = '${SourceChannel.AiChat}'`);
     return;
   }
-  clauses.push("n.source_channel <> 'github-push'");
-  clauses.push("n.source_channel <> 'whatsapp'");
-  clauses.push("n.source_channel <> 'ai-chat'");
+  clauses.push(`n.source_channel <> '${SourceChannel.Github}'`);
+  clauses.push(`n.source_channel <> '${SourceChannel.Whatsapp}'`);
+  clauses.push(`n.source_channel <> '${SourceChannel.AiChat}'`);
 }

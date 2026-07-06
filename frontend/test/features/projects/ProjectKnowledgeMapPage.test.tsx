@@ -179,7 +179,7 @@ describe('ProjectKnowledgeMapPage', () => {
       nodes: [
         ...graphResponse().nodes,
         { id: 'repository:101', type: 'repository', label: 'acme/api', projectSlug: 'platform' },
-        { id: 'note:review-1', type: 'note', label: 'Review', noteId: 'review-1', projectSlug: 'platform', category: 'github-push', isReview: true },
+        { id: 'note:review-1', type: 'note', label: 'Review', noteId: 'review-1', projectSlug: 'platform', category: 'github', isReview: true },
       ],
       links: [
         ...graphResponse().links,
@@ -354,7 +354,7 @@ describe('filterKnowledgeMapDataset', () => {
     const dataset = graphResponse({
       nodes: [
         ...graphResponse().nodes,
-        { id: 'note:review-1', type: 'note', label: 'Review', noteId: 'review-1', projectSlug: 'platform', category: 'github-push', isReview: true },
+        { id: 'note:review-1', type: 'note', label: 'Review', noteId: 'review-1', projectSlug: 'platform', category: 'github', isReview: true },
       ],
       links: [
         ...graphResponse().links,

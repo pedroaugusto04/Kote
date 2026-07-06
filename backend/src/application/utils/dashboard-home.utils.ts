@@ -1,4 +1,4 @@
-import { CanonicalType, HomePriorityType, HomeTargetKind, KnowledgeStatus } from '../../contracts/enums.js';
+import { CanonicalType, HomePriorityType, HomeTargetKind, KnowledgeStatus, SourceChannel, TimelineCategory } from '../../contracts/enums.js';
 import { formatDateInTimeZone, normalizeTimeZone } from '../../domain/time.js';
 import type { Project } from '../../domain/projects.js';
 import type { DashboardHomeSummary, HomePriority } from '../models/dashboard-home.models.js';
@@ -86,10 +86,10 @@ function sortPriorities(left: HomePriority & { rank?: number; timestamp?: number
 
 function homeEventCategory(note: VaultNoteSummary) {
   const source = String(note.source || '').toLowerCase();
-  if (note.type === CanonicalType.Decision) return 'decision';
-  if (source.includes('github')) return 'github-push';
-  if (source.includes('whatsapp')) return 'whatsapp';
-  return 'manual';
+  if (note.type === CanonicalType.Decision) return CanonicalType.Decision;
+  if (source.includes(SourceChannel.Github)) return TimelineCategory.Github;
+  if (source.includes(SourceChannel.Whatsapp)) return TimelineCategory.Whatsapp;
+  return TimelineCategory.Manual;
 }
 
 export function buildDashboardHome(
@@ -228,7 +228,7 @@ export function buildDashboardHome(
       {
         id: 'total-github-pushes',
         label: 'Total GitHub pushes',
-        value: notes.filter((note) => note.source === 'github-push' || String(note.source || '').toLowerCase().includes('github')).length,
+        value: notes.filter((note) => note.source === SourceChannel.Github || String(note.source || '').toLowerCase().includes(SourceChannel.Github)).length,
         meta: 'total push reviews in workspace',
         tone: 'active',
       },

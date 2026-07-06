@@ -5,6 +5,7 @@ import type { ReviewView } from '../../application/models/review.models.js';
 import { absoluteUrl } from '../../application/utils/integration-status.utils.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../application/models/vault-note.models.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
+import { EventType, SourceChannel } from '../../contracts/enums.js';
 
 
 function attachmentContentPath(noteId: string, attachmentId: string): string {
@@ -85,8 +86,8 @@ export function noteDetail(
 
 export function reviewFromNote(record: NoteRecord): ReviewView | null {
   const hasEventCategory = record.categories.some((c) => c.name === 'event');
-  if (!hasEventCategory && record.metadata.eventType !== 'code_review') return null;
-  if (record.metadata.eventType !== 'code_review' && record.sourceChannel !== 'github-push') return null;
+  if (!hasEventCategory && record.metadata.eventType !== EventType.CodeReview) return null;
+  if (record.metadata.eventType !== EventType.CodeReview && record.sourceChannel !== SourceChannel.Github) return null;
   const findings = Array.isArray(record.metadata.reviewFindings) ? record.metadata.reviewFindings : [];
   return {
     id: record.id,
