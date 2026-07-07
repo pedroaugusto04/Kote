@@ -328,7 +328,10 @@ export function ProjectsWorkspace({
         )}
         subtitle=""
         action={
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <InfoTooltip
+              content="Drag files anywhere on this page to automatically create notes with attachments"
+            />
             {createNote ? (
               <button className="icon-button" type="button" onClick={() => createNote()}>
                 {UI_MESSAGES.QUICK_NOTE}
@@ -355,18 +358,13 @@ export function ProjectsWorkspace({
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder={selected ? `${PROJECTS_WORKSPACE_MESSAGES.SEARCH.IN_PROJECT.replace('{project}', selected.displayName)}...` : PROJECTS_WORKSPACE_MESSAGES.SEARCH.ACROSS_ALL}
         />
-        <InfoTooltip
-          content="Drag files here to automatically create notes with attachments"
-          className="drag-drop-hint-tooltip"
-        />
       </section>
 
       <div
-        className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        style={{ position: 'relative' }}
+        style={{ position: 'relative', minHeight: '100vh' }}
       >
         {isDraggingOver && (
           <div className="drag-drop-overlay">
@@ -386,7 +384,10 @@ export function ProjectsWorkspace({
             </div>
           </div>
         )}
-        <div style={{ minWidth: 0 }}>
+        <div
+          className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}
+        >
+          <div style={{ minWidth: 0 }}>
           {hasSearchQuery ? (
             /* Search results mode */
             <Panel className="matching-notes-panel" style={{ minWidth: 0 }}>
@@ -496,6 +497,7 @@ export function ProjectsWorkspace({
             onOpenFullPage={openNote}
           />
         )}
+      </div>
       </div>
       {projectModal ? (
         <ProjectModal
