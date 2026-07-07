@@ -914,3 +914,44 @@ test('manages uncategorized notes creation and updates', async (t) => {
   assert.deepEqual(finalNote?.categories || [], []);
 });
 
+test('manages manual note creation with title but empty/missing rawText', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedProject(repositories, user.id);
+  const platform = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
+
+  const loggerMock = {
+    info() {},
+    warn() {},
+    error() {},
+    debug() {},
+  };
+  const ingest = new IngestEntryUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+    repositories.noteLifecycleService,
+    loggerMock,
+  );
+  const noopDispatcher = { dispatch: async () => {} };
+  const createNote = new CreateManualNoteUseCase(
+    repositories.contentRepository,
+    ingest,
+    repositories.runtimeEnvironmentProvider,
+    noopDispatcher,
+  );
+
+  // Create manual note with title and empty rawText
+  const created = await createNote.execute({
+    projectId: platform.id,
+    title: 'Note with Title Only',
+    rawText: '',
+    tags: [],
+    categoryIds: [],
+    reminderAt: '',
+  }, user.id);
+
+  const note = await repositories.contentRepository.getNoteById(user.id, created.noteId);
+  assert.equal(note?.title, 'Note with Title Only');
+  assert.equal(note?.markdownStorageKey !== '', true);
+});
+

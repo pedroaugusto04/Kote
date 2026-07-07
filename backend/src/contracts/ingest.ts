@@ -42,7 +42,7 @@ export const ingestPayloadSchema = z
       projectSlug: z.string().min(1),
     }),
     content: z.object({
-      rawText: z.string().min(1),
+      rawText: z.string().default(''),
       title: z.string().default(''),
       attachments: z.array(attachmentSchema).default([]),
       sections: z
