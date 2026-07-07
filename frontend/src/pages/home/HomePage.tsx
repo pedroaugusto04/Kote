@@ -222,22 +222,6 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
 
   return (
     <>
-      <PageHead
-        title="Home"
-        subtitle={`Relevant updates from the last ${home.windowDays} days.`}
-        action={
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <InfoTooltip
-              content="Drag files anywhere on this page to automatically create notes"
-            />
-            {createNote ? (
-              <button className="icon-button" type="button" onClick={() => createNote()}>
-                Quick note
-              </button>
-            ) : undefined}
-          </div>
-        }
-      />
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
@@ -262,6 +246,22 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
             </div>
           </div>
         )}
+        <PageHead
+          title="Home"
+          subtitle={`Relevant updates from the last ${home.windowDays} days.`}
+          action={
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <InfoTooltip
+                content="Drag files anywhere on this page to automatically create notes"
+              />
+              {createNote ? (
+                <button className="icon-button" type="button" onClick={() => createNote()}>
+                  Quick note
+                </button>
+              ) : undefined}
+            </div>
+          }
+        />
         <section className="home-layout">
         {activeWorkspace ? (
           <OnboardingChecklist dashboard={dashboard} workspaceSlug={workspaceSlug} />

@@ -296,7 +296,31 @@ export function ProjectsWorkspace({
 
   return (
     <>
-      <PageHead
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ position: 'relative', minHeight: '100vh' }}
+      >
+        {isDraggingOver && (
+          <div className="drag-drop-overlay">
+            <div className="drag-drop-card">
+              <svg viewBox="0 0 16 16" width="32" height="32" className="drag-drop-icon">
+                <path
+                  d="M4.5 12.5v-7a3 3 0 016 0v7a1.5 1.5 0 01-3 0v-6.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <h3>Import documents</h3>
+              <p>Drop files here to create pre-filled notes automatically</p>
+            </div>
+          </div>
+        )}
+        <PageHead
         title={(
           <div className="page-head-title-row">
             <h1>{UI_MESSAGES.PROJECTS}</h1>
@@ -361,32 +385,8 @@ export function ProjectsWorkspace({
       </section>
 
       <div
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        style={{ position: 'relative', minHeight: '100vh' }}
+        className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}
       >
-        {isDraggingOver && (
-          <div className="drag-drop-overlay">
-            <div className="drag-drop-card">
-              <svg viewBox="0 0 16 16" width="32" height="32" className="drag-drop-icon">
-                <path
-                  d="M4.5 12.5v-7a3 3 0 016 0v7a1.5 1.5 0 01-3 0v-6.5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <h3>Import documents</h3>
-              <p>Drop files here to create pre-filled notes automatically</p>
-            </div>
-          </div>
-        )}
-        <div
-          className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}
-        >
           <div style={{ minWidth: 0 }}>
           {hasSearchQuery ? (
             /* Search results mode */
@@ -498,7 +498,6 @@ export function ProjectsWorkspace({
           />
         )}
       </div>
-      </div>
       {projectModal ? (
         <ProjectModal
           githubConnected={githubConnected}
@@ -591,6 +590,7 @@ export function ProjectsWorkspace({
           title={confirmState.kind === ConfirmKind.Project ? UI_MESSAGES.DELETE_PROJECT : confirmState.kind === ConfirmKind.Folder ? UI_MESSAGES.DELETE_FOLDER : UI_MESSAGES.DELETE_NOTE}
         />
       ) : null}
+      </div>
     </>
   );
 }
