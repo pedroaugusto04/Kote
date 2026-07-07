@@ -138,6 +138,7 @@
 }
 
 .help-sidebar-footer {
+  margin-top: auto;
   padding: 10px 8px 16px;
   border-top: 1px solid var(--border-subtle);
 }
