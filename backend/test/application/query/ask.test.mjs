@@ -483,6 +483,12 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
   const mockContentRepository = {
     listNotes: async (userId) => {
       assert.equal(userId, 'user-123');
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 25);
+      const twentyDaysAgo = new Date(now);
+      twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
+
       return [
         {
           id: 'note-old',
@@ -494,7 +500,7 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
           folderId: null,
           status: 'active',
           tags: [],
-          occurredAt: '2026-04-20T10:00:00.000Z',
+          occurredAt: thirtyDaysAgo.toISOString(),
           sourceChannel: '',
           summary: 'Older summary',
           markdown: 'Older markdown content',
@@ -510,7 +516,7 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
           folderId: null,
           status: 'active',
           tags: [],
-          occurredAt: '2026-04-25T10:00:00.000Z',
+          occurredAt: twentyDaysAgo.toISOString(),
           sourceChannel: '',
           summary: 'Newer summary',
           markdown: 'Newer markdown content',
