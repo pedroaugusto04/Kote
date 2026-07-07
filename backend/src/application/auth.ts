@@ -133,7 +133,7 @@ export class AuthService implements OnModuleInit {
     return { user: toAuthenticatedUser(user), tokens: this.jwtService.issueTokens(user) };
   }
 
-  startGoogleOAuth(input: { returnTo?: string }): { authorizationUrl: string; stateCookie: string; stateCookieMaxAgeSeconds: number } {
+  startGoogleOAuth(input: { returnTo?: string; redirectUri?: string }): { authorizationUrl: string; stateCookie: string; stateCookieMaxAgeSeconds: number } {
     if (!this.googleOAuthService) {
       throw new BadRequestException('google_oauth_not_configured');
     }

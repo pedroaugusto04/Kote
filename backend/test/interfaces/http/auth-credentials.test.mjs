@@ -375,7 +375,7 @@ test('google callback creates a user, identity, and HttpOnly auth cookies', asyn
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway() });
   const controller = new AuthController(auth);
   const startResponse = responseMock();
-  controller.startGoogle('/auth?mode=signup', startResponse);
+  controller.startGoogle('/auth?mode=signup', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
 
   const stateCookie = startResponse.cookies.find((cookie) => cookie.name === 'kb_google_oauth_state');
   const state = new URL(startResponse.redirectedTo).searchParams.get('state');
@@ -401,7 +401,7 @@ test('google callback reuses an existing identity', async (t) => {
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway({ email: 'repeat@example.com' }) });
   const controller = new AuthController(auth);
   const firstStart = responseMock();
-  controller.startGoogle('/auth', firstStart);
+  controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, firstStart);
   await controller.googleCallback(
     'google-code-1',
     new URL(firstStart.redirectedTo).searchParams.get('state'),
@@ -411,7 +411,7 @@ test('google callback reuses an existing identity', async (t) => {
   const user = await repositories.userRepository.findUserByEmail('repeat@example.com');
 
   const secondStart = responseMock();
-  controller.startGoogle('/auth', secondStart);
+  controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, secondStart);
   const secondResponse = responseMock();
   await controller.googleCallback(
     'google-code-2',
@@ -429,7 +429,7 @@ test('google callback redirects with conflict when email has no google identity'
   await repositories.createTestUser({ email: 'password-user@example.com', passwordHash: 'scrypt$salt$hash' });
   const controller = new AuthController(auth);
   const startResponse = responseMock();
-  controller.startGoogle('/auth', startResponse);
+  controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
   const callbackResponse = responseMock();
 
   await controller.googleCallback(
@@ -477,7 +477,7 @@ test('google-created user cannot login with password', async (t) => {
   const { auth } = await fixture(t, { googleGateway: googleGateway({ email: 'no-password@example.com' }) });
   const controller = new AuthController(auth);
   const startResponse = responseMock();
-  controller.startGoogle('/auth', startResponse);
+  controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
   await controller.googleCallback(
     'google-code',
     new URL(startResponse.redirectedTo).searchParams.get('state'),

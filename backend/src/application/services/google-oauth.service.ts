@@ -12,6 +12,7 @@ type GoogleOAuthStatePayload = {
   state: string;
   codeVerifier: string;
   returnTo: string;
+  redirectUri: string;
   expiresAt: number;
 };
 
@@ -55,7 +56,7 @@ export class GoogleOAuthService {
       throw new UnauthorizedException('invalid_google_oauth_state');
     }
     const payload = this.parseBase64urlJson(encoded) as GoogleOAuthStatePayload;
-    if (!payload.state || !payload.codeVerifier || !payload.returnTo || !payload.expiresAt) {
+    if (!payload.state || !payload.codeVerifier || !payload.returnTo || !payload.redirectUri || !payload.expiresAt) {
       throw new UnauthorizedException('invalid_google_oauth_state');
     }
     if (payload.expiresAt <= Date.now()) throw new UnauthorizedException('invalid_google_oauth_state');
@@ -90,10 +91,14 @@ export class GoogleOAuthService {
     return `${pathname}${nextQuery ? `?${nextQuery}` : ''}${hash ? `#${hash}` : ''}`;
   }
 
-  startGoogleOAuth(input: { returnTo?: string }): { authorizationUrl: string; stateCookie: string; stateCookieMaxAgeSeconds: number } {
+  startGoogleOAuth(input: { returnTo?: string; redirectUri?: string }): { authorizationUrl: string; stateCookie: string; stateCookieMaxAgeSeconds: number } {
     const environment = this.environmentProvider.read();
-    if (!this.googleOAuth || !environment.googleOAuthClientId || !environment.googleOAuthClientSecret || !environment.googleOAuthRedirectUri) {
+    if (!this.googleOAuth || !environment.googleOAuthClientId || !environment.googleOAuthClientSecret) {
       throw new BadRequestException('google_oauth_not_configured');
+    }
+    const redirectUri = input.redirectUri || environment.googleOAuthRedirectUri;
+    if (!redirectUri) {
+      throw new BadRequestException('google_oauth_redirect_uri_not_configured');
     }
     const state = crypto.randomBytes(32).toString('base64url');
     const codeVerifier = crypto.randomBytes(64).toString('base64url');
@@ -103,6 +108,7 @@ export class GoogleOAuthService {
         state,
         codeVerifier,
         returnTo,
+        redirectUri,
         expiresAt: Date.now() + googleOAuthStateTtlMs,
       },
       this.stateSigningSecret(environment),
@@ -112,7 +118,7 @@ export class GoogleOAuthService {
       stateCookieMaxAgeSeconds: googleOAuthStateTtlMs / 1000,
       authorizationUrl: this.googleOAuth.buildAuthorizationUrl({
         clientId: environment.googleOAuthClientId,
-        redirectUri: environment.googleOAuthRedirectUri,
+        redirectUri,
         state,
         codeChallenge: this.sha256Base64url(codeVerifier),
       }),
@@ -121,7 +127,7 @@ export class GoogleOAuthService {
 
   async completeGoogleOAuth(input: { code?: string; state?: string; stateCookie?: string }): Promise<{ profile: GoogleOAuthProfile; returnTo: string }> {
     const environment = this.environmentProvider.read();
-    if (!this.googleOAuth || !environment.googleOAuthClientId || !environment.googleOAuthClientSecret || !environment.googleOAuthRedirectUri) {
+    if (!this.googleOAuth || !environment.googleOAuthClientId || !environment.googleOAuthClientSecret) {
       throw new BadRequestException('google_oauth_not_configured');
     }
     if (!input.code || !input.state) throw new UnauthorizedException('invalid_google_oauth_state');
@@ -130,7 +136,7 @@ export class GoogleOAuthService {
     const profile = await this.googleOAuth.authenticate({
       clientId: environment.googleOAuthClientId,
       clientSecret: environment.googleOAuthClientSecret,
-      redirectUri: environment.googleOAuthRedirectUri,
+      redirectUri: statePayload.redirectUri,
       code: input.code,
       codeVerifier: statePayload.codeVerifier,
     });

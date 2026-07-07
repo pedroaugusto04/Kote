@@ -224,8 +224,23 @@ export class AuthController {
   @ApiOperation({ summary: 'Start Google OAuth flow' })
   @ApiQuery({ name: 'returnTo', required: false, description: 'URL to return to after authentication' })
   @ApiResponse({ status: 302, description: 'Redirect to Google OAuth' })
-  startGoogle(@Query('returnTo') returnTo: string | undefined, @Res() response: Response) {
-    const result = this.auth.startGoogleOAuth({ returnTo });
+  startGoogle(@Query('returnTo') returnTo: string | undefined, @Req() request: Request, @Res() response: Response) {
+    const protocol = this.environment.trustProxy ? (request.headers['x-forwarded-proto'] as string) || 'https' : request.protocol;
+    const host = request.headers.host as string;
+    
+    // Validate host against allowed hosts to prevent header injection
+    const hostWithoutPort = host.split(':')[0];
+    if (this.environment.allowedHosts.length > 0 && !this.environment.allowedHosts.includes(hostWithoutPort)) {
+      throw new BadRequestException('invalid_host_header');
+    }
+    
+    // Extract base path from KB_API_PUBLIC_BASE_URL (e.g., /kote/api)
+    const basePath = this.environment.apiPublicBaseUrl ? new URL(this.environment.apiPublicBaseUrl).pathname : '';
+    const cleanBasePath = basePath.replace(/\/$/, '');
+    const baseWithoutApi = cleanBasePath.replace(/\/api$/, '');
+    const redirectUri = `${protocol}://${host}${baseWithoutApi}/api/auth/google/callback`;
+    
+    const result = this.auth.startGoogleOAuth({ returnTo, redirectUri });
     setGoogleOAuthStateCookie(response, result.stateCookie, result.stateCookieMaxAgeSeconds);
     response.redirect(result.authorizationUrl);
   }

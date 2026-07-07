@@ -35,6 +35,7 @@ export type RuntimeEnvironment = {
   publicBaseUrl: string;
   apiPublicBaseUrl: string;
   allowedOrigins: string[];
+  allowedHosts: string[];
   allowedExtensionIds: string[];
   trustProxy: boolean;
   githubPushWebhookPath: string;

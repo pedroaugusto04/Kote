@@ -69,6 +69,10 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
       .split(',')
       .map((origin) => origin.trim().replace(/\/$/, ''))
       .filter(Boolean),
+    allowedHosts: String(env.KB_ALLOWED_HOSTS || '')
+      .split(',')
+      .map((host) => host.trim())
+      .filter(Boolean),
     allowedExtensionIds: String(env.KB_ALLOWED_EXTENSION_IDS || '')
       .split(',')
       .map((id) => id.trim())
