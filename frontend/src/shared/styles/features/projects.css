@@ -1170,6 +1170,7 @@
 
 .projects-search-box input {
   padding-left: 42px !important;
+  padding-right: 42px !important;
 }
 
 .projects-search-icon {
@@ -1181,6 +1182,7 @@
   height: 18px;
   color: var(--muted);
   pointer-events: none;
+  z-index: 1;
 }
 
 .drag-drop-hint-tooltip {
@@ -1188,12 +1190,19 @@
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
+  z-index: 2;
 }
 
 .drag-drop-hint-tooltip .info-tooltip-trigger {
   padding: 4px;
   color: var(--muted);
   transition: color 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .drag-drop-hint-tooltip .info-tooltip-trigger:hover {

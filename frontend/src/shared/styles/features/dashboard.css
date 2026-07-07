@@ -371,6 +371,29 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
+/* Drag and drop hint tooltip for HomePage */
+.drag-drop-hint-tooltip {
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.drag-drop-hint-tooltip .info-tooltip-trigger {
+  padding: 4px;
+  color: var(--muted);
+  transition: color 0.2s ease;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drag-drop-hint-tooltip .info-tooltip-trigger:hover {
+  color: var(--text);
+}
+
 /* Drag and drop upload overlay (shared with projects.css) */
 .drag-drop-overlay {
   position: absolute;
