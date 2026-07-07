@@ -97,6 +97,10 @@
   --red: #b91c1c;
   --danger: #ef4444;
   --purple: #7e22ce;
+  --accent: #0369a1;
+  --primary-hover: #075985;
+  --surface-10: #e2e8f0;
+  --surface-bg: #ffffff;
   --body-overlay: linear-gradient(168deg,
       rgba(248, 250, 252, 0.94) 0%,
       rgba(241, 245, 249, 0.85) 100%);

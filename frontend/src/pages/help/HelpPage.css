@@ -240,6 +240,11 @@
   border-color: rgba(37, 211, 102, 0.22);
 }
 
+:root[data-theme="light"] .help-whatsapp-callout-icon {
+  background: rgba(21, 128, 61, 0.12);
+  color: #15803d;
+}
+
 .help-whatsapp-callout-icon {
   display: inline-grid;
   place-items: center;

@@ -76,11 +76,11 @@
 }
 
 :root[data-theme="light"] .icon-button:disabled {
-  opacity: 0.6;
+  opacity: 0.85;
   cursor: not-allowed;
   background: var(--surface-2);
   border-color: var(--line);
-  color: var(--text-soft);
+  color: var(--muted);
 }
 
 :root[data-theme="light"] .icon-button.secondary {
@@ -303,17 +303,37 @@
   border-color: var(--line);
 }
 
-/* Timeline filter buttons */
-:root[data-theme="light"] .timeline-filter-row button {
+/* Timeline filter buttons (All, WhatsApp, GitHub, etc.) */
+:root[data-theme="light"] .timeline-filter-row {
   border-color: var(--line);
-  background: var(--panel);
+  background: var(--surface-2);
+}
+
+:root[data-theme="light"] .timeline-filter-row button {
+  border-color: transparent;
+  background: transparent;
   color: var(--text-soft);
 }
 
+:root[data-theme="light"] .timeline-filter-row button:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: none;
+}
+
 :root[data-theme="light"] .timeline-filter-row button.active {
-  background: var(--surface-active);
+  background: var(--panel);
   border-color: var(--accent-border);
   color: var(--active-text);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .timeline-filter-row button.active:hover:not(:disabled) {
+  background: var(--panel);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+  box-shadow: var(--shadow);
 }
 
 /* Inline messages */
@@ -372,4 +392,46 @@
 /* Profile menu popover */
 :root[data-theme="light"] .profile-menu-popover {
   box-shadow: var(--shadow-strong);
+}
+
+/* Accent aliases and indigo remnants → cyan system */
+:root[data-theme="light"] .drag-drop-overlay {
+  background: rgba(3, 105, 161, 0.12);
+  border-color: var(--cyan);
+}
+
+:root[data-theme="light"] .drag-drop-icon {
+  color: var(--cyan);
+}
+
+:root[data-theme="light"] .knowledge-map-search-input:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 0 2px rgba(3, 105, 161, 0.2);
+}
+
+:root[data-theme="light"] .knowledge-map-timeline-slider input[type="range"] {
+  background: var(--surface-10);
+}
+
+:root[data-theme="light"] .knowledge-map-timeline-slider input[type="range"]::-webkit-slider-thumb {
+  background: var(--cyan);
+  border-color: var(--surface-bg);
+}
+
+:root[data-theme="light"] .knowledge-map-timeline-slider input[type="range"]::-webkit-slider-thumb:hover {
+  background: var(--primary-hover);
+}
+
+:root[data-theme="light"] .knowledge-map-zoom-controls button:hover {
+  color: var(--accent);
+}
+
+:root[data-theme="light"] .kb-select-trigger:disabled {
+  opacity: 0.8;
+  color: var(--muted);
+}
+
+/* Small uppercase labels */
+:root[data-theme="light"] .note-body-label {
+  color: var(--muted);
 }
