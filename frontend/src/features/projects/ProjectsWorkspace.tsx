@@ -136,11 +136,16 @@ export function ProjectsWorkspace({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setIsDraggingOver(true);
   };
 
-  const handleDragLeave = () => {
-    setIsDraggingOver(false);
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Only hide overlay if we're actually leaving the container, not entering a child element
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDraggingOver(false);
+    }
   };
 
   const handleDrop = async (e: React.DragEvent) => {
