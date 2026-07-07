@@ -95,23 +95,24 @@
   color: var(--text);
 }
 
-/* Filter chips */
+/* Filter chips — standalone chips use surface-2; active matches segmented selected pill */
 :root[data-theme="light"] .filter-chip {
   border-color: var(--line);
   color: var(--text-soft);
-  background: var(--panel);
+  background: var(--surface-2);
 }
 
 :root[data-theme="light"] .filter-chip:hover:not(:disabled) {
-  border-color: var(--cyan);
-  background: var(--surface-hover);
+  border-color: var(--line);
+  background: var(--surface-3);
   color: var(--text);
 }
 
 :root[data-theme="light"] .filter-chip.active {
-  background: var(--surface-active);
+  background: var(--panel);
   border-color: var(--accent-border);
   color: var(--active-text);
+  box-shadow: var(--shadow);
 }
 
 /* Active nav/tree items */
@@ -175,12 +176,13 @@
 /* Row action buttons */
 :root[data-theme="light"] .row-action-button {
   border-color: var(--line);
-  background: var(--surface-1);
+  background: var(--panel);
 }
 
 :root[data-theme="light"] .row-action-button:hover {
   border-color: var(--accent-border);
-  background: var(--surface-hover-accent);
+  background: var(--surface-3);
+  color: var(--active-text);
 }
 
 /* Command bar: slight elevation over body */
@@ -196,16 +198,39 @@
 }
 
 /* Pagination */
-:root[data-theme="light"] .pagination-number {
-  border-color: var(--line);
+:root[data-theme="light"] .pagination-bar {
   background: var(--panel);
+  border-color: var(--line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="light"] .pagination-numbers {
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+:root[data-theme="light"] .pagination-number {
+  border-color: transparent;
+  background: transparent;
   color: var(--text-soft);
 }
 
+:root[data-theme="light"] .pagination-number:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: none;
+}
+
 :root[data-theme="light"] .pagination-number.active {
-  background: var(--surface-active);
+  background: var(--panel);
   border-color: var(--accent-border);
   color: var(--active-text);
+  box-shadow: var(--shadow);
 }
 
 /* Select triggers */
@@ -240,7 +265,7 @@
   background: var(--surface-2);
 }
 
-/* Segmented controls */
+/* Segmented controls, tabs, and view selectors share one toggle-group pattern */
 :root[data-theme="light"] .segmented-control {
   border-color: var(--line);
   background: var(--surface-2);
@@ -262,6 +287,58 @@
   border-color: var(--accent-border);
   color: var(--active-text);
   box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .tab-buttons {
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+
+:root[data-theme="light"] .tab-btn {
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .tab-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+:root[data-theme="light"] .tab-btn.active {
+  background: var(--panel);
+  border: 1px solid var(--accent-border);
+  color: var(--active-text);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .view-selector {
+  border-color: var(--line);
+  background: var(--surface-2);
+}
+
+:root[data-theme="light"] .view-selector-btn {
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .view-selector-btn:hover {
+  background: var(--surface-3);
+  color: var(--text);
+}
+
+:root[data-theme="light"] .view-selector-btn.active {
+  background: var(--panel);
+  border: 1px solid var(--accent-border);
+  color: var(--active-text);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .bulk-action-btn {
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .bulk-action-btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--line);
+  color: var(--text);
 }
 
 /* Theme toggle and topbar icons */
@@ -364,12 +441,74 @@
   color: var(--muted);
 }
 
-/* Knowledge map canvas: softer grid lines */
+/* Knowledge map — light canvas and controls aligned with the rest of the shell */
+:root[data-theme="light"] .knowledge-map-controls {
+  background: var(--panel);
+  border-color: var(--line);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+:root[data-theme="light"] .knowledge-map-type-toggles {
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  gap: 4px;
+}
+
+:root[data-theme="light"] .knowledge-map-type-toggles label {
+  border-color: transparent;
+  background: transparent;
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .knowledge-map-type-toggles label:hover {
+  background: var(--surface-3);
+  border-color: var(--line);
+  color: var(--text);
+}
+
+:root[data-theme="light"] .knowledge-map-type-toggles label:has(input:checked) {
+  background: var(--panel);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .knowledge-map-stats span,
+:root[data-theme="light"] .knowledge-map-legend span {
+  background: var(--panel);
+  border-color: var(--line);
+}
+
 :root[data-theme="light"] .knowledge-map-canvas {
   background:
-    linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
-    var(--surface-2);
+    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    var(--panel);
+  border-color: var(--line);
+}
+
+:root[data-theme="light"] .knowledge-map-node-label {
+  stroke: var(--panel);
+}
+
+:root[data-theme="light"] .knowledge-map-loading {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .knowledge-map-zoom-controls {
+  background: var(--panel);
+  border-color: var(--line);
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .knowledge-map-zoom-controls button:hover {
+  background: var(--surface-3);
+  color: var(--active-text);
 }
 
 /* Timeline cards */
@@ -420,10 +559,6 @@
 
 :root[data-theme="light"] .knowledge-map-timeline-slider input[type="range"]::-webkit-slider-thumb:hover {
   background: var(--primary-hover);
-}
-
-:root[data-theme="light"] .knowledge-map-zoom-controls button:hover {
-  color: var(--accent);
 }
 
 :root[data-theme="light"] .kb-select-trigger:disabled {
