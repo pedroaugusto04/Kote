@@ -657,9 +657,10 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
           id: 'note-fts-1',
           title: 'FTS Note 1',
           path: 'docs/fts-1.md',
-          project: 'infra',
+          projectSlug: 'infra',
           workspaceId: 'ws-123',
           tags: ['deploy'],
+          ftsRank: 0.08,
         },
       ];
     },
@@ -818,9 +819,10 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
           id: 'note-fts',
           title: 'FTS Title',
           path: 'docs/fts.md',
-          project: 'infra',
+          projectSlug: 'infra',
           workspaceId: 'ws-123',
           tags: [],
+          ftsRank: 0.08,
         },
       ];
     },
