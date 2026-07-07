@@ -567,4 +567,16 @@
     gap: 10px;
     padding: 14px 16px;
   }
+
+  .help-section-description {
+    max-width: 100%;
+  }
+
+  .help-item-body {
+    max-width: 100%;
+  }
+
+  .help-code-block {
+    overflow-x: auto;
+  }
 }
