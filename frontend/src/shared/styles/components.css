@@ -367,7 +367,7 @@
 
 :root[data-theme="light"] .favorite-star.active,
 :root[data-theme="light"] .favorite-star:hover {
-  color: var(--amber);
+  color: #f0b95a;
 }
 
 /* Theme toggle & User profile settings */
