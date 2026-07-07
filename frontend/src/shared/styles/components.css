@@ -1339,6 +1339,51 @@
   max-width: 500px;
 }
 
+/* Video mode for attachment viewer */
+.attachment-viewer-panel.video-mode {
+  max-width: 960px;
+}
+
+.attachment-viewer-video-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 24px;
+  gap: 16px;
+}
+
+.attachment-viewer-video {
+  max-width: 100%;
+  max-height: calc(100vh - 200px);
+  border-radius: 8px;
+  background: var(--surface-5);
+}
+
+.attachment-viewer-video-meta {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attachment-viewer-video-title {
+  font-family: var(--ui);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 380px;
+}
+
+.attachment-viewer-video-subtitle {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .attachment-viewer-audio-container {
   display: flex;
   flex-direction: column;

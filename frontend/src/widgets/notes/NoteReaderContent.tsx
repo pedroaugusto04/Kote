@@ -1,20 +1,18 @@
 import { useState } from 'react';
 import React from 'react';
 import { createPortal } from 'react-dom';
-
 import { normalizeComparableText, sameText, stripSourceHeader } from '../../shared/utils/text';
-import { formatFileSize, formatSourceLabel, SOURCE_VALUES } from '../../shared/utils/format';
+import { formatFileSize, SOURCE_VALUES } from '../../shared/utils/format';
 import type { NoteAttachment } from '../../shared/api/models/note';
 import { fetchAttachmentText } from '../../shared/api/notes';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../markdown/MarkdownView';
-import { SourceIcon } from '../../shared/ui/icons';
 import { CDNImage } from '../../shared/ui/CDNImage';
 import { SourceBadge } from './SourceBadge';
 import { AiConversationView } from './AiConversationView';
 import { parseAiConversationTurns } from './ai-conversation';
 
-type AttachmentPreviewKind = 'image' | 'audio' | 'pdf' | 'markdown' | 'text' | 'none';
+type AttachmentPreviewKind = 'image' | 'audio' | 'video' | 'pdf' | 'markdown' | 'text' | 'none';
 
 type TextPreviewState = {
   attachmentId: string;
@@ -57,6 +55,18 @@ const TEXT_EXTENSIONS = new Set([
   'diff',
   'patch',
   'svg',
+  'py',
+  'java',
+  'c',
+  'cpp',
+  'cc',
+  'h',
+  'hpp',
+  'cs',
+  'php',
+  'rb',
+  'go',
+  'rs',
 ]);
 
 const TEXT_MIME_TYPES = new Set([
@@ -127,6 +137,9 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
     }
     if (attachment.mimeType.startsWith('audio/')) {
       return 'audio';
+    }
+    if (attachment.mimeType.startsWith('video/')) {
+      return 'video';
     }
     if (attachment.mimeType === 'application/pdf') {
       return isMobile ? 'none' : 'pdf';
@@ -228,6 +241,8 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
                 ? 'image-mode'
                 : activePreviewKind === 'audio'
                 ? 'audio-mode'
+                : activePreviewKind === 'video'
+                ? 'video-mode'
                 : activePreviewKind === 'markdown' || activePreviewKind === 'text'
                 ? 'text-mode'
                 : 'pdf-mode'
@@ -293,6 +308,14 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
                     <span className="attachment-viewer-audio-subtitle">{activeAttachment.mimeType} / {formatFileSize(activeAttachment.sizeBytes)}</span>
                   </div>
                   <audio src={activeAttachment.url} controls className="attachment-viewer-audio" autoPlay />
+                </div>
+              ) : activePreviewKind === 'video' ? (
+                <div className="attachment-viewer-video-container">
+                  <video src={activeAttachment.url} controls className="attachment-viewer-video" />
+                  <div className="attachment-viewer-video-meta">
+                    <span className="attachment-viewer-video-title">{activeAttachment.fileName}</span>
+                    <span className="attachment-viewer-video-subtitle">{activeAttachment.mimeType} / {formatFileSize(activeAttachment.sizeBytes)}</span>
+                  </div>
                 </div>
               ) : activePreviewKind === 'markdown' || activePreviewKind === 'text' ? (
                 <TextAttachmentPreview

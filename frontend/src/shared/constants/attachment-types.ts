@@ -6,8 +6,6 @@ export const SUPPORTED_MIME_TYPES = new Set([
   'image/webp',
   'image/gif',
   'image/svg+xml',
-  'image/bmp',
-  'image/tiff',
   // Documents
   'application/pdf',
   'application/msword',
@@ -23,13 +21,8 @@ export const SUPPORTED_MIME_TYPES = new Set([
   'application/xml',
   'text/xml',
   'text/html',
-  // Archives
-  'application/zip',
-  'application/x-zip-compressed',
-  'application/x-rar-compressed',
-  'application/x-7z-compressed',
-  'application/x-tar',
-  'application/gzip',
+  'application/sql',
+  'text/x-sql',
   // Audio
   'audio/mpeg',
   'audio/mp3',
@@ -44,7 +37,6 @@ export const SUPPORTED_MIME_TYPES = new Set([
   'video/webm',
   'video/ogg',
   'video/quicktime',
-  'video/x-msvideo',
   'video/x-matroska',
   // Code files (text-based)
   'text/x-python',
@@ -74,7 +66,7 @@ export function isMimeTypeSupported(mimeType: string, fileName?: string): boolea
     const ext = fileName?.split('.').pop()?.toLowerCase();
     if (ext) {
       const codeExtensions = new Set([
-        'py', 'java', 'c', 'cpp', 'cc', 'h', 'hpp', 'cs', 'php', 'rb', 'go', 'rs', 'ts', 'js', 'json', 'sh', 'md', 'txt', 'csv', 'xml', 'html'
+        'py', 'java', 'c', 'cpp', 'cc', 'h', 'hpp', 'cs', 'php', 'rb', 'go', 'rs', 'ts', 'js', 'json', 'sh', 'md', 'txt', 'csv', 'xml', 'html', 'sql'
       ]);
       return codeExtensions.has(ext);
     }
@@ -85,6 +77,6 @@ export function isMimeTypeSupported(mimeType: string, fileName?: string): boolea
 export function getAcceptAttribute(): string {
   // Convert supported mime types to a comma separated string for HTML accept attribute
   // Add some common extensions just in case browsers don't match MIME types correctly
-  const commonExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.csv', '.zip', '.rar', '.7z', '.json'];
+  const commonExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.csv', '.json', '.sql'];
   return Array.from(SUPPORTED_MIME_TYPES).concat(commonExtensions).join(',');
 }

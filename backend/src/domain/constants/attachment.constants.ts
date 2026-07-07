@@ -6,8 +6,6 @@ export const ATTACHMENT_MIME_TYPES = new Set([
   'image/webp',
   'image/gif',
   'image/svg+xml',
-  'image/bmp',
-  'image/tiff',
   // Documents
   'application/pdf',
   'application/msword',
@@ -23,13 +21,8 @@ export const ATTACHMENT_MIME_TYPES = new Set([
   'application/xml',
   'text/xml',
   'text/html',
-  // Archives
-  'application/zip',
-  'application/x-zip-compressed',
-  'application/x-rar-compressed',
-  'application/x-7z-compressed',
-  'application/x-tar',
-  'application/gzip',
+  'application/sql',
+  'text/x-sql',
   // Audio
   'audio/mpeg',
   'audio/mp3',
@@ -44,7 +37,6 @@ export const ATTACHMENT_MIME_TYPES = new Set([
   'video/webm',
   'video/ogg',
   'video/quicktime',
-  'video/x-msvideo',
   'video/x-matroska',
   // Code files (text-based)
   'text/x-python',
