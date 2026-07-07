@@ -2,10 +2,10 @@ import type { NoteDetail, NoteSummary } from './models/note';
 import type { NoteStatusFilter, QuickNoteStatus } from './models/note-status';
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import { request, requestText } from './request';
-import { API_PATHS } from './api-paths.constants';
+import { API_PATHS, buildApiPath } from './api-paths.constants';
 
 export async function fetchNote(id: string): Promise<NoteDetail> {
-  const result = await request<{ ok: true; note: NoteDetail }>(`${API_PATHS.NOTES}/${encodeURIComponent(id)}`);
+  const result = await request<{ ok: true; note: NoteDetail }>(buildApiPath(API_PATHS.NOTE_DETAIL, { id }));
   return result.note;
 }
 
@@ -91,7 +91,7 @@ export type UpdateNoteParams = {
 };
 
 export function updateNote(id: string, params: UpdateNoteParams) {
-  return request<{ ok: true; noteId: string }>(`${API_PATHS.NOTES}/${encodeURIComponent(id)}`, {
+  return request<{ ok: true; noteId: string }>(buildApiPath(API_PATHS.NOTE_DETAIL, { id }), {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(params),
@@ -99,7 +99,7 @@ export function updateNote(id: string, params: UpdateNoteParams) {
 }
 
 export function bulkUpdateNoteStatuses(ids: string[], status: QuickNoteStatus) {
-  return request<{ ok: true; updatedCount: number }>(`${API_PATHS.NOTES}/bulk/status`, {
+  return request<{ ok: true; updatedCount: number }>(API_PATHS.NOTES_BULK_STATUS, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ ids, status }),
@@ -107,13 +107,13 @@ export function bulkUpdateNoteStatuses(ids: string[], status: QuickNoteStatus) {
 }
 
 export function deleteNote(id: string) {
-  return request<{ ok: true; noteId: string }>(`${API_PATHS.NOTES}/${encodeURIComponent(id)}`, {
+  return request<{ ok: true; noteId: string }>(buildApiPath(API_PATHS.NOTE_DETAIL, { id }), {
     method: 'DELETE',
   });
 }
 
 export function pinNote(id: string, pinned: boolean) {
-  return request<{ ok: true; noteId: string; pinned: boolean }>(`${API_PATHS.NOTES}/${encodeURIComponent(id)}/pin`, {
+  return request<{ ok: true; noteId: string; pinned: boolean }>(buildApiPath(API_PATHS.NOTE_PIN, { id }), {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ pinned }),
@@ -121,7 +121,7 @@ export function pinNote(id: string, pinned: boolean) {
 }
 
 export function fetchRelatedNotes(id: string): Promise<NoteSummary[]> {
-  return request<NoteSummary[]>(`${API_PATHS.NOTES}/${encodeURIComponent(id)}/related`);
+  return request<NoteSummary[]>(buildApiPath(API_PATHS.NOTE_RELATED, { id }));
 }
 
 export function fetchAttachmentText(url: string): Promise<string> {
@@ -129,11 +129,11 @@ export function fetchAttachmentText(url: string): Promise<string> {
 }
 
 export function fetchAutoActionGlobal(): Promise<{ enabled: boolean; action: 'none' | 'resolved' | 'archived'; afterHours: number | null } | null> {
-  return request(`${API_PATHS.NOTES}/auto/global`);
+  return request(API_PATHS.NOTES_AUTO_GLOBAL);
 }
 
 export function setAutoActionGlobal(input: { enabled: boolean; action: 'none' | 'resolved' | 'archived'; afterHours?: number | null }) {
-  return request<{ ok: true }>(`${API_PATHS.NOTES}/auto/global`, {
+  return request<{ ok: true }>(API_PATHS.NOTES_AUTO_GLOBAL, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),

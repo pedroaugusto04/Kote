@@ -83,28 +83,7 @@ export class PostgresContentRepository extends ContentRepository {
 
   async listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects> {
     const pageResult = await this.projectRepository.listPage(userId, input);
-    return {
-      pagination: pageResult.pagination,
-      items: pageResult.items.map((record) => ({
-        projectSlug: record.projectSlug,
-        displayName: record.displayName,
-        workspaceSlug: record.workspaceSlug || '',
-        repositories: record.repositories.map((repo) => ({
-          id: repo.id,
-          workspaceSlug: record.workspaceSlug || '',
-          externalId: repo.externalId,
-          fullName: repo.fullName,
-          htmlUrl: repo.htmlUrl,
-          description: repo.description,
-          defaultBranch: repo.defaultBranch,
-          createdAt: repo.createdAt,
-          updatedAt: repo.updatedAt,
-        })),
-        defaultTags: record.defaultTags,
-        enabled: record.enabled,
-        favorite: record.favorite,
-      })),
-    };
+    return pageResult as PaginatedProjects;
   }
 
   async getProjectBySlug(userId: string, projectSlug: string) {

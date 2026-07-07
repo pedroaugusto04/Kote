@@ -2,7 +2,7 @@ import { request } from './request';
 import { detectUserCountry } from '../utils/location';
 import { resolveApiPath } from './api-path';
 import type { SubscriptionChangeKind } from '../constants/billing.constants';
-import { API_PATHS } from './api-paths.constants';
+import { API_PATHS, buildApiPath } from './api-paths.constants';
 
 export interface PlanDTO {
   id: string;
@@ -145,13 +145,13 @@ export function updateSubscription(input: SubscriptionInput): Promise<QuotaAndBi
 }
 
 export function cancelPendingPayment(paymentId: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`${API_PATHS.SUBSCRIPTION}/payment/${encodeURIComponent(paymentId)}`, {
+  return request<{ ok: true }>(buildApiPath(API_PATHS.SUBSCRIPTION_PAYMENT, { paymentId }), {
     method: 'DELETE',
   });
 }
 
 export function cancelScheduledChange(changeId: string): Promise<{ ok: true }> {
-  return request<{ ok: true }>(`${API_PATHS.SUBSCRIPTION}/scheduled-change/${encodeURIComponent(changeId)}`, {
+  return request<{ ok: true }>(buildApiPath(API_PATHS.SUBSCRIPTION_SCHEDULED_CHANGE, { changeId }), {
     method: 'DELETE',
   });
 }

@@ -1,4 +1,4 @@
-import { CanonicalType, HomePriorityType, HomeTargetKind, KnowledgeStatus, SourceChannel, TimelineCategory } from '../../contracts/enums.js';
+import { CanonicalType, HomePriorityType, HomeTargetKind, KnowledgeStatus, ReviewFindingSeverity, SourceChannel, TimelineCategory } from '../../contracts/enums.js';
 import { formatDateInTimeZone, normalizeTimeZone } from '../../domain/time.js';
 import type { Project } from '../../domain/projects.js';
 import type { DashboardHomeSummary, HomePriority } from '../models/dashboard-home.models.js';
@@ -39,7 +39,8 @@ function formatDayLabel(key: string) {
 }
 
 function isHigh(severity: string) {
-  return ['high', 'critical'].includes(severity.toLowerCase());
+  return (severity.toLowerCase() as ReviewFindingSeverity) === ReviewFindingSeverity.High
+    || (severity.toLowerCase() as ReviewFindingSeverity) === ReviewFindingSeverity.Critical;
 }
 
 function isOpenReminder(status: string) {
@@ -110,7 +111,7 @@ export function buildDashboardHome(
   const activeReviews = reviews.filter((review) => isActiveNoteStatus(findNoteByPath(notes, review.generatedNotePath)?.status));
   const openHighFindings = activeReviews.flatMap((review) => review.findings.filter((finding) => isHigh(finding.severity)).map((finding) => ({ review, finding })));
   const reviewsWithOpenFindings = activeReviews.filter((review) => review.findings.length > 0);
-  const recentIncidentsAndFollowups = recentNotes.filter((note) => ['incident', 'followup'].includes(note.type) && isActiveNoteStatus(note.status));
+  const recentIncidentsAndFollowups = recentNotes.filter((note) => [CanonicalType.Incident, CanonicalType.Followup].includes(note.type as CanonicalType) && isActiveNoteStatus(note.status));
 
   const dayKeys = Array.from({ length: HOME_WINDOW_DAYS }, (_, index) => shiftDateKey(start, index));
   const countByDay = new Map(dayKeys.map((key) => [key, 0]));
@@ -165,7 +166,7 @@ export function buildDashboardHome(
       description: note.summary,
       status: note.status,
       target: noteTarget(note),
-      rank: note.type === 'incident' ? 3 : 4,
+      rank: note.type === CanonicalType.Incident ? 3 : 4,
       timestamp: parseTimestamp(note.date) || Number.MAX_SAFE_INTEGER,
     })),
   ];

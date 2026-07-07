@@ -1,5 +1,16 @@
 import { SourceChannel } from '../../contracts/enums.js';
 
+/**
+ * Centralized identifiers used by CLI and IDE clients to identify themselves
+ * when sending conversation turns to the backend.
+ */
+export const SOURCE_IDENTIFIERS = {
+  CLI_SENDER: 'cli-user',
+  CLI_CHAT: 'cli-session',
+  VSCODE_SENDER: 'vscode-user',
+  VSCODE_CHAT: 'vscode-chat',
+} as const;
+
 export type SourceChannelContext = {
   senderId?: string;
   chatId?: string;
@@ -27,12 +38,12 @@ export function resolveSourceChannel(context: SourceChannelContext): SourceChann
   const senderId = String(context.senderId || '').trim();
   const chatId = String(context.chatId || '').trim();
   
-  if (senderId === 'cli-user' && chatId === 'cli-session') {
+  if (senderId === SOURCE_IDENTIFIERS.CLI_SENDER && chatId === SOURCE_IDENTIFIERS.CLI_CHAT) {
     return SourceChannel.Cli;
   }
   
   // VS Code extension uses vscode-user/vscode-chat
-  if (senderId === 'vscode-user' && chatId === 'vscode-chat') {
+  if (senderId === SOURCE_IDENTIFIERS.VSCODE_SENDER && chatId === SOURCE_IDENTIFIERS.VSCODE_CHAT) {
     return SourceChannel.Ide;
   }
   

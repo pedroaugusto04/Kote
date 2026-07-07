@@ -6,7 +6,7 @@ import type { ProjectTimelineCategory, ProjectTimelineItem } from './models/proj
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import type { Workspace } from './models/workspace';
 import { request } from './request';
-import { API_PATHS } from './api-paths.constants';
+import { API_PATHS, buildApiPath } from './api-paths.constants';
 
 export type CreateProjectParams = {
   displayName: string;
@@ -45,7 +45,7 @@ export type UpdateProjectParams = {
 };
 
 export function updateProject(projectSlug: string, params: UpdateProjectParams) {
-  return request<{ ok: true; project: Project }>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}`, {
+  return request<{ ok: true; project: Project }>(buildApiPath(API_PATHS.PROJECT_DETAIL, { projectSlug }), {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(params),
@@ -53,13 +53,13 @@ export function updateProject(projectSlug: string, params: UpdateProjectParams) 
 }
 
 export function deleteProject(projectSlug: string) {
-  return request<{ ok: true; projectSlug: string }>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}`, {
+  return request<{ ok: true; projectSlug: string }>(buildApiPath(API_PATHS.PROJECT_DETAIL, { projectSlug }), {
     method: 'DELETE',
   });
 }
 
 export function setProjectFavorite(projectSlug: string, favorite: boolean) {
-  return request<{ ok: true; project: Project }>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/favorite`, {
+  return request<{ ok: true; project: Project }>(buildApiPath(API_PATHS.PROJECT_FAVORITE, { projectSlug }), {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ favorite }),
@@ -67,7 +67,7 @@ export function setProjectFavorite(projectSlug: string, favorite: boolean) {
 }
 
 export function fetchProjectFolders(projectSlug: string) {
-  return request<{ ok: true; projectSlug: string; folders: ProjectFolder[] }>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/folders`);
+  return request<{ ok: true; projectSlug: string; folders: ProjectFolder[] }>(buildApiPath(API_PATHS.PROJECT_FOLDERS, { projectSlug }));
 }
 
 export function fetchProjectTimeline(projectSlug: string, params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; folderId?: string; status?: string; orderByPin?: boolean }) {
@@ -79,7 +79,7 @@ export function fetchProjectTimeline(projectSlug: string, params: { page?: numbe
   if (params.folderId) search.set('folderId', params.folderId);
   if (params.status !== undefined) search.set('status', params.status);
   if (params.orderByPin !== undefined) search.set('orderByPin', String(params.orderByPin));
-  return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/timeline?${search.toString()}`);
+  return request<PaginatedResponse<ProjectTimelineItem, 'timeline'>>(`${buildApiPath(API_PATHS.PROJECT_TIMELINE, { projectSlug })}?${search.toString()}`);
 }
 
 export function fetchProjectKnowledgeMap(projectSlug: string, params: ProjectKnowledgeMapQuery = {}) {
@@ -88,17 +88,17 @@ export function fetchProjectKnowledgeMap(projectSlug: string, params: ProjectKno
     category: params.category || 'all',
   });
   if (params.folderId) search.set('folderId', params.folderId);
-  return request<ProjectKnowledgeMapResponse>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/knowledge-map?${search.toString()}`);
+  return request<ProjectKnowledgeMapResponse>(`${buildApiPath(API_PATHS.PROJECT_KNOWLEDGE_MAP, { projectSlug })}?${search.toString()}`);
 }
 
 export function generateProjectBrief(projectSlug: string) {
-  return request<ProjectBriefResponse>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/brief`, {
+  return request<ProjectBriefResponse>(buildApiPath(API_PATHS.PROJECT_BRIEF, { projectSlug }), {
     method: 'POST',
   });
 }
 
 export function fetchLatestProjectBrief(projectSlug: string) {
-  return request<SavedProjectBriefResponse>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/brief`);
+  return request<SavedProjectBriefResponse>(buildApiPath(API_PATHS.PROJECT_BRIEF, { projectSlug }));
 }
 
 export function fetchProjectBriefHistory(projectSlug: string, params: { page?: number; pageSize?: number } = {}) {
@@ -106,7 +106,7 @@ export function fetchProjectBriefHistory(projectSlug: string, params: { page?: n
     page: String(params.page || 1),
     pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
   });
-  return request<ProjectBriefHistoryResponse>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/brief/history?${search.toString()}`);
+  return request<ProjectBriefHistoryResponse>(`${buildApiPath(API_PATHS.PROJECT_BRIEF_HISTORY, { projectSlug })}?${search.toString()}`);
 }
 
 export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: number; category?: ProjectTimelineCategory; status?: string; orderByPin?: boolean }) {
@@ -121,7 +121,7 @@ export function fetchAllProjectsTimeline(params: { page?: number; pageSize?: num
 }
 
 export function createProjectFolder(projectSlug: string, params: { displayName: string; parentFolderId?: string }) {
-  return request<{ ok: true; folder: ProjectFolder }>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/folders`, {
+  return request<{ ok: true; folder: ProjectFolder }>(buildApiPath(API_PATHS.PROJECT_FOLDERS, { projectSlug }), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(params),
@@ -129,7 +129,7 @@ export function createProjectFolder(projectSlug: string, params: { displayName: 
 }
 
 export function updateProjectFolder(projectSlug: string, folderId: string, params: { displayName: string; parentFolderId?: string }) {
-  return request<{ ok: true; folder: ProjectFolder }>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/folders/${encodeURIComponent(folderId)}`, {
+  return request<{ ok: true; folder: ProjectFolder }>(buildApiPath(API_PATHS.PROJECT_FOLDER_DETAIL, { projectSlug, folderId }), {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(params),
@@ -137,7 +137,7 @@ export function updateProjectFolder(projectSlug: string, folderId: string, param
 }
 
 export function deleteProjectFolder(projectSlug: string, folderId: string) {
-  return request<{ ok: true; folderId: string; projectSlug: string }>(`${API_PATHS.PROJECTS}/${encodeURIComponent(projectSlug)}/folders/${encodeURIComponent(folderId)}`, {
+  return request<{ ok: true; folderId: string; projectSlug: string }>(buildApiPath(API_PATHS.PROJECT_FOLDER_DETAIL, { projectSlug, folderId }), {
     method: 'DELETE',
   });
 }

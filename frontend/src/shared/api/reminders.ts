@@ -1,6 +1,7 @@
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import type { Reminder, ReminderBoardResponse } from './models/reminder';
 import { request } from './request';
+import { API_PATHS, buildApiPath } from './api-paths.constants';
 
 export function fetchReminders(params: { page?: number; pageSize?: number; workspaceSlug?: string; status?: string }) {
   const search = new URLSearchParams({
@@ -9,7 +10,7 @@ export function fetchReminders(params: { page?: number; pageSize?: number; works
     workspaceSlug: params.workspaceSlug || '',
     status: params.status || '',
   });
-  return request<PaginatedResponse<Reminder, 'reminders'>>(`/api/reminders?${search.toString()}`);
+  return request<PaginatedResponse<Reminder, 'reminders'>>(`${API_PATHS.REMINDERS}?${search.toString()}`);
 }
 
 export function fetchReminderBoard(params: {
@@ -28,11 +29,11 @@ export function fetchReminderBoard(params: {
     archivedPage: String(params.columnPage?.archived || 1),
   });
 
-  return request<ReminderBoardResponse>(`/api/reminders/board?${search.toString()}`);
+  return request<ReminderBoardResponse>(`${API_PATHS.REMINDERS_BOARD}?${search.toString()}`);
 }
 
 export function updateReminderStatus(id: string, status: 'pending' | 'overdue' | 'resolved' | 'archived') {
-  return request<{ ok: true; id: string; status: 'pending' | 'overdue' | 'resolved' | 'archived' }>(`/api/reminders/${encodeURIComponent(id)}/status`, {
+  return request<{ ok: true; id: string; status: 'pending' | 'overdue' | 'resolved' | 'archived' }>(buildApiPath(API_PATHS.REMINDER_STATUS, { id }), {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ status }),
@@ -40,7 +41,7 @@ export function updateReminderStatus(id: string, status: 'pending' | 'overdue' |
 }
 
 export function bulkUpdateReminderStatuses(ids: string[], status: 'pending' | 'overdue' | 'resolved' | 'archived') {
-  return request<{ ok: true; updatedCount: number }>(`/api/reminders/bulk/status`, {
+  return request<{ ok: true; updatedCount: number }>(API_PATHS.REMINDERS_BULK_STATUS, {
     method: 'PATCH',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ ids, status }),

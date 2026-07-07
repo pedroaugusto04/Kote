@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import type { IngestPayload } from '../contracts/ingest.js';
+import { CanonicalType } from '../contracts/enums.js';
 import { renderFrontmatter } from './frontmatter.js';
 import type { Project } from './projects.js';
 import { sanitizeFileStem, trimText } from './strings.js';
@@ -16,9 +17,9 @@ import {
 } from './constants/markdown.constants.js';
 
 export function folderForCanonicalType(type: IngestPayload['classification']['canonicalType']): string {
-  if (type === 'knowledge' || type === 'decision') return VAULT_FOLDERS.KNOWLEDGE;
-  if (type === 'incident') return VAULT_FOLDERS.INCIDENTS;
-  if (type === 'followup') return VAULT_FOLDERS.FOLLOWUPS;
+  if (type === CanonicalType.Knowledge || type === CanonicalType.Decision) return VAULT_FOLDERS.KNOWLEDGE;
+  if (type === CanonicalType.Incident) return VAULT_FOLDERS.INCIDENTS;
+  if (type === CanonicalType.Followup) return VAULT_FOLDERS.FOLLOWUPS;
   return VAULT_FOLDERS.INBOX;
 }
 
@@ -70,7 +71,7 @@ export function buildNotePaths(project: Project, payload: IngestPayload, folderS
   const baseFile = `${year}${month}${day}-${time}-${titleStem}.md`;
   const eventRelativePath = path.join(noteProjectPathPrefix(project.projectSlug, folderSlugPath), year, month, baseFile);
   const canonicalRelativePath =
-    payload.classification.canonicalType !== 'event'
+    payload.classification.canonicalType !== CanonicalType.Event
       ? path.join(folderForCanonicalType(payload.classification.canonicalType), project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, baseFile)
       : '';
   const followupRelativePath = payload.actions.followUpBy

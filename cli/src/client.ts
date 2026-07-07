@@ -1,5 +1,27 @@
 import { loadConfig, saveConfig, clearConfigAuth } from './config.js';
 
+export const CLI_API_PATHS = {
+  AUTH_LOGIN: '/api/auth/login',
+  AUTH_REFRESH: '/api/auth/refresh',
+  AUTH_EXCHANGE_TOKEN: '/api/auth/exchange-connection-token',
+  AUTH_LOGOUT: '/api/auth/logout',
+  ASK: '/api/ask',
+  CONVERSATION_AGENT: '/api/conversation/agent',
+  PROJECTS: '/api/projects',
+  WORKSPACES: '/api/workspaces',
+  NOTES: '/api/notes',
+  NOTE_DETAIL: '/api/notes/{id}',
+} as const;
+
+export function buildCliApiPath(template: string, params: Record<string, string>): string {
+  let path = template;
+  Object.entries(params).forEach(([key, value]) => {
+    path = path.replace(`{${key}}`, encodeURIComponent(value));
+  });
+  return path;
+}
+
+
 export class ApiClientError extends Error {
   constructor(public status: number, message: string, public body?: unknown) {
     super(message);
@@ -101,12 +123,12 @@ export class ApiClient {
     let response = await this.request(path, options);
 
     // If unauthorized, attempt token refresh if we have a refresh token
-    if (response.status === 401 && !path.includes('auth/login') && !path.includes('auth/refresh')) {
+    if (response.status === 401 && !path.includes(CLI_API_PATHS.AUTH_LOGIN) && !path.includes(CLI_API_PATHS.AUTH_REFRESH)) {
       const config = loadConfig();
       let refreshed = false;
       if (config.cookies?.kb_refresh_token) {
         try {
-          const refreshResponse = await this.request('/api/auth/refresh', { method: 'POST' });
+          const refreshResponse = await this.request(CLI_API_PATHS.AUTH_REFRESH, { method: 'POST' });
           if (refreshResponse.ok) {
             // Token was refreshed (cookies saved automatically), retry original request
             response = await this.request(path, options);
@@ -147,7 +169,7 @@ export class ApiClient {
 
   async login(email: string, password: string): Promise<unknown> {
     clearConfigAuth(); // Reset current auth cookies
-    return this.fetch('/api/auth/login', {
+    return this.fetch(CLI_API_PATHS.AUTH_LOGIN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -156,7 +178,7 @@ export class ApiClient {
 
   async exchangeConnectionToken(connectionToken: string): Promise<{ accessToken: string; refreshToken: string }> {
     clearConfigAuth();
-    return this.fetch<{ accessToken: string; refreshToken: string }>('/api/auth/exchange-connection-token', {
+    return this.fetch<{ accessToken: string; refreshToken: string }>(CLI_API_PATHS.AUTH_EXCHANGE_TOKEN, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ connectionToken }),
@@ -165,7 +187,7 @@ export class ApiClient {
 
   async logout(): Promise<void> {
     try {
-      await this.fetch<void>('/api/auth/logout', { method: 'POST' });
+      await this.fetch<void>(CLI_API_PATHS.AUTH_LOGOUT, { method: 'POST' });
     } finally {
       clearConfigAuth();
     }
@@ -173,7 +195,7 @@ export class ApiClient {
 
   async ask(question: string, projectSlug?: string): Promise<CliAskResult> {
     const config = loadConfig();
-    return this.fetch<CliAskResult>('/api/ask', {
+    return this.fetch<CliAskResult>(CLI_API_PATHS.ASK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -198,7 +220,7 @@ export class ApiClient {
       hasMedia: !!media,
       media: media || {},
     };
-    let url = `/api/conversation/agent?workspaceSlug=${encodeURIComponent(config.workspaceSlug)}`;
+    let url = `${CLI_API_PATHS.CONVERSATION_AGENT}?workspaceSlug=${encodeURIComponent(config.workspaceSlug)}`;
     if (activeProject) {
       url += `&projectSlug=${encodeURIComponent(activeProject)}`;
     }
@@ -210,16 +232,16 @@ export class ApiClient {
   }
 
   async listProjects(): Promise<CliProject[]> {
-    const response = await this.fetch<{ projects: CliProject[] }>('/api/projects?limit=100');
+    const response = await this.fetch<{ projects: CliProject[] }>(`${CLI_API_PATHS.PROJECTS}?limit=100`);
     return response.projects || [];
   }
 
   async listWorkspaces(): Promise<{ workspaces: CliWorkspace[] }> {
-    return this.fetch<{ workspaces: CliWorkspace[] }>('/api/workspaces');
+    return this.fetch<{ workspaces: CliWorkspace[] }>(CLI_API_PATHS.WORKSPACES);
   }
 
   async createNote(body: Record<string, unknown> | unknown): Promise<CliCreateNoteResult> {
-    return this.fetch<CliCreateNoteResult>('/api/notes', {
+    return this.fetch<CliCreateNoteResult>(CLI_API_PATHS.NOTES, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -227,7 +249,7 @@ export class ApiClient {
   }
 
   async updateNote(id: string, body: Record<string, unknown> | unknown): Promise<CliCreateNoteResult> {
-    return this.fetch<CliCreateNoteResult>(`/api/notes/${encodeURIComponent(id)}`, {
+    return this.fetch<CliCreateNoteResult>(buildCliApiPath(CLI_API_PATHS.NOTE_DETAIL, { id }), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
