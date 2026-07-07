@@ -13,12 +13,11 @@ import {
   pinNote,
   runQuery,
 } from '../../shared/api/client';
-import { SOURCE_VALUES } from '../../shared/utils/format';
+import { SOURCE_VALUES, formatDisplayToken } from '../../shared/utils/format';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
 import type { ProjectTimelineCategory, ProjectTimelineItem, ProjectTimelineItemCategory } from '../../shared/api/models/project-timeline';
 import { StatusFilter, type NoteStatus, type NoteStatusFilter } from '../../shared/api/models/note-status';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
-import { formatDisplayToken } from '../../shared/utils/format';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
@@ -35,6 +34,16 @@ import { ROOT_FOLDER_ID } from './projects.constants';
 import { PROJECTS_WORKSPACE_MESSAGES } from './projects-ui.constants';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  all: 'All',
+  [SOURCE_VALUES.WHATSAPP]: 'WhatsApp',
+  [SOURCE_VALUES.GITHUB]: 'GitHub',
+  [SOURCE_VALUES.MANUAL]: 'Manual',
+  reminder: 'Reminder',
+  [SOURCE_VALUES.AI_CHAT]: 'AI Chat',
+};
+
 import { ProjectFolderModal } from './modals/ProjectFolderModal';
 import { ProjectNoteModal } from './modals/ProjectNoteModal';
 import { ProjectModal } from './modals/ProjectModal';
@@ -462,8 +471,8 @@ export function ProjectsWorkspace({
             <Panel>
               <div className="page-head">
                 <div>
-                  <h2>{UI_MESSAGES.ALL}</h2>
-                  <p>{UI_MESSAGES.NOTES_FROM_ALL_PROJECTS}</p>
+                  <h2>{timelineCategory === 'all' ? UI_MESSAGES.ALL : CATEGORY_LABELS[timelineCategory] || formatDisplayToken(timelineCategory)}</h2>
+                  <p>{timelineCategory === 'all' ? UI_MESSAGES.NOTES_FROM_ALL_PROJECTS : `${CATEGORY_LABELS[timelineCategory] || formatDisplayToken(timelineCategory)} from all projects`}</p>
                 </div>
               </div>
               <ProjectTimeline

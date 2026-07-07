@@ -570,13 +570,28 @@
 
   .help-section-description {
     max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .help-item-body {
     max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .help-doc-title {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .help-tip span {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
   }
 
   .help-code-block {
     overflow-x: auto;
+    max-width: 100%;
   }
 }
