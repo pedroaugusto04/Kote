@@ -15,8 +15,7 @@
   flex-direction: column;
   border-right: 1px solid var(--border-subtle);
   background: var(--surface-1);
-  overflow-y: auto;
-  overflow-x: hidden;
+  height: 100%;
 }
 
 .help-sidebar-header {
@@ -65,6 +64,8 @@
   gap: 2px;
   padding: 10px 8px;
   flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .help-nav-item {

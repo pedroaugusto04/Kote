@@ -56,18 +56,22 @@ export function ProjectFolderModal({
   });
   const closeGuard = useModalCloseGuard({ isDirty, onClose });
   const mutation = useMutation({
-    mutationFn: (values: FolderFormValues) => {
+    mutationFn: async (values: FolderFormValues) => {
       const payload = {
         displayName: values.displayName,
         parentFolderId: values.parentFolderId || undefined,
       };
-      return globalLoading.trackPromise(mode === WorkspaceModalMode.Create
+      const result = mode === WorkspaceModalMode.Create
         ? createProjectFolder(projectSlug, payload)
-        : updateProjectFolder(projectSlug, folder?.id || '', payload));
-    },
-    onSuccess: async (result) => {
-      closeGuard.resetCloseGuard();
-      await onSaved(result.folder.id, mode);
+        : updateProjectFolder(projectSlug, folder?.id || '', payload);
+      
+      return globalLoading.trackPromise(
+        result.then(async (res) => {
+          closeGuard.resetCloseGuard();
+          await onSaved(res.folder.id, mode);
+          return res;
+        })
+      );
     },
     onError: (error) => {
       const fieldNames = applyBackendFieldErrors<FolderFormValues>(error, setError);

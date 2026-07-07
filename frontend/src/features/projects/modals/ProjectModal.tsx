@@ -56,19 +56,23 @@ export function ProjectModal({
   });
   const closeGuard = useModalCloseGuard({ isDirty, onClose });
   const mutation = useMutation({
-    mutationFn: (values: ProjectFormValues) => {
+    mutationFn: async (values: ProjectFormValues) => {
       const payload = {
         displayName: values.displayName,
         repositoryIds: values.repositoryIds,
         defaultTags: values.defaultTags,
       };
-      return globalLoading.trackPromise(mode === WorkspaceModalMode.Create
+      const result = mode === WorkspaceModalMode.Create
         ? createProject({ ...payload, projectSlug: values.projectSlug || undefined })
-        : updateProject(project?.projectSlug || '', payload));
-    },
-    onSuccess: async (result) => {
-      closeGuard.resetCloseGuard();
-      await onSaved(result.project.projectSlug, mode);
+        : updateProject(project?.projectSlug || '', payload);
+      
+      return globalLoading.trackPromise(
+        result.then(async (res) => {
+          closeGuard.resetCloseGuard();
+          await onSaved(res.project.projectSlug, mode);
+          return res;
+        })
+      );
     },
     onError: (error) => {
       const fieldNames = applyBackendFieldErrors<ProjectFormValues>(error, setError);

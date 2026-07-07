@@ -118,7 +118,7 @@ export function ProjectNoteModal({
 
   const closeGuard = useModalCloseGuard({ isDirty, onClose });
   const mutation = useMutation({
-    mutationFn: (values: NoteFormValues) => {
+    mutationFn: async (values: NoteFormValues) => {
       const payload = {
         folderId: values.folderId || undefined,
         categoryIds: values.categoryIds,
@@ -127,13 +127,17 @@ export function ProjectNoteModal({
         tags: values.tags,
         reminderAt: reminderAtToUtc(values.reminderAt),
       };
-      return globalLoading.trackPromise(mode === WorkspaceModalMode.Create
+      const result = mode === WorkspaceModalMode.Create
         ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual', attachments })
-        : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug, attachments }));
-    },
-    onSuccess: async (result) => {
-      closeGuard.resetCloseGuard();
-      await onSaved(result.noteId, mode);
+        : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug, attachments });
+      
+      return globalLoading.trackPromise(
+        result.then(async (res) => {
+          closeGuard.resetCloseGuard();
+          await onSaved(res.noteId, mode);
+          return res;
+        })
+      );
     },
     onError: (error) => {
       const fieldNames = applyBackendFieldErrors<NoteFormValues>(error, setError);
