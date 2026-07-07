@@ -173,11 +173,11 @@
 }
 
 .note-ai-summary .markdown {
-  color: var(--muted);
+  color: var(--text-soft);
 }
 
 .markdown {
-  color: var(--text-soft);
+  color: var(--text);
   line-height: 1.7;
 }
 

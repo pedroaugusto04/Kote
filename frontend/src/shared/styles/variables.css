@@ -9,7 +9,8 @@
   --text-strong: #ecf6fa;
   --text-soft: #cdd7de;
   --muted: #8da0ae;
-  --faint: #60717e;
+  --faint: #7a8f9e;
+  --accent: #53c7de;
   --cyan: #53c7de;
   --green: #7dd3a5;
   --amber: #f0b95a;
@@ -90,7 +91,7 @@
   --text-strong: #0f172a;
   --text-soft: #334155;
   --muted: #475569;
-  --faint: #64748b;
+  --faint: #525f70;
   --cyan: #0369a1;
   --green: #15803d;
   --amber: #a16207;

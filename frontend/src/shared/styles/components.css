@@ -186,7 +186,7 @@
 .filter-chip,
 .icon-button {
   border: 1px solid transparent;
-  color: var(--muted);
+  color: var(--text-soft);
   background: transparent;
   text-decoration: none;
 }
@@ -486,7 +486,7 @@
   color: var(--text-strong);
   font-family: var(--ui);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1320,7 +1320,7 @@
   margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-family: var(--font-mono);
+  font-family: var(--mono);
   font-size: 13px;
   line-height: 1.6;
 }

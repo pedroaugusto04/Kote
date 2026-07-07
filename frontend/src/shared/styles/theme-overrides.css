@@ -438,7 +438,7 @@
 
 /* Section labels */
 :root[data-theme="light"] .section-label {
-  color: var(--muted);
+  color: var(--text-soft);
 }
 
 /* Knowledge map — light canvas and controls aligned with the rest of the shell */
@@ -568,5 +568,5 @@
 
 /* Small uppercase labels */
 :root[data-theme="light"] .note-body-label {
-  color: var(--muted);
+  color: var(--text-soft);
 }

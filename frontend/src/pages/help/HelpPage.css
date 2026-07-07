@@ -48,7 +48,7 @@
   display: block;
   color: var(--text-strong);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .help-sidebar-header small {
@@ -271,7 +271,7 @@
 .help-whatsapp-callout-content strong {
   color: var(--text-strong);
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .help-whatsapp-callout-content p {
@@ -331,7 +331,7 @@
   margin: 0;
   color: var(--text-strong);
   font-size: 14.5px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
 }
 

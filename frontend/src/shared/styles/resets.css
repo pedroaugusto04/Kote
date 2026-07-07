@@ -90,7 +90,7 @@ h3 {
 }
 
 p {
-  color: var(--muted);
+  color: var(--text-soft);
   line-height: 1.6;
 }
 
