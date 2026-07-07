@@ -16,13 +16,13 @@
 <p align="center">
   A developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.
   <br><br>
-  <a href="https://knowledgebase.sbs/kote">→ Open Kote Web App</a>
+  <a href="https://pedro-duarte.ddns.net/kote">→ Open Kote Web App</a>
   <br><br>
   Available as cloud or self-hosted.
 </p>
 
 <p align="center">
-  <a href="https://knowledgebase.sbs/kote">Web Application</a> • 
+  <a href="https://pedro-duarte.ddns.net/kote">Web Application</a> • 
   <a href="#getting-started">Getting Started</a> • 
   <a href="#how-it-works">How It Works</a>
 </p>
@@ -84,7 +84,7 @@ Kote integrates with your existing tools to collect and index technical knowledg
 
 To start using Kote:
 
-1. **Sign In:** Go to [knowledgebase.sbs/kote](https://knowledgebase.sbs/kote) and authenticate your account.
+1. **Sign In:** Go to [pedro-duarte.ddns.net/kote](https://pedro-duarte.ddns.net/kote) and authenticate your account.
 
 2. **Configure Integrations:** Connect your repository hosting (GitHub) via the Integrations dashboard in the web application.
 
