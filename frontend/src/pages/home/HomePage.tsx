@@ -6,14 +6,16 @@ import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primit
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchAllProjectsTimeline, fetchGithubBackfillStatus, fetchProjectTimeline, fetchProductivityInsights } from '../../shared/api/client';
 import { Select } from '../../shared/ui/select';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
+import { InfoTooltip } from '../../shared/ui/info-tooltip';
+import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
 
-export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
+export function HomePage({ dashboard, openNote, openProject, createNote, onNoteModalClose, setOnNoteModalClose }: PageContext) {
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
   const workspaceSlug = activeWorkspace?.workspaceSlug || '';
@@ -45,6 +47,25 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
 
   const [selectedTimelineProject, setSelectedTimelineProject] = useState<string>('');
   const [activeActivityTab, setActiveActivityTab] = useState<'notes' | 'ai' | 'hours'>('notes');
+
+  // Drag and drop with shared hook
+  const { isDraggingOver, handleDragOver, handleDragLeave, handleDrop, processNextNote } = useDragAndDropFiles({
+    onCreateNote: (title, attachments) => {
+      if (createNote) {
+        createNote('inbox', title, attachments);
+      }
+    },
+    projectSlug: 'inbox',
+  });
+
+  // Set callback to process next file in queue when modal closes
+  useEffect(() => {
+    if (onNoteModalClose && setOnNoteModalClose) {
+      setOnNoteModalClose(() => () => {
+        processNextNote();
+      });
+    }
+  }, [onNoteModalClose, setOnNoteModalClose, processNextNote]);
 
   const productivityQuery = useQuery({
     queryKey: ['home-productivity-insights'],
@@ -205,14 +226,44 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
         title="Home"
         subtitle={`Relevant updates from the last ${home.windowDays} days.`}
         action={
-          createNote ? (
-            <button className="icon-button" type="button" onClick={() => createNote()}>
-              Quick note
-            </button>
-          ) : undefined
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {createNote ? (
+              <button className="icon-button" type="button" onClick={() => createNote()}>
+                Quick note
+              </button>
+            ) : undefined}
+            <InfoTooltip
+              content="Drag files here to automatically create notes"
+              className="drag-drop-hint-tooltip"
+            />
+          </div>
         }
       />
-      <section className="home-layout">
+      <section
+        className="home-layout"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ position: 'relative' }}
+      >
+        {isDraggingOver && (
+          <div className="drag-drop-overlay">
+            <div className="drag-drop-card">
+              <svg viewBox="0 0 16 16" width="32" height="32" className="drag-drop-icon">
+                <path
+                  d="M4.5 12.5v-7a3 3 0 016 0v7a1.5 1.5 0 01-3 0v-6.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <h3>Import documents</h3>
+              <p>Drop files here to create notes automatically</p>
+            </div>
+          </div>
+        )}
         {activeWorkspace ? (
           <OnboardingChecklist dashboard={dashboard} workspaceSlug={workspaceSlug} />
         ) : null}

@@ -1183,6 +1183,23 @@
   pointer-events: none;
 }
 
+.drag-drop-hint-tooltip {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.drag-drop-hint-tooltip .info-tooltip-trigger {
+  padding: 4px;
+  color: var(--muted);
+  transition: color 0.2s ease;
+}
+
+.drag-drop-hint-tooltip .info-tooltip-trigger:hover {
+  color: var(--text);
+}
+
 .matching-notes-count {
   display: block;
   margin-bottom: 12px;

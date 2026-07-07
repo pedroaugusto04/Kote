@@ -61,7 +61,8 @@ import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { SearchIcon } from '../../shared/ui/icons';
-import { fileToBase64 } from '../../shared/ui/attachment-input';
+import { InfoTooltip } from '../../shared/ui/info-tooltip';
+import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
 
 const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
   { value: StatusFilter.Open, label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
@@ -125,75 +126,20 @@ export function ProjectsWorkspace({
   useEffect(() => {
     setSearchInput('');
   }, [selectedSlug]);
-  // Drag and drop / file upload queue state
-  const [isDraggingOver, setIsDraggingOver] = useState(false);
-  const [pendingNotesQueue, setPendingNotesQueue] = useState<
-    Array<{
-      title: string;
-      attachments: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }>;
-    }>
-  >([]);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDraggingOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    // Only hide overlay if we're actually leaving the container, not entering a child element
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDraggingOver(false);
-    }
-  };
-
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDraggingOver(false);
-
-    const files = e.dataTransfer.files;
-    if (!files || files.length === 0) return;
-
-    const pendingNotes: Array<{
-      title: string;
-      attachments: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }>;
-    }> = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      try {
-        const base64 = await fileToBase64(file);
-        pendingNotes.push({
-          title: file.name,
-          attachments: [
-            {
-              fileName: file.name,
-              mimeType: file.type || 'application/octet-stream',
-              sizeBytes: file.size,
-              dataBase64: base64,
-            },
-          ],
-        });
-      } catch (error) {
-        console.error('Failed to parse dropped file:', error);
-      }
-    }
-
-    if (pendingNotes.length === 0) return;
-
-    const firstNote = pendingNotes[0];
-    const remainingNotes = pendingNotes.slice(1);
-    setPendingNotesQueue(remainingNotes);
-
-    setNoteModal({
-      mode: WorkspaceModalMode.Create,
-      projectSlug: selectedSlug || 'inbox',
-      folderId: selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
-      initialTitle: firstNote.title,
-      initialAttachments: firstNote.attachments,
-    });
-  };
+  // Drag and drop with shared hook
+  const { isDraggingOver, handleDragOver, handleDragLeave, handleDrop, processNextNote, pendingNotesQueue } = useDragAndDropFiles({
+    onCreateNote: (title, attachments) => {
+      setNoteModal({
+        mode: WorkspaceModalMode.Create,
+        projectSlug: selectedSlug || 'inbox',
+        folderId: selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
+        initialTitle: title,
+        initialAttachments: attachments,
+      });
+    },
+    projectSlug: selectedSlug || 'inbox',
+  });
 
   const foldersQuery = useQuery({
     queryKey: QUERY_KEYS.PROJECTS.FOLDERS(selected?.projectSlug || ''),
@@ -409,6 +355,10 @@ export function ProjectsWorkspace({
           onChange={(event) => setSearchInput(event.target.value)}
           placeholder={selected ? `${PROJECTS_WORKSPACE_MESSAGES.SEARCH.IN_PROJECT.replace('{project}', selected.displayName)}...` : PROJECTS_WORKSPACE_MESSAGES.SEARCH.ACROSS_ALL}
         />
+        <InfoTooltip
+          content="Drag files here to automatically create notes with attachments"
+          className="drag-drop-hint-tooltip"
+        />
       </section>
 
       <div
@@ -586,15 +536,7 @@ export function ProjectsWorkspace({
           note={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note : undefined}
           onClose={() => {
             if (pendingNotesQueue.length > 0) {
-              const nextNote = pendingNotesQueue[0];
-              setPendingNotesQueue(pendingNotesQueue.slice(1));
-              setNoteModal({
-                mode: WorkspaceModalMode.Create,
-                projectSlug: noteModal.mode === WorkspaceModalMode.Create ? noteModal.projectSlug : selectedSlug || 'inbox',
-                folderId: noteModal.mode === WorkspaceModalMode.Create ? noteModal.folderId : selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
-                initialTitle: nextNote.title,
-                initialAttachments: nextNote.attachments,
-              });
+              processNextNote();
             } else {
               setNoteModal(null);
             }
@@ -604,15 +546,7 @@ export function ProjectsWorkspace({
             await refreshDashboard(queryClient);
 
             if (pendingNotesQueue.length > 0) {
-              const nextNote = pendingNotesQueue[0];
-              setPendingNotesQueue(pendingNotesQueue.slice(1));
-              setNoteModal({
-                mode: WorkspaceModalMode.Create,
-                projectSlug: noteModal.mode === WorkspaceModalMode.Create ? noteModal.projectSlug : selectedSlug || 'inbox',
-                folderId: noteModal.mode === WorkspaceModalMode.Create ? noteModal.folderId : selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
-                initialTitle: nextNote.title,
-                initialAttachments: nextNote.attachments,
-              });
+              processNextNote();
             } else {
               setNoteModal(null);
             }

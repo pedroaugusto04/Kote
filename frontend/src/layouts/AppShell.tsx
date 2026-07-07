@@ -89,6 +89,7 @@ export function AppShell() {
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [quotaExceededError, setQuotaExceededError] = useState<ApiClientError | null>(null);
+  const [onNoteModalClose, setOnNoteModalClose] = useState<(() => void) | undefined>(undefined);
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedSearchValue = useDebouncedValue(searchValue, 300);
@@ -303,10 +304,17 @@ export function AppShell() {
       editNote: (noteId: string) => {
         loadNoteMutation.mutate(noteId);
       },
-      createNote: (projectSlug?: string) => {
+      createNote: (projectSlug?: string, initialTitle?: string, initialAttachments?: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }>) => {
         const slug = projectSlug || currentProject || dashboard.projects[0]?.projectSlug || UI_MESSAGES.DEFAULT_PROJECT_SLUG;
-        setNoteModal({ mode: WorkspaceModalMode.Create, projectSlug: slug });
+        setNoteModal({
+          mode: WorkspaceModalMode.Create,
+          projectSlug: slug,
+          initialTitle,
+          initialAttachments,
+        });
       },
+      onNoteModalClose,
+      setOnNoteModalClose,
       deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => {
         setConfirmState({ kind: ConfirmKind.Note, note: { ...note } as NoteSummary });
       },
@@ -670,20 +678,31 @@ export function AppShell() {
           folders={noteModal.mode === WorkspaceModalMode.Edit ? noteModalFolders : undefined}
           mode={noteModal.mode}
           note={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note : undefined}
-          onClose={() => setNoteModal(null)}
+          onClose={() => {
+            setNoteModal(null);
+            if (onNoteModalClose) {
+              onNoteModalClose();
+              setOnNoteModalClose(undefined);
+            }
+          }}
           onSaved={async (noteId, mode) => {
             setNoteModal(null);
             notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
             await refreshDashboard(queryClient);
+            if (onNoteModalClose) {
+              onNoteModalClose();
+              setOnNoteModalClose(undefined);
+            }
           }}
           projectSlug={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug}
           initialFolderId={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.folderId || undefined : undefined}
+          initialTitle={noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialTitle : undefined}
           initialAttachments={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.attachments?.map(att => ({
             fileName: att.fileName,
             mimeType: att.mimeType,
             sizeBytes: att.sizeBytes,
             dataBase64: '',
-          })) : undefined}
+          })) : noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialAttachments : undefined}
           projects={dashboard.projects}
           workspaceSlug={workspaceSlug}
         />
