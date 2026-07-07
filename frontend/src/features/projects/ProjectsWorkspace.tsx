@@ -472,7 +472,7 @@ export function ProjectsWorkspace({
               <div className="page-head">
                 <div>
                   <h2>{timelineCategory === 'all' ? UI_MESSAGES.ALL : CATEGORY_LABELS[timelineCategory] || formatDisplayToken(timelineCategory)}</h2>
-                  <p>{timelineCategory === 'all' ? UI_MESSAGES.NOTES_FROM_ALL_PROJECTS : `${CATEGORY_LABELS[timelineCategory] || formatDisplayToken(timelineCategory)} from all projects`}</p>
+                  <p>{timelineCategory === 'all' ? UI_MESSAGES.NOTES_FROM_ALL_PROJECTS : `${CATEGORY_LABELS[timelineCategory] || formatDisplayToken(timelineCategory)} notes from all projects`}</p>
                 </div>
               </div>
               <ProjectTimeline
