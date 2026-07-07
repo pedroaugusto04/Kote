@@ -752,6 +752,101 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
   ]);
 });
 
+test('AskKnowledgeUseCase selects lexically relevant FTS-only chunks instead of all note chunks', async () => {
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => [[0.1, 0.2, 0.3]],
+  };
+
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [],
+    getNotesEmbeddings: async (userId, noteIds) => {
+      assert.deepEqual(noteIds, ['note-fts-1']);
+      return [
+        { id: 'emb-0', userId: 'user-123', noteId: 'note-fts-1', chunkIndex: 0, chunkText: 'Introduction paragraph.', embedding: [], model: 'm', createdAt: '', updatedAt: '' },
+        { id: 'emb-1', userId: 'user-123', noteId: 'note-fts-1', chunkIndex: 1, chunkText: 'General background information.', embedding: [], model: 'm', createdAt: '', updatedAt: '' },
+        { id: 'emb-2', userId: 'user-123', noteId: 'note-fts-1', chunkIndex: 2, chunkText: 'Run rollback before the next deploy.', embedding: [], model: 'm', createdAt: '', updatedAt: '' },
+        { id: 'emb-3', userId: 'user-123', noteId: 'note-fts-1', chunkIndex: 3, chunkText: 'Closing notes.', embedding: [], model: 'm', createdAt: '', updatedAt: '' },
+      ];
+    },
+  };
+
+  const mockContentQueryRepository = {
+    list: async () => [{
+      id: 'note-fts-1',
+      title: 'Rollback runbook',
+      path: 'docs/runbook.md',
+      projectSlug: 'infra',
+      workspaceId: 'ws-123',
+      tags: [],
+      ftsRank: 0.15,
+    }],
+  };
+
+  const mockContentRepository = {
+    getNotesByIds: async () => [{
+      id: 'note-fts-1',
+      userId: 'user-123',
+      title: 'Rollback runbook',
+      path: 'docs/runbook.md',
+      projectSlug: 'infra',
+      workspaceId: 'ws-123',
+      markdown: '',
+      summary: '',
+      tags: [],
+    }],
+  };
+
+  const mockAnswerGenerationGateway = {
+    generate: async (config, input) => {
+      assert.equal(input.context.length, 1);
+      assert.equal(input.context[0].chunkText, 'Run rollback before the next deploy.');
+      return {
+        answer: 'Use rollback before deploy.',
+        confidence: 'high',
+        requestedAttachments: false,
+        sources: [{ noteId: 'note-fts-1', title: 'Rollback runbook', path: 'docs/runbook.md' }],
+      };
+    },
+  };
+
+  const mockRuntimeEnv = {
+    read: () => ({
+      embeddingAiProvider: 'gemini',
+      embeddingAiBaseUrl: 'http://gemini.api',
+      embeddingAiModel: 'gemini-embedding-001',
+      embeddingAiApiKey: 'key-123',
+      conversationAiProvider: 'openai',
+      conversationAiBaseUrl: 'http://openai.api',
+      conversationAiModel: 'gpt-4',
+      conversationAiApiKey: 'key-456',
+    }),
+  };
+
+  const mockQuotaService = {
+    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
+  };
+
+  const mockLogger = {
+    info: () => {},
+    warn: () => {},
+  };
+
+  const useCase = new AskKnowledgeUseCase(
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    mockContentRepository,
+    mockAnswerGenerationGateway,
+    mockRuntimeEnv,
+    mockQuotaService,
+    mockContentQueryRepository,
+    mockLogger,
+  );
+
+  const result = await useCase.execute('How do I rollback deploy?', 'user-123', { workspaceId: 'ws-123' });
+  assert.equal(result.ok, true);
+  assert.equal(result.answer, 'Use rollback before deploy.');
+});
+
 test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking context', async () => {
   // Vector search returns 'note-vector'
   const mockEmbeddingGateway = {

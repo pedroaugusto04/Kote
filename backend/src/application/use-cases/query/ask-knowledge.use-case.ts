@@ -12,7 +12,7 @@ import { ConversationConfidence, EmbeddingTaskType, SpecialQueryIntent } from '.
 import { QuotaService } from '../../services/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
-import { getSpecialQueryIntent, matchesIntent, tokenizeQuery } from '../../utils/query.utils.js';
+import { getSpecialQueryIntent, matchesIntent, selectTopFtsOnlyChunksPerNote } from '../../utils/query.utils.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 
 @Injectable()
@@ -167,7 +167,7 @@ export class AskKnowledgeUseCase {
     const minSimilarity = this.env.ragMinSimilarity ?? 0.45;
     const hybridVectorWeight = this.env.ragHybridVectorWeight ?? 0.7;
     const hybridKeywordWeight = this.env.ragHybridKeywordWeight ?? 0.3;
-    const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
+    const topChunksLimit = this.env.ragTopChunksLimit ?? 10;
 
     this.logger.info('ask_knowledge.rag_config', {
       candidateLimit,
@@ -229,6 +229,7 @@ export class AskKnowledgeUseCase {
             projectId: options.projectId,
             workspaceId: options.workspaceId,
             query: queryText,
+            ftsLimit: this.env.ragCandidateLimit ?? 16,
           });
           this.logger.info('ask_knowledge.fts_search_complete', {
             resultCount: results.length,
@@ -272,17 +273,34 @@ export class AskKnowledgeUseCase {
       chunkText: string;
       similarity: number;
     }> = [];
+    const ftsOnlyKeywordScoreByChunkKey = new Map<string, number>();
     if (missingFtsNoteIds.length > 0) {
       try {
         const additionalChunksList = await this.noteEmbeddingRepository.getNotesEmbeddings(userId, missingFtsNoteIds);
+        const ftsRankByNoteId = new Map(
+          ftsNotes
+            .filter((note) => missingFtsNoteIds.includes(note.id))
+            .map((note) => [note.id, note.ftsRank ?? 0]),
+        );
+        const selectedFtsChunks = selectTopFtsOnlyChunksPerNote(
+          additionalChunksList,
+          queryText,
+          ftsRankByNoteId,
+        );
         this.logger.info('ask_knowledge.fts_embeddings_fetched', {
           requestedIds: missingFtsNoteIds.length,
           fetchedChunks: additionalChunksList.length,
+          selectedChunks: selectedFtsChunks.length,
         });
-        additionalChunks = additionalChunksList.map((c) => ({
-          ...c,
-          similarity: 0.0, // baseline vector similarity for pure keyword matches
-        }));
+        for (const { chunk, keywordScore } of selectedFtsChunks) {
+          ftsOnlyKeywordScoreByChunkKey.set(`${chunk.noteId}_${chunk.chunkIndex}`, keywordScore);
+          additionalChunks.push({
+            noteId: chunk.noteId,
+            chunkIndex: chunk.chunkIndex,
+            chunkText: chunk.chunkText,
+            similarity: 0.0,
+          });
+        }
       } catch (error) {
         this.logger.warn('ask_knowledge.fts_chunks_load_failed', {
           userId,
@@ -320,15 +338,17 @@ export class AskKnowledgeUseCase {
         const note = noteMap.get(chunk.noteId);
         if (!note) return null;
         const vectorScore = chunk.similarity;
-        const noteSummaryData = noteSummary(note);
 
-        // Use ts_rank from PostgreSQL FTS for keyword scoring
+        const chunkKey = `${chunk.noteId}_${chunk.chunkIndex}`;
+        const ftsOnlyKeywordScore = ftsOnlyKeywordScoreByChunkKey.get(chunkKey);
         const ftsNote = ftsNotesMap.get(chunk.noteId);
         const noteScore = (ftsNote?.ftsRank !== undefined && ftsNote.ftsRank > 0)
           ? ftsNote.ftsRank
           : 0;
 
-        const keywordScore = noteScore;
+        const keywordScore = ftsOnlyKeywordScore !== undefined
+          ? ftsOnlyKeywordScore
+          : noteScore;
 
         return { chunk, note, vectorScore, keywordScore };
       })
@@ -469,7 +489,7 @@ export class AskKnowledgeUseCase {
       return rightTime - leftTime;
     });
 
-    const topChunksLimit = this.env.ragTopChunksLimit ?? 8;
+    const topChunksLimit = this.env.ragTopChunksLimit ?? 10;
     const selectedNotes = vaultNotes.slice(0, topChunksLimit);
 
     const contextChunks = selectedNotes.map((vn) => {

@@ -58,6 +58,7 @@ export abstract class ContentRepository {
   abstract getNoteBySourceAndSessionId(userId: string, source: string, sessionId: string): Promise<NoteRecord | null>;
   abstract upsertNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;
   abstract updateNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;
+  abstract updateNoteBodySearchText(userId: string, noteId: string, bodySearchText: string): Promise<void>;
   abstract updateReminderStatus(userId: string, id: string, status: string): Promise<NoteRecord | null>;
   abstract updateNoteStatuses(userId: string, ids: string[], status: string): Promise<void>;
   abstract updateReminderStatuses(userId: string, ids: string[], status: string): Promise<void>;
@@ -78,6 +79,8 @@ export abstract class ContentQueryRepository {
       status?: string;
       query?: string;
       ids?: string[];
+      /** Max FTS matches returned, ordered by ts_rank desc. Used by search/RAG flows. */
+      ftsLimit?: number;
     }
   ): Promise<VaultNoteSummary[]>;
   abstract getById(userId: string, id: string): Promise<VaultNoteDetail | null>;

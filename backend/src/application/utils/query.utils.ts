@@ -169,7 +169,7 @@ export function rankHybridKnowledgeMatches(
   similarChunks: Array<{ noteId: string; similarity: number }>,
   query: Pick<QueryInput, 'query' | 'projectId' | 'workspaceId' | 'status' | 'limit'>,
   weights: { vector: number; keyword: number } = { vector: 0.4, keyword: 0.6 },
-  k = 60,
+  k = 20,
 ) {
   const intent = getSpecialQueryIntent(query.query);
   const tokens = tokenizeQuery(query.query);
@@ -274,4 +274,86 @@ export function rankHybridKnowledgeMatches(
       }
       return left.path.localeCompare(right.path);
     });
+}
+
+export const DEFAULT_FTS_ONLY_CHUNKS_PER_NOTE = 3;
+
+function normalizeChunkSearchText(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^\w\s-]/g, ' ');
+}
+
+export function scoreChunkLexicalOverlap(query: string, chunkText: string): number {
+  const tokens = tokenizeQuery(query);
+  if (tokens.length === 0) return 0;
+
+  const normalizedText = normalizeChunkSearchText(chunkText);
+  let matches = 0;
+  for (const token of tokens) {
+    if (normalizedText.includes(token)) {
+      matches++;
+    }
+  }
+
+  return matches / tokens.length;
+}
+
+export function computeFtsOnlyChunkKeywordScore(ftsRank: number, lexicalScore: number): number {
+  if (lexicalScore > 0) {
+    return ftsRank > 0 ? ftsRank * (0.5 + lexicalScore) : lexicalScore;
+  }
+  return ftsRank > 0 ? ftsRank * 0.1 : 0;
+}
+
+export type FtsOnlyChunkSelection<T extends { noteId: string; chunkIndex: number; chunkText: string }> = {
+  chunk: T;
+  lexicalScore: number;
+  keywordScore: number;
+};
+
+export function selectTopFtsOnlyChunksPerNote<T extends { noteId: string; chunkIndex: number; chunkText: string }>(
+  chunks: T[],
+  query: string,
+  ftsRankByNoteId: ReadonlyMap<string, number>,
+  maxChunksPerNote = DEFAULT_FTS_ONLY_CHUNKS_PER_NOTE,
+): FtsOnlyChunkSelection<T>[] {
+  if (chunks.length === 0) return [];
+
+  const byNote = new Map<string, T[]>();
+  for (const chunk of chunks) {
+    const noteChunks = byNote.get(chunk.noteId) ?? [];
+    noteChunks.push(chunk);
+    byNote.set(chunk.noteId, noteChunks);
+  }
+
+  const selected: FtsOnlyChunkSelection<T>[] = [];
+
+  for (const [noteId, noteChunks] of byNote) {
+    const ftsRank = ftsRankByNoteId.get(noteId) ?? 0;
+    const ranked = noteChunks
+      .map((chunk) => {
+        const lexicalScore = scoreChunkLexicalOverlap(query, chunk.chunkText);
+        return {
+          chunk,
+          lexicalScore,
+          keywordScore: computeFtsOnlyChunkKeywordScore(ftsRank, lexicalScore),
+        };
+      })
+      .sort((left, right) => {
+        if (right.lexicalScore !== left.lexicalScore) {
+          return right.lexicalScore - left.lexicalScore;
+        }
+        return left.chunk.chunkIndex - right.chunk.chunkIndex;
+      });
+
+    const withLexicalMatch = ranked.filter((item) => item.lexicalScore > 0);
+    const picks = (withLexicalMatch.length > 0 ? withLexicalMatch : ranked.slice(0, 1))
+      .slice(0, maxChunksPerNote);
+
+    selected.push(...picks);
+  }
+
+  return selected;
 }

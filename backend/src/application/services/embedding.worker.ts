@@ -6,6 +6,7 @@ import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-envir
 import { ContentRepository } from '../ports/notes/content.repository.js';
 import { EmbeddingJobType, type EmbeddingJobPayload } from '../ports/notes/embedding-queue.publisher.js';
 import { NoteChunkingService } from './note-chunking.service.js';
+import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
 import { AppLogger } from '../../observability/logger.js';
 
 const EXCHANGE_NAME = 'kb.embedding';
@@ -272,6 +273,11 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
     }));
 
     await this.noteEmbeddingRepository.upsertChunks(userId, noteId, records);
+
+    const bodySearchText = resolveNoteBodySearchText(note.markdown, note.metadata);
+    if (bodySearchText) {
+      await this.contentRepository.updateNoteBodySearchText(userId, noteId, bodySearchText);
+    }
 
     this.logger.info('embedding_worker.indexed', {
       noteId,

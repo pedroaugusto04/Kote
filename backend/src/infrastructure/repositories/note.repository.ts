@@ -22,6 +22,7 @@ import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory } from '../persistence/schema/index.js';
 import { resolveIds } from './utils/id-resolution.helpers.js';
 import { isAiSource } from '../../domain/notes.js';
+import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
 import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
 
 
@@ -569,6 +570,7 @@ export class PostgresNoteRepository {
 
     const noteId = existingId || input.id || crypto.randomUUID();
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, { ...input, id: noteId });
+    const bodySearchText = resolveNoteBodySearchText(input.markdown, input.metadata);
 
     if (existingId) {
       const existing = await this.getById(userId, existingId);
@@ -605,6 +607,7 @@ export class PostgresNoteRepository {
         occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
         sourceChannel: input.sourceChannel,
         summary: input.summary,
+        bodySearchText,
         markdownStorageKey,
         metadata: input.metadata,
         source: input.source,
@@ -748,6 +751,7 @@ export class PostgresNoteRepository {
         occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
         sourceChannel: input.sourceChannel,
         summary: input.summary,
+        bodySearchText: resolveNoteBodySearchText(input.markdown, input.metadata),
         markdownStorageKey,
         metadata: input.metadata,
         source: input.source,
@@ -777,6 +781,16 @@ export class PostgresNoteRepository {
       }
     }
     return { rows: updateResult };
+  }
+
+  async updateBodySearchText(userId: string, noteId: string, bodySearchText: string) {
+    await this.database.getDb()
+      .update(notes)
+      .set({
+        bodySearchText,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(notes.userId, userId), eq(notes.id, noteId)));
   }
 
   private async resolveNotePage(input: ListNotesInput, whereCondition: any) {

@@ -129,7 +129,7 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     ragCandidateLimit: normalizeNumber(env.KB_RAG_CANDIDATE_LIMIT, 16),
     ragHybridVectorWeight: normalizeNumber(env.KB_RAG_HYBRID_VECTOR_WEIGHT, 0.7),
     ragHybridKeywordWeight: normalizeNumber(env.KB_RAG_HYBRID_KEYWORD_WEIGHT, 0.3),
-    ragTopChunksLimit: normalizeNumber(env.KB_RAG_TOP_CHUNKS_LIMIT, 8),
+    ragTopChunksLimit: normalizeNumber(env.KB_RAG_TOP_CHUNKS_LIMIT, 10),
     ragRrfK: normalizeNumber(env.KB_RAG_RRF_K, 20),
     attachmentMaxSizeBytes: Number(env.KB_ATTACHMENT_MAX_SIZE_BYTES || 10 * 1024 * 1024),
     avatarMaxSizeBytes: Number(env.KB_AVATAR_MAX_SIZE_BYTES || 3 * 1024 * 1024),

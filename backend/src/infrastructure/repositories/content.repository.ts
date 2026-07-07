@@ -184,6 +184,10 @@ export class PostgresContentRepository extends ContentRepository {
     return this.noteRepository.update(userId, input);
   }
 
+  async updateNoteBodySearchText(userId: string, noteId: string, bodySearchText: string) {
+    await this.noteRepository.updateBodySearchText(userId, noteId, bodySearchText);
+  }
+
   async updateReminderStatus(userId: string, id: string, status: string) {
     return this.noteRepository.updateReminderStatus(userId, id, status);
   }

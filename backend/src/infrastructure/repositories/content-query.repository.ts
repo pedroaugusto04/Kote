@@ -19,6 +19,9 @@ import { notes, attachments, workspaces, projects, categories, noteCategories } 
 import { PostgresNoteRepository } from './note.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
 
+/** Fallback cap when FTS runs without an explicit ftsLimit from the caller. */
+const DEFAULT_FTS_CANDIDATE_LIMIT = 40;
+
 @Injectable()
 export class PostgresContentQueryRepository extends ContentQueryRepository {
   constructor(
@@ -42,6 +45,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       status?: string;
       query?: string;
       ids?: string[];
+      ftsLimit?: number;
     }
   ) {
     const db = this.database.getDb();
@@ -63,6 +67,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
 
     let tsRankField = sql<number>`0`.as('ts_rank');
     let searchCondition: any = null;
+    let hasFtsTextSearch = false;
     if (filters?.ids && filters.ids.length > 0) {
       searchCondition = inArray(notes.id, filters.ids);
     }
@@ -72,6 +77,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       if (!intent) {
         const tokens = tokenizeQuery(filters.query);
         if (tokens.length > 0) {
+          hasFtsTextSearch = true;
           const tsQueryStr = tokens.map((token) => `${token}:*`).join(' | ');
           const textCondition = sql`(
             ${notes}.search_vector @@ to_tsquery('english', ${tsQueryStr})
@@ -97,7 +103,11 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       conditions.push(searchCondition);
     }
 
-    const result = await db
+    const effectiveFtsLimit = hasFtsTextSearch
+      ? Math.max(1, Math.min(filters?.ftsLimit ?? DEFAULT_FTS_CANDIDATE_LIMIT, 200))
+      : null;
+
+    const baseQuery = db
       .select({
         id: notes.id,
         userId: notes.userId,
@@ -150,9 +160,14 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(and(...conditions))
-      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
-      .orderBy(desc(notes.occurredAt), notes.title);
-    
+      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug);
+
+    const result = effectiveFtsLimit !== null
+      ? await baseQuery
+          .orderBy(desc(tsRankField), desc(notes.occurredAt), notes.title)
+          .limit(effectiveFtsLimit)
+      : await baseQuery.orderBy(desc(notes.occurredAt), notes.title);
+
     return result.map(noteFromRow);
   }
 
@@ -164,6 +179,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       status?: string;
       query?: string;
       ids?: string[];
+      ftsLimit?: number;
     }
   ) {
     return (await this.loadNotes(userId, filters)).map(noteSummary);

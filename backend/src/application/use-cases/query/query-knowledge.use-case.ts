@@ -87,11 +87,13 @@ export class QueryKnowledgeUseCase {
         }
       })(),
       (async () => {
+        const ftsLimit = input.limit * (this.env.searchCandidateLimitMultiplier ?? 4);
         const results = await this.contentQueryRepository.list(userId, {
           projectId,
           workspaceId,
           status: input.status,
           query: input.query,
+          ftsLimit,
         });
         this.logger.info('query_knowledge.fts_search_complete', {
           resultCount: results.length,

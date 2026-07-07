@@ -134,6 +134,7 @@ export const notes = pgTable('kb_notes', {
   occurredAt: timestamp('occurred_at').notNull().defaultNow(),
   sourceChannel: text('source_channel').notNull().default(''),
   summary: text('summary').notNull().default(''),
+  bodySearchText: text('body_search_text').notNull().default(''),
   markdownStorageKey: text('markdown_storage_key').notNull().default(''),
   metadata: jsonb('metadata').notNull().default('{}'),
   source: text('source').notNull().default(''),

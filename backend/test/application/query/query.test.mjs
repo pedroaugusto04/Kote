@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 
 import { QueryKnowledgeUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
@@ -373,5 +374,55 @@ test('query handles special query: review key decisions made', async (t) => {
   assert.equal(result.ok, true);
   assert.equal(result.matches.length, 1);
   assert.equal(result.matches[0].title, 'Decision Note');
+});
+
+test('query matches unique terms stored in note markdown body via FTS', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedDefaultWorkspace(repositories, user.id);
+
+  const uniqueToken = `zzbodytoken${crypto.randomUUID().replaceAll('-', '')}`;
+
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/body-only-search.md',
+    type: 'event',
+    title: 'Generic inbox capture',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: ['inbox'],
+    occurredAt: '2026-04-27',
+    sourceChannel: 'test',
+    summary: 'Short summary without the searchable token.',
+    markdown: `# Internal note\n\nConfigure ${uniqueToken} before deploying.`,
+    frontmatter: {},
+    metadata: {},
+    origin: 'postgres',
+    source: 'test',
+    links: [],
+  });
+
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => [],
+  };
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
+  };
+
+  const result = await new QueryKnowledgeUseCase(
+    repositories.contentQueryRepository,
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+  ).execute(
+    { query: uniqueToken, limit: 5 },
+    user.id,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 1);
+  assert.equal(result.matches[0].title, 'Generic inbox capture');
 });
 
