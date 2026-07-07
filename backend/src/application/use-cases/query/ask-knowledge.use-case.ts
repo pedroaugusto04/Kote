@@ -530,9 +530,21 @@ export class AskKnowledgeUseCase {
     });
     const noteMap = new Map(allNotes.map((note) => [note.id, note]));
 
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
     const matchingNotes = allNotes
       .map((note) => noteSummary(note))
-      .filter((note) => matchesIntent(note, specialIntent))
+      .filter((note) => {
+        if (!matchesIntent(note, specialIntent)) {
+          return false;
+        }
+        if (specialIntent === SpecialQueryIntent.Recent) {
+          const noteDate = new Date(note.date || 0);
+          return noteDate >= thirtyDaysAgo;
+        }
+        return true;
+      })
       .sort((left, right) => {
         const leftTime = new Date(left.date || 0).getTime();
         const rightTime = new Date(right.date || 0).getTime();

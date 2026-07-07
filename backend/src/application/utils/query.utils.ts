@@ -20,6 +20,7 @@ const SPECIAL_INTENT_PATTERNS = {
       'summarize notes',
       'recent notes',
       'show recent notes',
+      'what did i work on recently',
     ],
     regex: /^(summarize\s+)?(my\s+)?(recent\s+)?notes$/i,
   },
