@@ -22,7 +22,7 @@ const SPECIAL_INTENT_PATTERNS = {
       'show recent notes',
       'what did i work on recently',
     ],
-    regex: /^(summarize\s+)?(my\s+)?(recent\s+)?notes$/i,
+    regex: /^(summarize\s+)?(my\s+)?(recent\s+)?notes$|^(what\s+did\s+(i\s+)?i\s+)?work\s+on\s+recently$/i,
   },
   [SpecialQueryIntent.ActionItems]: {
     phrases: [

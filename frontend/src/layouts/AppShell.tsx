@@ -13,6 +13,7 @@ import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
 import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
 import { AskAiIcon } from '../widgets/ask/AskAiIcon';
+import { getCleanSummary } from '../shared/utils/format';
 
 const IntegrationsPage = lazy(() => import('../pages/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
 const SubscriptionPage = lazy(() => import('../pages/billing/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
@@ -550,7 +551,7 @@ export function AppShell() {
                     >
                       <div className="result-main">
                         <span className="result-title">{match.title}</span>
-                        {match.path ? <span className="result-path">{match.path}</span> : null}
+                        {match.summary ? <span className="result-path">{getCleanSummary(match.summary)}</span> : null}
                       </div>
                       <div className="result-meta">
                         <span className="result-project-badge">{match.project}</span>
