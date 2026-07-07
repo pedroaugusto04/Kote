@@ -591,6 +591,20 @@
   box-shadow: 0 0 0 1px var(--surface-hover-accent);
 }
 
+/* Mobile-specific fix for bulk actions positioning */
+@media (max-width: 768px) {
+  .timeline-filter-row-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .timeline-filter-row-container .bulk-actions {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
+}
+
 .project-timeline-list {
   display: grid;
   gap: 12px;
