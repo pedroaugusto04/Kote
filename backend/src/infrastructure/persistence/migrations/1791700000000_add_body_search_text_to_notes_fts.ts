@@ -4,12 +4,26 @@ export async function up(pgm: MigrationBuilder): Promise<void> {
   pgm.sql(`
     ALTER TABLE kb_notes ADD COLUMN IF NOT EXISTS body_search_text text NOT NULL DEFAULT '';
 
-    UPDATE kb_notes
-    SET body_search_text = LEFT(
-      TRIM(COALESCE(NULLIF(metadata->>'rawText', ''), summary, '')),
-      100000
-    )
-    WHERE body_search_text = '';
+    -- Update in batches to avoid timeout/memory issues
+    DO $$
+    DECLARE
+      batch_size INT := 1000;
+      updated_count INT;
+    BEGIN
+      LOOP
+        UPDATE kb_notes
+        SET body_search_text = LEFT(
+          TRIM(COALESCE(NULLIF(metadata->>'rawText', ''), summary, '')),
+          100000
+        )
+        WHERE body_search_text = ''
+        LIMIT batch_size;
+        
+        GET DIAGNOSTICS updated_count = ROW_COUNT;
+        EXIT WHEN updated_count = 0;
+        COMMIT;
+      END LOOP;
+    END $$;
 
     DROP INDEX IF EXISTS idx_notes_search_vector;
 

@@ -108,7 +108,6 @@ export function matchesIntent(note: VaultNoteSummary, intent: SpecialQueryIntent
 
 export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<QueryInput, 'query' | 'projectId' | 'workspaceId' | 'status' | 'limit'>) {
   const intent = getSpecialQueryIntent(query.query);
-  const tokens = tokenizeQuery(query.query);
 
   return notes
     .filter((note) =>
@@ -172,7 +171,6 @@ export function rankHybridKnowledgeMatches(
   k = 20,
 ) {
   const intent = getSpecialQueryIntent(query.query);
-  const tokens = tokenizeQuery(query.query);
 
   // Build a map of noteId -> max similarity score from chunks
   const similarityMap = new Map<string, number>();
