@@ -47,6 +47,7 @@ export const projectKnowledgeMapQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(150).default(80),
   category: z.enum(projectTimelineCategories).default(TimelineCategory.All),
   folderId: z.string().trim().optional(),
+  excludeReviewNotes: z.coerce.boolean().optional().default(false),
 });
 
 export const updateProjectBodySchema = z

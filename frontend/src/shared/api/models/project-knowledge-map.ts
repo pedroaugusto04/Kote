@@ -45,4 +45,5 @@ export type ProjectKnowledgeMapQuery = {
   limit?: number;
   category?: ProjectTimelineCategory;
   folderId?: string;
+  excludeReviewNotes?: boolean;
 };

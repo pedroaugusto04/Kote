@@ -15,7 +15,7 @@ import type { NoteRecord, SaveNoteInput } from '../../application/models/reposit
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
-import { SourceChannel, TimelineCategory } from '../../contracts/enums.js';
+import { EventType, SourceChannel, TimelineCategory } from '../../contracts/enums.js';
 import { noteSummary } from '../mappers/content-query.mappers.js';
 import { noteFromRow, toIsoTimestamp } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -270,7 +270,7 @@ export class PostgresNoteRepository {
     }
 
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
-    appendTimelineCategoryClause(clauses, input.category);
+    appendTimelineCategoryClause(clauses, values, input.category);
     if (input.status) {
       if (input.status === StatusFilter.Open) {
         values.push(terminalStatuses);
@@ -335,7 +335,11 @@ export class PostgresNoteRepository {
       clauses.push(`n.project_id = $${values.length}`);
     }
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
-    appendTimelineCategoryClause(clauses, input.category);
+    appendTimelineCategoryClause(clauses, values, input.category);
+    if (input.excludeReviewNotes) {
+      values.push(SourceChannel.Github, EventType.CodeReview);
+      clauses.push(`NOT (n.source_channel = $${values.length - 1} OR (n.metadata->>'eventType') = $${values.length})`);
+    }
     const where = clauses.join(' and ');
 
     const result = await this.database.getPool().query(
@@ -1005,7 +1009,7 @@ function appendTimelineFolderClause(
   clauses.push(`n.folder_id = $${values.length}`);
 }
 
-function appendTimelineCategoryClause(clauses: string[], category: ListProjectTimelineInput['category']) {
+function appendTimelineCategoryClause(clauses: string[], values: unknown[], category: ListProjectTimelineInput['category']) {
   const noReminder = "(n.reminder_at IS NULL)";
   if (category === TimelineCategory.All) return;
   if (category === TimelineCategory.Reminder) {
@@ -1014,18 +1018,22 @@ function appendTimelineCategoryClause(clauses: string[], category: ListProjectTi
   }
   clauses.push(noReminder);
   if (category === TimelineCategory.Github) {
-    clauses.push(`n.source_channel = '${SourceChannel.Github}'`);
+    values.push(SourceChannel.Github);
+    clauses.push(`n.source_channel = $${values.length}`);
     return;
   }
   if (category === TimelineCategory.Whatsapp) {
-    clauses.push(`n.source_channel = '${SourceChannel.Whatsapp}'`);
+    values.push(SourceChannel.Whatsapp);
+    clauses.push(`n.source_channel = $${values.length}`);
     return;
   }
   if (category === TimelineCategory.AiChat) {
-    clauses.push(`n.source_channel = '${SourceChannel.AiChat}'`);
+    values.push(SourceChannel.AiChat);
+    clauses.push(`n.source_channel = $${values.length}`);
     return;
   }
-  clauses.push(`n.source_channel <> '${SourceChannel.Github}'`);
-  clauses.push(`n.source_channel <> '${SourceChannel.Whatsapp}'`);
-  clauses.push(`n.source_channel <> '${SourceChannel.AiChat}'`);
+  values.push(SourceChannel.Github, SourceChannel.Whatsapp, SourceChannel.AiChat);
+  clauses.push(`n.source_channel <> $${values.length - 2}`);
+  clauses.push(`n.source_channel <> $${values.length - 1}`);
+  clauses.push(`n.source_channel <> $${values.length}`);
 }

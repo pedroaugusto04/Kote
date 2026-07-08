@@ -74,12 +74,15 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const [searchQueryInput, setSearchQueryInput] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQueryInput, 300);
 
+  const excludeReviewNotes = !visibleTypes.has('review-note');
+
   const query = useQuery({
-    queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit],
+    queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit, excludeReviewNotes],
     queryFn: () => fetchProjectKnowledgeMap(projectSlug, {
       category,
       folderId: folderId || undefined,
       limit,
+      excludeReviewNotes,
     }),
     enabled: Boolean(projectSlug),
     staleTime: 30_000,
@@ -254,7 +257,12 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
               });
             }}
           />
-          <KnowledgeMapStats stats={graph.stats} />
+          <KnowledgeMapStats
+            stats={{
+              ...graph.stats,
+              noteCount: baseGraph?.nodes.filter((n) => n.type === 'note').length ?? graph.stats.noteCount,
+            }}
+          />
           {graph.stats.noteCount === 0 ? (
             <EmptyState>No notes match the current map filters.</EmptyState>
           ) : (

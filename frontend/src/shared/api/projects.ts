@@ -88,6 +88,7 @@ export function fetchProjectKnowledgeMap(projectSlug: string, params: ProjectKno
     category: params.category || 'all',
   });
   if (params.folderId) search.set('folderId', params.folderId);
+  if (params.excludeReviewNotes) search.set('excludeReviewNotes', 'true');
   return request<ProjectKnowledgeMapResponse>(`${buildApiPath(API_PATHS.PROJECT_KNOWLEDGE_MAP, { projectSlug })}?${search.toString()}`);
 }
 

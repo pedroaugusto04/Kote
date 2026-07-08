@@ -173,10 +173,12 @@ test('project knowledge map dto accepts bounded limit and project filters', () =
     limit: 120,
     category: 'github',
     folderId: 'folder-1',
+    excludeReviewNotes: false,
   });
   assert.deepEqual(projectKnowledgeMapQuerySchema.parse({}), {
     limit: 80,
     category: 'all',
+    excludeReviewNotes: false,
   });
   assert.throws(() => projectKnowledgeMapQuerySchema.parse({ limit: '0' }));
   assert.throws(() => projectKnowledgeMapQuerySchema.parse({ limit: '151' }));
