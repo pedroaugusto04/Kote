@@ -199,6 +199,7 @@ test('dashboard home normalizes reminder statuses with the same model used by re
   const contentRepository = {
     listWorkspaces: async () => workspaces,
     listProjects: async () => projectList,
+    listProjectsWithNoteCount: async () => projectList,
   };
   const contentQueryRepository = {
     list: async () => [],

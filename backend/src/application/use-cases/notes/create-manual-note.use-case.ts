@@ -9,6 +9,7 @@ import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { toIngestPayload, type NoteMapperContext } from '../../mappers/note.mapper.js';
 import { requireProject } from '../../helpers/resource-validation.helpers.js';
+import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
 
 @Injectable()
 export class CreateManualNoteUseCase {
@@ -20,21 +21,34 @@ export class CreateManualNoteUseCase {
   ) { }
 
   async execute(input: CreateManualNoteDto, userId: string) {
-    const project = await requireProject(this.contentRepository, userId, input.projectId);
+    // Sanitize sensitive data from the note content
+    const { title: sanitizedTitle, rawText: sanitizedRawText } = sanitizeManualNoteContent(
+      input.title || '',
+      input.rawText || '',
+      input.title,
+    );
+
+    const sanitizedInput: CreateManualNoteDto = {
+      ...input,
+      rawText: sanitizedRawText,
+      title: sanitizedTitle,
+    };
+
+    const project = await requireProject(this.contentRepository, userId, sanitizedInput.projectId);
     const workspaceSlug = project.workspaceSlug || 'default';
     const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
 
     // Check if a note with the same source + sessionId already exists to avoid duplicates
     let existingNoteId: string | undefined;
-    const activeSource = input.source?.trim();
-    if (activeSource && input.sessionId) {
-      const existingNote = await this.contentRepository.getNoteBySourceAndSessionId(userId, activeSource, input.sessionId);
+    const activeSource = sanitizedInput.source?.trim();
+    if (activeSource && sanitizedInput.sessionId) {
+      const existingNote = await this.contentRepository.getNoteBySourceAndSessionId(userId, activeSource, sanitizedInput.sessionId);
       if (existingNote) {
         existingNoteId = existingNote.id;
       }
     }
 
-    const categoryIds = input.categoryIds || [];
+    const categoryIds = sanitizedInput.categoryIds || [];
     const categories = categoryIds.length > 0
       ? await this.contentRepository.listCategories(userId, project.workspaceId)
       : [];
@@ -46,13 +60,13 @@ export class CreateManualNoteUseCase {
       reminderTimeZone,
     };
 
-    const payload = toIngestPayload(input, mapperContext, existingNoteId);
+    const payload = toIngestPayload(sanitizedInput, mapperContext, existingNoteId);
 
     return this.ingestEntryUseCase.execute(withDerivedReminderAt(payload, reminderTimeZone), userId, workspaceSlug, {
-      folderId: input.folderId,
+      folderId: sanitizedInput.folderId,
       existingNoteId,
       categoryIds,
-      existingNotePath: input.path,
+      existingNotePath: sanitizedInput.path,
     }).then((result) => {
       this.noteEventDispatcher.dispatch({
         event: WebhookTrigger.NoteCreated,
@@ -60,9 +74,9 @@ export class CreateManualNoteUseCase {
         userId,
         workspaceSlug,
         projectSlug: project.projectSlug,
-        title: input.title,
-        content: input.rawText,
-        occurredAt: input.occurredAt || new Date().toISOString(),
+        title: sanitizedInput.title,
+        content: sanitizedInput.rawText,
+        occurredAt: sanitizedInput.occurredAt || new Date().toISOString(),
       }).catch(() => { /* webhook dispatch must never block note creation */ });
       return result;
     });
