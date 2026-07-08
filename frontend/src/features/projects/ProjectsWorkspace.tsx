@@ -353,9 +353,11 @@ export function ProjectsWorkspace({
         subtitle=""
         action={
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <InfoTooltip
-              content="Drag files anywhere on this page to automatically create notes with attachments"
-            />
+            {!isMobile && (
+              <InfoTooltip
+                content="Drag files anywhere on this page to automatically create notes with attachments"
+              />
+            )}
             {createNote ? (
               <button className="icon-button" type="button" onClick={() => createNote()}>
                 {UI_MESSAGES.QUICK_NOTE}

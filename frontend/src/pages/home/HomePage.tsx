@@ -14,6 +14,7 @@ import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { InfoTooltip } from '../../shared/ui/info-tooltip';
 import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
+import { useIsMobile } from '../../shared/hooks/useIsMobile';
 
 export function HomePage({ dashboard, openNote, openProject, createNote, onNoteModalClose, setOnNoteModalClose }: PageContext) {
   const { home } = dashboard;
@@ -47,6 +48,8 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
 
   const [selectedTimelineProject, setSelectedTimelineProject] = useState<string>('');
   const [activeActivityTab, setActiveActivityTab] = useState<'notes' | 'ai' | 'hours'>('notes');
+
+  const isMobile = useIsMobile();
 
   // Drag and drop with shared hook
   const { isDraggingOver, handleDragOver, handleDragLeave, handleDrop, processNextNote } = useDragAndDropFiles({
@@ -251,9 +254,11 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
           subtitle={`Relevant updates from the last ${home.windowDays} days.`}
           action={
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <InfoTooltip
-                content="Drag files anywhere on this page to automatically create notes"
-              />
+              {!isMobile && (
+                <InfoTooltip
+                  content="Drag files anywhere on this page to automatically create notes with attachments"
+                />
+              )}
               {createNote ? (
                 <button className="icon-button" type="button" onClick={() => createNote()}>
                   Quick note
