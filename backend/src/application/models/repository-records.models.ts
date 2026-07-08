@@ -105,6 +105,7 @@ export type ProjectRecord = {
   defaultTags: string[];
   enabled: boolean;
   favorite: boolean;
+  noteCount?: number;
 };
 
 export type ProjectFolderRecord = {

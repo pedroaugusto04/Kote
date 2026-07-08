@@ -67,7 +67,7 @@ export async function assertProjectHasNoNotes(
   userId: string,
   projectId: string,
 ): Promise<void> {
-  const notes = await repository.listNotes(userId);
+  const notes = await repository.listNotesLite(userId);
   if (notes.some((note) => note.projectId === projectId)) {
     throw new BadRequestException('project_has_notes');
   }

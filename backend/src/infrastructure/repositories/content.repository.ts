@@ -81,8 +81,17 @@ export class PostgresContentRepository extends ContentRepository {
     return this.projectRepository.list(userId);
   }
 
+  async listProjectsWithNoteCount(userId: string) {
+    return this.projectRepository.listWithNoteCount(userId);
+  }
+
   async listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects> {
     const pageResult = await this.projectRepository.listPage(userId, input);
+    return pageResult as PaginatedProjects;
+  }
+
+  async listProjectsPageWithNoteCount(userId: string, input: ListProjectsInput): Promise<PaginatedProjects> {
+    const pageResult = await this.projectRepository.listPageWithNoteCount(userId, input);
     return pageResult as PaginatedProjects;
   }
 
@@ -146,6 +155,10 @@ export class PostgresContentRepository extends ContentRepository {
 
   async listNotes(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
     return this.noteRepository.list(userId, filters);
+  }
+
+  async listNotesLite(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
+    return this.noteRepository.listLite(userId, filters);
   }
 
   async listNotesPage(userId: string, input: ListNotesInput) {

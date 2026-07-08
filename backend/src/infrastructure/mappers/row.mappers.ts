@@ -35,7 +35,7 @@ function fieldString(row: Row, snake: string, camel: string, fallback = ''): str
   return value == null ? fallback : String(value);
 }
 
-function toIsoTimestamp(value: unknown): string {
+export function toIsoTimestamp(value: unknown): string {
   if (value instanceof Date) {
     if (isNaN(value.getTime())) return '';
     return value.toISOString();
@@ -190,6 +190,7 @@ export function projectFromRow(row: Row): ProjectRecord {
     defaultTags: stringArray(field(row, 'default_tags', 'defaultTags')),
     enabled: row.enabled !== false,
     favorite: field(row, 'is_favorite', 'isFavorite') === true,
+    noteCount: field(row, 'note_count', 'noteCount') != null ? Number(field(row, 'note_count', 'noteCount')) : undefined,
   };
 }
 

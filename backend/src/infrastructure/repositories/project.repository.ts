@@ -8,7 +8,7 @@ import type { RepositoryRecord, SaveProjectInput } from '../../application/model
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { projectFromRow, repositoryFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { projects, repositories, workspaces, projectDefaultTags, projectRepositories } from '../persistence/schema/index.js';
+import { projects, repositories, workspaces, projectDefaultTags, projectRepositories, notes } from '../persistence/schema/index.js';
 
 const PROJECT_METADATA_SELECT = {
   id: projects.id,
@@ -52,6 +52,21 @@ export class PostgresProjectRepository {
     return result.map(projectFromRow);
   }
 
+  async listWithNoteCount(userId: string) {
+    const db = this.database.getDb();
+    const result = await db
+      .select({
+        ...PROJECT_METADATA_SELECT,
+        noteCount: sql<number>`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`.as('noteCount'),
+      })
+      .from(projects)
+      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
+      .where(and(eq(projects.userId, userId), eq(projects.enabled, true)))
+      .orderBy(desc(projects.isFavorite), desc(sql`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`), projects.displayName);
+
+    return result.map(projectFromRow);
+  }
+
   async listPage(userId: string, input: ListProjectsInput) {
     const db = this.database.getDb();
     const totalResult = await db
@@ -70,6 +85,33 @@ export class PostgresProjectRepository {
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
       .where(and(eq(projects.userId, userId), eq(projects.enabled, true)))
       .orderBy(desc(projects.isFavorite), projects.displayName)
+      .limit(pagination.pageSize)
+      .offset(offset);
+
+    return { items: result.map(projectFromRow), pagination };
+  }
+
+  async listPageWithNoteCount(userId: string, input: ListProjectsInput) {
+    const db = this.database.getDb();
+    const totalResult = await db
+      .select({ count: count() })
+      .from(projects)
+      .where(and(eq(projects.userId, userId), eq(projects.enabled, true)));
+    const total = Number(totalResult[0]?.count || 0);
+
+    const selectedPage = input.selectedSlug ? await this.resolveProjectPageWithNoteCount(userId, input.selectedSlug, input.pageSize) : input.page;
+    const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
+    const offset = (pagination.page - 1) * pagination.pageSize;
+
+    const result = await db
+      .select({
+        ...PROJECT_METADATA_SELECT,
+        noteCount: sql<number>`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`.as('noteCount'),
+      })
+      .from(projects)
+      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
+      .where(and(eq(projects.userId, userId), eq(projects.enabled, true)))
+      .orderBy(desc(projects.isFavorite), desc(sql`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`), projects.displayName)
       .limit(pagination.pageSize)
       .offset(offset);
 
@@ -262,6 +304,39 @@ export class PostgresProjectRepository {
             gt(projects.isFavorite, selectedFavoriteSql),
             and(
               eq(projects.isFavorite, selectedFavoriteSql),
+              lte(projects.projectSlug, selectedSlug)
+            )
+          )
+        )
+      );
+
+    const index = Number(result[0]?.idx || 0);
+    return index > 0 ? Math.ceil(index / pageSize) : 1;
+  }
+
+  private async resolveProjectPageWithNoteCount(userId: string, selectedSlug: string, pageSize: number) {
+    const db = this.database.getDb();
+    const selectedFavoriteSql = sql`(select is_favorite from kb_projects where user_id = ${userId} and project_slug = ${selectedSlug})`;
+    const selectedNoteCountSql = sql`(select count(*) from kb_notes where project_id = (select id from kb_projects where user_id = ${userId} and project_slug = ${selectedSlug}))`;
+    
+    const result = await db
+      .select({
+        idx: count(),
+      })
+      .from(projects)
+      .where(
+        and(
+          eq(projects.userId, userId),
+          eq(projects.enabled, true),
+          or(
+            gt(projects.isFavorite, selectedFavoriteSql),
+            and(
+              eq(projects.isFavorite, selectedFavoriteSql),
+              gt(sql`(select count(*) from kb_notes where project_id = ${projects.id})`, selectedNoteCountSql)
+            ),
+            and(
+              eq(projects.isFavorite, selectedFavoriteSql),
+              eq(sql`(select count(*) from kb_notes where project_id = ${projects.id})`, selectedNoteCountSql),
               lte(projects.projectSlug, selectedSlug)
             )
           )

@@ -61,7 +61,7 @@ export class UpdateProjectFolderUseCase {
         };
       });
 
-    const notes = await this.contentRepository.listNotes(userId);
+    const notes = await this.contentRepository.listNotesLite(userId);
     const rewrittenByFolderId = new Map(rewrites.map((rewrite) => [rewrite.previous.id, rewrite]));
     const affectedNotes = notes.filter((note) => note.projectId === project.id && note.folderId && descendantIds.has(note.folderId));
     const updatedNotes = [];

@@ -10,7 +10,7 @@ export class DeleteProjectUseCase {
     const project = await this.contentRepository.getProjectById(userId, projectId);
     if (!project || !project.enabled) throw new NotFoundException('project_not_found');
 
-    const notes = await this.contentRepository.listNotes(userId);
+    const notes = await this.contentRepository.listNotesLite(userId);
     if (notes.some((note) => note.projectId === projectId)) {
       throw new BadRequestException('project_has_notes');
     }

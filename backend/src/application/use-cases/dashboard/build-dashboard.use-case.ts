@@ -30,7 +30,7 @@ export class BuildDashboardUseCase {
   async execute(userId: string) {
     const [workspaces, projects, notes, reviews, rawReminders, askHistoryResult, projectBriefsCount] = await Promise.all([
       this.contentRepository.listWorkspaces(userId),
-      this.contentRepository.listProjects(userId),
+      this.contentRepository.listProjectsWithNoteCount(userId),
       this.contentQueryRepository.list(userId),
       this.contentQueryRepository.listReviews(userId),
       this.contentQueryRepository.listReminders(userId),

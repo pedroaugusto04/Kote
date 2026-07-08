@@ -62,7 +62,14 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const [category, setCategory] = useState<ProjectTimelineCategory>('all');
   const [folderId, setFolderId] = useState('');
   const [limit, setLimit] = useState<number>(80);
-  const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapVisibleNodeType>>(() => new Set(defaultVisibleKnowledgeMapNodeTypes));
+  const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapVisibleNodeType>>(() => {
+    const shouldIncludeReviewNotes = (project?.noteCount ?? 0) < 50;
+    const types = new Set(defaultVisibleKnowledgeMapNodeTypes);
+    if (!shouldIncludeReviewNotes) {
+      types.delete('review-note');
+    }
+    return types;
+  });
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
   const [searchQueryInput, setSearchQueryInput] = useState('');
   const debouncedSearchQuery = useDebouncedValue(searchQueryInput, 300);

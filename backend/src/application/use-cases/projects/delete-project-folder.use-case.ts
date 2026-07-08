@@ -16,7 +16,7 @@ export class DeleteProjectFolderUseCase {
     if (!folder) throw new NotFoundException('folder_not_found');
 
     const descendantIds = collectFolderDescendantIds(folders, folder.id);
-    const notes = await this.contentRepository.listNotes(userId);
+    const notes = await this.contentRepository.listNotesLite(userId);
     const hasNestedFolders = descendantIds.length > 1;
     const hasNotes = notes.some((note) => note.projectId === projectId && note.folderId && descendantIds.includes(note.folderId));
     if (hasNotes) throw new BadRequestException('folder_has_notes');

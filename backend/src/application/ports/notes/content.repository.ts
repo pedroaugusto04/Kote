@@ -37,7 +37,9 @@ export abstract class ContentRepository {
   abstract listRepositories(userId: string, workspaceId: string): Promise<RepositoryRecord[]>;
   abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<RepositoryRecord>;
   abstract listProjects(userId: string): Promise<SaveProjectInput[]>;
+  abstract listProjectsWithNoteCount(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
+  abstract listProjectsPageWithNoteCount(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
   abstract getProjectBySlug(userId: string, projectSlug: string): Promise<SaveProjectInput | null>;
   abstract getProjectById(userId: string, projectId: string): Promise<SaveProjectInput | null>;
   abstract upsertProject(userId: string, input: SaveProjectInput): Promise<SaveProjectInput>;
@@ -49,6 +51,7 @@ export abstract class ContentRepository {
   abstract updateProjectFolderTree(userId: string, input: { folders: SaveProjectFolderInput[]; notes: SaveNoteInput[] }): Promise<void>;
   abstract deleteProjectFolder(userId: string, projectId: string, folderId: string): Promise<boolean>;
   abstract listNotes(userId: string, filters?: { projectId?: string; workspaceId?: string }): Promise<NoteRecord[]>;
+  abstract listNotesLite(userId: string, filters?: { projectId?: string; workspaceId?: string }): Promise<Array<{ id: string; projectId: string | null; workspaceId: string; folderId: string | null; title: string; status: string; occurredAt: string }>>;
   abstract listNotesPage(userId: string, input: ListNotesInput): Promise<PaginatedNotes>;
   abstract listProjectTimeline(userId: string, input: ListProjectTimelineInput): Promise<PaginatedProjectTimeline>;
   abstract listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput): Promise<NoteRecord[]>;

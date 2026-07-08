@@ -17,7 +17,7 @@ import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
 import { SourceChannel, TimelineCategory } from '../../contracts/enums.js';
 import { noteSummary } from '../mappers/content-query.mappers.js';
-import { noteFromRow } from '../mappers/row.mappers.js';
+import { noteFromRow, toIsoTimestamp } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory } from '../persistence/schema/index.js';
 import { resolveIds } from './utils/id-resolution.helpers.js';
@@ -104,6 +104,42 @@ export class PostgresNoteRepository {
       .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title);
 
     return result.map(noteFromRow);
+  }
+
+  async listLite(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
+    const db = this.database.getDb();
+    const conditions = [eq(notes.userId, userId)];
+
+    if (filters?.workspaceId) {
+      conditions.push(eq(notes.workspaceId, filters.workspaceId));
+    }
+    if (filters?.projectId) {
+      conditions.push(eq(notes.projectId, filters.projectId));
+    }
+
+    const result = await db
+      .select({
+        id: notes.id,
+        projectId: notes.projectId,
+        workspaceId: notes.workspaceId,
+        folderId: notes.folderId,
+        title: notes.title,
+        status: notes.status,
+        occurredAt: notes.occurredAt,
+      })
+      .from(notes)
+      .where(and(...conditions))
+      .orderBy(desc(notes.occurredAt), notes.title);
+
+    return result.map((row) => ({
+      id: String(row.id),
+      projectId: row.projectId || null,
+      workspaceId: row.workspaceId,
+      folderId: row.folderId || null,
+      title: row.title,
+      status: row.status,
+      occurredAt: row.occurredAt ? toIsoTimestamp(row.occurredAt) : '',
+    }));
   }
 
   async listPage(userId: string, input: ListNotesInput) {
