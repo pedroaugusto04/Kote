@@ -38,8 +38,10 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private readonly _client: KbClient,
     initialProject: string | null,
     private readonly _historyManager: AiHistoryManager,
+    private readonly _context: vscode.ExtensionContext,
   ) {
-    this.activeProject = null; // Default to All Projects
+    const savedProject = _context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
+    this.activeProject = savedProject !== null ? savedProject : initialProject;
   }
 
   resolveWebviewView(
@@ -297,6 +299,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         case 'changeProject':
           logInfo('SidebarProvider', `Active project changed by user: ${msg.projectSlug}`);
           this.activeProject = msg.projectSlug || null;
+          this._context.workspaceState.update('kote.activeProjectSlug', this.activeProject);
+          vscode.commands.executeCommand('kote.updateStatusBar', this.activeProject);
           break;
 
         case 'getUnsyncedSessions': {
@@ -345,7 +349,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
   async setActiveProject(projectSlug: string) {
     this.activeProject = projectSlug;
+    this._context.workspaceState.update('kote.activeProjectSlug', projectSlug);
     this._post({ type: 'setProject', projectSlug });
+    vscode.commands.executeCommand('kote.updateStatusBar', projectSlug);
   }
 
   async refresh() {

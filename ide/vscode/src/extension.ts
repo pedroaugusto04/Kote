@@ -44,9 +44,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   } else {
     statusBarProvider.setConnecting();
     try {
-      activeProject = await detectActiveProject(kbClient, folders);
+      const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
+      if (savedProject !== null) {
+        activeProject = savedProject;
+      } else {
+        activeProject = await detectActiveProject(kbClient, folders);
+      }
     } catch { /* silent — will show in sidebar */ }
-    statusBarProvider.setProject(activeProject ?? kbClient.defaultProjectSlug);
+    statusBarProvider.setProject(resolveProjectSlug(activeProject, kbClient.defaultProjectSlug));
   }
 
   // -------------------------------------------------------------------------
@@ -61,7 +66,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // -------------------------------------------------------------------------
   // Sidebar (Loads either Chat or Login form)
   // -------------------------------------------------------------------------
-  sidebarProvider = new SidebarViewProvider(context.extensionUri, kbClient, activeProject, historyManager);
+  sidebarProvider = new SidebarViewProvider(context.extensionUri, kbClient, activeProject, historyManager, context);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider('kote.sidebarView', sidebarProvider, {
       webviewOptions: { retainContextWhenHidden: true },
@@ -92,15 +97,26 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       kbClient.reload();
       if (isConfigured()) {
         try {
-          activeProject = await detectActiveProject(kbClient, folders);
+          const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
+          if (savedProject !== null) {
+            activeProject = savedProject;
+          } else {
+            activeProject = await detectActiveProject(kbClient, folders);
+          }
         } catch {}
-        statusBarProvider.setProject(activeProject ?? kbClient.defaultProjectSlug);
+        statusBarProvider.setProject(resolveProjectSlug(activeProject, kbClient.defaultProjectSlug));
         // Fire-and-forget: notify the backend that the VS Code extension is installed
         kbClient.reportVscodeInstalled().catch(() => { /* silent — best effort */ });
       } else {
         statusBarProvider.setNotConfigured();
       }
       vscode.commands.executeCommand('kote.refreshCodeLenses');
+    }),
+
+    vscode.commands.registerCommand('kote.updateStatusBar', (projectSlug: string) => {
+      if (statusBarProvider) {
+        statusBarProvider.setProject(resolveProjectSlug(projectSlug, kbClient.defaultProjectSlug));
+      }
     })
   );
 
