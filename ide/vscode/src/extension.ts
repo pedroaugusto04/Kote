@@ -13,6 +13,7 @@ import { AntigravityHistoryProvider } from './ai-history/providers/antigravity.p
 import { OpenCodeHistoryProvider } from './ai-history/providers/opencode.provider';
 import { KoteCodeLensProvider } from './providers/codelens.provider';
 import { KoteNoteContentProvider } from './providers/note-viewer.provider';
+import { resolveProjectSlug } from './utils/project';
 
 let kbClient: KbClient;
 let sidebarProvider: SidebarViewProvider;
@@ -117,13 +118,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     })
   );
 
-  historyManager.startWatching(kbClient, context);
+  const getActiveProjectSlug = () => resolveProjectSlug(sidebarProvider?.activeProject ?? activeProject, kbClient.defaultProjectSlug);
+  historyManager.startWatching(kbClient, context, getActiveProjectSlug);
 
-  registerAskCommand(context, kbClient, () => sidebarProvider.activeProject ?? activeProject ?? kbClient.defaultProjectSlug);
+  registerAskCommand(context, kbClient, getActiveProjectSlug);
   registerSaveNoteCommand(
     context,
     kbClient,
-    () => sidebarProvider.activeProject ?? activeProject ?? kbClient.defaultProjectSlug,
+    getActiveProjectSlug,
     historyManager
   );
 
@@ -145,7 +147,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const items = notes.map((note) => ({
         label: note.title || `Untitled note (${note.id.slice(0, 8)})`,
         description: note.summary || 'No summary',
-        detail: `Channel: ${note.sourceChannel || 'Unknown'} | Created at: ${new Date(note.createdAt).toLocaleDateString()}`,
+        detail: `Channel: ${note.sourceChannel || 'Unknown'} | Created at: ${new Date(note.date || note.createdAt || Date.now()).toLocaleDateString()}`,
         note,
       }));
 
@@ -165,7 +167,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 # 💡 Kote: ${note.title || 'Untitled'}
 
 > [!NOTE]
-> **Source Channel:** \`${note.sourceChannel || 'kote'}\` | **Project:** \`${note.projectSlug || 'Inbox'}\` | **Created at:** \`${new Date(note.createdAt || Date.now()).toLocaleString()}\`
+> **Source Channel:** \`${note.sourceChannel || 'kote'}\` | **Project:** \`${note.projectSlug || 'Inbox'}\` | **Created at:** \`${new Date(note.date || note.createdAt || Date.now()).toLocaleString()}\`
 >
 > 🌐 **[Open in Kote Web](${noteWebUrl})**
 

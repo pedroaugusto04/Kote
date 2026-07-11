@@ -7,6 +7,7 @@ import type { KbProject, ChatToWebview, ChatFromWebview, AskHistoryEntry } from 
 import { toMessage, logInfo } from '../error-reporter';
 import { loadAskHistory, clearAskHistory, addAskEntry } from '../utils/ask-history';
 import { AiHistoryManager } from '../ai-history/history-manager';
+import { resolveProjectSlug } from '../utils/project';
 
 // ---------------------------------------------------------------------------
 // Provider for Sidebar (Chat + Login Setup)
@@ -140,13 +141,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           logInfo('SidebarProvider', `Asking question: ${msg.question}`);
           this._post({ type: 'thinking' });
           try {
-            const result = await this._client.ask(msg.question, msg.projectSlug || undefined);
+            const projectSlug = resolveProjectSlug(msg.projectSlug || this.activeProject, this._client.defaultProjectSlug);
+            const result = await this._client.ask(msg.question, projectSlug);
             
             // Persist to local history
             addAskEntry({
               question: msg.question,
               answer: result.answer,
-              projectSlug: msg.projectSlug || '',
+              projectSlug,
             });
 
             this._post({
@@ -182,19 +184,20 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         case 'saveNote':
           logInfo('SidebarProvider', `Saving note: ${msg.title}`);
           try {
+            const projectSlug = resolveProjectSlug(msg.projectSlug || this.activeProject, this._client.defaultProjectSlug);
             const res = await this._client.createNote({
               title: msg.title,
               rawText: msg.content,
-              projectSlug: msg.projectSlug || this.activeProject || this._client.defaultProjectSlug,
+              projectSlug,
               sourceChannel: 'ai-chat',
               source: 'kote',
             });
             this._post({
               type: 'noteSaved',
               noteId: res.noteId ?? res.id ?? '',
-              projectName: msg.projectName
+              projectName: msg.projectName || projectSlug
             });
-            vscode.window.showInformationMessage(`Note saved to Kote — project: ${msg.projectSlug}`);
+            vscode.window.showInformationMessage(`Note saved to Kote — project: ${projectSlug}`);
           } catch (err: unknown) {
             this._post({ type: 'error', message: toMessage(err) });
           }
@@ -204,6 +207,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           logInfo('SidebarProvider', `Sending agent message: ${msg.messageText}`);
           this._post({ type: 'thinking' });
           try {
+            const projectSlug = resolveProjectSlug(msg.projectSlug || this.activeProject, this._client.defaultProjectSlug);
             const res = await this._client.sendConversationTurn({
               messageText: msg.messageText,
               senderId: 'vscode-user',
@@ -211,7 +215,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
               messageId: crypto.randomUUID(),
               hasMedia: false,
               media: {},
-            }, undefined, msg.projectSlug || undefined);
+            }, undefined, projectSlug);
 
             this._post({
               type: 'agentResponse',

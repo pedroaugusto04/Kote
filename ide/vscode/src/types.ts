@@ -42,8 +42,10 @@ export interface KbNote {
   projectSlug: string;
   canonicalType: string;
   status: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  date?: string;
+  sourceChannel?: string;
 }
 
 export interface KbReminder {

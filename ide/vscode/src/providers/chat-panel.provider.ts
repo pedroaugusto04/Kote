@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import type { KbClient } from '../kb-client';
 import type { KbProject, ChatToWebview, ChatFromWebview } from '../types';
 import { toMessage, logInfo } from '../error-reporter';
+import { resolveProjectSlug } from '../utils/project';
 
 // ---------------------------------------------------------------------------
 // Chat panel (singleton)
@@ -88,7 +89,8 @@ export class ChatPanelProvider {
       case 'ask': {
         this._post({ type: 'thinking' });
         try {
-          const result = await this._client.ask(msg.question, msg.projectSlug || undefined);
+          const projectSlug = resolveProjectSlug(msg.projectSlug || this._activeProject, this._client.defaultProjectSlug);
+          const result = await this._client.ask(msg.question, projectSlug);
           this._post({
             type: 'answer',
             answer: result.answer,
@@ -103,15 +105,16 @@ export class ChatPanelProvider {
 
       case 'saveNote': {
         try {
+          const projectSlug = resolveProjectSlug(msg.projectSlug || this._activeProject, this._client.defaultProjectSlug);
           const res = await this._client.createNote({
             title: msg.title,
             rawText: msg.content,
-            projectSlug: msg.projectSlug || this._activeProject || this._client.defaultProjectSlug,
+            projectSlug,
             sourceChannel: 'ai-chat',
             source: 'kote',
           });
           this._post({ type: 'noteSaved', noteId: res.noteId ?? res.id ?? '' });
-          vscode.window.showInformationMessage(`Note saved to Kote — project: ${msg.projectSlug}`);
+          vscode.window.showInformationMessage(`Note saved to Kote — project: ${projectSlug}`);
         } catch (err: unknown) {
           this._post({ type: 'error', message: toMessage(err) });
         }

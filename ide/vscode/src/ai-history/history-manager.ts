@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession } from './types';
 import { KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
+import { resolveProjectSlug } from '../utils/project';
 import {
   EXTENSION_COMMANDS,
   GLOBAL_STATE_KEYS,
@@ -50,8 +51,15 @@ export class AiHistoryManager {
     return hash.toString(36);
   }
 
-  async startWatching(client: KbClient, context: vscode.ExtensionContext) {
+  private getActiveProjectSlug?: () => string | null;
+
+  async startWatching(
+    client: KbClient,
+    context: vscode.ExtensionContext,
+    getActiveProjectSlug?: () => string | null
+  ) {
     this.context = context;
+    this.getActiveProjectSlug = getActiveProjectSlug;
 
     // Clean up active watchers
     for (const d of this.activeDisposables) {
@@ -647,10 +655,12 @@ export class AiHistoryManager {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
+      const activeProject = this.getActiveProjectSlug ? this.getActiveProjectSlug() : null;
+      const projectSlug = resolveProjectSlug(session.projectSlug || activeProject, client.defaultProjectSlug);
       await client.createNote({
         title: titleWithDate,
         rawText,
-        projectSlug: session.projectSlug || client.defaultProjectSlug || DEFAULT_FALLBACK_PROJECT_SLUG,
+        projectSlug,
         sourceChannel: SOURCE_CHANNELS.AI_CHAT,
         source: session.providerId,
         sessionId: session.sessionId,
@@ -673,7 +683,8 @@ export class AiHistoryManager {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
-      const projectSlug = session.projectSlug || client.defaultProjectSlug || DEFAULT_FALLBACK_PROJECT_SLUG;
+      const activeProject = this.getActiveProjectSlug ? this.getActiveProjectSlug() : null;
+      const projectSlug = resolveProjectSlug(session.projectSlug || activeProject, client.defaultProjectSlug);
       await client.createNote({
         title: titleWithDate,
         rawText,

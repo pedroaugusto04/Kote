@@ -278,7 +278,7 @@
     #footerRow {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 8px;
     }
 
@@ -292,6 +292,9 @@
       font-family: inherit;
       cursor: pointer;
       outline: none;
+      max-width: 140px;
+      flex: 1;
+      min-width: 80px;
     }
     #projectSelect:focus { border-color: var(--vscode-focusBorder); }
 
@@ -563,10 +566,15 @@
 <body>
 
   <div class="top-bar">
-    <span class="top-title">
-      <img class="top-logo-icon" src="${logoUri}" alt="Kote" />
-      Kote
-    </span>
+    <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+      <span class="top-title" style="flex-shrink: 0;">
+        <img class="top-logo-icon" src="${logoUri}" alt="Kote" />
+        Kote
+      </span>
+      <select id="projectSelect" title="Active project">
+        <option value="">Loading…</option>
+      </select>
+    </div>
     <button class="logout-btn" id="logoutBtn" title="Logout">Logout</button>
   </div>
 
@@ -605,9 +613,6 @@
         <button id="sendBtn">Send</button>
       </div>
       <div id="footerRow">
-        <select id="projectSelect" title="Active project">
-          <option value="">Loading…</option>
-        </select>
         <span class="hint" id="chatHint">Normal text saves note, /ask searches</span>
       </div>
     </div>
