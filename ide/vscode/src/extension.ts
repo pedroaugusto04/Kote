@@ -149,7 +149,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // -------------------------------------------------------------------------
   // CodeLens & Note Content Providers (Engineering Memory)
   // -------------------------------------------------------------------------
-  const noteContentProvider = new KoteNoteContentProvider();
+  const noteContentProvider = new KoteNoteContentProvider(kbClient);
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider('kote-note', noteContentProvider)
   );
@@ -161,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     vscode.commands.registerCommand('kote.showFileNotes', async (relativePath: string, notes: any[]) => {
-      await FileNotesSummaryProvider.show(context.extensionUri, kbClient, relativePath, notes, noteContentProvider);
+      await FileNotesSummaryProvider.show(context.extensionUri, kbClient, relativePath, notes);
     })
   );
 

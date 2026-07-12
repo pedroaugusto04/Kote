@@ -6,7 +6,6 @@ export class FileNotesSummaryProvider {
   private readonly panel: vscode.WebviewPanel;
   private readonly disposables: vscode.Disposable[] = [];
   private static outputChannel: vscode.OutputChannel;
-  private static noteContentProvider: any;
 
   private constructor(
     panel: vscode.WebviewPanel,
@@ -48,16 +47,10 @@ export class FileNotesSummaryProvider {
     kbClient: KbClient,
     filePath: string,
     notes: any[],
-    noteContentProvider?: any,
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
-
-    // Always set noteContentProvider, even if panel exists
-    if (noteContentProvider) {
-      FileNotesSummaryProvider.noteContentProvider = noteContentProvider;
-    }
 
     if (FileNotesSummaryProvider.currentPanel) {
       FileNotesSummaryProvider.currentPanel.panel.reveal(column);
@@ -126,29 +119,8 @@ export class FileNotesSummaryProvider {
   private async openNote(noteId: string) {
     try {
       FileNotesSummaryProvider.outputChannel.appendLine(`Opening note: ${noteId}`);
-      FileNotesSummaryProvider.outputChannel.appendLine(`noteContentProvider available: ${!!FileNotesSummaryProvider.noteContentProvider}`);
       
-      // Fetch full note content from API
-      const note = await this.kbClient.getNote(noteId);
-      if (!note) {
-        FileNotesSummaryProvider.outputChannel.appendLine('Note not found from API');
-        vscode.window.showErrorMessage('Note not found');
-        return;
-      }
-
-      FileNotesSummaryProvider.outputChannel.appendLine(`Note fetched: ${note.id}, title: ${note.title}`);
-
-      // Set note content in provider before opening
-      if (FileNotesSummaryProvider.noteContentProvider) {
-        const markdown = this.formatNoteAsMarkdown(note);
-        FileNotesSummaryProvider.outputChannel.appendLine(`Setting note content, markdown length: ${markdown.length}`);
-        FileNotesSummaryProvider.noteContentProvider.setNoteContent(note.id, markdown);
-        FileNotesSummaryProvider.outputChannel.appendLine(`Note content set for ${note.id}`);
-      } else {
-        FileNotesSummaryProvider.outputChannel.appendLine('Warning: noteContentProvider not available');
-      }
-
-      const uri = vscode.Uri.parse(`kote-note://note/${note.id}.md`);
+      const uri = vscode.Uri.parse(`kote-note://note/${noteId}.md`);
       FileNotesSummaryProvider.outputChannel.appendLine(`Opening URI: ${uri.toString()}`);
       await vscode.commands.executeCommand('vscode.openWith', uri, 'kote-note.preview');
       FileNotesSummaryProvider.outputChannel.appendLine('Document opened');
@@ -157,15 +129,6 @@ export class FileNotesSummaryProvider {
       FileNotesSummaryProvider.outputChannel.show();
       vscode.window.showErrorMessage('Failed to open note');
     }
-  }
-
-  private formatNoteAsMarkdown(note: any): string {
-    return `# ${note.title || 'Untitled'}
-
-${note.content || ''}
-
----
-*Created: ${note.occurredAt || note.date || new Date().toISOString()}*`;
   }
 
   private async copyContent(content: string) {
