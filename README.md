@@ -39,10 +39,20 @@
 
 - **Never forget why you made that architectural change** - Kote captures the reasoning behind commits, not just the code diff
 - **Instantly recall how you solved that bug 6 months ago** - Search your entire AI session history and Git context with natural language
-- **Onboard new team members faster** - Give them access to accumulated project knowledge without manual documentation
 - **Query your development memory from anywhere** - Ask questions from VS Code, CLI, WhatsApp, or the web interface
 
 Unlike traditional documentation tools that require manual effort, Kote works **passively in the background**, capturing context as you work with AI assistants and Git.
+
+---
+
+## Overview
+
+Software development generates a high volume of technical context that rarely makes it into formal documentation:
+* Complex problem-solving discussions held with AI coding assistants (Claude Code, Copilot, ChatGPT).
+* Rationale behind architectural changes, which is often omitted in brief commit messages.
+* Infrastructure exceptions, environment configurations, and setup notes.
+
+Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed. Every time you open a relevant file in your IDE, Kote automatically retrieves the accumulated knowledge about it to help you understand its purpose, timeline of decisions, and the complete history behind it. All knowledge and AI analysis can be viewed in the Kote interface.
 
 ---
 
@@ -61,17 +71,6 @@ Unlike traditional documentation tools that require manual effort, Kote works **
   <img src="docs/gifs/Kode-CodeLens.gif" alt="CodeLens Demo" width="100%">
   <br><em>VS Code CodeLens showing related notes at the top of files.</em>
 </p>
-
----
-
-## Overview
-
-Software development generates a high volume of technical context that rarely makes it into formal documentation:
-* Complex problem-solving discussions held with AI coding assistants (Claude Code, Copilot, ChatGPT).
-* Rationale behind architectural changes, which is often omitted in brief commit messages.
-* Infrastructure exceptions, environment configurations, and setup notes.
-
-Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed. Every time you open a relevant file in your IDE, Kote automatically retrieves the accumulated knowledge about it to help you understand its purpose, timeline of decisions, and the complete history behind it. All knowledge and AI analysis can be viewed in the Kote interface.
 
 ---
 
