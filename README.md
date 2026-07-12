@@ -58,7 +58,7 @@ Software development generates a high volume of technical context that rarely ma
 * Rationale behind architectural changes, which is often omitted in brief commit messages.
 * Infrastructure exceptions, environment configurations, and setup notes.
 
-Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed.
+Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed. This knowledge appears directly in your VS Code editor via CodeLens, showing AI-powered summaries with timeline of key changes and decisions for each file.
 
 ---
 
@@ -75,7 +75,7 @@ Kote integrates with your existing tools to collect and index technical knowledg
 1. **Development & AI Sessions:** The VS Code extension automatically logs local AI conversations and saves highlighted code snippets to your knowledge base.
 2. **Git Workflow:** The GitHub integration analyzes commit diffs on push, generating technical summaries and flagging potential operational issues.
 3. **Quick Notes:** Send text or audio messages to Kote's messaging integrations to log quick notes or environment configurations.
-4. **CodeLens Integration:** When opening files in VS Code, a CodeLens indicator appears at the top of files that have associated notes or decisions in your Kote. Click the indicator to view an AI-powered summary with timeline of key changes, understanding of the file context, and access to detailed notes with professional webview visualization.
+4. **CodeLens Integration:** When opening files in VS Code, a CodeLens indicator appears at the top of files that have associated notes or decisions in your Kote. Click the indicator to view an AI-powered summary with timeline of key changes, understanding of the file context, and access to detailed notes.
 5. **Query & Retrieval:** Query the accumulated knowledge base using natural language directly from the Web Application, the VS Code sidebar, WhatsApp or via CLI to ask questions or locate solutions, documents, and files.
 
 ---
