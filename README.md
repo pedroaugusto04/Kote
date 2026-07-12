@@ -51,7 +51,7 @@ Unlike traditional documentation tools that require manual effort, Kote works **
 Software development generates a high volume of technical context that rarely makes it into formal documentation:
 * Complex problem-solving discussions held with AI coding assistants (Claude Code, Copilot, ChatGPT).
 * Rationale behind architectural changes, which is often omitted in brief commit messages.
-* Infrastructure exceptions, environment configurations, and setup notes.
+* Project details, business rules, and domain-specific context.
 
 Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed. Every time you open a relevant file in your IDE, Kote automatically retrieves the accumulated knowledge about it to help you understand its purpose, timeline of decisions, and the complete history behind it. All knowledge and AI analysis can be viewed in the Kote interface.
 
