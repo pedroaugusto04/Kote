@@ -234,7 +234,7 @@ export class FileNotesSummaryProvider {
         return `
           <div class="note-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
             <div class="note-title">${this.escapeHtml(title)}</div>
-            <div class="note-date">${new Date(date).toLocaleDateString()}</div>
+            <div class="note-date" data-date="${date}">${date}</div>
           </div>
         `;
       }).join('');
@@ -309,6 +309,18 @@ export class FileNotesSummaryProvider {
   <script>
     const vscode = acquireVsCodeApi();
     const notes = ${notesJson};
+    
+    // Format dates in browser
+    document.querySelectorAll('.note-date').forEach(el => {
+      const dateStr = el.getAttribute('data-date');
+      if (dateStr) {
+        try {
+          el.textContent = new Date(dateStr).toLocaleDateString();
+        } catch (e) {
+          el.textContent = dateStr;
+        }
+      }
+    });
     
     function openNote(noteId) {
       vscode.postMessage({ command: 'openNote', noteId });
@@ -487,7 +499,7 @@ export class FileNotesSummaryProvider {
   
   <h1>💡 File Notes Summary</h1>
   <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>
-  <p><strong>Generated:</strong> ${this.escapeHtml(new Date(summary.generatedAt).toLocaleString())}</p>
+  <p><strong>Generated:</strong> <span class="generated-date" data-date="${this.escapeHtml(summary.generatedAt)}">${this.escapeHtml(summary.generatedAt)}</span></p>
   
   <div class="summary">
     <h3>Summary</h3>
@@ -535,6 +547,19 @@ export class FileNotesSummaryProvider {
     const notes = ${notesJson};
     const summary = ${summaryJson};
 
+    // Format generated date
+    const generatedDateEl = document.querySelector('.generated-date');
+    if (generatedDateEl) {
+      const dateStr = generatedDateEl.getAttribute('data-date');
+      if (dateStr) {
+        try {
+          generatedDateEl.textContent = new Date(dateStr).toLocaleString();
+        } catch (e) {
+          generatedDateEl.textContent = dateStr;
+        }
+      }
+    }
+
     function openNote(noteId) {
       vscode.postMessage({
         command: 'openNote',
@@ -574,9 +599,14 @@ ${this.escapeHtml(summary.understanding)}
   }
 
   private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    const map: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#039;',
+    };
+    return text.replace(/[&<>"']/g, (char) => map[char]);
   }
 
   public dispose() {
