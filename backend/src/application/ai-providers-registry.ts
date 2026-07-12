@@ -14,7 +14,8 @@ export const AI_PROVIDERS_REGISTRY: Record<
   | IntegrationProvider.AiReview
   | IntegrationProvider.AiConversation
   | IntegrationProvider.ProjectBriefAi
-  | IntegrationProvider.PrContextAi,
+  | IntegrationProvider.PrContextAi
+  | IntegrationProvider.FileNotesSummaryAi,
   AiProviderRegistryEntry
 > = {
   [IntegrationProvider.AiReview]: {
@@ -49,10 +50,18 @@ export const AI_PROVIDERS_REGISTRY: Record<
     label: 'PR Context AI',
     errorCode: 'pr_context_ai_not_configured',
   },
+  [IntegrationProvider.FileNotesSummaryAi]: {
+    providerKey: 'fileNotesSummaryAiProvider',
+    baseUrlKey: 'fileNotesSummaryAiBaseUrl',
+    modelKey: 'fileNotesSummaryAiModel',
+    apiKeyKey: 'fileNotesSummaryAiApiKey',
+    label: 'File Notes Summary AI',
+    errorCode: 'file_notes_summary_ai_not_configured',
+  },
 };
 
 export function getAiProviderConfig(
-  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi,
+  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi,
   environment: RuntimeEnvironment,
 ) {
   const entry = AI_PROVIDERS_REGISTRY[provider];
