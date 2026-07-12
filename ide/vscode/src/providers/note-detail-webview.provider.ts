@@ -19,9 +19,6 @@ export class NoteDetailWebviewProvider {
     this.panel.webview.onDidReceiveMessage(
       async (message) => {
         switch (message.command) {
-          case 'copyContent':
-            await this.copyContent(message.content);
-            return;
           case 'openOnWeb':
             await this.openOnWeb(message.url);
             return;
@@ -190,11 +187,8 @@ export class NoteDetailWebviewProvider {
         </div>
       </div>
       <div class="actions">
-        <button class="action-button" onclick="copyContent()">
-          Copy
-        </button>
         <a href="${noteWebUrl}" target="_blank" class="action-button">
-          🌐 View on Web
+          🌐 View on Kote Web
         </a>
       </div>
     </div>
@@ -206,15 +200,6 @@ export class NoteDetailWebviewProvider {
 
   <script>
     const vscode = acquireVsCodeApi();
-    const content = ${JSON.stringify(content)};
-
-    function copyContent() {
-      vscode.postMessage({ command: 'copyContent', content });
-    }
-
-    function openOnWeb(url) {
-      vscode.postMessage({ command: 'openOnWeb', url });
-    }
   </script>
 </body>
 </html>`;
@@ -297,11 +282,6 @@ export class NoteDetailWebviewProvider {
       white-space: pre-wrap;
       word-wrap: break-word;
     }`;
-  }
-
-  private async copyContent(content: string) {
-    await vscode.env.clipboard.writeText(content);
-    vscode.window.showInformationMessage('Content copied to clipboard');
   }
 
   private async openOnWeb(url: string) {
