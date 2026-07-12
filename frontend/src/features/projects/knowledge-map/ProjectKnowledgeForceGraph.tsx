@@ -257,19 +257,18 @@ export function ProjectKnowledgeForceGraph({
     // Pre-tick the simulation to get initial stable positions before fitting
     simulation.tick(denseMap ? 300 : 200);
 
-    // Apply fit after simulation has stabilized (desktop only)
-    // Mobile: rely on the re-fit mechanism that triggers when size is set
-    if (!isMobile) {
-      setTimeout(() => {
-        const initialTransform = computeFitTransform(
-          graphNodes,
-          hiddenNodeIds,
-          currentSize.width,
-          currentSize.height
-        );
-        d3.select(svgElement).transition().duration(400).call(zoom.transform, initialTransform);
-      }, 100);
-    }
+    // Apply fit after simulation has stabilized
+    // Run for both mobile and desktop initially to center the view
+    setTimeout(() => {
+      const latestSize = sizeRef.current;
+      const initialTransform = computeFitTransform(
+        graphNodes,
+        hiddenNodeIds,
+        latestSize.width,
+        latestSize.height
+      );
+      d3.select(svgElement).transition().duration(400).call(zoom.transform, initialTransform);
+    }, 100);
 
     function updateLabels() {
       labels
@@ -476,7 +475,8 @@ export function ProjectKnowledgeForceGraph({
     }
 
     const simulation = simulationRef.current;
-    if (simulation) {
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 720;
+    if (simulation && !isMobile) {
       simulation.force('center', d3.forceCenter(size.width / 2, size.height / 2));
       // Re-heat simulation slightly so nodes adjust to the new center
       simulation.alpha(0.1).restart();
