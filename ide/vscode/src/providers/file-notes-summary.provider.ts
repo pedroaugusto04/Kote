@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { KbClient } from '../kb-client';
+import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
 
 export class FileNotesSummaryProvider {
   private static currentPanel: FileNotesSummaryProvider | undefined;
@@ -12,6 +13,7 @@ export class FileNotesSummaryProvider {
     private readonly kbClient: KbClient,
     private readonly filePath: string,
     private readonly notes: any[],
+    private readonly extensionUri: vscode.Uri,
   ) {
     this.panel = panel;
 
@@ -76,6 +78,7 @@ export class FileNotesSummaryProvider {
       kbClient,
       filePath,
       notes,
+      extensionUri,
     );
   }
 
@@ -121,10 +124,8 @@ export class FileNotesSummaryProvider {
     try {
       FileNotesSummaryProvider.outputChannel.appendLine(`Opening note: ${noteId}`);
       
-      const uri = vscode.Uri.parse(`kote-note://note/${noteId}.md`);
-      FileNotesSummaryProvider.outputChannel.appendLine(`Opening URI: ${uri.toString()}`);
-      await vscode.commands.executeCommand('vscode.open', uri);
-      FileNotesSummaryProvider.outputChannel.appendLine('Document opened');
+      await NoteDetailWebviewProvider.show(this.extensionUri, this.kbClient, noteId);
+      FileNotesSummaryProvider.outputChannel.appendLine('Note detail opened');
     } catch (error) {
       FileNotesSummaryProvider.outputChannel.appendLine(`Error opening note: ${error instanceof Error ? error.message : String(error)}`);
       FileNotesSummaryProvider.outputChannel.show();
