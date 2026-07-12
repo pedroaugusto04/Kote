@@ -82,8 +82,15 @@ export class FileNotesSummaryProvider {
     FileNotesSummaryProvider.outputChannel.appendLine(`Loading summary for file: ${this.filePath}`);
     FileNotesSummaryProvider.outputChannel.appendLine(`Notes count: ${this.notes.length}`);
 
-    // Show notes first while loading summary
-    this.panel.webview.html = this.getHtmlWithLoadingNotes(this.notes);
+    try {
+      // Show notes first while loading summary
+      this.panel.webview.html = this.getHtmlWithLoadingNotes(this.notes);
+      FileNotesSummaryProvider.outputChannel.appendLine('Loading HTML rendered successfully');
+    } catch (htmlError) {
+      FileNotesSummaryProvider.outputChannel.appendLine(`Error rendering loading HTML: ${htmlError instanceof Error ? htmlError.message : String(htmlError)}`);
+      // Fallback to simple loading HTML
+      this.panel.webview.html = this.getLoadingHtml();
+    }
 
     try {
       const summary = await Promise.race([
@@ -216,9 +223,23 @@ export class FileNotesSummaryProvider {
   }
 
   private getHtmlWithLoadingNotes(notes: any[]): string {
-    const notesJson = JSON.stringify(notes);
+    try {
+      const notesJson = JSON.stringify(notes);
+      const safeNotes = notes || [];
+      
+      const notesHtml = safeNotes.map(note => {
+        const noteId = note?.id || '';
+        const title = note?.title || note?.content?.substring(0, 50) || 'Untitled';
+        const date = note?.date || note?.occurredAt || new Date().toISOString();
+        return `
+          <div class="note-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
+            <div class="note-title">${this.escapeHtml(title)}</div>
+            <div class="note-date">${new Date(date).toLocaleDateString()}</div>
+          </div>
+        `;
+      }).join('');
 
-    return `<!DOCTYPE html>
+      return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -281,13 +302,8 @@ export class FileNotesSummaryProvider {
   </div>
 
   <div class="notes-section">
-    <h3>📝 Notes (${notes.length})</h3>
-    ${notes.map(note => `
-      <div class="note-item" onclick="openNote('${note.id}')">
-        <div class="note-title">${this.escapeHtml(note.title || 'Untitled')}</div>
-        <div class="note-date">${new Date(note.date).toLocaleDateString()}</div>
-      </div>
-    `).join('')}
+    <h3>📝 Notes (${safeNotes.length})</h3>
+    ${notesHtml}
   </div>
 
   <script>
@@ -300,6 +316,10 @@ export class FileNotesSummaryProvider {
   </script>
 </body>
 </html>`;
+    } catch (error) {
+      FileNotesSummaryProvider.outputChannel.appendLine(`Error in getHtmlWithLoadingNotes: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
   }
 
   private getHtml(
