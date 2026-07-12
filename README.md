@@ -38,8 +38,9 @@
 **Stop losing your development context.** Kote solves the everyday problems developers face when trying to recall past decisions, solutions, and technical rationale:
 
 - **Never forget why you made that architectural change** - Kote captures the reasoning behind commits, not just the code diff
-- **Instantly recall how you solved that bug 6 months ago** - Search your entire AI session history and Git context with natural language
-- **Query your development memory from anywhere** - Ask questions from VS Code, CLI, WhatsApp, or the web interface
+- **Instantly recall how you solved that bug 6 months ago** - Kote automatically surfaces relevant context from your AI sessions and Git history as you work
+- **See relevant context right in your IDE** - When you open a file, Kote displays accumulated knowledge and decisions directly in your editor
+- **Access your development memory from anywhere** - View accumulated knowledge in VS Code, CLI, WhatsApp, or the web interface
 
 Unlike traditional documentation tools that require manual effort, Kote works **passively in the background**, capturing context as you work with AI assistants and Git.
 
