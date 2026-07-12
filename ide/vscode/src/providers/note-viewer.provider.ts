@@ -4,6 +4,7 @@ import { KbClient } from '../kb-client';
 export class KoteNoteContentProvider implements vscode.TextDocumentContentProvider {
   private _onDidChange = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this._onDidChange.event;
+  private loadingNotes = new Set<string>();
 
   constructor(private readonly kbClient: KbClient) {}
 
@@ -26,15 +27,26 @@ export class KoteNoteContentProvider implements vscode.TextDocumentContentProvid
       return '# Error\nInvalid note URI.';
     }
 
-    // Always fetch from backend - no cache needed for notes
+    // If already loading, return loading indicator
+    if (this.loadingNotes.has(noteId)) {
+      return '# Loading note...\n\nPlease wait while fetching from backend.';
+    }
+
+    // Start loading
+    this.loadingNotes.add(noteId);
+    this._onDidChange.fire(uri);
+
     try {
       const note = await this.kbClient.getNote(noteId);
       if (!note) {
+        this.loadingNotes.delete(noteId);
         return '# Error\nNote not found.';
       }
 
+      this.loadingNotes.delete(noteId);
       return this.formatNoteAsMarkdown(note);
     } catch (error) {
+      this.loadingNotes.delete(noteId);
       return `# Error\nFailed to load note: ${error instanceof Error ? error.message : String(error)}`;
     }
   }
