@@ -117,11 +117,23 @@ export class FileNotesSummaryProvider {
   }
 
   private async openNote(noteId: string) {
-    const note = this.notes.find((n) => n.id === noteId);
-    if (!note) return;
+    try {
+      FileNotesSummaryProvider.outputChannel.appendLine(`Opening note: ${noteId}`);
+      
+      // Fetch full note content from API
+      const note = await this.kbClient.getNote(noteId);
+      if (!note) {
+        vscode.window.showErrorMessage('Note not found');
+        return;
+      }
 
-    const uri = vscode.Uri.parse(`kote-note://note/${note.id}.md`);
-    await vscode.commands.executeCommand('vscode.openWith', uri, 'kote-note.preview');
+      const uri = vscode.Uri.parse(`kote-note://note/${note.id}.md`);
+      await vscode.commands.executeCommand('vscode.openWith', uri, 'kote-note.preview');
+    } catch (error) {
+      FileNotesSummaryProvider.outputChannel.appendLine(`Error opening note: ${error instanceof Error ? error.message : String(error)}`);
+      FileNotesSummaryProvider.outputChannel.show();
+      vscode.window.showErrorMessage('Failed to open note');
+    }
   }
 
   private async copyContent(content: string) {
@@ -229,11 +241,13 @@ export class FileNotesSummaryProvider {
       
       const notesHtml = safeNotes.map(note => {
         const noteId = note?.id || '';
-        const title = note?.title || note?.content?.substring(0, 50) || 'Untitled';
+        const title = note?.title || 'Untitled';
+        const summary = note?.summary || 'No summary';
         const date = note?.date || note?.occurredAt || new Date().toISOString();
         return `
           <div class="note-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
             <div class="note-title">${this.escapeHtml(title)}</div>
+            <div class="note-summary">${this.escapeHtml(summary)}</div>
             <div class="note-date" data-date="${date}">${date}</div>
           </div>
         `;
@@ -288,6 +302,7 @@ export class FileNotesSummaryProvider {
     }
     .note-item:hover { background: var(--vscode-editor-hoverBackground); }
     .note-title { font-weight: 600; margin-bottom: 4px; }
+    .note-summary { font-size: 0.9em; color: var(--vscode-descriptionForeground); margin-bottom: 4px; }
     .note-date { font-size: 0.85em; color: var(--vscode-descriptionForeground); }
   </style>
 </head>
@@ -495,7 +510,7 @@ export class FileNotesSummaryProvider {
   </style>
 </head>
 <body>
-  <button class="copy-button" onclick="copySummary()">📋 Copy Summary</button>
+  <button class="copy-button" onclick="copySummary()">Copy Summary</button>
   
   <h1>💡 File Notes Summary</h1>
   <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>

@@ -468,6 +468,14 @@ export class KbClient {
     return this.fetch<KbNote[]>(`/api/notes/by-file?filePath=${encodeURIComponent(filePath)}`);
   }
 
+  async getNote(noteId: string): Promise<KbNote | null> {
+    try {
+      return await this.fetch<KbNote>(`/api/notes/${noteId}`);
+    } catch (error) {
+      return null;
+    }
+  }
+
   async getFileNotesSummary(filePath: string): Promise<{
     summary: string;
     understanding: string;
