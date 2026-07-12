@@ -6,6 +6,7 @@ export class FileNotesSummaryProvider {
   private readonly panel: vscode.WebviewPanel;
   private readonly disposables: vscode.Disposable[] = [];
   private static outputChannel: vscode.OutputChannel;
+  private static noteContentProvider: any;
 
   private constructor(
     panel: vscode.WebviewPanel,
@@ -47,6 +48,7 @@ export class FileNotesSummaryProvider {
     kbClient: KbClient,
     filePath: string,
     notes: any[],
+    noteContentProvider?: any,
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -55,6 +57,10 @@ export class FileNotesSummaryProvider {
     if (FileNotesSummaryProvider.currentPanel) {
       FileNotesSummaryProvider.currentPanel.panel.reveal(column);
       return;
+    }
+
+    if (noteContentProvider) {
+      FileNotesSummaryProvider.noteContentProvider = noteContentProvider;
     }
 
     const panel = vscode.window.createWebviewPanel(
@@ -127,6 +133,15 @@ export class FileNotesSummaryProvider {
         return;
       }
 
+      // Set note content in provider before opening
+      if (FileNotesSummaryProvider.noteContentProvider) {
+        const markdown = this.formatNoteAsMarkdown(note);
+        FileNotesSummaryProvider.noteContentProvider.setNoteContent(note.id, markdown);
+        FileNotesSummaryProvider.outputChannel.appendLine(`Note content set for ${note.id}`);
+      } else {
+        FileNotesSummaryProvider.outputChannel.appendLine('Warning: noteContentProvider not available');
+      }
+
       const uri = vscode.Uri.parse(`kote-note://note/${note.id}.md`);
       await vscode.commands.executeCommand('vscode.openWith', uri, 'kote-note.preview');
     } catch (error) {
@@ -134,6 +149,15 @@ export class FileNotesSummaryProvider {
       FileNotesSummaryProvider.outputChannel.show();
       vscode.window.showErrorMessage('Failed to open note');
     }
+  }
+
+  private formatNoteAsMarkdown(note: any): string {
+    return `# ${note.title || 'Untitled'}
+
+${note.content || ''}
+
+---
+*Created: ${note.occurredAt || note.date || new Date().toISOString()}*`;
   }
 
   private async copyContent(content: string) {

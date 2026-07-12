@@ -161,7 +161,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     vscode.commands.registerCommand('kote.showFileNotes', async (relativePath: string, notes: any[]) => {
-      await FileNotesSummaryProvider.show(context.extensionUri, kbClient, relativePath, notes);
+      await FileNotesSummaryProvider.show(context.extensionUri, kbClient, relativePath, notes, noteContentProvider);
     })
   );
 
