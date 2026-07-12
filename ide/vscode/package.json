@@ -2,7 +2,7 @@
   "name": "kote-vscode",
   "displayName": "Kote",
   "description": "Integrate your Kote directly into VS Code — search, ask AI, save notes without leaving your editor.",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "publisher": "kote",
   "license": "MIT",
   "repository": {
