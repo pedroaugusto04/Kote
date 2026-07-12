@@ -29,7 +29,11 @@ export class KoteNoteContentProvider implements vscode.TextDocumentContentProvid
 
     // If already loading, return loading indicator
     if (this.loadingNotes.has(noteId)) {
-      return '# Loading note...\n\nPlease wait while fetching from backend.';
+      return `# Loading note...
+
+⏳ Fetching note content from backend...
+
+Please wait a moment...`;
     }
 
     // Start loading
