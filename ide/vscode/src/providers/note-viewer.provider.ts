@@ -58,12 +58,18 @@ Please wait a moment...`;
   private formatNoteAsMarkdown(note: any): string {
     const createdDate = note.occurredAt || note.date || note.createdAt || new Date().toISOString();
     const content = note.content || note.rawText || note.summary || 'No content available';
+    const webBase = this.kbClient.apiUrl.replace(/\/api$/, '');
+    const noteWebUrl = `${webBase}/vault/${note.id}`;
     
     return `# ${note.title || 'Untitled'}
 
-${content}
+> [!NOTE]
+> **Source Channel:** \`${note.sourceChannel || 'kote'}\` | **Project:** \`${note.projectSlug || 'Inbox'}\` | **Created at:** \`${new Date(createdDate).toLocaleString()}\`
+>
+> 🌐 **[View on Kote Web](${noteWebUrl})**
 
 ---
-*Created: ${createdDate}*`;
+
+${content}`;
   }
 }
