@@ -46,6 +46,8 @@ export interface KbNote {
   updatedAt?: string;
   date?: string;
   sourceChannel?: string;
+  content?: string;
+  summary?: string;
 }
 
 export interface KbReminder {

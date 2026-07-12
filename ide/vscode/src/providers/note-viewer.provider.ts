@@ -56,11 +56,14 @@ Please wait a moment...`;
   }
 
   private formatNoteAsMarkdown(note: any): string {
+    const createdDate = note.occurredAt || note.date || note.createdAt || new Date().toISOString();
+    const content = note.content || note.rawText || note.summary || 'No content available';
+    
     return `# ${note.title || 'Untitled'}
 
-${note.content || ''}
+${content}
 
 ---
-*Created: ${note.occurredAt || note.date || new Date().toISOString()}*`;
+*Created: ${createdDate}*`;
   }
 }

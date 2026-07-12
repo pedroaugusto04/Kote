@@ -548,7 +548,7 @@ export class FileNotesSummaryProvider {
     ${notes.map(note => `
       <div class="note-item" onclick="openNote('${note.id}')">
         <div class="note-title">${this.escapeHtml(note.title || 'Untitled')}</div>
-        <div class="note-summary">${this.escapeHtml(note.summary || 'No summary')}</div>
+        <div class="note-summary">${this.escapeHtml(note.summary || 'No summary').substring(0, 200)}${note.summary && note.summary.length > 200 ? '...' : ''}</div>
       </div>
     `).join('')}
   </div>
