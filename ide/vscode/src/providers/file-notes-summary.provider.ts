@@ -5,6 +5,7 @@ export class FileNotesSummaryProvider {
   private static currentPanel: FileNotesSummaryProvider | undefined;
   private readonly panel: vscode.WebviewPanel;
   private readonly disposables: vscode.Disposable[] = [];
+  private static outputChannel: vscode.OutputChannel;
 
   private constructor(
     panel: vscode.WebviewPanel,
@@ -13,6 +14,10 @@ export class FileNotesSummaryProvider {
     private readonly notes: any[],
   ) {
     this.panel = panel;
+
+    if (!FileNotesSummaryProvider.outputChannel) {
+      FileNotesSummaryProvider.outputChannel = vscode.window.createOutputChannel('Kote File Notes Summary');
+    }
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
 
@@ -74,12 +79,26 @@ export class FileNotesSummaryProvider {
   }
 
   private async loadContent() {
-    this.panel.webview.html = this.getLoadingHtml();
+    FileNotesSummaryProvider.outputChannel.appendLine(`Loading summary for file: ${this.filePath}`);
+    FileNotesSummaryProvider.outputChannel.appendLine(`Notes count: ${this.notes.length}`);
+
+    // Show notes first while loading summary
+    this.panel.webview.html = this.getHtmlWithLoadingNotes(this.notes);
 
     try {
-      const summary = await this.kbClient.getFileNotesSummary(this.filePath);
+      const summary = await Promise.race([
+        this.kbClient.getFileNotesSummary(this.filePath),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
+        )
+      ]) as any;
+
+      FileNotesSummaryProvider.outputChannel.appendLine('Summary loaded successfully');
       this.panel.webview.html = this.getHtml(summary, this.notes);
     } catch (error) {
+      FileNotesSummaryProvider.outputChannel.appendLine(`Error loading summary: ${error instanceof Error ? error.message : String(error)}`);
+      FileNotesSummaryProvider.outputChannel.show();
+      
       this.panel.webview.html = this.getErrorHtml(
         error instanceof Error ? error.message : String(error),
       );
@@ -192,6 +211,93 @@ export class FileNotesSummaryProvider {
     <p>${this.escapeHtml(error)}</p>
   </div>
   <button class="retry-btn" onclick="window.location.reload()">Retry</button>
+</body>
+</html>`;
+  }
+
+  private getHtmlWithLoadingNotes(notes: any[]): string {
+    const notesJson = JSON.stringify(notes);
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
+  <style>
+    body {
+      font-family: var(--vscode-font-family);
+      font-size: var(--vscode-font-size);
+      color: var(--vscode-foreground);
+      background-color: var(--vscode-editor-background);
+      padding: 20px;
+      margin: 0;
+    }
+    h1 { margin: 0 0 16px 0; }
+    h3 { margin: 24px 0 12px 0; }
+    p { margin: 8px 0; }
+    .loading-section {
+      background: var(--vscode-editor-background);
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    .spinner {
+      border: 3px solid var(--vscode-progressBar-background);
+      border-top: 3px solid var(--vscode-progressBar-foreground);
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 12px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .notes-section { margin-top: 32px; }
+    .note-item {
+      padding: 12px;
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      cursor: pointer;
+    }
+    .note-item:hover { background: var(--vscode-editor-hoverBackground); }
+    .note-title { font-weight: 600; margin-bottom: 4px; }
+    .note-date { font-size: 0.85em; color: var(--vscode-descriptionForeground); }
+  </style>
+</head>
+<body>
+  <h1>💡 File Notes Summary</h1>
+  <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>
+
+  <div class="loading-section">
+    <div class="spinner"></div>
+    <p>Generating AI summary...</p>
+    <p style="font-size: 0.9em; color: var(--vscode-descriptionForeground);">Notes are available below while summary loads</p>
+  </div>
+
+  <div class="notes-section">
+    <h3>📝 Notes (${notes.length})</h3>
+    ${notes.map(note => `
+      <div class="note-item" onclick="openNote('${note.id}')">
+        <div class="note-title">${this.escapeHtml(note.title || 'Untitled')}</div>
+        <div class="note-date">${new Date(note.date).toLocaleDateString()}</div>
+      </div>
+    `).join('')}
+  </div>
+
+  <script>
+    const vscode = acquireVsCodeApi();
+    const notes = ${notesJson};
+    
+    function openNote(noteId) {
+      vscode.postMessage({ command: 'openNote', noteId });
+    }
+  </script>
 </body>
 </html>`;
   }
