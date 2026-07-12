@@ -67,12 +67,17 @@ Please wait a moment...`;
       content = this.wrapText(content, 100);
     }
     
+    const sourceChannel = note.sourceChannel || 'kote';
+    const projectSlug = note.projectSlug || 'Inbox';
+    const formattedDate = new Date(createdDate).toLocaleString();
+    
     return `# ${note.title || 'Untitled'}
 
-> [!NOTE]
-> **Source Channel:** \`${note.sourceChannel || 'kote'}\` | **Project:** \`${note.projectSlug || 'Inbox'}\` | **Created at:** \`${new Date(createdDate).toLocaleString()}\`
->
-> 🌐 **[View on Kote Web](${noteWebUrl})**
+---
+
+**Source:** ${sourceChannel} | **Project:** ${projectSlug} | **Created:** ${formattedDate}
+
+[🌐 View on Kote Web](${noteWebUrl})
 
 ---
 
