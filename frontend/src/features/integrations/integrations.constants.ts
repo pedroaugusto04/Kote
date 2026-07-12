@@ -4,6 +4,7 @@ export enum IntegrationProvider {
   Telegram = 'telegram',
   PushNotifications = 'push-notifications',
   PrContextAi = 'pr-context-ai',
+  FileNotesSummaryAi = 'file-notes-summary-ai',
 }
 
 export const INTEGRATION_LOGOS: Record<string, { src: string; label: string }> = {
@@ -12,6 +13,7 @@ export const INTEGRATION_LOGOS: Record<string, { src: string; label: string }> =
   [IntegrationProvider.Telegram]: { src: 'https://cdn.simpleicons.org/telegram/26A5E4', label: 'Telegram' },
   [IntegrationProvider.PushNotifications]: { src: 'https://cdn.simpleicons.org/pushover/3B5998', label: 'Push Notifications' },
   [IntegrationProvider.PrContextAi]: { src: 'https://cdn.simpleicons.org/github/0052CC', label: 'PR Context AI' },
+  [IntegrationProvider.FileNotesSummaryAi]: { src: 'https://cdn.simpleicons.org/openai/412991', label: 'File Notes Summary AI' },
 };
 
 export const INTEGRATION_MESSAGES = {
