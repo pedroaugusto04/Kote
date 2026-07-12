@@ -58,7 +58,7 @@ Software development generates a high volume of technical context that rarely ma
 * Rationale behind architectural changes, which is often omitted in brief commit messages.
 * Infrastructure exceptions, environment configurations, and setup notes.
 
-Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed. This knowledge appears directly in your VS Code editor via CodeLens, showing AI-powered summaries with timeline of key changes and decisions for each file.
+Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed. Access your knowledge from multiple interfaces: web application, VS Code (with CodeLens showing AI-powered summaries and timeline of decisions), CLI, and messaging integrations.
 
 ---
 
