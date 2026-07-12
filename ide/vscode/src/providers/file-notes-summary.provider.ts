@@ -304,7 +304,7 @@ export class FileNotesSummaryProvider {
   </style>
 </head>
 <body>
-  <h1>💡 File Notes Summary</h1>
+  <h1>💡 Kote File Notes Summary</h1>
   <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>
 
   <div class="loading-section">
@@ -509,7 +509,7 @@ export class FileNotesSummaryProvider {
 <body>
   <button class="copy-button" onclick="copySummary()">Copy Summary</button>
   
-  <h1>💡 File Notes Summary</h1>
+  <h1>💡 Kote File Notes Summary</h1>
   <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>
   <p><strong>Generated:</strong> <span class="generated-date" data-date="${this.escapeHtml(summary.generatedAt)}">${this.escapeHtml(summary.generatedAt)}</span></p>
   
@@ -580,7 +580,7 @@ export class FileNotesSummaryProvider {
     }
 
     function copySummary() {
-      const markdown = \`# 💡 File Notes Summary
+      const markdown = \`# 💡 Kote File Notes Summary
 
 **File:** ${this.escapeHtml(this.filePath)}
 
