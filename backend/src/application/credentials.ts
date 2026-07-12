@@ -25,6 +25,7 @@ export const guidedProviders = [
   IntegrationProvider.AiConversation,
   IntegrationProvider.ProjectBriefAi,
   IntegrationProvider.PrContextAi,
+  IntegrationProvider.FileNotesSummaryAi,
   IntegrationProvider.PushNotifications,
 ] as const;
 type GuidedIntegrationProvider = typeof guidedProviders[number];
@@ -59,6 +60,7 @@ const providerLabels: Record<GuidedIntegrationProvider, { name: string; descript
   [IntegrationProvider.AiConversation]: { name: 'Conversation AI', description: 'Assisted extraction from chat messages with managed configuration.' },
   [IntegrationProvider.ProjectBriefAi]: { name: 'Project Brief AI', description: 'Manual operational project brief generation with managed configuration.' },
   [IntegrationProvider.PrContextAi]: { name: 'PR Context AI', description: 'Automatic Pull Request memory and context retrieval with managed configuration.' },
+  [IntegrationProvider.FileNotesSummaryAi]: { name: 'File Notes Summary AI', description: 'Server-managed provider and model for AI-powered file notes summary in VS Code.' },
   [IntegrationProvider.PushNotifications]: { name: 'Push Notifications', description: 'Receive browser push notifications for reminders and updates.' },
 };
 
@@ -291,7 +293,8 @@ export class IntegrationCredentialService {
       provider !== IntegrationProvider.AiReview &&
       provider !== IntegrationProvider.AiConversation &&
       provider !== IntegrationProvider.ProjectBriefAi &&
-      provider !== IntegrationProvider.PrContextAi
+      provider !== IntegrationProvider.PrContextAi &&
+      provider !== IntegrationProvider.FileNotesSummaryAi
     ) throw new NotFoundException('provider_not_found');
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
     const status = aiEnvStatus(provider, this.environmentProvider);
