@@ -52,9 +52,10 @@ export class FileNotesSummaryProvider {
       ? vscode.window.activeTextEditor.viewColumn
       : undefined;
 
+    // Dispose existing panel if it's for a different file
     if (FileNotesSummaryProvider.currentPanel) {
-      FileNotesSummaryProvider.currentPanel.panel.reveal(column);
-      return;
+      FileNotesSummaryProvider.currentPanel.panel.dispose();
+      FileNotesSummaryProvider.currentPanel = undefined;
     }
 
     const panel = vscode.window.createWebviewPanel(

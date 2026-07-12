@@ -470,7 +470,8 @@ export class KbClient {
 
   async getNote(noteId: string): Promise<KbNote | null> {
     try {
-      return await this.fetch<KbNote>(`/api/notes/${noteId}`);
+      const response = await this.fetch<{ ok: boolean; note: KbNote }>(`/api/notes/${noteId}`);
+      return response?.note || null;
     } catch (error) {
       return null;
     }
