@@ -16,7 +16,7 @@
 <p align="center">
   A developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.
   <br><br>
-  <a href="https://pedro-duarte.ddns.net/kote">→ Open Kote Web App</a>
+  <a href="https://pedro-duarte.ddns.net/kote"><img src="https://img.shields.io/badge/Open_Kote_Web_App-7C3AED?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xOCAxM2MwIDMuODYtMy4xNCA3LTcgN3MtNy0zLjE0LTctNyAzLjE0LTcgNy03IDMgLjE0IDcgN3oiPjwvcGF0aD48cGF0aCBkPSJNMTIgMTZ2LTQiPjwvcGF0aD48cGF0aCBkPSJNMTIgOHY0Ij48L3BhdGg+PC9zdmc+&logoColor=white" alt="Open Kote Web App"></a>
   <br><br>
   Available as cloud or self-hosted.
 </p>
@@ -30,6 +30,19 @@
 <p align="center">
   <img src="docs/screenshots/home-overview.png" alt="Kote Home Overview" width="100%">
 </p>
+
+---
+
+## Why Kote?
+
+**Stop losing your development context.** Kote solves the everyday problems developers face when trying to recall past decisions, solutions, and technical rationale:
+
+- **Never forget why you made that architectural change** - Kote captures the reasoning behind commits, not just the code diff
+- **Instantly recall how you solved that bug 6 months ago** - Search your entire AI session history and Git context with natural language
+- **Onboard new team members faster** - Give them access to accumulated project knowledge without manual documentation
+- **Query your development memory from anywhere** - Ask questions from VS Code, CLI, WhatsApp, or the web interface
+
+Unlike traditional documentation tools that require manual effort, Kote works **passively in the background**, capturing context as you work with AI assistants and Git.
 
 ---
 
