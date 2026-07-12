@@ -123,7 +123,7 @@ export class FileNotesSummaryProvider {
       
       const uri = vscode.Uri.parse(`kote-note://note/${noteId}.md`);
       FileNotesSummaryProvider.outputChannel.appendLine(`Opening URI: ${uri.toString()}`);
-      await vscode.commands.executeCommand('vscode.openWith', uri, 'kote-note.preview');
+      await vscode.commands.executeCommand('vscode.open', uri);
       FileNotesSummaryProvider.outputChannel.appendLine('Document opened');
     } catch (error) {
       FileNotesSummaryProvider.outputChannel.appendLine(`Error opening note: ${error instanceof Error ? error.message : String(error)}`);
