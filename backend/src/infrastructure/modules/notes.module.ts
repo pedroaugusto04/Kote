@@ -28,6 +28,7 @@ import {
   SetNotePinnedUseCase,
   FindRelatedNotesUseCase,
   FindNotesByFileUseCase,
+  GenerateFileNotesSummaryUseCase,
   IngestEntryUseCase,
   QueryKnowledgeUseCase,
   GetAutoActionGlobalUseCase,
@@ -37,6 +38,7 @@ import { EmbeddingWorker } from '../../application/services/embedding.worker.js'
 import { NoteChunkingService } from '../../application/services/note-chunking.service.js';
 import { NoteEventDispatcher } from '../../application/services/note-event-dispatcher.js';
 import { NoteLifecycleService } from '../../application/services/note-lifecycle.service.js';
+import { FileNotesSummaryCacheService } from '../../application/services/file-notes-summary-cache.service.js';
 import { AutoActionWorker } from '../../workers/auto-action.worker.js';
 import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
 import { SettingsRepository } from '../../application/ports/settings.repository.js';
@@ -71,6 +73,7 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     ReindexAllEmbeddingsUseCase,
     NoteEventDispatcher,
     NoteLifecycleService,
+    FileNotesSummaryCacheService,
     AutoActionWorker,
     
     GetAutoActionGlobalUseCase,
@@ -84,6 +87,7 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     SetNotePinnedUseCase,
     FindRelatedNotesUseCase,
     FindNotesByFileUseCase,
+    GenerateFileNotesSummaryUseCase,
     IngestEntryUseCase,
     QueryKnowledgeUseCase,
     PostgresSettingsRepository,

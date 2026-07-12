@@ -89,6 +89,7 @@ export function buildIntegrationStatuses(input: {
   const reviewAiActive = environment.reviewAiProvider !== AiProvider.None;
   const conversationAiActive = environment.conversationAiProvider !== AiProvider.None;
   const projectBriefAiActive = environment.projectBriefAiProvider !== AiProvider.None;
+  const fileNotesSummaryAiActive = environment.fileNotesSummaryAiProvider !== AiProvider.None;
   const reviewAiEnv = {
     KB_REVIEW_AI_PROVIDER: reviewAiActive,
     KB_REVIEW_AI_BASE_URL: reviewAiActive ? Boolean(environment.reviewAiBaseUrl) : true,
@@ -106,6 +107,12 @@ export function buildIntegrationStatuses(input: {
     KB_PROJECT_BRIEF_AI_BASE_URL: projectBriefAiActive ? Boolean(environment.projectBriefAiBaseUrl) : true,
     KB_PROJECT_BRIEF_AI_MODEL: projectBriefAiActive ? Boolean(environment.projectBriefAiModel) : true,
     KB_PROJECT_BRIEF_AI_API_KEY: projectBriefAiActive ? secretConfigured(environment.projectBriefAiApiKey) : true,
+  };
+  const fileNotesSummaryAiEnv = {
+    KB_FILE_NOTES_SUMMARY_AI_PROVIDER: fileNotesSummaryAiActive,
+    KB_FILE_NOTES_SUMMARY_AI_BASE_URL: fileNotesSummaryAiActive ? Boolean(environment.fileNotesSummaryAiBaseUrl) : true,
+    KB_FILE_NOTES_SUMMARY_AI_MODEL: fileNotesSummaryAiActive ? Boolean(environment.fileNotesSummaryAiModel) : true,
+    KB_FILE_NOTES_SUMMARY_AI_API_KEY: fileNotesSummaryAiActive ? secretConfigured(environment.fileNotesSummaryAiApiKey) : true,
   };
 
   return {
@@ -243,6 +250,25 @@ export function buildIntegrationStatuses(input: {
         warnings: [
           !projectBriefAiActive ? 'Project Brief provider is set to none.' : '',
           projectBriefAiActive && !environment.projectBriefAiApiKey ? 'Project Brief AI is active without an API key.' : '',
+        ].filter(Boolean),
+      },
+      {
+        id: IntegrationProvider.FileNotesSummaryAi,
+        name: 'File Notes Summary AI',
+        description: 'Server-managed provider and model for AI-powered file notes summary in VS Code.',
+        status: statusFromFlags([fileNotesSummaryAiActive, ...Object.values(fileNotesSummaryAiEnv)]),
+        requiredEnv: Object.keys(fileNotesSummaryAiEnv),
+        configuredEnv: configuredEnv(fileNotesSummaryAiEnv),
+        missingEnv: missingEnv(fileNotesSummaryAiEnv),
+        links: [],
+        checklist: [
+          'Choose a provider other than none when file notes summary AI is enabled.',
+          'Define the file notes summary model and base URL, or inherit Conversation AI settings.',
+          'Configure the corresponding API key.',
+        ],
+        warnings: [
+          !fileNotesSummaryAiActive ? 'File Notes Summary provider is set to none.' : '',
+          fileNotesSummaryAiActive && !environment.fileNotesSummaryAiApiKey ? 'File Notes Summary AI is active without an API key.' : '',
         ].filter(Boolean),
       },
       {

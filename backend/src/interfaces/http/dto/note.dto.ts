@@ -138,4 +138,9 @@ export const notesListQuerySchema = paginationInputSchema.extend({
 }));
 export type NotesListQuery = z.infer<typeof notesListQuerySchema>;
 
+export const fileNotesSummaryQuerySchema = z.object({
+  filePath: z.string().trim().min(1, 'filePath is required'),
+});
+export type FileNotesSummaryQuery = z.infer<typeof fileNotesSummaryQuerySchema>;
+
 

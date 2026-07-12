@@ -36,6 +36,9 @@ export const AI_CREDIT_COSTS: Record<string, number> = {
 
   /** Pull Request historical context analysis. */
   github_pr_context: 6,
+
+  /** File notes summary for VS Code codelens. */
+  file_notes_summary: 3,
 };
 
 //Plan credit limits (max AI credits per month)

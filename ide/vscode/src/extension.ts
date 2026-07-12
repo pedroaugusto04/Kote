@@ -13,6 +13,7 @@ import { AntigravityHistoryProvider } from './ai-history/providers/antigravity.p
 import { OpenCodeHistoryProvider } from './ai-history/providers/opencode.provider';
 import { KoteCodeLensProvider } from './providers/codelens.provider';
 import { KoteNoteContentProvider } from './providers/note-viewer.provider';
+import { FileNotesSummaryProvider } from './providers/file-notes-summary.provider';
 import { resolveProjectSlug } from './utils/project';
 
 let kbClient: KbClient;
@@ -160,40 +161,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     vscode.commands.registerCommand('kote.showFileNotes', async (relativePath: string, notes: any[]) => {
-      const items = notes.map((note) => ({
-        label: note.title || `Untitled note (${note.id.slice(0, 8)})`,
-        description: note.summary || 'No summary',
-        detail: `Channel: ${note.sourceChannel || 'Unknown'} | Created at: ${new Date(note.date || note.createdAt || Date.now()).toLocaleDateString()}`,
-        note,
-      }));
-
-      const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: `Kote: Select a note about ${relativePath}`,
-      });
-
-      if (!selected) return;
-
-      const note = selected.note;
-      const uri = vscode.Uri.parse(`kote-note://note/${note.id}.md`);
-      
-      const webBase = kbClient.apiUrl.replace(/\/api$/, '');
-      const noteWebUrl = `${webBase}/vault/${note.id}`;
-
-      const markdownContent = `\
-# 💡 Kote: ${note.title || 'Untitled'}
-
-> [!NOTE]
-> **Source Channel:** \`${note.sourceChannel || 'kote'}\` | **Project:** \`${note.projectSlug || 'Inbox'}\` | **Created at:** \`${new Date(note.date || note.createdAt || Date.now()).toLocaleString()}\`
->
-> 🌐 **[Open in Kote Web](${noteWebUrl})**
-
----
-
-${note.markdown || note.rawText || note.summary || '_No content._'}
-`;
-      noteContentProvider.setNoteContent(note.id, markdownContent);
-      
-      await vscode.commands.executeCommand('markdown.showPreview', uri);
+      await FileNotesSummaryProvider.show(context.extensionUri, kbClient, relativePath, notes);
     })
   );
 

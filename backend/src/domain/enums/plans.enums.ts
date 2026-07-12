@@ -27,6 +27,7 @@ export enum AiOperationType {
   PROJECT_BRIEF = 'project_brief',
   NOTE_REVIEW = 'note_review',
   GITHUB_PR_CONTEXT = 'github_pr_context',
+  FILE_NOTES_SUMMARY = 'file_notes_summary',
 }
 
 export interface PlanLimits {

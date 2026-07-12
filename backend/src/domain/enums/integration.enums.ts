@@ -5,6 +5,7 @@ export enum IntegrationProvider {
   AiConversation = 'ai-conversation',
   ProjectBriefAi = 'project-brief-ai',
   PrContextAi = 'pr-context-ai',
+  FileNotesSummaryAi = 'file-notes-summary-ai',
   GithubApp = 'github-app',
   PushNotifications = 'push-notifications',
 }

@@ -467,4 +467,20 @@ export class KbClient {
   async findNotesByFile(filePath: string): Promise<KbNote[]> {
     return this.fetch<KbNote[]>(`/api/notes/by-file?filePath=${encodeURIComponent(filePath)}`);
   }
+
+  async getFileNotesSummary(filePath: string): Promise<{
+    summary: string;
+    understanding: string;
+    timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
+    keyChanges: Array<{ description: string; noteId: string }>;
+    generatedAt: string;
+  }> {
+    return this.fetch<{
+      summary: string;
+      understanding: string;
+      timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
+      keyChanges: Array<{ description: string; noteId: string }>;
+      generatedAt: string;
+    }>(`/api/notes/by-file/summary?filePath=${encodeURIComponent(filePath)}`);
+  }
 }

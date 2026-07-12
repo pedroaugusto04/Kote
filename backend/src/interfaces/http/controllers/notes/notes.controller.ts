@@ -16,6 +16,7 @@ import {
   GetNoteDetailUseCase,
   ListPaginatedNotesUseCase,
   FindNotesByFileUseCase,
+  GenerateFileNotesSummaryUseCase,
 } from '../../../../application/use-cases/index.js';
 import { BrowserExtensionGuard } from '../../guards/auth.guards.js';
 import { CurrentUser } from '../../auth.decorators.js';
@@ -30,6 +31,7 @@ import {
   bulkUpdateNoteStatusBodySchema,
   notesByFileQuerySchema,
   notesListQuerySchema,
+  fileNotesSummaryQuerySchema,
   type CreateNoteBody,
   type NoteAttachmentContentParam,
   type NoteIdParam,
@@ -38,6 +40,7 @@ import {
   type BulkUpdateNoteStatusBody,
   type NotesByFileQuery,
   type NotesListQuery,
+  type FileNotesSummaryQuery,
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
@@ -63,6 +66,7 @@ export class NotesController {
     private readonly getNoteDetail: GetNoteDetailUseCase,
     private readonly listNotesUseCase: ListPaginatedNotesUseCase,
     private readonly findNotesByFileUseCase: FindNotesByFileUseCase,
+    private readonly generateFileNotesSummaryUseCase: GenerateFileNotesSummaryUseCase,
   ) {}
 
   @Post()
@@ -217,6 +221,31 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.findNotesByFileUseCase.execute(user.id, query.filePath);
+  }
+
+  @Get('by-file/summary')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate AI summary of notes for a file' })
+  @ApiQuery({ name: 'filePath', description: 'Relative file path to generate summary for' })
+  @ApiResponse({ status: 200, description: 'AI summary generated successfully' })
+  async getFileNotesSummary(
+    @Query(new ZodValidationPipe(fileNotesSummaryQuerySchema, 'invalid_file_notes_summary_query')) query: FileNotesSummaryQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const notes = await this.findNotesByFileUseCase.execute(user.id, query.filePath);
+    
+    const summaryRequest = {
+      filePath: query.filePath,
+      notes: notes.map((note) => ({
+        id: note.id,
+        title: note.title,
+        date: note.date,
+        content: note.summary || '',
+        summary: note.summary,
+      })),
+    };
+
+    return this.generateFileNotesSummaryUseCase.execute(user.id, summaryRequest);
   }
 
   @Get(':id')
