@@ -75,7 +75,9 @@ Please wait a moment...`;
 
 ---
 
-**Source:** ${sourceChannel} | **Project:** ${projectSlug} | **Created:** ${formattedDate}
+Source: ${sourceChannel}
+Project: ${projectSlug}
+Created: ${formattedDate}
 
 [🌐 View on Kote Web](${noteWebUrl})
 
