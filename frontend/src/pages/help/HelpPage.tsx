@@ -206,6 +206,10 @@ const sections: HelpSection[] = [
         title: 'PR Context AI',
         body: 'Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.'
       },
+      {
+        title: 'File Summary AI',
+        body: 'Generates concise summaries of files opened in your IDE, highlighting key functionality, important patterns, and relevant context to help you quickly understand code structure and purpose.'
+      },
     ],
   },
   {
