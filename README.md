@@ -108,7 +108,7 @@ To start using Kote:
 Once set up, Kote runs in the background and continuously captures AI sessions (Antigravity, Codex, Claude Code, OpenCode, etc.), GitHub activity (pushes and pull requests), and development context. Everything you work on becomes searchable knowledge that you can query to understand what you've done, why decisions were made, and how your system evolved over time.
 
 5. **Access Related Notes in Your IDE:**
-When you open files in VS Code that have associated notes or decisions in your Kote, a CodeLens indicator appears at the top of the file showing the count of related notes. Click the indicator to view an AI-powered summary with timeline of key changes, understanding of the file context, and access to detailed notes with professional webview visualization, making it easy to access relevant context and decisions without leaving your development environment.
+When you open files in VS Code that have associated notes or decisions in your Kote, a CodeLens indicator appears at the top of the file showing the count of related notes. Click the indicator to view an AI-powered summary with timeline of key changes, understanding of the file context, and access to detailed notes, making it easy to access relevant context and decisions without leaving your development environment.
 
 > [!TIP]
 > **CodeLens not working?** Make sure CodeLens is enabled in your VS Code settings (`"editor.codeLens": true`). It's enabled by default, but may have been disabled globally.
