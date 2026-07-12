@@ -39,7 +39,9 @@ async function getOrExchangeAccessToken(currentApiUrl: string, connectionToken: 
     body: JSON.stringify({ connectionToken }),
   });
   if (!exchangeRes.ok) {
-    throw new Error('Failed to exchange connection token.');
+    // Clear expired tokens and prompt user to re-authenticate
+    await chrome.storage.local.remove(['accessToken', 'refreshToken', 'connectionToken', 'authMethod']);
+    throw new Error('Session expired. Please log in again.');
   }
   const data = await exchangeRes.json();
   await chrome.storage.local.set({ accessToken: data.accessToken, refreshToken: data.refreshToken });
@@ -380,7 +382,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnClip.className = 'btn btn-full btn-success';
       } else {
         btnClipText.textContent = 'Save Note';
-        showStatus(response?.error || 'Failed to save note.', 'error');
+        const errorMsg = response?.error || 'Failed to save note.';
+        showStatus(errorMsg, 'error');
+        
+        // Check if this is a session expiration error and redirect to login
+        if (errorMsg.includes('Session expired') || errorMsg.includes('re-authenticate')) {
+          setTimeout(() => {
+            panelSettings.classList.remove('hidden');
+            panelClipper.classList.add('hidden');
+            btnLogout.style.display = 'none';
+          }, 2000);
+        }
       }
     });
   });
@@ -491,12 +503,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (error: any) {
       // Check if this is a session expiration error
-      if (error.message && error.message.includes('Session expired')) {
+      if (error.message && (error.message.includes('Session expired') || error.message.includes('Failed to exchange connection token'))) {
         showStatus('Session expired. Please log in again.', 'error');
-        // Switch to settings panel after a short delay
+        // Switch to settings panel and hide logout button
         setTimeout(() => {
           panelSettings.classList.remove('hidden');
           panelClipper.classList.add('hidden');
+          btnLogout.style.display = 'none';
         }, 2000);
         return;
       }

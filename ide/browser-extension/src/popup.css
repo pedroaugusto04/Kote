@@ -7,16 +7,26 @@
   --text-primary: #d8e2ea;
   --text-secondary: #8da0ae;
   --text-muted: #60717e;
+  --text-strong: #ecf6fa;
+  --active-text: #e9fbff;
   
   --accent: #53c7de;
-  --accent-hover: #3ba8c0;
-  --accent-glow: rgba(83, 199, 222, 0.25);
+  --cyan: #53c7de;
+  --green: #7dd3a5;
+  --red: #ff7a7a;
   
   --border: #24323c;
-  --border-focus: #53c7de;
+  --border-soft: rgba(148, 163, 184, 0.16);
+  --accent-border: rgba(83, 199, 222, 0.34);
+  --accent-glow: rgba(83, 199, 222, 0.11);
   
-  --success: #7dd3a5;
-  --error: #ff7a7a;
+  --surface-4: rgba(148, 163, 184, 0.04);
+  --surface-5: rgba(148, 163, 184, 0.05);
+  --surface-6: rgba(148, 163, 184, 0.06);
+  --surface-hover: rgba(148, 163, 184, 0.08);
+  --surface-hover-strong: rgba(148, 163, 184, 0.08);
+  --surface-hover-accent: rgba(83, 199, 222, 0.11);
+  --surface-active: rgba(83, 199, 222, 0.13);
   
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -87,8 +97,9 @@ body {
 }
 
 .btn-icon:hover {
-  background-color: var(--border);
-  color: var(--text-primary);
+  background-color: var(--surface-hover);
+  border-color: var(--accent-border);
+  color: var(--active-text);
 }
 
 .btn-icon svg {
@@ -149,8 +160,9 @@ body {
 }
 
 .auth-tab.active {
-  background-color: var(--bg-card);
-  color: var(--accent);
+  background-color: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
   font-weight: 600;
 }
 
@@ -201,13 +213,13 @@ select {
 
 input:focus,
 select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--surface-hover-accent);
 }
 
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2353c7de'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238da0ae'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
@@ -278,12 +290,15 @@ select option {
 }
 
 .btn-primary {
-  background-color: var(--accent);
-  color: #ffffff;
+  background-color: var(--surface-active);
+  border: 1px solid var(--accent-border);
+  color: var(--active-text);
 }
 
 .btn-primary:hover {
-  background-color: var(--accent-hover);
+  background-color: var(--surface-hover-accent);
+  border-color: var(--accent-border);
+  color: var(--active-text);
 }
 
 .btn-primary:active {
@@ -291,12 +306,15 @@ select option {
 }
 
 .btn-success {
-  background-color: var(--success);
+  background-color: var(--green);
   color: #ffffff;
+  border: 1px solid transparent;
 }
 
 .btn-success:hover {
-  background-color: #5fb886;
+  background-color: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
 }
 
 .btn-success:active {
@@ -328,15 +346,17 @@ select option {
 }
 
 .status-banner.success {
-  background-color: rgba(125, 211, 165, 0.15);
+  background-color: rgba(125, 211, 165, 0.1);
   color: #d3fae4;
-  border-top-color: rgba(125, 211, 165, 0.3);
+  border: 1px solid rgba(125, 211, 165, 0.34);
+  border-radius: 8px;
 }
 
 .status-banner.error {
-  background-color: rgba(255, 122, 122, 0.15);
+  background-color: rgba(255, 122, 122, 0.1);
   color: #ffd7d7;
-  border-top-color: rgba(255, 122, 122, 0.3);
+  border: 1px solid rgba(255, 122, 122, 0.36);
+  border-radius: 8px;
 }
 
 /* Animations */

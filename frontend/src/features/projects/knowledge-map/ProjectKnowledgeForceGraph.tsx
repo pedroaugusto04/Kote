@@ -127,6 +127,7 @@ export function ProjectKnowledgeForceGraph({
     const graphLinks = graph.links as GraphLink[];
     const denseMap = graphNodes.length > 90;
     const isLargeGraph = graphNodes.length > 80;
+    const isMobile = window.innerWidth < 720;
     const reducedMotion = typeof window.matchMedia === 'function'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
       : true;
@@ -254,16 +255,21 @@ export function ProjectKnowledgeForceGraph({
     updateLabels();
 
     // Pre-tick the simulation to get initial stable positions before fitting
-    simulation.tick(denseMap ? 150 : 90);
+    simulation.tick(denseMap ? 300 : 200);
 
-    // Fit to screen on initial load
-    const initialTransform = computeFitTransform(
-      graphNodes,
-      hiddenNodeIdsRef.current,
-      currentSize.width,
-      currentSize.height
-    );
-    svg.call(zoom.transform, initialTransform);
+    // Apply fit after simulation has stabilized (desktop only)
+    // Mobile: rely on the re-fit mechanism that triggers when size is set
+    if (!isMobile) {
+      setTimeout(() => {
+        const initialTransform = computeFitTransform(
+          graphNodes,
+          hiddenNodeIds,
+          currentSize.width,
+          currentSize.height
+        );
+        d3.select(svgElement).transition().duration(400).call(zoom.transform, initialTransform);
+      }, 100);
+    }
 
     function updateLabels() {
       labels
@@ -476,6 +482,25 @@ export function ProjectKnowledgeForceGraph({
       simulation.alpha(0.1).restart();
     }
   }, [size.width, size.height]);
+
+  // Re-fit to screen after initial size is set
+  useEffect(() => {
+    if (size.width === DEFAULT_SIZE.width && size.height === DEFAULT_SIZE.height) {
+      return;
+    }
+    const svgElement = svgRef.current;
+    const zoom = zoomRef.current;
+    if (!svgElement || !zoom) return;
+
+    const transform = computeFitTransform(
+      graph.nodes as GraphNode[],
+      hiddenNodeIds,
+      size.width,
+      size.height
+    );
+
+    d3.select(svgElement).transition().duration(300).call(zoom.transform, transform);
+  }, [size.width, size.height, graph]);
 
   const handleZoomIn = () => {
     const svgElement = svgRef.current;

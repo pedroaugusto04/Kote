@@ -345,7 +345,9 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
           body: JSON.stringify({ connectionToken }),
         });
         if (!exchangeRes.ok) {
-          throw new Error('Failed to exchange connection token with server.');
+          // Clear expired tokens and prompt user to re-authenticate
+          await chrome.storage.local.remove(['accessToken', 'refreshToken', 'connectionToken', 'authMethod']);
+          throw new Error('Session expired. Please open extension settings to log in again.');
         }
         const data = await exchangeRes.json();
         accessToken = data.accessToken;
