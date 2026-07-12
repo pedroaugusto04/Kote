@@ -188,7 +188,7 @@ export class NoteDetailWebviewProvider {
       </div>
       <div class="actions">
         <a href="${noteWebUrl}" target="_blank" class="action-button">
-          🌐 View on Kote Web
+          <span class="emoji">🌐</span> View on Kote Web
         </a>
       </div>
     </div>
@@ -268,6 +268,9 @@ export class NoteDetailWebviewProvider {
       display: inline-flex;
       align-items: center;
       gap: 6px;
+    }
+    .action-button .emoji {
+      filter: brightness(0) invert(1);
     }
     .action-button:hover {
       background-color: var(--vscode-button-hoverBackground);
