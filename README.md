@@ -16,8 +16,8 @@
 <h2 align="center">Git remembers what changed.<br>Kote remembers why.</h2>
 
 <p align="center">
-  <b>Never ask "why does this file exist?" again.</b><br>
-  Kote is a <strong>Context Engine</strong> that automatically captures AI conversations, Git activity, and development decisions, then surfaces this context exactly when you need it.
+
+  Kote is a <strong>developer memory layer</strong> that automatically captures AI conversations, Git activity, and development decisions, then surfaces this context exactly when you need it.
   <br><br>
   <a href="https://pedro-duarte.ddns.net/kote"><img src="https://img.shields.io/badge/Open_Kote_Web_App-01C9F9?style=for-the-badge&logoColor=white" alt="Open Kote Web App"></a>
 </p>

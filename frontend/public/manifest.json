@@ -7,7 +7,11 @@
   "background_color": "#090f14",
   "theme_color": "#00345c",
   "orientation": "any",
-  "categories": ["productivity", "developer-tools", "utilities"],
+  "categories": [
+    "productivity",
+    "developer-tools",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "Kote-Logo.png",
