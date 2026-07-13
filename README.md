@@ -11,73 +11,39 @@
   <img src="https://img.shields.io/badge/React-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React">
 </p>
 
-<!-- Topics: developer-tools, knowledge-base, ai-integration, productivity, typescript, nestjs, react, git-integration, code-documentation, pwa -->
+<!-- Topics: developer-tools, context-engine, ai-integration, productivity, typescript, nestjs, react, git-integration, code-documentation, pwa -->
+
+<h2 align="center">Git remembers what changed.<br>Kote remembers why.</h2>
 
 <p align="center">
-  A developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.
+  <b>Never ask "why does this file exist?" again.</b><br>
+  Kote is a <strong>Context Engine</strong> that automatically captures AI conversations, Git activity, and development decisions, then shows them exactly when you need them.
   <br><br>
-  <a href="https://pedro-duarte.ddns.net/kote"><img src="https://img.shields.io/badge/Open_Kote_Web_App-7C3AED?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0xOCAxM2MwIDMuODYtMy4xNCA3LTcgN3MtNy0zLjE0LTctNyAzLjE0LTcgNy03IDMgLjE0IDcgN3oiPjwvcGF0aD48cGF0aCBkPSJNMTIgMTZ2LTQiPjwvcGF0aD48cGF0aCBkPSJNMTIgOHY0Ij48L3BhdGg+PC9zdmc+&logoColor=white" alt="Open Kote Web App"></a>
-  <br><br>
-  Available as cloud or self-hosted.
-</p>
-
-<p align="center">
-  <a href="https://pedro-duarte.ddns.net/kote">Web Application</a> • 
-  <a href="#getting-started">Getting Started</a> • 
-  <a href="#how-it-works">How It Works</a>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/home-overview.png" alt="Kote Home Overview" width="100%">
+  <a href="https://pedro-duarte.ddns.net/kote"><img src="https://img.shields.io/badge/Open_Kote_Web_App-01C9F9?style=for-the-badge&logoColor=white" alt="Open Kote Web App"></a>
 </p>
 
 ---
-
-## Why Kote?
-
-**Stop losing your development context.** Kote solves the everyday problems developers face when trying to recall past decisions, solutions, and technical rationale:
-
-- **Never forget why you made that architectural change** - Kote captures the reasoning behind commits, not just the code diff
-- **Instantly recall how you solved that bug 6 months ago** - Kote automatically surfaces relevant context from your AI sessions and Git history as you work
-- **See relevant context right in your IDE** - When you open a file, Kote displays accumulated knowledge and decisions directly in your editor
-- **Access your development memory from anywhere** - View accumulated knowledge in VS Code, CLI, WhatsApp, or the web interface
-
-Unlike traditional documentation tools that require manual effort, Kote works **passively in the background**, capturing context as you work with AI assistants and Git.
-
----
-
-## Overview
-
-Software development generates a high volume of technical context that rarely makes it into formal documentation:
-* Complex problem-solving discussions held with AI coding assistants (Claude Code, Copilot, ChatGPT).
-* Rationale behind architectural changes, which is often omitted in brief commit messages.
-* Project details, business rules, and domain-specific context.
-
-Kote is designed to passively capture these workflows, organizing them into a unified knowledge base that can be used to ask questions, retrieve past decisions, and explore technical context when needed. Every time you open a relevant file in your IDE, Kote automatically retrieves the accumulated knowledge about it to help you understand its purpose, timeline of decisions, and the complete history behind it. All knowledge and AI analysis can be viewed in the Kote interface.
-
----
-
-## Demos
-
-### Kote Overview
-
-<p align="center">
-  <img src="docs/gifs/Kote.gif" alt="Kote Demo" width="100%">
-  <br><em>Kote: capturing development context and querying knowledge.</em>
-</p>
-
-### CodeLens Integration
 
 <p align="center">
   <img src="docs/gifs/Kode-CodeLens.gif" alt="CodeLens Demo" width="100%">
-  <br><em>VS Code CodeLens showing related notes at the top of files.</em>
+  <br><em>Open a file. Instantly understand six months of decisions.</em>
 </p>
 
 ---
 
-## How It Works
+## Why?
 
-Kote integrates with your existing tools to collect and index technical knowledge automatically:
+Every project slowly loses context.
+
+Commits explain what changed. Documentation becomes outdated. ChatGPT conversations disappear. Developers leave.
+
+Months later, nobody remembers why anything exists. 
+
+Ever spent an hour trying to understand why a piece of code exists? **Kote fixes this automatically.**
+
+## How?
+
+Kote works passively in the background, observing your work and connecting the dots to return context exactly when and where you need it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagram-dark-horizontal.svg">
@@ -85,40 +51,103 @@ Kote integrates with your existing tools to collect and index technical knowledg
   <img alt="Kote Flow Diagram" src="docs/diagram-dark-horizontal.svg" width="100%">
 </picture>
 
-1. **Development & AI Sessions:** The VS Code extension automatically logs local AI conversations and saves highlighted code snippets to your knowledge base.
+1. **Development & AI Sessions:** The VS Code extension automatically logs local AI conversations and saves highlighted code snippets to your context engine.
 2. **Git Workflow:** The GitHub integration analyzes commit diffs on push, generating technical summaries and flagging potential operational issues.
 3. **Quick Notes:** Send text or audio messages to Kote's messaging integrations to log quick notes or environment configurations.
-4. **CodeLens Integration:** When opening files in VS Code, a CodeLens indicator appears at the top of files that have associated notes or decisions in your Kote. Click the indicator to view an AI-powered summary with timeline of key changes, understanding of the file context, and access to detailed notes.
-5. **Query & Retrieval:** Query the accumulated knowledge base using natural language directly from the Web Application, the VS Code sidebar, WhatsApp or via CLI to ask questions or locate solutions, documents, and files.
+4. **CodeLens Integration:** When opening files in VS Code, Kote displays accumulated knowledge and decisions directly in your editor. Click to view an AI-powered summary of why that code exists.
+5. **Search & Retrieval:** Ask natural language questions in your IDE, CLI, WhatsApp, or the Web interface to instantly retrieve past decisions and context.
+
+---
+
+## Features & Integrations
+
+Once Kote is capturing your context, you can interact with it everywhere you work.
+
+<details>
+<summary><strong>VS Code Extension</strong></summary>
+
+Integrates directly with your editor to capture context during development.
+
+* **CodeLens Integration**: See relevant notes and decisions right above your code. Click for an AI-powered timeline of key changes.
+* **AI Chat Sidebar**: Query your context engine without leaving the editor.
+* **Quick Save**: Save code selections as notes with a right-click.
+* **AI Session Sync**: Automatically syncs local AI CLI sessions (Antigravity, Codex, Claude Code, etc.) in the background.
+
+For configuration details, see [ide/vscode/README.md](ide/vscode/README.md).
+</details>
+
+<details>
+<summary><strong>GitHub Integration</strong></summary>
+
+* **Diff Analysis:** Summarizes changes on every push.
+* **Alert System:** Notifies the team via WhatsApp or Telegram if potential configuration or environmental issues are detected in a diff.
+* **PR Context AI:** Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.
+
+</details>
+
+<details>
+<summary><strong>CLI Tool (kote)</strong></summary>
+
+Synchronize terminal session histories and import local directories or files.
+For installation steps and command options, see [cli/README.md](cli/README.md).
+
+</details>
+
+<details>
+<summary><strong>Model Context Protocol (MCP) Server</strong></summary>
+
+Provides developer memory retrieval and persistence directly to AI assistants (Cursor, Claude Desktop, Cline, Antigravity).
+
+* **kote_search_notes**: Search developer notes and decisions.
+* **kote_create_note**: Persistently save important decisions straight into your Kote memory graph.
+
+Run directly via `npx -y @pedroaugusto04/kote-mcp`. See [ide/mcp/README.md](ide/mcp/README.md).
+</details>
+
+<details>
+<summary><strong>Messaging (WhatsApp & Telegram)</strong></summary>
+
+Log quick notes and query your context engine on the go.
+* **Audio Notes:** Transcribes and structures voice recordings.
+* **Image Capture:** Upload screenshots or whiteboard diagrams.
+* **Interactive Querying:** Search using the `/ask` command.
+
+</details>
+
+<details>
+<summary><strong>Browser Extension</strong></summary>
+
+Save documentation, issues, and articles directly from the web browser.
+See [ide/browser-extension/README.md](ide/browser-extension/README.md).
+
+</details>
+
+<details>
+<summary><strong>Web Application & Knowledge Map</strong></summary>
+
+A visual dashboard to manage, search, and visualize your context engine. Features a node graph illustrating relations between projects and notes.
+
+</details>
 
 ---
 
 ## Getting Started
 
-To start using Kote:
-
 1. **Sign In:** Go to [pedro-duarte.ddns.net/kote](https://pedro-duarte.ddns.net/kote) and authenticate your account.
-
-2. **Configure Integrations:** Connect your repository hosting (GitHub) via the Integrations dashboard in the web application.
-
-3. **Install the VS Code Extension:**
-   Install **Kote** from the VS Code Marketplace and sign in. Kote passively captures AI sessions in the background and lets you query your knowledge base using AI directly from VS Code.
-     
-4. **Start Capturing Context Automatically:**
-Once set up, Kote runs in the background and continuously captures AI sessions (Antigravity, Codex, Claude Code, OpenCode, etc.), GitHub activity (pushes and pull requests), and development context. Everything you work on becomes searchable knowledge that you can query to understand what you've done, why decisions were made, and how your system evolved over time.
-
-5. **Access Related Notes in Your IDE:**
-When you open files in VS Code that have associated notes or decisions in your Kote, a CodeLens indicator appears at the top of the file showing the count of related notes. Click the indicator to view an AI-powered summary with timeline of key changes, understanding of the file context, and access to detailed notes, making it easy to access relevant context and decisions without leaving your development environment.
+2. **Configure Integrations:** Connect your repository hosting (GitHub) via the Integrations dashboard.
+3. **Install the VS Code Extension:** Install **Kote** from the VS Code Marketplace and sign in.
+4. **Code Normally:** Kote runs in the background and continuously captures AI sessions, Git activity, and development context. 
+5. **Understand Instantly:** Open files in VS Code. Click the CodeLens indicator to view an AI-powered summary of the file's context and related decisions.
 
 > [!TIP]
-> **CodeLens not working?** Make sure CodeLens is enabled in your VS Code settings (`"editor.codeLens": true`). It's enabled by default, but may have been disabled globally.
+> **CodeLens not working?** Make sure CodeLens is enabled in your VS Code settings (`"editor.codeLens": true`).
 
 ---
 
 <details>
 <summary><strong>Self-Hosting (Docker)</strong></summary>
 
-If you prefer to run Kote on your own infrastructure or local machine, you can launch the entire stack using Docker Compose:
+If you prefer to run Kote on your own infrastructure, you can launch the entire stack using Docker Compose:
 
 1. **Clone the Repository:**
    ```bash
@@ -127,172 +156,23 @@ If you prefer to run Kote on your own infrastructure or local machine, you can l
    ```
 
 2. **Configure Environment Variables:**
-   Copy the example environment file:
    ```bash
    cp .env.example .env
    ```
-   Open the `.env` file and configure the **essential keys** to enable core features:
-   * **Admin Credentials:** Change `KB_ADMIN_EMAIL` and `KB_ADMIN_PASSWORD` (used for your initial login).
-   * **AI Integrations (Search/Chat/Voice):** Set `KB_AUDIO_AI_API_KEY` and `KB_EMBEDDING_AI_API_KEY` (Gemini API key is the default). Alternatively, you can self-host embeddings using the local **Ollama** service (e.g. `nomic-embed-text-v2-moe`) by configuring the `KB_EMBEDDING_AI_PROVIDER=ollama` environment variables.
-   * **File Storage:** Fill in `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and `KB_SUPABASE_STORAGE_BUCKET` to store notes and attachments.
+   Open `.env` and configure:
+   * **Admin Credentials:** `KB_ADMIN_EMAIL` and `KB_ADMIN_PASSWORD`
+   * **AI Integrations:** Set `KB_AUDIO_AI_API_KEY` and `KB_EMBEDDING_AI_API_KEY` (Gemini API key is default) or configure `KB_EMBEDDING_AI_PROVIDER=ollama`.
+   * **File Storage:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `KB_SUPABASE_STORAGE_BUCKET`.
 
 3. **Start Services:**
-   Launch the database, message broker, backend API, and web application (database migrations will run automatically on startup):
    ```bash
    docker compose up -d
    ```
-
-Once running, access the local services:
-* **Web Application:** [http://localhost:4311](http://localhost:4311)
-* **API Server:** [http://localhost:4310](http://localhost:4310)
-
-</details>
+   * **Web Application:** [http://localhost:4311](http://localhost:4311)
+   * **API Server:** [http://localhost:4310](http://localhost:4310)
 
 > [!TIP]
-> Point your VS Code Extension (`knowledgeVault.apiUrl`) or CLI (`apiUrl` in `~/.kb-config.json`) to your self-hosted API URL (`http://localhost:4310`) to connect your editor and terminal to your local instance.
-
----
-
-## Features
-
-<details>
-<summary><strong>Web Application & Knowledge Map</strong></summary>
-
-Interfaces to manage, search, and visualize captured knowledge.
-
-<p align="center">
-
-<p align="center">
-  <img src="docs/screenshots/ask-ai-overview.png" alt="Web Chat Search Interface" width="100%">
-  <br><em>Semantic chat interface for querying indexed data.</em>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/note-details-example.png" alt="Note Detail View" width="100%">
-  <br><em>Detailed view of a captured note with metadata and tags.</em>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/map-overview.png" alt="Knowledge Node Graph Map" width="100%">
-  <br><em>Visual node graph illustrating relations between projects and notes.</em>
-</p>
-
-</details>
-
----
-
-<details>
-<summary><strong>VS Code Extension</strong></summary>
-
-Integrates directly with your editor to capture context during development.
-
-<p align="center">
-  <img src="docs/screenshots/vscode-extension.png" alt="VS Code Extension Sidebar" width="100%">
-  <br><em>Integrated sidebar containing AI chat and quick-save options.</em>
-</p>
-
-**Key Features:**
-- **CodeLens Integration**: Automatically displays relevant notes and decisions at the top of files that have associated knowledge in your Kote. Click the CodeLens indicator to view an AI-powered summary with timeline of key changes, understanding of the file context, and access to detailed notes with professional webview visualization.
-- **AI Chat Sidebar**: Interactive AI chat interface for querying your knowledge base without leaving the editor.
-- **Quick Save Commands**: Save code selections or entire files as notes with right-click context menus.
-- **AI Session History**: View and search recent AI-assisted development sessions from various tools.
-- **Real-time Sync**: Monitor and sync local AI CLI sessions automatically in the background.
-
-For configuration details, see [ide/vscode/README.md](ide/vscode/README.md).
-
-</details>
-
----
-
-<details>
-<summary><strong>GitHub Integration</strong></summary>
-
-Processes repository activity passively to record code changes and retrieve context.
-
-* **Diff Analysis:** Summarizes changes on every push.
-* **Onboarding Backfill:** After linking a repository, users can opt in to import recent commits as review notes. Configure the offer size with `KB_GITHUB_BACKFILL_LIMIT` (default: `5`). Each imported commit consumes AI credits like a normal push review.
-* **Alert System:** Notifies the team via WhatsApp or Telegram if potential configuration or environmental issues are detected in a diff.
-* **PR Context AI:** Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.
-
-</details>
-
----
-
-<details>
-<summary><strong>CLI Tool (kote)</strong></summary>
-
-Synchronize terminal session histories and import local directories or files.
-
-<p align="center">
-  <img src="docs/screenshots/cli-sync-ai-command.png" alt="Sync AI CLI Command" width="100%">
-  <br><em>Importing AI session history from the terminal.</em>
-</p>
-
-For installation steps and command options, see [cli/README.md](cli/README.md).
-
-</details>
-
----
-
-<details>
-<summary><strong>Browser Extension</strong></summary>
-
-Save documentation, issues, and articles directly from the web browser.
-
-<p align="center">
-  <img src="frontend/public/browser-extension-window.png" alt="Browser Extension Popup" width="70%">
-  <br><em>Browser extension popup for saving web content.</em>
-</p>
-
-For setup instructions, see [ide/browser-extension/README.md](ide/browser-extension/README.md).
-
-</details>
-
----
-
-<details>
-<summary><strong>Model Context Protocol (MCP) Server</strong></summary>
-
-Provides developer memory retrieval and persistence directly to AI assistants (such as Cursor, Claude Desktop, Cline, and Antigravity).
-
-**Key Features:**
-- **kote_search_notes**: Search developer notes, design decisions, and PR summaries using hybrid keyword and vector search, returning optimized snippets.
-- **kote_get_note**: Fetch the full Markdown body of a specific note by ID.
-- **kote_create_note**: Persistently save important development decisions or notes straight into your Kote memory graph.
-
-**Integration Quick Start:**
-You can run the Kote MCP Server directly from npm using `npx`:
-```json
-{
-  "mcpServers": {
-    "kote": {
-      "command": "npx",
-      "args": ["-y", "@pedroaugusto04/kote-mcp"]
-    }
-  }
-}
-```
-
-For advanced configuration and setup, see [ide/mcp/README.md](ide/mcp/README.md).
-
-</details>
-
----
-
-<details>
-<summary><strong>Messaging Integrations (WhatsApp & Telegram)</strong></summary>
-
-Provides channels for logging quick notes and querying the database.
-
-<p align="center">
-  <img src="docs/screenshots/integrations-setup.png" alt="Integrations Configuration Panel" width="100%">
-  <br><em>Configuration dashboard for WhatsApp, Telegram, and GitHub integrations.</em>
-</p>
-
-* **Audio Notes:** Transcribes and structures voice recordings into Markdown notes.
-* **Image Capture:** Upload screenshots or whiteboard diagrams to attach to projects.
-* **Interactive Querying:** Search the knowledge base using the `/ask` command.
-
+> Point your VS Code Extension (`knowledgeVault.apiUrl`) or CLI (`apiUrl` in `~/.kb-config.json`) to your self-hosted API URL (`http://localhost:4310`).
 </details>
 
 ---
