@@ -17,7 +17,7 @@
 
 <p align="center">
   <b>Never ask "why does this file exist?" again.</b><br>
-  Kote is a <strong>Context Engine</strong> that automatically captures AI conversations, Git activity, and development decisions, then shows them exactly when you need them.
+  Kote is a <strong>Context Engine</strong> that automatically captures AI conversations, Git activity, and development decisions, then surfaces this context exactly when you need it.
   <br><br>
   <a href="https://pedro-duarte.ddns.net/kote"><img src="https://img.shields.io/badge/Open_Kote_Web_App-01C9F9?style=for-the-badge&logoColor=white" alt="Open Kote Web App"></a>
 </p>
@@ -26,7 +26,7 @@
 
 <p align="center">
   <img src="docs/gifs/Kode-CodeLens.gif" alt="CodeLens Demo" width="100%">
-  <br><em>Open a file. Instantly understand six months of decisions.</em>
+  <br><em>Open a file. Instantly understand past decisions.</em>
 </p>
 
 ---
@@ -39,11 +39,11 @@ Commits explain what changed. Documentation becomes outdated. ChatGPT conversati
 
 Months later, nobody remembers why anything exists. 
 
-Ever spent an hour trying to understand why a piece of code exists? **Kote fixes this automatically.**
+Ever spent an hour trying to understand why a piece of code exists? **Kote prevents this by preserving context as you build.**
 
 ## How?
 
-Kote works passively in the background, observing your work and connecting the dots to return context exactly when and where you need it.
+Kote runs in the background, indexing your interactions and development activity to surface relevant context exactly when and where you need it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/diagram-dark-horizontal.svg">
