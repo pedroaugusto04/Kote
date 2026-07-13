@@ -10,19 +10,19 @@ import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { WhatsappMediaDownloader } from '../../../ports/integrations/whatsapp-media.downloader.js';
 import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.sender.js';
-import { parseAskCommand } from '../../../utils/conversation-command.utils.js';
-import { buildWhatsappWebhookCommand, type WhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
-import { normalizeHeaders } from '../../../utils/webhook.utils.js';
+import { parseAskCommand } from '../../../utils/conversation/conversation-command.utils.js';
+import { buildWhatsappWebhookCommand, type WhatsappWebhookCommand } from '../../../utils/webhook/whatsapp-webhook-command.utils.js';
+import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
 import { AudioTranscriptionGateway } from '../../../ports/audio/audio-transcription.gateway.js';
 import { ProcessAgentConversationUseCase } from '../../conversation/process-agent-conversation.use-case.js';
 import { AskKnowledgeUseCase } from '../../query/ask-knowledge.use-case.js';
 import { ResolveWhatsappAskAttachmentsUseCase } from '../../query/resolve-whatsapp-ask-attachments.use-case.js';
 import { AppLogger } from '../../../../observability/logger.js';
-import { parseWhatsappEvolutionMessage } from '../../../utils/webhook.utils.js';
+import { parseWhatsappEvolutionMessage } from '../../../utils/webhook/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
-import { resolveWorkspaceIdFromSlug } from '../../../utils/content-scope.utils.js';
+import { resolveWorkspaceIdFromSlug } from '../../../utils/content/content-scope.utils.js';
 
 type WhatsappWebhookContext = {
   headers: Record<string, string>;

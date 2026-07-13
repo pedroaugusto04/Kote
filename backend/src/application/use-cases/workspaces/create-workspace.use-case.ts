@@ -8,7 +8,7 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { getAiProviderConfig } from '../../ai-providers-registry.js';
-import { QuotaService } from '../../services/quota.service.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
 

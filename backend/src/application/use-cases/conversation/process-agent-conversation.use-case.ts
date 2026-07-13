@@ -17,16 +17,16 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { ConversationStateRepository } from '../../ports/reminders/workflow-state.repository.js';
-import { isCancel } from '../../utils/conversation-command.utils.js';
-import { isConversationStateExpired } from '../../utils/conversation-state.utils.js';
-import { buildProjectFolderTree } from '../../utils/project-folder.utils.js';
+import { isCancel } from '../../utils/conversation/conversation-command.utils.js';
+import { isConversationStateExpired } from '../../utils/conversation/conversation-state.utils.js';
+import { buildProjectFolderTree } from '../../utils/content/project-folder.utils.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { ConversationAgentPresenter } from './services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './services/conversation-folder-resolution.service.js';
-import { QuotaService } from '../../services/quota.service.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
-import { resolveSourceChannel } from '../../utils/source-channel.utils.js';
-import { resolveContentScopeFromSlugs } from '../../utils/content-scope.utils.js';
+import { resolveSourceChannel } from '../../utils/integration/source-channel.utils.js';
+import { resolveContentScopeFromSlugs } from '../../utils/content/content-scope.utils.js';
 import { toProjectRecord } from '../../mappers/project.mapper.js';
 import {
   buildAgentConversationPayload as buildAgentPayload,

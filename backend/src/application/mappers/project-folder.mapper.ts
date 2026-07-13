@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 import type { CreateProjectFolderInput } from '../models/project-folder-input.models.js';
 import type { SaveProjectFolderInput, ProjectFolderRecord } from '../models/repository-records.models.js';
-import { buildFolderFullSlugPath, folderSlugFromDisplayName } from '../utils/project-folder.utils.js';
+import { buildFolderFullSlugPath, folderSlugFromDisplayName } from '../utils/content/project-folder.utils.js';
 
 export function toFolderCreateInput(
   input: CreateProjectFolderInput,

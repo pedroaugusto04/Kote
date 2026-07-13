@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { GithubBackfillUseCase } from '../../../dist/application/use-cases/integrations/github-backfill.use-case.js';
-import { GithubBackfillRunnerService } from '../../../dist/application/services/github-backfill-runner.service.js';
+import { GithubBackfillRunnerService } from '../../../dist/application/services/integrations/github-backfill-runner.service.js';
 import { encryptConfig } from '../../../dist/application/credentials.js';
 
 test('GithubBackfillUseCase - start and cancel', async () => {

@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { slugify } from '../domain/strings.js';
 import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, ReviewFindingSeverity, SourceChannel } from './enums.js';
-import { parseSourceChannelString } from '../application/utils/source-channel.utils.js';
+import { parseSourceChannelString } from '../application/utils/integration/source-channel.utils.js';
 
 export const sourceChannelSchema = z.string().trim().optional();
 export const eventTypeSchema = z.nativeEnum(EventType);

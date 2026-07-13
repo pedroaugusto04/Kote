@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { type Channel, type Message } from 'amqplib';
 
-import { GithubBackfillRunnerService } from '../../application/services/github-backfill-runner.service.js';
+import { GithubBackfillRunnerService } from '../../application/services/integrations/github-backfill-runner.service.js';
 import { GithubBackfillJobRepository } from '../../application/ports/integrations/github-backfill-job.repository.js';
 import { AppLogger } from '../../observability/logger.js';
 import { BaseRabbitMqConsumer } from './base-rabbitmq.consumer.js';

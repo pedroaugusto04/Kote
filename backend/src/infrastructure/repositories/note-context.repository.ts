@@ -3,7 +3,7 @@ import { eq, and, sql, desc, or } from 'drizzle-orm';
 import { NoteContextRepository } from '../../application/ports/notes/note-context.repository.js';
 import { NoteRecord } from '../../application/models/repository-records.models.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { notes, projects, noteLinks } from '../persistence/schema/index.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 

@@ -8,7 +8,7 @@ import { resolveCanonicalTypeFromCategories } from '../../domain/note-classifica
 import type { CategoryRecord } from '../models/repository-records.models.js';
 import type { CreateManualNoteDto } from '../dto/note.dto.js';
 import { stripTitleHeader } from '../use-cases/notes/note-editor.helpers.js';
-import { parseSourceChannelString } from '../utils/source-channel.utils.js';
+import { parseSourceChannelString } from '../utils/integration/source-channel.utils.js';
 
 export interface NoteMapperContext {
   categories: CategoryRecord[];

@@ -1,4 +1,4 @@
-import { detectSensitiveData, redactSensitiveData } from '../utils/sensitive-data-redactor.js';
+import { detectSensitiveData, redactSensitiveData } from '../utils/security/sensitive-data-redactor.js';
 
 export interface SanitizedNoteContent {
   title: string;

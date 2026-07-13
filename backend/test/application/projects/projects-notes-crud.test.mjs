@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
 import { encryptConfig } from '../../../dist/application/credentials.js';
-import { GithubRepositoryResolutionService } from '../../../dist/application/services/github-repository-resolution.service.js';
+import { GithubRepositoryResolutionService } from '../../../dist/application/services/integrations/github-repository-resolution.service.js';
 import {
   CreateProjectFolderUseCase,
   CreateManualNoteUseCase,

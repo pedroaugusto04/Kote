@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { extractWhatsappExternalId, parseWhatsappEvolutionMessage } from '../../../dist/application/utils/webhook.utils.js';
-import { buildWhatsappWebhookCommand } from '../../../dist/application/utils/whatsapp-webhook-command.utils.js';
+import { extractWhatsappExternalId, parseWhatsappEvolutionMessage } from '../../../dist/application/utils/webhook/webhook.utils.js';
+import { buildWhatsappWebhookCommand } from '../../../dist/application/utils/webhook/whatsapp-webhook-command.utils.js';
 
 test('whatsapp parser accepts payload with data array', () => {
   const parsed = parseWhatsappEvolutionMessage({

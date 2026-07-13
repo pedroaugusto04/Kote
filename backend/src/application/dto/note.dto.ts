@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 import { noteStatusValues } from '../../domain/note-status.js';
 import { KnowledgeStatus } from '../../contracts/enums.js';
-import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 import { readEnvironment } from '../../adapters/environment.js';
 
 const noteStatusSchema = z.enum(noteStatusValues).optional();

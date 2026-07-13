@@ -4,9 +4,9 @@ import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classif
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { ContentObjectStorageService } from '../../services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../services/content/content-object-storage.service.js';
 import { buildUpdatedNote, extractEditableRawText } from './note-editor.helpers.js';
-import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
+import { NoteEventDispatcher } from '../../services/webhooks/note-event-dispatcher.js';
 
 @Injectable()
 export class BulkUpdateNoteStatusUseCase {

@@ -34,12 +34,12 @@ import {
   GetAutoActionGlobalUseCase,
   SetAutoActionGlobalUseCase,
 } from '../../application/use-cases/index.js';
-import { EmbeddingWorker } from '../../application/services/embedding.worker.js';
-import { NoteChunkingService } from '../../application/services/note-chunking.service.js';
-import { NoteEventDispatcher } from '../../application/services/note-event-dispatcher.js';
-import { NoteLifecycleService } from '../../application/services/note-lifecycle.service.js';
-import { FileNotesSummaryCacheService } from '../../application/services/file-notes-summary-cache.service.js';
-import { AutoActionWorker } from '../../workers/auto-action.worker.js';
+import { EmbeddingWorker } from '../../application/workers/embedding.worker.js';
+import { NoteChunkingService } from '../../application/services/content/note-chunking.service.js';
+import { NoteEventDispatcher } from '../../application/services/webhooks/note-event-dispatcher.js';
+import { NoteLifecycleService } from '../../application/services/content/note-lifecycle.service.js';
+import { FileNotesSummaryCacheService } from '../../application/services/content/file-notes-summary-cache.service.js';
+import { AutoActionWorker } from '../../application/workers/auto-action.worker.js';
 import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
 import { SettingsRepository } from '../../application/ports/settings.repository.js';
 import { NotesController } from '../../interfaces/http/controllers/index.js';

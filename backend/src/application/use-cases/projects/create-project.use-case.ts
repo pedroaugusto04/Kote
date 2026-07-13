@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 
 import type { CreateProjectDto } from '../../dto/project.dto.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { GithubRepositoryResolutionService } from '../../services/github-repository-resolution.service.js';
-import { QuotaService } from '../../services/quota.service.js';
+import { GithubRepositoryResolutionService } from '../../services/integrations/github-repository-resolution.service.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
 import { toProjectRecord } from '../../mappers/project.mapper.js';

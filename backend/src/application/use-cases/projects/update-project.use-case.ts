@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { UpdateProjectInput } from '../../models/project-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { GithubRepositoryResolutionService } from '../../services/github-repository-resolution.service.js';
+import { GithubRepositoryResolutionService } from '../../services/integrations/github-repository-resolution.service.js';
 import { toProjectUpdateInput } from '../../mappers/project-update.mapper.js';
 
 @Injectable()

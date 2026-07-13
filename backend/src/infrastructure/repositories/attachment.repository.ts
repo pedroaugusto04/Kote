@@ -5,7 +5,7 @@ import { eq, and, desc } from 'drizzle-orm';
 
 import { calculateAttachmentSize } from '../../domain/strings.js';
 import type { AttachmentRecord, SaveAttachmentInput } from '../../application/models/repository-records.models.js';
-import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { attachmentFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { attachments, notes, workspaces } from '../persistence/schema/index.js';

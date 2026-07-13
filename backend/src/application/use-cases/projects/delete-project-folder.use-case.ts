@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
-import { collectFolderDescendantIds } from '../../utils/project-folder.utils.js';
+import { collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()

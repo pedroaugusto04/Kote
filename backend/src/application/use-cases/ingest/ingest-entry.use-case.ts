@@ -9,7 +9,7 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import type { SaveNoteResult } from '../../models/note-save-result.models.js';
-import { NoteLifecycleService } from '../../services/note-lifecycle.service.js';
+import { NoteLifecycleService } from '../../services/content/note-lifecycle.service.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 import { toProjectFromIngest, toIngestPayloadWithProject, toNoteInputFromIngest, toProjectSaveInput, toNotePathsFromIngest, toSaveNoteResult } from '../../mappers/ingest.mapper.js';

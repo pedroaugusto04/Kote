@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { QuotaService } from '../../services/quota.service.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
 import { SubscriptionService } from '../../services/billing/SubscriptionService.js';
 import { BillingCycle, BillingType } from '../../../domain/enums/billing.enums.js';
-import { BillingEventBus } from '../../services/billing-event.bus.js';
+import { BillingEventBus } from '../../event-buses/billing-event.bus.js';
 
 @Injectable()
 export class UpdateSubscriptionUseCase {

@@ -12,7 +12,7 @@ import type {
   ProjectTimelineFilterCategory,
 } from '../../application/models/project-timeline.models.js';
 import type { NoteRecord, SaveNoteInput } from '../../application/models/repository-records.models.js';
-import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
 import { EventType, SourceChannel, TimelineCategory } from '../../contracts/enums.js';

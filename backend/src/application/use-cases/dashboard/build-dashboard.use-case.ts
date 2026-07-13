@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ContentQueryRepository, ContentRepository } from '../../ports/notes/content.repository.js';
-import { buildDashboardHome } from '../../utils/dashboard-home.utils.js';
+import { buildDashboardHome } from '../../utils/dashboard/dashboard-home.utils.js';
 import { RefreshReminderStatusesUseCase } from '../reminders/refresh-reminder-statuses.use-case.js';
 import { formatDateInTimeZone } from '../../../domain/time.js';
 import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';

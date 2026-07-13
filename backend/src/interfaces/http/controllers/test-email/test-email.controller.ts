@@ -2,9 +2,9 @@ import { Body, Controller, Post, HttpCode, HttpStatus, BadRequestException } fro
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
 import { WelcomeEmailService } from '../../../../application/use-cases/welcome-email.use-case.js';
-import { WeeklySummaryService } from '../../../../application/services/weekly-summary.service.js';
+import { WeeklySummaryService } from '../../../../application/services/content/weekly-summary.service.js';
 import { NotifyHighSeverityFindingsService } from '../../../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
-import { UserService } from '../../../../application/services/user.service.js';
+import { UserService } from '../../../../application/services/auth/user.service.js';
 import { RuntimeEnvironmentProvider } from '../../../../application/ports/observability/runtime-environment.port.js';
 
 const testEmailBodySchema = {

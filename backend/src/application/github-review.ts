@@ -15,7 +15,7 @@ import {
   extractChangedFilesFromCommits,
   isValidCommitSha,
   formatCorrelationId,
-} from './utils/github-review.helpers.js';
+} from './utils/github/github-review.helpers.js';
 
 // ============================================================================
 // GitHub Push Review Event Builder

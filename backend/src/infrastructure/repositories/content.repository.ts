@@ -4,7 +4,7 @@ import type { ListProjectKnowledgeMapInput } from '../../application/models/proj
 import type { ListProjectTimelineInput } from '../../application/models/project-timeline.models.js';
 import type { ListProjectsInput, PaginatedProjects } from '../../application/models/project-list.models.js';
 import type { Project } from '../../domain/projects.js';
-import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { ContentRepository } from '../../application/ports/notes/content.repository.js';
 import type {
   SaveAttachmentInput,

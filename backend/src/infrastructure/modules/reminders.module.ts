@@ -16,12 +16,12 @@ import {
   ListReminderBoardUseCase,
 } from '../../application/use-cases/index.js';
 
-import { ReminderDispatchWorker } from '../../application/services/reminder-dispatch.worker.js';
-import { ReminderEventBus } from '../../application/services/reminder-event.bus.js';
-import { PushNotificationService } from '../../application/services/push-notification.service.js';
-import { PushNotificationReminderListener } from '../../application/services/push-notification-reminder.listener.js';
-import { TelegramReminderListener } from '../../application/services/telegram-reminder.listener.js';
-import { VapidService } from '../../application/services/vapid.service.js';
+import { ReminderDispatchWorker } from '../../application/workers/reminder-dispatch.worker.js';
+import { ReminderEventBus } from '../../application/event-buses/reminder-event.bus.js';
+import { PushNotificationService } from '../../application/services/notifications/push-notification.service.js';
+import { PushNotificationReminderListener } from '../../application/listeners/push-notification-reminder.listener.js';
+import { TelegramReminderListener } from '../../application/listeners/telegram-reminder.listener.js';
+import { VapidService } from '../../application/services/notifications/vapid.service.js';
 import { WhatsappReplySender } from '../../application/ports/integrations/whatsapp-reply.sender.js';
 import { WhatsappMediaDownloader } from '../../application/ports/integrations/whatsapp-media.downloader.js';
 import { TelegramMessageSender } from '../../application/ports/integrations/telegram-message.sender.js';

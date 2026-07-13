@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   resolveContentScopeFromSlugs,
   resolveWorkspaceIdFromSlug,
-} from '../../../dist/application/utils/content-scope.utils.js';
+} from '../../../dist/application/utils/content/content-scope.utils.js';
 
 function createRepository(overrides = {}) {
   return {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { redactSensitiveData, detectSensitiveData, redactWithDetection } from '../../../src/application/utils/sensitive-data-redactor.js';
+import { redactSensitiveData, detectSensitiveData, redactWithDetection } from '../../../src/application/utils/security/sensitive-data-redactor.js';
 
 describe('Backend: Sensitive Data Redactor', () => {
   describe('redactSensitiveData', () => {

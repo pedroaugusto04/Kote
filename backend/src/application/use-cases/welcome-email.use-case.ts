@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { EmailService } from '../services/email.service.js';
+import { EmailService } from '../services/email/email.service.js';
 import { AppLogger } from '../../observability/logger.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 

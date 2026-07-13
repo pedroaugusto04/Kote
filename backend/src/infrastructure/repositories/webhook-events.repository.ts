@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 
 import { WebhookEventRepository } from '../../application/ports/webhooks/webhook-events.repository.js';
-import { sanitizeWebhookHeaders, sanitizeWebhookValue } from '../../application/utils/webhook.utils.js';
+import { sanitizeWebhookHeaders, sanitizeWebhookValue } from '../../application/utils/webhook/webhook.utils.js';
 import { webhookEventFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { webhookIdempotencyKeys, webhookEvents } from '../persistence/schema/index.js';

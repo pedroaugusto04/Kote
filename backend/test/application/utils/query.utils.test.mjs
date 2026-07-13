@@ -6,7 +6,7 @@ import {
   computeFtsOnlyChunkKeywordScore,
   selectTopFtsOnlyChunksPerNote,
   DEFAULT_FTS_ONLY_CHUNKS_PER_NOTE,
-} from '../../../dist/application/utils/query.utils.js';
+} from '../../../dist/application/utils/query/query.utils.js';
 
 test('scoreChunkLexicalOverlap returns matched token ratio', () => {
   assert.equal(scoreChunkLexicalOverlap('rollback deploy', 'Use rollback before deploy.'), 1);

@@ -3,7 +3,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from './logger.module.js';
 import { EnvModule } from './env.module.js';
 import { DatabaseModule } from './database.module.js';
-import { EmailService } from '../../application/services/email.service.js';
+import { EmailService } from '../../application/services/email/email.service.js';
 import { EmailProvider } from '../../application/ports/email/email-provider.js';
 import { EmailQueuePublisher } from '../../application/ports/email/email-queue.publisher.js';
 import { RabbitMqEmailQueuePublisher } from '../queue/rabbitmq-email-queue.publisher.js';
@@ -15,7 +15,7 @@ import { AppLogger } from '../../observability/logger.js';
 import { RuntimeEnvironmentProvider } from '../../application/ports/observability/runtime-environment.port.js';
 import { WelcomeEmailService } from '../../application/use-cases/welcome-email.use-case.js';
 import { NotifyHighSeverityFindingsService } from '../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
-import { UserService } from '../../application/services/user.service.js';
+import { UserService } from '../../application/services/auth/user.service.js';
 
 @Module({
   imports: [LoggerModule, EnvModule, DatabaseModule],

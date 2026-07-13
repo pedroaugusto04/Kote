@@ -7,9 +7,9 @@ import { GithubIntegrationGateway } from '../../../ports/integrations/github-int
 import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
-import { ProcessGithubPushService } from '../../../services/process-github-push.service.js';
-import { GithubRepositoryResolutionService } from '../../../services/github-repository-resolution.service.js';
-import { normalizeHeaders } from '../../../utils/webhook.utils.js';
+import { ProcessGithubPushService } from '../../../services/integrations/process-github-push.service.js';
+import { GithubRepositoryResolutionService } from '../../../services/integrations/github-repository-resolution.service.js';
+import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
 import { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPushPayload = {

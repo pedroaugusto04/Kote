@@ -2,8 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
-import { ProcessGithubPushService } from '../../../dist/application/services/process-github-push.service.js';
-import { GithubRepositoryResolutionService } from '../../../dist/application/services/github-repository-resolution.service.js';
+import { ProcessGithubPushService } from '../../../dist/application/services/integrations/process-github-push.service.js';
+import { GithubRepositoryResolutionService } from '../../../dist/application/services/integrations/github-repository-resolution.service.js';
 import { BuildDashboardUseCase, CreateWorkspaceUseCase, HandleGithubPushUseCase, HandleGithubPullRequestUseCase, IngestEntryUseCase, RefreshReminderStatusesUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 

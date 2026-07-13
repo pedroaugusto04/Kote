@@ -10,7 +10,7 @@ import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
 import { AI_PROVIDERS_REGISTRY, getAiProviderConfig } from './ai-providers-registry.js';
-import { GithubRepositoryResolutionService } from './services/github-repository-resolution.service.js';
+import { GithubRepositoryResolutionService } from './services/integrations/github-repository-resolution.service.js';
 import { WhatsappReplySender } from './ports/integrations/whatsapp-reply.sender.js';
 import { TelegramMessageSender } from './ports/integrations/telegram-message.sender.js';
 import { AppLogger } from '../observability/logger.js';
@@ -33,7 +33,7 @@ import {
   type ConnectionSessionView,
 } from './integrations/connection-session.helpers.js';
 
-import { parseWhatsappEvolutionMessage } from './utils/webhook.utils.js';
+import { parseWhatsappEvolutionMessage } from './utils/webhook/webhook.utils.js';
 import { WHATSAPP_INTRO_MESSAGE, TELEGRAM_INTRO_MESSAGE } from './integrations/connection-messages.js';
 
 export type { ConnectionSessionView };

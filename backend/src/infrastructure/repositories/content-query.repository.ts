@@ -2,14 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { eq, and, count, desc, sql, inArray, notInArray, type SQL } from 'drizzle-orm';
 
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
-import { tokenizeQuery, getSpecialQueryIntent } from '../../application/utils/query.utils.js';
+import { tokenizeQuery, getSpecialQueryIntent } from '../../application/utils/query/query.utils.js';
 import { readEnvironment } from '../../adapters/environment.js';
 import { ReminderDeliveryChannel } from '../../contracts/enums.js';
 import type { DueReminderView, ReminderView } from '../../application/models/reminder.models.js';
 import type { NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
 import { ContentQueryRepository } from '../../application/ports/notes/content.repository.js';
-import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { resolveReminderScheduledAt } from '../../application/use-cases/reminders/reminder-schedule.js';
 import { reminderDispatchEligibleStatuses } from '../../domain/note-status.js';
 import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';

@@ -2,7 +2,6 @@ import { readEnvironment } from '../../adapters/environment.js';
 import type { ReminderView } from '../../application/models/reminder.models.js';
 import type { AttachmentRecord, NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
-import { absoluteUrl } from '../../application/utils/integration-status.utils.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../application/models/vault-note.models.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 import { EventType, SourceChannel } from '../../contracts/enums.js';

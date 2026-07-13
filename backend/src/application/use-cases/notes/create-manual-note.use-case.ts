@@ -5,7 +5,7 @@ import { withDerivedReminderAt } from '../../../contracts/ingest.js';
 import type { CreateManualNoteDto } from '../../dto/note.dto.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
+import { NoteEventDispatcher } from '../../services/webhooks/note-event-dispatcher.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { toIngestPayload, type NoteMapperContext } from '../../mappers/note.mapper.js';
 import { requireProject } from '../../helpers/resource-validation.helpers.js';

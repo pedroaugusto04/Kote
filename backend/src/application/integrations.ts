@@ -6,7 +6,7 @@ import type { Workspace } from '../domain/workspaces.js';
 import { ContentRepository } from './ports/notes/content.repository.js';
 import { PushSubscriptionRepository } from './ports/push/push-subscription.repository.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
-import { absoluteUrl, configuredEnv, link, missingEnv, secretConfigured, statusFromFlags, workspaceRepos } from './utils/integration-status.utils.js';
+import { absoluteUrl, configuredEnv, link, missingEnv, secretConfigured, statusFromFlags, workspaceRepos } from './utils/integration/integration-status.utils.js';
 
 export type IntegrationStatusValue = IntegrationSetupStatus;
 

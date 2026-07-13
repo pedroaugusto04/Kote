@@ -6,8 +6,8 @@ import { EmailModule } from './email.module.js';
 import { AiModule } from './ai.module.js';
 import { IntegrationsModule } from './integrations.module.js';
 
-import { WeeklySummaryService } from '../../application/services/weekly-summary.service.js';
-import { WeeklySummaryWorker } from '../../application/services/workers/weekly-summary.worker.js';
+import { WeeklySummaryService } from '../../application/services/content/weekly-summary.service.js';
+import { WeeklySummaryWorker } from '../../application/workers/weekly-summary.worker.js';
 import { WeeklySummaryQueuePublisher } from '../../application/ports/weekly-summary/weekly-summary-queue.publisher.js';
 import { RabbitMqWeeklySummaryQueuePublisher } from '../queue/rabbitmq-weekly-summary-queue.publisher.js';
 import { RabbitMqWeeklySummaryQueueConsumer } from '../queue/rabbitmq-weekly-summary-queue.consumer.js';

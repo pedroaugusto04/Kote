@@ -5,7 +5,7 @@ import {
 import type { ConversationInput } from '../../../../contracts/conversation.js';
 import type { ProjectFolderRecord, ProjectRecord } from '../../../models/repository-records.models.js';
 import type { ConversationAgentFolderContext, ConversationAgentResponse } from '../../../ports/conversation/conversation-agent.gateway.js';
-import { buildProjectFolderTree } from '../../../utils/project-folder.utils.js';
+import { buildProjectFolderTree } from '../../../utils/content/project-folder.utils.js';
 import {
   toNextAgentConversationState,
   toFolderTreeNode,

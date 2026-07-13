@@ -3,7 +3,7 @@ import { DatabaseModule } from './database.module.js';
 import { AuthModule } from './auth.module.js';
 import { BillingModule } from './billing.module.js';
 import { SubscriptionController } from '../../interfaces/http/controllers/subscription/subscription.controller.js';
-import { QuotaService } from '../../application/services/quota.service.js';
+import { QuotaService } from '../../application/services/quota/quota.service.js';
 import {
   GetPlansUseCase,
   GetStripeConfigUseCase,

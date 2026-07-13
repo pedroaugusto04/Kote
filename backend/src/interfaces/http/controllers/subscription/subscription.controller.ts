@@ -8,7 +8,7 @@ import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
 import { BillingCycle, BillingType } from '../../../../domain/enums/billing.enums.js';
 import { COUNTRY_CODE } from '../../../../domain/constants/billing.constants.js';
-import { BillingEventBus } from '../../../../application/services/billing-event.bus.js';
+import { BillingEventBus } from '../../../../application/event-buses/billing-event.bus.js';
 import {
   GetPlansUseCase,
   GetStripeConfigUseCase,

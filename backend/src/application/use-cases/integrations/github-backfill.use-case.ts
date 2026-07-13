@@ -3,7 +3,7 @@ import crypto from 'node:crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
-import { ProcessGithubPushService } from '../../services/process-github-push.service.js';
+import { ProcessGithubPushService } from '../../services/integrations/process-github-push.service.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { GithubBackfillJobRepository } from '../../ports/integrations/github-backfill-job.repository.js';

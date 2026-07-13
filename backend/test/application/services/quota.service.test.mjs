@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { QuotaService } from '../../../dist/application/services/quota.service.js';
+import { QuotaService } from '../../../dist/application/services/quota/quota.service.js';
 import { QuotaResourceType } from '../../../dist/domain/enums/plans.enums.js';
 import { BillingCycle } from '../../../dist/domain/enums/billing.enums.js';
 

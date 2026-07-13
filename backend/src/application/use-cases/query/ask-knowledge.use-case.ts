@@ -11,11 +11,11 @@ import type { NoteRecord } from '../../models/repository-records.models.js';
 import type { VaultNoteSummary } from '../../models/vault-note.models.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 import { ConversationConfidence, EmbeddingTaskType, SpecialQueryIntent } from '../../../contracts/enums.js';
-import { QuotaService } from '../../services/quota.service.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
-import { getSpecialQueryIntent, matchesIntent, selectTopFtsOnlyChunksPerNote } from '../../utils/query.utils.js';
-import { chunkRankKey, rankHybridContextChunks } from '../../utils/hybrid-rag.utils.js';
+import { getSpecialQueryIntent, matchesIntent, selectTopFtsOnlyChunksPerNote } from '../../utils/query/query.utils.js';
+import { chunkRankKey, rankHybridContextChunks } from '../../utils/rag/hybrid-rag.utils.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 
 type AskRelatedNote = {

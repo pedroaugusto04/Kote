@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 
 import { IntegrationCredentialService } from '../../../dist/application/credentials.js';
 import { IntegrationConnectionService } from '../../../dist/application/integration-connections.js';
-import { GithubRepositoryResolutionService } from '../../../dist/application/services/github-repository-resolution.service.js';
+import { GithubRepositoryResolutionService } from '../../../dist/application/services/integrations/github-repository-resolution.service.js';
 import { HandleTelegramWebhookUseCase, HandleWhatsappWebhookUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 

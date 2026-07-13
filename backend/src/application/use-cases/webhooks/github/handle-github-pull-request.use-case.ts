@@ -9,16 +9,16 @@ import { GithubIntegrationGateway } from '../../../ports/integrations/github-int
 import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
-import { normalizeHeaders } from '../../../utils/webhook.utils.js';
-import { resolveContentScopeFromSlugs } from '../../../utils/content-scope.utils.js';
-import { QuotaService } from '../../../services/quota.service.js';
+import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
+import { resolveContentScopeFromSlugs } from '../../../utils/content/content-scope.utils.js';
+import { QuotaService } from '../../../services/quota/quota.service.js';
 import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { EmbeddingGateway } from '../../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
 import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
 import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.port.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
-import { GithubRepositoryResolutionService } from '../../../services/github-repository-resolution.service.js';
+import { GithubRepositoryResolutionService } from '../../../services/integrations/github-repository-resolution.service.js';
 import { AppLogger } from '../../../../observability/logger.js';
 
 type GithubPullRequestPayload = {

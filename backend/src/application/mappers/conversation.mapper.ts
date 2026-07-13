@@ -9,9 +9,9 @@ import { normalizeMultiline, slugify, trimText } from '../../domain/strings.js';
 import { nowIso } from '../../domain/time.js';
 import type { ProjectFolderRecord, ProjectRecord } from '../models/repository-records.models.js';
 import type { ConversationAgentFolderContext, ConversationAgentResponse } from '../ports/conversation/conversation-agent.gateway.js';
-import { buildConversationIngestPayload } from '../utils/conversation-payload.utils.js';
-import { folderSlugFromDisplayName } from '../utils/project-folder.utils.js';
-import { getCorrelationPrefix, getSourceSystem, resolveSourceChannel } from '../utils/source-channel.utils.js';
+import { buildConversationIngestPayload } from '../utils/conversation/conversation-payload.utils.js';
+import { folderSlugFromDisplayName } from '../utils/content/project-folder.utils.js';
+import { getCorrelationPrefix, getSourceSystem, resolveSourceChannel } from '../utils/integration/source-channel.utils.js';
 
 export function toNextAgentConversationState(input: {
   current: AgentConversationState;

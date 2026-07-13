@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { trimText } from '../../../../domain/strings.js';
 import type { AgentConversationState } from '../../../../contracts/agent-conversation.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
-import { resolveContentScopeFromSlugs } from '../../../utils/content-scope.utils.js';
-import { folderSlugFromDisplayName } from '../../../utils/project-folder.utils.js';
+import { resolveContentScopeFromSlugs } from '../../../utils/content/content-scope.utils.js';
+import { folderSlugFromDisplayName } from '../../../utils/content/project-folder.utils.js';
 import { CreateProjectFolderUseCase } from '../../projects/create-project-folder.use-case.js';
 
 @Injectable()

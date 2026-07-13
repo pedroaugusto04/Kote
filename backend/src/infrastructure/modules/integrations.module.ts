@@ -30,10 +30,10 @@ import {
   DeleteWebhookSubscriptionUseCase,
   IngestEntryUseCase,
 } from '../../application/use-cases/index.js';
-import { WebhookDeliveryService } from '../../application/services/webhook-delivery.service.js';
-import { WebhookDeliveryWorker } from '../../application/services/webhook-delivery.worker.js';
-import { ProcessGithubPushService } from '../../application/services/process-github-push.service.js';
-import { GithubBackfillRunnerService } from '../../application/services/github-backfill-runner.service.js';
+import { WebhookDeliveryService } from '../../application/services/webhooks/webhook-delivery.service.js';
+import { WebhookDeliveryWorker } from '../../application/workers/webhook-delivery.worker.js';
+import { ProcessGithubPushService } from '../../application/services/integrations/process-github-push.service.js';
+import { GithubBackfillRunnerService } from '../../application/services/integrations/github-backfill-runner.service.js';
 import { GithubBackfillJobRepository } from '../../application/ports/integrations/github-backfill-job.repository.js';
 import { BackfillQueuePublisher } from '../../application/ports/integrations/backfill-queue.publisher.js';
 import { PostgresGithubBackfillJobRepository } from '../repositories/github-backfill-job.repository.js';

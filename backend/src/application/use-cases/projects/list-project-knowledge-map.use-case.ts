@@ -10,7 +10,7 @@ import type {
   ProjectKnowledgeMapNoteCategory,
 } from '../../models/project-knowledge-map.models.js';
 import type { NoteRecord, ProjectFolderRecord, SaveProjectInput } from '../../models/repository-records.models.js';
-import { collectFolderDescendantIds } from '../../utils/project-folder.utils.js';
+import { collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EventType, SourceChannel, TimelineCategory } from '../../../contracts/enums.js';
 

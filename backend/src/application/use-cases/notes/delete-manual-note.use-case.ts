@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { WebhookTrigger } from '../../../contracts/enums.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
-import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
+import { NoteEventDispatcher } from '../../services/webhooks/note-event-dispatcher.js';
 
 @Injectable()
 export class DeleteNoteUseCase {

@@ -6,7 +6,7 @@ import { ContentQueryRepository } from '../../ports/notes/content.repository.js'
 import { EmbeddingGateway } from '../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
-import { rankKnowledgeMatches, rankHybridKnowledgeMatches } from '../../utils/query.utils.js';
+import { rankKnowledgeMatches, rankHybridKnowledgeMatches } from '../../utils/query/query.utils.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { EmbeddingTaskType } from '../../../contracts/enums.js';
 import type { VaultNoteSummary } from '../../models/vault-note.models.js';

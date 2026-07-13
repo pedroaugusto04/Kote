@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { rewriteNotePathForFolder } from '../../../domain/notes.js';
 import type { UpdateProjectFolderInput } from '../../models/project-folder-input.models.js';
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
-import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/project-folder.utils.js';
+import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { toFolderUpdateRewrite } from '../../mappers/project-folder.mapper.js';
 

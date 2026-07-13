@@ -3,7 +3,7 @@ import type { UpdateNoteDto } from '../../dto/note.dto.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
-import { NoteLifecycleService } from '../../services/note-lifecycle.service.js';
+import { NoteLifecycleService } from '../../services/content/note-lifecycle.service.js';
 import { requireProject, requireNote, requireProjectFolderOptional } from '../../helpers/resource-validation.helpers.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';

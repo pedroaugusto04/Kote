@@ -5,8 +5,8 @@ import { AppLogger } from '../../../observability/logger.js';
 import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/query/answer-generation.gateway.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
-import { QuotaService } from '../../services/quota.service.js';
-import { FileNotesSummaryCacheService } from '../../services/file-notes-summary-cache.service.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
+import { FileNotesSummaryCacheService } from '../../services/content/file-notes-summary-cache.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
 

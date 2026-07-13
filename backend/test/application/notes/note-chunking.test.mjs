@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { NoteChunkingService } from '../../../dist/application/services/note-chunking.service.js';
+import { NoteChunkingService } from '../../../dist/application/services/content/note-chunking.service.js';
 
 test('note chunking includes attachment metadata so ask can retrieve attached files', () => {
   const mockRuntimeEnv = {

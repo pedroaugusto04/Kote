@@ -8,10 +8,10 @@ import { SchemaMigrator, UserRepository } from './ports/auth/auth.repository.js'
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
 import { readEnvironment } from '../adapters/environment.js';
 import { BILLING_ERROR_MESSAGES } from '../domain/constants/billing.constants.js';
-import { JwtService, type TokenPair } from './services/jwt.service.js';
-import { PasswordService } from './services/password.service.js';
-import { GoogleOAuthService } from './services/google-oauth.service.js';
-import { AvatarService, type AvatarContent, avatarMaxSizeBytes } from './services/avatar.service.js';
+import { JwtService, type TokenPair } from './services/auth/jwt.service.js';
+import { PasswordService } from './services/auth/password.service.js';
+import { GoogleOAuthService } from './services/integrations/google-oauth.service.js';
+import { AvatarService, type AvatarContent, avatarMaxSizeBytes } from './services/content/avatar.service.js';
 
 export type AuthenticatedUser = {
   id: string;

@@ -7,7 +7,7 @@ import { CredentialRepository } from '../../ports/integrations/integrations.repo
 import { ProjectBriefAiGateway } from '../../ports/projects/project-brief-ai.gateway.js';
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { QuotaService } from '../../services/quota.service.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
 import { toProjectBriefContextItem, toEmptyProjectBrief, toNormalizedBrief, toSha256 } from '../../mappers/project-brief.mapper.js';

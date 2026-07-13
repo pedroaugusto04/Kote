@@ -14,7 +14,7 @@ import { SubscriptionService } from '../../../application/services/billing/Subsc
 import { BillingIntentService } from '../../../application/services/billing/BillingIntentService.js';
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { BillingEventBus } from '../../../application/services/billing-event.bus.js';
+import { BillingEventBus } from '../../../application/event-buses/billing-event.bus.js';
 import {
   parseDateTimeInput,
   toMoneyNumber,

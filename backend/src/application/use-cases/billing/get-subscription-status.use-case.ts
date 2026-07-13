@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { QuotaService } from '../../services/quota.service.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
 import { SubscriptionService } from '../../services/billing/SubscriptionService.js';
 
 @Injectable()

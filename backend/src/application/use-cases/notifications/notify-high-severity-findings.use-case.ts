@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
-import { EmailService } from '../../../application/services/email.service.js';
+import { EmailService } from '../../services/email/email.service.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { buildWhatsappHighSeverityCodeReviewMessage } from '../../../domain/notifications.js';

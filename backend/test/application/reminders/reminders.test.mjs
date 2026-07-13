@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, ListReminderBoardUseCase, MarkReminderAsSentUseCase, RefreshReminderStatusesUseCase, UpdateReminderStatusUseCase } from '../../../dist/application/use-cases/index.js';
 import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../../dist/contracts/enums.js';
 import { formatReminderScheduledAtLabel, reminderDispatchKey } from '../../../dist/application/use-cases/reminders/reminder-schedule.js';
-import { ReminderDispatchWorker } from '../../../dist/application/services/reminder-dispatch.worker.js';
-import { TelegramReminderDispatchWorker } from '../../../dist/application/services/telegram-reminder-dispatch.worker.js';
+import { ReminderDispatchWorker } from '../../../dist/application/workers/reminder-dispatch.worker.js';
+import { TelegramReminderDispatchWorker } from '../../../dist/application/workers/telegram-reminder-dispatch.worker.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 async function createStoreWithReminder(t) {
@@ -784,7 +784,7 @@ test('telegram reminder worker delegates to telegram dispatch channel', async ()
   assert.equal(result.ok, true);
 });
 
-import { ReminderEventBus } from '../../../dist/application/services/reminder-event.bus.js';
+import { ReminderEventBus } from '../../../dist/application/event-buses/reminder-event.bus.js';
 
 test('reminder dispatch emits reminder.sent event on successful delivery', async (t) => {
   const { repositories, user } = await createStoreWithReminder(t);
