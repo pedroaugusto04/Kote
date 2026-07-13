@@ -69,6 +69,7 @@ export const ingestPayloadSchema = z
         followUpBy: z.string().default(''),
       })
       .default({}),
+    links: z.array(z.string()).default([]),
     metadata: z.record(z.string(), z.unknown()).default({}),
   })
   .transform((payload) => ({

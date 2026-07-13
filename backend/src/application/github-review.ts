@@ -130,9 +130,9 @@ export async function buildGithubReviewEvent(
       repoFullName: repoInfo.fullName,
       branch,
       compareUrl: String(body.compare || ''),
-      changedFiles,
       headSha: String(body.after || ''),
     },
+    links: changedFiles,
   });
 }
 
@@ -235,8 +235,8 @@ export async function buildGithubPrReviewEvent(
       headBranch: String(body.pull_request?.head?.ref || ''),
       baseSha: String(body.pull_request?.base?.sha || ''),
       headSha: String(body.pull_request?.head?.sha || ''),
-      changedFiles: changedFiles.map(f => f.filename),
     },
+    links: changedFiles.map(f => f.filename),
   });
 }
 
@@ -411,7 +411,7 @@ export function buildGithubPrContextNoteEvent(
       headBranch: String(body.pull_request?.head?.ref || ''),
       baseSha: String(body.pull_request?.base?.sha || ''),
       headSha: String(body.pull_request?.head?.sha || ''),
-      changedFiles: changedFiles.map(f => f.filename),
     },
+    links: changedFiles.map(f => f.filename),
   });
 }

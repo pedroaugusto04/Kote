@@ -194,6 +194,7 @@ export type SaveNoteInput = Omit<NoteRecord, 'id' | 'markdownStorageKey' | 'cate
   markdownStorageKey?: string;
   categoryIds?: string[];
   categories?: CategoryRecord[];
+  links?: string[];
 };
 
 export type SaveAttachmentInput = Omit<AttachmentRecord, 'id' | 'userId' | 'createdAt' | 'storageKey'> & {

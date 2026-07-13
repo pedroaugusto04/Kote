@@ -19,7 +19,7 @@ import { EventType, SourceChannel, TimelineCategory } from '../../contracts/enum
 import { noteSummary } from '../mappers/content-query.mappers.js';
 import { noteFromRow, toIsoTimestamp } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory } from '../persistence/schema/index.js';
+import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory, noteLinks } from '../persistence/schema/index.js';
 import { resolveIds } from './utils/id-resolution.helpers.js';
 import { isAiSource } from '../../domain/notes.js';
 import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
@@ -35,6 +35,57 @@ export class PostgresNoteRepository {
 
   private async hydrateMarkdown(note: NoteRecord): Promise<NoteRecord> {
     return this.contentObjectStorage.hydrateMarkdown(note);
+  }
+
+  private async syncNoteLinks(dbOrTx: any, userId: string, noteId: string, input: SaveNoteInput) {
+    const isLinksExplicitlyProvided = input.links !== undefined;
+
+    if (isLinksExplicitlyProvided) {
+      await dbOrTx
+        .delete(noteLinks)
+        .where(and(eq(noteLinks.userId, userId), eq(noteLinks.noteId, noteId)));
+    } else {
+      await dbOrTx
+        .delete(noteLinks)
+        .where(
+          and(
+            eq(noteLinks.userId, userId),
+            eq(noteLinks.noteId, noteId),
+            sql`metadata->>'source' = 'path'`
+          )
+        );
+    }
+
+    const linksToInsert: typeof noteLinks.$inferInsert[] = [];
+
+    if (input.path && input.path.trim()) {
+      linksToInsert.push({
+        id: crypto.randomUUID(),
+        userId,
+        noteId,
+        target: input.path.trim(),
+        metadata: { source: 'path' },
+      });
+    }
+
+    if (isLinksExplicitlyProvided && Array.isArray(input.links)) {
+      for (const file of input.links) {
+        const fileStr = String(file).trim();
+        if (fileStr) {
+          linksToInsert.push({
+            id: crypto.randomUUID(),
+            userId,
+            noteId,
+            target: fileStr,
+            metadata: { source: 'links' },
+          });
+        }
+      }
+    }
+
+    if (linksToInsert.length > 0) {
+      await dbOrTx.insert(noteLinks).values(linksToInsert);
+    }
   }
 
   async list(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
@@ -665,6 +716,8 @@ export class PostgresNoteRepository {
       );
     }
 
+    await this.syncNoteLinks(db, userId, noteId, input);
+
     const created = await this.getById(userId, noteId);
     if (!created) {
       throw new InternalServerErrorException('note_not_found');
@@ -820,6 +873,7 @@ export class PostgresNoteRepository {
           .onConflictDoNothing();
       }
     }
+    await this.syncNoteLinks(dbOrTx, userId, input.id!, input);
     return { rows: updateResult };
   }
 

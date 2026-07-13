@@ -317,7 +317,12 @@ test('github push resolves project by explicit repository mapping', async (t) =>
   assert.equal(notes[0].projectSlug, 'platform');
   assert.equal(notes[0].metadata.repoFullName, 'acme/api');
   assert.equal(notes[0].metadata.headSha, '2222222');
-  assert.deepEqual(notes[0].metadata.changedFiles, ['src/app.ts']);
+  const linksResult = await repositories.query(
+    "select target from kb_note_links where note_id = $1 and metadata->>'source' = 'links'",
+    [notes[0].id]
+  );
+  const targets = linksResult.rows.map(r => r.target);
+  assert.deepEqual(targets, ['src/app.ts']);
   const event = await repositories.getLastWebhookEvent();
   assert.equal(event.status, 'processed');
   assert.equal(event.rawPayload.repositoryFullName, 'acme/api');

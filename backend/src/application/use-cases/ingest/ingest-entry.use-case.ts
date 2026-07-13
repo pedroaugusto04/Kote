@@ -227,6 +227,7 @@ async function saveIngestedNote(
         source: payload.source.system,
         sessionId: payload.source.sessionId,
         reminderAt: payload.actions.reminderAt,
+        links: payload.links,
       },
       attachments: payload.content.attachments,
     },

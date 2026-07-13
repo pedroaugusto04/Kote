@@ -4,7 +4,7 @@ import { NoteContextRepository } from '../../application/ports/notes/note-contex
 import { NoteRecord } from '../../application/models/repository-records.models.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
-import { notes, projects } from '../persistence/schema/index.js';
+import { notes, projects, noteLinks } from '../persistence/schema/index.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 
 @Injectable()
@@ -21,8 +21,6 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
   async findNotesByFile(userId: string, filePath: string, options?: { limit?: number }): Promise<NoteRecord[]> {
     const db = this.database.getDb();
     const limit = options?.limit ?? 15;
-    const baseName = filePath.split('/').pop() || filePath;
-    const likePattern = `%${baseName}%`;
 
     const result = await db
       .select({
@@ -50,15 +48,12 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
       })
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
+      .innerJoin(noteLinks, eq(notes.id, noteLinks.noteId))
       .where(
         and(
           eq(notes.userId, userId),
-          or(
-            eq(notes.path, filePath),
-            sql`${notes.metadata}->'changedFiles' @> jsonb_build_array(${filePath}::text)`,
-            sql`${notes.title} ILIKE ${likePattern}`,
-            sql`${notes.summary} ILIKE ${likePattern}`
-          )
+          eq(noteLinks.userId, userId),
+          eq(noteLinks.target, filePath)
         )
       )
       .orderBy(desc(notes.occurredAt))

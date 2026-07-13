@@ -79,5 +79,6 @@ export function toIngestPayload(
       rawText: dto.rawText,
       ...(dto.metadata || {}),
     },
+    links: [],
   };
 }
