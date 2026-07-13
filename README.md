@@ -64,6 +64,28 @@ Kote runs in the background, indexing your interactions and development activity
 Once Kote is capturing your context, you can interact with it everywhere you work.
 
 <details>
+<summary><strong>Web Application & Knowledge Map</strong></summary>
+
+A visual dashboard to manage, search, and visualize your context engine. Features a node graph illustrating relations between projects and notes.
+
+<p align="center">
+  <img src="docs/screenshots/ask-ai-overview.png" alt="Web Chat Search Interface" width="100%">
+  <br><em>Semantic chat interface for querying indexed data.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/note-details-example.png" alt="Note Detail View" width="100%">
+  <br><em>Detailed view of a captured note with metadata and tags.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/map-overview.png" alt="Knowledge Node Graph Map" width="100%">
+  <br><em>Visual node graph illustrating relations between projects and notes.</em>
+</p>
+
+</details>
+
+<details>
 <summary><strong>VS Code Extension</strong></summary>
 
 Integrates directly with your editor to capture context during development.
@@ -91,7 +113,7 @@ For configuration details, see [ide/vscode/README.md](ide/vscode/README.md).
 </details>
 
 <details>
-<summary><strong>CLI Tool (kote)</strong></summary>
+<summary><strong>Kote CLI</strong></summary>
 
 Synchronize terminal session histories and import local directories or files.
 
@@ -104,17 +126,6 @@ For installation steps and command options, see [cli/README.md](cli/README.md).
 </details>
 
 <details>
-<summary><strong>Model Context Protocol (MCP) Server</strong></summary>
-
-Provides developer memory retrieval and persistence directly to AI assistants (Cursor, Claude Desktop, Cline, Antigravity).
-
-* **kote_search_notes**: Search developer notes and decisions.
-* **kote_create_note**: Persistently save important decisions straight into your Kote memory graph.
-
-Run directly via `npx -y @pedroaugusto04/kote-mcp`. See [ide/mcp/README.md](ide/mcp/README.md).
-</details>
-
-<details>
 <summary><strong>Messaging (WhatsApp & Telegram)</strong></summary>
 
 Log quick notes and query your context engine on the go.
@@ -123,6 +134,7 @@ Log quick notes and query your context engine on the go.
   <img src="docs/screenshots/integrations-setup.png" alt="Integrations Configuration Panel" width="100%">
   <br><em>Configuration dashboard for WhatsApp, Telegram, and GitHub integrations.</em>
 </p>
+
 * **Audio Notes:** Transcribes and structures voice recordings.
 * **Image Capture:** Upload screenshots or whiteboard diagrams.
 * **Interactive Querying:** Search using the `/ask` command.
@@ -143,25 +155,14 @@ See [ide/browser-extension/README.md](ide/browser-extension/README.md).
 </details>
 
 <details>
-<summary><strong>Web Application & Knowledge Map</strong></summary>
+<summary><strong>Model Context Protocol (MCP) Server</strong></summary>
 
-A visual dashboard to manage, search, and visualize your context engine. Features a node graph illustrating relations between projects and notes.
+Provides developer memory retrieval and persistence directly to AI assistants (Cursor, Claude Desktop, Cline, Antigravity).
 
-<p align="center">
-  <img src="docs/screenshots/ask-ai-overview.png" alt="Web Chat Search Interface" width="100%">
-  <br><em>Semantic chat interface for querying indexed data.</em>
-</p>
+* **kote_search_notes**: Search developer notes and decisions.
+* **kote_create_note**: Persistently save important decisions straight into your Kote memory graph.
 
-<p align="center">
-  <img src="docs/screenshots/note-details-example.png" alt="Note Detail View" width="100%">
-  <br><em>Detailed view of a captured note with metadata and tags.</em>
-</p>
-
-<p align="center">
-  <img src="docs/screenshots/map-overview.png" alt="Knowledge Node Graph Map" width="100%">
-  <br><em>Visual node graph illustrating relations between projects and notes.</em>
-</p>
-
+Run directly via `npx -y @pedroaugusto04/kote-mcp`. See [ide/mcp/README.md](ide/mcp/README.md).
 </details>
 
 ---
