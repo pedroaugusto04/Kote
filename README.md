@@ -166,6 +166,7 @@ See [ide/browser-extension/README.md](ide/browser-extension/README.md).
 Provides developer memory retrieval and persistence directly to AI assistants (Cursor, Claude Desktop, Cline, Antigravity).
 
 * **kote_search_notes**: Search developer notes and decisions.
+* **kote_get_note**: Fetch the full Markdown body of a specific note by ID.
 * **kote_create_note**: Persistently save important decisions straight into your Kote memory graph.
 
 Run directly via `npx -y @pedroaugusto04/kote-mcp`. See [ide/mcp/README.md](ide/mcp/README.md).
