@@ -172,6 +172,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
     loggerMock,
+    repositories.database,
   );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();

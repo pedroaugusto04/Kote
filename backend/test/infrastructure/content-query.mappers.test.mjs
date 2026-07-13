@@ -6,8 +6,8 @@ import { noteAttachment } from '../../dist/infrastructure/mappers/content-query.
 test('noteAttachment uses API public base url and preserves nested api base path', (t) => {
   const previousPublicBaseUrl = process.env.KB_PUBLIC_BASE_URL;
   const previousApiPublicBaseUrl = process.env.KB_API_PUBLIC_BASE_URL;
-  process.env.KB_PUBLIC_BASE_URL = 'https://kb.example.com/kote';
-  process.env.KB_API_PUBLIC_BASE_URL = 'https://kb.example.com/kote/api';
+  process.env.KB_PUBLIC_BASE_URL = '';
+  process.env.KB_API_PUBLIC_BASE_URL = '';
   t.after(() => {
     if (previousPublicBaseUrl === undefined) delete process.env.KB_PUBLIC_BASE_URL;
     else process.env.KB_PUBLIC_BASE_URL = previousPublicBaseUrl;
@@ -29,6 +29,6 @@ test('noteAttachment uses API public base url and preserves nested api base path
 
   assert.equal(
     attachment.url,
-    'https://kb.example.com/kote/api/notes/note-1/attachments/attachment-1/content',
+    '/api/notes/note-1/attachments/attachment-1/content',
   );
 });

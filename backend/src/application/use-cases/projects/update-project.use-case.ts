@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import type { UpdateProjectInput } from '../../models/project-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { GithubRepositoryResolutionService } from '../../services/github-repository-resolution.service.js';
+import { toProjectUpdateInput } from '../../mappers/project-update.mapper.js';
 
 @Injectable()
 export class UpdateProjectUseCase {
@@ -11,7 +12,6 @@ export class UpdateProjectUseCase {
   ) { }
 
   async execute(input: UpdateProjectInput, userId: string) {
-
     const project = await this.contentRepository.getProjectById(userId, input.projectId);
     if (!project || !project.enabled) throw new NotFoundException('project_not_found');
 
@@ -21,11 +21,11 @@ export class UpdateProjectUseCase {
       repositoryIds: input.repositoryIds,
     });
 
+    const updateData = toProjectUpdateInput(input, project);
     const updatedProject = await this.contentRepository.upsertProject(userId, {
       ...project,
-      displayName: input.displayName,
+      ...updateData,
       repositories: selectedRepositories,
-      defaultTags: input.defaultTags,
     });
 
     return { ok: true as const, project: updatedProject };

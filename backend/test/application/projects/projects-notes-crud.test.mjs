@@ -110,7 +110,7 @@ test('updates manual note content and reminder metadata only', async (t) => {
   const { note } = await seedManualNote(repositories, user.id);
 
   const noopDispatcher = { dispatch: async () => {} };
-  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService);
+  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database);
   const result = await useCase.execute({
     id: note.id,
     title: 'Deploy revisado',
@@ -146,6 +146,7 @@ test('updates existing manual note when matching sessionId and source instead of
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
     loggerMock,
+    repositories.database,
   );
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
@@ -215,7 +216,7 @@ test('resolves the primary note type from selected categories by priority', asyn
     icon: '',
   });
 
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, { info(){}, warn(){}, error(){}, debug(){} });
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, { info(){}, warn(){}, error(){}, debug(){} }, repositories.database);
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
     repositories.contentRepository,
@@ -236,7 +237,7 @@ test('resolves the primary note type from selected categories by priority', asyn
   assert.equal(note?.type, 'decision');
   assert.equal(note?.frontmatter.type, 'decision');
 
-  await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService).execute({
+  await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database).execute({
     id: created.noteId,
     title: 'Choose queue provider',
     rawText: 'Move this back to a regular event',
@@ -418,7 +419,7 @@ test('clears manual note reminder metadata', async (t) => {
   await seedProject(repositories, user.id);
   const { note } = await seedManualNote(repositories, user.id);
 
-  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService);
+  const useCase = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database);
   await useCase.execute({
     id: note.id,
     title: 'Deploy revisado',
@@ -554,7 +555,7 @@ test('note list and detail expose attachment metadata without storage internals'
   assert.equal(detail.attachmentCount, 2);
   assert.equal(detail.attachments.length, 2);
   assert.deepEqual(Object.keys(detail.attachments[0]).sort(), ['fileName', 'id', 'mimeType', 'sizeBytes', 'url']);
-  assert.match(detail.attachments[0].url, new RegExp(`^https://kb\\.example\\.com/kote/api/notes/${note.id}/attachments/.+/content$`));
+  assert.match(detail.attachments[0].url, new RegExp(`^/api/notes/${note.id}/attachments/.+/content$`));
   assert.equal(Object.hasOwn(detail.attachments[0], 'storageKey'), false);
   assert.equal(Object.hasOwn(detail.attachments[0], 'dataBase64'), false);
 });
@@ -705,7 +706,7 @@ test('updates any note type and still blocks project deletion while notes exist'
   });
 
   const noopDispatcher = { dispatch: async () => {} };
-  const result = await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService).execute({
+  const result = await new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database).execute({
     id: reviewNote.id,
     title: 'Review atualizada',
     rawText: 'texto atualizado',
@@ -799,7 +800,7 @@ test('folders organize manual notes and update derived note paths on rename', as
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const updateFolder = new UpdateProjectFolderUseCase(repositories.contentRepository);
   const deleteFolder = new DeleteProjectFolderUseCase(repositories.contentRepository);
-  const updateNote = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService);
+  const updateNote = new UpdateNoteUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, repositories.database);
 
   const opsFolder = (await createFolder.execute({ projectId: platformId, displayName: 'Ops' }, user.id)).folder;
   const runbooksFolder = (await createFolder.execute({ projectId: platformId, displayName: 'Runbooks', parentFolderId: opsFolder.id }, user.id)).folder;
@@ -852,6 +853,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
     loggerMock,
+    repositories.database,
   );
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
@@ -885,6 +887,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
     repositories.contentRepository,
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
+    repositories.database,
   );
 
   await updateUseCase.execute({
@@ -931,6 +934,7 @@ test('manages manual note creation with title but empty/missing rawText', async 
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
     loggerMock,
+    repositories.database,
   );
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(

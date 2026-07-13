@@ -341,7 +341,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       .update(integrationConnectionSessions)
       .set({
         status,
-        metadata: sql`metadata || ${metadata}`,
+        metadata: sql`metadata || ${JSON.stringify(metadata)}::jsonb`,
         consumedAt: sql`coalesce(${integrationConnectionSessions.consumedAt}, now())`,
         updatedAt: new Date(),
       })

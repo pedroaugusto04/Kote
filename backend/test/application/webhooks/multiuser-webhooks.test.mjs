@@ -115,7 +115,7 @@ test('new users start with an empty scoped dashboard and cannot see another user
   configureEnv();
   const repositories = await createPostgresTestRepositories(t);
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database);
   const dashboard = new BuildDashboardUseCase(
     repositories.contentRepository,
     repositories.contentQueryRepository,
@@ -166,7 +166,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     workspaceSlug: 'default',
   }, user.id);
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database);
   const processGithubPushService = new ProcessGithubPushService(
     ingest,
     repositories.runtimeEnvironmentProvider,
@@ -285,7 +285,7 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     publicMetadata: {},
   });
   const loggerMock = { info() {}, warn() {}, error() {}, debug() {} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database);
   const processGithubPushService = new ProcessGithubPushService(
     ingest,
     repositories.runtimeEnvironmentProvider,

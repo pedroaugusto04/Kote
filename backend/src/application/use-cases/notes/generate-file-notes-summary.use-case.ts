@@ -42,8 +42,6 @@ export class GenerateFileNotesSummaryUseCase {
   private readonly env: RuntimeEnvironment;
 
   constructor(
-    private readonly contentRepository: ContentRepository,
-    private readonly answerGenerationGateway: AnswerGenerationGateway,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly quotaService: QuotaService,
     private readonly cacheService: FileNotesSummaryCacheService,

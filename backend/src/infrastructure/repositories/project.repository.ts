@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { eq, and, desc, sql, gt, lte, or, count } from 'drizzle-orm';
 
 import type { ListProjectsInput } from '../../application/models/project-list.models.js';
@@ -142,6 +142,22 @@ export class PostgresProjectRepository {
     return result[0] ? projectFromRow(result[0]) : null;
   }
 
+  async getByIdOrThrow(userId: string, id: string) {
+    const project = await this.getById(userId, id);
+    if (!project) {
+      throw new NotFoundException('project_not_found');
+    }
+    return project;
+  }
+
+  async getBySlugOrThrow(userId: string, projectSlug: string) {
+    const project = await this.getBySlug(userId, projectSlug);
+    if (!project) {
+      throw new NotFoundException('project_not_found');
+    }
+    return project;
+  }
+
   async upsert(userId: string, input: SaveProjectInput) {
     const db = this.database.getDb();
     return db.transaction(async (tx) => {
@@ -253,15 +269,15 @@ export class PostgresProjectRepository {
     return result.map(repositoryFromRow);
   }
 
-  async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
-    const db = this.database.getDb();
+  async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<RepositoryRecord> {
+    const dbOrTx = tx || this.database.getDb();
     
     const workspaceId = input.workspaceId;
     if (!workspaceId) {
       throw new BadRequestException('invalid_workspace_query');
     }
 
-    const result = await db
+    const result = await dbOrTx
       .insert(repositories)
       .values({
         id: input.id || crypto.randomUUID(),

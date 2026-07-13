@@ -363,5 +363,6 @@ export async function createPostgresTestRepositories(t) {
     quotaService,
     embeddingQueuePublisher,
     noteLifecycleService,
+    database,
   };
 }

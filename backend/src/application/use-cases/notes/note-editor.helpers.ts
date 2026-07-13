@@ -22,7 +22,6 @@ export function buildUpdatedNote(
   previousFolder: ProjectFolderRecord | null,
   nextFolder: ProjectFolderRecord | null,
   input: UpdatedNoteInput,
-  reminderTimeZone: string,
   projectSlug?: string,
   projectId?: string,
   workspaceSlug?: string,

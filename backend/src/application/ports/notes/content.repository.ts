@@ -23,19 +23,20 @@ import type { ProductivityInsightsRaw } from '../../models/productivity.models.j
 
 export abstract class ContentRepository {
   abstract listCategories(userId: string, workspaceId: string): Promise<CategoryRecord[]>;
-  abstract getCategoryById(userId: string, categoryId: string): Promise<CategoryRecord | null>;
+  abstract getCategoryById(userId: string, categoryId: string, tx?: any): Promise<CategoryRecord | null>;
   abstract createCategory(
     userId: string,
     workspaceId: string,
-    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean }
+    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean },
+    tx?: any
   ): Promise<CategoryRecord>;
-  abstract findCategoryByName(userId: string, workspaceId: string, name: string): Promise<CategoryRecord | null>;
+  abstract findCategoryByName(userId: string, workspaceId: string, name: string, tx?: any): Promise<CategoryRecord | null>;
 
   abstract listWorkspaces(userId: string): Promise<SaveWorkspaceInput[]>;
   abstract getWorkspaceBySlug(userId: string, workspaceSlug: string): Promise<SaveWorkspaceInput | null>;
   abstract upsertWorkspace(userId: string, input: SaveWorkspaceInput): Promise<SaveWorkspaceInput>;
   abstract listRepositories(userId: string, workspaceId: string): Promise<RepositoryRecord[]>;
-  abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }): Promise<RepositoryRecord>;
+  abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<RepositoryRecord>;
   abstract listProjects(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsWithNoteCount(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
@@ -55,21 +56,21 @@ export abstract class ContentRepository {
   abstract listNotesPage(userId: string, input: ListNotesInput): Promise<PaginatedNotes>;
   abstract listProjectTimeline(userId: string, input: ListProjectTimelineInput): Promise<PaginatedProjectTimeline>;
   abstract listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput): Promise<NoteRecord[]>;
-  abstract getNoteById(userId: string, id: string): Promise<NoteRecord | null>;
-  abstract getNoteByPath(userId: string, path: string): Promise<NoteRecord | null>;
+  abstract getNoteById(userId: string, id: string, tx?: any): Promise<NoteRecord | null>;
+  abstract getNoteByPath(userId: string, path: string, tx?: any): Promise<NoteRecord | null>;
   abstract getNotesByIds(userId: string, ids: string[]): Promise<NoteRecord[]>;
   abstract getNoteBySourceAndSessionId(userId: string, source: string, sessionId: string): Promise<NoteRecord | null>;
-  abstract upsertNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;
-  abstract updateNote(userId: string, input: SaveNoteInput): Promise<NoteRecord>;
+  abstract upsertNote(userId: string, input: SaveNoteInput, tx?: any): Promise<NoteRecord>;
+  abstract updateNote(userId: string, input: SaveNoteInput, tx?: any): Promise<NoteRecord>;
   abstract updateNoteBodySearchText(userId: string, noteId: string, bodySearchText: string): Promise<void>;
   abstract updateReminderStatus(userId: string, id: string, status: string): Promise<NoteRecord | null>;
   abstract updateNoteStatuses(userId: string, ids: string[], status: string): Promise<void>;
   abstract updateReminderStatuses(userId: string, ids: string[], status: string): Promise<void>;
   abstract setNotePinned(userId: string, id: string, pinned: boolean): Promise<NoteRecord | null>;
   abstract deleteNote(userId: string, id: string): Promise<boolean>;
-  abstract saveAttachment(userId: string, input: SaveAttachmentInput): Promise<AttachmentRecord>;
+  abstract saveAttachment(userId: string, input: SaveAttachmentInput, tx?: any): Promise<AttachmentRecord>;
   abstract deleteAttachment(userId: string, noteId: string, fileName: string): Promise<void>;
-  abstract listAttachments(userId: string, noteId: string): Promise<AttachmentRecord[]>;
+  abstract listAttachments(userId: string, noteId: string, tx?: any): Promise<AttachmentRecord[]>;
   abstract getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw>;
 }
 

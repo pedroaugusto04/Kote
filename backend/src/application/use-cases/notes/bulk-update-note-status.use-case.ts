@@ -45,7 +45,6 @@ export class BulkUpdateNoteStatusUseCase {
           null,
           null,
           input,
-          reminderTimeZone,
           note.projectSlug || undefined,
           note.projectId || undefined,
           note.workspaceSlug || undefined,

@@ -426,8 +426,8 @@ export class PostgresNoteRepository {
     return result.rows.map((row) => noteFromRow(row));
   }
 
-  async getById(userId: string, id: string) {
-    const db = this.database.getDb();
+  async getById(userId: string, id: string, tx?: any) {
+    const db = tx || this.database.getDb();
     const result = await db
       .select({
         id: notes.id,
@@ -479,8 +479,16 @@ export class PostgresNoteRepository {
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
-  async getByPath(userId: string, path: string) {
-    const db = this.database.getDb();
+  async getByIdOrThrow(userId: string, id: string, tx?: any): Promise<NoteRecord> {
+    const note = await this.getById(userId, id, tx);
+    if (!note) {
+      throw new InternalServerErrorException('note_not_found');
+    }
+    return note;
+  }
+
+  async getByPath(userId: string, path: string, tx?: any) {
+    const db = tx || this.database.getDb();
     const result = await db
       .select({
         id: notes.id,
@@ -645,18 +653,17 @@ export class PostgresNoteRepository {
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
-  async upsert(userId: string, input: SaveNoteInput) {
+  async upsert(userId: string, input: SaveNoteInput, tx?: any): Promise<NoteRecord> {
+    const dbOrTx = tx || this.database.getDb();
+
     let existingId = input.id;
     if (!existingId && input.path) {
-      const db = this.database.getDb();
-      const existing = await db
+      const [existing] = await dbOrTx
         .select({ id: notes.id })
         .from(notes)
         .where(and(eq(notes.userId, userId), eq(notes.path, input.path)))
         .limit(1);
-      if (existing.length > 0) {
-        existingId = existing[0].id;
-      }
+      existingId = existing?.id;
     }
 
     const noteId = existingId || input.id || crypto.randomUUID();
@@ -666,24 +673,20 @@ export class PostgresNoteRepository {
     if (existingId) {
       const existing = await this.getById(userId, existingId);
       if (existing) {
-        await this.updateWithClient(this.database.getDb(), userId, { ...input, id: existingId }, markdownStorageKey);
+        await this.updateWithClient(dbOrTx, userId, { ...input, id: existingId }, markdownStorageKey);
         if (existing.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
           await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
         }
-        const updated = await this.getById(userId, existingId);
-        if (!updated) {
-          throw new InternalServerErrorException('note_not_found');
-        }
-        return updated;
+        return this.getByIdOrThrow(userId, existingId, tx);
       }
+      // Fall through to insert if existingId was provided but record not found
     }
 
-    const db = this.database.getDb();
     const { projectId, workspaceId } = await resolveIds(this.database, userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
 
-    const categoryIds = input.categoryIds || [];
+    const categoryIds = input.categoryIds ?? [];
 
-    await db
+    await dbOrTx
       .insert(notes)
       .values({
         id: noteId,
@@ -695,20 +698,20 @@ export class PostgresNoteRepository {
         folderId: input.folderId,
         status: input.status as NoteStatus,
         tags: input.tags,
-        occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+        occurredAt: new Date(input.occurredAt ?? Date.now()),
         sourceChannel: input.sourceChannel,
         summary: input.summary,
         bodySearchText,
         markdownStorageKey,
         metadata: input.metadata,
         source: input.source,
-        sessionId: input.sessionId ?? '',
+        sessionId: input.sessionId || '',
         reminderAt: input.reminderAt ? new Date(input.reminderAt) : null,
-        sizeBytes: input.sizeBytes ?? (input.markdown ? Buffer.byteLength(input.markdown, 'utf8') : 0),
+        sizeBytes: input.sizeBytes ?? Buffer.byteLength(input.markdown || '', 'utf8'),
       } as typeof notes.$inferInsert);
 
-    if (categoryIds.length > 0) {
-      await db.insert(noteCategories).values(
+    if (categoryIds.length) {
+      await dbOrTx.insert(noteCategories).values(
         categoryIds.map((catId) => ({
           noteId,
           categoryId: catId,
@@ -716,27 +719,21 @@ export class PostgresNoteRepository {
       );
     }
 
-    await this.syncNoteLinks(db, userId, noteId, input);
+    await this.syncNoteLinks(dbOrTx, userId, noteId, input);
 
-    const created = await this.getById(userId, noteId);
-    if (!created) {
-      throw new InternalServerErrorException('note_not_found');
-    }
-    return created;
+    return this.getByIdOrThrow(userId, noteId, tx);
   }
 
-  async update(userId: string, input: SaveNoteInput) {
-    const existing = await this.getById(userId, String(input.id || ''));
+  async update(userId: string, input: SaveNoteInput, tx?: any): Promise<NoteRecord> {
+    const dbOrTx = tx || this.database.getDb();
+
+    const existing = await this.getById(userId, String(input.id ?? ''), tx);
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
-    await this.updateWithClient(this.database.getDb(), userId, input, markdownStorageKey);
+    await this.updateWithClient(dbOrTx, userId, input, markdownStorageKey);
     if (existing?.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
       await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
     }
-    const updated = await this.getById(userId, String(input.id || ''));
-    if (!updated) {
-      throw new InternalServerErrorException('note_not_found');
-    }
-    return updated;
+    return this.getByIdOrThrow(userId, String(input.id ?? ''), tx);
   }
 
   async updateReminderStatus(userId: string, id: string, status: string) {
@@ -751,12 +748,12 @@ export class PostgresNoteRepository {
       ))
       .returning();
 
-    if (result.length === 0) return null;
+    if (!result.length) return null;
     return this.getById(userId, id);
   }
 
   async updateStatuses(userId: string, ids: string[], status: string) {
-    if (ids.length === 0) return;
+    if (!ids.length) return;
     const db = this.database.getDb();
     await db
       .update(notes)
@@ -768,7 +765,7 @@ export class PostgresNoteRepository {
   }
 
   async updateReminderStatuses(userId: string, ids: string[], status: string) {
-    if (ids.length === 0) return;
+    if (!ids.length) return;
     const db = this.database.getDb();
     await db
       .update(notes)

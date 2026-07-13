@@ -27,6 +27,7 @@ import { QuotaService } from '../../services/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { resolveSourceChannel } from '../../utils/source-channel.utils.js';
 import { resolveContentScopeFromSlugs } from '../../utils/content-scope.utils.js';
+import { toProjectRecord } from '../../mappers/project.mapper.js';
 import {
   buildAgentConversationPayload as buildAgentPayload,
   buildNextAgentConversationState,
@@ -364,17 +365,14 @@ export class ProcessAgentConversationUseCase {
     const workspaceScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, { workspaceSlug });
     if (!workspaceScope.workspace) return;
 
-    await this.contentRepository.upsertProject(userId, {
-      id: crypto.randomUUID(),
-      projectSlug: normalizedProjectSlug,
+    const projectDto = {
       displayName: displayNameFromProjectSlug(normalizedProjectSlug),
-      workspaceId: workspaceScope.workspace.id,
-      workspaceSlug,
-      repositories: [],
+      projectSlug: normalizedProjectSlug,
+      repositoryIds: [],
       defaultTags: [],
-      enabled: true,
-      favorite: false,
-    });
+    };
+    const projectRecord = toProjectRecord(projectDto, workspaceScope.workspace.id, workspaceSlug, []);
+    await this.contentRepository.upsertProject(userId, projectRecord);
   }
 
   private reply(

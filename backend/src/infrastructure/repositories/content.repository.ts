@@ -21,6 +21,7 @@ import { PostgresFolderRepository } from './folder.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
 import { PostgresCategoryRepository } from './category.repository.js';
 import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
+import { PostgresDatabase } from '../persistence/database.js';
 
 
 @Injectable()
@@ -33,6 +34,7 @@ export class PostgresContentRepository extends ContentRepository {
     private readonly attachmentRepository: PostgresAttachmentRepository,
     private readonly categoryRepository: PostgresCategoryRepository,
     private readonly contentObjectStorage: ContentObjectStorageService,
+    private readonly database: PostgresDatabase,
   ) {
     super();
   }
@@ -41,20 +43,21 @@ export class PostgresContentRepository extends ContentRepository {
     return this.categoryRepository.list(userId, workspaceId);
   }
 
-  async getCategoryById(userId: string, categoryId: string) {
-    return this.categoryRepository.getById(userId, categoryId);
+  async getCategoryById(userId: string, categoryId: string, tx?: any) {
+    return this.categoryRepository.getById(userId, categoryId, tx);
   }
 
   async createCategory(
     userId: string,
     workspaceId: string,
-    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean }
+    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean },
+    tx?: any
   ) {
-    return this.categoryRepository.create(userId, workspaceId, input);
+    return this.categoryRepository.create(userId, workspaceId, input, tx);
   }
 
-  async findCategoryByName(userId: string, workspaceId: string, name: string) {
-    return this.categoryRepository.findByName(userId, workspaceId, name);
+  async findCategoryByName(userId: string, workspaceId: string, name: string, tx?: any) {
+    return this.categoryRepository.findByName(userId, workspaceId, name, tx);
   }
 
   async listWorkspaces(userId: string) {
@@ -73,8 +76,8 @@ export class PostgresContentRepository extends ContentRepository {
     return this.projectRepository.listRepositories(userId, workspaceId);
   }
 
-  async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
-    return this.projectRepository.upsertRepository(input);
+  async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any) {
+    return this.projectRepository.upsertRepository(input, tx);
   }
 
   async listProjects(userId: string) {
@@ -105,6 +108,18 @@ export class PostgresContentRepository extends ContentRepository {
 
   async upsertProject(userId: string, input: SaveProjectInput) {
     return this.projectRepository.upsert(userId, input);
+  }
+
+  async upsertProjectWithRepository(userId: string, projectInput: SaveProjectInput, repositoryInput?: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<SaveProjectInput> {
+    const dbOrTx = tx || this.database.getDb();
+
+    // Upsert repository first if provided
+    if (repositoryInput) {
+      await this.projectRepository.upsertRepository(repositoryInput, dbOrTx);
+    }
+
+    // Then upsert project
+    return this.projectRepository.upsert(userId, projectInput);
   }
 
   async deleteProject(userId: string, projectId: string) {
@@ -173,12 +188,12 @@ export class PostgresContentRepository extends ContentRepository {
     return this.noteRepository.listProjectKnowledgeMapItems(userId, input);
   }
 
-  async getNoteById(userId: string, id: string) {
-    return this.noteRepository.getById(userId, id);
+  async getNoteById(userId: string, id: string, tx?: any) {
+    return this.noteRepository.getById(userId, id, tx);
   }
 
-  async getNoteByPath(userId: string, path: string) {
-    return this.noteRepository.getByPath(userId, path);
+  async getNoteByPath(userId: string, path: string, tx?: any) {
+    return this.noteRepository.getByPath(userId, path, tx);
   }
 
   async getNotesByIds(userId: string, ids: string[]) {
@@ -189,12 +204,12 @@ export class PostgresContentRepository extends ContentRepository {
     return this.noteRepository.getBySourceAndSessionId(userId, source, sessionId);
   }
 
-  async upsertNote(userId: string, input: SaveNoteInput) {
-    return this.noteRepository.upsert(userId, input);
+  async upsertNote(userId: string, input: SaveNoteInput, tx?: any) {
+    return this.noteRepository.upsert(userId, input, tx);
   }
 
-  async updateNote(userId: string, input: SaveNoteInput) {
-    return this.noteRepository.update(userId, input);
+  async updateNote(userId: string, input: SaveNoteInput, tx?: any) {
+    return this.noteRepository.update(userId, input, tx);
   }
 
   async updateNoteBodySearchText(userId: string, noteId: string, bodySearchText: string) {
@@ -228,16 +243,16 @@ export class PostgresContentRepository extends ContentRepository {
     return deleted;
   }
 
-  async saveAttachment(userId: string, input: SaveAttachmentInput) {
-    return this.attachmentRepository.save(userId, input);
+  async saveAttachment(userId: string, input: SaveAttachmentInput, tx?: any) {
+    return this.attachmentRepository.save(userId, input, tx);
   }
 
   async deleteAttachment(userId: string, noteId: string, fileName: string) {
     return this.attachmentRepository.deleteByNoteIdAndFileName(userId, noteId, fileName);
   }
 
-  async listAttachments(userId: string, noteId: string) {
-    return this.attachmentRepository.list(userId, noteId);
+  async listAttachments(userId: string, noteId: string, tx?: any) {
+    return this.attachmentRepository.list(userId, noteId, tx);
   }
 
   async getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw> {

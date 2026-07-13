@@ -5,6 +5,7 @@ import type { UpdateProjectFolderInput } from '../../models/project-folder-input
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
 import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { toFolderUpdateRewrite } from '../../mappers/project-folder.mapper.js';
 
 type FolderRewrite = {
   previous: ProjectFolderRecord;
@@ -49,15 +50,15 @@ export class UpdateProjectFolderUseCase {
         const nextFullSlugPath = folder.id === currentFolder.id
           ? nextRootPath
           : folder.fullSlugPath.replace(`${currentFolder.fullSlugPath}/`, `${nextRootPath}/`);
+        const next = folder.id === currentFolder.id
+          ? toFolderUpdateRewrite(folder, parentFolder?.id || null, input.displayName, parentFolder?.fullSlugPath || null)
+          : {
+            ...folder,
+            fullSlugPath: nextFullSlugPath,
+          };
         return {
           previous: folder,
-          next: {
-            ...folder,
-            parentFolderId: folder.id === currentFolder.id ? (parentFolder?.id || null) : folder.parentFolderId,
-            displayName: folder.id === currentFolder.id ? input.displayName : folder.displayName,
-            folderSlug: folder.id === currentFolder.id ? folderSlug : folder.folderSlug,
-            fullSlugPath: nextFullSlugPath,
-          },
+          next,
         };
       });
 

@@ -36,21 +36,22 @@ export class NoteLifecycleService {
       existingNoteId?: string;
       workspaceSlug?: string;
       projectSlug?: string;
-    } = {}
+    } = {},
+    tx?: any
   ): Promise<{ note: NoteRecord; attachments: AttachmentRecord[] }> {
     const { noteInput, attachments: incomingAttachments } = input;
 
     // 1. Calculate incoming sizes
     const markdownSize = Buffer.byteLength(noteInput.markdown || '', 'utf8');
     let attachmentsSize = 0;
-    if (incomingAttachments !== undefined) {
+    if (incomingAttachments) {
       attachmentsSize = incomingAttachments.reduce((acc, att) => {
         return acc + calculateAttachmentSize(att.sizeBytes, att.dataBase64);
       }, 0);
     } else {
       const targetNoteId = options.existingNoteId || noteInput.id;
       if (targetNoteId) {
-        const existingAttachments = await this.contentRepository.listAttachments(userId, targetNoteId);
+        const existingAttachments = await this.contentRepository.listAttachments(userId, targetNoteId, tx);
         attachmentsSize = existingAttachments.reduce((acc, att) => acc + (att.sizeBytes || 0), 0);
       }
     }
@@ -60,7 +61,7 @@ export class NoteLifecycleService {
     let sizeDifference = incomingNoteSize;
     const targetNoteId = options.existingNoteId || noteInput.id;
     if (targetNoteId) {
-      const existingNote = await this.contentRepository.getNoteById(userId, targetNoteId);
+      const existingNote = await this.contentRepository.getNoteById(userId, targetNoteId, tx);
       if (existingNote) {
         sizeDifference = incomingNoteSize - (existingNote.sizeBytes || 0);
       }
@@ -80,18 +81,15 @@ export class NoteLifecycleService {
       sizeBytes: incomingNoteSize,
     };
     
-    let note: NoteRecord;
-    if (options.existingNoteId) {
-      note = await this.contentRepository.updateNote(userId, { ...finalNoteInput, id: options.existingNoteId });
-    } else {
-      note = await this.contentRepository.upsertNote(userId, finalNoteInput);
-    }
+    const note = options.existingNoteId
+      ? await this.contentRepository.updateNote(userId, { ...finalNoteInput, id: options.existingNoteId }, tx)
+      : await this.contentRepository.upsertNote(userId, finalNoteInput, tx);
 
     // 5. Save Attachments
     let attachments: AttachmentRecord[] = [];
-    if (incomingAttachments !== undefined) {
+    if (incomingAttachments) {
       if (options.existingNoteId) {
-        const existingList = await this.contentRepository.listAttachments(userId, note.id);
+        const existingList = await this.contentRepository.listAttachments(userId, note.id, tx);
         const incomingNames = incomingAttachments.map((att) => att.fileName);
         
         // Delete attachments that are no longer in the list
@@ -105,7 +103,7 @@ export class NoteLifecycleService {
       // Save only new/updated attachments (i.e. those with dataBase64 payload)
       attachments = await Promise.all(
         incomingAttachments
-          .filter((att) => Boolean(att.dataBase64))
+          .filter((att) => att.dataBase64)
           .map((att) =>
             this.contentRepository.saveAttachment(userId, {
               noteId: note.id,
@@ -114,13 +112,11 @@ export class NoteLifecycleService {
               sizeBytes: att.sizeBytes || 0,
               dataBase64: att.dataBase64 || '',
               checksumSha256: crypto.createHash('sha256').update(att.dataBase64 || '', 'base64').digest('hex'),
-            })
+            }, tx)
           )
       );
-    } else {
-      if (options.existingNoteId) {
-        attachments = await this.contentRepository.listAttachments(userId, note.id);
-      }
+    } else if (options.existingNoteId) {
+      attachments = await this.contentRepository.listAttachments(userId, note.id, tx);
     }
 
     // 6. Queue Embedding Indexing

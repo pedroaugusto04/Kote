@@ -7,16 +7,17 @@ import { NoteLifecycleService } from '../../services/note-lifecycle.service.js';
 import { requireProject, requireNote, requireProjectFolderOptional } from '../../helpers/resource-validation.helpers.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
+import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 
 @Injectable()
 export class UpdateNoteUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly noteLifecycleService: NoteLifecycleService,
+    private readonly noteLifecycleService: NoteLifecycleService
   ) {}
 
-  async execute(input: UpdateNoteDto, userId: string) {
+  async execute(input: UpdateNoteDto, userId: string, tx?: any) {
     // Sanitize sensitive data from the note content
     const { title: sanitizedTitle, rawText: sanitizedRawText } = sanitizeManualNoteContent(
       input.title || '',
@@ -60,7 +61,7 @@ export class UpdateNoteUseCase {
     const nextFolder = await requireProjectFolderOptional(this.contentRepository, userId, projectId, sanitizedInput.folderId);
 
     const updatedNoteInput = {
-      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...sanitizedInput, canonicalType }, reminderTimeZone, projectSlug, projectId, workspaceSlug, workspaceId),
+      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...sanitizedInput, canonicalType }, projectSlug, projectId, workspaceSlug, workspaceId),
       categoryIds: sanitizedInput.categoryIds,
     };
 
@@ -74,7 +75,8 @@ export class UpdateNoteUseCase {
         existingNoteId: note.id,
         workspaceSlug: note.workspaceSlug || undefined,
         projectSlug: note.projectSlug || undefined,
-      }
+      },
+      tx,
     );
 
     return { ok: true as const, noteId: updated.id };

@@ -84,6 +84,7 @@ async function createFixture(t, turns) {
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
     loggerMock,
+    repositories.database,
   );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();

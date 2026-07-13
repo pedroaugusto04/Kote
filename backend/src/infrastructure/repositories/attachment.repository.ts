@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, desc } from 'drizzle-orm';
 
 import { calculateAttachmentSize } from '../../domain/strings.js';
@@ -17,22 +17,27 @@ export class PostgresAttachmentRepository {
     private readonly contentObjectStorage: ContentObjectStorageService,
   ) {}
 
-  async save(userId: string, input: SaveAttachmentInput) {
+  async save(userId: string, input: SaveAttachmentInput, tx?: any): Promise<AttachmentRecord> {
+    const dbOrTx = tx || this.database.getDb();
+
     const sizeBytes = calculateAttachmentSize(input.sizeBytes, input.dataBase64);
 
-    const db = this.database.getDb();
-    const noteResult = await db
+    const [noteResult] = await dbOrTx
       .select({ workspaceSlug: workspaces.workspaceSlug })
       .from(notes)
       .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .where(and(eq(notes.userId, userId), eq(notes.id, input.noteId)))
       .limit(1);
     
-    const workspaceSlug = noteResult[0]?.workspaceSlug || 'default';
+    if (!noteResult) {
+      throw new NotFoundException('note_not_found');
+    }
+    
+    const workspaceSlug = noteResult.workspaceSlug || 'default';
     const storageKey = await this.contentObjectStorage.saveAttachmentData(userId, workspaceSlug, input);
 
     // Check if attachment with same noteId and fileName already exists
-    const existing = await db
+    const [existing] = await dbOrTx
       .select()
       .from(attachments)
       .where(
@@ -44,8 +49,8 @@ export class PostgresAttachmentRepository {
       )
       .limit(1);
 
-    if (existing[0]) {
-      const result = await db
+    if (existing) {
+      const [result] = await dbOrTx
         .update(attachments)
         .set({
           mimeType: input.mimeType,
@@ -54,14 +59,14 @@ export class PostgresAttachmentRepository {
           checksumSha256: input.checksumSha256,
           createdAt: new Date(),
         })
-        .where(eq(attachments.id, existing[0].id))
+        .where(eq(attachments.id, existing.id))
         .returning();
       
-      return attachmentFromRow(result[0]);
+      return attachmentFromRow(result);
     }
 
-    const attachmentId = input.id || crypto.randomUUID();
-    const result = await db
+    const attachmentId = input.id ?? crypto.randomUUID();
+    const [result] = await dbOrTx
       .insert(attachments)
       .values({
         id: attachmentId,
@@ -75,11 +80,11 @@ export class PostgresAttachmentRepository {
       })
       .returning();
     
-    return attachmentFromRow(result[0]);
+    return attachmentFromRow(result);
   }
 
-  async list(userId: string, noteId: string) {
-    const db = this.database.getDb();
+  async list(userId: string, noteId: string, tx?: any) {
+    const db = tx || this.database.getDb();
     const result = await db
       .select()
       .from(attachments)
@@ -128,7 +133,7 @@ export class PostgresAttachmentRepository {
       );
 
     const keys = result.map((row) => row.storageKey || '').filter(Boolean);
-    if (keys.length > 0) {
+    if (keys.length) {
       await db
         .delete(attachments)
         .where(
