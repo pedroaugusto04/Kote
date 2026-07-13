@@ -31,7 +31,7 @@
 ---
 
 <p align="center">
-  <img src="docs/gifs/Kode-Demo.gif" alt="Kote Demo" width="100%">
+  <img src="docs/gifs/Kote-Demo.gif" alt="Kote Demo" width="100%">
   <br><em>Open a file. Instantly understand past decisions.</em>
 </p>
 
