@@ -135,6 +135,9 @@ export class AskKnowledgeUseCase {
 
     this.logger.info('ask_knowledge.complete', {
       confidence: result.confidence,
+      contextChunksCount: contextChunks.length,
+      relatedNotesCount: relatedNotes.length,
+      requestedAttachments: result.requestedAttachments
     });
 
     return {

@@ -19,7 +19,10 @@
 
   Kote is a <strong>developer memory layer</strong> that automatically captures AI conversations, Git activity, and development decisions, then surfaces this context exactly when you need it.
   <br><br>
-  <a href="https://pedro-duarte.ddns.net/kote"><img src="https://img.shields.io/badge/Open_Kote_Web_App-01C9F9?style=for-the-badge&logoColor=white" alt="Open Kote Web App"></a>
+</p>
+
+<p align="center">
+  <a href="https://pedro-duarte.ddns.net/kote"><img src="https://img.shields.io/badge/Open_Kote_Web_App-0277BD?style=for-the-badge&logoColor=white" alt="Open Kote Web App"></a>
 </p>
 
 ---

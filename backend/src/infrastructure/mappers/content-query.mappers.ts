@@ -46,15 +46,13 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
 }
 
 export function noteAttachment(noteId: string, attachment: AttachmentRecord) {
-  const environment = readEnvironment();
-  const attachmentBaseUrl = environment.apiPublicBaseUrl || environment.publicBaseUrl;
   const attachmentPath = attachmentContentPath(noteId, attachment.id);
   return {
     id: attachment.id,
     fileName: attachment.fileName,
     mimeType: attachment.mimeType,
     sizeBytes: attachment.sizeBytes,
-    url: absoluteUrl(attachmentBaseUrl, attachmentBaseUrl ? attachmentPath : `/api${attachmentPath}`),
+    url: `/api${attachmentPath}`,
   };
 }
 
