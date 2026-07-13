@@ -67,7 +67,7 @@ export class NotesController {
     private readonly listNotesUseCase: ListPaginatedNotesUseCase,
     private readonly findNotesByFileUseCase: FindNotesByFileUseCase,
     private readonly generateFileNotesSummaryUseCase: GenerateFileNotesSummaryUseCase,
-  ) {}
+  ) { }
 
   @Post()
   @UseGuards(BrowserExtensionGuard, ProjectResolutionGuard)
@@ -174,8 +174,6 @@ export class NotesController {
     return this.findRelatedNotesUseCase.execute(user.id, params.id);
   }
 
-  // per-note auto-action endpoint removed; global settings supported via /api/notes/auto/global
-
   @Get('auto/global')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get global auto-action config' })
@@ -233,7 +231,7 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     const notes = await this.findNotesByFileUseCase.execute(user.id, query.filePath);
-    
+
     const summaryRequest = {
       filePath: query.filePath,
       notes: notes.map((note) => ({

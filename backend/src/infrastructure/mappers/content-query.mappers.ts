@@ -51,7 +51,7 @@ export function noteAttachment(noteId: string, attachment: AttachmentRecord) {
     fileName: attachment.fileName,
     mimeType: attachment.mimeType,
     sizeBytes: attachment.sizeBytes,
-    url: `/api${attachmentPath}`,
+    url: `/kote/api${attachmentPath}`,
   };
 }
 

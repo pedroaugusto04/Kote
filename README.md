@@ -21,6 +21,9 @@
   <br><br>
 </p>
 
+> [!NOTE]
+> **Human-centric memory:** Kote is primarily a product for capturing and retrieving development context for **you**, the human developer. While it can be accessed by AI assistants (via MCP), the main goal is to help you retrieve, understand, and act on past decisions and context. It does not automatically feed memory into agent prompts, keeping context separate and avoiding token bloat.
+
 <p align="center">
   <a href="https://pedro-duarte.ddns.net/kote"><img src="https://img.shields.io/badge/Open_Kote_Web_App-0277BD?style=for-the-badge&logoColor=white" alt="Open Kote Web App"></a>
 </p>
@@ -28,7 +31,7 @@
 ---
 
 <p align="center">
-  <img src="docs/gifs/Kode-CodeLens.gif" alt="CodeLens Demo" width="100%">
+  <img src="docs/gifs/Kode-Demo.gif" alt="Kote Demo" width="100%">
   <br><em>Open a file. Instantly understand past decisions.</em>
 </p>
 
@@ -198,10 +201,6 @@ If you prefer to run Kote on your own infrastructure, you can launch the entire 
    ```bash
    cp .env.example .env
    ```
-   Open `.env` and configure:
-   * **Admin Credentials:** `KB_ADMIN_EMAIL` and `KB_ADMIN_PASSWORD`
-   * **AI Integrations:** Set `KB_AUDIO_AI_API_KEY` and `KB_EMBEDDING_AI_API_KEY` (Gemini API key is default) or configure `KB_EMBEDDING_AI_PROVIDER=ollama`.
-   * **File Storage:** `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `KB_SUPABASE_STORAGE_BUCKET`.
 
 3. **Start Services:**
    ```bash
