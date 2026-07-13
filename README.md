@@ -68,6 +68,11 @@ Once Kote is capturing your context, you can interact with it everywhere you wor
 
 Integrates directly with your editor to capture context during development.
 
+<p align="center">
+  <img src="docs/screenshots/vscode-extension.png" alt="VS Code Extension Sidebar" width="100%">
+  <br><em>Integrated sidebar containing AI chat and quick-save options.</em>
+</p>
+
 * **CodeLens Integration**: See relevant notes and decisions right above your code. Click for an AI-powered timeline of key changes.
 * **AI Chat Sidebar**: Query your context engine without leaving the editor.
 * **Quick Save**: Save code selections as notes with a right-click.
@@ -89,6 +94,11 @@ For configuration details, see [ide/vscode/README.md](ide/vscode/README.md).
 <summary><strong>CLI Tool (kote)</strong></summary>
 
 Synchronize terminal session histories and import local directories or files.
+
+<p align="center">
+  <img src="docs/screenshots/cli-sync-ai-command.png" alt="Sync AI CLI Command" width="100%">
+  <br><em>Importing AI session history from the terminal.</em>
+</p>
 For installation steps and command options, see [cli/README.md](cli/README.md).
 
 </details>
@@ -108,6 +118,11 @@ Run directly via `npx -y @pedroaugusto04/kote-mcp`. See [ide/mcp/README.md](ide/
 <summary><strong>Messaging (WhatsApp & Telegram)</strong></summary>
 
 Log quick notes and query your context engine on the go.
+
+<p align="center">
+  <img src="docs/screenshots/integrations-setup.png" alt="Integrations Configuration Panel" width="100%">
+  <br><em>Configuration dashboard for WhatsApp, Telegram, and GitHub integrations.</em>
+</p>
 * **Audio Notes:** Transcribes and structures voice recordings.
 * **Image Capture:** Upload screenshots or whiteboard diagrams.
 * **Interactive Querying:** Search using the `/ask` command.
@@ -118,6 +133,11 @@ Log quick notes and query your context engine on the go.
 <summary><strong>Browser Extension</strong></summary>
 
 Save documentation, issues, and articles directly from the web browser.
+
+<p align="center">
+  <img src="frontend/public/browser-extension-window.png" alt="Browser Extension Popup" width="70%">
+  <br><em>Browser extension popup for saving web content.</em>
+</p>
 See [ide/browser-extension/README.md](ide/browser-extension/README.md).
 
 </details>
@@ -126,6 +146,21 @@ See [ide/browser-extension/README.md](ide/browser-extension/README.md).
 <summary><strong>Web Application & Knowledge Map</strong></summary>
 
 A visual dashboard to manage, search, and visualize your context engine. Features a node graph illustrating relations between projects and notes.
+
+<p align="center">
+  <img src="docs/screenshots/ask-ai-overview.png" alt="Web Chat Search Interface" width="100%">
+  <br><em>Semantic chat interface for querying indexed data.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/note-details-example.png" alt="Note Detail View" width="100%">
+  <br><em>Detailed view of a captured note with metadata and tags.</em>
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/map-overview.png" alt="Knowledge Node Graph Map" width="100%">
+  <br><em>Visual node graph illustrating relations between projects and notes.</em>
+</p>
 
 </details>
 
@@ -171,9 +206,10 @@ If you prefer to run Kote on your own infrastructure, you can launch the entire 
    * **Web Application:** [http://localhost:4311](http://localhost:4311)
    * **API Server:** [http://localhost:4310](http://localhost:4310)
 
+</details>
+
 > [!TIP]
 > Point your VS Code Extension (`knowledgeVault.apiUrl`) or CLI (`apiUrl` in `~/.kb-config.json`) to your self-hosted API URL (`http://localhost:4310`).
-</details>
 
 ---
 
