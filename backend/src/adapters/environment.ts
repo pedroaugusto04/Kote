@@ -31,39 +31,84 @@ export function normalizeGithubAppCallbackPath(value: string | undefined): strin
 }
 
 export function readEnvironment(env = process.env): RuntimeEnvironment {
+  // -------------------------------------------------------------------------
+  // Category defaults — resolved once, referenced below per specific provider
+  // -------------------------------------------------------------------------
+  // Chat/LLM default
+  const defaultChatProvider = String(env.KB_DEFAULT_CHAT_AI_PROVIDER || 'openrouter').trim().toLowerCase();
+  const defaultChatBaseUrl = String(env.KB_DEFAULT_CHAT_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim();
+  const defaultChatModel = String(env.KB_DEFAULT_CHAT_AI_MODEL || 'openrouter/auto').trim();
+  const defaultChatApiKey = String(env.KB_DEFAULT_CHAT_AI_API_KEY || '').trim();
+
+  // Embedding default (KB_EMBEDDING_AI_* kept as backward-compatible alias)
+  const defaultEmbeddingProvider = String(
+    env.KB_DEFAULT_EMBEDDING_AI_PROVIDER || env.KB_EMBEDDING_AI_PROVIDER || 'gemini',
+  ).trim().toLowerCase();
+  const defaultEmbeddingBaseUrl = String(
+    env.KB_DEFAULT_EMBEDDING_AI_BASE_URL || env.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+  ).trim();
+  const defaultEmbeddingModel = String(
+    env.KB_DEFAULT_EMBEDDING_AI_MODEL || env.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001',
+  ).trim();
+  const defaultEmbeddingApiKey = String(
+    env.KB_DEFAULT_EMBEDDING_AI_API_KEY || env.KB_EMBEDDING_AI_API_KEY || '',
+  ).trim();
+
+  // Audio default
+  const defaultAudioProvider = String(env.KB_DEFAULT_AUDIO_AI_PROVIDER || 'gemini').trim().toLowerCase();
+  const defaultAudioBaseUrl = String(env.KB_DEFAULT_AUDIO_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim();
+  const defaultAudioModel = String(env.KB_DEFAULT_AUDIO_AI_MODEL || 'gemini-2.5-flash').trim();
+  const defaultAudioApiKey = String(env.KB_DEFAULT_AUDIO_AI_API_KEY || '').trim();
+
   return {
     reminderTimeZone: normalizeTimeZone(String(env.KB_REMINDER_TIMEZONE || defaultReminderTimeZone)),
     webhookSecret: String(env.KB_WEBHOOK_SECRET || '').trim(),
     githubWebhookSecret: String(env.KB_GITHUB_APP_WEBHOOK_SECRET || '').trim(),
     conversationTimeoutMs: Number(env.WPP_CONVERSATION_TIMEOUT_MS || 600_000),
-    reviewAiProvider: (String(env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['reviewAiProvider']),
-    reviewAiBaseUrl: String(env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
-    reviewAiModel: String(env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
-    reviewAiApiKey: String(env.KB_REVIEW_AI_API_KEY || '').trim(),
-    conversationAiProvider: (String(env.KB_CONVERSATION_AI_PROVIDER || env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['conversationAiProvider']),
-    conversationAiBaseUrl: String(env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
-    conversationAiModel: String(env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
-    conversationAiApiKey: String(env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
-    projectBriefAiProvider: (String(env.KB_PROJECT_BRIEF_AI_PROVIDER || env.KB_CONVERSATION_AI_PROVIDER || env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['projectBriefAiProvider']),
-    projectBriefAiBaseUrl: String(env.KB_PROJECT_BRIEF_AI_BASE_URL || env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
-    projectBriefAiModel: String(env.KB_PROJECT_BRIEF_AI_MODEL || env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
-    projectBriefAiApiKey: String(env.KB_PROJECT_BRIEF_AI_API_KEY || env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
-    fileNotesSummaryAiProvider: (String(env.KB_FILE_NOTES_SUMMARY_AI_PROVIDER || env.KB_CONVERSATION_AI_PROVIDER || env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['fileNotesSummaryAiProvider']),
-    fileNotesSummaryAiBaseUrl: String(env.KB_FILE_NOTES_SUMMARY_AI_BASE_URL || env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
-    fileNotesSummaryAiModel: String(env.KB_FILE_NOTES_SUMMARY_AI_MODEL || env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
-    fileNotesSummaryAiApiKey: String(env.KB_FILE_NOTES_SUMMARY_AI_API_KEY || env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
-    prContextAiProvider: (String(env.KB_PR_CONTEXT_AI_PROVIDER || env.KB_CONVERSATION_AI_PROVIDER || env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['prContextAiProvider']),
-    prContextAiBaseUrl: String(env.KB_PR_CONTEXT_AI_BASE_URL || env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
-    prContextAiModel: String(env.KB_PR_CONTEXT_AI_MODEL || env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
-    prContextAiApiKey: String(env.KB_PR_CONTEXT_AI_API_KEY || env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
-    embeddingAiProvider: (String(env.KB_EMBEDDING_AI_PROVIDER || 'gemini').trim().toLowerCase() as RuntimeEnvironment['embeddingAiProvider']),
-    embeddingAiBaseUrl: String(env.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
-    embeddingAiModel: String(env.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001').trim(),
-    embeddingAiApiKey: String(env.KB_EMBEDDING_AI_API_KEY || '').trim(),
-    audioAiProvider: (String(env.KB_AUDIO_AI_PROVIDER || 'gemini').trim().toLowerCase() as RuntimeEnvironment['audioAiProvider']),
-    audioAiBaseUrl: String(env.KB_AUDIO_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
-    audioAiModel: String(env.KB_AUDIO_AI_MODEL || 'gemini-2.5-flash').trim(),
-    audioAiApiKey: String(env.KB_AUDIO_AI_API_KEY || env.KB_EMBEDDING_AI_API_KEY || '').trim(),
+    // Category defaults exposed on the environment object
+    defaultChatAiProvider: defaultChatProvider as RuntimeEnvironment['defaultChatAiProvider'],
+    defaultChatAiBaseUrl: defaultChatBaseUrl,
+    defaultChatAiModel: defaultChatModel,
+    defaultChatAiApiKey: defaultChatApiKey,
+    defaultEmbeddingAiProvider: defaultEmbeddingProvider as RuntimeEnvironment['defaultEmbeddingAiProvider'],
+    defaultEmbeddingAiBaseUrl: defaultEmbeddingBaseUrl,
+    defaultEmbeddingAiModel: defaultEmbeddingModel,
+    defaultEmbeddingAiApiKey: defaultEmbeddingApiKey,
+    defaultAudioAiProvider: defaultAudioProvider as RuntimeEnvironment['defaultAudioAiProvider'],
+    defaultAudioAiBaseUrl: defaultAudioBaseUrl,
+    defaultAudioAiModel: defaultAudioModel,
+    defaultAudioAiApiKey: defaultAudioApiKey,
+    // Chat/LLM providers — each resolves: specific → category default
+    reviewAiProvider: (String(env.KB_REVIEW_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['reviewAiProvider']),
+    reviewAiBaseUrl: String(env.KB_REVIEW_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    reviewAiModel: String(env.KB_REVIEW_AI_MODEL || defaultChatModel).trim(),
+    reviewAiApiKey: String(env.KB_REVIEW_AI_API_KEY || defaultChatApiKey).trim(),
+    conversationAiProvider: (String(env.KB_CONVERSATION_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['conversationAiProvider']),
+    conversationAiBaseUrl: String(env.KB_CONVERSATION_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    conversationAiModel: String(env.KB_CONVERSATION_AI_MODEL || defaultChatModel).trim(),
+    conversationAiApiKey: String(env.KB_CONVERSATION_AI_API_KEY || defaultChatApiKey).trim(),
+    projectBriefAiProvider: (String(env.KB_PROJECT_BRIEF_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['projectBriefAiProvider']),
+    projectBriefAiBaseUrl: String(env.KB_PROJECT_BRIEF_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    projectBriefAiModel: String(env.KB_PROJECT_BRIEF_AI_MODEL || defaultChatModel).trim(),
+    projectBriefAiApiKey: String(env.KB_PROJECT_BRIEF_AI_API_KEY || defaultChatApiKey).trim(),
+    fileNotesSummaryAiProvider: (String(env.KB_FILE_NOTES_SUMMARY_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['fileNotesSummaryAiProvider']),
+    fileNotesSummaryAiBaseUrl: String(env.KB_FILE_NOTES_SUMMARY_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    fileNotesSummaryAiModel: String(env.KB_FILE_NOTES_SUMMARY_AI_MODEL || defaultChatModel).trim(),
+    fileNotesSummaryAiApiKey: String(env.KB_FILE_NOTES_SUMMARY_AI_API_KEY || defaultChatApiKey).trim(),
+    prContextAiProvider: (String(env.KB_PR_CONTEXT_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['prContextAiProvider']),
+    prContextAiBaseUrl: String(env.KB_PR_CONTEXT_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    prContextAiModel: String(env.KB_PR_CONTEXT_AI_MODEL || defaultChatModel).trim(),
+    prContextAiApiKey: String(env.KB_PR_CONTEXT_AI_API_KEY || defaultChatApiKey).trim(),
+    // Embedding providers — each resolves: specific → embedding default
+    embeddingAiProvider: (String(env.KB_EMBEDDING_AI_PROVIDER || defaultEmbeddingProvider).trim().toLowerCase() as RuntimeEnvironment['embeddingAiProvider']),
+    embeddingAiBaseUrl: String(env.KB_EMBEDDING_AI_BASE_URL || defaultEmbeddingBaseUrl).trim(),
+    embeddingAiModel: String(env.KB_EMBEDDING_AI_MODEL || defaultEmbeddingModel).trim(),
+    embeddingAiApiKey: String(env.KB_EMBEDDING_AI_API_KEY || defaultEmbeddingApiKey).trim(),
+    // Audio providers — each resolves: specific → audio default
+    audioAiProvider: (String(env.KB_AUDIO_AI_PROVIDER || defaultAudioProvider).trim().toLowerCase() as RuntimeEnvironment['audioAiProvider']),
+    audioAiBaseUrl: String(env.KB_AUDIO_AI_BASE_URL || defaultAudioBaseUrl).trim(),
+    audioAiModel: String(env.KB_AUDIO_AI_MODEL || defaultAudioModel).trim(),
+    audioAiApiKey: String(env.KB_AUDIO_AI_API_KEY || defaultAudioApiKey).trim(),
     githubAppId: String(env.KB_GITHUB_APP_ID || '').trim(),
     githubAppPrivateKey: String(env.KB_GITHUB_APP_PRIVATE_KEY || '').trim(),
     githubBackfillLimit: normalizeGithubBackfillLimit(env.KB_GITHUB_BACKFILL_LIMIT),
@@ -146,10 +191,11 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     chunkMinChars: normalizeNumber(env.KB_CHUNK_MIN_CHARS, 30),
     chunkCodeBlockOverlapLines: normalizeNumber(env.KB_CHUNK_CODE_BLOCK_OVERLAP_LINES, 8),
     embeddingDimension: normalizeNumber(env.KB_EMBEDDING_DIMENSION, 768),
-    codeLensSearchAiProvider: (String(env.KB_CODELENS_SEARCH_AI_PROVIDER || env.KB_EMBEDDING_AI_PROVIDER || 'gemini').trim().toLowerCase() as RuntimeEnvironment['codeLensSearchAiProvider']),
-    codeLensSearchAiBaseUrl: String(env.KB_CODELENS_SEARCH_AI_BASE_URL || env.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
-    codeLensSearchAiModel: String(env.KB_CODELENS_SEARCH_AI_MODEL || env.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001').trim(),
-    codeLensSearchAiApiKey: String(env.KB_CODELENS_SEARCH_AI_API_KEY || env.KB_EMBEDDING_AI_API_KEY || '').trim(),
+    // CodeLens search — resolves: specific → embedding default
+    codeLensSearchAiProvider: (String(env.KB_CODELENS_SEARCH_AI_PROVIDER || defaultEmbeddingProvider).trim().toLowerCase() as RuntimeEnvironment['codeLensSearchAiProvider']),
+    codeLensSearchAiBaseUrl: String(env.KB_CODELENS_SEARCH_AI_BASE_URL || defaultEmbeddingBaseUrl).trim(),
+    codeLensSearchAiModel: String(env.KB_CODELENS_SEARCH_AI_MODEL || defaultEmbeddingModel).trim(),
+    codeLensSearchAiApiKey: String(env.KB_CODELENS_SEARCH_AI_API_KEY || defaultEmbeddingApiKey).trim(),
     codeLensSearchMinSimilarity: normalizeNumber(env.KB_CODELENS_SEARCH_MIN_SIMILARITY, 0.30),
     codeLensSearchCandidateLimit: normalizeNumber(env.KB_CODELENS_SEARCH_CANDIDATE_LIMIT, 20),
     codeLensSearchVectorWeight: normalizeNumber(env.KB_CODELENS_SEARCH_VECTOR_WEIGHT, 0.4),

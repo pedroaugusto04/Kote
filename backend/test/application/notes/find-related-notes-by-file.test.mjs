@@ -2,10 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  FindRelatedNotesByFileUseCase,
+  FindRelatedNotesByFileUseCase
+} from '../../../dist/application/use-cases/notes/find-related-notes-by-file.use-case.js';
+import {
   filePathToQuery,
   isGenericFile
-} from '../../../dist/application/use-cases/notes/find-related-notes-by-file.use-case.js';
+} from '../../../dist/application/utils/query/file-query.utils.js';
 
 test('filePathToQuery normalizes files correctly', () => {
   assert.equal(filePathToQuery('src/auth/auth.service.ts'), 'auth service');

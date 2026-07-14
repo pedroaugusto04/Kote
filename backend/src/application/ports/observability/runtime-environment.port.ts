@@ -5,6 +5,23 @@ export type RuntimeEnvironment = {
   webhookSecret: string;
   githubWebhookSecret: string;
   conversationTimeoutMs: number;
+  // --- Default AI configs per category ---
+  // Chat/LLM default: used by all chat providers when not individually configured
+  defaultChatAiProvider: AiProvider;
+  defaultChatAiBaseUrl: string;
+  defaultChatAiModel: string;
+  defaultChatAiApiKey: string;
+  // Embedding default: used by the embedding worker and CodeLens search
+  defaultEmbeddingAiProvider: AiProvider;
+  defaultEmbeddingAiBaseUrl: string;
+  defaultEmbeddingAiModel: string;
+  defaultEmbeddingAiApiKey: string;
+  // Audio default: used for audio transcription
+  defaultAudioAiProvider: AiProvider;
+  defaultAudioAiBaseUrl: string;
+  defaultAudioAiModel: string;
+  defaultAudioAiApiKey: string;
+  // Specific AI providers
   reviewAiProvider: AiProvider;
   reviewAiBaseUrl: string;
   reviewAiModel: string;

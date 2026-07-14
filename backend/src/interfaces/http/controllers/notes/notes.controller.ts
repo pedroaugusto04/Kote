@@ -166,16 +166,55 @@ export class NotesController {
     return this.setNotePinnedUseCase.execute(user.id, params.id, body.pinned);
   }
 
-  @Get(':id/related')
+  @Get('by-file')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find related notes' })
-  @ApiParam({ name: 'id', description: 'Note ID' })
-  @ApiResponse({ status: 200, description: 'Related notes retrieved' })
-  related(
-    @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
+  @ApiOperation({ summary: 'Find notes by file path' })
+  @ApiQuery({ name: 'filePath', description: 'Relative file path to search notes for' })
+  @ApiResponse({ status: 200, description: 'Notes matching the file path retrieved successfully' })
+  async findByFile(
+    @Query(new ZodValidationPipe(notesByFileQuerySchema, 'invalid_notes_by_file_query')) query: NotesByFileQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.findRelatedNotesUseCase.execute(user.id, params.id);
+    return this.findNotesByFileUseCase.execute(user.id, query.filePath);
+  }
+
+  @Get('by-file/related')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Find related notes by file path' })
+  @ApiQuery({ name: 'filePath', description: 'Relative file path to search related notes for' })
+  @ApiQuery({ name: 'excludeIds', description: 'IDs of notes to exclude (comma separated)', required: false })
+  @ApiQuery({ name: 'limit', description: 'Maximum number of notes to return', required: false })
+  @ApiResponse({ status: 200, description: 'Related notes retrieved successfully' })
+  async findRelatedByFile(
+    @Query(new ZodValidationPipe(relatedNotesByFileQuerySchema, 'invalid_related_notes_by_file_query')) query: RelatedNotesByFileQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.findRelatedNotesByFileUseCase.execute(user.id, query.filePath, query.excludeIds);
+  }
+
+  @Get('by-file/summary')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate AI summary of notes for a file' })
+  @ApiQuery({ name: 'filePath', description: 'Relative file path to generate summary for' })
+  @ApiResponse({ status: 200, description: 'AI summary generated successfully' })
+  async getFileNotesSummary(
+    @Query(new ZodValidationPipe(fileNotesSummaryQuerySchema, 'invalid_file_notes_summary_query')) query: FileNotesSummaryQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const notes = await this.findNotesByFileUseCase.execute(user.id, query.filePath);
+
+    const summaryRequest = {
+      filePath: query.filePath,
+      notes: notes.map((note) => ({
+        id: note.id,
+        title: note.title,
+        date: note.date,
+        content: note.summary || '',
+        summary: note.summary,
+      })),
+    };
+
+    return this.generateFileNotesSummaryUseCase.execute(user.id, summaryRequest);
   }
 
   @Get('auto/global')
@@ -213,56 +252,16 @@ export class NotesController {
     };
   }
 
-  @Get('by-file')
+  @Get(':id/related')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find notes by file path' })
-  @ApiQuery({ name: 'filePath', description: 'Relative file path to search notes for' })
-  @ApiResponse({ status: 200, description: 'Notes matching the file path retrieved successfully' })
-  async findByFile(
-    @Query(new ZodValidationPipe(notesByFileQuerySchema, 'invalid_notes_by_file_query')) query: NotesByFileQuery,
+  @ApiOperation({ summary: 'Find related notes' })
+  @ApiParam({ name: 'id', description: 'Note ID' })
+  @ApiResponse({ status: 200, description: 'Related notes retrieved' })
+  related(
+    @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.findNotesByFileUseCase.execute(user.id, query.filePath);
-  }
-
-  @Get('by-file/related')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Find related notes by file path' })
-  @ApiQuery({ name: 'filePath', description: 'Relative file path to search related notes for' })
-  @ApiQuery({ name: 'excludeIds', description: 'IDs of notes to exclude (comma separated)', required: false })
-  @ApiQuery({ name: 'limit', description: 'Maximum number of notes to return', required: false })
-  @ApiResponse({ status: 200, description: 'Related notes retrieved successfully' })
-  async findRelatedByFile(
-    @Query(new ZodValidationPipe(relatedNotesByFileQuerySchema, 'invalid_related_notes_by_file_query')) query: RelatedNotesByFileQuery,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    return this.findRelatedNotesByFileUseCase.execute(user.id, query.filePath, query.excludeIds);
-  }
-
-
-  @Get('by-file/summary')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Generate AI summary of notes for a file' })
-  @ApiQuery({ name: 'filePath', description: 'Relative file path to generate summary for' })
-  @ApiResponse({ status: 200, description: 'AI summary generated successfully' })
-  async getFileNotesSummary(
-    @Query(new ZodValidationPipe(fileNotesSummaryQuerySchema, 'invalid_file_notes_summary_query')) query: FileNotesSummaryQuery,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    const notes = await this.findNotesByFileUseCase.execute(user.id, query.filePath);
-
-    const summaryRequest = {
-      filePath: query.filePath,
-      notes: notes.map((note) => ({
-        id: note.id,
-        title: note.title,
-        date: note.date,
-        content: note.summary || '',
-        summary: note.summary,
-      })),
-    };
-
-    return this.generateFileNotesSummaryUseCase.execute(user.id, summaryRequest);
+    return this.findRelatedNotesUseCase.execute(user.id, params.id);
   }
 
   @Get(':id')

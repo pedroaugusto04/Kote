@@ -120,7 +120,7 @@ export class FileNotesSummaryProvider {
     try {
       const summary = await Promise.race([
         this.kbClient.getFileNotesSummary(this.filePath, { signal }),
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
         )
       ]) as any;
@@ -134,7 +134,7 @@ export class FileNotesSummaryProvider {
 
       FileNotesSummaryProvider.outputChannel.appendLine(`Error loading summary: ${error instanceof Error ? error.message : String(error)}`);
       FileNotesSummaryProvider.outputChannel.show();
-      
+
       this.panel.webview.html = this.getErrorHtml(
         error instanceof Error ? error.message : String(error),
       );
@@ -148,7 +148,7 @@ export class FileNotesSummaryProvider {
   private async openNote(noteId: string) {
     try {
       FileNotesSummaryProvider.outputChannel.appendLine(`Opening note: ${noteId}`);
-      
+
       await NoteDetailWebviewProvider.show(this.extensionUri, this.kbClient, noteId);
       FileNotesSummaryProvider.outputChannel.appendLine('Note detail opened');
     } catch (error) {
@@ -260,7 +260,7 @@ export class FileNotesSummaryProvider {
     try {
       const notesJson = JSON.stringify(notes);
       const safeNotes = notes || [];
-      
+
       const notesHtml = safeNotes.map(note => {
         const noteId = note?.id || '';
         const title = note?.title || 'Untitled';
