@@ -146,5 +146,16 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     chunkMinChars: normalizeNumber(env.KB_CHUNK_MIN_CHARS, 30),
     chunkCodeBlockOverlapLines: normalizeNumber(env.KB_CHUNK_CODE_BLOCK_OVERLAP_LINES, 8),
     embeddingDimension: normalizeNumber(env.KB_EMBEDDING_DIMENSION, 768),
+    codeLensSearchAiProvider: (String(env.KB_CODELENS_SEARCH_AI_PROVIDER || env.KB_EMBEDDING_AI_PROVIDER || 'gemini').trim().toLowerCase() as RuntimeEnvironment['codeLensSearchAiProvider']),
+    codeLensSearchAiBaseUrl: String(env.KB_CODELENS_SEARCH_AI_BASE_URL || env.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
+    codeLensSearchAiModel: String(env.KB_CODELENS_SEARCH_AI_MODEL || env.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001').trim(),
+    codeLensSearchAiApiKey: String(env.KB_CODELENS_SEARCH_AI_API_KEY || env.KB_EMBEDDING_AI_API_KEY || '').trim(),
+    codeLensSearchMinSimilarity: normalizeNumber(env.KB_CODELENS_SEARCH_MIN_SIMILARITY, 0.30),
+    codeLensSearchCandidateLimit: normalizeNumber(env.KB_CODELENS_SEARCH_CANDIDATE_LIMIT, 20),
+    codeLensSearchVectorWeight: normalizeNumber(env.KB_CODELENS_SEARCH_VECTOR_WEIGHT, 0.4),
+    codeLensSearchKeywordWeight: normalizeNumber(env.KB_CODELENS_SEARCH_KEYWORD_WEIGHT, 0.6),
+    codeLensSearchRrfK: normalizeNumber(env.KB_CODELENS_SEARCH_RRF_K, 20),
+    codeLensSearchMaxConcurrency: normalizeNumber(env.KB_CODELENS_SEARCH_MAX_CONCURRENCY, 2),
+    codeLensSearchResultLimit: normalizeNumber(env.KB_CODELENS_SEARCH_RESULT_LIMIT, 5),
   };
 }

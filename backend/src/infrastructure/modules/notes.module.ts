@@ -28,6 +28,7 @@ import {
   SetNotePinnedUseCase,
   FindRelatedNotesUseCase,
   FindNotesByFileUseCase,
+  FindRelatedNotesByFileUseCase,
   GenerateFileNotesSummaryUseCase,
   IngestEntryUseCase,
   QueryKnowledgeUseCase,
@@ -87,6 +88,7 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     SetNotePinnedUseCase,
     FindRelatedNotesUseCase,
     FindNotesByFileUseCase,
+    FindRelatedNotesByFileUseCase,
     GenerateFileNotesSummaryUseCase,
     IngestEntryUseCase,
     QueryKnowledgeUseCase,
@@ -114,6 +116,7 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     GetAskConversationTurnsUseCase,
     ReindexAllEmbeddingsUseCase,
     FindNotesByFileUseCase,
+    FindRelatedNotesByFileUseCase,
   ],
 })
 export class NotesModule {}

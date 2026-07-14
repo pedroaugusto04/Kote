@@ -16,6 +16,7 @@ import {
   GetNoteDetailUseCase,
   ListPaginatedNotesUseCase,
   FindNotesByFileUseCase,
+  FindRelatedNotesByFileUseCase,
   GenerateFileNotesSummaryUseCase,
 } from '../../../../application/use-cases/index.js';
 import { BrowserExtensionGuard } from '../../guards/auth.guards.js';
@@ -32,6 +33,7 @@ import {
   notesByFileQuerySchema,
   notesListQuerySchema,
   fileNotesSummaryQuerySchema,
+  relatedNotesByFileQuerySchema,
   type CreateNoteBody,
   type NoteAttachmentContentParam,
   type NoteIdParam,
@@ -41,6 +43,7 @@ import {
   type NotesByFileQuery,
   type NotesListQuery,
   type FileNotesSummaryQuery,
+  type RelatedNotesByFileQuery,
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
@@ -66,6 +69,7 @@ export class NotesController {
     private readonly getNoteDetail: GetNoteDetailUseCase,
     private readonly listNotesUseCase: ListPaginatedNotesUseCase,
     private readonly findNotesByFileUseCase: FindNotesByFileUseCase,
+    private readonly findRelatedNotesByFileUseCase: FindRelatedNotesByFileUseCase,
     private readonly generateFileNotesSummaryUseCase: GenerateFileNotesSummaryUseCase,
   ) { }
 
@@ -220,6 +224,21 @@ export class NotesController {
   ) {
     return this.findNotesByFileUseCase.execute(user.id, query.filePath);
   }
+
+  @Get('by-file/related')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Find related notes by file path' })
+  @ApiQuery({ name: 'filePath', description: 'Relative file path to search related notes for' })
+  @ApiQuery({ name: 'excludeIds', description: 'IDs of notes to exclude (comma separated)', required: false })
+  @ApiQuery({ name: 'limit', description: 'Maximum number of notes to return', required: false })
+  @ApiResponse({ status: 200, description: 'Related notes retrieved successfully' })
+  async findRelatedByFile(
+    @Query(new ZodValidationPipe(relatedNotesByFileQuerySchema, 'invalid_related_notes_by_file_query')) query: RelatedNotesByFileQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.findRelatedNotesByFileUseCase.execute(user.id, query.filePath, query.excludeIds);
+  }
+
 
   @Get('by-file/summary')
   @ApiBearerAuth()

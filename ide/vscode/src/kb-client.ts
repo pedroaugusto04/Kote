@@ -69,6 +69,7 @@ interface RequestOptions {
   method?: string;
   headers?: Record<string, string>;
   body?: string;
+  signal?: AbortSignal;
 }
 
 function makeRequest(url: string, options: RequestOptions = {}): Promise<{ status: number; body: string; headers: Record<string, string | string[]> }> {
@@ -102,6 +103,19 @@ function makeRequest(url: string, options: RequestOptions = {}): Promise<{ statu
 
     req.on('error', reject);
     if (options.body) req.write(options.body);
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        req.destroy();
+        reject(new Error('Aborted'));
+        return;
+      }
+      options.signal.addEventListener('abort', () => {
+        req.destroy();
+        reject(new Error('Aborted'));
+      });
+    }
+
     req.end();
   });
 }
@@ -468,6 +482,23 @@ export class KbClient {
     return this.fetch<KbNote[]>(`/api/notes/by-file?filePath=${encodeURIComponent(filePath)}`);
   }
 
+  async findRelatedNotesByFile(
+    filePath: string,
+    excludeIds: string[],
+    options?: { signal?: AbortSignal; limit?: number }
+  ): Promise<KbNote[]> {
+    const params = new URLSearchParams({
+      filePath,
+      limit: String(options?.limit ?? 5),
+    });
+    if (excludeIds.length > 0) {
+      params.set('excludeIds', excludeIds.join(','));
+    }
+    return this.fetch<KbNote[]>(`/api/notes/by-file/related?${params.toString()}`, {
+      signal: options?.signal,
+    });
+  }
+
   async getNote(noteId: string): Promise<KbNote | null> {
     try {
       const response = await this.fetch<{ ok: boolean; note: KbNote }>(`/api/notes/${noteId}`);
@@ -477,7 +508,7 @@ export class KbClient {
     }
   }
 
-  async getFileNotesSummary(filePath: string): Promise<{
+  async getFileNotesSummary(filePath: string, options?: { signal?: AbortSignal }): Promise<{
     summary: string;
     understanding: string;
     timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
@@ -490,6 +521,8 @@ export class KbClient {
       timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
       keyChanges: Array<{ description: string; noteId: string }>;
       generatedAt: string;
-    }>(`/api/notes/by-file/summary?filePath=${encodeURIComponent(filePath)}`);
+    }>(`/api/notes/by-file/summary?filePath=${encodeURIComponent(filePath)}`, {
+      signal: options?.signal,
+    });
   }
 }

@@ -104,6 +104,18 @@ export type RuntimeEnvironment = {
   chunkMinChars: number;
   chunkCodeBlockOverlapLines: number;
   embeddingDimension: number;
+  // CodeLens related notes hybrid search
+  codeLensSearchAiProvider: AiProvider;
+  codeLensSearchAiBaseUrl: string;
+  codeLensSearchAiModel: string;
+  codeLensSearchAiApiKey: string;
+  codeLensSearchMinSimilarity: number;
+  codeLensSearchCandidateLimit: number;
+  codeLensSearchVectorWeight: number;
+  codeLensSearchKeywordWeight: number;
+  codeLensSearchRrfK: number;
+  codeLensSearchMaxConcurrency: number;
+  codeLensSearchResultLimit: number;
 };
 
 export abstract class RuntimeEnvironmentProvider {

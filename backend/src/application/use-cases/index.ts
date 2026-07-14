@@ -66,6 +66,7 @@ export {
 export { SetNotePinnedUseCase } from './notes/set-note-pinned.use-case.js';
 export { FindRelatedNotesUseCase } from './notes/find-related-notes.use-case.js';
 export { FindNotesByFileUseCase } from './notes/find-notes-by-file.use-case.js';
+export { FindRelatedNotesByFileUseCase } from './notes/find-related-notes-by-file.use-case.js';
 export { GenerateFileNotesSummaryUseCase } from './notes/generate-file-notes-summary.use-case.js';
 export { GetAutoActionGlobalUseCase } from './settings/get-auto-action-global.use-case.js';
 export { SetAutoActionGlobalUseCase } from './settings/set-auto-action-global.use-case.js';
