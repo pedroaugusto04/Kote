@@ -501,50 +501,6 @@ export class FileNotesSummaryProvider {
     const notesJson = JSON.stringify(notes);
     const summaryJson = JSON.stringify(summary);
 
-    let relatedHtml = '';
-    if (this.relatedNotes === undefined) {
-      relatedHtml = `
-        <div class="related-section">
-          <h3 class="related-title-container">💡 Related Notes <span class="badge">Searching...</span></h3>
-          <div id="related-notes-container">
-            <div class="loading-section" style="padding: 15px; margin: 10px 0; text-align: center; border: 1px solid var(--vscode-panel-border); border-radius: 8px;">
-              <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
-              <p style="font-size: 0.9em; margin: 5px 0 0 0; color: var(--vscode-descriptionForeground);">Searching for semantic matches...</p>
-            </div>
-          </div>
-        </div>
-      `;
-    } else if (this.relatedNotes.length > 0) {
-      const items = this.relatedNotes.map(note => {
-        const noteId = note?.id || '';
-        const title = note?.title || 'Untitled';
-        const summary = note?.summary || 'No summary';
-        return `
-          <div class="note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
-            <div class="note-title">${this.escapeHtml(title)} <span class="badge">Related</span></div>
-            <div class="note-summary">${this.escapeHtml(summary).substring(0, 200)}${summary && summary.length > 200 ? '...' : ''}</div>
-          </div>
-        `;
-      }).join('');
-      relatedHtml = `
-        <div class="related-section">
-          <h3 class="related-title-container">💡 Related Notes <span class="badge">${this.relatedNotes.length}</span></h3>
-          <div id="related-notes-container">
-            ${items}
-          </div>
-        </div>
-      `;
-    } else {
-      relatedHtml = `
-        <div class="related-section">
-          <h3 class="related-title-container">💡 Related Notes</h3>
-          <div id="related-notes-container">
-            <p style="font-style: italic; color: var(--vscode-descriptionForeground);">No related notes found.</p>
-          </div>
-        </div>
-      `;
-    }
-
     return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -599,6 +555,11 @@ export class FileNotesSummaryProvider {
       padding-left: 20px;
       margin-bottom: 20px;
       position: relative;
+      cursor: pointer;
+      transition: border-left-color 0.2s;
+    }
+    .timeline-item:hover {
+      border-left-color: var(--vscode-button-background);
     }
     .timeline-item::before {
       content: '';
@@ -618,47 +579,72 @@ export class FileNotesSummaryProvider {
     .timeline-title {
       font-weight: bold;
       margin-bottom: 5px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .timeline-description {
       color: var(--vscode-foreground);
-    }
-    .key-changes {
-      margin: 20px 0;
-    }
-    .change-item {
-      background-color: var(--vscode-editor-inactiveSelectionBackground);
-      padding: 12px;
-      margin-bottom: 10px;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    .change-item:hover {
-      background-color: var(--vscode-editor-selectionBackground);
-    }
-    .change-description {
-      margin-bottom: 5px;
     }
     .note-link {
       font-size: 0.85em;
       color: var(--vscode-textLink-foreground);
       text-decoration: none;
+      font-weight: normal;
     }
     .note-link:hover {
       text-decoration: underline;
     }
-    .notes-list {
+    
+    /* Tabs Layout */
+    .tabs-container {
       margin-top: 30px;
       border-top: 1px solid var(--vscode-panel-border);
       padding-top: 20px;
     }
-    .notes-list h2 {
+    .tabs-header {
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      margin-bottom: 16px;
+    }
+    .tab-button {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--vscode-foreground);
+      opacity: 0.7;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: var(--vscode-font-size);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-button:hover {
+      opacity: 1;
+    }
+    .tab-button.active {
+      border-bottom-color: var(--vscode-button-background);
+      opacity: 1;
+      font-weight: 600;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    .notes-list {
       margin-top: 0;
     }
     .note-item {
       padding: 10px;
       margin-bottom: 10px;
       background-color: var(--vscode-editor-inactiveSelectionBackground);
+      border: 1px solid var(--vscode-panel-border);
       border-radius: 4px;
       cursor: pointer;
       transition: background-color 0.2s;
@@ -692,16 +678,6 @@ export class FileNotesSummaryProvider {
     }
 
     /* Related notes styling */
-    .related-section {
-      margin-top: 32px;
-      padding-top: 20px;
-      border-top: 1px dashed var(--vscode-panel-border);
-    }
-    .related-title-container {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
     .badge {
       font-size: 0.75em;
       padding: 2px 6px;
@@ -759,36 +735,58 @@ export class FileNotesSummaryProvider {
 
   <div class="timeline">
     <h2>Timeline</h2>
-    ${summary.timeline.map(item => `
-      <div class="timeline-item">
+    ${[...summary.timeline].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(item => `
+      <div class="timeline-item" onclick="openNote('${this.escapeHtml(item.noteId)}')">
         <div class="timeline-date">${this.escapeHtml(item.date)}</div>
-        <div class="timeline-title">${this.escapeHtml(item.title)}</div>
+        <div class="timeline-title">
+          <span>${this.escapeHtml(item.title)}</span>
+          <a href="#" class="note-link" onclick="event.stopPropagation(); event.preventDefault(); openNote('${this.escapeHtml(item.noteId)}')">View note →</a>
+        </div>
         <div class="timeline-description">${this.escapeHtml(item.description)}</div>
       </div>
     `).join('')}
   </div>
 
-  <div class="key-changes">
-    <h2>Key Changes</h2>
-    ${summary.keyChanges.map(change => `
-      <div class="change-item" onclick="openNote('${change.noteId}')">
-        <div class="change-description">${this.escapeHtml(change.description)}</div>
-        <a href="#" class="note-link" onclick="event.preventDefault(); openNote('${change.noteId}')">View note →</a>
+  <div class="tabs-container">
+    <div class="tabs-header">
+      <button class="tab-button active" onclick="selectTab('linked-notes')">Linked Notes <span class="badge">${notes.length}</span></button>
+      <button class="tab-button" onclick="selectTab('related-notes')">Related Notes <span class="badge" id="related-badge">${this.relatedNotes === undefined ? 'Searching...' : this.relatedNotes.length}</span></button>
+    </div>
+    
+    <div id="linked-notes" class="tab-content active">
+      <div class="notes-list">
+        ${notes.map(note => `
+          <div class="note-item" onclick="openNote('${this.escapeHtml(String(note.id))}')">
+            <div class="note-title">${this.escapeHtml(note.title || 'Untitled')}</div>
+            <div class="note-summary">${this.escapeHtml(note.summary || 'No summary').substring(0, 200)}${note.summary && note.summary.length > 200 ? '...' : ''}</div>
+          </div>
+        `).join('')}
       </div>
-    `).join('')}
-  </div>
-
-  <div class="notes-list">
-    <h2>All Notes (${notes.length})</h2>
-    ${notes.map(note => `
-      <div class="note-item" onclick="openNote('${note.id}')">
-        <div class="note-title">${this.escapeHtml(note.title || 'Untitled')}</div>
-        <div class="note-summary">${this.escapeHtml(note.summary || 'No summary').substring(0, 200)}${note.summary && note.summary.length > 200 ? '...' : ''}</div>
+    </div>
+    
+    <div id="related-notes" class="tab-content">
+      <div id="related-notes-container">
+        ${this.relatedNotes === undefined ? `
+          <div class="loading-section" style="padding: 15px; margin: 10px 0;">
+            <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+            <p style="font-size: 0.9em; margin: 5px 0 0 0; color: var(--vscode-descriptionForeground);">Searching for semantic matches...</p>
+          </div>
+        ` : this.relatedNotes.length > 0 ? this.relatedNotes.map(note => {
+            const noteId = note?.id || '';
+            const title = note?.title || 'Untitled';
+            const summary = note?.summary || 'No summary';
+            return `
+              <div class="note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
+                <div class="note-title">${this.escapeHtml(title)} <span class="badge">Related</span></div>
+                <div class="note-summary">${this.escapeHtml(summary).substring(0, 200)}${summary && summary.length > 200 ? '...' : ''}</div>
+              </div>
+            `;
+          }).join('') : `
+          <p style="font-style: italic; color: var(--vscode-descriptionForeground); margin: 10px 0;">No related notes found.</p>
+        `}
       </div>
-    `).join('')}
+    </div>
   </div>
-
-  ${relatedHtml}
 
   <script>
     const vscode = acquireVsCodeApi();
@@ -815,26 +813,33 @@ export class FileNotesSummaryProvider {
       });
     }
 
+    function selectTab(tabId) {
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      const activeBtn = document.querySelector(\`.tab-button[onclick="selectTab('\${tabId}')"]\`);
+      const activeContent = document.getElementById(tabId);
+      if (activeBtn) activeBtn.classList.add('active');
+      if (activeContent) activeContent.classList.add('active');
+    }
+
     function copySummary() {
       const markdown = \`# 💡 Kote File Notes Summary
 
 **File:** ${this.escapeHtml(this.filePath)}
 
 ## Summary
-${this.escapeHtml(summary.summary)}
+\${summary.summary}
 
 ## Understanding
-${this.escapeHtml(summary.understanding)}
+\${summary.understanding}
 
 ## Timeline
 \${summary.timeline.map(item => \`- **\${item.date}**: \${item.title}
-  - \${item.description}\`).join('\\\\n')}
+  - \${item.description}\`).join('\\n')}
 
-## Key Changes
-\${summary.keyChanges.map(change => \`- \${change.description} (Note: \${change.noteId})\`).join('\\\\n')}
-
-## All Notes (\${notes.length})
-\${notes.map(note => \`- **\${note.title || 'Untitled'}**: \${note.summary || 'No summary'}\`).join('\\\\n')}
+## Linked Notes (\${notes.length})
+\${notes.map(note => \`- **\${note.title || 'Untitled'}**: \${note.summary || 'No summary'}\`).join('\\n')}
 \`;
       vscode.postMessage({
         command: 'copyContent',
@@ -848,17 +853,16 @@ ${this.escapeHtml(summary.understanding)}
       if (message.command === 'relatedNotesLoaded') {
         const related = message.notes || [];
         const container = document.getElementById('related-notes-container');
-        const badge = document.querySelector('.related-title-container .badge');
+        const badge = document.getElementById('related-badge');
         if (!container) return;
-        
-        if (related.length === 0) {
-          container.innerHTML = '<p style="font-style: italic; color: var(--vscode-descriptionForeground); margin: 10px 0;">No related notes found.</p>';
-          if (badge) badge.remove();
-          return;
-        }
         
         if (badge) {
           badge.textContent = related.length;
+        }
+        
+        if (related.length === 0) {
+          container.innerHTML = '<p style="font-style: italic; color: var(--vscode-descriptionForeground); margin: 10px 0;">No related notes found.</p>';
+          return;
         }
         
         container.innerHTML = related.map(note => {
