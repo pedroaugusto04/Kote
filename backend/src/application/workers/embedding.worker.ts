@@ -255,10 +255,51 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
-    const texts = chunks.map((c) => c.chunkText);
-    const embeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, texts);
+    const existingEmbeddings = await this.noteEmbeddingRepository.getNoteEmbeddings(userId, noteId);
+    const textToEmbeddingMap = new Map<string, number[]>();
+    for (const rec of existingEmbeddings) {
+      if (rec.model === env.embeddingAiModel && Array.isArray(rec.embedding) && rec.embedding.length > 0) {
+        textToEmbeddingMap.set(rec.chunkText, rec.embedding);
+      }
+    }
 
-    if (embeddings.length === 0) {
+    const textsToEmbed: string[] = [];
+    const chunkEmbeddings: (number[] | null)[] = [];
+
+    for (const chunk of chunks) {
+      const existing = textToEmbeddingMap.get(chunk.chunkText);
+      if (existing) {
+        chunkEmbeddings.push(existing);
+      } else {
+        chunkEmbeddings.push(null);
+        textsToEmbed.push(chunk.chunkText);
+      }
+    }
+
+    let generatedEmbeddings: number[][] = [];
+    if (textsToEmbed.length > 0) {
+      generatedEmbeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, textsToEmbed);
+      if (generatedEmbeddings.length !== textsToEmbed.length) {
+        this.logger.warn('embedding_worker.embeddings_count_mismatch', {
+          noteId,
+          expected: textsToEmbed.length,
+          received: generatedEmbeddings.length,
+        });
+        return;
+      }
+    }
+
+    let genIndex = 0;
+    const finalEmbeddings: number[][] = [];
+    for (const emb of chunkEmbeddings) {
+      if (emb !== null) {
+        finalEmbeddings.push(emb);
+      } else {
+        finalEmbeddings.push(generatedEmbeddings[genIndex++]);
+      }
+    }
+
+    if (finalEmbeddings.length === 0) {
       this.logger.warn('embedding_worker.no_embeddings_generated', { noteId });
       return;
     }
@@ -268,7 +309,7 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
       noteId,
       chunkIndex: chunk.chunkIndex,
       chunkText: chunk.chunkText,
-      embedding: embeddings[i],
+      embedding: finalEmbeddings[i],
       model: env.embeddingAiModel,
     }));
 
@@ -282,6 +323,7 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
     this.logger.info('embedding_worker.indexed', {
       noteId,
       chunksCount: chunks.length,
+      reusedChunksCount: chunks.length - textsToEmbed.length,
     });
   }
 

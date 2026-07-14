@@ -555,7 +555,7 @@ test('note list and detail expose attachment metadata without storage internals'
   assert.equal(detail.attachmentCount, 2);
   assert.equal(detail.attachments.length, 2);
   assert.deepEqual(Object.keys(detail.attachments[0]).sort(), ['fileName', 'id', 'mimeType', 'sizeBytes', 'url']);
-  assert.match(detail.attachments[0].url, new RegExp(`^/api/notes/${note.id}/attachments/.+/content$`));
+  assert.match(detail.attachments[0].url, new RegExp(`^/kote/api/notes/${note.id}/attachments/.+/content$`));
   assert.equal(Object.hasOwn(detail.attachments[0], 'storageKey'), false);
   assert.equal(Object.hasOwn(detail.attachments[0], 'dataBase64'), false);
 });

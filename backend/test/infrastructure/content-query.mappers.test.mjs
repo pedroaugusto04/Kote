@@ -29,6 +29,6 @@ test('noteAttachment uses API public base url and preserves nested api base path
 
   assert.equal(
     attachment.url,
-    '/api/notes/note-1/attachments/attachment-1/content',
+    '/kote/api/notes/note-1/attachments/attachment-1/content',
   );
 });
