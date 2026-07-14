@@ -137,10 +137,15 @@ services:
       # Email branding
       APP_NAME: ${APP_NAME:-Kote}
       APP_LOGO_URL: ${APP_LOGO_URL:-}
+      # OpenTelemetry Observability
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-kote-backend}
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-service.name=kote-backend,deployment.environment=development}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://10.0.0.52:4318/v1/traces}
     command: sh -c "umask 000 && npm install && npm run dev:api"
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
       - "${KB_API_INSPECT_PORT:-9229}:${KB_API_INSPECT_PORT:-9229}"
+      - "9464:9464"
     volumes:
       - ./:/app
       - kb_api_node_modules:/app/node_modules

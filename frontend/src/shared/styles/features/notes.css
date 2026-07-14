@@ -196,6 +196,17 @@
   border: 1px solid var(--line-soft);
 }
 
+.markdown .auto-link {
+  color: var(--accent);
+  text-decoration: underline;
+  word-break: break-all;
+}
+
+.markdown .auto-link:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
 .note-reader .markdown {
   min-width: 0;
   overflow-wrap: anywhere;

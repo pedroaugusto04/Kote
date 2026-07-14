@@ -134,8 +134,13 @@ services:
       WEBHOOK_OUTBOX_RELAY_BATCH_SIZE: ${WEBHOOK_OUTBOX_RELAY_BATCH_SIZE:-100}
       WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS: ${WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS:-30}
       WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS: ${WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS:-10}
+      # OpenTelemetry Observability
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-kote-backend}
+      OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-service.name=kote-backend,deployment.environment=production}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://10.0.0.52:4318/v1/traces}
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
+      - "9464:9464"
     volumes:
       - /var/log/knowledge-base-api:/var/log/knowledge-base-api
     healthcheck:

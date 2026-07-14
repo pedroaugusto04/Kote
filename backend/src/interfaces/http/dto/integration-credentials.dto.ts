@@ -40,6 +40,8 @@ export const guidedIntegrationProviderSchema = z.enum([
   IntegrationProviderEnum.AiConversation,
   IntegrationProviderEnum.ProjectBriefAi,
   IntegrationProviderEnum.PushNotifications,
+  IntegrationProviderEnum.PrContextAi,
+  IntegrationProviderEnum.FileNotesSummaryAi
 ]);
 export const aiIntegrationProviderSchema = z.enum([IntegrationProviderEnum.AiReview, IntegrationProviderEnum.AiConversation, IntegrationProviderEnum.ProjectBriefAi]);
 

@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import Prism from 'prismjs';
 import DOMPurify from 'dompurify';
 import 'prismjs/themes/prism-tomorrow.css';
+import { processTextWithBadges, processTextWithLinks, convertUrlsToLinks } from '../../shared/utils/text';
 
 // Lazy load PrismJS language components to reduce initial bundle size
 let prismLanguagesLoaded = false;
@@ -25,53 +26,12 @@ const loadPrismLanguages = async () => {
   prismLanguagesLoaded = true;
 };
 
-const severityClassNames: Record<string, string> = {
-  INFO: 'markdown-severity markdown-severity-info',
-  LOW: 'markdown-severity markdown-severity-low',
-  MEDIUM: 'markdown-severity markdown-severity-medium',
-  HIGH: 'markdown-severity markdown-severity-high',
-  CRITICAL: 'markdown-severity markdown-severity-critical',
-};
-
 const PreContext = createContext(false);
-
-function processTextWithBadges(child: ReactNode): ReactNode {
-  if (typeof child !== 'string') return child;
-
-  const parts: ReactNode[] = [];
-  const tokenPattern = /(\[(?:INFO|LOW|MEDIUM|HIGH|CRITICAL)\])/gi;
-  let lastIndex = 0;
-
-  for (const match of child.matchAll(tokenPattern)) {
-    if (match.index > lastIndex) {
-      parts.push(child.slice(lastIndex, match.index));
-    }
-
-    const token = match[0];
-    const severity = token.slice(1, -1).toUpperCase();
-    if (severityClassNames[severity]) {
-      parts.push(
-        <span className={severityClassNames[severity]} key={`${match.index}-${token}`}>
-          {token}
-        </span>,
-      );
-    } else {
-      parts.push(token);
-    }
-
-    lastIndex = match.index + token.length;
-  }
-
-  if (lastIndex < child.length) {
-    parts.push(child.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? <>{parts}</> : child;
-}
 
 function processChildren(children: ReactNode): ReactNode {
   return Children.map(children, (child) => {
-    return processTextWithBadges(child);
+    const withBadges = processTextWithBadges(child);
+    return processTextWithLinks(withBadges);
   });
 }
 
@@ -118,6 +78,9 @@ export function MarkdownView({ markdown }: { markdown: string }) {
     loadPrismLanguages();
   }, []);
 
+  // Pre-process markdown to convert plain text URLs to markdown links
+  const processedMarkdown = convertUrlsToLinks(markdown);
+
   return (
     <div className="markdown">
       <ReactMarkdown
@@ -129,6 +92,11 @@ export function MarkdownView({ markdown }: { markdown: string }) {
           h3: ({ children }) => <h3>{processChildren(children)}</h3>,
           h4: ({ children }) => <h4>{processChildren(children)}</h4>,
           strong: ({ children }) => <strong>{processChildren(children)}</strong>,
+          a: ({ href, children, ...rest }) => (
+            <a href={href} target="_blank" rel="noreferrer" className="auto-link" {...rest}>
+              {children}
+            </a>
+          ),
           pre: ({ children }) => (
             <PreContext.Provider value={true}>
               {children}
@@ -142,7 +110,7 @@ export function MarkdownView({ markdown }: { markdown: string }) {
           }: React.ComponentPropsWithoutRef<'code'> & { node?: unknown }) {
             const isInsidePre = useContext(PreContext);
             const match = /language-(\w+)/.exec(className || '');
-            
+
             if (isInsidePre) {
               return (
                 <CodeBlockView
@@ -160,7 +128,7 @@ export function MarkdownView({ markdown }: { markdown: string }) {
           }
         }}
       >
-        {markdown}
+        {processedMarkdown}
       </ReactMarkdown>
     </div>
   );
