@@ -100,22 +100,6 @@ function publicCredential(record: IntegrationCredentialRecord | null, provider: 
   const isAiProvider = provider.startsWith('ai-') || provider.endsWith('-ai');
   const connectAction = { type: IntegrationActionType.Connect, label: provider === IntegrationProvider.GithubApp ? 'Connect GitHub' : isAiProvider ? 'Enable' : `Connect ${label.name}` };
   if (!record) {
-    if (isAiProvider) {
-      return {
-        provider,
-        name: label.name,
-        description: label.description,
-        status: StoredIntegrationStatus.Connected,
-        workspaceSlug,
-        publicMetadata: {},
-        primaryAction: { type: IntegrationActionType.Revoke, label: 'Disable' },
-        steps: connectedSteps(provider),
-        lastError: null,
-        connectedAccount: null,
-        updatedAt: null,
-        revokedAt: null,
-      };
-    }
     return {
       provider,
       name: label.name,

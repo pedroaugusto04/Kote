@@ -1,0 +1,33 @@
+.typewriter-markdown {
+  position: relative;
+  cursor: default;
+  transition: opacity 0.15s ease;
+}
+
+.typewriter-markdown.is-typing {
+  cursor: pointer;
+}
+
+.typewriter-markdown.is-typing:hover {
+  opacity: 0.95;
+}
+
+/* Blinking cursor at the end of the typing text */
+.typewriter-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background-color: var(--accent, #4f9cf7);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: typewriter-blink 0.8s step-end infinite;
+}
+
+@keyframes typewriter-blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}

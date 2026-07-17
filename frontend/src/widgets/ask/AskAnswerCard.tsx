@@ -1,5 +1,5 @@
 import type { Project } from '../../shared/api/models/project';
-import { MarkdownView } from '../markdown/MarkdownView';
+import { TypewriterMarkdown } from '../markdown/TypewriterMarkdown';
 import type { AskAnswerCardItem } from './ask-answer-card.models';
 import { AskAiIcon } from './AskAiIcon';
 import './AskAnswerCard.css';
@@ -30,7 +30,7 @@ export function AskAnswerCard({
           <span className="ask-source-count">Based on {sourceCount} {sourceCount === 1 ? 'source' : 'sources'}</span>
         </div>
         <div className="ask-answer-body">
-          <MarkdownView markdown={item.answer} />
+          <TypewriterMarkdown markdown={item.answer} animated={false} />
         </div>
         {sourceCount > 0 ? (
           <div className="ask-sources-footer">

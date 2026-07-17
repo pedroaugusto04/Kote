@@ -74,6 +74,7 @@ export class CreateWorkspaceUseCase {
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.AiConversation),
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.ProjectBriefAi),
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.PrContextAi),
+      this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.FileNotesSummaryAi),
     ]);
 
     return {
@@ -86,7 +87,7 @@ export class CreateWorkspaceUseCase {
   private async provisionManagedAiIntegration(
     userId: string,
     workspaceSlug: string,
-    provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi,
+    provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi,
   ) {
     const environment = this.runtimeEnvironmentProvider.read();
     const config = getAiProviderConfig(provider, environment);

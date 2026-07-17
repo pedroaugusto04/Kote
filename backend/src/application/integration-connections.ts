@@ -365,7 +365,7 @@ export class IntegrationConnectionService {
     });
   }
 
-  private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi) {
+  private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi) {
     const environment = this.environment();
     const config = getAiProviderConfig(provider, environment);
     const configured = config.provider !== 'none' && config.baseUrl && config.model && config.apiKey;

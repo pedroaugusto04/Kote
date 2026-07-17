@@ -216,6 +216,32 @@
     .dots span:nth-child(3) { animation-delay: .4s; }
     @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 
+    /* ── Typewriter effect ────────────────────────────── */
+    .typewriter-content {
+      position: relative;
+      cursor: default;
+    }
+    .typewriter-content.is-typing {
+      cursor: pointer;
+    }
+    .typewriter-cursor::after {
+      content: '';
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background-color: var(--vscode-button-background, #4f9cf7);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: tw-blink 0.8s step-end infinite;
+    }
+    @keyframes tw-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .typewriter-done .typewriter-cursor {
+      display: none;
+    }
+
     /* ── Error bubble ────────────────────────────────── */
     .error-bubble {
       background: var(--vscode-inputValidation-errorBackground);
@@ -756,8 +782,76 @@
     document.getElementById('thinkingBubble')?.remove();
   }
 
+  // ── Typewriter effect ─────────────────────────────────────────────────────
+  function startTypewriter(elementId, fullText, speed = 5) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    let index = 0;
+    let isTyping = true;
+    
+    el.textContent = '';
+    el.classList.add('typewriter-content', 'is-typing');
+    
+    const cursor = document.createElement('span');
+    cursor.className = 'typewriter-cursor';
+    cursor.setAttribute('aria-hidden', 'true');
+    
+    function tick() {
+      if (index >= fullText.length) {
+        isTyping = false;
+        el.classList.remove('is-typing');
+        el.classList.add('typewriter-done');
+        cursor.remove();
+        return;
+      }
+      
+      const remaining = fullText.slice(index);
+      const firstChar = remaining[0];
+      
+      let delay = speed;
+      if (firstChar === '\\n') {
+        delay = speed * 1.2;
+      } else if (firstChar === '.' || firstChar === '!' || firstChar === '?') {
+        delay = speed * 1.5;
+      } else if (firstChar === ',' || firstChar === ';' || firstChar === ':') {
+        delay = speed * 1.2;
+      }
+      
+      const charsToReveal = firstChar === '\\n' ? 1 : (Math.random() < 0.4 ? 3 : Math.random() < 0.5 ? 4 : 2);
+      const endIndex = Math.min(index + charsToReveal, fullText.length);
+      
+      el.textContent = fullText.slice(0, endIndex);
+      el.appendChild(cursor);
+      index = endIndex;
+      
+      if (endIndex >= fullText.length) {
+        isTyping = false;
+        el.classList.remove('is-typing');
+        el.classList.add('typewriter-done');
+        cursor.remove();
+        return;
+      }
+      
+      setTimeout(tick, delay);
+    }
+    
+    el.addEventListener('click', function skipHandler() {
+      if (!isTyping) return;
+      isTyping = false;
+      el.textContent = fullText;
+      el.classList.remove('is-typing');
+      el.classList.add('typewriter-done');
+      cursor.remove();
+      el.removeEventListener('click', skipHandler);
+    });
+    
+    setTimeout(tick, speed);
+  }
+
   function addKbAnswer(answer, sources, media) {
     const idx = conversationHistory.length - 1; // for save-as-note reference
+    const twId = 'tw-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 
     const el = document.createElement('div');
     el.className = 'msg kb';
@@ -803,7 +897,7 @@
     el.innerHTML = `
       <div class="msg-sender">Kote</div>
       <div class="bubble">
-        ${renderMarkdown(answer)}
+        <span id="${twId}"></span>
         ${mediaHtml}
         ${sources?.length ? `
           <div class="sources">
@@ -821,6 +915,9 @@
     `;
     document.getElementById('messages').appendChild(el);
     scrollToBottom();
+    
+    // Start typewriter on the answer text
+    startTypewriter(twId, answer);
   }
 
   function addError(message) {

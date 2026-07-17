@@ -66,6 +66,10 @@ export function ProjectNoteModal({
     initialAttachments || []
   );
 
+  const hasInitialAttachments = Boolean(
+    initialAttachments && initialAttachments.length > 0
+  );
+
   const foldersQuery = useQuery({
     queryKey: ['project-folders', 'modal', selectedProjectSlug],
     queryFn: () => fetchProjectFolders(selectedProjectSlug),
@@ -116,7 +120,10 @@ export function ProjectNoteModal({
     return undefined;
   }, [errors.attachments]);
 
-  const closeGuard = useModalCloseGuard({ isDirty, onClose });
+  const closeGuard = useModalCloseGuard({
+    isDirty: isDirty || hasInitialAttachments,
+    onClose,
+  });
   const mutation = useMutation({
     mutationFn: async (values: NoteFormValues) => {
       const payload = {
@@ -130,7 +137,7 @@ export function ProjectNoteModal({
       const result = mode === WorkspaceModalMode.Create
         ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual', attachments })
         : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug, attachments });
-      
+
       return globalLoading.trackPromise(
         result.then(async (res) => {
           closeGuard.resetCloseGuard();

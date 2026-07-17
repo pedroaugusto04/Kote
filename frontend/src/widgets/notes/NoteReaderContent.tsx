@@ -7,6 +7,7 @@ import type { NoteAttachment } from '../../shared/api/models/note';
 import { fetchAttachmentText } from '../../shared/api/notes';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../markdown/MarkdownView';
+import { TypewriterMarkdown } from '../markdown/TypewriterMarkdown';
 import { CDNImage } from '../../shared/ui/CDNImage';
 import { SourceBadge } from './SourceBadge';
 import { AiConversationView } from './AiConversationView';
@@ -113,7 +114,7 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
       {hasSummary ? (
         <section className="note-body-section note-ai-summary">
           <h2 className="note-body-label">AI summary</h2>
-          <MarkdownView markdown={cleanedSummary} />
+          <TypewriterMarkdown markdown={cleanedSummary} animated={false} />
         </section>
       ) : null}
       {extraMarkdown ? <MarkdownView markdown={extraMarkdown} /> : null}

@@ -6,7 +6,6 @@ import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 
 const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://10.0.0.52:4318/v1/traces';
 const serviceName = process.env.OTEL_SERVICE_NAME || 'kote-backend';
-const resourceAttributes = process.env.OTEL_RESOURCE_ATTRIBUTES || `service.name=${serviceName},deployment.environment=${process.env.NODE_ENV || 'development'}`;
 
 const traceExporter = new OTLPTraceExporter({
   url: otlpEndpoint,

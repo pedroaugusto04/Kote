@@ -517,6 +517,31 @@ export class FileNotesSummaryProvider {
       margin: 0;
       line-height: 1.6;
     }
+
+    /* Typewriter effect styles */
+    .typewriter-content {
+      position: relative;
+    }
+    .typewriter-content.is-typing {
+      cursor: pointer;
+    }
+    .typewriter-cursor::after {
+      content: '';
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background-color: var(--vscode-button-background, #4f9cf7);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: tw-blink 0.8s step-end infinite;
+    }
+    @keyframes tw-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .typewriter-done .typewriter-cursor {
+      display: none;
+    }
     h1, h2, h3 {
       margin-top: 0;
       color: var(--vscode-foreground);
@@ -725,12 +750,12 @@ export class FileNotesSummaryProvider {
   
   <div class="summary">
     <h3>Summary</h3>
-    <p>${this.escapeHtml(summary.summary)}</p>
+    <p id="typewriter-summary">${this.escapeHtml(summary.summary)}</p>
   </div>
 
   <div class="understanding">
     <h3>Understanding</h3>
-    <p>${this.escapeHtml(summary.understanding)}</p>
+    <p id="typewriter-understanding">${this.escapeHtml(summary.understanding)}</p>
   </div>
 
   <div class="timeline">
@@ -805,6 +830,80 @@ export class FileNotesSummaryProvider {
         }
       }
     }
+
+    // ── Typewriter effect ──────────────────────────────────────────
+    function startTypewriter(elementId, fullText, speed = 5) {
+      const el = document.getElementById(elementId);
+      if (!el) return;
+      
+      let index = 0;
+      let isTyping = true;
+      
+      // Clear existing content
+      el.textContent = '';
+      el.classList.add('typewriter-content', 'is-typing');
+      
+      // Create cursor element
+      const cursor = document.createElement('span');
+      cursor.className = 'typewriter-cursor';
+      cursor.setAttribute('aria-hidden', 'true');
+      
+      function tick() {
+        if (index >= fullText.length) {
+          isTyping = false;
+          el.classList.remove('is-typing');
+          el.classList.add('typewriter-done');
+          cursor.remove();
+          return;
+        }
+        
+        const remaining = fullText.slice(index);
+        const firstChar = remaining[0];
+        
+        let delay = speed;
+        if (firstChar === '\\n') {
+          delay = speed * 1.2;
+        } else if (firstChar === '.' || firstChar === '!' || firstChar === '?') {
+          delay = speed * 1.5;
+        } else if (firstChar === ',' || firstChar === ';' || firstChar === ':') {
+          delay = speed * 1.2;
+        }
+        
+        const charsToReveal = firstChar === '\\n' ? 1 : (Math.random() < 0.4 ? 3 : Math.random() < 0.5 ? 4 : 2);
+        const endIndex = Math.min(index + charsToReveal, fullText.length);
+        
+        el.textContent = fullText.slice(0, endIndex);
+        el.appendChild(cursor);
+        index = endIndex;
+        
+        if (endIndex >= fullText.length) {
+          isTyping = false;
+          el.classList.remove('is-typing');
+          el.classList.add('typewriter-done');
+          cursor.remove();
+          return;
+        }
+        
+        setTimeout(tick, delay);
+      }
+      
+      // Click to skip
+      el.addEventListener('click', function skipHandler() {
+        if (!isTyping) return;
+        isTyping = false;
+        el.textContent = fullText;
+        el.classList.remove('is-typing');
+        el.classList.add('typewriter-done');
+        cursor.remove();
+        el.removeEventListener('click', skipHandler);
+      });
+      
+      setTimeout(tick, speed);
+    }
+
+    // Start typewriter on summary and understanding
+    startTypewriter('typewriter-summary', summary.summary);
+    startTypewriter('typewriter-understanding', summary.understanding);
 
     function openNote(noteId) {
       vscode.postMessage({

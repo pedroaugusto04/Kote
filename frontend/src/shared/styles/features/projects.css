@@ -70,6 +70,18 @@
   grid-column: 1 / -1;
 }
 
+/* ─── Brief card fade-in animation ─── */
+@keyframes brief-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .project-brief-section-card {
   display: flex;
   flex-direction: column;
@@ -81,7 +93,16 @@
   transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
   box-shadow: var(--shadow-sm);
   min-width: 0;
+  animation: brief-fade-in 0.35s ease both;
 }
+
+.project-brief-section-card:nth-child(2) { animation-delay: 0.04s; }
+.project-brief-section-card:nth-child(3) { animation-delay: 0.08s; }
+.project-brief-section-card:nth-child(4) { animation-delay: 0.12s; }
+.project-brief-section-card:nth-child(5) { animation-delay: 0.16s; }
+.project-brief-section-card:nth-child(6) { animation-delay: 0.20s; }
+.project-brief-section-card:nth-child(7) { animation-delay: 0.24s; }
+.project-brief-section-card:nth-child(8) { animation-delay: 0.28s; }
 
 .project-brief-section-card:hover {
   border-color: var(--accent-border);

@@ -38,6 +38,7 @@ import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { UserAvatar } from '../../shared/ui/user-avatar';
 import { MarkdownView } from '../../widgets/markdown/MarkdownView';
+import { TypewriterMarkdown } from '../../widgets/markdown/TypewriterMarkdown';
 import './SearchPage.css';
 
 
@@ -62,6 +63,8 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
 
   const [showBriefHistory, setShowBriefHistory] = useState(false);
   const [selectedBrief, setSelectedBrief] = useState<ProjectBriefPanelResponse | null>(null);
+  // Track the most recent assistant message id so we know which one is "fresh"
+  const freshMessageIdRef = useRef<string | null>(null);
 
   const currentUserQuery = useQuery({
     queryKey: QUERY_KEYS.AUTH.ME,
@@ -183,6 +186,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
           sources: result.sources || [],
           relatedNotes: result.relatedNotes || [],
         };
+        freshMessageIdRef.current = assistantMsg.id;
         setMessages((prev) => [...prev, assistantMsg]);
         if (result.conversationId) {
           setActiveConversationId(result.conversationId);
@@ -231,6 +235,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
             relatedNotes: turn.relatedNotes || [],
           });
         });
+        freshMessageIdRef.current = null;
         setMessages(chatMessages);
         setActiveConversationId(conversationId);
         setShowHistory(false);
@@ -395,7 +400,11 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                           {msg.role === 'user' ? (
                             <span className="question-text">{msg.content}</span>
                           ) : (
-                            <MarkdownView markdown={msg.content} />
+                            <TypewriterMarkdown
+                              markdown={msg.content}
+                              animationKey={msg.id}
+                              animated={msg.id === freshMessageIdRef.current}
+                            />
                           )}
                         </div>
                         {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 ? (

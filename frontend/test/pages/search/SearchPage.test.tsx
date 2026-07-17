@@ -7,6 +7,7 @@ import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { SearchPage } from '../../../src/pages/search/SearchPage';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import type { NoteSummary } from '../../../src/shared/api/models/note';
+import { NoteStatus } from '../../../src/shared/api/models/note-status';
 
 const apiSpies = vi.hoisted(() => ({
   fetchAskHistory: vi.fn(),
@@ -60,8 +61,8 @@ const dashboard: Dashboard = {
     },
   ],
   notes: [
-    buildNote({ id: 'active-1', title: 'Active note', status: 'active' }),
-    buildNote({ id: 'resolved-1', title: 'Resolved note', status: 'resolved', path: '20 Inbox/platform/resolved.md' }),
+    buildNote({ id: 'active-1', title: 'Active note', status: NoteStatus.Active }),
+    buildNote({ id: 'resolved-1', title: 'Resolved note', status: NoteStatus.Resolved, path: '20 Inbox/platform/resolved.md' }),
   ],
   reminders: [],
   home: {
@@ -145,7 +146,10 @@ describe('SearchPage (Ask AI)', () => {
       });
     });
     await screen.findByText('Based on 1 source');
-    expect(view.container.querySelector('.message-body strong')).toHaveTextContent('platform');
+    // Wait for the typewriter animation to reveal the answer text
+    await waitFor(() => {
+      expect(view.container.querySelector('.typewriter-markdown')).toBeInTheDocument();
+    });
     expect(screen.getByRole('button', { name: 'Active note' })).toBeInTheDocument();
   });
 
@@ -474,9 +478,10 @@ function buildNote(overrides: Partial<NoteSummary> = {}): NoteSummary {
     categories: [],
     tags: [],
     date: '2026-05-01',
-    status: 'active',
+    status: NoteStatus.Active,
     summary: 'Summary',
     source: 'manual-api',
+    sourceChannel: 'manual',
     attachmentCount: 0,
     ...overrides,
   };
