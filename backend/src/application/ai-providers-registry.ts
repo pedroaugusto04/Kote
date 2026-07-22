@@ -60,6 +60,21 @@ export const AI_PROVIDERS_REGISTRY: Record<
   },
 };
 
+export function getAiProviderConfigStatus(
+  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi,
+  environment: RuntimeEnvironment,
+) {
+  const config = getAiProviderConfig(provider, environment);
+  const missing = [
+    config.provider === 'none' ? 'provider' : '',
+    !config.baseUrl ? 'baseUrl' : '',
+    !config.model ? 'model' : '',
+    !config.apiKey ? 'apiKey' : '',
+  ].filter(Boolean);
+
+  return { config, configured: missing.length === 0, missing };
+}
+
 export function getAiProviderConfig(
   provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi,
   environment: RuntimeEnvironment,

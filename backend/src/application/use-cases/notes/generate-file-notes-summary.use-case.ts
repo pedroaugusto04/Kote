@@ -1,41 +1,16 @@
 import { Injectable } from '@nestjs/common';
-
-import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { AnswerGenerationGateway, type AnswerContextChunk } from '../../ports/query/answer-generation.gateway.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
-import type { NoteRecord } from '../../models/repository-records.models.js';
-import { QuotaService } from '../../services/quota/quota.service.js';
 import { FileNotesSummaryCacheService } from '../../services/content/file-notes-summary-cache.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
-import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
-
-type FileNotesSummaryRequest = {
-  filePath: string;
-  notes: Array<{
-    id: string;
-    title: string;
-    date: string;
-    content: string;
-    summary?: string;
-  }>;
-};
-
-type FileNotesSummaryResponse = {
-  summary: string;
-  understanding: string;
-  timeline: Array<{
-    date: string;
-    title: string;
-    description: string;
-    noteId: string;
-  }>;
-  keyChanges: Array<{
-    description: string;
-    noteId: string;
-  }>;
-  generatedAt: string;
-};
+import { AiProvider, IntegrationProvider } from '../../../contracts/enums.js';
+import { FileNotesSummaryFallbackReason } from '../../../domain/enums/ai.enums.js';
+import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
+import {
+  buildFileNotesSummaryFallback,
+  type FileNotesSummaryRequest,
+  type FileNotesSummaryResponse,
+} from '../../utils/notes/file-notes-summary.utils.js';
 
 @Injectable()
 export class GenerateFileNotesSummaryUseCase {
@@ -43,9 +18,9 @@ export class GenerateFileNotesSummaryUseCase {
 
   constructor(
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
-    private readonly quotaService: QuotaService,
     private readonly cacheService: FileNotesSummaryCacheService,
     private readonly logger: AppLogger,
+    private readonly aiEntitlement: AiEntitlementService,
   ) {
     this.env = this.runtimeEnv.read();
   }
@@ -60,7 +35,30 @@ export class GenerateFileNotesSummaryUseCase {
       notesCount: request.notes.length,
     });
 
-    // Check cache first
+    if (request.notes.length === 0) {
+      this.logger.info('generate_file_notes_summary.no_notes');
+      return {
+        summary: 'No notes found for this file.',
+        understanding: 'There are no engineering notes or decisions recorded for this file yet.',
+        timeline: [],
+        keyChanges: [],
+        generatedAt: new Date().toISOString(),
+      };
+    }
+
+    const workspaceSlug = request.workspaceSlug || request.notes[0]?.workspaceSlug || 'default';
+    const config = {
+      conversationAiProvider: this.env.fileNotesSummaryAiProvider,
+      conversationAiBaseUrl: this.env.fileNotesSummaryAiBaseUrl,
+      conversationAiModel: this.env.fileNotesSummaryAiModel,
+      conversationAiApiKey: this.env.fileNotesSummaryAiApiKey,
+    };
+
+    if (config.conversationAiProvider === AiProvider.None || !config.conversationAiBaseUrl || !config.conversationAiModel || !config.conversationAiApiKey) {
+      return buildFileNotesSummaryFallback(request, FileNotesSummaryFallbackReason.FeatureDisabled);
+    }
+
+    // Check cache only after the integration state has been validated.
     const cached = this.cacheService.get(
       request.filePath,
       request.notes.map((n) => ({ id: n.id, date: n.date })),
@@ -76,31 +74,20 @@ export class GenerateFileNotesSummaryUseCase {
       };
     }
 
-    const quotaResult = await this.quotaService.checkAndIncrementAiUsage(
+    const entitlement = await this.aiEntitlement.checkAndConsume({
       userId,
-      AiOperationType.FILE_NOTES_SUMMARY,
-    );
-    if (!quotaResult.allowed) {
-      throw new QuotaExceededException('ai_credits', quotaResult.limit, quotaResult.current);
+      workspaceSlug,
+      provider: IntegrationProvider.FileNotesSummaryAi,
+      operation: AiOperationType.FILE_NOTES_SUMMARY,
+    });
+    if (!entitlement.enabled) {
+      return buildFileNotesSummaryFallback(request, FileNotesSummaryFallbackReason.FeatureDisabled);
     }
 
-    if (request.notes.length === 0) {
-      this.logger.info('generate_file_notes_summary.no_notes');
-      return {
-        summary: 'No notes found for this file.',
-        understanding: 'There are no engineering notes or decisions recorded for this file yet.',
-        timeline: [],
-        keyChanges: [],
-        generatedAt: new Date().toISOString(),
-      };
+    if (!entitlement.quota.allowed) {
+      this.logger.warn('generate_file_notes_summary.quota_exceeded', { userId, workspaceSlug });
+      return buildFileNotesSummaryFallback(request, FileNotesSummaryFallbackReason.QuotaExceeded);
     }
-
-    const config = {
-      conversationAiProvider: this.env.fileNotesSummaryAiProvider,
-      conversationAiBaseUrl: this.env.fileNotesSummaryAiBaseUrl,
-      conversationAiModel: this.env.fileNotesSummaryAiModel,
-      conversationAiApiKey: this.env.fileNotesSummaryAiApiKey,
-    };
 
     const result = await this.generateSummary(config, request);
     
@@ -141,10 +128,18 @@ export class GenerateFileNotesSummaryUseCase {
     const systemPrompt = buildFileNotesSummarySystemPrompt();
     const userContent = buildFileNotesSummaryPrompt(request);
 
-    const content = await this.runChatCompletion(config, systemPrompt, userContent);
+    let content: string | null = null;
+    try {
+      content = await this.runChatCompletion(config, systemPrompt, userContent);
+    } catch (error) {
+      this.logger.warn('generate_file_notes_summary.generation_failed', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return buildFileNotesSummaryFallback(request, FileNotesSummaryFallbackReason.GenerationFailed);
+    }
     if (!content) {
       this.logger.warn('generate_file_notes_summary.generation_failed');
-      return this.buildFallbackSummary(request);
+      return buildFileNotesSummaryFallback(request, FileNotesSummaryFallbackReason.GenerationFailed);
     }
 
     try {
@@ -154,7 +149,7 @@ export class GenerateFileNotesSummaryUseCase {
       this.logger.warn('generate_file_notes_summary.parse_failed', {
         error: error instanceof Error ? error.message : String(error),
       });
-      return this.buildFallbackSummary(request);
+      return buildFileNotesSummaryFallback(request, FileNotesSummaryFallbackReason.GenerationFailed);
     }
   }
 
@@ -187,25 +182,4 @@ export class GenerateFileNotesSummaryUseCase {
     );
   }
 
-  private buildFallbackSummary(request: FileNotesSummaryRequest): FileNotesSummaryResponse {
-    const sortedNotes = [...request.notes].sort((a, b) => 
-      new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
-
-    return {
-      summary: `Found ${request.notes.length} note${request.notes.length === 1 ? '' : 's'} about this file.`,
-      understanding: 'AI summary generation failed. Showing raw notes below.',
-      timeline: sortedNotes.map((note) => ({
-        date: new Date(note.date).toISOString().split('T')[0],
-        title: note.title || 'Untitled',
-        description: note.summary || note.content?.substring(0, 200) || 'No description',
-        noteId: note.id,
-      })),
-      keyChanges: sortedNotes.map((note) => ({
-        description: note.title || 'Note entry',
-        noteId: note.id,
-      })),
-      generatedAt: new Date().toISOString(),
-    };
-  }
 }

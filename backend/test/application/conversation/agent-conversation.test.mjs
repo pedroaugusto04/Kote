@@ -8,6 +8,7 @@ import {
 } from '../../../dist/application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput } from '../../../dist/contracts/agent-conversation.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
@@ -97,8 +98,7 @@ async function createFixture(t, turns) {
     new StubConversationAgentGateway(turns),
     presenter,
     folderResolution,
-    repositories.quotaService,
-    repositories.credentialRepository,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     loggerMock,
   );
   return { repositories, user, agentUseCase };

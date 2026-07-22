@@ -14,7 +14,7 @@ import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations/integrations.repository.js';
 import { PushSubscriptionRepository } from './ports/push/push-subscription.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
-import { getAiProviderConfig, AI_PROVIDERS_REGISTRY } from './ai-providers-registry.js';
+import { getAiProviderConfigStatus, AI_PROVIDERS_REGISTRY } from './ai-providers-registry.js';
 
 export { IntegrationProvider };
 export const guidedProviders = [
@@ -169,15 +169,9 @@ function aiEnvStatus(provider: string, environmentProvider: RuntimeEnvironmentPr
   if (!(aiProvider in AI_PROVIDERS_REGISTRY)) {
     return { configured: false, missing: ['provider'], provider: 'none' };
   }
-  const config = getAiProviderConfig(aiProvider, environment);
-  const missing = [
-    config.provider === 'none' ? 'provider' : '',
-    !config.baseUrl ? 'baseUrl' : '',
-    !config.model ? 'model' : '',
-    !config.apiKey ? 'apiKey' : '',
-  ].filter(Boolean);
+  const { config, configured, missing } = getAiProviderConfigStatus(aiProvider, environment);
   return {
-    configured: missing.length === 0,
+    configured,
     missing,
     provider: config.provider,
   };
@@ -219,7 +213,21 @@ export class IntegrationCredentialService {
           revokedAt: null,
         };
       }
-      return publicCredential(records.find((record) => record.provider === provider) || null, provider, workspaceSlug);
+      const integration = publicCredential(records.find((record) => record.provider === provider) || null, provider, workspaceSlug);
+      if (
+        provider.startsWith('ai-') || provider.endsWith('-ai')
+      ) {
+        const configuration = aiEnvStatus(provider, this.environmentProvider);
+        if (integration.status === StoredIntegrationStatus.Connected && !configuration.configured) {
+          return {
+            ...integration,
+            status: StoredIntegrationStatus.Disabled,
+            primaryAction: { type: IntegrationActionType.None, label: 'Unavailable' },
+            steps: ['Feature enabled for this workspace.', `Managed configuration is incomplete: ${configuration.missing.join(', ')}.`],
+          };
+        }
+      }
+      return integration;
     });
     return {
       ok: true as const,

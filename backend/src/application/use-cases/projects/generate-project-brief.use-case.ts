@@ -1,15 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
-
-import { AiProvider, CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
-import { ProjectBriefFallbackReason, type ProjectBrief, type ProjectBriefContextItem } from '../../models/project-brief.models.js';
+import { AiProvider, IntegrationProvider } from '../../../contracts/enums.js';
+import { ProjectBriefFallbackReason} from '../../models/project-brief.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { ProjectBriefAiGateway } from '../../ports/projects/project-brief-ai.gateway.js';
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { QuotaService } from '../../services/quota/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
-import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
+import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
 import { toProjectBriefContextItem, toEmptyProjectBrief, toNormalizedBrief, toSha256 } from '../../mappers/project-brief.mapper.js';
 
 
@@ -19,11 +16,10 @@ const CONTEXT_WINDOW = 30;
 export class GenerateProjectBriefUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
-    private readonly credentialRepository: CredentialRepository,
     private readonly historyRepository: ProjectBriefHistoryRepository,
     private readonly aiGateway: ProjectBriefAiGateway,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly quotaService: QuotaService,
+    private readonly aiEntitlement: AiEntitlementService,
   ) {}
 
   async execute(userId: string, projectId: string) {
@@ -51,17 +47,13 @@ export class GenerateProjectBriefUseCase {
     }
 
     const config = this.aiConfig();
-    await this.requireConnectedIntegration(userId, workspaceSlug);
-
-    // Check AI credit quota before calling the LLM
-    const quotaResult = await this.quotaService.checkAndIncrementAiUsage(
+    await this.aiEntitlement.requireAndConsume({
       userId,
-      AiOperationType.PROJECT_BRIEF,
-      { projectSlug, workspaceSlug, source: 'project_brief_generation' },
-    );
-    if (!quotaResult.allowed) {
-      throw new QuotaExceededException('ai_credits', quotaResult.limit, quotaResult.current);
-    }
+      workspaceSlug,
+      provider: IntegrationProvider.ProjectBriefAi,
+      operation: AiOperationType.PROJECT_BRIEF,
+      metadata: { projectSlug, workspaceSlug, source: 'project_brief_generation' },
+    });
 
     const generatedAt = new Date().toISOString();
     const items = (await this.contentRepository.listNotes(userId))
@@ -141,10 +133,4 @@ export class GenerateProjectBriefUseCase {
     return config;
   }
 
-  private async requireConnectedIntegration(userId: string, workspaceSlug: string) {
-    const credential = await this.credentialRepository.findCredential(userId, workspaceSlug, IntegrationProvider.ProjectBriefAi);
-    if (!credential || credential.status !== CredentialRecordStatus.Connected || credential.revokedAt) {
-      throw new BadRequestException('project_brief_ai_not_connected');
-    }
-  }
 }

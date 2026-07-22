@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { KbClient } from '../kb-client';
+import { FILE_NOTES_SUMMARY_FALLBACK_REASON, KbClient } from '../kb-client';
 import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
 
 export class FileNotesSummaryProvider {
@@ -495,6 +495,8 @@ export class FileNotesSummaryProvider {
       timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
       keyChanges: Array<{ description: string; noteId: string }>;
       generatedAt: string;
+      fallback?: boolean;
+      fallbackReason?: 'feature_disabled' | 'quota_exceeded' | 'generation_failed';
     },
     notes: any[],
   ): string {
@@ -568,6 +570,13 @@ export class FileNotesSummaryProvider {
       padding: 15px;
       margin: 20px 0;
       font-style: italic;
+    }
+    .fallback-notice {
+      background-color: var(--vscode-inputValidation-warningBackground);
+      border: 1px solid var(--vscode-inputValidation-warningBorder);
+      color: var(--vscode-inputValidation-warningForeground);
+      padding: 12px 15px;
+      margin: 20px 0;
     }
     .understanding {
       margin: 20px 0;
@@ -747,6 +756,7 @@ export class FileNotesSummaryProvider {
   <h1>💡 Kote File Notes Summary</h1>
   <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>
   <p><strong>Generated:</strong> <span class="generated-date" data-date="${this.escapeHtml(summary.generatedAt)}">${this.escapeHtml(summary.generatedAt)}</span></p>
+  ${summary.fallback ? `<div class="fallback-notice"><strong>${summary.fallbackReason === FILE_NOTES_SUMMARY_FALLBACK_REASON.FEATURE_DISABLED ? 'AI summary is not enabled.' : summary.fallbackReason === FILE_NOTES_SUMMARY_FALLBACK_REASON.QUOTA_EXCEEDED ? 'AI credits exhausted.' : 'AI summary is temporarily unavailable.'}</strong> The notes below are still available.</div>` : ''}
   
   <div class="summary">
     <h3>Summary</h3>

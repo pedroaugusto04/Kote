@@ -205,12 +205,14 @@ export class NotesController {
 
     const summaryRequest = {
       filePath: query.filePath,
+      workspaceSlug: query.workspaceSlug,
       notes: notes.map((note) => ({
         id: note.id,
         title: note.title,
         date: note.date,
         content: note.summary || '',
         summary: note.summary,
+        workspaceSlug: note.workspace,
       })),
     };
 

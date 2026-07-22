@@ -7,7 +7,6 @@ import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { SEARCH_MESSAGES } from './search.constants';
 import {
-  fetchAskHistory,
   fetchLatestProjectBrief,
   fetchProjectBriefHistory,
   generateProjectBrief,
@@ -506,6 +505,8 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                 loading={(generateBriefMutation.isPending && generateBriefMutation.variables === briefProjectSlug) || (latestBriefQuery.isLoading && !selectedBrief)}
                 error={generateBriefMutation.isError && generateBriefMutation.variables === briefProjectSlug
                   ? getErrorMessage(generateBriefMutation.error, 'Could not generate the project brief.')
+                  : latestBriefQuery.isError && !selectedBrief
+                    ? getErrorMessage(latestBriefQuery.error, 'Could not load the project brief.')
                   : ''}
                 showHistory={showBriefHistory}
                 onGenerate={() => {

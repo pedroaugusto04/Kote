@@ -6,7 +6,7 @@ import {
   type AgentConversationState,
 } from '../../../contracts/agent-conversation.js';
 import { type ConversationInput } from '../../../contracts/conversation.js';
-import { CredentialRecordStatus, IntegrationProvider, AgentConversationAction, SourceChannel } from '../../../contracts/enums.js';
+import { IntegrationProvider, AgentConversationAction, SourceChannel } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
@@ -14,7 +14,6 @@ import { AppLogger } from '../../../observability/logger.js';
 import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import { ConversationAgentGateway, type ConversationAgentResponse } from '../../ports/conversation/conversation-agent.gateway.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { ConversationStateRepository } from '../../ports/reminders/workflow-state.repository.js';
 import { isCancel } from '../../utils/conversation/conversation-command.utils.js';
@@ -23,8 +22,8 @@ import { buildProjectFolderTree } from '../../utils/content/project-folder.utils
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { ConversationAgentPresenter } from './services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './services/conversation-folder-resolution.service.js';
-import { QuotaService } from '../../services/quota/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
+import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
 import { resolveSourceChannel } from '../../utils/integration/source-channel.utils.js';
 import { resolveContentScopeFromSlugs } from '../../utils/content/content-scope.utils.js';
 import { toProjectRecord } from '../../mappers/project.mapper.js';
@@ -68,14 +67,14 @@ export class ProcessAgentConversationUseCase {
     private readonly conversationAgentGateway: ConversationAgentGateway,
     private readonly presenter: ConversationAgentPresenter,
     private readonly folderResolutionService: ConversationFolderResolutionService,
-    private readonly quotaService: QuotaService,
-    private readonly credentials?: CredentialRepository,
+    private readonly aiEntitlement: AiEntitlementService,
     private readonly logger?: AppLogger,
   ) { }
 
   async execute(input: ConversationInput, userId: string, workspaceSlug = 'default', projectSlug?: string): Promise<AgentConversationResult> {
     const normalizedWorkspaceSlug = slugify(workspaceSlug) || 'default';
-    await this.assertAgentEnabled(userId, normalizedWorkspaceSlug);
+    const aiEnabled = await this.aiEntitlement.isEnabled(userId, normalizedWorkspaceSlug, IntegrationProvider.AiConversation);
+    if (!aiEnabled) throw new NotFoundException('ai_conversation_not_enabled');
 
     const sourceChannel = resolveSourceChannel({
       senderId: input.senderId,
@@ -137,23 +136,23 @@ export class ProcessAgentConversationUseCase {
     const messageText = String(input.messageText || '').trim();
     const environment = this.environmentProvider.read();
 
-    // Check AI credit quota before invoking the LLM.
-    // Graceful degradation: return friendly message instead of throwing to avoid crashing the WPP flow.
-    const quotaResult = await this.quotaService.checkAndIncrementAiUsage(
+    const entitlement = await this.aiEntitlement.checkAndConsume({
       userId,
-      AiOperationType.AGENT_CONVERSATION_TURN,
-      { workspaceSlug, source: 'agent_conversation' },
-    );
-    if (!quotaResult.allowed) {
+      workspaceSlug,
+      provider: IntegrationProvider.AiConversation,
+      operation: AiOperationType.AGENT_CONVERSATION_TURN,
+      metadata: { workspaceSlug, source: 'agent_conversation' },
+    });
+    if (!entitlement.enabled || !entitlement.quota.allowed) {
       this.logger?.warn('conversation.agent.quota_exceeded', {
         userId,
         workspaceSlug,
-        limit: quotaResult.limit,
-        current: quotaResult.current,
+        limit: entitlement.enabled ? entitlement.quota.limit : undefined,
+        current: entitlement.enabled ? entitlement.quota.current : undefined,
       });
       return this.reply(
         AgentConversationAction.Ask,
-        `⚠️ You have used all your AI credits for this month (${quotaResult.current}/${quotaResult.limit} credits). Your quota resets at the start of next month.\n\n💡 Upgrade your plan to get more AI credits: https://knowledgebase.sbs/kote/automations/subscription`,
+        `⚠️ You have used all your AI credits for this month (${entitlement.enabled ? entitlement.quota.current : 0}/${entitlement.enabled ? entitlement.quota.limit : 0} credits). Your quota resets at the start of next month.\n\n💡 Upgrade your plan to get more AI credits: https://knowledgebase.sbs/kote/automations/subscription`,
         null,
         state,
       );
@@ -213,13 +212,6 @@ export class ProcessAgentConversationUseCase {
     }
 
     return this.reply(AgentConversationAction.Ask, decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
-  }
-
-  private async assertAgentEnabled(userId: string, workspaceSlug: string) {
-    if (!this.credentials) throw new BadRequestException('conversation_agent_not_configured');
-    const credential = await this.credentials.findCredential(userId, workspaceSlug, IntegrationProvider.AiConversation);
-    const enabled = Boolean(credential && credential.status === CredentialRecordStatus.Connected && !credential.revokedAt);
-    if (!enabled) throw new NotFoundException('ai_conversation_not_enabled');
   }
 
   private async loadState(userId: string, workspaceSlug: string, key: string) {

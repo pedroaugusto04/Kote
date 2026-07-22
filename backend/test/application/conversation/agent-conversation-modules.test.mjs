@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { ProcessAgentConversationUseCase } from '../../../dist/application/use-cases/conversation/process-agent-conversation.use-case.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import {
   buildNextAgentConversationState,
   emptyAgentConversationState,
@@ -341,12 +342,11 @@ test('process agent conversation auto-creates a missing project before submittin
         return '';
       },
     },
-    {
+    new AiEntitlementService(credentials, {
       async checkAndIncrementAiUsage() {
         return { allowed: true, limit: -1, current: 0 };
       },
-    },
-    credentials,
+    }),
   );
 
   const result = await useCaseWithDecision.execute({
@@ -426,5 +426,4 @@ test('conversation agent state machine resolves to nested folder by leaf folder 
   assert.equal(next.folder.selectedFolderId, 'folder-2');
   assert.deepEqual(next.folder.suggestedFolderPath, ['runbooks', 'api']);
 });
-
 

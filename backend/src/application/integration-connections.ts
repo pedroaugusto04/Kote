@@ -9,7 +9,7 @@ import { GithubIntegrationGateway } from './ports/integrations/github-integratio
 import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
-import { AI_PROVIDERS_REGISTRY, getAiProviderConfig } from './ai-providers-registry.js';
+import { AI_PROVIDERS_REGISTRY, getAiProviderConfigStatus } from './ai-providers-registry.js';
 import { GithubRepositoryResolutionService } from './services/integrations/github-repository-resolution.service.js';
 import { WhatsappReplySender } from './ports/integrations/whatsapp-reply.sender.js';
 import { TelegramMessageSender } from './ports/integrations/telegram-message.sender.js';
@@ -367,9 +367,13 @@ export class IntegrationConnectionService {
 
   private async activateAi(userId: string, workspaceSlug: string, provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi) {
     const environment = this.environment();
-    const config = getAiProviderConfig(provider, environment);
-    const configured = config.provider !== 'none' && config.baseUrl && config.model && config.apiKey;
-    if (!configured) throw new BadRequestException(config.errorCode);
+    const { config, configured, missing } = getAiProviderConfigStatus(provider, environment);
+    if (!configured) {
+      throw new BadRequestException({
+        code: config.errorCode,
+        details: { missing },
+      });
+    }
     const credential = await this.credentials.upsertCredential({
       userId,
       workspaceSlug,

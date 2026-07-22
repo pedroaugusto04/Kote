@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 
 import { ProcessGithubPushService } from '../../../dist/application/services/integrations/process-github-push.service.js';
 import { GithubRepositoryResolutionService } from '../../../dist/application/services/integrations/github-repository-resolution.service.js';
+import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { BuildDashboardUseCase, CreateWorkspaceUseCase, HandleGithubPushUseCase, HandleGithubPullRequestUseCase, IngestEntryUseCase, RefreshReminderStatusesUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
@@ -172,7 +173,7 @@ test('github app webhook resolves user by installation id and rejects unknown id
     repositories.runtimeEnvironmentProvider,
     githubGateway,
     reviewGateway,
-    repositories.quotaService,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     repositories.contentRepository,
   );
   const unusedGithubGateway = {
@@ -291,7 +292,7 @@ test('github push resolves project by explicit repository mapping', async (t) =>
     repositories.runtimeEnvironmentProvider,
     githubGateway,
     reviewGateway,
-    repositories.quotaService,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     repositories.contentRepository,
   );
   const githubRepositoryResolution = new GithubRepositoryResolutionService(
@@ -493,12 +494,11 @@ test('github pull request webhook processes event, searches context, and posts c
     embeddingGatewayMock,
     noteEmbeddingRepositoryMock,
     answerGenerationGatewayMock,
-    repositories.quotaService,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     null,
     null,
     githubRepositoryResolution,
     repositories.contentRepository,
-    repositories.credentialRepository,
   );
 
   const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 77)), { synchronous: true });
@@ -582,12 +582,11 @@ test('github pull request webhook skips processing when title contains skip-kote
     {} ,
     {} ,
     {} ,
-    repositories.quotaService,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     null,
     null,
     githubRepositoryResolution,
     repositories.contentRepository,
-    repositories.credentialRepository,
   );
 
   const payload = githubPrBody('opened', 78);
@@ -670,12 +669,11 @@ test('github pull request webhook skips posting comments when a comment already 
     {} ,
     {} ,
     {} ,
-    repositories.quotaService,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     null,
     null,
     githubRepositoryResolution,
     repositories.contentRepository,
-    repositories.credentialRepository,
   );
 
   const result = await handler.execute(signedGithubPrInput(githubPrBody('opened', 79)), { synchronous: true });
@@ -685,5 +683,4 @@ test('github pull request webhook skips posting comments when a comment already 
   assert.equal(result.ignored, 'comment_already_exists_for_sha');
   assert.equal(prCommentPosted, false);
 });
-
 

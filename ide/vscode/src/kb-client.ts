@@ -5,6 +5,12 @@ import https from 'node:https';
 import http from 'node:http';
 import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, AskHistoryEntry } from './types';
 
+export const FILE_NOTES_SUMMARY_FALLBACK_REASON = {
+  FEATURE_DISABLED: 'feature_disabled',
+  QUOTA_EXCEEDED: 'quota_exceeded',
+  GENERATION_FAILED: 'generation_failed',
+} as const;
+
 // ---------------------------------------------------------------------------
 // Config (mirrors the CLI config file used by the extension)
 // ---------------------------------------------------------------------------
@@ -514,6 +520,8 @@ export class KbClient {
     timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
     keyChanges: Array<{ description: string; noteId: string }>;
     generatedAt: string;
+    fallback?: boolean;
+    fallbackReason?: 'feature_disabled' | 'quota_exceeded' | 'generation_failed';
   }> {
     return this.fetch<{
       summary: string;
@@ -521,7 +529,9 @@ export class KbClient {
       timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
       keyChanges: Array<{ description: string; noteId: string }>;
       generatedAt: string;
-    }>(`/api/notes/by-file/summary?filePath=${encodeURIComponent(filePath)}`, {
+      fallback?: boolean;
+      fallbackReason?: 'feature_disabled' | 'quota_exceeded' | 'generation_failed';
+    }>(`/api/notes/by-file/summary?filePath=${encodeURIComponent(filePath)}&workspaceSlug=${encodeURIComponent(this.config.workspaceSlug || 'default')}`, {
       signal: options?.signal,
     });
   }

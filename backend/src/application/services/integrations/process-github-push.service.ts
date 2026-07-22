@@ -7,16 +7,16 @@ import { formatCorrelationId } from '../../utils/github/github-review.helpers.js
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { NotifyHighSeverityFindingsService } from '../../use-cases/notifications/notify-high-severity-findings.use-case.js';
 import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
-import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { WhatsappReplySender } from '../../ports/integrations/whatsapp-reply.sender.js';
 import { ReviewAnalysisGateway } from '../../ports/projects/review-analysis.port.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { absoluteUrl } from '../../utils/integration/integration-status.utils.js';
 import { resolveContentScopeFromSlugs } from '../../utils/content/content-scope.utils.js';
 import { IngestEntryUseCase } from '../../use-cases/ingest/ingest-entry.use-case.js';
-import { QuotaService } from '../quota/quota.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
+import { AiEntitlementService } from '../ai/ai-entitlement.service.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 
 type GithubPushPayload = {
   ref?: string;
@@ -61,7 +61,7 @@ export class ProcessGithubPushService {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
-    private readonly quotaService: QuotaService,
+    private readonly aiEntitlement: AiEntitlementService,
     private readonly contentRepository: ContentRepository,
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
@@ -76,12 +76,22 @@ export class ProcessGithubPushService {
     const repoFullName = String(body.repository?.full_name || '').trim();
     const headers = input.headers || { 'x-github-event': 'push' };
 
-    const quotaOk = await this.quotaService.checkAndIncrementAiUsage(
-      input.userId,
-      AiOperationType.GITHUB_CODE_REVIEW,
-      { repoFullName, source: input.quotaSource || 'github_push' },
-    ).then((r) => r.allowed);
+    const entitlement = await this.aiEntitlement.checkAndConsume({
+      userId: input.userId,
+      workspaceSlug: input.workspaceSlug,
+      provider: IntegrationProvider.AiReview,
+      operation: AiOperationType.GITHUB_CODE_REVIEW,
+      metadata: { repoFullName, source: input.quotaSource || 'github_push' },
+    });
+    const quotaOk = entitlement.enabled && entitlement.quota.allowed;
 
+    if (!entitlement.enabled) {
+      return {
+        ok: false as const,
+        skipped: 'ai_disabled' as const,
+        repository: repoFullName,
+      };
+    }
     if (!quotaOk) {
       return {
         ok: false as const,
@@ -90,10 +100,7 @@ export class ProcessGithubPushService {
       };
     }
 
-    const aiCredential = this.credentials
-      ? await this.credentials.findCredential(input.userId, input.workspaceSlug, IntegrationProvider.AiReview)
-      : null;
-    const aiEnabled = Boolean(aiCredential && aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
+    const aiEnabled = true;
 
     this.logger.info('github_push_review_start', {
       repository: repoFullName,

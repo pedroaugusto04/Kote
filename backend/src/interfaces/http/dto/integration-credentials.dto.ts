@@ -43,7 +43,13 @@ export const guidedIntegrationProviderSchema = z.enum([
   IntegrationProviderEnum.PrContextAi,
   IntegrationProviderEnum.FileNotesSummaryAi
 ]);
-export const aiIntegrationProviderSchema = z.enum([IntegrationProviderEnum.AiReview, IntegrationProviderEnum.AiConversation, IntegrationProviderEnum.ProjectBriefAi]);
+export const aiIntegrationProviderSchema = z.enum([
+  IntegrationProviderEnum.AiReview,
+  IntegrationProviderEnum.AiConversation,
+  IntegrationProviderEnum.ProjectBriefAi,
+  IntegrationProviderEnum.PrContextAi,
+  IntegrationProviderEnum.FileNotesSummaryAi,
+]);
 
 export const providerParamSchema = z.object({
   provider: integrationProviderSchema,

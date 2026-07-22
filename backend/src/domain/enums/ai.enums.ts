@@ -6,6 +6,12 @@ export enum AiProvider {
   None = 'none',
 }
 
+export enum FileNotesSummaryFallbackReason {
+  FeatureDisabled = 'feature_disabled',
+  QuotaExceeded = 'quota_exceeded',
+  GenerationFailed = 'generation_failed',
+}
+
 export enum ConversationConfidence {
   High = 'high',
   Medium = 'medium',
@@ -16,4 +22,3 @@ export enum EmbeddingTaskType {
   Document = 'document',
   Query = 'query',
 }
-

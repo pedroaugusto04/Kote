@@ -1,18 +1,18 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { AiProvider, CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus, EmbeddingTaskType } from '../../../../contracts/enums.js';
+import { AiProvider, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus, EmbeddingTaskType } from '../../../../contracts/enums.js';
 import { buildGithubPrReviewEvent, buildGithubPrContextNoteEvent } from '../../../github-review.js';
 import type { GithubPullRequestWebhookRequest } from '../../../models/webhook-request.models.js';
 import type { ChangedFile } from '../../../models/github-webhook.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
-import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
+import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
 import { resolveContentScopeFromSlugs } from '../../../utils/content/content-scope.utils.js';
-import { QuotaService } from '../../../services/quota/quota.service.js';
 import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
+import { AiEntitlementService } from '../../../services/ai/ai-entitlement.service.js';
 import { EmbeddingGateway } from '../../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
 import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
@@ -66,12 +66,11 @@ export class HandleGithubPullRequestUseCase {
     private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly answerGenerationGateway: AnswerGenerationGateway,
-    private readonly quotaService: QuotaService,
+    private readonly aiEntitlement: AiEntitlementService,
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
     private readonly contentRepository?: ContentRepository,
-    private readonly credentials?: CredentialRepository,
   ) {
     this.logger = AppLogger.create();
   }
@@ -236,11 +235,14 @@ export class HandleGithubPullRequestUseCase {
     const installationId = String((body.installation as { id?: unknown } | undefined)?.id || '').trim();
 
     try {
-      // Check if PR Context AI is enabled (active by default if no credential record exists)
-      const aiCredential = this.credentials
-        ? await this.credentials.findCredential(identity.userId, identity.workspaceSlug || '', IntegrationProvider.PrContextAi)
-        : null;
-      const aiEnabled = !aiCredential || (aiCredential.status === CredentialRecordStatus.Connected && !aiCredential.revokedAt);
+      const entitlement = await this.aiEntitlement.checkAndConsume({
+        userId: identity.userId,
+        workspaceSlug: identity.workspaceSlug || 'default',
+        provider: IntegrationProvider.PrContextAi,
+        operation: AiOperationType.GITHUB_PR_CONTEXT,
+        metadata: { repoFullName, prNumber: body.pull_request?.number, source: 'github_pr_webhook' },
+      });
+      const aiEnabled = entitlement.enabled;
 
       this.logger.info('github_pr_ai_check', {
         repository: repoFullName,
@@ -272,12 +274,7 @@ export class HandleGithubPullRequestUseCase {
         };
       }
 
-      // Check AI credit quota
-      const quotaOk = await this.quotaService.checkAndIncrementAiUsage(
-        identity.userId,
-        AiOperationType.GITHUB_PR_CONTEXT,
-        { repoFullName, prNumber: body.pull_request?.number, source: 'github_pr_webhook' },
-      ).then((r) => r.allowed);
+      const quotaOk = entitlement.enabled && entitlement.quota.allowed;
 
       this.logger.info('github_pr_quota_check', {
         repository: repoFullName,

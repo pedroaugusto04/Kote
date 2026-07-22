@@ -10,6 +10,7 @@ import {
 } from '../../../dist/application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { WhatsappConversationTaskQueue } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
@@ -185,8 +186,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     new StubConversationAgentGateway(),
     presenter,
     folderResolution,
-    repositories.quotaService,
-    repositories.credentialRepository,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     loggerMock,
   );
   const whatsapp = new HandleWhatsappWebhookUseCase(
@@ -947,4 +947,3 @@ test('linked whatsapp chat computes attachment size from downloaded base64 when 
   assert.equal(attachments[0].mimeType, 'image/png');
   assert.equal(attachments[0].sizeBytes, 19); // 'hello image payload' has 19 bytes
 });
-

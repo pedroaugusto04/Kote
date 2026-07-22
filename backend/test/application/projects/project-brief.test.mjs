@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
 import { GenerateProjectBriefUseCase, GetProjectBriefUseCase, CreateWorkspaceUseCase } from '../../../dist/application/use-cases/index.js';
+import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 function configureAi() {
@@ -37,11 +38,10 @@ async function setup(t) {
 function useCase(repositories, gateway) {
   return new GenerateProjectBriefUseCase(
     repositories.contentRepository,
-    repositories.credentialRepository,
     repositories.projectBriefHistoryRepository,
     gateway,
     repositories.runtimeEnvironmentProvider,
-    repositories.quotaService,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
   );
 }
 

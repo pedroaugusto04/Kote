@@ -465,6 +465,7 @@ function IntegrationCard({
     },
   });
   const connected = integration.status === StoredIntegrationStatus.Connected;
+  const unavailable = integration.status === StoredIntegrationStatus.Disabled;
   const actionLabel = connected ? integration.primaryAction?.label || INTEGRATION_MESSAGES.GENERAL.REVOKE : integration.primaryAction?.label || INTEGRATION_MESSAGES.GENERAL.CONNECT;
   const actionError = connectMutation.isError
     ? getErrorMessage(connectMutation.error, INTEGRATION_MESSAGES.GENERAL.ACTIVATE_ERROR)
@@ -493,7 +494,7 @@ function IntegrationCard({
           {integration.provider === IntegrationProvider.GithubApp && connected ? <button className="filter-chip" type="button" onClick={onGithubRepositories}>{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORIES_BUTTON}</button> : null}
           <button
             className={connected ? 'filter-chip' : 'icon-button'}
-            disabled={connectMutation.isPending || revokeMutation.isPending}
+            disabled={unavailable || connectMutation.isPending || revokeMutation.isPending}
             type="button"
             onClick={() => connected ? revokeMutation.mutate() : connectMutation.mutate()}
           >
