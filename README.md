@@ -192,6 +192,12 @@ Run directly via `npx -y @pedroaugusto04/kote-mcp`. See [ide/mcp/README.md](ide/
 
 If you prefer to run Kote on your own infrastructure, you can launch the entire stack using Docker Compose:
 
+Prerequisites:
+
+- Docker with Docker Compose;
+- Node.js 20.12 or newer;
+- a Supabase project with a private `notes` Storage bucket.
+
 1. **Clone the Repository:**
    ```bash
    git clone https://github.com/pedroaugusto04/knowledge-base.git
@@ -200,12 +206,22 @@ If you prefer to run Kote on your own infrastructure, you can launch the entire 
 
 2. **Configure Environment Variables:**
    ```bash
-   cp .env.example .env
+   npm run setup:local
+   ```
+   Configure `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`. In the Supabase dashboard, create a **private Storage bucket** named `notes` (Storage → New bucket). Kote stores note Markdown, attachments, and avatars in this bucket.
+
+   Verify the local configuration and bucket:
+   ```bash
+   npm run check:local
    ```
 
 3. **Start Services:**
    ```bash
-   docker compose up -d
+   docker compose up -d --wait
+   ```
+   Run the database migrations once:
+   ```bash
+   docker compose exec api npm run migrate
    ```
    * **Web Application:** [http://localhost:4311](http://localhost:4311)
    * **API Server:** [http://localhost:4310](http://localhost:4310)

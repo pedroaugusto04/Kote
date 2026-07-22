@@ -8,6 +8,8 @@
   },
   "scripts": {
     "clean": "node scripts/clean.mjs",
+    "setup:local": "node scripts/setup-local.mjs",
+    "check:local": "node scripts/check-local.mjs",
     "build:api": "npm run clean && tsc -p backend/tsconfig.json && cp -r backend/src/infrastructure/email/templates backend/dist/infrastructure/email/",
     "build:frontend": "vite build --config frontend/vite.config.ts",
     "build:cli": "tsc -p cli/tsconfig.json",

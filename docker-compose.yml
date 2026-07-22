@@ -31,6 +31,7 @@ services:
       NODE_ENV: development
       KB_API_HOST: 0.0.0.0
       KB_DATABASE_URL: ${KB_DATABASE_URL_DOCKER:-postgres://postgres:postgres@postgres:5432/knowledge_base}
+      KB_RABBITMQ_URL: ${KB_RABBITMQ_URL_DOCKER:-amqp://kb:kb_dev@rabbitmq:5672}
       KB_API_INSPECT: ${KB_API_INSPECT:-true}
       KB_API_INSPECT_PORT: ${KB_API_INSPECT_PORT:-9229}
       KB_LOG_FILE_ENABLED: ${KB_LOG_FILE_ENABLED:-true}
@@ -140,7 +141,7 @@ services:
       # OpenTelemetry Observability
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-kote-backend}
       OTEL_RESOURCE_ATTRIBUTES: ${OTEL_RESOURCE_ATTRIBUTES:-service.name=kote-backend,deployment.environment=development}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://10.0.0.52:4318/v1/traces}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     command: sh -c "umask 000 && npm install && npm run dev:api"
     ports:
       - "${KB_API_PORT:-4310}:${KB_API_PORT:-4310}"
@@ -152,6 +153,8 @@ services:
       - kb_api_logs:/app/logs
     depends_on:
       postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test:
