@@ -114,6 +114,9 @@ export type RuntimeEnvironment = {
   ragHybridKeywordWeight: number;
   ragTopChunksLimit: number;
   ragRrfK: number;
+  ragRecencyBonusEnabled: boolean;
+  ragRecencyMaxBonus: number;
+  ragRecencyMaxBonusDays: number;
   attachmentMaxSizeBytes: number;
   avatarMaxSizeBytes: number;
   chunkTargetTokens: number;

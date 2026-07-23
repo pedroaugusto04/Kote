@@ -12,7 +12,7 @@ export class CodexHistoryProvider implements AiHistoryProvider {
 
   private getHistoryDir(): string {
     const configPath = vscode.workspace.getConfiguration('kb').get<string>('codexLogPath');
-    return configPath || path.join(os.homedir(), '.codex', 'sessions');
+    return configPath || path.join(os.homedir(), '.codex');
   }
 
   async isEnabled(): Promise<boolean> {

@@ -12,7 +12,7 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
 
   private getHistoryDir(): string {
     const configPath = vscode.workspace.getConfiguration('kb').get<string>('claudeCodeLogPath');
-    return configPath || path.join(os.homedir(), '.claude', 'projects');
+    return configPath || path.join(os.homedir(), '.claude');
   }
 
   async isEnabled(): Promise<boolean> {

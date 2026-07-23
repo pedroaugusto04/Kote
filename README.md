@@ -177,10 +177,11 @@ Run directly via `npx -y @pedroaugusto04/kote-mcp`. See [ide/mcp/README.md](ide/
 ## Getting Started
 
 1. **Sign In:** Go to [pedro-duarte.ddns.net/kote](https://pedro-duarte.ddns.net/kote) and authenticate your account.
-2. **Configure Integrations:** Connect your repository hosting (GitHub) via the Integrations dashboard.
-3. **Install the VS Code Extension:** Install **Kote** from the VS Code Marketplace and sign in.
-4. **Code Normally:** Kote runs in the background and continuously captures AI sessions, Git activity, and development context. 
-5. **Understand Instantly:** Open files in VS Code. Click the CodeLens indicator to view an AI-powered summary of the file's context and related decisions.
+2. **Install the VS Code Extension:** Install **Kote** from the VS Code Marketplace, sign in, and connect your workspace.
+3. **Sync Your First AI Session:** Let Kote capture a session automatically or save one from the extension.
+4. **Understand Instantly:** Open a file in VS Code and click the CodeLens indicator to view an AI-powered summary of its context and related decisions.
+5. **Connect GitHub:** Link your repository hosting through the Integrations dashboard to enable commit and pull request analysis.
+6. **Code Normally:** Kote runs in the background and continuously captures AI sessions, Git activity, and development context.
 
 > [!TIP]
 > **CodeLens not working?** Make sure CodeLens is enabled in your VS Code settings (`"editor.codeLens": true`).

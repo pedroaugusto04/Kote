@@ -22,9 +22,22 @@ export function rankHybridContextChunks<TChunk extends { noteId: string; chunkIn
     keywordWeight: number;
     rrfK: number;
     topLimit: number;
+    recencyBonusEnabled?: boolean;
+    recencyMaxBonus?: number;
+    recencyMaxBonusDays?: number;
+    now?: Date;
   },
 ): RankedHybridChunk<TChunk, TNote>[] {
-  const { vectorWeight, keywordWeight, rrfK, topLimit } = options;
+  const {
+    vectorWeight,
+    keywordWeight,
+    rrfK,
+    topLimit,
+    recencyBonusEnabled,
+    recencyMaxBonus,
+    recencyMaxBonusDays,
+    now = new Date(),
+  } = options;
 
   const vectorRankMap = buildRankMap(
     candidates.filter((candidate) => candidate.vectorScore > 0),
@@ -51,15 +64,44 @@ export function rankHybridContextChunks<TChunk extends { noteId: string; chunkIn
       const key = chunkRankKey(candidate.chunk.noteId, candidate.chunk.chunkIndex);
       const vectorRank = vectorRankMap.get(key);
       const keywordRank = keywordRankMap.get(key);
-      const hybridScore =
+      const rrfScore =
         (vectorRank ? vectorWeight / (rrfK + vectorRank) : 0)
         + (keywordRank ? keywordWeight / (rrfK + keywordRank) : 0);
+
+      const recencyBonus = calculateRecencyBonus(
+        candidate.note,
+        recencyBonusEnabled,
+        recencyMaxBonus,
+        recencyMaxBonusDays,
+        now,
+      );
+
+      const hybridScore = rrfScore + recencyBonus;
 
       return { chunk: candidate.chunk, note: candidate.note, hybridScore };
     })
     .filter((item) => item.hybridScore > 0)
     .sort((left, right) => right.hybridScore - left.hybridScore)
     .slice(0, topLimit);
+}
+
+export function calculateRecencyBonus(
+  note: any,
+  enabled?: boolean,
+  maxBonus: number = 0,
+  maxBonusDays: number = 180,
+  now: Date = new Date(),
+): number {
+  if (!enabled || maxBonus <= 0 || maxBonusDays <= 0) return 0;
+  const timestampStr = note?.updatedAt || note?.createdAt;
+  if (!timestampStr) return 0;
+  const noteDate = new Date(timestampStr);
+  if (Number.isNaN(noteDate.getTime())) return 0;
+  const ageInMs = now.getTime() - noteDate.getTime();
+  if (ageInMs < 0) return maxBonus;
+  const ageInDays = ageInMs / (1000 * 60 * 60 * 24);
+  if (ageInDays >= maxBonusDays) return 0;
+  return maxBonus * (1 - ageInDays / maxBonusDays);
 }
 
 function buildRankMap<T>(

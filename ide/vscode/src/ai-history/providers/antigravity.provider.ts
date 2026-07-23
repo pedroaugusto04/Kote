@@ -6,7 +6,7 @@ import { AiHistoryProvider, AiSession, AiTurn } from '../types';
 import { collapseWhitespace } from '../../utils/text.js';
 import { watchRecursive } from '../../utils/watcher.js';
 
-const ANTIGRAVITY_LOG_FILES = ['transcript.jsonl', 'transcript_full.jsonl', 'overview.txt'] as const;
+const ANTIGRAVITY_LOG_FILES = ['transcript_full.jsonl', 'transcript.jsonl'] as const;
 const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
 
 export class AntigravityHistoryProvider implements AiHistoryProvider {
@@ -93,7 +93,6 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       const timeout = setTimeout(() => {
         timeouts.delete(fsPath);
         
-        // Extract conversation ID from the path: .../brain/<conversation-id>/.system_generated/logs/overview.txt (or transcript.jsonl)
         const parts = fsPath.split(path.sep);
         const brainIdx = parts.lastIndexOf('brain');
         const sessionId = brainIdx !== -1 && parts[brainIdx + 1] ? parts[brainIdx + 1] : path.basename(path.dirname(path.dirname(path.dirname(fsPath))));
@@ -109,7 +108,7 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
     const watcher = watchRecursive(
       historyDir,
-      (fileName) => fileName === 'transcript.jsonl' || fileName === 'transcript_full.jsonl' || fileName === 'overview.txt',
+      (fileName) => fileName === 'transcript_full.jsonl' || fileName === 'transcript.jsonl',
       (filePath) => handleFile(filePath)
     );
 
@@ -121,21 +120,13 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
     });
   }
 
-  /**
-   * Cleans Antigravity overview.txt content by stripping system metadata tags and
-   * replacing truncation markers with a clean continuation indicator.
-   *
-   * overview.txt truncates individual records at ~1000 bytes. The full conversation
-   * is stored in encrypted .pb files that we cannot read, so we must gracefully
-   * handle the truncation by cleaning up the markers.
-   */
   private cleanContent(raw: string): string {
     return raw
-      // Strip system metadata XML blocks (opening and closing tags + content between)
       .replace(/<ADDITIONAL_METADATA>[\s\S]*?(<\/ADDITIONAL_METADATA>|$)/gi, '')
       .replace(/<USER_SETTINGS_CHANGE>[\s\S]*?(<\/USER_SETTINGS_CHANGE>|$)/gi, '')
       .replace(/<EPHEMERAL_MESSAGE>[\s\S]*?(<\/EPHEMERAL_MESSAGE>|$)/gi, '')
-      // Replace Antigravity truncation marker with clean ellipsis
+      .replace(/<SYSTEM_MESSAGE>[\s\S]*?(<\/SYSTEM_MESSAGE>|$)/gi, '')
+      .replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
       .replace(/<truncated \d+ bytes?>/gi, '\n…')
       .trim();
   }
@@ -151,13 +142,10 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       }
     }
 
-    if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
-      const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
-      if (!hasToolCalls) {
-        const cleaned = this.cleanContent(record.content || '');
-        if (cleaned) {
-          return { role: 'assistant', content: cleaned };
-        }
+    if (record.source === 'MODEL' && (record.type === 'PLANNER_RESPONSE' || record.type === 'MODEL_RESPONSE')) {
+      const cleaned = this.cleanContent(record.content || '');
+      if (cleaned) {
+        return { role: 'assistant', content: cleaned };
       }
     }
 

@@ -212,6 +212,17 @@ function getVisibleItems(
     && dashboard.projects.some((p) => p.repositories.length > 0);
   const whatsappConnected = isIntegrationConnected(integrations, 'whatsapp');
   const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
+  const onboardingOrder = [
+    'vscode-extension',
+    'vscode-sync-chat',
+    'github',
+    'github-backfill',
+    'github-push',
+    'ask-ai',
+    'project-brief',
+    'whatsapp',
+    'reminder',
+  ];
 
   return CHECKLIST_ITEMS.filter((item) => {
     if (item.id === 'github-backfill' && !githubConnected) return false;
@@ -221,7 +232,7 @@ function getVisibleItems(
     if (item.id === 'project-brief' && totalNotes < 3) return false;
     if (item.id === 'reminder' && !whatsappConnected) return false;
     return true;
-  });
+  }).sort((left, right) => onboardingOrder.indexOf(left.id) - onboardingOrder.indexOf(right.id));
 }
 
 function OnboardingCompletionPanel({

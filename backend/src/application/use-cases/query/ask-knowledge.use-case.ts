@@ -214,6 +214,9 @@ export class AskKnowledgeUseCase {
       hybridKeywordWeight: this.env.ragHybridKeywordWeight ?? 0.3,
       topChunksLimit: this.env.ragTopChunksLimit ?? 10,
       rrfK: this.env.ragRrfK ?? 20,
+      recencyBonusEnabled: this.env.ragRecencyBonusEnabled ?? true,
+      recencyMaxBonus: this.env.ragRecencyMaxBonus ?? 0.008,
+      recencyMaxBonusDays: this.env.ragRecencyMaxBonusDays ?? 180,
     };
 
     this.logger.info('ask_knowledge.rag_config', ragConfig);
@@ -271,6 +274,9 @@ export class AskKnowledgeUseCase {
       keywordWeight: ragConfig.hybridKeywordWeight,
       rrfK: ragConfig.rrfK,
       topLimit: ragConfig.topChunksLimit,
+      recencyBonusEnabled: ragConfig.recencyBonusEnabled,
+      recencyMaxBonus: ragConfig.recencyMaxBonus,
+      recencyMaxBonusDays: ragConfig.recencyMaxBonusDays,
     });
 
     this.logger.info('ask_knowledge.rrf_complete', {
@@ -278,6 +284,9 @@ export class AskKnowledgeUseCase {
       rrfK: ragConfig.rrfK,
       topChunksLimit: ragConfig.topChunksLimit,
       rankedChunksCount: rankedChunks.length,
+      recencyBonusEnabled: ragConfig.recencyBonusEnabled,
+      recencyMaxBonus: ragConfig.recencyMaxBonus,
+      recencyMaxBonusDays: ragConfig.recencyMaxBonusDays,
       avgHybridScore: rankedChunks.length > 0
         ? rankedChunks.reduce((sum, result) => sum + result.hybridScore, 0) / rankedChunks.length
         : 0,
