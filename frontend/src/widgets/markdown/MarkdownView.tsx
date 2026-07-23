@@ -37,6 +37,11 @@ function processChildren(children: ReactNode): ReactNode {
 
 function CodeBlockView({ code, language }: { code: string; language: string }) {
   const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const lines = useMemo(() => code.split('\n'), [code]);
+  const lineCount = lines.length;
+  const isLongCode = lineCount > 18;
 
   const handleCopy = async () => {
     try {
@@ -55,19 +60,51 @@ function CodeBlockView({ code, language }: { code: string; language: string }) {
   }, [code, language]);
 
   return (
-    <div className="markdown-code-block">
+    <div className={`markdown-code-block ${isLongCode && !isExpanded ? 'collapsed' : ''}`}>
       <div className="markdown-code-block-header">
-        <span className="markdown-code-block-lang">{language}</span>
-        <button className="markdown-code-block-copy" onClick={handleCopy} type="button">
-          {copied ? '✓ Copied' : 'Copy'}
-        </button>
+        <div className="markdown-code-block-meta">
+          <span className="markdown-code-block-lang">{language}</span>
+          <span className="markdown-code-block-lines">{lineCount} {lineCount === 1 ? 'line' : 'lines'}</span>
+        </div>
+        <div className="markdown-code-block-actions">
+          {isLongCode && (
+            <button
+              className="markdown-code-block-toggle"
+              onClick={() => setIsExpanded((prev) => !prev)}
+              type="button"
+            >
+              {isExpanded ? 'Collapse' : 'Expand'}
+            </button>
+          )}
+          <button className="markdown-code-block-copy" onClick={handleCopy} type="button">
+            {copied ? '✓ Copied' : 'Copy'}
+          </button>
+        </div>
       </div>
-      <pre className={`markdown-code-block-content language-${language}`}>
-        <code
-          className={`language-${language}`}
-          dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-        />
-      </pre>
+      <div className="markdown-code-block-wrapper">
+        <div className="markdown-code-line-numbers" aria-hidden="true">
+          {lines.map((_, idx) => (
+            <span key={idx}>{idx + 1}</span>
+          ))}
+        </div>
+        <pre className={`markdown-code-block-content language-${language}`}>
+          <code
+            className={`language-${language}`}
+            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+          />
+        </pre>
+      </div>
+      {isLongCode && !isExpanded && (
+        <div className="markdown-code-block-expand-overlay">
+          <button
+            className="markdown-code-block-expand-btn"
+            onClick={() => setIsExpanded(true)}
+            type="button"
+          >
+            Show all {lineCount} lines
+          </button>
+        </div>
+      )}
     </div>
   );
 }

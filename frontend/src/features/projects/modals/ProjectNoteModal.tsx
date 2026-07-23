@@ -282,10 +282,10 @@ export function ProjectNoteModal({
               )}
             </FormField>
             <FormField name="title" label="Title" error={errors.title?.message} required>
-              {(fieldProps) => <input {...fieldProps} {...register('title')} />}
+              {(fieldProps) => <input placeholder="Note title (e.g. Local environment setup)" {...fieldProps} {...register('title')} />}
             </FormField>
             <FormField name="rawText" label="Text" error={errors.rawText?.message} optional>
-              {(fieldProps) => <textarea {...fieldProps} {...register('rawText')} />}
+              {(fieldProps) => <textarea placeholder="Write note content in Markdown..." rows={4} {...fieldProps} {...register('rawText')} />}
             </FormField>
             <FormField name="attachments" label="Attachments" error={attachmentError} optional>
               {() => (

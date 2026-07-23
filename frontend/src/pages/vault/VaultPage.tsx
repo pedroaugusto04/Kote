@@ -150,23 +150,31 @@ export function VaultPage({
         title={(() => {
           const title = noteQuery.data?.title || 'Note details';
           const { text: titleText, url: titleUrl } = makeTitleClickable(title);
-          return titleUrl ? (
-            <h1>
-              {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
-            </h1>
-          ) : title;
+          return (
+            <div className="vault-note-title-wrapper">
+              <h1 className="vault-note-title">
+                {titleText}
+                {titleUrl && (
+                  <a href={titleUrl} target="_blank" rel="noreferrer" className="vault-title-link">
+                    {titleUrl}
+                  </a>
+                )}
+              </h1>
+            </div>
+          );
         })()}
         subtitle={selectedProjectDetails?.displayName || ''}
         onBack={() => navigate(-1)}
         action={
           noteQuery.data ? (
-            <div className="note-reader-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="note-reader-actions-bar">
               <QuickNoteStatusActions note={noteQuery.data} />
+              <div className="note-action-divider" />
               {editNote && (
                 <button
                   aria-label={`Edit note ${noteQuery.data.title}`}
                   className="row-action-button edit"
-                  title="Edit"
+                  title="Edit note"
                   type="button"
                   onClick={() => editNote(noteQuery.data.id)}
                 >
@@ -177,7 +185,7 @@ export function VaultPage({
                 <button
                   aria-label={`Delete note ${noteQuery.data.title}`}
                   className="row-action-button danger"
-                  title="Delete"
+                  title="Delete note"
                   type="button"
                   onClick={() => deleteNote({ id: noteQuery.data.id, title: noteQuery.data.title })}
                 >

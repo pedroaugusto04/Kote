@@ -104,20 +104,32 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
         </div>
       )}
       {cleanedRawText ? (
-        <section className="note-body-section">
-          {showLabel && !isAiConversation ? <h2 className="note-body-label">Original text</h2> : null}
+        <section className={`note-body-section ${showLabel && !isAiConversation ? 'note-section-card' : ''}`}>
+          {showLabel && !isAiConversation ? (
+            <div className="note-section-header">
+              <span className="note-section-dot" />
+              <span className="note-section-title">Original text</span>
+            </div>
+          ) : null}
           {isAiConversation
             ? <AiConversationView turns={aiTurns} />
             : <MarkdownView markdown={cleanedRawText} />}
         </section>
       ) : null}
       {hasSummary ? (
-        <section className="note-body-section note-ai-summary">
-          <h2 className="note-body-label">AI summary</h2>
+        <section className="note-body-section note-ai-summary note-section-card">
+          <div className="note-section-header">
+            <span className="note-section-dot summary" />
+            <span className="note-section-title">AI summary</span>
+          </div>
           <TypewriterMarkdown markdown={cleanedSummary} animated={false} />
         </section>
       ) : null}
-      {extraMarkdown ? <MarkdownView markdown={extraMarkdown} /> : null}
+      {extraMarkdown ? (
+        <div className="note-extra-sections">
+          <MarkdownView markdown={extraMarkdown} />
+        </div>
+      ) : null}
     </div>
   );
 }
