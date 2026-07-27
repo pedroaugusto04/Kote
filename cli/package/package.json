@@ -1,17 +1,17 @@
 {
-  "name": "@pedroaugusto04/kb-cli",
+  "name": "@pedroaugusto04/kote-cli",
   "version": "1.2.8",
-  "description": "CLI client for the Knowledge Base AI system",
+  "description": "CLI client for the Kote AI system",
   "type": "module",
   "bin": {
-    "kb": "dist/index.js"
+    "kote": "dist/index.js"
   },
   "files": [
     "dist"
   ],
   "dependencies": {
     "@clack/prompts": "^1.5.0",
-    "@pedroaugusto04/kb-cli": "^1.2.5",
+    "@pedroaugusto04/kote-cli": "^1.2.5",
     "commander": "^15.0.0",
     "picocolors": "^1.1.1"
   }

@@ -1,81 +1,85 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { WebhookTrigger } from '../../../contracts/enums.js';
-import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
-import type { UpdateNoteInput } from '../../models/note-input.models.js';
+import { Injectable } from '@nestjs/common';
+import type { UpdateNoteDto } from '../../dto/note.dto.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { normalizeDate, normalizeTime } from '../../../domain/time.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
-import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
+import { NoteLifecycleService } from '../../services/content/note-lifecycle.service.js';
+import { requireProject, requireNote, requireProjectFolderOptional } from '../../helpers/resource-validation.helpers.js';
+import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
+import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
+import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 
 @Injectable()
 export class UpdateNoteUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly embeddingQueue: EmbeddingQueuePublisher,
-    private readonly noteEventDispatcher: NoteEventDispatcher,
+    private readonly noteLifecycleService: NoteLifecycleService
   ) {}
 
-  async execute(input: UpdateNoteInput, userId: string) {
-    const { note, previousFolder, nextFolder } = await this.loadEditableNote(userId, input.id, input.folderId);
-    const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
-    const normalizedInput = {
+  async execute(input: UpdateNoteDto, userId: string, tx?: any) {
+    // Sanitize sensitive data from the note content
+    const { title: sanitizedTitle, rawText: sanitizedRawText } = sanitizeManualNoteContent(
+      input.title || '',
+      input.rawText || '',
+      input.title,
+    );
+
+    const sanitizedInput: UpdateNoteDto = {
       ...input,
-      reminderDate: normalizeDate(input.reminderDate, reminderTimeZone),
-      reminderTime: normalizeTime(input.reminderTime),
+      rawText: sanitizedRawText,
+      title: sanitizedTitle,
     };
-    const categoryIds = normalizedInput.categoryIds === undefined
+
+    const note = await requireNote(this.contentRepository, userId, sanitizedInput.id);
+    const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
+    const categoryIds = sanitizedInput.categoryIds === undefined
       ? note.categories.map((category) => category.id)
-      : normalizedInput.categoryIds;
+      : sanitizedInput.categoryIds;
     const categories = categoryIds.length > 0
       ? await this.contentRepository.listCategories(userId, note.workspaceId)
       : [];
     const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
-    const updated = await this.contentRepository.updateNote(
+
+    let projectSlug = note.projectSlug || '';
+    let projectId = note.projectId;
+    let workspaceSlug = note.workspaceSlug || '';
+    let workspaceId = note.workspaceId;
+
+    if (sanitizedInput.projectId && sanitizedInput.projectId !== note.projectId) {
+      const project = await requireProject(this.contentRepository, userId, sanitizedInput.projectId);
+      projectSlug = project.projectSlug;
+      projectId = project.id;
+      workspaceSlug = project.workspaceSlug || '';
+      workspaceId = project.workspaceId;
+    }
+
+    const project = await this.contentRepository.getProjectById(userId, projectId);
+    const previousFolder = note.folderId
+      ? await requireProjectFolderOptional(this.contentRepository, userId, note.projectId, note.folderId)
+      : null;
+    const nextFolder = await requireProjectFolderOptional(this.contentRepository, userId, projectId, sanitizedInput.folderId);
+
+    const updatedNoteInput = {
+      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...sanitizedInput, canonicalType }, projectSlug, projectId, workspaceSlug, workspaceId),
+      categoryIds: sanitizedInput.categoryIds,
+    };
+
+    const { note: updated } = await this.noteLifecycleService.saveNote(
       userId,
       {
-        ...buildUpdatedNote(note, previousFolder, nextFolder, { ...normalizedInput, canonicalType }, reminderTimeZone),
-        categoryIds: input.categoryIds,
+        noteInput: updatedNoteInput,
+        attachments: sanitizedInput.attachments,
       },
+      {
+        existingNoteId: note.id,
+        workspaceSlug: note.workspaceSlug || undefined,
+        projectSlug: note.projectSlug || undefined,
+      },
+      tx,
     );
-
-    try {
-      await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: updated.id });
-    } catch { /* embedding queue failure must never block note update */ }
-
-    try {
-      await this.noteEventDispatcher.dispatch({
-        event: WebhookTrigger.NoteUpdated,
-        noteId: updated.id,
-        userId,
-        workspaceSlug: note.workspaceSlug || '',
-        projectSlug: note.projectSlug || '',
-        title: normalizedInput.title || note.title,
-        content: updated.markdown,
-        occurredAt: new Date().toISOString(),
-      });
-    } catch { /* webhook dispatch must never block note update */ }
-
-    // Global scheduling is handled by the batch worker; per-note scheduling removed
 
     return { ok: true as const, noteId: updated.id };
   }
 
-  private async loadEditableNote(userId: string, noteId: string, folderId?: string) {
-    const note = await this.contentRepository.getNoteById(userId, noteId);
-    if (!note) throw new NotFoundException('note_not_found');
-
-    const project = await this.contentRepository.getProjectById(userId, note.projectId);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-    const previousFolder = note.folderId
-      ? await this.contentRepository.getProjectFolderById(userId, project.id, note.folderId)
-      : null;
-    const nextFolder = folderId
-      ? await this.contentRepository.getProjectFolderById(userId, project.id, folderId)
-      : null;
-    if (folderId && !nextFolder) throw new NotFoundException('folder_not_found');
-    return { note, previousFolder, nextFolder };
-  }
 }

@@ -40,8 +40,8 @@ const baseWorkspaces = [
 
 function env(overrides = {}) {
   return readEnvironment({
-    KB_PUBLIC_BASE_URL: 'https://kb.example.com/knowledge-base',
-    KB_API_PUBLIC_BASE_URL: 'https://kb.example.com/knowledge-base/api',
+    KB_PUBLIC_BASE_URL: 'https://kb.example.com/kote',
+    KB_API_PUBLIC_BASE_URL: 'https://kb.example.com/kote/api',
     KB_GITHUB_APP_INSTALL_URL: 'https://github.com/apps/kb/installations/new',
     KB_GITHUB_APP_WEBHOOK_SECRET: 'github-secret-value',
     KB_GITHUB_APP_ID: '12345',
@@ -72,7 +72,7 @@ test('integration status reports connected services without leaking secrets', ()
   assert.equal(result.ok, true);
   assert.equal(result.workspaceSlug, 'default');
   assert.equal(byId(result, 'github-app').status, 'connected');
-  assert.equal(byId(result, 'webhooks').links[0].url, 'https://kb.example.com/knowledge-base/api/n8n/webhook/kb-github-push');
+  assert.equal(byId(result, 'webhooks').links[0].url, 'https://kb.example.com/kote/api/api/webhooks/github-push');
   assert.equal(result.integrations.some((integration) => integration.name.includes('Vault')), false);
 
   const json = JSON.stringify(result);
@@ -107,7 +107,7 @@ test('integration status distinguishes partial and missing configuration', () =>
   assert.equal(byId(partial, 'ai-conversation').status, 'partial');
   assert.equal(byId(partial, 'project-brief-ai').status, 'partial');
   assert.deepEqual(byId(partial, 'webhooks').missingEnv, ['KB_API_PUBLIC_BASE_URL']);
-  assert.equal(byId(partial, 'webhooks').links[0].url, '/n8n/webhook/kb-github-push');
+  assert.equal(byId(partial, 'webhooks').links[0].url, '/api/webhooks/github-push');
 
   const missing = buildIntegrationStatuses({
     environment: env({

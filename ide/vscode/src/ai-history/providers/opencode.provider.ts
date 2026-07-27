@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
+import { watchFile } from '../../utils/watcher.js';
 
 export class OpenCodeHistoryProvider implements AiHistoryProvider {
   readonly id = 'open-code';
@@ -10,7 +11,17 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
 
   private getDbPath(): string {
     const configPath = vscode.workspace.getConfiguration('kb').get<string>('opencodeDbPath');
-    return configPath || path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+    if (configPath) return configPath;
+
+    const standardPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+    if (fs.existsSync(standardPath)) {
+      return standardPath;
+    }
+    const prodPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode-prod.db');
+    if (fs.existsSync(prodPath)) {
+      return prodPath;
+    }
+    return standardPath;
   }
 
   async isEnabled(): Promise<boolean> {
@@ -26,7 +37,7 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
     }
   }
 
-  async getRecentSessions(): Promise<AiSession[]> {
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
     const dbPath = this.getDbPath();
     if (!fs.existsSync(dbPath)) return [];
 
@@ -34,6 +45,7 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
       const sqlite = await import('node:sqlite');
       const db = new sqlite.DatabaseSync(dbPath, { readOnly: true });
 
+      const limitCount = limit !== undefined ? Math.floor(limit) : 20;
       const query = `
         SELECT 
           s.id as sessionId,
@@ -43,13 +55,25 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
           m.id as messageId,
           m.data as messageData,
           p.data as partData
-        FROM session s
+        FROM (
+          SELECT * FROM session ORDER BY time_updated DESC LIMIT ${limitCount}
+        ) s
         JOIN message m ON m.session_id = s.id
         LEFT JOIN part p ON p.message_id = m.id
         ORDER BY s.time_updated DESC, m.time_created ASC, p.time_created ASC
       `;
 
-      const rows = db.prepare(query).all() as any[];
+      interface OpenCodeRow {
+        sessionId: string;
+        title?: string;
+        timestamp: string | number;
+        projectSlug?: string;
+        messageId?: string;
+        messageData?: string;
+        partData?: string;
+      }
+
+      const rows = db.prepare(query).all() as unknown as OpenCodeRow[];
       db.close();
 
       const sessionsMap = new Map<string, {
@@ -127,29 +151,25 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const dbPath = this.getDbPath();
-    const watcher = vscode.workspace.createFileSystemWatcher(dbPath);
-
     const timeouts = new Map<string, NodeJS.Timeout>();
 
-    const handleFile = async (uri: vscode.Uri) => {
-      const fsPath = uri.fsPath;
-      if (timeouts.has(fsPath)) {
-        clearTimeout(timeouts.get(fsPath)!);
+    const handleFile = async () => {
+      if (timeouts.has(dbPath)) {
+        clearTimeout(timeouts.get(dbPath)!);
       }
 
       const timeout = setTimeout(async () => {
-        timeouts.delete(fsPath);
+        timeouts.delete(dbPath);
         const sessions = await this.getRecentSessions();
         if (sessions && sessions.length > 0) {
           callback(sessions[0]);
         }
       }, 1000); // 1s debounce to wait for write transaction to complete
 
-      timeouts.set(fsPath, timeout);
+      timeouts.set(dbPath, timeout);
     };
 
-    watcher.onDidChange(handleFile);
-    watcher.onDidCreate(handleFile);
+    const watcher = watchFile(dbPath, handleFile);
 
     return new vscode.Disposable(() => {
       for (const t of timeouts.values()) {

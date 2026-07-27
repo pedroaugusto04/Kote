@@ -1,13 +1,15 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, count, desc, sql, inArray } from 'drizzle-orm';
+import { eq, and, count, desc, sql, inArray, notInArray, type SQL } from 'drizzle-orm';
 
+import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
+import { tokenizeQuery, getSpecialQueryIntent } from '../../application/utils/query/query.utils.js';
 import { readEnvironment } from '../../adapters/environment.js';
 import { ReminderDeliveryChannel } from '../../contracts/enums.js';
 import type { DueReminderView, ReminderView } from '../../application/models/reminder.models.js';
 import type { NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
 import { ContentQueryRepository } from '../../application/ports/notes/content.repository.js';
-import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { resolveReminderScheduledAt } from '../../application/use-cases/reminders/reminder-schedule.js';
 import { reminderDispatchEligibleStatuses } from '../../domain/note-status.js';
 import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';
@@ -15,6 +17,10 @@ import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, workspaces, projects, categories, noteCategories } from '../persistence/schema/index.js';
 import { PostgresNoteRepository } from './note.repository.js';
+import { PostgresAttachmentRepository } from './attachment.repository.js';
+
+/** Fallback cap when FTS runs without an explicit ftsLimit from the caller. */
+const DEFAULT_FTS_CANDIDATE_LIMIT = 40;
 
 @Injectable()
 export class PostgresContentQueryRepository extends ContentQueryRepository {
@@ -22,6 +28,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     private readonly database: PostgresDatabase,
     private readonly contentObjectStorage: ContentObjectStorageService,
     private readonly noteRepository: PostgresNoteRepository,
+    private readonly attachmentRepository: PostgresAttachmentRepository,
   ) {
     super();
   }
@@ -30,9 +37,77 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     return this.contentObjectStorage.hydrateMarkdown(note);
   }
 
-  private async loadNotes(userId: string) {
+  private async loadNotes(
+    userId: string,
+    filters?: {
+      projectId?: string;
+      workspaceId?: string;
+      status?: string;
+      query?: string;
+      ids?: string[];
+      ftsLimit?: number;
+    }
+  ) {
     const db = this.database.getDb();
-    const result = await db
+    const conditions = [eq(notes.userId, userId)];
+
+    if (filters?.workspaceId) {
+      conditions.push(eq(notes.workspaceId, filters.workspaceId));
+    }
+    if (filters?.projectId) {
+      conditions.push(eq(notes.projectId, filters.projectId));
+    }
+    if (filters?.status) {
+      if (filters.status === StatusFilter.Open) {
+        conditions.push(notInArray(notes.status, [...terminalStatuses]));
+      } else {
+        conditions.push(eq(notes.status, filters.status as any));
+      }
+    }
+
+    let tsRankField = sql<number>`0`.as('ts_rank');
+    let searchCondition: any = null;
+    let hasFtsTextSearch = false;
+    if (filters?.ids && filters.ids.length > 0) {
+      searchCondition = inArray(notes.id, filters.ids);
+    }
+
+    if (filters?.query) {
+      const intent = getSpecialQueryIntent(filters.query);
+      if (!intent) {
+        const tokens = tokenizeQuery(filters.query);
+        if (tokens.length > 0) {
+          hasFtsTextSearch = true;
+          const tsQueryStr = tokens.map((token) => `${token}:*`).join(' | ');
+          const textCondition = sql`(
+            ${notes}.search_vector @@ to_tsquery('english', ${tsQueryStr})
+            OR ${notes}.search_vector @@ to_tsquery('portuguese', ${tsQueryStr})
+            OR ${attachments.fileName} @@ to_tsquery('simple', ${tsQueryStr})
+          )`;
+          tsRankField = sql<number>`GREATEST(
+            ts_rank(${notes}.search_vector, to_tsquery('english', ${tsQueryStr})),
+            ts_rank(${notes}.search_vector, to_tsquery('portuguese', ${tsQueryStr})),
+            COALESCE(MAX(CASE WHEN ${attachments.fileName} @@ to_tsquery('simple', ${tsQueryStr}) THEN 1 ELSE 0 END), 0)
+          )`.as('ts_rank');
+
+          if (searchCondition) {
+            searchCondition = sql`(${searchCondition} OR ${textCondition})`;
+          } else {
+            searchCondition = textCondition;
+          }
+        }
+      }
+    }
+
+    if (searchCondition) {
+      conditions.push(searchCondition);
+    }
+
+    const effectiveFtsLimit = hasFtsTextSearch
+      ? Math.max(1, Math.min(filters?.ftsLimit ?? DEFAULT_FTS_CANDIDATE_LIMIT, 200))
+      : null;
+
+    const baseQuery = db
       .select({
         id: notes.id,
         userId: notes.userId,
@@ -52,11 +127,11 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
+        tsRank: tsRankField,
         attachmentCount: count(attachments.id).as('attachment_count'),
         categories: sql<any[]>`COALESCE(
           json_agg(
@@ -84,15 +159,30 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       ))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
-      .where(eq(notes.userId, userId))
-      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug)
-      .orderBy(desc(notes.occurredAt), notes.title);
-    
+      .where(and(...conditions))
+      .groupBy(notes.id, workspaces.workspaceSlug, projects.projectSlug);
+
+    const result = effectiveFtsLimit !== null
+      ? await baseQuery
+          .orderBy(desc(tsRankField), desc(notes.occurredAt), notes.title)
+          .limit(effectiveFtsLimit)
+      : await baseQuery.orderBy(desc(notes.occurredAt), notes.title);
+
     return result.map(noteFromRow);
   }
 
-  async list(userId: string) {
-    return (await this.loadNotes(userId)).map(noteSummary);
+  async list(
+    userId: string,
+    filters?: {
+      projectId?: string;
+      workspaceId?: string;
+      status?: string;
+      query?: string;
+      ids?: string[];
+      ftsLimit?: number;
+    }
+  ) {
+    return (await this.loadNotes(userId, filters)).map(noteSummary);
   }
 
   async getById(userId: string, id: string) {
@@ -117,7 +207,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -156,11 +245,14 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     const note = result[0] ? await this.hydrateMarkdown(noteFromRow(result[0])) : null;
     if (!note) return null;
 
-    const neighbors = await this.noteRepository.getNoteNeighbors(userId, id, {
-      projectId: note.projectId,
-      workspaceId: note.workspaceId,
-    });
-    return noteDetail(note, [], neighbors);
+    const [noteAttachments, neighbors] = await Promise.all([
+      this.attachmentRepository.list(userId, id),
+      this.noteRepository.getNoteNeighbors(userId, id, {
+        projectId: note.projectId,
+        workspaceId: note.workspaceId,
+      }),
+    ]);
+    return noteDetail(note, noteAttachments, neighbors);
   }
 
   async getNoteNeighbors(userId: string, noteId: string, input?: { projectId?: string; workspaceId?: string; folderId?: string; status?: string }) {
@@ -193,7 +285,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
@@ -250,7 +341,6 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         status: notes.status,
         summary: notes.summary,
         metadata: notes.metadata,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         recipientId: recipientField,
       })
@@ -259,7 +349,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .where(and(
         inArray(notes.status, reminderDispatchEligibleStatuses as any),
-        sql`(${notes.reminderDate} <> '' or ${notes.reminderAt} <> '')`,
+        sql`${notes.reminderAt} IS NOT NULL`,
         sql`coalesce(${recipientField}, '') <> ''`
       ));
 
@@ -268,9 +358,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         const metadata = (row.metadata || {}) as Record<string, unknown>;
         const noteText = String(metadata.rawText || '').trim() || String(row.summary || '').trim() || String(row.title || '').trim();
         const scheduledAt = resolveReminderScheduledAt({
-          reminderDate: String(row.reminderDate || ''),
-          reminderTime: String(metadata.reminderTime || ''),
-          reminderAt: String(row.reminderAt || ''),
+          reminderAt: row.reminderAt ? new Date(row.reminderAt).toISOString() : '',
         }, reminderTimeZone);
         if (!scheduledAt || scheduledAt > now) return null;
         return {

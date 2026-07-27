@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import React from 'react';
 import { createPortal } from 'react-dom';
-
 import { normalizeComparableText, sameText, stripSourceHeader } from '../../shared/utils/text';
-import { formatFileSize, formatSourceLabel, getSourceTagClass } from '../../shared/utils/format';
+import { formatFileSize, SOURCE_VALUES } from '../../shared/utils/format';
 import type { NoteAttachment } from '../../shared/api/models/note';
 import { fetchAttachmentText } from '../../shared/api/notes';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../markdown/MarkdownView';
-import { SourceIcon } from '../../shared/ui/icons';
+import { TypewriterMarkdown } from '../markdown/TypewriterMarkdown';
+import { CDNImage } from '../../shared/ui/CDNImage';
+import { SourceBadge } from './SourceBadge';
+import { AiConversationView } from './AiConversationView';
+import { parseAiConversationTurns } from './ai-conversation';
 
-type AttachmentPreviewKind = 'image' | 'audio' | 'pdf' | 'markdown' | 'text' | 'none';
+type AttachmentPreviewKind = 'image' | 'audio' | 'video' | 'pdf' | 'markdown' | 'text' | 'none';
 
 type TextPreviewState = {
   attachmentId: string;
@@ -53,6 +56,18 @@ const TEXT_EXTENSIONS = new Set([
   'diff',
   'patch',
   'svg',
+  'py',
+  'java',
+  'c',
+  'cpp',
+  'cc',
+  'h',
+  'hpp',
+  'cs',
+  'php',
+  'rb',
+  'go',
+  'rs',
 ]);
 
 const TEXT_MIME_TYPES = new Set([
@@ -69,38 +84,52 @@ const TEXT_MIME_TYPES = new Set([
   'image/svg+xml',
 ]);
 
-export function NoteBody({ markdown, rawText, summary, title, source }: { markdown: string; rawText: string; summary: string; title: string; source?: string }) {
+export function NoteBody({ markdown, rawText, summary, title, source, sourceChannel }: { markdown: string; rawText: string; summary: string; title: string; source?: string; sourceChannel?: string }) {
   const extraMarkdown = readerExtraSections(markdown, title);
   const hasExtra = Boolean(extraMarkdown);
-  const cleanedRawText = stripSourceHeader(rawText);
-  const cleanedSummary = stripSourceHeader(summary);
-  const isAiNote = source ? getSourceTagClass(source) === 'ai' : false;
-  const hasSummary = !isAiNote && Boolean(cleanedSummary) && normalizeReaderText(cleanedSummary) !== normalizeReaderText(cleanedRawText);
+  const cleanedRawText = stripSourceHeader(rawText).replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
+  const cleanedSummary = stripSourceHeader(summary).replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
+  const isGithubPush = sourceChannel === SOURCE_VALUES.GITHUB_PUSH;
+  const hasSummary = isGithubPush && Boolean(cleanedSummary) && normalizeReaderText(cleanedSummary) !== normalizeReaderText(cleanedRawText);
   const showLabel = hasExtra || hasSummary;
   const activeSource = source;
+  const aiTurns = parseAiConversationTurns(cleanedRawText);
+  const isAiConversation = aiTurns.length > 0;
 
   return (
     <div className="note-body">
       {activeSource && (
-        <div className="note-source-header" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '16px', fontSize: '13px', color: 'var(--muted)' }}>
-          <span>Source:</span>
-          <SourceIcon source={activeSource} style={{ width: '15px', height: '15px', color: 'var(--muted)' }} />
-          <strong>{formatSourceLabel(activeSource)}</strong>
+        <div style={{ marginBottom: '16px' }}>
+          <SourceBadge source={activeSource} />
         </div>
       )}
       {cleanedRawText ? (
-        <section className="note-body-section">
-          {showLabel ? <h2 className="note-body-label">Original text</h2> : null}
-          <MarkdownView markdown={cleanedRawText} />
+        <section className={`note-body-section ${showLabel && !isAiConversation ? 'note-section-card' : ''}`}>
+          {showLabel && !isAiConversation ? (
+            <div className="note-section-header">
+              <span className="note-section-dot" />
+              <span className="note-section-title">Original text</span>
+            </div>
+          ) : null}
+          {isAiConversation
+            ? <AiConversationView turns={aiTurns} />
+            : <MarkdownView markdown={cleanedRawText} />}
         </section>
       ) : null}
       {hasSummary ? (
-        <section className="note-body-section note-ai-summary">
-          <h2 className="note-body-label">AI summary</h2>
-          <MarkdownView markdown={cleanedSummary} />
+        <section className="note-body-section note-ai-summary note-section-card">
+          <div className="note-section-header">
+            <span className="note-section-dot summary" />
+            <span className="note-section-title">AI summary</span>
+          </div>
+          <TypewriterMarkdown markdown={cleanedSummary} animated={false} />
         </section>
       ) : null}
-      {extraMarkdown ? <MarkdownView markdown={extraMarkdown} /> : null}
+      {extraMarkdown ? (
+        <div className="note-extra-sections">
+          <MarkdownView markdown={extraMarkdown} />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -121,6 +150,9 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
     }
     if (attachment.mimeType.startsWith('audio/')) {
       return 'audio';
+    }
+    if (attachment.mimeType.startsWith('video/')) {
+      return 'video';
     }
     if (attachment.mimeType === 'application/pdf') {
       return isMobile ? 'none' : 'pdf';
@@ -166,7 +198,28 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
                 rel="noreferrer"
                 onClick={(e) => handleAttachmentClick(e, attachment)}
               >
-                <img src={attachment.url} alt={attachment.fileName} loading="lazy" />
+                <CDNImage
+                  src={attachment.url}
+                  alt={attachment.fileName}
+                  loading="lazy"
+                  fallback={
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '100%',
+                      aspectRatio: '1',
+                      background: 'var(--surface-5)',
+                      color: 'var(--muted)',
+                      fontSize: '11px',
+                      fontFamily: 'var(--mono)',
+                      borderRadius: '4px',
+                      animation: 'brief-skeleton-fade 1.8s infinite ease-in-out',
+                    }}>
+                      Loading...
+                    </div>
+                  }
+                />
               </a>
             ))}
           </div>
@@ -196,15 +249,16 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
       {activeAttachment && createPortal(
         <div className="attachment-viewer-backdrop" role="presentation" onClick={() => setActiveAttachment(null)}>
           <div
-            className={`attachment-viewer-panel ${
-              activePreviewKind === 'image'
+            className={`attachment-viewer-panel ${activePreviewKind === 'image'
                 ? 'image-mode'
                 : activePreviewKind === 'audio'
-                ? 'audio-mode'
-                : activePreviewKind === 'markdown' || activePreviewKind === 'text'
-                ? 'text-mode'
-                : 'pdf-mode'
-            }`}
+                  ? 'audio-mode'
+                  : activePreviewKind === 'video'
+                    ? 'video-mode'
+                    : activePreviewKind === 'markdown' || activePreviewKind === 'text'
+                      ? 'text-mode'
+                      : 'pdf-mode'
+              }`}
             role="dialog"
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
@@ -233,7 +287,27 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
             </div>
             <div className="attachment-viewer-content">
               {activePreviewKind === 'image' ? (
-                <img src={activeAttachment.url} alt={activeAttachment.fileName} className="attachment-viewer-image" />
+                <CDNImage
+                  src={activeAttachment.url}
+                  alt={activeAttachment.fileName}
+                  className="attachment-viewer-image"
+                  fallback={
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '40px',
+                      color: 'var(--muted)',
+                      fontFamily: 'var(--mono)',
+                      fontSize: '13px',
+                      gap: '12px',
+                    }}>
+                      <div className="global-loading-spinner" style={{ width: '32px', height: '32px' }} />
+                      <span>Loading attachment image...</span>
+                    </div>
+                  }
+                />
               ) : activePreviewKind === 'audio' ? (
                 <div className="attachment-viewer-audio-container">
                   <div className="attachment-viewer-audio-icon">
@@ -246,6 +320,14 @@ export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[
                     <span className="attachment-viewer-audio-subtitle">{activeAttachment.mimeType} / {formatFileSize(activeAttachment.sizeBytes)}</span>
                   </div>
                   <audio src={activeAttachment.url} controls className="attachment-viewer-audio" autoPlay />
+                </div>
+              ) : activePreviewKind === 'video' ? (
+                <div className="attachment-viewer-video-container">
+                  <video src={activeAttachment.url} controls className="attachment-viewer-video" />
+                  <div className="attachment-viewer-video-meta">
+                    <span className="attachment-viewer-video-title">{activeAttachment.fileName}</span>
+                    <span className="attachment-viewer-video-subtitle">{activeAttachment.mimeType} / {formatFileSize(activeAttachment.sizeBytes)}</span>
+                  </div>
                 </div>
               ) : activePreviewKind === 'markdown' || activePreviewKind === 'text' ? (
                 <TextAttachmentPreview
@@ -317,7 +399,7 @@ function fileExtension(fileName: string) {
 }
 
 function readerExtraSections(markdown: string, title: string) {
-  const withoutFrontmatter = markdown.replace(/\r\n/g, '\n').replace(/^---\n[\s\S]*?\n---\n?/, '');
+  const withoutFrontmatter = markdown.replace(/\r\n/g, '\n').replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
   const lines = withoutFrontmatter.split('\n');
   const firstSectionIndex = lines.findIndex((line) => line.startsWith('## '));
   if (firstSectionIndex === -1) return '';

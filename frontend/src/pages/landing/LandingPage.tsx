@@ -4,20 +4,14 @@ import { Link } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
 import { withFrontendBasePath } from '../../app/base-path';
 import { useTypewriterWord } from '../../layouts/use-typewriter-word';
-import { logApplicationAccess } from '../../shared/api/client';
 import { BrandMark } from '../../shared/ui/brand-mark';
 import { ThemeToggle } from '../../shared/ui/theme-toggle';
+import { GitHubIcon, WhatsAppIcon, TelegramIcon, SparklesIcon, PencilIcon, MessagesIcon } from '../../shared/ui/icons';
 
 const typewriterWords = ['capture', 'organize', 'retrieve', 'connect'];
 
 export function LandingPage() {
   const { typed: animatedWord, full: fullWord } = useTypewriterWord(typewriterWords);
-
-  useEffect(() => {
-    void logApplicationAccess().catch(() => {
-      // Best-effort telemetry: landing access should not block rendering.
-    });
-  }, []);
 
   useEffect(() => {
     const selector = '.reveal-up, .reveal-left, .reveal-right, .reveal-scale';
@@ -52,15 +46,15 @@ export function LandingPage() {
 
   return (
     <main className="landing-layout">
-      <section className="landing-shell" aria-label="Knowledge Vault landing page">
-        
+      <section className="landing-shell" aria-label="Kote landing page">
+
         {/* HEADER / TOPBAR */}
         <header className="landing-topbar">
-          <Link className="landing-brand" to={routes.auth} aria-label="Knowledge Vault">
+          <Link className="landing-brand" to={routes.auth} aria-label="Kote">
             <BrandMark />
             <div>
-              <strong>Knowledge Vault</strong>
-              <span>developer knowledge base</span>
+              <strong>Kote</strong>
+              <span>Your Team's Second Brain</span>
             </div>
           </Link>
           <div className="landing-topbar-actions">
@@ -78,8 +72,9 @@ export function LandingPage() {
               Your team writes the code. Let us <span className="landing-highlight auth-typewriter-word" style={{ position: 'relative', display: 'inline-block' }}><span style={{ visibility: 'hidden', userSelect: 'none', pointerEvents: 'none' }}>{fullWord}</span><span style={{ position: 'absolute', left: 0, bottom: 0, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{animatedWord}<span className="auth-typewriter-cursor" aria-hidden="true" /></span></span> the context.
             </h1>
             <p className="landing-lead">
-              Keep notes, WhatsApp & Telegram logs, GitHub PR reviews, decisions, and reminders unified. 
-              Turn unstructured engineering chat into searchable context.
+              Git remembers what changed. Kote remembers why.
+              <br />
+              Automatically capture AI conversations, Git activity, and development decisions, then surface this context exactly when you need it.
             </p>
             <div className="landing-actions">
               <Link className="landing-button-link primary" to={routes.auth}>Enter workspace</Link>
@@ -87,14 +82,14 @@ export function LandingPage() {
             </div>
 
             {/* DASHBOARD PREVIEW SCREENSHOT */}
-            <div className="landing-dashboard-wrapper" aria-label="Knowledge Vault Dashboard Preview">
+            <div className="landing-dashboard-wrapper" aria-label="Kote Dashboard Preview">
               <div className="landing-mock-browser-bar">
                 <div className="landing-mock-browser-dot" />
                 <div className="landing-mock-browser-dot" />
                 <div className="landing-mock-browser-dot" />
-                <div className="landing-mock-browser-url">https://pedro-duarte.ddns.net/knowledge-base/</div>
+                <div className="landing-mock-browser-url">https://knowledgebase.sbs/kote/</div>
               </div>
-              <img src={withFrontendBasePath('/dashboard-screenshot.png')} alt="Knowledge Vault Dashboard" className="landing-real-screenshot" />
+              <img src={withFrontendBasePath('/dashboard-screenshot.png')} alt="Kote Dashboard" className="landing-real-screenshot" />
             </div>
           </div>
         </section>
@@ -106,7 +101,7 @@ export function LandingPage() {
               <span className="landing-kicker">The Context Gap</span>
               <h2 id="timeline-title">The repository is clear. The reasons, not so much.</h2>
               <p>
-                Standard git history tells you what changed, but rarely explains the why behind critical decisions. 
+                Standard git history tells you what changed, but rarely explains the why behind critical decisions.
                 We bridge that context gap.
               </p>
             </header>
@@ -129,7 +124,7 @@ export function LandingPage() {
                 <div className="landing-timeline-node cyan">
                   <div className="landing-timeline-tooltip">
                     <h4>commit 1e4f2b: exponential backoff</h4>
-                    <p>"Linked to Knowledge Vault note: Standard retry-policy. Context preserved."</p>
+                    <p>"Linked to Kote note: Standard retry-policy. Context preserved."</p>
                   </div>
                 </div>
                 <div className="landing-timeline-node cyan">
@@ -156,7 +151,7 @@ export function LandingPage() {
               <span className="landing-kicker">Unified Context</span>
               <h2 id="integrations-title">Where engineering memory lives.</h2>
               <p>
-                Knowledge Vault seamlessly bridges the gap between your communication channels and your codebase, 
+                Kote seamlessly bridges the gap between your communication channels and your codebase,
                 automatically grouping files and discussions.
               </p>
             </header>
@@ -167,7 +162,7 @@ export function LandingPage() {
                 <strong>Active Context Hub</strong>
                 <span>Unified Knowledge</span>
               </div>
-              
+
               <svg className="landing-integration-svg" viewBox="0 0 1000 380" aria-hidden="true">
                 <defs>
                   <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -181,20 +176,20 @@ export function LandingPage() {
               </svg>
 
               <div className="landing-integration-card c1">
-                <span className="landing-integration-card-icon">🐙</span>
+                <span className="landing-integration-card-icon"><GitHubIcon /></span>
                 <span>GitHub Sync</span>
               </div>
               <div className="landing-integration-card c2">
-                <span className="landing-integration-card-icon">✈️</span>
-                <span>Telegram Bot</span>
+                <span className="landing-integration-card-icon"><SparklesIcon /></span>
+                <span>AI Sessions</span>
               </div>
               <div className="landing-integration-card c3">
-                <span className="landing-integration-card-icon">📲</span>
-                <span>WhatsApp Log</span>
+                <span className="landing-integration-card-icon"><MessagesIcon /></span>
+                <span>Messages</span>
               </div>
               <div className="landing-integration-card c4">
-                <span className="landing-integration-card-icon">📝</span>
-                <span>Manual Notes</span>
+                <span className="landing-integration-card-icon whatsapp-icon"><WhatsAppIcon /></span>
+                <span>WhatsApp</span>
               </div>
             </div>
           </div>
@@ -205,43 +200,20 @@ export function LandingPage() {
           <div className="landing-container">
             <header className="landing-section-header reveal-up">
               <span className="landing-kicker">Features Grid</span>
-              <h2 id="features-title">With Knowledge Vault, you don't need to guess.</h2>
+              <h2 id="features-title">With Kote, you don't need to guess.</h2>
               <p>
                 The time between understanding and acting decreases — and clarity becomes part of the process.
               </p>
             </header>
 
             <div className="landing-features-grid">
-              
-              <div className="landing-feature-card reveal-left">
-                <div className="landing-feature-copy">
-                  <span>Context & Evidence</span>
-                  <h3>Save context where work actually happens.</h3>
-                  <p>
-                    Turn chats, manual logs, pull requests, and bug reports into structured 
-                    records without breaking your flow.
-                  </p>
-                </div>
-                <div className="landing-feature-visual">
-                  <div className="landing-mock-evidence">
-                    <div className="landing-mock-evidence-item">
-                      <strong>💬 "Transient timeouts on staging environment."</strong>
-                      <span>WhatsApp log</span>
-                    </div>
-                    <div className="landing-mock-evidence-item" style={{ borderLeft: '3px solid var(--cyan)' }}>
-                      <strong>🐙 PR Review: "Let's increase retry timeout to 5s."</strong>
-                      <span>GitHub webhook</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
 
-              <div className="landing-feature-card reveal-right">
+              <div className="landing-feature-card reveal-scale">
                 <div className="landing-feature-copy">
                   <span>Impact & Priorities</span>
                   <h3>Prioritize what needs engineering alignment.</h3>
                   <p>
-                    Identify knowledge gaps, critical architectural changes, and overdue review findings 
+                    Identify knowledge gaps, critical architectural changes, and overdue review findings
                     based on real-world updates and repository history.
                   </p>
                 </div>
@@ -250,7 +222,7 @@ export function LandingPage() {
                     <div className="landing-mock-priority-item">
                       <div className="landing-mock-priority-header">
                         <span className="landing-badge danger">High Impact</span>
-                        <span className="landing-mock-meta">n8n-automations / 14 reports</span>
+                        <span className="landing-mock-meta">telemetry-service / 14 reports</span>
                       </div>
                       <h4>Fragmented staging telemetry</h4>
                       <p>Multiple trace drop events occurred on production webhook sync.</p>
@@ -286,7 +258,7 @@ export function LandingPage() {
               <div className="landing-ai-search-info reveal-up">
                 <h3>Find context by meaning, not just keywords.</h3>
                 <p>
-                  Engineering discussions and notes are fragmented. Our AI Search queries the semantic 
+                  Engineering discussions and notes are fragmented. Our AI Search queries the semantic
                   intent of your query, finding relevant context even when keywords don't match.
                 </p>
                 <div className="landing-ai-search-features">
@@ -313,7 +285,7 @@ export function LandingPage() {
                     <div className="landing-mock-browser-dot" />
                     <div className="landing-mock-browser-dot" />
                     <div className="landing-mock-browser-dot" />
-                    <div className="landing-mock-browser-url">https://pedro-duarte.ddns.net/knowledge-base/search</div>
+                    <div className="landing-mock-browser-url">https://knowledgebase.sbs/knowledge-base/search</div>
                   </div>
                   <img src={withFrontendBasePath('/search-screenshot.png')} alt="Ask AI Assistant" className="landing-real-screenshot" />
                 </div>
@@ -328,7 +300,7 @@ export function LandingPage() {
             <div className="landing-cta-banner reveal-scale">
               <h2>Bring clarity to your codebase.</h2>
               <p>
-                Start capturing knowledge where engineering already happens and keep your technical context 
+                Start capturing knowledge where engineering already happens and keep your technical context
                 connected to the projects that need them next.
               </p>
               <div className="landing-actions" style={{ marginBottom: 0 }}>
@@ -344,12 +316,12 @@ export function LandingPage() {
           <div className="landing-footer-content">
             <div className="landing-footer-logo">
               <BrandMark />
-              <strong>Knowledge Vault</strong>
+              <strong>Kote</strong>
             </div>
             <div className="landing-footer-meta">
               <span>Knowledge management for modern engineering teams.</span>
               <a href="mailto:pedroaugustoaduarte@gmail.com">Contact Support</a>
-              <span>© 2026 Knowledge Vault. All rights reserved.</span>
+              <span>© 2026 Kote. All rights reserved.</span>
             </div>
           </div>
         </footer>

@@ -39,6 +39,9 @@ test('FindRelatedNotesUseCase preserves descending similarity order from note em
     getNoteEmbeddings: async (userId, noteId) => {
       return [{ embedding: [0.1, 0.2, 0.3] }];
     },
+    getNotesEmbeddings: async (userId, noteIds) => {
+      return noteIds.map((id) => ({ embedding: [0.1, 0.2, 0.3] }));
+    },
     findSimilar: async (userId, embedding, options) => {
       // Chunks are returned in similarity descending order (0.9, 0.8, 0.7)
       return [

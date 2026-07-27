@@ -25,8 +25,7 @@ export const agentConversationDraftSchema = z.object({
   canonicalType: defaultCanonicalTypeSchema,
   importance: defaultImportanceSchema,
   tags: defaultStringArraySchema,
-  reminderDate: defaultStringSchema,
-  reminderTime: defaultStringSchema,
+  reminderAt: defaultStringSchema,
 });
 
 export const agentConversationProjectDecisionSchema = z.object({

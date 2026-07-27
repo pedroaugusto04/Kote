@@ -27,6 +27,11 @@ async function build() {
       platform: 'browser',
       target: 'es2020',
       format: 'esm',
+      define: {
+        'process.env.NODE_ENV': '"production"',
+        'process.env.LOG_PERF': 'undefined',
+        'process.env': '{}',
+      },
     });
     console.log('Build compiled successfully.');
   } catch (error) {
@@ -35,7 +40,7 @@ async function build() {
   }
 
   console.log('Copying static assets...');
-  const assets = ['manifest.json', 'popup.html', 'popup.css'];
+  const assets = ['manifest.json', 'popup.html', 'popup.css', 'icon.png'];
   for (const asset of assets) {
     const srcPath = path.join(srcDir, asset);
     const destPath = path.join(distDir, asset);

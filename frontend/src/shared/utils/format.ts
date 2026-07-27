@@ -82,18 +82,32 @@ export function formatTimeInUserTimeZone(value: string | null | undefined) {
   return `${parts.hour}:${parts.minute}`;
 }
 
-export function reminderDisplayDateTime(input: { reminderAt?: string; reminderDate?: string; reminderTime?: string }) {
+export function reminderDisplayDateTime(input: { reminderAt?: string }) {
   if (input.reminderAt) return formatDateTimeInUserTimeZone(input.reminderAt);
-  if (!input.reminderDate) return '';
-  return `${input.reminderDate} ${input.reminderTime || '00:00'}:00`;
+  return '';
 }
 
-export function reminderInputDate(input: { reminderAt?: string; reminderDate?: string }) {
-  return input.reminderAt ? formatDateInUserTimeZone(input.reminderAt) : input.reminderDate || '';
+export function reminderInputDate(input: { reminderAt?: string }) {
+  return input.reminderAt ? formatDateInUserTimeZone(input.reminderAt) : '';
 }
 
-export function reminderInputTime(input: { reminderAt?: string; reminderTime?: string }) {
-  return input.reminderAt ? formatTimeInUserTimeZone(input.reminderAt) : input.reminderTime || '';
+export function reminderInputTime(input: { reminderAt?: string }) {
+  return input.reminderAt ? formatTimeInUserTimeZone(input.reminderAt) : '';
+}
+
+export function reminderInputDateTime(input: { reminderAt?: string }) {
+  const parts = dateTimePartsInUserTimeZone(input.reminderAt);
+  if (!parts) return '';
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+export function reminderAtToUtc(input: string | undefined): string | undefined {
+  if (!input) return undefined;
+  // Parse the datetime-local input (which is in user's local timezone)
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) return undefined;
+  // Convert to UTC ISO string
+  return date.toISOString();
 }
 
 function formatDateTimeInUserTimeZone(value: string | null | undefined) {
@@ -152,70 +166,117 @@ export function formatFileSize(sizeBytes: number) {
   return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+export const SOURCE_VALUES = {
+  KOTE: 'kote',
+  WHATSAPP: 'whatsapp',
+  GITHUB: 'github',
+  GITHUB_PUSH: 'github',
+  WHATSAPP_CHANNEL: 'whatsapp',
+  AI_CHAT: 'ai-chat',
+  CLI: 'cli',
+  IDE: 'ide',
+  EXTERNAL: 'external',
+  WEB_CLIPPER: 'web-clipper',
+  MANUAL_API: 'manual-api',
+  MANUAL: 'manual',
+} as const;
+
+export type SourceValue = (typeof SOURCE_VALUES)[keyof typeof SOURCE_VALUES];
+
+export enum SourceTagClass {
+  Kote = 'kote',
+  WhatsApp = 'whatsapp',
+  GitHub = 'github',
+  WebClipper = 'web-clipper',
+  AiOpenCode = 'ai-opencode',
+  AiAntigravity = 'ai-antigravity',
+  AiCodex = 'ai-codex',
+  AiClaude = 'ai-claude',
+  Ai = 'ai',
+  Ide = 'ide',
+  Manual = 'manual',
+  Api = 'api',
+}
+
 type SourceConfig = { label: string; tagClass: string };
 type SourceRule = SourceConfig & { matches: (normalizedSource: string) => boolean };
 
 const sourceRules: SourceRule[] = [
   {
+    label: 'Kote',
+    tagClass: SourceTagClass.Kote,
+    matches: (source) => source === SOURCE_VALUES.KOTE,
+  },
+  {
     label: 'WhatsApp',
-    tagClass: 'whatsapp',
+    tagClass: SourceTagClass.WhatsApp,
     matches: (source) => source.includes('whatsapp') || source.includes('evolution'),
   },
   {
     label: 'GitHub',
-    tagClass: 'github',
+    tagClass: SourceTagClass.GitHub,
     matches: (source) => source.includes('github'),
   },
   {
+    label: 'Web Clipper',
+    tagClass: SourceTagClass.WebClipper,
+    matches: (source) => source === SOURCE_VALUES.WEB_CLIPPER || source.startsWith('http://') || source.startsWith('https://'),
+  },
+  {
+    label: 'IDE',
+    tagClass: SourceTagClass.Ide,
+    matches: (source) => source === SOURCE_VALUES.IDE || source.includes('ide') || source.includes('vscode'),
+  },
+  {
     label: 'Open Code',
-    tagClass: 'ai',
+    tagClass: SourceTagClass.AiOpenCode,
     matches: (source) => source.includes('open-code') || source.includes('opencode'),
   },
   {
     label: 'Antigravity',
-    tagClass: 'ai',
+    tagClass: SourceTagClass.AiAntigravity,
     matches: (source) => source.includes('antigravity'),
   },
   {
     label: 'Codex',
-    tagClass: 'ai',
+    tagClass: SourceTagClass.AiCodex,
     matches: (source) => source.includes('codex'),
   },
   {
     label: 'Claude Code',
-    tagClass: 'ai',
+    tagClass: SourceTagClass.AiClaude,
     matches: (source) => source.includes('claude'),
   },
   {
     label: 'AI',
-    tagClass: 'ai',
-    matches: (source) => source === 'ai-chat',
+    tagClass: SourceTagClass.Ai,
+    matches: (source) => source === SOURCE_VALUES.AI_CHAT,
+  },
+  {
+    label: 'CLI',
+    tagClass: SourceTagClass.Manual,
+    matches: (source) => source === SOURCE_VALUES.CLI,
   },
   {
     label: 'Manual',
-    tagClass: 'manual',
-    matches: (source) => source === 'manual-api' || source === 'manual',
-  },
-  {
-    label: 'n8n',
-    tagClass: 'api',
-    matches: (source) => source.includes('n8n'),
+    tagClass: SourceTagClass.Manual,
+    matches: (source) => source === SOURCE_VALUES.MANUAL_API || source === SOURCE_VALUES.MANUAL || source === SOURCE_VALUES.EXTERNAL,
   },
   {
     label: 'API',
-    tagClass: 'api',
+    tagClass: SourceTagClass.Api,
     matches: (source) => source.includes('api'),
   },
 ];
 
 export function getSourceConfig(source: string | null | undefined): { label: string; tagClass: string } {
   if (!source) {
-    return { label: '', tagClass: 'manual' };
+    return { label: '', tagClass: SourceTagClass.Manual };
   }
   const normalized = source.toLowerCase().trim();
   const matchingRule = sourceRules.find((rule) => rule.matches(normalized));
   if (matchingRule) return { label: matchingRule.label, tagClass: matchingRule.tagClass };
-  return { label: formatDisplayToken(source), tagClass: 'manual' };
+  return { label: formatDisplayToken(source), tagClass: SourceTagClass.Manual };
 }
 
 export function formatSourceLabel(source: string | null | undefined): string {
@@ -233,9 +294,9 @@ export function formatDateIso(dateStr?: string): string {
 }
 
 export function getTimelineNodeColor(category: string, type?: string) {
-  if (category === 'github-push') return 'var(--cyan)';
-  if (category === 'whatsapp') return 'var(--green)';
+  if (category === SOURCE_VALUES.GITHUB_PUSH) return 'var(--cyan)';
+  if (category === SOURCE_VALUES.WHATSAPP_CHANNEL) return 'var(--green)';
   if (category === 'reminder') return 'var(--amber)';
-  if (category === 'ai-chat') return 'var(--purple)';
+  if (category === SOURCE_VALUES.AI_CHAT) return 'var(--purple)';
   return 'var(--muted)';
 }

@@ -10,7 +10,7 @@ export async function runAsk(question: string, options: { project?: string }): P
   }
 
   const s = spinner();
-  s.start('Searching knowledge base...');
+  s.start('Searching Kote...');
 
   try {
     const result = await client.ask(q, options.project);

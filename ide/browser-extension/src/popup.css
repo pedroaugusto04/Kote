@@ -1,22 +1,32 @@
-/* Modern CSS Reset & Vars */
+/* Modern CSS Reset & Vars - Kote Color Palette */
 :root {
-  --bg-primary: #0f172a;
-  --bg-card: #1e293b;
-  --bg-input: #0f172a;
+  --bg-primary: #090f14;
+  --bg-card: #0f171d;
+  --bg-input: #0b1319;
   
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-primary: #d8e2ea;
+  --text-secondary: #8da0ae;
+  --text-muted: #60717e;
+  --text-strong: #ecf6fa;
+  --active-text: #e9fbff;
   
-  --accent: #6366f1;
-  --accent-hover: #4f46e5;
-  --accent-glow: rgba(99, 102, 241, 0.25);
+  --accent: #53c7de;
+  --cyan: #53c7de;
+  --green: #7dd3a5;
+  --red: #ff7a7a;
   
-  --border: #334155;
-  --border-focus: #475569;
+  --border: #24323c;
+  --border-soft: rgba(148, 163, 184, 0.16);
+  --accent-border: rgba(83, 199, 222, 0.34);
+  --accent-glow: rgba(83, 199, 222, 0.11);
   
-  --success: #10b981;
-  --error: #ef4444;
+  --surface-4: rgba(148, 163, 184, 0.04);
+  --surface-5: rgba(148, 163, 184, 0.05);
+  --surface-6: rgba(148, 163, 184, 0.06);
+  --surface-hover: rgba(148, 163, 184, 0.08);
+  --surface-hover-strong: rgba(148, 163, 184, 0.08);
+  --surface-hover-accent: rgba(83, 199, 222, 0.11);
+  --surface-active: rgba(83, 199, 222, 0.13);
   
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
@@ -50,7 +60,7 @@ body {
   align-items: center;
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
-  background-color: rgba(30, 41, 59, 0.5);
+  background-color: rgba(15, 23, 29, 0.88);
   backdrop-filter: blur(8px);
 }
 
@@ -61,15 +71,19 @@ body {
 }
 
 .logo-icon {
-  width: 20px;
-  height: 20px;
-  color: var(--accent);
+  width: 24px;
+  height: 24px;
 }
 
 .logo-text {
   font-weight: 600;
   font-size: 15px;
   letter-spacing: -0.01em;
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
 }
 
 .btn-icon {
@@ -83,8 +97,9 @@ body {
 }
 
 .btn-icon:hover {
-  background-color: var(--border);
-  color: var(--text-primary);
+  background-color: var(--surface-hover);
+  border-color: var(--accent-border);
+  color: var(--active-text);
 }
 
 .btn-icon svg {
@@ -116,6 +131,51 @@ body {
   margin-bottom: 4px;
 }
 
+/* Auth Tabs */
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  background-color: var(--bg-input);
+  padding: 4px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.auth-tab:hover {
+  color: var(--text-primary);
+}
+
+.auth-tab.active {
+  background-color: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+  font-weight: 600;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-form.hidden {
+  display: none !important;
+}
+
 /* Form Styles */
 .form-group {
   display: flex;
@@ -136,6 +196,7 @@ label {
 
 input[type="text"],
 input[type="url"],
+input[type="email"],
 input[type="password"],
 select {
   width: 100%;
@@ -152,17 +213,22 @@ select {
 
 input:focus,
 select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 3px var(--surface-hover-accent);
 }
 
 select {
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%238da0ae'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 16px;
   padding-right: 36px;
+}
+
+select option {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
 }
 
 .help-text {
@@ -189,7 +255,7 @@ select {
   font-weight: 700;
   text-transform: uppercase;
   background-color: var(--accent-glow);
-  color: #a5b4fc;
+  color: #d8f7ff;
   padding: 2px 6px;
   border-radius: 4px;
   letter-spacing: 0.05em;
@@ -224,12 +290,15 @@ select {
 }
 
 .btn-primary {
-  background-color: var(--accent);
-  color: #ffffff;
+  background-color: var(--surface-active);
+  border: 1px solid var(--accent-border);
+  color: var(--active-text);
 }
 
 .btn-primary:hover {
-  background-color: var(--accent-hover);
+  background-color: var(--surface-hover-accent);
+  border-color: var(--accent-border);
+  color: var(--active-text);
 }
 
 .btn-primary:active {
@@ -237,12 +306,15 @@ select {
 }
 
 .btn-success {
-  background-color: var(--success);
+  background-color: var(--green);
   color: #ffffff;
+  border: 1px solid transparent;
 }
 
 .btn-success:hover {
-  background-color: #059669;
+  background-color: var(--surface-active);
+  border-color: var(--accent-border);
+  color: var(--active-text);
 }
 
 .btn-success:active {
@@ -274,15 +346,17 @@ select {
 }
 
 .status-banner.success {
-  background-color: rgba(16, 185, 129, 0.15);
-  color: #a7f3d0;
-  border-top-color: rgba(16, 185, 129, 0.3);
+  background-color: rgba(125, 211, 165, 0.1);
+  color: #d3fae4;
+  border: 1px solid rgba(125, 211, 165, 0.34);
+  border-radius: 8px;
 }
 
 .status-banner.error {
-  background-color: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  border-top-color: rgba(239, 68, 68, 0.3);
+  background-color: rgba(255, 122, 122, 0.1);
+  color: #ffd7d7;
+  border: 1px solid rgba(255, 122, 122, 0.36);
+  border-radius: 8px;
 }
 
 /* Animations */

@@ -10,7 +10,7 @@ import {
   ReindexAllEmbeddingsUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   agentConversationBodySchema,
   ingestBodySchema,
@@ -39,7 +39,7 @@ export class OperationsController {
   @Post('ingest')
   @UseGuards(TrustedOriginGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Ingest content into knowledge base' })
+  @ApiOperation({ summary: 'Ingest content into Kote' })
   @ApiResponse({ status: 200, description: 'Content ingested successfully' })
   ingest(@Body(new ZodValidationPipe(ingestBodySchema, 'invalid_ingest_payload')) body: IngestBody, @CurrentUser() user: AuthenticatedUser) {
     return this.ingestEntry.execute(body, user.id);

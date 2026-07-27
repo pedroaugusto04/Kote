@@ -48,7 +48,7 @@
   display: block;
   color: var(--text-strong);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .help-sidebar-header small {
@@ -138,6 +138,7 @@
 }
 
 .help-sidebar-footer {
+  margin-top: auto;
   padding: 10px 8px 16px;
   border-top: 1px solid var(--border-subtle);
 }
@@ -239,6 +240,11 @@
   border-color: rgba(37, 211, 102, 0.22);
 }
 
+:root[data-theme="light"] .help-whatsapp-callout-icon {
+  background: rgba(21, 128, 61, 0.12);
+  color: #15803d;
+}
+
 .help-whatsapp-callout-icon {
   display: inline-grid;
   place-items: center;
@@ -265,7 +271,7 @@
 .help-whatsapp-callout-content strong {
   color: var(--text-strong);
   font-size: 13.5px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .help-whatsapp-callout-content p {
@@ -325,7 +331,7 @@
   margin: 0;
   color: var(--text-strong);
   font-size: 14.5px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.3;
 }
 

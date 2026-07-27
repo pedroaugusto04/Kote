@@ -1,0 +1,13 @@
+Hi {{displayName}},
+
+Here is your weekly activity summary from {{appName}}.
+
+{{#projects}}
+Project: {{projectName}} — {{count}} note(s)
+{{#notes}}
+- {{title}} ({{date}})
+{{/notes}}
+{{/projects}}
+
+Thanks,
+The {{appName}} team

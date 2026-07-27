@@ -14,6 +14,7 @@ import {
   ListPaginatedNotesUseCase,
   CreateManualNoteUseCase,
   UpdateNoteUseCase,
+  BulkUpdateNoteStatusUseCase,
   DeleteNoteUseCase,
   GetNoteAttachmentContentUseCase,
   GetNoteDetailUseCase,
@@ -22,21 +23,28 @@ import {
   ResolveWhatsappAskAttachmentsUseCase,
   RunAskAiUseCase,
   ListAskHistoryUseCase,
+  ListAskConversationsUseCase,
+  GetAskConversationTurnsUseCase,
   SetNotePinnedUseCase,
   FindRelatedNotesUseCase,
+  FindNotesByFileUseCase,
+  FindRelatedNotesByFileUseCase,
+  GenerateFileNotesSummaryUseCase,
   IngestEntryUseCase,
   QueryKnowledgeUseCase,
   GetAutoActionGlobalUseCase,
   SetAutoActionGlobalUseCase,
 } from '../../application/use-cases/index.js';
-import { EmbeddingWorker } from '../../application/services/embedding.worker.js';
-import { NoteChunkingService } from '../../application/services/note-chunking.service.js';
-import { NoteEventDispatcher } from '../../application/services/note-event-dispatcher.js';
-import { AutoActionWorker } from '../../workers/auto-action.worker.js';
+import { HighPriorityEmbeddingWorker } from '../../application/workers/high-priority-embedding.worker.js';
+import { LowPriorityEmbeddingWorker } from '../../application/workers/low-priority-embedding.worker.js';
+import { NoteChunkingService } from '../../application/services/content/note-chunking.service.js';
+import { NoteEventDispatcher } from '../../application/services/webhooks/note-event-dispatcher.js';
+import { NoteLifecycleService } from '../../application/services/content/note-lifecycle.service.js';
+import { FileNotesSummaryCacheService } from '../../application/services/content/file-notes-summary-cache.service.js';
+import { AutoActionWorker } from '../../application/workers/auto-action.worker.js';
 import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
 import { SettingsRepository } from '../../application/ports/settings.repository.js';
 import { NotesController } from '../../interfaces/http/controllers/index.js';
-import { SetNoteAutoActionUseCase } from '../../application/use-cases/notes/set-note-auto-action.use-case.js';
 
 @Module({
   imports: [
@@ -58,44 +66,60 @@ import { SetNoteAutoActionUseCase } from '../../application/use-cases/notes/set-
     ListPaginatedNotesUseCase,
     CreateManualNoteUseCase,
     UpdateNoteUseCase,
+    BulkUpdateNoteStatusUseCase,
     DeleteNoteUseCase,
-    SetNoteAutoActionUseCase,
     GetNoteAttachmentContentUseCase,
     GetNoteDetailUseCase,
-    EmbeddingWorker,
+    HighPriorityEmbeddingWorker,
+    LowPriorityEmbeddingWorker,
     NoteChunkingService,
     ReindexAllEmbeddingsUseCase,
     NoteEventDispatcher,
+    NoteLifecycleService,
+    FileNotesSummaryCacheService,
     AutoActionWorker,
     
     GetAutoActionGlobalUseCase,
     SetAutoActionGlobalUseCase,
-    SetNoteAutoActionUseCase,
     AskKnowledgeUseCase,
     ResolveWhatsappAskAttachmentsUseCase,
     RunAskAiUseCase,
     ListAskHistoryUseCase,
+    ListAskConversationsUseCase,
+    GetAskConversationTurnsUseCase,
     SetNotePinnedUseCase,
     FindRelatedNotesUseCase,
+    FindNotesByFileUseCase,
+    FindRelatedNotesByFileUseCase,
+    GenerateFileNotesSummaryUseCase,
     IngestEntryUseCase,
     QueryKnowledgeUseCase,
+    PostgresSettingsRepository,
+    { provide: SettingsRepository, useExisting: PostgresSettingsRepository },
   ],
   exports: [
-    EmbeddingWorker,
+    HighPriorityEmbeddingWorker,
+    LowPriorityEmbeddingWorker,
     NoteChunkingService,
     NoteEventDispatcher,
+    NoteLifecycleService,
     AskKnowledgeUseCase,
     ResolveWhatsappAskAttachmentsUseCase,
     RunAskAiUseCase,
     CreateManualNoteUseCase,
     UpdateNoteUseCase,
+    BulkUpdateNoteStatusUseCase,
     DeleteNoteUseCase,
     ListPaginatedNotesUseCase,
     IngestEntryUseCase,
     QueryKnowledgeUseCase,
     GetNoteDetailUseCase,
     ListAskHistoryUseCase,
+    ListAskConversationsUseCase,
+    GetAskConversationTurnsUseCase,
     ReindexAllEmbeddingsUseCase,
+    FindNotesByFileUseCase,
+    FindRelatedNotesByFileUseCase,
   ],
 })
 export class NotesModule {}

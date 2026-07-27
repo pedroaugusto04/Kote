@@ -16,6 +16,7 @@ import { PushSubscriptionRepository } from '../../application/ports/push/push-su
 import { ProjectBriefHistoryRepository } from '../../application/ports/projects/project-brief-history.repository.js';
 import { AskHistoryRepository } from '../../application/ports/query/ask-history.repository.js';
 import { NoteEmbeddingRepository } from '../../application/ports/notes/note-embedding.repository.js';
+import { NoteContextRepository } from '../../application/ports/notes/note-context.repository.js';
 import { QuotaRepository } from '../../application/ports/quota/quota.repository.js';
 import {
   BillingCustomerRepository,
@@ -39,6 +40,7 @@ import { PostgresPushSubscriptionRepository } from '../repositories/push-subscri
 import { PostgresWorkspaceRepository } from '../repositories/workspace.repository.js';
 import { PostgresProjectRepository } from '../repositories/project.repository.js';
 import { PostgresNoteRepository } from '../repositories/note.repository.js';
+import { PostgresNoteContextRepository } from '../repositories/note-context.repository.js';
 import { PostgresFolderRepository } from '../repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../repositories/attachment.repository.js';
 import { PostgresCategoryRepository } from '../repositories/category.repository.js';
@@ -65,6 +67,7 @@ const repositories = [
   PostgresContentRepository,
   PostgresContentQueryRepository,
   PostgresNoteEmbeddingRepository,
+  PostgresNoteContextRepository,
   PostgresWorkflowStateRepository,
   PostgresWebhookEventRepository,
   PostgresWebhookSubscriptionRepository,
@@ -84,6 +87,7 @@ const repositories = [
   { provide: ContentRepository, useExisting: PostgresContentRepository },
   { provide: ContentQueryRepository, useExisting: PostgresContentQueryRepository },
   { provide: NoteEmbeddingRepository, useExisting: PostgresNoteEmbeddingRepository },
+  { provide: NoteContextRepository, useExisting: PostgresNoteContextRepository },
   { provide: ConversationStateRepository, useExisting: PostgresWorkflowStateRepository },
   { provide: ReminderDispatchRepository, useExisting: PostgresWorkflowStateRepository },
   { provide: WebhookEventRepository, useExisting: PostgresWebhookEventRepository },

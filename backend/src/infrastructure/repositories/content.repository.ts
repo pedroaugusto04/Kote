@@ -4,7 +4,7 @@ import type { ListProjectKnowledgeMapInput } from '../../application/models/proj
 import type { ListProjectTimelineInput } from '../../application/models/project-timeline.models.js';
 import type { ListProjectsInput, PaginatedProjects } from '../../application/models/project-list.models.js';
 import type { Project } from '../../domain/projects.js';
-import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { ContentRepository } from '../../application/ports/notes/content.repository.js';
 import type {
   SaveAttachmentInput,
@@ -20,6 +20,9 @@ import { PostgresNoteRepository } from './note.repository.js';
 import { PostgresFolderRepository } from './folder.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
 import { PostgresCategoryRepository } from './category.repository.js';
+import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
+import { PostgresDatabase } from '../persistence/database.js';
+
 
 @Injectable()
 export class PostgresContentRepository extends ContentRepository {
@@ -31,6 +34,7 @@ export class PostgresContentRepository extends ContentRepository {
     private readonly attachmentRepository: PostgresAttachmentRepository,
     private readonly categoryRepository: PostgresCategoryRepository,
     private readonly contentObjectStorage: ContentObjectStorageService,
+    private readonly database: PostgresDatabase,
   ) {
     super();
   }
@@ -39,16 +43,21 @@ export class PostgresContentRepository extends ContentRepository {
     return this.categoryRepository.list(userId, workspaceId);
   }
 
-  async getCategoryById(userId: string, categoryId: string) {
-    return this.categoryRepository.getById(userId, categoryId);
+  async getCategoryById(userId: string, categoryId: string, tx?: any) {
+    return this.categoryRepository.getById(userId, categoryId, tx);
   }
 
-  async createCategory(userId: string, workspaceId: string, input: { name: string; color?: string; icon?: string }) {
-    return this.categoryRepository.create(userId, workspaceId, input);
+  async createCategory(
+    userId: string,
+    workspaceId: string,
+    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean },
+    tx?: any
+  ) {
+    return this.categoryRepository.create(userId, workspaceId, input, tx);
   }
 
-  async findCategoryByName(userId: string, workspaceId: string, name: string) {
-    return this.categoryRepository.findByName(userId, workspaceId, name);
+  async findCategoryByName(userId: string, workspaceId: string, name: string, tx?: any) {
+    return this.categoryRepository.findByName(userId, workspaceId, name, tx);
   }
 
   async listWorkspaces(userId: string) {
@@ -67,38 +76,30 @@ export class PostgresContentRepository extends ContentRepository {
     return this.projectRepository.listRepositories(userId, workspaceId);
   }
 
-  async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }) {
-    return this.projectRepository.upsertRepository(input);
+  async upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any) {
+    return this.projectRepository.upsertRepository(input, tx);
+  }
+
+  async removeProjectRepositories(projectId: string, tx?: any) {
+    return this.projectRepository.removeProjectRepositories(projectId, tx);
   }
 
   async listProjects(userId: string) {
     return this.projectRepository.list(userId);
   }
 
+  async listProjectsWithNoteCount(userId: string) {
+    return this.projectRepository.listWithNoteCount(userId);
+  }
+
   async listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects> {
     const pageResult = await this.projectRepository.listPage(userId, input);
-    return {
-      pagination: pageResult.pagination,
-      items: pageResult.items.map((record) => ({
-        projectSlug: record.projectSlug,
-        displayName: record.displayName,
-        workspaceSlug: record.workspaceSlug || '',
-        repositories: record.repositories.map((repo) => ({
-          id: repo.id,
-          workspaceSlug: record.workspaceSlug || '',
-          externalId: repo.externalId,
-          fullName: repo.fullName,
-          htmlUrl: repo.htmlUrl,
-          description: repo.description,
-          defaultBranch: repo.defaultBranch,
-          createdAt: repo.createdAt,
-          updatedAt: repo.updatedAt,
-        })),
-        defaultTags: record.defaultTags,
-        enabled: record.enabled,
-        favorite: record.favorite,
-      })),
-    };
+    return pageResult as PaginatedProjects;
+  }
+
+  async listProjectsPageWithNoteCount(userId: string, input: ListProjectsInput): Promise<PaginatedProjects> {
+    const pageResult = await this.projectRepository.listPageWithNoteCount(userId, input);
+    return pageResult as PaginatedProjects;
   }
 
   async getProjectBySlug(userId: string, projectSlug: string) {
@@ -111,6 +112,18 @@ export class PostgresContentRepository extends ContentRepository {
 
   async upsertProject(userId: string, input: SaveProjectInput) {
     return this.projectRepository.upsert(userId, input);
+  }
+
+  async upsertProjectWithRepository(userId: string, projectInput: SaveProjectInput, repositoryInput?: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<SaveProjectInput> {
+    const dbOrTx = tx || this.database.getDb();
+
+    // Upsert repository first if provided
+    if (repositoryInput) {
+      await this.projectRepository.upsertRepository(repositoryInput, dbOrTx);
+    }
+
+    // Then upsert project
+    return this.projectRepository.upsert(userId, projectInput);
   }
 
   async deleteProject(userId: string, projectId: string) {
@@ -139,22 +152,15 @@ export class PostgresContentRepository extends ContentRepository {
       previousMarkdownStorageKey: note.markdownStorageKey || '',
       markdownStorageKey: await this.contentObjectStorage.saveNoteMarkdown(userId, { ...note, markdownStorageKey: undefined }),
     })));
-    const client = await this.noteRepository['database'].getPool().connect();
-    try {
-      await client.query('BEGIN');
+    const db = this.noteRepository['database'].getDb();
+    await db.transaction(async (tx) => {
       for (const folder of input.folders) {
-        await this.folderRepository.upsertWithClient(client, userId, folder);
+        await this.folderRepository.upsertWithClient(tx, userId, folder);
       }
       for (const write of noteWrites) {
-        await this.noteRepository.updateWithClient(client, userId, write.note, write.markdownStorageKey);
+        await this.noteRepository.updateWithClient(tx, userId, write.note, write.markdownStorageKey);
       }
-      await client.query('COMMIT');
-    } catch (error) {
-      await client.query('ROLLBACK');
-      throw error;
-    } finally {
-      client.release();
-    }
+    });
     await this.contentObjectStorage.deleteObjects(
       noteWrites
         .filter((write) => write.previousMarkdownStorageKey && write.previousMarkdownStorageKey !== write.markdownStorageKey)
@@ -166,8 +172,12 @@ export class PostgresContentRepository extends ContentRepository {
     return this.folderRepository.delete(userId, projectId, folderId);
   }
 
-  async listNotes(userId: string) {
-    return this.noteRepository.list(userId);
+  async listNotes(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
+    return this.noteRepository.list(userId, filters);
+  }
+
+  async listNotesLite(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
+    return this.noteRepository.listLite(userId, filters);
   }
 
   async listNotesPage(userId: string, input: ListNotesInput) {
@@ -182,8 +192,12 @@ export class PostgresContentRepository extends ContentRepository {
     return this.noteRepository.listProjectKnowledgeMapItems(userId, input);
   }
 
-  async getNoteById(userId: string, id: string) {
-    return this.noteRepository.getById(userId, id);
+  async getNoteById(userId: string, id: string, tx?: any) {
+    return this.noteRepository.getById(userId, id, tx);
+  }
+
+  async getNoteByPath(userId: string, path: string, tx?: any) {
+    return this.noteRepository.getByPath(userId, path, tx);
   }
 
   async getNotesByIds(userId: string, ids: string[]) {
@@ -194,16 +208,28 @@ export class PostgresContentRepository extends ContentRepository {
     return this.noteRepository.getBySourceAndSessionId(userId, source, sessionId);
   }
 
-  async upsertNote(userId: string, input: SaveNoteInput) {
-    return this.noteRepository.upsert(userId, input);
+  async upsertNote(userId: string, input: SaveNoteInput, tx?: any) {
+    return this.noteRepository.upsert(userId, input, tx);
   }
 
-  async updateNote(userId: string, input: SaveNoteInput) {
-    return this.noteRepository.update(userId, input);
+  async updateNote(userId: string, input: SaveNoteInput, tx?: any) {
+    return this.noteRepository.update(userId, input, tx);
+  }
+
+  async updateNoteBodySearchText(userId: string, noteId: string, bodySearchText: string) {
+    await this.noteRepository.updateBodySearchText(userId, noteId, bodySearchText);
   }
 
   async updateReminderStatus(userId: string, id: string, status: string) {
     return this.noteRepository.updateReminderStatus(userId, id, status);
+  }
+
+  async updateNoteStatuses(userId: string, ids: string[], status: string) {
+    return this.noteRepository.updateStatuses(userId, ids, status);
+  }
+
+  async updateReminderStatuses(userId: string, ids: string[], status: string) {
+    return this.noteRepository.updateReminderStatuses(userId, ids, status);
   }
 
   async setNotePinned(userId: string, id: string, pinned: boolean) {
@@ -213,19 +239,31 @@ export class PostgresContentRepository extends ContentRepository {
   async deleteNote(userId: string, id: string) {
     const note = await this.noteRepository.getById(userId, id);
     if (!note) return false;
-    const attachmentKeys = await this.attachmentRepository.listByNoteId(userId, id);
+    const attachmentStorageKeys = await this.attachmentRepository.listByNoteId(userId, id);
     const deleted = await this.noteRepository.delete(userId, id, note.markdownStorageKey);
-    if (deleted) {
-      await this.attachmentRepository.deleteByNoteId(userId, id);
+    if (deleted && attachmentStorageKeys.length > 0) {
+      await this.contentObjectStorage.deleteObjects(attachmentStorageKeys);
     }
     return deleted;
   }
 
-  async saveAttachment(userId: string, input: SaveAttachmentInput) {
-    return this.attachmentRepository.save(userId, input);
+  async saveAttachment(userId: string, input: SaveAttachmentInput, tx?: any) {
+    return this.attachmentRepository.save(userId, input, tx);
   }
 
-  async listAttachments(userId: string, noteId: string) {
-    return this.attachmentRepository.list(userId, noteId);
+  async deleteAttachment(userId: string, noteId: string, fileName: string) {
+    return this.attachmentRepository.deleteByNoteIdAndFileName(userId, noteId, fileName);
+  }
+
+  async listAttachments(userId: string, noteId: string, tx?: any) {
+    return this.attachmentRepository.list(userId, noteId, tx);
+  }
+
+  async listAttachmentsByNoteIds(userId: string, noteIds: string[]) {
+    return this.attachmentRepository.listByNoteIds(userId, noteIds);
+  }
+
+  async getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw> {
+    return this.noteRepository.getProductivityInsightsRaw(userId);
   }
 }

@@ -21,7 +21,7 @@ function saveRawBody(request: Request & { rawBody?: Buffer }, _response: Respons
 export async function createApp(): Promise<NestExpressApplication> {
   const environment = readEnvironment();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false, logger: ['error', 'warn'] });
-  const bodyLimit = process.env.KB_BODY_LIMIT || '10mb';
+  const bodyLimit = process.env.KB_BODY_LIMIT || '15mb';
   app.use(json({ limit: bodyLimit, verify: saveRawBody }));
   app.use(urlencoded({ extended: true, limit: bodyLimit, verify: saveRawBody }));
   if (environment.trustProxy) {
@@ -39,10 +39,7 @@ export async function createApp(): Promise<NestExpressApplication> {
       if (origin.startsWith('chrome-extension://')) {
         const extensionId = origin.replace('chrome-extension://', '');
         const allowedIds = environment.allowedExtensionIds;
-        if (allowedIds.length > 0) {
-          return callback(null, allowedIds.includes(extensionId));
-        }
-        return callback(null, true);
+        return callback(null, allowedIds.includes(extensionId));
       }
       const allowedOrigins = new Set(environment.allowedOrigins);
       if (environment.publicBaseUrl) allowedOrigins.add(new URL(environment.publicBaseUrl).origin);
@@ -61,10 +58,10 @@ export async function createApp(): Promise<NestExpressApplication> {
 
   // Swagger configuration
   const config = new DocumentBuilder()
-    .setTitle('Knowledge Base API')
-    .setDescription('API documentation for Knowledge Base application')
+    .setTitle('Kote API')
+    .setDescription('API documentation for Kote application')
     .setVersion('1.0')
-    .addServer('/knowledge-base', 'Production')
+    .addServer('/kote', 'Production')
     .addBearerAuth()
     .addCookieAuth('accessToken')
     .addCookieAuth('refreshToken')

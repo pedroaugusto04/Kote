@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ReminderEventBus } from '../../../dist/application/services/reminder-event.bus.js';
-import { TelegramReminderListener } from '../../../dist/application/services/telegram-reminder.listener.js';
+import { ReminderEventBus } from '../../../dist/application/event-buses/reminder-event.bus.js';
+import { TelegramReminderListener } from '../../../dist/application/listeners/telegram-reminder.listener.js';
 import { ReminderDeliveryChannel } from '../../../dist/contracts/enums.js';
 
 test('TelegramReminderListener sends telegram message when WhatsApp reminder is sent', async () => {

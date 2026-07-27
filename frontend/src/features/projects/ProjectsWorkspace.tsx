@@ -13,11 +13,11 @@ import {
   pinNote,
   runQuery,
 } from '../../shared/api/client';
+import { SOURCE_VALUES, formatDisplayToken } from '../../shared/utils/format';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
 import type { ProjectTimelineCategory, ProjectTimelineItem, ProjectTimelineItemCategory } from '../../shared/api/models/project-timeline';
 import { StatusFilter, type NoteStatus, type NoteStatusFilter } from '../../shared/api/models/note-status';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
-import { formatDisplayToken } from '../../shared/utils/format';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
@@ -34,16 +34,35 @@ import { ROOT_FOLDER_ID } from './projects.constants';
 import { PROJECTS_WORKSPACE_MESSAGES } from './projects-ui.constants';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  all: 'All',
+  [SOURCE_VALUES.WHATSAPP]: 'WhatsApp',
+  [SOURCE_VALUES.GITHUB]: 'GitHub',
+  [SOURCE_VALUES.MANUAL]: 'Manual',
+  reminder: 'Reminder',
+  [SOURCE_VALUES.AI_CHAT]: 'AI Chat',
+};
+
 import { ProjectFolderModal } from './modals/ProjectFolderModal';
 import { ProjectNoteModal } from './modals/ProjectNoteModal';
 import { ProjectModal } from './modals/ProjectModal';
 import { ProjectsBrowser } from './ProjectsBrowser';
 import { flattenFolders } from './projects.helpers';
-import type { ConfirmState, FolderModalState, NoteModalState, ProjectModalState } from './projects.types';
+import {
+  ConfirmKind,
+  WorkspaceModalMode,
+  type ConfirmState,
+  type FolderModalState,
+  type NoteModalState,
+  type ProjectModalState,
+} from './projects.types';
 import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { SearchIcon } from '../../shared/ui/icons';
+import { InfoTooltip } from '../../shared/ui/info-tooltip';
+import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
 
 const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
   { value: StatusFilter.Open, label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
@@ -108,6 +127,20 @@ export function ProjectsWorkspace({
     setSearchInput('');
   }, [selectedSlug]);
 
+  // Drag and drop with shared hook
+  const { isDraggingOver, handleDragOver, handleDragLeave, handleDrop, processNextNote, pendingNotesQueue } = useDragAndDropFiles({
+    onCreateNote: (title, attachments) => {
+      setNoteModal({
+        mode: WorkspaceModalMode.Create,
+        projectSlug: selectedSlug || 'inbox',
+        folderId: selectedFolderId === ROOT_FOLDER_ID ? '' : selectedFolderId,
+        initialTitle: title,
+        initialAttachments: attachments,
+      });
+    },
+    projectSlug: selectedSlug || 'inbox',
+  });
+
   const foldersQuery = useQuery({
     queryKey: QUERY_KEYS.PROJECTS.FOLDERS(selected?.projectSlug || ''),
     queryFn: () => fetchProjectFolders(selected?.projectSlug || ''),
@@ -136,6 +169,7 @@ export function ProjectsWorkspace({
       category: timelineCategory,
       folderId: selectedFolderId || undefined,
       status: timelineStatus,
+      orderByPin: true,
     }),
     enabled: Boolean(selected?.projectSlug) && !hasSearchQuery,
     staleTime: 0,
@@ -218,7 +252,7 @@ export function ProjectsWorkspace({
   const workspaceRepositories = repositoriesResponse?.repositories || [];
   const loadNoteMutation = useMutation({
     mutationFn: (id: string) => globalLoading.trackPromise(ensureNoteDetail(queryClient, id)),
-    onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
+    onSuccess: (note) => setNoteModal({ mode: WorkspaceModalMode.Edit, note }),
     onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_LOAD_NOTE_FOR_EDITING),
   });
   const searchPinMutation = useMutation({
@@ -262,7 +296,31 @@ export function ProjectsWorkspace({
 
   return (
     <>
-      <PageHead
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ position: 'relative', minHeight: '100vh' }}
+      >
+        {isDraggingOver && (
+          <div className="drag-drop-overlay">
+            <div className="drag-drop-card">
+              <svg viewBox="0 0 16 16" width="32" height="32" className="drag-drop-icon">
+                <path
+                  d="M4.5 12.5v-7a3 3 0 016 0v7a1.5 1.5 0 01-3 0v-6.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <h3>Import documents</h3>
+              <p>Drop files here to create pre-filled notes automatically</p>
+            </div>
+          </div>
+        )}
+        <PageHead
         title={(
           <div className="page-head-title-row">
             <h1>{UI_MESSAGES.PROJECTS}</h1>
@@ -294,13 +352,18 @@ export function ProjectsWorkspace({
         )}
         subtitle=""
         action={
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {!isMobile && (
+              <InfoTooltip
+                content="Drag files anywhere on this page to automatically create notes with attachments"
+              />
+            )}
             {createNote ? (
               <button className="icon-button" type="button" onClick={() => createNote()}>
                 {UI_MESSAGES.QUICK_NOTE}
               </button>
             ) : null}
-            <button className="icon-button" type="button" onClick={() => setProjectModal({ mode: 'create' })}>
+            <button className="icon-button" type="button" onClick={() => setProjectModal({ mode: WorkspaceModalMode.Create })}>
               {UI_MESSAGES.NEW_PROJECT}
             </button>
           </div>
@@ -323,8 +386,10 @@ export function ProjectsWorkspace({
         />
       </section>
 
-      <div className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}>
-        <div style={{ minWidth: 0 }}>
+      <div
+        className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''} spaced`}
+      >
+          <div style={{ minWidth: 0 }}>
           {hasSearchQuery ? (
             /* Search results mode */
             <Panel className="matching-notes-panel" style={{ minWidth: 0 }}>
@@ -348,7 +413,7 @@ export function ProjectsWorkspace({
                     onOpen={handleOpenNote}
                     onOpenFullPage={openNote}
                     onEdit={() => loadNoteMutation.mutate(item.noteId)}
-                    onDelete={(note) => setConfirmState({ kind: 'note', note })}
+                    onDelete={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
                     onPin={(noteId, pinned) => searchPinMutation.mutate({ noteId, pinned })}
                   />
                 ))}
@@ -364,8 +429,8 @@ export function ProjectsWorkspace({
             <Panel>
               <div className="page-head">
                 <div>
-                  <h2>{UI_MESSAGES.ALL}</h2>
-                  <p>{UI_MESSAGES.NOTES_FROM_ALL_PROJECTS}</p>
+                  <h2>{timelineCategory === 'all' ? UI_MESSAGES.ALL : CATEGORY_LABELS[timelineCategory] || formatDisplayToken(timelineCategory)}</h2>
+                  <p>{timelineCategory === 'all' ? UI_MESSAGES.NOTES_FROM_ALL_PROJECTS : `${CATEGORY_LABELS[timelineCategory] || formatDisplayToken(timelineCategory)} notes from all projects`}</p>
                 </div>
               </div>
               <ProjectTimeline
@@ -379,13 +444,14 @@ export function ProjectsWorkspace({
                 }}
                 status={timelineStatus}
                 onStatusChange={setTimelineStatus}
-                onDeleteNote={(note) => setConfirmState({ kind: 'note', note })}
+                onDeleteNote={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
                 onEditNote={(note) => loadNoteMutation.mutate(note.id)}
                 onOpenNote={handleOpenNote}
                 onOpenNoteFullPage={openNote}
                 onPageChange={timelinePagination.setPage}
                 isStale={allProjectsTimelineQuery.isPlaceholderData}
                 resetKey={`all:${timelineCategory}:${timelineStatus}:timeline`}
+                allowPin={true}
               />
             </Panel>
           ) : selected ? (
@@ -409,16 +475,16 @@ export function ProjectsWorkspace({
                 setSelectedFolderId(folderId);
                 timelinePagination.setPage(1);
               }}
-              onCreateNote={() => setNoteModal({ mode: 'create', projectSlug: selected.projectSlug, folderId: selectedFolderId || undefined })}
-              onCreateFolder={() => setFolderModal({ mode: 'create', projectSlug: selected.projectSlug, parentFolderId: selectedFolder?.id })}
-              onEditFolder={() => selectedFolder ? setFolderModal({ mode: 'edit', projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
-              onDeleteFolder={() => selectedFolder ? setConfirmState({ kind: 'folder', projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
+              onCreateNote={() => setNoteModal({ mode: WorkspaceModalMode.Create, projectSlug: selected.projectSlug, folderId: selectedFolderId || undefined })}
+              onCreateFolder={() => setFolderModal({ mode: WorkspaceModalMode.Create, projectSlug: selected.projectSlug, parentFolderId: selectedFolder?.id })}
+              onEditFolder={() => selectedFolder ? setFolderModal({ mode: WorkspaceModalMode.Edit, projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
+              onDeleteFolder={() => selectedFolder ? setConfirmState({ kind: ConfirmKind.Folder, projectSlug: selected.projectSlug, folder: selectedFolder }) : undefined}
               onEditNote={(note) => loadNoteMutation.mutate(note.id)}
-              onDeleteNote={(note) => setConfirmState({ kind: 'note', note })}
+              onDeleteNote={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
               onOpenNote={handleOpenNote}
               onOpenNoteFullPage={openNote}
-              onEditProject={selected.projectSlug === 'inbox' ? undefined : () => setProjectModal({ mode: 'edit', project: selected })}
-              onDeleteProject={selectedProjectDeleteBlockedReason ? undefined : () => setConfirmState({ kind: 'project', project: selected })}
+              onEditProject={selected.projectSlug === 'inbox' ? undefined : () => setProjectModal({ mode: WorkspaceModalMode.Edit, project: selected })}
+              onDeleteProject={selectedProjectDeleteBlockedReason ? undefined : () => setConfirmState({ kind: ConfirmKind.Project, project: selected })}
               deleteProjectLabel={selectedProjectDeleteBlockedReason || 'Delete project'}
               isStale={timelineQuery.isPlaceholderData}
               timelineResetKey={`${selected.projectSlug}:${selectedFolderId}:${timelineCategory}:${timelineStatus}:timeline`}
@@ -439,11 +505,11 @@ export function ProjectsWorkspace({
           githubConnected={githubConnected}
           workspaceRepositories={workspaceRepositories}
           mode={projectModal.mode}
-          project={projectModal.mode === 'edit' ? projectModal.project : undefined}
+          project={projectModal.mode === WorkspaceModalMode.Edit ? projectModal.project : undefined}
           onClose={() => setProjectModal(null)}
           onSaved={async (projectSlug, mode) => {
             setProjectModal(null);
-            notifySuccess(mode === 'create' ? UI_MESSAGES.PROJECT_CREATED : UI_MESSAGES.PROJECT_UPDATED);
+            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.PROJECT_CREATED : UI_MESSAGES.PROJECT_UPDATED);
             openProject(projectSlug);
             await refreshDashboard(queryClient);
           }}
@@ -453,13 +519,13 @@ export function ProjectsWorkspace({
         <ProjectFolderModal
           folders={flatFolders}
           mode={folderModal.mode}
-          folder={folderModal.mode === 'edit' ? folderModal.folder : undefined}
-          initialParentFolderId={folderModal.mode === 'create' ? folderModal.parentFolderId : undefined}
+          folder={folderModal.mode === WorkspaceModalMode.Edit ? folderModal.folder : undefined}
+          initialParentFolderId={folderModal.mode === WorkspaceModalMode.Create ? folderModal.parentFolderId : undefined}
           onClose={() => setFolderModal(null)}
           onSaved={async (folderId, mode) => {
             setFolderModal(null);
             setSelectedFolderId(folderId || ROOT_FOLDER_ID);
-            notifySuccess(mode === 'create' ? UI_MESSAGES.FOLDER_CREATED : UI_MESSAGES.FOLDER_UPDATED);
+            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.FOLDER_CREATED : UI_MESSAGES.FOLDER_UPDATED);
             await refreshDashboard(queryClient);
           }}
           projectSlug={folderModal.projectSlug}
@@ -467,20 +533,37 @@ export function ProjectsWorkspace({
       ) : null}
        {noteModal ? (
         <ProjectNoteModal
-          folders={flatFolders}
+          key={noteModal.mode === WorkspaceModalMode.Edit ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}-${noteModal.folderId || ''}-${noteModal.initialTitle || ''}`}
+          folders={selected?.projectSlug === (noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug) ? flatFolders : undefined}
           mode={noteModal.mode}
-          note={noteModal.mode === 'edit' ? noteModal.note : undefined}
-          onClose={() => setNoteModal(null)}
-          onSaved={async (noteId, mode) => {
-            setNoteModal(null);
-            notifySuccess(mode === 'create' ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
-            await refreshDashboard(queryClient);
-            if (mode === 'create' && noteId) {
-              openNote(noteId);
+          note={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note : undefined}
+          onClose={() => {
+            if (pendingNotesQueue.length > 0) {
+              processNextNote();
+            } else {
+              setNoteModal(null);
             }
           }}
-          projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
-          initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : noteModal.folderId}
+          onSaved={async (noteId, mode) => {
+            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
+            await refreshDashboard(queryClient);
+
+            if (pendingNotesQueue.length > 0) {
+              processNextNote();
+            } else {
+              setNoteModal(null);
+            }
+          }}
+          projectSlug={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug}
+          initialFolderId={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.folderId || undefined : noteModal.folderId}
+          initialTitle={noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialTitle : undefined}
+          initialAttachments={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.attachments?.map(att => ({
+            fileName: att.fileName,
+            mimeType: att.mimeType,
+            sizeBytes: att.sizeBytes,
+            dataBase64: '',
+          })) : noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialAttachments : undefined}
+          projects={dashboard.projects}
           workspaceSlug={workspaceSlug}
         />
       ) : null}
@@ -489,26 +572,27 @@ export function ProjectsWorkspace({
           busy={deleteProjectMutation.isPending || deleteFolderMutation.isPending || deleteNoteMutation.isPending}
           cancelLabel={UI_MESSAGES.CANCEL}
           confirmLabel={UI_MESSAGES.CONFIRM_DELETION}
-          description={confirmState.kind === 'project'
+          description={confirmState.kind === ConfirmKind.Project
             ? PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_PROJECT.replace('{displayName}', confirmState.project.displayName)
-            : confirmState.kind === 'folder'
+            : confirmState.kind === ConfirmKind.Folder
               ? PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_FOLDER.replace('{displayName}', confirmState.folder.displayName)
               : PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_NOTE.replace('{title}', confirmState.note.title)}
           onCancel={() => setConfirmState(null)}
           onConfirm={() => {
-            if (confirmState.kind === 'project') {
+            if (confirmState.kind === ConfirmKind.Project) {
               deleteProjectMutation.mutate(confirmState.project.projectSlug);
               return;
             }
-            if (confirmState.kind === 'folder') {
+            if (confirmState.kind === ConfirmKind.Folder) {
               deleteFolderMutation.mutate({ projectSlug: confirmState.projectSlug, folderId: confirmState.folder.id });
               return;
             }
             deleteNoteMutation.mutate(confirmState.note.id);
           }}
-          title={confirmState.kind === 'project' ? UI_MESSAGES.DELETE_PROJECT : confirmState.kind === 'folder' ? UI_MESSAGES.DELETE_FOLDER : UI_MESSAGES.DELETE_NOTE}
+          title={confirmState.kind === ConfirmKind.Project ? UI_MESSAGES.DELETE_PROJECT : confirmState.kind === ConfirmKind.Folder ? UI_MESSAGES.DELETE_FOLDER : UI_MESSAGES.DELETE_NOTE}
         />
       ) : null}
+      </div>
     </>
   );
 }
@@ -518,10 +602,10 @@ async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) 
 }
 
 function deriveTimelineCategory(source: string | undefined): string {
-  if (!source) return 'manual';
+  if (!source) return SOURCE_VALUES.MANUAL;
   const s = source.toLowerCase();
-  if (s.includes('github')) return 'github-push';
-  if (s.includes('whatsapp') || s.includes('evolution')) return 'whatsapp';
-  if (s === 'ai-chat' || s.includes('antigravity') || s.includes('codex') || s.includes('claude') || s.includes('opencode') || s.includes('open-code')) return 'ai-chat';
-  return 'manual';
+  if (s.includes(SOURCE_VALUES.GITHUB)) return SOURCE_VALUES.GITHUB;
+  if (s.includes(SOURCE_VALUES.WHATSAPP) || s.includes('evolution')) return SOURCE_VALUES.WHATSAPP;
+  if (s === SOURCE_VALUES.AI_CHAT || s.includes('antigravity') || s.includes('codex') || s.includes('claude') || s.includes('opencode') || s.includes('open-code')) return SOURCE_VALUES.AI_CHAT;
+  return SOURCE_VALUES.MANUAL;
 }

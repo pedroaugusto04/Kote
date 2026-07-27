@@ -1,0 +1,60 @@
+export const ATTACHMENT_MIME_TYPES = new Set([
+  // Images
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
+  // Documents
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/markdown',
+  'text/csv',
+  'application/json',
+  'application/xml',
+  'text/xml',
+  'text/html',
+  'application/sql',
+  'text/x-sql',
+  // Audio
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/webm',
+  'audio/ogg',
+  'audio/flac',
+  'audio/m4a',
+  'audio/x-wav',
+  // Video
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/quicktime',
+  'video/x-matroska',
+  // Code files (text-based)
+  'text/x-python',
+  'text/x-java-source',
+  'text/x-c',
+  'text/x-c++',
+  'text/x-csharp',
+  'text/x-php',
+  'text/x-ruby',
+  'text/x-go',
+  'text/x-rust',
+  'text/x-typescript',
+  'text/x-javascript',
+  'application/javascript',
+  'application/x-javascript',
+  'text/javascript',
+]);
+
+export function isAttachmentMimeTypeSupported(mimeType: string): boolean {
+  return ATTACHMENT_MIME_TYPES.has(mimeType);
+}

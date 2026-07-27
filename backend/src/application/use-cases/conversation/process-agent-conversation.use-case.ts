@@ -6,7 +6,7 @@ import {
   type AgentConversationState,
 } from '../../../contracts/agent-conversation.js';
 import { type ConversationInput } from '../../../contracts/conversation.js';
-import { CredentialRecordStatus, IntegrationProvider, AgentConversationAction } from '../../../contracts/enums.js';
+import { IntegrationProvider, AgentConversationAction, SourceChannel } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
@@ -14,15 +14,19 @@ import { AppLogger } from '../../../observability/logger.js';
 import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import { ConversationAgentGateway, type ConversationAgentResponse } from '../../ports/conversation/conversation-agent.gateway.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { ConversationStateRepository } from '../../ports/reminders/workflow-state.repository.js';
-import { isCancel } from '../../utils/conversation-command.utils.js';
-import { isConversationStateExpired } from '../../utils/conversation-state.utils.js';
-import { buildProjectFolderTree } from '../../utils/project-folder.utils.js';
+import { isCancel } from '../../utils/conversation/conversation-command.utils.js';
+import { isConversationStateExpired } from '../../utils/conversation/conversation-state.utils.js';
+import { buildProjectFolderTree } from '../../utils/content/project-folder.utils.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { ConversationAgentPresenter } from './services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './services/conversation-folder-resolution.service.js';
+import { AiOperationType } from '../../../domain/enums/plans.enums.js';
+import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
+import { resolveSourceChannel } from '../../utils/integration/source-channel.utils.js';
+import { resolveContentScopeFromSlugs } from '../../utils/content/content-scope.utils.js';
+import { toProjectRecord } from '../../mappers/project.mapper.js';
 import {
   buildAgentConversationPayload as buildAgentPayload,
   buildNextAgentConversationState,
@@ -63,13 +67,19 @@ export class ProcessAgentConversationUseCase {
     private readonly conversationAgentGateway: ConversationAgentGateway,
     private readonly presenter: ConversationAgentPresenter,
     private readonly folderResolutionService: ConversationFolderResolutionService,
-    private readonly credentials?: CredentialRepository,
+    private readonly aiEntitlement: AiEntitlementService,
     private readonly logger?: AppLogger,
-  ) {}
+  ) { }
 
   async execute(input: ConversationInput, userId: string, workspaceSlug = 'default', projectSlug?: string): Promise<AgentConversationResult> {
     const normalizedWorkspaceSlug = slugify(workspaceSlug) || 'default';
-    await this.assertAgentEnabled(userId, normalizedWorkspaceSlug);
+    const aiEnabled = await this.aiEntitlement.isEnabled(userId, normalizedWorkspaceSlug, IntegrationProvider.AiConversation);
+    if (!aiEnabled) throw new NotFoundException('ai_conversation_not_enabled');
+
+    const sourceChannel = resolveSourceChannel({
+      senderId: input.senderId,
+      chatId: input.chatId,
+    });
 
     const key = `agent:${input.chatId}:${input.senderId}`;
     let state = await this.loadState(userId, normalizedWorkspaceSlug, key);
@@ -112,7 +122,7 @@ export class ProcessAgentConversationUseCase {
       return this.reply(AgentConversationAction.Cancel, this.presenter.captureCanceled(), null, EMPTY_AGENT_CONVERSATION_STATE);
     }
 
-    return this.processNewTurn(input, userId, normalizedWorkspaceSlug, key, state);
+    return this.processNewTurn(input, userId, normalizedWorkspaceSlug, key, state, sourceChannel);
   }
 
   private async processNewTurn(
@@ -121,25 +131,58 @@ export class ProcessAgentConversationUseCase {
     workspaceSlug: string,
     key: string,
     state: AgentConversationState,
+    sourceChannel: SourceChannel,
   ): Promise<AgentConversationResult> {
     const messageText = String(input.messageText || '').trim();
     const environment = this.environmentProvider.read();
+
+    const entitlement = await this.aiEntitlement.checkAndConsume({
+      userId,
+      workspaceSlug,
+      provider: IntegrationProvider.AiConversation,
+      operation: AiOperationType.AGENT_CONVERSATION_TURN,
+      metadata: { workspaceSlug, source: 'agent_conversation' },
+    });
+    if (!entitlement.enabled || !entitlement.quota.allowed) {
+      this.logger?.warn('conversation.agent.quota_exceeded', {
+        userId,
+        workspaceSlug,
+        limit: entitlement.enabled ? entitlement.quota.limit : undefined,
+        current: entitlement.enabled ? entitlement.quota.current : undefined,
+      });
+      return this.reply(
+        AgentConversationAction.Ask,
+        `⚠️ You have used all your AI credits for this month (${entitlement.enabled ? entitlement.quota.current : 0}/${entitlement.enabled ? entitlement.quota.limit : 0} credits). Your quota resets at the start of next month.\n\n💡 Upgrade your plan to get more AI credits: https://knowledgebase.sbs/kote/automations/subscription`,
+        null,
+        state,
+      );
+    }
+
     const { candidateProjectSlug, candidateFolders, decision } = await this.requestAgentDecision(
       input,
       userId,
       workspaceSlug,
       state,
     );
+
     if (this.isEmptyAgentDraftAsk(decision)) {
       return this.reply(AgentConversationAction.Ask, this.presenter.couldNotUnderstand(), null, state);
     }
 
     const selectedProjectSlug = resolveAgentSelectedProjectSlug(decision.selectedProjectSlug, state);
-    const foldersForDecision = selectedProjectSlug && selectedProjectSlug !== 'inbox'
-      ? selectedProjectSlug === candidateProjectSlug
-        ? candidateFolders
-        : await this.contentRepository.listProjectFolders(userId, selectedProjectSlug)
-      : [];
+    let foldersForDecision: ProjectFolderRecord[] = [];
+    if (selectedProjectSlug && selectedProjectSlug !== 'inbox') {
+      if (selectedProjectSlug === candidateProjectSlug) {
+        foldersForDecision = candidateFolders;
+      } else {
+        const selectedScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+          projectSlug: selectedProjectSlug,
+        });
+        if (selectedScope.project?.enabled) {
+          foldersForDecision = await this.contentRepository.listProjectFolders(userId, selectedScope.project.id);
+        }
+      }
+    }
     const nextState = buildNextAgentConversationState({
       current: state,
       messageText,
@@ -169,13 +212,6 @@ export class ProcessAgentConversationUseCase {
     }
 
     return this.reply(AgentConversationAction.Ask, decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
-  }
-
-  private async assertAgentEnabled(userId: string, workspaceSlug: string) {
-    if (!this.credentials) throw new BadRequestException('conversation_agent_not_configured');
-    const credential = await this.credentials.findCredential(userId, workspaceSlug, IntegrationProvider.AiConversation);
-    const enabled = Boolean(credential && credential.status === CredentialRecordStatus.Connected && !credential.revokedAt);
-    if (!enabled) throw new NotFoundException('ai_conversation_not_enabled');
   }
 
   private async loadState(userId: string, workspaceSlug: string, key: string) {
@@ -214,9 +250,15 @@ export class ProcessAgentConversationUseCase {
     const projects = (await this.contentRepository.listProjects(userId))
       .filter((project) => project.enabled && project.workspaceSlug === workspaceSlug);
     const candidateProjectSlug = sanitizeExistingAgentProjectSlug(state.project.selectedProjectSlug, projects);
-    const candidateFolders = candidateProjectSlug && candidateProjectSlug !== 'inbox'
-      ? await this.contentRepository.listProjectFolders(userId, candidateProjectSlug)
-      : [];
+    let candidateFolders: ProjectFolderRecord[] = [];
+    if (candidateProjectSlug && candidateProjectSlug !== 'inbox') {
+      const candidateScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+        projectSlug: candidateProjectSlug,
+      });
+      if (candidateScope.project?.enabled) {
+        candidateFolders = await this.contentRepository.listProjectFolders(userId, candidateScope.project.id);
+      }
+    }
     const environment = this.environmentProvider.read();
     const localDateTime = currentDateTimeInTimeZone(environment.reminderTimeZone);
 
@@ -307,23 +349,22 @@ export class ProcessAgentConversationUseCase {
     const normalizedProjectSlug = slugify(projectSlug);
     if (!normalizedProjectSlug || normalizedProjectSlug === 'inbox') return;
 
-    const existing = await this.contentRepository.getProjectBySlug(userId, normalizedProjectSlug);
-    if (existing?.enabled) return;
-
-    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-    if (!workspace) return;
-
-    await this.contentRepository.upsertProject(userId, {
-      id: crypto.randomUUID(),
+    const existingScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
       projectSlug: normalizedProjectSlug,
-      displayName: displayNameFromProjectSlug(normalizedProjectSlug),
-      workspaceId: workspace.id,
-      workspaceSlug,
-      repositories: [],
-      defaultTags: [],
-      enabled: true,
-      favorite: false,
     });
+    if (existingScope.project?.enabled) return;
+
+    const workspaceScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, { workspaceSlug });
+    if (!workspaceScope.workspace) return;
+
+    const projectDto = {
+      displayName: displayNameFromProjectSlug(normalizedProjectSlug),
+      projectSlug: normalizedProjectSlug,
+      repositoryIds: [],
+      defaultTags: [],
+    };
+    const projectRecord = toProjectRecord(projectDto, workspaceScope.workspace.id, workspaceSlug, []);
+    await this.contentRepository.upsertProject(userId, projectRecord);
   }
 
   private reply(

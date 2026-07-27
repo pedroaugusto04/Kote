@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ContentObjectStorageService } from '../../../dist/application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../../dist/application/services/content/content-object-storage.service.js';
 
 class RecordingObjectStorage {
   constructor() {

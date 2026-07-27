@@ -1,8 +1,22 @@
 import { AiProvider } from '../contracts/enums.js';
+import type { RuntimeEnvironment } from '../application/ports/observability/runtime-environment.port.js';
 import { normalizeTimeZone } from '../domain/time.js';
 
 export const defaultGithubAppCallbackPath = '/api/integrations/github-app/callback';
 export const defaultReminderTimeZone = 'America/Sao_Paulo';
+
+export function normalizeGithubBackfillLimit(value: string | undefined): number {
+  const parsed = Number.parseInt(String(value ?? '5').trim(), 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return 5;
+  return Math.min(parsed, 50);
+}
+
+export function normalizeNumber(value: string | undefined, defaultValue: number): number {
+  if (value === undefined) return defaultValue;
+  const parsed = Number.parseFloat(String(value).trim());
+  if (Number.isNaN(parsed) || !Number.isFinite(parsed)) return defaultValue;
+  return parsed;
+}
 
 export function normalizeGithubAppCallbackPath(value: string | undefined): string {
   const trimmed = String(value || '').trim();
@@ -16,112 +30,107 @@ export function normalizeGithubAppCallbackPath(value: string | undefined): strin
   }
 }
 
-export type RuntimeEnvironment = {
-  reminderTimeZone: string;
-  webhookSecret: string;
-  githubWebhookSecret: string;
-  conversationTimeoutMs: number;
-  reviewAiProvider: AiProvider;
-  reviewAiBaseUrl: string;
-  reviewAiModel: string;
-  reviewAiApiKey: string;
-  conversationAiProvider: AiProvider;
-  conversationAiBaseUrl: string;
-  conversationAiModel: string;
-  conversationAiApiKey: string;
-  projectBriefAiProvider: AiProvider;
-  projectBriefAiBaseUrl: string;
-  projectBriefAiModel: string;
-  projectBriefAiApiKey: string;
-  embeddingAiProvider: AiProvider;
-  embeddingAiBaseUrl: string;
-  embeddingAiModel: string;
-  embeddingAiApiKey: string;
-  audioAiProvider: AiProvider;
-  audioAiBaseUrl: string;
-  audioAiModel: string;
-  audioAiApiKey: string;
-  githubAppId: string;
-  githubAppPrivateKey: string;
-  publicBaseUrl: string;
-  apiPublicBaseUrl: string;
-  allowedOrigins: string[];
-  allowedExtensionIds: string[];
-  trustProxy: boolean;
-  githubPushWebhookPath: string;
-  ingestWebhookPath: string;
-  whatsappWebhookPath: string;
-  queryWebhookPath: string;
-  githubAppInstallUrl: string;
-  githubAppCallbackPath: string;
-  telegramBotToken: string;
-  telegramWebhookToken: string;
-  telegramChatId: string;
-  whatsappWebhookApiKey: string;
-  evolutionApiKey: string;
-  evolutionApiUrl: string;
-  evolutionApiPublicUrl: string;
-  evolutionInstanceName: string;
-  databaseUrl: string;
-  databaseSslMode: string;
-  databaseSslRejectUnauthorized: boolean | null;
-  adminEmail: string;
-  adminPassword: string;
-  jwtAccessSecret: string;
-  jwtRefreshSecret: string;
-  accessTokenTtlSeconds: number;
-  refreshTokenTtlSeconds: number;
-  googleOAuthClientId: string;
-  googleOAuthClientSecret: string;
-  googleOAuthRedirectUri: string;
-  credentialsEncryptionKey: string;
-  internalServiceToken: string;
-  disableEmbeddingWorker: boolean;
-};
-
 export function readEnvironment(env = process.env): RuntimeEnvironment {
+  // -------------------------------------------------------------------------
+  // Category defaults — resolved once, referenced below per specific provider
+  // -------------------------------------------------------------------------
+  // Chat/LLM default
+  const defaultChatProvider = String(env.KB_DEFAULT_CHAT_AI_PROVIDER || 'openrouter').trim().toLowerCase();
+  const defaultChatBaseUrl = String(env.KB_DEFAULT_CHAT_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim();
+  const defaultChatModel = String(env.KB_DEFAULT_CHAT_AI_MODEL || 'openrouter/auto').trim();
+  const defaultChatApiKey = String(env.KB_DEFAULT_CHAT_AI_API_KEY || '').trim();
+
+  // Embedding default (KB_EMBEDDING_AI_* kept as backward-compatible alias)
+  const defaultEmbeddingProvider = String(
+    env.KB_DEFAULT_EMBEDDING_AI_PROVIDER || env.KB_EMBEDDING_AI_PROVIDER || 'gemini',
+  ).trim().toLowerCase();
+  const defaultEmbeddingBaseUrl = String(
+    env.KB_DEFAULT_EMBEDDING_AI_BASE_URL || env.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+  ).trim();
+  const defaultEmbeddingModel = String(
+    env.KB_DEFAULT_EMBEDDING_AI_MODEL || env.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001',
+  ).trim();
+  const defaultEmbeddingApiKey = String(
+    env.KB_DEFAULT_EMBEDDING_AI_API_KEY || env.KB_EMBEDDING_AI_API_KEY || '',
+  ).trim();
+
+  // Audio default
+  const defaultAudioProvider = String(env.KB_DEFAULT_AUDIO_AI_PROVIDER || 'gemini').trim().toLowerCase();
+  const defaultAudioBaseUrl = String(env.KB_DEFAULT_AUDIO_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim();
+  const defaultAudioModel = String(env.KB_DEFAULT_AUDIO_AI_MODEL || 'gemini-2.5-flash').trim();
+  const defaultAudioApiKey = String(env.KB_DEFAULT_AUDIO_AI_API_KEY || '').trim();
+
   return {
     reminderTimeZone: normalizeTimeZone(String(env.KB_REMINDER_TIMEZONE || defaultReminderTimeZone)),
     webhookSecret: String(env.KB_WEBHOOK_SECRET || '').trim(),
     githubWebhookSecret: String(env.KB_GITHUB_APP_WEBHOOK_SECRET || '').trim(),
     conversationTimeoutMs: Number(env.WPP_CONVERSATION_TIMEOUT_MS || 600_000),
-    reviewAiProvider: (String(env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['reviewAiProvider']),
-    reviewAiBaseUrl: String(env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
-    reviewAiModel: String(env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
-    reviewAiApiKey: String(env.KB_REVIEW_AI_API_KEY || '').trim(),
-    conversationAiProvider: (String(env.KB_CONVERSATION_AI_PROVIDER || env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['conversationAiProvider']),
-    conversationAiBaseUrl: String(env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
-    conversationAiModel: String(env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
-    conversationAiApiKey: String(env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
-    projectBriefAiProvider: (String(env.KB_PROJECT_BRIEF_AI_PROVIDER || env.KB_CONVERSATION_AI_PROVIDER || env.KB_REVIEW_AI_PROVIDER || 'openrouter').trim().toLowerCase() as RuntimeEnvironment['projectBriefAiProvider']),
-    projectBriefAiBaseUrl: String(env.KB_PROJECT_BRIEF_AI_BASE_URL || env.KB_CONVERSATION_AI_BASE_URL || env.KB_REVIEW_AI_BASE_URL || 'https://openrouter.ai/api/v1').trim(),
-    projectBriefAiModel: String(env.KB_PROJECT_BRIEF_AI_MODEL || env.KB_CONVERSATION_AI_MODEL || env.KB_REVIEW_AI_MODEL || 'openrouter/auto').trim(),
-    projectBriefAiApiKey: String(env.KB_PROJECT_BRIEF_AI_API_KEY || env.KB_CONVERSATION_AI_API_KEY || env.KB_REVIEW_AI_API_KEY || '').trim(),
-    embeddingAiProvider: (String(env.KB_EMBEDDING_AI_PROVIDER || 'gemini').trim().toLowerCase() as RuntimeEnvironment['embeddingAiProvider']),
-    embeddingAiBaseUrl: String(env.KB_EMBEDDING_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
-    embeddingAiModel: String(env.KB_EMBEDDING_AI_MODEL || 'gemini-embedding-001').trim(),
-    embeddingAiApiKey: String(env.KB_EMBEDDING_AI_API_KEY || '').trim(),
-    audioAiProvider: (String(env.KB_AUDIO_AI_PROVIDER || 'gemini').trim().toLowerCase() as RuntimeEnvironment['audioAiProvider']),
-    audioAiBaseUrl: String(env.KB_AUDIO_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta').trim(),
-    audioAiModel: String(env.KB_AUDIO_AI_MODEL || 'gemini-2.5-flash').trim(),
-    audioAiApiKey: String(env.KB_AUDIO_AI_API_KEY || env.KB_EMBEDDING_AI_API_KEY || '').trim(),
+    // Category defaults exposed on the environment object
+    defaultChatAiProvider: defaultChatProvider as RuntimeEnvironment['defaultChatAiProvider'],
+    defaultChatAiBaseUrl: defaultChatBaseUrl,
+    defaultChatAiModel: defaultChatModel,
+    defaultChatAiApiKey: defaultChatApiKey,
+    defaultEmbeddingAiProvider: defaultEmbeddingProvider as RuntimeEnvironment['defaultEmbeddingAiProvider'],
+    defaultEmbeddingAiBaseUrl: defaultEmbeddingBaseUrl,
+    defaultEmbeddingAiModel: defaultEmbeddingModel,
+    defaultEmbeddingAiApiKey: defaultEmbeddingApiKey,
+    defaultAudioAiProvider: defaultAudioProvider as RuntimeEnvironment['defaultAudioAiProvider'],
+    defaultAudioAiBaseUrl: defaultAudioBaseUrl,
+    defaultAudioAiModel: defaultAudioModel,
+    defaultAudioAiApiKey: defaultAudioApiKey,
+    // Chat/LLM providers — each resolves: specific → category default
+    reviewAiProvider: (String(env.KB_REVIEW_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['reviewAiProvider']),
+    reviewAiBaseUrl: String(env.KB_REVIEW_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    reviewAiModel: String(env.KB_REVIEW_AI_MODEL || defaultChatModel).trim(),
+    reviewAiApiKey: String(env.KB_REVIEW_AI_API_KEY || defaultChatApiKey).trim(),
+    conversationAiProvider: (String(env.KB_CONVERSATION_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['conversationAiProvider']),
+    conversationAiBaseUrl: String(env.KB_CONVERSATION_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    conversationAiModel: String(env.KB_CONVERSATION_AI_MODEL || defaultChatModel).trim(),
+    conversationAiApiKey: String(env.KB_CONVERSATION_AI_API_KEY || defaultChatApiKey).trim(),
+    projectBriefAiProvider: (String(env.KB_PROJECT_BRIEF_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['projectBriefAiProvider']),
+    projectBriefAiBaseUrl: String(env.KB_PROJECT_BRIEF_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    projectBriefAiModel: String(env.KB_PROJECT_BRIEF_AI_MODEL || defaultChatModel).trim(),
+    projectBriefAiApiKey: String(env.KB_PROJECT_BRIEF_AI_API_KEY || defaultChatApiKey).trim(),
+    fileNotesSummaryAiProvider: (String(env.KB_FILE_NOTES_SUMMARY_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['fileNotesSummaryAiProvider']),
+    fileNotesSummaryAiBaseUrl: String(env.KB_FILE_NOTES_SUMMARY_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    fileNotesSummaryAiModel: String(env.KB_FILE_NOTES_SUMMARY_AI_MODEL || defaultChatModel).trim(),
+    fileNotesSummaryAiApiKey: String(env.KB_FILE_NOTES_SUMMARY_AI_API_KEY || defaultChatApiKey).trim(),
+    prContextAiProvider: (String(env.KB_PR_CONTEXT_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['prContextAiProvider']),
+    prContextAiBaseUrl: String(env.KB_PR_CONTEXT_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    prContextAiModel: String(env.KB_PR_CONTEXT_AI_MODEL || defaultChatModel).trim(),
+    prContextAiApiKey: String(env.KB_PR_CONTEXT_AI_API_KEY || defaultChatApiKey).trim(),
+    // Embedding providers — each resolves: specific → embedding default
+    embeddingAiProvider: (String(env.KB_EMBEDDING_AI_PROVIDER || defaultEmbeddingProvider).trim().toLowerCase() as RuntimeEnvironment['embeddingAiProvider']),
+    embeddingAiBaseUrl: String(env.KB_EMBEDDING_AI_BASE_URL || defaultEmbeddingBaseUrl).trim(),
+    embeddingAiModel: String(env.KB_EMBEDDING_AI_MODEL || defaultEmbeddingModel).trim(),
+    embeddingAiApiKey: String(env.KB_EMBEDDING_AI_API_KEY || defaultEmbeddingApiKey).trim(),
+    // Audio providers — each resolves: specific → audio default
+    audioAiProvider: (String(env.KB_AUDIO_AI_PROVIDER || defaultAudioProvider).trim().toLowerCase() as RuntimeEnvironment['audioAiProvider']),
+    audioAiBaseUrl: String(env.KB_AUDIO_AI_BASE_URL || defaultAudioBaseUrl).trim(),
+    audioAiModel: String(env.KB_AUDIO_AI_MODEL || defaultAudioModel).trim(),
+    audioAiApiKey: String(env.KB_AUDIO_AI_API_KEY || defaultAudioApiKey).trim(),
     githubAppId: String(env.KB_GITHUB_APP_ID || '').trim(),
     githubAppPrivateKey: String(env.KB_GITHUB_APP_PRIVATE_KEY || '').trim(),
+    githubBackfillLimit: normalizeGithubBackfillLimit(env.KB_GITHUB_BACKFILL_LIMIT),
     publicBaseUrl: String(env.KB_PUBLIC_BASE_URL || env.WEBHOOK_URL || '').trim().replace(/\/$/, ''),
     apiPublicBaseUrl: String(env.KB_API_PUBLIC_BASE_URL || '').trim().replace(/\/$/, ''),
     allowedOrigins: String(env.KB_ALLOWED_ORIGINS || '')
       .split(',')
       .map((origin) => origin.trim().replace(/\/$/, ''))
       .filter(Boolean),
+    allowedHosts: String(env.KB_ALLOWED_HOSTS || '')
+      .split(',')
+      .map((host) => host.trim())
+      .filter(Boolean),
     allowedExtensionIds: String(env.KB_ALLOWED_EXTENSION_IDS || '')
       .split(',')
       .map((id) => id.trim())
       .filter(Boolean),
     trustProxy: String(env.KB_TRUST_PROXY || 'false').toLowerCase() === 'true',
-    githubPushWebhookPath: String(env.KB_GITHUB_WEBHOOK_PATH || '/n8n/webhook/kb-github-push').trim(),
-    ingestWebhookPath: String(env.KB_INGEST_WEBHOOK_PATH || '/n8n/webhook/kb-event').trim(),
+    githubPushWebhookPath: String(env.KB_GITHUB_WEBHOOK_PATH || '/api/webhooks/github-push').trim(),
+    ingestWebhookPath: String(env.KB_INGEST_WEBHOOK_PATH || '/api/webhooks/ingest').trim(),
     whatsappWebhookPath: String(env.KB_WPP_WEBHOOK_PATH || '/api/webhooks/whatsapp').trim(),
-    queryWebhookPath: String(env.KB_QUERY_WEBHOOK_PATH || '/n8n/webhook/kb-query').trim(),
+    queryWebhookPath: String(env.KB_QUERY_WEBHOOK_PATH || '/api/webhooks/query').trim(),
     githubAppInstallUrl: String(env.KB_GITHUB_APP_INSTALL_URL || '').trim(),
     githubAppCallbackPath: normalizeGithubAppCallbackPath(env.KB_GITHUB_APP_CALLBACK_PATH),
     telegramBotToken: String(env.KB_TELEGRAM_BOT_TOKEN || '').trim(),
@@ -139,6 +148,20 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
       : String(env.KB_DATABASE_SSL_REJECT_UNAUTHORIZED || '').trim().toLowerCase() === 'true',
     adminEmail: String(env.KB_ADMIN_EMAIL || '').trim().toLowerCase(),
     adminPassword: String(env.KB_ADMIN_PASSWORD || '').trim(),
+    emailProvider: (String(env.KB_EMAIL_PROVIDER || 'resend').trim().toLowerCase() as RuntimeEnvironment['emailProvider']),
+    emailResendApiKey: String(env.KB_EMAIL_RESEND_API_KEY || '').trim(),
+    emailFrom: String(env.KB_EMAIL_FROM || env.KB_ADMIN_EMAIL || 'Kote <no-reply@kote.local>').trim(),
+    emailSmtpHost: String(env.KB_EMAIL_SMTP_HOST || '').trim(),
+    emailSmtpPort: Number(env.KB_EMAIL_SMTP_PORT || 587),
+    emailSmtpUser: String(env.KB_EMAIL_SMTP_USER || '').trim(),
+    emailSmtpPass: String(env.KB_EMAIL_SMTP_PASS || '').trim(),
+    emailSmtpSecure: String(env.KB_EMAIL_SMTP_SECURE || 'false').trim().toLowerCase() === 'true',
+    emailQueueExchange: String(env.KB_EMAIL_QUEUE_EXCHANGE || 'kb.email').trim(),
+    emailQueueName: String(env.KB_EMAIL_QUEUE_NAME || 'kb.email.send').trim(),
+    emailQueueRoutingKey: String(env.KB_EMAIL_QUEUE_ROUTING_KEY || 'kb.email.send').trim(),
+    emailWorkerAutorun: String(env.KB_EMAIL_WORKER_AUTORUN || 'true').trim().toLowerCase() === 'true',
+    devEmailIntercept: String(env.DEV_EMAIL_INTERCEPT || 'false').trim().toLowerCase() === 'true',
+    devEmail: String(env.DEV_EMAIL || 'pedroaugustoaduarte@gmail.com').trim(),
     jwtAccessSecret: String(env.KB_JWT_ACCESS_SECRET || '').trim(),
     jwtRefreshSecret: String(env.KB_JWT_REFRESH_SECRET || '').trim(),
     accessTokenTtlSeconds: Number(env.KB_ACCESS_TOKEN_TTL_SECONDS || 15 * 60),
@@ -149,5 +172,39 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     credentialsEncryptionKey: String(env.KB_CREDENTIALS_ENCRYPTION_KEY || '').trim(),
     internalServiceToken: String(env.KB_INTERNAL_SERVICE_TOKEN || '').trim(),
     disableEmbeddingWorker: String(env.KB_DISABLE_EMBEDDING_WORKER || 'false').trim().toLowerCase() === 'true',
+    testEmailAuthSecret: String(env.KB_TEST_EMAIL_AUTH_SECRET || '').trim(),
+    searchMinSimilarity: normalizeNumber(env.KB_SEARCH_MIN_SIMILARITY, 0.35),
+    searchCandidateLimitMultiplier: normalizeNumber(env.KB_SEARCH_CANDIDATE_LIMIT_MULTIPLIER, 4),
+    searchHybridVectorWeight: normalizeNumber(env.KB_SEARCH_HYBRID_VECTOR_WEIGHT, 0.4),
+    searchHybridKeywordWeight: normalizeNumber(env.KB_SEARCH_HYBRID_KEYWORD_WEIGHT, 0.6),
+    searchRrfK: normalizeNumber(env.KB_SEARCH_RRF_K, 20),
+    ragMinSimilarity: normalizeNumber(env.KB_RAG_MIN_SIMILARITY, 0.45),
+    ragCandidateLimit: normalizeNumber(env.KB_RAG_CANDIDATE_LIMIT, 16),
+    ragHybridVectorWeight: normalizeNumber(env.KB_RAG_HYBRID_VECTOR_WEIGHT, 0.7),
+    ragHybridKeywordWeight: normalizeNumber(env.KB_RAG_HYBRID_KEYWORD_WEIGHT, 0.3),
+    ragTopChunksLimit: normalizeNumber(env.KB_RAG_TOP_CHUNKS_LIMIT, 10),
+    ragRrfK: normalizeNumber(env.KB_RAG_RRF_K, 20),
+    ragRecencyBonusEnabled: String(env.KB_RAG_RECENCY_BONUS_ENABLED || 'true').trim().toLowerCase() === 'true',
+    ragRecencyMaxBonus: normalizeNumber(env.KB_RAG_RECENCY_MAX_BONUS, 0.008),
+    ragRecencyMaxBonusDays: normalizeNumber(env.KB_RAG_RECENCY_MAX_BONUS_DAYS, 180),
+    attachmentMaxSizeBytes: Number(env.KB_ATTACHMENT_MAX_SIZE_BYTES || 10 * 1024 * 1024),
+    avatarMaxSizeBytes: Number(env.KB_AVATAR_MAX_SIZE_BYTES || 3 * 1024 * 1024),
+    chunkTargetTokens: normalizeNumber(env.KB_CHUNK_TARGET_TOKENS, 500),
+    chunkOverlapTokens: normalizeNumber(env.KB_CHUNK_OVERLAP_TOKENS, 50),
+    chunkMinChars: normalizeNumber(env.KB_CHUNK_MIN_CHARS, 30),
+    chunkCodeBlockOverlapLines: normalizeNumber(env.KB_CHUNK_CODE_BLOCK_OVERLAP_LINES, 8),
+    embeddingDimension: normalizeNumber(env.KB_EMBEDDING_DIMENSION, 768),
+    // CodeLens search — resolves: specific → embedding default
+    codeLensSearchAiProvider: (String(env.KB_CODELENS_SEARCH_AI_PROVIDER || defaultEmbeddingProvider).trim().toLowerCase() as RuntimeEnvironment['codeLensSearchAiProvider']),
+    codeLensSearchAiBaseUrl: String(env.KB_CODELENS_SEARCH_AI_BASE_URL || defaultEmbeddingBaseUrl).trim(),
+    codeLensSearchAiModel: String(env.KB_CODELENS_SEARCH_AI_MODEL || defaultEmbeddingModel).trim(),
+    codeLensSearchAiApiKey: String(env.KB_CODELENS_SEARCH_AI_API_KEY || defaultEmbeddingApiKey).trim(),
+    codeLensSearchMinSimilarity: normalizeNumber(env.KB_CODELENS_SEARCH_MIN_SIMILARITY, 0.30),
+    codeLensSearchCandidateLimit: normalizeNumber(env.KB_CODELENS_SEARCH_CANDIDATE_LIMIT, 20),
+    codeLensSearchVectorWeight: normalizeNumber(env.KB_CODELENS_SEARCH_VECTOR_WEIGHT, 0.4),
+    codeLensSearchKeywordWeight: normalizeNumber(env.KB_CODELENS_SEARCH_KEYWORD_WEIGHT, 0.6),
+    codeLensSearchRrfK: normalizeNumber(env.KB_CODELENS_SEARCH_RRF_K, 20),
+    codeLensSearchMaxConcurrency: normalizeNumber(env.KB_CODELENS_SEARCH_MAX_CONCURRENCY, 2),
+    codeLensSearchResultLimit: normalizeNumber(env.KB_CODELENS_SEARCH_RESULT_LIMIT, 5),
   };
 }

@@ -6,6 +6,8 @@ export type VaultNoteSummary = {
   categories: CategoryRecord[];
   type: string;
   title: string;
+  projectId: string;
+  workspaceId: string;
   project: string;
   workspace: string;
   folderId: string | null;
@@ -14,8 +16,10 @@ export type VaultNoteSummary = {
   status: string;
   summary: string;
   source: string;
+  sourceChannel: string;
   attachmentCount: number;
   isPinned?: boolean;
+  ftsRank?: number;
 };
 
 export type VaultNoteAttachment = {

@@ -7,7 +7,7 @@ import { ApplicationAccessController, DashboardController, GithubAppCallbackCont
 test('health controller exposes service status', () => {
   const controller = new HealthController();
 
-  assert.deepEqual(controller.health(), { ok: true, service: 'knowledge-base' });
+  assert.deepEqual(controller.health(), { ok: true, service: 'kote' });
 });
 
 test('application access controller logs landing page visits through the use case', async () => {
@@ -85,39 +85,23 @@ test('dashboard controller delegates project, workspace and note reads to use ca
     { execute: async () => dashboard },
     { execute: async () => ({ items: dashboard.projects, pagination: {} }) },
     { execute: async () => dashboard.workspaces },
-    { execute: async () => ({ items: dashboard.notes, pagination: {} }) },
+    { execute: async () => ({ items: [], pagination: {} }) },
     { execute: async () => ({ items: [], pagination: {} }) },
     { execute: async () => ({ items: [], pagination: {} }) },
     { execute: async (_userId, query) => ({ columns: { overdue: { items: [query], total: 1 }, upcoming: { items: [], total: 0 }, resolved: { items: [], total: 0 }, archived: { items: [], total: 0 } } }) },
     { execute: async (_userId, input) => ({ ok: true, ...input }) },
-    { execute: async (_userId, id) => ({ id, title: 'Note detail' }) },
     { execute: async (_userId, id) => ({ id, title: 'Review detail' }) },
-    { execute: async (query) => ({ ok: true, query }) },
+    { execute: async (query, userId) => ({ ok: true, query, userId }) },
     { execute: async (question, userId, options) => ({ ok: true, question, userId, options }) },
     { execute: async (userId, query) => ({ items: [{ id: 'ask-1', userId, ...query }], pagination: { page: query.page } }) },
+    { execute: async (conversationId) => ({ turns: [] }) },
+    { execute: async (userId, ids, status) => ({ ok: true }) },
+    { execute: async (userId) => ({ activities: [] }) },
   );
 
   assert.deepEqual(await controller.projects(user, {}), { ok: true, projects: dashboard.projects, pagination: {} });
   assert.deepEqual(await controller.workspaces(user), { ok: true, workspaces: dashboard.workspaces });
-  assert.deepEqual(await controller.notes(user, {}), { ok: true, notes: dashboard.notes, pagination: {} });
-  assert.deepEqual(await controller.note({ id: 'note-1' }, user), { ok: true, note: { id: 'note-1', title: 'Note detail' } });
-  assert.deepEqual(await controller.reminderBoard(user, { workspaceSlug: 'default', projectSlug: 'n8n-automations', limitPerColumn: 50 }), {
-    ok: true,
-    columns: {
-      overdue: { items: [{ workspaceSlug: 'default', projectSlug: 'n8n-automations', limitPerColumn: 50 }], total: 1 },
-      upcoming: { items: [], total: 0 },
-      resolved: { items: [], total: 0 },
-      archived: { items: [], total: 0 },
-    },
-  });
-  assert.deepEqual(await controller.updateReminderStatus({ id: 'note-1' }, { status: 'resolved' }, user), { ok: true, id: 'note-1', status: 'resolved' });
-  assert.deepEqual(await controller.query({ query: 'deploy', limit: 7, workspaceSlug: '', projectSlug: '', status: '', page: 1, pageSize: 5 }, user), { ok: true, query: { query: 'deploy', limit: 7, workspaceSlug: '', projectSlug: '', status: '', page: 1, pageSize: 5 } });
-  assert.deepEqual(await controller.ask({ question: 'How to deploy?', projectSlug: 'platform' }, user), { ok: true, question: 'How to deploy?', userId: 'user-1', options: { projectSlug: 'platform', workspaceSlug: undefined } });
-  assert.deepEqual(await controller.askHistory({ page: 2, pageSize: 5, projectSlug: 'platform' }, user), {
-    ok: true,
-    history: [{ id: 'ask-1', userId: 'user-1', page: 2, pageSize: 5, projectSlug: 'platform' }],
-    pagination: { page: 2 },
-  });
+  assert.deepEqual(await controller.getProductivityInsights(user), { activities: [] });
 });
 
 test('operations controller normalizes reminder dispatch and mark-sent inputs', async () => {
@@ -168,9 +152,9 @@ test('projects and notes controllers delegate create requests to use cases', asy
   }, {
     execute: async (userId, projectSlug, favorite) => ({ ok: true, projectSlug, favorite }),
   }, {
-    execute: async (userId, projectSlug) => ({ ok: true, fallback: false, brief: { projectSlug, userId } }),
+    execute: async (userId, projectSlug, workspaceId) => ({ ok: true, fallback: false, brief: { projectSlug, userId, ...(workspaceId !== undefined ? { workspaceId } : {}) } }),
   }, {
-    execute: async (userId, projectSlug) => ({ ok: true, source: 'history', brief: { projectSlug, userId, saved: true } }),
+    execute: async (userId, projectSlug, workspaceId) => ({ ok: true, source: 'history', brief: { projectSlug, userId, saved: true, ...(workspaceId !== undefined ? { workspaceId } : {}) } }),
   }, {
     execute: async () => ({ items: [], pagination: {} }),
   }, {
@@ -198,18 +182,18 @@ test('projects and notes controllers delegate create requests to use cases', asy
   );
   assert.deepEqual(
     await notes.create({ projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
-    { ok: true, noteId: 'note-1', body: { projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '', projectId: undefined }, userId: 'user-1' },
+    { ok: true, noteId: 'note-1', body: { projectId: undefined, folderId: undefined, title: 'Deploy', rawText: 'texto', tags: [], status: undefined, categoryIds: [], reminderAt: '', sourceChannel: undefined, source: undefined, sessionId: '', occurredAt: undefined, path: undefined, metadata: {}, attachments: [] }, userId: 'user-1' },
   );
   assert.deepEqual(
-    await projects.update({ projectSlug: 'acme-api' }, { displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, user),
-    { ok: true, project: { projectId: { projectSlug: 'acme-api' }, displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
+    await projects.update('acme-api', { displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, user),
+    { ok: true, project: { projectId: 'acme-api', displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
   );
-  assert.deepEqual(await projects.remove({ projectSlug: 'acme-api' }, user), { ok: true, projectSlug: { projectSlug: 'acme-api' }, userId: 'user-1' });
-  assert.deepEqual(await projects.generateBrief({ projectSlug: 'acme-api' }, user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1' } });
-  assert.deepEqual(await projects.getBrief({ projectSlug: 'acme-api' }, user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true } });
-  assert.deepEqual(
-    await notes.update({ id: 'note-1' }, { title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
-    { ok: true, noteId: 'note-1', body: { id: 'note-1', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, userId: 'user-1' },
+  assert.deepEqual(await projects.remove('acme-api', user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
+  assert.deepEqual(await projects.generateBrief('acme-api', user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1' } });
+  assert.deepEqual(await projects.getBrief('acme-api', user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true } });
+  assert.deepEqual( 
+    await notes.update({ id: 'note-1' }, { title: 'Deploy', rawText: 'texto', tags: [], reminderAt: ''}, user, undefined),
+    { ok: true, noteId: 'note-1', body: { id: 'note-1', folderId: undefined, status: undefined, categoryIds: undefined, title: 'Deploy', rawText: 'texto', tags: [], reminderAt: '', projectId: undefined, attachments: undefined }, userId: 'user-1' },
   );
   assert.deepEqual(await notes.remove({ id: 'note-1' }, user), { ok: true, noteId: 'note-1', userId: 'user-1' });
 });

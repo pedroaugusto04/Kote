@@ -112,6 +112,10 @@
     align-items: stretch;
     flex-direction: column;
   }
+
+  .page-head {
+    padding: 0 16px;
+  }
   
   .topbar {
     display: grid;
@@ -451,6 +455,8 @@
     overflow: visible !important;
     text-overflow: clip !important;
     padding-right: 36px !important; /* Leave space for absolute pin button */
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
   }
 
   .list-row-body p,
@@ -464,6 +470,8 @@
     overflow: hidden !important;
     text-overflow: ellipsis;
     color: var(--text-soft) !important;
+    overflow-wrap: break-word !important;
+    word-break: break-word !important;
   }
 
   .list-row-body .meta-row,
@@ -728,8 +736,13 @@
   }
 
   /* Attachment viewer on mobile */
+  .attachment-viewer-backdrop {
+    padding: 12px !important;
+  }
+
   .attachment-viewer-panel {
-    width: 96vw;
+    width: 100% !important;
+    max-width: 100% !important;
     max-height: 92dvh;
     border-radius: 12px;
   }

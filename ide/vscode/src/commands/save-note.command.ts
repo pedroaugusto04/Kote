@@ -2,9 +2,10 @@ import * as vscode from 'vscode';
 import type { KbClient } from '../kb-client';
 import { reportError } from '../error-reporter';
 import type { AiHistoryManager } from '../ai-history/history-manager';
+import { EXTENSION_COMMANDS, SOURCE_CHANNELS } from '../constants';
 
 /**
- * Right-click on a selection → "KB: Save Selection as Note"
+ * Right-click on a selection → "Kote: Save Selection as Note"
  * Also available via Command Palette.
  */
 export function registerSaveNoteCommand(
@@ -14,7 +15,7 @@ export function registerSaveNoteCommand(
   historyManager?: AiHistoryManager
 ): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('kb.saveSelection', async () => {
+    vscode.commands.registerCommand(EXTENSION_COMMANDS.SAVE_SELECTION, async () => {
       const editor = vscode.window.activeTextEditor;
       const selectedText = editor?.document.getText(editor.selection)?.trim();
       const fileName = editor ? vscode.workspace.asRelativePath(editor.document.fileName) : '';
@@ -50,11 +51,15 @@ export function registerSaveNoteCommand(
               rawText,
               title: context_ || (selectedText ? `Snippet from ${fileName}` : undefined),
               projectSlug: getProject(),
-              source: 'open-code',
+              source: SOURCE_CHANNELS.IDE,
+              sourceChannel: SOURCE_CHANNELS.IDE,
+              path: fileName || undefined,
+              metadata: fileName ? { changedFiles: [fileName] } : undefined,
             });
-            vscode.window.showInformationMessage(`Note saved to KB — project: ${getProject()}`);
+            vscode.window.showInformationMessage(`Note saved to Kote — project: ${getProject()}`);
             // Trigger sidebar refresh
-            vscode.commands.executeCommand('kb.refresh');
+            vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
+            vscode.commands.executeCommand('kote.refreshCodeLenses');
           } catch (err: unknown) {
             reportError('save-note', err);
           }
@@ -62,7 +67,7 @@ export function registerSaveNoteCommand(
       );
     }),
 
-    vscode.commands.registerCommand('kb.saveActiveFile', async (sessionIdParam?: string, providerIdParam?: string) => {
+    vscode.commands.registerCommand(EXTENSION_COMMANDS.SAVE_ACTIVE_FILE, async (sessionIdParam?: string, providerIdParam?: string) => {
       const editor = vscode.window.activeTextEditor;
       if (!editor) {
         vscode.window.showWarningMessage('No active editor open.');
@@ -99,9 +104,11 @@ export function registerSaveNoteCommand(
 
       if (confirm === undefined) return;
 
-      let source = providerIdParam || 'open-code';
-      let sourceChannel: string | undefined = providerIdParam ? 'ai-chat' : undefined;
+      let source = providerIdParam || SOURCE_CHANNELS.IDE;
+      let sourceChannel: string | undefined = providerIdParam ? SOURCE_CHANNELS.AI_CHAT : SOURCE_CHANNELS.IDE;
       let sessionId: string | undefined = sessionIdParam;
+
+      const relativePath = vscode.workspace.asRelativePath(editor.document.uri);
 
       await vscode.window.withProgress(
         { location: vscode.ProgressLocation.Notification, title: 'Saving note…', cancellable: false },
@@ -114,12 +121,15 @@ export function registerSaveNoteCommand(
               sourceChannel,
               source,
               sessionId,
+              path: relativePath || undefined,
+              metadata: relativePath ? { changedFiles: [relativePath] } : undefined,
             });
-            vscode.window.showInformationMessage(`Note saved to KB — project: ${getProject()}`);
+            vscode.window.showInformationMessage(`Note saved to Kote — project: ${getProject()}`);
             if (sessionId && providerIdParam) {
               historyManager?.markSessionAsSaved(providerIdParam, sessionId);
             }
-            vscode.commands.executeCommand('kb.refresh');
+            vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
+            vscode.commands.executeCommand('kote.refreshCodeLenses');
           } catch (err: unknown) {
             reportError('save-active-file', err);
           }

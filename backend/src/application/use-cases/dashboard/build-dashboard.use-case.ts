@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { ContentQueryRepository, ContentRepository } from '../../ports/notes/content.repository.js';
-import { buildDashboardHome } from '../../utils/dashboard-home.utils.js';
+import { buildDashboardHome } from '../../utils/dashboard/dashboard-home.utils.js';
 import { RefreshReminderStatusesUseCase } from '../reminders/refresh-reminder-statuses.use-case.js';
 import { formatDateInTimeZone } from '../../../domain/time.js';
 import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
+import { ProjectCoverageRepository } from '../../ports/projects/project-coverage.repository.js';
+
 
 function shiftDateKey(dateKey: string, days: number): string {
   const [year, month, day] = dateKey.split('-').map(Number);
@@ -23,6 +25,7 @@ export class BuildDashboardUseCase {
     private readonly contentRepository: ContentRepository,
     private readonly contentQueryRepository: ContentQueryRepository,
     private readonly refreshReminderStatuses: RefreshReminderStatusesUseCase,
+    private readonly projectCoverageRepository: ProjectCoverageRepository,
     private readonly askHistoryRepository?: AskHistoryRepository,
     private readonly projectBriefHistoryRepository?: ProjectBriefHistoryRepository,
   ) { }
@@ -30,7 +33,7 @@ export class BuildDashboardUseCase {
   async execute(userId: string) {
     const [workspaces, projects, notes, reviews, rawReminders, askHistoryResult, projectBriefsCount] = await Promise.all([
       this.contentRepository.listWorkspaces(userId),
-      this.contentRepository.listProjects(userId),
+      this.contentRepository.listProjectsWithNoteCount(userId),
       this.contentQueryRepository.list(userId),
       this.contentQueryRepository.listReviews(userId),
       this.contentQueryRepository.listReminders(userId),
@@ -50,6 +53,20 @@ export class BuildDashboardUseCase {
     const end = formatDateInTimeZone(now, zone);
     const start = shiftDateKey(end, -(7 - 1));
     const dayKeys = Array.from({ length: 7 }, (_, index) => shiftDateKey(start, index));
+
+    const coverageResults = await Promise.all(
+      projects.map(async (project) => {
+        try {
+          const res = await this.projectCoverageRepository.getProjectCoverage(userId, project.id);
+          return { projectSlug: project.projectSlug, coveragePercentage: res.coveragePercentage };
+        } catch {
+          return { projectSlug: project.projectSlug, coveragePercentage: 0 };
+        }
+      })
+    );
+    const coverageMap = new Map<string, number>(
+      coverageResults.map((r) => [r.projectSlug, r.coveragePercentage])
+    );
 
     const enrichedProjects = projects.map((project) => {
       const projectNotes = notes.filter((n) => n.project === project.projectSlug);
@@ -73,6 +90,7 @@ export class BuildDashboardUseCase {
           workspaceSlug: project.workspaceSlug || '',
         })),
         activitySparkline,
+        coveragePercentage: coverageMap.get(project.projectSlug) || 0,
       };
     });
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { slugify } from '../../../domain/strings.js';
+import { slugifyWorkspaceName } from '../../../domain/strings.js';
 
 export const createWorkspaceBodySchema = z
   .object({
@@ -9,7 +9,7 @@ export const createWorkspaceBodySchema = z
   })
   .strict()
   .transform((body, ctx) => {
-    const workspaceSlug = slugify(body.workspaceSlug || body.displayName);
+    const workspaceSlug = slugifyWorkspaceName(body.workspaceSlug || body.displayName);
     if (!workspaceSlug) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

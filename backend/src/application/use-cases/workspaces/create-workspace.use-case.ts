@@ -1,17 +1,21 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
-import { slugify } from '../../../domain/strings.js';
+import { slugifyWorkspaceName } from '../../../domain/strings.js';
 import { encryptConfig } from '../../credentials.js';
 import type { CreateWorkspaceInput } from '../../models/workspace-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { QuotaService } from '../../services/quota.service.js';
+import { getAiProviderConfigStatus } from '../../ai-providers-registry.js';
+import { QuotaService } from '../../services/quota/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
+import { assertWorkspaceSlugUnique } from '../../helpers/resource-validation.helpers.js';
 
 import crypto from 'node:crypto';
+
+import { DEFAULT_SYSTEM_CATEGORIES } from '../../../domain/constants/category.constants.js';
 
 @Injectable()
 export class CreateWorkspaceUseCase {
@@ -29,7 +33,11 @@ export class CreateWorkspaceUseCase {
     }
 
     const now = new Date().toISOString();
-    const workspaceSlug = slugify(input.workspaceSlug) || 'inbox';
+    const workspaceSlug = slugifyWorkspaceName(input.workspaceSlug);
+    if (!workspaceSlug) throw new ConflictException('workspace_slug_required');
+    
+    await assertWorkspaceSlugUnique(this.contentRepository, userId, workspaceSlug);
+    
     let workspace = await this.contentRepository.upsertWorkspace(userId, {
       id: crypto.randomUUID(),
       workspaceSlug,
@@ -39,6 +47,19 @@ export class CreateWorkspaceUseCase {
       createdAt: now,
       updatedAt: now,
     });
+
+    // Seed default system categories for the new workspace
+    await Promise.all(
+      DEFAULT_SYSTEM_CATEGORIES.map((cat) =>
+        this.contentRepository.createCategory(userId, workspace.id, {
+          name: cat.name,
+          color: cat.color,
+          colorDark: cat.colorDark,
+          icon: cat.icon,
+          isSystem: cat.isSystem,
+        })
+      )
+    );
 
 
     const initialProject = await this.contentRepository.upsertProject(userId, {
@@ -57,6 +78,8 @@ export class CreateWorkspaceUseCase {
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.AiReview),
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.AiConversation),
       this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.ProjectBriefAi),
+      this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.PrContextAi),
+      this.provisionManagedAiIntegration(userId, workspaceSlug, IntegrationProvider.FileNotesSummaryAi),
     ]);
 
     return {
@@ -69,29 +92,20 @@ export class CreateWorkspaceUseCase {
   private async provisionManagedAiIntegration(
     userId: string,
     workspaceSlug: string,
-    provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi,
+    provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi,
   ) {
     const environment = this.runtimeEnvironmentProvider.read();
-    const runtimeProvider = provider === IntegrationProvider.AiReview
-      ? environment.reviewAiProvider
-      : provider === IntegrationProvider.ProjectBriefAi
-        ? environment.projectBriefAiProvider
-        : environment.conversationAiProvider;
-    const label = provider === IntegrationProvider.AiReview
-      ? 'Review AI'
-      : provider === IntegrationProvider.ProjectBriefAi
-        ? 'Project Brief AI'
-        : 'Conversation AI';
+    const { config, configured } = getAiProviderConfigStatus(provider, environment);
 
     await this.credentialRepository.upsertCredential({
       userId,
       workspaceSlug,
       provider,
-      status: CredentialRecordStatus.Connected,
+      status: configured ? CredentialRecordStatus.Connected : CredentialRecordStatus.Revoked,
       encryptedConfig: encryptConfig({ enabled: true }, this.runtimeEnvironmentProvider),
       publicMetadata: {
-        label,
-        connectedAccount: runtimeProvider && runtimeProvider !== 'none' ? runtimeProvider : null,
+        label: config.label,
+        connectedAccount: configured && config.provider !== 'none' ? config.provider : null,
       },
     });
   }

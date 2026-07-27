@@ -1,26 +1,26 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
-import amqplib, { type ChannelModel, type Channel } from 'amqplib';
+import { Injectable } from '@nestjs/common';
+import { type Channel } from 'amqplib';
+import { randomUUID } from 'crypto';
 
 import {
   EmbeddingQueuePublisher,
   type EmbeddingJobPayload,
+  EmbeddingJobType,
 } from '../../application/ports/notes/embedding-queue.publisher.js';
+import { EmbeddingPriority } from '../../domain/enums/knowledge.enums.js';
 import { AppLogger } from '../../observability/logger.js';
+import { BaseRabbitMqPublisher } from './base-rabbitmq.publisher.js';
 
 const EXCHANGE_NAME = 'kb.embedding';
-const QUEUE_NAME = 'kb.embedding.jobs';
-const ROUTING_KEY = 'embedding.job';
-const RECONNECT_DELAY_MS = 5_000;
+const HIGH_PRIORITY_QUEUE = 'kb.embedding.high';
+const LOW_PRIORITY_QUEUE = 'kb.embedding.low';
+const HIGH_PRIORITY_ROUTING_KEY = 'embedding.high';
+const LOW_PRIORITY_ROUTING_KEY = 'embedding.low';
 
 @Injectable()
-export class RabbitMqEmbeddingQueuePublisher extends EmbeddingQueuePublisher implements OnModuleDestroy {
-  private connection: ChannelModel | null = null;
-  private channel: Channel | null = null;
-  private connecting = false;
-  private closed = false;
-
-  constructor(private readonly logger: AppLogger) {
-    super();
+export class RabbitMqEmbeddingQueuePublisher extends BaseRabbitMqPublisher implements EmbeddingQueuePublisher {
+  constructor(logger: AppLogger) {
+    super(logger);
   }
 
   async publish(job: EmbeddingJobPayload): Promise<void> {
@@ -32,11 +32,14 @@ export class RabbitMqEmbeddingQueuePublisher extends EmbeddingQueuePublisher imp
 
     try {
       const channel = await this.ensureChannel(url);
+      const routingKey = job.priority === EmbeddingPriority.High ? HIGH_PRIORITY_ROUTING_KEY : LOW_PRIORITY_ROUTING_KEY;
+      const priority = job.priority === EmbeddingPriority.High ? 10 : 5;
+
       channel.publish(
         EXCHANGE_NAME,
-        ROUTING_KEY,
+        routingKey,
         Buffer.from(JSON.stringify(job)),
-        { persistent: true, contentType: 'application/json' },
+        { persistent: true, contentType: 'application/json', priority },
       );
     } catch (error) {
       this.logger.error('embedding_queue.publish_failed', {
@@ -46,74 +49,85 @@ export class RabbitMqEmbeddingQueuePublisher extends EmbeddingQueuePublisher imp
     }
   }
 
-  async onModuleDestroy() {
-    this.closed = true;
-    try {
-      if (this.channel) await this.channel.close();
-    } catch { /* already closed */ }
-    try {
-      if (this.connection) await this.connection.close();
-    } catch { /* already closed */ }
-    this.channel = null;
-    this.connection = null;
-  }
-
-  private getUrl(): string {
-    return String(process.env.KB_RABBITMQ_URL || '').trim();
-  }
-
-  private async ensureChannel(url: string): Promise<Channel> {
-    if (this.channel) return this.channel;
-    if (this.connecting) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      if (this.channel) return this.channel;
-      throw new Error('embedding_queue.connection_in_progress');
+  async publishQueryEmbedding(config: { userId: string; queryText: string }): Promise<number[][]> {
+    const url = this.getUrl();
+    if (!url) {
+      this.logger.warn('embedding_queue.query_skipped_no_url');
+      throw new Error('RabbitMQ URL not configured');
     }
 
-    this.connecting = true;
+    const correlationId = randomUUID();
+    const replyQueue = `kb.embedding.reply.${correlationId}`;
+
     try {
-      const conn = await amqplib.connect(url);
-      this.connection = conn;
+      const channel = await this.ensureChannel(url);
 
-      conn.on('error', (error: Error) => {
-        this.logger.error('embedding_queue.connection_error', { error: error.message });
-        this.channel = null;
+      // Setup temporary reply queue
+      await channel.assertQueue(replyQueue, { exclusive: true, autoDelete: true });
+
+      const promise = new Promise<number[][]>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('RPC timeout after 5000ms'));
+        }, 5000);
+
+        channel.consume(replyQueue, (msg: any) => {
+          if (!msg) return;
+          clearTimeout(timeout);
+          const response = JSON.parse(msg.content.toString());
+          if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            resolve(response.embeddings);
+          }
+        }, { noAck: true });
       });
-      conn.on('close', () => {
-        this.channel = null;
-        if (!this.closed) {
-          this.logger.warn('embedding_queue.connection_closed_reconnecting');
-          setTimeout(() => this.reconnect(url), RECONNECT_DELAY_MS);
-        }
-      });
 
-      const ch = await conn.createChannel();
-      await ch.assertExchange(EXCHANGE_NAME, 'direct', { durable: true });
-      await ch.assertQueue(QUEUE_NAME, {
-        durable: true,
-        arguments: { 'x-dead-letter-exchange': `${EXCHANGE_NAME}.dlx` },
-      });
-      await ch.bindQueue(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
+      // Publish request
+      channel.publish(
+        EXCHANGE_NAME,
+        HIGH_PRIORITY_ROUTING_KEY,
+        Buffer.from(JSON.stringify({
+          type: EmbeddingJobType.QueryEmbedding,
+          userId: config.userId,
+          queryText: config.queryText,
+          priority: EmbeddingPriority.High,
+          correlationId,
+          replyTo: replyQueue,
+        })),
+        { priority: 10, correlationId, replyTo: replyQueue }
+      );
 
-      // Dead-letter exchange for failed messages
-      await ch.assertExchange(`${EXCHANGE_NAME}.dlx`, 'direct', { durable: true });
-      await ch.assertQueue(`${QUEUE_NAME}.dlq`, { durable: true });
-      await ch.bindQueue(`${QUEUE_NAME}.dlq`, `${EXCHANGE_NAME}.dlx`, ROUTING_KEY);
-
-      this.channel = ch;
-      this.logger.info('embedding_queue.connected');
-      return ch;
-    } finally {
-      this.connecting = false;
-    }
-  }
-
-  private reconnect(url: string) {
-    if (this.closed) return;
-    void this.ensureChannel(url).catch((error: unknown) => {
-      this.logger.error('embedding_queue.reconnect_failed', {
+      return promise;
+    } catch (error) {
+      this.logger.error('embedding_queue.query_publish_failed', {
         error: error instanceof Error ? error.message : String(error),
       });
+      throw error;
+    }
+  }
+
+  protected async setupChannel(channel: Channel): Promise<void> {
+    await channel.assertExchange(EXCHANGE_NAME, 'direct', { durable: true });
+
+    // High priority queue
+    await channel.assertQueue(HIGH_PRIORITY_QUEUE, {
+      durable: true,
+      arguments: { 'x-max-priority': 10, 'x-dead-letter-exchange': `${EXCHANGE_NAME}.dlx` },
     });
+    await channel.bindQueue(HIGH_PRIORITY_QUEUE, EXCHANGE_NAME, HIGH_PRIORITY_ROUTING_KEY);
+
+    // Low priority queue
+    await channel.assertQueue(LOW_PRIORITY_QUEUE, {
+      durable: true,
+      arguments: { 'x-max-priority': 5, 'x-dead-letter-exchange': `${EXCHANGE_NAME}.dlx` },
+    });
+    await channel.bindQueue(LOW_PRIORITY_QUEUE, EXCHANGE_NAME, LOW_PRIORITY_ROUTING_KEY);
+
+    // Dead-letter exchange for failed messages
+    await channel.assertExchange(`${EXCHANGE_NAME}.dlx`, 'direct', { durable: true });
+    await channel.assertQueue(`${HIGH_PRIORITY_QUEUE}.dlq`, { durable: true });
+    await channel.bindQueue(`${HIGH_PRIORITY_QUEUE}.dlq`, `${EXCHANGE_NAME}.dlx`, HIGH_PRIORITY_ROUTING_KEY);
+    await channel.assertQueue(`${LOW_PRIORITY_QUEUE}.dlq`, { durable: true });
+    await channel.bindQueue(`${LOW_PRIORITY_QUEUE}.dlq`, `${EXCHANGE_NAME}.dlx`, LOW_PRIORITY_ROUTING_KEY);
   }
 }

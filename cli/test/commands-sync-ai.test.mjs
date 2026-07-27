@@ -158,7 +158,7 @@ test('Sync AI sessions command integration', async (t) => {
       assert.equal(createdNote.sourceChannel, 'ai-chat');
       assert.ok(createdNote.rawText.includes('Source: Antigravity'));
       assert.ok(createdNote.rawText.includes('### 👤 User\nHello Antigravity'));
-      assert.ok(createdNote.rawText.includes('### 🤖 Assistant\nHello human'));
+      assert.ok(createdNote.rawText.includes('### ✨ Assistant\nHello human'));
 
     } finally {
       await server.close();

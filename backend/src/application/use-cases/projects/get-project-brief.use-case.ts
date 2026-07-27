@@ -11,30 +11,30 @@ export class GetProjectBriefUseCase {
     private readonly historyRepository: ProjectBriefHistoryRepository,
   ) {}
 
-  async execute(userId: string, projectId: string) {
-    let workspaceSlug = '';
-    let projectSlug = '';
+  async execute(userId: string, projectId: string, workspaceIdInput?: string) {
+    let workspaceId = '';
     let isAll = false;
     if (projectId === 'all') {
       isAll = true;
-      projectSlug = 'all';
-      const workspaces = await this.contentRepository.listWorkspaces(userId);
-      if (workspaces.length > 0) {
-        workspaceSlug = workspaces[0].workspaceSlug;
+      if (workspaceIdInput) {
+        workspaceId = workspaceIdInput;
       } else {
-        throw new NotFoundException('workspace_not_found');
+        const workspaces = await this.contentRepository.listWorkspaces(userId);
+        if (workspaces.length > 0) {
+          workspaceId = workspaces[0].id;
+        } else {
+          throw new NotFoundException('workspace_not_found');
+        }
       }
     } else {
       const project = await this.contentRepository.getProjectById(userId, projectId);
       if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-      workspaceSlug = project.workspaceSlug || '';
-      projectSlug = project.projectSlug;
+      workspaceId = project.workspaceId || '';
     }
 
     const latest = await this.historyRepository.findLatest({
       userId,
-      workspaceSlug,
-      projectSlug,
+      workspaceId,
       projectId: isAll ? undefined : projectId,
     });
 

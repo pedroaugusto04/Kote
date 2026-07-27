@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { SubscriptionCancellationService } from '../../services/billing/SubscriptionCancellationService.js';
-import { BillingEventBus } from '../../services/billing-event.bus.js';
+import { BillingEventBus } from '../../event-buses/billing-event.bus.js';
 
 @Injectable()
 export class CancelPaymentUseCase {

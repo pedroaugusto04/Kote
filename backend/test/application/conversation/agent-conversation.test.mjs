@@ -8,6 +8,7 @@ import {
 } from '../../../dist/application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput } from '../../../dist/contracts/agent-conversation.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
@@ -27,7 +28,7 @@ class StubConversationAgentGateway {
 async function createFixture(t, turns) {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
-  await repositories.contentRepository.upsertWorkspace(user.id, {
+  const workspace = await repositories.contentRepository.upsertWorkspace(user.id, {
     workspaceSlug: 'default',
     displayName: 'Default',
     whatsappChatJid: '',
@@ -39,6 +40,7 @@ async function createFixture(t, turns) {
     projectSlug: 'platform',
     displayName: 'Platform',
     repositories: [],
+    workspaceId: workspace.id,
     workspaceSlug: 'default',
     defaultTags: ['backend'],
     enabled: true,
@@ -47,6 +49,7 @@ async function createFixture(t, turns) {
     projectSlug: 'mobile-app',
     displayName: 'Mobile App',
     repositories: [],
+    workspaceId: workspace.id,
     workspaceSlug: 'default',
     defaultTags: ['app'],
     enabled: true,
@@ -70,7 +73,20 @@ async function createFixture(t, turns) {
     }),
   };
 
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider);
+  const loggerMock = {
+    info() { },
+    warn() { },
+    error() { },
+    debug() { },
+  };
+
+  const ingest = new IngestEntryUseCase(
+    repositories.contentRepository,
+    repositories.runtimeEnvironmentProvider,
+    repositories.noteLifecycleService,
+    loggerMock,
+    repositories.database,
+  );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();
   const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
@@ -82,7 +98,8 @@ async function createFixture(t, turns) {
     new StubConversationAgentGateway(turns),
     presenter,
     folderResolution,
-    repositories.credentialRepository,
+    new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
+    loggerMock,
   );
   return { repositories, user, agentUseCase };
 }
@@ -121,8 +138,7 @@ function decision(overrides = {}) {
       canonicalType: 'incident',
       importance: 'high',
       tags: ['backend'],
-      reminderDate: '',
-      reminderTime: '',
+      reminderAt: '',
     },
     selectedProjectSlug: 'platform',
     selectedFolderId: '',
@@ -145,7 +161,8 @@ test('agent conversation happy path suggests folder and saves with created folde
   assert.deepEqual(first.agent.suggestedFolderPath, ['Runbooks', 'API']);
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
-  const folders = await repositories.contentRepository.listProjectFolders(user.id, 'platform');
+  const project = await repositories.contentRepository.getProjectBySlug(user.id, 'platform');
+  const folders = await repositories.contentRepository.listProjectFolders(user.id, project.id);
   const finalFolder = folders.find((folder) => folder.fullSlugPath === 'runbooks/api');
   assert.ok(finalFolder);
   assert.equal(notes[0].folderId, finalFolder.id);
@@ -213,8 +230,7 @@ test('agent conversation explains how to use it when the message is not useful t
         canonicalType: 'event',
         importance: 'low',
         tags: [],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
       selectedProjectSlug: '',
       selectedFolderId: '',
@@ -248,8 +264,7 @@ test('agent conversation saves root placement immediately when the agent selects
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['deploy'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -272,8 +287,7 @@ test('agent conversation saves separate captures without waiting for confirmatio
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['meeting'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
     ['corrigi o timeout do webhook novo', decision({
@@ -289,8 +303,7 @@ test('agent conversation saves separate captures without waiting for confirmatio
         canonicalType: 'incident',
         importance: 'high',
         tags: ['backend'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -319,8 +332,7 @@ test('agent conversation keeps nonexistent project, creates it and saves the not
         canonicalType: 'event',
         importance: 'medium',
         tags: [],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -353,8 +365,7 @@ test('agent conversation does not keep confirmation state after immediate save',
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['meeting'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -381,8 +392,7 @@ test('agent conversation saves natural capture without waiting for approval inte
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['meeting'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
     ['pode salvar', decision({
@@ -398,8 +408,7 @@ test('agent conversation saves natural capture without waiting for approval inte
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['meeting'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
     })],
   ]);
@@ -438,8 +447,7 @@ test('agent conversation accepts AI reminder kind alias and saves immediately', 
         canonicalType: 'event',
         importance: 'low',
         tags: ['deploy'],
-        reminderDate: '2026-05-20',
-        reminderTime: '',
+        reminderAt: '2026-05-20T09:30:00Z',
       },
     })],
   ]);
@@ -465,8 +473,7 @@ test('agent conversation saves reminders as pending immediately', async (t) => {
         canonicalType: 'event',
         importance: 'low',
         tags: ['deploy'],
-        reminderDate: '2026-05-20',
-        reminderTime: '',
+        reminderAt: '2026-05-20T09:30:00Z',
       },
     })],
   ]);
@@ -478,5 +485,5 @@ test('agent conversation saves reminders as pending immediately', async (t) => {
   const notes = await repositories.contentRepository.listNotes(user.id);
   assert.equal(notes.length, 1);
   assert.equal(notes[0].status, 'pending');
-  assert.equal(notes[0].metadata.reminderDate, '2026-05-20');
+  assert.equal(notes[0].reminderAt, '2026-05-20T09:30:00.000Z');
 });

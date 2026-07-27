@@ -7,6 +7,8 @@ import {
   type AnswerGenerationConfig,
   type AnswerGenerationRequest,
   type AnswerGenerationResponse,
+  type PrContextAiConfig,
+  type AnswerContextChunk,
 } from '../../application/ports/query/answer-generation.gateway.js';
 import { runChatCompletion } from './openai-compatible-chat.js';
 import {
@@ -14,6 +16,14 @@ import {
   buildAnswerGenerationSystemPrompt,
   parseAnswerGenerationResponse,
 } from './prompts/answer-generation.prompt.js';
+import {
+  buildQueryRewritingPrompt,
+  buildQueryRewritingSystemPrompt,
+} from './prompts/query-rewriting.prompt.js';
+import {
+  buildPrReviewPrompt,
+  buildPrReviewSystemPrompt,
+} from './prompts/pr-review.prompt.js';
 
 @Injectable()
 export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
@@ -77,18 +87,8 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
       apiKey: config.conversationAiApiKey,
     };
 
-    const systemPrompt = [
-      'You are a search query optimizer.',
-      'Given a conversation history and a follow-up question from the user, rewrite the follow-up question to be an independent, self-contained search query.',
-      'Ensure the rewritten query is in the same language as the follow-up question, resolves all pronouns (e.g. "it", "he", "they", "the file", "them", "isso", "dele", "aquilo") to their full referenced entities from the history, and retains all relevant keywords.',
-      'If the question is already self-contained or the history is empty, return the original question exactly.',
-      'Return a JSON object with this shape: {"rewrittenQuery": "..."}'
-    ].join('\n');
-
-    const userContent = JSON.stringify({
-      history: history.map(h => ({ question: h.question, answer: h.answer })),
-      followUpQuestion: question
-    });
+    const systemPrompt = buildQueryRewritingSystemPrompt();
+    const userContent = buildQueryRewritingPrompt(question, history);
 
     try {
       const content = await runChatCompletion(chatConfig, systemPrompt, userContent);
@@ -97,6 +97,40 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
       return String(parsed.rewrittenQuery || question).trim();
     } catch {
       return question;
+    }
+  }
+
+  async generatePullRequestComment(
+    config: PrContextAiConfig,
+    payload: {
+      prTitle: string;
+      prDescription: string;
+      changedFiles: Array<{ filename: string; status: string; patch: string }>;
+      context: AnswerContextChunk[];
+    },
+  ): Promise<string | null> {
+    if (config.provider === 'none' || !config.apiKey || !config.model) {
+      return null;
+    }
+
+    const systemPrompt = buildPrReviewSystemPrompt();
+    const userContent = buildPrReviewPrompt(payload);
+
+    try {
+      const content = await runChatCompletion(
+        {
+          provider: config.provider as AiProvider,
+          baseUrl: config.baseUrl,
+          model: config.model,
+          apiKey: config.apiKey,
+          responseFormat: { type: 'text' },
+        },
+        systemPrompt,
+        userContent,
+      );
+      return content || null;
+    } catch {
+      return null;
     }
   }
 }

@@ -1,8 +1,9 @@
 import crypto from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import type { PoolClient } from 'pg';
-import { eq, and, count, desc, sql, inArray, notInArray, or } from 'drizzle-orm';
+import { eq, and, count, desc, sql, inArray, notInArray, or, gte, type SQL } from 'drizzle-orm';
+
 
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
@@ -11,13 +12,19 @@ import type {
   ProjectTimelineFilterCategory,
 } from '../../application/models/project-timeline.models.js';
 import type { NoteRecord, SaveNoteInput } from '../../application/models/repository-records.models.js';
-import { ContentObjectStorageService } from '../../application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
+import { EventType, SourceChannel, TimelineCategory } from '../../contracts/enums.js';
 import { noteSummary } from '../mappers/content-query.mappers.js';
-import { noteFromRow } from '../mappers/row.mappers.js';
+import { noteFromRow, toIsoTimestamp } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories } from '../persistence/schema/index.js';
+import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory, noteLinks } from '../persistence/schema/index.js';
+import { resolveIds } from './utils/id-resolution.helpers.js';
+import { isAiSource } from '../../domain/notes.js';
+import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
+import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
+
 
 @Injectable()
 export class PostgresNoteRepository {
@@ -30,36 +37,68 @@ export class PostgresNoteRepository {
     return this.contentObjectStorage.hydrateMarkdown(note);
   }
 
-  private async resolveIds(userId: string, projectSlug: string | null, workspaceSlug: string): Promise<{ projectId: string | null; workspaceId: string }> {
-    const db = this.database.getDb();
+  private async syncNoteLinks(dbOrTx: any, userId: string, noteId: string, input: SaveNoteInput) {
+    const isLinksExplicitlyProvided = input.links !== undefined;
 
-    const wsResult = await db
-      .select({ id: workspaces.id })
-      .from(workspaces)
-      .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
-      .limit(1);
-
-    if (wsResult.length === 0) {
-      throw new Error(`Workspace not found for slug: ${workspaceSlug}`);
+    if (isLinksExplicitlyProvided) {
+      await dbOrTx
+        .delete(noteLinks)
+        .where(and(eq(noteLinks.userId, userId), eq(noteLinks.noteId, noteId)));
+    } else {
+      await dbOrTx
+        .delete(noteLinks)
+        .where(
+          and(
+            eq(noteLinks.userId, userId),
+            eq(noteLinks.noteId, noteId),
+            sql`metadata->>'source' = 'path'`
+          )
+        );
     }
-    const workspaceId = wsResult[0].id;
 
-    let projectId: string | null = null;
-    if (projectSlug) {
-      const projResult = await db
-        .select({ id: projects.id })
-        .from(projects)
-        .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
-        .limit(1);
-      if (projResult.length > 0) {
-        projectId = projResult[0].id;
+    const linksToInsert: typeof noteLinks.$inferInsert[] = [];
+
+    if (input.path && input.path.trim()) {
+      linksToInsert.push({
+        id: crypto.randomUUID(),
+        userId,
+        noteId,
+        target: input.path.trim(),
+        metadata: { source: 'path' },
+      });
+    }
+
+    if (isLinksExplicitlyProvided && Array.isArray(input.links)) {
+      for (const file of input.links) {
+        const fileStr = String(file).trim();
+        if (fileStr) {
+          linksToInsert.push({
+            id: crypto.randomUUID(),
+            userId,
+            noteId,
+            target: fileStr,
+            metadata: { source: 'links' },
+          });
+        }
       }
     }
-    return { projectId, workspaceId };
+
+    if (linksToInsert.length > 0) {
+      await dbOrTx.insert(noteLinks).values(linksToInsert);
+    }
   }
 
-  async list(userId: string) {
+  async list(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
     const db = this.database.getDb();
+    const conditions = [eq(notes.userId, userId)];
+
+    if (filters?.workspaceId) {
+      conditions.push(eq(notes.workspaceId, filters.workspaceId));
+    }
+    if (filters?.projectId) {
+      conditions.push(eq(notes.projectId, filters.projectId));
+    }
+
     const result = await db
       .select({
         id: notes.id,
@@ -80,13 +119,12 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
         attachmentCount: count(attachments.id).as('attachment_count'),
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -112,11 +150,47 @@ export class PostgresNoteRepository {
       ))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
-      .where(eq(notes.userId, userId))
+      .where(and(...conditions))
       .groupBy(notes.id, projects.projectSlug, workspaces.workspaceSlug)
       .orderBy(desc(notes.isPinned), desc(notes.occurredAt), notes.title);
 
     return result.map(noteFromRow);
+  }
+
+  async listLite(userId: string, filters?: { projectId?: string; workspaceId?: string }) {
+    const db = this.database.getDb();
+    const conditions = [eq(notes.userId, userId)];
+
+    if (filters?.workspaceId) {
+      conditions.push(eq(notes.workspaceId, filters.workspaceId));
+    }
+    if (filters?.projectId) {
+      conditions.push(eq(notes.projectId, filters.projectId));
+    }
+
+    const result = await db
+      .select({
+        id: notes.id,
+        projectId: notes.projectId,
+        workspaceId: notes.workspaceId,
+        folderId: notes.folderId,
+        title: notes.title,
+        status: notes.status,
+        occurredAt: notes.occurredAt,
+      })
+      .from(notes)
+      .where(and(...conditions))
+      .orderBy(desc(notes.occurredAt), notes.title);
+
+    return result.map((row) => ({
+      id: String(row.id),
+      projectId: row.projectId || null,
+      workspaceId: row.workspaceId,
+      folderId: row.folderId || null,
+      title: row.title,
+      status: row.status,
+      occurredAt: row.occurredAt ? toIsoTimestamp(row.occurredAt) : '',
+    }));
   }
 
   async listPage(userId: string, input: ListNotesInput) {
@@ -193,13 +267,12 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
         attachmentCount: count(attachments.id).as('attachment_count'),
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -248,7 +321,7 @@ export class PostgresNoteRepository {
     }
 
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
-    appendTimelineCategoryClause(clauses, input.category);
+    appendTimelineCategoryClause(clauses, values, input.category);
     if (input.status) {
       if (input.status === StatusFilter.Open) {
         values.push(terminalStatuses);
@@ -270,7 +343,7 @@ export class PostgresNoteRepository {
     const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, total);
 
     const result = await this.database.getPool().query(
-      `select n.*, p.project_slug, count(distinct a.id)::int as attachment_count,
+      `select n.*, count(distinct a.id)::int as attachment_count,
               coalesce(
                 json_agg(
                   json_build_object(
@@ -293,8 +366,8 @@ export class PostgresNoteRepository {
        left join kb_note_categories nc on nc.note_id = n.id
        left join kb_categories cat on cat.id = nc.category_id
        where ${where}
-       group by n.id, p.project_slug
-       order by n.is_pinned desc, n.occurred_at desc, n.title asc
+       group by n.id
+       order by ${(input.orderByPin ?? true) ? 'n.is_pinned desc, ' : ''}n.occurred_at desc, n.title asc
        limit $${values.length + 1} offset $${values.length + 2}`,
       [...values, pagination.pageSize, (pagination.page - 1) * pagination.pageSize]
     );
@@ -313,11 +386,15 @@ export class PostgresNoteRepository {
       clauses.push(`n.project_id = $${values.length}`);
     }
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
-    appendTimelineCategoryClause(clauses, input.category);
+    appendTimelineCategoryClause(clauses, values, input.category);
+    if (input.excludeReviewNotes) {
+      values.push(SourceChannel.Github, EventType.CodeReview);
+      clauses.push(`NOT (n.source_channel = $${values.length - 1} OR (n.metadata->>'eventType') = $${values.length})`);
+    }
     const where = clauses.join(' and ');
 
     const result = await this.database.getPool().query(
-      `select n.*, p.project_slug, count(distinct a.id)::int as attachment_count,
+      `select n.*, count(distinct a.id)::int as attachment_count,
               coalesce(
                 json_agg(
                   json_build_object(
@@ -340,7 +417,7 @@ export class PostgresNoteRepository {
        left join kb_note_categories nc on nc.note_id = n.id
        left join kb_categories cat on cat.id = nc.category_id
        where ${where}
-       group by n.id, p.project_slug
+       group by n.id
        order by n.is_pinned desc, n.occurred_at desc, n.title asc
        limit $${values.length + 1}`,
       [...values, input.limit]
@@ -349,8 +426,8 @@ export class PostgresNoteRepository {
     return result.rows.map((row) => noteFromRow(row));
   }
 
-  async getById(userId: string, id: string) {
-    const db = this.database.getDb();
+  async getById(userId: string, id: string, tx?: any) {
+    const db = tx || this.database.getDb();
     const result = await db
       .select({
         id: notes.id,
@@ -370,12 +447,11 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -403,9 +479,31 @@ export class PostgresNoteRepository {
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
-  async getByIds(userId: string, ids: string[]) {
-    if (ids.length === 0) return [];
-    const db = this.database.getDb();
+  async getByIdLite(userId: string, id: string, tx?: any) {
+    const db = tx || this.database.getDb();
+    const result = await db
+      .select({
+        id: notes.id,
+        markdownStorageKey: notes.markdownStorageKey,
+        sizeBytes: notes.sizeBytes,
+      })
+      .from(notes)
+      .where(and(eq(notes.userId, userId), eq(notes.id, id)))
+      .limit(1);
+
+    return result[0] || null;
+  }
+
+  async getByIdOrThrow(userId: string, id: string, tx?: any): Promise<NoteRecord> {
+    const note = await this.getById(userId, id, tx);
+    if (!note) {
+      throw new InternalServerErrorException('note_not_found');
+    }
+    return note;
+  }
+
+  async getByPath(userId: string, path: string, tx?: any) {
+    const db = tx || this.database.getDb();
     const result = await db
       .select({
         id: notes.id,
@@ -425,12 +523,11 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -451,8 +548,64 @@ export class PostgresNoteRepository {
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
+      .where(and(eq(notes.userId, userId), eq(notes.path, path)))
+      .groupBy(notes.id, projects.projectSlug)
+      .limit(1);
+
+    return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
+  }
+
+  async getByIds(userId: string, ids: string[]) {
+    if (ids.length === 0) return [];
+    const db = this.database.getDb();
+    const result = await db
+      .select({
+        id: notes.id,
+        userId: notes.userId,
+        path: notes.path,
+        title: notes.title,
+        projectId: notes.projectId,
+        workspaceId: notes.workspaceId,
+        workspaceSlug: workspaces.workspaceSlug,
+        projectSlug: projects.projectSlug,
+        folderId: notes.folderId,
+        status: notes.status,
+        tags: notes.tags,
+        occurredAt: notes.occurredAt,
+        sourceChannel: notes.sourceChannel,
+        source: notes.source,
+        summary: notes.summary,
+        markdownStorageKey: notes.markdownStorageKey,
+        metadata: notes.metadata,
+        sessionId: notes.sessionId,
+        reminderAt: notes.reminderAt,
+        isPinned: notes.isPinned,
+        createdAt: notes.createdAt,
+        updatedAt: notes.updatedAt,
+        categories: sql<unknown[]>`COALESCE(
+          json_agg(
+            json_build_object(
+              'id', ${categories.id},
+              'user_id', ${categories.userId},
+              'workspace_id', ${categories.workspaceId},
+              'name', ${categories.name},
+              'color', ${categories.color},
+              'icon', ${categories.icon},
+              'is_system', ${categories.isSystem},
+              'created_at', ${categories.createdAt},
+              'updated_at', ${categories.updatedAt}
+            )
+          ) FILTER (WHERE ${categories.id} IS NOT NULL),
+          '[]'::json
+        )`.as('categories'),
+      })
+      .from(notes)
+      .leftJoin(projects, eq(projects.id, notes.projectId))
+      .leftJoin(workspaces, eq(workspaces.id, notes.workspaceId))
+      .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
+      .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(and(eq(notes.userId, userId), inArray(notes.id, ids)))
-      .groupBy(notes.id, projects.projectSlug);
+      .groupBy(notes.id, projects.projectSlug, workspaces.workspaceSlug);
 
     const noteRecords = result.map(noteFromRow);
     return Promise.all(noteRecords.map((n) => this.hydrateMarkdown(n)));
@@ -479,12 +632,11 @@ export class PostgresNoteRepository {
         markdownStorageKey: notes.markdownStorageKey,
         metadata: notes.metadata,
         sessionId: notes.sessionId,
-        reminderDate: notes.reminderDate,
         reminderAt: notes.reminderAt,
         isPinned: notes.isPinned,
         createdAt: notes.createdAt,
         updatedAt: notes.updatedAt,
-        categories: sql<any[]>`COALESCE(
+        categories: sql<unknown[]>`COALESCE(
           json_agg(
             json_build_object(
               'id', ${categories.id},
@@ -516,23 +668,40 @@ export class PostgresNoteRepository {
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
-  async upsert(userId: string, input: SaveNoteInput) {
-    const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
+  async upsert(userId: string, input: SaveNoteInput, tx?: any): Promise<NoteRecord> {
+    const dbOrTx = tx || this.database.getDb();
 
-    if (input.id) {
-      const existing = await this.getById(userId, input.id);
-      if (existing) {
-        return this.update(userId, input);
-      }
+    let existingId = input.id;
+    if (!existingId && input.path) {
+      const [existing] = await dbOrTx
+        .select({ id: notes.id })
+        .from(notes)
+        .where(and(eq(notes.userId, userId), eq(notes.path, input.path)))
+        .limit(1);
+      existingId = existing?.id;
     }
 
-    const db = this.database.getDb();
-    const { projectId, workspaceId } = await this.resolveIds(userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
-    const noteId = crypto.randomUUID();
+    const noteId = existingId || input.id || crypto.randomUUID();
+    const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, { ...input, id: noteId });
+    const bodySearchText = resolveNoteBodySearchText(input.markdown, input.metadata);
 
-    const categoryIds = input.categoryIds || [];
+    if (existingId) {
+      const existing = await this.getByIdLite(userId, existingId, tx);
+      if (existing) {
+        await this.updateWithClient(dbOrTx, userId, { ...input, id: existingId }, markdownStorageKey);
+        if (existing.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
+          await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
+        }
+        return this.getByIdOrThrow(userId, existingId, tx);
+      }
+      // Fall through to insert if existingId was provided but record not found
+    }
 
-    await db
+    const { projectId, workspaceId } = await resolveIds(this.database, userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
+
+    const categoryIds = input.categoryIds ?? [];
+
+    await dbOrTx
       .insert(notes)
       .values({
         id: noteId,
@@ -544,19 +713,20 @@ export class PostgresNoteRepository {
         folderId: input.folderId,
         status: input.status as NoteStatus,
         tags: input.tags,
-        occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+        occurredAt: new Date(input.occurredAt ?? Date.now()),
         sourceChannel: input.sourceChannel,
         summary: input.summary,
+        bodySearchText,
         markdownStorageKey,
         metadata: input.metadata,
         source: input.source,
-        sessionId: input.sessionId ?? '',
-        reminderDate: input.reminderDate ?? '',
-        reminderAt: input.reminderAt ?? '',
+        sessionId: input.sessionId || '',
+        reminderAt: input.reminderAt ? new Date(input.reminderAt) : null,
+        sizeBytes: input.sizeBytes ?? Buffer.byteLength(input.markdown || '', 'utf8'),
       } as typeof notes.$inferInsert);
 
-    if (categoryIds.length > 0) {
-      await db.insert(noteCategories).values(
+    if (categoryIds.length) {
+      await dbOrTx.insert(noteCategories).values(
         categoryIds.map((catId) => ({
           noteId,
           categoryId: catId,
@@ -564,35 +734,62 @@ export class PostgresNoteRepository {
       );
     }
 
-    const created = await this.getById(userId, noteId);
-    if (!created) {
-      throw new Error(`Note not found after creation: ${noteId}`);
-    }
-    return created;
+    await this.syncNoteLinks(dbOrTx, userId, noteId, input);
+
+    return this.getByIdOrThrow(userId, noteId, tx);
   }
 
-  async update(userId: string, input: SaveNoteInput) {
-    const existing = await this.getById(userId, String(input.id || ''));
+  async update(userId: string, input: SaveNoteInput, tx?: any): Promise<NoteRecord> {
+    const dbOrTx = tx || this.database.getDb();
+
+    const existing = await this.getByIdLite(userId, String(input.id ?? ''), tx);
     const markdownStorageKey = await this.contentObjectStorage.saveNoteMarkdown(userId, input);
-    await this.updateWithClient(this.database.getPool(), userId, input, markdownStorageKey);
+    await this.updateWithClient(dbOrTx, userId, input, markdownStorageKey);
     if (existing?.markdownStorageKey && existing.markdownStorageKey !== markdownStorageKey) {
       await this.contentObjectStorage.deleteObjects([existing.markdownStorageKey]);
     }
-    const updated = await this.getById(userId, String(input.id || ''));
-    if (!updated) {
-      throw new Error(`Note not found after update: ${input.id}`);
-    }
-    return updated;
+    return this.getByIdOrThrow(userId, String(input.id ?? ''), tx);
   }
 
   async updateReminderStatus(userId: string, id: string, status: string) {
     const db = this.database.getDb();
+    const result = await db
+      .update(notes)
+      .set({ status: status as NoteStatus, updatedAt: new Date() })
+      .where(and(
+        eq(notes.userId, userId),
+        eq(notes.id, id),
+        sql`${notes.reminderAt} IS NOT NULL`
+      ))
+      .returning();
+
+    if (!result.length) return null;
+    return this.getById(userId, id);
+  }
+
+  async updateStatuses(userId: string, ids: string[], status: string) {
+    if (!ids.length) return;
+    const db = this.database.getDb();
     await db
       .update(notes)
       .set({ status: status as NoteStatus, updatedAt: new Date() })
-      .where(and(eq(notes.userId, userId), eq(notes.id, id)));
+      .where(and(
+        eq(notes.userId, userId),
+        inArray(notes.id, ids)
+      ));
+  }
 
-    return this.getById(userId, id);
+  async updateReminderStatuses(userId: string, ids: string[], status: string) {
+    if (!ids.length) return;
+    const db = this.database.getDb();
+    await db
+      .update(notes)
+      .set({ status: status as NoteStatus, updatedAt: new Date() })
+      .where(and(
+        eq(notes.userId, userId),
+        inArray(notes.id, ids),
+        sql`${notes.reminderAt} IS NOT NULL`
+      ));
   }
 
   async setPinned(userId: string, id: string, pinned: boolean) {
@@ -619,79 +816,87 @@ export class PostgresNoteRepository {
     return true;
   }
 
-  async updateWithClient(client: Pick<PoolClient, 'query'>, userId: string, input: SaveNoteInput, markdownStorageKey: string) {
+  async updateWithClient(dbOrTx: any, userId: string, input: SaveNoteInput, markdownStorageKey: string) {
     let projectId = input.projectId;
     let workspaceId = input.workspaceId;
+    
     if ((!projectId && input.projectSlug) || (!workspaceId && input.workspaceSlug)) {
-      const wsResult = await client.query('select id from kb_workspaces where user_id = $1 and workspace_slug = $2 limit 1', [userId, input.workspaceSlug]);
-      if (wsResult.rows.length === 0) {
-        throw new Error(`Workspace not found for slug: ${input.workspaceSlug}`);
+      const wsResult = await dbOrTx
+        .select({ id: workspaces.id })
+        .from(workspaces)
+        .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, input.workspaceSlug || 'default')))
+        .limit(1);
+      if (wsResult.length === 0) {
+        throw new NotFoundException('workspace_not_found');
       }
-      workspaceId = wsResult.rows[0].id;
+      workspaceId = wsResult[0].id;
 
       if (input.projectSlug) {
-        const projResult = await client.query('select id from kb_projects where user_id = $1 and project_slug = $2 limit 1', [userId, input.projectSlug]);
-        if (projResult.rows.length > 0) {
-          projectId = projResult.rows[0].id;
+        const projResult = await dbOrTx
+          .select({ id: projects.id })
+          .from(projects)
+          .where(and(eq(projects.userId, userId), eq(projects.projectSlug, input.projectSlug)))
+          .limit(1);
+        if (projResult.length > 0) {
+          projectId = projResult[0].id;
         }
       }
     }
 
-    const updateResult = await client.query(
-      `update kb_notes
-       set path = $3,
-           title = $4,
-           project_id = $5,
-           workspace_id = $6,
-           folder_id = $7,
-           status = $8::note_status_enum,
-           tags = $9::jsonb,
-           occurred_at = $10,
-           source_channel = $11,
-           summary = $12,
-           markdown_storage_key = $13,
-           metadata = $14::jsonb,
-           source = $15,
-           session_id = $16,
-           reminder_date = $17,
-           reminder_at = $18,
-           updated_at = now()
-       where user_id = $1 and id = $2
-       returning *`,
-      [
-        userId,
-        input.id,
-        input.path,
-        input.title,
-        projectId || null,
-        workspaceId,
-        input.folderId,
-        input.status,
-        JSON.stringify(input.tags),
-        // pass a Date so DB timestamptz stores UTC consistently
-        input.occurredAt ? new Date(input.occurredAt) : new Date(),
-        input.sourceChannel,
-        input.summary,
+    const updateResult = await dbOrTx
+      .update(notes)
+      .set({
+        path: input.path,
+        title: input.title,
+        projectId: projectId || null,
+        workspaceId: workspaceId!,
+        folderId: input.folderId,
+        status: input.status as NoteStatus,
+        tags: input.tags,
+        occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+        sourceChannel: input.sourceChannel,
+        summary: input.summary,
+        bodySearchText: resolveNoteBodySearchText(input.markdown, input.metadata),
         markdownStorageKey,
-        JSON.stringify(input.metadata),
-        input.source,
-        input.sessionId ?? '',
-        input.reminderDate ?? '',
-        input.reminderAt ?? '',
-      ]
-    );
+        metadata: input.metadata,
+        source: input.source,
+        sessionId: input.sessionId ?? '',
+        reminderAt: input.reminderAt ? new Date(input.reminderAt) : null,
+        sizeBytes: input.sizeBytes ?? (input.markdown ? Buffer.byteLength(input.markdown, 'utf8') : 0),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(notes.userId, userId), eq(notes.id, input.id!)))
+      .returning();
 
     if (input.categoryIds) {
-      await client.query('delete from kb_note_categories where note_id = $1', [input.id]);
-      for (const catId of input.categoryIds) {
-        await client.query(
-          'insert into kb_note_categories (note_id, category_id) values ($1, $2) on conflict do nothing',
-          [input.id, catId]
-        );
+      await dbOrTx
+        .delete(noteCategories)
+        .where(eq(noteCategories.noteId, input.id!));
+      
+      if (input.categoryIds.length > 0) {
+        await dbOrTx
+          .insert(noteCategories)
+          .values(
+            input.categoryIds.map((catId) => ({
+              noteId: input.id!,
+              categoryId: catId,
+            }))
+          )
+          .onConflictDoNothing();
       }
     }
+    await this.syncNoteLinks(dbOrTx, userId, input.id!, input);
+    return { rows: updateResult };
+  }
 
-    return updateResult;
+  async updateBodySearchText(userId: string, noteId: string, bodySearchText: string) {
+    await this.database.getDb()
+      .update(notes)
+      .set({
+        bodySearchText,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(notes.userId, userId), eq(notes.id, noteId)));
   }
 
   private async resolveNotePage(input: ListNotesInput, whereCondition: any) {
@@ -782,7 +987,48 @@ export class PostgresNoteRepository {
       next: row?.next_id ? { id: row.next_id, title: row.next_title ?? '' } : null,
     };
   }
+
+  async getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw> {
+    const db = this.database.getDb();
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+
+    const [dbNotes, dbAsks] = await Promise.all([
+      db
+        .select({
+          createdAt: notes.createdAt,
+          sourceChannel: notes.sourceChannel,
+          source: notes.source,
+        })
+        .from(notes)
+        .where(and(eq(notes.userId, userId), gte(notes.createdAt, ninetyDaysAgo))),
+      db
+        .select({
+          createdAt: askHistory.createdAt,
+        })
+        .from(askHistory)
+        .where(and(eq(askHistory.userId, userId), gte(askHistory.createdAt, ninetyDaysAgo))),
+    ]);
+
+    const activities = [
+      ...dbNotes.map((n) => ({
+        createdAt: n.createdAt.toISOString(),
+        type: 'note' as const,
+        isAi: n.sourceChannel === 'ai-chat' || isAiSource(n.source),
+      })),
+      ...dbAsks.map((a) => ({
+        createdAt: a.createdAt.toISOString(),
+        type: 'ask' as const,
+        isAi: true,
+      })),
+    ];
+
+    return {
+      activities,
+    };
+  }
 }
+
 
 function projectTimelineItem(record: NoteRecord) {
   const summary = noteSummary(record);
@@ -794,16 +1040,18 @@ function projectTimelineItem(record: NoteRecord) {
   };
 }
 
-function projectTimelineCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderDate' | 'reminderAt'>): ProjectTimelineFilterCategory {
-  if (hasTimelineReminder(record)) return 'reminder';
-  if (record.sourceChannel === 'github-push') return 'github-push';
-  if (record.sourceChannel === 'whatsapp') return 'whatsapp';
-  if (record.sourceChannel === 'ai-chat') return 'ai-chat';
-  return 'manual';
+function projectTimelineCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderAt'>): ProjectTimelineFilterCategory {
+  if (hasTimelineReminder(record)) return TimelineCategory.Reminder;
+  if (record.sourceChannel === SourceChannel.Github || record.sourceChannel === 'github-push') return TimelineCategory.Github;
+  if (record.sourceChannel === SourceChannel.Whatsapp) return TimelineCategory.Whatsapp;
+  if (record.sourceChannel === SourceChannel.AiChat) return TimelineCategory.AiChat;
+  if (record.sourceChannel === SourceChannel.Cli) return TimelineCategory.Manual;
+  if (record.sourceChannel === SourceChannel.Ide) return TimelineCategory.Manual;
+  return TimelineCategory.Manual;
 }
 
-function hasTimelineReminder(record: Pick<NoteRecord, 'reminderDate' | 'reminderAt'>) {
-  return Boolean(record.reminderDate.trim() || record.reminderAt.trim());
+function hasTimelineReminder(record: Pick<NoteRecord, 'reminderAt'>) {
+  return Boolean(record.reminderAt);
 }
 
 function appendTimelineFolderClause(
@@ -827,27 +1075,31 @@ function appendTimelineFolderClause(
   clauses.push(`n.folder_id = $${values.length}`);
 }
 
-function appendTimelineCategoryClause(clauses: string[], category: ListProjectTimelineInput['category']) {
-  const noReminder = "(n.reminder_date = '' and n.reminder_at = '')";
-  if (category === 'all') return;
-  if (category === 'reminder') {
-    clauses.push("(n.reminder_date <> '' or n.reminder_at <> '')");
+function appendTimelineCategoryClause(clauses: string[], values: unknown[], category: ListProjectTimelineInput['category']) {
+  const noReminder = "(n.reminder_at IS NULL)";
+  if (category === TimelineCategory.All) return;
+  if (category === TimelineCategory.Reminder) {
+    clauses.push("(n.reminder_at IS NOT NULL)");
     return;
   }
   clauses.push(noReminder);
-  if (category === 'github-push') {
-    clauses.push("n.source_channel = 'github-push'");
+  if (category === TimelineCategory.Github) {
+    values.push(SourceChannel.Github);
+    clauses.push(`n.source_channel = $${values.length}`);
     return;
   }
-  if (category === 'whatsapp') {
-    clauses.push("n.source_channel = 'whatsapp'");
+  if (category === TimelineCategory.Whatsapp) {
+    values.push(SourceChannel.Whatsapp);
+    clauses.push(`n.source_channel = $${values.length}`);
     return;
   }
-  if (category === 'ai-chat') {
-    clauses.push("n.source_channel = 'ai-chat'");
+  if (category === TimelineCategory.AiChat) {
+    values.push(SourceChannel.AiChat);
+    clauses.push(`n.source_channel = $${values.length}`);
     return;
   }
-  clauses.push("n.source_channel <> 'github-push'");
-  clauses.push("n.source_channel <> 'whatsapp'");
-  clauses.push("n.source_channel <> 'ai-chat'");
+  values.push(SourceChannel.Github, SourceChannel.Whatsapp, SourceChannel.AiChat);
+  clauses.push(`n.source_channel <> $${values.length - 2}`);
+  clauses.push(`n.source_channel <> $${values.length - 1}`);
+  clauses.push(`n.source_channel <> $${values.length}`);
 }

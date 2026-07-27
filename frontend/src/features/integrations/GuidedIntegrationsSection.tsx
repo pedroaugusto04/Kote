@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 
 import { formatDisplayToken } from '../../shared/utils/format';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
-import { INTEGRATION_LOGOS, INTEGRATION_MESSAGES } from './integrations.constants';
+import { INTEGRATION_LOGOS, INTEGRATION_MESSAGES, IntegrationProvider } from './integrations.constants';
 import {
   connectIntegration,
   fetchGithubRepositories,
@@ -29,15 +29,25 @@ import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
 import { useGlobalLoading } from '../../app/global-loading';
 import { withFrontendBasePath } from '../../app/base-path';
+import { StoredIntegrationStatus } from '../../shared/api/enums';
+import { CDNImage } from '../../shared/ui/CDNImage';
+import { GitHubIcon } from '../../shared/ui/icons';
+import { BrandMark } from '../../shared/ui/brand-mark';
+import { GithubBackfillOptInModal } from './GithubBackfillOptInModal';
+import {
+  markBackfillDeclined,
+  storeBackfillJob,
+} from './backfill-storage';
+import { GithubPrivacyModal } from './GithubPrivacyModal';
 
 const statusTone: Record<DisplayStatus | string, string> = {
-  connected: 'low',
-  missing: 'high',
-  revoked: 'medium',
-  pending: 'medium',
+  [StoredIntegrationStatus.Connected]: 'low',
+  [StoredIntegrationStatus.Missing]: 'high',
+  [StoredIntegrationStatus.Revoked]: 'medium',
+  [StoredIntegrationStatus.Pending]: 'medium',
+  [StoredIntegrationStatus.Error]: 'high',
+  [StoredIntegrationStatus.Disabled]: 'medium',
   expired: 'high',
-  error: 'high',
-  disabled: 'medium',
 };
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -74,13 +84,13 @@ function buildChatComposeUrl(connection: IntegrationConnectionResponse): string 
   const text = (connection.instruction || '').trim();
   if (!text) return '';
   const encoded = encodeURIComponent(text);
-  if (connection.provider === 'whatsapp') return `${INTEGRATION_MESSAGES.WHATSAPP_BASE_URL}${WHATSAPP_NUMBER}?text=${encoded}`;
-  if (connection.provider === 'telegram') return `${INTEGRATION_MESSAGES.TELEGRAM_BASE_URL}${TELEGRAM_BOT_USERNAME}`;
+  if (connection.provider === IntegrationProvider.Whatsapp) return `${INTEGRATION_MESSAGES.WHATSAPP_BASE_URL}${WHATSAPP_NUMBER}?text=${encoded}`;
+  if (connection.provider === IntegrationProvider.Telegram) return `${INTEGRATION_MESSAGES.TELEGRAM_BASE_URL}${TELEGRAM_BOT_USERNAME}`;
   return '';
 }
 
 function IntegrationLogo({ integration }: { integration: UserIntegration }) {
-  if (integration.provider === 'push-notifications') {
+  if (integration.provider === IntegrationProvider.PushNotifications) {
     return (
       <div
         className="integration-logo"
@@ -109,10 +119,20 @@ function IntegrationLogo({ integration }: { integration: UserIntegration }) {
   }
   const logo = INTEGRATION_LOGOS[integrationId(integration)];
   if (!logo) return <div className="integration-logo-fallback">{integration.name.slice(0, 2).toUpperCase()}</div>;
-  const logoClassName = integration.provider === 'github-app'
+  const logoClassName = integration.provider === IntegrationProvider.GithubApp
     ? 'integration-logo integration-logo-github-app'
     : 'integration-logo';
-  return <img alt={`${logo.label} logo`} className={logoClassName} src={logo.src} />;
+
+  const fallback = <div className="integration-logo-fallback">{integration.name.slice(0, 2).toUpperCase()}</div>;
+
+  return (
+    <CDNImage
+      alt={`${logo.label} logo`}
+      className={logoClassName}
+      src={logo.src}
+      fallback={fallback}
+    />
+  );
 }
 
 function IntegrationSteps({ integration }: { integration: UserIntegration }) {
@@ -131,20 +151,20 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
   const sessionQuery = useQuery({
     queryKey: ['integration-session', workspaceSlug, connection.provider, session?.id],
     queryFn: () => fetchIntegrationSession({ provider: connection.provider, sessionId: session?.id || '' }),
-    enabled: session?.status === 'pending',
-    refetchInterval: (query) => query.state.data?.session.status === 'pending' ? 2500 : false,
+    enabled: session?.status === StoredIntegrationStatus.Pending,
+    refetchInterval: (query) => query.state.data?.session.status === StoredIntegrationStatus.Pending ? 2500 : false,
   });
   const currentSession = sessionQuery.data?.session || session;
-  const providerLabel = connection.provider === 'telegram' ? INTEGRATION_MESSAGES.PROVIDER_LABELS.telegram : INTEGRATION_MESSAGES.PROVIDER_LABELS.whatsapp;
+  const providerLabel = connection.provider === IntegrationProvider.Telegram ? INTEGRATION_MESSAGES.PROVIDER_LABELS[IntegrationProvider.Telegram] : INTEGRATION_MESSAGES.PROVIDER_LABELS[IntegrationProvider.Whatsapp];
 
   useEffect(() => {
-    if (currentSession?.status === 'connected') {
+    if (currentSession?.status === StoredIntegrationStatus.Connected) {
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     }
   }, [currentSession?.status, queryClient, workspaceSlug]);
 
-  const isWhatsApp = connection.provider === 'whatsapp';
+  const isWhatsApp = connection.provider === IntegrationProvider.Whatsapp;
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -226,7 +246,7 @@ function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connectio
   );
 }
 
-function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspaceSlug: string; onClose: () => void; onSaved?: () => void }) {
+function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspaceSlug: string; onClose: () => void; onSaved?: (repositories: string[]) => void }) {
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
@@ -260,12 +280,15 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
       workspaceSlug,
       repositories.filter((repo) => values.repositories.includes(repo.id)).map((repo) => ({ id: repo.id, fullName: repo.fullName })),
     )),
-    onSuccess: () => {
+    onSuccess: (_result, values) => {
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       notifySuccess(INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SUCCESS);
       closeGuard.resetCloseGuard();
-      onSaved?.();
+      const savedRepositories = repositories
+        .filter((repo) => values.repositories.includes(repo.id))
+        .map((repo) => repo.fullName);
+      onSaved?.(savedRepositories);
       onClose();
     },
     onError: (error) => {
@@ -287,51 +310,51 @@ function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspac
   return (
     <>
       <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
-      <section aria-labelledby="github-repositories-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
-        <div className="modal-head">
-          <div>
-            <div className="card-kicker">github-app</div>
-            <h2 id="github-repositories-title">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.TITLE}</h2>
+        <section aria-labelledby="github-repositories-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
+          <div className="modal-head">
+            <div>
+              <div className="card-kicker">{IntegrationProvider.GithubApp}</div>
+              <h2 id="github-repositories-title">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.TITLE}</h2>
+            </div>
+            <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
-          <button aria-label="Close details" className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
-        </div>
 
-        {repositoriesQuery.isLoading ? <p className="meta">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.LOADING}</p> : null}
-        {repositoriesQuery.isError ? <InlineMessage tone="error">{getErrorMessage(repositoriesQuery.error, INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.ERROR)}</InlineMessage> : null}
-        <form
-          className="auth-form"
-          ref={formRef}
-          noValidate
-          onSubmit={handleSubmit(
-            (values) => saveMutation.mutate(values),
-            (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
-          )}
-        >
-          <div className="repository-picker" data-field="repositories" aria-label="GitHub repository list">
-            {repositories.map((repository) => (
-              <label className="repository-option" key={repository.id}>
-                <input
-                  checked={selected.includes(repository.id)}
-                  disabled={saveMutation.isPending}
-                  name="repositories"
-                  type="checkbox"
-                  value={repository.id}
-                  onChange={() => toggle(repository)}
-                />
-                <span>
-                  <strong>{repository.fullName}</strong>
-                  <small>{repository.private ? 'Private' : 'Public'}</small>
-                </span>
-              </label>
-            ))}
-          </div>
-          {errors.repositories?.message ? <p className="form-error" role="alert">{errors.repositories.message}</p> : null}
-          <div className="integration-card-foot">
-            <span className="meta">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SELECTED.replace('{count}', String(selected.length))}</span>
-            <FormActions disabled={saveMutation.isPending} onCancel={closeGuard.requestClose} submitLabel={INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SAVE} />
-          </div>
-        </form>
-      </section>
+          {repositoriesQuery.isLoading ? <p className="meta">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.LOADING}</p> : null}
+          {repositoriesQuery.isError ? <InlineMessage tone="error">{getErrorMessage(repositoriesQuery.error, INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.ERROR)}</InlineMessage> : null}
+          <form
+            className="auth-form"
+            ref={formRef}
+            noValidate
+            onSubmit={handleSubmit(
+              (values) => saveMutation.mutate(values),
+              (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
+            )}
+          >
+            <div className="repository-picker" data-field="repositories" aria-label={INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORY_LIST_ARIA}>
+              {repositories.map((repository) => (
+                <label className="repository-option" key={repository.id}>
+                  <input
+                    checked={selected.includes(repository.id)}
+                    disabled={saveMutation.isPending}
+                    name="repositories"
+                    type="checkbox"
+                    value={repository.id}
+                    onChange={() => toggle(repository)}
+                  />
+                  <span>
+                    <strong>{repository.fullName}</strong>
+                    <small>{repository.private ? UI_MESSAGES.PRIVATE : UI_MESSAGES.PUBLIC}</small>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {errors.repositories?.message ? <p className="form-error" role="alert">{errors.repositories.message}</p> : null}
+            <div className="integration-card-foot">
+              <span className="meta">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SELECTED.replace('{count}', String(selected.length))}</span>
+              <FormActions disabled={saveMutation.isPending} onCancel={closeGuard.requestClose} submitLabel={INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SAVE} />
+            </div>
+          </form>
+        </section>
       </div>
       {closeGuard.isDiscardConfirmationOpen ? (
         <ConfirmationModal
@@ -363,9 +386,10 @@ function IntegrationCard({
 }) {
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const connectMutation = useMutation({
     mutationFn: async () => {
-      if (integration.provider === 'push-notifications') {
+      if (integration.provider === IntegrationProvider.PushNotifications) {
         if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
           throw new Error(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.BROWSER_NOT_SUPPORTED);
         }
@@ -403,13 +427,13 @@ function IntegrationCard({
       return connectIntegration({ provider: integration.provider, workspaceSlug, returnToPath });
     },
     onSuccess: (result: any) => {
-      if (integration.provider === 'push-notifications') {
+      if (integration.provider === IntegrationProvider.PushNotifications) {
         notifySuccess(INTEGRATION_MESSAGES.PUSH_NOTIFICATIONS.SUCCESS);
         queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
         return;
       }
       if (result.primaryAction?.url) {
-        openExternalIntegration(result.primaryAction.url, integration.provider === 'github-app' ? '_self' : '_blank');
+        openExternalIntegration(result.primaryAction.url, integration.provider === IntegrationProvider.GithubApp ? '_self' : '_blank');
         return;
       }
       if (result.session) onCodeConnection(result);
@@ -419,10 +443,10 @@ function IntegrationCard({
   });
   const revokeMutation = useMutation({
     mutationFn: async () => {
-      if (integration.provider === 'push-notifications') {
+      if (integration.provider === IntegrationProvider.PushNotifications) {
         if ('serviceWorker' in navigator && 'PushManager' in window) {
           const registration = await navigator.serviceWorker.ready;
-          const subscription = await registration.pushManager.getSubscription();
+          const subscription = await navigator.serviceWorker.ready.then((reg) => reg.pushManager.getSubscription());
           if (subscription) {
             await subscription.unsubscribe();
             try {
@@ -440,13 +464,24 @@ function IntegrationCard({
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
     },
   });
-  const connected = integration.status === 'connected';
-  const actionLabel = connected ? integration.primaryAction?.label || 'Revoke' : integration.primaryAction?.label || 'Connect';
+  const connected = integration.status === StoredIntegrationStatus.Connected;
+  const unavailable = integration.status === StoredIntegrationStatus.Disabled;
+  const actionLabel = connected ? integration.primaryAction?.label || INTEGRATION_MESSAGES.GENERAL.REVOKE : integration.primaryAction?.label || INTEGRATION_MESSAGES.GENERAL.CONNECT;
   const actionError = connectMutation.isError
     ? getErrorMessage(connectMutation.error, INTEGRATION_MESSAGES.GENERAL.ACTIVATE_ERROR)
     : revokeMutation.isError
       ? getErrorMessage(revokeMutation.error, INTEGRATION_MESSAGES.GENERAL.REVOKE_ERROR)
       : '';
+
+  const handleConnectClick = () => {
+    if (connected) {
+      revokeMutation.mutate();
+    } else if (integration.provider === IntegrationProvider.GithubApp) {
+      setShowPrivacyModal(true);
+    } else {
+      connectMutation.mutate();
+    }
+  };
 
   return (
     <Panel className="integration-card">
@@ -459,33 +494,194 @@ function IntegrationCard({
       </div>
       <div className="integration-card-body">
         <IntegrationSteps integration={integration} />
-        {integration.connectedAccount ? <p className="meta">Account: {integration.connectedAccount}</p> : null}
+        {integration.connectedAccount ? <p className="meta">{INTEGRATION_MESSAGES.GENERAL.ACCOUNT_LABEL.replace('{account}', integration.connectedAccount)}</p> : null}
         {integration.lastError ? <InlineMessage tone="error">{integration.lastError}</InlineMessage> : null}
         {actionError ? <InlineMessage tone="error">{actionError}</InlineMessage> : null}
       </div>
       <div className="integration-card-foot">
         <Badge value={formatDisplayToken(integration.status)} tone={statusTone[integration.status] || 'medium'} />
         <div className="integration-actions">
-          {integration.provider === 'github-app' && connected ? <button className="filter-chip" type="button" onClick={onGithubRepositories}>Repositories</button> : null}
+          {integration.provider === IntegrationProvider.GithubApp && connected ? <button className="filter-chip" type="button" onClick={onGithubRepositories}>{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORIES_BUTTON}</button> : null}
           <button
             className={connected ? 'filter-chip' : 'icon-button'}
-            disabled={connectMutation.isPending || revokeMutation.isPending}
+            disabled={unavailable || connectMutation.isPending || revokeMutation.isPending}
             type="button"
-            onClick={() => connected ? revokeMutation.mutate() : connectMutation.mutate()}
+            onClick={handleConnectClick}
           >
             {actionLabel}
           </button>
         </div>
       </div>
+      {showPrivacyModal && (
+        <GithubPrivacyModal
+          onClose={() => setShowPrivacyModal(false)}
+          onConfirm={() => connectMutation.mutate()}
+        />
+      )}
     </Panel>
   );
 }
 
-export function IntegrationCallbackNotice({ status }: { status: 'connected' | 'error' }) {
+export function IntegrationCallbackNotice({ status }: { status: StoredIntegrationStatus.Connected | StoredIntegrationStatus.Error }) {
   return (
-    <InlineMessage tone={status === 'connected' ? 'success' : 'error'}>
-      {status === 'connected' ? 'GitHub connected. Select the workspace repositories.' : 'Could not complete the GitHub connection.'}
+    <InlineMessage tone={status === StoredIntegrationStatus.Connected ? 'success' : 'error'}>
+      {status === StoredIntegrationStatus.Connected ? UI_MESSAGES.GITHUB_CONNECTED_SUCCESS : UI_MESSAGES.GITHUB_CONNECTION_ERROR}
     </InlineMessage>
+  );
+}
+
+function GithubSuccessInfoModal({ onClose, onNext }: { onClose: () => void; onNext: () => void }) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <section
+        aria-labelledby="github-success-title"
+        aria-modal="true"
+        className="modal-panel integration-modal github-success-modal"
+        role="dialog"
+        onClick={(event) => event.stopPropagation()}
+        style={{
+          maxWidth: '500px',
+          width: '90%',
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px',
+        }}
+      >
+        <div className="modal-head" style={{ width: '100%', display: 'flex', justifyContent: 'flex-end', border: 'none', padding: 0, margin: 0 }}>
+          <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={onClose}>x</button>
+        </div>
+
+        <div style={{
+          width: '100%',
+          aspectRatio: '16/10',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          border: '1px solid var(--accent-border)',
+          background: 'radial-gradient(circle at center, rgba(125, 211, 165, 0.08) 0%, rgba(9, 15, 20, 0.6) 100%)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '32px',
+          position: 'relative',
+        }}>
+          <style>{`
+            @keyframes link-pulse {
+              0% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 12px rgba(125, 211, 165, 0.2); }
+              50% { transform: scale(1.05); opacity: 1; box-shadow: 0 0 24px rgba(125, 211, 165, 0.6); }
+              100% { transform: scale(0.95); opacity: 0.8; box-shadow: 0 0 12px rgba(125, 211, 165, 0.2); }
+            }
+            @keyframes line-flow {
+              0% { stroke-dashoffset: 24; }
+              100% { stroke-dashoffset: 0; }
+            }
+          `}</style>
+
+          {/* Left element: Kote brand mark */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            background: 'var(--brand-mark-bg)',
+            border: '1px solid var(--brand-mark-border)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 2,
+          }}>
+            <BrandMark />
+          </div>
+
+          {/* Connection line in between with animated path flow */}
+          <div style={{
+            position: 'relative',
+            width: '100px',
+            height: '40px',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1,
+          }}>
+            <svg width="100%" height="100%" viewBox="0 0 100 40" fill="none" style={{ overflow: 'visible' }}>
+              <path
+                d="M 0,20 Q 50,20 100,20"
+                stroke="var(--success-border, var(--green))"
+                strokeWidth="3"
+                strokeDasharray="6 4"
+                style={{ animation: 'line-flow 1.5s infinite linear' }}
+              />
+            </svg>
+            <div style={{
+              position: 'absolute',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              background: 'var(--green)',
+              border: '2px solid var(--panel)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--bg)',
+              fontWeight: 'bold',
+              fontSize: '12px',
+              animation: 'link-pulse 2s infinite ease-in-out',
+            }}>
+              ✓
+            </div>
+          </div>
+
+          {/* Right element: GitHub logo */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '60px',
+            height: '60px',
+            borderRadius: '50%',
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--accent-border)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+            zIndex: 2,
+          }}>
+            <GitHubIcon style={{ width: '28px', height: '28px', color: 'var(--text-strong)' }} />
+          </div>
+        </div>
+
+        <div style={{ textAlign: 'center' }}>
+          <h2 id="github-success-title" style={{ fontSize: '24px', fontWeight: 800, margin: '0 0 12px 0', background: 'linear-gradient(135deg, var(--cyan) 0%, var(--primary) 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            {UI_MESSAGES.GITHUB_CONNECTED}
+          </h2>
+          <p style={{ color: 'var(--text)', lineHeight: 1.6, fontSize: '15px', margin: 0 }}>
+            {INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SUCCESS_INSTRUCTION}
+          </p>
+        </div>
+
+        <div className="form-actions" style={{ width: '100%', justifyContent: 'center', marginTop: '8px', gap: '12px' }}>
+          <button className="filter-chip" type="button" onClick={onClose} style={{ minWidth: '100px', cursor: 'pointer' }}>
+            {UI_MESSAGES.DONE}
+          </button>
+          <button className="icon-button" type="button" onClick={onNext} style={{ minWidth: '180px', cursor: 'pointer' }}>
+            {UI_MESSAGES.SELECT_REPOSITORIES}
+          </button>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -502,12 +698,14 @@ export function GuidedIntegrationsSection({
   returnToPath: string;
   providers?: string[];
   defaultOpenGithubRepositories?: boolean;
-  onGithubRepositoriesSaved?: () => void;
+  onGithubRepositoriesSaved?: (repositories: string[]) => void;
   onLoaded?: (integrations: UserIntegration[]) => void;
   children?: React.ReactNode;
 }) {
   const [codeConnection, setCodeConnection] = useState<IntegrationConnectionResponse | null>(null);
   const [showGithubRepositories, setShowGithubRepositories] = useState(false);
+  const [showGithubSuccessModal, setShowGithubSuccessModal] = useState(false);
+  const [pendingBackfillRepositories, setPendingBackfillRepositories] = useState<string[] | null>(null);
   const didAutoOpen = useRef(false);
   const queryClient = useQueryClient();
   const integrationsQuery = useQuery({ queryKey: ['integrations', workspaceSlug], queryFn: () => fetchIntegrations(workspaceSlug), enabled: Boolean(workspaceSlug) });
@@ -530,15 +728,17 @@ export function GuidedIntegrationsSection({
 
   useEffect(() => {
     if (didAutoOpen.current || !defaultOpenGithubRepositories) return;
-    if (integrations.some((integration) => integration.provider === 'github-app' && integration.status === 'connected')) {
-      setShowGithubRepositories(true);
+    if (integrations.some((integration) => integration.provider === IntegrationProvider.GithubApp && integration.status === StoredIntegrationStatus.Connected)) {
+      setShowGithubSuccessModal(true);
       didAutoOpen.current = true;
     }
   }, [defaultOpenGithubRepositories, integrations]);
 
-  if (!workspaceSlug) return <EmptyState>Create a workspace to continue.</EmptyState>;
-  if (integrationsQuery.isLoading) return <EmptyState>Loading integrations...</EmptyState>;
-  if (!integrationsQuery.data) return <InlineMessage tone="error">{getErrorMessage(integrationsQuery.error, 'Could not load integration status.')}</InlineMessage>;
+  const backfillLimit = integrationsQuery.data?.githubBackfillLimit ?? 5;
+
+  if (!workspaceSlug) return <EmptyState>{INTEGRATION_MESSAGES.GENERAL.CREATE_WORKSPACE_REQUIRED}</EmptyState>;
+  if (integrationsQuery.isLoading) return <EmptyState>{INTEGRATION_MESSAGES.GENERAL.LOADING}</EmptyState>;
+  if (!integrationsQuery.data) return <InlineMessage tone="error">{getErrorMessage(integrationsQuery.error, INTEGRATION_MESSAGES.GENERAL.LOAD_ERROR)}</InlineMessage>;
 
   const cards = integrations.map((integration) => (
     <IntegrationCard
@@ -558,7 +758,40 @@ export function GuidedIntegrationsSection({
         {children}
       </section>
       {codeConnection ? <CodeConnectionModal connection={codeConnection} onClose={() => setCodeConnection(null)} workspaceSlug={workspaceSlug} /> : null}
-      {showGithubRepositories ? <GithubRepositoriesModal workspaceSlug={workspaceSlug} onClose={() => setShowGithubRepositories(false)} onSaved={onGithubRepositoriesSaved} /> : null}
+      {showGithubSuccessModal ? (
+        <GithubSuccessInfoModal
+          onClose={() => setShowGithubSuccessModal(false)}
+          onNext={() => {
+            setShowGithubSuccessModal(false);
+            setShowGithubRepositories(true);
+          }}
+        />
+      ) : null}
+      {showGithubRepositories ? (
+        <GithubRepositoriesModal
+          workspaceSlug={workspaceSlug}
+          onClose={() => setShowGithubRepositories(false)}
+          onSaved={(repositories) => {
+            onGithubRepositoriesSaved?.(repositories);
+            if (repositories.length > 0) {
+              setPendingBackfillRepositories(repositories);
+            }
+          }}
+        />
+      ) : null}
+      {pendingBackfillRepositories?.length ? (
+        <GithubBackfillOptInModal
+          workspaceSlug={workspaceSlug}
+          repositories={pendingBackfillRepositories}
+          backfillLimit={backfillLimit}
+          onClose={() => setPendingBackfillRepositories(null)}
+          onDeclined={() => markBackfillDeclined(workspaceSlug)}
+          onStarted={(jobId) => {
+            storeBackfillJob(workspaceSlug, jobId);
+            setPendingBackfillRepositories(null);
+          }}
+        />
+      ) : null}
     </>
   );
 }

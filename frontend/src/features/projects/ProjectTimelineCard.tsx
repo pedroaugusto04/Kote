@@ -2,6 +2,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import type { ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import { formatDisplayToken, formatUsDate, formatUsDateTime, getCleanSummary, getTimelineNodeColor, projectName } from '../../shared/utils/format';
+import { makeTitleClickable } from '../../shared/utils/text';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { Badge, Tags } from '../../shared/ui/primitives';
 import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
@@ -39,6 +40,7 @@ export function ProjectTimelineCard({
 }) {
   const activeSource = item.source || item.sourceChannel;
   const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
+  const { text: titleText, url: titleUrl } = makeTitleClickable(item.title);
 
   return (
     <article
@@ -92,8 +94,16 @@ export function ProjectTimelineCard({
         )}
         <div className="project-timeline-body">
           <div>
-            <h3>{item.title}</h3>
-            <SourceBadge source={activeSource} />
+            <h3>
+              {titleUrl ? (
+                <>
+                  {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
+                </>
+              ) : (
+                item.title
+              )}
+            </h3>
+            <SourceBadge source={activeSource} iconSize={16} />
             <p>{getCleanSummary(item.summary)}</p>
           </div>
           <div className="row-actions" style={{ display: 'flex', alignItems: 'center', gap: '6px', alignSelf: 'flex-end', marginTop: 'auto' }}>

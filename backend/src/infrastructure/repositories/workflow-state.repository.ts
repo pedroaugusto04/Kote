@@ -2,11 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { eq, and, sql } from 'drizzle-orm';
 
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/reminders/workflow-state.repository.js';
-import type { ReminderDispatchMode } from '../../contracts/enums.js';
+import { ReminderDispatchMode } from '../../contracts/enums.js';
 import type { RecordReminderDispatchFailureInput, ReminderDispatchRetryKey } from '../../application/models/reminder-dispatch.models.js';
 import { conversationStateFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { conversationStates, reminderDispatchState, reminderDispatchFailures, workspaces } from '../persistence/schema/index.js';
+import { resolveWorkspaceId } from './utils/id-resolution.helpers.js';
 
 @Injectable()
 export class PostgresWorkflowStateRepository extends ConversationStateRepository implements ReminderDispatchRepository {
@@ -14,23 +15,9 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
     super();
   }
 
-  private async resolveWorkspaceId(userId: string, workspaceSlug: string): Promise<string> {
-    const db = this.database.getDb();
-    const result = await db
-      .select({ id: workspaces.id })
-      .from(workspaces)
-      .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
-      .limit(1);
-    
-    if (result.length === 0) {
-      throw new Error(`Workspace not found for slug: ${workspaceSlug}`);
-    }
-    return result[0].id;
-  }
-
   async get(userId: string, workspaceSlug: string, conversationKey: string) {
     const db = this.database.getDb();
-    const workspaceId = await this.resolveWorkspaceId(userId, workspaceSlug);
+    const workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
     const result = await db
       .select()
       .from(conversationStates)
@@ -46,7 +33,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
 
   async upsert(userId: string, workspaceSlug: string, conversationKey: string, state: unknown) {
     const db = this.database.getDb();
-    const workspaceId = await this.resolveWorkspaceId(userId, workspaceSlug);
+    const workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
     const result = await db
       .insert(conversationStates)
       .values({
@@ -69,7 +56,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
 
   async clear(userId: string, workspaceSlug: string, conversationKey: string) {
     const db = this.database.getDb();
-    const workspaceId = await this.resolveWorkspaceId(userId, workspaceSlug);
+    const workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
     await db
       .delete(conversationStates)
       .where(and(
@@ -81,14 +68,14 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
 
   async hasSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string) {
     const db = this.database.getDb();
-    const workspaceId = await this.resolveWorkspaceId(userId, workspaceSlug);
+    const workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
     const result = await db
       .select()
       .from(reminderDispatchState)
       .where(and(
         eq(reminderDispatchState.userId, userId),
         eq(reminderDispatchState.workspaceId, workspaceId),
-        eq(reminderDispatchState.mode, mode as any),
+        eq(reminderDispatchState.mode, mode as ReminderDispatchMode),
         eq(reminderDispatchState.dispatchKey, dispatchKey),
         eq(reminderDispatchState.reminderId, reminderId)
       ))
@@ -99,13 +86,13 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
 
   async markSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string) {
     const db = this.database.getDb();
-    const workspaceId = await this.resolveWorkspaceId(userId, workspaceSlug);
+    const workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
     await db
       .insert(reminderDispatchState)
       .values({
         userId,
         workspaceId,
-        mode: mode as any,
+        mode: mode as ReminderDispatchMode,
         dispatchKey,
         reminderId,
       })
@@ -114,7 +101,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
 
   async getRetryState(input: ReminderDispatchRetryKey) {
     const db = this.database.getDb();
-    const workspaceId = await this.resolveWorkspaceId(input.userId, input.workspaceSlug);
+    const workspaceId = await resolveWorkspaceId(this.database, input.userId, input.workspaceSlug);
     const result = await db
       .select({
         attemptCount: reminderDispatchFailures.attemptCount,
@@ -126,7 +113,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
       .where(and(
         eq(reminderDispatchFailures.userId, input.userId),
         eq(reminderDispatchFailures.workspaceId, workspaceId),
-        eq(reminderDispatchFailures.mode, input.mode as any),
+        eq(reminderDispatchFailures.mode, input.mode as ReminderDispatchMode),
         eq(reminderDispatchFailures.dispatchKey, input.dispatchKey),
         eq(reminderDispatchFailures.reminderId, input.reminderId),
         eq(reminderDispatchFailures.channel, input.channel)
@@ -144,7 +131,7 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
   }
 
   async recordFailure(input: RecordReminderDispatchFailureInput) {
-    const workspaceId = await this.resolveWorkspaceId(input.userId, input.workspaceSlug);
+    const workspaceId = await resolveWorkspaceId(this.database, input.userId, input.workspaceSlug);
     const result = await this.database.getPool().query(
       `insert into kb_reminder_dispatch_failures (
          user_id,
@@ -187,13 +174,13 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
 
   async clearFailure(input: ReminderDispatchRetryKey) {
     const db = this.database.getDb();
-    const workspaceId = await this.resolveWorkspaceId(input.userId, input.workspaceSlug);
+    const workspaceId = await resolveWorkspaceId(this.database, input.userId, input.workspaceSlug);
     await db
       .delete(reminderDispatchFailures)
       .where(and(
         eq(reminderDispatchFailures.userId, input.userId),
         eq(reminderDispatchFailures.workspaceId, workspaceId),
-        eq(reminderDispatchFailures.mode, input.mode as any),
+        eq(reminderDispatchFailures.mode, input.mode as ReminderDispatchMode),
         eq(reminderDispatchFailures.dispatchKey, input.dispatchKey),
         eq(reminderDispatchFailures.reminderId, input.reminderId),
         eq(reminderDispatchFailures.channel, input.channel)

@@ -18,6 +18,7 @@ import {
   attachments,
   workspaces,
   projects,
+  notes,
 } from '../persistence/schema/index.js';
 import {
   planFromRow,
@@ -41,7 +42,7 @@ export class PostgresQuotaRepository extends QuotaRepository {
         currentPeriodEnd: userSubscriptions.currentPeriodEnd,
         gatewayName: userSubscriptions.gatewayName,
         gatewaySubscriptionId: userSubscriptions.gatewaySubscriptionId,
-        gatewayCustomerId: userSubscriptions.gatewayCustomerId,
+        billingCycle: userSubscriptions.billingCycle,
         createdAt: userSubscriptions.createdAt,
         updatedAt: userSubscriptions.updatedAt,
         // plan fields
@@ -50,7 +51,7 @@ export class PostgresQuotaRepository extends QuotaRepository {
         plan_display_name: plans.displayName,
         plan_description: plans.description,
         plan_max_storage_bytes: plans.maxStorageBytes,
-        plan_max_ai_requests_per_month: plans.maxAiRequestsPerMonth,
+        plan_max_ai_credits_per_month: plans.maxAiCreditsPerMonth,
         plan_max_workspaces: plans.maxWorkspaces,
         plan_max_projects_per_workspace: plans.maxProjectsPerWorkspace,
         plan_price_cents: plans.priceCents,
@@ -75,7 +76,7 @@ export class PostgresQuotaRepository extends QuotaRepository {
       currentPeriodEnd: row.currentPeriodEnd.toISOString(),
       gatewayName: row.gatewayName,
       gatewaySubscriptionId: row.gatewaySubscriptionId,
-      gatewayCustomerId: row.gatewayCustomerId,
+      billingCycle: row.billingCycle,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       plan: {
@@ -84,7 +85,7 @@ export class PostgresQuotaRepository extends QuotaRepository {
         displayName: row.plan_display_name,
         description: row.plan_description,
         maxStorageBytes: Number(row.plan_max_storage_bytes),
-        maxAiRequestsPerMonth: row.plan_max_ai_requests_per_month,
+        maxAiCreditsPerMonth: row.plan_max_ai_credits_per_month,
         maxWorkspaces: row.plan_max_workspaces,
         maxProjectsPerWorkspace: row.plan_max_projects_per_workspace,
         priceCents: row.plan_price_cents,
@@ -161,12 +162,21 @@ export class PostgresQuotaRepository extends QuotaRepository {
 
   async getAttachmentStorageUsage(userId: string): Promise<number> {
     const db = this.database.getDb();
-    const result = await db
-      .select({ total: sum(attachments.sizeBytes) })
-      .from(attachments)
-      .where(eq(attachments.userId, userId));
+    const [attachmentsResult, notesResult] = await Promise.all([
+      db
+        .select({ total: sum(attachments.sizeBytes) })
+        .from(attachments)
+        .where(eq(attachments.userId, userId)),
+      db
+        .select({ total: sum(notes.sizeBytes) })
+        .from(notes)
+        .where(eq(notes.userId, userId)),
+    ]);
 
-    return Number(result[0]?.total || 0);
+    const totalAttachments = Number(attachmentsResult[0]?.total || 0);
+    const totalNotes = Number(notesResult[0]?.total || 0);
+
+    return totalAttachments + totalNotes;
   }
 
   async getWorkspaceCount(userId: string): Promise<number> {

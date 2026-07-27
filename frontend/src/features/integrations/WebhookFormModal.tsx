@@ -103,7 +103,7 @@ export function WebhookFormModal({ workspaceSlug, triggers, editing, onClose }: 
         >
           <div className="modal-head">
             <div>
-              <div className="card-kicker">webhook</div>
+              <div className="card-kicker">{WEBHOOK_MESSAGES.FORM.KICKER}</div>
               <h2 id="webhook-form-title">{editing ? WEBHOOK_MESSAGES.FORM.EDIT_TITLE : WEBHOOK_MESSAGES.FORM.NEW_TITLE}</h2>
             </div>
             <button aria-label={WEBHOOK_MESSAGES.CLOSE} className="modal-close" type="button" onClick={closeGuard.requestClose}>×</button>

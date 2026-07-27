@@ -11,6 +11,10 @@ import { ClaudeCodeHistoryProvider } from './ai-history/providers/claude-code.pr
 import { CodexHistoryProvider } from './ai-history/providers/codex.provider';
 import { AntigravityHistoryProvider } from './ai-history/providers/antigravity.provider';
 import { OpenCodeHistoryProvider } from './ai-history/providers/opencode.provider';
+import { KoteCodeLensProvider } from './providers/codelens.provider';
+import { KoteNoteContentProvider } from './providers/note-viewer.provider';
+import { FileNotesSummaryProvider } from './providers/file-notes-summary.provider';
+import { resolveProjectSlug } from './utils/project';
 
 let kbClient: KbClient;
 let sidebarProvider: SidebarViewProvider;
@@ -22,9 +26,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   kbClient.onUnauthorized = () => {
     logInfo('Extension', 'Session expired, triggering onAuthChange and reloading webview');
-    vscode.commands.executeCommand('kb.onAuthChange');
+    vscode.commands.executeCommand('kote.onAuthChange');
     sidebarProvider.reloadWebview();
-    vscode.window.showErrorMessage('Your Knowledge Base session has expired. Please log in again.');
+    vscode.window.showErrorMessage('Your Kote session has expired. Please log in again.');
   };
 
   // -------------------------------------------------------------------------
@@ -36,52 +40,29 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const folders = vscode.workspace.workspaceFolders ?? [];
   let activeProject: string | null = null;
 
+  /** Fetches coverage in the background and updates the status bar. */
+  async function setProjectWithCoverage(slug: string): Promise<void> {
+    statusBarProvider.setProject(slug);
+    const coverage = await kbClient.getProjectCoverage(slug).catch(() => null);
+    if (typeof coverage === 'number') {
+      statusBarProvider.setProject(slug, coverage);
+    }
+  }
+
   if (!isConfigured()) {
     statusBarProvider.setNotConfigured();
   } else {
     statusBarProvider.setConnecting();
     try {
-      activeProject = await detectActiveProject(kbClient, folders);
-    } catch { /* silent — will show in sidebar */ }
-    statusBarProvider.setProject(activeProject ?? kbClient.defaultProjectSlug);
-  }
-
-  // -------------------------------------------------------------------------
-  // Sidebar (Loads either Chat or Login form)
-  // -------------------------------------------------------------------------
-  sidebarProvider = new SidebarViewProvider(context.extensionUri, kbClient, activeProject);
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider('kb.sidebarView', sidebarProvider, {
-      webviewOptions: { retainContextWhenHidden: true },
-    }),
-  );
-
-  // -------------------------------------------------------------------------
-  // Commands
-  // -------------------------------------------------------------------------
-  context.subscriptions.push(
-    vscode.commands.registerCommand('kb.openChat', async () => {
-      logInfo('Extension', 'kb.openChat command triggered');
-      vscode.commands.executeCommand('kb.sidebarView.focus');
-    }),
-
-    vscode.commands.registerCommand('kb.refresh', () => {
-      sidebarProvider.refresh();
-    }),
-
-    vscode.commands.registerCommand('kb.onAuthChange', async () => {
-      logInfo('Extension', 'kb.onAuthChange command triggered');
-      kbClient.reload();
-      if (isConfigured()) {
-        try {
-          activeProject = await detectActiveProject(kbClient, folders);
-        } catch {}
-        statusBarProvider.setProject(activeProject ?? kbClient.defaultProjectSlug);
+      const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
+      if (savedProject !== null) {
+        activeProject = savedProject;
       } else {
-        statusBarProvider.setNotConfigured();
+        activeProject = await detectActiveProject(kbClient, folders);
       }
-    })
-  );
+    } catch { /* silent — will show in sidebar */ }
+    void setProjectWithCoverage(resolveProjectSlug(activeProject, kbClient.defaultProjectSlug));
+  }
 
   // -------------------------------------------------------------------------
   // AI Session Watchers
@@ -92,20 +73,105 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   historyManager.registerProvider(new AntigravityHistoryProvider());
   historyManager.registerProvider(new OpenCodeHistoryProvider());
 
+  // -------------------------------------------------------------------------
+  // Sidebar (Loads either Chat or Login form)
+  // -------------------------------------------------------------------------
+  sidebarProvider = new SidebarViewProvider(context.extensionUri, kbClient, activeProject, historyManager, context);
   context.subscriptions.push(
-    vscode.commands.registerCommand('kb.showRecentAiSessions', () => {
-      historyManager.showRecentSessions(kbClient);
+    vscode.window.registerWebviewViewProvider('kote.sidebarView', sidebarProvider, {
+      webviewOptions: { retainContextWhenHidden: true },
+    }),
+  );
+
+  // -------------------------------------------------------------------------
+  // Commands
+  // -------------------------------------------------------------------------
+  context.subscriptions.push(
+    vscode.commands.registerCommand('kote.openChat', async (args?: { question?: string; answer?: string; projectSlug?: string }) => {
+      logInfo('Extension', 'kote.openChat command triggered');
+      vscode.commands.executeCommand('kote.sidebarView.focus');
+      if (args?.question && args?.answer) {
+        // Give the webview a moment to get focus before injecting the Q&A
+        setTimeout(() => {
+          sidebarProvider.injectQA(args.question!, args.answer!, args.projectSlug ?? '');
+        }, 300);
+      }
+    }),
+
+    vscode.commands.registerCommand('kote.refresh', () => {
+      sidebarProvider.refresh();
+    }),
+
+    vscode.commands.registerCommand('kote.onAuthChange', async () => {
+      logInfo('Extension', 'kote.onAuthChange command triggered');
+      kbClient.reload();
+      if (isConfigured()) {
+        try {
+          const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
+          if (savedProject !== null) {
+            activeProject = savedProject;
+          } else {
+            activeProject = await detectActiveProject(kbClient, folders);
+          }
+        } catch {}
+        void setProjectWithCoverage(resolveProjectSlug(activeProject, kbClient.defaultProjectSlug));
+        // Fire-and-forget: notify the backend that the VS Code extension is installed
+        kbClient.reportVscodeInstalled().catch(() => { /* silent — best effort */ });
+      } else {
+        statusBarProvider.setNotConfigured();
+      }
+      vscode.commands.executeCommand('kote.refreshCodeLenses');
+    }),
+
+    vscode.commands.registerCommand('kote.updateStatusBar', (projectSlug: string) => {
+      if (statusBarProvider) {
+        void setProjectWithCoverage(resolveProjectSlug(projectSlug, kbClient.defaultProjectSlug));
+      }
     })
   );
 
-  historyManager.startWatching(kbClient, context);
+  context.subscriptions.push(
+    vscode.commands.registerCommand('kote.showRecentAiSessions', () => {
+      historyManager.showRecentSessions(kbClient);
+    }),
 
-  registerAskCommand(context, kbClient, () => sidebarProvider.activeProject ?? activeProject ?? kbClient.defaultProjectSlug);
+    vscode.commands.registerCommand('kote.configureAiSessionMode', () => {
+      historyManager.promptModeSelection(context);
+    }),
+
+    vscode.commands.registerCommand('kote.openSyncTab', () => {
+      sidebarProvider.switchToTab('sync');
+    })
+  );
+
+  const getActiveProjectSlug = () => resolveProjectSlug(sidebarProvider?.activeProject ?? activeProject, kbClient.defaultProjectSlug);
+  historyManager.startWatching(kbClient, context, getActiveProjectSlug);
+
+  registerAskCommand(context, kbClient, getActiveProjectSlug);
   registerSaveNoteCommand(
     context,
     kbClient,
-    () => sidebarProvider.activeProject ?? activeProject ?? kbClient.defaultProjectSlug,
+    getActiveProjectSlug,
     historyManager
+  );
+
+  // -------------------------------------------------------------------------
+  // CodeLens & Note Content Providers (Engineering Memory)
+  // -------------------------------------------------------------------------
+  const noteContentProvider = new KoteNoteContentProvider(kbClient);
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider('kote-note', noteContentProvider)
+  );
+
+  const codeLensProvider = new KoteCodeLensProvider(kbClient);
+  context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider({ scheme: 'file' }, codeLensProvider)
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('kote.showFileNotes', async (relativePath: string, notes: any[]) => {
+      await FileNotesSummaryProvider.show(context.extensionUri, kbClient, relativePath, notes);
+    })
   );
 
   // -------------------------------------------------------------------------
@@ -127,7 +193,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       try {
         const updated = await detectActiveProject(kbClient, updatedFolders);
         if (updated) {
-          statusBarProvider.setProject(updated);
+          void setProjectWithCoverage(updated);
           sidebarProvider.setActiveProject(updated);
         }
       } catch { /* silent */ }

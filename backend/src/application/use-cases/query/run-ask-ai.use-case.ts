@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 
 import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';
@@ -6,6 +7,12 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ResolveWhatsappAskAttachmentsUseCase } from './resolve-whatsapp-ask-attachments.use-case.js';
 import { WhatsappReplySender } from '../../ports/integrations/whatsapp-reply.sender.js';
 import { ConversationConfidence } from '../../../contracts/enums.js';
+import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
+
+export type RunAskAiScope = {
+  projectId?: string;
+  workspaceId?: string;
+};
 
 @Injectable()
 export class RunAskAiUseCase {
@@ -17,16 +24,29 @@ export class RunAskAiUseCase {
     private readonly whatsappReplySender: WhatsappReplySender,
   ) {}
 
-  async execute(question: string, userId: string, options: { projectSlug?: string; workspaceSlug?: string } = {}) {
+  async execute(
+    question: string,
+    userId: string,
+    scope: RunAskAiScope = {},
+    conversationId?: string | null,
+    conversationHistory?: AskConversationTurn[],
+  ) {
+    const projectId = scope.projectId || null;
+    const workspaceId = scope.workspaceId || null;
+    const resolvedConversationId = conversationId || crypto.randomUUID();
+
     const result = await this.askKnowledge.execute(question, userId, {
-      projectSlug: options.projectSlug,
-      workspaceSlug: options.workspaceSlug,
+      projectId: projectId || undefined,
+      workspaceId: workspaceId || undefined,
+      conversationHistory,
     });
     const media: any[] = [];
     if (result.ok) {
       await this.askHistoryRepository.save({
         userId,
-        projectSlug: options.projectSlug || '',
+        projectId,
+        workspaceId,
+        conversationId: resolvedConversationId,
         question,
         answer: result.answer,
         confidence: result.confidence as ConversationConfidence,
@@ -35,14 +55,16 @@ export class RunAskAiUseCase {
       });
 
       if (result.requestedAttachments) {
-        const workspaceSlug = options.workspaceSlug || 'default';
         const workspaces = await this.contentRepository.listWorkspaces(userId);
-        const workspace = workspaces.find((item) => item.workspaceSlug === workspaceSlug) || workspaces[0];
+        const workspace = (workspaceId
+          ? workspaces.find((item) => item.id === workspaceId)
+          : workspaces.find((item) => item.workspaceSlug === 'default')) || workspaces[0];
         const chatJid = String(workspace?.whatsappChatJid || '').trim();
+        const resolvedWorkspaceId = workspace?.id || '';
 
         const attachmentResolution = await this.resolveWhatsappAskAttachmentsUseCase.execute({
           userId,
-          workspaceSlug: workspace?.workspaceSlug || workspaceSlug,
+          workspaceId: resolvedWorkspaceId,
           requestedAttachments: result.requestedAttachments,
           requestedAttachmentPattern: result.requestedAttachmentPattern,
           sources: result.sources,
@@ -68,6 +90,7 @@ export class RunAskAiUseCase {
     }
     return {
       ...result,
+      conversationId: resolvedConversationId,
       media,
     };
   }

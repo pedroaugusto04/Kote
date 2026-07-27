@@ -24,11 +24,13 @@ export class SubscriptionCancellationService {
 
   async cancelPendingPayment(userId: string, paymentId: string) {
     const db = this.database.getDb();
-    
+
     const payment = await db.select().from(billingPayments).where(eq(billingPayments.id, paymentId)).limit(1).then(r => r[0] || null);
     if (!payment) {
       throw new BadRequestException('Payment not found');
     }
+
+    this.logger.info(`Canceling payment ${paymentId} for user ${userId}, gateway: ${payment.gateway}, gatewayPaymentId: ${payment.gatewayPaymentId}, status: ${payment.status}, kind: ${payment.kind}`);
 
     // Validation: only PENDING or OVERDUE payments can be canceled
     if (payment.status !== PaymentStatus.PENDING && payment.status !== PaymentStatus.OVERDUE) {
@@ -43,13 +45,14 @@ export class SubscriptionCancellationService {
     const gateway = payment.gateway === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
     try {
       await gateway.cancelPayment(payment.gatewayPaymentId);
+      this.logger.info(`Successfully canceled payment ${paymentId} on gateway`);
     } catch (e: any) {
-      this.logger.error(`Failed to cancel payment on gateway: ${e.message}`);
+      this.logger.error(`Failed to cancel payment ${paymentId} on gateway: ${e.message}`, e.stack || '');
       throw new BadRequestException('Failed to cancel payment on gateway. Please try again later.');
     }
 
     await db.update(billingPayments).set({ status: PaymentStatus.CANCELED }).where(eq(billingPayments.id, paymentId));
-    
+
     const sub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, userId)).limit(1).then(r => r[0] || null);
     if (sub && sub.status === SubscriptionStatus.PENDING) {
       await db.update(userSubscriptions).set({ status: SubscriptionStatus.CANCELED }).where(eq(userSubscriptions.userId, userId));

@@ -85,15 +85,12 @@ export function extractGithubInstallationId(value: unknown): string {
   return installationId;
 }
 
-export function normalizeTrimmedValue(value: string): string {
-  return value.trim();
-}
 
 export function normalizeReturnToPath(value: string | undefined, fallback: string): string {
   if (!value || !value.startsWith('/') || value.startsWith('//')) return fallback;
   try {
-    const parsed = new URL(value, 'https://knowledge-base.local');
-    if (parsed.origin !== 'https://knowledge-base.local') return fallback;
+    const parsed = new URL(value, 'https://kote.local');
+    if (parsed.origin !== 'https://kote.local') return fallback;
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     return fallback;
@@ -111,9 +108,9 @@ export function normalizeBrowserOrigin(value: string | undefined): string {
   }
 }
 
-export function buildBrowserRedirectUrl(baseUrl: string | undefined, path: string): URL {
+export function buildBrowserRedirectUrl(baseUrl: string | undefined, path: string | undefined): URL {
   const normalizedPath = normalizeReturnToPath(path, '/settings/integrations');
-  const fallbackBase = new URL('https://knowledge-base.local');
+  const fallbackBase = new URL('https://kote.local');
   const base = baseUrl ? new URL(baseUrl) : fallbackBase;
   const basePathname = base.pathname.replace(/\/+$/, '');
   const finalPath = normalizedPath === '/'
@@ -128,6 +125,6 @@ export function buildBrowserRedirectUrl(baseUrl: string | undefined, path: strin
 }
 
 export function extractConnectionCommandCode(text: string): string {
-  const match = text.trim().match(/^\/kb\s+connect\s+([a-z0-9-]{4,20})$/i);
+  const match = text.trim().match(/^\/kote\s+connect\s+([a-z0-9-]{4,20})$/i);
   return match?.[1]?.trim().toUpperCase() || '';
 }

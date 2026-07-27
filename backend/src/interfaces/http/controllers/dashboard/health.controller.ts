@@ -8,6 +8,6 @@ export class HealthController {
   @ApiOperation({ summary: 'Health check endpoint' })
   @ApiResponse({ status: 200, description: 'Service is healthy' })
   health() {
-    return { ok: true, service: 'knowledge-base' };
+    return { ok: true, service: 'kote' };
   }
 }

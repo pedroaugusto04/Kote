@@ -34,6 +34,16 @@ if (initialResult.code !== 0) {
   process.exit(initialResult.code ?? 1);
 }
 
+// Auto-run migrations in development after initial build
+console.log('Running database migrations...');
+const migrationProcess = run(process.execPath, [path.join(rootDir, 'backend', 'dist', 'infrastructure', 'persistence', 'run-migrations.js')]);
+const migrationResult = await waitForExit(migrationProcess);
+
+if (migrationResult.code !== 0) {
+  console.error('Database migration failed. Exiting...');
+  process.exit(migrationResult.code ?? 1);
+}
+
 const compiler = run(process.execPath, [tscEntrypoint, '-p', 'backend/tsconfig.json', '--watch', '--preserveWatchOutput']);
 const serverArgs = [
   ...(inspectEnabled ? [`--inspect=0.0.0.0:${inspectPort}`] : []),

@@ -1,15 +1,18 @@
 import { z } from 'zod';
 
 import { paginationInputSchema } from './pagination.js';
+import { askConversationTurnSchema } from './ask-conversation.js';
 
 export const askInputSchema = z.object({
   question: z.string().trim().min(1, 'Question cannot be empty'),
-  projectSlug: z.string().trim().default(''),
-  workspaceSlug: z.string().trim().optional(),
+  conversationId: z.string().uuid().optional(),
+  conversationHistory: z.array(askConversationTurnSchema).optional(),
 });
 
 export const askHistoryInputSchema = z.object({
-  projectSlug: z.string().trim().optional().default(''),
+  projectId: z.string().trim().optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
 }).merge(paginationInputSchema);
 
 export type AskInput = z.infer<typeof askInputSchema>;

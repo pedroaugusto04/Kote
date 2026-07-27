@@ -69,7 +69,7 @@ export class SubscriptionService {
       priceUsd: plan.priceUsdCents / 100,
       annualPriceUsd: (plan.priceUsdCents * 12 * 0.8) / 100,
       maxStorageBytes: Number(plan.maxStorageBytes),
-      maxAiRequestsPerMonth: plan.maxAiRequestsPerMonth,
+      maxAiCreditsPerMonth: plan.maxAiCreditsPerMonth,
       maxWorkspaces: plan.maxWorkspaces,
       maxProjectsPerWorkspace: plan.maxProjectsPerWorkspace,
       isDefault: plan.slug === SubscriptionPlan.FREE,
@@ -115,6 +115,7 @@ export class SubscriptionService {
     const cycle = billingCycle || BillingCycle.MONTHLY;
     const type = billingType || BillingType.CREDIT_CARD;
     const normalizedCreditCardToken = creditCardToken?.trim() || undefined;
+    const isFreePlan = targetPlan.slug === SubscriptionPlan.FREE;
 
     const onlyStripe = process.env.ONLY_STRIPE === 'true';
     const isBrazil = countryCode?.toUpperCase() === COUNTRY_CODE.BRAZIL;
@@ -172,7 +173,7 @@ export class SubscriptionService {
       }
     }
 
-    if (isInternational && type === BillingType.CREDIT_CARD) {
+    if (isInternational && type === BillingType.CREDIT_CARD && !isFreePlan) {
       const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
       const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
       if (!hasCreditCardOnFile && !normalizedCreditCardToken) {
@@ -181,7 +182,11 @@ export class SubscriptionService {
     }
 
     // Create or sync the gateway customer id for the selected gateway.
-    let gatewayCustomerId = currentSub?.gatewayName === gatewayName ? (currentSub.gatewayCustomerId || '') : '';
+    let gatewayCustomerId = '';
+    const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
+    if (customerRow?.gatewayCustomerId) {
+      gatewayCustomerId = customerRow.gatewayCustomerId;
+    }
     if (!gatewayCustomerId) {
       const customer = await gateway.createCustomer({
         name: userDisplayName || userEmail,
@@ -217,7 +222,7 @@ export class SubscriptionService {
       priceCents: activePlanRow.priceCents,
       priceUsdCents: activePlanRow.priceUsdCents,
       maxStorageBytes: Number(activePlanRow.maxStorageBytes),
-      maxAiRequestsPerMonth: activePlanRow.maxAiRequestsPerMonth,
+      maxAiCreditsPerMonth: activePlanRow.maxAiCreditsPerMonth,
       maxWorkspaces: activePlanRow.maxWorkspaces,
       maxProjectsPerWorkspace: activePlanRow.maxProjectsPerWorkspace,
       isActive: activePlanRow.isActive,
@@ -504,6 +509,18 @@ export class SubscriptionService {
       return;
     }
 
+    const subRow = await db
+      .select()
+      .from(userSubscriptions)
+      .where(eq(userSubscriptions.userId, params.subscriptionId))
+      .limit(1)
+      .then(r => r[0] || null);
+
+    if (!subRow) {
+      this.logger.warn(`Subscription row not found in database: ${params.subscriptionId}`);
+      return;
+    }
+
     const latestPaymentDueDate = latestRecurringPayment?.dueDate ?? null;
     const hasRecurringPaymentInRealDebt = 
       await this.billingPaymentRepository.hasRecurringPaymentInRealDebt(params.userId, params.subscriptionId);
@@ -539,6 +556,20 @@ export class SubscriptionService {
         ? (!gatewayNextDueDate || gatewayNextDueDate > latestPaymentDueDate ? latestPaymentDueDate : gatewayNextDueDate)
         : (gatewayNextDueDate ?? latestPaymentDueDate);
 
+    // Calculate new currentPeriodEnd and currentPeriodStart based on nextDueDate and billingCycle
+    let currentPeriodStart: Date | undefined;
+    let currentPeriodEnd: Date | undefined;
+
+    if (nextDueDate) {
+      currentPeriodEnd = new Date(nextDueDate);
+      currentPeriodStart = new Date(nextDueDate);
+      if (subRow.billingCycle === BillingCycle.YEARLY) {
+        currentPeriodStart.setUTCFullYear(currentPeriodStart.getUTCFullYear() - 1);
+      } else {
+        currentPeriodStart.setUTCMonth(currentPeriodStart.getUTCMonth() - 1);
+      }
+    }
+
     // update due date based on last payment
     await db
       .update(userSubscriptions)
@@ -546,6 +577,8 @@ export class SubscriptionService {
         status: newStatus ?? undefined,
         pastDueAt,
         nextDueDate: nextDueDate ?? undefined,
+        currentPeriodStart: currentPeriodStart ?? undefined,
+        currentPeriodEnd: currentPeriodEnd ?? undefined,
         updatedAt: new Date(),
       })
       .where(eq(userSubscriptions.userId, params.subscriptionId));
@@ -579,7 +612,6 @@ export class SubscriptionService {
       billingType: subRow.billingType,
       nextDueDate: subRow.nextDueDate ? subRow.nextDueDate.toISOString() : null,
       gatewayName: subRow.gatewayName,
-      gatewayCustomerId: subRow.gatewayCustomerId,
     } : null;
 
     const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === SubscriptionStatus.PAST_DUE)) ? latestSubSummary : null;
@@ -627,7 +659,7 @@ export class SubscriptionService {
           priceUsd: targetPlan.priceUsdCents / 100,
           annualPriceUsd: (targetPlan.priceUsdCents * 12 * 0.8) / 100,
           maxStorageBytes: Number(targetPlan.maxStorageBytes),
-          maxAiRequestsPerMonth: targetPlan.maxAiRequestsPerMonth,
+          maxAiCreditsPerMonth: targetPlan.maxAiCreditsPerMonth,
           maxWorkspaces: targetPlan.maxWorkspaces,
           maxProjectsPerWorkspace: targetPlan.maxProjectsPerWorkspace,
           isDefault: targetPlan.slug === SubscriptionPlan.FREE,

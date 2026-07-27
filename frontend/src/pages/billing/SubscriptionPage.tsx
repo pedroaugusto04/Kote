@@ -15,9 +15,11 @@ import {
   type ScheduledChangeDTO
 } from '../../shared/api/billing';
 import { StripeCardCapture, type StripeCardCaptureHandle } from '../../features/billing/StripeCardCapture';
+import { QuotaUsageWidget } from '../../features/quota/QuotaUsageWidget';
 import { PageHead, Panel, InlineMessage } from '../../shared/ui/primitives';
 import { formatCpfCnpj, isValidCpfCnpjFormat } from '../../shared/utils/cpf-cnpj';
 import { detectUserCountry } from '../../shared/utils/location';
+import { useGlobalLoading } from '../../app/global-loading';
 import { BILLING_ERROR_MESSAGES, BILLING_CYCLE, BILLING_TYPE, SUBSCRIPTION_CHANGE_KIND, SUBSCRIPTION_STATUS, type BillingCycle, type BillingType } from '../../shared/constants/billing.constants';
 import {
   canChooseManualMonthlyPayment,
@@ -32,6 +34,7 @@ import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 
 export function SubscriptionPage() {
   const queryClient = useQueryClient();
+  const globalLoading = useGlobalLoading();
 
   const { data: countryData } = useQuery({
     queryKey: ['billing', 'detectedCountry'],
@@ -142,7 +145,7 @@ export function SubscriptionPage() {
 
   // Mutations
   const updateMutation = useMutation({
-    mutationFn: updateSubscription,
+    mutationFn: (params: Parameters<typeof updateSubscription>[0]) => globalLoading.trackPromise(updateSubscription(params)),
     onSuccess: (data) => {
       queryClient.setQueryData(['billing', 'status'], data);
       setIsChoiceModalOpen(false);
@@ -604,7 +607,7 @@ export function SubscriptionPage() {
                         <svg className="plan-feature-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                         </svg>
-                        {plan.maxAiRequestsPerMonth === -1 ? 'Unlimited' : plan.maxAiRequestsPerMonth} AI Queries / month
+                        {plan.maxAiCreditsPerMonth === -1 ? 'Unlimited' : plan.maxAiCreditsPerMonth} AI Credits / month
                       </li>
                       <li className="plan-feature-item">
                         <svg className="plan-feature-icon" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -1022,8 +1025,8 @@ export function SubscriptionPage() {
                 Keep scheduled change
               </button>
               <button
-                className="icon-button danger-button"
-                style={{ background: 'rgb(220, 38, 38)', color: '#ffffff', border: '1px solid rgb(220, 38, 38)' }}
+                className="filter-chip"
+                style={{ border: '1px solid var(--danger-border)', color: 'var(--danger-text)', background: 'var(--surface-danger)', fontWeight: 600, padding: '8px 16px', borderRadius: '6px' }}
                 disabled={cancelChangeMutation.isPending}
                 type="button"
                 onClick={() => {

@@ -1,67 +1,47 @@
-import { useState, type ReactNode, Children, createContext, useContext, useMemo } from 'react';
+import { useState, type ReactNode, Children, createContext, useContext, useMemo, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import Prism from 'prismjs';
 import DOMPurify from 'dompurify';
 import 'prismjs/themes/prism-tomorrow.css';
-import 'prismjs/components/prism-typescript.js';
-import 'prismjs/components/prism-javascript.js';
-import 'prismjs/components/prism-python.js';
-import 'prismjs/components/prism-css.js';
-import 'prismjs/components/prism-json.js';
-import 'prismjs/components/prism-bash.js';
+import { processTextWithBadges, processTextWithLinks, convertUrlsToLinks } from '../../shared/utils/text';
 
-const severityClassNames: Record<string, string> = {
-  INFO: 'markdown-severity markdown-severity-info',
-  LOW: 'markdown-severity markdown-severity-low',
-  MEDIUM: 'markdown-severity markdown-severity-medium',
-  HIGH: 'markdown-severity markdown-severity-high',
-  CRITICAL: 'markdown-severity markdown-severity-critical',
+// Lazy load PrismJS language components to reduce initial bundle size
+let prismLanguagesLoaded = false;
+const loadPrismLanguages = async () => {
+  if (typeof window === 'undefined' || prismLanguagesLoaded) return;
+  await Promise.all([
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-typescript.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-javascript.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-python.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-css.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-json.js'),
+    // @ts-ignore - PrismJS language components are untyped
+    import('prismjs/components/prism-bash.js'),
+  ]);
+  prismLanguagesLoaded = true;
 };
 
 const PreContext = createContext(false);
 
-function processTextWithBadges(child: ReactNode): ReactNode {
-  if (typeof child !== 'string') return child;
-
-  const parts: ReactNode[] = [];
-  const tokenPattern = /(\[(?:INFO|LOW|MEDIUM|HIGH|CRITICAL)\])/gi;
-  let lastIndex = 0;
-
-  for (const match of child.matchAll(tokenPattern)) {
-    if (match.index > lastIndex) {
-      parts.push(child.slice(lastIndex, match.index));
-    }
-
-    const token = match[0];
-    const severity = token.slice(1, -1).toUpperCase();
-    if (severityClassNames[severity]) {
-      parts.push(
-        <span className={severityClassNames[severity]} key={`${match.index}-${token}`}>
-          {token}
-        </span>,
-      );
-    } else {
-      parts.push(token);
-    }
-
-    lastIndex = match.index + token.length;
-  }
-
-  if (lastIndex < child.length) {
-    parts.push(child.slice(lastIndex));
-  }
-
-  return parts.length > 0 ? <>{parts}</> : child;
-}
-
 function processChildren(children: ReactNode): ReactNode {
   return Children.map(children, (child) => {
-    return processTextWithBadges(child);
+    const withBadges = processTextWithBadges(child);
+    return processTextWithLinks(withBadges);
   });
 }
 
 function CodeBlockView({ code, language }: { code: string; language: string }) {
   const [copied, setCopied] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const lines = useMemo(() => code.split('\n'), [code]);
+  const lineCount = lines.length;
+  const isLongCode = lineCount > 18;
 
   const handleCopy = async () => {
     try {
@@ -80,24 +60,64 @@ function CodeBlockView({ code, language }: { code: string; language: string }) {
   }, [code, language]);
 
   return (
-    <div className="markdown-code-block">
+    <div className={`markdown-code-block ${isLongCode && !isExpanded ? 'collapsed' : ''}`}>
       <div className="markdown-code-block-header">
-        <span className="markdown-code-block-lang">{language}</span>
-        <button className="markdown-code-block-copy" onClick={handleCopy} type="button">
-          {copied ? '✓ Copied' : 'Copy'}
-        </button>
+        <div className="markdown-code-block-meta">
+          <span className="markdown-code-block-lang">{language}</span>
+          <span className="markdown-code-block-lines">{lineCount} {lineCount === 1 ? 'line' : 'lines'}</span>
+        </div>
+        <div className="markdown-code-block-actions">
+          {isLongCode && (
+            <button
+              className="markdown-code-block-toggle"
+              onClick={() => setIsExpanded((prev) => !prev)}
+              type="button"
+            >
+              {isExpanded ? 'Collapse' : 'Expand'}
+            </button>
+          )}
+          <button className="markdown-code-block-copy" onClick={handleCopy} type="button">
+            {copied ? '✓ Copied' : 'Copy'}
+          </button>
+        </div>
       </div>
-      <pre className={`markdown-code-block-content language-${language}`}>
-        <code
-          className={`language-${language}`}
-          dangerouslySetInnerHTML={{ __html: highlightedHtml }}
-        />
-      </pre>
+      <div className="markdown-code-block-wrapper">
+        <div className="markdown-code-line-numbers" aria-hidden="true">
+          {lines.map((_, idx) => (
+            <span key={idx}>{idx + 1}</span>
+          ))}
+        </div>
+        <pre className={`markdown-code-block-content language-${language}`}>
+          <code
+            className={`language-${language}`}
+            dangerouslySetInnerHTML={{ __html: highlightedHtml }}
+          />
+        </pre>
+      </div>
+      {isLongCode && !isExpanded && (
+        <div className="markdown-code-block-expand-overlay">
+          <button
+            className="markdown-code-block-expand-btn"
+            onClick={() => setIsExpanded(true)}
+            type="button"
+          >
+            Show all {lineCount} lines
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 export function MarkdownView({ markdown }: { markdown: string }) {
+  // Load Prism languages on mount to reduce initial bundle size
+  useEffect(() => {
+    loadPrismLanguages();
+  }, []);
+
+  // Pre-process markdown to convert plain text URLs to markdown links
+  const processedMarkdown = convertUrlsToLinks(markdown);
+
   return (
     <div className="markdown">
       <ReactMarkdown
@@ -109,16 +129,25 @@ export function MarkdownView({ markdown }: { markdown: string }) {
           h3: ({ children }) => <h3>{processChildren(children)}</h3>,
           h4: ({ children }) => <h4>{processChildren(children)}</h4>,
           strong: ({ children }) => <strong>{processChildren(children)}</strong>,
+          a: ({ href, children, ...rest }) => (
+            <a href={href} target="_blank" rel="noreferrer" className="auto-link" {...rest}>
+              {children}
+            </a>
+          ),
           pre: ({ children }) => (
             <PreContext.Provider value={true}>
               {children}
             </PreContext.Provider>
           ),
-          code(props: any) {
-            const { children, className, node, ...rest } = props;
+          code({
+            children,
+            className,
+            node,
+            ...rest
+          }: React.ComponentPropsWithoutRef<'code'> & { node?: unknown }) {
             const isInsidePre = useContext(PreContext);
             const match = /language-(\w+)/.exec(className || '');
-            
+
             if (isInsidePre) {
               return (
                 <CodeBlockView
@@ -136,7 +165,7 @@ export function MarkdownView({ markdown }: { markdown: string }) {
           }
         }}
       >
-        {markdown}
+        {processedMarkdown}
       </ReactMarkdown>
     </div>
   );

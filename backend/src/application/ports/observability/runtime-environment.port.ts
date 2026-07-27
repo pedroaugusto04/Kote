@@ -5,6 +5,23 @@ export type RuntimeEnvironment = {
   webhookSecret: string;
   githubWebhookSecret: string;
   conversationTimeoutMs: number;
+  // --- Default AI configs per category ---
+  // Chat/LLM default: used by all chat providers when not individually configured
+  defaultChatAiProvider: AiProvider;
+  defaultChatAiBaseUrl: string;
+  defaultChatAiModel: string;
+  defaultChatAiApiKey: string;
+  // Embedding default: used by the embedding worker and CodeLens search
+  defaultEmbeddingAiProvider: AiProvider;
+  defaultEmbeddingAiBaseUrl: string;
+  defaultEmbeddingAiModel: string;
+  defaultEmbeddingAiApiKey: string;
+  // Audio default: used for audio transcription
+  defaultAudioAiProvider: AiProvider;
+  defaultAudioAiBaseUrl: string;
+  defaultAudioAiModel: string;
+  defaultAudioAiApiKey: string;
+  // Specific AI providers
   reviewAiProvider: AiProvider;
   reviewAiBaseUrl: string;
   reviewAiModel: string;
@@ -17,6 +34,14 @@ export type RuntimeEnvironment = {
   projectBriefAiBaseUrl: string;
   projectBriefAiModel: string;
   projectBriefAiApiKey: string;
+  fileNotesSummaryAiProvider: AiProvider;
+  fileNotesSummaryAiBaseUrl: string;
+  fileNotesSummaryAiModel: string;
+  fileNotesSummaryAiApiKey: string;
+  prContextAiProvider: AiProvider;
+  prContextAiBaseUrl: string;
+  prContextAiModel: string;
+  prContextAiApiKey: string;
   embeddingAiProvider: AiProvider;
   embeddingAiBaseUrl: string;
   embeddingAiModel: string;
@@ -27,9 +52,12 @@ export type RuntimeEnvironment = {
   audioAiApiKey: string;
   githubAppId: string;
   githubAppPrivateKey: string;
+  githubBackfillLimit: number;
   publicBaseUrl: string;
   apiPublicBaseUrl: string;
   allowedOrigins: string[];
+  allowedHosts: string[];
+  allowedExtensionIds: string[];
   trustProxy: boolean;
   githubPushWebhookPath: string;
   ingestWebhookPath: string;
@@ -46,8 +74,24 @@ export type RuntimeEnvironment = {
   evolutionApiPublicUrl: string;
   evolutionInstanceName: string;
   databaseUrl: string;
+  databaseSslMode: string;
+  databaseSslRejectUnauthorized: boolean | null;
   adminEmail: string;
   adminPassword: string;
+  emailProvider: 'resend' | 'smtp' | 'fake';
+  emailResendApiKey: string;
+  emailFrom: string;
+  emailSmtpHost: string;
+  emailSmtpPort: number;
+  emailSmtpUser: string;
+  emailSmtpPass: string;
+  emailSmtpSecure: boolean;
+  emailQueueExchange: string;
+  emailQueueName: string;
+  emailQueueRoutingKey: string;
+  emailWorkerAutorun: boolean;
+  devEmailIntercept: boolean;
+  devEmail: string;
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   accessTokenTtlSeconds: number;
@@ -58,6 +102,40 @@ export type RuntimeEnvironment = {
   credentialsEncryptionKey: string;
   internalServiceToken: string;
   disableEmbeddingWorker: boolean;
+  testEmailAuthSecret: string;
+  searchMinSimilarity: number;
+  searchCandidateLimitMultiplier: number;
+  searchHybridVectorWeight: number;
+  searchHybridKeywordWeight: number;
+  searchRrfK: number;
+  ragMinSimilarity: number;
+  ragCandidateLimit: number;
+  ragHybridVectorWeight: number;
+  ragHybridKeywordWeight: number;
+  ragTopChunksLimit: number;
+  ragRrfK: number;
+  ragRecencyBonusEnabled: boolean;
+  ragRecencyMaxBonus: number;
+  ragRecencyMaxBonusDays: number;
+  attachmentMaxSizeBytes: number;
+  avatarMaxSizeBytes: number;
+  chunkTargetTokens: number;
+  chunkOverlapTokens: number;
+  chunkMinChars: number;
+  chunkCodeBlockOverlapLines: number;
+  embeddingDimension: number;
+  // CodeLens related notes hybrid search
+  codeLensSearchAiProvider: AiProvider;
+  codeLensSearchAiBaseUrl: string;
+  codeLensSearchAiModel: string;
+  codeLensSearchAiApiKey: string;
+  codeLensSearchMinSimilarity: number;
+  codeLensSearchCandidateLimit: number;
+  codeLensSearchVectorWeight: number;
+  codeLensSearchKeywordWeight: number;
+  codeLensSearchRrfK: number;
+  codeLensSearchMaxConcurrency: number;
+  codeLensSearchResultLimit: number;
 };
 
 export abstract class RuntimeEnvironmentProvider {

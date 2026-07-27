@@ -42,7 +42,7 @@ export function RelatedNotesSection({ noteId, openNote }: RelatedNotesSectionPro
                 <span className="meta">{formatDateInUserTimeZone(note.date)} {formatTimeInUserTimeZone(note.date)}</span>
               </div>
               <h4>{note.title}</h4>
-              <SourceBadge source={activeSource} style={{ marginBottom: '6px' }} />
+              <SourceBadge source={activeSource} iconSize={12} style={{ marginBottom: '6px' }} />
               <p>{getCleanSummary(note.summary)}</p>
             </div>
           );

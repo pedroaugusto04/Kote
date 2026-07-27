@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import { HomePage } from '../../../src/pages/home/HomePage';
+import { GlobalLoadingProvider } from '../../../src/app/global-loading';
 import { render } from '@testing-library/react';
 import { HomePriorityType, HomeTargetKind } from '../../../src/shared/api/enums';
 
@@ -108,6 +109,15 @@ const dashboard: Dashboard = {
 };
 
 beforeEach(() => {
+  // Mock localStorage
+  const localStorageMock = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+  };
+  vi.stubGlobal('localStorage', localStorageMock);
+
   vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
     calendar: 'gregory',
     locale: 'en-US',
@@ -144,11 +154,15 @@ beforeEach(() => {
         pagination: { page: 1, pageSize: 10, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
       });
     }
+    if (url.includes('/api/integrations/github-app/backfill/status')) {
+      return Response.json({ ok: false, status: 'not_found' });
+    }
     if (url.includes('/api/integrations')) {
       return Response.json({
         ok: true,
         workspaceSlug: 'default',
         integrations: [],
+        githubBackfillLimit: 5,
       });
     }
     if (url.includes('/api/notes')) {
@@ -190,21 +204,23 @@ function renderHomeWithDashboard(inputDashboard: Dashboard, createNote = vi.fn()
     },
   });
   render(
-    <QueryClientProvider client={client}>
-      <MemoryRouter>
-        <HomePage
-          dashboard={inputDashboard}
-          selectedProject="n8n-automations"
-          selectedNoteId=""
-          openNote={openNote}
-          setSelectedProject={setSelectedProject}
-          openProject={openProject}
-          editNote={vi.fn()}
-          deleteNote={vi.fn()}
-          createNote={createNote}
-        />
-      </MemoryRouter>
-    </QueryClientProvider>,
+    <GlobalLoadingProvider>
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <HomePage
+            dashboard={inputDashboard}
+            selectedProject="n8n-automations"
+            selectedNoteId=""
+            openNote={openNote}
+            setSelectedProject={setSelectedProject}
+            openProject={openProject}
+            editNote={vi.fn()}
+            deleteNote={vi.fn()}
+            createNote={createNote}
+          />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </GlobalLoadingProvider>,
   );
   return { openNote, openProject, createNote };
 }
@@ -292,6 +308,7 @@ describe('HomePage', () => {
             { provider: 'github-app', name: 'GitHub App', description: 'GitHub', status: 'missing', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
             { provider: 'whatsapp', name: 'WhatsApp', description: 'WhatsApp', status: 'missing', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
           ],
+          githubBackfillLimit: 5,
         });
       }
       if (url.includes('/api/notes')) {
@@ -319,7 +336,9 @@ describe('HomePage', () => {
 
     expect(await screen.findByRole('heading', { name: 'Getting Started' })).toBeInTheDocument();
     expect(screen.getByText('Connect GitHub')).toBeInTheDocument();
-    expect(screen.getByText('Connect WhatsApp')).toBeInTheDocument();
+    // WhatsApp stays in the collapsible "Optional integrations" section, not the main list.
+    expect(screen.getByRole('button', { name: /optional integrations/i })).toBeInTheDocument();
+    expect(screen.queryByText('Connect WhatsApp')).not.toBeInTheDocument();
   });
 
   it('calls createNote when the Quick note button is clicked', () => {
@@ -452,5 +471,73 @@ describe('HomePage', () => {
 
     const makeFirstPushItem = screen.getByText('Make first push').closest('.onboarding-item');
     expect(makeFirstPushItem).toHaveClass('done');
+  });
+
+  it('keeps import recent commits actionable after declining the modal', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/projects/timeline')) {
+        return Response.json({
+          ok: true,
+          timeline: [],
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/integrations/github-app/backfill/status')) {
+        return Response.json({ ok: false, status: 'not_found' });
+      }
+      if (url.includes('/api/integrations/github-app/repositories')) {
+        return Response.json({
+          ok: true,
+          workspaceSlug: 'default',
+          repositories: [
+            { id: '1', fullName: 'acme/repo', name: 'repo', owner: 'acme', private: true, htmlUrl: 'https://github.com/acme/repo', description: null, defaultBranch: 'main', selected: true },
+          ],
+        });
+      }
+      if (url.includes('/api/integrations')) {
+        return Response.json({
+          ok: true,
+          workspaceSlug: 'default',
+          integrations: [
+            { provider: 'github-app', name: 'GitHub App', description: 'GitHub', status: 'connected', workspaceSlug: 'default', publicMetadata: {}, primaryAction: null, steps: [], lastError: null, connectedAccount: null, updatedAt: null, revokedAt: null },
+          ],
+          githubBackfillLimit: 5,
+        });
+      }
+      if (url.includes('/api/notes')) {
+        return Response.json({
+          ok: true,
+          notes: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/reminders')) {
+        return Response.json({
+          ok: true,
+          reminders: [],
+          pagination: { page: 1, pageSize: 1, total: 0, totalPages: 0, hasNext: false, hasPrevious: false },
+        });
+      }
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHomeWithDashboard({
+      ...dashboard,
+      projects: dashboard.projects,
+    });
+
+    expect(await screen.findByRole('heading', { name: 'Getting Started' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Import recent commits'));
+    expect(await screen.findByRole('dialog', { name: /import recent commit history/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Not now' }));
+    expect(screen.queryByRole('dialog', { name: /import recent commit history/i })).not.toBeInTheDocument();
+    expect(screen.getByText('Import recent commits')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('Import recent commits'));
+    expect(await screen.findByRole('dialog', { name: /import recent commit history/i })).toBeInTheDocument();
   });
 });

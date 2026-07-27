@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 import { slugify } from '../domain/strings.js';
-import { buildUtcReminderFields, normalizeDate, normalizeTime } from '../domain/time.js';
 import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, ReviewFindingSeverity, SourceChannel } from './enums.js';
+import { parseSourceChannelString } from '../application/utils/integration/source-channel.utils.js';
 
-export const sourceChannelSchema = z.nativeEnum(SourceChannel);
+export const sourceChannelSchema = z.string().trim().optional();
 export const eventTypeSchema = z.nativeEnum(EventType);
 export const kindSchema = z.nativeEnum(KnowledgeKind);
 export const canonicalTypeSchema = z.nativeEnum(CanonicalType);
@@ -30,6 +30,7 @@ export const ingestPayloadSchema = z
     source: z.object({
       channel: sourceChannelSchema,
       system: z.string().min(1),
+      source: z.string().default(''),
       actor: z.string().default(''),
       conversationId: z.string().default(''),
       correlationId: z.string().min(1),
@@ -41,7 +42,7 @@ export const ingestPayloadSchema = z
       projectSlug: z.string().min(1),
     }),
     content: z.object({
-      rawText: z.string().min(1),
+      rawText: z.string().default(''),
       title: z.string().default(''),
       attachments: z.array(attachmentSchema).default([]),
       sections: z
@@ -64,16 +65,19 @@ export const ingestPayloadSchema = z
     }),
     actions: z
       .object({
-        reminderDate: z.string().default(''),
-        reminderTime: z.string().default(''),
         reminderAt: z.string().default(''),
         followUpBy: z.string().default(''),
       })
       .default({}),
+    links: z.array(z.string()).default([]),
     metadata: z.record(z.string(), z.unknown()).default({}),
   })
   .transform((payload) => ({
     ...payload,
+    source: {
+      ...payload.source,
+      channel: parseSourceChannelString(payload.source.channel),
+    },
     event: {
       ...payload.event,
       projectSlug: slugify(payload.event.projectSlug) || 'inbox',
@@ -84,21 +88,10 @@ export const ingestPayloadSchema = z
     },
     actions: {
       ...payload.actions,
-      reminderDate: normalizeDate(payload.actions.reminderDate || ''),
-      reminderTime: normalizeTime(payload.actions.reminderTime || ''),
       reminderAt: payload.actions.reminderAt || '',
-      followUpBy: normalizeDate(payload.actions.followUpBy || ''),
+      followUpBy: payload.actions.followUpBy || '',
     },
-  }))
-  .superRefine((payload, ctx) => {
-    if (payload.actions.reminderTime && !payload.actions.reminderDate) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['actions', 'reminderTime'],
-        message: 'Reminder time requires reminder date.',
-      });
-    }
-  });
+  }));
 
 export type IngestPayload = z.infer<typeof ingestPayloadSchema>;
 
@@ -106,17 +99,13 @@ export function withDerivedReminderAt(
   payload: IngestPayload,
   timeZone = 'America/Sao_Paulo',
 ): IngestPayload & { actions: IngestPayload['actions'] & { reminderAt: string } } {
-  const reminderFields = buildUtcReminderFields({
-    reminderDate: payload.actions.reminderDate || '',
-    reminderTime: payload.actions.reminderTime || '',
-    reminderAt: 'reminderAt' in payload.actions ? String((payload.actions as Record<string, unknown>).reminderAt || '') : '',
-    timeZone,
-  });
+  // reminderAt is now expected to be a full ISO timestamp
+  const reminderAt = payload.actions.reminderAt || '';
   return {
     ...payload,
     actions: {
       ...payload.actions,
-      ...reminderFields,
+      reminderAt,
     },
   };
 }

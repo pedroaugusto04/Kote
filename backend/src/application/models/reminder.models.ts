@@ -8,8 +8,6 @@ export type ReminderView = {
   workspace: string;
   status: string;
   isOverdue: boolean;
-  reminderDate: string;
-  reminderTime: string;
   reminderAt: string;
   relativePath: string;
 };

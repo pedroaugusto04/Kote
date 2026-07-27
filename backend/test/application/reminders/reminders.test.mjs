@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { BuildReminderDispatchUseCase, DispatchDueRemindersUseCase, DispatchDueTelegramRemindersUseCase, ListPaginatedRemindersUseCase, ListReminderBoardUseCase, MarkReminderAsSentUseCase, RefreshReminderStatusesUseCase, UpdateReminderStatusUseCase } from '../../../dist/application/use-cases/index.js';
 import { ReminderDeliveryChannel, ReminderDispatchMode } from '../../../dist/contracts/enums.js';
 import { formatReminderScheduledAtLabel, reminderDispatchKey } from '../../../dist/application/use-cases/reminders/reminder-schedule.js';
-import { ReminderDispatchWorker } from '../../../dist/application/services/reminder-dispatch.worker.js';
-import { TelegramReminderDispatchWorker } from '../../../dist/application/services/telegram-reminder-dispatch.worker.js';
+import { ReminderDispatchWorker } from '../../../dist/application/workers/reminder-dispatch.worker.js';
+import { TelegramReminderDispatchWorker } from '../../../dist/application/workers/telegram-reminder-dispatch.worker.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 async function createStoreWithReminder(t) {
@@ -18,6 +18,15 @@ async function createStoreWithReminder(t) {
     telegramChatId: 'telegram-chat-1',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+  });
+  await repositories.contentRepository.upsertProject(user.id, {
+    projectSlug: 'n8n-automations',
+    displayName: 'n8n-automations',
+    workspaceSlug: 'default',
+    repositories: [],
+    defaultTags: [],
+    enabled: true,
+    favorite: false,
   });
   await repositories.contentRepository.upsertNote(user.id, {
     id: '11111111-1111-1111-1111-111111111111',
@@ -39,6 +48,8 @@ async function createStoreWithReminder(t) {
       reminderTime: '09:00',
       reminderAt: '2099-12-31T12:00:00.000Z',
     },
+    reminderDate: '2099-12-31',
+    reminderAt: '2099-12-31T12:00:00.000Z',
     origin: 'postgres',
     source: 'test',
     links: [],
@@ -47,13 +58,40 @@ async function createStoreWithReminder(t) {
 }
 
 async function insertReminder(repositories, userId, input) {
+  const workspaceSlug = input.workspaceSlug || 'default';
+  const ws = await repositories.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
+  if (!ws) {
+    await repositories.contentRepository.upsertWorkspace(userId, {
+      workspaceSlug,
+      displayName: workspaceSlug === 'default' ? 'Default' : workspaceSlug,
+      whatsappChatJid: workspaceSlug === 'default' ? '120363-default@g.us' : '',
+      telegramChatId: workspaceSlug === 'default' ? 'telegram-chat-1' : '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  const projectSlug = input.projectSlug || 'n8n-automations';
+  const proj = await repositories.contentRepository.getProjectBySlug(userId, projectSlug);
+  if (!proj) {
+    await repositories.contentRepository.upsertProject(userId, {
+      projectSlug,
+      displayName: projectSlug,
+      workspaceSlug,
+      repositories: [],
+      defaultTags: [],
+      enabled: true,
+      favorite: false,
+    });
+  }
+
   const rawText = input.rawText || input.title;
   return repositories.contentRepository.upsertNote(userId, {
     path: input.path,
     type: 'event',
     title: input.title,
-    projectSlug: input.projectSlug || 'n8n-automations',
-    workspaceSlug: input.workspaceSlug || 'default',
+    projectSlug,
+    workspaceSlug,
     status: input.status || 'pending',
     tags: [],
     occurredAt: input.occurredAt || input.metadata.reminderAt || `${input.metadata.reminderDate}T00:00:00.000Z`,
@@ -65,6 +103,8 @@ async function insertReminder(repositories, userId, input) {
       rawText,
       ...input.metadata,
     },
+    reminderDate: input.metadata.reminderDate || '',
+    reminderAt: input.metadata.reminderAt || '',
     origin: 'postgres',
     source: 'test',
     links: [],
@@ -417,7 +457,7 @@ test('global due reminder read model filters reminders by requested channel reci
     path: '20 Inbox/n8n-automations/date-only.md',
     title: 'Date only',
     metadata: {
-      reminderDate: '2026-05-05',
+      reminderAt: '2026-05-05T12:00:00.000Z',
     },
   });
   await insertReminder(repositories, user.id, {
@@ -613,43 +653,6 @@ test('telegram reminder dispatch use case remains compatible as an alternative a
   assert.equal(sent[0].recipientId, 'telegram-chat-1');
 });
 
-test('default reminder dispatch applies 09:00 fallback when reminder has only date', async (t) => {
-  const repositories = await createPostgresTestRepositories(t);
-  const user = await repositories.createTestUser();
-  await repositories.contentRepository.upsertWorkspace(user.id, {
-    workspaceSlug: 'default',
-    displayName: 'Default',
-    whatsappChatJid: '120363-default@g.us',
-    telegramChatId: 'telegram-chat-1',
-    createdAt: '2026-05-05T00:00:00.000Z',
-    updatedAt: '2026-05-05T00:00:00.000Z',
-  });
-  await insertReminder(repositories, user.id, {
-    path: '20 Inbox/n8n-automations/date-only.md',
-    title: 'Date only',
-    metadata: {
-      reminderDate: '2026-05-05',
-    },
-  });
-
-  const sent = [];
-  const markReminderAsSent = new MarkReminderAsSentUseCase(repositories.reminderDispatchRepository, repositories.contentRepository);
-  const useCase = new DispatchDueRemindersUseCase(
-    repositories.contentQueryRepository,
-    repositories.reminderDispatchRepository,
-    markReminderAsSent,
-    { sendText: async (input) => { sent.push(input); return { ok: true }; } },
-    createEventBusStub(),
-    createLoggerStub(),
-  );
-
-  const before = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2026-05-05T11:59:00.000Z');
-  const after = await useCase.execute(ReminderDeliveryChannel.Whatsapp, '2026-05-05T12:00:00.000Z');
-
-  assert.equal(before.sent, 0);
-  assert.equal(after.sent, 1);
-  assert.match(sent[0].text, /Scheduled for: 2026-05-05 09:00:00/);
-});
 
 test('default reminder dispatch does not mark reminder as sent when Evolution delivery fails', async (t) => {
   const { repositories, user } = await createStoreWithReminder(t);
@@ -781,7 +784,7 @@ test('telegram reminder worker delegates to telegram dispatch channel', async ()
   assert.equal(result.ok, true);
 });
 
-import { ReminderEventBus } from '../../../dist/application/services/reminder-event.bus.js';
+import { ReminderEventBus } from '../../../dist/application/event-buses/reminder-event.bus.js';
 
 test('reminder dispatch emits reminder.sent event on successful delivery', async (t) => {
   const { repositories, user } = await createStoreWithReminder(t);

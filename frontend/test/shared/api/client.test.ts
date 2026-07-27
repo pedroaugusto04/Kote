@@ -140,8 +140,8 @@ describe('api client', () => {
   });
 
   it('resolves API asset paths under the configured API base path', () => {
-    expect(resolveApiPath('/api/auth/avatar/content?v=1', '/knowledge-base/api')).toBe('/knowledge-base/api/auth/avatar/content?v=1');
-    expect(resolveApiPath('https://cdn.example.com/avatar.png', '/knowledge-base/api')).toBe('https://cdn.example.com/avatar.png');
+    expect(resolveApiPath('/api/auth/avatar/content?v=1', '/kote/api')).toBe('/kote/api/auth/avatar/content?v=1');
+    expect(resolveApiPath('https://cdn.example.com/avatar.png', '/kote/api')).toBe('https://cdn.example.com/avatar.png');
   });
 
   it('refreshes once after a session 401 and retries the original request', async () => {
@@ -169,7 +169,10 @@ describe('api client', () => {
   });
 
   it('deduplicates concurrent refresh attempts across requests', async () => {
-    const refreshBarrier = Promise.withResolvers<void>();
+    let resolveBarrier!: () => void;
+    const refreshBarrierPromise = new Promise<void>((resolve) => {
+      resolveBarrier = resolve;
+    });
     let refreshCalls = 0;
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -192,7 +195,7 @@ describe('api client', () => {
       }
       if (url === '/api/auth/refresh') {
         refreshCalls += 1;
-        await refreshBarrier.promise;
+        await refreshBarrierPromise;
         return Response.json({ ok: true });
       }
       return new Response(null, { status: 404 });
@@ -201,7 +204,7 @@ describe('api client', () => {
 
     const dashboardPromise = fetchDashboard();
     const queryPromise = runQuery({ query: 'Nota1', workspaceSlug: 'workspace1' });
-    refreshBarrier.resolve();
+    resolveBarrier();
 
     await expect(Promise.all([dashboardPromise, queryPromise])).resolves.toEqual([
       { ok: true, projects: [], workspaces: [] },

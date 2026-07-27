@@ -4,9 +4,9 @@ import { saveConfig } from '../config.js';
 import { ApiClient } from '../client.js';
 
 export async function runInit(): Promise<void> {
-  intro(pc.cyan('Knowledge Base (kb) CLI Setup'));
+  intro(pc.cyan('Kote CLI Setup'));
 
-  const apiUrl = 'https://pedro-duarte.ddns.net/knowledge-base/api';
+  const apiUrl = 'https://knowledgebase.sbs/kote/api';
 
   const authMethod = await select({
     message: 'Select authentication method:',
@@ -28,7 +28,7 @@ export async function runInit(): Promise<void> {
 
   try {
     if (authMethod === 'google') {
-      const googleStartUrl = `${apiUrl}/auth/google/start?returnTo=/knowledge-base/auth`;
+      const googleStartUrl = `${apiUrl}/auth/google/start?returnTo=/kote/auth`;
       console.log('\n' + pc.cyan('Google OAuth Instructions:'));
       console.log(`1. Open the following URL in your browser to log in:`);
       console.log(`   ${pc.underline(pc.bold(pc.blue(googleStartUrl)))}`);
@@ -48,34 +48,13 @@ export async function runInit(): Promise<void> {
         return;
       }
 
-      s.start('Validating Google Connection Token...');
-      const trimmed = token.trim();
-      let accessToken = trimmed;
-      let refreshToken: string | undefined = undefined;
-
-      if (trimmed.startsWith('kbc_')) {
-        try {
-          const payload = Buffer.from(trimmed.slice(4), 'base64').toString('utf8');
-          const parsed = JSON.parse(payload);
-          if (parsed.accessToken && parsed.refreshToken) {
-            accessToken = parsed.accessToken;
-            refreshToken = parsed.refreshToken;
-          } else {
-            throw new Error('Not legacy format');
-          }
-        } catch {
-          s.message('Exchanging connection token...');
-          const result = await client.exchangeConnectionToken(trimmed);
-          accessToken = result.accessToken;
-          refreshToken = result.refreshToken;
-        }
-      }
-
+      s.start('Exchanging connection token...');
+      const result = await client.exchangeConnectionToken(token.trim());
       saveConfig({
         apiUrl,
         cookies: {
-          kb_access_token: accessToken,
-          kb_refresh_token: refreshToken,
+          kb_access_token: result.accessToken,
+          kb_refresh_token: result.refreshToken,
         },
       });
     } else {
@@ -147,6 +126,6 @@ export async function runInit(): Promise<void> {
   } catch (error: any) {
     s.stop(pc.red('Authentication failed'));
     const errorMsg = error?.body?.message || error?.message || 'Unknown error';
-    outro(pc.red(`Error: ${errorMsg}. Please check your credentials and URL, and run 'kb init' again.`));
+    outro(pc.red(`Error: ${errorMsg}. Please check your credentials and URL, and run 'kote init' again.`));
   }
 }

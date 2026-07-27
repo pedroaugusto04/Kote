@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 
 import { QueryKnowledgeUseCase } from '../../../dist/application/use-cases/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
@@ -92,8 +93,23 @@ test('query returns ranked matches from the authenticated user repository scope'
     links: [],
   });
 
-  const result = await new QueryKnowledgeUseCase(queryRepository).execute(
-    { query: 'timeout webhook deploy', projectSlug: 'n8n-automations', limit: 3 },
+  // Mock embedding dependencies (no embeddings configured, should fall back to keyword search)
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => [],
+  };
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
+  };
+
+  const result = await new QueryKnowledgeUseCase(
+    queryRepository,
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+  ).execute(
+    { query: 'timeout webhook deploy', projectId: undefined, limit: 3 },
     user.id,
   );
 
@@ -149,11 +165,264 @@ test('query filters textual matches by note status', async (t) => {
     links: [],
   });
 
-  const result = await new QueryKnowledgeUseCase(repositories.contentQueryRepository).execute(
-    { query: 'webhook timeout', workspaceSlug: 'default', status: 'resolved', limit: 10 },
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => [],
+  };
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
+  };
+
+  const result = await new QueryKnowledgeUseCase(
+    repositories.contentQueryRepository,
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+  ).execute(
+    { query: 'webhook timeout', status: 'resolved', limit: 10 },
     user.id,
   );
 
   assert.equal(result.ok, true);
   assert.deepEqual(result.matches.map((match) => match.title), ['Webhook resolvido']);
 });
+
+test('query handles special query: summarize my recent notes', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedDefaultWorkspace(repositories, user.id);
+
+  // Seed notes with different occurredAt dates
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/older.md',
+    type: 'event',
+    title: 'Older Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-20T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Older summary',
+    markdown: '',
+  });
+
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/newer.md',
+    type: 'event',
+    title: 'Newer Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Newer summary',
+    markdown: '',
+  });
+
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => [],
+  };
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
+  };
+
+  const result = await new QueryKnowledgeUseCase(
+    repositories.contentQueryRepository,
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+  ).execute(
+    { query: 'Summarize my recent notes', limit: 10 },
+    user.id,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 2);
+  // Should be sorted by date (newest first)
+  assert.deepEqual(result.matches.map((m) => m.title), ['Newer Note', 'Older Note']);
+});
+
+test('query handles special query: what are my action items?', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedDefaultWorkspace(repositories, user.id);
+
+  // Active note with followup tag
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/todo.md',
+    type: 'event',
+    title: 'Followup task',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: ['followup'],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Do something',
+    markdown: '',
+  });
+
+  // Active note without action items
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/regular.md',
+    type: 'event',
+    title: 'Regular Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Just info',
+    markdown: '',
+  });
+
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => [],
+  };
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
+  };
+
+  const result = await new QueryKnowledgeUseCase(
+    repositories.contentQueryRepository,
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+  ).execute(
+    { query: 'What are my action items?', limit: 10 },
+    user.id,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 1);
+  assert.equal(result.matches[0].title, 'Followup task');
+});
+
+test('query handles special query: review key decisions made', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const ws = await seedDefaultWorkspace(repositories, user.id);
+
+  const categoriesList = await repositories.contentRepository.listCategories(user.id, ws.id);
+  let decisionCategory = categoriesList.find((cat) => cat.name === 'decision');
+  if (!decisionCategory) {
+    decisionCategory = await repositories.contentRepository.createCategory(user.id, ws.id, {
+      name: 'decision',
+      color: '#4caf50',
+      icon: 'gavel',
+    });
+  }
+
+  // Note with type decision
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/decision.md',
+    type: 'decision',
+    title: 'Decision Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'We decided X',
+    markdown: '',
+    categoryIds: [decisionCategory.id],
+  });
+
+  // Regular note
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/regular.md',
+    type: 'event',
+    title: 'Regular Note',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: [],
+    occurredAt: '2026-04-25T10:00:00.000Z',
+    sourceChannel: 'test',
+    summary: 'Just info',
+    markdown: '',
+  });
+
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => [],
+  };
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
+  };
+
+  const result = await new QueryKnowledgeUseCase(
+    repositories.contentQueryRepository,
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+  ).execute(
+    { query: 'Review key decisions made', limit: 10 },
+    user.id,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 1);
+  assert.equal(result.matches[0].title, 'Decision Note');
+});
+
+test('query matches unique terms stored in note markdown body via FTS', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  await seedDefaultWorkspace(repositories, user.id);
+
+  const uniqueToken = `zzbodytoken${crypto.randomUUID().replaceAll('-', '')}`;
+
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/n8n-automations/2026/04/body-only-search.md',
+    type: 'event',
+    title: 'Generic inbox capture',
+    projectSlug: 'n8n-automations',
+    workspaceSlug: 'default',
+    status: 'active',
+    tags: ['inbox'],
+    occurredAt: '2026-04-27',
+    sourceChannel: 'test',
+    summary: 'Short summary without the searchable token.',
+    markdown: `# Internal note\n\nConfigure ${uniqueToken} before deploying.`,
+    frontmatter: {},
+    metadata: {},
+    origin: 'postgres',
+    source: 'test',
+    links: [],
+  });
+
+  const mockEmbeddingGateway = {
+    generateEmbeddings: async () => [],
+  };
+  const mockNoteEmbeddingRepository = {
+    findSimilar: async () => [],
+    getNotesEmbeddings: async () => [],
+  };
+
+  const result = await new QueryKnowledgeUseCase(
+    repositories.contentQueryRepository,
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    repositories.runtimeEnvironmentProvider,
+    { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
+  ).execute(
+    { query: uniqueToken, limit: 5 },
+    user.id,
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches.length, 1);
+  assert.equal(result.matches[0].title, 'Generic inbox capture');
+});
+

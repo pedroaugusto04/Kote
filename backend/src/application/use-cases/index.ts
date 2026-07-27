@@ -1,4 +1,5 @@
 export { BuildDashboardUseCase, buildDashboardHome } from './dashboard/build-dashboard.use-case.js';
+export { GetProductivityInsightsRawUseCase } from './dashboard/get-productivity-insights-raw.use-case.js';
 export { LogApplicationAccessUseCase } from './observability/log-application-access.use-case.js';
 export { CreateWorkspaceUseCase } from './workspaces/create-workspace.use-case.js';
 export { ListWorkspaceRepositoriesUseCase } from './workspaces/list-workspace-repositories.use-case.js';
@@ -16,10 +17,12 @@ export { UpdateProjectFolderUseCase } from './projects/update-project-folder.use
 export { DeleteProjectFolderUseCase } from './projects/delete-project-folder.use-case.js';
 export { UpdateProjectUseCase } from './projects/update-project.use-case.js';
 export { SetProjectFavoriteUseCase } from './projects/set-project-favorite.use-case.js';
+export { GetProjectCoverageUseCase } from './projects/get-project-coverage.use-case.js';
 export { CreateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
 export { DeleteNoteUseCase } from './notes/delete-manual-note.use-case.js';
 export { GetNoteAttachmentContentUseCase } from './notes/get-note-attachment-content.use-case.js';
 export { UpdateNoteUseCase } from './notes/update-manual-note.use-case.js';
+export { BulkUpdateNoteStatusUseCase } from './notes/bulk-update-note-status.use-case.js';
 export { GetNoteDetailUseCase } from './dashboard/get-note-detail.use-case.js';
 export { GetReviewDetailUseCase } from './dashboard/get-review-detail.use-case.js';
 export { QueryKnowledgeUseCase } from './query/query-knowledge.use-case.js';
@@ -27,6 +30,8 @@ export { AskKnowledgeUseCase } from './query/ask-knowledge.use-case.js';
 export { ResolveWhatsappAskAttachmentsUseCase } from './query/resolve-whatsapp-ask-attachments.use-case.js';
 export { RunAskAiUseCase } from './query/run-ask-ai.use-case.js';
 export { ListAskHistoryUseCase } from './query/list-ask-history.use-case.js';
+export { ListAskConversationsUseCase } from './query/list-ask-conversations.use-case.js';
+export { GetAskConversationTurnsUseCase } from './query/get-ask-conversation-turns.use-case.js';
 export { IngestEntryUseCase } from './ingest/ingest-entry.use-case.js';
 export { ProcessAgentConversationUseCase } from './conversation/process-agent-conversation.use-case.js';
 export { BuildReminderDispatchUseCase } from './reminders/build-reminder-dispatch.use-case.js';
@@ -37,7 +42,10 @@ export { ListPaginatedRemindersUseCase } from './reminders/list-paginated-remind
 export { MarkReminderAsSentUseCase } from './reminders/mark-reminder-as-sent.use-case.js';
 export { RefreshReminderStatusesUseCase } from './reminders/refresh-reminder-statuses.use-case.js';
 export { UpdateReminderStatusUseCase } from './reminders/update-reminder-status.use-case.js';
+export { BulkUpdateReminderStatusUseCase } from './reminders/bulk-update-reminder-status.use-case.js';
 export { HandleGithubPushUseCase } from './webhooks/github/handle-github-push.use-case.js';
+export { GithubBackfillUseCase } from './integrations/github-backfill.use-case.js';
+export { HandleGithubPullRequestUseCase } from './webhooks/github/handle-github-pull-request.use-case.js';
 export { HandleWhatsappWebhookUseCase } from './webhooks/whatsapp/handle-whatsapp-webhook.use-case.js';
 export { HandleTelegramWebhookUseCase } from './webhooks/telegram/handle-telegram-webhook.use-case.js';
 export { ListWorkspacesUseCase } from './dashboard/list-workspaces.use-case.js';
@@ -58,6 +66,9 @@ export {
 } from './push/push-subscription.use-cases.js';
 export { SetNotePinnedUseCase } from './notes/set-note-pinned.use-case.js';
 export { FindRelatedNotesUseCase } from './notes/find-related-notes.use-case.js';
+export { FindNotesByFileUseCase } from './notes/find-notes-by-file.use-case.js';
+export { FindRelatedNotesByFileUseCase } from './notes/find-related-notes-by-file.use-case.js';
+export { GenerateFileNotesSummaryUseCase } from './notes/generate-file-notes-summary.use-case.js';
 export { GetAutoActionGlobalUseCase } from './settings/get-auto-action-global.use-case.js';
 export { SetAutoActionGlobalUseCase } from './settings/set-auto-action-global.use-case.js';
 export { GetStripeConfigUseCase } from './billing/get-stripe-config.use-case.js';

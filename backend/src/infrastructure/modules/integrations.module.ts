@@ -9,6 +9,9 @@ import { NotesModule } from './notes.module.js';
 import { RemindersModule } from './reminders.module.js';
 import { OperationsModule } from './operations.module.js';
 import { WorkspacesModule } from './workspaces.module.js';
+import { EmailModule } from './email.module.js';
+import { QuotaModule } from './quota.module.js';
+import { ProjectsModule } from './projects.module.js';
 
 import {
   IntegrationConnectionService,
@@ -18,24 +21,34 @@ import {
 } from '../../application/credentials.js';
 import {
   HandleGithubPushUseCase,
+  HandleGithubPullRequestUseCase,
   HandleWhatsappWebhookUseCase,
   HandleTelegramWebhookUseCase,
+  GithubBackfillUseCase,
   ListWebhookSubscriptionsUseCase,
   CreateWebhookSubscriptionUseCase,
   UpdateWebhookSubscriptionUseCase,
   DeleteWebhookSubscriptionUseCase,
+  IngestEntryUseCase,
 } from '../../application/use-cases/index.js';
-import { WebhookDeliveryService } from '../../application/services/webhook-delivery.service.js';
-import { WebhookDeliveryWorker } from '../../application/services/webhook-delivery.worker.js';
+import { WebhookDeliveryService } from '../../application/services/webhooks/webhook-delivery.service.js';
+import { WebhookDeliveryWorker } from '../../application/workers/webhook-delivery.worker.js';
+import { ProcessGithubPushService } from '../../application/services/integrations/process-github-push.service.js';
+import { GithubBackfillRunnerService } from '../../application/services/integrations/github-backfill-runner.service.js';
+import { GithubBackfillJobRepository } from '../../application/ports/integrations/github-backfill-job.repository.js';
+import { BackfillQueuePublisher } from '../../application/ports/integrations/backfill-queue.publisher.js';
+import { PostgresGithubBackfillJobRepository } from '../repositories/github-backfill-job.repository.js';
+import { RabbitMqBackfillQueuePublisher } from '../queue/rabbitmq-backfill-queue.publisher.js';
+import { RabbitMqBackfillQueueConsumer } from '../queue/rabbitmq-backfill-queue.consumer.js';
 
 import {
   UserIntegrationsController,
   InternalIntegrationsController,
-  InternalN8NController,
   WebhookController,
   WebhookSubscriptionsController,
   GithubAppCallbackController,
 } from '../../interfaces/http/controllers/index.js';
+import { NotifyHighSeverityFindingsService } from '../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
 
 @Module({
   imports: [
@@ -49,11 +62,13 @@ import {
     RemindersModule,
     OperationsModule,
     WorkspacesModule,
+    EmailModule,
+    QuotaModule,
+    ProjectsModule,
   ],
   controllers: [
     UserIntegrationsController,
     InternalIntegrationsController,
-    InternalN8NController,
     WebhookController,
     WebhookSubscriptionsController,
     GithubAppCallbackController,
@@ -61,15 +76,25 @@ import {
   providers: [
     IntegrationConnectionService,
     IntegrationCredentialService,
+    ProcessGithubPushService,
     HandleGithubPushUseCase,
+    HandleGithubPullRequestUseCase,
     HandleWhatsappWebhookUseCase,
     HandleTelegramWebhookUseCase,
+    GithubBackfillUseCase,
+    GithubBackfillRunnerService,
+    { provide: GithubBackfillJobRepository, useClass: PostgresGithubBackfillJobRepository },
+    { provide: BackfillQueuePublisher, useClass: RabbitMqBackfillQueuePublisher },
+    RabbitMqBackfillQueuePublisher,
+    RabbitMqBackfillQueueConsumer,
+    NotifyHighSeverityFindingsService,
     WebhookDeliveryService,
     WebhookDeliveryWorker,
     ListWebhookSubscriptionsUseCase,
     CreateWebhookSubscriptionUseCase,
     UpdateWebhookSubscriptionUseCase,
     DeleteWebhookSubscriptionUseCase,
+    IngestEntryUseCase,
   ],
   exports: [
     IntegrationConnectionService,

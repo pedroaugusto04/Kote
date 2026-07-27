@@ -1,4 +1,16 @@
 // ---------------------------------------------------------------------------
+// Ask history
+// ---------------------------------------------------------------------------
+
+export interface AskHistoryEntry {
+  id: string;
+  question: string;
+  answer: string;
+  projectSlug: string;
+  timestamp: string; // ISO 8601
+}
+
+// ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
@@ -30,8 +42,12 @@ export interface KbNote {
   projectSlug: string;
   canonicalType: string;
   status: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+  date?: string;
+  sourceChannel?: string;
+  content?: string;
+  summary?: string;
 }
 
 export interface KbReminder {
@@ -67,6 +83,18 @@ export interface KbCreateNotePayload {
   sourceChannel?: string;
   source?: string;
   sessionId?: string;
+  occurredAt?: string;
+  path?: string;
+  metadata?: {
+    changedFiles?: string[];
+    [key: string]: any;
+  };
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 }
 
 export interface KbCreateNoteResult {
@@ -101,6 +129,8 @@ export type ChatToWebview =
   | { type: 'projects'; projects: KbProject[] }
   | { type: 'setProject'; projectSlug: string }
   | { type: 'noteSaved'; noteId: string }
+  | { type: 'injectQA'; question: string; answer: string; projectSlug: string }
+  | { type: 'historyLoaded'; entries: AskHistoryEntry[] }
   | { type: 'error'; message: string }
   | { type: 'thinking' };
 
@@ -108,4 +138,6 @@ export type ChatToWebview =
 export type ChatFromWebview =
   | { type: 'ready' }
   | { type: 'ask'; question: string; projectSlug: string }
-  | { type: 'saveNote'; content: string; projectSlug: string; title?: string };
+  | { type: 'saveNote'; content: string; projectSlug: string; title?: string }
+  | { type: 'loadHistory' }
+  | { type: 'clearHistory' };

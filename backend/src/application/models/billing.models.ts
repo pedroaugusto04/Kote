@@ -63,7 +63,7 @@ export interface GatewayWebhookEventRecord {
   gatewayEventId?: string | null;
   gatewayPaymentId?: string | null;
   gatewaySubscriptionId?: string | null;
-  payload: any;
+  payload: Record<string, unknown>;
   status: 'pending' | 'processing' | 'done' | 'failed';
   attempts: number;
   lastError?: string | null;
@@ -81,7 +81,6 @@ export interface UserSubscriptionRecord {
   currentPeriodEnd: Date;
   gatewayName: string;
   gatewaySubscriptionId?: string | null;
-  gatewayCustomerId?: string | null;
   billingCycle: BillingCycle;
   billingType?: BillingType | null;
   nextDueDate?: Date | null;
@@ -99,7 +98,7 @@ export interface WebhookEventCreateParams {
   gatewayEventId?: string | null;
   gatewayPaymentId?: string | null;
   gatewaySubscriptionId?: string | null;
-  payload: any;
+  payload: Record<string, unknown>;
 }
 
 export interface WebhookEventCreateResult {

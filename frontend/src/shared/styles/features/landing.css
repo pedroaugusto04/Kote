@@ -566,6 +566,17 @@
   height: 18px;
   display: grid;
   place-items: center;
+  color: var(--text-strong);
+}
+
+.landing-integration-card-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.landing-integration-card-icon.whatsapp-icon img {
+  width: 14px;
+  height: 14px;
 }
 
 .landing-integration-card.c1 { top: 15%; left: 18%; }
@@ -596,9 +607,12 @@
 
 .landing-features-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 24px;
   margin-top: 50px;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .landing-feature-card {

@@ -7,6 +7,7 @@ import {
 } from '../../application/ports/audio/audio-transcription.gateway.js';
 import { AppLogger } from '../../observability/logger.js';
 import { truncateForLog } from '../utils/logging.js';
+import { buildAudioTranscriptionPrompt } from './prompts/audio-transcription.prompt.js';
 
 export class AudioTranscriptionError extends Error {
   readonly provider: AiProvider;
@@ -106,7 +107,7 @@ export class DefaultAudioTranscriptionGateway extends AudioTranscriptionGateway 
         {
           parts: [
             {
-              text: 'Transcribe the following audio recording verbatim. Do not add any summary, comments, introduction, explanation, or formatting. Only output the exact transcribed text of the audio.',
+              text: buildAudioTranscriptionPrompt(),
             },
             {
               inlineData: {

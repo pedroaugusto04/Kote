@@ -4,8 +4,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody } 
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { CreateWorkspaceUseCase, ListWorkspaceRepositoriesUseCase, ListWorkspaceCategoriesUseCase } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
-import { WorkspaceResolutionGuard } from '../../workspace-resolution.guard.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
+import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
 import { WorkspaceId } from '../../workspace.decorators.js';
 import { createWorkspaceBodySchema, type CreateWorkspaceBody } from '../../dto/workspace.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';

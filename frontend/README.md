@@ -1,6 +1,6 @@
-# Knowledge Vault Frontend
+# Kote Frontend
 
-Frontend React + Vite para navegar a knowledge-base como um vault tecnico.
+Frontend React + Vite para navegar o Kote como um vault tecnico.
 
 Scripts principais:
 
@@ -8,7 +8,7 @@ Scripts principais:
 - `npm run build:frontend`: build de producao em `dist/frontend`
 - `npm run test:frontend`: testes de componentes
 
-O frontend consome a API NestJS do proprio pacote `knowledge-base` e preserva o design visual da primeira versao estatica.
+O frontend consome a API NestJS do proprio pacote `kote` e preserva o design visual da primeira versao estatica.
 
 ## Estrutura
 

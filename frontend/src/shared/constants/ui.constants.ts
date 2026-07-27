@@ -75,12 +75,13 @@ export const UI_MESSAGES = {
   // App shell and navigation labels
   NOTE_DETAILS: 'Note details',
   DOCUMENTATION: 'Documentation',
-  KNOWLEDGE_VAULT: 'Knowledge Vault',
-  DEVELOPER_KNOWLEDGE_BASE: 'developer knowledge base',
+  KNOWLEDGE_VAULT: 'Kote',
+  DEVELOPER_KNOWLEDGE_BASE: 'Your Team\'s Second Brain',
   WORKSPACE: 'Workspace',
   SEARCH_NOTES_PATHS_OR_TAGS: 'Search notes, paths, or tags',
   SEARCHING: 'Searching...',
   NO_NOTES_FOUND: 'No notes found',
+  ASK_AI_SEMANTIC_SEARCH: 'Search with AI',
   USER_MENU: 'User menu',
   LOADING_USER: 'Loading user...',
   LOADING_EMAIL: 'Loading email...',
@@ -132,6 +133,21 @@ export const UI_MESSAGES = {
   PRODUCTION_WEBHOOK: 'Production webhook',
   EXAMPLE_WEBHOOK_URL: 'https://example.com/webhook',
   MY_WORKSPACE: 'My Workspace',
+
+  // Repository visibility labels
+  PRIVATE: 'Private',
+  PUBLIC: 'Public',
+
+  // Modal labels
+  DISCARD_CHANGES: 'Discard changes?',
+  CLOSE_WITHOUT_SAVING: 'Close without saving',
+  KEEP_EDITING: 'Keep editing',
+
+  // GitHub integration labels
+  GITHUB_CONNECTED: 'GitHub Connected!',
+  GITHUB_CONNECTED_SUCCESS: 'GitHub connected. Select the workspace repositories.',
+  GITHUB_CONNECTION_ERROR: 'Could not complete the GitHub connection.',
+  DONE: 'Done',
 } as const;
 
 export type UIMessageKey = keyof typeof UI_MESSAGES;

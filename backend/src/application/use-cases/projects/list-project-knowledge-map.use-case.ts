@@ -10,8 +10,9 @@ import type {
   ProjectKnowledgeMapNoteCategory,
 } from '../../models/project-knowledge-map.models.js';
 import type { NoteRecord, ProjectFolderRecord, SaveProjectInput } from '../../models/repository-records.models.js';
-import { collectFolderDescendantIds } from '../../utils/project-folder.utils.js';
+import { collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { EventType, SourceChannel, TimelineCategory } from '../../../contracts/enums.js';
 
 @Injectable()
 export class ListProjectKnowledgeMapUseCase {
@@ -138,7 +139,7 @@ export function buildProjectKnowledgeMap(
     }
 
     const repositoryNodeId = repositoryNodeIdsByFullName.get(noteRepositoryFullName(note));
-    if (category === 'github-push' && repositoryNodeId) {
+    if (category === TimelineCategory.Github && repositoryNodeId) {
       addLink(links, noteNodeId, repositoryNodeId, 'from-repository', 0.7);
     }
   }
@@ -157,12 +158,14 @@ export function buildProjectKnowledgeMap(
   };
 }
 
-export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderDate' | 'reminderAt'>): ProjectKnowledgeMapNoteCategory {
-  if (hasReminder(record)) return 'reminder';
-  if (record.sourceChannel === 'github-push') return 'github-push';
-  if (record.sourceChannel === 'whatsapp') return 'whatsapp';
-  if (record.sourceChannel === 'ai-chat') return 'ai-chat';
-  return 'manual';
+export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderAt'>): ProjectKnowledgeMapNoteCategory {
+  if (hasReminder(record)) return TimelineCategory.Reminder;
+  if (record.sourceChannel === SourceChannel.Github) return TimelineCategory.Github;
+  if (record.sourceChannel === SourceChannel.Whatsapp) return TimelineCategory.Whatsapp;
+  if (record.sourceChannel === SourceChannel.AiChat) return TimelineCategory.AiChat;
+  if (record.sourceChannel === SourceChannel.Cli) return TimelineCategory.Manual;
+  if (record.sourceChannel === SourceChannel.Ide) return TimelineCategory.Manual;
+  return TimelineCategory.Manual;
 }
 
 function collectAncestorFolderIds(folders: ProjectFolderRecord[], selectedIds: Set<string>) {
@@ -178,12 +181,12 @@ function collectAncestorFolderIds(folders: ProjectFolderRecord[], selectedIds: S
   return result;
 }
 
-function hasReminder(record: Pick<NoteRecord, 'reminderDate' | 'reminderAt'>) {
-  return Boolean(record.reminderDate.trim() || record.reminderAt.trim());
+function hasReminder(record: Pick<NoteRecord, 'reminderAt'>) {
+  return Boolean(record.reminderAt);
 }
 
 function isReviewNote(record: Pick<NoteRecord, 'metadata' | 'sourceChannel'>) {
-  return record.metadata.eventType === 'code_review' || record.sourceChannel === 'github-push';
+  return record.metadata.eventType === EventType.CodeReview || record.sourceChannel === SourceChannel.Github;
 }
 
 function noteRepositoryFullName(note: NoteRecord) {
@@ -225,11 +228,11 @@ function categoryNode(category: ProjectKnowledgeMapNoteCategory) {
 
 function categoryLabel(category: ProjectKnowledgeMapNoteCategory) {
   const labels: Record<ProjectKnowledgeMapNoteCategory, string> = {
-    whatsapp: 'WhatsApp',
-    'github-push': 'GitHub push',
-    manual: 'Manual',
-    reminder: 'Reminder',
-    'ai-chat': 'AI Chat',
+    [TimelineCategory.Whatsapp]: 'WhatsApp',
+    [TimelineCategory.Github]: 'GitHub',
+    [TimelineCategory.Manual]: 'Manual',
+    [TimelineCategory.Reminder]: 'Reminder',
+    [TimelineCategory.AiChat]: 'AI Chat',
   };
-  return labels[category];
+  return labels[category] ?? category;
 }

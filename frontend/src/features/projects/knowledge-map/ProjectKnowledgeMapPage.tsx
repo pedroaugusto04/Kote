@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
+import { useDebouncedValue } from '../../../shared/ui/use-debounced-value';
 import type { ProjectsPageContext } from '../../../app/page-context';
 import { routes } from '../../../app/routing/routes';
 import { formatDisplayToken } from '../../../shared/utils/format';
@@ -35,27 +36,53 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   const isMobile = useMediaQuery('(max-width: 768px)');
   const params = useParams();
   const navigate = useNavigate();
-  const projectSlug = params.projectSlug
-    ? decodeURIComponent(params.projectSlug)
-    : selectedProject || dashboard.projects[0]?.projectSlug || '';
-  const project = useMemo(
-    () => dashboard.projects.find((item) => item.projectSlug === projectSlug) || null,
-    [dashboard.projects, projectSlug],
-  );
+  const project = useMemo(() => {
+    if (params.projectSlug) {
+      const slug = decodeURIComponent(params.projectSlug);
+      return dashboard.projects.find((item) => item.projectSlug === slug) || null;
+    }
+
+    if (selectedProject) {
+      const found = dashboard.projects.find((item) => item.projectSlug === selectedProject);
+      if (found) return found;
+    }
+
+    const favoriteProject = dashboard.projects.find((item) => item.favorite);
+    if (favoriteProject) return favoriteProject;
+
+    const inboxProject = dashboard.projects.find((item) => item.projectSlug === 'inbox');
+    if (inboxProject) return inboxProject;
+
+    return dashboard.projects[0] || null;
+  }, [dashboard.projects, params.projectSlug, selectedProject]);
+
+  const projectSlug = project?.projectSlug || '';
   const [paused, setPaused] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
   const [category, setCategory] = useState<ProjectTimelineCategory>('all');
   const [folderId, setFolderId] = useState('');
   const [limit, setLimit] = useState<number>(80);
-  const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapVisibleNodeType>>(() => new Set(defaultVisibleKnowledgeMapNodeTypes));
+  const [visibleTypes, setVisibleTypes] = useState<Set<KnowledgeMapVisibleNodeType>>(() => {
+    const shouldIncludeReviewNotes = (project?.noteCount ?? 0) < 50;
+    const types = new Set(defaultVisibleKnowledgeMapNodeTypes);
+    if (!shouldIncludeReviewNotes) {
+      types.delete('review-note');
+    }
+    return types;
+  });
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
+  const [searchQueryInput, setSearchQueryInput] = useState('');
+  const debouncedSearchQuery = useDebouncedValue(searchQueryInput, 300);
+
+  const excludeReviewNotes = !visibleTypes.has('review-note');
 
   const query = useQuery({
-    queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit],
+    queryKey: ['project-knowledge-map', projectSlug, category, folderId, limit, excludeReviewNotes],
     queryFn: () => fetchProjectKnowledgeMap(projectSlug, {
       category,
       folderId: folderId || undefined,
       limit,
+      excludeReviewNotes,
     }),
     enabled: Boolean(projectSlug),
     staleTime: 30_000,
@@ -93,14 +120,45 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
     }
   }, [dateRange]);
 
-  const filteredGraph = useMemo(
-    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes, maxDateFilter) : null,
-    [graph, visibleTypes, maxDateFilter],
+  // Base graph: type-filtered only (no date filter) — used for simulation layout
+  const baseGraph = useMemo(
+    () => graph ? filterKnowledgeMapDataset(graph, visibleTypes) : null,
+    [graph, visibleTypes],
   );
+
+  const isLargeGraph = (baseGraph?.nodes?.length || 0) > 80;
+
+  // Hidden node IDs: derived from the date filter applied on top of baseGraph
+  const hiddenNodeIds = useMemo(() => {
+    if (!baseGraph || maxDateFilter === null) return null;
+    const hidden = new Set<string>();
+    baseGraph.nodes.forEach((node) => {
+      if (node.type === 'note' && node.date) {
+        if (new Date(node.date).getTime() > maxDateFilter) {
+          hidden.add(node.id);
+        }
+      }
+    });
+    // Also hide structural nodes (folders, tags, etc.) that only connect to hidden notes
+    const visibleNoteIds = new Set(
+      baseGraph.nodes.filter((n) => n.type === 'note' && !hidden.has(n.id)).map((n) => n.id),
+    );
+    baseGraph.nodes.forEach((node) => {
+      if (node.type === 'note' || node.type === 'project') return;
+      const connectedNotes = baseGraph.links.filter((l) => {
+        const sId = l.source;
+        const tId = l.target;
+        return (sId === node.id && visibleNoteIds.has(tId)) || (tId === node.id && visibleNoteIds.has(sId));
+      });
+      if (connectedNotes.length === 0) hidden.add(node.id);
+    });
+    return hidden;
+  }, [baseGraph, maxDateFilter]);
 
   useEffect(() => {
     setFolderId('');
     setSideNoteId(null);
+    setSearchQueryInput('');
     setResetSignal((current) => current + 1);
   }, [projectSlug]);
 
@@ -138,8 +196,14 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
         subtitle=""
         action={(
           <div className="knowledge-map-actions">
-            <button className="icon-button secondary" type="button" onClick={() => setPaused((current) => !current)}>
-              {paused ? 'Resume' : 'Pause'}
+            <button
+              className="icon-button secondary"
+              type="button"
+              disabled={isLargeGraph}
+              title={isLargeGraph ? 'Animation disabled for performance' : undefined}
+              onClick={() => setPaused((current) => !current)}
+            >
+              {isLargeGraph ? 'Animation paused' : paused ? 'Resume' : 'Pause'}
             </button>
             <button className="icon-button" type="button" onClick={() => setResetSignal((current) => current + 1)}>
               Reset view
@@ -177,10 +241,12 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
             visibleTypes={visibleTypes}
             dateRange={dateRange}
             maxDateFilter={maxDateFilter}
+            searchQuery={searchQueryInput}
             onCategoryChange={setCategory}
             onFolderChange={setFolderId}
             onLimitChange={setLimit}
             onMaxDateFilterChange={setMaxDateFilter}
+            onSearchQueryChange={setSearchQueryInput}
             onTypeToggle={(type) => {
               setVisibleTypes((current) => {
                 const next = new Set(current);
@@ -191,16 +257,22 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
               });
             }}
           />
-          <KnowledgeMapStats stats={graph.stats} />
+          <KnowledgeMapStats
+            stats={{
+              ...graph.stats,
+              noteCount: baseGraph?.nodes.filter((n) => n.type === 'note').length ?? graph.stats.noteCount,
+            }}
+          />
           {graph.stats.noteCount === 0 ? (
             <EmptyState>No notes match the current map filters.</EmptyState>
           ) : (
             <>
-              <KnowledgeMapLegend presentTypes={new Set(filteredGraph?.nodes.map(knowledgeMapVisibleTypeFromNode) || [])} />
+              <KnowledgeMapLegend presentTypes={new Set(baseGraph?.nodes.map(knowledgeMapVisibleTypeFromNode) || [])} />
               <div className={`knowledge-map-container-layout${sideNoteId ? ' has-drawer' : ''}`}>
                 <ProjectKnowledgeForceGraph
-                  links={filteredGraph?.links || []}
-                  nodes={filteredGraph?.nodes || []}
+                  links={baseGraph?.links || []}
+                  nodes={baseGraph?.nodes || []}
+                  hiddenNodeIds={hiddenNodeIds}
                   onOpenNote={(id) => {
                     if (isMobile) {
                       openNote(id);
@@ -213,6 +285,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
                   }}
                   paused={paused}
                   resetSignal={resetSignal}
+                  searchQuery={debouncedSearchQuery}
                 />
                 {sideNoteId && (
                   <SideNoteDrawer
@@ -239,10 +312,12 @@ type KnowledgeMapControlsProps = {
   visibleTypes: Set<KnowledgeMapVisibleNodeType>;
   dateRange: { min: number; max: number } | null;
   maxDateFilter: number | null;
+  searchQuery: string;
   onCategoryChange: (category: ProjectTimelineCategory) => void;
   onFolderChange: (folderId: string) => void;
   onLimitChange: (limit: number) => void;
   onMaxDateFilterChange: (value: number) => void;
+  onSearchQueryChange: (value: string) => void;
   onTypeToggle: (type: KnowledgeMapVisibleNodeType) => void;
 };
 
@@ -254,14 +329,26 @@ function KnowledgeMapControls({
   visibleTypes,
   dateRange,
   maxDateFilter,
+  searchQuery,
   onCategoryChange,
   onFolderChange,
   onLimitChange,
   onMaxDateFilterChange,
+  onSearchQueryChange,
   onTypeToggle,
 }: KnowledgeMapControlsProps) {
   return (
     <div className="knowledge-map-controls" aria-label="Knowledge map filters">
+      <label>
+        <span>Search</span>
+        <input
+          className="knowledge-map-search-input"
+          placeholder="Search node names..."
+          type="text"
+          value={searchQuery}
+          onChange={(event) => onSearchQueryChange(event.target.value)}
+        />
+      </label>
       <label>
         <span>Category</span>
         <select aria-label="Knowledge map category" value={category} onChange={(event) => onCategoryChange(event.target.value as ProjectTimelineCategory)}>

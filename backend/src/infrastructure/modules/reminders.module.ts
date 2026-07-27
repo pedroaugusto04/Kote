@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from './logger.module.js';
 import { EnvModule } from './env.module.js';
 import { DatabaseModule } from './database.module.js';
+import { EmailModule } from './email.module.js';
 
 import {
   BuildReminderDispatchUseCase,
@@ -10,22 +11,21 @@ import {
   MarkReminderAsSentUseCase,
   RefreshReminderStatusesUseCase,
   UpdateReminderStatusUseCase,
+  BulkUpdateReminderStatusUseCase,
   ListPaginatedRemindersUseCase,
   ListReminderBoardUseCase,
 } from '../../application/use-cases/index.js';
 
-import { ReminderDispatchWorker } from '../../application/services/reminder-dispatch.worker.js';
-import { ReminderEventBus } from '../../application/services/reminder-event.bus.js';
-import { PushNotificationService } from '../../application/services/push-notification.service.js';
-import { PushNotificationReminderListener } from '../../application/services/push-notification-reminder.listener.js';
-import { TelegramReminderListener } from '../../application/services/telegram-reminder.listener.js';
-import { VapidService } from '../../application/services/vapid.service.js';
-
+import { ReminderDispatchWorker } from '../../application/workers/reminder-dispatch.worker.js';
+import { ReminderEventBus } from '../../application/event-buses/reminder-event.bus.js';
+import { PushNotificationService } from '../../application/services/notifications/push-notification.service.js';
+import { PushNotificationReminderListener } from '../../application/listeners/push-notification-reminder.listener.js';
+import { TelegramReminderListener } from '../../application/listeners/telegram-reminder.listener.js';
+import { VapidService } from '../../application/services/notifications/vapid.service.js';
 import { WhatsappReplySender } from '../../application/ports/integrations/whatsapp-reply.sender.js';
 import { WhatsappMediaDownloader } from '../../application/ports/integrations/whatsapp-media.downloader.js';
 import { TelegramMessageSender } from '../../application/ports/integrations/telegram-message.sender.js';
 import { ReminderDeliveryGateway } from '../../application/ports/reminders/reminder-delivery.gateway.js';
-
 import { EvolutionWhatsappReplySender, EvolutionReminderDeliveryGateway, EvolutionWhatsappMediaDownloader } from '../../adapters/evolution.js';
 import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../../adapters/telegram.js';
 
@@ -34,6 +34,7 @@ import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../.
     LoggerModule,
     EnvModule,
     DatabaseModule,
+    EmailModule,
   ],
   providers: [
     BuildReminderDispatchUseCase,
@@ -42,6 +43,7 @@ import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../.
     MarkReminderAsSentUseCase,
     RefreshReminderStatusesUseCase,
     UpdateReminderStatusUseCase,
+    BulkUpdateReminderStatusUseCase,
     ListPaginatedRemindersUseCase,
     ListReminderBoardUseCase,
     ReminderDispatchWorker,
@@ -74,6 +76,7 @@ import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../.
     ListPaginatedRemindersUseCase,
     ListReminderBoardUseCase,
     UpdateReminderStatusUseCase,
+    BulkUpdateReminderStatusUseCase,
   ],
 })
 export class RemindersModule {}

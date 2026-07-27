@@ -5,6 +5,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { ProjectsPage } from '../../../src/pages/projects/ProjectsPage';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
+import { NoteStatus } from '../../../src/shared/api/models/note-status';
+
+// Mock reminderAtToUtc to have predictable timezone conversion for tests
+vi.mock('../../../src/shared/utils/format', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../src/shared/utils/format')>();
+  return {
+    ...actual,
+    reminderAtToUtc: vi.fn((input: string | undefined) => {
+      if (!input) return undefined;
+      // Simulate UTC-3 to UTC conversion: 09:30 UTC-3 = 12:30 UTC
+      const date = new Date(input);
+      if (input === '2026-04-29T09:30') {
+        return '2026-04-29T12:30:00.000Z';
+      }
+      return date.toISOString();
+    }),
+  };
+});
 
 function githubIntegrationsResponse(status: 'connected' | 'missing' = 'connected') {
   return {
@@ -84,9 +102,10 @@ const dashboard: Dashboard = {
       categories: [],
       tags: ['deploy'],
       date: '2026-04-27',
-      status: 'active',
+      status: NoteStatus.Active,
       summary: 'Resumo',
       source: 'manual-api',
+      sourceChannel: 'manual',
       attachmentCount: 0,
     },
   ],
@@ -347,7 +366,7 @@ describe('ProjectsPage', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
   });
 
-  it('creates a note with reminder fields and opens the created note', async () => {
+  it('creates a note with reminder fields', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input) === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
       if (String(input) === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
@@ -357,13 +376,12 @@ describe('ProjectsPage', () => {
         title: 'Revisar rollout',
         rawText: 'confirmar deploy',
         tags: ['deploy'],
-        reminderDate: '2026-04-29',
-        reminderTime: '09:30',
+        reminderAt: '2026-04-29T12:30:00.000Z',
       });
       return Response.json({ ok: true, project: 'platform', noteId: 'note-2', eventPath: 'path.md' });
     });
     vi.stubGlobal('fetch', fetchMock);
-    const { openNote } = renderProjects();
+    renderProjects();
 
     fireEvent.click(screen.getByRole('button', { name: 'New note' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Revisar rollout' } });
@@ -371,13 +389,11 @@ describe('ProjectsPage', () => {
     const tagsInput = screen.getByLabelText('Tags');
     fireEvent.change(tagsInput, { target: { value: 'deploy' } });
     fireEvent.keyDown(tagsInput, { key: 'Enter' });
-    fireEvent.change(screen.getByLabelText('Reminder date'), { target: { value: '2026-04-29' } });
-    fireEvent.change(screen.getByLabelText('Reminder time'), { target: { value: '09:30' } });
+    fireEvent.change(screen.getByLabelText('Reminder'), { target: { value: '2026-04-29T09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/notes', expect.objectContaining({ method: 'POST' })));
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('Note created successfully.');
-    expect(openNote).toHaveBeenCalledWith('note-2');
   });
 
   it('loads note editor data and prefills the edit modal without opening the note row', async () => {
@@ -397,8 +413,7 @@ describe('ProjectsPage', () => {
           editor: {
             canDelete: true,
             rawText: 'confirmar deploy',
-            reminderDate: '2026-04-29',
-            reminderTime: '09:30',
+            reminderAt: '2026-04-29T09:30',
           },
         },
       });
@@ -410,7 +425,7 @@ describe('ProjectsPage', () => {
 
     expect(openNote).not.toHaveBeenCalled();
     expect(await screen.findByDisplayValue('confirmar deploy')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2026-04-29')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2026-04-29T09:30')).toBeInTheDocument();
   });
 
   it('updates a note without opening it after save', async () => {
@@ -430,8 +445,7 @@ describe('ProjectsPage', () => {
             editor: {
               canDelete: true,
               rawText: 'confirmar deploy',
-              reminderDate: '2026-04-29',
-              reminderTime: '09:30',
+              reminderAt: '2026-04-29T09:30',
             },
           },
         });
@@ -440,8 +454,7 @@ describe('ProjectsPage', () => {
         expect(JSON.parse(String(init.body))).toMatchObject({
           title: 'Deploy revisado',
           rawText: 'confirmar deploy atualizado',
-          reminderDate: '2026-04-29',
-          reminderTime: '09:30',
+          reminderAt: '2026-04-29T12:30:00.000Z',
         });
         return Response.json({ ok: true, noteId: 'note-1' });
       }
@@ -663,9 +676,9 @@ describe('ProjectsPage', () => {
               date: '2026-05-19T10:00:00.000Z',
               status: 'active',
               summary: 'Push captured from GitHub.',
-              source: 'github-push',
-              sourceChannel: 'github-push',
-              category: 'github-push',
+              source: 'github',
+              sourceChannel: 'github',
+              category: 'github',
               categories: [],
               attachmentCount: 0,
             },
@@ -820,6 +833,7 @@ describe('ProjectsPage', () => {
     renderProjects();
 
     fireEvent.click(screen.getByRole('button', { name: 'New note' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Confirm deploy' } });
     fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'confirmar deploy' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
 

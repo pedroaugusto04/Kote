@@ -1,4 +1,4 @@
-import type { AiProvider } from '../../../contracts/enums.js';
+import { AiProvider, EmbeddingTaskType } from '../../../contracts/enums.js';
 
 export type EmbeddingConfig = {
   provider: AiProvider;
@@ -11,5 +11,7 @@ export abstract class EmbeddingGateway {
   abstract generateEmbeddings(
     config: EmbeddingConfig,
     texts: string[],
+    taskType?: EmbeddingTaskType,
   ): Promise<number[][]>;
 }
+

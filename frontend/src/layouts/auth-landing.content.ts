@@ -5,7 +5,7 @@ export const authCopy = {
     submit: 'Sign in',
   },
   signup: {
-    title: 'Create your knowledge base',
+    title: 'Create your Kote workspace',
     description: 'Start capturing the technical context your future self will need.',
     submit: 'Create account',
   },

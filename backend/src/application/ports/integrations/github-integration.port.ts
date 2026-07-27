@@ -3,6 +3,18 @@ export type GithubComparePayload = {
   commits: Array<{ sha: string; message: string }>;
 };
 
+export type GithubCommitDiff = {
+  files: Array<{ filename: string; status: string; patch: string }>;
+};
+
+export type GithubRecentCommit = {
+  sha: string;
+  message: string;
+  timestamp: string;
+  url: string;
+  parentSha: string;
+};
+
 export type GithubInstallationRepository = {
   id: number;
   fullName: string;
@@ -18,9 +30,33 @@ export abstract class GithubIntegrationGateway {
   abstract verifyWebhookSignature(secret: string, rawBody: string, signature: string): void;
   abstract fetchInstallationToken(input: { appId: string; privateKey: string; installationId: string }): Promise<string>;
   abstract fetchComparePayload(repoFullName: string, before: string, after: string, token: string): Promise<GithubComparePayload>;
+  abstract fetchCommitDiff(repoFullName: string, sha: string, token: string): Promise<GithubCommitDiff>;
+  abstract fetchRecentCommits(input: {
+    repoFullName: string;
+    branch: string;
+    limit: number;
+    token: string;
+  }): Promise<GithubRecentCommit[]>;
   abstract fetchInstallationRepositories(input: {
     appId: string;
     privateKey: string;
     installationId: string;
   }): Promise<GithubInstallationRepository[]>;
+  abstract postPullRequestComment(
+    repoFullName: string,
+    prNumber: number,
+    bodyText: string,
+    token: string,
+  ): Promise<boolean>;
+  abstract fetchPullRequestComments(
+    repoFullName: string,
+    prNumber: number,
+    token: string,
+  ): Promise<Array<{ id: number; body: string }>>;
+  abstract fetchRepositoryTree(
+    repoFullName: string,
+    defaultBranch: string,
+    token: string,
+  ): Promise<string[]>;
 }
+

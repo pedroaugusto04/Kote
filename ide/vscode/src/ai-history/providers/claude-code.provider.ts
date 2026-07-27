@@ -4,13 +4,15 @@ import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
 import { collapseWhitespace } from '../../utils/text.js';
+import { watchRecursive } from '../../utils/watcher.js';
 
 export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
   readonly id = 'claude-code';
   readonly name = 'Claude Code';
 
   private getHistoryDir(): string {
-    return path.join(os.homedir(), '.claude', 'projects');
+    const configPath = vscode.workspace.getConfiguration('kb').get<string>('claudeCodeLogPath');
+    return configPath || path.join(os.homedir(), '.claude');
   }
 
   async isEnabled(): Promise<boolean> {
@@ -40,18 +42,30 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
     return results;
   }
 
-  async getRecentSessions(): Promise<AiSession[]> {
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
     const dir = this.getHistoryDir();
     if (!fs.existsSync(dir)) return [];
 
     const sessions: AiSession[] = [];
     try {
-      const allFiles = this.getAllFiles(dir);
-      for (const filePath of allFiles) {
-        if (filePath.endsWith('.jsonl')) {
-          const session = this.parseFile(filePath);
-          if (session) sessions.push(session);
+      const allFiles = this.getAllFiles(dir).filter(filePath => filePath.endsWith('.jsonl'));
+      
+      // Sort files by mtimeMs descending
+      const fileStats = allFiles.map(filePath => {
+        try {
+          return { filePath, mtime: fs.statSync(filePath).mtimeMs };
+        } catch {
+          return { filePath, mtime: 0 };
         }
+      });
+      fileStats.sort((a, b) => b.mtime - a.mtime);
+
+      const count = limit !== undefined ? limit : 20;
+      const recentFiles = fileStats.slice(0, count).map(x => x.filePath);
+
+      for (const filePath of recentFiles) {
+        const session = this.parseFile(filePath);
+        if (session) sessions.push(session);
       }
     } catch (err) {
       console.error('Failed to read recent Claude Code sessions:', err);
@@ -61,16 +75,9 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const historyDir = this.getHistoryDir();
-    
-    // Watch recursively for all jsonl files in projects subdirectories
-    const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(historyDir, '**/*.jsonl')
-    );
-
     const timeouts = new Map<string, NodeJS.Timeout>();
 
-    const handleFile = (uri: vscode.Uri) => {
-      const fsPath = uri.fsPath;
+    const handleFile = (fsPath: string) => {
       if (timeouts.has(fsPath)) {
         clearTimeout(timeouts.get(fsPath)!);
       }
@@ -86,8 +93,11 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
       timeouts.set(fsPath, timeout);
     };
 
-    watcher.onDidChange(handleFile);
-    watcher.onDidCreate(handleFile);
+    const watcher = watchRecursive(
+      historyDir,
+      (fileName) => fileName.endsWith('.jsonl'),
+      (filePath) => handleFile(filePath)
+    );
 
     return new vscode.Disposable(() => {
       for (const t of timeouts.values()) {
@@ -110,12 +120,27 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
         try {
           const record = JSON.parse(line);
           const role = record.role || (record.type === 'prompt' ? 'user' : record.type === 'response' ? 'assistant' : null);
-          const text = record.content || record.text || '';
+          if (role !== 'user' && role !== 'assistant') continue;
 
-          if (role === 'user') {
-            turns.push({ role: 'user', content: text });
-          } else if (role === 'assistant') {
-            turns.push({ role: 'assistant', content: text });
+          // content can be a plain string or an array of content blocks (Anthropic Messages API)
+          let text = '';
+          const rawContent = record.content || record.text;
+          if (typeof rawContent === 'string') {
+            text = rawContent;
+          } else if (Array.isArray(rawContent)) {
+            // Extract text from content blocks, skip tool_use/tool_result
+            const textParts: string[] = [];
+            for (const block of rawContent) {
+              if (block.type === 'text' && block.text) {
+                textParts.push(block.text);
+              }
+            }
+            text = textParts.join('\n\n');
+          }
+
+          text = text.trim();
+          if (text) {
+            turns.push({ role, content: text });
           }
         } catch {
           // ignore malformed JSON lines

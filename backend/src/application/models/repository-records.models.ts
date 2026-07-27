@@ -10,6 +10,7 @@ export type KbUser = {
   role: string;
   avatar: string;
   cpfCnpj: string;
+  vsCodeInstalledAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -84,6 +85,7 @@ export type WorkspaceRecord = {
 export type RepositoryRecord = {
   id: string;
   workspaceId: string;
+  workspaceSlug?: string;
   externalId: string;
   fullName: string;
   htmlUrl: string | null;
@@ -103,6 +105,7 @@ export type ProjectRecord = {
   defaultTags: string[];
   enabled: boolean;
   favorite: boolean;
+  noteCount?: number;
 };
 
 export type ProjectFolderRecord = {
@@ -151,10 +154,11 @@ export type NoteRecord = {
   metadata: Record<string, unknown>;
   source: string;
   sessionId: string;
-  reminderDate: string;
   reminderAt: string;
   attachmentCount?: number;
   isPinned?: boolean;
+  sizeBytes?: number;
+  ftsRank?: number;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -190,6 +194,7 @@ export type SaveNoteInput = Omit<NoteRecord, 'id' | 'markdownStorageKey' | 'cate
   markdownStorageKey?: string;
   categoryIds?: string[];
   categories?: CategoryRecord[];
+  links?: string[];
 };
 
 export type SaveAttachmentInput = Omit<AttachmentRecord, 'id' | 'userId' | 'createdAt' | 'storageKey'> & {
@@ -228,7 +233,7 @@ export type PlanRecord = {
   displayName: string;
   description: string;
   maxStorageBytes: number;
-  maxAiRequestsPerMonth: number;
+  maxAiCreditsPerMonth: number;
   maxWorkspaces: number;
   maxProjectsPerWorkspace: number;
   priceCents: number;
@@ -246,7 +251,7 @@ export type UserSubscriptionRecord = {
   currentPeriodEnd: string;
   gatewayName: string;
   gatewaySubscriptionId: string | null;
-  gatewayCustomerId: string | null;
+  billingCycle: string;
   createdAt: string;
   updatedAt: string;
 };

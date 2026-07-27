@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { ProcessAgentConversationUseCase } from '../../../dist/application/use-cases/conversation/process-agent-conversation.use-case.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import {
   buildNextAgentConversationState,
   emptyAgentConversationState,
@@ -47,8 +48,7 @@ test('conversation agent presenter formats save summary in English', () => {
       ...emptyAgentConversationState.draft,
       rawText: 'Document the deploy checklist',
       kind: 'summary',
-      reminderDate: '',
-      reminderTime: '',
+      reminderAt: '',
       tags: ['deploy'],
     },
     project: { selectedProjectSlug: 'platform' },
@@ -70,8 +70,7 @@ test('conversation agent presenter marks a new project in the save summary', () 
       ...emptyAgentConversationState.draft,
       rawText: 'Registrar decisao',
       kind: 'decision',
-      reminderDate: '',
-      reminderTime: '',
+      reminderAt: '',
       tags: [],
     },
     project: { selectedProjectSlug: 'projeto-x' },
@@ -108,8 +107,6 @@ test('conversation agent presenter formats saved reminder timestamp in Sao Paulo
       folderName: 'Project root',
       folderPath: 'Project root',
       eventPath: '20 Inbox/inbox/note.md',
-      reminderDate: '2026-05-21',
-      reminderTime: '14:30',
       reminderAt: '2026-05-21T17:30:00.000Z',
       hasReminder: true,
       attachmentCount: 0,
@@ -144,8 +141,7 @@ test('conversation agent state machine keeps valid project and prepares submissi
         canonicalType: 'knowledge',
         importance: 'medium',
         tags: ['Deploy'],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
       selectedProjectSlug: 'platform',
       selectedFolderId: '',
@@ -178,8 +174,7 @@ test('conversation agent state machine preserves a new project slug for submissi
         canonicalType: 'event',
         importance: 'medium',
         tags: [],
-        reminderDate: '',
-        reminderTime: '',
+        reminderAt: '',
       },
       selectedProjectSlug: 'projeto-x',
       selectedFolderId: '',
@@ -199,6 +194,9 @@ test('conversation agent state machine preserves a new project slug for submissi
 test('conversation folder resolution creates missing nested folders in order', async () => {
   const folders = [];
   const contentRepository = {
+    async getProjectBySlug() {
+      return { id: 'platform' };
+    },
     async listProjectFolders() {
       return folders;
     },
@@ -235,6 +233,9 @@ test('process agent conversation auto-creates a missing project before submittin
   const createdProjects = [];
   const ingested = [];
   const contentRepository = {
+    async getWorkspaceBySlug(_userId, workspaceSlug) {
+      return { id: 'workspace-1', workspaceSlug };
+    },
     async listProjects() {
       return [{ projectSlug: 'platform', displayName: 'Platform', workspaceSlug: 'default', repositories: [], defaultTags: [], enabled: true }];
     },
@@ -286,8 +287,6 @@ test('process agent conversation auto-creates a missing project before submittin
           folderName: 'Project root',
           folderPath: 'Project root',
           eventPath: '20 Inbox/note.md',
-          reminderDate: '',
-          reminderTime: '',
           reminderAt: '',
           hasReminder: false,
           attachmentCount: 0,
@@ -343,7 +342,11 @@ test('process agent conversation auto-creates a missing project before submittin
         return '';
       },
     },
-    credentials,
+    new AiEntitlementService(credentials, {
+      async checkAndIncrementAiUsage() {
+        return { allowed: true, limit: -1, current: 0 };
+      },
+    }),
   );
 
   const result = await useCaseWithDecision.execute({
@@ -358,8 +361,10 @@ test('process agent conversation auto-creates a missing project before submittin
   assert.equal(result.action, 'submit');
   assert.equal(createdProjects.length, 1);
   assert.deepEqual(createdProjects[0], {
+    id: createdProjects[0].id,
     projectSlug: 'projeto-x',
     displayName: 'Projeto X',
+    workspaceId: 'workspace-1',
     workspaceSlug: 'default',
     repositories: [],
     defaultTags: [],
@@ -369,3 +374,56 @@ test('process agent conversation auto-creates a missing project before submittin
   assert.equal(ingested.length, 1);
   assert.equal(ingested[0].event.projectSlug, 'projeto-x');
 });
+
+test('conversation agent prompt instructs LLM to preserve raw text without summarizing', () => {
+  const prompt = buildConversationAgentSystemPrompt();
+  const turnPrompt = buildConversationAgentTurnPrompt({
+    messageText: 'test note',
+    currentState: {},
+    availableProjects: [],
+    candidateProjectSlug: '',
+    candidateFolders: [],
+    timeZone: 'UTC',
+    currentLocalDate: '2026-05-20',
+    currentLocalTime: '12:00',
+  });
+
+  assert.match(prompt, /preserve the user's message\/note exactly as sent/i);
+  assert.match(turnPrompt, /preserve the user's message\/note exactly as sent/i);
+});
+
+test('conversation agent state machine resolves to nested folder by leaf folder slug fallback', () => {
+  const folders = [
+    { id: 'folder-1', parentFolderId: null, folderSlug: 'runbooks', fullSlugPath: 'runbooks' },
+    { id: 'folder-2', parentFolderId: 'folder-1', folderSlug: 'api', fullSlugPath: 'runbooks/api' },
+  ];
+  const next = buildNextAgentConversationState({
+    current: emptyAgentConversationState,
+    messageText: 'save in api folder',
+    media: emptyAgentConversationState.media,
+    decision: {
+      replyText: 'Ready to save.',
+      resolvedDraft: {
+        rawText: 'save in api folder',
+        title: '',
+        kind: 'note',
+        canonicalType: 'event',
+        importance: 'medium',
+        tags: [],
+        reminderAt: '',
+      },
+      selectedProjectSlug: 'platform',
+      selectedFolderId: '',
+      suggestedFolderPath: ['api'], // matches nested leaf folder slug
+      placeInRoot: false,
+      confidence: 'high',
+      action: 'confirm',
+    },
+    candidateFolders: folders,
+    reminderTimeZone: 'UTC',
+  });
+
+  assert.equal(next.folder.selectedFolderId, 'folder-2');
+  assert.deepEqual(next.folder.suggestedFolderPath, ['runbooks', 'api']);
+});
+

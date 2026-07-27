@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { buildProjectFolderTree } from '../../utils/project-folder.utils.js';
+import { buildProjectFolderTree } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 
 @Injectable()

@@ -1,7 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
-import { formatDisplayToken, formatUsDate, noteTypeLabel, projectName, typeIcon, getCleanSummary } from '../../shared/utils/format';
+import { formatDisplayToken, formatUsDate, projectName, typeIcon, getCleanSummary } from '../../shared/utils/format';
+import { makeTitleClickable } from '../../shared/utils/text';
 import { Badge, Tags } from '../../shared/ui/primitives';
 import { AttachmentIndicator } from './AttachmentIndicator';
 import { QuickNoteStatusActions } from './QuickNoteStatusActions';
@@ -54,6 +55,7 @@ export function NoteRow({
 
   const activeSource = note.source;
   const displayTags = buildNoteDisplayTags({ tags: note.tags, categories: note.categories });
+  const { text: titleText, url: titleUrl } = makeTitleClickable(note.title);
 
   return (
     <article className="list-row clickable" onClick={() => onOpen(note.id)} onDoubleClick={() => onDoubleClick?.(note.id)}>
@@ -75,8 +77,16 @@ export function NoteRow({
           <AttachmentIndicator count={note.attachmentCount || 0} />
           <Badge value={formatDisplayToken(note.status)} tone={note.status} />
         </div>
-        <h3>{note.title}</h3>
-        <SourceBadge source={activeSource} />
+        <h3>
+          {titleUrl ? (
+            <>
+              {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
+            </>
+          ) : (
+            note.title
+          )}
+        </h3>
+        <SourceBadge source={activeSource} iconSize={16} />
         <p>{getCleanSummary(note.summary)}</p>
       </div>
       <button

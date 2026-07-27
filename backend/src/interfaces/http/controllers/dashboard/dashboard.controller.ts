@@ -2,26 +2,30 @@ import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, Us
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/auth.js';
+import { queryInputSchema } from '../../../../contracts/query.js';
 import {
   BuildDashboardUseCase,
   GetReviewDetailUseCase,
-  GetNoteDetailUseCase,
   ListReminderBoardUseCase,
-  ListPaginatedNotesUseCase,
   ListPaginatedProjectsUseCase,
   ListPaginatedRemindersUseCase,
   ListPaginatedReviewsUseCase,
   ListWorkspacesUseCase,
   QueryKnowledgeUseCase,
   UpdateReminderStatusUseCase,
+  BulkUpdateReminderStatusUseCase,
   RunAskAiUseCase,
   ListAskHistoryUseCase,
+  ListAskConversationsUseCase,
+  GetAskConversationTurnsUseCase,
+  GetProductivityInsightsRawUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
+import { OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
+import { ProjectId } from '../../project.decorators.js';
+import { WorkspaceId } from '../../workspace.decorators.js';
 import {
-  noteIdParamSchema,
-  notesListQuerySchema,
   projectsListQuerySchema,
   reminderBoardQuerySchema,
   reminderIdParamSchema,
@@ -29,23 +33,40 @@ import {
   reviewIdParamSchema,
   reviewsListQuerySchema,
   updateReminderStatusBodySchema,
+  bulkUpdateReminderStatusBodySchema,
   type ReminderBoardQuery,
   type ReminderIdParam,
-  type NoteIdParam,
-  type NotesListQuery,
   type ProjectsListQuery,
   type RemindersListQuery,
   type ReviewIdParam,
   type ReviewsListQuery,
   type UpdateReminderStatusBody,
+  type BulkUpdateReminderStatusBody,
 } from '../../dto/dashboard.dto.js';
 import { queryRequestSchema, type QueryRequest } from '../../dto/query.dto.js';
-import { askHistoryQuerySchema, askRequestSchema, type AskHistoryQuery, type AskRequest } from '../../dto/ask.dto.js';
+import { askHistoryQuerySchema, askRequestSchema, conversationIdParamSchema, type AskHistoryQuery, type AskRequest, type ConversationIdParam } from '../../dto/ask.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { paginatedResponse } from '../../http-helpers.js';
-import { OptionalProjectResolutionGuard } from '../../project-resolution.guard.js';
-import { ProjectId } from '../../project.decorators.js';
-import { WorkspaceId } from '../../workspace.decorators.js';
+
+function normalizeScopeId(value?: string) {
+  return value && value !== 'all' ? value : undefined;
+}
+
+function buildQueryUseCaseInput(
+  query: QueryRequest,
+  projectId?: string,
+  workspaceId?: string,
+) {
+  return queryInputSchema.parse({
+    query: query.query,
+    status: query.status,
+    limit: query.limit,
+    page: query.page,
+    pageSize: query.pageSize,
+    projectId: normalizeScopeId(projectId),
+    workspaceId: normalizeScopeId(workspaceId),
+  });
+}
 
 @ApiTags('Dashboard')
 @Controller('api')
@@ -55,16 +76,18 @@ export class DashboardController {
     private readonly buildDashboard: BuildDashboardUseCase,
     private readonly listProjectsUseCase: ListPaginatedProjectsUseCase,
     private readonly listWorkspacesUseCase: ListWorkspacesUseCase,
-    private readonly listNotesUseCase: ListPaginatedNotesUseCase,
     private readonly listReviewsUseCase: ListPaginatedReviewsUseCase,
     private readonly listRemindersUseCase: ListPaginatedRemindersUseCase,
     private readonly listReminderBoardUseCase: ListReminderBoardUseCase,
     private readonly updateReminderStatusUseCase: UpdateReminderStatusUseCase,
-    private readonly getNoteDetail: GetNoteDetailUseCase,
     private readonly getReviewDetail: GetReviewDetailUseCase,
     private readonly queryKnowledge: QueryKnowledgeUseCase,
     private readonly runAskAiUseCase: RunAskAiUseCase,
     private readonly listAskHistoryUseCase: ListAskHistoryUseCase,
+    private readonly listAskConversationsUseCase: ListAskConversationsUseCase,
+    private readonly getAskConversationTurnsUseCase: GetAskConversationTurnsUseCase,
+    private readonly bulkUpdateReminderStatusUseCase: BulkUpdateReminderStatusUseCase,
+    private readonly getProductivityInsightsUseCase: GetProductivityInsightsRawUseCase,
   ) {}
 
   @Get('dashboard')
@@ -73,6 +96,14 @@ export class DashboardController {
   @ApiResponse({ status: 200, description: 'Dashboard data retrieved successfully' })
   dashboard(@CurrentUser() user: AuthenticatedUser) {
     return this.buildDashboard.execute(user.id);
+  }
+
+  @Get('productivity/insights')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get developer productivity insights' })
+  @ApiResponse({ status: 200, description: 'Productivity insights retrieved successfully' })
+  getProductivityInsights(@CurrentUser() user: AuthenticatedUser) {
+    return this.getProductivityInsightsUseCase.execute(user.id);
   }
 
   @Get('projects')
@@ -92,35 +123,6 @@ export class DashboardController {
   @ApiResponse({ status: 200, description: 'Workspaces retrieved successfully' })
   async workspaces(@CurrentUser() user: AuthenticatedUser) {
     return { ok: true, workspaces: await this.listWorkspacesUseCase.execute(user.id) };
-  }
-
-  @Get('notes')
-  @UseGuards(OptionalProjectResolutionGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'List notes' })
-  @ApiResponse({ status: 200, description: 'Notes retrieved successfully' })
-  async notes(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query(new ZodValidationPipe(notesListQuerySchema, 'invalid_notes_query')) query: NotesListQuery,
-    @WorkspaceId() workspaceId?: string,
-    @ProjectId() projectId?: string,
-  ) {
-    return {
-      ok: true,
-      ...paginatedResponse('notes', await this.listNotesUseCase.execute(user.id, { ...query, workspaceId, projectId })),
-    };
-  }
-
-  @Get('notes/:id')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get note detail' })
-  @ApiParam({ name: 'id', description: 'Note ID' })
-  @ApiResponse({ status: 200, description: 'Note detail retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Note not found' })
-  async note(@Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam, @CurrentUser() user: AuthenticatedUser) {
-    const note = await this.getNoteDetail.execute(user.id, params.id);
-    if (!note) throw new NotFoundException('note_not_found');
-    return { ok: true, note };
   }
 
   @Get('reviews')
@@ -168,6 +170,18 @@ export class DashboardController {
     return { ok: true, ...(await this.listReminderBoardUseCase.execute(user.id, query)) };
   }
 
+  @Patch('reminders/bulk/status')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bulk update reminder statuses' })
+  @ApiResponse({ status: 200, description: 'Reminder statuses updated successfully' })
+  async bulkUpdateReminderStatus(
+    @Body(new ZodValidationPipe(bulkUpdateReminderStatusBodySchema, 'invalid_bulk_update_reminder_status_payload')) body: BulkUpdateReminderStatusBody,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const result = await this.bulkUpdateReminderStatusUseCase.execute(user.id, body.ids, body.status);
+    return result;
+  }
+
   @Patch('reminders/:id/status')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update reminder status' })
@@ -185,45 +199,109 @@ export class DashboardController {
   }
 
   @Get('query')
+  @UseGuards(OptionalProjectResolutionGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Query knowledge base (GET)' })
+  @ApiOperation({ summary: 'Query Kote (GET)' })
   @ApiResponse({ status: 200, description: 'Query results retrieved successfully' })
-  query(@Query(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) query: QueryRequest, @CurrentUser() user: AuthenticatedUser) {
-    return this.queryKnowledge.execute(query, user.id);
+  query(
+    @Query(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) query: QueryRequest,
+    @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId?: string,
+    @WorkspaceId() workspaceId?: string,
+  ) {
+    return this.queryKnowledge.execute(buildQueryUseCaseInput(query, projectId, workspaceId), user.id);
   }
 
   @Post('query')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Query knowledge base (POST)' })
+  @ApiOperation({ summary: 'Query Kote (POST)' })
   @ApiResponse({ status: 200, description: 'Query results retrieved successfully' })
-  queryPost(@Body(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) body: QueryRequest, @CurrentUser() user: AuthenticatedUser) {
-    return this.queryKnowledge.execute(body, user.id);
+  queryPost(
+    @Body(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) body: QueryRequest,
+    @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId?: string,
+    @WorkspaceId() workspaceId?: string,
+  ) {
+    return this.queryKnowledge.execute(buildQueryUseCaseInput(body, projectId, workspaceId), user.id);
   }
 
   @Post('ask')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Ask AI a question' })
   @ApiResponse({ status: 200, description: 'AI response retrieved successfully' })
   ask(
     @Body(new ZodValidationPipe(askRequestSchema, 'invalid_ask_payload')) body: AskRequest,
     @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId?: string,
+    @WorkspaceId() workspaceId?: string,
   ) {
-    return this.runAskAiUseCase.execute(body.question, user.id, {
-      projectSlug: body.projectSlug,
-      workspaceSlug: body.workspaceSlug,
-    });
+    return this.runAskAiUseCase.execute(
+      body.question,
+      user.id,
+      {
+        projectId: normalizeScopeId(projectId),
+        workspaceId: normalizeScopeId(workspaceId),
+      },
+      body.conversationId,
+      body.conversationHistory,
+    );
+  }
+
+  @Get('ask/conversations')
+  @UseGuards(OptionalProjectResolutionGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get AI conversation list' })
+  @ApiResponse({ status: 200, description: 'Conversations retrieved successfully' })
+  async askConversations(
+    @Query(new ZodValidationPipe(askHistoryQuerySchema, 'invalid_ask_conversations_query')) query: AskHistoryQuery,
+    @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId?: string,
+  ) {
+    return {
+      ok: true,
+      ...paginatedResponse('conversations', await this.listAskConversationsUseCase.execute(user.id, {
+        page: query.page,
+        pageSize: query.pageSize,
+        projectId: normalizeScopeId(projectId),
+      })),
+    };
+  }
+
+  @Get('ask/conversations/:id')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get turns for a single AI conversation' })
+  @ApiParam({ name: 'id', description: 'Conversation ID (UUID)' })
+  @ApiResponse({ status: 200, description: 'Conversation turns retrieved successfully' })
+  async askConversationTurns(
+    @Param(new ZodValidationPipe(conversationIdParamSchema, 'invalid_conversation_id')) params: ConversationIdParam,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    const turns = await this.getAskConversationTurnsUseCase.execute(params.id);
+    return {
+      ok: true,
+      turns,
+    };
   }
 
   @Get('ask/history')
+  @UseGuards(OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get AI conversation history' })
   @ApiResponse({ status: 200, description: 'Conversation history retrieved successfully' })
   async askHistory(
     @Query(new ZodValidationPipe(askHistoryQuerySchema, 'invalid_ask_history_query')) query: AskHistoryQuery,
     @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId?: string,
   ) {
-    return { ok: true, ...paginatedResponse('history', await this.listAskHistoryUseCase.execute(user.id, query)) };
+    return {
+      ok: true,
+      ...paginatedResponse('history', await this.listAskHistoryUseCase.execute(user.id, {
+        page: query.page,
+        pageSize: query.pageSize,
+        projectId: normalizeScopeId(projectId),
+      })),
+    };
   }
 }

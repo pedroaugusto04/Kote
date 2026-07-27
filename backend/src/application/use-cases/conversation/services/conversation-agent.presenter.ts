@@ -17,7 +17,7 @@ export class ConversationAgentPresenter {
   }
 
   captureCanceled() {
-    return 'Capture canceled. Send a new note whenever you want.';
+    return 'Conversation context cleared successfully. You can start fresh with a new note or command.';
   }
 
   noteSaved(result: SaveNoteResult) {
@@ -63,7 +63,7 @@ export class ConversationAgentPresenter {
       `Project: ${projectText}`,
       `Folder: ${folderText}`,
       `Type: ${state.draft.kind}`,
-      `Reminder: ${state.draft.reminderDate ? `${state.draft.reminderDate}${state.draft.reminderTime ? ` ${state.draft.reminderTime}` : ''}` : 'no reminder'}`,
+      `Reminder: ${state.draft.reminderAt || 'no reminder'}`,
       state.draft.tags.length ? `Tags: ${state.draft.tags.join(', ')}` : '',
     ].filter(Boolean).join('\n');
   }
@@ -84,7 +84,5 @@ function formatReminder(note: SaveNoteResult['note']) {
       return formatDateTimeInTimeZone(new Date(timestamp), REMINDER_DISPLAY_TIME_ZONE);
     }
   }
-  if (!note.reminderDate) return '';
-  const reminderTime = note.reminderTime || '00:00';
-  return formatDateTimeInTimeZone(new Date(`${note.reminderDate}T${reminderTime}:00.000Z`), REMINDER_DISPLAY_TIME_ZONE);
+  return '';
 }

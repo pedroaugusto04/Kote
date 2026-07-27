@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
+import { EmbeddingPriority } from '../../../domain/enums/knowledge.enums.js';
 import { AppLogger } from '../../../observability/logger.js';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class ReindexAllEmbeddingsUseCase {
     await this.embeddingQueue.publish({
       type: EmbeddingJobType.ReindexAll,
       userId,
+      priority: EmbeddingPriority.Low,
     });
 
     this.logger.info('reindex_all_embeddings.queued', { userId });

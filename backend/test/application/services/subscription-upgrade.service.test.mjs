@@ -58,7 +58,7 @@ test('SubscriptionUpgradeService prorates when upgrading between paid plans', as
     mockDatabase,
     { getSubscriptionByGatewayId: async () => ({ nextDueDate: new Date().toISOString() }) },
     { getSubscriptionByGatewayId: async () => ({ nextDueDate: new Date().toISOString() }) },
-    { error: () => {} },
+    { error: () => {}, warn: () => {}, info: () => {} },
   );
 
   const periodEnd = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000 + 10000);
@@ -79,7 +79,7 @@ test('getUpgradeFirstPaymentValue requires a gateway subscription', async () => 
     { getDb: () => ({}) },
     { getSubscriptionByGatewayId: async () => null },
     { getSubscriptionByGatewayId: async () => null },
-    { error: () => {} },
+    { error: () => {}, warn: () => {}, info: () => {} },
   );
 
   await assert.rejects(

@@ -19,11 +19,11 @@ import { AuthModule } from './auth.module.js';
 import { AsaasWebhookController } from '../../interfaces/http/controllers/billing/asaas-webhook.controller.js';
 import { StripeWebhookController } from '../../interfaces/http/controllers/billing/stripe-webhook.controller.js';
 import { HandleAsaasWebhookUseCase, HandleStripeWebhookUseCase } from '../../application/use-cases/index.js';
-import { BillingEventBus } from '../../application/services/billing-event.bus.js';
+import { BillingEventBus } from '../../application/event-buses/billing-event.bus.js';
 import { AppLogger } from '../../observability/logger.js';
-import { ChangeSubscriptionWorker } from '../../workers/change-subscription.worker.js';
-import { BillingWorker } from '../../workers/billing.worker.js';
-import { WebhookOutboxRelayWorker } from '../../workers/webhook-outbox-relay.worker.js';
+import { ChangeSubscriptionWorker } from '../../application/workers/change-subscription.worker.js';
+import { BillingWorker } from '../../application/workers/billing.worker.js';
+import { WebhookOutboxRelayWorker } from '../../application/workers/webhook-outbox-relay.worker.js';
 
 @Module({
   imports: [DatabaseModule, LoggerModule, AuthModule],

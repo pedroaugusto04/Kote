@@ -3,7 +3,7 @@ import './HelpPage.css';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { useMobileSwipe } from '../../shared/ui/use-mobile-swipe';
 
-type SectionId = 'overview' | 'projects' | 'ai-chat' | 'messaging-integrations' | 'github-integration' | 'ai-integrations' | 'webhooks' | 'push-notifications' | 'cli' | 'vscode' | 'reminders' | 'map';
+type SectionId = 'overview' | 'projects' | 'ai-chat' | 'messaging-integrations' | 'github-integration' | 'ai-integrations' | 'webhooks' | 'push-notifications' | 'cli' | 'vscode' | 'mcp' | 'reminders' | 'map';
 
 interface HelpItem {
   title: string;
@@ -88,8 +88,8 @@ const sections: HelpSection[] = [
     id: 'overview',
     label: 'Overview',
     icon: <IconBook />,
-    title: 'What is Knowledge Vault?',
-    description: 'Knowledge Vault centralizes your team\'s operational knowledge — decisions, routines, and context — in one searchable, AI-queryable place.',
+    title: 'What is Kote?',
+    description: 'Kote centralizes your team\'s operational knowledge — decisions, routines, and context — in one searchable, AI-queryable place.',
     items: [
       { title: 'Zero context loss', body: 'Every decision, routine, and exception is recorded. New team members get up to speed in minutes, not weeks.' },
       { title: 'Invisible capture', body: 'Knowledge flows in where work happens: WhatsApp audio messages, Telegram alerts, GitHub pushes, VS Code, and the CLI.' },
@@ -115,12 +115,12 @@ const sections: HelpSection[] = [
     label: 'Ask AI',
     icon: <IconBot />,
     title: 'AI-Powered Chat',
-    description: 'The Ask AI page is a chat interface grounded in your knowledge base. Ask questions, filter by project, and get answers with source citations.',
+    description: 'The Ask AI page is a chat interface grounded in your Kote. Ask questions, filter by project, and get answers with source citations.',
     items: [
       { title: 'Asking a question', body: 'Navigate to "Ask AI" in the sidebar. Type any question about your projects, past decisions, or technical context.' },
       { title: 'Filtering by project', body: 'Use the project filter at the top to scope responses to a specific project. This improves precision for project-specific queries.' },
-      { title: 'Conversation history', body: 'Sessions are saved as notes in your knowledge base and can be re-opened from the AI history panel on the right side.' },
-      { title: 'WhatsApp /ask command', body: 'Once WhatsApp is connected, send "/ask <question>" to the Knowledge Vault bot to get AI answers directly in WhatsApp.', code: '/ask what was decided about the auth architecture last week?' },
+      { title: 'Conversation history', body: 'Sessions are saved as notes in your Kote and can be re-opened from the AI history panel on the right side.' },
+      { title: 'WhatsApp /ask command', body: 'Once WhatsApp is connected, send "/ask <question>" to the Kote bot to get AI answers directly in WhatsApp.', code: '/ask what was decided about the auth architecture last week?' },
     ],
   },
   {
@@ -132,26 +132,26 @@ const sections: HelpSection[] = [
     items: [
       {
         title: 'WhatsApp',
-        body: 'Send audio or text messages to the Knowledge Vault WhatsApp bot — audio is transcribed and structured into notes automatically. Use /ask to search your knowledge base directly from the chat.',
+        body: 'Send audio or text messages to the Kote WhatsApp bot — audio is transcribed and structured into notes automatically. Use /ask to search your Kote directly from the chat.',
         steps: [
           'Go to Settings → Integrations → WhatsApp',
           'Copy the token command shown',
           `Send it to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
           'Click "Open WhatsApp" to open the chat with the message pre-filled',
         ],
-        code: `/kb connect <token>   ← send this to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
-        tip: 'You can also send documents, images, and other files directly to the WhatsApp bot — they will be attached to the created note. Use /ask to ask questions and retrieve files from your knowledge base.',
+        code: `/kote connect <token>   ← send this to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
+        tip: 'You can also send documents, images, and other files directly to the WhatsApp bot — they will be attached to the created note. Use /ask to ask questions and retrieve files from your Kote.',
       },
       {
         title: 'Telegram',
-        body: 'Receive pipeline failure alerts, code review summaries, and GitHub push notifications directly in Telegram via the Knowledge Vault bot.',
+        body: 'Receive pipeline failure alerts, code review summaries, and GitHub push notifications directly in Telegram via the Kote bot.',
         steps: [
           'Go to Settings → Integrations → Telegram',
           'Copy the token command shown',
           `Send it to @${import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot'}`,
           'Click "Open Telegram bot" to open the chat directly',
         ],
-        code: `/kb connect <token>   ← send this to @${import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot'}`,
+        code: `/kote connect <token>   ← send this to @${import.meta.env.VITE_TELEGRAM_BOT_USERNAME || 'kb_notes_bot'}`,
       },
     ],
   },
@@ -164,7 +164,7 @@ const sections: HelpSection[] = [
     items: [
       {
         title: 'GitHub App Installation',
-        body: 'Install the Knowledge Vault GitHub App to enable automatic code review capture on push events.',
+        body: 'Install the Kote GitHub App to enable automatic code review capture on push events.',
         steps: [
           'Go to Settings → Integrations → GitHub App',
           'Click "Connect" to install the GitHub App',
@@ -188,7 +188,7 @@ const sections: HelpSection[] = [
     label: 'AI Providers',
     icon: <IconBot />,
     title: 'AI Provider Integrations',
-    description: 'AI providers power the intelligent features in Knowledge Vault — code reviews, conversations, and project briefs.',
+    description: 'AI providers power the intelligent features in Kote — code reviews, conversations, project briefs, and PR context.',
     items: [
       {
         title: 'Review AI',
@@ -196,11 +196,19 @@ const sections: HelpSection[] = [
       },
       {
         title: 'Conversation AI',
-        body: 'Powers the Ask AI feature, understanding your questions and finding relevant answers from your knowledge base.'
+        body: 'Powers the Ask AI feature, understanding your questions and finding relevant answers from your Kote.'
       },
       {
         title: 'Project Brief AI',
         body: 'Generates comprehensive project summaries that highlight recent activity, key decisions, and important context.'
+      },
+      {
+        title: 'PR Context AI',
+        body: 'Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.'
+      },
+      {
+        title: 'File Summary AI',
+        body: 'Generates concise summaries of files opened in your IDE, highlighting key functionality, important patterns, and relevant context to help you quickly understand code structure and purpose.'
       },
     ],
   },
@@ -209,11 +217,11 @@ const sections: HelpSection[] = [
     label: 'Webhooks',
     icon: <IconPlug />,
     title: 'Webhooks',
-    description: 'Configure webhooks to automatically notify external systems when notes are created, updated, or deleted in your knowledge base.',
+    description: 'Configure webhooks to automatically notify external systems when notes are created, updated, or deleted in your Kote.',
     items: [
       {
         title: 'What are webhooks?',
-        body: 'Webhooks allow you to send automatic notifications to external services when specific events occur in Knowledge Vault. For example, you can notify a Slack channel when a new note is created, trigger a deployment when a decision is recorded, or sync data with other tools.',
+        body: 'Webhooks allow you to send automatic notifications to external services when specific events occur in Kote. For example, you can notify a Slack channel when a new note is created, trigger a deployment when a decision is recorded, or sync data with other tools.',
       },
       {
         title: 'Available events',
@@ -254,8 +262,106 @@ Body:
           'Enter a label, your endpoint URL, and select the events you want to track',
           'Optionally add a secret for signature verification',
         ],
-        tip: 'Use a secret to verify that webhook requests are genuinely from Knowledge Vault by checking the X-KB-Signature-256 header.',
+        tip: 'Use a secret to verify that webhook requests are genuinely from Kote by checking the X-KB-Signature-256 header.',
       },
+    ],
+  },
+  {
+    id: 'vscode',
+    label: 'VS Code',
+    icon: <IconCode />,
+    title: 'VS Code Extension',
+    description: 'The Kote VS Code extension brings the knowledge base into your editor — save code, ask questions, and import AI sessions without leaving VS Code.',
+    items: [
+      {
+        title: 'Installation',
+        body: 'Install the extension from the VS Code Marketplace.',
+        steps: [
+          'Open VS Code → Extensions',
+          'Search "Kote"',
+          'Install the extension',
+          'Run "Kote: Sign In" from the Command Palette',
+        ],
+      },
+      { title: 'Saving code snippets', body: 'Select any code → Right-click → "Save to Kote". The snippet is stored as a note with file path and language metadata.' },
+      { title: 'Quick AI questions', body: 'Use the sidebar chat or Command Palette to ask questions about your Kote without switching tabs.' },
+      { title: 'Importing AI sessions', body: 'The extension detects AI assistant sessions in your workspace and lets you import them with one click from the sidebar.' },
+      {
+        title: 'CodeLens - View Related Notes',
+        body: 'When you open a file that has associated notes or decisions in your Kote, a CodeLens indicator appears at the top of the file showing the count of related notes. Click the indicator to view and open these notes directly in your editor.',
+        steps: [
+          'Look for the CodeLens indicator (💡 Kote: X notes/decisions about this file) at the top of your editor',
+          'Click the CodeLens to see a quick pick list of related notes',
+          'Select a note to view it in a Markdown preview with metadata',
+          'Use the link in the preview to open the note in the Kote web application',
+        ],
+        tip: 'This feature helps you quickly access relevant context and decisions without leaving your editor. CodeLens not working? Make sure it\'s enabled in your VS Code settings ("editor.codeLens": true). It\'s enabled by default, but may have been disabled globally.',
+      },
+      { title: 'Extension documentation', body: 'For detailed extension features, keyboard shortcuts, and configuration options, check the VS Code extension documentation on GitHub.', tip: 'View VS Code extension README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/ide/vscode/README.md' },
+    ],
+  },
+  {
+    id: 'cli',
+    label: 'CLI Tool',
+    icon: <IconTerminal />,
+    title: 'CLI Tool',
+    description: 'The Kote CLI syncs local files, directories, and AI session histories directly to your Kote from the terminal.',
+    items: [
+      { title: 'Installation', body: 'Install the CLI globally via npm and initialize it with your API token.', code: 'npm install -g @pedroaugusto04/kote-cli\nkote init' },
+      { title: 'Syncing AI sessions', body: 'Sync AI assistant sessions (Claude Code, Codex, Antigravity, OpenCode) to your Kote.', code: 'kote sync-ai' },
+      { title: 'Syncing files and directories', body: 'Send individual files or entire directories to your Kote.', code: 'kote sync --file ./README.md\nkote sync --dir ./docs' },
+      { title: 'Finding your API token', body: 'Go to Profile → IDE & CLI Connection in the app to generate a unified connection token. This token authenticates the VS Code extension, CLI, and MCP server.' },
+      { title: 'CLI documentation', body: 'For complete CLI commands, usage examples, and advanced configuration, refer to the CLI documentation on GitHub.', tip: 'View CLI README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/cli/README.md' },
+    ],
+  },
+  {
+    id: 'mcp',
+    label: 'MCP Server',
+    icon: <IconPlug />,
+    title: 'MCP Server',
+    description: 'The Kote MCP Server allows AI agents (like Cursor, Claude Desktop, and Cline) to query and save developer memory directly. It authenticates automatically using the same session stored by the CLI.',
+    items: [
+      {
+        title: 'Running via npx',
+        body: 'You can run the Kote MCP Server directly from npm using npx in your IDE or client configurations.',
+        code: 'npx -y @pedroaugusto04/kote-mcp',
+      },
+      {
+        title: 'Cursor Integration',
+        body: 'Open Cursor Settings → Features → MCP → Click "+ Add New MCP Server":\n- Name: kote\n- Type: stdio\n- Command: npx -y @pedroaugusto04/kote-mcp',
+      },
+      {
+        title: 'Claude Desktop Integration',
+        body: 'Add the following block to your "claude_desktop_config.json" file:',
+        code: '{\n  "mcpServers": {\n    "kote": {\n      "command": "npx",\n      "args": ["-y", "@pedroaugusto04/kote-mcp"]\n    }\n  }\n}',
+      },
+      {
+        title: 'Antigravity & Codex Integration',
+        body: 'To use the Kote MCP Server with local coding assistants like Antigravity or Codex, configure the stdio transport in their respective configuration settings (such as "mcp.json" or workspace configuration files):',
+        code: '{\n  "mcpServers": {\n    "kote": {\n      "command": "npx",\n      "args": ["-y", "@pedroaugusto04/kote-mcp"]\n    }\n  }\n}',
+      },
+      {
+        title: 'Authentication — shared CLI session (recommended)',
+        body: 'The MCP server automatically reads credentials from the same config file used by the Kote CLI (~/.config/kote/config.json). If the access token expires, the server transparently refreshes it and saves the new tokens back to disk — no manual intervention needed.',
+        steps: [
+          'Install the CLI: npm install -g @pedroaugusto04/kote-cli',
+          'Log in once: kote login (or kote init)',
+          'Start the MCP server — it will pick up your session automatically',
+        ],
+        tip: 'Logging out from the CLI (kote logout) will clear the shared session. Re-run kote login to restore access.',
+      },
+      {
+        title: 'Authentication — KOTE_CONNECTION_TOKEN env var',
+        body: 'If you prefer not to install the CLI, pass a Connection Token via the KOTE_CONNECTION_TOKEN environment variable. The MCP server will exchange it for a full session on startup and save the result to disk — no further action needed.',
+        steps: [
+          'Go to Profile → IDE & CLI Connection',
+          'Click "Reveal Connection Token" and copy the token',
+          'Add KOTE_CONNECTION_TOKEN to your MCP client config (see below)',
+        ],
+        code: '{\n  "mcpServers": {\n    "kote": {\n      "command": "npx",\n      "args": ["-y", "@pedroaugusto04/kote-mcp"],\n      "env": {\n        "KOTE_CONNECTION_TOKEN": "<paste your connection token here>"\n      }\n    }\n  }\n}',
+        tip: 'The Connection Token is only needed once — after the first startup it is replaced by long-lived session tokens that auto-refresh. If you ever need to re-authenticate, generate a new token from the Profile page.',
+      },
+      { title: 'MCP documentation', body: 'For advanced options, environment variable configuration, and troubleshooting, view the documentation on GitHub.', tip: 'View MCP README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/ide/mcp/README.md' },
     ],
   },
   {
@@ -287,43 +393,6 @@ Body:
     ],
   },
   {
-    id: 'cli',
-    label: 'CLI Tool',
-    icon: <IconTerminal />,
-    title: 'CLI Tool (kb)',
-    description: 'The kb CLI syncs local files, directories, and AI session histories directly to your knowledge base from the terminal.',
-    items: [
-      { title: 'Installation', body: 'Install the CLI globally via npm and initialize it with your API token.', code: 'npm install -g @pedroaugusto04/kb-cli\nkb init' },
-      { title: 'Syncing AI sessions', body: 'Sync AI assistant sessions (Claude Code, Codex, Antigravity, OpenCode) to your knowledge base.', code: 'kb sync-ai' },
-      { title: 'Syncing files and directories', body: 'Send individual files or entire directories to the knowledge base.', code: 'kb sync --file ./README.md\nkb sync --dir ./docs' },
-      { title: 'Finding your API token', body: 'Go to Profile → CLI & VS Code Connection in the app to generate a unified connection token. This token authenticates both the VS Code extension and CLI.' },
-      { title: 'CLI documentation', body: 'For complete CLI commands, usage examples, and advanced configuration, refer to the CLI documentation on GitHub.', tip: 'View CLI README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/cli/README.md' },
-    ],
-  },
-  {
-    id: 'vscode',
-    label: 'VS Code',
-    icon: <IconCode />,
-    title: 'VS Code Extension',
-    description: 'The Knowledge Vault VS Code extension brings the knowledge base into your editor — save code, ask questions, and import AI sessions without leaving VS Code.',
-    items: [
-      {
-        title: 'Installation',
-        body: 'Install the extension from the VS Code Marketplace.',
-        steps: [
-          'Open VS Code → Extensions',
-          'Search "Knowledge Vault"',
-          'Install the extension',
-          'Run "Knowledge Vault: Sign In" from the Command Palette',
-        ],
-      },
-      { title: 'Saving code snippets', body: 'Select any code → Right-click → "Save to Knowledge Vault". The snippet is stored as a note with file path and language metadata.' },
-      { title: 'Quick AI questions', body: 'Use the sidebar chat or Command Palette to ask questions about your knowledge base without switching tabs.' },
-      { title: 'Importing AI sessions', body: 'The extension detects AI assistant sessions in your workspace and lets you import them with one click from the sidebar.' },
-      { title: 'Extension documentation', body: 'For detailed extension features, keyboard shortcuts, and configuration options, check the VS Code extension documentation on GitHub.', tip: 'View VS Code extension README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/ide/vscode/README.md' },
-    ],
-  },
-  {
     id: 'reminders',
     label: 'Reminders',
     icon: <IconBell />,
@@ -333,7 +402,7 @@ Body:
       { title: 'Setting a reminder in the app', body: 'When creating or editing a note, set a reminder date and time. The system will send a WhatsApp message with the note content at the scheduled time.', tip: 'WhatsApp must be connected for reminder delivery to work.' },
       {
         title: 'Setting a reminder via WhatsApp',
-        body: 'You can create a reminder directly from WhatsApp — just like saving a regular note, but including the day and time for the reminder. Send a message to the Knowledge Vault bot specifying the reminder schedule.',
+        body: 'You can create a reminder directly from WhatsApp — just like saving a regular note, but including the day and time for the reminder. Send a message to the Kote bot specifying the reminder schedule.',
         code: 'Remind me to review Lucas\'s PR tomorrow at 10am\n\nTeam meeting with product on Friday at 2:30pm\n\nRemind me to update the API docs on June 20th at 9:00am',
         tip: 'It works just like saving a regular note via WhatsApp. Include the day and time in your message and the system will automatically detect and schedule it as a reminder.',
       },
@@ -415,7 +484,7 @@ export function HelpPage() {
           <span className="help-sidebar-logo-icon"><IconBook /></span>
           <div>
             <strong>Documentation</strong>
-            <small>Knowledge Vault guide</small>
+            <small>Kote guide</small>
           </div>
         </div>
         <nav className="help-nav" aria-label="Help sections">

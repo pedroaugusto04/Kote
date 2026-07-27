@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';" />
-  <title>KB: Ask AI</title>
+        content="default-src 'none'; style-src 'unsafe-inline'; img-src ${cspSource} data:; script-src 'nonce-${nonce}';" />
+  <title>Kote: Ask AI</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -216,6 +216,32 @@
     .dots span:nth-child(3) { animation-delay: .4s; }
     @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-5px)} }
 
+    /* ── Typewriter effect ────────────────────────────── */
+    .typewriter-content {
+      position: relative;
+      cursor: default;
+    }
+    .typewriter-content.is-typing {
+      cursor: pointer;
+    }
+    .typewriter-cursor::after {
+      content: '';
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background-color: var(--vscode-button-background, #4f9cf7);
+      margin-left: 2px;
+      vertical-align: text-bottom;
+      animation: tw-blink 0.8s step-end infinite;
+    }
+    @keyframes tw-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .typewriter-done .typewriter-cursor {
+      display: none;
+    }
+
     /* ── Error bubble ────────────────────────────────── */
     .error-bubble {
       background: var(--vscode-inputValidation-errorBackground);
@@ -278,7 +304,7 @@
     #footerRow {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
       gap: 8px;
     }
 
@@ -292,6 +318,9 @@
       font-family: inherit;
       cursor: pointer;
       outline: none;
+      max-width: 140px;
+      flex: 1;
+      min-width: 80px;
     }
     #projectSelect:focus { border-color: var(--vscode-focusBorder); }
 
@@ -317,9 +346,10 @@
       color: var(--vscode-foreground);
     }
     .top-logo-icon {
-      width: 14px;
-      height: 14px;
-      color: var(--vscode-textLink-foreground);
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      object-fit: cover;
     }
     .logout-btn {
       background: none;
@@ -335,67 +365,359 @@
       background: var(--vscode-toolbar-hoverBackground, rgba(127,127,127,0.1));
       color: var(--vscode-textLink-activeForeground);
     }
+
+    /* ── Tabs ────────────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--vscode-widget-border, #333);
+      background: var(--vscode-sideBar-background);
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 7px 0;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--vscode-descriptionForeground);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color .12s, border-color .12s;
+    }
+    .tab-btn:hover { color: var(--vscode-foreground); }
+    .tab-btn.active {
+      color: var(--vscode-foreground);
+      border-bottom-color: var(--vscode-button-background);
+      font-weight: 600;
+    }
+
+    /* ── History panel ───────────────────────────────── */
+    #historyPanel {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      flex-direction: column;
+    }
+    #historyPanel.visible { display: flex; }
+    #chatPanel { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
+    #chatPanel.hidden { display: none; }
+
+    .history-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 14px;
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground);
+      border-bottom: 1px solid var(--vscode-widget-border, #333);
+      flex-shrink: 0;
+    }
+    .history-clear-btn {
+      background: none;
+      border: 1px solid var(--vscode-inputValidation-errorBorder, #f88);
+      color: var(--vscode-errorForeground, #f88);
+      border-radius: 4px;
+      padding: 2px 8px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .1s;
+    }
+    .history-clear-btn:hover { background: rgba(248,136,136,0.12); }
+
+    .history-empty {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: var(--vscode-descriptionForeground);
+      text-align: center;
+      padding: 32px;
+      font-size: 12px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      padding: 8px 0;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .history-entry {
+      border-bottom: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.15));
+    }
+    .history-entry-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+      gap: 8px;
+    }
+    .history-entry-header:hover { background: var(--vscode-list-hoverBackground); }
+    .history-q-preview {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--vscode-foreground);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .history-meta {
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .history-chevron {
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+      transition: transform .15s;
+      flex-shrink: 0;
+    }
+    .history-entry.open .history-chevron { transform: rotate(90deg); }
+    .history-body {
+      display: none;
+      padding: 0 14px 12px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .history-entry.open .history-body { display: flex; }
+    .history-answer-text {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--vscode-foreground);
+      background: var(--vscode-input-background);
+      border: 1px solid var(--vscode-input-border, transparent);
+      border-radius: 6px;
+      padding: 8px 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .history-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .history-action-btn {
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--vscode-button-secondaryBackground, #555);
+      background: none;
+      color: var(--vscode-foreground);
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .1s;
+    }
+    .history-action-btn:hover { background: var(--vscode-list-hoverBackground); }
+
+    /* ── Sync panel ─────────────────────────────────── */
+    #syncPanel {
+      display: none;
+      flex: 1;
+      overflow-y: auto;
+      flex-direction: column;
+    }
+    #syncPanel.visible { display: flex; }
+    .sync-entry {
+      border-bottom: 1px solid var(--vscode-widget-border, rgba(127,127,127,0.15));
+    }
+    .sync-entry-header {
+      display: flex;
+      align-items: center;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+      gap: 10px;
+    }
+    .sync-entry-header:hover { background: var(--vscode-list-hoverBackground); }
+    .sync-checkbox {
+      cursor: pointer;
+      width: 14px;
+      height: 14px;
+      accent-color: var(--vscode-button-background);
+    }
+    .sync-q-preview {
+      flex: 1;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--vscode-foreground);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sync-meta {
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sync-chevron {
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+      transition: transform .15s;
+      flex-shrink: 0;
+    }
+    .sync-entry.open .sync-chevron { transform: rotate(90deg); }
+    .sync-body {
+      display: none;
+      padding: 0 14px 12px 38px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .sync-entry.open .sync-body { display: flex; }
+    .sync-turns-text {
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--vscode-foreground);
+      background: var(--vscode-input-background);
+      border: 1px solid var(--vscode-input-border, transparent);
+      border-radius: 6px;
+      padding: 8px 12px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
 
   <div class="top-bar">
-    <span class="top-title">
-      <svg class="top-logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 7a2 2 0 0 1 2-2h4.5a1 1 0 0 1 .7.3l2.1 2.1a1 1 0 0 0 .7.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-        <path d="M7 10v6" stroke-width="2" />
-        <path d="M11 10L7 13l4 3" stroke-width="2" />
-        <path d="M13 10.5l2 5.2 2-5.2" stroke-width="2" />
-      </svg>
-      Knowledge Vault
-    </span>
-    <button class="logout-btn" id="logoutBtn" title="Logout">Logout</button>
-  </div>
-
-  <!-- Messages -->
-  <div id="messages">
-    <div class="empty-state" id="emptyState">
-      <div class="empty-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 7a2 2 0 0 1 2-2h4.5a1 1 0 0 1 .7.3l2.1 2.1a1 1 0 0 0 .7.3H19a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-          <path d="M7 10v6" stroke-width="2" />
-          <path d="M11 10L7 13l4 3" stroke-width="2" />
-          <path d="M13 10.5l2 5.2 2-5.2" stroke-width="2" />
-        </svg>
-      </div>
-      <h2>Knowledge Vault</h2>
-      <p>Type normal text to save it as a note, or start with <code>/ask</code> to search your knowledge base.</p>
-      <div class="suggestion-chips">
-        <button class="chip" data-suggestion="/ask How is authentication configured?">/ask Auth Configuration</button>
-        <button class="chip" data-suggestion="/ask What decisions were made?">/ask Decisions</button>
-        <button class="chip" data-suggestion="Task: Remember to deploy database migrations tonight.">Example Note</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Input -->
-  <div id="inputArea">
-    <div id="inputRow">
-      <textarea
-        id="questionInput"
-        rows="1"
-        placeholder="Type a note to save, or /ask to search… (Enter to send)"
-      ></textarea>
-      <button id="sendBtn">Send</button>
-    </div>
-    <div id="footerRow">
+    <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+      <span class="top-title" style="flex-shrink: 0;">
+        <img class="top-logo-icon" src="${logoUri}" alt="Kote" />
+        Kote
+      </span>
       <select id="projectSelect" title="Active project">
         <option value="">Loading…</option>
       </select>
-      <span class="hint" id="chatHint">Normal text saves note, /ask searches</span>
+    </div>
+    <button class="logout-btn" id="logoutBtn" title="Logout">Logout</button>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar" id="tabBar">
+    <button class="tab-btn active" id="tabChat" data-tab="chat">Chat</button>
+    <button class="tab-btn" id="tabHistory" data-tab="history">History</button>
+    <button class="tab-btn" id="tabSync" data-tab="sync">Sync</button>
+  </div>
+
+  <!-- Chat panel -->
+  <div id="chatPanel">
+    <div id="messages">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-icon">
+          <img src="${logoUri}" alt="Kote" style="width:52px;height:52px;border-radius:10px;object-fit:cover;opacity:0.7;" />
+        </div>
+        <h2>Kote</h2>
+        <p>Type normal text to save it as a note, or start with <code>/ask</code> to search your Kote.</p>
+        <div class="suggestion-chips">
+          <button class="chip" data-suggestion="/ask How is authentication configured?">/ask Auth Configuration</button>
+          <button class="chip" data-suggestion="/ask What decisions were made?">/ask Decisions</button>
+          <button class="chip" data-suggestion="Task: Remember to deploy database migrations tonight.">Example Note</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Input (inside chat panel) -->
+    <div id="inputArea">
+      <div id="inputRow">
+        <textarea
+          id="questionInput"
+          rows="1"
+          placeholder="Type a note to save, or /ask to search… (Enter to send)"
+        ></textarea>
+        <button id="sendBtn">Send</button>
+      </div>
+      <div id="footerRow">
+        <span class="hint" id="chatHint">Normal text saves note, /ask searches</span>
+      </div>
     </div>
   </div>
+  <!-- /Chat panel -->
+
+  <!-- History panel -->
+  <div id="historyPanel">
+    <div class="history-toolbar">
+      <span id="historyCount">No history yet</span>
+    </div>
+    <div id="historyContent">
+      <div class="history-empty">No questions asked yet.<br>Use Ctrl+Shift+K to ask Kote.</div>
+    </div>
+  </div>
+  <!-- /History panel -->
+
+  <!-- Sync panel -->
+  <div id="syncPanel">
+    <div class="history-toolbar" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <span id="syncCount">No unsynced sessions</span>
+      <div style="display: flex; gap: 6px;">
+        <button class="history-action-btn" id="syncSelectedBtn" style="display: none;">Sync Selected</button>
+        <button class="history-action-btn" id="syncAllBtn" style="display: none;">Sync All</button>
+      </div>
+    </div>
+    <div id="syncContent">
+      <div class="history-empty">Loading unsynced sessions…</div>
+    </div>
+  </div>
+  <!-- /Sync panel -->
 
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   let isThinking = false;
   let lastQuestion = '';
   let conversationHistory = vscode.getState()?.history ?? [];
+  let askHistory = vscode.getState()?.askHistory ?? [];
+  let visibleMessageCount = vscode.getState()?.visibleMessageCount ?? 20;
+  let visibleHistoryCount = vscode.getState()?.visibleHistoryCount ?? 20;
+
+  let unsyncedSessions = [];
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
+
+  function switchTab(tab) {
+    const isChat = tab === 'chat';
+    const isHistory = tab === 'history';
+    const isSync = tab === 'sync';
+
+    document.getElementById('chatPanel').classList.toggle('hidden', !isChat);
+    document.getElementById('historyPanel').classList.toggle('visible', isHistory);
+    document.getElementById('syncPanel').classList.toggle('visible', isSync);
+
+    document.getElementById('tabChat').classList.toggle('active', isChat);
+    document.getElementById('tabHistory').classList.toggle('active', isHistory);
+    document.getElementById('tabSync').classList.toggle('active', isSync);
+
+    if (isHistory) {
+      // Always show cached data immediately (if available), then refresh from filesystem
+      if (askHistory.length > 0) {
+        renderHistory(askHistory);
+      } else {
+        const container = document.getElementById('historyContent');
+        container.innerHTML = '<div class="history-empty">Loading history…</div>';
+      }
+      // Always fetch fresh data from the filesystem (source of truth)
+      vscode.postMessage({ type: 'loadHistory' });
+    } else if (isSync) {
+      const container = document.getElementById('syncContent');
+      container.innerHTML = '<div class="history-empty">Loading unsynced sessions…</div>';
+      vscode.postMessage({ type: 'getUnsyncedSessions' });
+    }
+  }
+
+  document.getElementById('tabBar').addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab-btn');
+    if (btn) switchTab(btn.getAttribute('data-tab'));
+  });
 
   // ── Markdown renderer ─────────────────────────────────────────────────────
 
@@ -460,8 +782,76 @@
     document.getElementById('thinkingBubble')?.remove();
   }
 
+  // ── Typewriter effect ─────────────────────────────────────────────────────
+  function startTypewriter(elementId, fullText, speed = 5) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    
+    let index = 0;
+    let isTyping = true;
+    
+    el.textContent = '';
+    el.classList.add('typewriter-content', 'is-typing');
+    
+    const cursor = document.createElement('span');
+    cursor.className = 'typewriter-cursor';
+    cursor.setAttribute('aria-hidden', 'true');
+    
+    function tick() {
+      if (index >= fullText.length) {
+        isTyping = false;
+        el.classList.remove('is-typing');
+        el.classList.add('typewriter-done');
+        cursor.remove();
+        return;
+      }
+      
+      const remaining = fullText.slice(index);
+      const firstChar = remaining[0];
+      
+      let delay = speed;
+      if (firstChar === '\\n') {
+        delay = speed * 1.2;
+      } else if (firstChar === '.' || firstChar === '!' || firstChar === '?') {
+        delay = speed * 1.5;
+      } else if (firstChar === ',' || firstChar === ';' || firstChar === ':') {
+        delay = speed * 1.2;
+      }
+      
+      const charsToReveal = firstChar === '\\n' ? 1 : (Math.random() < 0.4 ? 3 : Math.random() < 0.5 ? 4 : 2);
+      const endIndex = Math.min(index + charsToReveal, fullText.length);
+      
+      el.textContent = fullText.slice(0, endIndex);
+      el.appendChild(cursor);
+      index = endIndex;
+      
+      if (endIndex >= fullText.length) {
+        isTyping = false;
+        el.classList.remove('is-typing');
+        el.classList.add('typewriter-done');
+        cursor.remove();
+        return;
+      }
+      
+      setTimeout(tick, delay);
+    }
+    
+    el.addEventListener('click', function skipHandler() {
+      if (!isTyping) return;
+      isTyping = false;
+      el.textContent = fullText;
+      el.classList.remove('is-typing');
+      el.classList.add('typewriter-done');
+      cursor.remove();
+      el.removeEventListener('click', skipHandler);
+    });
+    
+    setTimeout(tick, speed);
+  }
+
   function addKbAnswer(answer, sources, media) {
     const idx = conversationHistory.length - 1; // for save-as-note reference
+    const twId = 'tw-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
 
     const el = document.createElement('div');
     el.className = 'msg kb';
@@ -505,9 +895,9 @@
     }
 
     el.innerHTML = `
-      <div class="msg-sender">Knowledge Vault</div>
+      <div class="msg-sender">Kote</div>
       <div class="bubble">
-        ${renderMarkdown(answer)}
+        <span id="${twId}"></span>
         ${mediaHtml}
         ${sources?.length ? `
           <div class="sources">
@@ -525,6 +915,9 @@
     `;
     document.getElementById('messages').appendChild(el);
     scrollToBottom();
+    
+    // Start typewriter on the answer text
+    startTypewriter(twId, answer);
   }
 
   function addError(message) {
@@ -587,7 +980,7 @@
 
     if (rawText.toLowerCase() === '/help') {
       addUserMessage(rawText);
-      addSystemMessage('💡 Knowledge Vault Commands:\n• Type any normal text to save it as a note in the active project.\n• Type /ask <your question> to search your knowledge base with AI.\n• Type /help to show this command guide.');
+      addSystemMessage('💡 Kote Commands:\n• Type any normal text to save it as a note in the active project.\n• Type /ask <your question> to search your Kote with AI.\n• Type /help to show this command guide.');
       return;
     }
 
@@ -671,6 +1064,37 @@
         break;
       }
 
+      case 'injectQA': {
+        // Injected from the popup-ask flow — show without a network call
+        hideEmpty();
+        switchTab('chat');
+        addUserMessage(msg.question);
+        const idx = conversationHistory.length;
+        conversationHistory.push({ question: msg.question, answer: msg.answer });
+        vscode.setState({ history: conversationHistory });
+        const el = document.createElement('div');
+        el.className = 'msg kb';
+        el.innerHTML = `
+          <div class="msg-sender">Kote</div>
+          <div class="bubble">${renderMarkdown(msg.answer)}</div>
+          <div class="bubble-actions">
+            <button class="action-btn" data-action="save" data-idx="${idx}">Save as note</button>
+            <button class="action-btn" data-action="copy" data-idx="${idx}">Copy</button>
+          </div>
+        `;
+        document.getElementById('messages').appendChild(el);
+        scrollToBottom();
+        if (msg.projectSlug) document.getElementById('projectSelect').value = msg.projectSlug;
+        break;
+      }
+
+      case 'historyLoaded': {
+        askHistory = msg.entries;
+        vscode.setState({ ...vscode.getState(), askHistory });
+        renderHistory(askHistory);
+        break;
+      }
+
       case 'projects':
         renderProjects(msg.projects, '');
         break;
@@ -698,6 +1122,14 @@
         setThinking(false);
         addError(msg.message);
         break;
+
+      case 'switchTab':
+        switchTab(msg.tab);
+        break;
+
+      case 'unsyncedSessionsLoaded':
+        renderSyncSessions(msg.sessions);
+        break;
     }
   });
 
@@ -721,7 +1153,7 @@
     const el = document.createElement('div');
     el.className = 'msg kb';
     el.innerHTML = `
-      <div class="msg-sender">Knowledge Vault</div>
+      <div class="msg-sender">Kote</div>
       <div class="bubble">
         ${renderMarkdown(replyText)}
       </div>
@@ -783,7 +1215,311 @@
     vscode.postMessage({ type: 'logout' });
   });
 
+  // \u2500\u2500 History rendering \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+  function formatRelativeTime(iso) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  function renderHistory(entries) {
+    const container = document.getElementById('historyContent');
+    const countEl = document.getElementById('historyCount');
+
+    if (!entries || entries.length === 0) {
+      countEl.textContent = 'No history yet';
+      container.innerHTML = '<div class="history-empty">No questions asked yet.<br>Use Ctrl+Shift+K to ask Kote.</div>';
+      return;
+    }
+
+    countEl.textContent = `${entries.length} question${entries.length !== 1 ? 's' : ''}`;
+
+    const listEl = document.createElement('div');
+    listEl.className = 'history-list';
+
+    // Show only the first visibleHistoryCount entries
+    const visibleEntries = entries.slice(0, visibleHistoryCount);
+
+    visibleEntries.forEach((entry, i) => {
+      const entryEl = document.createElement('div');
+      entryEl.className = 'history-entry';
+      entryEl.innerHTML = `
+        <div class="history-entry-header">
+          <span class="history-q-preview">${escHtml(entry.question)}</span>
+          <span class="history-meta">
+            ${entry.projectSlug ? `<span>${escHtml(entry.projectSlug)}</span>` : ''}
+            <span>${formatRelativeTime(entry.timestamp)}</span>
+          </span>
+          <span class="history-chevron">►</span>
+        </div>
+        <div class="history-body">
+          <div class="history-answer-text">${renderMarkdown(entry.answer)}</div>
+          <div class="history-actions">
+            <button class="history-action-btn" data-hist-action="ask-again" data-idx="${i}">Ask again</button>
+            <button class="history-action-btn" data-hist-action="save" data-idx="${i}">Save as note</button>
+          </div>
+        </div>
+      `;
+
+      // Toggle expand/collapse
+      entryEl.querySelector('.history-entry-header').addEventListener('click', () => {
+        entryEl.classList.toggle('open');
+      });
+
+      listEl.appendChild(entryEl);
+    });
+
+    container.innerHTML = '';
+    container.appendChild(listEl);
+
+    // Add Load More button if there are more entries remaining
+    if (entries.length > visibleHistoryCount) {
+      const loadMoreEl = document.createElement('div');
+      loadMoreEl.id = 'loadMoreHistoryIndicator';
+      loadMoreEl.style.textAlign = 'center';
+      loadMoreEl.style.padding = '10px';
+      loadMoreEl.style.color = 'var(--vscode-descriptionForeground)';
+      loadMoreEl.style.fontSize = '11px';
+      loadMoreEl.style.cursor = 'pointer';
+      loadMoreEl.textContent = 'Load older history';
+      loadMoreEl.addEventListener('click', () => {
+        visibleHistoryCount += 20;
+        vscode.setState({ ...vscode.getState(), visibleHistoryCount });
+        renderHistory(entries);
+      });
+      container.appendChild(loadMoreEl);
+    }
+
+    // Delegate history actions
+    listEl.addEventListener('click', (e) => {
+      const btn = e.target.closest('.history-action-btn');
+      if (!btn) return;
+      const action = btn.getAttribute('data-hist-action');
+      const idx = parseInt(btn.getAttribute('data-idx') || '0', 10);
+      const entry = entries[idx];
+      if (!entry) return;
+
+      if (action === 'ask-again') {
+        switchTab('chat');
+        const input = document.getElementById('questionInput');
+        input.value = `/ask ${entry.question}`;
+        autoResize(input);
+        input.focus();
+      } else if (action === 'save') {
+        vscode.postMessage({
+          type: 'saveNote',
+          title: `Ask: ${entry.question.slice(0, 60)}`,
+          content: `**Q:** ${entry.question}\n\n**A:** ${entry.answer}`,
+          projectSlug: entry.projectSlug || document.getElementById('projectSelect').value,
+        });
+      }
+    });
+  }
+
+  // ── Restore conversation history on init ───────────────────────────────────
+
+  function restoreConversationHistory() {
+    if (conversationHistory.length > 0) {
+      hideEmpty();
+      renderVisibleMessages();
+      scrollToBottom();
+    }
+  }
+
+  function renderVisibleMessages() {
+    const messagesContainer = document.getElementById('messages');
+    const startIndex = Math.max(0, conversationHistory.length - visibleMessageCount);
+    const visibleTurns = conversationHistory.slice(startIndex);
+
+    // Clear existing messages except empty state
+    const existingMessages = messagesContainer.querySelectorAll('.msg');
+    existingMessages.forEach(el => el.remove());
+
+    visibleTurns.forEach((turn) => {
+      const idx = conversationHistory.indexOf(turn);
+      addUserMessage(turn.question);
+      const el = document.createElement('div');
+      el.className = 'msg kb';
+      el.innerHTML = `
+        <div class="msg-sender">Kote</div>
+        <div class="bubble">${renderMarkdown(turn.answer)}</div>
+        <div class="bubble-actions">
+          <button class="action-btn" data-action="save" data-idx="${idx}">Save as note</button>
+          <button class="action-btn" data-action="copy" data-idx="${idx}">Copy</button>
+        </div>
+      `;
+      messagesContainer.appendChild(el);
+    });
+
+    // Add load more indicator if there are more messages
+    if (conversationHistory.length > visibleMessageCount) {
+      const loadMoreEl = document.createElement('div');
+      loadMoreEl.id = 'loadMoreIndicator';
+      loadMoreEl.style.textAlign = 'center';
+      loadMoreEl.style.padding = '10px';
+      loadMoreEl.style.color = 'var(--vscode-descriptionForeground)';
+      loadMoreEl.style.fontSize = '11px';
+      loadMoreEl.style.cursor = 'pointer';
+      loadMoreEl.textContent = '↑ Load older messages';
+      loadMoreEl.addEventListener('click', loadOlderMessages);
+      messagesContainer.insertBefore(loadMoreEl, messagesContainer.firstChild);
+    }
+  }
+
+  function loadOlderMessages() {
+    visibleMessageCount += 20;
+    renderVisibleMessages();
+    // Save the visible count to state
+    vscode.setState({ ...vscode.getState(), visibleMessageCount });
+  }
+
+  // Scroll-based lazy loading
+  document.getElementById('messages').addEventListener('scroll', () => {
+    const messagesContainer = document.getElementById('messages');
+    if (messagesContainer.scrollTop < 100 && conversationHistory.length > visibleMessageCount) {
+      loadOlderMessages();
+    }
+  });
+
+  // Scroll-based lazy loading for history
+  document.getElementById('historyPanel').addEventListener('scroll', () => {
+    const historyPanel = document.getElementById('historyPanel');
+    if (historyPanel.scrollHeight - historyPanel.scrollTop - historyPanel.clientHeight < 50 && askHistory.length > visibleHistoryCount) {
+      visibleHistoryCount += 20;
+      vscode.setState({ ...vscode.getState(), visibleHistoryCount });
+      renderHistory(askHistory);
+    }
+  });
+
+  // ── Sync rendering ──────────────────────────────────────────────────────────
+
+  function renderSyncSessions(sessions) {
+    unsyncedSessions = sessions || [];
+    const container = document.getElementById('syncContent');
+    const countEl = document.getElementById('syncCount');
+    const syncSelectedBtn = document.getElementById('syncSelectedBtn');
+    const syncAllBtn = document.getElementById('syncAllBtn');
+    const tabSyncBtn = document.getElementById('tabSync');
+
+    // Update tab label with badge count if count > 0
+    if (unsyncedSessions.length > 0) {
+      tabSyncBtn.textContent = `Sync (${unsyncedSessions.length})`;
+      countEl.textContent = `${unsyncedSessions.length} unsynced session${unsyncedSessions.length !== 1 ? 's' : ''}`;
+      syncSelectedBtn.style.display = 'inline-block';
+      syncAllBtn.style.display = 'inline-block';
+    } else {
+      tabSyncBtn.textContent = 'Sync';
+      countEl.textContent = 'No unsynced sessions';
+      syncSelectedBtn.style.display = 'none';
+      syncAllBtn.style.display = 'none';
+      container.innerHTML = '<div class="history-empty">All sessions are synchronized with Kote!</div>';
+      return;
+    }
+
+    const listEl = document.createElement('div');
+    listEl.className = 'sync-list';
+
+    const visibleSessions = unsyncedSessions.slice(0, 20);
+
+    visibleSessions.forEach((session, i) => {
+      const entryEl = document.createElement('div');
+      entryEl.className = 'sync-entry';
+      
+      // format turns preview text
+      let previewText = '';
+      if (session.turns && session.turns.length > 0) {
+        session.turns.forEach(turn => {
+          const roleName = turn.role === 'user' ? '👤 User' : '✨ Assistant';
+          previewText += `### ${roleName}\n${turn.content}\n\n`;
+        });
+      } else {
+        previewText = '*(No turns found)*';
+      }
+
+      entryEl.innerHTML = `
+        <div class="sync-entry-header">
+          <input type="checkbox" class="sync-checkbox" data-idx="${i}" />
+          <div class="sync-q-preview" style="flex: 1;">${escHtml(session.title)}</div>
+          <span class="sync-meta">
+            <span>${escHtml(session.providerId)}</span>
+            <span>${formatRelativeTime(session.timestamp)}</span>
+            <span class="sync-chevron">►</span>
+          </span>
+        </div>
+        <div class="sync-body">
+          <div class="sync-turns-text">${renderMarkdown(previewText)}</div>
+        </div>
+      `;
+
+      // Prevent checkbox from opening detail, but toggle open when clicking other elements
+      entryEl.querySelector('.sync-q-preview').addEventListener('click', (e) => {
+        entryEl.classList.toggle('open');
+      });
+      entryEl.querySelector('.sync-meta').addEventListener('click', (e) => {
+        entryEl.classList.toggle('open');
+      });
+
+      entryEl.querySelector('.sync-checkbox').addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+
+      listEl.appendChild(entryEl);
+    });
+
+    container.innerHTML = '';
+    container.appendChild(listEl);
+  }
+
+  // Bind sync button clicks
+  document.getElementById('syncSelectedBtn').addEventListener('click', () => {
+    const checkboxes = document.querySelectorAll('.sync-checkbox:checked');
+    const sessionsToSync = [];
+    checkboxes.forEach(cb => {
+      const idx = parseInt(cb.getAttribute('data-idx') || '0', 10);
+      const session = unsyncedSessions[idx];
+      if (session) {
+        sessionsToSync.push({ providerId: session.providerId, sessionId: session.sessionId });
+      }
+    });
+
+    if (sessionsToSync.length === 0) {
+      return;
+    }
+
+    const container = document.getElementById('syncContent');
+    container.innerHTML = '<div class="history-empty">Synchronizing selected sessions…</div>';
+    document.getElementById('syncSelectedBtn').style.display = 'none';
+    document.getElementById('syncAllBtn').style.display = 'none';
+
+    vscode.postMessage({ type: 'syncSessions', sessions: sessionsToSync });
+  });
+
+  document.getElementById('syncAllBtn').addEventListener('click', () => {
+    const sessionsToSync = unsyncedSessions.map(s => ({ providerId: s.providerId, sessionId: s.sessionId }));
+    
+    if (sessionsToSync.length === 0) {
+      return;
+    }
+
+    const container = document.getElementById('syncContent');
+    container.innerHTML = '<div class="history-empty">Synchronizing all sessions…</div>';
+    document.getElementById('syncSelectedBtn').style.display = 'none';
+    document.getElementById('syncAllBtn').style.display = 'none';
+
+    vscode.postMessage({ type: 'syncSessions', sessions: sessionsToSync });
+  });
+
   // Init
+  restoreConversationHistory();
+  // Prime the in-memory ask history cache on load so the History tab
+  // shows data immediately if it was already open before a webview reload.
+  vscode.postMessage({ type: 'loadHistory' });
   vscode.postMessage({ type: 'ready' });
 </script>
 </body>

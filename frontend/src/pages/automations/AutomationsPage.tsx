@@ -73,7 +73,8 @@ export function AutomationsPage() {
                                             content={
                                                 <span>
                                                     Enable to apply the chosen action (e.g., mark resolved or archive)
-                                                    automatically after the configured time.
+                                                    automatically after the configured time. The interval is measured per note
+                                                    from the note's creation time.
                                                 </span>
                                             }
                                             iconClassName="w-4 h-4"
@@ -148,7 +149,7 @@ export function AutomationsPage() {
                                             className="w-32"
                                         />
                                     </div>
-                                    <p className="form-field-meta">Number of hours after which the action should run. Leave empty to disable time window.</p>
+                                    <p className="form-field-meta">Number of hours after a note's creation when the action will be applied (measured from each note's creation time). Leave empty to disable the time window.</p>
                                     {afterHoursError ? <p className="form-error" role="alert">{afterHoursError}</p> : null}
                                 </div>
 

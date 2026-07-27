@@ -74,6 +74,7 @@ export class StripePaymentGateway implements IPaymentGateway {
       const response = await fetch(url, {
         ...options,
         headers,
+        signal: AbortSignal.timeout(30000), // 30 second timeout
       });
 
       const text = await response.text();
@@ -87,7 +88,10 @@ export class StripePaymentGateway implements IPaymentGateway {
       }
 
       if (!response.ok) {
-        throw stripeToAppError({ message: data?.error?.message || `Stripe error: ${response.statusText}` });
+        const errorMessage = data?.error?.message || `Stripe error: ${response.statusText}`;
+        const errorDetails = data?.error ? JSON.stringify(data.error) : response.statusText;
+        this.logger.error(`Stripe API error on ${path}: ${errorMessage} - Details: ${errorDetails}`);
+        throw stripeToAppError({ message: errorMessage });
       }
 
       return data as T;
@@ -114,6 +118,10 @@ export class StripePaymentGateway implements IPaymentGateway {
   }
 
   async createCustomer(input: CreateCustomerInput): Promise<GatewayCustomer> {
+    if (!input.name?.trim()) {
+      throw new Error('Customer name is required');
+    }
+
     const body = {
       name: input.name,
       email: input.email || '',
@@ -185,6 +193,13 @@ export class StripePaymentGateway implements IPaymentGateway {
   }
 
   async createSubscription(input: CreateSubscriptionInput): Promise<GatewaySubscription> {
+    if (!input.customerId?.trim()) {
+      throw new Error('Customer ID is required');
+    }
+    if (input.value <= 0) {
+      throw new Error('Subscription value must be greater than 0');
+    }
+
     const planName = input.description?.split(' ')[1] || 'Pro';
     const priceId = await this.getOrCreateProductAndPrice(
       planName,
@@ -209,7 +224,8 @@ export class StripePaymentGateway implements IPaymentGateway {
         await this.attachPaymentMethod(input.customerId, input.creditCardToken);
         body.default_payment_method = input.creditCardToken;
       } catch (e: any) {
-        this.logger.warn(`Failed to attach payment method to customer: ${e.message}`);
+        this.logger.error(`Failed to attach payment method to customer: ${e.message}`);
+        throw new Error(`Failed to attach payment method: ${e.message}`);
       }
     }
 
@@ -240,9 +256,11 @@ export class StripePaymentGateway implements IPaymentGateway {
       throw new Error(`Stripe subscription ${gatewaySubscriptionId} not found`);
     }
 
+    const stripeSub = await this.request<any>(`/subscriptions/${gatewaySubscriptionId}`);
+    const itemId = stripeSub?.items?.data?.[0]?.id;
+
     let priceId: string | undefined;
     if (input.value !== undefined) {
-      const stripeSub = await this.request<any>(`/subscriptions/${gatewaySubscriptionId}`);
       const productId = stripeSub?.items?.data?.[0]?.price?.product;
       let planName = 'Pro';
       if (productId) {
@@ -260,9 +278,6 @@ export class StripePaymentGateway implements IPaymentGateway {
         input.cycle || 'MONTHLY'
       );
     }
-
-    const stripeSub = await this.request<any>(`/subscriptions/${gatewaySubscriptionId}`);
-    const itemId = stripeSub?.items?.data?.[0]?.id;
 
     const body: any = {
       proration_behavior: 'create_prorations',
@@ -301,25 +316,40 @@ export class StripePaymentGateway implements IPaymentGateway {
   }
 
   async cancelPayment(gatewayPaymentId: string): Promise<void> {
+    this.logger.warn(`Attempting to cancel Stripe payment: ${gatewayPaymentId}`);
+
     if (gatewayPaymentId.startsWith('in_')) {
+      this.logger.warn(`Canceling Stripe invoice: ${gatewayPaymentId}`);
       await this.request<void>(`/invoices/${gatewayPaymentId}/void`, {
         method: 'POST',
       });
+      this.logger.warn(`Successfully canceled Stripe invoice: ${gatewayPaymentId}`);
       return;
     }
 
     if (gatewayPaymentId.startsWith('pi_')) {
+      this.logger.warn(`Canceling Stripe payment intent: ${gatewayPaymentId}`);
       await this.request<void>(`/payment_intents/${gatewayPaymentId}/cancel`, {
         method: 'POST',
       });
+      this.logger.warn(`Successfully canceled Stripe payment intent: ${gatewayPaymentId}`);
       return;
     }
 
+    this.logger.error(`Unsupported Stripe payment id for cancellation: ${gatewayPaymentId}`);
     throw new Error(`Unsupported Stripe payment id: ${gatewayPaymentId}`);
   }
 
   async createPayment(input: CreatePaymentInput): Promise<GatewayPayment> {
+    if (!input.customerId?.trim()) {
+      throw new Error('Customer ID is required');
+    }
+    if (input.value <= 0) {
+      throw new Error('Payment value must be greater than 0');
+    }
+
     const centsValue = Math.round(input.value * 100);
+    const returnUrl = process.env.KB_PUBLIC_BASE_URL || process.env.APP_URL || 'https://knowledgebase.sbs/kote';
     const body: any = {
       amount: centsValue,
       currency: 'usd',
@@ -338,6 +368,7 @@ export class StripePaymentGateway implements IPaymentGateway {
       body.confirm = true;
       body.off_session = false;
       body.setup_future_usage = 'off_session';
+      body.return_url = `${returnUrl}/subscription`;
     } else {
       body.automatic_payment_methods = {
         enabled: true,
@@ -401,7 +432,8 @@ export class StripePaymentGateway implements IPaymentGateway {
           ? new Date(data.current_period_end * 1000)
           : undefined,
       };
-    } catch {
+    } catch (err: any) {
+      this.logger.error(`Failed to retrieve Stripe subscription ${gatewaySubscriptionId}: ${err.message}`, err.stack || '');
       return null;
     }
   }
@@ -435,6 +467,10 @@ export class StripePaymentGateway implements IPaymentGateway {
   }
 
   async getPaymentByGatewayId(gatewayPaymentId: string): Promise<GatewayPayment | null> {
+    if (!gatewayPaymentId?.trim()) {
+      return null;
+    }
+
     try {
       if (gatewayPaymentId.startsWith('in_')) {
         return this.getInvoiceAsPayment(gatewayPaymentId);
@@ -443,7 +479,8 @@ export class StripePaymentGateway implements IPaymentGateway {
         return this.getPaymentIntentAsPayment(gatewayPaymentId);
       }
       return null;
-    } catch {
+    } catch (err: any) {
+      this.logger.error(`Failed to retrieve Stripe payment ${gatewayPaymentId}: ${err.message}`);
       return null;
     }
   }

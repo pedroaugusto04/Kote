@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { deleteCurrentUserAvatar, fetchConnectionToken, fetchCurrentUser, uploadCurrentUserAvatar } from '../../shared/api/client';
+import { fetchSubscriptionStatus } from '../../shared/api/billing';
 import { getErrorMessage } from '../../shared/api/error-message';
 import type { Workspace } from '../../shared/api/models/workspace';
 import { InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { UserAvatar } from '../../shared/ui/user-avatar';
+import { QuotaUsageWidget } from '../../features/quota/QuotaUsageWidget';
 
 type ProfilePageProps = {
   workspace: Workspace;
@@ -17,7 +19,13 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
     queryKey: ['auth', 'me'],
     queryFn: fetchCurrentUser,
   });
+  const quotaStatusQuery = useQuery({
+    queryKey: ['billing', 'status'],
+    queryFn: fetchSubscriptionStatus,
+    staleTime: 60_000,
+  });
   const user = currentUserQuery.data?.user;
+  const quotaStatus = quotaStatusQuery.data;
   const syncCurrentUser = (data: Awaited<ReturnType<typeof fetchCurrentUser>>) => {
     queryClient.setQueryData(['auth', 'me'], data);
     void queryClient.invalidateQueries({ queryKey: ['auth', 'me'] });
@@ -140,9 +148,9 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
 
             <div className="profile-connection-section">
               <div className="profile-connection-header">
-                <h3 className="profile-connection-title">CLI & VS Code Connection</h3>
+                <h3 className="profile-connection-title">IDE & CLI Connection</h3>
                 <p className="profile-connection-desc">
-                  Generate a unified connection token to authenticate your VS Code extension or command line interface (CLI). This token contains refresh capability and will keep you logged in.
+                  Generate a unified connection token to authenticate your VS Code extension, CLI, or MCP server. This token contains refresh capability and will keep you logged in.
                 </p>
               </div>
 
@@ -178,6 +186,12 @@ export function ProfilePage({ workspace }: ProfilePageProps) {
                 </button>
               )}
             </div>
+
+            {quotaStatus && (
+              <div style={{ marginTop: '24px', padding: '20px', background: 'var(--surface-2)', borderRadius: '12px', border: '1px solid var(--border-subtle)' }}>
+                <QuotaUsageWidget status={quotaStatus} />
+              </div>
+            )}
           </div>
         ) : null}
       </Panel>

@@ -5,34 +5,35 @@ export class StatusBarProvider {
 
   constructor() {
     this.statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-    this.statusBarItem.command = 'kb.openChat';
-    this.statusBarItem.tooltip = 'Knowledge Vault — click to open chat';
+    this.statusBarItem.command = 'kote.openChat';
+    this.statusBarItem.tooltip = 'Kote — click to open chat';
     this.setNotConfigured();
     this.statusBarItem.show();
   }
 
   setNotConfigured() {
-    this.statusBarItem.text = '$(database) KB: not connected';
+    this.statusBarItem.text = '$(database) Kote: not connected';
     this.statusBarItem.color = new vscode.ThemeColor('statusBarItem.warningForeground');
     this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.warningBackground');
   }
 
   setConnecting() {
-    this.statusBarItem.text = '$(loading~spin) KB: connecting...';
+    this.statusBarItem.text = '$(loading~spin) Kote: connecting...';
     this.statusBarItem.color = undefined;
     this.statusBarItem.backgroundColor = undefined;
   }
 
-  setProject(projectSlug: string) {
-    this.statusBarItem.text = `$(database) KB: ${projectSlug}`;
+  setProject(projectSlug: string, coveragePercentage?: number) {
+    const coverageStr = typeof coveragePercentage === 'number' ? ` (${coveragePercentage}% Covered)` : '';
+    this.statusBarItem.text = `$(database) Kote: ${projectSlug}${coverageStr}`;
     this.statusBarItem.color = undefined;
     this.statusBarItem.backgroundColor = undefined;
-    this.statusBarItem.tooltip = `Knowledge Vault — project: ${projectSlug}\nClick to open AI chat`;
+    this.statusBarItem.tooltip = `Kote — project: ${projectSlug}${coverageStr}\nClick to open AI chat`;
   }
 
   setError(message: string) {
-    this.statusBarItem.text = '$(warning) KB: error';
-    this.statusBarItem.tooltip = `Knowledge Vault — ${message}`;
+    this.statusBarItem.text = '$(warning) Kote: error';
+    this.statusBarItem.tooltip = `Kote — ${message}`;
     this.statusBarItem.color = new vscode.ThemeColor('statusBarItem.errorForeground');
     this.statusBarItem.backgroundColor = new vscode.ThemeColor('statusBarItem.errorBackground');
   }

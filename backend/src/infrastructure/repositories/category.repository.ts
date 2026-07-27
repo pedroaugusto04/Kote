@@ -33,8 +33,8 @@ export class PostgresCategoryRepository {
     return result.map(categoryFromRow);
   }
 
-  async getById(userId: string, categoryId: string): Promise<CategoryRecord | null> {
-    const db = this.database.getDb();
+  async getById(userId: string, categoryId: string, tx?: any): Promise<CategoryRecord | null> {
+    const db = tx || this.database.getDb();
     const result = await db
       .select({
         id: categories.id,
@@ -57,9 +57,10 @@ export class PostgresCategoryRepository {
   async create(
     userId: string,
     workspaceId: string,
-    input: { name: string; color?: string; icon?: string; isSystem?: boolean }
+    input: { name: string; color?: string; colorDark?: string; icon?: string; isSystem?: boolean },
+    tx?: any
   ): Promise<CategoryRecord> {
-    const db = this.database.getDb();
+    const db = tx || this.database.getDb();
 
     const result = await db
       .insert(categories)
@@ -69,6 +70,7 @@ export class PostgresCategoryRepository {
         workspaceId,
         name: input.name,
         color: input.color || '#9e9e9e',
+        colorDark: input.colorDark || null,
         icon: input.icon || '',
         isSystem: input.isSystem || false,
       })
@@ -77,8 +79,8 @@ export class PostgresCategoryRepository {
     return categoryFromRow(result[0]);
   }
 
-  async findByName(userId: string, workspaceId: string, name: string): Promise<CategoryRecord | null> {
-    const db = this.database.getDb();
+  async findByName(userId: string, workspaceId: string, name: string, tx?: any): Promise<CategoryRecord | null> {
+    const db = tx || this.database.getDb();
     const result = await db
       .select({
         id: categories.id,

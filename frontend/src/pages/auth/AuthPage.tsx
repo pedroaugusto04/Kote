@@ -104,8 +104,8 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: () => void }) {
           <Link className="brand auth-brand" to={routes.home} aria-label="Go to Home">
             <BrandMark />
             <div>
-              <strong>Knowledge Vault</strong>
-              <span>developer knowledge base</span>
+              <strong>Kote</strong>
+              <span>Your Team's Second Brain</span>
             </div>
           </Link>
           <div className="auth-panel-head-actions">

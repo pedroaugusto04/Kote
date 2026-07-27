@@ -1,31 +1,184 @@
 import type { PageContext } from '../../app/page-context';
 import type { HomeNavigationTarget, HomePriority } from '../../shared/api/models/dashboard-home';
 import { formatDisplayToken, formatUsDate, formatUsDateTime, formatDateInUserTimeZone, formatTimeInUserTimeZone, projectName, reminderDisplayDateTime, typeIcon, getCleanSummary, noteTypeLabel, getTimelineNodeColor } from '../../shared/utils/format';
+import { makeTitleClickable } from '../../shared/utils/text';
 import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primitives';
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchAllProjectsTimeline, fetchProjectTimeline } from '../../shared/api/client';
+import { fetchAllProjectsTimeline, fetchGithubBackfillStatus, fetchProjectTimeline, fetchProductivityInsights } from '../../shared/api/client';
 import { Select } from '../../shared/ui/select';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
+import { InfoTooltip } from '../../shared/ui/info-tooltip';
+import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
+import { useIsMobile } from '../../shared/hooks/useIsMobile';
 
-export function HomePage({ dashboard, openNote, openProject, createNote }: PageContext) {
+import { ProjectCoverageBadge } from '../../features/projects/components/ProjectCoverageBadge';
+
+export function HomePage({ dashboard, openNote, openProject, createNote, onNoteModalClose, setOnNoteModalClose }: PageContext) {
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
   const workspaceSlug = activeWorkspace?.workspaceSlug || '';
+  const backfillJobId = (() => {
+    if (!workspaceSlug) return null;
+    try {
+      return localStorage.getItem(`kb-github-backfill-job-${workspaceSlug}`);
+    } catch {
+      return null;
+    }
+  })();
+
+  const backfillStatusQuery = useQuery({
+    queryKey: ['home-github-backfill-status', workspaceSlug, backfillJobId],
+    queryFn: () => fetchGithubBackfillStatus(workspaceSlug, backfillJobId || ''),
+    enabled: Boolean(workspaceSlug && backfillJobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.job?.status;
+      if (!status || status === 'completed' || status === 'failed' || status === 'quota_exceeded') {
+        return false;
+      }
+      return 2500;
+    },
+  });
+  const backfillRunning = backfillStatusQuery.data?.job?.status === 'queued'
+    || backfillStatusQuery.data?.job?.status === 'running';
   const activityByDay = home.activityByDay.map((point) => ({ ...point, label: formatUsDate(point.date) }));
   const TIMELINE_SIZE = 5;
 
   const [selectedTimelineProject, setSelectedTimelineProject] = useState<string>('');
+  const [activeActivityTab, setActiveActivityTab] = useState<'notes' | 'ai' | 'hours'>('notes');
+
+  const isMobile = useIsMobile();
+
+  // Drag and drop with shared hook
+  const { isDraggingOver, handleDragOver, handleDragLeave, handleDrop, processNextNote } = useDragAndDropFiles({
+    onCreateNote: (title, attachments) => {
+      if (createNote) {
+        createNote('inbox', title, attachments);
+      }
+    },
+    projectSlug: 'inbox',
+  });
+
+  // Set callback to process next file in queue when modal closes
+  useEffect(() => {
+    if (onNoteModalClose && setOnNoteModalClose) {
+      setOnNoteModalClose(() => () => {
+        processNextNote();
+      });
+    }
+  }, [onNoteModalClose, setOnNoteModalClose, processNextNote]);
+
+  const productivityQuery = useQuery({
+    queryKey: ['home-productivity-insights'],
+    queryFn: fetchProductivityInsights,
+    staleTime: 60_000,
+  });
+
+  const pInsights = productivityQuery.data;
+
+  // Helpers for timezone mapping
+  const formatDateStr = (dt: Date) =>
+    `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+
+  const addDays = (dateStr: string, days: number): string => {
+    const d = new Date(`${dateStr}T12:00:00`); // Parse mid-day to avoid DST edge-cases
+    d.setDate(d.getDate() + days);
+    return formatDateStr(d);
+  };
+
+  const getOffsetDateStr = (daysOffset: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    return formatDateStr(d);
+  };
+
+  const nowDt = new Date();
+  const todayStr = formatDateStr(nowDt);
+  const yesterdayStr = formatDateStr(new Date(nowDt.getTime() - 24 * 60 * 60 * 1000));
+
+  let currentStreak = 0;
+  let weeklyAiData: { label: string; sessions: number }[] = [];
+  let hourlyCounts: { hour: number; label: string; Activity: number }[] = [];
+  let totalAiInteractions = 0;
+
+  if (pInsights) {
+    const activities = pInsights.activities || [];
+    totalAiInteractions = activities.filter((a) => a.isAi).length;
+
+    // 1. Calculate active usage streak
+    const activeDays = new Set(
+      activities.map((a) => {
+        const d = new Date(a.createdAt);
+        return formatDateStr(d);
+      })
+    );
+
+    let startCheckingFrom: string | null = null;
+    if (activeDays.has(todayStr)) {
+      startCheckingFrom = todayStr;
+    } else if (activeDays.has(yesterdayStr)) {
+      startCheckingFrom = yesterdayStr;
+    }
+
+    if (startCheckingFrom) {
+      let currentCheckStr = startCheckingFrom;
+      while (activeDays.has(currentCheckStr)) {
+        currentStreak++;
+        currentCheckStr = addDays(currentCheckStr, -1);
+      }
+    }
+
+    // 2. Weekly AI Sessions (last 4 weeks)
+    for (let i = 3; i >= 0; i--) {
+      const startOffset = -i * 7 - 6;
+      const endOffset = -i * 7;
+      const startStr = getOffsetDateStr(startOffset);
+      const endStr = getOffsetDateStr(endOffset);
+
+      const count = activities.filter((a) => {
+        const d = new Date(a.createdAt);
+        const dayStr = formatDateStr(d);
+        return a.isAi && dayStr >= startStr && dayStr <= endStr;
+      }).length;
+
+      const formatShortDate = (str: string) => {
+        const [, m, d] = str.split('-');
+        return `${d}/${m}`;
+      };
+
+      weeklyAiData.push({
+        label: `${formatShortDate(startStr)} to ${formatShortDate(endStr)}`,
+        sessions: count,
+      });
+    }
+
+    // 3. Hourly Activity (last 30 days)
+    hourlyCounts = Array.from({ length: 24 }, (_, hour) => ({
+      hour,
+      label: `${String(hour).padStart(2, '0')}:00`,
+      Activity: 0,
+    }));
+
+    const thirtyDaysAgoStr = getOffsetDateStr(-30);
+    activities.forEach((a) => {
+      const d = new Date(a.createdAt);
+      const dayStr = formatDateStr(d);
+      if (dayStr >= thirtyDaysAgoStr) {
+        const hour = d.getHours();
+        hourlyCounts[hour].Activity += 1;
+      }
+    });
+  }
 
   const timelineQuery = useQuery({
     queryKey: ['home-project-timeline', selectedTimelineProject],
     queryFn: () => selectedTimelineProject
-      ? fetchProjectTimeline(selectedTimelineProject, { page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '' })
-      : fetchAllProjectsTimeline({ page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '' }),
+      ? fetchProjectTimeline(selectedTimelineProject, { page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '', orderByPin: false })
+      : fetchAllProjectsTimeline({ page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '', orderByPin: false }),
     staleTime: 0,
   });
 
@@ -66,7 +219,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
   }
 
   function priorityMeta(priority: HomePriority) {
-    if (priority.type === 'reminder' && (priority.reminderAt || priority.reminderDate)) {
+    if (priority.type === 'reminder' && priority.reminderAt) {
       return `${projectName(dashboard.projects, priority.project)} / ${reminderDisplayDateTime(priority)}`;
     }
     return `${projectName(dashboard.projects, priority.project)} / ${formatUsDate(priority.date)}`;
@@ -74,18 +227,49 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
 
   return (
     <>
-      <PageHead
-        title="Home"
-        subtitle={`Relevant updates from the last ${home.windowDays} days.`}
-        action={
-          createNote ? (
-            <button className="icon-button" type="button" onClick={() => createNote()}>
-              Quick note
-            </button>
-          ) : undefined
-        }
-      />
-      <section className="home-layout">
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{ position: 'relative', minHeight: '100vh' }}
+      >
+        {isDraggingOver && (
+          <div className="drag-drop-overlay">
+            <div className="drag-drop-card">
+              <svg viewBox="0 0 16 16" width="32" height="32" className="drag-drop-icon">
+                <path
+                  d="M4.5 12.5v-7a3 3 0 016 0v7a1.5 1.5 0 01-3 0v-6.5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <h3>Import documents</h3>
+              <p>Drop files here to create notes automatically</p>
+            </div>
+          </div>
+        )}
+        <PageHead
+          title="Home"
+          subtitle={`Relevant updates from the last ${home.windowDays} days.`}
+          action={
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {!isMobile && (
+                <InfoTooltip
+                  content="Drag files anywhere on this page to automatically create notes with attachments"
+                />
+              )}
+              {createNote ? (
+                <button className="icon-button" type="button" onClick={() => createNote()}>
+                  Quick note
+                </button>
+              ) : undefined}
+            </div>
+          }
+        />
+        <section className="home-layout">
         {activeWorkspace ? (
           <OnboardingChecklist dashboard={dashboard} workspaceSlug={workspaceSlug} />
         ) : null}
@@ -102,6 +286,32 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
               </div>
             </article>
           ))}
+
+          {/* New Streak KPI Card */}
+          {pInsights && (
+            <article className="home-kpi insights-kpi-card" key="streak-kpi">
+              <div className="home-kpi-head">
+                <span className="card-kicker">Usage Streak</span>
+              </div>
+              <div className="home-kpi-body">
+                <strong>{currentStreak} {currentStreak === 1 ? 'day' : 'days'}</strong>
+                <span className="home-kpi-meta active">Consecutive active days</span>
+              </div>
+            </article>
+          )}
+
+          {/* New AI Interactions KPI Card */}
+          {pInsights && (
+            <article className="home-kpi insights-kpi-card" key="ai-kpi">
+              <div className="home-kpi-head">
+                <span className="card-kicker">AI Interactions</span>
+              </div>
+              <div className="home-kpi-body">
+                <strong>{totalAiInteractions}</strong>
+                <span className="home-kpi-meta active">AI searches & chats</span>
+              </div>
+            </article>
+          )}
         </section>
 
         <section className="home-main-grid" aria-label="Operational summary">
@@ -131,23 +341,77 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             )}
           </Panel>
 
-          <Panel className="home-panel home-panel-activity">
-            <div className="panel-head">
-              <h2>Activity from the last 7 days</h2>
-              <span className="meta">{home.activityByDay.reduce((total, point) => total + point.count, 0)} notes</span>
+          <Panel className="home-panel home-panel-activity insights-tabbed-panel">
+            <div className="panel-head tab-header-container">
+              <div className="tab-buttons">
+                <button
+                  type="button"
+                  className={`tab-btn ${activeActivityTab === 'notes' ? 'active' : ''}`}
+                  onClick={() => setActiveActivityTab('notes')}
+                >
+                  Notes (7d)
+                </button>
+                {pInsights && (
+                  <>
+                    <button
+                      type="button"
+                      className={`tab-btn ${activeActivityTab === 'ai' ? 'active' : ''}`}
+                      onClick={() => setActiveActivityTab('ai')}
+                    >
+                      AI Sessions
+                    </button>
+                    <button
+                      type="button"
+                      className={`tab-btn ${activeActivityTab === 'hours' ? 'active' : ''}`}
+                      onClick={() => setActiveActivityTab('hours')}
+                    >
+                      Peak Hours (24h)
+                    </button>
+                  </>
+                )}
+              </div>
+              <span className="meta">
+                {activeActivityTab === 'notes' && `${home.activityByDay.reduce((total, point) => total + point.count, 0)} notes`}
+                {activeActivityTab === 'ai' && `${totalAiInteractions} total`}
+                {activeActivityTab === 'hours' && `30-day pattern`}
+              </span>
             </div>
-            <div className="chart-box" aria-label="Activity chart by day">
+            <div className="chart-box" aria-label="Activity chart">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={activityByDay} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
-                  <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
-                  <Tooltip
-                    contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
-                    labelStyle={{ color: 'var(--chart-tooltip-text)' }}
-                  />
-                  <Area type="monotone" dataKey="count" name="Notes" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
-                </AreaChart>
+                {activeActivityTab === 'notes' ? (
+                  <AreaChart data={activityByDay} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                    />
+                    <Area type="monotone" dataKey="count" name="Notes" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
+                  </AreaChart>
+                ) : activeActivityTab === 'ai' ? (
+                  <AreaChart data={weeklyAiData} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                    />
+                    <Area type="monotone" dataKey="sessions" name="AI Sessions" stroke="var(--chart-area-stroke)" fill="var(--chart-area-fill)" strokeWidth={2} />
+                  </AreaChart>
+                ) : (
+                  <BarChart data={hourlyCounts} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                    <CartesianGrid stroke="var(--chart-grid)" vertical={false} />
+                    <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={11} interval={2} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} stroke="var(--chart-axis)" fontSize={12} width={28} />
+                    <Tooltip
+                      contentStyle={{ background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, color: 'var(--chart-tooltip-text)' }}
+                      labelStyle={{ color: 'var(--chart-tooltip-text)' }}
+                    />
+                    <Bar dataKey="Activity" fill="var(--chart-bar-fill)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
               </ResponsiveContainer>
             </div>
           </Panel>
@@ -168,7 +432,11 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
             ) : timelineQuery.isError ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--red)' }}>Failed to load timeline.</div>
             ) : timelineItems.length === 0 ? (
-              <EmptyState>No timeline events found for this project.</EmptyState>
+              <EmptyState>
+                {backfillRunning
+                  ? `Importing your recent GitHub commits… ${backfillStatusQuery.data?.job?.processed ?? 0}/${backfillStatusQuery.data?.job?.total ?? 0} processed.`
+                  : 'No timeline events found for this project.'}
+              </EmptyState>
             ) : (
               <div className="home-timeline">
                 {timelineItems.map((item) => {
@@ -193,9 +461,16 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
                           <Badge value={formatDisplayToken(item.status)} tone={item.status} />
                         </div>
                         <h3 className="home-timeline-title">
-                          {item.title}
+                          {(() => {
+                            const { text: titleText, url: titleUrl } = makeTitleClickable(item.title);
+                            return titleUrl ? (
+                              <>
+                                {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
+                              </>
+                            ) : item.title;
+                          })()}
                         </h3>
-                        <SourceBadge source={activeSource} />
+                        <SourceBadge source={activeSource} iconSize={16} />
                         <p className="home-timeline-summary">{getCleanSummary(item.summary)}</p>
                       </div>
                       <span className="file-icon">{typeIcon(item.type)}</span>
@@ -230,16 +505,32 @@ export function HomePage({ dashboard, openNote, openProject, createNote }: PageC
               <EmptyState>No recent activity by project.</EmptyState>
             )}
             <div className="compact-links spaced">
-              {home.activityByProject.slice(0, 5).map((project) => (
-                <button className="home-project-link" type="button" key={project.project} onClick={() => openProject(project.project)}>
-                  <span>{project.label}</span>
-                  <Badge value={project.count} tone="active" />
-                </button>
-              ))}
+              {home.activityByProject.slice(0, 5).map((project) => {
+                return (
+                  <div className="home-project-link" key={project.project} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <ProjectCoverageBadge projectSlug={project.project} projectDisplayName={project.label} />
+                      <span
+                        style={{ cursor: 'pointer', fontWeight: 500 }}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => openProject(project.project)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openProject(project.project); }}
+                      >
+                        {project.label}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto', cursor: 'pointer' }} onClick={() => openProject(project.project)}>
+                      <Badge value={project.count} tone="active" />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Panel>
         </section>
       </section>
+      </div>
     </>
   );
 }

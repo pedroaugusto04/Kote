@@ -1,19 +1,15 @@
-import crypto from 'node:crypto';
+import { Injectable } from '@nestjs/common';
 
-import { NotFoundException, Injectable } from '@nestjs/common';
-
-import { EventType, Importance, KnowledgeKind, KnowledgeStatus, SourceChannel, WebhookTrigger } from '../../../contracts/enums.js';
-import { withDerivedReminderAt, type IngestPayload } from '../../../contracts/ingest.js';
-import { hasReminder, normalizeManualNoteStatus } from '../../../domain/note-status.js';
-import { isAiSource } from '../../../domain/notes.js';
-import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
-import { normalizeDate, normalizeTime } from '../../../domain/time.js';
-import type { CreateManualNoteInput } from '../../models/note-input.models.js';
+import { WebhookTrigger } from '../../../contracts/enums.js';
+import { withDerivedReminderAt } from '../../../contracts/ingest.js';
+import type { CreateManualNoteDto } from '../../dto/note.dto.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
+import { NoteEventDispatcher } from '../../services/webhooks/note-event-dispatcher.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
-import { stripTitleHeader } from './note-editor.helpers.js';
+import { toIngestPayload, type NoteMapperContext } from '../../mappers/note.mapper.js';
+import { requireProject } from '../../helpers/resource-validation.helpers.js';
+import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
 
 @Injectable()
 export class CreateManualNoteUseCase {
@@ -24,101 +20,63 @@ export class CreateManualNoteUseCase {
     private readonly noteEventDispatcher: NoteEventDispatcher,
   ) { }
 
-  async execute(input: CreateManualNoteInput & { projectId: string }, userId: string) {
-    const project = await this.contentRepository.getProjectById(userId, input.projectId);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
+  async execute(input: CreateManualNoteDto, userId: string) {
+    // Sanitize sensitive data from the note content
+    const { title: sanitizedTitle, rawText: sanitizedRawText } = sanitizeManualNoteContent(
+      input.title || '',
+      input.rawText || '',
+      input.title,
+    );
 
-    const workspaceId = project.workspaceId;
+    const sanitizedInput: CreateManualNoteDto = {
+      ...input,
+      rawText: sanitizedRawText,
+      title: sanitizedTitle,
+    };
+
+    const project = await requireProject(this.contentRepository, userId, sanitizedInput.projectId);
     const workspaceSlug = project.workspaceSlug || 'default';
+    const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
 
     // Check if a note with the same source + sessionId already exists to avoid duplicates
     let existingNoteId: string | undefined;
-    const activeSource = input.source?.trim();
-    if (activeSource && input.sessionId) {
-      const existingNote = await this.contentRepository.getNoteBySourceAndSessionId(userId, activeSource, input.sessionId);
+    const activeSource = sanitizedInput.source?.trim();
+    if (activeSource && sanitizedInput.sessionId) {
+      const existingNote = await this.contentRepository.getNoteBySourceAndSessionId(userId, activeSource, sanitizedInput.sessionId);
       if (existingNote) {
         existingNoteId = existingNote.id;
       }
     }
 
-    const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
-    const reminderDate = normalizeDate(input.reminderDate, reminderTimeZone);
-    const reminderTime = normalizeTime(input.reminderTime);
-    const reminderAt = input.reminderAt || '';
-    const categoryIds = input.categoryIds || [];
+    const categoryIds = sanitizedInput.categoryIds || [];
     const categories = categoryIds.length > 0
-      ? await this.contentRepository.listCategories(userId, workspaceId)
+      ? await this.contentRepository.listCategories(userId, project.workspaceId)
       : [];
-    const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
-    const status = normalizeManualNoteStatus({
-      requestedStatus: input.status,
-      currentStatus: KnowledgeStatus.Active,
-      hadReminder: false,
-      hasReminder: hasReminder({ reminderDate, reminderAt }),
-    });
-    const occurredAt = new Date().toISOString();
-    const cleanedRawText = stripTitleHeader(input.rawText, input.title);
-    const isAiChat = isAiSource(activeSource);
 
-    const payload: IngestPayload = {
-      source: {
-        channel: input.sourceChannel || (isAiChat ? SourceChannel.AiChat : SourceChannel.External),
-        system: activeSource || 'manual-api',
-        actor: '',
-        conversationId: workspaceSlug,
-        correlationId: `manual:${crypto.randomUUID()}`,
-        sessionId: input.sessionId || '',
-      },
-      event: {
-        type: EventType.ManualNote,
-        occurredAt,
-        projectSlug: project.projectSlug,
-      },
-      content: {
-        rawText: cleanedRawText,
-        title: input.title,
-        attachments: [],
-        sections: {
-          summary: cleanedRawText,
-          impact: '',
-          risks: [],
-          nextSteps: [],
-          reviewFindings: [],
-        },
-      },
-      classification: {
-        kind: KnowledgeKind.Note,
-        canonicalType,
-        importance: Importance.Low,
-        status,
-        tags: input.tags,
-        decisionFlag: false,
-      },
-      actions: {
-        reminderDate,
-        reminderTime,
-        reminderAt,
-        followUpBy: '',
-      },
-      metadata: {
-        rawText: input.rawText,
-      },
+    const mapperContext: NoteMapperContext = {
+      categories,
+      projectSlug: project.projectSlug,
+      workspaceSlug,
+      reminderTimeZone,
     };
 
+    const payload = toIngestPayload(sanitizedInput, mapperContext, existingNoteId);
+
     return this.ingestEntryUseCase.execute(withDerivedReminderAt(payload, reminderTimeZone), userId, workspaceSlug, {
-      folderId: input.folderId,
+      folderId: sanitizedInput.folderId,
       existingNoteId,
-      categoryIds: input.categoryIds,
+      categoryIds,
+      existingNotePath: sanitizedInput.path,
     }).then((result) => {
       this.noteEventDispatcher.dispatch({
         event: WebhookTrigger.NoteCreated,
         noteId: result.noteId,
         userId,
-        workspaceSlug: workspaceSlug,
+        workspaceSlug,
         projectSlug: project.projectSlug,
-        title: input.title,
-        content: input.rawText,
-        occurredAt: occurredAt,
+        title: sanitizedInput.title,
+        content: sanitizedInput.rawText,
+        occurredAt: sanitizedInput.occurredAt || new Date().toISOString(),
       }).catch(() => { /* webhook dispatch must never block note creation */ });
       return result;
     });

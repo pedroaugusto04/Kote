@@ -8,13 +8,16 @@ export type Reminder = {
   workspace?: string;
   status: NoteStatus;
   isOverdue: boolean;
-  reminderDate: string;
-  reminderTime: string;
   reminderAt: string;
   relativePath: string;
 };
 
-export type ReminderBoardColumnKey = 'overdue' | 'upcoming' | 'resolved' | 'archived';
+export enum ReminderBoardColumnKey {
+  Overdue = 'overdue',
+  Upcoming = 'upcoming',
+  Resolved = 'resolved',
+  Archived = 'archived',
+}
 
 export type ReminderBoardCard = Reminder;
 

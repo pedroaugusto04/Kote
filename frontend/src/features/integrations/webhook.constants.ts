@@ -9,6 +9,7 @@ export const WEBHOOK_MESSAGES = {
     EVENTS: 'Events',
     SAVE: 'Save',
     CREATE: 'Create',
+    KICKER: 'webhook',
   },
   
   VALIDATION: {
@@ -25,6 +26,7 @@ export const WEBHOOK_MESSAGES = {
     EMPTY: 'No webhooks configured yet.',
     COUNT: '{count} webhook{plural}',
     NEW_BUTTON: '+ New webhook',
+    LOGO_FALLBACK: 'WH',
   },
   
   MUTATION: {

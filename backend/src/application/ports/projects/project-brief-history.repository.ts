@@ -5,14 +5,12 @@ export abstract class ProjectBriefHistoryRepository {
   abstract save(input: SaveProjectBriefHistoryInput): Promise<ProjectBriefHistoryRecord>;
   abstract findLatest(input: {
     userId: string;
-    workspaceSlug: string;
-    projectSlug: string;
+    workspaceId: string;
     projectId?: string;
   }): Promise<ProjectBriefHistoryRecord | null>;
   abstract list(input: {
     userId: string;
-    workspaceSlug: string;
-    projectSlug: string;
+    workspaceId: string;
     projectId?: string;
     page: number;
     pageSize: number;

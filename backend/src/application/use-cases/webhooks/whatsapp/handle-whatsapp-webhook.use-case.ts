@@ -10,17 +10,19 @@ import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { WhatsappMediaDownloader } from '../../../ports/integrations/whatsapp-media.downloader.js';
 import { WhatsappReplySender } from '../../../ports/integrations/whatsapp-reply.sender.js';
-import { parseAskCommand } from '../../../utils/conversation-command.utils.js';
-import { buildWhatsappWebhookCommand, type WhatsappWebhookCommand } from '../../../utils/whatsapp-webhook-command.utils.js';
-import { normalizeHeaders } from '../../../utils/webhook.utils.js';
+import { parseAskCommand } from '../../../utils/conversation/conversation-command.utils.js';
+import { buildWhatsappWebhookCommand, type WhatsappWebhookCommand } from '../../../utils/webhook/whatsapp-webhook-command.utils.js';
+import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
 import { AudioTranscriptionGateway } from '../../../ports/audio/audio-transcription.gateway.js';
 import { ProcessAgentConversationUseCase } from '../../conversation/process-agent-conversation.use-case.js';
 import { AskKnowledgeUseCase } from '../../query/ask-knowledge.use-case.js';
 import { ResolveWhatsappAskAttachmentsUseCase } from '../../query/resolve-whatsapp-ask-attachments.use-case.js';
 import { AppLogger } from '../../../../observability/logger.js';
-import { parseWhatsappEvolutionMessage } from '../../../utils/webhook.utils.js';
+import { parseWhatsappEvolutionMessage } from '../../../utils/webhook/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
+import { ContentRepository } from '../../../ports/notes/content.repository.js';
+import { resolveWorkspaceIdFromSlug } from '../../../utils/content/content-scope.utils.js';
 
 type WhatsappWebhookContext = {
   headers: Record<string, string>;
@@ -46,6 +48,7 @@ export class HandleWhatsappWebhookUseCase {
     private readonly logger?: AppLogger,
     private readonly resolveWhatsappAskAttachmentsUseCase?: ResolveWhatsappAskAttachmentsUseCase,
     private readonly audioTranscriptionGateway?: AudioTranscriptionGateway,
+    private readonly contentRepository?: ContentRepository,
   ) {}
 
   async execute(input: WhatsappWebhookRequest) {
@@ -267,7 +270,9 @@ export class HandleWhatsappWebhookUseCase {
       action: conversationResult.action,
       replyText,
     });
-    const shouldReply = conversationResult.action !== 'cancel';
+    const shouldReply = conversationResult.action !== 'cancel' || (
+      conversationResult.action === 'cancel' && String(conversationResult.replyText || '').trim().length > 0
+    );
     const sendResult = shouldReply
       ? await this.sendReply(input.chatId, replyText)
       : { ok: false as const, error: 'reply_not_needed' };
@@ -307,9 +312,13 @@ export class HandleWhatsappWebhookUseCase {
       return this.processed(context, { ok: true, resolvedUserId: userId, processed: false }, userId);
     }
 
-    const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceSlug });
+    let workspaceId = '';
+    if (this.contentRepository) {
+      workspaceId = (await resolveWorkspaceIdFromSlug(this.contentRepository, userId, workspaceSlug)) || '';
+    }
 
-    const attachmentResolution = await this.resolveAskAttachments(userId, workspaceSlug, result);
+    const result = await this.askKnowledgeUseCase.execute(question, userId, { workspaceId: workspaceId || undefined });
+    const attachmentResolution = await this.resolveAskAttachments(userId, workspaceId, result);
     const replyText = formatAskReply(result, attachmentResolution);
     const sendResult = await this.sendReply(input.chatId, replyText);
     const mediaDispatch = await this.sendAskAttachments(input.chatId, attachmentResolution);
@@ -351,7 +360,7 @@ export class HandleWhatsappWebhookUseCase {
 
   private async resolveAskAttachments(
     userId: string,
-    workspaceSlug: string,
+    workspaceId: string,
     result: Awaited<ReturnType<AskKnowledgeUseCase['execute']>>,
   ): Promise<WhatsappAskAttachmentResolution> {
     if (!this.resolveWhatsappAskAttachmentsUseCase) {
@@ -359,7 +368,7 @@ export class HandleWhatsappWebhookUseCase {
     }
     return this.resolveWhatsappAskAttachmentsUseCase.execute({
       userId,
-      workspaceSlug,
+      workspaceId,
       requestedAttachments: result.requestedAttachments,
       requestedAttachmentPattern: result.requestedAttachmentPattern,
       sources: result.sources,
@@ -370,9 +379,11 @@ export class HandleWhatsappWebhookUseCase {
   private async sendAskAttachments(chatJid: string, attachmentResolution: WhatsappAskAttachmentResolution) {
     let sentCount = 0;
     let failedCount = 0;
+
     if (!attachmentResolution.requested || !this.whatsappReplySender) return { sentCount, failedCount };
 
     for (const media of attachmentResolution.media) {
+
       const result = await this.whatsappReplySender.sendMedia({
         chatJid,
         mediaType: media.mediaType,
@@ -380,6 +391,7 @@ export class HandleWhatsappWebhookUseCase {
         fileName: media.fileName,
         mediaBase64: media.mediaBase64,
       });
+
       if (result.ok) {
         sentCount += 1;
       } else {

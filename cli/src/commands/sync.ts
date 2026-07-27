@@ -149,6 +149,7 @@ async function syncDirectory(
         status: parsed.status || 'active',
         canonicalType: parsed.canonicalType || 'event',
         source: 'manual',
+        sourceChannel: 'cli',
       };
 
       if (noteId) {

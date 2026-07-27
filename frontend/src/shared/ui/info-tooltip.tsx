@@ -28,14 +28,14 @@ export function InfoTooltip({ content, className = '', iconClassName = '' }: Inf
 
     if (isVisible) {
       document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKey as any);
+      document.addEventListener('keydown', handleKey);
       window.addEventListener('resize', updatePosition);
       window.addEventListener('scroll', updatePosition, true);
       updatePosition();
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKey as any);
+      document.removeEventListener('keydown', handleKey);
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };

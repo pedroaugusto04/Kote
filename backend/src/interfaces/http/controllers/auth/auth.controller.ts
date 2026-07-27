@@ -1,11 +1,15 @@
 import { BadRequestException, Body, ConflictException, Controller, Delete, Get, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes, ApiQuery, ApiCookieAuth, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 
-import { AuthService, avatarMaxSizeBytes, type AuthenticatedUser } from '../../../../application/auth.js';
+import { AuthService, type AuthenticatedUser } from '../../../../application/auth.js';
+import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../../../application/ports/observability/runtime-environment.port.js';
+import { readEnvironment } from '../../../../adapters/environment.js';
+
+const AVATAR_MAX_SIZE_BYTES = readEnvironment().avatarMaxSizeBytes ?? 3 * 1024 * 1024;
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, AuthRateLimitGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, AuthRateLimitGuard, BrowserExtensionGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import { exchangeConnectionTokenBodySchema, loginBodySchema, signupBodySchema, updateProfileBodySchema, type ExchangeConnectionTokenBody, type LoginBody, type SignupBody, type UpdateProfileBody } from '../../dto/auth.dto.js';
 import { clearAuthCookies, clearGoogleOAuthStateCookie, googleOAuthStateFromRequest, refreshTokenFromRequest, setAuthCookies, setGoogleOAuthStateCookie } from '../../http-security.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
@@ -20,20 +24,43 @@ type UploadedAvatarFile = {
 @ApiTags('Authentication')
 @Controller('api/auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  private readonly environment: RuntimeEnvironment;
+
+  constructor(
+    private readonly auth: AuthService,
+    private readonly environmentProvider: RuntimeEnvironmentProvider = { read: () => readEnvironment() },
+  ) {
+    this.environment = this.environmentProvider.read();
+  }
+
+  private getAvatarMaxSizeBytes(): number {
+    return this.environment.avatarMaxSizeBytes ?? 3 * 1024 * 1024;
+  }
 
   @Post('login')
-  @UseGuards(AuthRateLimitGuard, TrustedOriginGuard)
+  @UseGuards(AuthRateLimitGuard, BrowserExtensionGuard)
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async login(
     @Body(new ZodValidationPipe(loginBodySchema, 'invalid_login_payload')) body: LoginBody,
-    @Req() _request: Request,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
     const { user, tokens } = await this.auth.login(body.email, body.password);
     setAuthCookies(response, tokens);
+    
+    // Return tokens in response body for browser extensions (they can't access Set-Cookie headers)
+    const isBrowserExtension = request.headers.origin?.startsWith('chrome-extension://');
+    if (isBrowserExtension) {
+      return { 
+        ok: true, 
+        user,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      };
+    }
+    
     return { ok: true, user };
   }
 
@@ -86,6 +113,17 @@ export class AuthController {
     return { ok: true, user };
   }
 
+  @Post('vscode-installed')
+  @UseGuards(AccessTokenAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Report VS Code extension installed (called by the extension after login)' })
+  @ApiResponse({ status: 200, description: 'Recorded successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async vsCodeInstalled(@CurrentUser() user: AuthenticatedUser) {
+    await this.auth.markVscodeInstalled(user.id);
+    return { ok: true };
+  }
+
   @Get('connection-token')
   @UseGuards(AccessTokenAuthGuard)
   @ApiBearerAuth()
@@ -98,7 +136,7 @@ export class AuthController {
   }
 
   @Post('exchange-connection-token')
-  @UseGuards(AuthRateLimitGuard)
+  @UseGuards(AuthRateLimitGuard, BrowserExtensionGuard)
   @ApiOperation({ summary: 'Exchange connection token for user session tokens' })
   @ApiResponse({ status: 200, description: 'Tokens issued successfully' })
   @ApiResponse({ status: 401, description: 'Invalid or expired connection token' })
@@ -131,7 +169,7 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: 'Avatar uploaded successfully' })
   @ApiResponse({ status: 400, description: 'Invalid file' })
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: avatarMaxSizeBytes } }))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: AVATAR_MAX_SIZE_BYTES } }))
   async uploadAvatar(@CurrentUser() user: AuthenticatedUser, @UploadedFile() file: UploadedAvatarFile | undefined) {
     if (!file) throw new BadRequestException('avatar_file_required');
     return {
@@ -186,8 +224,23 @@ export class AuthController {
   @ApiOperation({ summary: 'Start Google OAuth flow' })
   @ApiQuery({ name: 'returnTo', required: false, description: 'URL to return to after authentication' })
   @ApiResponse({ status: 302, description: 'Redirect to Google OAuth' })
-  startGoogle(@Query('returnTo') returnTo: string | undefined, @Res() response: Response) {
-    const result = this.auth.startGoogleOAuth({ returnTo });
+  startGoogle(@Query('returnTo') returnTo: string | undefined, @Req() request: Request, @Res() response: Response) {
+    const protocol = this.environment.trustProxy ? (request.headers['x-forwarded-proto'] as string) || 'https' : request.protocol;
+    const host = request.headers.host as string;
+    
+    // Validate host against allowed hosts to prevent header injection
+    const hostWithoutPort = host.split(':')[0];
+    if (this.environment.allowedHosts.length > 0 && !this.environment.allowedHosts.includes(hostWithoutPort)) {
+      throw new BadRequestException('invalid_host_header');
+    }
+    
+    // Extract base path from KB_API_PUBLIC_BASE_URL (e.g., /kote/api)
+    const basePath = this.environment.apiPublicBaseUrl ? new URL(this.environment.apiPublicBaseUrl).pathname : '';
+    const cleanBasePath = basePath.replace(/\/$/, '');
+    const baseWithoutApi = cleanBasePath.replace(/\/api$/, '');
+    const redirectUri = `${protocol}://${host}${baseWithoutApi}/api/auth/google/callback`;
+    
+    const result = this.auth.startGoogleOAuth({ returnTo, redirectUri });
     setGoogleOAuthStateCookie(response, result.stateCookie, result.stateCookieMaxAgeSeconds);
     response.redirect(result.authorizationUrl);
   }

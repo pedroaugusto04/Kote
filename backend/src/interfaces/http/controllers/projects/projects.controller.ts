@@ -16,9 +16,10 @@ import {
   SetProjectFavoriteUseCase,
   UpdateProjectFolderUseCase,
   UpdateProjectUseCase,
+  GetProjectCoverageUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   createProjectBodySchema,
   createProjectFolderBodySchema,
@@ -40,8 +41,10 @@ import {
   type PaginationInput,
 } from '../../dto/project.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
-import { ProjectResolutionGuard } from '../../project-resolution.guard.js';
+import { ProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
 import { ProjectId } from '../../project.decorators.js';
+import { WorkspaceId } from '../../workspace.decorators.js';
+import { toCreateProjectDto, toUpdateProjectDto } from '../../mappers/project.mapper.js';
 
 @ApiTags('Projects')
 @Controller('api/projects')
@@ -61,7 +64,8 @@ export class ProjectsController {
     private readonly createProjectFolderUseCase: CreateProjectFolderUseCase,
     private readonly updateProjectFolderUseCase: UpdateProjectFolderUseCase,
     private readonly deleteProjectFolderUseCase: DeleteProjectFolderUseCase,
-  ) {}
+    private readonly getProjectCoverageUseCase: GetProjectCoverageUseCase,
+  ) { }
 
   @Post()
   @UseGuards(TrustedOriginGuard)
@@ -73,7 +77,8 @@ export class ProjectsController {
     @Body(new ZodValidationPipe(createProjectBodySchema, 'invalid_create_project_payload')) body: CreateProjectBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.createProject.execute(body, user.id);
+    const dto = toCreateProjectDto(body);
+    return this.createProject.execute(dto, user.id);
   }
 
   @Patch(':projectSlug')
@@ -88,7 +93,8 @@ export class ProjectsController {
     @Body(new ZodValidationPipe(updateProjectBodySchema, 'invalid_update_project_payload')) body: UpdateProjectBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.updateProject.execute({ ...body, projectId }, user.id);
+    const dto = toUpdateProjectDto(body, projectId);
+    return this.updateProject.execute(dto, user.id);
   }
 
   @Delete(':projectSlug')
@@ -127,7 +133,7 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, query);
+    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, orderByPin: query.orderByPin ?? true });
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 
@@ -143,7 +149,7 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId });
+    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId, orderByPin: query.orderByPin ?? true });
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 
@@ -171,8 +177,9 @@ export class ProjectsController {
   generateBrief(
     @ProjectId() projectId: string,
     @CurrentUser() user: AuthenticatedUser,
+    @WorkspaceId() workspaceId?: string,
   ) {
-    return this.generateProjectBriefUseCase.execute(user.id, projectId);
+    return this.generateProjectBriefUseCase.execute(user.id, projectId, workspaceId);
   }
 
   @Get(':projectSlug/brief')
@@ -185,8 +192,9 @@ export class ProjectsController {
   getBrief(
     @ProjectId() projectId: string,
     @CurrentUser() user: AuthenticatedUser,
+    @WorkspaceId() workspaceId?: string,
   ) {
-    return this.getProjectBriefUseCase.execute(user.id, projectId);
+    return this.getProjectBriefUseCase.execute(user.id, projectId, workspaceId);
   }
 
   @Get(':projectSlug/brief/history')
@@ -199,9 +207,11 @@ export class ProjectsController {
     @ProjectId() projectId: string,
     @Query(new ZodValidationPipe(paginationInputSchema, 'invalid_pagination_input')) query: PaginationInput,
     @CurrentUser() user: AuthenticatedUser,
+    @WorkspaceId() workspaceId?: string,
   ) {
     return this.listProjectBriefHistoryUseCase.execute(user.id, {
       projectId,
+      workspaceId,
       page: query.page,
       pageSize: query.pageSize,
     });
@@ -266,4 +276,20 @@ export class ProjectsController {
   ) {
     return this.deleteProjectFolderUseCase.execute(projectId, folderId, user.id);
   }
+
+  @Get(':projectSlug/coverage')
+  @UseGuards(ProjectResolutionGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get project knowledge coverage' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Project coverage retrieved successfully' })
+  async getCoverage(
+    @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId: string,
+    @Param('projectSlug') projectSlug: string,
+  ) {
+    const result = await this.getProjectCoverageUseCase.execute(user.id, { projectId, workspaceSlug: projectSlug });
+    return { ok: true, ...result, coverage: result };
+  }
 }
+

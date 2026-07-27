@@ -58,6 +58,10 @@ function isPrettyConsoleLogsEnabled() {
 }
 
 function isFileLoggingEnabled() {
+  const isTest = process.env.NODE_ENV === 'test' || process.execArgv.includes('--test') || process.argv.includes('--test');
+  if (isTest) {
+    return resolveBooleanEnvironmentFlag(process.env.KB_LOG_FILE_ENABLED, false);
+  }
   const configuredValue = process.env.KB_LOG_FILE_ENABLED;
   return resolveBooleanEnvironmentFlag(configuredValue, true);
 }
@@ -103,14 +107,34 @@ export class AppLogger implements OnModuleInit, OnModuleDestroy {
   private winstonLogger: winston.Logger | null = null;
 
   onModuleInit() {
-    if (isFileLoggingEnabled()) {
-      this.initializeWinston();
-    }
+    this.tryInitializeWinston();
   }
 
   onModuleDestroy() {
     if (this.winstonLogger) {
       this.winstonLogger.close();
+    }
+  }
+
+  // Static method to create a standalone logger instance without DI
+  static create(): AppLogger {
+    const logger = new AppLogger();
+    logger.tryInitializeWinston();
+    return logger;
+  }
+
+  private tryInitializeWinston() {
+    if (!isFileLoggingEnabled()) {
+      return;
+    }
+
+    try {
+      this.initializeWinston();
+    } catch (error) {
+      this.winstonLogger = null;
+      console.warn('logger_file_transport_disabled', {
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   }
 

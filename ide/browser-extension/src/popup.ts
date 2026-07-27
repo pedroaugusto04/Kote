@@ -1,12 +1,13 @@
 import type { ClipPayload } from './parser.js';
 
 interface ProjectInfo {
-  slug: string;
-  name: string;
+  projectSlug: string;
+  displayName: string;
 }
 
 // Global state
 let currentClip: ClipPayload | null = null;
+let currentAuthMethod: 'token' | 'email' = 'token';
 
 async function getOrExchangeAccessToken(currentApiUrl: string, connectionToken: string): Promise<string> {
   const cached = await chrome.storage.local.get(['accessToken']);
@@ -14,30 +15,90 @@ async function getOrExchangeAccessToken(currentApiUrl: string, connectionToken: 
     return cached.accessToken;
   }
 
-  if (connectionToken.startsWith('kbc_')) {
-    try {
-      const payload = Uint8Array.from(atob(connectionToken.slice(4)), (c) => c.charCodeAt(0));
-      const parsed = JSON.parse(new TextDecoder().decode(payload));
-      if (parsed.accessToken) {
-        await chrome.storage.local.set({ accessToken: parsed.accessToken, refreshToken: parsed.refreshToken });
-        return parsed.accessToken;
-      }
-    } catch {
-      // ignore and proceed to exchange
-    }
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (chrome.runtime.id) {
+    headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
   }
-
+  
   const exchangeRes = await fetch(`${currentApiUrl}/api/auth/exchange-connection-token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ connectionToken }),
   });
   if (!exchangeRes.ok) {
-    throw new Error('Failed to exchange connection token.');
+    // Clear expired tokens and prompt user to re-authenticate
+    await chrome.storage.local.remove(['accessToken', 'refreshToken', 'connectionToken', 'authMethod']);
+    throw new Error('Session expired. Please log in again.');
   }
   const data = await exchangeRes.json();
   await chrome.storage.local.set({ accessToken: data.accessToken, refreshToken: data.refreshToken });
   return data.accessToken;
+}
+
+async function refreshAccessToken(apiUrl: string): Promise<string> {
+  const config = await chrome.storage.local.get(['refreshToken', 'authMethod']);
+  
+  if (!config.refreshToken) {
+    throw new Error('No refresh token available');
+  }
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (chrome.runtime.id) {
+    headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
+  }
+
+  const refreshRes = await fetch(`${apiUrl}/api/auth/refresh`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ refreshToken: config.refreshToken }),
+  });
+
+  if (!refreshRes.ok) {
+    // Refresh token is invalid or expired, need to re-authenticate
+    await chrome.storage.local.remove(['accessToken', 'refreshToken', 'connectionToken', 'authMethod']);
+    throw new Error('Session expired. Please log in again.');
+  }
+
+  const data = await refreshRes.json();
+  await chrome.storage.local.set({ 
+    accessToken: data.accessToken, 
+    refreshToken: data.refreshToken 
+  });
+  
+  return data.accessToken;
+}
+
+async function fetchWithAuth(url: string, options: RequestInit = {}, apiUrl: string): Promise<Response> {
+  const config = await chrome.storage.local.get(['accessToken', 'authMethod']);
+  const headers: Record<string, string> = { 
+    ...options.headers as Record<string, string>,
+    'Content-Type': 'application/json',
+  };
+  
+  if (config.accessToken) {
+    headers['Authorization'] = `Bearer ${config.accessToken}`;
+  }
+  
+  if (chrome.runtime.id) {
+    headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
+  }
+
+  let response = await fetch(url, { ...options, headers });
+
+  // If we get a 401, try to refresh the token and retry
+  if (response.status === 401 && config.authMethod === 'email') {
+    try {
+      const newAccessToken = await refreshAccessToken(apiUrl);
+      headers['Authorization'] = `Bearer ${newAccessToken}`;
+      response = await fetch(url, { ...options, headers });
+    } catch (error) {
+      // Clear auth data and throw error to trigger logout in caller
+      await chrome.storage.local.remove(['accessToken', 'refreshToken', 'connectionToken', 'authMethod']);
+      throw error;
+    }
+  }
+
+  return response;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -45,11 +106,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   const panelSettings = document.getElementById('panel-settings')!;
   const panelClipper = document.getElementById('panel-clipper')!;
   const btnSettingsToggle = document.getElementById('btn-settings-toggle')!;
-  
+  const btnLogout = document.getElementById('btn-logout')!;
+
   const inputApiUrl = document.getElementById('input-api-url') as HTMLInputElement;
   const inputToken = document.getElementById('input-token') as HTMLInputElement;
+  const inputEmail = document.getElementById('input-email') as HTMLInputElement;
+  const inputPassword = document.getElementById('input-password') as HTMLInputElement;
   const btnSaveSettings = document.getElementById('btn-save-settings') as HTMLButtonElement;
-  
+
+  const tabToken = document.getElementById('tab-token') as HTMLButtonElement;
+  const tabEmail = document.getElementById('tab-email') as HTMLButtonElement;
+  const authFormToken = document.getElementById('auth-form-token')!;
+  const authFormEmail = document.getElementById('auth-form-email')!;
+
   const badgeClipType = document.getElementById('badge-clip-type')!;
   const textSourceUrl = document.getElementById('text-source-url')!;
   const inputTitle = document.getElementById('input-title') as HTMLInputElement;
@@ -58,12 +127,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnClip = document.getElementById('btn-clip') as HTMLButtonElement;
   const btnClipText = document.getElementById('btn-clip-text')!;
   const btnClipSpinner = document.getElementById('btn-clip-spinner')!;
-  
+
   const statusBanner = document.getElementById('status-banner')!;
 
   // Load stored configuration
-  const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'defaultProject']);
-  const defaultApiUrl = 'https://pedro-duarte.ddns.net/knowledge-base';
+  const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'defaultProject', 'authMethod']);
+  const defaultApiUrl = 'https://knowledgebase.sbs/kote';
   let apiUrl = config.apiUrl || defaultApiUrl;
 
   apiUrl = apiUrl.trim().replace(/\/$/, '');
@@ -73,16 +142,49 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   inputApiUrl.value = apiUrl;
 
-  if (config.connectionToken) {
-    // Already configured (we have the token), show clipper
+  // Set auth method based on stored config or default to token
+  currentAuthMethod = config.authMethod || 'token';
+  updateAuthTabUI();
+
+  if (config.connectionToken || config.authMethod === 'email') {
+    // Already configured, show clipper
     panelSettings.classList.add('hidden');
     panelClipper.classList.remove('hidden');
-    inputToken.value = config.connectionToken;
+    btnLogout.style.display = 'block';
+    if (config.connectionToken) {
+      inputToken.value = config.connectionToken;
+    }
     await initializeClipper();
   } else {
     // Not configured, force settings view (but API URL is already prefilled)
     panelSettings.classList.remove('hidden');
     panelClipper.classList.add('hidden');
+    btnLogout.style.display = 'none';
+  }
+
+  // Auth Tab Switching
+  tabToken.addEventListener('click', () => {
+    currentAuthMethod = 'token';
+    updateAuthTabUI();
+  });
+
+  tabEmail.addEventListener('click', () => {
+    currentAuthMethod = 'email';
+    updateAuthTabUI();
+  });
+
+  function updateAuthTabUI() {
+    if (currentAuthMethod === 'token') {
+      tabToken.classList.add('active');
+      tabEmail.classList.remove('active');
+      authFormToken.classList.remove('hidden');
+      authFormEmail.classList.add('hidden');
+    } else {
+      tabToken.classList.remove('active');
+      tabEmail.classList.add('active');
+      authFormToken.classList.add('hidden');
+      authFormEmail.classList.remove('hidden');
+    }
   }
 
   // Settings Toggle Click
@@ -91,13 +193,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     panelClipper.classList.toggle('hidden');
   });
 
+  // Logout Click
+  btnLogout.addEventListener('click', async () => {
+    // Clear all authentication data
+    await chrome.storage.local.remove(['accessToken', 'refreshToken', 'connectionToken', 'authMethod']);
+    
+    showStatus('You have been logged out.', 'success');
+    
+    // Switch to settings panel and hide logout button
+    setTimeout(() => {
+      panelSettings.classList.remove('hidden');
+      panelClipper.classList.add('hidden');
+      btnLogout.style.display = 'none';
+    }, 1000);
+  });
+
   // Save Settings Click
   btnSaveSettings.addEventListener('click', async () => {
     let url = inputApiUrl.value.trim().replace(/\/$/, '');
-    const token = inputToken.value.trim();
 
-    if (!url || !token) {
-      showStatus('Enter API URL and Connection Token.', 'error');
+    if (!url) {
+      showStatus('Enter API URL.', 'error');
       return;
     }
 
@@ -109,39 +225,93 @@ document.addEventListener('DOMContentLoaded', async () => {
     showStatus('Validating connection...', 'success');
 
     try {
-      // Exchange and validate connection token
-      const accessToken = await getOrExchangeAccessToken(url, token);
+      let accessToken: string;
+
+      if (currentAuthMethod === 'token') {
+        const token = inputToken.value.trim();
+        if (!token) {
+          showStatus('Enter Connection Token.', 'error');
+          btnSaveSettings.disabled = false;
+          return;
+        }
+
+        // Exchange and validate connection token
+        accessToken = await getOrExchangeAccessToken(url, token);
+
+        // Save credentials
+        await chrome.storage.local.set({
+          apiUrl: url,
+          connectionToken: token,
+          authMethod: 'token',
+        });
+      } else {
+        const email = inputEmail.value.trim();
+        const password = inputPassword.value.trim();
+
+        if (!email || !password) {
+          showStatus('Enter email and password.', 'error');
+          btnSaveSettings.disabled = false;
+          return;
+        }
+
+        // Login with email/password
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (chrome.runtime.id) {
+          headers['Origin'] = `chrome-extension://${chrome.runtime.id}`;
+        }
+
+        const loginRes = await fetch(`${url}/api/auth/login`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ email, password }),
+        });
+
+        if (!loginRes.ok) {
+          const errorData = await loginRes.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Login failed. Check your credentials.');
+        }
+
+        const loginData = await loginRes.json();
+        
+        // Backend returns tokens in response body for browser extensions
+        if (!loginData.accessToken || !loginData.refreshToken) {
+          throw new Error('Failed to extract authentication tokens.');
+        }
+        
+        accessToken = loginData.accessToken;
+        await chrome.storage.local.set({
+          accessToken: loginData.accessToken,
+          refreshToken: loginData.refreshToken,
+        });
+
+        // Save credentials
+        await chrome.storage.local.set({
+          apiUrl: url,
+          authMethod: 'email',
+        });
+      }
 
       // Check workspaces to verify full token validity
-      const testRes = await fetch(`${url}/api/workspaces`, {
+      const testRes = await fetchWithAuth(`${url}/api/workspaces`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+      }, url);
 
       if (!testRes.ok) {
         throw new Error('Authentication rejected by backend.');
       }
 
-      // Save credentials
-      await chrome.storage.local.set({
-        apiUrl: url,
-        connectionToken: token,
-      });
-
       showStatus('Connection successful!', 'success');
-      
+
       // Load Clipper view
       setTimeout(async () => {
         panelSettings.classList.add('hidden');
         panelClipper.classList.remove('hidden');
+        btnLogout.style.display = 'block';
         await initializeClipper();
       }, 1000);
 
     } catch (err: any) {
-      showStatus(`Connection failed: ${err.message || 'Check URL/Token.'}`, 'error');
+      showStatus(`Connection failed: ${err.message || 'Check credentials.'}`, 'error');
     } finally {
       btnSaveSettings.disabled = false;
     }
@@ -199,7 +369,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         btnClip.className = 'btn btn-full btn-success';
       } else {
         btnClipText.textContent = 'Save Note';
-        showStatus(response?.error || 'Failed to save note.', 'error');
+        const errorMsg = response?.error || 'Failed to save note.';
+        showStatus(errorMsg, 'error');
+        
+        // Check if this is a session expiration error and redirect to login
+        if (errorMsg.includes('Session expired') || errorMsg.includes('re-authenticate')) {
+          setTimeout(() => {
+            panelSettings.classList.remove('hidden');
+            panelClipper.classList.add('hidden');
+            btnLogout.style.display = 'none';
+          }, 2000);
+        }
       }
     });
   });
@@ -233,7 +413,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       if (result && result.success && result.result) {
         currentClip = result.result;
-        
+
         // Populate UI Fields
         inputTitle.value = result.result.title;
         textSourceUrl.textContent = result.result.url;
@@ -252,43 +432,51 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Load Projects list from backend
   async function loadProjects() {
-    const config = await chrome.storage.local.get(['apiUrl', 'connectionToken']);
-    let currentApiUrl = config.apiUrl || 'https://pedro-duarte.ddns.net/knowledge-base';
+    const config = await chrome.storage.local.get(['apiUrl', 'connectionToken', 'authMethod', 'accessToken']);
+    let currentApiUrl = config.apiUrl || 'https://knowledgebase.sbs/kote';
     currentApiUrl = currentApiUrl.trim().replace(/\/$/, '');
     if (currentApiUrl.endsWith('/api')) {
       currentApiUrl = currentApiUrl.slice(0, -4);
     }
-    if (!config.connectionToken) return;
+    
+    // Check if we have any auth method configured
+    if (!config.connectionToken && !config.authMethod) return;
 
     try {
-      const accessToken = await getOrExchangeAccessToken(currentApiUrl, config.connectionToken);
+      let accessToken: string;
+      
+      if (config.authMethod === 'email' && config.accessToken) {
+        accessToken = config.accessToken;
+      } else if (config.connectionToken) {
+        accessToken = await getOrExchangeAccessToken(currentApiUrl, config.connectionToken);
+      } else {
+        return;
+      }
 
-      const res = await fetch(`${currentApiUrl}/api/projects?page=1&pageSize=100`, {
+      const res = await fetchWithAuth(`${currentApiUrl}/api/projects?page=1&pageSize=100`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      });
+      }, currentApiUrl);
 
       if (res.ok) {
         const data = await res.json();
+        console.log('Projects API response:', data);
         const list: ProjectInfo[] = data.projects ?? data.items ?? [];
-        
+        console.log('Projects list:', list);
+
         // Clear default option
         selectProject.innerHTML = '';
-        
+
         // Always add Inbox option first
         const inboxOpt = document.createElement('option');
         inboxOpt.value = 'inbox';
         inboxOpt.textContent = 'Inbox (Default)';
         selectProject.appendChild(inboxOpt);
-        
+
         // Add projects from API
         for (const proj of list) {
           const opt = document.createElement('option');
-          opt.value = proj.slug;
-          opt.textContent = proj.name || proj.slug;
+          opt.value = proj.projectSlug;
+          opt.textContent = proj.displayName || proj.projectSlug;
           selectProject.appendChild(opt);
         }
       } else {
@@ -300,7 +488,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         inboxOpt.textContent = 'Inbox (Default)';
         selectProject.appendChild(inboxOpt);
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Check if this is a session expiration error
+      if (error.message && (error.message.includes('Session expired') || error.message.includes('Failed to exchange connection token'))) {
+        showStatus('Session expired. Please log in again.', 'error');
+        // Switch to settings panel and hide logout button
+        setTimeout(() => {
+          panelSettings.classList.remove('hidden');
+          panelClipper.classList.add('hidden');
+          btnLogout.style.display = 'none';
+        }, 2000);
+        return;
+      }
+      
       // Fallback to static Inbox project
       console.warn('Failed to load dynamic project list:', error);
       selectProject.innerHTML = '';

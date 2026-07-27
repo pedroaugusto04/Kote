@@ -5,6 +5,7 @@
 export const BILLING_ERROR_MESSAGES = {
   CPF_CNPJ_REQUIRED: 'CPF/CNPJ is required for PIX and Boleto payments',
   INVALID_CPF_CNPJ_FORMAT: 'Invalid CPF/CNPJ format. Enter 11 digits for CPF or 14 digits for CNPJ',
+  PENDING_CHARGE_EXISTS: 'There is already a pending charge awaiting payment',
 } as const;
 
 export const BILLING_CYCLE = {

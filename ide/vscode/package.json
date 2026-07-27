@@ -1,13 +1,13 @@
 {
-  "name": "knowledge-base-vscode",
-  "displayName": "Knowledge Vault",
-  "description": "Integrate your Knowledge Vault directly into VS Code — search, ask AI, save notes without leaving your editor.",
-  "version": "1.0.1",
-  "publisher": "Knowledge-Base",
+  "name": "kote-vscode",
+  "displayName": "Kote",
+  "description": "Integrate your Kote directly into VS Code — search, ask AI, save notes without leaving your editor.",
+  "version": "3.3.8",
+  "publisher": "kote",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pedroaugusto04/knowledge-base"
+    "url": "https://github.com/pedroaugusto04/kote"
   },
   "engines": {
     "vscode": ">=1.80.0"
@@ -22,7 +22,7 @@
     "search",
     "context"
   ],
-  "icon": "resources/kb-icon.png",
+  "icon": "resources/Kote-Logo.png",
   "activationEvents": [
     "onStartupFinished"
   ],
@@ -31,57 +31,63 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "kb-sidebar-container",
-          "title": "Knowledge Vault",
-          "icon": "resources/kb-icon.svg"
+          "id": "kote-sidebar-container",
+          "title": "Kote",
+          "icon": "resources/Kote-Icon.svg"
         }
       ]
     },
     "views": {
-      "kb-sidebar-container": [
+      "kote-sidebar-container": [
         {
           "type": "webview",
-          "id": "kb.sidebarView",
-          "name": "Knowledge Vault"
+          "id": "kote.sidebarView",
+          "name": "Kote"
         }
       ]
     },
     "commands": [
       {
-        "command": "kb.openChat",
-        "title": "KB: Open Chat",
-        "category": "Knowledge Vault"
+        "command": "kote.openChat",
+        "title": "Kote: Open Chat",
+        "category": "Kote"
       },
       {
-        "command": "kb.ask",
-        "title": "KB: Ask (Quick Input)",
-        "category": "Knowledge Vault"
+        "command": "kote.ask",
+        "title": "Kote: Ask (Quick Input)",
+        "category": "Kote"
       },
       {
-        "command": "kb.saveSelection",
-        "title": "KB: Save Selection as Note",
-        "category": "Knowledge Vault"
+        "command": "kote.saveSelection",
+        "title": "Kote: Save Selection as Note",
+        "category": "Kote"
       },
       {
-        "command": "kb.refresh",
-        "title": "KB: Refresh Sidebar",
-        "category": "Knowledge Vault"
+        "command": "kote.refresh",
+        "title": "Kote: Refresh Sidebar",
+        "category": "Kote"
       },
       {
-        "command": "kb.saveActiveFile",
-        "title": "KB: Save Active File as Note",
-        "category": "Knowledge Vault"
+        "command": "kote.saveActiveFile",
+        "title": "Kote: Save Active File as Note",
+        "category": "Kote"
       },
       {
-        "command": "kb.showRecentAiSessions",
-        "title": "KB: View Recent AI Sessions",
-        "category": "Knowledge Vault",
+        "command": "kote.showRecentAiSessions",
+        "title": "Kote: View Recent AI Sessions",
+        "category": "Kote",
         "icon": "$(history)"
+      },
+      {
+        "command": "kote.configureAiSessionMode",
+        "title": "Kote: Configure AI Session Save Mode",
+        "category": "Kote",
+        "icon": "$(settings-gear)"
       }
     ],
     "keybindings": [
       {
-        "command": "kb.ask",
+        "command": "kote.ask",
         "key": "ctrl+shift+k",
         "mac": "cmd+shift+k",
         "when": "editorTextFocus"
@@ -90,22 +96,67 @@
     "menus": {
       "editor/context": [
         {
-          "command": "kb.saveSelection",
+          "command": "kote.saveSelection",
           "when": "editorHasSelection",
-          "group": "kb@1"
+          "group": "kote@1"
         },
         {
-          "command": "kb.openChat",
-          "group": "kb@2"
+          "command": "kote.openChat",
+          "group": "kote@2"
         }
       ],
       "view/title": [
         {
-          "command": "kb.showRecentAiSessions",
-          "when": "view == kb.sidebarView",
+          "command": "kote.showRecentAiSessions",
+          "when": "view == kote.sidebarView",
+          "group": "navigation"
+        },
+        {
+          "command": "kote.configureAiSessionMode",
+          "when": "view == kote.sidebarView",
           "group": "navigation"
         }
       ]
+    }
+  },
+  "configuration": {
+    "title": "Kote",
+    "properties": {
+      "kote.aiSessionSaveMode": {
+        "type": "string",
+        "enum": [
+          "auto-save",
+          "ask",
+          "ignore-all"
+        ],
+        "enumDescriptions": [
+          "Automatically saves all detected AI sessions in the background. A light notification appears in the corner.",
+          "Asks before saving each detected AI session (shows a confirmation popup).",
+          "Does not save or prompt for any AI session. Sessions can still be imported manually."
+        ],
+        "default": "auto-save",
+        "description": "Controls how Kote handles newly detected AI sessions."
+      },
+      "kote.antigravityLogPath": {
+        "type": "string",
+        "default": "",
+        "description": "Custom path to Antigravity brain directory. If not set, defaults to ~/.gemini/antigravity/brain"
+      },
+      "kote.claudeCodeLogPath": {
+        "type": "string",
+        "default": "",
+        "description": "Custom path to Claude Code projects directory. If not set, defaults to ~/.claude/projects"
+      },
+      "kote.codexLogPath": {
+        "type": "string",
+        "default": "",
+        "description": "Custom path to Codex CLI sessions directory. If not set, defaults to ~/.codex/sessions"
+      },
+      "kote.opencodeDbPath": {
+        "type": "string",
+        "default": "",
+        "description": "Custom path to OpenCode database file. If not set, defaults to ~/.local/share/opencode/opencode.db"
+      }
     }
   },
   "scripts": {

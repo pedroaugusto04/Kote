@@ -15,6 +15,7 @@ export type NoteSummary = {
   status: NoteStatus;
   summary: string;
   source: string;
+  sourceChannel: string;
   attachmentCount: number;
   isOverdue?: boolean;
   isPinned?: boolean;
@@ -37,8 +38,6 @@ export type NoteDetail = NoteSummary & {
   editor: {
     canDelete: boolean;
     rawText: string;
-    reminderDate: string;
-    reminderTime: string;
     reminderAt: string;
   } | null;
   navigation: {

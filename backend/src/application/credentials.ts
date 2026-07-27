@@ -14,6 +14,7 @@ import { ContentRepository } from './ports/notes/content.repository.js';
 import { CredentialRepository, ExternalIdentityRepository } from './ports/integrations/integrations.repository.js';
 import { PushSubscriptionRepository } from './ports/push/push-subscription.repository.js';
 import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
+import { getAiProviderConfigStatus, AI_PROVIDERS_REGISTRY } from './ai-providers-registry.js';
 
 export { IntegrationProvider };
 export const guidedProviders = [
@@ -23,6 +24,8 @@ export const guidedProviders = [
   IntegrationProvider.AiReview,
   IntegrationProvider.AiConversation,
   IntegrationProvider.ProjectBriefAi,
+  IntegrationProvider.PrContextAi,
+  IntegrationProvider.FileNotesSummaryAi,
   IntegrationProvider.PushNotifications,
 ] as const;
 type GuidedIntegrationProvider = typeof guidedProviders[number];
@@ -56,6 +59,8 @@ const providerLabels: Record<GuidedIntegrationProvider, { name: string; descript
   [IntegrationProvider.AiReview]: { name: 'Review AI', description: 'Push analysis with a server-managed provider and model.' },
   [IntegrationProvider.AiConversation]: { name: 'Conversation AI', description: 'Assisted extraction from chat messages with managed configuration.' },
   [IntegrationProvider.ProjectBriefAi]: { name: 'Project Brief AI', description: 'Manual operational project brief generation with managed configuration.' },
+  [IntegrationProvider.PrContextAi]: { name: 'PR Context AI', description: 'Automatic Pull Request memory and context retrieval with managed configuration.' },
+  [IntegrationProvider.FileNotesSummaryAi]: { name: 'File Notes Summary AI', description: 'Server-managed provider and model for AI-powered file notes summary in VS Code.' },
   [IntegrationProvider.PushNotifications]: { name: 'Push Notifications', description: 'Receive browser push notifications for reminders and updates.' },
 };
 
@@ -92,7 +97,8 @@ export function decryptConfig(encrypted: unknown, environmentProvider: RuntimeEn
 
 function publicCredential(record: IntegrationCredentialRecord | null, provider: GuidedIntegrationProvider, workspaceSlug: string): StoredIntegration {
   const label = providerLabels[provider];
-  const connectAction = { type: IntegrationActionType.Connect, label: provider === IntegrationProvider.GithubApp ? 'Connect GitHub' : provider.startsWith('ai-') ? 'Enable' : `Connect ${label.name}` };
+  const isAiProvider = provider.startsWith('ai-') || provider.endsWith('-ai');
+  const connectAction = { type: IntegrationActionType.Connect, label: provider === IntegrationProvider.GithubApp ? 'Connect GitHub' : isAiProvider ? 'Enable' : `Connect ${label.name}` };
   if (!record) {
     return {
       provider,
@@ -118,8 +124,8 @@ function publicCredential(record: IntegrationCredentialRecord | null, provider: 
     status: connected ? StoredIntegrationStatus.Connected : StoredIntegrationStatus.Revoked,
     workspaceSlug,
     publicMetadata: record.publicMetadata,
-    primaryAction: connected ? { type: IntegrationActionType.Revoke, label: provider.startsWith('ai-') ? 'Disable' : 'Revoke' } : connectAction,
-    steps: connected ? connectedSteps(provider) : ['Credential revoked.', provider.startsWith('ai-') ? 'Enable it again to restore access.' : 'Connect again to reactivate it.'],
+    primaryAction: connected ? { type: IntegrationActionType.Revoke, label: isAiProvider ? 'Disable' : 'Revoke' } : connectAction,
+    steps: connected ? connectedSteps(provider) : ['Credential revoked.', isAiProvider ? 'Enable it again to restore access.' : 'Connect again to reactivate it.'],
     lastError: typeof record.publicMetadata.lastError === 'string' ? record.publicMetadata.lastError : null,
     connectedAccount: typeof record.publicMetadata.connectedAccount === 'string' ? record.publicMetadata.connectedAccount : null,
     updatedAt: record.updatedAt,
@@ -153,42 +159,21 @@ function connectedSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.GithubApp) return ['GitHub App connected.', 'Select the workspace repositories.'];
   if (provider === IntegrationProvider.Telegram) return ['Telegram chat connected.'];
   if (provider === IntegrationProvider.PushNotifications) return ['Push notifications are active on this browser/device.'];
-  if (provider.startsWith('ai-')) return ['Feature active for this workspace.'];
+  if (provider.startsWith('ai-') || provider.endsWith('-ai')) return ['Feature active for this workspace.'];
   return ['Integration connected.'];
 }
 
 function aiEnvStatus(provider: string, environmentProvider: RuntimeEnvironmentProvider) {
   const environment = environmentProvider.read();
-  const flags = provider === IntegrationProvider.AiReview
-    ? {
-        provider: environment.reviewAiProvider,
-        baseUrl: environment.reviewAiBaseUrl,
-        model: environment.reviewAiModel,
-        apiKey: environment.reviewAiApiKey,
-      }
-    : provider === IntegrationProvider.ProjectBriefAi
-      ? {
-          provider: environment.projectBriefAiProvider,
-          baseUrl: environment.projectBriefAiBaseUrl,
-          model: environment.projectBriefAiModel,
-          apiKey: environment.projectBriefAiApiKey,
-        }
-      : {
-        provider: environment.conversationAiProvider,
-        baseUrl: environment.conversationAiBaseUrl,
-        model: environment.conversationAiModel,
-        apiKey: environment.conversationAiApiKey,
-      };
-  const missing = [
-    flags.provider === 'none' ? 'provider' : '',
-    !flags.baseUrl ? 'baseUrl' : '',
-    !flags.model ? 'model' : '',
-    !flags.apiKey ? 'apiKey' : '',
-  ].filter(Boolean);
+  const aiProvider = provider as keyof typeof AI_PROVIDERS_REGISTRY;
+  if (!(aiProvider in AI_PROVIDERS_REGISTRY)) {
+    return { configured: false, missing: ['provider'], provider: 'none' };
+  }
+  const { config, configured, missing } = getAiProviderConfigStatus(aiProvider, environment);
   return {
-    configured: missing.length === 0,
+    configured,
     missing,
-    provider: flags.provider,
+    provider: config.provider,
   };
 }
 
@@ -228,12 +213,27 @@ export class IntegrationCredentialService {
           revokedAt: null,
         };
       }
-      return publicCredential(records.find((record) => record.provider === provider) || null, provider, workspaceSlug);
+      const integration = publicCredential(records.find((record) => record.provider === provider) || null, provider, workspaceSlug);
+      if (
+        provider.startsWith('ai-') || provider.endsWith('-ai')
+      ) {
+        const configuration = aiEnvStatus(provider, this.environmentProvider);
+        if (integration.status === StoredIntegrationStatus.Connected && !configuration.configured) {
+          return {
+            ...integration,
+            status: StoredIntegrationStatus.Disabled,
+            primaryAction: { type: IntegrationActionType.None, label: 'Unavailable' },
+            steps: ['Feature enabled for this workspace.', `Managed configuration is incomplete: ${configuration.missing.join(', ')}.`],
+          };
+        }
+      }
+      return integration;
     });
     return {
       ok: true as const,
       workspaceSlug,
       integrations,
+      githubBackfillLimit: this.environmentProvider.read().githubBackfillLimit,
     };
   }
 
@@ -281,7 +281,13 @@ export class IntegrationCredentialService {
   }
 
   async test(userId: string, workspaceSlug: string, provider: string) {
-    if (provider !== IntegrationProvider.AiReview && provider !== IntegrationProvider.AiConversation && provider !== IntegrationProvider.ProjectBriefAi) throw new NotFoundException('provider_not_found');
+    if (
+      provider !== IntegrationProvider.AiReview &&
+      provider !== IntegrationProvider.AiConversation &&
+      provider !== IntegrationProvider.ProjectBriefAi &&
+      provider !== IntegrationProvider.PrContextAi &&
+      provider !== IntegrationProvider.FileNotesSummaryAi
+    ) throw new NotFoundException('provider_not_found');
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
     const status = aiEnvStatus(provider, this.environmentProvider);
     const record = await this.credentials.findCredential(userId, workspaceSlug, provider);

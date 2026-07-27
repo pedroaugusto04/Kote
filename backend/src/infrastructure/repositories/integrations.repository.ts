@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 
 import { CredentialRecordStatus } from '../../contracts/enums.js';
@@ -24,7 +24,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       .limit(1);
     
     if (result.length === 0) {
-      throw new Error(`Workspace not found for slug: ${workspaceSlug}`);
+      throw new NotFoundException('workspace_not_found');
     }
     return result[0].id;
   }
@@ -63,7 +63,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
         userId: input.userId,
         workspaceId: workspaceId,
         provider: input.provider,
-        status: input.status as any,
+        status: input.status as CredentialRecordStatus,
         encryptedConfig: input.encryptedConfig,
         publicMetadata: input.publicMetadata,
         revokedAt: null,
@@ -71,7 +71,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       .onConflictDoUpdate({
         target: [integrationCredentials.userId, integrationCredentials.workspaceId, integrationCredentials.provider],
         set: {
-          status: input.status as any,
+          status: input.status as CredentialRecordStatus,
           encryptedConfig: input.encryptedConfig,
           publicMetadata: input.publicMetadata,
           updatedAt: new Date(),
@@ -80,10 +80,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       })
       .returning();
     
-    return credentialFromRow({
-      ...result[0],
-      workspace_slug: input.workspaceSlug
-    });
+    return credentialFromRow(result[0]);
   }
 
   async revokeCredential(userId: string, workspaceSlug: string, provider: string, encryptedConfig: unknown) {
@@ -104,10 +101,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       ))
       .returning();
     
-    return result[0] ? credentialFromRow({
-      ...result[0],
-      workspace_slug: workspaceSlug
-    }) : null;
+    return result[0] ? credentialFromRow(result[0]) : null;
   }
 
   async findCredential(userId: string, workspaceSlug: string, provider: string) {
@@ -216,10 +210,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       })
       .returning();
     
-    return identityFromRow({
-      ...result[0],
-      workspace_slug: input.workspaceSlug
-    });
+    return identityFromRow(result[0]);
   }
 
   async createConnectionSession(input: {
@@ -249,10 +240,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       })
       .returning();
     
-    return connectionSessionFromRow({
-      ...result[0],
-      workspace_slug: input.workspaceSlug
-    });
+    return connectionSessionFromRow(result[0]);
   }
 
   async findConnectionSession(id: string) {
@@ -353,7 +341,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       .update(integrationConnectionSessions)
       .set({
         status,
-        metadata: sql`metadata || ${metadata}`,
+        metadata: sql`metadata || ${JSON.stringify(metadata)}::jsonb`,
         consumedAt: sql`coalesce(${integrationConnectionSessions.consumedAt}, now())`,
         updatedAt: new Date(),
       })

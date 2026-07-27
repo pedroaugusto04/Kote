@@ -1,7 +1,8 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable, Optional, InternalServerErrorException } from '@nestjs/common';
 import { createClient } from '@supabase/supabase-js';
 
 import { ObjectStorage, ObjectStorageMissingContentError, type ObjectStoragePutInput } from '../../application/ports/notes/object-storage.js';
+import { SUPABASE_STORAGE_DEFAULTS, SUPABASE_STORAGE_ERRORS } from './supabase-storage.constants.js';
 
 type SupabaseStorageConfig = {
   url: string;
@@ -29,14 +30,14 @@ function readConfig(env = process.env): SupabaseStorageConfig {
     url: String(env.SUPABASE_URL || '').trim().replace(/\/$/, ''),
     serviceRoleKey: String(env.SUPABASE_SERVICE_ROLE_KEY || '').trim(),
     bucket: String(env.KB_SUPABASE_STORAGE_BUCKET || '').trim(),
-    cacheControl: String(env.KB_SUPABASE_CACHE_CONTROL || '31536000').trim(),
+    cacheControl: String(env.KB_SUPABASE_CACHE_CONTROL || SUPABASE_STORAGE_DEFAULTS.CACHE_CONTROL).trim(),
   };
 }
 
 function requireConfig(config: SupabaseStorageConfig) {
-  if (!config.url) throw new Error('SUPABASE_URL_not_configured');
-  if (!config.serviceRoleKey) throw new Error('SUPABASE_SERVICE_ROLE_KEY_not_configured');
-  if (!config.bucket) throw new Error('KB_SUPABASE_STORAGE_BUCKET_not_configured');
+  if (!config.url) throw new InternalServerErrorException(SUPABASE_STORAGE_ERRORS.URL_NOT_CONFIGURED);
+  if (!config.serviceRoleKey) throw new InternalServerErrorException(SUPABASE_STORAGE_ERRORS.SERVICE_ROLE_KEY_NOT_CONFIGURED);
+  if (!config.bucket) throw new InternalServerErrorException(SUPABASE_STORAGE_ERRORS.BUCKET_NOT_CONFIGURED);
 }
 
 function createSupabaseStorageClient(config: SupabaseStorageConfig): SupabaseStorageBucketClient {
@@ -70,7 +71,7 @@ function readErrorMessage(error: unknown): string {
   if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
     return (error as { message: string }).message;
   }
-  return 'unknown_error';
+  return SUPABASE_STORAGE_ERRORS.UNKNOWN;
 }
 
 function buildStorageError(prefix: string, error: unknown): Error {
@@ -89,14 +90,14 @@ export class SupabaseObjectStorage extends ObjectStorage {
     const config = readConfig();
     requireConfig(config);
     const storage = this.createStorageClient(config);
-    const contentType = input.contentType || 'application/octet-stream';
+    const contentType = input.contentType || SUPABASE_STORAGE_DEFAULTS.CONTENT_TYPE;
 
     const { error } = await storage.upload(input.key, uploadBody(input.body), {
       cacheControl: config.cacheControl,
       contentType,
       upsert: true,
     });
-    if (error) throw buildStorageError('supabase_storage_put_failed', error);
+    if (error) throw buildStorageError(SUPABASE_STORAGE_ERRORS.PUT_FAILED, error);
   }
 
   async get(key: string): Promise<Buffer> {
@@ -106,9 +107,9 @@ export class SupabaseObjectStorage extends ObjectStorage {
     const { data, error } = await storage.download(key);
     if (error) {
       if (readErrorStatusCode(error) === 404) throw new ObjectStorageMissingContentError(key);
-      throw buildStorageError('supabase_storage_get_failed', error);
+      throw buildStorageError(SUPABASE_STORAGE_ERRORS.GET_FAILED, error);
     }
-    if (!data) throw new Error(`supabase_storage_get_failed:unknown:missing_blob:${key}`);
+    if (!data) throw new InternalServerErrorException('internal_server_error');
     return Buffer.from(await data.arrayBuffer());
   }
 
@@ -118,6 +119,6 @@ export class SupabaseObjectStorage extends ObjectStorage {
     const storage = this.createStorageClient(config);
     const { error } = await storage.remove([key]);
     if (readErrorStatusCode(error) === 404) return;
-    if (error) throw buildStorageError('supabase_storage_delete_failed', error);
+    if (error) throw buildStorageError(SUPABASE_STORAGE_ERRORS.DELETE_FAILED, error);
   }
 }

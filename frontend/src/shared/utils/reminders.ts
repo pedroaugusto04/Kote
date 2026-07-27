@@ -1,15 +1,13 @@
 import type { Reminder } from '../api/models/reminder';
 import { StatusFilter } from '../api/models/note-status';
 
-function reminderTimestamp(reminder: Pick<Reminder, 'reminderAt' | 'reminderDate' | 'reminderTime'>) {
+function reminderTimestamp(reminder: Pick<Reminder, 'reminderAt'>) {
   const direct = Date.parse(reminder.reminderAt || '');
   if (!Number.isNaN(direct)) return direct;
-  const fallback = Date.parse(`${reminder.reminderDate || ''}T${reminder.reminderTime || '00:00'}:00.000Z`);
-  if (!Number.isNaN(fallback)) return fallback;
   return Number.MAX_SAFE_INTEGER;
 }
 
-function reminderIsFuture(reminder: Pick<Reminder, 'reminderAt' | 'reminderDate' | 'reminderTime'>, now = Date.now()): boolean {
+function reminderIsFuture(reminder: Pick<Reminder, 'reminderAt'>, now = Date.now()): boolean {
   return reminderTimestamp(reminder) > now;
 }
 

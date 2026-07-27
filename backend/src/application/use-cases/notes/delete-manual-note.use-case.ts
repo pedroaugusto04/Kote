@@ -2,7 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { WebhookTrigger } from '../../../contracts/enums.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
-import { NoteEventDispatcher } from '../../services/note-event-dispatcher.js';
+import { EmbeddingPriority } from '../../../domain/enums/knowledge.enums.js';
+import { NoteEventDispatcher } from '../../services/webhooks/note-event-dispatcher.js';
 
 @Injectable()
 export class DeleteNoteUseCase {
@@ -19,7 +20,7 @@ export class DeleteNoteUseCase {
     await this.contentRepository.deleteNote(userId, note.id);
 
     try {
-      await this.embeddingQueue.publish({ type: EmbeddingJobType.Delete, userId, noteId: note.id });
+      await this.embeddingQueue.publish({ type: EmbeddingJobType.Delete, userId, noteId: note.id, priority: EmbeddingPriority.Low });
     } catch { /* embedding queue failure must never block note delete */ }
 
     try {

@@ -1,0 +1,125 @@
+import { Injectable } from '@nestjs/common';
+import { eq, or } from 'drizzle-orm';
+
+import { ProjectCoverageRepository } from '../../ports/projects/project-coverage.repository.js';
+import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
+import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
+import { decryptConfig } from '../../credentials.js';
+import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
+import { projects, workspaces, projectRepositories, repositories } from '../../../infrastructure/persistence/schema/index.js';
+import { AppLogger } from '../../../observability/logger.js';
+
+@Injectable()
+export class SyncProjectFilesService {
+  private readonly logger: AppLogger;
+
+  constructor(
+    private readonly projectCoverageRepository: ProjectCoverageRepository,
+    private readonly githubIntegrationGateway: GithubIntegrationGateway,
+    private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly database: PostgresDatabase,
+    private readonly credentialRepository?: CredentialRepository,
+  ) {
+    this.logger = AppLogger.create();
+  }
+
+  async syncProject(userId: string, projectId: string): Promise<number> {
+    const db = this.database.getDb();
+
+    // 1. Find project and linked repositories using Drizzle ORM
+    const [project] = await db
+      .select({
+        id: projects.id,
+        slug: projects.projectSlug,
+        workspaceId: projects.workspaceId,
+      })
+      .from(projects)
+      .where(or(eq(projects.id, projectId), eq(projects.projectSlug, projectId)))
+      .limit(1);
+
+    if (!project) return 0;
+
+    // Get workspace slug
+    let workspaceSlug = 'default';
+    if (project.workspaceId) {
+      const [ws] = await db
+        .select({ slug: workspaces.workspaceSlug })
+        .from(workspaces)
+        .where(eq(workspaces.id, project.workspaceId))
+        .limit(1);
+      if (ws?.slug) workspaceSlug = ws.slug;
+    }
+
+    // Get linked repos via join in Drizzle ORM
+    const linkedRepos = await db
+      .select({
+        fullName: repositories.fullName,
+        defaultBranch: repositories.defaultBranch,
+      })
+      .from(projectRepositories)
+      .innerJoin(repositories, eq(repositories.id, projectRepositories.repositoryId))
+      .where(eq(projectRepositories.projectId, project.id));
+
+    if (linkedRepos.length === 0) return 0;
+
+    // 2. Resolve GitHub token
+    const environment = this.environmentProvider.read();
+    let token = '';
+
+    if (this.credentialRepository) {
+      try {
+        const credential = await this.credentialRepository.findCredential(
+          userId,
+          workspaceSlug,
+          IntegrationProvider.GithubApp,
+        );
+        if (credential && credential.status === CredentialRecordStatus.Connected && !credential.revokedAt) {
+          const config = decryptConfig(credential.encryptedConfig, this.environmentProvider) as { installationId?: string };
+          const installationId = String(config.installationId || '').trim();
+          if (environment.githubAppId && environment.githubAppPrivateKey && installationId) {
+            token = await this.githubIntegrationGateway.fetchInstallationToken({
+              appId: environment.githubAppId,
+              privateKey: environment.githubAppPrivateKey,
+              installationId,
+            });
+          }
+        }
+      } catch (err) {
+        this.logger.warn(`Failed to resolve GitHub installation token for project ${project.slug}:`, { error: String(err) });
+      }
+    }
+
+    if (!token) return 0;
+
+    // 3. Fetch file trees from all linked repositories
+    const allFilePathsSet = new Set<string>();
+    let successfulRepositoryFetches = 0;
+    for (const repo of linkedRepos) {
+      try {
+        const paths = await this.githubIntegrationGateway.fetchRepositoryTree(
+          repo.fullName,
+          repo.defaultBranch || 'main',
+          token,
+        );
+        successfulRepositoryFetches++;
+        for (const p of paths) {
+          allFilePathsSet.add(p);
+        }
+      } catch (err) {
+        this.logger.error(`Error fetching repo tree for ${repo.fullName}:`, { error: String(err) });
+      }
+    }
+
+    const allFilePaths = Array.from(allFilePathsSet);
+    // Replace the snapshot only when every linked repository was read. A
+    // partial result must not delete files belonging to a repository whose
+    // GitHub request failed.
+    if (successfulRepositoryFetches === linkedRepos.length) {
+      await this.projectCoverageRepository.syncProjectFiles(project.id, allFilePaths);
+    }
+
+    return allFilePaths.length;
+  }
+}

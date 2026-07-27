@@ -10,7 +10,7 @@ import { ReminderDispatchRepository } from '../../ports/reminders/workflow-state
 import { formatReminderScheduledAtLabel, reminderDispatchKey } from './reminder-schedule.js';
 import { MarkReminderAsSentUseCase } from './mark-reminder-as-sent.use-case.js';
 import { MAX_REMINDER_DELIVERY_ATTEMPTS, nextReminderRetryAt } from './reminder-retry-policy.js';
-import { ReminderEventBus } from '../../services/reminder-event.bus.js';
+import { ReminderEventBus } from '../../event-buses/reminder-event.bus.js';
 
 @Injectable()
 export class DispatchDueRemindersUseCase {

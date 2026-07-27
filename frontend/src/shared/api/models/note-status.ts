@@ -1,6 +1,20 @@
-export const noteStatusValues = ['active', 'pending', 'overdue', 'sent', 'resolved', 'archived'] as const;
+export enum NoteStatus {
+  Active = 'active',
+  Pending = 'pending',
+  Overdue = 'overdue',
+  Sent = 'sent',
+  Resolved = 'resolved',
+  Archived = 'archived',
+}
 
-export type NoteStatus = (typeof noteStatusValues)[number];
+export const noteStatusValues = [
+  NoteStatus.Active,
+  NoteStatus.Pending,
+  NoteStatus.Overdue,
+  NoteStatus.Sent,
+  NoteStatus.Resolved,
+  NoteStatus.Archived,
+] as const;
 
 export enum StatusFilter {
   Open = 'open',
@@ -10,6 +24,15 @@ export enum StatusFilter {
 export type NoteStatusFilter = '' | StatusFilter.Open | NoteStatus;
 export type ReminderStatusFilter = '' | StatusFilter | NoteStatus;
 
-const quickNoteStatusValues = ['active', 'resolved', 'archived'] as const;
+export enum QuickNoteStatus {
+  Active = 'active',
+  Resolved = 'resolved',
+  Archived = 'archived',
+}
 
-export type QuickNoteStatus = (typeof quickNoteStatusValues)[number];
+export const quickNoteStatusValues = [
+  QuickNoteStatus.Active,
+  QuickNoteStatus.Resolved,
+  QuickNoteStatus.Archived,
+] as const;
+

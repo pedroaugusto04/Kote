@@ -1,11 +1,25 @@
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession } from './types';
-import type { KbClient } from '../kb-client';
+import { KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
+import { resolveProjectSlug } from '../utils/project';
+import {
+  EXTENSION_COMMANDS,
+  GLOBAL_STATE_KEYS,
+  AI_SESSION_SAVE_MODES,
+  SESSION_PROMPT_ACTIONS,
+  DEFAULT_FALLBACK_PROJECT_SLUG,
+  SOURCE_CHANNELS
+} from '../constants';
 
-type SessionPromptAction = 'Auto-save' | 'Preview & Edit' | 'Ignore';
+type SessionPromptAction = typeof SESSION_PROMPT_ACTIONS[keyof typeof SESSION_PROMPT_ACTIONS];
+type AiSessionSaveMode = typeof AI_SESSION_SAVE_MODES[keyof typeof AI_SESSION_SAVE_MODES];
+
+const SESSION_MODE_PICKED_KEY = GLOBAL_STATE_KEYS.AI_SESSION_MODE_PICKED;
 
 const SESSION_PROMPT_TIMEOUT_MS = 2 * 60 * 1000;
+
+const MAX_UNSYNCED_SESSIONS_CHECK = 100; // Limit for scanned unsynced sessions
 
 export class AiHistoryManager {
   private providers = new Map<string, AiHistoryProvider>();
@@ -37,8 +51,15 @@ export class AiHistoryManager {
     return hash.toString(36);
   }
 
-  async startWatching(client: KbClient, context: vscode.ExtensionContext) {
+  private getActiveProjectSlug?: () => string | null;
+
+  async startWatching(
+    client: KbClient,
+    context: vscode.ExtensionContext,
+    getActiveProjectSlug?: () => string | null
+  ) {
     this.context = context;
+    this.getActiveProjectSlug = getActiveProjectSlug;
 
     // Clean up active watchers
     for (const d of this.activeDisposables) {
@@ -48,7 +69,7 @@ export class AiHistoryManager {
 
     // Load persisted known session hashes
     try {
-      const persistedHashes = context.globalState.get<[string, string][]>('kb.knownSessionHashes') || [];
+      const persistedHashes = context.globalState.get<[string, string][]>(GLOBAL_STATE_KEYS.KNOWN_SESSION_HASHES) || [];
       this.knownSessionHashes = new Map(persistedHashes);
     } catch {
       this.knownSessionHashes = new Map();
@@ -56,14 +77,14 @@ export class AiHistoryManager {
 
     // Load persisted recent sessions
     try {
-      this.recentSessions = context.globalState.get<AiSession[]>('kb.recentSessions') || [];
+      this.recentSessions = context.globalState.get<AiSession[]>(GLOBAL_STATE_KEYS.RECENT_SESSIONS) || [];
     } catch {
       this.recentSessions = [];
     }
 
     // Load persisted saved session keys
     try {
-      const persistedSaved = context.globalState.get<[string, number][]>('kb.savedSessionsMap') || [];
+      const persistedSaved = context.globalState.get<[string, number][]>(GLOBAL_STATE_KEYS.SAVED_SESSIONS_MAP) || [];
       this.savedSessions = new Map(persistedSaved);
       this.enforceSessionLimits();
     } catch {
@@ -72,7 +93,7 @@ export class AiHistoryManager {
 
     // Load persisted ignored session keys
     try {
-      const persistedIgnored = context.globalState.get<[string, number][]>('kb.ignoredSessionsMap') || [];
+      const persistedIgnored = context.globalState.get<[string, number][]>(GLOBAL_STATE_KEYS.IGNORED_SESSIONS_MAP) || [];
       this.ignoredSessions = new Map(persistedIgnored);
       this.enforceSessionLimits();
     } catch {
@@ -84,7 +105,7 @@ export class AiHistoryManager {
       try {
         const enabled = await provider.isEnabled();
         if (!enabled) continue;
-        const initial = await provider.getRecentSessions();
+        const initial = await provider.getRecentSessions(MAX_UNSYNCED_SESSIONS_CHECK); // Fetch all to populate known hashes of existing sessions
         for (const s of initial) {
           this.addOrUpdateRecentSession(s, true);
 
@@ -116,6 +137,33 @@ export class AiHistoryManager {
       } catch (err) {
         console.error(`Failed to start watcher for provider ${provider.id}:`, err);
       }
+    }
+
+    // Watch for window focus to trigger a check immediately
+    const focusDisposable = vscode.window.onDidChangeWindowState(async (e) => {
+      if (e.focused) {
+        await this.checkAllProviders(client);
+      }
+    });
+    this.activeDisposables.push(focusDisposable);
+    context.subscriptions.push(focusDisposable);
+
+    // Periodic check every 15 seconds (only when window is active to conserve resources)
+    const interval = setInterval(async () => {
+      if (vscode.window.state.focused) {
+        await this.checkAllProviders(client);
+      }
+    }, 15000);
+    this.activeDisposables.push(new vscode.Disposable(() => clearInterval(interval)));
+
+    // Prompt save mode selection on first extension launch
+    const modePicked = context.globalState.get<boolean>(SESSION_MODE_PICKED_KEY);
+    if (!modePicked) {
+      setTimeout(() => {
+        this.promptModeSelection(context).catch((err) => {
+          console.error('Failed to prompt AI session mode selection:', err);
+        });
+      }, 1000);
     }
   }
 
@@ -191,10 +239,10 @@ export class AiHistoryManager {
     if (!this.context) return;
     try {
       const hashesArray = Array.from(this.knownSessionHashes.entries());
-      this.context.globalState.update('kb.knownSessionHashes', hashesArray);
-      this.context.globalState.update('kb.recentSessions', this.recentSessions);
-      this.context.globalState.update('kb.savedSessionsMap', Array.from(this.savedSessions.entries()));
-      this.context.globalState.update('kb.ignoredSessionsMap', Array.from(this.ignoredSessions.entries()));
+      this.context.globalState.update(GLOBAL_STATE_KEYS.KNOWN_SESSION_HASHES, hashesArray);
+      this.context.globalState.update(GLOBAL_STATE_KEYS.RECENT_SESSIONS, this.recentSessions);
+      this.context.globalState.update(GLOBAL_STATE_KEYS.SAVED_SESSIONS_MAP, Array.from(this.savedSessions.entries()));
+      this.context.globalState.update(GLOBAL_STATE_KEYS.IGNORED_SESSIONS_MAP, Array.from(this.ignoredSessions.entries()));
     } catch (err) {
       console.error('Failed to save AI sessions state:', err);
     }
@@ -241,10 +289,10 @@ export class AiHistoryManager {
 
     const action = await Promise.race([
       vscode.window.showInformationMessage(
-        `KB: New AI session detected from ${provider.name}. Do you want to save it as a note?`,
-        'Auto-save',
-        'Preview & Edit',
-        'Ignore'
+        `Kote: New AI session detected from ${provider.name}. Do you want to save it as a note?`,
+        SESSION_PROMPT_ACTIONS.AUTO_SAVE,
+        SESSION_PROMPT_ACTIONS.PREVIEW_EDIT,
+        SESSION_PROMPT_ACTIONS.IGNORE
       ) as Promise<SessionPromptAction | undefined>,
       timeoutPromise,
     ]);
@@ -260,6 +308,58 @@ export class AiHistoryManager {
     return action;
   }
 
+  private getAiSessionSaveMode(): AiSessionSaveMode {
+    if (this.context) {
+      return this.context.globalState.get<AiSessionSaveMode>(GLOBAL_STATE_KEYS.AI_SESSION_SAVE_MODE, AI_SESSION_SAVE_MODES.AUTO_SAVE);
+    }
+    return AI_SESSION_SAVE_MODES.AUTO_SAVE;
+  }
+
+  async promptModeSelection(context: vscode.ExtensionContext): Promise<void> {
+    interface ModeItem extends vscode.QuickPickItem { mode: AiSessionSaveMode }
+
+    const currentMode = this.getAiSessionSaveMode();
+
+    const items: ModeItem[] = [
+      {
+        label: '$(zap) Auto-save (Recommended)',
+        description: currentMode === AI_SESSION_SAVE_MODES.AUTO_SAVE ? '\u2713 current' : '',
+        detail: 'Saves AI sessions automatically in the background. A light notification appears when saved.',
+        mode: AI_SESSION_SAVE_MODES.AUTO_SAVE,
+      },
+      {
+        label: '$(comment-discussion) Ask before saving',
+        description: currentMode === AI_SESSION_SAVE_MODES.ASK ? '\u2713 current' : '',
+        detail: 'Shows a confirmation popup for each detected AI session before saving.',
+        mode: AI_SESSION_SAVE_MODES.ASK,
+      },
+      {
+        label: '$(mute) Ignore all sessions',
+        description: currentMode === AI_SESSION_SAVE_MODES.IGNORE_ALL ? '\u2713 current' : '',
+        detail: 'Does not save or prompt for any AI session. Sessions can still be imported manually via the history view.',
+        mode: AI_SESSION_SAVE_MODES.IGNORE_ALL,
+      },
+    ];
+
+    const picked = await vscode.window.showQuickPick(items, {
+      placeHolder: 'Select how Kote should handle newly detected AI sessions',
+      ignoreFocusOut: true,
+    });
+
+    if (!picked) return;
+
+    try {
+      await context.globalState.update(GLOBAL_STATE_KEYS.AI_SESSION_SAVE_MODE, picked.mode);
+    } catch (err) {
+      console.error('Failed to update kote.aiSessionSaveMode configuration:', err);
+    }
+
+    context.globalState.update(SESSION_MODE_PICKED_KEY, true);
+
+    const label = picked.mode === AI_SESSION_SAVE_MODES.AUTO_SAVE ? 'Auto-save' : picked.mode === AI_SESSION_SAVE_MODES.ASK ? 'Ask before saving' : 'Ignore all sessions';
+    vscode.window.showInformationMessage(`Kote: AI session save mode set to ${label}.`);
+  }
+
   private async handleChangedSession(client: KbClient, provider: AiHistoryProvider, session: AiSession) {
     const key = `${provider.id}:${session.sessionId}`;
     const hash = this.computeSessionHash(session);
@@ -272,10 +372,40 @@ export class AiHistoryManager {
 
     this.addOrUpdateRecentSession(session);
 
-    // Saved sessions should keep auto-saving even if an older prompt for the
-    // same session is still open or timed out.
+    if (!isConfigured()) {
+      return;
+    }
+
+    // If the session is explicitly ignored by the user, do nothing.
+    if (this.ignoredSessions.has(key)) {
+      this.rememberSessionHash(key, hash);
+      this.pendingPromptSessions.delete(key);
+      return;
+    }
+
+    // If the session is already marked as saved, auto-save updates silently.
     if (this.savedSessions.has(key)) {
       this.pendingPromptSessions.delete(key);
+      const saved = await this.autoSaveSessionToVault(client, session);
+      if (saved) {
+        this.rememberSessionHash(key, hash);
+        this.markSessionAsSaved(provider.id, session.sessionId);
+        await this.processPendingPromptSession(client, provider, key);
+      }
+      return;
+    }
+
+    // In ignore-all mode: silently discard new sessions and updates.
+    if (this.getAiSessionSaveMode() === AI_SESSION_SAVE_MODES.IGNORE_ALL) {
+      this.rememberSessionHash(key, hash);
+      this.pendingPromptSessions.delete(key);
+      return;
+    }
+
+    // In auto-save mode: save new sessions and updates immediately.
+    if (this.getAiSessionSaveMode() === AI_SESSION_SAVE_MODES.AUTO_SAVE) {
+      this.pendingPromptSessions.delete(key);
+      this.markSessionAsSaved(provider.id, session.sessionId);
       const saved = await this.autoSaveSessionToVault(client, session);
       if (saved) {
         this.rememberSessionHash(key, hash);
@@ -284,17 +414,11 @@ export class AiHistoryManager {
       return;
     }
 
-    // If a prompt is already open, keep the newest version pending. Do not mark
-    // the hash as known yet, otherwise the update is lost when the prompt closes.
+    // --- Mode is 'ask' ---
+
+    // If a prompt is already open, keep the newest version pending.
     if (this.promptingSessions.has(key)) {
       this.pendingPromptSessions.set(key, session);
-      return;
-    }
-
-    // If the session is ignored, do nothing until the user imports it manually.
-    if (this.ignoredSessions.has(key)) {
-      this.rememberSessionHash(key, hash);
-      this.pendingPromptSessions.delete(key);
       return;
     }
 
@@ -302,22 +426,27 @@ export class AiHistoryManager {
     try {
       const action = await this.askSessionAction(provider);
 
-      if (action === 'Auto-save') {
+      if (action === SESSION_PROMPT_ACTIONS.AUTO_SAVE) {
         this.markSessionAsSaved(provider.id, session.sessionId);
         const saved = await this.saveSessionToVault(client, session);
-        if (saved) this.rememberSessionHash(key, hash);
-      } else if (action === 'Preview & Edit') {
+        if (saved) {
+          this.rememberSessionHash(key, hash);
+        } else {
+          this.savedSessions.delete(key);
+          this.forgetSessionHash(key);
+        }
+      } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
         this.openPreview(session);
-      } else if (action === 'Ignore') {
+        this.rememberSessionHash(key, hash);
+      } else if (action === SESSION_PROMPT_ACTIONS.IGNORE) {
         this.markSessionAsIgnored(provider.id, session.sessionId);
+        this.rememberSessionHash(key, hash);
+      } else if (action === undefined) {
+        // User closed/dismissed the popup. Don't spam them for the same content state.
         this.rememberSessionHash(key, hash);
       } else if (action === 'Timed out') {
         this.forgetSessionHash(key);
         return;
-      }
-
-      if (!this.savedSessions.has(key) && !this.ignoredSessions.has(key)) {
-        this.forgetSessionHash(key);
       }
     } finally {
       this.promptingSessions.delete(key);
@@ -457,13 +586,13 @@ export class AiHistoryManager {
       if (selected.session) {
         const action = await vscode.window.showInformationMessage(
           `Selected session: "${selected.label}"`,
-          'Auto-save',
-          'Preview & Edit'
+          SESSION_PROMPT_ACTIONS.AUTO_SAVE,
+          SESSION_PROMPT_ACTIONS.PREVIEW_EDIT
         );
-        if (action === 'Auto-save') {
+        if (action === SESSION_PROMPT_ACTIONS.AUTO_SAVE) {
           this.markSessionAsSaved(selected.session.providerId, selected.session.sessionId);
           await this.saveSessionToVault(client, selected.session);
-        } else if (action === 'Preview & Edit') {
+        } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
           await this.openPreview(selected.session);
         }
       }
@@ -495,7 +624,7 @@ export class AiHistoryManager {
     rawText += `\n---\n\n`;
 
     for (const turn of session.turns) {
-      const roleHeader = turn.role === 'user' ? '👤 User' : '🤖 Assistant';
+      const roleHeader = turn.role === 'user' ? '👤 User' : '✨ Assistant';
       rawText += `### ${roleHeader}\n${turn.content}\n\n`;
     }
     return rawText;
@@ -511,35 +640,41 @@ export class AiHistoryManager {
       await vscode.window.showTextDocument(doc);
 
       const choice = await vscode.window.showInformationMessage(
-        'KB: You are viewing the AI conversation. Edit the file as you wish, then choose Save Now.',
-        'Save Now'
-      );
-      if (choice === 'Save Now') {
-        await vscode.commands.executeCommand('kb.saveActiveFile', session.sessionId, session.providerId);
-      }
-    } catch (err: any) {
-      vscode.window.showErrorMessage(`Failed to open preview: ${err.message || err}`);
+          'Kote: You are viewing the AI conversation. Edit the file as you wish, then choose Save Now.',
+          'Save Now'
+        );
+        if (choice === 'Save Now') {
+          await vscode.commands.executeCommand(EXTENSION_COMMANDS.SAVE_ACTIVE_FILE, session.sessionId, session.providerId);
+        }
+    } catch (err: unknown) {
+      vscode.window.showErrorMessage(`Failed to open preview: ${toMessage(err)}`);
     }
   }
 
-  private async saveSessionToVault(client: KbClient, session: AiSession): Promise<boolean> {
+  private async saveSessionToVault(client: KbClient, session: AiSession, silent: boolean = false): Promise<boolean> {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
+      const activeProject = this.getActiveProjectSlug ? this.getActiveProjectSlug() : null;
+      const projectSlug = resolveProjectSlug(session.projectSlug || activeProject, client.defaultProjectSlug);
       await client.createNote({
         title: titleWithDate,
         rawText,
-        projectSlug: session.projectSlug || client.defaultProjectSlug || 'inbox',
-        sourceChannel: 'ai-chat',
+        projectSlug,
+        sourceChannel: SOURCE_CHANNELS.AI_CHAT,
         source: session.providerId,
         sessionId: session.sessionId,
+        occurredAt: new Date(session.timestamp).toISOString(),
+        attachments: session.attachments,
       });
 
-      vscode.window.showInformationMessage('Note saved to Knowledge Vault successfully!');
-      vscode.commands.executeCommand('kb.refresh');
+      if (!silent) {
+        vscode.window.showInformationMessage('Note saved to Kote successfully!');
+      }
+      vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
       return true;
-    } catch (err: any) {
-      vscode.window.showErrorMessage(`Failed to save note: ${err.message || err}`);
+    } catch (err: unknown) {
+      vscode.window.showErrorMessage(`Failed to save note: ${toMessage(err)}`);
       return false;
     }
   }
@@ -548,21 +683,176 @@ export class AiHistoryManager {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
+      const activeProject = this.getActiveProjectSlug ? this.getActiveProjectSlug() : null;
+      const projectSlug = resolveProjectSlug(session.projectSlug || activeProject, client.defaultProjectSlug);
       await client.createNote({
         title: titleWithDate,
         rawText,
-        projectSlug: session.projectSlug || client.defaultProjectSlug || 'inbox',
-        sourceChannel: 'ai-chat',
+        projectSlug,
+        sourceChannel: SOURCE_CHANNELS.AI_CHAT,
         source: session.providerId,
         sessionId: session.sessionId,
+        occurredAt: new Date(session.timestamp).toISOString(),
+        attachments: session.attachments,
       });
 
-      vscode.commands.executeCommand('kb.refresh');
-      vscode.window.showInformationMessage(`AI session auto-saved to Knowledge Vault — project: ${session.projectSlug || client.defaultProjectSlug || 'inbox'}.`);
+      vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
+      vscode.window.showInformationMessage(`AI session auto-saved to Kote — project: ${projectSlug}.`);
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
       return false;
+    }
+  }
+
+  private lastSyncPromptTime = 0;
+  private readonly SYNC_PROMPT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours cooldown
+
+  async getUnsyncedSessions(): Promise<AiSession[]> {
+    const unsynced: AiSession[] = [];
+    for (const provider of this.providers.values()) {
+      try {
+        const enabled = await provider.isEnabled();
+        if (!enabled) continue;
+        const sessions = await provider.getRecentSessions(MAX_UNSYNCED_SESSIONS_CHECK);
+        for (const s of sessions) {
+          const key = `${provider.id}:${s.sessionId}`;
+          if (!this.savedSessions.has(key) && !this.ignoredSessions.has(key)) {
+            unsynced.push(s);
+          }
+        }
+      } catch (err) {
+        console.error(`Failed to scan unsynced sessions for provider ${provider.id}:`, err);
+      }
+    }
+    unsynced.sort((a, b) => b.timestamp - a.timestamp);
+    return unsynced.slice(0, MAX_UNSYNCED_SESSIONS_CHECK);
+  }
+
+  async syncSessions(client: KbClient, sessionsToSync: { providerId: string, sessionId: string }[]): Promise<boolean> {
+    const resolvedSessions: { item: { providerId: string, sessionId: string }, session: AiSession }[] = [];
+    // Group by providerId to avoid fetching recent sessions multiple times for the same provider
+    const sessionsByProvider = new Map<string, AiSession[]>();
+    const providerIds = new Set(sessionsToSync.map(item => item.providerId));
+
+    for (const providerId of providerIds) {
+      const provider = this.providers.get(providerId);
+      if (!provider) continue;
+      try {
+        const sessions = await provider.getRecentSessions(MAX_UNSYNCED_SESSIONS_CHECK);
+        sessionsByProvider.set(providerId, sessions);
+      } catch (err) {
+        console.error(`Failed to load sessions for provider ${providerId}:`, err);
+      }
+    }
+
+    for (const item of sessionsToSync) {
+      const sessions = sessionsByProvider.get(item.providerId);
+      if (!sessions) continue;
+      const session = sessions.find(s => s.sessionId === item.sessionId);
+      if (session) {
+        resolvedSessions.push({ item, session });
+      }
+    }
+
+    // Sort by timestamp descending (newest first) so that the most recent sessions are synced first.
+    resolvedSessions.sort((a, b) => b.session.timestamp - a.session.timestamp);
+
+    let completed = true;
+    await vscode.window.withProgress({
+      location: vscode.ProgressLocation.Notification,
+      title: 'Syncing AI sessions (Chronological order)...',
+      cancellable: true
+    }, async (progress, token) => {
+      let stopped = false;
+      token.onCancellationRequested(() => {
+        stopped = true;
+        completed = false;
+      });
+
+      const total = resolvedSessions.length;
+      for (let i = 0; i < total; i++) {
+        if (stopped) {
+          vscode.window.showInformationMessage('Sync stopped by user.');
+          break;
+        }
+
+        const { item, session } = resolvedSessions[i];
+        const titleWithDate = this.getTitleWithDate(session);
+        progress.report({
+          message: `(${i + 1}/${total}) ${titleWithDate}`,
+          increment: (1 / total) * 100
+        });
+
+        this.markSessionAsSaved(item.providerId, item.sessionId);
+        const saved = await this.saveSessionToVault(client, session, true);
+        if (saved) {
+          const key = `${item.providerId}:${item.sessionId}`;
+          const hash = this.computeSessionHash(session);
+          this.rememberSessionHash(key, hash);
+        } else {
+          // clean up so they can retry
+          const key = `${item.providerId}:${item.sessionId}`;
+          this.savedSessions.delete(key);
+          this.saveState();
+        }
+      }
+    });
+    return completed;
+  }
+
+  async checkUnsyncedAndPrompt(client: KbClient) {
+    if (!isConfigured()) {
+      return;
+    }
+    const now = Date.now();
+    if (now - this.lastSyncPromptTime < this.SYNC_PROMPT_COOLDOWN_MS) {
+      return;
+    }
+    this.lastSyncPromptTime = now;
+
+    try {
+      const unsynced = await this.getUnsyncedSessions();
+      if (unsynced.length > 0) {
+        const choice = await vscode.window.showInformationMessage(
+          `Kote: You have ${unsynced.length} unsynced AI chat sessions. Do you want to sync them with Kote?`,
+          'Sync All',
+          'Review Sessions',
+          'Later'
+        );
+        if (choice === 'Sync All') {
+          const sessionsToSync = unsynced.map(s => ({ providerId: s.providerId, sessionId: s.sessionId }));
+          const completed = await this.syncSessions(client, sessionsToSync);
+          if (completed) {
+            vscode.window.showInformationMessage(`Successfully synced ${unsynced.length} AI sessions to Kote.`);
+          }
+          // Notify the webview if it is active so it can reload
+          vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
+        } else if (choice === 'Review Sessions') {
+          await vscode.commands.executeCommand(EXTENSION_COMMANDS.SIDEBAR_VIEW_FOCUS);
+          await vscode.commands.executeCommand(EXTENSION_COMMANDS.OPEN_SYNC_TAB);
+        }
+      }
+    } catch (err) {
+      console.error('Failed checking unsynced sessions:', err);
+    }
+  }
+
+  private async checkAllProviders(client: KbClient) {
+    if (!isConfigured()) {
+      return;
+    }
+    for (const provider of this.providers.values()) {
+      try {
+        const enabled = await provider.isEnabled();
+        if (!enabled) continue;
+        const sessions = await provider.getRecentSessions();
+        for (const s of sessions) {
+          await this.handleChangedSession(client, provider, s);
+        }
+      } catch {
+        // silent fallback
+      }
     }
   }
 }

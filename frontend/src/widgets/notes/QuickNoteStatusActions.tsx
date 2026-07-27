@@ -2,13 +2,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 
 import { updateNote } from '../../shared/api/client';
-import { reminderInputDate, reminderInputTime } from '../../shared/utils/format';
 import type { NoteDetail, NoteSummary } from '../../shared/api/models/note';
-import type { QuickNoteStatus } from '../../shared/api/models/note-status';
+import { QuickNoteStatus } from '../../shared/api/models/note-status';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
+import { reminderAtToUtc } from '../../shared/utils/format';
 
 type QuickStatusNote = Pick<NoteSummary, 'id' | 'title' | 'status' | 'project' | 'tags'> & {
   isOverdue?: boolean;
@@ -34,11 +34,11 @@ type QuickStatusAction = {
   icon: () => ReactNode;
 };
 
-function resolveQuickStatusActions(noteStatus: QuickStatusNote['status']): QuickStatusAction[] {
+function resolveQuickStatusActions(noteStatus: string): QuickStatusAction[] {
   if (noteStatus === 'resolved') {
     return [
       {
-        status: 'active',
+        status: QuickNoteStatus.Active,
         label: 'Reopen',
         title: 'Reopen',
         successMessage: 'Note reopened.',
@@ -51,7 +51,7 @@ function resolveQuickStatusActions(noteStatus: QuickStatusNote['status']): Quick
   if (noteStatus === 'archived') {
     return [
       {
-        status: 'active',
+        status: QuickNoteStatus.Active,
         label: 'Unarchive',
         title: 'Unarchive',
         successMessage: 'Note unarchived.',
@@ -63,7 +63,7 @@ function resolveQuickStatusActions(noteStatus: QuickStatusNote['status']): Quick
 
   return [
     {
-      status: 'resolved',
+      status: QuickNoteStatus.Resolved,
       label: 'Resolve',
       title: 'Resolve',
       successMessage: 'Note resolved.',
@@ -71,7 +71,7 @@ function resolveQuickStatusActions(noteStatus: QuickStatusNote['status']): Quick
       icon: ResolveIcon,
     },
     {
-      status: 'archived',
+      status: QuickNoteStatus.Archived,
       label: 'Archive',
       title: 'Archive',
       successMessage: 'Note archived.',
@@ -89,7 +89,7 @@ export function QuickNoteStatusActions({
   compact?: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [displayStatus, setDisplayStatus] = useState(note.status);
+  const [displayStatus, setDisplayStatus] = useState<string>(note.status);
   const actions = resolveQuickStatusActions(displayStatus);
 
   useEffect(() => {
@@ -103,8 +103,7 @@ export function QuickNoteStatusActions({
         title: detail.title,
         rawText: detail.editor?.rawText || detail.title,
         tags: detail.tags,
-        reminderDate: detail.editor ? reminderInputDate(detail.editor) : '',
-        reminderTime: detail.editor ? reminderInputTime(detail.editor) : '',
+        reminderAt: reminderAtToUtc(detail.editor?.reminderAt),
         status: action.status,
       });
     },

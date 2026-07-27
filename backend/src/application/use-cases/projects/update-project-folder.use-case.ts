@@ -3,8 +3,9 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { rewriteNotePathForFolder } from '../../../domain/notes.js';
 import type { UpdateProjectFolderInput } from '../../models/project-folder-input.models.js';
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
-import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/project-folder.utils.js';
+import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { toFolderUpdateRewrite } from '../../mappers/project-folder.mapper.js';
 
 type FolderRewrite = {
   previous: ProjectFolderRecord;
@@ -49,24 +50,30 @@ export class UpdateProjectFolderUseCase {
         const nextFullSlugPath = folder.id === currentFolder.id
           ? nextRootPath
           : folder.fullSlugPath.replace(`${currentFolder.fullSlugPath}/`, `${nextRootPath}/`);
+        const next = folder.id === currentFolder.id
+          ? toFolderUpdateRewrite(folder, parentFolder?.id || null, input.displayName, parentFolder?.fullSlugPath || null)
+          : {
+            ...folder,
+            fullSlugPath: nextFullSlugPath,
+          };
         return {
           previous: folder,
-          next: {
-            ...folder,
-            parentFolderId: folder.id === currentFolder.id ? (parentFolder?.id || null) : folder.parentFolderId,
-            displayName: folder.id === currentFolder.id ? input.displayName : folder.displayName,
-            folderSlug: folder.id === currentFolder.id ? folderSlug : folder.folderSlug,
-            fullSlugPath: nextFullSlugPath,
-          },
+          next,
         };
       });
 
-    const notes = await this.contentRepository.listNotes(userId);
+    const notes = await this.contentRepository.listNotesLite(userId);
     const rewrittenByFolderId = new Map(rewrites.map((rewrite) => [rewrite.previous.id, rewrite]));
     const affectedNotes = notes.filter((note) => note.projectId === project.id && note.folderId && descendantIds.has(note.folderId));
+    
+    // Batch fetch all affected notes
+    const affectedNoteIds = affectedNotes.map((n) => n.id);
+    const loadedNotes = await this.contentRepository.getNotesByIds(userId, affectedNoteIds);
+    const notesMap = new Map(loadedNotes.map((n) => [n.id, n]));
+    
     const updatedNotes = [];
     for (const note of affectedNotes) {
-      const loadedNote = await this.contentRepository.getNoteById(userId, note.id);
+      const loadedNote = notesMap.get(note.id);
       const rewrite = note.folderId ? rewrittenByFolderId.get(note.folderId) : null;
       if (!loadedNote || !rewrite) continue;
       updatedNotes.push(noteInputWithPath(loadedNote, rewriteNotePathForFolder(

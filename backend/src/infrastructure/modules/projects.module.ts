@@ -24,9 +24,14 @@ import {
   ListProjectBriefHistoryUseCase,
   GetReviewDetailUseCase,
   ListPaginatedReviewsUseCase,
+  GetProjectCoverageUseCase,
 } from '../../application/use-cases/index.js';
 import { ProjectsController } from '../../interfaces/http/controllers/index.js';
-import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../interfaces/http/project-resolution.guard.js';
+import { ProjectCoverageRepository } from '../../application/ports/projects/project-coverage.repository.js';
+import { PostgresProjectCoverageRepository } from '../repositories/project-coverage.repository.js';
+import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../interfaces/http/guards/project-resolution.guard.js';
+
+import { SyncProjectFilesService } from '../../application/services/projects/sync-project-files.service.js';
 
 @Module({
   imports: [
@@ -58,6 +63,10 @@ import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../in
     ListProjectBriefHistoryUseCase,
     GetReviewDetailUseCase,
     ListPaginatedReviewsUseCase,
+    GetProjectCoverageUseCase,
+    SyncProjectFilesService,
+    PostgresProjectCoverageRepository,
+    { provide: ProjectCoverageRepository, useExisting: PostgresProjectCoverageRepository },
     ProjectResolutionGuard,
     OptionalProjectResolutionGuard,
   ],
@@ -65,6 +74,9 @@ import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../in
     GenerateProjectBriefUseCase,
     GetProjectBriefUseCase,
     ListProjectBriefHistoryUseCase,
+    GetProjectCoverageUseCase,
+    SyncProjectFilesService,
+    ProjectCoverageRepository,
     CreateProjectUseCase,
     UpdateProjectUseCase,
     DeleteProjectUseCase,
@@ -77,4 +89,5 @@ import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../in
   ],
 })
 export class ProjectsModule {}
+
 

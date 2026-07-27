@@ -1,3 +1,7 @@
+import { initializeOpenTelemetry } from './observability/opentelemetry.js';
+
+initializeOpenTelemetry();
+
 import 'reflect-metadata';
 
 import { startApp } from './bootstrap.js';

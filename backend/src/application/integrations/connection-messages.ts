@@ -1,7 +1,7 @@
 export const WHATSAPP_INTRO_MESSAGE = [
   'Connection established successfully!',
   '',
-  'This is your WhatsApp channel integrated with your knowledge base.',
+  'This is your WhatsApp channel integrated with your Kote.',
   '',
   'Here is a summary of how you can use this chat:',
   '',
@@ -20,7 +20,7 @@ export const WHATSAPP_INTRO_MESSAGE = [
   '- You will receive automatic reminders and important notifications about your projects and notes directly here.',
   '',
   '*Cancellation*',
-  '- If you need to stop or cancel an AI conversation flow, just type `cancel`.',
+  '- If you need to clear the current conversation context and start fresh, type `/clear`.',
   '',
   'If you need anything, just send a message!'
 ].join('\n');
@@ -28,7 +28,7 @@ export const WHATSAPP_INTRO_MESSAGE = [
 export const TELEGRAM_INTRO_MESSAGE = [
   'Connection established successfully!',
   '',
-  'This is your Telegram channel integrated with your knowledge base.',
+  'This is your Telegram channel integrated with your Kote.',
   '',
   '*Available Features:*',
   '- You will receive automatic reminders and important notifications about your projects and notes directly here on Telegram.',

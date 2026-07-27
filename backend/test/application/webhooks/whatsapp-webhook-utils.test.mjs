@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { extractWhatsappExternalId, parseWhatsappEvolutionMessage } from '../../../dist/application/utils/webhook.utils.js';
-import { buildWhatsappWebhookCommand } from '../../../dist/application/utils/whatsapp-webhook-command.utils.js';
+import { extractWhatsappExternalId, parseWhatsappEvolutionMessage } from '../../../dist/application/utils/webhook/webhook.utils.js';
+import { buildWhatsappWebhookCommand } from '../../../dist/application/utils/webhook/whatsapp-webhook-command.utils.js';
 
 test('whatsapp parser accepts payload with data array', () => {
   const parsed = parseWhatsappEvolutionMessage({
@@ -59,7 +59,7 @@ test('whatsapp command parser accepts private chats as external identities', () 
   assert.equal(command.input.chatId, '5511999999999@s.whatsapp.net');
 });
 
-test('whatsapp command parser ignores group messages without /kb prefix', () => {
+test('whatsapp command parser ignores group messages without /kote prefix', () => {
   const command = buildWhatsappWebhookCommand({
     event: 'MESSAGES_UPSERT',
     data: {
@@ -78,7 +78,7 @@ test('whatsapp command parser ignores group messages without /kb prefix', () => 
   assert.deepEqual(command, { kind: 'ignore', reason: 'missing_group_prefix' });
 });
 
-test('whatsapp command parser accepts group messages with /kb prefix and strips it', () => {
+test('whatsapp command parser accepts group messages with /kote prefix and strips it', () => {
   const command = buildWhatsappWebhookCommand({
     event: 'MESSAGES_UPSERT',
     data: {
@@ -89,7 +89,7 @@ test('whatsapp command parser accepts group messages with /kb prefix and strips 
         fromMe: false,
       },
       message: {
-        conversation: '/kb corrigi timeout no webhook',
+        conversation: '/kote corrigi timeout no webhook',
       },
     },
   });

@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, timestamp, jsonb, boolean, bigint, integer, index, pgEnum, uniqueIndex, decimal } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, jsonb, boolean, bigint, integer, index, pgEnum, unique, uniqueIndex, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { pgTable as pgTableV2 } from 'drizzle-orm/pg-core';
 
@@ -21,6 +21,7 @@ export const users = pgTable('kb_users', {
   role: text('role').notNull().default('user'),
   avatar: text('avatar').default(''),
   cpfCnpj: text('cpf_cnpj').default(''),
+  vsCodeInstalledAt: timestamp('vscode_installed_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
@@ -91,6 +92,7 @@ export const workspaces = pgTable('kb_workspaces', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   userSlugIdx: index('kb_workspaces_user_slug_idx').on(table.userId, table.workspaceSlug),
+  userSlugUnique: unique('kb_workspaces_user_slug_unique').on(table.userId, table.workspaceSlug),
 }));
 
 // User-scoped auto-action settings
@@ -117,6 +119,7 @@ export const projects = pgTable('kb_projects', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   userSlugIdx: index('kb_projects_user_slug_idx').on(table.userId, table.projectSlug),
+  userSlugUnique: unique('kb_projects_user_slug_unique').on(table.userId, table.projectSlug),
 }));
 
 // Notes
@@ -133,13 +136,14 @@ export const notes = pgTable('kb_notes', {
   occurredAt: timestamp('occurred_at').notNull().defaultNow(),
   sourceChannel: text('source_channel').notNull().default(''),
   summary: text('summary').notNull().default(''),
+  bodySearchText: text('body_search_text').notNull().default(''),
   markdownStorageKey: text('markdown_storage_key').notNull().default(''),
   metadata: jsonb('metadata').notNull().default('{}'),
   source: text('source').notNull().default(''),
   sessionId: text('session_id').notNull().default(''),
-  reminderDate: text('reminder_date').notNull().default(''),
-  reminderAt: text('reminder_at').notNull().default(''),
+  reminderAt: timestamp('reminder_at'),
   isPinned: boolean('is_pinned').default(false),
+  sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
@@ -148,7 +152,6 @@ export const notes = pgTable('kb_notes', {
   userProjectFolderIdx: index('kb_notes_user_project_folder_idx').on(table.userId, table.projectId, table.folderId),
   userSourceSessionIdx: index('kb_notes_user_source_session_idx').on(table.userId, table.source, table.sessionId),
   reminderAtIdx: index('kb_notes_reminder_at_idx').on(table.reminderAt),
-  reminderDateIdx: index('kb_notes_reminder_date_idx').on(table.reminderDate),
 }));
 
 // Note Links
@@ -203,7 +206,7 @@ export const reminderDispatchState = pgTable('kb_reminder_dispatch_state', {
 
 // Reminder Dispatch Failures
 export const reminderDispatchFailures = pgTable('kb_reminder_dispatch_failures', {
-  userId: uuid('user_id').notNull(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   mode: text('mode').notNull(),
   dispatchKey: text('dispatch_key').notNull(),
@@ -222,8 +225,7 @@ export const projectBriefHistory = pgTable('kb_project_brief_history', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull(),
   projectId: uuid('project_id').references(() => projects.id, { onDelete: 'cascade' }),
-  workspaceSlug: text('workspace_slug').notNull(),
-  projectSlug: text('project_slug').notNull(),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
   brief: jsonb('brief').notNull(),
   sourceRefs: jsonb('source_refs').notNull().default('[]'),
   contextHash: text('context_hash').notNull(),
@@ -235,7 +237,7 @@ export const projectBriefHistory = pgTable('kb_project_brief_history', {
 }, (table) => ({
   userIdx: index('idx_project_brief_history_user').on(table.userId),
   projectIdx: index('idx_project_brief_history_project').on(table.userId, table.projectId),
-  userWorkspaceProjectIdx: index('idx_project_brief_history_user_workspace_project').on(table.userId, table.workspaceSlug, table.projectSlug),
+  userWorkspaceProjectIdx: index('idx_project_brief_history_user_workspace_project').on(table.userId, table.workspaceId, table.projectId),
 }));
 
 // Webhook Events
@@ -276,6 +278,25 @@ export const projectRepositories = pgTable('kb_project_repositories', {
   repositoryId: uuid('repository_id').notNull().references(() => repositories.id, { onDelete: 'cascade' }),
 }, (table) => ({
   pk: index('kb_project_repositories_pk').on(table.projectId, table.repositoryId),
+}));
+
+// Project Default Tags
+export const projectDefaultTags = pgTable('kb_project_default_tags', {
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  tag: text('tag').notNull(),
+}, (table) => ({
+  pk: index('kb_project_default_tags_pk').on(table.projectId, table.tag),
+}));
+
+// Project Files for Knowledge Coverage
+export const projectFiles = pgTable('kb_project_files', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  filePath: text('file_path').notNull(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  projPathUnique: uniqueIndex('uq_kb_project_files_proj_path').on(table.projectId, table.filePath),
+  projIdx: index('kb_project_files_proj_idx').on(table.projectId),
 }));
 
 // Project Folders
@@ -326,7 +347,9 @@ export const pushSubscriptions = pgTable('kb_push_subscriptions', {
 export const askHistory = pgTable('kb_ask_history', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
-  projectSlug: text('project_slug').notNull().default(''),
+  projectId: uuid('project_id').references(() => projects.id, { onDelete: 'set null' }),
+  workspaceId: uuid('workspace_id').references(() => workspaces.id, { onDelete: 'cascade' }),
+  conversationId: uuid('conversation_id').notNull(),
   question: text('question').notNull(),
   answer: text('answer').notNull(),
   confidence: askConfidenceEnum('confidence').notNull().default('low'),
@@ -335,7 +358,8 @@ export const askHistory = pgTable('kb_ask_history', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (table) => ({
   userCreatedIdx: index('kb_ask_history_user_created_idx').on(table.userId, table.createdAt),
-  userProjectCreatedIdx: index('kb_ask_history_user_project_created_idx').on(table.userId, table.projectSlug, table.createdAt),
+  userProjectCreatedIdx: index('kb_ask_history_user_project_created_idx').on(table.userId, table.projectId, table.createdAt),
+  conversationIdIdx: index('kb_ask_history_conversation_id_idx').on(table.conversationId),
 }));
 
 // Webhook Subscriptions
@@ -499,7 +523,7 @@ export const plans = pgTable('kb_plans', {
   displayName: text('display_name').notNull(),
   description: text('description').notNull().default(''),
   maxStorageBytes: bigint('max_storage_bytes', { mode: 'number' }).notNull(),
-  maxAiRequestsPerMonth: integer('max_ai_requests_per_month').notNull(),
+  maxAiCreditsPerMonth: integer('max_ai_credits_per_month').notNull(),
   maxWorkspaces: integer('max_workspaces').notNull(),
   maxProjectsPerWorkspace: integer('max_projects_per_workspace').notNull(),
   priceCents: integer('price_cents').notNull().default(0),
@@ -521,7 +545,6 @@ export const userSubscriptions = pgTable('kb_user_subscriptions', {
   currentPeriodEnd: timestamp('current_period_end').notNull().defaultNow(),
   gatewayName: text('gateway_name').notNull().default('asaas'), // 'asaas', 'stripe', etc.
   gatewaySubscriptionId: text('gateway_subscription_id'),
-  gatewayCustomerId: text('gateway_customer_id'),
   billingCycle: billingCycleEnum('billing_cycle').notNull().default('monthly'),
   billingType: billingTypeEnum('billing_type'),
   nextDueDate: timestamp('next_due_date'),
@@ -741,3 +764,24 @@ export const quotaAdjustmentsRelations = relations(quotaAdjustments, ({ one }) =
     references: [users.id],
   }),
 }));
+
+// GitHub Backfill Jobs
+export const githubBackfillJobs = pgTable('kb_github_backfill_jobs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceSlug: text('workspace_slug').notNull(),
+  repositories: jsonb('repositories').notNull().default([]),
+  status: text('status').notNull().default('queued'),
+  total: integer('total').notNull().default(0),
+  processed: integer('processed').notNull().default(0),
+  imported: integer('imported').notNull().default(0),
+  skipped: integer('skipped').notNull().default(0),
+  limit: integer('limit').notNull().default(5),
+  error: text('error'),
+  startedAt: timestamp('started_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  completedAt: timestamp('completed_at', { withTimezone: true }),
+}, (table) => ({
+  userIdIdx: index('kb_github_backfill_jobs_user_id_idx').on(table.userId, table.id),
+}));
+

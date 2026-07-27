@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+  <msapplication>
+    <tile>
+      <square70x70logo src="/Kote-Logo.png"/>
+      <square150x150logo src="/Kote-Logo.png"/>
+      <square310x310logo src="/Kote-Logo.png"/>
+      <TileColor>#00345c</TileColor>
+    </tile>
+  </msapplication>
+</browserconfig>

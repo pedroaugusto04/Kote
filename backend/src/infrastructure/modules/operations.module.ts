@@ -8,6 +8,7 @@ import { QueueModule } from './queue.module.js';
 import { NotesModule } from './notes.module.js';
 import { RemindersModule } from './reminders.module.js';
 import { ProjectsModule } from './projects.module.js';
+import { QuotaModule } from './quota.module.js';
 
 import {
   ProcessAgentConversationUseCase,
@@ -27,6 +28,7 @@ import { OperationsController } from '../../interfaces/http/controllers/index.js
     NotesModule,
     RemindersModule,
     ProjectsModule,
+    QuotaModule,
   ],
   controllers: [
     OperationsController,

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Knowledge Base Clipper",
+  "name": "Kote Clipper",
   "version": "1.0.0",
-  "description": "Clip web pages or selections and save them directly to your Knowledge Base.",
+  "description": "Clip web pages or selections and save them directly to your Kote.",
   "permissions": [
     "storage",
     "activeTab",
@@ -19,7 +19,17 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Knowledge Base Clipper"
+    "default_title": "Kote Clipper",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
   },
   "commands": {
     "_execute_action": {
@@ -27,14 +37,14 @@
         "default": "Ctrl+Shift+Y",
         "mac": "MacCtrl+Shift+Y"
       },
-      "description": "Open Knowledge Base Clipper popup"
+      "description": "Open Kote Clipper popup"
     },
     "quick-clip-page": {
       "suggested_key": {
         "default": "Ctrl+Shift+K",
         "mac": "MacCtrl+Shift+K"
       },
-      "description": "Quick clip full page to Knowledge Base"
+      "description": "Quick clip full page to Kote"
     }
   }
 }

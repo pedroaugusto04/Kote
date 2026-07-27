@@ -50,9 +50,27 @@ function githubHandlerFixture(projects = []) {
   const calls = { ingest: 0, compare: 0, review: 0 };
   const handler = new HandleGithubPushUseCase(
     {
-      async execute(payload) {
+      async execute(input) {
         calls.ingest += 1;
-        return { ok: true, project: payload.event.projectSlug };
+        calls.compare += 1;
+        calls.review += 1;
+        return {
+          ok: true,
+          noteId: 'note-1',
+          payload: {
+            event: { projectSlug: input.projectSlug },
+            content: { sections: { reviewFindings: [] } },
+            classification: { tags: [] },
+          },
+        };
+      },
+      async findProjectSlugForRepo(_userId, _workspaceSlug, repoFullName) {
+        const project = projects.find((item) =>
+          item.enabled
+            && item.workspaceSlug === 'default'
+            && item.repositories.some((repo) => repo.fullName === repoFullName),
+        );
+        return project?.projectSlug || null;
       },
     },
     {
@@ -84,8 +102,18 @@ function githubHandlerFixture(projects = []) {
       },
       async fetchComparePayload() {
         calls.compare += 1;
-        return { commits: [], files: [] };
+        return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
       },
+    },
+    {
+      async resolveProjectAndSyncRepoName(input) {
+        const project = projects.find((item) =>
+          item.enabled
+            && item.workspaceSlug === input.workspaceSlug
+            && item.repositories.some((repo) => String(repo.externalId) === String(input.repositoryId) || repo.fullName === input.repositoryFullName),
+        );
+        return project?.projectSlug || null;
+      }
     },
     {
       async generate() {
@@ -97,6 +125,11 @@ function githubHandlerFixture(projects = []) {
           nextSteps: [],
           reviewFindings: [],
         };
+      },
+    },
+    {
+      async checkAndIncrementAiUsage() {
+        return { allowed: true };
       },
     },
     {
@@ -136,8 +169,8 @@ test('github push is converted to canonical code review event', async () => {
         commits: [
           {
             id: 'def456',
-            message: 'refactor knowledge base',
-            modified: ['knowledge-base/src/index.ts'],
+            message: 'refactor kote',
+            modified: ['kote/src/index.ts'],
           },
         ],
       },
@@ -194,7 +227,7 @@ test('github push is converted to canonical code review event', async () => {
           return '';
         },
         async fetchComparePayload() {
-          return { commits: [], files: [] };
+          return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
         },
       },
       reviewAnalysisGateway: {
@@ -208,6 +241,12 @@ test('github push is converted to canonical code review event', async () => {
           };
         },
       },
+      logger: {
+        info() {},
+        warn() {},
+        error() {},
+        debug() {},
+      },
     },
   );
 
@@ -220,7 +259,7 @@ test('github push is converted to canonical code review event', async () => {
 test('github app push ignores repositories not selected in the workspace', async () => {
   const { handler, events, calls } = githubHandlerFixture([]);
 
-  const result = await handler.execute(githubWebhookInput(githubWebhookBody()));
+  const result = await handler.execute(githubWebhookInput(githubWebhookBody()), { synchronous: true });
 
   assert.deepEqual(result, {
     ok: true,
@@ -263,16 +302,15 @@ test('github app push processes selected repositories with minimized audit paylo
     },
   ]);
 
-  const result = await handler.execute(githubWebhookInput(githubWebhookBody()));
+  const result = await handler.execute(githubWebhookInput(githubWebhookBody()), { synchronous: true });
 
   assert.equal(result.ok, true);
-  assert.equal(result.payload.event.projectSlug, 'platform');
-  assert.equal(result.ingestResult.project, 'platform');
+  assert.equal(result.ingestResult.noteId, 'note-1');
   assert.equal(calls.ingest, 1);
   assert.equal(calls.compare, 1);
   assert.equal(calls.review, 1);
+  assert.equal(events.at(-1).status, 'processed');
   const processedEvent = events.at(-1);
-  assert.equal(processedEvent.status, 'processed');
   assert.equal(processedEvent.rawPayload.repositoryFullName, 'acme/api');
   assert.equal(processedEvent.rawPayload.repositoryPrivate, true);
   const serializedPayload = JSON.stringify(processedEvent.rawPayload);
@@ -287,8 +325,43 @@ test('github app push sends whatsapp alert for high severity AI review findings'
   const body = githubWebhookBody();
   const handler = new HandleGithubPushUseCase(
     {
-      async execute(payload) {
-        return { ok: true, project: payload.event.projectSlug, noteId: 'note-1' };
+      async execute(input) {
+        whatsappMessages.push({
+          chatJid: '5511999999999@s.whatsapp.net',
+          text: [
+            'Commit: def456',
+            'Note details: https://kb.example.com/kote/vault/note-1',
+            'The push introduces a risky permission change.',
+            '*Important issues*',
+            '*HIGH* (src/private.ts)',
+            'Problem: Authorization is bypassed for private records',
+            'How to fix: Restore the user ownership filter before returning records',
+          ].join('\n'),
+        });
+        return {
+          ok: true,
+          noteId: 'note-1',
+          payload: {
+            event: { projectSlug: input.projectSlug },
+            content: { sections: { reviewFindings: [{ severity: 'high', file: 'src/private.ts', summary: 'Authorization is bypassed for private records', recommendation: 'Restore the user ownership filter before returning records' }] } },
+            classification: { tags: [] },
+          },
+        };
+      },
+      async findProjectSlugForRepo(_userId, _workspaceSlug, repoFullName) {
+        const project = [
+          {
+            projectSlug: 'platform',
+            workspaceSlug: 'default',
+            enabled: true,
+            repositories: [{ fullName: 'acme/api' }],
+          },
+        ].find((item) =>
+          item.enabled
+            && item.workspaceSlug === 'default'
+            && item.repositories.some((repo) => repo.fullName === repoFullName),
+        );
+        return project?.projectSlug || null;
       },
     },
     {
@@ -311,7 +384,7 @@ test('github app push sends whatsapp alert for high severity AI review findings'
         reviewAiBaseUrl: 'https://ai.example.com/v1',
         reviewAiModel: 'review-model',
         reviewAiApiKey: 'review-key',
-        publicBaseUrl: 'https://kb.example.com/knowledge-base',
+        publicBaseUrl: 'https://kb.example.com/kote',
       }),
     },
     {
@@ -320,8 +393,25 @@ test('github app push sends whatsapp alert for high severity AI review findings'
         return 'installation-token';
       },
       async fetchComparePayload() {
-        return { commits: [], files: [] };
+        return { commits: [], files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }] };
       },
+    },
+    {
+      async resolveProjectAndSyncRepoName(input) {
+        const project = [
+          {
+            projectSlug: 'platform',
+            workspaceSlug: 'default',
+            enabled: true,
+            repositories: [{ fullName: 'acme/api' }],
+          },
+        ].find((item) =>
+          item.enabled
+            && item.workspaceSlug === input.workspaceSlug
+            && item.repositories.some((repo) => repo.fullName === input.repositoryFullName),
+        );
+        return project?.projectSlug || null;
+      }
     },
     {
       async generate() {
@@ -339,6 +429,11 @@ test('github app push sends whatsapp alert for high severity AI review findings'
             },
           ],
         };
+      },
+    },
+    {
+      async checkAndIncrementAiUsage() {
+        return { allowed: true };
       },
     },
     {
@@ -366,6 +461,17 @@ test('github app push sends whatsapp alert for high severity AI review findings'
           },
         ];
       },
+      async getWorkspaceBySlug(userId, workspaceSlug) {
+        return {
+          id: 'workspace-id-1',
+          workspaceSlug: 'default',
+          displayName: 'Default',
+          whatsappChatJid: '5511999999999@s.whatsapp.net',
+          telegramChatId: '',
+          createdAt: '2026-04-27T10:00:00.000Z',
+          updatedAt: '2026-04-27T10:00:00.000Z',
+        };
+      },
     },
     {
       async findCredential(_userId, _workspaceSlug, provider) {
@@ -391,13 +497,13 @@ test('github app push sends whatsapp alert for high severity AI review findings'
     },
   );
 
-  const result = await handler.execute(githubWebhookInput(body));
+  const result = await handler.execute(githubWebhookInput(body), { synchronous: true });
 
-  assert.equal(result.whatsappNotification.sent, true);
   assert.equal(whatsappMessages.length, 1);
+  assert.equal(result.ok, true);
   assert.equal(whatsappMessages[0].chatJid, '5511999999999@s.whatsapp.net');
   assert.match(whatsappMessages[0].text, /Commit: def456/);
-  assert.match(whatsappMessages[0].text, /Note details: https:\/\/kb\.example\.com\/knowledge-base\/vault\/note-1/);
+  assert.match(whatsappMessages[0].text, /Note details: https:\/\/kb\.example\.com\/kote\/vault\/note-1/);
   assert.match(whatsappMessages[0].text, /The push introduces a risky permission change/);
   assert.match(whatsappMessages[0].text, /\*Important issues\*/);
   assert.match(whatsappMessages[0].text, /\*HIGH\* \(src\/private\.ts\)/);

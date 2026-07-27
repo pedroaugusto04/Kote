@@ -11,6 +11,7 @@ export type Repository = {
 };
 
 export type Project = {
+  id?: string;
   projectSlug: string;
   displayName: string;
   repositories: Repository[];
@@ -18,5 +19,7 @@ export type Project = {
   defaultTags: string[];
   enabled: boolean;
   favorite: boolean;
+  noteCount?: number;
   activitySparkline?: { date: string; count: number }[];
+  coveragePercentage?: number;
 };

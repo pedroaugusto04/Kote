@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 /**
- * Centralized error reporter for the KB extension.
+ * Centralized error reporter for the Kote extension.
  *
  * Responsibilities:
  *  - Normalize errors (Error vs unknown) consistently in one place
@@ -9,7 +9,7 @@ import * as vscode from 'vscode';
  *  - (Future) send structured logs to an output channel for diagnostics
  */
 
-const OUTPUT_CHANNEL_NAME = 'Knowledge Vault';
+const OUTPUT_CHANNEL_NAME = 'Kote';
 let _channel: vscode.OutputChannel | undefined;
 
 function getChannel(): vscode.OutputChannel {
@@ -38,7 +38,7 @@ export function reportError(context: string, err: unknown): void {
 
   getChannel().appendLine(`ERROR ${new Date().toISOString()} ${full}`);
 
-  vscode.window.showErrorMessage(`KB: ${message}`, 'Show Output').then((action) => {
+  vscode.window.showErrorMessage(`Kote: ${message}`, 'Show Output').then((action) => {
     if (action === 'Show Output') getChannel().show();
   });
 }

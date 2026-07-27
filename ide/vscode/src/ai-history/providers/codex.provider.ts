@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
 import { collapseWhitespace } from '../../utils/text.js';
+import { watchRecursive } from '../../utils/watcher.js';
 
 export class CodexHistoryProvider implements AiHistoryProvider {
   readonly id = 'codex-cli';
@@ -11,7 +12,7 @@ export class CodexHistoryProvider implements AiHistoryProvider {
 
   private getHistoryDir(): string {
     const configPath = vscode.workspace.getConfiguration('kb').get<string>('codexLogPath');
-    return configPath || path.join(os.homedir(), '.codex', 'sessions');
+    return configPath || path.join(os.homedir(), '.codex');
   }
 
   async isEnabled(): Promise<boolean> {
@@ -41,18 +42,30 @@ export class CodexHistoryProvider implements AiHistoryProvider {
     return results;
   }
 
-  async getRecentSessions(): Promise<AiSession[]> {
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
     const dir = this.getHistoryDir();
     if (!fs.existsSync(dir)) return [];
 
     const sessions: AiSession[] = [];
     try {
-      const allFiles = this.getAllFiles(dir);
-      for (const filePath of allFiles) {
-        if (filePath.endsWith('.json') || filePath.endsWith('.jsonl')) {
-          const session = this.parseFile(filePath);
-          if (session) sessions.push(session);
+      const allFiles = this.getAllFiles(dir).filter(filePath => filePath.endsWith('.json') || filePath.endsWith('.jsonl'));
+      
+      // Sort files by mtimeMs descending
+      const fileStats = allFiles.map(filePath => {
+        try {
+          return { filePath, mtime: fs.statSync(filePath).mtimeMs };
+        } catch {
+          return { filePath, mtime: 0 };
         }
+      });
+      fileStats.sort((a, b) => b.mtime - a.mtime);
+
+      const count = limit !== undefined ? limit : 20;
+      const recentFiles = fileStats.slice(0, count).map(x => x.filePath);
+
+      for (const filePath of recentFiles) {
+        const session = this.parseFile(filePath);
+        if (session) sessions.push(session);
       }
     } catch (err) {
       console.error('Failed to read recent Codex sessions:', err);
@@ -62,14 +75,9 @@ export class CodexHistoryProvider implements AiHistoryProvider {
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const historyDir = this.getHistoryDir();
-    const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(historyDir, '**/*.{json,jsonl}')
-    );
-
     const timeouts = new Map<string, NodeJS.Timeout>();
 
-    const handleFile = (uri: vscode.Uri) => {
-      const fsPath = uri.fsPath;
+    const handleFile = (fsPath: string) => {
       if (timeouts.has(fsPath)) {
         clearTimeout(timeouts.get(fsPath)!);
       }
@@ -85,8 +93,11 @@ export class CodexHistoryProvider implements AiHistoryProvider {
       timeouts.set(fsPath, timeout);
     };
 
-    watcher.onDidChange(handleFile);
-    watcher.onDidCreate(handleFile);
+    const watcher = watchRecursive(
+      historyDir,
+      (fileName) => fileName.endsWith('.json') || fileName.endsWith('.jsonl'),
+      (filePath) => handleFile(filePath)
+    );
 
     return new vscode.Disposable(() => {
       for (const t of timeouts.values()) {

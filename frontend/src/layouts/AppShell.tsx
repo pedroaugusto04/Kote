@@ -6,28 +6,32 @@ import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from
 import type { PageContext } from '../app/page-context';
 import { navItems, routes, type View } from '../app/routing/routes';
 import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite } from '../shared/api/client';
+import { fetchSubscriptionStatus } from '../shared/api/billing';
+import { QuotaUsageWidget } from '../features/quota/QuotaUsageWidget';
+import { hasQuotaWarning } from '../features/quota/quota.utils';
 import type { NoteSummary } from '../shared/api/models/note';
 import { ensureNoteDetail, getCachedNoteDetail, invalidateNoteRelatedQueries, noteDetailQueryOptions } from '../shared/api/note-query';
-import { HomePage } from '../pages/home/HomePage';
-import { ProjectsPage } from '../pages/projects/ProjectsPage';
-import { RemindersPage } from '../pages/reminders/RemindersPage';
-import { SearchPage } from '../pages/search/SearchPage';
-import { VaultPage } from '../pages/vault/VaultPage';
-import { LandingPage } from '../pages/landing/LandingPage';
 import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
+import { AskAiIcon } from '../widgets/ask/AskAiIcon';
+import { getCleanSummary } from '../shared/utils/format';
 
 const IntegrationsPage = lazy(() => import('../pages/integrations/IntegrationsPage').then(m => ({ default: m.IntegrationsPage })));
 const SubscriptionPage = lazy(() => import('../pages/billing/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
-const KanbanPage = lazy(() => import('../pages/kanban/KanbanPage').then(m => ({ default: m.KanbanPage })));
 const ProjectKnowledgeMapPage = lazy(() => import('../features/projects/knowledge-map/ProjectKnowledgeMapPage').then(m => ({ default: m.ProjectKnowledgeMapPage })));
 const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const SetupPage = lazy(() => import('../pages/setup/SetupPage').then(m => ({ default: m.SetupPage })));
 const AuthPage = lazy(() => import('../pages/auth/AuthPage').then(m => ({ default: m.AuthPage })));
 const HelpPage = lazy(() => import('../pages/help/HelpPage').then(m => ({ default: m.HelpPage })));
 const AutomationsPage = lazy(() => import('../pages/automations/AutomationsPage').then((m: any) => ({ default: m?.default ?? m.AutomationsPage })));
+const HomePage = lazy(() => import('../pages/home/HomePage').then(m => ({ default: m.HomePage })));
+const ProjectsPage = lazy(() => import('../pages/projects/ProjectsPage').then(m => ({ default: m.ProjectsPage })));
+const RemindersPage = lazy(() => import('../pages/reminders/RemindersPage').then(m => ({ default: m.RemindersPage })));
+const SearchPage = lazy(() => import('../pages/search/SearchPage').then(m => ({ default: m.SearchPage })));
+const VaultPage = lazy(() => import('../pages/vault/VaultPage').then(m => ({ default: m.VaultPage })));
+const LandingPage = lazy(() => import('../pages/landing/LandingPage').then(m => ({ default: m.LandingPage })));
 import { flattenFolders } from '../features/projects/projects.helpers';
 import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
-import type { ConfirmState, NoteModalState } from '../features/projects/projects.types';
+import { ConfirmKind, WorkspaceModalMode, type ConfirmState, type NoteModalState } from '../features/projects/projects.types';
 import { notifyGeneralFormError } from '../shared/forms/errors';
 import { ConfirmationModal } from '../shared/ui/confirmation-modal';
 import { QuotaExceededModal } from '../shared/ui/QuotaExceededModal';
@@ -42,7 +46,23 @@ import { useGlobalLoading } from '../app/global-loading';
 import { useDebouncedValue } from '../shared/ui/use-debounced-value';
 import { OfflineBanner } from '../shared/ui/offline-banner';
 import { Breadcrumbs } from '../shared/ui/Breadcrumbs';
-import { Line, LineChart, ResponsiveContainer } from 'recharts';
+import { Sparkline } from '../shared/ui/Sparkline';
+import { HomeIcon, ProjectsIcon, RemindersIcon, MapIcon, ChevronDownIcon } from '../shared/ui/icons';
+import { ProjectCoverageBadge } from '../features/projects/components/ProjectCoverageBadge';
+
+const navIconMap: Record<View, React.ReactNode> = {
+  home: <HomeIcon className="nav-item-icon" />,
+  projects: <ProjectsIcon className="nav-item-icon" />,
+  search: <AskAiIcon className="nav-item-icon" />,
+  reminders: <RemindersIcon className="nav-item-icon" />,
+  map: <MapIcon className="nav-item-icon" />,
+  note: null,
+  profile: null,
+  integrations: null,
+  subscription: null,
+  help: null,
+  automations: null,
+};
 
 
 function activeView(pathname: string): View {
@@ -50,7 +70,6 @@ function activeView(pathname: string): View {
   if (pathname.startsWith(routes.projects)) return 'projects';
   if (pathname.startsWith(routes.vault)) return 'note';
   if (pathname.startsWith(routes.search)) return 'search';
-  if (pathname.startsWith(routes.kanban)) return 'kanban';
   if (pathname.startsWith(routes.reminders)) return 'reminders';
   if (pathname.startsWith(routes.profile)) return 'profile';
   if (pathname.startsWith(routes.integrations)) return 'integrations';
@@ -84,15 +103,18 @@ export function AppShell() {
   const [selectedNoteId, setSelectedNoteId] = useState('');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isProjectsExpanded, setIsProjectsExpanded] = useState(false);
   const [noteModal, setNoteModal] = useState<NoteModalState | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [quotaExceededError, setQuotaExceededError] = useState<ApiClientError | null>(null);
+  const [onNoteModalClose, setOnNoteModalClose] = useState<(() => void) | undefined>(undefined);
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedSearchValue = useDebouncedValue(searchValue, 300);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const commandBarRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const view = activeView(location.pathname);
   const routeProject = routeParam(location.pathname, `${routes.projects}/`);
@@ -127,12 +149,32 @@ export function AppShell() {
   const activeRouteNote = routeNoteQuery.data || cachedRouteNote;
   const shouldBlockNoteRoute = Boolean(routeNoteId) && routeNoteQuery.isLoading && !activeRouteNote;
   const isUnauthorized = dashboardQuery.error instanceof ApiClientError && dashboardQuery.error.status === 401;
+  // currentUser is critical for UI (avatar, menu) - load in parallel
   const currentUserQuery = useQuery({
     queryKey: QUERY_KEYS.AUTH.ME,
     queryFn: fetchCurrentUser,
     enabled: Boolean(dashboard && activeWorkspace && !isSetupRoute),
   });
   const currentUser = currentUserQuery.data?.user;
+
+  // Quota status — non-critical (just warning dot), defer to improve FCP
+  const [enableQuotaQuery, setEnableQuotaQuery] = useState(false);
+  const quotaStatusQuery = useQuery({
+    queryKey: ['billing', 'status'],
+    queryFn: fetchSubscriptionStatus,
+    staleTime: 60_000,
+    enabled: enableQuotaQuery && Boolean(dashboard && activeWorkspace && !isSetupRoute),
+  });
+  const quotaStatus = quotaStatusQuery.data;
+  const showQuotaWarningDot = quotaStatus ? hasQuotaWarning(quotaStatus) : false;
+
+  // Enable quota query after dashboard loads to improve FCP
+  useEffect(() => {
+    if (dashboard && activeWorkspace && !isSetupRoute) {
+      const timer = setTimeout(() => setEnableQuotaQuery(true), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [dashboard, activeWorkspace, isSetupRoute]);
 
   useLayoutEffect(() => {
     if (dashboardQuery.isLoading && !dashboardQuery.data) {
@@ -162,6 +204,9 @@ export function AppShell() {
     const handleClickOutside = (event: MouseEvent) => {
       if (commandBarRef.current && !commandBarRef.current.contains(event.target as Node)) {
         setIsPopoverOpen(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setIsProfileMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -197,9 +242,9 @@ export function AppShell() {
   }, [isProfileMenuOpen]);
 
   const noteFoldersQuery = useQuery({
-    queryKey: QUERY_KEYS.PROJECTS.FOLDERS(noteModal?.mode === 'edit' ? noteModal.note.project : ''),
-    queryFn: () => fetchProjectFolders(noteModal?.mode === 'edit' ? noteModal.note.project : ''),
-    enabled: noteModal?.mode === 'edit',
+    queryKey: QUERY_KEYS.PROJECTS.FOLDERS(noteModal?.mode === WorkspaceModalMode.Edit ? noteModal.note.project : ''),
+    queryFn: () => fetchProjectFolders(noteModal?.mode === WorkspaceModalMode.Edit ? noteModal.note.project : ''),
+    enabled: noteModal?.mode === WorkspaceModalMode.Edit,
   });
   const noteModalFolders = useMemo(
     () => flattenFolders(noteFoldersQuery.data?.folders || []),
@@ -207,7 +252,7 @@ export function AppShell() {
   );
   const loadNoteMutation = useMutation({
     mutationFn: (id: string) => globalLoading.trackPromise(fetchNote(id)),
-    onSuccess: (note) => setNoteModal({ mode: 'edit', note }),
+    onSuccess: (note) => setNoteModal({ mode: WorkspaceModalMode.Edit, note }),
     onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_LOAD_NOTE_FOR_EDITING),
   });
   const deleteNoteMutation = useMutation({
@@ -277,12 +322,19 @@ export function AppShell() {
       editNote: (noteId: string) => {
         loadNoteMutation.mutate(noteId);
       },
-      createNote: (projectSlug?: string) => {
+      createNote: (projectSlug?: string, initialTitle?: string, initialAttachments?: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }>) => {
         const slug = projectSlug || currentProject || dashboard.projects[0]?.projectSlug || UI_MESSAGES.DEFAULT_PROJECT_SLUG;
-        setNoteModal({ mode: 'create', projectSlug: slug });
+        setNoteModal({
+          mode: WorkspaceModalMode.Create,
+          projectSlug: slug,
+          initialTitle,
+          initialAttachments,
+        });
       },
+      onNoteModalClose,
+      setOnNoteModalClose,
       deleteNote: (note: Pick<NoteSummary, 'id' | 'title'>) => {
-        setConfirmState({ kind: 'note', note: { ...note } as NoteSummary });
+        setConfirmState({ kind: ConfirmKind.Note, note: { ...note } as NoteSummary });
       },
     };
   }, [activeRouteNote?.project, dashboard, globalLoading, isProjectsRoot, navigate, queryClient, routeNoteId, routeProject, selectedNoteId, selectedProject, view]);
@@ -355,6 +407,17 @@ export function AppShell() {
   return (
     <div className="app-shell">
       <OfflineBanner />
+      {showQuotaWarningDot && (
+        <div className="quota-warning-banner" role="alert" aria-live="polite">
+          <span style={{ fontSize: '14px' }}>⚠️</span>
+          <span style={{ fontSize: '12px' }}>
+            You are approaching your monthly limit.{' '}
+            <Link to="/profile" style={{ color: 'inherit', textDecoration: 'underline', fontWeight: 600 }}>See quota usage</Link>
+            {' · '}
+            <Link to="/automations/subscription" style={{ color: 'inherit', textDecoration: 'underline', fontWeight: 600 }}>Upgrade your plan</Link>
+          </span>
+        </div>
+      )}
       <button
         aria-label={UI_MESSAGES.CLOSE_NAVIGATION}
         aria-hidden={!isMobileNavOpen}
@@ -364,84 +427,109 @@ export function AppShell() {
         type="button"
       />
       <aside className={`sidebar ${isMobileNavOpen ? 'open' : ''}`} aria-label={UI_MESSAGES.VAULT_NAVIGATION} id="app-sidebar">
-        <Link className="brand" to={routes.home} aria-label={UI_MESSAGES.GO_TO_HOME}>
-          <BrandMark />
-          <div>
-            <strong>{UI_MESSAGES.KNOWLEDGE_VAULT}</strong>
-            <span>{UI_MESSAGES.DEVELOPER_KNOWLEDGE_BASE}</span>
-          </div>
-        </Link>
-        <nav className="main-nav" aria-label={UI_MESSAGES.MAIN_SECTIONS}>
-          {navItems.map((item) => (
-            <NavLink
-              className={({ isActive }) => `nav-item ${isActive || view === item.view ? 'active' : ''}`}
-              end={item.path === routes.home}
-              key={item.view}
-              onClick={() => setIsMobileNavOpen(false)}
-              to={item.path}
-            >
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
-        <section className="sidebar-section">
-          <div className="section-label">{UI_MESSAGES.WORKSPACE}</div>
-          <div className="workspace-pill workspace-pill-static" aria-label={`${UI_MESSAGES.CURRENT_WORKSPACE} ${activeWorkspace.workspaceSlug}`} role="status">
-            <span className="status-dot" />
-            <span className="workspace-pill-copy">
-              <strong>{activeWorkspace.displayName}</strong>
-              <small>{activeWorkspace.workspaceSlug}</small>
-            </span>
-          </div>
-        </section>
-        <section className="sidebar-section">
-          <div className="section-label">{UI_MESSAGES.PROJECTS}</div>
-          <div className="tree">
-            {dashboard.projects.map((project) => (
-              <div className="tree-item-row" key={project.projectSlug}>
-                <button
-                  className={`tree-item ${project.projectSlug === pageContext.selectedProject ? 'active' : ''}`}
-                  type="button"
-                  onClick={() => {
-                    pageContext.openProject(project.projectSlug);
-                    setIsMobileNavOpen(false);
-                  }}
-                >
-                  <span className="file-icon">P</span>
-                  <span>{project.displayName}</span>
-                  {project.activitySparkline && (
-                    <div className="project-sparkline" style={{ width: '40px', height: '16px', marginLeft: 'auto', marginRight: '4px', flexShrink: 0 }}>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={project.activitySparkline}>
-                          <Line
-                            type="monotone"
-                            dataKey="count"
-                            stroke={project.projectSlug === pageContext.selectedProject ? 'var(--text)' : 'var(--muted)'}
-                            strokeWidth={1.5}
-                            dot={false}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </button>
-                <button
-                  aria-label={project.favorite ? UI_MESSAGES.UNSTAR : UI_MESSAGES.STAR}
-                  className={`favorite-star ${project.favorite ? 'active' : ''}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleFavoriteMutation.mutate({ slug: project.projectSlug, favorite: !project.favorite });
-                  }}
-                  type="button"
-                >
-                  <svg aria-hidden="true" viewBox="0 0 24 24" fill={project.favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z" />
-                  </svg>
-                </button>
-              </div>
+        <div className="sidebar-main-content">
+          <Link className="brand" to={routes.home} aria-label={UI_MESSAGES.GO_TO_HOME}>
+            <BrandMark />
+            <div>
+              <strong>{UI_MESSAGES.KNOWLEDGE_VAULT}</strong>
+              <span>{UI_MESSAGES.DEVELOPER_KNOWLEDGE_BASE}</span>
+            </div>
+          </Link>
+          <nav className="main-nav" aria-label={UI_MESSAGES.MAIN_SECTIONS}>
+            {navItems.map((item) => (
+              <NavLink
+                className={({ isActive }) => `nav-item ${isActive || view === item.view ? 'active' : ''}`}
+                end={item.path === routes.home}
+                key={item.view}
+                onClick={() => setIsMobileNavOpen(false)}
+                to={item.path}
+              >
+                {navIconMap[item.view]}
+                <span>{item.label}</span>
+              </NavLink>
             ))}
-          </div>
-        </section>
+          </nav>
+          <section className="sidebar-section">
+            <div className="section-label">{UI_MESSAGES.WORKSPACE}</div>
+            <div className="workspace-pill workspace-pill-static" aria-label={`${UI_MESSAGES.CURRENT_WORKSPACE} ${activeWorkspace.workspaceSlug}`} role="status">
+              <span className="status-dot" />
+              <span className="workspace-pill-copy">
+                <strong>{activeWorkspace.displayName}</strong>
+                <small>{activeWorkspace.workspaceSlug}</small>
+              </span>
+            </div>
+          </section>
+          <section className="sidebar-section">
+            <div className="section-label-header">
+              <div className="section-label">{UI_MESSAGES.PROJECTS}</div>
+              {dashboard.projects.length > 8 && (
+                <button
+                  className="section-toggle-btn"
+                  type="button"
+                  onClick={() => setIsProjectsExpanded((prev) => !prev)}
+                >
+                  {isProjectsExpanded ? 'Collapse' : `All (${dashboard.projects.length})`}
+                </button>
+              )}
+            </div>
+            <div className="tree">
+              {(isProjectsExpanded ? dashboard.projects : dashboard.projects.slice(0, 8)).map((project) => (
+                <div className="tree-item-row" key={project.projectSlug}>
+                  <button
+                    className={`tree-item ${project.projectSlug === pageContext.selectedProject ? 'active' : ''}`}
+                    type="button"
+                    onClick={() => {
+                      pageContext.openProject(project.projectSlug);
+                      setIsMobileNavOpen(false);
+                    }}
+                  >
+                    <ProjectsIcon className="tree-item-icon" />
+                    <span className="tree-item-label">{project.displayName}</span>
+                    {project.activitySparkline && (
+                      <div className="project-sparkline" style={{ width: '40px', height: '16px', marginLeft: 'auto', marginRight: '4px', flexShrink: 0 }}>
+                        <Sparkline
+                          data={project.activitySparkline}
+                          width={40}
+                          height={16}
+                          stroke={project.projectSlug === pageContext.selectedProject ? 'var(--text)' : 'var(--muted)'}
+                          strokeWidth={1.5}
+                        />
+                      </div>
+                    )}
+                  </button>
+                  <ProjectCoverageBadge
+                    projectSlug={project.projectSlug}
+                    projectDisplayName={project.displayName}
+                    onlyCircle
+                  />
+                  <button
+                    aria-label={project.favorite ? UI_MESSAGES.UNSTAR : UI_MESSAGES.STAR}
+                    className={`favorite-star ${project.favorite ? 'active' : ''}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleFavoriteMutation.mutate({ slug: project.projectSlug, favorite: !project.favorite });
+                    }}
+                    type="button"
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill={project.favorite ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.8">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+        <div className="sidebar-footer">
+          <Link to={routes.help} className="sidebar-footer-link" onClick={() => setIsMobileNavOpen(false)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ width: 16, height: 16 }}>
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>Help & Documentation</span>
+          </Link>
+        </div>
       </aside>
       <main className="content">
         <header className="topbar">
@@ -478,6 +566,15 @@ export function AppShell() {
                 onFocus={() => setIsPopoverOpen(true)}
                 onKeyDown={handleSearchKeyDown}
               />
+              <button
+                aria-label={UI_MESSAGES.ASK_AI_SEMANTIC_SEARCH}
+                className="ask-ai-shortcut-btn"
+                onClick={() => navigate(`${routes.search}?focus=input`)}
+                title={UI_MESSAGES.ASK_AI_SEMANTIC_SEARCH}
+                type="button"
+              >
+                <AskAiIcon className="ask-ai-shortcut-icon" />
+              </button>
             </label>
             {isPopoverOpen && searchValue.trim() && (
               <div className="command-bar-popover" role="listbox">
@@ -500,7 +597,7 @@ export function AppShell() {
                     >
                       <div className="result-main">
                         <span className="result-title">{match.title}</span>
-                        {match.path ? <span className="result-path">{match.path}</span> : null}
+                        {match.summary ? <span className="result-path">{getCleanSummary(match.summary)}</span> : null}
                       </div>
                       <div className="result-meta">
                         <span className="result-project-badge">{match.project}</span>
@@ -514,7 +611,7 @@ export function AppShell() {
             )}
           </div>
           <div className="topbar-meta">
-            <div className="profile-menu">
+            <div className="profile-menu" ref={profileMenuRef}>
               <button
                 aria-expanded={isProfileMenuOpen}
                 aria-haspopup="menu"
@@ -523,6 +620,7 @@ export function AppShell() {
                 onClick={() => setIsProfileMenuOpen((current) => !current)}
                 title={UI_MESSAGES.USER_MENU}
                 type="button"
+                style={{ position: 'relative' }}
               >
                 <UserAvatar
                   avatarUrl={currentUser?.avatarUrl}
@@ -530,6 +628,21 @@ export function AppShell() {
                   displayName={currentUser?.displayName}
                   email={currentUser?.email}
                 />
+                {showQuotaWarningDot && (
+                  <span
+                    title="AI credit quota is running low"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      right: 0,
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: 'hsl(38, 90%, 52%)',
+                      border: '2px solid var(--surface-1)',
+                    }}
+                  />
+                )}
               </button>
               {isProfileMenuOpen ? (
                 <div className="profile-menu-popover" role="menu">
@@ -554,6 +667,11 @@ export function AppShell() {
                   <Link className="profile-menu-link" role="menuitem" to={routes.subscription}>
                     Subscription
                   </Link>
+                  {quotaStatus && (
+                    <div style={{ padding: '12px 12px 4px', borderTop: '1px solid var(--border-subtle)', marginTop: 4 }}>
+                      <QuotaUsageWidget status={quotaStatus} compact aiOnly hideTitle={false} />
+                    </div>
+                  )}
                   <Link className="profile-menu-link" role="menuitem" to={routes.automations}>
                     Automations
                   </Link>
@@ -590,7 +708,6 @@ export function AppShell() {
               <Route path="/vault" element={<Navigate replace to={routes.projects} />} />
               <Route path="/vault/:noteId" element={shouldBlockNoteRoute ? null : <VaultPage {...pageContext} />} />
               <Route path="/search" element={<SearchPage {...pageContext} />} />
-              <Route path="/kanban" element={<KanbanPage {...pageContext} />} />
               <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
               <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
               <Route path="/automations/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
@@ -604,25 +721,40 @@ export function AppShell() {
       </main>
       {noteModal ? (
         <ProjectNoteModal
-          folders={noteModal.mode === 'edit' ? noteModalFolders : undefined}
+          key={noteModal.mode === WorkspaceModalMode.Edit ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}`}
+          folders={noteModal.mode === WorkspaceModalMode.Edit ? noteModalFolders : undefined}
           mode={noteModal.mode}
-          note={noteModal.mode === 'edit' ? noteModal.note : undefined}
-          onClose={() => setNoteModal(null)}
-          onSaved={async (noteId, mode) => {
+          note={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note : undefined}
+          onClose={() => {
             setNoteModal(null);
-            notifySuccess(mode === 'create' ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
-            await refreshDashboard(queryClient);
-            if (mode === 'create' && noteId) {
-              pageContext.openNote(noteId);
+            if (onNoteModalClose) {
+              onNoteModalClose();
+              setOnNoteModalClose(undefined);
             }
           }}
-          projectSlug={noteModal.mode === 'edit' ? noteModal.note.project : noteModal.projectSlug}
-          initialFolderId={noteModal.mode === 'edit' ? noteModal.note.folderId || undefined : undefined}
+          onSaved={async (noteId, mode) => {
+            setNoteModal(null);
+            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
+            await refreshDashboard(queryClient);
+            if (onNoteModalClose) {
+              onNoteModalClose();
+              setOnNoteModalClose(undefined);
+            }
+          }}
+          projectSlug={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug}
+          initialFolderId={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.folderId || undefined : undefined}
+          initialTitle={noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialTitle : undefined}
+          initialAttachments={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.attachments?.map(att => ({
+            fileName: att.fileName,
+            mimeType: att.mimeType,
+            sizeBytes: att.sizeBytes,
+            dataBase64: '',
+          })) : noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialAttachments : undefined}
           projects={dashboard.projects}
           workspaceSlug={workspaceSlug}
         />
       ) : null}
-      {confirmState?.kind === 'note' ? (
+      {confirmState?.kind === ConfirmKind.Note ? (
         <ConfirmationModal
           busy={deleteNoteMutation.isPending}
           cancelLabel={UI_MESSAGES.CANCEL}

@@ -10,7 +10,7 @@ import {
 } from '../../../../application/use-cases/webhook-subscriptions/webhook-subscription.use-cases.js';
 import { WEBHOOK_TRIGGER_REGISTRY } from '../../../../domain/webhook-trigger-registry.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
   createWebhookSubscriptionBodySchema,
   updateWebhookSubscriptionBodySchema,

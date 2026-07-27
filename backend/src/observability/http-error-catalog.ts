@@ -36,6 +36,8 @@ export const httpErrorCatalog = {
   avatar_file_required: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Choose a profile photo to upload.', logLevel: HttpErrorLogLevel.Warn },
   unsupported_avatar_type: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Profile photo must be a PNG, JPEG, or WebP image.', logLevel: HttpErrorLogLevel.Warn },
   avatar_file_too_large: { statusCode: HttpStatus.PAYLOAD_TOO_LARGE, safeMessage: 'Profile photo must be 2 MB or smaller.', logLevel: HttpErrorLogLevel.Warn },
+  unsupported_attachment_type: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Unsupported file type. Only common images, documents, audio, video, archives, and code files are supported.', logLevel: HttpErrorLogLevel.Warn },
+  payload_too_large: { statusCode: HttpStatus.PAYLOAD_TOO_LARGE, safeMessage: 'The uploaded file or attachment is too large.', logLevel: HttpErrorLogLevel.Warn },
   avatar_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Profile photo not found.', logLevel: HttpErrorLogLevel.Info },
   invalid_query_payload: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid query payload.', logLevel: HttpErrorLogLevel.Warn },
   invalid_workspace_query: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid workspace.', logLevel: HttpErrorLogLevel.Warn },
@@ -91,8 +93,10 @@ export const httpErrorCatalog = {
   telegram_bot_token_not_configured: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Telegram is not configured.', logLevel: HttpErrorLogLevel.Error },
   review_ai_not_configured: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Review AI is not configured.', logLevel: HttpErrorLogLevel.Warn },
   conversation_ai_not_configured: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Conversation AI is not configured.', logLevel: HttpErrorLogLevel.Warn },
+  ai_conversation_not_enabled: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Conversation AI is not enabled for this workspace.', logLevel: HttpErrorLogLevel.Warn },
   project_brief_ai_not_configured: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Project Brief AI is not configured.', logLevel: HttpErrorLogLevel.Warn },
   project_brief_ai_not_connected: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Project Brief AI is not connected.', logLevel: HttpErrorLogLevel.Warn },
+  file_notes_summary_ai_not_connected: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'File Notes Summary AI is not enabled for this workspace.', logLevel: HttpErrorLogLevel.Warn },
   project_brief_generation_failed: { statusCode: HttpStatus.SERVICE_UNAVAILABLE, safeMessage: 'Project brief generation failed.', logLevel: HttpErrorLogLevel.Warn },
   credentials_encryption_key_must_be_32_bytes_base64: { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, safeMessage: 'Credential encryption is unavailable.', logLevel: HttpErrorLogLevel.Error },
   invalid_encrypted_config: { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, safeMessage: 'Stored credential is invalid.', logLevel: HttpErrorLogLevel.Error },
@@ -107,6 +111,7 @@ export const httpErrorCatalog = {
   plan_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Plan not found.', logLevel: HttpErrorLogLevel.Warn },
   gateway_subscription_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Gateway subscription not found.', logLevel: HttpErrorLogLevel.Warn },
   gateway_customer_not_found: { statusCode: HttpStatus.NOT_FOUND, safeMessage: 'Gateway customer not found.', logLevel: HttpErrorLogLevel.Warn },
+  invalid_email_payload: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Invalid email payload.', logLevel: HttpErrorLogLevel.Warn },
   quota_exceeded: { statusCode: HttpStatus.FORBIDDEN, safeMessage: 'Quota limit exceeded.', logLevel: HttpErrorLogLevel.Warn },
 } as const satisfies Record<string, HttpErrorDefinition>;
 
@@ -118,7 +123,7 @@ const statusFallbackCode: Record<number, HttpErrorCode> = {
   [HttpStatus.FORBIDDEN]: 'forbidden',
   [HttpStatus.NOT_FOUND]: 'not_found',
   [HttpStatus.CONFLICT]: 'conflict',
-  [HttpStatus.PAYLOAD_TOO_LARGE]: 'avatar_file_too_large',
+  [HttpStatus.PAYLOAD_TOO_LARGE]: 'payload_too_large',
   [HttpStatus.TOO_MANY_REQUESTS]: 'rate_limited',
   [HttpStatus.INTERNAL_SERVER_ERROR]: 'internal_server_error',
 };

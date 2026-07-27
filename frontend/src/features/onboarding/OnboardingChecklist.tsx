@@ -1,13 +1,25 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { fetchIntegrations } from '../../shared/api/client';
+import { fetchGithubBackfillStatus, fetchIntegrations, fetchGithubRepositories, fetchCurrentUser, cancelGithubBackfill } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { UserIntegration } from '../../shared/api/models/integration';
 import { routes } from '../../app/routing/routes';
+import { withFrontendBasePath } from '../../app/base-path';
+import { useGlobalLoading } from '../../app/global-loading';
 import { Panel } from '../../shared/ui/primitives';
+import { notifySuccess } from '../../shared/ui/notifications';
+import { notifyGeneralFormError } from '../../shared/forms/errors';
+import { INTEGRATION_MESSAGES } from '../integrations/integrations.constants';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
+import { CDNImage } from '../../shared/ui/CDNImage';
+import { GithubBackfillOptInModal } from '../integrations/GithubBackfillOptInModal';
+import {
+  readBackfillJobId,
+  storeBackfillJob,
+} from '../integrations/backfill-storage';
 
 /** localStorage key for onboarding state. */
 const STORAGE_KEY = 'kb-onboarding-checklist';
@@ -16,15 +28,22 @@ type OnboardingStorage = {
   dismissed: boolean;
   dismissedAt: string | null;
   showLaterAt: string | null;
+  completionAcknowledged: boolean;
 };
 
 function loadStorage(): OnboardingStorage {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return { dismissed: false, dismissedAt: null, showLaterAt: null };
-    return JSON.parse(raw) as OnboardingStorage;
+    if (!raw) return { dismissed: false, dismissedAt: null, showLaterAt: null, completionAcknowledged: false };
+    const parsed = JSON.parse(raw) as Partial<OnboardingStorage>;
+    return {
+      dismissed: parsed.dismissed === true,
+      dismissedAt: parsed.dismissedAt || null,
+      showLaterAt: parsed.showLaterAt || null,
+      completionAcknowledged: parsed.completionAcknowledged === true,
+    };
   } catch {
-    return { dismissed: false, dismissedAt: null, showLaterAt: null };
+    return { dismissed: false, dismissedAt: null, showLaterAt: null, completionAcknowledged: false };
   }
 }
 
@@ -32,47 +51,63 @@ function saveStorage(state: OnboardingStorage) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+
 type ChecklistItemDef = {
   id: string;
   label: string;
   description: string;
   priority: boolean;
-  route: string;
+  route?: string;
   provider?: string;
-  icon: string;
+  icon: React.ReactNode;
+  optional?: boolean;
 };
 
 const CHECKLIST_ITEMS: ChecklistItemDef[] = [
   {
     id: 'github',
     label: 'Connect GitHub',
-    description: 'Automatically create projects by selecting your repositories.',
+    description: 'Link your repositories so Kote can capture commits and AI reviews.',
     priority: true,
     route: routes.integrations,
     provider: 'github-app',
-    icon: '⌥',
+    icon: <CDNImage src="https://cdn.simpleicons.org/github/ffffff" style={{ width: '16px', height: '16px', display: 'block' }} alt="GitHub" fallback="⌥" />,
+  },
+  {
+    id: 'github-backfill',
+    label: 'Import recent commits',
+    description: 'Import recent commits to experience the sync flow and understand how it works.',
+    priority: true,
+    icon: '⤴',
   },
   {
     id: 'github-push',
     label: 'Make first push',
-    description: 'Push code to your linked repository to trigger your first review.',
-    priority: true,
+    description: 'Push code to your linked repository to trigger your first live review.',
+    priority: false,
     route: routes.projects,
     icon: '↑',
   },
   {
-    id: 'whatsapp',
-    label: 'Connect WhatsApp',
-    description: 'Capture notes and knowledge via WhatsApp messages.',
+    id: 'vscode-extension',
+    label: 'Install VS Code Extension',
+    description: 'Download the Kote extension to sync local files and AI history.',
     priority: true,
-    route: routes.integrations,
-    provider: 'whatsapp',
-    icon: '💬',
+    route: '#', // Placeholder route to render as Link
+    icon: <img src={withFrontendBasePath('/vscode-logo.svg')} style={{ width: '16px', height: '16px', display: 'block' }} alt="VS Code" />,
+  },
+  {
+    id: 'vscode-sync-chat',
+    label: 'Sync your First AI chat',
+    description: 'Save an AI session from VS Code Extension to your Kote. (in the Sync tab or passively with auto-save active)',
+    priority: true,
+    route: routes.home,
+    icon: '⚡',
   },
   {
     id: 'ask-ai',
     label: 'Test Ask AI',
-    description: 'Try asking questions about your knowledge base.',
+    description: 'Ask questions about the knowledge captured in your workspace.',
     priority: false,
     route: routes.search,
     icon: '✦',
@@ -82,8 +117,18 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     label: 'Test Project Brief',
     description: 'Generate a project brief to summarize project documentation.',
     priority: false,
-    route: routes.search,
+    route: `${routes.search}?tab=brief`,
     icon: '📄',
+  },
+  {
+    id: 'whatsapp',
+    label: 'Connect WhatsApp',
+    description: 'Capture notes and knowledge via WhatsApp messages.',
+    priority: false,
+    route: routes.integrations,
+    provider: 'whatsapp',
+    icon: '💬',
+    optional: true,
   },
   {
     id: 'reminder',
@@ -92,6 +137,7 @@ const CHECKLIST_ITEMS: ChecklistItemDef[] = [
     priority: false,
     route: routes.reminders,
     icon: '🔔',
+    optional: true,
   },
 ];
 
@@ -107,6 +153,8 @@ function isIntegrationConnected(integrations: UserIntegration[], provider: strin
 function getCompletedItems(
   integrations: UserIntegration[],
   dashboard: Dashboard,
+  vscodeInstalled: boolean,
+  backfillComplete: boolean,
 ): Set<string> {
   const completed = new Set<string>();
 
@@ -115,9 +163,22 @@ function getCompletedItems(
     completed.add('github');
   }
 
+  if (backfillComplete) {
+    completed.add('github-backfill');
+  }
+
   const totalGithubPushes = dashboard.home.metrics.find((m) => m.id === 'total-github-pushes')?.value ?? 0;
   if (totalGithubPushes > 0) {
     completed.add('github-push');
+  }
+
+  if (vscodeInstalled) {
+    completed.add('vscode-extension');
+  }
+
+  const totalSyncedChats = dashboard.home.metrics.find((m) => m.id === 'total-synced-chats')?.value ?? 0;
+  if (totalSyncedChats > 0) {
+    completed.add('vscode-sync-chat');
   }
 
   if (isIntegrationConnected(integrations, 'whatsapp')) {
@@ -145,19 +206,66 @@ function getCompletedItems(
 function getVisibleItems(
   integrations: UserIntegration[],
   dashboard: Dashboard,
+  vscodeInstalled: boolean,
 ): ChecklistItemDef[] {
   const githubConnected = isIntegrationConnected(integrations, 'github-app')
     && dashboard.projects.some((p) => p.repositories.length > 0);
   const whatsappConnected = isIntegrationConnected(integrations, 'whatsapp');
   const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
+  const onboardingOrder = [
+    'vscode-extension',
+    'vscode-sync-chat',
+    'github',
+    'github-backfill',
+    'github-push',
+    'ask-ai',
+    'project-brief',
+    'whatsapp',
+    'reminder',
+  ];
 
   return CHECKLIST_ITEMS.filter((item) => {
+    if (item.id === 'github-backfill' && !githubConnected) return false;
     if (item.id === 'github-push' && !githubConnected) return false;
+    if (item.id === 'vscode-sync-chat' && !vscodeInstalled) return false;
     if (item.id === 'ask-ai' && totalNotes < 3) return false;
     if (item.id === 'project-brief' && totalNotes < 3) return false;
     if (item.id === 'reminder' && !whatsappConnected) return false;
     return true;
-  });
+  }).sort((left, right) => onboardingOrder.indexOf(left.id) - onboardingOrder.indexOf(right.id));
+}
+
+function OnboardingCompletionPanel({
+  dashboard,
+  onDismiss,
+}: {
+  dashboard: Dashboard;
+  onDismiss: () => void;
+}) {
+  const totalNotes = dashboard.home.metrics.find((m) => m.id === 'total-notes')?.value ?? 0;
+  const totalGithubPushes = dashboard.home.metrics.find((m) => m.id === 'total-github-pushes')?.value ?? 0;
+  const totalSyncedChats = dashboard.home.metrics.find((m) => m.id === 'total-synced-chats')?.value ?? 0;
+
+  return (
+    <Panel className="onboarding-checklist onboarding-completion" aria-label="Onboarding complete">
+      <div className="onboarding-checklist-head">
+        <div>
+          <h2>Your technical memory is active</h2>
+          <p className="meta">
+            Kote is capturing context from your tools. You now have {totalNotes} notes
+            {totalGithubPushes > 0 ? `, including ${totalGithubPushes} GitHub review${totalGithubPushes === 1 ? '' : 's'}` : ''}
+            {totalSyncedChats > 0 ? ` and ${totalSyncedChats} synced AI chat${totalSyncedChats === 1 ? '' : 's'}` : ''}.
+          </p>
+        </div>
+      </div>
+      <div className="onboarding-checklist-foot">
+        <Link className="icon-button" to={routes.search}>Ask a question</Link>
+        <button className="onboarding-dismiss muted" type="button" onClick={onDismiss}>
+          Dismiss
+        </button>
+      </div>
+    </Panel>
+  );
 }
 
 export function OnboardingChecklist({
@@ -167,7 +275,20 @@ export function OnboardingChecklist({
   dashboard: Dashboard;
   workspaceSlug: string;
 }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [storage, setStorage] = useState(loadStorage);
+  const [showOptional, setShowOptional] = useState(false);
+  const [showBackfillModal, setShowBackfillModal] = useState(false);
+
+  const currentUserQuery = useQuery({
+    queryKey: QUERY_KEYS.AUTH.ME,
+    queryFn: fetchCurrentUser,
+    staleTime: 30_000,
+  });
+  const currentUser = currentUserQuery.data?.user;
+
+  const globalLoading = useGlobalLoading();
 
   const integrationsQuery = useQuery({
     queryKey: ['integrations', workspaceSlug],
@@ -176,45 +297,170 @@ export function OnboardingChecklist({
   });
 
   const integrations = integrationsQuery.data?.integrations ?? [];
+  const githubConnected = isIntegrationConnected(integrations, 'github-app')
+    && dashboard.projects.some((project) => project.repositories.length > 0);
+
+  const githubRepositoriesQuery = useQuery({
+    queryKey: ['github-repositories', workspaceSlug],
+    queryFn: () => fetchGithubRepositories(workspaceSlug),
+    enabled: githubConnected || showBackfillModal,
+  });
+
+  const backfillJobId = readBackfillJobId(workspaceSlug);
+  const backfillStatusQuery = useQuery({
+    queryKey: ['github-backfill-status', workspaceSlug, backfillJobId],
+    queryFn: () => fetchGithubBackfillStatus(workspaceSlug, backfillJobId || ''),
+    enabled: Boolean(workspaceSlug && backfillJobId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.job?.status;
+      if (!status || status === 'completed' || status === 'failed' || status === 'quota_exceeded') {
+        return false;
+      }
+      return 2500;
+    },
+  });
+
+  const backfillLimit = integrationsQuery.data?.githubBackfillLimit ?? 5;
+
+  const repositories = githubRepositoriesQuery.data?.repositories || [];
+  const selectedRepositories = repositories.filter((repo) => repo.selected).map((repo) => repo.fullName);
+
+  const handleBackfillAction = () => {
+    if (backfillComplete) {
+      return; // Do nothing if backfill is already complete
+    }
+    if (selectedRepositories.length === 0) {
+      navigate(routes.integrations);
+      return;
+    }
+    setShowBackfillModal(true);
+  };
+
+  const handleVscodeExtensionClick = () => {
+    window.open('https://marketplace.visualstudio.com/items?itemName=Kote.kote-vscode', '_blank', 'noopener,noreferrer');
+  };
+
+  const handleBackfillStarted = (jobId: string) => {
+    storeBackfillJob(workspaceSlug, jobId);
+    setShowBackfillModal(false);
+    void queryClient.invalidateQueries({ queryKey: ['github-backfill-status'] });
+  };
+
+  const handleDeclineBackfill = () => {
+    setShowBackfillModal(false);
+  };
+
+  const backfillJob = backfillStatusQuery.data?.job;
+  const backfillRunning = backfillJob?.status === 'queued' || backfillJob?.status === 'running';
+  const backfillComplete = Boolean(
+    backfillJob?.status === 'completed'
+    || backfillJob?.status === 'quota_exceeded'
+    || (backfillJob?.imported ?? 0) > 0,
+  );
+
+  const totalSyncedChats = dashboard.home.metrics.find((m) => m.id === 'total-synced-chats')?.value ?? 0;
+  const vscodeInstalled = Boolean(currentUser?.vsCodeInstalledAt) || totalSyncedChats > 0;
 
   const completed = useMemo(
-    () => getCompletedItems(integrations, dashboard),
-    [integrations, dashboard],
+    () => getCompletedItems(integrations, dashboard, vscodeInstalled, backfillComplete),
+    [integrations, dashboard, vscodeInstalled, backfillComplete],
   );
 
   const visibleItems = useMemo(
-    () => getVisibleItems(integrations, dashboard),
-    [integrations, dashboard],
+    () => getVisibleItems(integrations, dashboard, vscodeInstalled),
+    [integrations, dashboard, vscodeInstalled],
   );
 
-  const completedCount = visibleItems.filter((item) => completed.has(item.id)).length;
-  const allDone = completedCount === visibleItems.length && visibleItems.length > 0;
+  const coreItems = visibleItems.filter((item) => !item.optional);
+  const optionalItems = visibleItems.filter((item) => item.optional);
+  const completedCount = coreItems.filter((item) => completed.has(item.id)).length;
+  const allDone = completedCount === coreItems.length && coreItems.length > 0;
 
-  // Auto-hide after 7 days from first dismissal.
   useEffect(() => {
-    if (!storage.dismissedAt) return;
+    if (!storage.dismissedAt || storage.dismissed) return;
     const dismissedDate = new Date(storage.dismissedAt);
     const daysSince = (Date.now() - dismissedDate.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSince >= AUTO_HIDE_DAYS && !storage.dismissed) {
+    if (daysSince >= AUTO_HIDE_DAYS) {
       const next = { ...storage, dismissed: true };
       setStorage(next);
       saveStorage(next);
     }
-  }, [storage]);
+  // Only re-run when dismissedAt or dismissed flag changes, not entire storage object
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storage.dismissedAt, storage.dismissed]);
 
-  // Determine visibility.
+  useEffect(() => {
+    if (backfillRunning && backfillJob) {
+      const imported = backfillJob.imported ?? 0;
+      const total = backfillJob.total ?? 0;
+      globalLoading.setBackgroundTask({
+        label: 'Importing commits',
+        count: imported,
+        total,
+        onCancel: async () => {
+          try {
+            await cancelGithubBackfill(workspaceSlug, backfillJob.id);
+            notifySuccess(INTEGRATION_MESSAGES.GITHUB_BACKFILL.CANCEL_SUCCESS);
+            void queryClient.invalidateQueries({ queryKey: ['github-backfill-status'] });
+          } catch (error) {
+            notifyGeneralFormError(error, INTEGRATION_MESSAGES.GITHUB_BACKFILL.CANCEL_ERROR);
+          }
+        },
+      });
+    } else {
+      globalLoading.setBackgroundTask(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backfillRunning, backfillJob, globalLoading, workspaceSlug, queryClient]);
+
   const isHiddenByShowLater = storage.showLaterAt
     ? new Date(storage.showLaterAt).getTime() > Date.now()
     : false;
 
-  if (storage.dismissed || allDone || isHiddenByShowLater) return null;
-  if (integrationsQuery.isLoading) return null;
+  if (storage.dismissed || isHiddenByShowLater) return null;
+  if (integrationsQuery.isLoading) {
+    return (
+      <Panel className="onboarding-checklist skeleton-checklist" style={{ minHeight: '240px', opacity: 0.6, display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ background: 'var(--surface-5)', height: '24px', width: '180px', borderRadius: '4px', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+          <div style={{ background: 'var(--surface-5)', height: '36px', width: '36px', borderRadius: '50%', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+          <div style={{ background: 'var(--surface-5)', height: '48px', width: '100%', borderRadius: '8px', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+          <div style={{ background: 'var(--surface-5)', height: '48px', width: '100%', borderRadius: '8px', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+          <div style={{ background: 'var(--surface-5)', height: '48px', width: '100%', borderRadius: '8px', animation: 'brief-skeleton-fade 1.8s infinite ease-in-out' }} />
+        </div>
+      </Panel>
+    );
+  }
+
+  if (allDone && !storage.completionAcknowledged) {
+    return (
+      <OnboardingCompletionPanel
+        dashboard={dashboard}
+        onDismiss={() => {
+          const next: OnboardingStorage = {
+            ...storage,
+            completionAcknowledged: true,
+            dismissed: true,
+            dismissedAt: new Date().toISOString(),
+            showLaterAt: null,
+          };
+          setStorage(next);
+          saveStorage(next);
+        }}
+      />
+    );
+  }
+
+  if (allDone || storage.completionAcknowledged) return null;
 
   function handleDismiss() {
     const next: OnboardingStorage = {
       dismissed: true,
       dismissedAt: new Date().toISOString(),
       showLaterAt: null,
+      completionAcknowledged: storage.completionAcknowledged,
     };
     setStorage(next);
     saveStorage(next);
@@ -227,13 +473,14 @@ export function OnboardingChecklist({
       dismissed: false,
       dismissedAt: storage.dismissedAt || new Date().toISOString(),
       showLaterAt: later.toISOString(),
+      completionAcknowledged: storage.completionAcknowledged,
     };
     setStorage(next);
     saveStorage(next);
   }
 
-  const progressPercent = visibleItems.length > 0
-    ? Math.round((completedCount / visibleItems.length) * 100)
+  const progressPercent = coreItems.length > 0
+    ? Math.round((completedCount / coreItems.length) * 100)
     : 0;
 
   return (
@@ -241,7 +488,6 @@ export function OnboardingChecklist({
       <div className="onboarding-checklist-head">
         <div>
           <h2>{UI_MESSAGES.GETTING_STARTED}</h2>
-          <p className="meta">Complete these steps to unlock the full potential of your workspace.</p>
         </div>
         <div className="onboarding-checklist-progress">
           <div className="onboarding-progress-ring" aria-label={`${progressPercent}% complete`}>
@@ -266,54 +512,145 @@ export function OnboardingChecklist({
                 strokeLinecap="round"
               />
             </svg>
-            <span className="onboarding-ring-label">{completedCount}/{visibleItems.length}</span>
+            <span className="onboarding-ring-label">{completedCount}/{coreItems.length}</span>
           </div>
         </div>
       </div>
 
       <div className="onboarding-checklist-items">
-        {visibleItems.map((item) => {
+        {coreItems.map((item) => {
           const done = completed.has(item.id);
+          const itemAction = item.id === 'github-backfill' 
+            ? handleBackfillAction 
+            : item.id === 'vscode-extension'
+            ? handleVscodeExtensionClick
+            : undefined;
+
+          if (item.route) {
+            return (
+              <Link
+                className={`onboarding-item ${done ? 'done' : ''} ${item.priority ? 'priority' : ''}`}
+                key={item.id}
+                to={item.route}
+                id={`onboarding-item-${item.id}`}
+                onClick={itemAction}
+              >
+                <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
+                  {done ? '✓' : item.icon}
+                </span>
+                <div className="onboarding-item-copy">
+                  <strong>{item.label}</strong>
+                  <span>{item.description}</span>
+                </div>
+                {item.priority && !done ? (
+                  <span className="onboarding-item-badge">Priority</span>
+                ) : null}
+                <span className="onboarding-item-arrow" aria-hidden="true">→</span>
+              </Link>
+            );
+          }
+
           return (
-            <Link
-              className={`onboarding-item ${done ? 'done' : ''} ${item.priority ? 'priority' : ''}`}
+            <button
+              className={`onboarding-item ${done ? 'done' : ''} ${item.priority ? 'priority' : ''} ${item.id === 'github-backfill' && backfillComplete ? 'disabled' : ''}`}
               key={item.id}
-              to={item.route}
               id={`onboarding-item-${item.id}`}
+              type="button"
+              onClick={itemAction}
+              disabled={item.id === 'github-backfill' && backfillComplete}
             >
-              <span className={`onboarding-item-check ${done ? 'checked' : ''}`} aria-hidden="true">
+              <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
                 {done ? '✓' : item.icon}
               </span>
               <div className="onboarding-item-copy">
                 <strong>{item.label}</strong>
                 <span>{item.description}</span>
-                {item.id === 'reminder' && !done && (
-                  <button
-                    className="onboarding-reminder-test-btn"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      const message = "Remind me to check the onboarding checklist in 1 minute";
-                      const number = import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889';
-                      const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
-                      window.open(url, '_blank', 'noopener,noreferrer');
-                    }}
-                  >
-                    <svg viewBox="0 0 24 24" fill="currentColor" width="12" height="12" aria-hidden="true">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                    </svg>
-                    Send test reminder (1 min)
-                  </button>
-                )}
               </div>
               {item.priority && !done ? (
                 <span className="onboarding-item-badge">Priority</span>
               ) : null}
               <span className="onboarding-item-arrow" aria-hidden="true">→</span>
-            </Link>
+            </button>
           );
         })}
       </div>
+
+      {optionalItems.length > 0 && (
+        <div className="onboarding-optional-section">
+          <button
+            className="onboarding-optional-toggle"
+            type="button"
+            onClick={() => setShowOptional((v) => !v)}
+            aria-expanded={showOptional}
+          >
+            <span>Optional integrations</span>
+            <span className="onboarding-optional-toggle-count">{optionalItems.length}</span>
+            <span className={`onboarding-optional-toggle-arrow ${showOptional ? 'open' : ''}`} aria-hidden="true">›</span>
+          </button>
+          {showOptional && (
+            <div className="onboarding-checklist-items onboarding-optional-items">
+              {optionalItems.map((item) => {
+                const done = completed.has(item.id);
+
+                if (item.route) {
+                  return (
+                    <Link
+                      className={`onboarding-item optional ${done ? 'done' : ''}`}
+                      key={item.id}
+                      to={item.route}
+                      id={`onboarding-item-${item.id}`}
+                    >
+                      <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
+                        {done ? '✓' : item.icon}
+                      </span>
+                      <div className="onboarding-item-copy">
+                        <strong>{item.label}</strong>
+                        <span>{item.description}</span>
+                        {item.id === 'reminder' && !done && (
+                          <button
+                            className="onboarding-reminder-test-btn"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const message = 'Remind me to check the onboarding checklist in 1 minute';
+                              const number = import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889';
+                              const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+                              window.open(url, '_blank', 'noopener,noreferrer');
+                            }}
+                          >
+                            Send test reminder (1 min)
+                          </button>
+                        )}
+                      </div>
+                      <span className="onboarding-item-badge optional-badge">Optional</span>
+                      <span className="onboarding-item-arrow" aria-hidden="true">→</span>
+                    </Link>
+                  );
+                }
+
+                return (
+                  <button
+                    className={`onboarding-item optional ${done ? 'done' : ''}`}
+                    key={item.id}
+                    id={`onboarding-item-${item.id}`}
+                    type="button"
+                  >
+                    <span className={`onboarding-item-check ${done ? 'checked' : ''} onboarding-item-check-${item.id}`} aria-hidden="true">
+                      {done ? '✓' : item.icon}
+                    </span>
+                    <div className="onboarding-item-copy">
+                      <strong>{item.label}</strong>
+                      <span>{item.description}</span>
+                    </div>
+                    <span className="onboarding-item-badge optional-badge">Optional</span>
+                    <span className="onboarding-item-arrow" aria-hidden="true">→</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="onboarding-checklist-foot">
         <button className="onboarding-dismiss" type="button" onClick={handleShowLater}>
@@ -323,6 +660,17 @@ export function OnboardingChecklist({
           Dismiss
         </button>
       </div>
+
+      {showBackfillModal ? (
+        <GithubBackfillOptInModal
+          workspaceSlug={workspaceSlug}
+          repositories={selectedRepositories}
+          backfillLimit={backfillLimit}
+          onClose={() => setShowBackfillModal(false)}
+          onDeclined={handleDeclineBackfill}
+          onStarted={handleBackfillStarted}
+        />
+      ) : null}
     </Panel>
   );
 }

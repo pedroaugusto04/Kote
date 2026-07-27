@@ -7,23 +7,23 @@ export type CreateManualNoteInput = {
   tags: string[];
   status?: string;
   categoryIds?: string[];
-  reminderDate: string;
-  reminderTime: string;
   reminderAt?: string;
-  sourceChannel?: SourceChannel;
+  sourceChannel?: string;
   source?: string;
   sessionId?: string;
+  occurredAt?: string;
+  path?: string;
+  metadata?: Record<string, any>;
 };
 
 export type UpdateNoteInput = {
   id: string;
+  projectId?: string;
   folderId?: string;
   title: string;
   rawText: string;
   tags: string[];
   status?: string;
   categoryIds?: string[];
-  reminderDate: string;
-  reminderTime: string;
   reminderAt?: string;
 };

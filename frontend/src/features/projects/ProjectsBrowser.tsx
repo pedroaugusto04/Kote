@@ -9,7 +9,8 @@ import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
 import { ProjectTimeline } from './ProjectTimeline';
-import { type NoteStatusFilter } from '../../shared/api/models/note-status';
+import { ProjectCoverageBadge } from './components/ProjectCoverageBadge';
+import { NoteStatusFilter } from '../../shared/api/models/note-status';
 
 type ProjectsBrowserProps = {
   dashboard: Dashboard;
@@ -78,11 +79,14 @@ export function ProjectsBrowser({
   const folderScopeLabel = selectedFolder ? `${selectedFolder.displayName} ${UI_MESSAGES.AND_DESCENDANT_FOLDERS}` : UI_MESSAGES.ALL_PROJECT_NOTES;
 
   return (
-    <Panel>
+    <Panel className="project-workspace-panel">
       <div className="page-head">
         <div>
-          <div className="project-title-row">
+          <div className="project-title-row" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <h2>{project.displayName}</h2>
+            {project.projectSlug && (
+              <ProjectCoverageBadge projectSlug={project.projectSlug} projectDisplayName={project.displayName} />
+            )}
             <div className="project-title-actions" aria-label="Project actions">
               {onEditProject ? (
                 <button
@@ -127,6 +131,7 @@ export function ProjectsBrowser({
           <button className="icon-button" type="button" onClick={onCreateNote}>{UI_MESSAGES.NEW_NOTE}</button>
         </div>
       </div>
+
       <div className="project-browser">
         <aside className="folder-browser">
           <div className="folder-browser-head">

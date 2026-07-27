@@ -8,14 +8,14 @@ function structuredReviewNote() {
     id: 'note-1',
     path: '20 Inbox/platform/review.md',
     type: 'event',
-    title: 'Review pedroaugusto04/Knowledge-Base 3882c230',
+    title: 'Review pedroaugusto04/Kote 3882c230',
     projectSlug: 'platform',
     workspaceSlug: 'default',
     folderId: null,
     status: 'active',
     tags: ['review'],
     occurredAt: '2026-05-07T12:00:00.000Z',
-    sourceChannel: 'github-push',
+    sourceChannel: 'github',
     summary: 'Push recebido sem analise de IA configurada.',
     markdown: [
       '---',
@@ -28,7 +28,7 @@ function structuredReviewNote() {
       'occurred_at: "2026-05-07T12:00:00.000Z"',
       '---',
       '',
-      '# Review pedroaugusto04/Knowledge-Base 3882c230',
+      '# Review pedroaugusto04/Kote 3882c230',
       '',
       'Project: Platform',
       '',
@@ -60,7 +60,7 @@ function structuredReviewNote() {
     frontmatter: { id: 'review:1' },
     metadata: { manual: false },
     origin: 'postgres',
-    source: 'github-push',
+    source: 'github',
     links: [],
   };
 }
@@ -78,7 +78,7 @@ test('preserves structured markdown sections when updating a structured note', (
     null,
     {
       id: note.id,
-      title: 'Review pedroaugusto04/Knowledge-Base 3882c230',
+      title: 'Review pedroaugusto04/Kote 3882c230',
       rawText: 'Push revisado manualmente pelo editor.',
       tags: ['review'],
       reminderDate: '',

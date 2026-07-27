@@ -28,7 +28,7 @@ test('AsaasGatewayStatusMapper normalizePaymentStatus maps known payment statuse
   assert.equal(mapper.normalizePaymentStatus('OVERDUE', null), 'overdue');
   assert.equal(mapper.normalizePaymentStatus('CANCELED', null), 'canceled');
   assert.equal(mapper.normalizePaymentStatus('REFUNDED', null), 'refunded');
-  assert.equal(mapper.normalizePaymentStatus('PARTIALLY_REFUNDED', null), 'refunded');
+  assert.equal(mapper.normalizePaymentStatus('PARTIALLY_REFUNDED', null), 'partially_refunded');
   assert.equal(mapper.normalizePaymentStatus('REFUND_REQUESTED', null), 'refunded');
   assert.equal(mapper.normalizePaymentStatus('REFUND_IN_PROGRESS', null), 'refunded');
   assert.equal(mapper.normalizePaymentStatus('CHARGEBACK_REQUESTED', null), 'refunded');

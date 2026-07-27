@@ -20,7 +20,7 @@ export function getCachedNoteDetail(queryClient: QueryClient, noteId: string) {
 }
 
 export function ensureNoteDetail(queryClient: QueryClient, noteId: string) {
-  return queryClient.ensureQueryData(noteDetailQueryOptions(noteId));
+  return queryClient.fetchQuery(noteDetailQueryOptions(noteId));
 }
 
 export async function invalidateNoteRelatedQueries(queryClient: QueryClient) {

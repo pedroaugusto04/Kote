@@ -14,7 +14,7 @@ import { PostgresWorkflowStateRepository } from '../../dist/infrastructure/repos
 import { webhookEventFromRow } from '../../dist/infrastructure/mappers/row.mappers.js';
 import { PostgresSchemaMigrator } from '../../dist/infrastructure/persistence/schema.migrator.js';
 import { readEnvironment } from '../../dist/adapters/environment.js';
-import { ContentObjectStorageService } from '../../dist/application/services/content-object-storage.service.js';
+import { ContentObjectStorageService } from '../../dist/application/services/content/content-object-storage.service.js';
 import { ObjectStorageMissingContentError } from '../../dist/application/ports/notes/object-storage.js';
 import { PostgresWorkspaceRepository } from '../../dist/infrastructure/repositories/workspace.repository.js';
 import { PostgresProjectRepository } from '../../dist/infrastructure/repositories/project.repository.js';
@@ -22,6 +22,7 @@ import { PostgresNoteRepository } from '../../dist/infrastructure/repositories/n
 import { PostgresFolderRepository } from '../../dist/infrastructure/repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../../dist/infrastructure/repositories/attachment.repository.js';
 import { PostgresCategoryRepository } from '../../dist/infrastructure/repositories/category.repository.js';
+import { NoteLifecycleService } from '../../dist/application/services/content/note-lifecycle.service.js';
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '../../dist/infrastructure/persistence/schema/index.js';
@@ -127,8 +128,13 @@ async function dropSchema(targetUrl, schemaName) {
 async function ensureBaseSchema(targetUrl) {
   const adminPool = new Pool({ connectionString: targetUrl.toString() });
   try {
-    await adminPool.query(`drop schema if exists ${quoteIdent(BASE_SCHEMA_NAME)} cascade`);
-    await adminPool.query(`create schema ${quoteIdent(BASE_SCHEMA_NAME)}`);
+    const schemaExists = await adminPool.query(
+      `select 1 from information_schema.schemata where schema_name = $1`,
+      [BASE_SCHEMA_NAME]
+    );
+    if (!schemaExists.rows[0]) {
+      await adminPool.query(`create schema ${quoteIdent(BASE_SCHEMA_NAME)}`);
+    }
   } finally {
     await adminPool.end();
   }
@@ -149,17 +155,20 @@ async function ensureBaseSchema(targetUrl) {
 async function truncateSchema(targetUrl, schemaName) {
   const pool = new Pool({ connectionString: targetUrl.toString() });
   try {
-    // Get all tables in the schema
+    // Get all tables in the schema except migrations table
     const tables = await pool.query(`
       SELECT table_name 
       FROM information_schema.tables 
-      WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+      WHERE table_schema = $1 AND table_type = 'BASE TABLE' AND table_name <> 'kb_schema_migrations'
     `, [schemaName]);
 
     // Truncate all tables (disable foreign key checks temporarily)
     await pool.query('SET session_replication_role = replica');
 
-    for (const table of tables.rows) {
+    // Sort tables to avoid deadlocks (truncate in consistent order)
+    const sortedTables = tables.rows.sort((a, b) => a.table_name.localeCompare(b.table_name));
+
+    for (const table of sortedTables) {
       await pool.query(`truncate table ${quoteIdent(schemaName)}.${quoteIdent(table.table_name)} cascade`);
     }
 
@@ -169,7 +178,7 @@ async function truncateSchema(targetUrl, schemaName) {
     const sequences = await pool.query(`
       SELECT sequence_name 
       FROM information_schema.sequences 
-      WHERE sequence_schema = $1
+      WHERE sequence_schema = $1 AND sequence_name NOT LIKE '%kb_schema_migrations%'
     `, [schemaName]);
 
     for (const seq of sequences.rows) {
@@ -180,12 +189,21 @@ async function truncateSchema(targetUrl, schemaName) {
   }
 }
 
+let baseSchemaPromise = null;
+
+async function ensureBaseSchemaOnce(targetUrl) {
+  if (!baseSchemaPromise) {
+    baseSchemaPromise = ensureBaseSchema(targetUrl);
+  }
+  return baseSchemaPromise;
+}
+
 export async function createPostgresTestRepositories(t) {
   const targetUrl = testDatabaseUrl();
   await ensureTestDatabase(targetUrl);
 
   // Ensure base schema exists with migrations (runs once)
-  await ensureBaseSchema(targetUrl);
+  await ensureBaseSchemaOnce(targetUrl);
 
   // Use the base schema directly for all tests
   const schemaName = BASE_SCHEMA_NAME;
@@ -200,7 +218,7 @@ export async function createPostgresTestRepositories(t) {
   // Ensure the unique index required by `ON CONFLICT (user_id, workspace_id, provider)` exists
   // Some test environments rely on the migrations in `BASE_SCHEMA_NAME`, but adding
   // the index here guarantees the repository upsert using ON CONFLICT will work.
-  await (new Pool({ connectionString: targetUrl.toString() })).query(
+  await pool.query(
     `CREATE UNIQUE INDEX IF NOT EXISTS ${quoteIdent('kb_integration_credentials_scope_idx')} ON ${quoteIdent(schemaName)}.${quoteIdent('kb_integration_credentials')} (user_id, workspace_id, provider)`,
   );
 
@@ -232,7 +250,12 @@ export async function createPostgresTestRepositories(t) {
     categoryRepository,
     contentObjectStorage
   );
-  const contentQueryRepository = new PostgresContentQueryRepository(database, contentObjectStorage);
+  const contentQueryRepository = new PostgresContentQueryRepository(
+    database,
+    contentObjectStorage,
+    noteRepository,
+    attachmentRepository
+  );
   const workflowStateRepository = new PostgresWorkflowStateRepository(database);
   const pushSubscriptionRepository = new PostgresPushSubscriptionRepository(database);
   const webhookEventRepository = new PostgresWebhookEventRepository(database);
@@ -282,6 +305,37 @@ export async function createPostgresTestRepositories(t) {
     return result.rows[0] ? webhookEventFromRow(result.rows[0]) : null;
   }
 
+  const quotaService = {
+    async checkQuota(userId, resourceType, requestedAmount = 1) {
+      return { allowed: true, limit: -1, current: 0 };
+    },
+    async checkAndIncrementAiUsage(userId, operationType, context) {
+      return { allowed: true, limit: -1, current: 0 };
+    },
+    async incrementUsage(userId, resourceType, amount = 1) {},
+    async getQuotaStatus() {
+      return {
+        plan: 'free',
+        status: 'active',
+        currentPeriodEnd: new Date().toISOString(),
+        limits: { storage: -1, aiRequests: -1, workspaces: 1, projects: 1 },
+        usage: { storage: 0, aiRequests: 0, workspaces: 0, projects: 0 }
+      };
+    }
+  };
+
+  const embeddingQueuePublisher = {
+    async publish(payload) {}
+  };
+
+  const noteLifecycleService = new NoteLifecycleService(
+    contentRepository,
+    quotaService,
+    embeddingQueuePublisher,
+    { dispatch: async () => {} },
+    { info() {}, warn() {}, error() {}, debug() {} }
+  );
+
   return {
     schemaName,
     pool,
@@ -306,5 +360,9 @@ export async function createPostgresTestRepositories(t) {
     runtimeEnvironmentProvider,
     pushSubscriptionRepository,
     schemaMigrator,
+    quotaService,
+    embeddingQueuePublisher,
+    noteLifecycleService,
+    database,
   };
 }

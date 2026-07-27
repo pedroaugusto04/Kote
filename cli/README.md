@@ -1,21 +1,28 @@
 <p align="center">
-  <img src="../ide/vscode/resources/kb-icon.svg" alt="kb-cli Logo" width="120" height="120">
+  <img src="../ide/vscode/resources/Kote-Logo.svg" alt="Kote CLI Logo" width="120" height="120">
 </p>
 
-# kb-cli
+# kote-cli
 
-CLI client for the Knowledge Base AI system - interact with your Knowledge Vault directly from the terminal.
+CLI client for the Kote AI system - interact with your Kote directly from the terminal.
 
-## About
+## About Kote
 
-`kb-cli` is the official command-line interface for Knowledge Vault. It allows you to sync local files and directories, capture AI session histories, and interact with your knowledge base without leaving your terminal.
+**Kote** is a developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.
+
+For more details, visit the [GitHub Repository](https://github.com/pedroaugusto04/Kote) or the [original link](https://knowledgebase.sbs/kote).
+
+## About kote-cli
+
+`kote-cli` is the official command-line interface for Kote. It allows you to sync local files and directories, capture AI session histories, and interact with your Kote without leaving your terminal.
 
 Perfect for automating knowledge capture in CI/CD pipelines, local development scripts, or any workflow where the terminal is your primary interface.
+
 
 ## Installation
 
 ```bash
-npm install -g @pedroaugusto04/kb-cli
+npm install -g @pedroaugusto04/kote-cli
 ```
 
 ## Quick Start
@@ -23,54 +30,56 @@ npm install -g @pedroaugusto04/kb-cli
 ### Get Help
 
 ```bash
-kb
+kote
 help
-# or use
-kb --help
+
+or 
+
+kote --help
 ```
 
 ### Initialize Configuration
 
 ```bash
-kb init
+kote init
 ```
 
-This will prompt you for your Knowledge Vault instance URL and credentials, creating a configuration file in your home directory.
+This will prompt you for your Kote instance URL and credentials, creating a configuration file in your home directory.
 
 ### Sync AI Session History (Primary Feature)
 
 ```bash
 # Interactive session selection
-kb sync-ai
+kote sync-ai
 ```
 
 This will scan for AI sessions and prompt you to select which ones to import.
 
-### Sync Files to Knowledge Vault (Optional)
+### Sync Files to Kote (Optional)
 
 ```bash
 # Sync an entire directory
-kb sync --dir ./docs --project my-project
+kote sync --dir ./docs --project my-project
 
 # Sync a single file
-kb sync --file ./README.md --project my-project
+kote sync --file ./README.md --project my-project
 
 # Sync with real-time monitoring
-kb sync --dir ./src --project my-project --watch
+kote sync --dir ./src --project my-project --watch
 ```
 
 ## Key Commands
 
-### `kb init`
+### `kote init`
 
 Initialize CLI configuration. Prompts for:
-- Knowledge Vault API URL
+- Kote API URL
 - API credentials (email/password or token)
 - Default project (optional)
 
-### `kb sync`
+### `kote sync`
 
-Sync local files or directories to your Knowledge Vault.
+Sync local files or directories to your Kote.
 
 **Options:**
 - `--dir <path>`: Sync a directory
@@ -82,19 +91,19 @@ Sync local files or directories to your Knowledge Vault.
 **Examples:**
 ```bash
 # Sync documentation folder
-kb sync --dir ./docs --project documentation
+kote sync --dir ./docs --project documentation
 
 # Sync specific configuration file
-kb sync --file ./package.json --project infrastructure
+kote sync --file ./package.json --project infrastructure
 
 # Watch and sync changes automatically
-kb sync --dir ./src --project backend --watch
+kote sync --dir ./src --project backend --watch
 
 # Test what would be synced
-kb sync --dir ./docs --project docs --dry-run
+kote sync --dir ./docs --project docs --dry-run
 ```
 
-### `kb sync-ai`
+### `kote sync-ai`
 
 Sync AI-assisted development session histories to preserve valuable insights.
 
@@ -111,17 +120,17 @@ Sync AI-assisted development session histories to preserve valuable insights.
 **Examples:**
 ```bash
 # Sync Claude Code sessions
-kb sync-ai --session-path ~/.claude/sessions --project ai-experiments
+kote sync-ai --session-path ~/.claude/sessions --project ai-experiments
 
 # Monitor for new sessions automatically
-kb sync-ai --session-path ~/.claude/sessions --project ai-work --watch
+kote sync-ai --session-path ~/.claude/sessions --project ai-work --watch
 ```
 
 ## Screenshots
 
 <p align="center">
   <img src="../docs/screenshots/cli-commands.png" alt="CLI Commands" width="100%" style="max-height: 600px;">
-  <br><em>Command-line interface for syncing files and interacting with Knowledge Vault.</em>
+  <br><em>Command-line interface for syncing files and interacting with Kote.</em>
 </p>
 
 <p align="center">
@@ -136,16 +145,16 @@ Automatically capture build artifacts, deployment notes, and configuration chang
 
 ```bash
 # In your CI pipeline
-kb sync --dir ./build-artifacts --project deployments
-kb sync --file ./CHANGELOG.md --project releases
+kote sync --dir ./build-artifacts --project deployments
+kote sync --file ./CHANGELOG.md --project releases
 ```
 
 ### Documentation Workflow
-Keep documentation in sync with your knowledge base:
+Keep documentation in sync with your Kote:
 
 ```bash
 # Watch docs folder for changes
-kb sync --dir ./docs --project documentation --watch
+kote sync --dir ./docs --project documentation --watch
 ```
 
 ### AI Session Archiving
@@ -153,7 +162,7 @@ Preserve valuable AI-assisted development sessions:
 
 ```bash
 # Archive Claude Code sessions as searchable knowledge
-kb sync-ai --session-path ~/.claude/sessions --project development-history
+kote sync-ai --session-path ~/.claude/sessions --project development-history
 ```
 
 
@@ -161,7 +170,7 @@ kb sync-ai --session-path ~/.claude/sessions --project development-history
 
 - [Main Project Documentation](../README.md)
 - [VS Code Extension](../ide/vscode/README.md)
-- [Knowledge Vault Repository](https://github.com/pedroaugusto04/knowledge-base)
+- [Kote Repository](https://github.com/pedroaugusto04/knowledge-base)
 
 ## License
 

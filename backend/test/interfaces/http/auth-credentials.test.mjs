@@ -5,8 +5,8 @@ import crypto from 'node:crypto';
 import { AuthService } from '../../../dist/application/auth.js';
 import { IntegrationConnectionService } from '../../../dist/application/integration-connections.js';
 import { IntegrationCredentialService } from '../../../dist/application/credentials.js';
-import { GithubRepositoryResolutionService } from '../../../dist/application/services/github-repository-resolution.service.js';
-import { TrustedOriginGuard } from '../../../dist/interfaces/http/auth.guards.js';
+import { GithubRepositoryResolutionService } from '../../../dist/application/services/integrations/github-repository-resolution.service.js';
+import { TrustedOriginGuard } from '../../../dist/interfaces/http/guards/auth.guards.js';
 import { AuthController, InternalIntegrationsController, UserIntegrationsController } from '../../../dist/interfaces/http/controllers/index.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
@@ -34,7 +34,7 @@ function githubIntegrationGateway() {
       return String(payload.token || '');
     },
     async fetchComparePayload() {
-      return { files: [], commits: [] };
+      return { files: [{ filename: 'src/app.ts', status: 'modified', patch: '' }], commits: [] };
     },
     async fetchInstallationRepositories() {
       const response = await fetch('https://api.github.com/installation/repositories?per_page=100');
@@ -214,7 +214,7 @@ test('avatar upload rejects unsupported MIME types', async (t) => {
   );
 });
 
-test('avatar upload rejects files over 2MB', async (t) => {
+test('avatar upload rejects files over 3MB', async (t) => {
   const { auth } = await fixture(t);
   const controller = new AuthController(auth);
   const login = await controller.login(
@@ -225,9 +225,9 @@ test('avatar upload rejects files over 2MB', async (t) => {
 
   await assert.rejects(
     () => controller.uploadAvatar(login.user, {
-      buffer: Buffer.alloc((2 * 1024 * 1024) + 1),
+      buffer: Buffer.alloc((3 * 1024 * 1024) + 1),
       mimetype: 'image/png',
-      size: (2 * 1024 * 1024) + 1,
+      size: (3 * 1024 * 1024) + 1,
       originalname: 'avatar.png',
     }),
     /avatar_file_too_large/,
@@ -253,7 +253,7 @@ test('avatar upload stores bytes and returns the updated user', async (t) => {
 
   const storedUser = await repositories.userRepository.findUserById(login.user.id);
   assert.equal(result.ok, true);
-  assert.match(result.user.avatarUrl, /^\/api\/auth\/avatar\/content$/);
+  assert.match(result.user.avatarUrl, /^\/api\/auth\/avatar\/content\?t=\d+$/);
   assert.match(storedUser.avatar, new RegExp(`^users/${login.user.id}/profile/avatar-\\d+\\.png$`));
   assert.deepEqual(repositories.objectStorage.objects.get(storedUser.avatar), image);
 });
@@ -375,7 +375,7 @@ test('google callback creates a user, identity, and HttpOnly auth cookies', asyn
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway() });
   const controller = new AuthController(auth);
   const startResponse = responseMock();
-  controller.startGoogle('/auth?mode=signup', startResponse);
+  controller.startGoogle('/auth?mode=signup', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
 
   const stateCookie = startResponse.cookies.find((cookie) => cookie.name === 'kb_google_oauth_state');
   const state = new URL(startResponse.redirectedTo).searchParams.get('state');
@@ -401,7 +401,7 @@ test('google callback reuses an existing identity', async (t) => {
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway({ email: 'repeat@example.com' }) });
   const controller = new AuthController(auth);
   const firstStart = responseMock();
-  controller.startGoogle('/auth', firstStart);
+  controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, firstStart);
   await controller.googleCallback(
     'google-code-1',
     new URL(firstStart.redirectedTo).searchParams.get('state'),
@@ -411,7 +411,7 @@ test('google callback reuses an existing identity', async (t) => {
   const user = await repositories.userRepository.findUserByEmail('repeat@example.com');
 
   const secondStart = responseMock();
-  controller.startGoogle('/auth', secondStart);
+  controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, secondStart);
   const secondResponse = responseMock();
   await controller.googleCallback(
     'google-code-2',
@@ -429,7 +429,7 @@ test('google callback redirects with conflict when email has no google identity'
   await repositories.createTestUser({ email: 'password-user@example.com', passwordHash: 'scrypt$salt$hash' });
   const controller = new AuthController(auth);
   const startResponse = responseMock();
-  controller.startGoogle('/auth', startResponse);
+  controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
   const callbackResponse = responseMock();
 
   await controller.googleCallback(
@@ -459,13 +459,13 @@ test('google callback with invalid state redirects prepending base path from env
   const { auth, repositories } = await fixture(t, { googleGateway: googleGateway() });
   const originalBaseUrl = process.env.KB_PUBLIC_BASE_URL;
   try {
-    process.env.KB_PUBLIC_BASE_URL = 'https://kb.example.com/knowledge-base';
+    process.env.KB_PUBLIC_BASE_URL = 'https://kb.example.com/kote';
     const controller = new AuthController(auth);
     const callbackResponse = responseMock();
 
     await controller.googleCallback('google-code', 'wrong-state', { headers: {} }, callbackResponse);
 
-    assert.equal(callbackResponse.redirectedTo, '/knowledge-base/auth?error=google_auth_failed');
+    assert.equal(callbackResponse.redirectedTo, '/kote/auth?error=google_auth_failed');
     assert.equal(callbackResponse.cookies.length, 0);
     assert.equal(await repositories.userRepository.findUserByEmail('google.user@example.com'), null);
   } finally {
@@ -477,7 +477,7 @@ test('google-created user cannot login with password', async (t) => {
   const { auth } = await fixture(t, { googleGateway: googleGateway({ email: 'no-password@example.com' }) });
   const controller = new AuthController(auth);
   const startResponse = responseMock();
-  controller.startGoogle('/auth', startResponse);
+  controller.startGoogle('/auth', { headers: { host: 'kb.example.com' }, protocol: 'https' }, startResponse);
   await controller.googleCallback(
     'google-code',
     new URL(startResponse.redirectedTo).searchParams.get('state'),
@@ -658,7 +658,7 @@ test('guided connection rejects identity hijacking', async (t) => {
     updatedAt: '2026-04-27T00:00:00.000Z',
   });
   const secondController = new UserIntegrationsController(secondCredentials, secondConnections);
-  const secondToken = secondAuth.issueTokens(secondUser).accessToken;
+  const secondToken = secondAuth.jwtService.issueTokens(secondUser).accessToken;
   const secondCurrentUser = { id: secondUser.id, email: secondUser.email, displayName: secondUser.displayName, role: secondUser.role };
   const secondSetup = await secondController.connect(
     { provider: 'whatsapp' },

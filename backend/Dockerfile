@@ -8,8 +8,9 @@ COPY backend/tsconfig.json ./backend/tsconfig.json
 COPY backend/src ./backend/src
 COPY scripts ./scripts
 RUN npm run build:api
+RUN cp -r backend/src/infrastructure/email/templates backend/dist/infrastructure/email/
 
-FROM node:24-alpine AS runtime
+FROM node:24-alpine AS runtime 
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json package-lock.json ./

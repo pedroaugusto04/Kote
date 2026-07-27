@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
-import { fetchNote, updateNote, pinNote } from '../../shared/api/client';
+import { fetchNote, updateNote, pinNote, bulkUpdateNoteStatuses } from '../../shared/api/client';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory, type ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import type { PaginationMeta } from '../../shared/api/models/pagination';
-import { formatDisplayToken } from '../../shared/utils/format';
+import { formatDisplayToken, SOURCE_VALUES } from '../../shared/utils/format';
 import { EmptyState } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
@@ -24,10 +24,20 @@ import { ProjectTimelineCard } from './ProjectTimelineCard';
 
 
 
+const CATEGORY_LABELS: Record<string, string> = {
+  all: 'All',
+  [SOURCE_VALUES.WHATSAPP]: 'WhatsApp',
+  [SOURCE_VALUES.GITHUB]: 'GitHub',
+  [SOURCE_VALUES.MANUAL]: 'Manual',
+  reminder: 'Reminder',
+  [SOURCE_VALUES.AI_CHAT]: 'AI Chat',
+};
+
 const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
   value,
-  label: formatDisplayToken(value),
+  label: CATEGORY_LABELS[value] ?? formatDisplayToken(value),
 }));
+
 
 
 export function ProjectTimeline({
@@ -45,6 +55,7 @@ export function ProjectTimeline({
   onPageChange,
   isStale = false,
   resetKey,
+  allowPin = true,
 }: {
   dashboard: Dashboard;
   items: ProjectTimelineItem[];
@@ -60,6 +71,7 @@ export function ProjectTimeline({
   onPageChange: (page: number) => void;
   isStale?: boolean;
   resetKey: string;
+  allowPin?: boolean;
 }) {
   const isMobile = useMediaQuery('(max-width: 768px)');
   const {
@@ -91,21 +103,8 @@ export function ProjectTimeline({
     if (!visibleItems.length) return;
     setIsBulkUpdating(true);
     try {
-      await Promise.all(
-        visibleItems.map(async (item) => {
-          const detail = await fetchNote(item.noteId);
-          return updateNote(item.noteId, {
-            folderId: detail.folderId || '',
-            title: detail.title,
-            rawText: detail.editor?.rawText || '',
-            tags: detail.tags,
-            status,
-            reminderDate: detail.editor?.reminderDate,
-            reminderTime: detail.editor?.reminderTime,
-            reminderAt: detail.editor?.reminderAt,
-          });
-        })
-      );
+      const ids = visibleItems.map((item) => item.noteId);
+      await bulkUpdateNoteStatuses(ids, status as any);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PROJECTS.ALL });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTES.ALL });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD });
@@ -175,7 +174,7 @@ export function ProjectTimeline({
               onOpenFullPage={onOpenNoteFullPage}
               onEdit={onEditNote}
               onDelete={onDeleteNote}
-              onPin={(noteId, pinned) => pinMutation.mutate({ noteId, pinned })}
+              onPin={allowPin ? (noteId, pinned) => pinMutation.mutate({ noteId, pinned }) : undefined}
             />
           ))}
         </div>

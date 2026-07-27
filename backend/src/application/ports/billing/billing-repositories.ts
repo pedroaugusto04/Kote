@@ -14,7 +14,7 @@ export abstract class BillingCustomerRepository {
   abstract markCreditCardOnFile(userId: string, gateway: PaymentGateway, token: string): Promise<void>;
   abstract getGatewayCustomerId(userId: string, gateway: PaymentGateway): Promise<string>;
   abstract upsertCustomer(userId: string, gateway: PaymentGateway, gatewayCustomerId: string): Promise<BillingCustomerRecord>;
-}
+} 
 
 export abstract class BillingPaymentRepository {
   abstract getSubscriptionPaymentByGatewayPaymentId(gateway: PaymentGateway, gatewayPaymentId: string): Promise<BillingPaymentRecord | null>;

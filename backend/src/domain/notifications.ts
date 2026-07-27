@@ -9,7 +9,7 @@ export function buildTelegramCodeReviewMessage(payload: IngestPayload): string {
   const sections = payload.content.sections;
   const findings = sections.reviewFindings || [];
   const lines = [
-    'AI code review saved in the Knowledge Base',
+    'AI code review saved in Kote',
     `Project: ${payload.event.projectSlug}`,
     `Summary: ${sections.summary || payload.content.rawText}`,
     sections.impact ? `Impact: ${sections.impact}` : '',

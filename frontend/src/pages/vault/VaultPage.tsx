@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
-import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone, formatTimeInUserTimeZone, noteTypeLabel, projectName, formatSourceLabel } from '../../shared/utils/format';
+import { formatDisplayToken, formatDateInUserTimeZone, formatTimeInUserTimeZone } from '../../shared/utils/format';
+import { makeTitleClickable } from '../../shared/utils/text';
 import { fetchNotes } from '../../shared/api/client';
-import type { NoteAttachment, NoteSummary } from '../../shared/api/models/note';
-import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
@@ -19,8 +18,8 @@ import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
 import { NoteBody, NoteAttachments } from '../../widgets/notes/NoteReaderContent';
 import { RelatedNotesSection } from '../../widgets/notes/RelatedNotesSection';
 import { FloatingNoteNavigation } from '../../widgets/notes/FloatingNoteNavigation';
-
-type NavigationNote = Pick<NoteSummary, 'id' | 'title'>;
+import { useNoteEditor } from './useNoteEditor';
+import { NoteEditorForm } from './NoteEditorForm';
 
 export function VaultPage({
   dashboard,
@@ -28,7 +27,7 @@ export function VaultPage({
   selectedNoteId,
   setSelectedProject,
   openNote,
-  editNote,
+  editNote: _editNote,
   deleteNote,
 }: PageContext) {
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -43,12 +42,14 @@ export function VaultPage({
     [dashboard.projects, effectiveProject],
   );
   const { page } = usePaginationState(`${effectiveProject}:${noteId}`);
-  const notesQuery = useQuery({
+  const _notesQuery = useQuery({
     queryKey: ['notes', 'vault', effectiveProject, noteId, page],
     queryFn: () => fetchNotes({ page, projectSlug: effectiveProject, selectedId: noteId }),
     enabled: Boolean(noteId && effectiveProject),
   });
   const [contentOpacity, setContentOpacity] = useState(1);
+  const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
+  const noteEditor = useNoteEditor(noteQuery.data || null, workspaceSlug);
 
   useEffect(() => {
     if (noteQuery.data?.project && noteQuery.data.project !== selectedProject) {
@@ -59,14 +60,14 @@ export function VaultPage({
   useEffect(() => {
     const scrollToTop = () => {
       window.scrollTo(0, 0);
-      
+
       const content = document.querySelector('.content');
       const view = document.querySelector('.view');
-      
+
       if (content && typeof (content as HTMLElement).scrollTo === 'function') {
         (content as HTMLElement).scrollTop = 0;
       }
-      
+
       if (view && typeof (view as HTMLElement).scrollTo === 'function') {
         (view as HTMLElement).scrollTop = 0;
       }
@@ -74,11 +75,11 @@ export function VaultPage({
 
     setContentOpacity(0);
     scrollToTop();
-    
+
     const timer = setTimeout(() => {
       setContentOpacity(1);
     }, 50);
-    
+
     return () => clearTimeout(timer);
   }, [noteId, noteQuery.data?.id]);
 
@@ -147,34 +148,79 @@ export function VaultPage({
         </div>
       )}
       <PageHead
-        title={noteQuery.data?.title || 'Note details'}
+        title={(() => {
+          const title = noteQuery.data?.title || 'Note details';
+          const { text: titleText, url: titleUrl } = makeTitleClickable(title);
+          return (
+            <div className="vault-note-title-wrapper">
+              {noteEditor.isEditing ? null : (
+                <h1 className="vault-note-title">
+                  {titleText}
+                  {titleUrl && (
+                    <a href={titleUrl} target="_blank" rel="noreferrer" className="vault-title-link">
+                      {titleUrl}
+                    </a>
+                  )}
+                </h1>
+              )}
+            </div>
+          );
+        })()}
         subtitle={selectedProjectDetails?.displayName || ''}
         onBack={() => navigate(-1)}
         action={
           noteQuery.data ? (
-            <div className="note-reader-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <QuickNoteStatusActions note={noteQuery.data} />
-              {editNote && (
-                <button
-                  aria-label={`Edit note ${noteQuery.data.title}`}
-                  className="row-action-button edit"
-                  title="Edit"
-                  type="button"
-                  onClick={() => editNote(noteQuery.data.id)}
-                >
-                  <PencilIcon />
-                </button>
-              )}
-              {deleteNote && (
-                <button
-                  aria-label={`Delete note ${noteQuery.data.title}`}
-                  className="row-action-button danger"
-                  title="Delete"
-                  type="button"
-                  onClick={() => deleteNote({ id: noteQuery.data.id, title: noteQuery.data.title })}
-                >
-                  <TrashIcon />
-                </button>
+            <div className="note-reader-actions-bar">
+              {noteEditor.isEditing ? (
+                <>
+                  <button
+                    aria-label="Save changes"
+                    className="icon-button"
+                    title="Save"
+                    type="button"
+                    onClick={noteEditor.handleSave}
+                    disabled={noteEditor.isSaving}
+                    style={{ padding: '8px 24px', fontSize: '14px' }}
+                  >
+                    {noteEditor.isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    aria-label="Cancel editing"
+                    className="icon-button"
+                    title="Cancel"
+                    type="button"
+                    onClick={noteEditor.handleCancel}
+                    disabled={noteEditor.isSaving}
+                    style={{ padding: '8px 24px', fontSize: '14px' }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <QuickNoteStatusActions note={noteQuery.data} />
+                  <div className="note-action-divider" />
+                  <button
+                    aria-label={`Edit note ${noteQuery.data.title}`}
+                    className="row-action-button edit"
+                    title="Edit note"
+                    type="button"
+                    onClick={noteEditor.handleEdit}
+                  >
+                    <PencilIcon />
+                  </button>
+                  {deleteNote && (
+                    <button
+                      aria-label={`Delete note ${noteQuery.data.title}`}
+                      className="row-action-button danger"
+                      title="Delete note"
+                      type="button"
+                      onClick={() => deleteNote({ id: noteQuery.data.id, title: noteQuery.data.title })}
+                    >
+                      <TrashIcon />
+                    </button>
+                  )}
+                </>
               )}
             </div>
           ) : undefined
@@ -191,25 +237,46 @@ export function VaultPage({
               <div className="note-meta-row" style={{ marginTop: 0 }}>
                 <span className="meta">{formatDateInUserTimeZone(noteQuery.data.date)} {formatTimeInUserTimeZone(noteQuery.data.date)}</span>
                 <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
-                <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
+                {noteEditor.isEditing ? null : (
+                  <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
+                )}
               </div>
-              {visibleTags.length ? <Tags items={visibleTags} /> : null}
+              {noteEditor.isEditing ? null : visibleTags.length ? (
+                <Tags items={visibleTags} />
+              ) : null}
             </header>
             <NoteAttachments attachments={noteQuery.data.attachments} />
-            <NoteBody
-              markdown={noteQuery.data.markdown}
-              rawText={noteQuery.data.editor?.rawText || ''}
-              summary={noteQuery.data.summary}
-              title={noteQuery.data.title}
-              source={noteQuery.data.source}
-            />
+            {noteEditor.isEditing ? (
+              <NoteEditorForm
+                editTitle={noteEditor.editTitle}
+                setEditTitle={noteEditor.setEditTitle}
+                editRawText={noteEditor.editRawText}
+                setEditRawText={noteEditor.setEditRawText}
+                editTags={noteEditor.editTags}
+                setEditTags={noteEditor.setEditTags}
+                editCategoryIds={noteEditor.editCategoryIds}
+                setEditCategoryIds={noteEditor.setEditCategoryIds}
+                categories={noteEditor.categoriesQuery.data}
+                isSaving={noteEditor.isSaving}
+                onSave={noteEditor.handleSave}
+              />
+            ) : (
+              <NoteBody
+                markdown={noteQuery.data.markdown}
+                rawText={noteQuery.data.editor?.rawText || ''}
+                summary={noteQuery.data.summary}
+                title={noteQuery.data.title}
+                source={noteQuery.data.source}
+                sourceChannel={noteQuery.data.sourceChannel}
+              />
+            )}
             <RelatedNotesSection noteId={noteQuery.data.id} openNote={openNote} />
           </>
         ) : (
           <EmptyState>{selectedProjectDetails ? 'Open a note to start reading details.' : 'Select a project and open a note to start reading details.'}</EmptyState>
         )}
       </article>
-      
+
       <FloatingNoteNavigation
         previousNoteId={previousNote?.id || null}
         nextNoteId={nextNote?.id || null}
@@ -219,24 +286,4 @@ export function VaultPage({
       />
     </div>
   );
-}
-
-
-
-
-
-
-
-
-
-function toNavigationNote(note: NoteSummary | undefined): NavigationNote | null {
-  return note ? { id: note.id, title: note.title } : null;
-}
-
-function firstNavigationNote(notes: NoteSummary[] | undefined): NavigationNote | null {
-  return toNavigationNote(notes?.[0]);
-}
-
-function lastNavigationNote(notes: NoteSummary[] | undefined): NavigationNote | null {
-  return toNavigationNote(notes?.at(-1));
 }

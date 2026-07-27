@@ -6,7 +6,9 @@ import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
 import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
-import type { ReminderBoardCard, ReminderBoardColumnKey } from '../../shared/api/models/reminder';
+import { ReminderBoardColumnKey } from '../../shared/api/models/reminder';
+import type { ReminderBoardCard, ReminderBoardColumn } from '../../shared/api/models/reminder';
+import type { Project } from '../../shared/api/models/project';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifyWarning } from '../../shared/ui/notifications';
 import { Badge, PageHead } from '../../shared/ui/primitives';
@@ -16,8 +18,8 @@ import { kanbanBoardColumns, type ReminderBoardTargetStatus } from './kanban-boa
 
 const BOARD_LIMIT = 5;
 
-const DEFAULT_COLUMN_DATA = {
-  items: [] as any[],
+const DEFAULT_COLUMN_DATA: ReminderBoardColumn = {
+  items: [],
   total: 0,
   page: 1,
   pageSize: BOARD_LIMIT,
@@ -26,17 +28,33 @@ const DEFAULT_COLUMN_DATA = {
   hasPrevious: false,
 };
 
-export function KanbanPage({ dashboard, openNote }: PageContext) {
+export interface KanbanPageProps extends PageContext {
+  embedMode?: boolean;
+  projectSlug?: string;
+  onProjectChange?: (slug: string) => void;
+}
+
+export function KanbanPage({
+  dashboard,
+  openNote,
+  embedMode = false,
+  projectSlug: externalProjectSlug,
+  onProjectChange: externalOnProjectChange,
+}: KanbanPageProps) {
   const queryClient = useQueryClient();
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
-  const [projectSlug, setProjectSlug] = useState('');
+  const [internalProjectSlug, setInternalProjectSlug] = useState('');
   const [draggedId, setDraggedId] = useState('');
   const [columnPages, setColumnPages] = useState<Record<ReminderBoardColumnKey, number>>({
-    overdue: 1,
-    upcoming: 1,
-    resolved: 1,
-    archived: 1,
+    [ReminderBoardColumnKey.Overdue]: 1,
+    [ReminderBoardColumnKey.Upcoming]: 1,
+    [ReminderBoardColumnKey.Resolved]: 1,
+    [ReminderBoardColumnKey.Archived]: 1,
   });
+
+  const projectSlug = externalProjectSlug !== undefined ? externalProjectSlug : internalProjectSlug;
+  const setProjectSlug = externalOnProjectChange !== undefined ? externalOnProjectChange : setInternalProjectSlug;
+
   const projectOptions = useMemo(() => [
     { value: '', label: 'All projects' },
     ...dashboard.projects
@@ -79,32 +97,34 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
   function handleProjectChange(newProjectSlug: string) {
     setProjectSlug(newProjectSlug);
     setColumnPages({
-      overdue: 1,
-      upcoming: 1,
-      resolved: 1,
-      archived: 1,
+      [ReminderBoardColumnKey.Overdue]: 1,
+      [ReminderBoardColumnKey.Upcoming]: 1,
+      [ReminderBoardColumnKey.Resolved]: 1,
+      [ReminderBoardColumnKey.Archived]: 1,
     });
   }
 
   return (
     <>
-      <PageHead
-        title={(
-          <div className="page-head-title-row">
-            <h1>Kanban</h1>
-            <label className="sr-only" htmlFor="kanban-project-select">Filter by project</label>
-            <Select
-              ariaLabel="Filter by project"
-              className="page-head-select"
-              id="kanban-project-select"
-              options={projectOptions}
-              value={projectSlug}
-              onChange={handleProjectChange}
-            />
-          </div>
-        )}
-        subtitle=""
-      />
+      {!embedMode && (
+        <PageHead
+          title={(
+            <div className="page-head-title-row">
+              <h1>Kanban</h1>
+              <label className="sr-only" htmlFor="kanban-project-select">Filter by project</label>
+              <Select
+                ariaLabel="Filter by project"
+                className="page-head-select"
+                id="kanban-project-select"
+                options={projectOptions}
+                value={projectSlug}
+                onChange={handleProjectChange}
+              />
+            </div>
+          )}
+          subtitle=""
+        />
+      )}
       <div className="kanban-board" aria-busy={boardQuery.isFetching || statusMutation.isPending}>
         {kanbanBoardColumns.map((column) => {
           const data = board?.[column.key] || DEFAULT_COLUMN_DATA;
@@ -131,7 +151,7 @@ export function KanbanPage({ dashboard, openNote }: PageContext) {
 
 interface KanbanColumnProps {
   column: typeof kanbanBoardColumns[number];
-  data: typeof DEFAULT_COLUMN_DATA;
+  data: ReminderBoardColumn;
   isFetching: boolean;
   draggedId: string;
   setDraggedId: (id: string) => void;
@@ -139,7 +159,7 @@ interface KanbanColumnProps {
   handleDrop: (columnKey: ReminderBoardColumnKey) => void;
   handleColumnPageChange: (columnKey: ReminderBoardColumnKey, page: number) => void;
   openNote: (id: string) => void;
-  projects: any[];
+  projects: Project[];
 }
 
 function KanbanColumn({
@@ -243,3 +263,4 @@ function KanbanCard({
     </article>
   );
 }
+

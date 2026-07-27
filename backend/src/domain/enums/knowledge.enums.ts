@@ -1,8 +1,18 @@
 export enum SourceChannel {
   Whatsapp = 'whatsapp',
-  GithubPush = 'github-push',
-  N8nWorkflow = 'n8n-workflow',
+  Github = 'github',
   External = 'external',
+  AiChat = 'ai-chat',
+  Ide = 'ide',
+  Cli = 'cli',
+}
+
+export enum TimelineCategory {
+  All = 'all',
+  Whatsapp = 'whatsapp',
+  Github = 'github',
+  Manual = 'manual',
+  Reminder = 'reminder',
   AiChat = 'ai-chat',
 }
 
@@ -43,3 +53,26 @@ export enum KnowledgeStatus {
   Overdue = 'overdue',
   Sent = 'sent',
 }
+
+export enum SpecialQueryIntent {
+  Recent = 'recent',
+  ActionItems = 'action_items',
+  Decisions = 'decisions',
+}
+
+export enum CoverageHealthStatus {
+  High = 'high',
+  Moderate = 'moderate',
+  Low = 'low',
+}
+
+export const COVERAGE_THRESHOLDS = {
+  HIGH: 80,
+  MODERATE: 50,
+} as const;
+
+export enum EmbeddingPriority {
+  High = 'high',
+  Low = 'low',
+}
+

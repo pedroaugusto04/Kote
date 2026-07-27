@@ -35,7 +35,7 @@ function fieldString(row: Row, snake: string, camel: string, fallback = ''): str
   return value == null ? fallback : String(value);
 }
 
-function toIsoTimestamp(value: unknown): string {
+export function toIsoTimestamp(value: unknown): string {
   if (value instanceof Date) {
     if (isNaN(value.getTime())) return '';
     return value.toISOString();
@@ -59,10 +59,13 @@ export function userFromRow(row: Row): KbUser {
     id: String(row.id),
     email: String(row.email),
     displayName: String(field(row, 'display_name', 'displayName') || row.email),
-    passwordHash: field(row, 'password_hash', 'passwordHash') == null ? null : String(field(row, 'password_hash', 'passwordHash')),
+    passwordHash: !field(row, 'password_hash', 'passwordHash') ? null : String(field(row, 'password_hash', 'passwordHash')),
     role: String(row.role),
     avatar: fieldString(row, 'avatar', 'avatar'),
     cpfCnpj: fieldString(row, 'cpf_cnpj', 'cpfCnpj', ''),
+    vsCodeInstalledAt: field(row, 'vscode_installed_at', 'vsCodeInstalledAt')
+      ? toIsoTimestamp(field(row, 'vscode_installed_at', 'vsCodeInstalledAt'))
+      : null,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };
@@ -172,7 +175,7 @@ export function projectFromRow(row: Row): ProjectRecord {
     displayName: String(field(row, 'display_name', 'displayName') || field(row, 'project_slug', 'projectSlug')),
     workspaceId,
     ...(workspaceSlug ? { workspaceSlug } : {}),
-    repositories: (Array.isArray(row.repositories) ? row.repositories : []).map((r: any) => ({
+    repositories: (Array.isArray(row.repositories) ? row.repositories : []).map((r: Row) => ({
       id: String(r.id),
       workspaceId: String(r.workspace_id || r.workspaceId || workspaceId),
       workspaceSlug: String(r.workspace_slug || r.workspaceSlug || workspaceSlug || ''),
@@ -187,6 +190,7 @@ export function projectFromRow(row: Row): ProjectRecord {
     defaultTags: stringArray(field(row, 'default_tags', 'defaultTags')),
     enabled: row.enabled !== false,
     favorite: field(row, 'is_favorite', 'isFavorite') === true,
+    noteCount: field(row, 'note_count', 'noteCount') != null ? Number(field(row, 'note_count', 'noteCount')) : undefined,
   };
 }
 
@@ -226,7 +230,7 @@ export function noteFromRow(row: Row): NoteRecord {
   const projectSlug = fieldString(row, 'project_slug', 'projectSlug', '');
   const workspaceSlug = fieldString(row, 'workspace_slug', 'workspaceSlug', '');
   const categoriesList = Array.isArray(row.categories)
-    ? row.categories.map((c: any) => categoryFromRow(c))
+    ? row.categories.map((c: Row) => categoryFromRow(c))
     : [];
   return {
     id: String(row.id),
@@ -255,10 +259,11 @@ export function noteFromRow(row: Row): NoteRecord {
     metadata: (row.metadata || {}) as Record<string, unknown>,
     source: String(field(row, 'source', 'source') || field(row, 'source_channel', 'sourceChannel') || ''),
     sessionId: fieldString(row, 'session_id', 'sessionId'),
-    reminderDate: fieldString(row, 'reminder_date', 'reminderDate'),
-    reminderAt: fieldString(row, 'reminder_at', 'reminderAt'),
+    reminderAt: toIsoTimestamp(field(row, 'reminder_at', 'reminderAt')),
     attachmentCount: Number(field(row, 'attachment_count', 'attachmentCount') || 0),
     isPinned: field(row, 'is_pinned', 'isPinned') === true,
+    sizeBytes: Number(field(row, 'size_bytes', 'sizeBytes') || 0),
+    ftsRank: field(row, 'ts_rank', 'tsRank') != null ? Number(field(row, 'ts_rank', 'tsRank')) : undefined,
   };
 }
 
@@ -342,7 +347,7 @@ export function planFromRow(row: Row): PlanRecord {
     displayName: fieldString(row, 'display_name', 'displayName'),
     description: fieldString(row, 'description', 'description'),
     maxStorageBytes: Number(field(row, 'max_storage_bytes', 'maxStorageBytes') || 0),
-    maxAiRequestsPerMonth: Number(field(row, 'max_ai_requests_per_month', 'maxAiRequestsPerMonth') || 0),
+    maxAiCreditsPerMonth: Number(field(row, 'max_ai_credits_per_month', 'maxAiCreditsPerMonth') || 0),
     maxWorkspaces: Number(field(row, 'max_workspaces', 'maxWorkspaces') || 0),
     maxProjectsPerWorkspace: Number(field(row, 'max_projects_per_workspace', 'maxProjectsPerWorkspace') || 0),
     priceCents: Number(field(row, 'price_cents', 'priceCents') || 0),
@@ -362,7 +367,7 @@ export function userSubscriptionFromRow(row: Row): UserSubscriptionRecord {
     currentPeriodEnd: toIsoTimestamp(field(row, 'current_period_end', 'currentPeriodEnd')),
     gatewayName: fieldString(row, 'gateway_name', 'gatewayName', 'asaas'),
     gatewaySubscriptionId: field(row, 'gateway_subscription_id', 'gatewaySubscriptionId') ? String(field(row, 'gateway_subscription_id', 'gatewaySubscriptionId')) : null,
-    gatewayCustomerId: field(row, 'gateway_customer_id', 'gatewayCustomerId') ? String(field(row, 'gateway_customer_id', 'gatewayCustomerId')) : null,
+    billingCycle: fieldString(row, 'billing_cycle', 'billingCycle', 'monthly'),
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };

@@ -6,7 +6,7 @@ import type { TelegramWebhookRequest } from '../../../models/webhook-request.mod
 import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
-import { normalizeHeaders } from '../../../utils/webhook.utils.js';
+import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
 
 @Injectable()
 export class HandleTelegramWebhookUseCase {

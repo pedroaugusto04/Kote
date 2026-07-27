@@ -16,11 +16,6 @@ test.describe('Dashboard', () => {
     expect(response?.status()).toBeLessThan(400);
   });
 
-  test('should navigate to Kanban page', async ({ page }) => {
-    const response = await page.goto('/kanban');
-    expect(response?.status()).toBeLessThan(400);
-  });
-
   test('should navigate to Reminders page', async ({ page }) => {
     const response = await page.goto('/reminders');
     expect(response?.status()).toBeLessThan(400);

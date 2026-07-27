@@ -40,7 +40,7 @@ export function WebhookSubscriptionsCard({ workspaceSlug }: { workspaceSlug: str
     <>
       <Panel className="integration-card webhook-card">
         <div className="integration-card-head">
-          <div className="integration-logo-fallback">WH</div>
+          <div className="integration-logo-fallback">{WEBHOOK_MESSAGES.CARD.LOGO_FALLBACK}</div>
           <div>
             <h2>{WEBHOOK_MESSAGES.CARD.TITLE}</h2>
             <p>{WEBHOOK_MESSAGES.CARD.DESCRIPTION}</p>

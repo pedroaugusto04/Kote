@@ -21,7 +21,7 @@ export class ResolveWhatsappAskAttachmentsUseCase {
 
   async execute(input: {
     userId: string;
-    workspaceSlug: string;
+    workspaceId: string;
     requestedAttachments: boolean;
     requestedAttachmentPattern?: string;
     sources?: WhatsappAskAttachmentNoteRef[];
@@ -33,15 +33,26 @@ export class ResolveWhatsappAskAttachmentsUseCase {
 
     const noteIds = await this.orderedWorkspaceNoteIds(
       input.userId,
-      input.workspaceSlug,
+      input.workspaceId,
       input.sources,
       input.relatedNotes,
     );
 
-    // 1. Gather all attachments across the identified notes
+    // 1. Gather all attachments across the identified notes (batch fetch to avoid N+1)
+    const allAttachmentsList = await this.contentRepository.listAttachmentsByNoteIds(input.userId, noteIds);
+    const attachmentsByNoteId = new Map<string, typeof allAttachmentsList>();
+
+    allAttachmentsList.forEach((attachment) => {
+      if (!attachmentsByNoteId.has(attachment.noteId)) {
+        attachmentsByNoteId.set(attachment.noteId, []);
+      }
+      attachmentsByNoteId.get(attachment.noteId)!.push(attachment);
+    });
+
+    // Flatten for existing logic
     const allAttachments: Array<{ noteId: string; attachment: any }> = [];
     for (const noteId of noteIds) {
-      const attachments = await this.contentRepository.listAttachments(input.userId, noteId);
+      const attachments = attachmentsByNoteId.get(noteId) || [];
       for (const attachment of attachments) {
         allAttachments.push({ noteId, attachment });
       }
@@ -65,11 +76,14 @@ export class ResolveWhatsappAskAttachmentsUseCase {
     const media: WhatsappAskAttachmentMedia[] = [];
 
     for (const { noteId, attachment } of attachmentsToSend) {
+     
       if (attachment.sizeBytes > maxAttachmentBytes) {
         oversizedCount += 1;
         continue;
       }
-      if (media.length >= maxAttachmentsPerReply) continue;
+      if (media.length >= maxAttachmentsPerReply) {
+        continue;
+      }
 
       try {
         const body = await this.objectStorage.get(attachment.storageKey);
@@ -103,19 +117,19 @@ export class ResolveWhatsappAskAttachmentsUseCase {
 
   private async orderedWorkspaceNoteIds(
     userId: string,
-    workspaceSlug: string,
+    workspaceId: string,
     sources: WhatsappAskAttachmentNoteRef[] = [],
     relatedNotes: WhatsappAskAttachmentNoteRef[] = [],
   ): Promise<string[]> {
     const workspaceNoteIds = new Set(
       relatedNotes
-        .filter((n) => n.workspaceSlug === workspaceSlug)
+        .filter((n) => n.workspaceId === workspaceId)
         .map((n) => String(n.id || n.noteId || '').trim())
     );
 
     const nonWorkspaceNoteIds = new Set(
       relatedNotes
-        .filter((n) => n.workspaceSlug && n.workspaceSlug !== workspaceSlug)
+        .filter((n) => n.workspaceId && n.workspaceId !== workspaceId)
         .map((n) => String(n.id || n.noteId || '').trim())
     );
 
@@ -127,17 +141,30 @@ export class ResolveWhatsappAskAttachmentsUseCase {
       )
     );
 
+    // Batch fetch unknown notes to avoid N+1 queries
+    const unknownIds = orderedIds.filter((id) => 
+      !workspaceNoteIds.has(id) && !nonWorkspaceNoteIds.has(id)
+    );
+
     const allowedIds: string[] = [];
-    for (const noteId of orderedIds) {
-      if (workspaceNoteIds.has(noteId)) {
-        allowedIds.push(noteId);
-      } else if (!nonWorkspaceNoteIds.has(noteId)) {
-        const note = await this.contentRepository.getNoteById(userId, noteId);
-        if (note?.workspaceSlug === workspaceSlug) {
+    if (unknownIds.length > 0) {
+      const notes = await this.contentRepository.getNotesByIds(userId, unknownIds);
+      const notesMap = new Map(notes.map((n) => [n.id, n]));
+      
+      for (const noteId of orderedIds) {
+        if (workspaceNoteIds.has(noteId)) {
           allowedIds.push(noteId);
+        } else if (!nonWorkspaceNoteIds.has(noteId)) {
+          const note = notesMap.get(noteId);
+          if (note?.workspaceId === workspaceId) {
+            allowedIds.push(noteId);
+          }
         }
       }
+    } else {
+      allowedIds.push(...orderedIds.filter((id) => workspaceNoteIds.has(id)));
     }
+    
     return allowedIds;
   }
 }

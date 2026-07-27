@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ReminderEventBus } from '../../../dist/application/services/reminder-event.bus.js';
-import { PushNotificationReminderListener } from '../../../dist/application/services/push-notification-reminder.listener.js';
+import { ReminderEventBus } from '../../../dist/application/event-buses/reminder-event.bus.js';
+import { PushNotificationReminderListener } from '../../../dist/application/listeners/push-notification-reminder.listener.js';
 import { ReminderDeliveryChannel } from '../../../dist/contracts/enums.js';
 
 test('PushNotificationReminderListener sends push notification when WhatsApp reminder is sent', async () => {

@@ -15,8 +15,8 @@ const returnToPathSchema = z.string().trim().optional().transform((value, ctx) =
     return z.NEVER;
   }
   try {
-    const parsed = new URL(value, 'https://knowledge-base.local');
-    if (parsed.origin !== 'https://knowledge-base.local') throw new Error('invalid_origin');
+    const parsed = new URL(value, 'https://kote.local');
+    if (parsed.origin !== 'https://kote.local') throw new Error('invalid_origin');
     return `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Use a relative return path.', path: ['returnToPath'] });
@@ -40,8 +40,16 @@ export const guidedIntegrationProviderSchema = z.enum([
   IntegrationProviderEnum.AiConversation,
   IntegrationProviderEnum.ProjectBriefAi,
   IntegrationProviderEnum.PushNotifications,
+  IntegrationProviderEnum.PrContextAi,
+  IntegrationProviderEnum.FileNotesSummaryAi
 ]);
-export const aiIntegrationProviderSchema = z.enum([IntegrationProviderEnum.AiReview, IntegrationProviderEnum.AiConversation, IntegrationProviderEnum.ProjectBriefAi]);
+export const aiIntegrationProviderSchema = z.enum([
+  IntegrationProviderEnum.AiReview,
+  IntegrationProviderEnum.AiConversation,
+  IntegrationProviderEnum.ProjectBriefAi,
+  IntegrationProviderEnum.PrContextAi,
+  IntegrationProviderEnum.FileNotesSummaryAi,
+]);
 
 export const providerParamSchema = z.object({
   provider: integrationProviderSchema,
@@ -108,6 +116,31 @@ export const githubRepositoriesBodySchema = z
       }),
     };
   });
+
+export const githubBackfillBodySchema = z
+  .object({
+    workspaceSlug: requiredWorkspaceSlugSchema,
+    repositories: z.array(repoFullNameSchema).min(1).max(10),
+  })
+  .strict()
+  .transform((body) => ({
+    workspaceSlug: body.workspaceSlug,
+    repositories: [...new Set(body.repositories.map((repo) => repo.trim()).filter(Boolean))],
+  }));
+
+export const githubBackfillStatusQuerySchema = z.object({
+  workspaceSlug: requiredWorkspaceSlugSchema,
+  jobId: z.string().uuid('Invalid job ID.'),
+});
+
+export const githubBackfillCancelBodySchema = z.object({
+  workspaceSlug: requiredWorkspaceSlugSchema,
+  jobId: z.string().uuid('Invalid job ID.'),
+});
+
+export type GithubBackfillBody = z.infer<typeof githubBackfillBodySchema>;
+export type GithubBackfillStatusQuery = z.infer<typeof githubBackfillStatusQuerySchema>;
+export type GithubBackfillCancelBody = z.infer<typeof githubBackfillCancelBodySchema>;
 
 export type ResolveIntegrationCredentialBody = z.infer<typeof resolveIntegrationCredentialBodySchema>;
 export type ProviderParam = z.infer<typeof providerParamSchema>;

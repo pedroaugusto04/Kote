@@ -13,8 +13,6 @@ export function buildNoteEditorState(note: NoteRecord) {
   return {
     canDelete: true,
     rawText: extractEditableRawText(note),
-    reminderDate: note.reminderDate,
-    reminderTime: String(note.metadata.reminderTime || '').trim(),
     reminderAt: note.reminderAt,
   };
 }
@@ -24,29 +22,31 @@ export function buildUpdatedNote(
   previousFolder: ProjectFolderRecord | null,
   nextFolder: ProjectFolderRecord | null,
   input: UpdatedNoteInput,
-  reminderTimeZone: string,
+  projectSlug?: string,
+  projectId?: string,
+  workspaceSlug?: string,
+  workspaceId?: string,
 ) {
   const title = trimText(input.title, note.title || input.rawText);
   const rawText = stripTitleHeader(normalizeMultiline(input.rawText), title);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
   const noteType = input.canonicalType || CanonicalType.Event;
-  const reminderFields = buildUtcReminderFields({
-    reminderDate: input.reminderDate,
-    reminderTime: input.reminderTime,
-    reminderAt: input.reminderAt,
-    timeZone: reminderTimeZone,
-  });
+  const reminderAt = input.reminderAt !== undefined ? input.reminderAt : note.reminderAt || '';
   const nextStatus = normalizeManualNoteStatus({
     requestedStatus: input.status,
     currentStatus: note.status,
-    hadReminder: Boolean(note.reminderDate || note.reminderAt),
-    hasReminder: Boolean(reminderFields.reminderDate || reminderFields.reminderAt),
+    hadReminder: Boolean(note.reminderAt),
+    hasReminder: Boolean(reminderAt),
   });
   const structuredNote = parseStructuredNoteMarkdown(note.markdown, note.title);
+  const effectiveProjectSlug = (projectSlug ?? note.projectSlug) || '';
+  const effectiveProjectId = projectId ?? note.projectId;
+  const effectiveWorkspaceSlug = (workspaceSlug ?? note.workspaceSlug) || '';
+  const effectiveWorkspaceId = workspaceId ?? note.workspaceId;
   const frontmatter = {
     type: noteType,
-    workspace: note.workspaceSlug || '',
-    project: note.projectSlug || '',
+    workspace: effectiveWorkspaceSlug,
+    project: effectiveProjectSlug,
     status: nextStatus,
     tags,
     occurred_at: note.occurredAt,
@@ -54,18 +54,17 @@ export function buildUpdatedNote(
   const metadata = {
     ...note.metadata,
     rawText,
-    reminderTime: reminderFields.reminderTime,
   };
 
   return {
     id: note.id,
-    projectId: note.projectId,
-    workspaceId: note.workspaceId,
-    path: relocateNotePath(note.path, note.projectSlug || '', previousFolder?.fullSlugPath || '', nextFolder?.fullSlugPath || ''),
+    projectId: effectiveProjectId,
+    workspaceId: effectiveWorkspaceId,
+    path: relocateNotePath(note.path, effectiveProjectSlug, previousFolder?.fullSlugPath || '', nextFolder?.fullSlugPath || ''),
     type: noteType,
     title,
-    projectSlug: note.projectSlug || '',
-    workspaceSlug: note.workspaceSlug || '',
+    projectSlug: effectiveProjectSlug,
+    workspaceSlug: effectiveWorkspaceSlug,
     folderId: nextFolder?.id || null,
     status: nextStatus,
     tags,
@@ -78,8 +77,7 @@ export function buildUpdatedNote(
     metadata,
     source: note.source,
     sessionId: note.sessionId,
-    reminderDate: reminderFields.reminderDate,
-    reminderAt: reminderFields.reminderAt,
+    reminderAt,
   };
 }
 
@@ -91,7 +89,7 @@ export function extractEditableRawText(note: NoteRecord) {
   if (structuredNote?.rawText) return structuredNote.rawText;
 
   const normalized = normalizeMultiline(String(note.markdown || ''));
-  const withoutFrontmatter = normalized.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+  const withoutFrontmatter = normalized.replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '').trim();
   if (!withoutFrontmatter) return String(note.summary || '').trim();
 
   const lines = withoutFrontmatter.split('\n');
@@ -186,7 +184,7 @@ type StructuredNoteMarkdown = {
 
 function parseStructuredNoteMarkdown(markdown: string, title: string): StructuredNoteMarkdown | null {
   const normalized = normalizeMultiline(String(markdown || ''));
-  const withoutFrontmatter = normalized.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+  const withoutFrontmatter = normalized.replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '').trim();
   if (!withoutFrontmatter) return null;
 
   const lines = dropTitleHeading(withoutFrontmatter.split('\n'), title);

@@ -18,9 +18,12 @@ import { OperationsModule } from './infrastructure/modules/operations.module.js'
 import { IntegrationsModule } from './infrastructure/modules/integrations.module.js';
 import { QuotaModule } from './infrastructure/modules/quota.module.js';
 import { BillingModule } from './infrastructure/modules/billing.module.js';
+import { EmailModule } from './infrastructure/modules/email.module.js';
+import { WeeklySummaryModule } from './infrastructure/modules/weekly-summary.module.js';
+import { TestModule } from './infrastructure/modules/test.module.js';
 
 import { HealthController } from './interfaces/http/controllers/index.js';
-import { GlobalRateLimitGuard } from './interfaces/http/auth.guards.js';
+import { GlobalRateLimitGuard } from './interfaces/http/guards/auth.guards.js';
 
 @Module({
   imports: [
@@ -41,6 +44,9 @@ import { GlobalRateLimitGuard } from './interfaces/http/auth.guards.js';
     IntegrationsModule,
     QuotaModule,
     BillingModule,
+    EmailModule,
+    WeeklySummaryModule,
+    TestModule,
   ],
   controllers: [HealthController],
   providers: [

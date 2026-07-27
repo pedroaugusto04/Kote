@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { withFrontendBasePath } from '../../app/base-path';
 import { routes } from '../../app/routing/routes';
@@ -25,6 +25,7 @@ function StepState({ complete, pendingLabel, doneLabel }: { complete: boolean; p
 export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboard; refetchDashboard: () => Promise<unknown> }) {
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
+  const navigate = useNavigate();
   const formRef = useRef<HTMLFormElement>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [createdWorkspaceSlug, setCreatedWorkspaceSlug] = useState('');
@@ -50,6 +51,15 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
     setValue('workspaceSlug', slugifyInput(displayName));
   }, [displayName, setValue, slugTouched]);
 
+  // Auto-focus display name input on mount
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      const input = formRef.current?.querySelector('input[name="displayName"]') as HTMLInputElement | null;
+      input?.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   const createWorkspaceMutation = useMutation({
     mutationFn: (values: WorkspaceFormValues) => globalLoading.trackPromise(createWorkspace(values)),
     onSuccess: (result) => {
@@ -64,6 +74,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
             : [{ ...result.initialProject, favorite: false }, ...current.projects],
         }
         : current);
+      navigate(withFrontendBasePath(routes.home));
     },
     onError: (error) => {
       const fieldNames = applyBackendFieldErrors<WorkspaceFormValues>(error, setError);
@@ -82,7 +93,7 @@ export function SetupPage({ dashboard, refetchDashboard }: { dashboard: Dashboar
           <Link className="brand auth-brand" to={routes.home} aria-label="Ir para Home">
             <BrandMark />
             <div>
-              <strong>Knowledge Vault</strong>
+              <strong>Kote</strong>
               <span>workspace setup</span>
             </div>
           </Link>

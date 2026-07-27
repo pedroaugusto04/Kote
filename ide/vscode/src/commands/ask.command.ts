@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { KbClient } from '../kb-client';
 import { reportError, toMessage } from '../error-reporter';
+import { addAskEntry } from '../utils/ask-history';
 
 /**
  * Quick ask via VS Code's input box (Ctrl+Shift+K).
@@ -13,9 +14,9 @@ export function registerAskCommand(
   getProject: () => string,
 ): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand('kb.ask', async () => {
+    vscode.commands.registerCommand('kote.ask', async () => {
       const question = await vscode.window.showInputBox({
-        prompt: 'Ask your knowledge base',
+        prompt: 'Ask your Kote',
         placeHolder: 'e.g. How is authentication configured in this project?',
         ignoreFocusOut: false,
       });
@@ -25,7 +26,7 @@ export function registerAskCommand(
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: 'Knowledge Vault',
+          title: 'Kote',
           cancellable: false,
         },
         async (progress) => {
@@ -33,6 +34,10 @@ export function registerAskCommand(
           try {
             const result = await client.ask(question.trim(), getProject());
             const answer = result.answer?.trim() ?? 'No answer found.';
+            const projectSlug = getProject();
+
+            // Persist to local history
+            addAskEntry({ question: question.trim(), answer, projectSlug });
 
             // For short answers, show inline. For long ones, open chat.
             if (answer.length < 400) {
@@ -44,25 +49,25 @@ export function registerAskCommand(
               );
 
               if (action === 'Open Chat') {
-                vscode.commands.executeCommand('kb.openChat');
+                vscode.commands.executeCommand('kote.openChat', { question: question.trim(), answer, projectSlug });
               } else if (action === 'Save as Note') {
                 try {
                   await client.createNote({
                     rawText: `**Q:** ${question}\n\n**A:** ${answer}`,
-                    projectSlug: getProject(),
+                    projectSlug,
                     sourceChannel: 'ai-chat',
-                    source: 'open-code',
+                    source: 'kote',
                   });
-                  vscode.window.showInformationMessage('Note saved to Knowledge Vault.');
+                  vscode.window.showInformationMessage('Note saved to Kote.');
                 } catch (err: unknown) {
                   reportError('save-note (from ask)', err);
                 }
               }
             } else {
               // Open chat with context of this question pre-sent
-              vscode.commands.executeCommand('kb.openChat');
+              vscode.commands.executeCommand('kote.openChat', { question: question.trim(), answer, projectSlug });
               vscode.window.showInformationMessage(
-                'Answer is long — opened in KB Chat.',
+                'Answer is long — opened in Kote Chat.',
                 'OK',
               );
             }

@@ -78,13 +78,11 @@ export function assertTrustedBrowserOrigin(request: Request) {
     const extensionId = actualOrigin.replace('chrome-extension://', '');
     const environment = readEnvironment();
     const allowedIds = environment.allowedExtensionIds;
-    if (allowedIds.length > 0) {
-      if (allowedIds.includes(extensionId)) {
-        return;
-      }
-      throw new ForbiddenException('invalid_origin');
+    // Allow if ID is in the allowed list
+    if (allowedIds.includes(extensionId)) {
+      return;
     }
-    return;
+    throw new ForbiddenException('invalid_origin');
   }
   const expected = expectedOrigins(request);
   if (!expected.has(actualOrigin)) {

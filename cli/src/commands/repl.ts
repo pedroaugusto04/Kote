@@ -101,8 +101,8 @@ function readlineAutocompletePrompt(promptText: string, commands: string[]): Pro
         if (matches.length > 0) {
           const selectedMatch = matches[selectedIndex];
           
-          if (selectedMatch === '/save ' || selectedMatch === '/ask ') {
-            // Autofill command and let user continue typing note/question
+          if (selectedMatch === '/save ' || selectedMatch === '/ask ' || selectedMatch === '/sync ') {
+            // Autofill command and let user continue typing
             cleanupOverlay(matches);
             input = selectedMatch;
             cursor = input.length;
@@ -228,14 +228,14 @@ function parseReplOptions(argsString: string): { text: string; options: { projec
 export async function runRepl(): Promise<void> {
   const config = loadConfig();
   console.log(pc.cyan('================================================'));
-  console.log(pc.cyan(`  Knowledge Base Interactive Session            `));
+  console.log(pc.cyan(`  Kote Interactive Session            `));
   console.log(pc.cyan(`  Active Workspace: ${pc.bold(config.workspaceSlug)}`));
   console.log(pc.cyan(`  Type ${pc.bold('/exit')} to quit, ${pc.bold('help')} for command list.`));
   console.log(pc.cyan(`  [TAB] or [UP/DOWN] to select autocomplete commands.`));
   console.log(pc.cyan('================================================\n'));
 
   while (true) {
-    const promptLabel = pc.magenta('kb> ');
+    const promptLabel = pc.magenta('kote> ');
     const line = await readlineAutocompletePrompt(promptLabel, COMMANDS);
     const trimmed = line.trim();
 
@@ -250,7 +250,7 @@ export async function runRepl(): Promise<void> {
 
     if (trimmed === 'help') {
       console.log(pc.cyan('\nInteractive Command List & Options:'));
-      console.log(`  ${pc.bold('/ask <question>')}         - Query the knowledge base`);
+      console.log(`  ${pc.bold('/ask <question>')}         - Query Kote`);
       console.log(`    ${pc.gray('Options:')}`);
       console.log(`      ${pc.yellow('-p, --project <slug>')}  Specify project context for the query`);
       console.log(`    ${pc.gray('Example:')} /ask -p platform How to deploy?\n`);

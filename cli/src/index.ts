@@ -11,18 +11,19 @@ import { runLogout } from './commands/logout.js';
 import { runSync } from './commands/sync.js';
 import { runSyncAi } from './commands/sync-ai.js';
 import { loadConfig } from './config.js';
+import { client } from './client.js';
 
 const program = new Command();
 
 program
-  .name('kb')
-  .description('Knowledge Base (kb) CLI tool')
+  .name('kote')
+  .description('Kote CLI tool')
   .version('1.0.0');
 
 // init command
 program
   .command('init')
-  .description('Setup and authenticate the CLI with your Knowledge Base server')
+  .description('Setup and authenticate the CLI with your Kote server')
   .action(async () => {
     await runInit();
   });
@@ -30,7 +31,7 @@ program
 // logout command
 program
   .command('logout')
-  .description('Log out of your Knowledge Base account and clear local session')
+  .description('Log out of your Kote account and clear local session')
   .action(async () => {
     await runLogout();
   });
@@ -64,7 +65,7 @@ configCmd
 // ask command
 program
   .command('ask <question>')
-  .description('Query your knowledge base with a question')
+  .description('Query your Kote with a question')
   .option('-p, --project <slug>', 'Specify project context')
   .action(async (question, options) => {
     await runAsk(question, options);
@@ -89,7 +90,7 @@ program
 // sync command
 program
   .command('sync')
-  .description('Sync local markdown files or directories with the knowledge base')
+  .description('Sync local markdown files or directories with Kote')
   .requiredOption('-d, --dir <path>', 'Path to local directory or single markdown file')
   .option('-p, --project <slug>', 'Default project slug')
   .option('--dry-run', 'Analyze changes without uploading')
@@ -160,6 +161,12 @@ async function checkAuth() {
     }
   }
 }
+
+// Setup auth failure callback to inform user when session expires
+client.onAuthCleared = () => {
+  console.error(pc.red('\nYour Kote session has expired.'));
+  console.error(pc.yellow('Please run ') + pc.cyan('kote init') + pc.yellow(' to authenticate again.\n'));
+};
 
 // Handle argument parsing
 async function main() {

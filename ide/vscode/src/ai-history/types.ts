@@ -13,12 +13,18 @@ export interface AiSession {
   turns: AiTurn[];
   timestamp: number;
   projectSlug?: string;
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 }
 
 export interface AiHistoryProvider {
   id: string;
   name: string;
   isEnabled(): Promise<boolean>;
-  getRecentSessions(): Promise<AiSession[]>;
+  getRecentSessions(limit?: number): Promise<AiSession[]>;
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable;
 }

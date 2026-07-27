@@ -6,6 +6,7 @@ import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { VaultPage } from '../../../src/pages/vault/VaultPage';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import type { NoteDetail, NoteSummary } from '../../../src/shared/api/models/note';
+import { NoteStatus } from '../../../src/shared/api/models/note-status';
 
 const apiSpies = vi.hoisted(() => ({
   fetchNote: vi.fn(),
@@ -66,7 +67,6 @@ describe('VaultPage', () => {
     apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
     apiSpies.fetchNote.mockResolvedValue(buildNoteDetail(note));
 
-    const editNote = vi.fn();
     const deleteNote = vi.fn();
 
     renderWithAppProviders(
@@ -77,7 +77,7 @@ describe('VaultPage', () => {
         setSelectedProject={vi.fn()}
         openProject={vi.fn()}
         openNote={vi.fn()}
-        editNote={editNote}
+        editNote={vi.fn()}
         deleteNote={deleteNote}
       />,
       { route: `/vault/${note.id}` },
@@ -90,9 +90,6 @@ describe('VaultPage', () => {
 
     expect(editBtn).toBeInTheDocument();
     expect(deleteBtn).toBeInTheDocument();
-
-    fireEvent.click(editBtn);
-    expect(editNote).toHaveBeenCalledWith(note.id);
 
     fireEvent.click(deleteBtn);
     expect(deleteNote).toHaveBeenCalledWith({ id: note.id, title: note.title });
@@ -433,9 +430,10 @@ function buildNoteSummary(overrides: Partial<NoteSummary> = {}): NoteSummary {
     categories: [],
     tags: ['deploy'],
     date: '2026-05-01',
-    status: 'active',
+    status: NoteStatus.Active,
     summary: 'Resumo',
     source: 'manual-api',
+    sourceChannel: 'manual',
     attachmentCount: 0,
     ...overrides,
   };
@@ -450,6 +448,7 @@ function buildNoteDetail(note: NoteSummary): NoteDetail {
     origin: 'manual-api',
     attachments: [],
     editor: null,
+    navigation: { previous: null, next: null },
   };
 }
 

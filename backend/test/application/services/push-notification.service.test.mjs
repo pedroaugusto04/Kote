@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import webpush from 'web-push';
-import { PushNotificationService } from '../../../dist/application/services/push-notification.service.js';
+import { PushNotificationService } from '../../../dist/application/services/notifications/push-notification.service.js';
 
 test('PushNotificationService sends push notifications and deletes expired subscriptions on 410 Gone', async () => {
   const originalSetVapidDetails = webpush.setVapidDetails;

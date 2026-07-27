@@ -1,0 +1,15 @@
+<html>
+  <body>
+    <p>Hi {{displayName}},</p>
+    <p>Here is your weekly activity summary from {{appName}}.</p>
+    {{#projects}}
+      <h4>{{projectName}} — {{count}} note(s)</h4>
+      <ul>
+        {{#notes}}
+          <li>{{title}} — {{date}}</li>
+        {{/notes}}
+      </ul>
+    {{/projects}}
+    <p>Thanks,<br/>The {{appName}} team</p>
+  </body>
+</html>

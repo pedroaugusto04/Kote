@@ -1,6 +1,6 @@
-export { buildGoogleAuthStartUrl, deleteCurrentUserAvatar, fetchCurrentUser, login, logout, signup, uploadCurrentUserAvatar, fetchConnectionToken } from './auth';
+export { buildGoogleAuthStartUrl, deleteCurrentUserAvatar, fetchCurrentUser, login, logout, signup, uploadCurrentUserAvatar, fetchConnectionToken, reportVscodeInstalled } from './auth';
 export { logApplicationAccess } from './application';
-export { fetchDashboard } from './dashboard';
+export { fetchDashboard, fetchProductivityInsights } from './dashboard';
 export {
   connectIntegration,
   fetchGithubRepositories,
@@ -8,9 +8,12 @@ export {
   fetchIntegrationSession,
   revokeIntegration,
   saveGithubRepositories,
+  startGithubBackfill,
+  fetchGithubBackfillStatus,
+  cancelGithubBackfill,
   testIntegration,
 } from './integrations';
-export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, fetchRelatedNotes } from './notes';
+export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, fetchRelatedNotes, bulkUpdateNoteStatuses } from './notes';
 export {
   createProject,
   createProjectFolder,
@@ -21,6 +24,7 @@ export {
   fetchProjectBriefHistory,
   fetchProjectFolders,
   fetchProjectKnowledgeMap,
+  fetchProjectCoverage,
   fetchProjectTimeline,
   fetchProjects,
   generateProjectBrief,
@@ -28,9 +32,9 @@ export {
   updateProject,
   updateProjectFolder,
 } from './projects';
-export { fetchReminderBoard, fetchReminders, updateReminderStatus } from './reminders';
+export { fetchReminderBoard, fetchReminders, updateReminderStatus, bulkUpdateReminderStatuses } from './reminders';
 export { runQuery } from './query';
-export { fetchAskHistory, runAsk } from './ask';
+export { fetchAskHistory, runAsk, fetchAskConversations, fetchConversationTurns } from './ask';
 export { ApiClientError, type AuthUser } from './request';
 export { getErrorMessage } from './error-message';
 export { createWorkspace, fetchWorkspaceCategories } from './workspaces';

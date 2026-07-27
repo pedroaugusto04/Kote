@@ -1,5 +1,5 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import amqplib, { type ChannelModel, type Channel, type Message } from 'amqplib';
+import { Injectable } from '@nestjs/common';
+import amqplib, { type Channel, type Message } from 'amqplib';
 
 import {
   BillingCustomerRepository,
@@ -14,7 +14,7 @@ import { SubscriptionService } from '../../../application/services/billing/Subsc
 import { BillingIntentService } from '../../../application/services/billing/BillingIntentService.js';
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { BillingEventBus } from '../../../application/services/billing-event.bus.js';
+import { BillingEventBus } from '../../../application/event-buses/billing-event.bus.js';
 import {
   parseDateTimeInput,
   toMoneyNumber,
@@ -33,16 +33,10 @@ import {
   PaymentKind as DomainPaymentKind,
 } from '../../../domain/enums/billing.enums.js';
 import { BillingTypeEnum } from '../gateways/IPaymentGateway.js';
-
-const RECONNECT_DELAY_MS = 5_000;
+import { BaseRabbitMqConsumer } from '../../queue/base-rabbitmq.consumer.js';
 
 @Injectable()
-export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
-  private connection: ChannelModel | null = null;
-  private channel: Channel | null = null;
-  private connecting = false;
-  private closed = false;
-
+export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
   private readonly exchange: string;
   private readonly queue: string;
   private readonly routingKey: string;
@@ -65,8 +59,9 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly subscriptionService: SubscriptionService,
     private readonly billingIntentService: BillingIntentService,
     private readonly billingEventBus: BillingEventBus,
-    private readonly logger: AppLogger
+    logger: AppLogger
   ) {
+    super(logger);
     this.exchange = process.env.KB_RABBITMQ_BILLING_EXCHANGE || 'billing.webhooks';
     this.queue = process.env.KB_RABBITMQ_BILLING_QUEUE || 'billing.webhooks.asaas';
     this.routingKey = process.env.KB_RABBITMQ_BILLING_ROUTING_KEY || 'asaas.webhook';
@@ -80,94 +75,27 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
     this.maxWebhookAttempts = Number(process.env.WEBHOOK_MAX_ATTEMPTS || '10');
   }
 
-  async onModuleInit() {
-    const url = this.getUrl();
-    if (!url) {
-      this.logger.warn('billing_webhook_consumer.skipped_no_url');
-      return;
-    }
-    void this.start(url);
+  protected async setupChannel(channel: Channel): Promise<void> {
+    // Main flow Setup
+    await channel.assertExchange(this.exchange, 'topic', { durable: true });
+    await channel.assertQueue(this.queue, { durable: true });
+    await channel.bindQueue(this.queue, this.exchange, this.routingKey);
+
+    // Retry flow Setup
+    await channel.assertExchange(this.retryExchange, 'topic', { durable: true });
+    await channel.assertQueue(this.retryQueue, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': this.exchange,
+        'x-dead-letter-routing-key': this.routingKey,
+      },
+    });
+    await channel.bindQueue(this.retryQueue, this.retryExchange, this.retryRoutingKey);
   }
 
-  async onModuleDestroy() {
-    this.closed = true;
-    try {
-      if (this.channel) await this.channel.close();
-    } catch { /* already closed */ }
-    try {
-      if (this.connection) await this.connection.close();
-    } catch { /* already closed */ }
-    this.channel = null;
-    this.connection = null;
-  }
-
-  private getUrl(): string {
-    return String(process.env.KB_RABBITMQ_URL || '').trim();
-  }
-
-  private async start(url: string) {
-    try {
-      const channel = await this.ensureChannel(url);
-      await channel.prefetch(1);
-      await channel.consume(this.queue, (msg) => this.processMessage(msg, channel));
-      this.logger.info('billing_webhook_consumer.started');
-    } catch (error) {
-      this.logger.error('billing_webhook_consumer.start_failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      if (!this.closed) {
-        setTimeout(() => this.start(url), RECONNECT_DELAY_MS);
-      }
-    }
-  }
-
-  private async ensureChannel(url: string): Promise<Channel> {
-    if (this.channel) return this.channel;
-    if (this.connecting) {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      if (this.channel) return this.channel;
-      throw new Error('billing_webhook_consumer.connection_in_progress');
-    }
-
-    this.connecting = true;
-    try {
-      const conn = await amqplib.connect(url);
-      this.connection = conn;
-
-      conn.on('error', (error: Error) => {
-        this.logger.error('billing_webhook_consumer.connection_error', { error: error.message });
-        this.channel = null;
-      });
-      conn.on('close', () => {
-        this.channel = null;
-        if (!this.closed) {
-          this.logger.warn('billing_webhook_consumer.connection_closed_reconnecting');
-        }
-      });
-
-      const ch = await conn.createChannel();
-
-      // Main flow Setup
-      await ch.assertExchange(this.exchange, 'topic', { durable: true });
-      await ch.assertQueue(this.queue, { durable: true });
-      await ch.bindQueue(this.queue, this.exchange, this.routingKey);
-
-      // Retry flow Setup
-      await ch.assertExchange(this.retryExchange, 'topic', { durable: true });
-      await ch.assertQueue(this.retryQueue, {
-        durable: true,
-        arguments: {
-          'x-dead-letter-exchange': this.exchange,
-          'x-dead-letter-routing-key': this.routingKey,
-        },
-      });
-      await ch.bindQueue(this.retryQueue, this.retryExchange, this.retryRoutingKey);
-
-      this.channel = ch;
-      return ch;
-    } finally {
-      this.connecting = false;
-    }
+  protected async startConsuming(channel: Channel): Promise<void> {
+    await channel.prefetch(1);
+    await channel.consume(this.queue, (msg) => this.processMessage(msg, channel));
   }
 
   private async processMessage(msg: Message | null, channel: Channel) {
@@ -408,7 +336,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
         } else {
           const claimedIntent = await this.billingIntentService.claimForProcessing(userId, intent.id);
           if (claimedIntent) {
-            await this.processIntentPayload(userId, gatewayCustomerId, payment, intent, paidAt, creditCardToken, nextBillingType);
+            await this.processIntentPayload(userId, gatewayCustomerId);
             this.billingEventBus.emit(userId);
             return;
           }
@@ -444,7 +372,6 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
 
     if (externalReference) {
       try {
-        const parsedRef = parseExternalReference(externalReference);
         const resolved = await this.billingIntentService.resolveIntentFromExternalReference(externalReference);
         if (resolved.intent?.userId) {
           return resolved.intent.userId;
@@ -593,12 +520,7 @@ export class BillingWebhookConsumer implements OnModuleInit, OnModuleDestroy {
 
   private async processIntentPayload(
     userId: string,
-    gatewayCustomerId: string | undefined,
-    payment: any,
     intent: any,
-    paidAt: Date | null,
-    creditCardToken?: string,
-    nextBillingType?: BillingTypeEnum
   ): Promise<void> {
     if (intent.type === BillingIntentType.UPGRADE) {
       const sub = await this.subscriptionService.getSubscriptionStatusSummary(userId);

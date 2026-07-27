@@ -2,13 +2,19 @@ import { Injectable } from '@nestjs/common';
 
 import {
   fetchComparePayload,
+  fetchCommitDiff,
   fetchGithubInstallationRepositories,
   fetchGithubInstallationToken,
+  fetchRecentCommits,
   verifyGithubSignature,
+  postGithubPullRequestComment,
+  fetchGithubPullRequestComments,
+  fetchGithubRepositoryTree,
 } from '../../adapters/github.js';
 import {
   GithubIntegrationGateway,
   type GithubComparePayload,
+  type GithubCommitDiff,
   type GithubInstallationRepository,
 } from '../../application/ports/integrations/github-integration.port.js';
 
@@ -26,6 +32,19 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
     return fetchComparePayload(repoFullName, before, after, token);
   }
 
+  fetchCommitDiff(repoFullName: string, sha: string, token: string): Promise<GithubCommitDiff> {
+    return fetchCommitDiff(repoFullName, sha, token);
+  }
+
+  fetchRecentCommits(input: {
+    repoFullName: string;
+    branch: string;
+    limit: number;
+    token: string;
+  }) {
+    return fetchRecentCommits(input);
+  }
+
   fetchInstallationRepositories(input: {
     appId: string;
     privateKey: string;
@@ -33,4 +52,30 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
   }): Promise<GithubInstallationRepository[]> {
     return fetchGithubInstallationRepositories(input);
   }
+
+  postPullRequestComment(
+    repoFullName: string,
+    prNumber: number,
+    bodyText: string,
+    token: string,
+  ): Promise<boolean> {
+    return postGithubPullRequestComment(repoFullName, prNumber, bodyText, token);
+  }
+
+  fetchPullRequestComments(
+    repoFullName: string,
+    prNumber: number,
+    token: string,
+  ): Promise<Array<{ id: number; body: string }>> {
+    return fetchGithubPullRequestComments(repoFullName, prNumber, token);
+  }
+
+  fetchRepositoryTree(
+    repoFullName: string,
+    defaultBranch: string,
+    token: string,
+  ): Promise<string[]> {
+    return fetchGithubRepositoryTree(repoFullName, defaultBranch, token);
+  }
 }
+

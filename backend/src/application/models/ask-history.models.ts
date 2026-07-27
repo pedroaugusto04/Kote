@@ -11,16 +11,17 @@ export type AskHistoryRelatedNote = {
   id: string;
   title: string;
   path: string;
-  projectSlug?: string;
-  workspaceSlug?: string;
+  projectId?: string;
+  workspaceId?: string;
 };
 
 export type AskHistoryItem = {
   id: string;
+  conversationId: string;
   question: string;
   answer: string;
   confidence: ConversationConfidence;
-  projectSlug: string;
+  projectId: string | null;
   sources: AskHistorySource[];
   relatedNotes: AskHistoryRelatedNote[];
   createdAt: string;
@@ -28,7 +29,9 @@ export type AskHistoryItem = {
 
 export type SaveAskHistoryInput = {
   userId: string;
-  projectSlug: string;
+  projectId: string | null;
+  workspaceId: string | null;
+  conversationId: string;
   question: string;
   answer: string;
   confidence: ConversationConfidence;
@@ -36,9 +39,18 @@ export type SaveAskHistoryInput = {
   relatedNotes: AskHistoryRelatedNote[];
 };
 
-export type ListAskHistoryInput = {
+export type AskConversationSummary = {
+  conversationId: string;
+  title: string;
+  projectId: string | null;
+  createdAt: string;
+};
+
+export type ListAskHistoryInput = { 
   userId: string;
-  projectSlug?: string;
+  projectId?: string;
+  startDate?: string;
+  endDate?: string;
   page: number;
   pageSize: number;
 };

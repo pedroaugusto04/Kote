@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
-
 import { trimText } from '../domain/strings.js';
+import { isEligibleFileForCoverage } from '../application/utils/github/coverage-file-filter.utils.js';
 
 function timingSafeEqualString(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left);
@@ -71,16 +71,46 @@ export async function fetchComparePayload(repoFullName: string, before: string, 
   return {
     files: Array.isArray(data.files)
       ? data.files.map((file) => ({
-          filename: String(file.filename || ''),
-          status: String(file.status || ''),
-          patch: String(file.patch || ''),
-        }))
+        filename: String(file.filename || ''),
+        status: String(file.status || ''),
+        patch: String(file.patch || ''),
+      }))
       : [],
     commits: Array.isArray(data.commits)
       ? data.commits.map((commit) => ({
-          sha: String(commit.sha || ''),
-          message: trimText(String(commit.commit?.message || ''), 'no message'),
-        }))
+        sha: String(commit.sha || ''),
+        message: trimText(String(commit.commit?.message || ''), 'no message'),
+      }))
+      : [],
+  };
+}
+
+export async function fetchCommitDiff(repoFullName: string, sha: string, token: string): Promise<{
+  files: Array<{ filename: string; status: string; patch: string }>;
+}> {
+  if (!repoFullName || !sha || !token) {
+    return { files: [] };
+  }
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/commits/${sha}`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (!response.ok) {
+    return { files: [] };
+  }
+  const data = (await response.json()) as {
+    files?: Array<{ filename?: string; status?: string; patch?: string }>;
+  };
+  return {
+    files: Array.isArray(data.files)
+      ? data.files.map((file) => ({
+        filename: String(file.filename || ''),
+        status: String(file.status || ''),
+        patch: String(file.patch || ''),
+      }))
       : [],
   };
 }
@@ -135,4 +165,131 @@ export async function fetchGithubInstallationRepositories(input: {
       defaultBranch: repo.default_branch == null ? null : String(repo.default_branch),
     }))
     .filter((repo) => repo.fullName);
+}
+
+export type GithubRecentCommit = {
+  sha: string;
+  message: string;
+  timestamp: string;
+  url: string;
+  parentSha: string;
+};
+
+export async function fetchRecentCommits(input: {
+  repoFullName: string;
+  branch: string;
+  limit: number;
+  token: string;
+}): Promise<GithubRecentCommit[]> {
+  const { repoFullName, branch, limit, token } = input;
+  if (!repoFullName || !token || limit < 1) return [];
+  const params = new URLSearchParams({
+    sha: branch || 'main',
+    per_page: String(Math.min(limit, 100)),
+  });
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/commits?${params.toString()}`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (!response.ok) return [];
+  const data = (await response.json()) as Array<{
+    sha?: string;
+    html_url?: string;
+    commit?: { message?: string; author?: { date?: string } };
+    parents?: Array<{ sha?: string }>;
+  }>;
+  if (!Array.isArray(data)) return [];
+  return data
+    .map((commit) => ({
+      sha: String(commit.sha || '').trim(),
+      message: trimText(String(commit.commit?.message || ''), 'no message'),
+      timestamp: String(commit.commit?.author?.date || new Date().toISOString()),
+      url: String(commit.html_url || '').trim(),
+      parentSha: String(commit.parents?.[0]?.sha || '').trim(),
+    }))
+    .filter((commit) => commit.sha && commit.parentSha && isValidCommitSha(commit.sha));
+}
+
+function isValidCommitSha(sha: string): boolean {
+  return !/^0+$/.test(String(sha || ''));
+}
+
+export async function postGithubPullRequestComment(
+  repoFullName: string,
+  prNumber: number,
+  bodyText: string,
+  token: string,
+): Promise<boolean> {
+  if (!repoFullName || !prNumber || !bodyText || !token) return false;
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments`, {
+    method: 'POST',
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ body: bodyText }),
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('postGithubPullRequestComment failed', {
+      repoFullName,
+      prNumber,
+      status: response.status,
+      statusText: response.statusText,
+      errorBody: errorText,
+      bodyLength: bodyText.length,
+    });
+  }
+  return response.ok;
+}
+
+export async function fetchGithubPullRequestComments(
+  repoFullName: string,
+  prNumber: number,
+  token: string,
+): Promise<Array<{ id: number; body: string }>> {
+  if (!repoFullName || !prNumber || !token) return [];
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/issues/${prNumber}/comments?per_page=100`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (!response.ok) return [];
+  const data = (await response.json()) as Array<{ id?: number; body?: string }>;
+  if (!Array.isArray(data)) return [];
+  return data.map((comment) => ({
+    id: Number(comment.id || 0),
+    body: String(comment.body || ''),
+  }));
+}
+
+export async function fetchGithubRepositoryTree(repoFullName: string, defaultBranch: string, token: string): Promise<string[]> {
+  if (!repoFullName || !token) return [];
+  const branch = defaultBranch || 'main';
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/git/trees/${encodeURIComponent(branch)}?recursive=1`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (!response.ok) throw new Error(`github_repository_tree_http_${response.status}`);
+  const data = (await response.json()) as {
+    tree?: Array<{ path?: string; type?: string }>;
+    truncated?: boolean;
+  };
+  if (data.truncated) throw new Error('github_repository_tree_truncated');
+  if (!Array.isArray(data.tree)) return [];
+
+  return data.tree
+    .filter((item) => item.type === 'blob' && item.path)
+    .map((item) => String(item.path))
+    .filter((pathStr) => isEligibleFileForCoverage(pathStr));
 }

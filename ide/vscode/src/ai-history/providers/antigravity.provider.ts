@@ -4,6 +4,10 @@ import * as os from 'os';
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession, AiTurn } from '../types';
 import { collapseWhitespace } from '../../utils/text.js';
+import { watchRecursive } from '../../utils/watcher.js';
+
+const ANTIGRAVITY_LOG_FILES = ['transcript_full.jsonl', 'transcript.jsonl'] as const;
+const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
 
 export class AntigravityHistoryProvider implements AiHistoryProvider {
   readonly id = 'antigravity';
@@ -11,7 +15,21 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
   private getHistoryDir(): string {
     const configPath = vscode.workspace.getConfiguration('kb').get<string>('antigravityLogPath');
-    return configPath || path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+    if (configPath) return configPath;
+
+    const idePath = path.join(os.homedir(), '.gemini', 'antigravity-ide', 'brain');
+    if (fs.existsSync(idePath)) {
+      return idePath;
+    }
+    return path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+  }
+
+  private getLogFilePath(folderPath: string): string | null {
+    for (const file of ANTIGRAVITY_LOG_FILES) {
+      const p = path.join(folderPath, '.system_generated', 'logs', file);
+      if (fs.existsSync(p)) return p;
+    }
+    return null;
   }
 
   async isEnabled(): Promise<boolean> {
@@ -22,23 +40,38 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
     }
   }
 
-  async getRecentSessions(): Promise<AiSession[]> {
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
     const dir = this.getHistoryDir();
     if (!fs.existsSync(dir)) return [];
 
     const sessions: AiSession[] = [];
     try {
       const folders = fs.readdirSync(dir);
-      for (const folder of folders) {
+      const folderStats = folders.map(folder => {
         const folderPath = path.join(dir, folder);
-        const stat = fs.statSync(folderPath);
-        if (stat.isDirectory()) {
-          const logFilePath = path.join(folderPath, '.system_generated', 'logs', 'overview.txt');
-          if (fs.existsSync(logFilePath)) {
-            const session = this.parseFile(logFilePath, folder);
-            if (session) {
-              sessions.push(session);
-            }
+        try {
+          const stat = fs.statSync(folderPath);
+          return { folder, folderPath, isDirectory: stat.isDirectory(), mtime: stat.mtimeMs };
+        } catch {
+          return { folder, folderPath, isDirectory: false, mtime: 0 };
+        }
+      }).filter(x => {
+        if (!x.isDirectory) return false;
+        return this.getLogFilePath(x.folderPath) !== null;
+      });
+
+      // Sort folders by mtime descending
+      folderStats.sort((a, b) => b.mtime - a.mtime);
+
+      const count = limit !== undefined ? limit : 20;
+      const recentFolders = folderStats.slice(0, count);
+
+      for (const f of recentFolders) {
+        const logFilePath = this.getLogFilePath(f.folderPath);
+        if (logFilePath) {
+          const session = this.parseFile(logFilePath, f.folder);
+          if (session) {
+            sessions.push(session);
           }
         }
       }
@@ -50,15 +83,9 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const historyDir = this.getHistoryDir();
-    // Watch recursively for all overview.txt files in brain subdirectories
-    const watcher = vscode.workspace.createFileSystemWatcher(
-      new vscode.RelativePattern(historyDir, '**/overview.txt')
-    );
-
     const timeouts = new Map<string, NodeJS.Timeout>();
 
-    const handleFile = (uri: vscode.Uri) => {
-      const fsPath = uri.fsPath;
+    const handleFile = (fsPath: string) => {
       if (timeouts.has(fsPath)) {
         clearTimeout(timeouts.get(fsPath)!);
       }
@@ -66,7 +93,6 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       const timeout = setTimeout(() => {
         timeouts.delete(fsPath);
         
-        // Extract conversation ID from the path: .../brain/<conversation-id>/.system_generated/logs/overview.txt
         const parts = fsPath.split(path.sep);
         const brainIdx = parts.lastIndexOf('brain');
         const sessionId = brainIdx !== -1 && parts[brainIdx + 1] ? parts[brainIdx + 1] : path.basename(path.dirname(path.dirname(path.dirname(fsPath))));
@@ -80,8 +106,11 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       timeouts.set(fsPath, timeout);
     };
 
-    watcher.onDidChange(handleFile);
-    watcher.onDidCreate(handleFile);
+    const watcher = watchRecursive(
+      historyDir,
+      (fileName) => fileName === 'transcript_full.jsonl' || fileName === 'transcript.jsonl',
+      (filePath) => handleFile(filePath)
+    );
 
     return new vscode.Disposable(() => {
       for (const t of timeouts.values()) {
@@ -89,6 +118,38 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       }
       watcher.dispose();
     });
+  }
+
+  private cleanContent(raw: string): string {
+    return raw
+      .replace(/<ADDITIONAL_METADATA>[\s\S]*?(<\/ADDITIONAL_METADATA>|$)/gi, '')
+      .replace(/<USER_SETTINGS_CHANGE>[\s\S]*?(<\/USER_SETTINGS_CHANGE>|$)/gi, '')
+      .replace(/<EPHEMERAL_MESSAGE>[\s\S]*?(<\/EPHEMERAL_MESSAGE>|$)/gi, '')
+      .replace(/<SYSTEM_MESSAGE>[\s\S]*?(<\/SYSTEM_MESSAGE>|$)/gi, '')
+      .replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
+      .replace(/<truncated \d+ bytes?>/gi, '\n…')
+      .trim();
+  }
+
+  private parseRecord(record: any): AiTurn | null {
+    if (record.source === 'USER_EXPLICIT' && record.type === 'USER_INPUT') {
+      const rawContent = record.content || '';
+      const match = rawContent.match(USER_REQUEST_REGEX);
+      const text = match ? match[1] : rawContent.replace(/^<USER_REQUEST>\s*/i, '');
+      const cleaned = this.cleanContent(text);
+      if (cleaned) {
+        return { role: 'user', content: cleaned };
+      }
+    }
+
+    if (record.source === 'MODEL' && (record.type === 'PLANNER_RESPONSE' || record.type === 'MODEL_RESPONSE')) {
+      const cleaned = this.cleanContent(record.content || '');
+      if (cleaned) {
+        return { role: 'assistant', content: cleaned };
+      }
+    }
+
+    return null;
   }
 
   private parseFile(filePath: string, sessionId: string): AiSession | null {
@@ -100,24 +161,13 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       const turns: AiTurn[] = [];
 
       for (const line of lines) {
-        if (!line.trim()) continue;
+        const trimmed = line.trim();
+        if (!trimmed) continue;
         try {
-          const record = JSON.parse(line);
-          
-          if (record.source === 'USER_EXPLICIT' && record.type === 'USER_INPUT') {
-            const rawContent = record.content || '';
-            const userRequestRegex = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
-            const match = rawContent.match(userRequestRegex);
-            const text = match ? match[1].trim() : rawContent.trim();
-            if (text) {
-              turns.push({ role: 'user', content: text });
-            }
-          } else if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
-            const text = record.content || '';
-            const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
-            if (text && !hasToolCalls) {
-              turns.push({ role: 'assistant', content: text.trim() });
-            }
+          const record = JSON.parse(trimmed);
+          const turn = this.parseRecord(record);
+          if (turn) {
+            turns.push(turn);
           }
         } catch {
           // ignore malformed JSON lines
@@ -135,12 +185,38 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
         }
       }
 
+      const folderPath = path.dirname(path.dirname(path.dirname(filePath)));
+      const attachments: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }> = [];
+      try {
+        if (fs.existsSync(folderPath)) {
+          const files = fs.readdirSync(folderPath);
+          for (const file of files) {
+            if (file.endsWith('.md')) {
+              const fullFilePath = path.join(folderPath, file);
+              const fileStat = fs.statSync(fullFilePath);
+              if (fileStat.isFile()) {
+                const fileContent = fs.readFileSync(fullFilePath);
+                attachments.push({
+                  fileName: file,
+                  mimeType: 'text/markdown',
+                  sizeBytes: fileStat.size,
+                  dataBase64: fileContent.toString('base64'),
+                });
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // ignore errors
+      }
+
       return {
         providerId: this.id,
         sessionId,
         title,
         turns,
         timestamp: fs.statSync(filePath).mtimeMs,
+        attachments,
       };
     } catch (err) {
       console.error(`Failed to parse Antigravity file ${filePath}:`, err);

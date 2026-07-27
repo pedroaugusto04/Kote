@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, or, isNull, lte, lt, sql, inArray, ne, desc } from 'drizzle-orm';
 
 import {
@@ -94,7 +94,7 @@ export class PostgresBillingCustomerRepository extends BillingCustomerRepository
   async getGatewayCustomerId(userId: string, gateway: PaymentGateway): Promise<string> {
     const customer = await this.getCustomerByUserId(userId, gateway);
     if (!customer?.gatewayCustomerId) {
-      throw new Error(`Gateway customer ID not registered for user ${userId}`);
+      throw new NotFoundException('gateway_customer_not_found');
     }
     return customer.gatewayCustomerId;
   }
@@ -161,7 +161,7 @@ export class PostgresBillingPaymentRepository extends BillingPaymentRepository {
     const db = this.database.getDb();
     const { onlyIfLastGatewayEventAtLte, ...updateData } = data;
 
-    const updateFields: any = {
+    const updateFields: Record<string, unknown> = {
       ...updateData,
       updatedAt: new Date(),
     };
@@ -392,7 +392,10 @@ export class PostgresBillingWebhookEventRepository extends BillingWebhookEventRe
       .limit(1);
 
     if (result.length === 0) return null;
-    return result[0];
+    return {
+      ...result[0],
+      payload: (result[0].payload || {}) as Record<string, unknown>,
+    };
   }
 
   async markWebhookEventProcessing(id: string, maxAttempts: number): Promise<boolean> {

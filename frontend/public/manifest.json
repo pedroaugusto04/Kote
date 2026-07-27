@@ -1,21 +1,25 @@
 {
-  "name": "Knowledge Vault",
-  "short_name": "KB Vault",
-  "description": "Centralize your team's operational knowledge in one place.",
+  "name": "Kote - Developer Knowledge Base",
+  "short_name": "Kote",
+  "description": "A developer memory layer that automatically captures and organizes AI sessions, Git history, and development context into searchable knowledge.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#090f14",
   "theme_color": "#00345c",
   "orientation": "any",
-  "categories": ["productivity", "business"],
+  "categories": [
+    "productivity",
+    "developer-tools",
+    "utilities"
+  ],
   "icons": [
     {
-      "src": "icon-512.png",
+      "src": "Kote-Logo.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "icon-512.png",
+      "src": "Kote-Logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

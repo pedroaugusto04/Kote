@@ -1,6 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { GlobalLoadingOverlay } from '../shared/ui/GlobalLoadingOverlay';
+import { BackgroundTaskToast } from '../shared/ui/BackgroundTaskToast';
+
+export type BackgroundTask = {
+  /** Short label shown in the toast, e.g. "Importing commits" */
+  label: string;
+  /** Items processed so far */
+  count: number;
+  /** Total items to process */
+  total: number;
+  /** Optional handler to trigger cancel */
+  onCancel?: () => void;
+};
 
 type GlobalLoadingContextValue = {
   isActive: boolean;
@@ -8,6 +20,10 @@ type GlobalLoadingContextValue = {
   startImmediate: () => void;
   stop: () => void;
   trackPromise: <T>(promise: Promise<T>) => Promise<T>;
+  message: string | null;
+  setMessage: (message: string | null) => void;
+  /** Sets a background task indicator (small toast, no overlay). Pass null to clear. */
+  setBackgroundTask: (task: BackgroundTask | null) => void;
 };
 
 type GlobalLoadingProviderProps = {
@@ -24,6 +40,8 @@ export function GlobalLoadingProvider({
   showDelayMs = 120,
 }: GlobalLoadingProviderProps) {
   const [visible, setVisible] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [backgroundTask, setBackgroundTask] = useState<BackgroundTask | null>(null);
   const activeCountRef = useRef(0);
   const visibleRef = useRef(false);
   const visibleSinceRef = useRef<number | null>(null);
@@ -148,12 +166,16 @@ export function GlobalLoadingProvider({
     startImmediate,
     stop,
     trackPromise,
-  }), [start, startImmediate, stop, trackPromise, visible]);
+    message,
+    setMessage,
+    setBackgroundTask,
+  }), [start, startImmediate, stop, trackPromise, visible, message, setBackgroundTask]);
 
   return (
     <GlobalLoadingContext.Provider value={value}>
       {children}
-      {visible ? <GlobalLoadingOverlay /> : null}
+      {visible ? <GlobalLoadingOverlay message={message} /> : null}
+      {backgroundTask ? <BackgroundTaskToast task={backgroundTask} /> : null}
     </GlobalLoadingContext.Provider>
   );
 }

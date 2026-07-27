@@ -43,7 +43,7 @@
 
 .project-brief-head h3 {
   font-size: 16px;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--text-strong);
   margin: 0 0 4px 0;
 }
@@ -70,6 +70,18 @@
   grid-column: 1 / -1;
 }
 
+/* ─── Brief card fade-in animation ─── */
+@keyframes brief-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .project-brief-section-card {
   display: flex;
   flex-direction: column;
@@ -81,7 +93,16 @@
   transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
   box-shadow: var(--shadow-sm);
   min-width: 0;
+  animation: brief-fade-in 0.35s ease both;
 }
+
+.project-brief-section-card:nth-child(2) { animation-delay: 0.04s; }
+.project-brief-section-card:nth-child(3) { animation-delay: 0.08s; }
+.project-brief-section-card:nth-child(4) { animation-delay: 0.12s; }
+.project-brief-section-card:nth-child(5) { animation-delay: 0.16s; }
+.project-brief-section-card:nth-child(6) { animation-delay: 0.20s; }
+.project-brief-section-card:nth-child(7) { animation-delay: 0.24s; }
+.project-brief-section-card:nth-child(8) { animation-delay: 0.28s; }
 
 .project-brief-section-card:hover {
   border-color: var(--accent-border);
@@ -278,27 +299,87 @@
   gap: 4px;
 }
 
-.folder-tree-item {
+.folder-tree-row {
+  display: flex;
+  align-items: center;
   width: 100%;
+  min-width: 0;
   min-height: 36px;
   border: 1px solid transparent;
   border-radius: 7px;
   color: var(--muted);
   background: transparent;
-  text-align: left;
+  box-sizing: border-box;
+  padding-right: 8px;
 }
 
-.folder-tree-item:hover {
+.folder-tree-row:hover {
   color: var(--text);
   background: var(--surface-hover);
   border-color: var(--line-soft);
 }
 
-.folder-tree-item.active {
+.folder-tree-row.active {
   color: var(--active-text);
   background: var(--surface-active);
   border-color: var(--accent-border);
 }
+
+.folder-toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-right: 4px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.folder-toggle-btn:hover {
+  background: var(--surface-hover-strong);
+  color: var(--text);
+}
+
+.folder-toggle-spacer {
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.folder-select-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 6px 0;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron-icon {
+  transition: transform 0.15s ease;
+}
+
+.chevron-icon.collapsed {
+  transform: rotate(0deg);
+}
+
+.chevron-icon.expanded {
+  transform: rotate(90deg);
+}
+
 
 /* Kanban boards */
 .kanban-board {
@@ -514,7 +595,7 @@
   border-radius: 7px;
   color: var(--text-soft);
   background: transparent;
-  font-weight: 550;
+  font-weight: 500;
 }
 
 .timeline-filter-row button.active {
@@ -529,6 +610,20 @@
   border-color: var(--accent-border);
   background: var(--surface-hover-strong);
   box-shadow: 0 0 0 1px var(--surface-hover-accent);
+}
+
+/* Mobile-specific fix for bulk actions positioning */
+@media (max-width: 768px) {
+  .timeline-filter-row-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .timeline-filter-row-container .bulk-actions {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+  }
 }
 
 .project-timeline-list {
@@ -629,7 +724,7 @@
 
 .knowledge-map-controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 12px;
   align-items: end;
   padding: 14px;
@@ -640,6 +735,36 @@
   -webkit-backdrop-filter: blur(12px) saturate(180%);
   box-shadow: var(--shadow);
 }
+
+.knowledge-map-search-input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background-color: var(--input-bg);
+  color: var(--text);
+  padding: 0 12px;
+  font-size: 13px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.knowledge-map-search-input:focus {
+  outline: none;
+  border-color: var(--primary, #6366f1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+@keyframes flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+
+.flowing-link {
+  stroke-dasharray: 6, 4;
+  animation: flow 1.2s linear infinite;
+}
+
 
 .knowledge-map-controls > label {
   display: grid;
@@ -767,6 +892,7 @@
 }
 
 .knowledge-map-canvas {
+  position: relative;
   min-height: clamp(700px, calc(100vh - 210px), 860px);
   overflow: hidden;
   border: 1px solid var(--line-soft);
@@ -783,6 +909,47 @@
   width: 100%;
   height: clamp(700px, calc(100vh - 210px), 860px);
   touch-action: none;
+}
+
+.knowledge-map-zoom-controls {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 10;
+  background: var(--surface-1);
+  padding: 4px;
+  border-radius: 8px;
+  border: 1px solid var(--line-soft);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.knowledge-map-zoom-controls button {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  padding: 0;
+}
+
+.knowledge-map-zoom-controls button:hover {
+  background: var(--surface-3);
+  color: var(--accent);
+}
+
+.knowledge-map-zoom-controls button:active {
+  background: var(--line-soft);
 }
 
 .knowledge-map-node {
@@ -876,23 +1043,47 @@
 }
 
 .knowledge-map-container-layout.has-drawer {
-  grid-template-columns: 1fr 420px;
+  grid-template-columns: 1fr;
 }
 
 .knowledge-map-drawer {
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  background: var(--surface-1);
+  background: var(--glass-panel, rgba(30, 41, 59, 0.78));
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
   box-shadow: var(--shadow-strong);
   display: flex;
   flex-direction: column;
-  height: clamp(700px, calc(100vh - 130px), 860px);
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  bottom: 14px;
+  width: 420px;
+  height: calc(100% - 28px);
   min-width: 0;
   overflow: hidden;
-  animation: slide-in-right 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 10;
+}
+
+/* Projects workspace specific sticky sidebar override */
+.knowledge-map-container-layout.spaced.has-drawer {
+  grid-template-columns: 1fr 420px;
+}
+
+.knowledge-map-container-layout.spaced .knowledge-map-drawer {
   position: sticky;
   top: 96px;
+  right: auto;
+  bottom: auto;
+  height: clamp(700px, calc(100vh - 130px), 860px);
   align-self: start;
+  background: var(--surface-1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  animation: slide-in-right 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: auto;
 }
 
 .knowledge-map-drawer-head {
@@ -1207,4 +1398,159 @@
 .skeleton-text-bar.line-2 {
   width: 75%;
 }
+
+/* Note attachments in creation modal */
+.attachments-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.note-attachment-upload {
+  position: relative;
+  overflow: hidden;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.note-attachment-upload input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.attached-files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.attached-file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--surface-3);
+  border: 1px solid var(--line-soft);
+  border-radius: 20px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+
+.attached-file-chip .file-name {
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attached-file-chip .file-size {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.attached-file-chip .remove-file-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attached-file-chip .remove-file-btn:hover {
+  color: var(--danger-text-soft);
+}
+
+/* Drag and drop upload overlay */
+.drag-drop-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(99, 102, 241, 0.12);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 2px dashed var(--primary, #6366f1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  pointer-events: none;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.drag-drop-card {
+  background: var(--surface-1, #1e293b);
+  border: 1px solid var(--line-soft, #334155);
+  padding: 28px 40px;
+  border-radius: 12px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.drag-drop-icon {
+  color: var(--primary, #6366f1);
+  margin-bottom: 4px;
+  animation: bounce 2s infinite;
+}
+
+.drag-drop-card h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-strong, #f8fafc);
+}
+
+.drag-drop-card p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted, #64748b);
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.project-note-modal-panel {
+  max-height: min(880px, calc(100vh - 48px));
+}
+
+.note-attachment-upload:not(.disabled),
+.note-attachment-upload:not(.disabled) *,
+.note-attachment-upload:not(.disabled) input[type="file"]::-webkit-file-upload-button {
+  cursor: pointer !important;
+}
+
+.note-attachment-upload.disabled,
+.note-attachment-upload.disabled *,
+.note-attachment-upload.disabled input[type="file"]::-webkit-file-upload-button {
+  cursor: not-allowed !important;
+}
+
 

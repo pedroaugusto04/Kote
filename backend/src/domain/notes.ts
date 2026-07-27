@@ -1,26 +1,26 @@
 import path from 'node:path';
 
 import type { IngestPayload } from '../contracts/ingest.js';
+import { CanonicalType } from '../contracts/enums.js';
 import { renderFrontmatter } from './frontmatter.js';
 import type { Project } from './projects.js';
 import { sanitizeFileStem, trimText } from './strings.js';
 import { getUtcParts } from './time.js';
-
-export const vaultFolders = {
-  home: '00 Home',
-  projects: '10 Projects',
-  inbox: '20 Inbox',
-  knowledge: '30 Knowledge',
-  incidents: '40 Incidents',
-  followups: '50 Followups',
-  assets: '90 Assets',
-} as const;
+import { VAULT_FOLDERS } from './constants/vault.constants.js';
+import { AI_SOURCE_PATTERNS } from './constants/ai.constants.js';
+import {
+  MARKDOWN_LIST_NONE,
+  MARKDOWN_NO_FINDINGS,
+  MARKDOWN_NO_IMPACT,
+  MARKDOWN_NO_SUMMARY,
+  MARKDOWN_SECTIONS,
+} from './constants/markdown.constants.js';
 
 export function folderForCanonicalType(type: IngestPayload['classification']['canonicalType']): string {
-  if (type === 'knowledge' || type === 'decision') return vaultFolders.knowledge;
-  if (type === 'incident') return vaultFolders.incidents;
-  if (type === 'followup') return vaultFolders.followups;
-  return vaultFolders.inbox;
+  if (type === CanonicalType.Knowledge || type === CanonicalType.Decision) return VAULT_FOLDERS.KNOWLEDGE;
+  if (type === CanonicalType.Incident) return VAULT_FOLDERS.INCIDENTS;
+  if (type === CanonicalType.Followup) return VAULT_FOLDERS.FOLLOWUPS;
+  return VAULT_FOLDERS.INBOX;
 }
 
 function folderPathSegments(folderSlugPath = ''): string[] {
@@ -31,7 +31,7 @@ function folderPathSegments(folderSlugPath = ''): string[] {
 }
 
 export function noteProjectPathPrefix(projectSlug: string, folderSlugPath = ''): string {
-  return path.join(vaultFolders.inbox, projectSlug, ...folderPathSegments(folderSlugPath)).replace(/\\/g, '/');
+  return path.join(VAULT_FOLDERS.INBOX, projectSlug, ...folderPathSegments(folderSlugPath)).replace(/\\/g, '/');
 }
 
 export function rewriteNotePathForFolder(
@@ -71,14 +71,14 @@ export function buildNotePaths(project: Project, payload: IngestPayload, folderS
   const baseFile = `${year}${month}${day}-${time}-${titleStem}.md`;
   const eventRelativePath = path.join(noteProjectPathPrefix(project.projectSlug, folderSlugPath), year, month, baseFile);
   const canonicalRelativePath =
-    payload.classification.canonicalType !== 'event'
+    payload.classification.canonicalType !== CanonicalType.Event
       ? path.join(folderForCanonicalType(payload.classification.canonicalType), project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, baseFile)
       : '';
   const followupRelativePath = payload.actions.followUpBy
-    ? path.join(vaultFolders.followups, project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, `${year}${month}${day}-${time}-${titleStem}-followup.md`)
+    ? path.join(VAULT_FOLDERS.FOLLOWUPS, project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, `${year}${month}${day}-${time}-${titleStem}-followup.md`)
     : '';
   const assetRelativePaths = payload.content.attachments.map((attachment) =>
-    path.join(vaultFolders.assets, project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, `${year}${month}${day}-${time}-${sanitizeFileStem(attachment.fileName, 'attachment')}`),
+    path.join(VAULT_FOLDERS.ASSETS, project.projectSlug, ...folderPathSegments(folderSlugPath), year, month, `${year}${month}${day}-${time}-${sanitizeFileStem(attachment.fileName, 'attachment')}`),
   );
   const dailyRelativePath = path.join(noteProjectPathPrefix(project.projectSlug, folderSlugPath), year, `${year}-${month}-${day}.md`);
   return {
@@ -91,12 +91,12 @@ export function buildNotePaths(project: Project, payload: IngestPayload, folderS
 }
 
 function renderList(items: string[]): string {
-  if (!items.length) return '- none';
+  if (!items.length) return MARKDOWN_LIST_NONE;
   return items.map((item) => `- ${item}`).join('\n');
 }
 
 function renderReviewFindings(findings: NonNullable<IngestPayload['content']['sections']>['reviewFindings']): string {
-  if (!findings.length) return 'No findings registered.';
+  if (!findings.length) return MARKDOWN_NO_FINDINGS;
   return findings
     .map((finding) => {
       const parts = [`- **[${finding.severity.toUpperCase()}] ${finding.summary}**`];
@@ -107,14 +107,6 @@ function renderReviewFindings(findings: NonNullable<IngestPayload['content']['se
     .join('\n');
 }
 
-const AI_SOURCE_PATTERNS = [
-  'ai-chat',
-  'antigravity',
-  'codex',
-  'claude',
-  'open-code',
-  'opencode',
-] as const;
 
 export function isAiSource(source: string | null | undefined): boolean {
   if (!source) return false;
@@ -168,28 +160,28 @@ export function renderEventNote(project: Project, payload: IngestPayload, paths:
     '',
     `Project: ${project.displayName || project.projectSlug}`,
     '',
-    '## Original text',
+    MARKDOWN_SECTIONS.ORIGINAL_TEXT,
     '',
     payload.content.rawText,
     '',
-    '## Summary',
+    MARKDOWN_SECTIONS.SUMMARY,
     '',
-    sections.summary || 'No summary generated.',
+    sections.summary || MARKDOWN_NO_SUMMARY,
     '',
-    '## Impact',
+    MARKDOWN_SECTIONS.IMPACT,
     '',
-    sections.impact || 'No impact registered.',
+    sections.impact || MARKDOWN_NO_IMPACT,
     '',
-    '## Risks',
+    MARKDOWN_SECTIONS.RISKS,
     '',
     renderList(sections.risks),
     '',
-    '## Next steps',
+    MARKDOWN_SECTIONS.NEXT_STEPS,
     '',
     renderList(sections.nextSteps),
     '',
     payload.event.type === 'code_review'
-      ? ['## Review findings', '', renderReviewFindings(sections.reviewFindings)].join('\n')
+      ? [MARKDOWN_SECTIONS.REVIEW_FINDINGS, '', renderReviewFindings(sections.reviewFindings)].join('\n')
       : '',
     '',
   ]

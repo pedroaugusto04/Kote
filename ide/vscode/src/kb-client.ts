@@ -3,10 +3,16 @@ import path from 'node:path';
 import os from 'node:os';
 import https from 'node:https';
 import http from 'node:http';
-import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult } from './types';
+import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, AskHistoryEntry } from './types';
+
+export const FILE_NOTES_SUMMARY_FALLBACK_REASON = {
+  FEATURE_DISABLED: 'feature_disabled',
+  QUOTA_EXCEEDED: 'quota_exceeded',
+  GENERATION_FAILED: 'generation_failed',
+} as const;
 
 // ---------------------------------------------------------------------------
-// Config (mirrors ~/.config/kb/config.json written by the kb CLI)
+// Config (mirrors the CLI config file used by the extension)
 // ---------------------------------------------------------------------------
 
 export type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult } from './types';
@@ -15,7 +21,7 @@ const CONFIG_PATH = path.join(os.homedir(), '.config', 'kb', 'config.json');
 
 export function loadKbConfig(): KbConfig {
   const defaults: KbConfig = {
-    apiUrl: 'http://localhost:4310',
+    apiUrl: 'https://knowledgebase.sbs/kote/api',
     workspaceSlug: 'default',
     defaultProjectSlug: 'inbox',
     cookies: {},
@@ -69,6 +75,7 @@ interface RequestOptions {
   method?: string;
   headers?: Record<string, string>;
   body?: string;
+  signal?: AbortSignal;
 }
 
 function makeRequest(url: string, options: RequestOptions = {}): Promise<{ status: number; body: string; headers: Record<string, string | string[]> }> {
@@ -102,6 +109,19 @@ function makeRequest(url: string, options: RequestOptions = {}): Promise<{ statu
 
     req.on('error', reject);
     if (options.body) req.write(options.body);
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        req.destroy();
+        reject(new Error('Aborted'));
+        return;
+      }
+      options.signal.addEventListener('abort', () => {
+        req.destroy();
+        reject(new Error('Aborted'));
+      });
+    }
+
     req.end();
   });
 }
@@ -118,7 +138,7 @@ export class KbClient {
     this.config = loadKbConfig();
   }
 
-  /** Reload config from disk (e.g. after user runs `kb init`) */
+  /** Reload config from disk (e.g. after user runs the CLI init command) */
   reload() {
     this.config = loadKbConfig();
   }
@@ -142,15 +162,22 @@ export class KbClient {
   }
 
   private buildUrl(urlPath: string): string {
-    const apiBase = this.apiUrl;
-    let cleanPath = urlPath;
-    if (apiBase.endsWith('/api') && urlPath.startsWith('/api')) {
-      cleanPath = urlPath.substring(4);
+    const apiBase = this.apiUrl.replace(/\/$/, ''); // Remove trailing slash
+    let cleanPath = urlPath.replace(/^\//, ''); // Remove leading slash
+
+    // If base URL already ends with /api, don't add it again from the path
+    if (apiBase.endsWith('/api') && cleanPath.startsWith('api/')) {
+      cleanPath = cleanPath.substring(4); // Remove 'api/' prefix
     }
-    return `${apiBase}/${cleanPath.replace(/^\//, '')}`;
+
+    return `${apiBase}/${cleanPath}`;
   }
 
   private async fetch<T = unknown>(urlPath: string, options: RequestOptions = {}): Promise<T> {
+    if (!isConfigured()) {
+      throw new Error('Not authenticated');
+    }
+
     const url = this.buildUrl(urlPath);
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -184,17 +211,43 @@ export class KbClient {
       }
 
       if (!refreshed) {
+        const wasConfigured = isConfigured();
         this.config.cookies = {};
         saveKbConfig({ cookies: {} });
-        this.onUnauthorized?.();
+        if (wasConfigured) {
+          this.onUnauthorized?.();
+        }
       }
     }
 
     if (response.status === 204) return undefined as T;
 
-    const parsed = JSON.parse(response.body);
+    // Check if response is HTML instead of JSON (indicates wrong URL or endpoint)
+    const contentType = response.headers['content-type'] as string;
+    if (contentType && contentType.includes('text/html')) {
+      throw new Error(
+        `API returned HTML instead of JSON. This usually means the API URL is incorrect or the endpoint doesn't exist.\n` +
+        `Current API URL: ${this.apiUrl}\n` +
+        `Requested path: ${urlPath}\n` +
+        `Response status: ${response.status}`
+      );
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(response.body);
+    } catch (err) {
+      throw new Error(
+        `Failed to parse API response as JSON. The server may have returned an error page.\n` +
+        `Current API URL: ${this.apiUrl}\n` +
+        `Requested path: ${urlPath}\n` +
+        `Response status: ${response.status}\n` +
+        `Response body: ${response.body.substring(0, 200)}`
+      );
+    }
+
     if (response.status >= 400) {
-      throw new Error(parsed?.message ?? `Request failed with status ${response.status}`);
+      throw new Error((parsed as { message?: string })?.message ?? `Request failed with status ${response.status}`);
     }
     return parsed as T;
   }
@@ -216,6 +269,24 @@ export class KbClient {
   // -------------------------------------------------------------------------
   // API methods
   // -------------------------------------------------------------------------
+
+  /** Notifies the backend that this user has the VS Code extension installed.
+   * Called once after successful login. Idempotent. */
+  async reportVscodeInstalled(): Promise<void> {
+    await this.fetch<{ ok: boolean }>('/api/auth/vscode-installed', { method: 'POST' });
+  }
+
+  async getProjectCoverage(projectSlug: string): Promise<number | null> {
+    try {
+      const result = await this.fetch<{ coveragePercentage?: number }>(`/api/projects/${encodeURIComponent(projectSlug)}/coverage`);
+      if (typeof result?.coveragePercentage === 'number') {
+        return result.coveragePercentage;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
 
   async listProjects(): Promise<KbProject[]> {
     const allProjects: KbProject[] = [];
@@ -278,6 +349,13 @@ export class KbClient {
     });
   }
 
+  async getAskHistory(projectSlug?: string, page = 1, pageSize = 50): Promise<{ history: AskHistoryEntry[] }> {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (projectSlug) params.set('projectSlug', projectSlug);
+    return this.fetch<{ history: AskHistoryEntry[] }>(`/api/ask/history?${params.toString()}`);
+  }
+
+
   async createNote(payload: KbCreateNotePayload): Promise<KbCreateNoteResult> {
     return this.fetch<KbCreateNoteResult>('/api/notes', {
       method: 'POST',
@@ -291,19 +369,25 @@ export class KbClient {
     chatId: string;
     messageId: string;
     hasMedia?: boolean;
-    media?: any;
+    media?: unknown;
   }, workspaceSlug?: string, projectSlug?: string): Promise<{
     action: 'ask' | 'confirm' | 'cancel' | 'submit';
     replyText: string;
-    payload: any;
-    ingestResult?: any;
-    agent: any;
+    payload: unknown;
+    ingestResult?: unknown;
+    agent: { selectedProjectSlug?: string; [key: string]: unknown } | null | undefined;
   }> {
     const ws = workspaceSlug || this.config.workspaceSlug || 'default';
     const params = new URLSearchParams({ workspaceSlug: ws });
     if (projectSlug) params.set('projectSlug', projectSlug);
 
-    return this.fetch<any>(`/api/conversation/agent?${params}`, {
+    return this.fetch<{
+      action: 'ask' | 'confirm' | 'cancel' | 'submit';
+      replyText: string;
+      payload: unknown;
+      ingestResult?: unknown;
+      agent: { selectedProjectSlug?: string; [key: string]: unknown } | null | undefined;
+    }>(`/api/conversation/agent?${params}`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
@@ -365,29 +449,9 @@ export class KbClient {
 
   async validateAndSetGoogleToken(token: string): Promise<void> {
     const trimmed = token.trim();
-    let accessToken: string | undefined = trimmed;
-    let refreshToken: string | undefined = undefined;
-
-    if (trimmed.startsWith('kbc_')) {
-      try {
-        const payload = Buffer.from(trimmed.slice(4), 'base64').toString('utf8');
-        const parsed = JSON.parse(payload);
-        if (parsed.accessToken && parsed.refreshToken) {
-          accessToken = parsed.accessToken;
-          refreshToken = parsed.refreshToken;
-        } else {
-          throw new Error('Not legacy format');
-        }
-      } catch (err) {
-        try {
-          const result = await this.exchangeConnectionToken(trimmed);
-          accessToken = result.accessToken;
-          refreshToken = result.refreshToken;
-        } catch (exchangeErr) {
-          // Fallback/propagate
-        }
-      }
-    }
+    const result = await this.exchangeConnectionToken(trimmed);
+    const accessToken = result.accessToken;
+    const refreshToken = result.refreshToken;
 
     this.config.cookies.kb_access_token = accessToken;
     this.config.cookies.kb_refresh_token = refreshToken;
@@ -410,5 +474,57 @@ export class KbClient {
   async saveWorkspaceSelection(workspaceSlug: string): Promise<void> {
     this.config.workspaceSlug = workspaceSlug;
     saveKbConfig({ workspaceSlug });
+  }
+
+  async findNotesByFile(filePath: string): Promise<KbNote[]> {
+    return this.fetch<KbNote[]>(`/api/notes/by-file?filePath=${encodeURIComponent(filePath)}`);
+  }
+
+  async findRelatedNotesByFile(
+    filePath: string,
+    excludeIds: string[],
+    options?: { signal?: AbortSignal; limit?: number }
+  ): Promise<KbNote[]> {
+    const params = new URLSearchParams({
+      filePath,
+      limit: String(options?.limit ?? 5),
+    });
+    if (excludeIds.length > 0) {
+      params.set('excludeIds', excludeIds.join(','));
+    }
+    return this.fetch<KbNote[]>(`/api/notes/by-file/related?${params.toString()}`, {
+      signal: options?.signal,
+    });
+  }
+
+  async getNote(noteId: string): Promise<KbNote | null> {
+    try {
+      const response = await this.fetch<{ ok: boolean; note: KbNote }>(`/api/notes/${noteId}`);
+      return response?.note || null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async getFileNotesSummary(filePath: string, options?: { signal?: AbortSignal }): Promise<{
+    summary: string;
+    understanding: string;
+    timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
+    keyChanges: Array<{ description: string; noteId: string }>;
+    generatedAt: string;
+    fallback?: boolean;
+    fallbackReason?: 'feature_disabled' | 'quota_exceeded' | 'generation_failed';
+  }> {
+    return this.fetch<{
+      summary: string;
+      understanding: string;
+      timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
+      keyChanges: Array<{ description: string; noteId: string }>;
+      generatedAt: string;
+      fallback?: boolean;
+      fallbackReason?: 'feature_disabled' | 'quota_exceeded' | 'generation_failed';
+    }>(`/api/notes/by-file/summary?filePath=${encodeURIComponent(filePath)}&workspaceSlug=${encodeURIComponent(this.config.workspaceSlug || 'default')}`, {
+      signal: options?.signal,
+    });
   }
 }

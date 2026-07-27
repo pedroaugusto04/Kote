@@ -13,6 +13,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
+const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
+
 interface CliAiTurn {
   role: 'user' | 'assistant';
   content: string;
@@ -26,6 +28,12 @@ interface CliAiSession {
   turns: CliAiTurn[];
   timestamp: number;
   projectSlug?: string;
+  attachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 }
 
 function getAllFiles(dir: string): string[] {
@@ -52,7 +60,8 @@ function getAllFiles(dir: string): string[] {
 // -------------------------------------------------------------------------
 
 function getClaudeCodeSessions(): CliAiSession[] {
-  const dir = path.join(os.homedir(), '.claude', 'projects');
+  const config = loadConfig();
+  const dir = config.aiProviders?.claudeCodeLogPath || path.join(os.homedir(), '.claude', 'projects');
   if (!fs.existsSync(dir)) return [];
 
   const sessions: CliAiSession[] = [];
@@ -81,12 +90,27 @@ function parseClaudeFile(filePath: string): CliAiSession | null {
       try {
         const record = JSON.parse(line);
         const role = record.role || (record.type === 'prompt' ? 'user' : record.type === 'response' ? 'assistant' : null);
-        const text = record.content || record.text || '';
+        if (role !== 'user' && role !== 'assistant') continue;
 
-        if (role === 'user' && text) {
-          turns.push({ role: 'user', content: text });
-        } else if (role === 'assistant' && text) {
-          turns.push({ role: 'assistant', content: text });
+        // content can be a plain string or an array of content blocks (Anthropic Messages API)
+        let text = '';
+        const rawContent = record.content || record.text;
+        if (typeof rawContent === 'string') {
+          text = rawContent;
+        } else if (Array.isArray(rawContent)) {
+          // Extract text from content blocks, skip tool_use/tool_result
+          const textParts: string[] = [];
+          for (const block of rawContent) {
+            if (block.type === 'text' && block.text) {
+              textParts.push(block.text);
+            }
+          }
+          text = textParts.join('\n\n');
+        }
+
+        text = text.trim();
+        if (text) {
+          turns.push({ role, content: text });
         }
       } catch {}
     }
@@ -119,7 +143,8 @@ function parseClaudeFile(filePath: string): CliAiSession | null {
 }
 
 function getCodexSessions(): CliAiSession[] {
-  const dir = path.join(os.homedir(), '.codex', 'sessions');
+  const config = loadConfig();
+  const dir = config.aiProviders?.codexLogPath || path.join(os.homedir(), '.codex', 'sessions');
   if (!fs.existsSync(dir)) return [];
 
   const sessions: CliAiSession[] = [];
@@ -225,18 +250,36 @@ function parseCodexFile(filePath: string): CliAiSession | null {
 }
 
 function getAntigravitySessions(): CliAiSession[] {
-  const dir = path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+  const config = loadConfig();
+  let dir = config.aiProviders?.antigravityLogPath;
+  if (!dir) {
+    const idePath = path.join(os.homedir(), '.gemini', 'antigravity-ide', 'brain');
+    if (fs.existsSync(idePath)) {
+      dir = idePath;
+    } else {
+      dir = path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+    }
+  }
+
   if (!fs.existsSync(dir)) return [];
 
   const sessions: CliAiSession[] = [];
   try {
     const folders = fs.readdirSync(dir);
+    const logFiles = ['transcript.jsonl', 'transcript_full.jsonl', 'overview.txt'];
     for (const folder of folders) {
       const folderPath = path.join(dir, folder);
       const stat = fs.statSync(folderPath);
       if (stat.isDirectory()) {
-        const logFilePath = path.join(folderPath, '.system_generated', 'logs', 'overview.txt');
-        if (fs.existsSync(logFilePath)) {
+        let logFilePath: string | null = null;
+        for (const file of logFiles) {
+          const p = path.join(folderPath, '.system_generated', 'logs', file);
+          if (fs.existsSync(p)) {
+            logFilePath = p;
+            break;
+          }
+        }
+        if (logFilePath) {
           const session = parseAntigravityFile(logFilePath, folder);
           if (session) sessions.push(session);
         }
@@ -246,6 +289,49 @@ function getAntigravitySessions(): CliAiSession[] {
   return sessions;
 }
 
+/**
+ * Cleans Antigravity overview.txt content by stripping system metadata tags and
+ * replacing truncation markers with a clean continuation indicator.
+ *
+ * overview.txt truncates individual records at ~1000 bytes. The full conversation
+ * is stored in encrypted .pb files that we cannot read, so we must gracefully
+ * handle the truncation by cleaning up the markers.
+ */
+function cleanAntigravityContent(raw: string): string {
+  return raw
+    // Strip system metadata XML blocks (opening and closing tags + content between)
+    .replace(/<ADDITIONAL_METADATA>[\s\S]*?(<\/ADDITIONAL_METADATA>|$)/gi, '')
+    .replace(/<USER_SETTINGS_CHANGE>[\s\S]*?(<\/USER_SETTINGS_CHANGE>|$)/gi, '')
+    .replace(/<EPHEMERAL_MESSAGE>[\s\S]*?(<\/EPHEMERAL_MESSAGE>|$)/gi, '')
+    // Replace Antigravity truncation marker with clean ellipsis
+    .replace(/<truncated \d+ bytes?>/gi, '\n…')
+    .trim();
+}
+
+function parseAntigravityRecord(record: any): CliAiTurn | null {
+  if (record.source === 'USER_EXPLICIT' && record.type === 'USER_INPUT') {
+    const rawContent = record.content || '';
+    const match = rawContent.match(USER_REQUEST_REGEX);
+    const text = match ? match[1] : rawContent.replace(/^<USER_REQUEST>\s*/i, '');
+    const cleaned = cleanAntigravityContent(text);
+    if (cleaned) {
+      return { role: 'user', content: cleaned };
+    }
+  }
+
+  if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
+    const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
+    if (!hasToolCalls) {
+      const cleaned = cleanAntigravityContent(record.content || '');
+      if (cleaned) {
+        return { role: 'assistant', content: cleaned };
+      }
+    }
+  }
+
+  return null;
+}
+
 function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession | null {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -253,23 +339,13 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
     const turns: CliAiTurn[] = [];
 
     for (const line of lines) {
-      if (!line.trim()) continue;
+      const trimmed = line.trim();
+      if (!trimmed) continue;
       try {
-        const record = JSON.parse(line);
-        if (record.source === 'USER_EXPLICIT' && record.type === 'USER_INPUT') {
-          const rawContent = record.content || '';
-          const userRequestRegex = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
-          const match = rawContent.match(userRequestRegex);
-          const text = match ? match[1].trim() : rawContent.trim();
-          if (text) {
-            turns.push({ role: 'user', content: text });
-          }
-        } else if (record.source === 'MODEL' && record.type === 'PLANNER_RESPONSE') {
-          const text = record.content || '';
-          const hasToolCalls = Array.isArray(record.tool_calls) && record.tool_calls.length > 0;
-          if (text && !hasToolCalls) {
-            turns.push({ role: 'assistant', content: text.trim() });
-          }
+        const record = JSON.parse(trimmed);
+        const turn = parseAntigravityRecord(record);
+        if (turn) {
+          turns.push(turn);
         }
       } catch {}
     }
@@ -285,6 +361,29 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
       }
     }
 
+    const folderPath = path.dirname(path.dirname(path.dirname(filePath)));
+    const attachments: Array<{ fileName: string; mimeType: string; sizeBytes: number; dataBase64: string }> = [];
+    try {
+      if (fs.existsSync(folderPath)) {
+        const files = fs.readdirSync(folderPath);
+        for (const file of files) {
+          if (file.endsWith('.md')) {
+            const fullPath = path.join(folderPath, file);
+            const fileStat = fs.statSync(fullPath);
+            if (fileStat.isFile()) {
+              const fileContent = fs.readFileSync(fullPath);
+              attachments.push({
+                fileName: file,
+                mimeType: 'text/markdown',
+                sizeBytes: fileStat.size,
+                dataBase64: fileContent.toString('base64'),
+              });
+            }
+          }
+        }
+      }
+    } catch {}
+
     return {
       providerId: 'antigravity',
       providerName: 'Antigravity',
@@ -292,6 +391,7 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
       title,
       turns,
       timestamp: fs.statSync(filePath).mtimeMs,
+      attachments,
     };
   } catch {
     return null;
@@ -299,7 +399,22 @@ function parseAntigravityFile(filePath: string, sessionId: string): CliAiSession
 }
 
 async function getOpenCodeSessions(): Promise<CliAiSession[]> {
-  const dbPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+  const config = loadConfig();
+  let dbPath = config.aiProviders?.opencodeDbPath;
+  if (!dbPath) {
+    const standardPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode.db');
+    if (fs.existsSync(standardPath)) {
+      dbPath = standardPath;
+    } else {
+      const prodPath = path.join(os.homedir(), '.local', 'share', 'opencode', 'opencode-prod.db');
+      if (fs.existsSync(prodPath)) {
+        dbPath = prodPath;
+      } else {
+        dbPath = standardPath;
+      }
+    }
+  }
+
   if (!fs.existsSync(dbPath)) return [];
 
   try {
@@ -418,7 +533,7 @@ function getMarkdownText(session: CliAiSession): string {
   rawText += `\n---\n\n`;
   
   for (const turn of session.turns) {
-    const roleHeader = turn.role === 'user' ? '👤 User' : '🤖 Assistant';
+    const roleHeader = turn.role === 'user' ? '👤 User' : '✨ Assistant';
     rawText += `### ${roleHeader}\n${turn.content}\n\n`;
   }
   return rawText;
@@ -487,7 +602,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
     }
 
     const selected = await clack.select({
-      message: 'Select an AI session to import/sync to Knowledge Vault:',
+      message: 'Select an AI session to import/sync to Kote:',
       options: selectOptions,
     });
 
@@ -508,7 +623,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
   const session = selectedSession;
   const titleWithDate = getTitleWithDate(session);
   const rawText = getMarkdownText(session);
-  s.start(`Saving "${titleWithDate}" as note to Knowledge Vault...`);
+  s.start(`Saving "${titleWithDate}" as note to Kote...`);
 
   try {
     const config = loadConfig();
@@ -520,10 +635,11 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
       sourceChannel: 'ai-chat',
       source: session.providerId,
       sessionId: session.sessionId,
+      attachments: session.attachments,
     });
 
     s.stop(pc.green('Import complete!'));
-    console.log(pc.cyan(`\nNote saved to Knowledge Vault successfully!`));
+    console.log(pc.cyan(`\nNote saved to Kote successfully!`));
   } catch (error: any) {
     s.stop(pc.red('Save failed'));
     if (error instanceof ApiClientError) {

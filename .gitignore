@@ -68,3 +68,7 @@ ide/vscode/*.vsix
 
 # Local development documentation
 DEVELOPMENT.md
+
+# Agents
+.agents
+AGENTS.md

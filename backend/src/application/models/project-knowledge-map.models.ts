@@ -49,6 +49,7 @@ export type ListProjectKnowledgeMapInput = {
   folderIds?: string[];
   limit: number;
   category: ProjectTimelineCategory;
+  excludeReviewNotes?: boolean;
 };
 
 export type ProjectKnowledgeMapNoteCategory = ProjectTimelineFilterCategory;

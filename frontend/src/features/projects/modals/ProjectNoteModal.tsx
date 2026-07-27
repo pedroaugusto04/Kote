@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo, useRef, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
-import { formatDisplayToken, reminderInputDate, reminderInputTime } from '../../../shared/utils/format';
+import { formatDisplayToken, reminderInputDateTime, reminderAtToUtc } from '../../../shared/utils/format';
 import { UI_MESSAGES } from '../../../shared/constants/ui.constants';
 import { createNote, updateNote, fetchProjectFolders, fetchWorkspaceCategories } from '../../../shared/api/client';
 import type { NoteDetail } from '../../../shared/api/models/note';
@@ -13,10 +13,12 @@ import { FormActions, FormField } from '../../../shared/forms/fields';
 import { ConfirmationModal } from '../../../shared/ui/confirmation-modal';
 import { Select } from '../../../shared/ui/select';
 import { TagInput } from '../../../shared/ui/tag-input';
+import { AttachmentInput, type PendingAttachment } from '../../../shared/ui/attachment-input';
 import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../../shared/ui/use-modal-close-guard';
 import { useGlobalLoading } from '../../../app/global-loading';
 import { noteFormSchema, type NoteFormValues } from '../projects.forms';
 import type { FlatProjectFolder } from '../projects.types';
+import { WorkspaceModalMode } from '../projects.types';
 import { flattenFolders } from '../projects.helpers';
 
 const MAX_TAGS = 10;
@@ -24,14 +26,21 @@ const MAX_TAG_LENGTH = 50;
 
 type ProjectNoteModalProps = {
   folders?: FlatProjectFolder[];
-  mode: 'create' | 'edit';
+  mode: WorkspaceModalMode;
   note?: NoteDetail;
   onClose: () => void;
-  onSaved: (noteId: string, mode: 'create' | 'edit') => void | Promise<void>;
+  onSaved: (noteId: string, mode: WorkspaceModalMode) => void | Promise<void>;
   projectSlug: string;
   initialFolderId?: string;
   projects?: Project[];
   workspaceSlug: string;
+  initialTitle?: string;
+  initialAttachments?: Array<{
+    fileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    dataBase64: string;
+  }>;
 };
 
 export function ProjectNoteModal({
@@ -44,11 +53,21 @@ export function ProjectNoteModal({
   initialFolderId,
   projects,
   workspaceSlug,
+  initialTitle,
+  initialAttachments,
 }: ProjectNoteModalProps) {
   const globalLoading = useGlobalLoading();
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedProjectSlug, setSelectedProjectSlug] = useState(
-    mode === 'edit' && note ? note.project : projectSlug
+    mode === WorkspaceModalMode.Edit && note ? note.project : projectSlug
+  );
+
+  const [attachments, setAttachments] = useState<PendingAttachment[]>(
+    initialAttachments || []
+  );
+
+  const hasInitialAttachments = Boolean(
+    initialAttachments && initialAttachments.length > 0
   );
 
   const foldersQuery = useQuery({
@@ -75,38 +94,57 @@ export function ProjectNoteModal({
     register,
     setError,
     setValue,
+    clearErrors,
   } = useForm<NoteFormValues>({
     resolver: zodResolver(noteFormSchema),
     shouldFocusError: false,
     defaultValues: {
       folderId: note?.folderId || initialFolderId || '',
       categoryIds: note?.categories?.map((c) => c.id) || [],
-      title: note?.title || '',
-      rawText: note?.editor?.rawText || '',
+      title: note?.title || initialTitle || '',
+      rawText: note?.editor?.rawText || initialTitle || '',
       tags: note?.tags || [],
-      reminderDate: note?.editor ? reminderInputDate(note.editor) : '',
-      reminderTime: note?.editor ? reminderInputTime(note.editor) : '',
+      reminderAt: reminderInputDateTime({ reminderAt: note?.editor?.reminderAt }),
+      attachments: initialAttachments || [],
     },
   });
-  const closeGuard = useModalCloseGuard({ isDirty, onClose });
+
+  const attachmentError = useMemo(() => {
+    if (!errors.attachments) return undefined;
+    if (errors.attachments.message) return errors.attachments.message;
+    const errArray = errors.attachments as any;
+    if (Array.isArray(errArray)) {
+      const firstErr = errArray.find(Boolean);
+      return firstErr?.mimeType?.message || firstErr?.sizeBytes?.message || firstErr?.message;
+    }
+    return undefined;
+  }, [errors.attachments]);
+
+  const closeGuard = useModalCloseGuard({
+    isDirty: isDirty || hasInitialAttachments,
+    onClose,
+  });
   const mutation = useMutation({
-    mutationFn: (values: NoteFormValues) => {
+    mutationFn: async (values: NoteFormValues) => {
       const payload = {
         folderId: values.folderId || undefined,
         categoryIds: values.categoryIds,
         title: values.title,
         rawText: values.rawText,
         tags: values.tags,
-        reminderDate: values.reminderDate,
-        reminderTime: values.reminderTime,
+        reminderAt: reminderAtToUtc(values.reminderAt),
       };
-      return globalLoading.trackPromise(mode === 'create'
-        ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual' })
-        : updateNote(note?.id || '', payload));
-    },
-    onSuccess: async (result) => {
-      closeGuard.resetCloseGuard();
-      await onSaved(result.noteId, mode);
+      const result = mode === WorkspaceModalMode.Create
+        ? createNote({ ...payload, projectSlug: selectedProjectSlug, source: 'manual', attachments })
+        : updateNote(note?.id || '', { ...payload, projectSlug: selectedProjectSlug, attachments });
+
+      return globalLoading.trackPromise(
+        result.then(async (res) => {
+          closeGuard.resetCloseGuard();
+          await onSaved(res.noteId, mode);
+          return res;
+        })
+      );
     },
     onError: (error) => {
       const fieldNames = applyBackendFieldErrors<NoteFormValues>(error, setError);
@@ -114,18 +152,18 @@ export function ProjectNoteModal({
         window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
         return;
       }
-      notifyGeneralFormError(error, mode === 'create' ? 'Could not create the note.' : 'Could not update the note.');
+      notifyGeneralFormError(error, mode === WorkspaceModalMode.Create ? 'Could not create the note.' : 'Could not update the note.');
     },
   });
 
   return (
     <>
       <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
-        <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
+        <section aria-labelledby="note-modal-title" aria-modal="true" className="modal-panel integration-modal project-note-modal-panel" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
-              <h2 id="note-modal-title">{mode === 'create' ? UI_MESSAGES.NEW_NOTE : UI_MESSAGES.EDIT_NOTE}</h2>
-              {!(mode === 'create' && projects && projects.length > 0) && <p>{selectedProjectSlug}</p>}
+              <h2 id="note-modal-title">{mode === WorkspaceModalMode.Create ? UI_MESSAGES.NEW_NOTE : UI_MESSAGES.EDIT_NOTE}</h2>
+              {!(projects && projects.length > 0) && <p>{selectedProjectSlug}</p>}
             </div>
             <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
@@ -138,8 +176,8 @@ export function ProjectNoteModal({
               (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
             )}
           >
-            {mode === 'create' && projects && projects.length > 0 && (
-              <FormField name="projectSlug" label="Project" required>
+            {projects && projects.length > 0 && (
+              <FormField name="projectSlug" label="Project" required={mode === WorkspaceModalMode.Create}>
                 {(fieldProps) => (
                   <Select
                     ariaDescribedBy={fieldProps['aria-describedby']}
@@ -243,11 +281,24 @@ export function ProjectNoteModal({
                 />
               )}
             </FormField>
-            <FormField name="title" label="Title" error={errors.title?.message} optional>
-              {(fieldProps) => <input {...fieldProps} {...register('title')} />}
+            <FormField name="title" label="Title" error={errors.title?.message} required>
+              {(fieldProps) => <input placeholder="Note title (e.g. Local environment setup)" {...fieldProps} {...register('title')} />}
             </FormField>
-            <FormField name="rawText" label="Text" error={errors.rawText?.message} required>
-              {(fieldProps) => <textarea {...fieldProps} {...register('rawText')} />}
+            <FormField name="rawText" label="Text" error={errors.rawText?.message} optional>
+              {(fieldProps) => <textarea placeholder="Write note content in Markdown..." rows={4} {...fieldProps} {...register('rawText')} />}
+            </FormField>
+            <FormField name="attachments" label="Attachments" error={attachmentError} optional>
+              {() => (
+                <AttachmentInput
+                  value={attachments}
+                  onChange={(newAttachments) => {
+                    setAttachments(newAttachments);
+                    setValue('attachments', newAttachments, { shouldDirty: true });
+                    clearErrors('attachments');
+                  }}
+                  disabled={mutation.isPending}
+                />
+              )}
             </FormField>
             <FormField name="tags" label="Tags" error={errors.tags?.message} optional>
               {(fieldProps) => (
@@ -268,14 +319,11 @@ export function ProjectNoteModal({
               )}
             </FormField>
             <div className="form-grid">
-              <FormField name="reminderDate" label="Reminder date" error={errors.reminderDate?.message} optional>
-                {(fieldProps) => <input type="date" {...fieldProps} {...register('reminderDate')} />}
-              </FormField>
-              <FormField name="reminderTime" label="Reminder time" error={errors.reminderTime?.message} optional>
-                {(fieldProps) => <input type="time" {...fieldProps} {...register('reminderTime')} />}
+              <FormField name="reminderAt" label="Reminder" error={errors.reminderAt?.message} optional>
+                {(fieldProps) => <input type="datetime-local" {...fieldProps} {...register('reminderAt')} />}
               </FormField>
             </div>
-            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === 'create' ? 'Create note' : 'Save note'} />
+            <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === WorkspaceModalMode.Create ? 'Create note' : 'Save note'} />
           </form>
         </section>
       </div>
