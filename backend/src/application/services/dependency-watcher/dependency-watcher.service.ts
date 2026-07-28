@@ -167,6 +167,8 @@ export class DependencyWatcherService {
       repositoryId: record.repositoryId,
       projectSlug,
       workspaceSlug: record.workspaceSlug,
+      contentLength: content.length,
+      contentPreview: content.substring(0, 500),
     });
     
     const payload = {

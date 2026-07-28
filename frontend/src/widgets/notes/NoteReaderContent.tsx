@@ -90,11 +90,16 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
   const cleanedRawText = stripSourceHeader(rawText).replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
   const cleanedSummary = stripSourceHeader(summary).replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
   const isGithubPush = sourceChannel === SOURCE_VALUES.GITHUB_PUSH;
+  const isDependencyWatcher = sourceChannel === 'dependency-watcher';
   const hasSummary = isGithubPush && Boolean(cleanedSummary) && normalizeReaderText(cleanedSummary) !== normalizeReaderText(cleanedRawText);
   const showLabel = hasExtra || hasSummary;
   const activeSource = source;
   const aiTurns = parseAiConversationTurns(cleanedRawText);
   const isAiConversation = aiTurns.length > 0;
+
+  // For dependency watcher notes, rawText already contains the full formatted content
+  // Avoid rendering extra sections
+  const shouldRenderExtraSections = !isDependencyWatcher && hasExtra;
 
   return (
     <div className="note-body">
@@ -125,7 +130,7 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
           <TypewriterMarkdown markdown={cleanedSummary} animated={false} />
         </section>
       ) : null}
-      {extraMarkdown ? (
+      {shouldRenderExtraSections ? (
         <div className="note-extra-sections">
           <MarkdownView markdown={extraMarkdown} />
         </div>
