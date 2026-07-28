@@ -39,6 +39,7 @@ import { SaveDependencyMonitoredRepositoriesUseCase } from '../../application/us
 import { CheckProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/check-project-dependencies.use-case.js';
 import { CheckDependencyUseCase } from '../../application/use-cases/dependency-watcher/check-dependency.use-case.js';
 import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
+import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
 import { WebhookDeliveryService } from '../../application/services/webhooks/webhook-delivery.service.js';
 import { WebhookDeliveryWorker } from '../../application/workers/webhook-delivery.worker.js';
 import { ProcessGithubPushService } from '../../application/services/integrations/process-github-push.service.js';
@@ -120,6 +121,7 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     CheckProjectDependenciesUseCase,
     CheckDependencyUseCase,
     PostgresWorkspaceRepository,
+    { provide: DependencyWatcherRepository, useClass: PostgresDependencyWatcherRepository },
   ],
   exports: [
     IntegrationConnectionService,
