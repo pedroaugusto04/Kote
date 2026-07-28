@@ -8,9 +8,21 @@ import { PostgresDependencyWatcherRepository } from '../repositories/dependency-
 import { DependencyAlertGateway } from '../../application/ports/dependency-watcher/dependency-alert.port.js';
 import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { DatabaseModule } from './database.module.js';
+import { NotesModule } from './notes.module.js';
+import { AuthModule } from './auth.module.js';
+import { EnvModule } from './env.module.js';
+import { LoggerModule } from './logger.module.js';
+import { EmailModule } from './email.module.js';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [
+    DatabaseModule,
+    NotesModule,
+    AuthModule,
+    EnvModule,
+    LoggerModule,
+    EmailModule,
+  ],
   providers: [
     PostgresDependencyWatcherRepository,
     DefaultDependencyAlertGateway,
