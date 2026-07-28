@@ -17,7 +17,9 @@ import {
   type GithubComparePayload,
   type GithubCommitDiff,
   type GithubInstallationRepository,
+  GithubManifestFile,
 } from '../../application/ports/integrations/github-integration.port.js';
+
 
 @Injectable()
 export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
@@ -86,5 +88,17 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
   ): Promise<string> {
     return fetchGithubFileContent(repoFullName, path, token);
   }
-} 
+
+  fetchManifestFiles(
+    repoFullName: string,
+    defaultBranch: string,
+    token: string,
+  ): Promise<GithubManifestFile[]> {
+    return fetchGithubManifestFiles(
+      repoFullName,
+      defaultBranch,
+      token,
+    );
+  }
+}
 

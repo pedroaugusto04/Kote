@@ -1,6 +1,6 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable} from '@nestjs/common';
 import { type Channel, type ConsumeMessage } from 'amqplib';
-import { CredentialRecordStatus, IntegrationProvider, DependencyEcosystem } from '../../contracts/enums.js';
+import { CredentialRecordStatus, IntegrationProvider } from '../../contracts/enums.js';
 import { decryptConfig } from '../../application/credentials.js';
 import { DependencyWatcherRepository, type CreateDependencyWatchInput } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { GithubIntegrationGateway } from '../../application/ports/integrations/github-integration.port.js';
@@ -8,7 +8,9 @@ import { ContentRepository } from '../../application/ports/notes/content.reposit
 import { CredentialRepository } from '../../application/ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../application/ports/observability/runtime-environment.port.js';
 import { cleanVersion } from '../../application/utils/dependency/version.utils.js';
-import { getManifestFilePriority, generateManifestSearchPaths } from '../../application/utils/dependency/manifest-detector.utils.js';
+import {
+  detectEcosystemFromManifest,
+} from '../../application/utils/dependency/manifest-detector.utils.js';
 import { parseManifestDependencies } from '../../application/utils/dependency/manifest-parser.utils.js';
 import { AppLogger } from '../../observability/logger.js';
 import { BaseRabbitMqConsumer } from './base-rabbitmq.consumer.js';
@@ -145,40 +147,40 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
       for (const project of workspaceProjects) {
         for (const repo of project.repositories) {
           try {
-            const manifestFiles = getManifestFilePriority();
-            const searchPaths = generateManifestSearchPaths(manifestFiles);
+            const manifests = await this.githubGateway.fetchManifestFiles(
+              repo.fullName,
+              repo.defaultBranch ?? 'main',
+              token,
+            );
+
             let dependenciesFound = false;
+
             const batchInputs: CreateDependencyWatchInput[] = [];
 
-            for (const manifestPath of searchPaths) {
-              const content = await this.githubGateway.fetchFileContent(
-                repo.fullName,
-                manifestPath,
-                token,
-              );
+            for (const manifest of manifests) {
+              const fileName =
+                manifest.path.split('/').pop() ?? manifest.path;
 
-              if (!content) {
-                continue;
-              }
+              const ecosystem = detectEcosystemFromManifest(fileName);
 
-              const fileName = manifestPath.split('/').pop() || manifestPath;
-              const ecosystem = this.detectEcosystemFromManifest(fileName);
               if (!ecosystem) {
                 continue;
               }
 
-              const dependencies = parseManifestDependencies(fileName, content);
+              const dependencies = parseManifestDependencies(
+                fileName,
+                manifest.content,
+              );
 
               for (const dep of dependencies) {
                 total++;
-                const cleanedVersion = cleanVersion(dep.version);
 
                 batchInputs.push({
                   userId,
                   workspaceId: workspace.id,
                   ecosystem,
                   packageName: dep.packageName,
-                  currentVersion: cleanedVersion,
+                  currentVersion: cleanVersion(dep.version),
                   repositoryId: repo.id,
                 });
 
@@ -188,26 +190,38 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
               dependenciesFound = true;
             }
 
-            // Batch upsert all dependencies for this repository
             if (batchInputs.length > 0) {
-              await this.dependencyWatcherRepository.batchUpsert(batchInputs);
+              await this.dependencyWatcherRepository.batchUpsert(
+                batchInputs,
+              );
             }
 
             if (!dependenciesFound) {
               skipped++;
             }
 
-            this.logger.info('dependency_import_consumer.repository_processed', {
-              jobId,
-              repository: repo.fullName,
-              dependenciesFound: batchInputs.length,
-            });
+            this.logger.info(
+              'dependency_import_consumer.repository_processed',
+              {
+                jobId,
+                repository: repo.fullName,
+                manifestsFound: manifests.length,
+                dependenciesFound: batchInputs.length,
+              },
+            );
           } catch (error) {
-            this.logger.error('dependency_import_consumer.repository_failed', {
-              jobId,
-              repository: repo.fullName,
-              error: error instanceof Error ? error.message : String(error),
-            });
+            this.logger.error(
+              'dependency_import_consumer.repository_failed',
+              {
+                jobId,
+                repository: repo.fullName,
+                error:
+                  error instanceof Error
+                    ? error.message
+                    : String(error),
+              },
+            );
+
             skipped++;
           }
         }
@@ -248,7 +262,7 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
             ...message,
             retryCount: backoff.retryCount + 1,
           };
-          
+
           channel.publish(
             '',
             QUEUE_NAME,
@@ -267,22 +281,5 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
         channel.nack(msg, false, false); // Send to DLQ
       }
     }
-  }
-
-  private detectEcosystemFromManifest(fileName: string): DependencyEcosystem | null {
-    const manifestMap: Record<string, DependencyEcosystem> = {
-      'package.json': DependencyEcosystem.Npm,
-      'requirements.txt': DependencyEcosystem.Pip,
-      'pyproject.toml': DependencyEcosystem.Pip,
-      'composer.json': DependencyEcosystem.Composer,
-      'pom.xml': DependencyEcosystem.Maven,
-      'Cargo.toml': DependencyEcosystem.Cargo,
-      'go.mod': DependencyEcosystem.Go,
-      'Gemfile': DependencyEcosystem.RubyGems,
-      'build.gradle': DependencyEcosystem.Gradle,
-      'build.gradle.kts': DependencyEcosystem.Gradle,
-    };
-
-    return manifestMap[fileName] || null;
   }
 }

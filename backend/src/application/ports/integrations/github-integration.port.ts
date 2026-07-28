@@ -26,6 +26,11 @@ export type GithubInstallationRepository = {
   defaultBranch: string | null;
 };
 
+export type GithubManifestFile = {
+  path: string;
+  content: string;
+};
+
 export abstract class GithubIntegrationGateway {
   abstract verifyWebhookSignature(secret: string, rawBody: string, signature: string): void;
   abstract fetchInstallationToken(input: { appId: string; privateKey: string; installationId: string }): Promise<string>;
@@ -63,5 +68,10 @@ export abstract class GithubIntegrationGateway {
     path: string,
     token: string,
   ): Promise<string>;
+  abstract fetchManifestFiles(
+  repoFullName: string,
+  defaultBranch: string,
+  token: string,
+): Promise<GithubManifestFile[]>;
 }
 

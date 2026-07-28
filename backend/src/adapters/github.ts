@@ -2,6 +2,16 @@ import crypto from 'node:crypto';
 import { trimText } from '../domain/strings.js';
 import { isEligibleFileForCoverage } from '../application/utils/github/coverage-file-filter.utils.js';
 import { RateLimitError, parseRateLimitFromHeaders } from '../application/utils/retry/backoff.utils.js';
+import {
+  detectEcosystemFromManifest,
+  getAllManifestPatterns,
+  MAX_MANIFESTS_PER_REPO,
+} from '../application/utils/dependency/manifest-detector.utils.js';
+
+export type GithubManifestFile = {
+  path: string;
+  content: string;
+};
 
 function timingSafeEqualString(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left);
@@ -336,4 +346,71 @@ export async function fetchGithubFileContent(repoFullName: string, path: string,
   if (data.encoding !== 'base64' || !data.content) return '';
   const content = Buffer.from(data.content, 'base64').toString('utf-8');
   return content;
+}
+
+export async function fetchGithubManifestFiles(
+  repoFullName: string,
+  defaultBranch: string,
+  token: string,
+): Promise<GithubManifestFile[]> {
+  if (!repoFullName || !token) {
+    return [];
+  }
+
+  const tree = await fetchGithubRepositoryTree(
+    repoFullName,
+    defaultBranch,
+    token,
+  );
+
+  const manifestPatterns = getAllManifestPatterns();
+
+  const manifestPaths = tree
+    .filter((path) => {
+      const fileName = path.split('/').pop() ?? '';
+
+      // Arquivos conhecidos
+      if (detectEcosystemFromManifest(fileName)) {
+        return true;
+      }
+
+      // Wildcards (*.csproj, etc.)
+      return manifestPatterns.some((pattern) => {
+        if (!pattern.includes('*')) {
+          return fileName === pattern;
+        }
+
+        const regex = new RegExp(
+          `^${pattern.replace(/\./g, '\\.').replace(/\*/g, '.*')}$`,
+        );
+
+        return regex.test(fileName);
+      });
+    })
+    .slice(0, MAX_MANIFESTS_PER_REPO);
+
+  const manifests: GithubManifestFile[] = [];
+
+  for (const path of manifestPaths) {
+    try {
+      const content = await fetchGithubFileContent(
+        repoFullName,
+        path,
+        token,
+      );
+
+      if (!content) {
+        continue;
+      }
+
+      manifests.push({
+        path,
+        content,
+      });
+    } catch {
+      // Ignora manifest individual com erro
+    }
+  }
+
+  return manifests;
 }
