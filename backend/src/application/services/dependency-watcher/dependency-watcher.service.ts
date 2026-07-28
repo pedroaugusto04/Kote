@@ -250,7 +250,7 @@ export class DependencyWatcherService {
 
     if (versionInfo.repositoryUrl) {
       sections.push(`## Links`);
-      sections.push(`- [Repository](${versionInfo.repositoryUrl})`);
+      sections.push(`- Repository: ${versionInfo.repositoryUrl}`);
       sections.push('');
     }
 
