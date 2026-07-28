@@ -63,12 +63,7 @@ export class RabbitMqDependencyImportQueuePublisher extends BaseRabbitMqPublishe
     await channel.assertExchange(EXCHANGE_NAME, 'direct', { durable: true });
     await channel.assertExchange(DLX_NAME, 'direct', { durable: true });
 
-    await channel.assertQueue(QUEUE_NAME, {
-      durable: true,
-      arguments: {
-        'x-dead-letter-exchange': DLX_NAME,
-      },
-    });
+    await channel.assertQueue(QUEUE_NAME, { durable: true });
     await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
 
     await channel.assertQueue(DLQ_NAME, { durable: true });
