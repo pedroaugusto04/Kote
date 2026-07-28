@@ -108,6 +108,10 @@ export class DependencyWatcherService {
     const versionInfo: RegistryVersionInfo = await strategy.fetchLatestVersion(record.packageName);
     
     if (versionInfo.version === record.currentVersion || versionInfo.version === record.latestSeenVersion) {
+      // Update lastCheckedAt even if no update available
+      await this.dependencyWatcherRepository.update(record.id, {
+        lastCheckedAt: new Date(),
+      });
       return false;
     }
 
@@ -123,6 +127,7 @@ export class DependencyWatcherService {
       latestSeenVersion: versionInfo.version,
       lastAlertedAt: new Date(),
       lastUrgency: analysis.urgency,
+      lastCheckedAt: new Date(),
     });
 
     return true;
