@@ -110,15 +110,6 @@ For configuration details, see [ide/vscode/README.md](./ide/vscode/README.md).
 </details>
 
 <details>
-<summary><strong>GitHub Integration</strong></summary>
-
-* **Diff Analysis:** Summarizes changes on every push.
-* **Alert System:** Notifies the team via WhatsApp or Telegram if potential configuration or environmental issues are detected in a diff.
-* **PR Context AI:** Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.
-
-</details>
-
-<details>
 <summary><strong>Dependency Watcher</strong></summary>
 
 Automatically monitor package dependencies across multiple ecosystems (npm, pip, composer, maven, cargo) and get notified about security updates and breaking changes.
@@ -130,6 +121,15 @@ Automatically monitor package dependencies across multiple ecosystems (npm, pip,
 * **Daily Monitoring**: Automated cron job checks for new versions daily
 
 For details, see [docs/DEPENDENCY_WATCHER.md](./docs/DEPENDENCY_WATCHER.md).
+</details>
+
+<details>
+<summary><strong>GitHub Integration</strong></summary>
+
+* **Diff Analysis:** Summarizes changes on every push.
+* **Alert System:** Notifies the team via WhatsApp or Telegram if potential configuration or environmental issues are detected in a diff.
+* **PR Context AI:** Analyzes changed files and title/description of newly opened Pull Requests to automatically retrieve historical technical decisions and context, posting it as a PR comment.
+
 </details>
 
 <details>
