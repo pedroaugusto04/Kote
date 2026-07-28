@@ -8,7 +8,10 @@ import { type DependencyCheckJobMessage } from './rabbitmq-dependency-check-queu
 import { calculateBackoff, isRateLimitError, RateLimitError, type BackoffOptions } from '../../application/utils/retry/backoff.utils.js';
 
 const QUEUE_NAME = 'kb.dependency_check.jobs';
-const DLX_NAME = 'kb.dependency_check.dlx';
+const EXCHANGE_NAME = 'kb.dependency_check';
+const DLX_NAME = `${EXCHANGE_NAME}.dlx`;
+const DLQ_NAME = `${QUEUE_NAME}.dlq`;
+const ROUTING_KEY = 'dependency_check.run';
 
 const BACKOFF_OPTIONS: BackoffOptions = {
   baseDelayMs: 5000, // 5 seconds
@@ -30,12 +33,24 @@ export class RabbitMqDependencyCheckQueueConsumer extends BaseRabbitMqConsumer {
 
   protected async setupChannel(channel: Channel): Promise<void> {
     await channel.prefetch(5); // Process 5 messages concurrently
+    
+    // Setup exchanges
+    await channel.assertExchange(EXCHANGE_NAME, 'direct', { durable: true });
+    await channel.assertExchange(DLX_NAME, 'direct', { durable: true });
+
+    // Setup main queue with DLX
     await channel.assertQueue(QUEUE_NAME, {
       durable: true,
       arguments: {
         'x-dead-letter-exchange': DLX_NAME,
+        'x-dead-letter-routing-key': ROUTING_KEY,
       },
     });
+    await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
+
+    // Setup DLQ
+    await channel.assertQueue(DLQ_NAME, { durable: true });
+    await channel.bindQueue(DLQ_NAME, DLX_NAME, ROUTING_KEY);
   }
 
   protected async startConsuming(channel: Channel): Promise<void> {
@@ -149,10 +164,10 @@ export class RabbitMqDependencyCheckQueueConsumer extends BaseRabbitMqConsumer {
             retryCount: backoff.retryCount + 1,
           };
           
-          // Re-publish to the queue
+          // Re-publish to the exchange (not directly to queue)
           channel.publish(
-            '',
-            QUEUE_NAME,
+            EXCHANGE_NAME,
+            ROUTING_KEY,
             Buffer.from(JSON.stringify(retryMessage)),
             { persistent: true },
           );
@@ -165,7 +180,7 @@ export class RabbitMqDependencyCheckQueueConsumer extends BaseRabbitMqConsumer {
           projectId,
           retryCount: backoff.retryCount,
         });
-        channel.nack(msg, false, false); // Send to DLQ
+        channel.nack(msg, false, false); // Send to DLQ via DLX
       }
     }
   }
