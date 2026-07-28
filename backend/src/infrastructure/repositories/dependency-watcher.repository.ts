@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { eq, and, lt, or } from 'drizzle-orm';
 
-import { dependencyWatch } from '../persistence/schema/index.js';
+import { dependencyWatch, workspaces } from '../persistence/schema/index.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { DependencyWatcherRepository, type DependencyWatchRecord, type CreateDependencyWatchInput, type UpdateDependencyWatchInput } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { DependencyEcosystem } from '../../domain/enums/dependency.enums.js';
@@ -123,6 +123,17 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
           eq(dependencyWatch.workspaceId, workspaceId),
         ),
       );
+  }
+
+  async isWorkspaceEnabled(workspaceId: string): Promise<boolean> {
+    const db = this.getDb();
+    const [workspace] = await db
+      .select({ dependencyWatcherEnabled: workspaces.dependencyWatcherEnabled })
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+
+    return workspace?.dependencyWatcherEnabled ?? false;
   }
 
   private mapToRecord(record: any): DependencyWatchRecord {

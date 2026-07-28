@@ -19,6 +19,8 @@ import {
   subscribePush,
   unsubscribePush,
   importDependenciesFromGithub,
+  enableDependencyWatcher,
+  disableDependencyWatcher,
 } from '../../shared/api/client';
 import { githubRepositoriesFormSchema, type DisplayStatus, type GithubRepositoriesFormValues } from './guided-integrations.forms';
 import type { GithubIntegrationRepository, IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
@@ -391,6 +393,25 @@ function IntegrationCard({
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+  const [dependencyWatcherEnabled, setDependencyWatcherEnabled] = useState(integration.status === StoredIntegrationStatus.Connected);
+
+  const enableMutation = useMutation({
+    mutationFn: () => enableDependencyWatcher(workspaceSlug),
+    onSuccess: () => {
+      setDependencyWatcherEnabled(true);
+      notifySuccess('Dependency Watcher enabled');
+      queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
+    },
+  });
+
+  const disableMutation = useMutation({
+    mutationFn: () => disableDependencyWatcher(workspaceSlug),
+    onSuccess: () => {
+      setDependencyWatcherEnabled(false);
+      notifySuccess('Dependency Watcher disabled');
+      queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
+    },
+  });
   const connectMutation = useMutation({
     mutationFn: async () => {
       if (integration.provider === IntegrationProvider.PushNotifications) {
@@ -513,6 +534,16 @@ function IntegrationCard({
               <button className="filter-chip" type="button" onClick={onGithubRepositories}>{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORIES_BUTTON}</button>
               <button className="filter-chip" type="button" onClick={onDependencyImport}>Import Dependencies</button>
             </>
+          ) : null}
+          {integration.provider === IntegrationProvider.DependencyWatcher ? (
+            <button
+              className="filter-chip"
+              type="button"
+              onClick={() => dependencyWatcherEnabled ? disableMutation.mutate() : enableMutation.mutate()}
+              disabled={enableMutation.isPending || disableMutation.isPending}
+            >
+              {dependencyWatcherEnabled ? 'Disable' : 'Enable'}
+            </button>
           ) : null}
           <button
             className={connected ? 'filter-chip' : 'icon-button'}

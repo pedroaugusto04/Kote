@@ -90,7 +90,6 @@ export function buildIntegrationStatuses(input: {
   const conversationAiActive = environment.conversationAiProvider !== AiProvider.None;
   const projectBriefAiActive = environment.projectBriefAiProvider !== AiProvider.None;
   const fileNotesSummaryAiActive = environment.fileNotesSummaryAiProvider !== AiProvider.None;
-  const dependencyWatcherActive = environment.dependencyWatcherEnabled;
   const dependencyWatcherAiActive = environment.dependencyWatcherAiProvider !== AiProvider.None;
   const reviewAiEnv = {
     KB_REVIEW_AI_PROVIDER: reviewAiActive,
@@ -117,9 +116,8 @@ export function buildIntegrationStatuses(input: {
     KB_FILE_NOTES_SUMMARY_AI_API_KEY: fileNotesSummaryAiActive ? secretConfigured(environment.fileNotesSummaryAiApiKey) : true,
   };
   const dependencyWatcherEnv = {
-    KB_DEPENDENCY_WATCHER_ENABLED: dependencyWatcherActive,
-    KB_DEPENDENCY_WATCHER_CRON: dependencyWatcherActive ? Boolean(environment.dependencyWatcherCron) : true,
-    KB_DEPENDENCY_WATCHER_CHECK_INTERVAL_HOURS: dependencyWatcherActive ? Boolean(environment.dependencyWatcherCheckIntervalHours) : true,
+    KB_DEPENDENCY_WATCHER_CRON: Boolean(environment.dependencyWatcherCron),
+    KB_DEPENDENCY_WATCHER_CHECK_INTERVAL_HOURS: Boolean(environment.dependencyWatcherCheckIntervalHours),
     KB_DEPENDENCY_WATCHER_AI_PROVIDER: dependencyWatcherAiActive,
     KB_DEPENDENCY_WATCHER_AI_BASE_URL: dependencyWatcherAiActive ? Boolean(environment.dependencyWatcherAiBaseUrl) : true,
     KB_DEPENDENCY_WATCHER_AI_MODEL: dependencyWatcherAiActive ? Boolean(environment.dependencyWatcherAiModel) : true,
@@ -301,7 +299,7 @@ export function buildIntegrationStatuses(input: {
         id: IntegrationProvider.DependencyWatcher,
         name: 'Dependency Watcher',
         description: 'Automatically check for new dependency versions, create notes with changelogs, and send email alerts for critical updates.',
-        status: statusFromFlags([dependencyWatcherActive, repos.length > 0, ...Object.values(dependencyWatcherEnv)]),
+        status: statusFromFlags([repos.length > 0, ...Object.values(dependencyWatcherEnv)]),
         requiredEnv: Object.keys(dependencyWatcherEnv),
         configuredEnv: configuredEnv(dependencyWatcherEnv),
         missingEnv: missingEnv(dependencyWatcherEnv),
@@ -313,9 +311,8 @@ export function buildIntegrationStatuses(input: {
           'Configure AI provider for changelog analysis.',
         ],
         warnings: [
-          !dependencyWatcherActive ? 'Dependency Watcher is disabled.' : '',
-          dependencyWatcherActive && repos.length === 0 ? 'Workspace has no linked repository. Connect GitHub and select repositories first.' : '',
-          dependencyWatcherActive && !dependencyWatcherAiActive ? 'AI provider is set to none. Changelog analysis will be skipped.' : '',
+          repos.length === 0 ? 'Workspace has no linked repository. Connect GitHub and select repositories first.' : '',
+          !dependencyWatcherAiActive ? 'AI provider is set to none. Changelog analysis will be skipped.' : '',
         ].filter(Boolean),
       },
     ],

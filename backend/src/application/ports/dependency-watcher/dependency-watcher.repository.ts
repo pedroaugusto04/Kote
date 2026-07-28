@@ -40,4 +40,5 @@ export abstract class DependencyWatcherRepository {
   abstract update(id: string, input: UpdateDependencyWatchInput): Promise<void>;
   abstract delete(id: string): Promise<void>;
   abstract deleteByWorkspace(userId: string, workspaceId: string): Promise<void>;
+  abstract isWorkspaceEnabled(workspaceId: string): Promise<boolean>;
 }

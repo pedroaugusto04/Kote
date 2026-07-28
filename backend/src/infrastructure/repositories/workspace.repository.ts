@@ -59,4 +59,15 @@ export class PostgresWorkspaceRepository {
     
     return result[0] ? workspaceFromRow(result[0]) : null;
   }
+
+  async update(id: string, input: { dependencyWatcherEnabled?: boolean }) {
+    const db = this.database.getDb();
+    await db
+      .update(workspaces)
+      .set({
+        ...(input.dependencyWatcherEnabled !== undefined && { dependencyWatcherEnabled: input.dependencyWatcherEnabled }),
+        updatedAt: new Date(),
+      })
+      .where(eq(workspaces.id, id));
+  }
 }

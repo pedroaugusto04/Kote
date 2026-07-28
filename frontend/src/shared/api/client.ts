@@ -13,6 +13,8 @@ export {
   cancelGithubBackfill,
   testIntegration,
   importDependenciesFromGithub,
+  enableDependencyWatcher,
+  disableDependencyWatcher,
 } from './integrations';
 export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, fetchRelatedNotes, bulkUpdateNoteStatuses } from './notes';
 export {

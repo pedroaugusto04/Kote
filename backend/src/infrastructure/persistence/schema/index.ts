@@ -88,6 +88,7 @@ export const workspaces = pgTable('kb_workspaces', {
   displayName: text('display_name').notNull(),
   whatsappChatJid: text('whatsapp_chat_jid').notNull().default(''),
   telegramChatId: text('telegram_chat_id').notNull().default(''),
+  dependencyWatcherEnabled: boolean('dependency_watcher_enabled').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({

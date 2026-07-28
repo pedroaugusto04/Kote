@@ -81,3 +81,15 @@ export function importDependenciesFromGithub(workspaceSlug: string, projectIds?:
     body: JSON.stringify({ workspaceSlug, projectIds }),
   });
 }
+
+export function enableDependencyWatcher(workspaceSlug: string): Promise<{ ok: true; data: { enabled: boolean } }> {
+  return request<{ ok: true; data: { enabled: boolean } }>(`${API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH}/${workspaceSlug}/enable`, {
+    method: 'PATCH',
+  });
+}
+
+export function disableDependencyWatcher(workspaceSlug: string): Promise<{ ok: true; data: { enabled: boolean } }> {
+  return request<{ ok: true; data: { enabled: boolean } }>(`${API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH}/${workspaceSlug}/disable`, {
+    method: 'PATCH',
+  });
+}

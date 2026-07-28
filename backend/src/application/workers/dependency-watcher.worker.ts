@@ -17,7 +17,6 @@ export class DependencyWatcherWorker implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   onModuleInit() {
-    if (!this.shouldStart()) return;
     this.timer = setInterval(() => void this.tick(), ONE_MINUTE_MS);
     this.logger.info('dependency_watcher_worker_started');
   }
@@ -27,11 +26,6 @@ export class DependencyWatcherWorker implements OnModuleInit, OnModuleDestroy {
     clearInterval(this.timer);
     this.timer = null;
     this.logger.info('dependency_watcher_worker_stopped');
-  }
-
-  private shouldStart(): boolean {
-    const env = this.environmentProvider.read();
-    return env.dependencyWatcherEnabled;
   }
 
   private async tick() {

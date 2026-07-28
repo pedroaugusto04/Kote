@@ -37,9 +37,6 @@ Dependency Watcher tracks your project dependencies and alerts you when new vers
 Set the following environment variables:
 
 ```env
-# Enable the worker
-DEPENDENCY_WATCHER_ENABLED=true
-
 # Cron schedule (e.g., daily at 9 AM)
 DEPENDENCY_WATCHER_CRON="0 9 * * *"
 
@@ -65,6 +62,15 @@ DEPENDENCY_WATCHER_AI_API_KEY=your-api-key
 5. Click **Import Dependencies**
 
 Kote will scan the selected projects' repositories and import all dependencies found in their manifest files.
+
+### 3. Enable Dependency Watcher per Workspace
+
+1. Go to **Integrations**
+2. Find the **Dependency Watcher** integration card
+3. Click **Enable** to activate dependency monitoring for your workspace
+4. The worker will now check dependencies daily based on the cron schedule
+
+**Note:** Dependency Watcher is enabled per workspace. Each workspace can independently enable or disable the feature.
 
 ## Features
 

@@ -43,6 +43,9 @@ export class DependencyWatcherService {
     for (const record of records) {
       if (!record.enabled) continue;
 
+      const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(record.workspaceId);
+      if (!workspaceEnabled) continue;
+
       try {
         checked++;
         const hasUpdate = await this.checkPackage(record);
