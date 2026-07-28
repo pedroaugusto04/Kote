@@ -212,7 +212,7 @@ function parsePomXml(content: string): ParsedDependency[] {
  */
 function parseCargoToml(content: string): ParsedDependency[] {
   const dependencies: ParsedDependency[] = [];
-  
+
   try {
     const lines = content.split('\n');
     let inDependencies = false;
@@ -220,7 +220,7 @@ function parseCargoToml(content: string): ParsedDependency[] {
 
     for (const line of lines) {
       const trimmed = line.trim();
-      
+
       if (trimmed === '[dependencies]') {
         inDependencies = true;
         continue;
@@ -236,10 +236,33 @@ function parseCargoToml(content: string): ParsedDependency[] {
       }
 
       if ((inDependencies || inDevDependencies) && trimmed.includes('=')) {
-        const [name, version] = trimmed.split('=').map(s => s.trim());
-        // Remove quotes from version
-        const cleanVersion = version.replace(/["']/g, '');
-        dependencies.push({ packageName: name, version: cleanVersion });
+        // Handle simple format: name = "version"
+        const simpleMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*"([^"]+)"/);
+        if (simpleMatch) {
+          dependencies.push({ packageName: simpleMatch[1], version: simpleMatch[2] });
+          continue;
+        }
+
+        // Handle complex format: name = { version = "x.y.z", ... }
+        const complexMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{[^}]*version\s*=\s*"([^"]+)"/);
+        if (complexMatch) {
+          dependencies.push({ packageName: complexMatch[1], version: complexMatch[2] });
+          continue;
+        }
+
+        // Handle path dependencies: name = { path = "..." }
+        const pathMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{\s*path\s*=/);
+        if (pathMatch) {
+          // Skip path dependencies as they are local
+          continue;
+        }
+
+        // Handle git dependencies: name = { git = "..." }
+        const gitMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{\s*git\s*=/);
+        if (gitMatch) {
+          // Skip git dependencies as they are external
+          continue;
+        }
       }
     }
   } catch {
