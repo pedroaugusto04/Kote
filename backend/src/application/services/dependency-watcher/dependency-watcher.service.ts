@@ -119,7 +119,7 @@ export class DependencyWatcherService {
     
     await this.createNote(record, versionInfo, analysis);
     
-    if (analysis.urgency === DependencyUrgency.Critical || analysis.urgency === DependencyUrgency.Recommended) {
+    if (analysis.urgency === DependencyUrgency.Critical) {
       await this.sendAlertEmail(record, versionInfo, analysis);
     }
 
