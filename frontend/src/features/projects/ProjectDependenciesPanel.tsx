@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { fetchProjectDependencies } from '../../shared/api/projects';
@@ -6,10 +7,13 @@ import { EmptyState, InlineMessage } from '../../shared/ui/primitives';
 import { formatDateIso } from '../../shared/utils/format';
 import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 import { useGlobalLoading } from '../../app/global-loading';
+import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 
 export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSlug: string; projectId: string }) {
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+
   const dependenciesQuery = useQuery({
     queryKey: ['project-dependencies', projectSlug],
     queryFn: () => fetchProjectDependencies(projectSlug),
@@ -22,6 +26,7 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
       queryClient.invalidateQueries({ queryKey: ['project-dependencies', projectSlug] });
       queryClient.invalidateQueries({ queryKey: ['project-timeline', projectSlug] });
       notifySuccess(`Dependency check started for ${result.data.queued} packages. Processing in background - results will appear shortly.`);
+      setShowConfirmModal(false);
     },
     onError: (error) => {
       notifyError('Failed to start dependency check. Please try again.');
@@ -65,7 +70,7 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
         <button
           className="icon-button"
           type="button"
-          onClick={() => checkMutation.mutate()}
+          onClick={() => setShowConfirmModal(true)}
           disabled={checkMutation.isPending}
         >
           {checkMutation.isPending ? 'Checking...' : 'Check for Updates'}
@@ -115,6 +120,18 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
           </div>
         </section>
       ))}
+      {showConfirmModal && (
+        <ConfirmationModal
+          title="Check All Dependencies"
+          description="This will check for updates on all monitored dependencies. This may trigger email notifications for critical and recommended updates. Are you sure you want to continue?"
+          cancelLabel="Cancel"
+          confirmLabel="Check All"
+          onCancel={() => setShowConfirmModal(false)}
+          onConfirm={() => checkMutation.mutate()}
+          busy={checkMutation.isPending}
+          tone="default"
+        />
+      )}
     </div>
   );
 }
