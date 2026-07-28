@@ -156,7 +156,7 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                         className="icon-button"
                         type="button"
                         onClick={() => checkDependencyMutation.mutate(dependency.id)}
-                        disabled={checkDependencyMutation.isPending || !dependency.enabled}
+                        disabled={checkDependencyMutation.isPending}
                         style={{ padding: '4px 8px', fontSize: '12px' }}
                       >
                         {checkDependencyMutation.isPending ? 'Checking...' : 'Check'}

@@ -189,6 +189,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
           eq(dependencyWatch.userId, userId),
           eq(dependencyWatch.workspaceId, workspaceId),
           inArray(dependencyWatch.repositoryId, repositoryIds),
+          eq(dependencyWatch.enabled, true),
         ),
       );
 
@@ -257,9 +258,12 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       .from(dependencyWatch)
       .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
       .where(
-        or(
-          eq(dependencyWatch.lastCheckedAt, null as any),
-          lt(dependencyWatch.lastCheckedAt, cutoffDate),
+        and(
+          eq(dependencyWatch.enabled, true),
+          or(
+            eq(dependencyWatch.lastCheckedAt, null as any),
+            lt(dependencyWatch.lastCheckedAt, cutoffDate),
+          ),
         ),
       );
 
