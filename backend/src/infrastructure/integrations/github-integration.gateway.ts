@@ -11,6 +11,7 @@ import {
   fetchGithubPullRequestComments,
   fetchGithubRepositoryTree,
   fetchGithubFileContent,
+  fetchGithubManifestFiles,
 } from '../../adapters/github.js';
 import {
   GithubIntegrationGateway,
