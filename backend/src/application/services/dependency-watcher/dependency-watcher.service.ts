@@ -161,6 +161,14 @@ export class DependencyWatcherService {
     const content = this.buildNoteContent(record, versionInfo, analysis);
     const projectSlug = await this.resolveProjectSlug(record);
     
+    this.logger.info('dependency_watcher_creating_note', {
+      recordId: record.id,
+      packageName: record.packageName,
+      repositoryId: record.repositoryId,
+      projectSlug,
+      workspaceSlug: record.workspaceSlug,
+    });
+    
     const payload = {
       source: {
         channel: SourceChannel.DependencyWatcher,
