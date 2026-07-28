@@ -189,7 +189,6 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
           eq(dependencyWatch.userId, userId),
           eq(dependencyWatch.workspaceId, workspaceId),
           inArray(dependencyWatch.repositoryId, repositoryIds),
-          eq(dependencyWatch.enabled, true),
         ),
       );
 
