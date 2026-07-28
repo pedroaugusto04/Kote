@@ -154,6 +154,22 @@ export function renderEventNote(project: Project, payload: IngestPayload, paths:
       .join('\n');
   }
 
+  // For dependency watcher notes, rawText already contains the full formatted content
+  // Avoid duplicating sections by rendering only rawText
+  if (payload.source.system === 'dependency-watcher') {
+    return [
+      frontmatter,
+      `# ${trimText(payload.content.title, payload.content.rawText)}`,
+      '',
+      `Project: ${project.displayName || project.projectSlug}`,
+      '',
+      payload.content.rawText,
+      '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
   return [
     frontmatter,
     `# ${trimText(payload.content.title, payload.content.rawText)}`,
