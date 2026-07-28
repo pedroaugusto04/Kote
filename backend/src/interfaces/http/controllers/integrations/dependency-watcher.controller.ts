@@ -5,6 +5,7 @@ import { ImportDependenciesFromGithubUseCase } from '../../../../application/use
 import { ListDependencyMonitoredRepositoriesUseCase } from '../../../../application/use-cases/dependency-watcher/list-dependency-monitored-repositories.use-case.js';
 import { SaveDependencyMonitoredRepositoriesUseCase } from '../../../../application/use-cases/dependency-watcher/save-dependency-monitored-repositories.use-case.js';
 import { CheckProjectDependenciesUseCase } from '../../../../application/use-cases/dependency-watcher/check-project-dependencies.use-case.js';
+import { CheckDependencyUseCase } from '../../../../application/use-cases/dependency-watcher/check-dependency.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { PostgresWorkspaceRepository } from '../../../../infrastructure/repositories/workspace.repository.js';
@@ -19,6 +20,7 @@ export class DependencyWatcherController {
     private readonly listDependencyMonitoredRepositoriesUseCase: ListDependencyMonitoredRepositoriesUseCase,
     private readonly saveDependencyMonitoredRepositoriesUseCase: SaveDependencyMonitoredRepositoriesUseCase,
     private readonly checkProjectDependenciesUseCase: CheckProjectDependenciesUseCase,
+    private readonly checkDependencyUseCase: CheckDependencyUseCase,
     private readonly workspaceRepository: PostgresWorkspaceRepository,
   ) {}
 
@@ -126,6 +128,20 @@ export class DependencyWatcherController {
     @Body() body: { projectId: string; projectSlug: string },
   ) {
     const result = await this.checkProjectDependenciesUseCase.execute(user.id, body.projectId, body.projectSlug);
+    return {
+      ok: true,
+      data: result,
+    };
+  }
+
+  @Post('check-dependency')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async checkDependency(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { dependencyId: string; projectId: string; projectSlug: string },
+  ) {
+    const result = await this.checkDependencyUseCase.execute(user.id, body.dependencyId, body.projectId, body.projectSlug);
     return {
       ok: true,
       data: result,

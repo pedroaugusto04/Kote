@@ -194,6 +194,41 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
     return records.map(this.mapToRecord);
   }
 
+  async findById(userId: string, workspaceId: string, dependencyId: string): Promise<DependencyWatchRecord | null> {
+    const db = this.getDb();
+    const records = await db
+      .select({
+        id: dependencyWatch.id,
+        userId: dependencyWatch.userId,
+        workspaceId: dependencyWatch.workspaceId,
+        workspaceSlug: workspaces.workspaceSlug,
+        ecosystem: dependencyWatch.ecosystem,
+        packageName: dependencyWatch.packageName,
+        currentVersion: dependencyWatch.currentVersion,
+        latestSeenVersion: dependencyWatch.latestSeenVersion,
+        checkIntervalHours: dependencyWatch.checkIntervalHours,
+        lastCheckedAt: dependencyWatch.lastCheckedAt,
+        lastAlertedAt: dependencyWatch.lastAlertedAt,
+        enabled: dependencyWatch.enabled,
+        repositoryId: dependencyWatch.repositoryId,
+        createdAt: dependencyWatch.createdAt,
+        updatedAt: dependencyWatch.updatedAt,
+      })
+      .from(dependencyWatch)
+      .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
+      .where(
+        and(
+          eq(dependencyWatch.userId, userId),
+          eq(dependencyWatch.workspaceId, workspaceId),
+          eq(dependencyWatch.id, dependencyId),
+        ),
+      )
+      .limit(1);
+
+    if (records.length === 0) return null;
+    return this.mapToRecord(records[0]);
+  }
+
   async findDueForCheck(hours: number): Promise<DependencyWatchRecord[]> {
     const db = this.getDb();
     const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);

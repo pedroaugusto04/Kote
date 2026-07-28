@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { fetchProjectDependencies } from '../../shared/api/projects';
-import { checkProjectDependencies } from '../../shared/api/integrations';
+import { checkProjectDependencies, checkDependency } from '../../shared/api/integrations';
 import { EmptyState, InlineMessage } from '../../shared/ui/primitives';
 import { formatDateIso } from '../../shared/utils/format';
 import { notifySuccess, notifyError } from '../../shared/ui/notifications';
@@ -22,6 +22,19 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
       queryClient.invalidateQueries({ queryKey: ['project-dependencies', projectSlug] });
       queryClient.invalidateQueries({ queryKey: ['project-timeline', projectSlug] });
       notifySuccess(`Dependency check started for ${result.data.queued} packages. Processing in background - results will appear shortly.`);
+    },
+    onError: (error) => {
+      notifyError('Failed to start dependency check. Please try again.');
+      console.error('Dependency check error:', error);
+    },
+  });
+
+  const checkDependencyMutation = useMutation({
+    mutationFn: (dependencyId: string) => globalLoading.trackPromise(checkDependency(dependencyId, projectId, projectSlug)),
+    onSuccess: (result, dependencyId) => {
+      queryClient.invalidateQueries({ queryKey: ['project-dependencies', projectSlug] });
+      queryClient.invalidateQueries({ queryKey: ['project-timeline', projectSlug] });
+      notifySuccess(`Check started for dependency. Processing in background.`);
     },
     onError: (error) => {
       notifyError('Failed to start dependency check. Please try again.');
@@ -73,6 +86,7 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                   <th scope="col">Current</th>
                   <th scope="col">Latest seen</th>
                   <th scope="col">Last check</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -83,6 +97,17 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                     <td>{dependency.currentVersion}</td>
                     <td>{dependency.latestSeenVersion || '—'}</td>
                     <td>{formatDateIso(dependency.lastCheckedAt || undefined) || '—'}</td>
+                    <td>
+                      <button
+                        className="icon-button"
+                        type="button"
+                        onClick={() => checkDependencyMutation.mutate(dependency.id)}
+                        disabled={checkDependencyMutation.isPending}
+                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                      >
+                        {checkDependencyMutation.isPending ? 'Checking...' : 'Check'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -39,6 +39,7 @@ export abstract class DependencyWatcherRepository {
   abstract batchUpsert(inputs: CreateDependencyWatchInput[]): Promise<void>;
   abstract findByUserAndWorkspace(userId: string, workspaceId: string): Promise<DependencyWatchRecord[]>;
   abstract findByRepositoryIds(userId: string, workspaceId: string, repositoryIds: string[]): Promise<DependencyWatchRecord[]>;
+  abstract findById(userId: string, workspaceId: string, dependencyId: string): Promise<DependencyWatchRecord | null>;
   abstract findDueForCheck(hours: number): Promise<DependencyWatchRecord[]>;
   abstract update(id: string, input: UpdateDependencyWatchInput): Promise<void>;
   abstract batchUpdateLastCheckedAt(ids: string[]): Promise<void>;

@@ -47,6 +47,7 @@ export const API_PATHS = {
   INTEGRATIONS_DEPENDENCY_WATCH_ENABLE: '/api/integrations/dependency-watch/{workspaceSlug}/enable',
   INTEGRATIONS_DEPENDENCY_WATCH_DISABLE: '/api/integrations/dependency-watch/{workspaceSlug}/disable',
   INTEGRATIONS_DEPENDENCY_WATCH_CHECK_PROJECT: '/api/integrations/dependency-watch/check-project',
+  INTEGRATIONS_DEPENDENCY_WATCH_CHECK_DEPENDENCY: '/api/integrations/dependency-watch/check-dependency',
 
   // Dashboard paths
   DASHBOARD: '/api/dashboard',

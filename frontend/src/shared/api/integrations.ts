@@ -117,3 +117,11 @@ export function checkProjectDependencies(projectId: string, projectSlug: string)
     body: JSON.stringify({ projectId, projectSlug }),
   });
 }
+
+export function checkDependency(dependencyId: string, projectId: string, projectSlug: string): Promise<{ ok: true; data: { jobId: string; queued: number } }> {
+  return request<{ ok: true; data: { jobId: string; queued: number } }>(API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_CHECK_DEPENDENCY, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ dependencyId, projectId, projectSlug }),
+  });
+}
