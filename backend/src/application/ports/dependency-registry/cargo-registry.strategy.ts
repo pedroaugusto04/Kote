@@ -4,7 +4,13 @@ export class CargoRegistryStrategy extends RegistryStrategy {
   ecosystem = 'cargo';
   private readonly TIMEOUT_MS = 10000;
 
-  async fetchLatestVersion(packageName: string): Promise<RegistryVersionInfo> {
+  constructor(private readonly stableOnly: boolean = true) {
+    super();
+  }
+
+  async fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo> {
+    const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
@@ -35,7 +41,12 @@ export class CargoRegistryStrategy extends RegistryStrategy {
         throw new Error(`Package ${packageName} not found in crates.io`);
       }
 
-      const latestVersion = crate.max_stable_version || crate.max_version;
+      let latestVersion: string;
+      if (shouldFilterStable) {
+        latestVersion = crate.max_stable_version || crate.max_version;
+      } else {
+        latestVersion = crate.max_version;
+      }
       
       if (!latestVersion) {
         throw new Error(`Version not found for package ${packageName}`);

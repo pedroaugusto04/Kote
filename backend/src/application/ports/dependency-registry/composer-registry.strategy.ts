@@ -1,12 +1,19 @@
 import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.interface.js';
-import { compare, coerce, valid, prerelease } from 'semver';
+import { compare, coerce } from 'semver';
 import { extractRepositoryUrl } from '../../utils/dependency/repository-url.utils.js';
+import { isSemverPrerelease } from '../../utils/dependency/version.utils.js';
 
 export class ComposerRegistryStrategy extends RegistryStrategy {
   ecosystem = 'composer';
   private readonly TIMEOUT_MS = 10000;
 
-  async fetchLatestVersion(packageName: string): Promise<RegistryVersionInfo> {
+  constructor(private readonly stableOnly: boolean = true) {
+    super();
+  }
+
+  async fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo> {
+    const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
@@ -38,13 +45,18 @@ export class ComposerRegistryStrategy extends RegistryStrategy {
       }
 
       const versions = Object.keys(packageVersions);
-      const stableVersions = versions.filter(v => this.isStableVersion(v));
+      let filteredVersions = versions;
       
-      if (stableVersions.length === 0) {
-        throw new Error(`No stable versions found for package ${packageName}`);
+      if (shouldFilterStable) {
+        filteredVersions = versions.filter(v => !isSemverPrerelease(v));
+        
+        if (filteredVersions.length === 0) {
+          // No stable versions found, use the latest version as fallback
+          filteredVersions = versions;
+        }
       }
 
-      const sortedVersions = stableVersions.sort((a, b) => {
+      const sortedVersions = filteredVersions.sort((a, b) => {
         const coercedA = coerce(a);
         const coercedB = coerce(b);
         if (!coercedA || !coercedB) return 0;
@@ -72,11 +84,5 @@ export class ComposerRegistryStrategy extends RegistryStrategy {
       }
       throw new Error(`Composer registry fetch failed for ${packageName}: ${error instanceof Error ? error.message : String(error)}`);
     }
-  }
-
-  private isStableVersion(version: string): boolean {
-    const coerced = coerce(version);
-    if (!coerced) return false;
-    return valid(version) !== null && prerelease(version) === null;
   }
 }

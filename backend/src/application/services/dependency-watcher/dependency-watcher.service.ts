@@ -108,8 +108,9 @@ export class DependencyWatcherService {
     const versionInfo: RegistryVersionInfo = await strategy.fetchLatestVersion(record.packageName);
     
     if (versionInfo.version === record.currentVersion || versionInfo.version === record.latestSeenVersion) {
-      // Update lastCheckedAt even if no update available
+      // Update lastCheckedAt and latestSeenVersion even if no update available
       await this.dependencyWatcherRepository.update(record.id, {
+        latestSeenVersion: versionInfo.version,
         lastCheckedAt: new Date(),
       });
       return false;

@@ -102,6 +102,7 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     // Dependency Watcher AI provider — resolves: specific → chat default
     dependencyWatcherCron: String(env.DEPENDENCY_WATCHER_CRON || '0 9 * * *').trim(),
     dependencyWatcherCheckIntervalHours: Number(env.DEPENDENCY_WATCHER_CHECK_INTERVAL_HOURS || 24),
+    dependencyWatcherStableOnly: String(env.DEPENDENCY_WATCHER_STABLE_ONLY || 'true').trim().toLowerCase() === 'true',
     dependencyWatcherAiProvider: (String(env.DEPENDENCY_WATCHER_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['dependencyWatcherAiProvider']),
     dependencyWatcherAiBaseUrl: String(env.DEPENDENCY_WATCHER_AI_BASE_URL || defaultChatBaseUrl).trim(),
     dependencyWatcherAiModel: String(env.DEPENDENCY_WATCHER_AI_MODEL || defaultChatModel).trim(),

@@ -1,10 +1,17 @@
 import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.interface.js';
+import { isMavenPrerelease } from '../../utils/dependency/version.utils.js';
 
 export class MavenRegistryStrategy extends RegistryStrategy {
   ecosystem = 'maven';
   private readonly TIMEOUT_MS = 30000;
 
-  async fetchLatestVersion(packageName: string): Promise<RegistryVersionInfo> {
+  constructor(private readonly stableOnly: boolean = true) {
+    super();
+  }
+
+  async fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo> {
+    const shouldFilterStable = stableOnly !== undefined ? stableOnly : this.stableOnly;
+
     try {
       const [groupId, artifactId] = packageName.split(':');
       
@@ -15,8 +22,10 @@ export class MavenRegistryStrategy extends RegistryStrategy {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
 
+      // Fetch more results to filter for stable versions if needed
+      const rows = shouldFilterStable ? 50 : 1;
       const response = await fetch(
-        `https://search.maven.org/solrsearch/select?q=g:${encodeURIComponent(groupId)}+AND+a:${encodeURIComponent(artifactId)}&rows=1&wt=json`,
+        `https://search.maven.org/solrsearch/select?q=g:${encodeURIComponent(groupId)}+AND+a:${encodeURIComponent(artifactId)}&rows=${rows}&wt=json`,
         {
           signal: controller.signal,
           headers: {
@@ -44,7 +53,18 @@ export class MavenRegistryStrategy extends RegistryStrategy {
         throw new Error(`Package ${packageName} not found in Maven Central`);
       }
 
-      const latestDoc = docs[0];
+      let latestDoc = docs[0];
+      
+      if (shouldFilterStable && isMavenPrerelease(latestDoc.v)) {
+        // Find the latest stable version from the results
+        const stableDoc = docs.find((doc: { v: string }) => !isMavenPrerelease(doc.v));
+        if (stableDoc) {
+          latestDoc = stableDoc;
+        } else {
+          // No stable version found, use the latest version as fallback
+          latestDoc = docs[0];
+        }
+      }
       
       if (!latestDoc.v) {
         throw new Error(`Version not found for package ${packageName}`);

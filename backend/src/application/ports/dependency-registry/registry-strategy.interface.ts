@@ -7,5 +7,5 @@ export type RegistryVersionInfo = {
 
 export abstract class RegistryStrategy {
   abstract ecosystem: string;
-  abstract fetchLatestVersion(packageName: string): Promise<RegistryVersionInfo>;
+  abstract fetchLatestVersion(packageName: string, stableOnly?: boolean): Promise<RegistryVersionInfo>;
 }
