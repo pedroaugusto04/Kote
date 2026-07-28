@@ -162,9 +162,9 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                         style={{
                           padding: '4px 8px',
                           fontSize: '12px',
-                          backgroundColor: dependency.enabled ? 'var(--surface-danger)' : 'var(--surface-hover)',
-                          color: dependency.enabled ? 'var(--danger-text)' : 'var(--text)',
-                          border: dependency.enabled ? '1px solid var(--danger-border)' : '1px solid var(--border-subtle)',
+                          backgroundColor: dependency.enabled ? 'var(--surface-danger)' : undefined,
+                          color: dependency.enabled ? 'var(--danger-text)' : undefined,
+                          border: dependency.enabled ? '1px solid var(--danger-border)' : undefined,
                         }}
                         title={dependency.enabled ? 'Disable monitoring' : 'Enable monitoring'}
                       >
