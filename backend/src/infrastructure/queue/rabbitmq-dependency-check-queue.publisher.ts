@@ -67,6 +67,7 @@ export class RabbitMqDependencyCheckQueuePublisher extends BaseRabbitMqPublisher
       durable: true,
       arguments: {
         'x-dead-letter-exchange': DLX_NAME,
+        'x-dead-letter-routing-key': ROUTING_KEY,
       },
     });
     await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
