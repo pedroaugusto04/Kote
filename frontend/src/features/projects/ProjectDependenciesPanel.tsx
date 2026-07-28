@@ -4,7 +4,7 @@ import { fetchProjectDependencies } from '../../shared/api/projects';
 import { checkProjectDependencies } from '../../shared/api/integrations';
 import { EmptyState, InlineMessage } from '../../shared/ui/primitives';
 import { formatDateIso } from '../../shared/utils/format';
-import { notifySuccess } from '../../shared/ui/notifications';
+import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 import { useGlobalLoading } from '../../app/global-loading';
 
 export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSlug: string; projectId: string }) {
@@ -22,6 +22,10 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
       queryClient.invalidateQueries({ queryKey: ['project-dependencies', projectSlug] });
       queryClient.invalidateQueries({ queryKey: ['project-timeline', projectSlug] });
       notifySuccess(`Dependency check started for ${result.data.queued} packages. Processing in background - results will appear shortly.`);
+    },
+    onError: (error) => {
+      notifyError('Failed to start dependency check. Please try again.');
+      console.error('Dependency check error:', error);
     },
   });
 
