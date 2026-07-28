@@ -117,16 +117,15 @@ function parseRequirementsTxt(content: string): ParsedDependency[] {
  */
 function parsePyprojectToml(content: string): ParsedDependency[] {
   const dependencies: ParsedDependency[] = [];
-  
+
   try {
-    // Simple TOML parsing for dependencies section
     const lines = content.split('\n');
     let inDependencies = false;
     let inDevDependencies = false;
 
     for (const line of lines) {
       const trimmed = line.trim();
-      
+
       if (trimmed.startsWith('dependencies = [')) {
         inDependencies = true;
         continue;
@@ -142,12 +141,24 @@ function parsePyprojectToml(content: string): ParsedDependency[] {
       }
 
       if (inDependencies || inDevDependencies) {
-        const match = trimmed.match(/^"([^"]+)"(?:[>=<~!]+([^"]+))?/);
-        if (match) {
+        // Handle simple format: "package >= version"
+        const simpleMatch = trimmed.match(/^"([^"]+)"(?:[>=<~!]+([^"]+))?/);
+        if (simpleMatch) {
           dependencies.push({
-            packageName: match[1],
-            version: match[2] || '*',
+            packageName: simpleMatch[1],
+            version: simpleMatch[2] || '*',
           });
+          continue;
+        }
+
+        // Handle complex format: package = { version = "x.y.z", ... }
+        const complexMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{[^}]*version\s*=\s*"([^"]+)"/);
+        if (complexMatch) {
+          dependencies.push({
+            packageName: complexMatch[1],
+            version: complexMatch[2],
+          });
+          continue;
         }
       }
     }
@@ -277,14 +288,14 @@ function parseCargoToml(content: string): ParsedDependency[] {
  */
 function parseGoMod(content: string): ParsedDependency[] {
   const dependencies: ParsedDependency[] = [];
-  
+
   try {
     const lines = content.split('\n');
     let inRequire = false;
 
     for (const line of lines) {
       const trimmed = line.trim();
-      
+
       if (trimmed === 'require (') {
         inRequire = true;
         continue;
@@ -294,12 +305,13 @@ function parseGoMod(content: string): ParsedDependency[] {
         continue;
       }
 
-      if (inRequire && trimmed.startsWith('github.com/') || trimmed.startsWith('golang.org/')) {
-        const parts = trimmed.split(/\s+/);
-        if (parts.length >= 2) {
+      if (inRequire) {
+        // Handle format: github.com/user/repo v1.2.3
+        const match = trimmed.match(/^([a-zA-Z0-9_.\-\/]+)\s+(v?[0-9.]+)/);
+        if (match) {
           dependencies.push({
-            packageName: parts[0],
-            version: parts[1],
+            packageName: match[1],
+            version: match[2],
           });
         }
       }
