@@ -11,6 +11,7 @@ import { CargoRegistryStrategy } from '../../ports/dependency-registry/cargo-reg
 import { IngestEntryUseCase } from '../../use-cases/ingest/ingest-entry.use-case.js';
 import { EmailService } from '../email/email.service.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Importance, DependencyUrgency, DependencyEcosystem } from '../../../contracts/enums.js';
 import { AppLogger } from '../../../observability/logger.js';
 
@@ -24,6 +25,7 @@ export class DependencyWatcherService {
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly emailService: EmailService,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
+    private readonly userRepository: UserRepository,
     private readonly logger: AppLogger,
   ) {
     this.strategies.set(DependencyEcosystem.Npm, new NpmRegistryStrategy());
@@ -214,9 +216,15 @@ export class DependencyWatcherService {
 
   private async sendAlertEmail(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: any) {
     const env = this.environmentProvider.read();
+    const user = await this.userRepository.findUserById(record.userId);
     
+    if (!user) {
+      this.logger.error('dependency_watcher_user_not_found', { userId: record.userId });
+      return;
+    }
+
     await this.emailService.sendEmail({
-      to: env.devEmail || 'user@example.com',
+      to: user.email,
       subject: `[${analysis.urgency.toUpperCase()}] Dependency Update: ${record.packageName}`,
       templateName: 'dependency-alert',
       templateData: {

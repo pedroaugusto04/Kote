@@ -5,6 +5,7 @@ import { DependencyAlertGateway, type DependencyAlertResult } from '../../../../
 import { IngestEntryUseCase } from '../../../../src/application/use-cases/ingest/ingest-entry.use-case.js';
 import { EmailService } from '../../../../src/application/services/email/email.service.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../../../src/application/ports/observability/runtime-environment.port.js';
+import { UserRepository } from '../../../../src/application/ports/auth/auth.repository.js';
 import { AppLogger } from '../../../../src/observability/logger.js';
 import { DependencyUrgency, DependencyEcosystem } from '../../../../src/domain/enums/dependency.enums.js';
 import { AiProvider } from '../../../../src/domain/enums/ai.enums.js';
@@ -16,6 +17,7 @@ describe('Backend: Dependency Watcher Service', () => {
   let mockIngestEntryUseCase: IngestEntryUseCase;
   let mockEmailService: EmailService;
   let mockEnvironmentProvider: RuntimeEnvironmentProvider;
+  let mockUserRepository: UserRepository;
   let mockLogger: AppLogger;
 
   const mockRecord: DependencyWatchRecord = {
@@ -85,12 +87,17 @@ describe('Backend: Dependency Watcher Service', () => {
       error: vi.fn(),
     } as any;
 
+    mockUserRepository = {
+      findUserById: vi.fn().mockResolvedValue({ email: 'user@example.com' }),
+    } as any;
+
     service = new DependencyWatcherService(
       mockDependencyWatcherRepository,
       mockDependencyAlertGateway,
       mockIngestEntryUseCase,
       mockEmailService,
       mockEnvironmentProvider,
+      mockUserRepository,
       mockLogger,
     );
   });
