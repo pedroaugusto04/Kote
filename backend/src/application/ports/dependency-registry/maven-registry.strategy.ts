@@ -2,7 +2,7 @@ import { RegistryStrategy, type RegistryVersionInfo } from './registry-strategy.
 
 export class MavenRegistryStrategy extends RegistryStrategy {
   ecosystem = 'maven';
-  private readonly TIMEOUT_MS = 10000;
+  private readonly TIMEOUT_MS = 30000;
 
   async fetchLatestVersion(packageName: string): Promise<RegistryVersionInfo> {
     try {
