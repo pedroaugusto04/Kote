@@ -16,6 +16,7 @@ import { type DependencyImportJobMessage } from './rabbitmq-dependency-import-qu
 import { calculateBackoff, isRateLimitError, RateLimitError, type BackoffOptions } from '../../application/utils/retry/backoff.utils.js';
 
 const QUEUE_NAME = 'kb.dependency_import.jobs';
+const DLX_NAME = 'kb.dependency_import.dlx';
 
 const BACKOFF_OPTIONS: BackoffOptions = {
   baseDelayMs: 30000, // 30 seconds (longer for import operations)
@@ -40,7 +41,12 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
 
   protected async setupChannel(channel: Channel): Promise<void> {
     await channel.prefetch(3); // Process fewer import jobs concurrently (more intensive)
-    await channel.assertQueue(QUEUE_NAME, { durable: true });
+    await channel.assertQueue(QUEUE_NAME, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': DLX_NAME,
+      },
+    });
   }
 
   protected async startConsuming(channel: Channel): Promise<void> {

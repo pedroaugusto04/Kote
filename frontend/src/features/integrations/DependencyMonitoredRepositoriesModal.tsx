@@ -62,7 +62,7 @@ function DependencyMonitoredRepositoriesModal({ workspaceSlug, onClose }: { work
       queryClient.invalidateQueries({ queryKey: ['dependency-monitored-repositories', workspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ['project-dependencies'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      notifySuccess(`Monitoring ${result.data.monitored} repositories. Dependency import started for ${result.data.import.queued} repositories - processing in background.`);
+      notifySuccess(`Monitoring ${result.data.monitored} repositories. Dependency import started - processing in background.`);
       closeGuard.resetCloseGuard();
       onClose();
     },
