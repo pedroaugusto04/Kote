@@ -155,21 +155,21 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                       <button
                         className="icon-button"
                         type="button"
-                        onClick={() => checkDependencyMutation.mutate(dependency.id)}
-                        disabled={checkDependencyMutation.isPending}
+                        onClick={() => toggleDependencyMutation.mutate({ dependencyId: dependency.id, enabled: !dependency.enabled })}
+                        disabled={toggleDependencyMutation.isPending}
                         style={{ padding: '4px 8px', fontSize: '12px' }}
+                        title={dependency.enabled ? 'Disable monitoring' : 'Enable monitoring'}
                       >
-                        {checkDependencyMutation.isPending ? 'Checking...' : 'Check'}
+                        {dependency.enabled ? 'Disable' : 'Enable'}
                       </button>
                       <button
                         className="icon-button"
                         type="button"
-                        onClick={() => toggleDependencyMutation.mutate({ dependencyId: dependency.id, enabled: !dependency.enabled })}
-                        disabled={toggleDependencyMutation.isPending}
+                        onClick={() => checkDependencyMutation.mutate(dependency.id)}
+                        disabled={checkDependencyMutation.isPending}
                         style={{ padding: '4px 8px', fontSize: '12px', marginLeft: '4px' }}
-                        title={dependency.enabled ? 'Disable monitoring' : 'Enable monitoring'}
                       >
-                        {dependency.enabled ? 'Disable' : 'Enable'}
+                        {checkDependencyMutation.isPending ? 'Checking...' : 'Check'}
                       </button>
                     </td>
                   </tr>
