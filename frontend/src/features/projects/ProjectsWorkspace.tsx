@@ -295,6 +295,10 @@ export function ProjectsWorkspace({
       await refreshDashboard(queryClient);
     },
     onError: (error) => notifyGeneralFormError(error, UI_MESSAGES.COULD_NOT_DELETE_NOTE),
+    onSettled: () => {
+      // Ensure mutation state is reset after completion
+      setConfirmState(null);
+    },
   });
 
   return (
