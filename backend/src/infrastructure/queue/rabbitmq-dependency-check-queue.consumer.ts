@@ -8,6 +8,7 @@ import { type DependencyCheckJobMessage } from './rabbitmq-dependency-check-queu
 import { calculateBackoff, isRateLimitError, RateLimitError, type BackoffOptions } from '../../application/utils/retry/backoff.utils.js';
 
 const QUEUE_NAME = 'kb.dependency_check.jobs';
+const DLX_NAME = 'kb.dependency_check.dlx';
 
 const BACKOFF_OPTIONS: BackoffOptions = {
   baseDelayMs: 5000, // 5 seconds
@@ -29,7 +30,12 @@ export class RabbitMqDependencyCheckQueueConsumer extends BaseRabbitMqConsumer {
 
   protected async setupChannel(channel: Channel): Promise<void> {
     await channel.prefetch(5); // Process 5 messages concurrently
-    await channel.assertQueue(QUEUE_NAME, { durable: true });
+    await channel.assertQueue(QUEUE_NAME, {
+      durable: true,
+      arguments: {
+        'x-dead-letter-exchange': DLX_NAME,
+      },
+    });
   }
 
   protected async startConsuming(channel: Channel): Promise<void> {
