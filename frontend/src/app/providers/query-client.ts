@@ -7,7 +7,7 @@ import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persist
 // ---------------------------------------------------------------------------
 
 const ONE_HOUR_MS = 60 * 60 * 1000;
-const TWENTY_FOUR_HOURS_MS = 24 * ONE_HOUR_MS;
+const TWENTY_FOUR_HOURS_MS = 24 * ONE_HOUR_MS; 
 
 export const queryClient = new QueryClient({
   defaultOptions: {
