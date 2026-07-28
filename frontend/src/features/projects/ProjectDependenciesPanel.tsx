@@ -20,6 +20,8 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
     enabled: Boolean(projectSlug),
   });
 
+  const workspaceSlug = dependenciesQuery.data?.workspaceSlug || projectSlug;
+
   const checkMutation = useMutation({
     mutationFn: () => globalLoading.trackPromise(checkProjectDependencies(projectId, projectSlug)),
     onSuccess: (result) => {
@@ -49,7 +51,7 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
 
   const toggleDependencyMutation = useMutation({
     mutationFn: ({ dependencyId, enabled }: { dependencyId: string; enabled: boolean }) => 
-      globalLoading.trackPromise(toggleDependency(dependencyId, projectSlug, enabled)),
+      globalLoading.trackPromise(toggleDependency(dependencyId, workspaceSlug, enabled)),
     onSuccess: (result, variables) => {
       queryClient.invalidateQueries({ queryKey: ['project-dependencies', projectSlug] });
       notifySuccess(`Dependency ${variables.enabled ? 'enabled' : 'disabled'}.`);

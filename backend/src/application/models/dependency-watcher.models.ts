@@ -39,6 +39,7 @@ export type ProjectDependencyGroup = {
 
 export type ListProjectDependenciesResult = {
   projectSlug: string;
+  workspaceSlug: string;
   groups: ProjectDependencyGroup[];
   total: number;
 };

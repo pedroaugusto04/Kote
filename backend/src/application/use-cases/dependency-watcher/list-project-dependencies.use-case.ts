@@ -30,7 +30,7 @@ export class ListProjectDependenciesUseCase {
 
     const projectRepositoryIds = project.repositories.map((repository) => repository.id);
     if (projectRepositoryIds.length === 0) {
-      return { projectSlug, groups: [], total: 0 };
+      return { projectSlug, workspaceSlug, groups: [], total: 0 };
     }
 
     const monitoredRepositoryIds = new Set(
@@ -38,7 +38,7 @@ export class ListProjectDependenciesUseCase {
     );
     const scopedRepositoryIds = projectRepositoryIds.filter((repositoryId) => monitoredRepositoryIds.has(repositoryId));
     if (scopedRepositoryIds.length === 0) {
-      return { projectSlug, groups: [], total: 0 };
+      return { projectSlug, workspaceSlug, groups: [], total: 0 };
     }
 
     const dependencies = await this.dependencyWatcherRepository.findByRepositoryIds(
@@ -84,6 +84,7 @@ export class ListProjectDependenciesUseCase {
 
     return {
       projectSlug,
+      workspaceSlug,
       groups,
       total: dependencies.length,
     };
