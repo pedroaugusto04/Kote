@@ -7,8 +7,10 @@ import { DefaultDependencyAlertGateway } from '../ai/dependency-alert.gateway.js
 import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
 import { DependencyAlertGateway } from '../../application/ports/dependency-watcher/dependency-alert.port.js';
 import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
+import { DatabaseModule } from './database.module.js';
 
 @Module({
+  imports: [DatabaseModule],
   providers: [
     PostgresDependencyWatcherRepository,
     DefaultDependencyAlertGateway,
