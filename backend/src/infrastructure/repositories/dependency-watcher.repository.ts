@@ -210,6 +210,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         checkIntervalHours: dependencyWatch.checkIntervalHours,
         lastCheckedAt: dependencyWatch.lastCheckedAt,
         lastAlertedAt: dependencyWatch.lastAlertedAt,
+        lastUrgency: dependencyWatch.lastUrgency,
         enabled: dependencyWatch.enabled,
         repositoryId: dependencyWatch.repositoryId,
         createdAt: dependencyWatch.createdAt,
@@ -247,6 +248,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         checkIntervalHours: dependencyWatch.checkIntervalHours,
         lastCheckedAt: dependencyWatch.lastCheckedAt,
         lastAlertedAt: dependencyWatch.lastAlertedAt,
+        lastUrgency: dependencyWatch.lastUrgency,
         enabled: dependencyWatch.enabled,
         repositoryId: dependencyWatch.repositoryId,
         createdAt: dependencyWatch.createdAt,
@@ -272,6 +274,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         ...(input.latestSeenVersion !== undefined && { latestSeenVersion: input.latestSeenVersion }),
         ...(input.lastCheckedAt !== undefined && { lastCheckedAt: input.lastCheckedAt }),
         ...(input.lastAlertedAt !== undefined && { lastAlertedAt: input.lastAlertedAt }),
+        ...(input.lastUrgency !== undefined && { lastUrgency: input.lastUrgency }),
         ...(input.enabled !== undefined && { enabled: input.enabled }),
         updatedAt: new Date(),
       })
