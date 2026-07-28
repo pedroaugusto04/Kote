@@ -51,6 +51,15 @@ export class CheckProjectDependenciesUseCase {
       scopedRepositoryIds,
     );
 
+    this.logger.info('dependency_check.dependencies_found', {
+      userId,
+      workspaceId: workspace.id,
+      projectRepositoryIds: projectRepositoryIds.length,
+      monitoredRepositoryIds: monitoredRepositoryIds.size,
+      scopedRepositoryIds: scopedRepositoryIds.length,
+      dependenciesFound: dependencies.length,
+    });
+
     const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(workspace.id);
     if (!workspaceEnabled) {
       this.logger.warn('dependency_check.workspace_disabled', { workspaceId: workspace.id });
