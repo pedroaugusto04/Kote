@@ -195,6 +195,43 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
     return records.map(this.mapToRecord);
   }
 
+  async findByRepositoryIdsEnabled(userId: string, workspaceId: string, repositoryIds: string[]): Promise<DependencyWatchRecord[]> {
+    if (repositoryIds.length === 0) return [];
+
+    const db = this.getDb();
+    const records = await db
+      .select({
+        id: dependencyWatch.id,
+        userId: dependencyWatch.userId,
+        workspaceId: dependencyWatch.workspaceId,
+        workspaceSlug: workspaces.workspaceSlug,
+        ecosystem: dependencyWatch.ecosystem,
+        packageName: dependencyWatch.packageName,
+        currentVersion: dependencyWatch.currentVersion,
+        latestSeenVersion: dependencyWatch.latestSeenVersion,
+        checkIntervalHours: dependencyWatch.checkIntervalHours,
+        lastCheckedAt: dependencyWatch.lastCheckedAt,
+        lastAlertedAt: dependencyWatch.lastAlertedAt,
+        lastUrgency: dependencyWatch.lastUrgency,
+        enabled: dependencyWatch.enabled,
+        repositoryId: dependencyWatch.repositoryId,
+        createdAt: dependencyWatch.createdAt,
+        updatedAt: dependencyWatch.updatedAt,
+      })
+      .from(dependencyWatch)
+      .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
+      .where(
+        and(
+          eq(dependencyWatch.userId, userId),
+          eq(dependencyWatch.workspaceId, workspaceId),
+          inArray(dependencyWatch.repositoryId, repositoryIds),
+          eq(dependencyWatch.enabled, true),
+        ),
+      );
+
+    return records.map(this.mapToRecord);
+  }
+
   async findById(userId: string, workspaceId: string, dependencyId: string): Promise<DependencyWatchRecord | null> {
     const db = this.getDb();
     const records = await db

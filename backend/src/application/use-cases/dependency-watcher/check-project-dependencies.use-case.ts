@@ -45,7 +45,7 @@ export class CheckProjectDependenciesUseCase {
       return { jobId: randomUUID(), queued: 0 };
     }
 
-    const dependencies = await this.dependencyWatcherRepository.findByRepositoryIds(
+    const dependencies = await this.dependencyWatcherRepository.findByRepositoryIdsEnabled(
       userId,
       workspace.id,
       scopedRepositoryIds,
