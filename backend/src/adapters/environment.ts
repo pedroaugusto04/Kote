@@ -99,6 +99,14 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     prContextAiBaseUrl: String(env.KB_PR_CONTEXT_AI_BASE_URL || defaultChatBaseUrl).trim(),
     prContextAiModel: String(env.KB_PR_CONTEXT_AI_MODEL || defaultChatModel).trim(),
     prContextAiApiKey: String(env.KB_PR_CONTEXT_AI_API_KEY || defaultChatApiKey).trim(),
+    // Dependency Watcher AI provider — resolves: specific → chat default
+    dependencyWatcherEnabled: String(env.DEPENDENCY_WATCHER_ENABLED || 'false').trim().toLowerCase() === 'true',
+    dependencyWatcherCron: String(env.DEPENDENCY_WATCHER_CRON || '0 9 * * *').trim(),
+    dependencyWatcherCheckIntervalHours: Number(env.DEPENDENCY_WATCHER_CHECK_INTERVAL_HOURS || 24),
+    dependencyWatcherAiProvider: (String(env.DEPENDENCY_WATCHER_AI_PROVIDER || defaultChatProvider).trim().toLowerCase() as RuntimeEnvironment['dependencyWatcherAiProvider']),
+    dependencyWatcherAiBaseUrl: String(env.DEPENDENCY_WATCHER_AI_BASE_URL || defaultChatBaseUrl).trim(),
+    dependencyWatcherAiModel: String(env.DEPENDENCY_WATCHER_AI_MODEL || defaultChatModel).trim(),
+    dependencyWatcherAiApiKey: String(env.DEPENDENCY_WATCHER_AI_API_KEY || defaultChatApiKey).trim(),
     // Embedding providers — each resolves: specific → embedding default
     embeddingAiProvider: (String(env.KB_EMBEDDING_AI_PROVIDER || defaultEmbeddingProvider).trim().toLowerCase() as RuntimeEnvironment['embeddingAiProvider']),
     embeddingAiBaseUrl: String(env.KB_EMBEDDING_AI_BASE_URL || defaultEmbeddingBaseUrl).trim(),
