@@ -161,6 +161,20 @@ See [ide/browser-extension/README.md](ide/browser-extension/README.md).
 </details>
 
 <details>
+<summary><strong>Dependency Watcher</strong></summary>
+
+Automatically monitor package dependencies across multiple ecosystems (npm, pip, composer, maven, cargo) and get notified about security updates and breaking changes.
+
+* **Multi-Ecosystem Support**: Detects dependencies from package.json, requirements.txt, composer.json, pom.xml, and Cargo.toml
+* **AI-Powered Analysis**: Analyzes changelogs to classify update urgency (critical, recommended, optional)
+* **Email Alerts**: Sends email notifications for critical and recommended updates
+* **Knowledge Base Integration**: Creates notes for each dependency update with full analysis
+* **Daily Monitoring**: Automated cron job checks for new versions daily
+
+See [docs/DEPENDENCY_WATCHER.md](docs/DEPENDENCY_WATCHER.md) for detailed setup and configuration.
+</details>
+
+<details>
 <summary><strong>Model Context Protocol (MCP) Server</strong></summary>
 
 Provides developer memory retrieval and persistence directly to AI assistants (Cursor, Claude Desktop, Cline, Antigravity).

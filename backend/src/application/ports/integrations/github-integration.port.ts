@@ -58,5 +58,10 @@ export abstract class GithubIntegrationGateway {
     defaultBranch: string,
     token: string,
   ): Promise<string[]>;
+  abstract fetchFileContent(
+    repoFullName: string,
+    path: string,
+    token: string,
+  ): Promise<string>;
 }
 

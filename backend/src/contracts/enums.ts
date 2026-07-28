@@ -9,5 +9,6 @@ export * from '../domain/enums/agent.enums.js';
 export * from '../domain/enums/whatsapp.enums.js';
 export * from '../domain/enums/dashboard.enums.js';
 export * from '../domain/enums/review.enums.js';
+export * from '../domain/enums/dependency.enums.js';
 export * from '../observability/observability.enums.js';
 export * from '../infrastructure/persistence/migration.enums.js';

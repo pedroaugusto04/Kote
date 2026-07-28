@@ -10,6 +10,7 @@ import {
   postGithubPullRequestComment,
   fetchGithubPullRequestComments,
   fetchGithubRepositoryTree,
+  fetchGithubFileContent,
 } from '../../adapters/github.js';
 import {
   GithubIntegrationGateway,
@@ -76,6 +77,14 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
     token: string,
   ): Promise<string[]> {
     return fetchGithubRepositoryTree(repoFullName, defaultBranch, token);
+  }
+
+  fetchFileContent(
+    repoFullName: string,
+    path: string,
+    token: string,
+  ): Promise<string> {
+    return fetchGithubFileContent(repoFullName, path, token);
   }
 }
 

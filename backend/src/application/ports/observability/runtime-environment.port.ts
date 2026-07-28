@@ -42,6 +42,13 @@ export type RuntimeEnvironment = {
   prContextAiBaseUrl: string;
   prContextAiModel: string;
   prContextAiApiKey: string;
+  dependencyWatcherEnabled: boolean;
+  dependencyWatcherCron: string;
+  dependencyWatcherCheckIntervalHours: number;
+  dependencyWatcherAiProvider: AiProvider;
+  dependencyWatcherAiBaseUrl: string;
+  dependencyWatcherAiModel: string;
+  dependencyWatcherAiApiKey: string;
   embeddingAiProvider: AiProvider;
   embeddingAiBaseUrl: string;
   embeddingAiModel: string;

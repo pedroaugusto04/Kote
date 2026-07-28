@@ -293,3 +293,22 @@ export async function fetchGithubRepositoryTree(repoFullName: string, defaultBra
     .map((item) => String(item.path))
     .filter((pathStr) => isEligibleFileForCoverage(pathStr));
 }
+
+export async function fetchGithubFileContent(repoFullName: string, path: string, token: string): Promise<string> {
+  if (!repoFullName || !path || !token) return '';
+  const response = await fetch(`https://api.github.com/repos/${repoFullName}/contents/${encodeURIComponent(path)}`, {
+    headers: {
+      accept: 'application/vnd.github+json',
+      authorization: `Bearer ${token}`,
+      'x-github-api-version': '2022-11-28',
+    },
+  });
+  if (!response.ok) return '';
+  const data = (await response.json()) as {
+    content?: string;
+    encoding?: string;
+  };
+  if (data.encoding !== 'base64' || !data.content) return '';
+  const content = Buffer.from(data.content, 'base64').toString('utf-8');
+  return content;
+}

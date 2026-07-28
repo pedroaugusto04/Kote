@@ -40,6 +40,7 @@ export const API_PATHS = {
   INTEGRATIONS_GITHUB_BACKFILL: '/api/integrations/github-app/backfill',
   INTEGRATIONS_GITHUB_BACKFILL_STATUS: '/api/integrations/github-app/backfill/status',
   INTEGRATIONS_GITHUB_BACKFILL_CANCEL: '/api/integrations/github-app/backfill/cancel',
+  INTEGRATIONS_DEPENDENCY_WATCH_IMPORT: '/api/integrations/dependency-watch/import',
 
   // Dashboard paths
   DASHBOARD: '/api/dashboard',

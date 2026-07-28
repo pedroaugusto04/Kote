@@ -1,0 +1,43 @@
+import { DependencyEcosystem } from '../../../contracts/enums.js';
+
+export type DependencyWatchRecord = {
+  id: string;
+  userId: string;
+  workspaceId: string;
+  ecosystem: DependencyEcosystem;
+  packageName: string;
+  currentVersion: string;
+  latestSeenVersion: string;
+  checkIntervalHours: number;
+  lastCheckedAt: Date | null;
+  lastAlertedAt: Date | null;
+  enabled: boolean;
+  repositoryId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CreateDependencyWatchInput = {
+  userId: string;
+  workspaceId: string;
+  ecosystem: DependencyEcosystem;
+  packageName: string;
+  currentVersion: string;
+  repositoryId?: string;
+};
+
+export type UpdateDependencyWatchInput = {
+  latestSeenVersion?: string;
+  lastCheckedAt?: Date;
+  lastAlertedAt?: Date;
+  enabled?: boolean;
+};
+
+export abstract class DependencyWatcherRepository {
+  abstract upsert(input: CreateDependencyWatchInput): Promise<DependencyWatchRecord>;
+  abstract findByUserAndWorkspace(userId: string, workspaceId: string): Promise<DependencyWatchRecord[]>;
+  abstract findDueForCheck(hours: number): Promise<DependencyWatchRecord[]>;
+  abstract update(id: string, input: UpdateDependencyWatchInput): Promise<void>;
+  abstract delete(id: string): Promise<void>;
+  abstract deleteByWorkspace(userId: string, workspaceId: string): Promise<void>;
+}

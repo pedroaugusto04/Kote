@@ -785,3 +785,27 @@ export const githubBackfillJobs = pgTable('kb_github_backfill_jobs', {
   userIdIdx: index('kb_github_backfill_jobs_user_id_idx').on(table.userId, table.id),
 }));
 
+// Dependency Watch
+export const dependencyEcosystemEnum = pgEnum('dependency_ecosystem', ['npm', 'pip', 'composer', 'cargo', 'maven', 'gradle', 'go', 'nuget', 'rubygems']);
+
+export const dependencyWatch = pgTable('kb_dependency_watch', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  ecosystem: dependencyEcosystemEnum('ecosystem').notNull(),
+  packageName: text('package_name').notNull(),
+  currentVersion: text('current_version').notNull(),
+  latestSeenVersion: text('latest_seen_version').notNull().default(''),
+  checkIntervalHours: integer('check_interval_hours').notNull().default(24),
+  lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
+  lastAlertedAt: timestamp('last_alerted_at', { withTimezone: true }),
+  enabled: boolean('enabled').notNull().default(true),
+  repositoryId: uuid('repository_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userWorkspaceIdx: index('kb_dependency_watch_user_workspace_idx').on(table.userId, table.workspaceId),
+  ecosystemPackageIdx: uniqueIndex('kb_dependency_watch_ecosystem_package_idx').on(table.userId, table.workspaceId, table.ecosystem, table.packageName),
+  lastCheckedIdx: index('kb_dependency_watch_last_checked_idx').on(table.lastCheckedAt),
+}));
+

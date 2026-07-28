@@ -18,6 +18,7 @@ import {
   fetchPushPublicKey,
   subscribePush,
   unsubscribePush,
+  importDependenciesFromGithub,
 } from '../../shared/api/client';
 import { githubRepositoriesFormSchema, type DisplayStatus, type GithubRepositoriesFormValues } from './guided-integrations.forms';
 import type { GithubIntegrationRepository, IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
@@ -39,6 +40,7 @@ import {
   storeBackfillJob,
 } from './backfill-storage';
 import { GithubPrivacyModal } from './GithubPrivacyModal';
+import { DependencyImportModal } from './DependencyImportModal';
 
 const statusTone: Record<DisplayStatus | string, string> = {
   [StoredIntegrationStatus.Connected]: 'low',
@@ -377,12 +379,14 @@ function IntegrationCard({
   returnToPath,
   onCodeConnection,
   onGithubRepositories,
+  onDependencyImport,
 }: {
   integration: UserIntegration;
   workspaceSlug: string;
   returnToPath: string;
   onCodeConnection: (connection: IntegrationConnectionResponse) => void;
   onGithubRepositories: () => void;
+  onDependencyImport: () => void;
 }) {
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
@@ -494,6 +498,9 @@ function IntegrationCard({
       </div>
       <div className="integration-card-body">
         <IntegrationSteps integration={integration} />
+        {integration.provider === IntegrationProvider.GithubApp && !connected ? (
+          <InlineMessage tone="warning">Connect to GitHub to import dependencies from your repositories</InlineMessage>
+        ) : null}
         {integration.connectedAccount ? <p className="meta">{INTEGRATION_MESSAGES.GENERAL.ACCOUNT_LABEL.replace('{account}', integration.connectedAccount)}</p> : null}
         {integration.lastError ? <InlineMessage tone="error">{integration.lastError}</InlineMessage> : null}
         {actionError ? <InlineMessage tone="error">{actionError}</InlineMessage> : null}
@@ -501,7 +508,12 @@ function IntegrationCard({
       <div className="integration-card-foot">
         <Badge value={formatDisplayToken(integration.status)} tone={statusTone[integration.status] || 'medium'} />
         <div className="integration-actions">
-          {integration.provider === IntegrationProvider.GithubApp && connected ? <button className="filter-chip" type="button" onClick={onGithubRepositories}>{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORIES_BUTTON}</button> : null}
+          {integration.provider === IntegrationProvider.GithubApp && connected ? (
+            <>
+              <button className="filter-chip" type="button" onClick={onGithubRepositories}>{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORIES_BUTTON}</button>
+              <button className="filter-chip" type="button" onClick={onDependencyImport}>Import Dependencies</button>
+            </>
+          ) : null}
           <button
             className={connected ? 'filter-chip' : 'icon-button'}
             disabled={unavailable || connectMutation.isPending || revokeMutation.isPending}
@@ -705,6 +717,7 @@ export function GuidedIntegrationsSection({
   const [codeConnection, setCodeConnection] = useState<IntegrationConnectionResponse | null>(null);
   const [showGithubRepositories, setShowGithubRepositories] = useState(false);
   const [showGithubSuccessModal, setShowGithubSuccessModal] = useState(false);
+  const [showDependencyImport, setShowDependencyImport] = useState(false);
   const [pendingBackfillRepositories, setPendingBackfillRepositories] = useState<string[] | null>(null);
   const didAutoOpen = useRef(false);
   const queryClient = useQueryClient();
@@ -748,6 +761,7 @@ export function GuidedIntegrationsSection({
       returnToPath={returnToPath}
       onCodeConnection={setCodeConnection}
       onGithubRepositories={() => setShowGithubRepositories(true)}
+      onDependencyImport={() => setShowDependencyImport(true)}
     />
   ));
 
@@ -777,6 +791,12 @@ export function GuidedIntegrationsSection({
               setPendingBackfillRepositories(repositories);
             }
           }}
+        />
+      ) : null}
+      {showDependencyImport ? (
+        <DependencyImportModal
+          workspaceSlug={workspaceSlug}
+          onClose={() => setShowDependencyImport(false)}
         />
       ) : null}
       {pendingBackfillRepositories?.length ? (

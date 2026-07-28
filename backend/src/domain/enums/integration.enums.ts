@@ -8,6 +8,7 @@ export enum IntegrationProvider {
   FileNotesSummaryAi = 'file-notes-summary-ai',
   GithubApp = 'github-app',
   PushNotifications = 'push-notifications',
+  DependencyWatcher = 'dependency-watcher',
 }
 
 export enum ExternalIdentityProvider {

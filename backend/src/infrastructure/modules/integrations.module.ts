@@ -12,6 +12,7 @@ import { WorkspacesModule } from './workspaces.module.js';
 import { EmailModule } from './email.module.js';
 import { QuotaModule } from './quota.module.js';
 import { ProjectsModule } from './projects.module.js';
+import { DependencyWatcherModule } from './dependency-watcher.module.js';
 
 import {
   IntegrationConnectionService,
@@ -47,6 +48,7 @@ import {
   WebhookController,
   WebhookSubscriptionsController,
   GithubAppCallbackController,
+  DependencyWatcherController,
 } from '../../interfaces/http/controllers/index.js';
 import { NotifyHighSeverityFindingsService } from '../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
 
@@ -65,6 +67,7 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     EmailModule,
     QuotaModule,
     ProjectsModule,
+    DependencyWatcherModule,
   ],
   controllers: [
     UserIntegrationsController,
@@ -72,6 +75,7 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     WebhookController,
     WebhookSubscriptionsController,
     GithubAppCallbackController,
+    DependencyWatcherController,
   ],
   providers: [
     IntegrationConnectionService,

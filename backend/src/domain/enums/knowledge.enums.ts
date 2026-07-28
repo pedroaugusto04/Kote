@@ -5,6 +5,7 @@ export enum SourceChannel {
   AiChat = 'ai-chat',
   Ide = 'ide',
   Cli = 'cli',
+  DependencyWatcher = 'dependency-watcher',
 }
 
 export enum TimelineCategory {
@@ -14,6 +15,7 @@ export enum TimelineCategory {
   Manual = 'manual',
   Reminder = 'reminder',
   AiChat = 'ai-chat',
+  DependencyWatcher = 'dependency-watcher',
 }
 
 export enum EventType {

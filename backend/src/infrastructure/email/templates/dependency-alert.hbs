@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dependency Update Alert</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 8px 8px 0 0;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 600;
+    }
+    .content {
+      background: #f9fafb;
+      padding: 30px;
+      border-radius: 0 0 8px 8px;
+    }
+    .urgency-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+    }
+    .urgency-critical {
+      background: #fee2e2;
+      color: #dc2626;
+    }
+    .urgency-recommended {
+      background: #fef3c7;
+      color: #d97706;
+    }
+    .urgency-optional {
+      background: #dbeafe;
+      color: #2563eb;
+    }
+    .package-info {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      border: 1px solid #e5e7eb;
+    }
+    .package-info h2 {
+      margin: 0 0 10px 0;
+      font-size: 18px;
+      color: #111827;
+    }
+    .version-comparison {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 15px 0;
+      font-size: 16px;
+    }
+    .version {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .version-current {
+      background: #f3f4f6;
+      color: #6b7280;
+    }
+    .version-latest {
+      background: #dcfce7;
+      color: #16a34a;
+    }
+    .arrow {
+      color: #9ca3af;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
+    .section h3 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+      color: #374151;
+    }
+    .list {
+      margin: 0;
+      padding-left: 20px;
+    }
+    .list li {
+      margin-bottom: 8px;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+    .footer a {
+      color: #667eea;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📦 Dependency Update Alert</h1>
+  </div>
+  
+  <div class="content">
+    <span class="urgency-badge urgency-{{urgency}}">{{urgency}}</span>
+    
+    <div class="package-info">
+      <h2>{{packageName}}</h2>
+      <div class="version-comparison">
+        <span class="version version-current">{{currentVersion}}</span>
+        <span class="arrow">→</span>
+        <span class="version version-latest">{{latestVersion}}</span>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Summary</h3>
+      <p>{{summary}}</p>
+    </div>
+
+    {{#if breakingChanges}}
+    <div class="section">
+      <h3>Breaking Changes</h3>
+      <ul class="list">
+        {{#each breakingChanges}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/if}}
+
+    {{#if nextSteps}}
+    <div class="section">
+      <h3>Next Steps</h3>
+      <ul class="list">
+        {{#each nextSteps}}
+        <li>{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+    {{/if}}
+
+    {{#if repositoryUrl}}
+    <div class="section">
+      <h3>Links</h3>
+      <p><a href="{{repositoryUrl}}">View Repository</a></p>
+    </div>
+    {{/if}}
+
+    <div class="footer">
+      <p>This alert was sent by <a href="{{frontUrl}}">Kote</a>.</p>
+    </div>
+  </div>
+</body>
+</html>

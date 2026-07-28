@@ -73,3 +73,11 @@ export function cancelGithubBackfill(workspaceSlug: string, jobId: string): Prom
     body: JSON.stringify({ workspaceSlug, jobId }),
   });
 }
+
+export function importDependenciesFromGithub(workspaceSlug: string, projectIds?: string[]): Promise<{ ok: true; data: { total: number; imported: number; skipped: number; repositories: number } }> {
+  return request<{ ok: true; data: { total: number; imported: number; skipped: number; repositories: number } }>(API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_IMPORT, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ workspaceSlug, projectIds }),
+  });
+}

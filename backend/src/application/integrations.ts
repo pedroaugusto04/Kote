@@ -90,6 +90,8 @@ export function buildIntegrationStatuses(input: {
   const conversationAiActive = environment.conversationAiProvider !== AiProvider.None;
   const projectBriefAiActive = environment.projectBriefAiProvider !== AiProvider.None;
   const fileNotesSummaryAiActive = environment.fileNotesSummaryAiProvider !== AiProvider.None;
+  const dependencyWatcherActive = environment.dependencyWatcherEnabled;
+  const dependencyWatcherAiActive = environment.dependencyWatcherAiProvider !== AiProvider.None;
   const reviewAiEnv = {
     KB_REVIEW_AI_PROVIDER: reviewAiActive,
     KB_REVIEW_AI_BASE_URL: reviewAiActive ? Boolean(environment.reviewAiBaseUrl) : true,
@@ -113,6 +115,15 @@ export function buildIntegrationStatuses(input: {
     KB_FILE_NOTES_SUMMARY_AI_BASE_URL: fileNotesSummaryAiActive ? Boolean(environment.fileNotesSummaryAiBaseUrl) : true,
     KB_FILE_NOTES_SUMMARY_AI_MODEL: fileNotesSummaryAiActive ? Boolean(environment.fileNotesSummaryAiModel) : true,
     KB_FILE_NOTES_SUMMARY_AI_API_KEY: fileNotesSummaryAiActive ? secretConfigured(environment.fileNotesSummaryAiApiKey) : true,
+  };
+  const dependencyWatcherEnv = {
+    KB_DEPENDENCY_WATCHER_ENABLED: dependencyWatcherActive,
+    KB_DEPENDENCY_WATCHER_CRON: dependencyWatcherActive ? Boolean(environment.dependencyWatcherCron) : true,
+    KB_DEPENDENCY_WATCHER_CHECK_INTERVAL_HOURS: dependencyWatcherActive ? Boolean(environment.dependencyWatcherCheckIntervalHours) : true,
+    KB_DEPENDENCY_WATCHER_AI_PROVIDER: dependencyWatcherAiActive,
+    KB_DEPENDENCY_WATCHER_AI_BASE_URL: dependencyWatcherAiActive ? Boolean(environment.dependencyWatcherAiBaseUrl) : true,
+    KB_DEPENDENCY_WATCHER_AI_MODEL: dependencyWatcherAiActive ? Boolean(environment.dependencyWatcherAiModel) : true,
+    KB_DEPENDENCY_WATCHER_AI_API_KEY: dependencyWatcherAiActive ? secretConfigured(environment.dependencyWatcherAiApiKey) : true,
   };
 
   return {
@@ -285,6 +296,27 @@ export function buildIntegrationStatuses(input: {
           'Keep the push notifications card active to receive updates.',
         ],
         warnings: [],
+      },
+      {
+        id: IntegrationProvider.DependencyWatcher,
+        name: 'Dependency Watcher',
+        description: 'Automatically check for new dependency versions, create notes with changelogs, and send email alerts for critical updates.',
+        status: statusFromFlags([dependencyWatcherActive, repos.length > 0, ...Object.values(dependencyWatcherEnv)]),
+        requiredEnv: Object.keys(dependencyWatcherEnv),
+        configuredEnv: configuredEnv(dependencyWatcherEnv),
+        missingEnv: missingEnv(dependencyWatcherEnv),
+        links: [],
+        checklist: [
+          'Connect GitHub App and select workspace repositories.',
+          'Enable Dependency Watcher integration.',
+          'Import dependencies from GitHub repositories.',
+          'Configure AI provider for changelog analysis.',
+        ],
+        warnings: [
+          !dependencyWatcherActive ? 'Dependency Watcher is disabled.' : '',
+          dependencyWatcherActive && repos.length === 0 ? 'Workspace has no linked repository. Connect GitHub and select repositories first.' : '',
+          dependencyWatcherActive && !dependencyWatcherAiActive ? 'AI provider is set to none. Changelog analysis will be skipped.' : '',
+        ].filter(Boolean),
       },
     ],
   };
