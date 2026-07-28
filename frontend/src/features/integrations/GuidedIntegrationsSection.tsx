@@ -379,6 +379,7 @@ function IntegrationCard({
   integration,
   workspaceSlug,
   returnToPath,
+  githubConnected,
   onCodeConnection,
   onGithubRepositories,
   onDependencyImport,
@@ -386,6 +387,7 @@ function IntegrationCard({
   integration: UserIntegration;
   workspaceSlug: string;
   returnToPath: string;
+  githubConnected: boolean;
   onCodeConnection: (connection: IntegrationConnectionResponse) => void;
   onGithubRepositories: () => void;
   onDependencyImport: () => void;
@@ -395,12 +397,21 @@ function IntegrationCard({
   const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [dependencyWatcherEnabled, setDependencyWatcherEnabled] = useState(integration.status === StoredIntegrationStatus.Connected);
 
+  useEffect(() => {
+    if (integration.provider === IntegrationProvider.DependencyWatcher) {
+      setDependencyWatcherEnabled(integration.status === StoredIntegrationStatus.Connected);
+    }
+  }, [integration.provider, integration.status]);
+
   const enableMutation = useMutation({
     mutationFn: () => enableDependencyWatcher(workspaceSlug),
     onSuccess: () => {
       setDependencyWatcherEnabled(true);
       notifySuccess('Dependency Watcher enabled');
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
+    },
+    onError: (error) => {
+      notifyGeneralFormError(error, 'Could not enable Dependency Watcher');
     },
   });
 
@@ -410,6 +421,9 @@ function IntegrationCard({
       setDependencyWatcherEnabled(false);
       notifySuccess('Dependency Watcher disabled');
       queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
+    },
+    onError: (error) => {
+      notifyGeneralFormError(error, 'Could not disable Dependency Watcher');
     },
   });
   const connectMutation = useMutation({
@@ -520,7 +534,10 @@ function IntegrationCard({
       <div className="integration-card-body">
         <IntegrationSteps integration={integration} />
         {integration.provider === IntegrationProvider.GithubApp && !connected ? (
-          <InlineMessage tone="warning">Connect to GitHub to import dependencies from your repositories</InlineMessage>
+          <InlineMessage tone="warning">Connect to GitHub to select repositories and import dependencies.</InlineMessage>
+        ) : null}
+        {integration.provider === IntegrationProvider.DependencyWatcher && !githubConnected ? (
+          <InlineMessage tone="warning">Connect the GitHub App first, then import dependencies from your repositories.</InlineMessage>
         ) : null}
         {integration.connectedAccount ? <p className="meta">{INTEGRATION_MESSAGES.GENERAL.ACCOUNT_LABEL.replace('{account}', integration.connectedAccount)}</p> : null}
         {integration.lastError ? <InlineMessage tone="error">{integration.lastError}</InlineMessage> : null}
@@ -530,29 +547,37 @@ function IntegrationCard({
         <Badge value={formatDisplayToken(integration.status)} tone={statusTone[integration.status] || 'medium'} />
         <div className="integration-actions">
           {integration.provider === IntegrationProvider.GithubApp && connected ? (
-            <>
-              <button className="filter-chip" type="button" onClick={onGithubRepositories}>{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORIES_BUTTON}</button>
-              <button className="filter-chip" type="button" onClick={onDependencyImport}>Import Dependencies</button>
-            </>
+            <button className="filter-chip" type="button" onClick={onGithubRepositories}>{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORIES_BUTTON}</button>
           ) : null}
           {integration.provider === IntegrationProvider.DependencyWatcher ? (
+            <>
+              <button
+                className="filter-chip"
+                type="button"
+                onClick={onDependencyImport}
+                disabled={!githubConnected}
+              >
+                Import Dependencies
+              </button>
+              <button
+                className="filter-chip"
+                type="button"
+                onClick={() => dependencyWatcherEnabled ? disableMutation.mutate() : enableMutation.mutate()}
+                disabled={enableMutation.isPending || disableMutation.isPending}
+              >
+                {dependencyWatcherEnabled ? 'Disable' : 'Enable'}
+              </button>
+            </>
+          ) : (
             <button
-              className="filter-chip"
+              className={connected ? 'filter-chip' : 'icon-button'}
+              disabled={unavailable || connectMutation.isPending || revokeMutation.isPending}
               type="button"
-              onClick={() => dependencyWatcherEnabled ? disableMutation.mutate() : enableMutation.mutate()}
-              disabled={enableMutation.isPending || disableMutation.isPending}
+              onClick={handleConnectClick}
             >
-              {dependencyWatcherEnabled ? 'Disable' : 'Enable'}
+              {actionLabel}
             </button>
-          ) : null}
-          <button
-            className={connected ? 'filter-chip' : 'icon-button'}
-            disabled={unavailable || connectMutation.isPending || revokeMutation.isPending}
-            type="button"
-            onClick={handleConnectClick}
-          >
-            {actionLabel}
-          </button>
+          )}
         </div>
       </div>
       {showPrivacyModal && (
@@ -779,6 +804,9 @@ export function GuidedIntegrationsSection({
   }, [defaultOpenGithubRepositories, integrations]);
 
   const backfillLimit = integrationsQuery.data?.githubBackfillLimit ?? 5;
+  const githubConnected = integrations.some(
+    (item) => item.provider === IntegrationProvider.GithubApp && item.status === StoredIntegrationStatus.Connected,
+  );
 
   if (!workspaceSlug) return <EmptyState>{INTEGRATION_MESSAGES.GENERAL.CREATE_WORKSPACE_REQUIRED}</EmptyState>;
   if (integrationsQuery.isLoading) return <EmptyState>{INTEGRATION_MESSAGES.GENERAL.LOADING}</EmptyState>;
@@ -790,6 +818,7 @@ export function GuidedIntegrationsSection({
       key={integrationId(integration)}
       workspaceSlug={workspaceSlug}
       returnToPath={returnToPath}
+      githubConnected={githubConnected}
       onCodeConnection={setCodeConnection}
       onGithubRepositories={() => setShowGithubRepositories(true)}
       onDependencyImport={() => setShowDependencyImport(true)}

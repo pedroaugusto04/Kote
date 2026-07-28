@@ -16,25 +16,27 @@ Dependency Watcher tracks your project dependencies and alerts you when new vers
 
 ## How It Works
 
-1. **Import Dependencies**: Connect your GitHub repositories and select projects to scan. Kote automatically detects the package ecosystem from manifest files (package.json, requirements.txt, composer.json, pom.xml, Cargo.toml).
+1. **Connect GitHub**: Link your GitHub account and select repositories for your workspace projects.
 
-2. **Automatic Monitoring**: A daily cron job checks for new versions of your tracked dependencies.
+2. **Import Dependencies**: On the **Dependency Watcher** integration card, import dependencies from your linked GitHub repositories. Kote detects the package ecosystem from manifest files (`package.json`, `requirements.txt`, `composer.json`, `pom.xml`, `Cargo.toml`).
 
-3. **AI Analysis**: When an update is found, AI analyzes the changelog to determine urgency:
+3. **Enable per Workspace**: Enable Dependency Watcher on the same card. Each workspace controls monitoring independently.
+
+4. **Automatic Monitoring**: A daily cron job checks for new versions of tracked dependencies (only for enabled workspaces).
+
+5. **AI Analysis**: When an update is found, AI analyzes the changelog to determine urgency:
    - **Critical**: Security vulnerabilities, breaking changes
    - **Recommended**: Important features, deprecations
    - **Optional**: Minor updates, bug fixes
 
-4. **Alerts & Notes**: 
-   - Email alerts for critical and recommended updates
-   - Automatic note creation in your knowledge base with full analysis
+6. **Alerts & Notes**:
+   - Email alerts for critical and recommended updates (sent to the **account owner's email**)
+   - Automatic note creation in the knowledge base with full analysis
    - Timeline category for filtering dependency updates
 
 ## Setup
 
-### 1. Enable Dependency Watcher
-
-Set the following environment variables:
+### 1. Server Environment Variables
 
 ```env
 # Cron schedule (e.g., daily at 9 AM)
@@ -43,40 +45,36 @@ DEPENDENCY_WATCHER_CRON="0 9 * * *"
 # Check interval in hours
 DEPENDENCY_WATCHER_CHECK_INTERVAL_HOURS=24
 
-# Email for alerts
-DEV_EMAIL=your-email@example.com
-
-# AI provider for analysis (optional, uses default if not set)
+# AI provider for analysis (optional, uses default chat AI if not set)
 DEPENDENCY_WATCHER_AI_PROVIDER=openai
 DEPENDENCY_WATCHER_AI_BASE_URL=https://api.openai.com/v1
 DEPENDENCY_WATCHER_AI_MODEL=gpt-4
 DEPENDENCY_WATCHER_AI_API_KEY=your-api-key
 ```
 
-### 2. Import Dependencies
+**Note:** There is no global on/off flag. Enablement is controlled per workspace in the Integrations UI.
+
+### 2. Connect GitHub App
 
 1. Go to **Integrations** → **GitHub App**
-2. Click **Connect** to link your GitHub account
-3. Click **Import Dependencies** button
-4. Select the projects you want to monitor
-5. Click **Import Dependencies**
+2. Click **Connect** and authorize the app
+3. Select the repositories you want to monitor
 
-Kote will scan the selected projects' repositories and import all dependencies found in their manifest files.
+### 3. Import Dependencies
 
-### 3. Enable Dependency Watcher per Workspace
+1. Go to **Integrations** → **Dependency Watcher**
+2. Click **Import Dependencies**
+3. Select the projects to scan
+4. Click **Import Dependencies**
 
-1. Go to **Integrations**
-2. Find the **Dependency Watcher** integration card
-3. Click **Enable** to activate dependency monitoring for your workspace
-4. The worker will now check dependencies daily based on the cron schedule
+### 4. Enable Dependency Watcher
 
-**Note:** Dependency Watcher is enabled per workspace. Each workspace can independently enable or disable the feature.
+1. On the **Dependency Watcher** card, click **Enable**
+2. The worker checks dependencies daily based on the cron schedule
 
 ## Features
 
 ### Multi-Ecosystem Detection
-
-Kote automatically detects the package ecosystem based on the manifest file:
 
 | Ecosystem | Manifest Files |
 |-----------|---------------|
@@ -88,142 +86,37 @@ Kote automatically detects the package ecosystem based on the manifest file:
 
 ### Version Filtering
 
-Uses semantic versioning (semver) to:
-- Filter out pre-release versions
-- Sort versions correctly
-- Compare current vs latest versions
-
-### Repository URL Extraction
-
-Automatically extracts repository URLs from package metadata to provide direct links to source code and changelogs.
+Uses semantic versioning (semver) to filter pre-releases, sort versions, and compare current vs latest.
 
 ### AI-Powered Analysis
 
-When an update is detected, AI analyzes:
-- Changelog content
-- Breaking changes
-- Security implications
-- Recommended next steps
+When an update is detected, AI analyzes changelog content, breaking changes, security implications, and recommended next steps.
 
 ### Email Alerts
 
-Critical and recommended updates trigger email alerts with:
-- Package name and version change
-- Urgency level
-- Summary of changes
-- Breaking changes list
-- Next steps
-- Repository link
+Critical and recommended updates trigger email alerts to the **user's registered email** with package details, urgency, summary, breaking changes, next steps, and repository link.
 
 ### Knowledge Base Integration
 
-Each dependency update creates a note in your knowledge base with:
-- Title: `[Dependency Update] package: current → latest`
-- Full analysis content
-- Breaking changes and next steps
-- Repository link
-- Tags: `dependency-update`, package name, urgency level
-
-### Timeline Filtering
-
-Dependency updates appear in your timeline under the **Dependency** category, allowing you to:
-- Filter notes by source
-- Focus on manual notes vs system notifications
-- Search dependency-specific context
+Each update creates a note scoped to the workspace with title `[Dependency Update] package: current → latest`, full analysis, tags, and repository link.
 
 ## Architecture
 
 ```
-┌─────────────────┐
-│  GitHub Repos   │
-│  (manifests)    │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Import Use     │
-│  Case           │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Database       │
-│  (kb_dependency │
-│   _watch)       │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Cron Worker    │
-│  (daily check)  │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Registry       │
-│  Strategies     │
-│  (npm, pip,     │
-│   composer,     │
-│   maven, cargo) │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  AI Analysis    │
-│  (urgency)      │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Email + Notes  │
-└─────────────────┘
+GitHub Repos (manifests)
+        ↓
+Import Use Case → kb_dependency_watch
+        ↓
+Cron Worker (DependencyWatcherModule)
+        ↓
+Registry Strategies (npm, pip, composer, maven, cargo)
+        ↓
+AI Analysis → Email + Notes (workspace-scoped)
 ```
 
-## Registry Strategies
-
-Each ecosystem has a dedicated strategy that:
-- Fetches latest version from official registry
-- Extracts repository URL and changelog
-- Handles API rate limits and timeouts
-- Validates response data
-
-### Supported Registries
-
-- **npm**: https://registry.npmjs.org
-- **pip**: https://pypi.org
-- **composer**: https://packagist.org
-- **maven**: https://search.maven.org
-- **cargo**: https://crates.io
-
-## Troubleshooting
-
-### Dependencies Not Being Imported
-
-- Verify GitHub integration is connected
-- Check that projects have repositories linked
-- Ensure manifest files exist in repository roots
-- Check backend logs for import errors
-
-### No Email Alerts
-
-- Verify `DEV_EMAIL` is set
-- Check email provider configuration (Resend/SMTP)
-- Ensure `DEPENDENCY_WATCHER_ENABLED=true`
-- Verify cron schedule is correct
-
-### Worker Not Running
-
-- Check `DEPENDENCY_WATCHER_ENABLED=true`
-- Verify module is registered in app
-- Check backend logs for worker startup errors
-
-### AI Analysis Failing
-
-- Verify AI API key is configured
-- Check `DEPENDENCY_WATCHER_AI_*` variables
-- Fallback: Updates will be marked as "Optional" without AI
-
 ## API Endpoints
+
+All endpoints require authentication (`Authorization: Bearer <token>`).
 
 ### Import Dependencies
 
@@ -233,11 +126,12 @@ Content-Type: application/json
 
 {
   "workspaceSlug": "my-workspace",
-  "projectIds": ["project-1", "project-2"]  // optional
+  "projectIds": ["project-1", "project-2"]
 }
 ```
 
 Response:
+
 ```json
 {
   "ok": true,
@@ -249,6 +143,71 @@ Response:
   }
 }
 ```
+
+### Enable Workspace Monitoring
+
+```http
+PATCH /api/integrations/dependency-watch/{workspaceSlug}/enable
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "data": { "enabled": true }
+}
+```
+
+### Disable Workspace Monitoring
+
+```http
+PATCH /api/integrations/dependency-watch/{workspaceSlug}/disable
+```
+
+Response:
+
+```json
+{
+  "ok": true,
+  "data": { "enabled": false }
+}
+```
+
+## Troubleshooting
+
+### Enable/Disable Returns 404
+
+Ensure the backend is deployed with `DependencyWatcherController` registered at `/api/integrations/dependency-watch` and `DependencyWatcherModule` imported in `AppModule`.
+
+### Dependencies Not Being Imported
+
+- Verify GitHub integration is connected
+- Check that projects have repositories linked
+- Ensure manifest files exist in repository roots
+- Check backend logs for `dependency_watcher_import_failed`
+
+### Import Fails with `github_credential_not_found`
+
+The GitHub App must be connected for the same workspace slug used in the import request.
+
+### No Email Alerts
+
+- Verify the user account has a valid email address
+- Check email provider configuration (Resend/SMTP)
+- Ensure Dependency Watcher is **enabled** for the workspace
+- Only **critical** and **recommended** updates trigger email; optional updates create notes only
+
+### Worker Not Running
+
+- Verify `DependencyWatcherModule` is imported in `AppModule`
+- Check `DEPENDENCY_WATCHER_CRON` format (5-field cron expression)
+- Check backend logs for `dependency_watcher_worker_started`
+
+### AI Analysis Failing
+
+- Verify AI API key is configured (`DEPENDENCY_WATCHER_AI_*` or default chat AI vars)
+- Fallback: updates are marked as **Optional** without AI analysis
 
 ## Future Enhancements
 

@@ -1,39 +1,28 @@
 import { Injectable } from '@nestjs/common';
 
 import { DependencyWatcherRepository, type DependencyWatchRecord } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
-import { DependencyAlertGateway, type DependencyAlertConfig, type DependencyAlertPayload } from '../../ports/dependency-watcher/dependency-alert.port.js';
-import { RegistryStrategy, type RegistryVersionInfo } from '../../ports/dependency-registry/registry-strategy.interface.js';
-import { NpmRegistryStrategy } from '../../ports/dependency-registry/npm-registry.strategy.js';
-import { PipRegistryStrategy } from '../../ports/dependency-registry/pip-registry.strategy.js';
-import { ComposerRegistryStrategy } from '../../ports/dependency-registry/composer-registry.strategy.js';
-import { MavenRegistryStrategy } from '../../ports/dependency-registry/maven-registry.strategy.js';
-import { CargoRegistryStrategy } from '../../ports/dependency-registry/cargo-registry.strategy.js';
+import { DependencyAlertGateway, type DependencyAlertConfig, type DependencyAlertPayload, type DependencyAlertResult } from '../../ports/dependency-watcher/dependency-alert.port.js';
+import { RegistryStrategyProvider } from '../../ports/dependency-registry/registry-strategy.provider.js';
+import type { RegistryVersionInfo } from '../../ports/dependency-registry/registry-strategy.interface.js';
 import { IngestEntryUseCase } from '../../use-cases/ingest/ingest-entry.use-case.js';
 import { EmailService } from '../email/email.service.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
-import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Importance, DependencyUrgency, DependencyEcosystem } from '../../../contracts/enums.js';
+import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Importance, DependencyUrgency } from '../../../contracts/enums.js';
 import { AppLogger } from '../../../observability/logger.js';
 
 @Injectable()
 export class DependencyWatcherService {
-  private strategies: Map<string, RegistryStrategy> = new Map();
-
   constructor(
     private readonly dependencyWatcherRepository: DependencyWatcherRepository,
     private readonly dependencyAlertGateway: DependencyAlertGateway,
+    private readonly registryStrategyProvider: RegistryStrategyProvider,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly emailService: EmailService,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly userRepository: UserRepository,
     private readonly logger: AppLogger,
-  ) {
-    this.strategies.set(DependencyEcosystem.Npm, new NpmRegistryStrategy());
-    this.strategies.set(DependencyEcosystem.Pip, new PipRegistryStrategy());
-    this.strategies.set(DependencyEcosystem.Composer, new ComposerRegistryStrategy());
-    this.strategies.set(DependencyEcosystem.Maven, new MavenRegistryStrategy());
-    this.strategies.set(DependencyEcosystem.Cargo, new CargoRegistryStrategy());
-  }
+  ) {}
 
   async runCheck(checkIntervalHours: number = 24): Promise<{ checked: number; updates: number; errors: number }> {
     const records = await this.dependencyWatcherRepository.findDueForCheck(checkIntervalHours);
@@ -56,7 +45,10 @@ export class DependencyWatcherService {
           updates++;
         }
       } catch (error) {
-        console.error(`Failed to check package ${record.packageName}:`, error);
+        this.logger.error('dependency_watcher_check_package_failed', {
+          packageName: record.packageName,
+          error: error instanceof Error ? error.message : String(error),
+        });
         errors++;
       }
 
@@ -69,7 +61,7 @@ export class DependencyWatcherService {
   }
 
   private async checkPackage(record: DependencyWatchRecord): Promise<boolean> {
-    const strategy = this.strategies.get(record.ecosystem);
+    const strategy = this.registryStrategyProvider.getStrategy(record.ecosystem);
     if (!strategy) {
       this.logger.error('dependency_watcher_no_strategy', { ecosystem: record.ecosystem });
       return false;
@@ -127,7 +119,7 @@ export class DependencyWatcherService {
     return await this.dependencyAlertGateway.analyze(config, payload);
   }
 
-  private async createNote(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: any) {
+  private async createNote(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: DependencyAlertResult) {
     const content = this.buildNoteContent(record, versionInfo, analysis);
     
     const payload = {
@@ -172,10 +164,10 @@ export class DependencyWatcherService {
       metadata: {},
     };
 
-    await this.ingestEntryUseCase.execute(payload, record.userId, '', {});
+    await this.ingestEntryUseCase.execute(payload, record.userId, record.workspaceSlug, {});
   }
 
-  private buildNoteContent(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: any): string {
+  private buildNoteContent(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: DependencyAlertResult): string {
     const sections = [];
 
     sections.push(`## Summary`);
@@ -214,7 +206,7 @@ export class DependencyWatcherService {
     return sections.join('\n');
   }
 
-  private async sendAlertEmail(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: any) {
+  private async sendAlertEmail(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: DependencyAlertResult) {
     const env = this.environmentProvider.read();
     const user = await this.userRepository.findUserById(record.userId);
     

@@ -44,6 +44,7 @@ export class CreateWorkspaceUseCase {
       displayName: input.displayName,
       whatsappChatJid: '',
       telegramChatId: '',
+      dependencyWatcherEnabled: false,
       createdAt: now,
       updatedAt: now,
     });

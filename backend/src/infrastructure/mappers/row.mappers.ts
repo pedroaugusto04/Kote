@@ -147,6 +147,7 @@ export function workspaceFromRow(row: Row): WorkspaceRecord {
     displayName: String(field(row, 'display_name', 'displayName') || workspaceSlug),
     whatsappChatJid: fieldString(row, 'whatsapp_chat_jid', 'whatsappChatJid'),
     telegramChatId: fieldString(row, 'telegram_chat_id', 'telegramChatId'),
+    dependencyWatcherEnabled: field(row, 'dependency_watcher_enabled', 'dependencyWatcherEnabled') === true,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };

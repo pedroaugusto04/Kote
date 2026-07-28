@@ -78,6 +78,7 @@ export type WorkspaceRecord = {
   displayName: string;
   whatsappChatJid: string;
   telegramChatId: string;
+  dependencyWatcherEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 };

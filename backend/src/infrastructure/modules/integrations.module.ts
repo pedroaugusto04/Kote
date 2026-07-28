@@ -19,6 +19,7 @@ import {
 import {
   IntegrationCredentialService,
 } from '../../application/credentials.js';
+import { PostgresWorkspaceRepository } from '../repositories/workspace.repository.js';
 import {
   HandleGithubPushUseCase,
   HandleGithubPullRequestUseCase,
@@ -103,6 +104,7 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     ImportDependenciesFromGithubUseCase,
     PostgresDependencyWatcherRepository,
     { provide: DependencyWatcherRepository, useExisting: PostgresDependencyWatcherRepository },
+    PostgresWorkspaceRepository,
   ],
   exports: [
     IntegrationConnectionService,

@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { DependencyWatcherService } from '../../../../src/application/services/dependency-watcher/dependency-watcher.service.js';
 import { DependencyWatcherRepository, type DependencyWatchRecord } from '../../../../src/application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { DependencyAlertGateway, type DependencyAlertResult } from '../../../../src/application/ports/dependency-watcher/dependency-alert.port.js';
+import { RegistryStrategyProvider } from '../../../../src/application/ports/dependency-registry/registry-strategy.provider.js';
+import type { RegistryStrategy, RegistryVersionInfo } from '../../../../src/application/ports/dependency-registry/registry-strategy.interface.js';
 import { IngestEntryUseCase } from '../../../../src/application/use-cases/ingest/ingest-entry.use-case.js';
 import { EmailService } from '../../../../src/application/services/email/email.service.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../../../src/application/ports/observability/runtime-environment.port.js';
@@ -14,6 +16,8 @@ describe('Backend: Dependency Watcher Service', () => {
   let service: DependencyWatcherService;
   let mockDependencyWatcherRepository: DependencyWatcherRepository;
   let mockDependencyAlertGateway: DependencyAlertGateway;
+  let mockRegistryStrategyProvider: RegistryStrategyProvider;
+  let mockFetchLatestVersion: ReturnType<typeof vi.fn>;
   let mockIngestEntryUseCase: IngestEntryUseCase;
   let mockEmailService: EmailService;
   let mockEnvironmentProvider: RuntimeEnvironmentProvider;
@@ -24,6 +28,7 @@ describe('Backend: Dependency Watcher Service', () => {
     id: 'record-123',
     userId: 'user-123',
     workspaceId: 'workspace-123',
+    workspaceSlug: 'test-workspace',
     ecosystem: DependencyEcosystem.Npm,
     packageName: 'express',
     currentVersion: '4.18.0',
@@ -37,7 +42,7 @@ describe('Backend: Dependency Watcher Service', () => {
     updatedAt: new Date(),
   };
 
-  const mockVersionInfo = {
+  const mockVersionInfo: RegistryVersionInfo = {
     version: '4.19.0',
     repositoryUrl: 'https://github.com/expressjs/express',
   };
@@ -59,41 +64,51 @@ describe('Backend: Dependency Watcher Service', () => {
     defaultChatAiModel: 'gpt-4',
     defaultChatAiApiKey: 'sk-test',
     apiPublicBaseUrl: 'https://api.example.com',
-  } as any;
+  } as RuntimeEnvironment;
 
   beforeEach(() => {
+    mockFetchLatestVersion = vi.fn().mockResolvedValue(mockVersionInfo);
+
     mockDependencyWatcherRepository = {
       findDueForCheck: vi.fn(),
       update: vi.fn(),
-    } as any;
+      isWorkspaceEnabled: vi.fn().mockResolvedValue(true),
+    } as unknown as DependencyWatcherRepository;
 
     mockDependencyAlertGateway = {
       analyze: vi.fn(),
-    } as any;
+    } as unknown as DependencyAlertGateway;
+
+    mockRegistryStrategyProvider = {
+      getStrategy: vi.fn().mockReturnValue({
+        fetchLatestVersion: mockFetchLatestVersion,
+      } as RegistryStrategy),
+    } as unknown as RegistryStrategyProvider;
 
     mockIngestEntryUseCase = {
       execute: vi.fn(),
-    } as any;
+    } as unknown as IngestEntryUseCase;
 
     mockEmailService = {
       sendEmail: vi.fn(),
-    } as any;
+    } as unknown as EmailService;
 
     mockEnvironmentProvider = {
       read: vi.fn().mockReturnValue(mockEnvironment),
-    } as any;
+    } as unknown as RuntimeEnvironmentProvider;
 
     mockLogger = {
       error: vi.fn(),
-    } as any;
+    } as unknown as AppLogger;
 
     mockUserRepository = {
       findUserById: vi.fn().mockResolvedValue({ email: 'user@example.com' }),
-    } as any;
+    } as unknown as UserRepository;
 
     service = new DependencyWatcherService(
       mockDependencyWatcherRepository,
       mockDependencyAlertGateway,
+      mockRegistryStrategyProvider,
       mockIngestEntryUseCase,
       mockEmailService,
       mockEnvironmentProvider,
@@ -104,10 +119,8 @@ describe('Backend: Dependency Watcher Service', () => {
 
   describe('Business Rules', () => {
     it('should skip packages where current version equals latest version', async () => {
-      const sameVersionInfo = { version: '4.18.0', repositoryUrl: '' };
-      
+      mockFetchLatestVersion.mockResolvedValue({ version: '4.18.0', repositoryUrl: '' });
       vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
 
       const result = await service.runCheck(24);
 
@@ -118,13 +131,13 @@ describe('Backend: Dependency Watcher Service', () => {
     });
 
     it('should skip packages where latest version equals latest seen version', async () => {
+      mockFetchLatestVersion.mockResolvedValue(mockVersionInfo);
       const seenVersionRecord = {
         ...mockRecord,
         latestSeenVersion: '4.19.0',
       };
-      
+
       vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([seenVersionRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
 
       const result = await service.runCheck(24);
 
@@ -157,7 +170,7 @@ describe('Backend: Dependency Watcher Service', () => {
           }),
         }),
         mockRecord.userId,
-        '',
+        mockRecord.workspaceSlug,
         {},
       );
     });
@@ -175,6 +188,7 @@ describe('Backend: Dependency Watcher Service', () => {
 
       expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
         expect.objectContaining({
+          to: 'user@example.com',
           templateName: 'dependency-alert',
           templateData: expect.objectContaining({
             packageName: 'express',
@@ -235,7 +249,7 @@ describe('Backend: Dependency Watcher Service', () => {
         dependencyWatcherAiProvider: AiProvider.None,
       };
       vi.mocked(mockEnvironmentProvider.read).mockReturnValue(noAiEnvironment);
-      
+
       vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
 
       const result = await service.runCheck(24);
@@ -250,9 +264,10 @@ describe('Backend: Dependency Watcher Service', () => {
       const noKeyEnvironment = {
         ...mockEnvironment,
         dependencyWatcherAiApiKey: '',
+        defaultChatAiApiKey: '',
       };
       vi.mocked(mockEnvironmentProvider.read).mockReturnValue(noKeyEnvironment);
-      
+
       vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
 
       const result = await service.runCheck(24);
@@ -263,21 +278,23 @@ describe('Backend: Dependency Watcher Service', () => {
     });
 
     it('should log error when no strategy available for ecosystem', async () => {
-      const pipRecord = {
+      const unsupportedRecord = {
         ...mockRecord,
-        ecosystem: DependencyEcosystem.Pip,
+        ecosystem: DependencyEcosystem.Gradle,
       };
 
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([pipRecord]);
+      vi.mocked(mockRegistryStrategyProvider.getStrategy).mockReturnValue(undefined);
+      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([unsupportedRecord]);
 
       const result = await service.runCheck(24);
 
       expect(result.checked).toBe(1);
-      expect(result.errors).toBe(1);
+      expect(result.updates).toBe(0);
+      expect(result.errors).toBe(0);
       expect(mockLogger.error).toHaveBeenCalledWith(
         'dependency_watcher_no_strategy',
         expect.objectContaining({
-          ecosystem: DependencyEcosystem.Pip,
+          ecosystem: DependencyEcosystem.Gradle,
         }),
       );
     });
@@ -301,8 +318,12 @@ describe('Backend: Dependency Watcher Service', () => {
     it('should continue processing other packages when one fails', async () => {
       const records = [
         mockRecord,
-        { ...mockRecord, id: 'record-456', packageName: 'lodash', ecosystem: DependencyEcosystem.Pip },
+        { ...mockRecord, id: 'record-456', packageName: 'lodash' },
       ];
+
+      mockFetchLatestVersion
+        .mockResolvedValueOnce(mockVersionInfo)
+        .mockRejectedValueOnce(new Error('registry unavailable'));
 
       vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue(records);
       vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
@@ -313,13 +334,26 @@ describe('Backend: Dependency Watcher Service', () => {
       expect(result.updates).toBe(1);
       expect(result.errors).toBe(1);
       expect(mockIngestEntryUseCase.execute).toHaveBeenCalledTimes(1);
+      expect(mockLogger.error).toHaveBeenCalledWith(
+        'dependency_watcher_check_package_failed',
+        expect.objectContaining({ packageName: 'lodash' }),
+      );
+    });
+
+    it('should skip packages when workspace-level watcher is disabled', async () => {
+      vi.mocked(mockDependencyWatcherRepository.isWorkspaceEnabled).mockResolvedValue(false);
+      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
+
+      const result = await service.runCheck(24);
+
+      expect(result.checked).toBe(0);
+      expect(result.updates).toBe(0);
+      expect(mockFetchLatestVersion).not.toHaveBeenCalled();
     });
 
     it('should update lastCheckedAt even when no update available', async () => {
-      const sameVersionInfo = { version: '4.18.0', repositoryUrl: '' };
-      
+      mockFetchLatestVersion.mockResolvedValue({ version: '4.18.0', repositoryUrl: '' });
       vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
 
       await service.runCheck(24);
 

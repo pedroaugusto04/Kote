@@ -42,6 +42,8 @@ export const API_PATHS = {
   INTEGRATIONS_GITHUB_BACKFILL_CANCEL: '/api/integrations/github-app/backfill/cancel',
   INTEGRATIONS_DEPENDENCY_WATCH: '/api/integrations/dependency-watch',
   INTEGRATIONS_DEPENDENCY_WATCH_IMPORT: '/api/integrations/dependency-watch/import',
+  INTEGRATIONS_DEPENDENCY_WATCH_ENABLE: '/api/integrations/dependency-watch/{workspaceSlug}/enable',
+  INTEGRATIONS_DEPENDENCY_WATCH_DISABLE: '/api/integrations/dependency-watch/{workspaceSlug}/disable',
 
   // Dashboard paths
   DASHBOARD: '/api/dashboard',

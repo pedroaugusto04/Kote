@@ -27,6 +27,7 @@ export const guidedProviders = [
   IntegrationProvider.PrContextAi,
   IntegrationProvider.FileNotesSummaryAi,
   IntegrationProvider.PushNotifications,
+  IntegrationProvider.DependencyWatcher,
 ] as const;
 type GuidedIntegrationProvider = typeof guidedProviders[number];
 
@@ -62,6 +63,7 @@ const providerLabels: Record<GuidedIntegrationProvider, { name: string; descript
   [IntegrationProvider.PrContextAi]: { name: 'PR Context AI', description: 'Automatic Pull Request memory and context retrieval with managed configuration.' },
   [IntegrationProvider.FileNotesSummaryAi]: { name: 'File Notes Summary AI', description: 'Server-managed provider and model for AI-powered file notes summary in VS Code.' },
   [IntegrationProvider.PushNotifications]: { name: 'Push Notifications', description: 'Receive browser push notifications for reminders and updates.' },
+  [IntegrationProvider.DependencyWatcher]: { name: 'Dependency Watcher', description: 'Automatically check for new dependency versions, create notes with changelogs, and send email alerts for critical updates.' },
 };
 
 function isGuidedProvider(value: string): value is GuidedIntegrationProvider {
@@ -152,6 +154,7 @@ function defaultSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.Telegram) return ['Start the connection.', 'Send the code in the Telegram chat.'];
   if (provider === IntegrationProvider.GithubApp) return ['Install or authorize the GitHub App.', 'Select the repositories after connection.'];
   if (provider === IntegrationProvider.PushNotifications) return ['Allow browser notifications.', 'Get push reminders directly in your browser.'];
+  if (provider === IntegrationProvider.DependencyWatcher) return ['Connect GitHub App and select workspace repositories.', 'Enable Dependency Watcher integration.', 'Import dependencies from GitHub repositories.'];
   return ['Enable the feature.', 'The server-managed configuration will be used automatically.'];
 }
 
@@ -159,6 +162,7 @@ function connectedSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.GithubApp) return ['GitHub App connected.', 'Select the workspace repositories.'];
   if (provider === IntegrationProvider.Telegram) return ['Telegram chat connected.'];
   if (provider === IntegrationProvider.PushNotifications) return ['Push notifications are active on this browser/device.'];
+  if (provider === IntegrationProvider.DependencyWatcher) return ['Dependency Watcher enabled.', 'Dependencies are being monitored for updates.'];
   if (provider.startsWith('ai-') || provider.endsWith('-ai')) return ['Feature active for this workspace.'];
   return ['Integration connected.'];
 }
@@ -189,12 +193,14 @@ export class IntegrationCredentialService {
 
   async list(userId: string, workspaceSlug = 'default') {
     if (!workspaceSlug) throw new BadRequestException('workspace_slug_required');
-    const [records, pushSubs] = await Promise.all([
+    const [records, pushSubs, workspaces] = await Promise.all([
       this.credentials.listCredentials(userId, workspaceSlug),
       this.pushSubscriptionRepository
         ? this.pushSubscriptionRepository.listByUserId(userId)
         : Promise.resolve([]),
+      this.contentRepository?.listWorkspaces(userId) || Promise.resolve([]),
     ]);
+    const workspace = workspaces.find((w) => w.workspaceSlug === workspaceSlug);
     const integrations = guidedProviders.map((provider) => {
       if (provider === IntegrationProvider.PushNotifications) {
         const hasSub = pushSubs.length > 0;
@@ -207,6 +213,23 @@ export class IntegrationCredentialService {
           publicMetadata: {},
           primaryAction: { type: 'connect' as const, label: hasSub ? 'Disable' : 'Enable' },
           steps: hasSub ? connectedSteps(provider) : defaultSteps(provider),
+          lastError: null,
+          connectedAccount: null,
+          updatedAt: null,
+          revokedAt: null,
+        };
+      }
+      if (provider === IntegrationProvider.DependencyWatcher) {
+        const enabled = workspace?.dependencyWatcherEnabled || false;
+        return {
+          provider,
+          name: providerLabels[provider].name,
+          description: providerLabels[provider].description,
+          status: enabled ? StoredIntegrationStatus.Connected : StoredIntegrationStatus.Missing,
+          workspaceSlug,
+          publicMetadata: {},
+          primaryAction: { type: 'connect' as const, label: enabled ? 'Disable' : 'Enable' },
+          steps: enabled ? connectedSteps(provider) : defaultSteps(provider),
           lastError: null,
           connectedAccount: null,
           updatedAt: null,

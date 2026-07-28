@@ -42,7 +42,6 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
     useCase = new ImportDependenciesFromGithubUseCase(
       mockDependencyWatcherRepository,
       mockGithubGateway,
-      {} as any,
       mockContentRepository,
       mockCredentialRepository,
       mockLogger,
@@ -162,6 +161,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
 
       await useCase.execute('user-123', 'test-workspace');
 
+      expect(mockCredentialRepository.findCredential).toHaveBeenCalledWith('user-123', 'test-workspace', 'github-app');
       expect(mockDependencyWatcherRepository.upsert).toHaveBeenCalledTimes(4);
       expect(mockDependencyWatcherRepository.upsert).toHaveBeenCalledWith(
         expect.objectContaining({

@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { DependencyWatcherRepository, type CreateDependencyWatchInput } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
 import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
-import { IntegrationCredentialService } from '../../credentials.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -23,7 +22,6 @@ export class ImportDependenciesFromGithubUseCase {
   constructor(
     private readonly dependencyWatcherRepository: DependencyWatcherRepository,
     private readonly githubGateway: GithubIntegrationGateway,
-    private readonly credentialService: IntegrationCredentialService,
     private readonly contentRepository: ContentRepository,
     private readonly credentialRepository: CredentialRepository,
     private readonly logger: AppLogger,
@@ -47,7 +45,7 @@ export class ImportDependenciesFromGithubUseCase {
       return { total: 0, imported: 0, skipped: 0, repositories: 0 };
     }
 
-    const credential = await this.credentialRepository.findCredential(userId, workspace.id, 'github-app');
+    const credential = await this.credentialRepository.findCredential(userId, workspaceSlug, 'github-app');
     if (!credential) {
       throw new NotFoundException('github_credential_not_found');
     }

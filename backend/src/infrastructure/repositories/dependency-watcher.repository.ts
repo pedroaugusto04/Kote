@@ -82,8 +82,25 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
     const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
 
     const records = await db
-      .select()
+      .select({
+        id: dependencyWatch.id,
+        userId: dependencyWatch.userId,
+        workspaceId: dependencyWatch.workspaceId,
+        workspaceSlug: workspaces.workspaceSlug,
+        ecosystem: dependencyWatch.ecosystem,
+        packageName: dependencyWatch.packageName,
+        currentVersion: dependencyWatch.currentVersion,
+        latestSeenVersion: dependencyWatch.latestSeenVersion,
+        checkIntervalHours: dependencyWatch.checkIntervalHours,
+        lastCheckedAt: dependencyWatch.lastCheckedAt,
+        lastAlertedAt: dependencyWatch.lastAlertedAt,
+        enabled: dependencyWatch.enabled,
+        repositoryId: dependencyWatch.repositoryId,
+        createdAt: dependencyWatch.createdAt,
+        updatedAt: dependencyWatch.updatedAt,
+      })
       .from(dependencyWatch)
+      .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
       .where(
         or(
           eq(dependencyWatch.lastCheckedAt, null as any),
@@ -141,6 +158,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       id: record.id,
       userId: record.userId,
       workspaceId: record.workspaceId,
+      workspaceSlug: record.workspaceSlug || '',
       ecosystem: record.ecosystem,
       packageName: record.packageName,
       currentVersion: record.currentVersion,

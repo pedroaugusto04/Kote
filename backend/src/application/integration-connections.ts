@@ -259,6 +259,7 @@ export class IntegrationConnectionService {
       displayName: workspace.displayName,
       whatsappChatJid: workspace.whatsappChatJid,
       telegramChatId: workspace.telegramChatId,
+      dependencyWatcherEnabled: workspace.dependencyWatcherEnabled,
       createdAt: workspace.createdAt,
       updatedAt: now,
     });

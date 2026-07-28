@@ -4,6 +4,7 @@ export type DependencyWatchRecord = {
   id: string;
   userId: string;
   workspaceId: string;
+  workspaceSlug: string;
   ecosystem: DependencyEcosystem;
   packageName: string;
   currentVersion: string;
