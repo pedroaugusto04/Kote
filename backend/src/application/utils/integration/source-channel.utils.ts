@@ -117,6 +117,8 @@ export function parseSourceChannelString(channelString?: string): SourceChannel 
       return SourceChannel.Ide;
     case 'cli':
       return SourceChannel.Cli;
+    case 'dependency-watcher':
+      return SourceChannel.DependencyWatcher;
     case 'external':
     default:
       return SourceChannel.External;
