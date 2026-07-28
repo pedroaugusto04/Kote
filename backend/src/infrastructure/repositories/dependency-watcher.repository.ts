@@ -107,20 +107,24 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
     }
 
     await db.transaction(async (tx) => {
-      // Batch insert
-      if (toInsert.length > 0) {
-        await tx.insert(dependencyWatch).values(
-          toInsert.map((input) => ({
-            userId: input.userId,
-            workspaceId: input.workspaceId,
-            ecosystem: input.ecosystem as any,
-            packageName: input.packageName,
-            currentVersion: input.currentVersion,
-            repositoryId: input.repositoryId || null,
-            enabled: true,
-            checkIntervalHours: 24,
-          })),
-        );
+      // Batch insert in chunks to avoid query size issues
+      const CHUNK_SIZE = 50;
+      for (let i = 0; i < toInsert.length; i += CHUNK_SIZE) {
+        const chunk = toInsert.slice(i, i + CHUNK_SIZE);
+        if (chunk.length > 0) {
+          await tx.insert(dependencyWatch).values(
+            chunk.map((input) => ({
+              userId: input.userId,
+              workspaceId: input.workspaceId,
+              ecosystem: input.ecosystem as any,
+              packageName: input.packageName,
+              currentVersion: input.currentVersion,
+              repositoryId: input.repositoryId || null,
+              enabled: true,
+              checkIntervalHours: 24,
+            })),
+          );
+        }
       }
 
       // Batch update
