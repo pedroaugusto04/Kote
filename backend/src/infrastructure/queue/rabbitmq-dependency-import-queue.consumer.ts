@@ -18,7 +18,10 @@ import { type DependencyImportJobMessage } from './rabbitmq-dependency-import-qu
 import { calculateBackoff, isRateLimitError, RateLimitError, type BackoffOptions } from '../../application/utils/retry/backoff.utils.js';
 
 const QUEUE_NAME = 'kb.dependency_import.jobs';
-const DLX_NAME = 'kb.dependency_import.dlx';
+const EXCHANGE_NAME = 'kb.dependency_import';
+const DLX_NAME = `${EXCHANGE_NAME}.dlx`;
+const DLQ_NAME = `${QUEUE_NAME}.dlq`;
+const ROUTING_KEY = 'dependency_import.run';
 
 const BACKOFF_OPTIONS: BackoffOptions = {
   baseDelayMs: 30000, // 30 seconds (longer for import operations)
@@ -43,12 +46,24 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
 
   protected async setupChannel(channel: Channel): Promise<void> {
     await channel.prefetch(3); // Process fewer import jobs concurrently (more intensive)
+    
+    // Setup exchanges
+    await channel.assertExchange(EXCHANGE_NAME, 'direct', { durable: true });
+    await channel.assertExchange(DLX_NAME, 'direct', { durable: true });
+
+    // Setup main queue with DLX
     await channel.assertQueue(QUEUE_NAME, {
       durable: true,
       arguments: {
         'x-dead-letter-exchange': DLX_NAME,
+        'x-dead-letter-routing-key': ROUTING_KEY,
       },
     });
+    await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
+
+    // Setup DLQ
+    await channel.assertQueue(DLQ_NAME, { durable: true });
+    await channel.bindQueue(DLQ_NAME, DLX_NAME, ROUTING_KEY);
   }
 
   protected async startConsuming(channel: Channel): Promise<void> {
@@ -263,9 +278,10 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
             retryCount: backoff.retryCount + 1,
           };
 
+          // Re-publish to the exchange (not directly to queue)
           channel.publish(
-            '',
-            QUEUE_NAME,
+            EXCHANGE_NAME,
+            ROUTING_KEY,
             Buffer.from(JSON.stringify(retryMessage)),
             { persistent: true },
           );
@@ -278,7 +294,7 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
           workspaceSlug,
           retryCount: backoff.retryCount,
         });
-        channel.nack(msg, false, false); // Send to DLQ
+        channel.nack(msg, false, false); // Send to DLQ via DLX
       }
     }
   }
