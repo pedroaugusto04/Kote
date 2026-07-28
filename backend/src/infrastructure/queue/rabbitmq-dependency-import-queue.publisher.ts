@@ -67,7 +67,6 @@ export class RabbitMqDependencyImportQueuePublisher extends BaseRabbitMqPublishe
       durable: true,
       arguments: {
         'x-dead-letter-exchange': DLX_NAME,
-        'x-message-ttl': 7200000, // 2 hours TTL
       },
     });
     await channel.bindQueue(QUEUE_NAME, EXCHANGE_NAME, ROUTING_KEY);
