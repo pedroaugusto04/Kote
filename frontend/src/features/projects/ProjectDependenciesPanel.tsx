@@ -159,7 +159,13 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                         type="button"
                         onClick={() => toggleDependencyMutation.mutate({ dependencyId: dependency.id, enabled: !dependency.enabled })}
                         disabled={toggleDependencyMutation.isPending}
-                        style={{ padding: '4px 8px', fontSize: '12px' }}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          backgroundColor: dependency.enabled ? 'var(--surface-danger)' : 'var(--surface-hover)',
+                          color: dependency.enabled ? 'var(--danger-text)' : 'var(--text)',
+                          border: dependency.enabled ? '1px solid var(--danger-border)' : '1px solid var(--border-subtle)',
+                        }}
                         title={dependency.enabled ? 'Disable monitoring' : 'Enable monitoring'}
                       >
                         {dependency.enabled ? 'Disable' : 'Enable'}
