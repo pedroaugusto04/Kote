@@ -69,6 +69,7 @@ export class ListProjectDependenciesUseCase {
         currentVersion: dependency.currentVersion,
         latestSeenVersion: dependency.latestSeenVersion,
         lastCheckedAt: dependency.lastCheckedAt?.toISOString() || null,
+        lastUrgency: dependency.lastUrgency,
         enabled: dependency.enabled,
       });
       grouped.set(repositoryId, group);

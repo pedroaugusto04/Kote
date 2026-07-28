@@ -12,6 +12,7 @@ export type DependencyWatchRecord = {
   checkIntervalHours: number;
   lastCheckedAt: Date | null;
   lastAlertedAt: Date | null;
+  lastUrgency: 'optional' | 'recommended' | 'critical' | null;
   enabled: boolean;
   repositoryId: string | null;
   createdAt: Date;
@@ -31,6 +32,7 @@ export type UpdateDependencyWatchInput = {
   latestSeenVersion?: string;
   lastCheckedAt?: Date;
   lastAlertedAt?: Date;
+  lastUrgency?: 'optional' | 'recommended' | 'critical' | null;
   enabled?: boolean;
 };
 

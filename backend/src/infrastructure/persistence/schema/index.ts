@@ -788,6 +788,7 @@ export const githubBackfillJobs = pgTable('kb_github_backfill_jobs', {
 
 // Dependency Watch
 export const dependencyEcosystemEnum = pgEnum('dependency_ecosystem', ['npm', 'pip', 'composer', 'cargo', 'maven', 'gradle', 'go', 'nuget', 'rubygems']);
+export const dependencyUrgencyEnum = pgEnum('dependency_urgency', ['optional', 'recommended', 'critical']);
 
 export const dependencyWatch = pgTable('kb_dependency_watch', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -800,6 +801,7 @@ export const dependencyWatch = pgTable('kb_dependency_watch', {
   checkIntervalHours: integer('check_interval_hours').notNull().default(24),
   lastCheckedAt: timestamp('last_checked_at', { withTimezone: true }),
   lastAlertedAt: timestamp('last_alerted_at', { withTimezone: true }),
+  lastUrgency: dependencyUrgencyEnum('last_urgency'),
   enabled: boolean('enabled').notNull().default(true),
   repositoryId: uuid('repository_id'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

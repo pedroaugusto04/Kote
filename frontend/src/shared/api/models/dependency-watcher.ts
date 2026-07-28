@@ -18,6 +18,7 @@ export type ProjectDependencyItem = {
   currentVersion: string;
   latestSeenVersion: string;
   lastCheckedAt: string | null;
+  lastUrgency: 'optional' | 'recommended' | 'critical' | null;
   enabled: boolean;
 };
 

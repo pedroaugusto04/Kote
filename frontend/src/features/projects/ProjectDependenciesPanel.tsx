@@ -66,6 +66,28 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
 
   return (
     <div className="project-dependencies-panel">
+      <style>{`
+        .urgency-badge {
+          display: inline-block;
+          padding: 2px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+        .urgency-critical {
+          background: #fee2e2;
+          color: #dc2626;
+        }
+        .urgency-recommended {
+          background: #fef3c7;
+          color: #d97706;
+        }
+        .urgency-optional {
+          background: #dbeafe;
+          color: #2563eb;
+        }
+      `}</style>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
         <button
           className="icon-button"
@@ -91,6 +113,7 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                   <th scope="col">Current</th>
                   <th scope="col">Latest seen</th>
                   <th scope="col">Last check</th>
+                  <th scope="col">Urgency</th>
                   <th scope="col">Actions</th>
                 </tr>
               </thead>
@@ -102,6 +125,15 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                     <td>{dependency.currentVersion}</td>
                     <td>{dependency.latestSeenVersion || '—'}</td>
                     <td>{formatDateIso(dependency.lastCheckedAt || undefined) || '—'}</td>
+                    <td>
+                      {dependency.lastUrgency ? (
+                        <span className={`urgency-badge urgency-${dependency.lastUrgency}`}>
+                          {dependency.lastUrgency}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#9ca3af', fontSize: '12px' }}>—</span>
+                      )}
+                    </td>
                     <td>
                       <button
                         className="icon-button"

@@ -122,6 +122,7 @@ export class DependencyWatcherService {
     await this.dependencyWatcherRepository.update(record.id, {
       latestSeenVersion: versionInfo.version,
       lastAlertedAt: new Date(),
+      lastUrgency: analysis.urgency,
     });
 
     return true;
