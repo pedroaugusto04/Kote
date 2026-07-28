@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, lt, or, inArray } from 'drizzle-orm';
+import { eq, and, lt, or, inArray, isNull } from 'drizzle-orm';
 
 import { dependencyWatch, dependencyMonitoredRepositories, workspaces } from '../persistence/schema/index.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -261,7 +261,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         and(
           eq(dependencyWatch.enabled, true),
           or(
-            eq(dependencyWatch.lastCheckedAt, null as any),
+            isNull(dependencyWatch.lastCheckedAt),
             lt(dependencyWatch.lastCheckedAt, cutoffDate),
           ),
         ),
