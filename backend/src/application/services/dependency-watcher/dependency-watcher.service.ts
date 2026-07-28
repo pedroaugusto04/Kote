@@ -282,11 +282,24 @@ export class DependencyWatcherService {
       return;
     }
 
+    // Get project name from repository
+    let projectName = 'Unknown Project';
+    if (record.repositoryId) {
+      const projects = await this.contentRepository.listProjects(record.userId);
+      for (const project of projects) {
+        if (project.repositories.some(repo => repo.id === record.repositoryId)) {
+          projectName = project.displayName;
+          break;
+        }
+      }
+    }
+
     await this.emailService.sendEmail({
       to: user.email,
-      subject: `[${analysis.urgency.toUpperCase()}] Dependency Update: ${record.packageName}`,
+      subject: `[${analysis.urgency.toUpperCase()}] Dependency Update: ${record.packageName} (${projectName})`,
       templateName: 'dependency-alert',
       templateData: {
+        projectName,
         packageName: record.packageName,
         currentVersion: record.currentVersion,
         latestVersion: versionInfo.version,
