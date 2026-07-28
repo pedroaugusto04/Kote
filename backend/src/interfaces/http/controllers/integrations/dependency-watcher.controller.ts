@@ -9,7 +9,7 @@ import { CheckDependencyUseCase } from '../../../../application/use-cases/depend
 import { CurrentUser } from '../../auth.decorators.js';
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { PostgresWorkspaceRepository } from '../../../../infrastructure/repositories/workspace.repository.js';
-import { PostgresDependencyWatcherRepository } from '../../../../infrastructure/repositories/dependency-watcher.repository.js';
+import { DependencyWatcherRepository } from '../../../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
 
 @ApiTags('Integrations')
@@ -23,7 +23,7 @@ export class DependencyWatcherController {
     private readonly checkProjectDependenciesUseCase: CheckProjectDependenciesUseCase,
     private readonly checkDependencyUseCase: CheckDependencyUseCase,
     private readonly workspaceRepository: PostgresWorkspaceRepository,
-    private readonly dependencyWatcherRepository: PostgresDependencyWatcherRepository,
+    private readonly dependencyWatcherRepository: DependencyWatcherRepository,
   ) {}
 
   @Get('repositories')
