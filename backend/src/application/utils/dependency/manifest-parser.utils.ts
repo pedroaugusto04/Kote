@@ -261,10 +261,10 @@ function parseCargoToml(content: string): ParsedDependency[] {
           continue;
         }
 
-        // Handle path dependencies: name = { path = "..." }
-        const pathMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{\s*path\s*=/);
-        if (pathMatch) {
-          // Skip path dependencies as they are local
+        // Handle inline format: name = { version = "x.y.z" }
+        const inlineMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{\s*version\s*=\s*"([^"]+)"\s*\}/);
+        if (inlineMatch) {
+          dependencies.push({ packageName: inlineMatch[1], version: inlineMatch[2] });
           continue;
         }
 
@@ -272,6 +272,20 @@ function parseCargoToml(content: string): ParsedDependency[] {
         const gitMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{\s*git\s*=/);
         if (gitMatch) {
           // Skip git dependencies as they are external
+          continue;
+        }
+
+        // Handle path dependencies: name = { path = "..." }
+        const pathMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{\s*path\s*=/);
+        if (pathMatch) {
+          // Skip path dependencies as they are local
+          continue;
+        }
+
+        // Fallback: if we can't parse, use a default version
+        const fallbackMatch = trimmed.match(/^([a-zA-Z0-9_-]+)\s*=/);
+        if (fallbackMatch) {
+          dependencies.push({ packageName: fallbackMatch[1], version: 'unknown' });
           continue;
         }
       }
