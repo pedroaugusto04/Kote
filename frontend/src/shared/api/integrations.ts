@@ -125,3 +125,11 @@ export function checkDependency(dependencyId: string, projectId: string, project
     body: JSON.stringify({ dependencyId, projectId, projectSlug }),
   });
 }
+
+export function toggleDependency(dependencyId: string, workspaceSlug: string, enabled: boolean): Promise<{ ok: true; data: { enabled: boolean } }> {
+  return request<{ ok: true; data: { enabled: boolean } }>(`/api/integrations/dependency-watch/dependency/${dependencyId}/toggle`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ workspaceSlug, enabled }),
+  });
+}

@@ -9,6 +9,7 @@ import { CheckDependencyUseCase } from '../../../../application/use-cases/depend
 import { CurrentUser } from '../../auth.decorators.js';
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { PostgresWorkspaceRepository } from '../../../../infrastructure/repositories/workspace.repository.js';
+import { PostgresDependencyWatcherRepository } from '../../../../infrastructure/repositories/dependency-watcher.repository.js';
 import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
 
 @ApiTags('Integrations')
@@ -22,6 +23,7 @@ export class DependencyWatcherController {
     private readonly checkProjectDependenciesUseCase: CheckProjectDependenciesUseCase,
     private readonly checkDependencyUseCase: CheckDependencyUseCase,
     private readonly workspaceRepository: PostgresWorkspaceRepository,
+    private readonly dependencyWatcherRepository: PostgresDependencyWatcherRepository,
   ) {}
 
   @Get('repositories')
@@ -145,6 +147,32 @@ export class DependencyWatcherController {
     return {
       ok: true,
       data: result,
+    };
+  }
+
+  @Patch('dependency/:dependencyId/toggle')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async toggleDependency(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('dependencyId') dependencyId: string,
+    @Body() body: { workspaceSlug: string; enabled: boolean },
+  ) {
+    const workspace = await this.workspaceRepository.getBySlug(user.id, body.workspaceSlug);
+    if (!workspace) {
+      throw new NotFoundException('workspace_not_found');
+    }
+
+    const dependency = await this.dependencyWatcherRepository.findById(user.id, workspace.id, dependencyId);
+    if (!dependency) {
+      throw new NotFoundException('dependency_not_found');
+    }
+
+    await this.dependencyWatcherRepository.update(dependencyId, { enabled: body.enabled });
+
+    return {
+      ok: true,
+      data: { enabled: body.enabled },
     };
   }
 }

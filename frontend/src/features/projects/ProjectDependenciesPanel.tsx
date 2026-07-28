@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { fetchProjectDependencies } from '../../shared/api/projects';
-import { checkProjectDependencies, checkDependency } from '../../shared/api/integrations';
+import { checkProjectDependencies, checkDependency, toggleDependency } from '../../shared/api/integrations';
 import { EmptyState, InlineMessage } from '../../shared/ui/primitives';
 import { formatDateIso } from '../../shared/utils/format';
 import { notifySuccess, notifyError } from '../../shared/ui/notifications';
@@ -44,6 +44,19 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
     onError: (error) => {
       notifyError('Failed to start dependency check. Please try again.');
       console.error('Dependency check error:', error);
+    },
+  });
+
+  const toggleDependencyMutation = useMutation({
+    mutationFn: ({ dependencyId, enabled }: { dependencyId: string; enabled: boolean }) => 
+      globalLoading.trackPromise(toggleDependency(dependencyId, projectSlug, enabled)),
+    onSuccess: (result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['project-dependencies', projectSlug] });
+      notifySuccess(`Dependency ${variables.enabled ? 'enabled' : 'disabled'}.`);
+    },
+    onError: (error) => {
+      notifyError('Failed to toggle dependency. Please try again.');
+      console.error('Toggle dependency error:', error);
     },
   });
 
@@ -143,10 +156,20 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
                         className="icon-button"
                         type="button"
                         onClick={() => checkDependencyMutation.mutate(dependency.id)}
-                        disabled={checkDependencyMutation.isPending}
+                        disabled={checkDependencyMutation.isPending || !dependency.enabled}
                         style={{ padding: '4px 8px', fontSize: '12px' }}
                       >
                         {checkDependencyMutation.isPending ? 'Checking...' : 'Check'}
+                      </button>
+                      <button
+                        className="icon-button"
+                        type="button"
+                        onClick={() => toggleDependencyMutation.mutate({ dependencyId: dependency.id, enabled: !dependency.enabled })}
+                        disabled={toggleDependencyMutation.isPending}
+                        style={{ padding: '4px 8px', fontSize: '12px', marginLeft: '4px' }}
+                        title={dependency.enabled ? 'Disable monitoring' : 'Enable monitoring'}
+                      >
+                        {dependency.enabled ? 'Disable' : 'Enable'}
                       </button>
                     </td>
                   </tr>
