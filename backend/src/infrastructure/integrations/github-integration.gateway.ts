@@ -86,5 +86,5 @@ export class DefaultGithubIntegrationGateway extends GithubIntegrationGateway {
   ): Promise<string> {
     return fetchGithubFileContent(repoFullName, path, token);
   }
-}
+} 
 

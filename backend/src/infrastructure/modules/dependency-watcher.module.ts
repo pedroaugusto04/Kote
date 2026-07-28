@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 
 import { DependencyWatcherService } from '../../application/services/dependency-watcher/dependency-watcher.service.js';
 import { DependencyWatcherWorker } from '../../application/workers/dependency-watcher.worker.js';
-import { ImportDependenciesFromGithubUseCase } from '../../application/use-cases/dependency-watcher/import-dependencies-from-github.use-case.js';
 import { DefaultDependencyAlertGateway } from '../ai/dependency-alert.gateway.js';
 import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
 import { DependencyAlertGateway } from '../../application/ports/dependency-watcher/dependency-alert.port.js';
@@ -13,6 +12,7 @@ import { AuthModule } from './auth.module.js';
 import { EnvModule } from './env.module.js';
 import { LoggerModule } from './logger.module.js';
 import { EmailModule } from './email.module.js';
+import { AiModule } from './ai.module.js';
 
 @Module({
   imports: [
@@ -22,13 +22,13 @@ import { EmailModule } from './email.module.js';
     EnvModule,
     LoggerModule,
     EmailModule,
+    AiModule,
   ],
   providers: [
     PostgresDependencyWatcherRepository,
     DefaultDependencyAlertGateway,
     DependencyWatcherService,
     DependencyWatcherWorker,
-    ImportDependenciesFromGithubUseCase,
     {
       provide: DependencyWatcherRepository,
       useExisting: PostgresDependencyWatcherRepository,
@@ -41,7 +41,6 @@ import { EmailModule } from './email.module.js';
   exports: [
     DependencyWatcherService,
     DependencyWatcherWorker,
-    ImportDependenciesFromGithubUseCase,
     DependencyWatcherRepository,
     DependencyAlertGateway,
   ],

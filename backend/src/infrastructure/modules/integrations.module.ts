@@ -12,7 +12,6 @@ import { WorkspacesModule } from './workspaces.module.js';
 import { EmailModule } from './email.module.js';
 import { QuotaModule } from './quota.module.js';
 import { ProjectsModule } from './projects.module.js';
-import { DependencyWatcherModule } from './dependency-watcher.module.js';
 
 import {
   IntegrationConnectionService,
@@ -32,6 +31,9 @@ import {
   DeleteWebhookSubscriptionUseCase,
   IngestEntryUseCase,
 } from '../../application/use-cases/index.js';
+import { ImportDependenciesFromGithubUseCase } from '../../application/use-cases/dependency-watcher/import-dependencies-from-github.use-case.js';
+import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
+import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
 import { WebhookDeliveryService } from '../../application/services/webhooks/webhook-delivery.service.js';
 import { WebhookDeliveryWorker } from '../../application/workers/webhook-delivery.worker.js';
 import { ProcessGithubPushService } from '../../application/services/integrations/process-github-push.service.js';
@@ -67,7 +69,6 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     EmailModule,
     QuotaModule,
     ProjectsModule,
-    DependencyWatcherModule,
   ],
   controllers: [
     UserIntegrationsController,
@@ -99,12 +100,16 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     UpdateWebhookSubscriptionUseCase,
     DeleteWebhookSubscriptionUseCase,
     IngestEntryUseCase,
+    ImportDependenciesFromGithubUseCase,
+    PostgresDependencyWatcherRepository,
+    { provide: DependencyWatcherRepository, useExisting: PostgresDependencyWatcherRepository },
   ],
   exports: [
     IntegrationConnectionService,
     IntegrationCredentialService,
     WebhookDeliveryService,
     WebhookDeliveryWorker,
+    ImportDependenciesFromGithubUseCase,
   ],
 })
 export class IntegrationsModule {}
