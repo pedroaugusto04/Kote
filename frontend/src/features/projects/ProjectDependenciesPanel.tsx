@@ -69,23 +69,27 @@ export function ProjectDependenciesPanel({ projectSlug, projectId }: { projectSl
       <style>{`
         .urgency-badge {
           display: inline-block;
-          padding: 2px 8px;
-          border-radius: 4px;
+          padding: 3px 10px;
+          border-radius: 6px;
           font-size: 11px;
-          font-weight: 600;
+          font-weight: 500;
+          letter-spacing: 0.02em;
           text-transform: uppercase;
         }
         .urgency-critical {
-          background: #fee2e2;
-          color: #dc2626;
+          background: var(--surface-danger);
+          color: var(--danger-text);
+          border: 1px solid var(--danger-border);
         }
         .urgency-recommended {
-          background: #fef3c7;
-          color: #d97706;
+          background: var(--surface-warning);
+          color: var(--warning-text);
+          border: 1px solid var(--warning-border);
         }
         .urgency-optional {
-          background: #dbeafe;
-          color: #2563eb;
+          background: var(--surface-info);
+          color: var(--info-text);
+          border: 1px solid var(--info-border);
         }
       `}</style>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
