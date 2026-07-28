@@ -69,12 +69,15 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
     const userId = inputs[0].userId;
     const workspaceId = inputs[0].workspaceId;
 
-    // Fetch all existing records in one query
-    const packageKeys = inputs.map((input) => ({
-      ecosystem: input.ecosystem,
-      packageName: input.packageName,
-    }));
+    // Deduplicate inputs by ecosystem:packageName (keep last occurrence)
+    const inputMap = new Map<string, CreateDependencyWatchInput>();
+    for (const input of inputs) {
+      const key = `${input.ecosystem}:${input.packageName}`;
+      inputMap.set(key, input);
+    }
+    const deduplicatedInputs = Array.from(inputMap.values());
 
+    // Fetch all existing records in one query
     const existingRecords = await db
       .select()
       .from(dependencyWatch)
@@ -95,7 +98,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
     const toInsert: CreateDependencyWatchInput[] = [];
     const toUpdate: Array<{ id: string; input: CreateDependencyWatchInput }> = [];
 
-    for (const input of inputs) {
+    for (const input of deduplicatedInputs) {
       const key = `${input.ecosystem}:${input.packageName}`;
       const existing = existingMap.get(key);
 
