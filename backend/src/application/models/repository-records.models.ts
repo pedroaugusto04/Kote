@@ -74,6 +74,7 @@ export type IntegrationConnectionSessionRecord = {
 
 export type WorkspaceRecord = {
   id: string;
+  userId: string;
   workspaceSlug: string;
   displayName: string;
   whatsappChatJid: string;

@@ -1045,6 +1045,7 @@ function projectTimelineCategory(record: Pick<NoteRecord, 'metadata' | 'source' 
   if (record.sourceChannel === SourceChannel.Github || record.sourceChannel === 'github-push') return TimelineCategory.Github;
   if (record.sourceChannel === SourceChannel.Whatsapp) return TimelineCategory.Whatsapp;
   if (record.sourceChannel === SourceChannel.AiChat) return TimelineCategory.AiChat;
+  if (record.sourceChannel === SourceChannel.DependencyWatcher) return TimelineCategory.DependencyWatcher;
   if (record.sourceChannel === SourceChannel.Cli) return TimelineCategory.Manual;
   if (record.sourceChannel === SourceChannel.Ide) return TimelineCategory.Manual;
   return TimelineCategory.Manual;
@@ -1098,7 +1099,13 @@ function appendTimelineCategoryClause(clauses: string[], values: unknown[], cate
     clauses.push(`n.source_channel = $${values.length}`);
     return;
   }
-  values.push(SourceChannel.Github, SourceChannel.Whatsapp, SourceChannel.AiChat);
+  if (category === TimelineCategory.DependencyWatcher) {
+    values.push(SourceChannel.DependencyWatcher);
+    clauses.push(`n.source_channel = $${values.length}`);
+    return;
+  }
+  values.push(SourceChannel.Github, SourceChannel.Whatsapp, SourceChannel.AiChat, SourceChannel.DependencyWatcher);
+  clauses.push(`n.source_channel <> $${values.length - 3}`);
   clauses.push(`n.source_channel <> $${values.length - 2}`);
   clauses.push(`n.source_channel <> $${values.length - 1}`);
   clauses.push(`n.source_channel <> $${values.length}`);

@@ -264,6 +264,62 @@
   align-items: start;
 }
 
+.project-browser-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.project-view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.project-dependencies-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.dependency-group {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background: var(--surface-3);
+}
+
+.dependency-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.dependency-table-wrap {
+  overflow-x: auto;
+}
+
+.dependency-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+.dependency-table th,
+.dependency-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  vertical-align: top;
+}
+
+.dependency-table th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
 .folder-browser {
   display: grid;
   gap: 12px;

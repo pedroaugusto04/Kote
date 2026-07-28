@@ -26,6 +26,9 @@ import {
   ListPaginatedReviewsUseCase,
   GetProjectCoverageUseCase,
 } from '../../application/use-cases/index.js';
+import { ListProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
+import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
+import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
 import { ProjectsController } from '../../interfaces/http/controllers/index.js';
 import { ProjectCoverageRepository } from '../../application/ports/projects/project-coverage.repository.js';
 import { PostgresProjectCoverageRepository } from '../repositories/project-coverage.repository.js';
@@ -64,9 +67,12 @@ import { SyncProjectFilesService } from '../../application/services/projects/syn
     GetReviewDetailUseCase,
     ListPaginatedReviewsUseCase,
     GetProjectCoverageUseCase,
+    ListProjectDependenciesUseCase,
     SyncProjectFilesService,
     PostgresProjectCoverageRepository,
+    PostgresDependencyWatcherRepository,
     { provide: ProjectCoverageRepository, useExisting: PostgresProjectCoverageRepository },
+    { provide: DependencyWatcherRepository, useExisting: PostgresDependencyWatcherRepository },
     ProjectResolutionGuard,
     OptionalProjectResolutionGuard,
   ],

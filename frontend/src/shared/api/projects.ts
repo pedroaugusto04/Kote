@@ -157,3 +157,7 @@ export async function fetchProjectCoverage(projectSlug: string) {
   return res?.coverage || res;
 }
 
+export function fetchProjectDependencies(projectSlug: string) {
+  return request<import('./models/dependency-watcher').ProjectDependenciesResponse>(buildApiPath(API_PATHS.PROJECT_DEPENDENCIES, { projectSlug }));
+}
+

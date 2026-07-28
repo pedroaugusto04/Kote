@@ -68,6 +68,10 @@ export class PostgresContentRepository extends ContentRepository {
     return this.workspaceRepository.getBySlug(userId, workspaceSlug);
   }
 
+  async getWorkspaceById(workspaceId: string) {
+    return this.workspaceRepository.getById(workspaceId);
+  }
+
   async upsertWorkspace(userId: string, input: SaveWorkspaceInput) {
     return this.workspaceRepository.upsert(userId, input);
   }

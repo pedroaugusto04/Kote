@@ -810,3 +810,14 @@ export const dependencyWatch = pgTable('kb_dependency_watch', {
   lastCheckedIdx: index('kb_dependency_watch_last_checked_idx').on(table.lastCheckedAt),
 }));
 
+export const dependencyMonitoredRepositories = pgTable('kb_dependency_monitored_repositories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  repositoryId: uuid('repository_id').notNull().references(() => repositories.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  workspaceIdx: index('kb_dependency_monitored_repositories_workspace_idx').on(table.userId, table.workspaceId),
+  uniqueRepo: uniqueIndex('kb_dependency_monitored_repositories_unique_idx').on(table.userId, table.workspaceId, table.repositoryId),
+}));
+

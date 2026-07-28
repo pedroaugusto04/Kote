@@ -18,7 +18,6 @@ import {
   fetchPushPublicKey,
   subscribePush,
   unsubscribePush,
-  importDependenciesFromGithub,
   enableDependencyWatcher,
   disableDependencyWatcher,
 } from '../../shared/api/client';
@@ -42,7 +41,7 @@ import {
   storeBackfillJob,
 } from './backfill-storage';
 import { GithubPrivacyModal } from './GithubPrivacyModal';
-import { DependencyImportModal } from './DependencyImportModal';
+import { DependencyMonitoredRepositoriesModal } from './DependencyMonitoredRepositoriesModal';
 
 const statusTone: Record<DisplayStatus | string, string> = {
   [StoredIntegrationStatus.Connected]: 'low',
@@ -382,7 +381,7 @@ function IntegrationCard({
   githubConnected,
   onCodeConnection,
   onGithubRepositories,
-  onDependencyImport,
+  onDependencyMonitoredRepositories,
 }: {
   integration: UserIntegration;
   workspaceSlug: string;
@@ -390,7 +389,7 @@ function IntegrationCard({
   githubConnected: boolean;
   onCodeConnection: (connection: IntegrationConnectionResponse) => void;
   onGithubRepositories: () => void;
-  onDependencyImport: () => void;
+  onDependencyMonitoredRepositories: () => void;
 }) {
   const queryClient = useQueryClient();
   const globalLoading = useGlobalLoading();
@@ -554,10 +553,10 @@ function IntegrationCard({
               <button
                 className="filter-chip"
                 type="button"
-                onClick={onDependencyImport}
+                onClick={onDependencyMonitoredRepositories}
                 disabled={!githubConnected}
               >
-                Import Dependencies
+                Monitored Repositories
               </button>
               <button
                 className="filter-chip"
@@ -773,7 +772,7 @@ export function GuidedIntegrationsSection({
   const [codeConnection, setCodeConnection] = useState<IntegrationConnectionResponse | null>(null);
   const [showGithubRepositories, setShowGithubRepositories] = useState(false);
   const [showGithubSuccessModal, setShowGithubSuccessModal] = useState(false);
-  const [showDependencyImport, setShowDependencyImport] = useState(false);
+  const [showDependencyMonitoredRepositories, setShowDependencyMonitoredRepositories] = useState(false);
   const [pendingBackfillRepositories, setPendingBackfillRepositories] = useState<string[] | null>(null);
   const didAutoOpen = useRef(false);
   const queryClient = useQueryClient();
@@ -821,7 +820,7 @@ export function GuidedIntegrationsSection({
       githubConnected={githubConnected}
       onCodeConnection={setCodeConnection}
       onGithubRepositories={() => setShowGithubRepositories(true)}
-      onDependencyImport={() => setShowDependencyImport(true)}
+      onDependencyMonitoredRepositories={() => setShowDependencyMonitoredRepositories(true)}
     />
   ));
 
@@ -853,10 +852,10 @@ export function GuidedIntegrationsSection({
           }}
         />
       ) : null}
-      {showDependencyImport ? (
-        <DependencyImportModal
+      {showDependencyMonitoredRepositories ? (
+        <DependencyMonitoredRepositoriesModal
           workspaceSlug={workspaceSlug}
-          onClose={() => setShowDependencyImport(false)}
+          onClose={() => setShowDependencyMonitoredRepositories(false)}
         />
       ) : null}
       {pendingBackfillRepositories?.length ? (

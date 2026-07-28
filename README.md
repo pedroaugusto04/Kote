@@ -106,7 +106,7 @@ Integrates directly with your editor to capture context during development.
 * **Quick Save**: Save code selections as notes with a right-click.
 * **AI Session Sync**: Automatically syncs local AI CLI sessions (Antigravity, Codex, Claude Code, etc.) in the background.
 
-For configuration details, see [ide/vscode/README.md](ide/vscode/README.md).
+For configuration details, see [ide/vscode/README.md](./ide/vscode/README.md).
 </details>
 
 <details>
@@ -119,6 +119,20 @@ For configuration details, see [ide/vscode/README.md](ide/vscode/README.md).
 </details>
 
 <details>
+<summary><strong>Dependency Watcher</strong></summary>
+
+Automatically monitor package dependencies across multiple ecosystems (npm, pip, composer, maven, cargo) and get notified about security updates and breaking changes.
+
+* **Multi-Ecosystem Support**: Detects dependencies from package.json, requirements.txt, composer.json, pom.xml, and Cargo.toml
+* **AI-Powered Analysis**: Analyzes changelogs to classify update urgency (critical, recommended, optional)
+* **Email Alerts**: Sends email notifications for critical and recommended updates
+* **Knowledge Base Integration**: Creates notes for each dependency update with full analysis
+* **Daily Monitoring**: Automated cron job checks for new versions daily
+
+For details, see [docs/DEPENDENCY_WATCHER.md](./docs/DEPENDENCY_WATCHER.md).
+</details>
+
+<details>
 <summary><strong>Kote CLI</strong></summary>
 
 Synchronize terminal session histories and import local directories or files.
@@ -127,7 +141,7 @@ Synchronize terminal session histories and import local directories or files.
   <img src="docs/screenshots/cli-sync-ai-command.png" alt="Sync AI CLI Command" width="100%">
   <br><em>Importing AI session history from the terminal.</em>
 </p>
-For installation steps and command options, see [cli/README.md](cli/README.md).
+For installation steps and command options, see [cli/README.md](./cli/README.md).
 
 </details>
 
@@ -156,22 +170,8 @@ Save documentation, issues, and articles directly from the web browser.
   <img src="frontend/public/browser-extension-window.png" alt="Browser Extension Popup" width="70%">
   <br><em>Browser extension popup for saving web content.</em>
 </p>
-See [ide/browser-extension/README.md](ide/browser-extension/README.md).
+For details, see [ide/browser-extension/README.md](./ide/browser-extension/README.md).
 
-</details>
-
-<details>
-<summary><strong>Dependency Watcher</strong></summary>
-
-Automatically monitor package dependencies across multiple ecosystems (npm, pip, composer, maven, cargo) and get notified about security updates and breaking changes.
-
-* **Multi-Ecosystem Support**: Detects dependencies from package.json, requirements.txt, composer.json, pom.xml, and Cargo.toml
-* **AI-Powered Analysis**: Analyzes changelogs to classify update urgency (critical, recommended, optional)
-* **Email Alerts**: Sends email notifications for critical and recommended updates
-* **Knowledge Base Integration**: Creates notes for each dependency update with full analysis
-* **Daily Monitoring**: Automated cron job checks for new versions daily
-
-See [docs/DEPENDENCY_WATCHER.md](docs/DEPENDENCY_WATCHER.md) for detailed setup and configuration.
 </details>
 
 <details>

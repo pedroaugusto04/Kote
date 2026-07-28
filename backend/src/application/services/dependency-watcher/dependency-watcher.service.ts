@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 import { DependencyWatcherRepository, type DependencyWatchRecord } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
 import { DependencyAlertGateway, type DependencyAlertConfig, type DependencyAlertPayload, type DependencyAlertResult } from '../../ports/dependency-watcher/dependency-alert.port.js';
@@ -8,8 +9,13 @@ import { IngestEntryUseCase } from '../../use-cases/ingest/ingest-entry.use-case
 import { EmailService } from '../email/email.service.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Importance, DependencyUrgency } from '../../../contracts/enums.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { RabbitMqDependencyCheckQueuePublisher } from '../../../infrastructure/queue/rabbitmq-dependency-check-queue.publisher.js';
+
+// checkPackage is still used by the RabbitMQ consumer for async processing
+// It's no longer called directly by runCheck (cron job)
 
 @Injectable()
 export class DependencyWatcherService {
@@ -21,43 +27,75 @@ export class DependencyWatcherService {
     private readonly emailService: EmailService,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly userRepository: UserRepository,
+    private readonly contentRepository: ContentRepository,
+    private readonly dependencyCheckQueuePublisher: RabbitMqDependencyCheckQueuePublisher,
     private readonly logger: AppLogger,
   ) {}
 
-  async runCheck(checkIntervalHours: number = 24): Promise<{ checked: number; updates: number; errors: number }> {
+  async runCheck(checkIntervalHours: number = 24): Promise<{ queued: number; workspaces: number }> {
     const records = await this.dependencyWatcherRepository.findDueForCheck(checkIntervalHours);
     
-    let checked = 0;
-    let updates = 0;
-    let errors = 0;
+    if (records.length === 0) {
+      return { queued: 0, workspaces: 0 };
+    }
 
+    // Group dependencies by workspace and repository for efficient batching
+    const groupedByWorkspace = new Map<string, Map<string, string[]>>();
+    
     for (const record of records) {
       if (!record.enabled) continue;
+      if (!record.repositoryId) continue;
 
       const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(record.workspaceId);
       if (!workspaceEnabled) continue;
 
-      try {
-        checked++;
-        const hasUpdate = await this.checkPackage(record);
-        
-        if (hasUpdate) {
-          updates++;
-        }
-      } catch (error) {
-        this.logger.error('dependency_watcher_check_package_failed', {
-          packageName: record.packageName,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        errors++;
+      if (!groupedByWorkspace.has(record.workspaceId)) {
+        groupedByWorkspace.set(record.workspaceId, new Map());
       }
-
-      await this.dependencyWatcherRepository.update(record.id, {
-        lastCheckedAt: new Date(),
-      });
+      
+      const workspaceMap = groupedByWorkspace.get(record.workspaceId)!;
+      if (!workspaceMap.has(record.repositoryId)) {
+        workspaceMap.set(record.repositoryId, []);
+      }
+      
+      workspaceMap.get(record.repositoryId)!.push(record.id);
     }
 
-    return { checked, updates, errors };
+    let totalQueued = 0;
+    const workspaceIds = Array.from(groupedByWorkspace.keys());
+
+    // Publish one job per workspace-repository combination
+    for (const [workspaceId, repositoryMap] of groupedByWorkspace) {
+      const workspace = await this.contentRepository.getWorkspaceById(workspaceId);
+      if (!workspace) {
+        this.logger.warn('dependency_watcher_cron_workspace_not_found', { workspaceId });
+        continue;
+      }
+
+      for (const [repositoryId, dependencyIds] of repositoryMap) {
+        const jobId = randomUUID();
+        
+        await this.dependencyCheckQueuePublisher.publish({
+          jobId,
+          userId: workspace.userId,
+          projectId: '', // Cron checks are not project-specific
+          projectSlug: workspace.workspaceSlug,
+          workspaceId,
+          repositoryIds: [repositoryId],
+          dependencyIds,
+        });
+
+        totalQueued += dependencyIds.length;
+      }
+    }
+
+    this.logger.info('dependency_watcher_cron_queued', {
+      workspaces: workspaceIds.length,
+      totalQueued,
+      repositoryCombinations: Array.from(groupedByWorkspace.values()).reduce((acc, repoMap) => acc + repoMap.size, 0),
+    });
+
+    return { queued: totalQueued, workspaces: workspaceIds.length };
   }
 
   private async checkPackage(record: DependencyWatchRecord): Promise<boolean> {
@@ -121,6 +159,7 @@ export class DependencyWatcherService {
 
   private async createNote(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: DependencyAlertResult) {
     const content = this.buildNoteContent(record, versionInfo, analysis);
+    const projectSlug = await this.resolveProjectSlug(record);
     
     const payload = {
       source: {
@@ -135,7 +174,7 @@ export class DependencyWatcherService {
       event: {
         type: EventType.GenericRecord,
         occurredAt: new Date().toISOString(),
-        projectSlug: '',
+        projectSlug,
       },
       content: {
         rawText: content,
@@ -165,6 +204,18 @@ export class DependencyWatcherService {
     };
 
     await this.ingestEntryUseCase.execute(payload, record.userId, record.workspaceSlug, {});
+  }
+
+  private async resolveProjectSlug(record: DependencyWatchRecord): Promise<string> {
+    if (!record.repositoryId) return '';
+
+    const projects = await this.contentRepository.listProjects(record.userId);
+    const project = projects.find(
+      (item) => item.workspaceSlug === record.workspaceSlug
+        && item.repositories.some((repository) => repository.id === record.repositoryId),
+    );
+
+    return project?.projectSlug || '';
   }
 
   private buildNoteContent(record: DependencyWatchRecord, versionInfo: RegistryVersionInfo, analysis: DependencyAlertResult): string {

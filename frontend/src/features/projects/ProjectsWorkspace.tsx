@@ -42,6 +42,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   [SOURCE_VALUES.MANUAL]: 'Manual',
   reminder: 'Reminder',
   [SOURCE_VALUES.AI_CHAT]: 'AI Chat',
+  [SOURCE_VALUES.DEPENDENCY_WATCHER]: 'Dependencies',
 };
 
 import { ProjectFolderModal } from './modals/ProjectFolderModal';
@@ -93,6 +94,7 @@ export function ProjectsWorkspace({
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState(ROOT_FOLDER_ID);
   const [timelineCategory, setTimelineCategory] = useState<ProjectTimelineCategory>('all');
+  const [projectView, setProjectView] = useState<'timeline' | 'dependencies'>('timeline');
   const [timelineStatus, setTimelineStatus] = useState<NoteStatusFilter>(StatusFilter.Open);
   const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
@@ -120,6 +122,7 @@ export function ProjectsWorkspace({
 
   useEffect(() => {
     setSelectedFolderId(ROOT_FOLDER_ID);
+    setProjectView('timeline');
   }, [selected?.projectSlug]);
 
   // Clear search when switching projects
@@ -461,6 +464,8 @@ export function ProjectsWorkspace({
               folderTree={folderTree}
               selectedFolderId={selectedFolderId}
               selectedFolder={selectedFolder}
+              projectView={projectView}
+              onProjectViewChange={setProjectView}
               timelineItems={timelineItems}
               timelineCategory={timelineCategory}
               timelineStatus={timelineStatus}

@@ -60,6 +60,17 @@ export class PostgresWorkspaceRepository {
     return result[0] ? workspaceFromRow(result[0]) : null;
   }
 
+  async getById(workspaceId: string) {
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(workspaces)
+      .where(eq(workspaces.id, workspaceId))
+      .limit(1);
+    
+    return result[0] ? workspaceFromRow(result[0]) : null;
+  }
+
   async update(id: string, input: { dependencyWatcherEnabled?: boolean }) {
     const db = this.database.getDb();
     await db

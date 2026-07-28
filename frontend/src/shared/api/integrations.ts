@@ -74,11 +74,27 @@ export function cancelGithubBackfill(workspaceSlug: string, jobId: string): Prom
   });
 }
 
-export function importDependenciesFromGithub(workspaceSlug: string, projectIds?: string[]): Promise<{ ok: true; data: { total: number; imported: number; skipped: number; repositories: number } }> {
+export function importDependenciesFromGithub(
+  workspaceSlug: string,
+  options?: { projectIds?: string[]; repositoryIds?: string[] },
+): Promise<{ ok: true; data: { total: number; imported: number; skipped: number; repositories: number } }> {
   return request<{ ok: true; data: { total: number; imported: number; skipped: number; repositories: number } }>(API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_IMPORT, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ workspaceSlug, projectIds }),
+    body: JSON.stringify({ workspaceSlug, ...options }),
+  });
+}
+
+export function fetchDependencyMonitoredRepositories(workspaceSlug: string) {
+  const search = new URLSearchParams({ workspaceSlug });
+  return request<import('./models/dependency-watcher').DependencyMonitoredRepositoriesResponse>(`${API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_REPOSITORIES}?${search.toString()}`);
+}
+
+export function saveDependencyMonitoredRepositories(workspaceSlug: string, repositoryIds: string[]) {
+  return request<{ ok: true; data: { monitored: number; import: { jobId: string; queued: number; repositories: number } } }>(API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_REPOSITORIES, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ workspaceSlug, repositoryIds }),
   });
 }
 
@@ -91,5 +107,13 @@ export function enableDependencyWatcher(workspaceSlug: string): Promise<{ ok: tr
 export function disableDependencyWatcher(workspaceSlug: string): Promise<{ ok: true; data: { enabled: boolean } }> {
   return request<{ ok: true; data: { enabled: boolean } }>(buildApiPath(API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_DISABLE, { workspaceSlug }), {
     method: 'PATCH',
+  });
+}
+
+export function checkProjectDependencies(projectId: string, projectSlug: string): Promise<{ ok: true; data: { jobId: string; queued: number } }> {
+  return request<{ ok: true; data: { jobId: string; queued: number } }>(API_PATHS.INTEGRATIONS_DEPENDENCY_WATCH_CHECK_PROJECT, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ projectId, projectSlug }),
   });
 }

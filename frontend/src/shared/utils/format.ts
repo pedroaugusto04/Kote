@@ -179,6 +179,7 @@ export const SOURCE_VALUES = {
   WEB_CLIPPER: 'web-clipper',
   MANUAL_API: 'manual-api',
   MANUAL: 'manual',
+  DEPENDENCY_WATCHER: 'dependency-watcher',
 } as const;
 
 export type SourceValue = (typeof SOURCE_VALUES)[keyof typeof SOURCE_VALUES];
@@ -298,5 +299,6 @@ export function getTimelineNodeColor(category: string, type?: string) {
   if (category === SOURCE_VALUES.WHATSAPP_CHANNEL) return 'var(--green)';
   if (category === 'reminder') return 'var(--amber)';
   if (category === SOURCE_VALUES.AI_CHAT) return 'var(--purple)';
+  if (category === SOURCE_VALUES.DEPENDENCY_WATCHER) return 'var(--orange)';
   return 'var(--muted)';
 }

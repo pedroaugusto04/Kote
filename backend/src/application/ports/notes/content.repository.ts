@@ -33,6 +33,7 @@ export abstract class ContentRepository {
 
   abstract listWorkspaces(userId: string): Promise<SaveWorkspaceInput[]>;
   abstract getWorkspaceBySlug(userId: string, workspaceSlug: string): Promise<SaveWorkspaceInput | null>;
+  abstract getWorkspaceById(workspaceId: string): Promise<SaveWorkspaceInput | null>;
   abstract upsertWorkspace(userId: string, input: SaveWorkspaceInput): Promise<SaveWorkspaceInput>;
   abstract listRepositories(userId: string, workspaceId: string): Promise<RepositoryRecord[]>;
   abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<RepositoryRecord>;

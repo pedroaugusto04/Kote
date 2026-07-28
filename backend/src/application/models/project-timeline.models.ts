@@ -9,6 +9,7 @@ export const projectTimelineCategories = [
   TimelineCategory.Manual,
   TimelineCategory.Reminder,
   TimelineCategory.AiChat,
+  TimelineCategory.DependencyWatcher,
 ] as const;
 
 export type ProjectTimelineCategory = (typeof projectTimelineCategories)[number];

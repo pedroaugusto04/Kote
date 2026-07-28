@@ -60,9 +60,8 @@ export class DependencyWatcherWorker implements OnModuleInit, OnModuleDestroy {
       const result = await this.dependencyWatcherService.runCheck(env.dependencyWatcherCheckIntervalHours);
       
       this.logger.info('dependency_watcher_check_completed', {
-        checked: result.checked,
-        updates: result.updates,
-        errors: result.errors,
+        queued: result.queued,
+        workspaces: result.workspaces,
       });
     } catch (error) {
       this.logger.error('dependency_watcher_check_failed', { error: error instanceof Error ? error.message : String(error) });

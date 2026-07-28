@@ -21,6 +21,7 @@ export const API_PATHS = {
   PROJECT_KNOWLEDGE_MAP: '/api/projects/{projectSlug}/knowledge-map',
   PROJECT_BRIEF: '/api/projects/{projectSlug}/brief',
   PROJECT_BRIEF_HISTORY: '/api/projects/{projectSlug}/brief/history',
+  PROJECT_DEPENDENCIES: '/api/projects/{projectSlug}/dependencies',
 
   // Notes paths
   NOTES: '/api/notes',
@@ -41,9 +42,11 @@ export const API_PATHS = {
   INTEGRATIONS_GITHUB_BACKFILL_STATUS: '/api/integrations/github-app/backfill/status',
   INTEGRATIONS_GITHUB_BACKFILL_CANCEL: '/api/integrations/github-app/backfill/cancel',
   INTEGRATIONS_DEPENDENCY_WATCH: '/api/integrations/dependency-watch',
+  INTEGRATIONS_DEPENDENCY_WATCH_REPOSITORIES: '/api/integrations/dependency-watch/repositories',
   INTEGRATIONS_DEPENDENCY_WATCH_IMPORT: '/api/integrations/dependency-watch/import',
   INTEGRATIONS_DEPENDENCY_WATCH_ENABLE: '/api/integrations/dependency-watch/{workspaceSlug}/enable',
   INTEGRATIONS_DEPENDENCY_WATCH_DISABLE: '/api/integrations/dependency-watch/{workspaceSlug}/disable',
+  INTEGRATIONS_DEPENDENCY_WATCH_CHECK_PROJECT: '/api/integrations/dependency-watch/check-project',
 
   // Dashboard paths
   DASHBOARD: '/api/dashboard',

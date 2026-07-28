@@ -40,6 +40,7 @@ export class CreateWorkspaceUseCase {
     
     let workspace = await this.contentRepository.upsertWorkspace(userId, {
       id: crypto.randomUUID(),
+      userId,
       workspaceSlug,
       displayName: input.displayName,
       whatsappChatJid: '',

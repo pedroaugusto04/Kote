@@ -15,6 +15,8 @@ export {
   importDependenciesFromGithub,
   enableDependencyWatcher,
   disableDependencyWatcher,
+  fetchDependencyMonitoredRepositories,
+  saveDependencyMonitoredRepositories,
 } from './integrations';
 export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, fetchRelatedNotes, bulkUpdateNoteStatuses } from './notes';
 export {
@@ -28,6 +30,7 @@ export {
   fetchProjectFolders,
   fetchProjectKnowledgeMap,
   fetchProjectCoverage,
+  fetchProjectDependencies,
   fetchProjectTimeline,
   fetchProjects,
   generateProjectBrief,

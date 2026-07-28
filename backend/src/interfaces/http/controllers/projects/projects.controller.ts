@@ -18,6 +18,7 @@ import {
   UpdateProjectUseCase,
   GetProjectCoverageUseCase,
 } from '../../../../application/use-cases/index.js';
+import { ListProjectDependenciesUseCase } from '../../../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
 import {
@@ -65,6 +66,7 @@ export class ProjectsController {
     private readonly updateProjectFolderUseCase: UpdateProjectFolderUseCase,
     private readonly deleteProjectFolderUseCase: DeleteProjectFolderUseCase,
     private readonly getProjectCoverageUseCase: GetProjectCoverageUseCase,
+    private readonly listProjectDependenciesUseCase: ListProjectDependenciesUseCase,
   ) { }
 
   @Post()
@@ -275,6 +277,21 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.deleteProjectFolderUseCase.execute(projectId, folderId, user.id);
+  }
+
+  @Get(':projectSlug/dependencies')
+  @UseGuards(ProjectResolutionGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List monitored dependencies for a project' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Project dependencies retrieved successfully' })
+  async listDependencies(
+    @CurrentUser() user: AuthenticatedUser,
+    @ProjectId() projectId: string,
+    @Param('projectSlug') projectSlug: string,
+  ) {
+    const result = await this.listProjectDependenciesUseCase.execute(user.id, projectId, projectSlug);
+    return { ok: true, ...result };
   }
 
   @Get(':projectSlug/coverage')

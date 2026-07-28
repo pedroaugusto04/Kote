@@ -143,6 +143,7 @@ export function workspaceFromRow(row: Row): WorkspaceRecord {
   const workspaceSlug = fieldString(row, 'workspace_slug', 'workspaceSlug');
   return {
     id: String(row.id),
+    userId: String(field(row, 'user_id', 'userId')),
     workspaceSlug,
     displayName: String(field(row, 'display_name', 'displayName') || workspaceSlug),
     whatsappChatJid: fieldString(row, 'whatsapp_chat_jid', 'whatsappChatJid'),

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, lt, or } from 'drizzle-orm';
+import { eq, and, lt, or, inArray } from 'drizzle-orm';
 
-import { dependencyWatch, workspaces } from '../persistence/schema/index.js';
+import { dependencyWatch, dependencyMonitoredRepositories, workspaces } from '../persistence/schema/index.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { DependencyWatcherRepository, type DependencyWatchRecord, type CreateDependencyWatchInput, type UpdateDependencyWatchInput } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { DependencyEcosystem } from '../../domain/enums/dependency.enums.js';
@@ -62,6 +62,81 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
     return this.mapToRecord(inserted);
   }
 
+  async batchUpsert(inputs: CreateDependencyWatchInput[]): Promise<void> {
+    if (inputs.length === 0) return;
+
+    const db = this.getDb();
+    const userId = inputs[0].userId;
+    const workspaceId = inputs[0].workspaceId;
+
+    // Fetch all existing records in one query
+    const packageKeys = inputs.map((input) => ({
+      ecosystem: input.ecosystem,
+      packageName: input.packageName,
+    }));
+
+    const existingRecords = await db
+      .select()
+      .from(dependencyWatch)
+      .where(
+        and(
+          eq(dependencyWatch.userId, userId),
+          eq(dependencyWatch.workspaceId, workspaceId),
+        ),
+      );
+
+    const existingMap = new Map(
+      existingRecords.map((record) => [
+        `${record.ecosystem}:${record.packageName}`,
+        record,
+      ]),
+    );
+
+    const toInsert: CreateDependencyWatchInput[] = [];
+    const toUpdate: Array<{ id: string; input: CreateDependencyWatchInput }> = [];
+
+    for (const input of inputs) {
+      const key = `${input.ecosystem}:${input.packageName}`;
+      const existing = existingMap.get(key);
+
+      if (existing) {
+        toUpdate.push({ id: existing.id, input });
+      } else {
+        toInsert.push(input);
+      }
+    }
+
+    await db.transaction(async (tx) => {
+      // Batch insert
+      if (toInsert.length > 0) {
+        await tx.insert(dependencyWatch).values(
+          toInsert.map((input) => ({
+            userId: input.userId,
+            workspaceId: input.workspaceId,
+            ecosystem: input.ecosystem as any,
+            packageName: input.packageName,
+            currentVersion: input.currentVersion,
+            repositoryId: input.repositoryId || null,
+            enabled: true,
+            checkIntervalHours: 24,
+          })),
+        );
+      }
+
+      // Batch update
+      for (const { id, input } of toUpdate) {
+        await tx
+          .update(dependencyWatch)
+          .set({
+            currentVersion: input.currentVersion,
+            repositoryId: input.repositoryId,
+            updatedAt: new Date(),
+          })
+          .where(eq(dependencyWatch.id, id));
+      }
+    });
+  }
+
   async findByUserAndWorkspace(userId: string, workspaceId: string): Promise<DependencyWatchRecord[]> {
     const db = this.getDb();
     const records = await db
@@ -71,6 +146,41 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         and(
           eq(dependencyWatch.userId, userId),
           eq(dependencyWatch.workspaceId, workspaceId),
+        ),
+      );
+
+    return records.map(this.mapToRecord);
+  }
+
+  async findByRepositoryIds(userId: string, workspaceId: string, repositoryIds: string[]): Promise<DependencyWatchRecord[]> {
+    if (repositoryIds.length === 0) return [];
+
+    const db = this.getDb();
+    const records = await db
+      .select({
+        id: dependencyWatch.id,
+        userId: dependencyWatch.userId,
+        workspaceId: dependencyWatch.workspaceId,
+        workspaceSlug: workspaces.workspaceSlug,
+        ecosystem: dependencyWatch.ecosystem,
+        packageName: dependencyWatch.packageName,
+        currentVersion: dependencyWatch.currentVersion,
+        latestSeenVersion: dependencyWatch.latestSeenVersion,
+        checkIntervalHours: dependencyWatch.checkIntervalHours,
+        lastCheckedAt: dependencyWatch.lastCheckedAt,
+        lastAlertedAt: dependencyWatch.lastAlertedAt,
+        enabled: dependencyWatch.enabled,
+        repositoryId: dependencyWatch.repositoryId,
+        createdAt: dependencyWatch.createdAt,
+        updatedAt: dependencyWatch.updatedAt,
+      })
+      .from(dependencyWatch)
+      .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
+      .where(
+        and(
+          eq(dependencyWatch.userId, userId),
+          eq(dependencyWatch.workspaceId, workspaceId),
+          inArray(dependencyWatch.repositoryId, repositoryIds),
         ),
       );
 
@@ -125,6 +235,16 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       .where(eq(dependencyWatch.id, id));
   }
 
+  async batchUpdateLastCheckedAt(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+
+    const db = this.getDb();
+    await db
+      .update(dependencyWatch)
+      .set({ lastCheckedAt: new Date(), updatedAt: new Date() })
+      .where(inArray(dependencyWatch.id, ids));
+  }
+
   async delete(id: string): Promise<void> {
     const db = this.getDb();
     await db.delete(dependencyWatch).where(eq(dependencyWatch.id, id));
@@ -140,6 +260,62 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
           eq(dependencyWatch.workspaceId, workspaceId),
         ),
       );
+  }
+
+  async deleteByRepositoryIds(userId: string, workspaceId: string, repositoryIds: string[]): Promise<void> {
+    if (repositoryIds.length === 0) return;
+
+    const db = this.getDb();
+    await db
+      .delete(dependencyWatch)
+      .where(
+        and(
+          eq(dependencyWatch.userId, userId),
+          eq(dependencyWatch.workspaceId, workspaceId),
+          inArray(dependencyWatch.repositoryId, repositoryIds),
+        ),
+      );
+  }
+
+  async listMonitoredRepositoryIds(userId: string, workspaceId: string): Promise<string[]> {
+    const db = this.getDb();
+    const records = await db
+      .select({ repositoryId: dependencyMonitoredRepositories.repositoryId })
+      .from(dependencyMonitoredRepositories)
+      .where(
+        and(
+          eq(dependencyMonitoredRepositories.userId, userId),
+          eq(dependencyMonitoredRepositories.workspaceId, workspaceId),
+        ),
+      );
+
+    return records.map((record) => record.repositoryId);
+  }
+
+  async setMonitoredRepositories(userId: string, workspaceId: string, repositoryIds: string[]): Promise<void> {
+    const db = this.getDb();
+    const uniqueRepositoryIds = [...new Set(repositoryIds)];
+
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(dependencyMonitoredRepositories)
+        .where(
+          and(
+            eq(dependencyMonitoredRepositories.userId, userId),
+            eq(dependencyMonitoredRepositories.workspaceId, workspaceId),
+          ),
+        );
+
+      if (uniqueRepositoryIds.length === 0) return;
+
+      await tx.insert(dependencyMonitoredRepositories).values(
+        uniqueRepositoryIds.map((repositoryId) => ({
+          userId,
+          workspaceId,
+          repositoryId,
+        })),
+      );
+    });
   }
 
   async isWorkspaceEnabled(workspaceId: string): Promise<boolean> {

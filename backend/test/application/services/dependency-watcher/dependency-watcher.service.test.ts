@@ -8,6 +8,7 @@ import { IngestEntryUseCase } from '../../../../src/application/use-cases/ingest
 import { EmailService } from '../../../../src/application/services/email/email.service.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../../../src/application/ports/observability/runtime-environment.port.js';
 import { UserRepository } from '../../../../src/application/ports/auth/auth.repository.js';
+import { ContentRepository } from '../../../../src/application/ports/notes/content.repository.js';
 import { AppLogger } from '../../../../src/observability/logger.js';
 import { DependencyUrgency, DependencyEcosystem } from '../../../../src/domain/enums/dependency.enums.js';
 import { AiProvider } from '../../../../src/domain/enums/ai.enums.js';
@@ -22,6 +23,7 @@ describe('Backend: Dependency Watcher Service', () => {
   let mockEmailService: EmailService;
   let mockEnvironmentProvider: RuntimeEnvironmentProvider;
   let mockUserRepository: UserRepository;
+  let mockContentRepository: ContentRepository;
   let mockLogger: AppLogger;
 
   const mockRecord: DependencyWatchRecord = {
@@ -105,6 +107,16 @@ describe('Backend: Dependency Watcher Service', () => {
       findUserById: vi.fn().mockResolvedValue({ email: 'user@example.com' }),
     } as unknown as UserRepository;
 
+    mockContentRepository = {
+      listProjects: vi.fn().mockResolvedValue([
+        {
+          projectSlug: 'my-project',
+          workspaceSlug: 'test-workspace',
+          repositories: [{ id: 'repo-123', fullName: 'owner/repo' }],
+        },
+      ]),
+    } as unknown as ContentRepository;
+
     service = new DependencyWatcherService(
       mockDependencyWatcherRepository,
       mockDependencyAlertGateway,
@@ -113,6 +125,7 @@ describe('Backend: Dependency Watcher Service', () => {
       mockEmailService,
       mockEnvironmentProvider,
       mockUserRepository,
+      mockContentRepository,
       mockLogger,
     );
   });
@@ -165,6 +178,9 @@ describe('Backend: Dependency Watcher Service', () => {
 
       expect(mockIngestEntryUseCase.execute).toHaveBeenCalledWith(
         expect.objectContaining({
+          event: expect.objectContaining({
+            projectSlug: 'my-project',
+          }),
           content: expect.objectContaining({
             rawText: expect.stringContaining('Security vulnerability fix'),
           }),

@@ -1,7 +1,10 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Patch, Param, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Patch, Param, Get, Put, Query, UseGuards, NotFoundException } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { ImportDependenciesFromGithubUseCase } from '../../../../application/use-cases/dependency-watcher/import-dependencies-from-github.use-case.js';
+import { ListDependencyMonitoredRepositoriesUseCase } from '../../../../application/use-cases/dependency-watcher/list-dependency-monitored-repositories.use-case.js';
+import { SaveDependencyMonitoredRepositoriesUseCase } from '../../../../application/use-cases/dependency-watcher/save-dependency-monitored-repositories.use-case.js';
+import { CheckProjectDependenciesUseCase } from '../../../../application/use-cases/dependency-watcher/check-project-dependencies.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import { PostgresWorkspaceRepository } from '../../../../infrastructure/repositories/workspace.repository.js';
@@ -13,20 +16,57 @@ import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
 export class DependencyWatcherController {
   constructor(
     private readonly importDependenciesFromGithubUseCase: ImportDependenciesFromGithubUseCase,
+    private readonly listDependencyMonitoredRepositoriesUseCase: ListDependencyMonitoredRepositoriesUseCase,
+    private readonly saveDependencyMonitoredRepositoriesUseCase: SaveDependencyMonitoredRepositoriesUseCase,
+    private readonly checkProjectDependenciesUseCase: CheckProjectDependenciesUseCase,
     private readonly workspaceRepository: PostgresWorkspaceRepository,
   ) {}
+
+  @Get('repositories')
+  @ApiBearerAuth()
+  async listMonitoredRepositories(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query('workspaceSlug') workspaceSlug: string,
+  ) {
+    const result = await this.listDependencyMonitoredRepositoriesUseCase.execute(user.id, workspaceSlug);
+    return {
+      ok: true,
+      ...result,
+    };
+  }
+
+  @Put('repositories')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async saveMonitoredRepositories(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { workspaceSlug: string; repositoryIds: string[] },
+  ) {
+    const result = await this.saveDependencyMonitoredRepositoriesUseCase.execute(
+      user.id,
+      body.workspaceSlug,
+      body.repositoryIds || [],
+    );
+    return {
+      ok: true,
+      data: result,
+    };
+  }
 
   @Post('import')
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async importDependencies(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { workspaceSlug: string; projectIds?: string[] },
+    @Body() body: { workspaceSlug: string; projectIds?: string[]; repositoryIds?: string[] },
   ) {
     const result = await this.importDependenciesFromGithubUseCase.execute(
       user.id,
       body.workspaceSlug,
-      body.projectIds,
+      {
+        projectIds: body.projectIds,
+        repositoryIds: body.repositoryIds,
+      },
     );
     return {
       ok: true,
@@ -75,6 +115,20 @@ export class DependencyWatcherController {
     return {
       ok: true,
       data: { enabled: false },
+    };
+  }
+
+  @Post('check-project')
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  async checkProject(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() body: { projectId: string; projectSlug: string },
+  ) {
+    const result = await this.checkProjectDependenciesUseCase.execute(user.id, body.projectId, body.projectSlug);
+    return {
+      ok: true,
+      data: result,
     };
   }
 }

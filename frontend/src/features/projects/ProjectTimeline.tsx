@@ -31,6 +31,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   [SOURCE_VALUES.MANUAL]: 'Manual',
   reminder: 'Reminder',
   [SOURCE_VALUES.AI_CHAT]: 'AI Chat',
+  [SOURCE_VALUES.DEPENDENCY_WATCHER]: 'Dependencies',
 };
 
 const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({

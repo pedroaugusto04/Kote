@@ -163,6 +163,7 @@ export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'metadata' 
   if (record.sourceChannel === SourceChannel.Github) return TimelineCategory.Github;
   if (record.sourceChannel === SourceChannel.Whatsapp) return TimelineCategory.Whatsapp;
   if (record.sourceChannel === SourceChannel.AiChat) return TimelineCategory.AiChat;
+  if (record.sourceChannel === SourceChannel.DependencyWatcher) return TimelineCategory.DependencyWatcher;
   if (record.sourceChannel === SourceChannel.Cli) return TimelineCategory.Manual;
   if (record.sourceChannel === SourceChannel.Ide) return TimelineCategory.Manual;
   return TimelineCategory.Manual;
@@ -233,6 +234,7 @@ function categoryLabel(category: ProjectKnowledgeMapNoteCategory) {
     [TimelineCategory.Manual]: 'Manual',
     [TimelineCategory.Reminder]: 'Reminder',
     [TimelineCategory.AiChat]: 'AI Chat',
+    [TimelineCategory.DependencyWatcher]: 'Dependencies',
   };
   return labels[category] ?? category;
 }

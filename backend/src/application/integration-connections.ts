@@ -255,6 +255,7 @@ export class IntegrationConnectionService {
     const now = new Date().toISOString();
     await this.content.upsertWorkspace(input.userId, {
       id: workspace.id,
+      userId: workspace.userId,
       workspaceSlug,
       displayName: workspace.displayName,
       whatsappChatJid: workspace.whatsappChatJid,

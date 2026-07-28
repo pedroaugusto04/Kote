@@ -12,6 +12,7 @@ import { WorkspacesModule } from './workspaces.module.js';
 import { EmailModule } from './email.module.js';
 import { QuotaModule } from './quota.module.js';
 import { ProjectsModule } from './projects.module.js';
+import { DependencyWatcherModule } from './dependency-watcher.module.js';
 
 import {
   IntegrationConnectionService,
@@ -33,8 +34,10 @@ import {
   IngestEntryUseCase,
 } from '../../application/use-cases/index.js';
 import { ImportDependenciesFromGithubUseCase } from '../../application/use-cases/dependency-watcher/import-dependencies-from-github.use-case.js';
+import { ListDependencyMonitoredRepositoriesUseCase } from '../../application/use-cases/dependency-watcher/list-dependency-monitored-repositories.use-case.js';
+import { SaveDependencyMonitoredRepositoriesUseCase } from '../../application/use-cases/dependency-watcher/save-dependency-monitored-repositories.use-case.js';
+import { CheckProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/check-project-dependencies.use-case.js';
 import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
-import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
 import { WebhookDeliveryService } from '../../application/services/webhooks/webhook-delivery.service.js';
 import { WebhookDeliveryWorker } from '../../application/workers/webhook-delivery.worker.js';
 import { ProcessGithubPushService } from '../../application/services/integrations/process-github-push.service.js';
@@ -44,6 +47,10 @@ import { BackfillQueuePublisher } from '../../application/ports/integrations/bac
 import { PostgresGithubBackfillJobRepository } from '../repositories/github-backfill-job.repository.js';
 import { RabbitMqBackfillQueuePublisher } from '../queue/rabbitmq-backfill-queue.publisher.js';
 import { RabbitMqBackfillQueueConsumer } from '../queue/rabbitmq-backfill-queue.consumer.js';
+import { RabbitMqDependencyCheckQueuePublisher } from '../queue/rabbitmq-dependency-check-queue.publisher.js';
+import { RabbitMqDependencyCheckQueueConsumer } from '../queue/rabbitmq-dependency-check-queue.consumer.js';
+import { RabbitMqDependencyImportQueuePublisher } from '../queue/rabbitmq-dependency-import-queue.publisher.js';
+import { RabbitMqDependencyImportQueueConsumer } from '../queue/rabbitmq-dependency-import-queue.consumer.js';
 
 import {
   UserIntegrationsController,
@@ -70,6 +77,7 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     EmailModule,
     QuotaModule,
     ProjectsModule,
+    DependencyWatcherModule,
   ],
   controllers: [
     UserIntegrationsController,
@@ -93,6 +101,10 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     { provide: BackfillQueuePublisher, useClass: RabbitMqBackfillQueuePublisher },
     RabbitMqBackfillQueuePublisher,
     RabbitMqBackfillQueueConsumer,
+    RabbitMqDependencyCheckQueuePublisher,
+    RabbitMqDependencyCheckQueueConsumer,
+    RabbitMqDependencyImportQueuePublisher,
+    RabbitMqDependencyImportQueueConsumer,
     NotifyHighSeverityFindingsService,
     WebhookDeliveryService,
     WebhookDeliveryWorker,
@@ -102,8 +114,9 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     DeleteWebhookSubscriptionUseCase,
     IngestEntryUseCase,
     ImportDependenciesFromGithubUseCase,
-    PostgresDependencyWatcherRepository,
-    { provide: DependencyWatcherRepository, useExisting: PostgresDependencyWatcherRepository },
+    ListDependencyMonitoredRepositoriesUseCase,
+    SaveDependencyMonitoredRepositoriesUseCase,
+    CheckProjectDependenciesUseCase,
     PostgresWorkspaceRepository,
   ],
   exports: [
@@ -111,7 +124,6 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     IntegrationCredentialService,
     WebhookDeliveryService,
     WebhookDeliveryWorker,
-    ImportDependenciesFromGithubUseCase,
   ],
 })
 export class IntegrationsModule {}

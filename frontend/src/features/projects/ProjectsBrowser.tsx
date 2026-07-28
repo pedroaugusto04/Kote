@@ -9,8 +9,11 @@ import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
 import { ProjectTimeline } from './ProjectTimeline';
+import { ProjectDependenciesPanel } from './ProjectDependenciesPanel';
 import { ProjectCoverageBadge } from './components/ProjectCoverageBadge';
 import { NoteStatusFilter } from '../../shared/api/models/note-status';
+
+type ProjectBrowserView = 'timeline' | 'dependencies';
 
 type ProjectsBrowserProps = {
   dashboard: Dashboard;
@@ -18,6 +21,8 @@ type ProjectsBrowserProps = {
   folderTree: ProjectFolder[];
   selectedFolderId: string;
   selectedFolder: ProjectFolder | null;
+  projectView: ProjectBrowserView;
+  onProjectViewChange: (view: ProjectBrowserView) => void;
   timelineItems: ProjectTimelineItem[];
   timelineCategory: ProjectTimelineCategory;
   timelineStatus: NoteStatusFilter;
@@ -54,6 +59,8 @@ export function ProjectsBrowser({
   folderTree,
   selectedFolderId,
   selectedFolder,
+  projectView,
+  onProjectViewChange,
   timelineItems,
   timelineCategory,
   timelineStatus,
@@ -161,22 +168,48 @@ export function ProjectsBrowser({
             onSelect={onFolderSelect}
           />
         </aside>
-        <ProjectTimeline
-          dashboard={dashboard}
-          items={timelineItems}
-          pagination={timelinePagination}
-          category={timelineCategory}
-          onCategoryChange={onTimelineCategoryChange}
-          status={timelineStatus}
-          onStatusChange={onTimelineStatusChange}
-          onDeleteNote={onDeleteNote}
-          onEditNote={onEditNote}
-          onOpenNote={onOpenNote}
-          onOpenNoteFullPage={onOpenNoteFullPage}
-          onPageChange={onTimelinePageChange}
-          isStale={isStale}
-          resetKey={timelineResetKey}
-        />
+        <div className="project-browser-main">
+          <div className="project-view-tabs" role="tablist" aria-label="Project views">
+            <button
+              aria-selected={projectView === 'timeline'}
+              className={projectView === 'timeline' ? 'filter-chip active' : 'filter-chip'}
+              role="tab"
+              type="button"
+              onClick={() => onProjectViewChange('timeline')}
+            >
+              Timeline
+            </button>
+            <button
+              aria-selected={projectView === 'dependencies'}
+              className={projectView === 'dependencies' ? 'filter-chip active' : 'filter-chip'}
+              role="tab"
+              type="button"
+              onClick={() => onProjectViewChange('dependencies')}
+            >
+              Dependencies
+            </button>
+          </div>
+          {projectView === 'dependencies' ? (
+            <ProjectDependenciesPanel projectSlug={project.projectSlug} projectId={project.id || ''} />
+          ) : (
+            <ProjectTimeline
+              dashboard={dashboard}
+              items={timelineItems}
+              pagination={timelinePagination}
+              category={timelineCategory}
+              onCategoryChange={onTimelineCategoryChange}
+              status={timelineStatus}
+              onStatusChange={onTimelineStatusChange}
+              onDeleteNote={onDeleteNote}
+              onEditNote={onEditNote}
+              onOpenNote={onOpenNote}
+              onOpenNoteFullPage={onOpenNoteFullPage}
+              onPageChange={onTimelinePageChange}
+              isStale={isStale}
+              resetKey={timelineResetKey}
+            />
+          )}
+        </div>
       </div>
     </Panel>
   );

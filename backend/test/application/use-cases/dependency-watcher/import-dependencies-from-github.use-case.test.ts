@@ -4,9 +4,12 @@ import { DependencyWatcherRepository } from '../../../../src/application/ports/d
 import { GithubIntegrationGateway } from '../../../../src/application/ports/integrations/github-integration.port.js';
 import { ContentRepository } from '../../../../src/application/ports/notes/content.repository.js';
 import { CredentialRepository } from '../../../../src/application/ports/integrations/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../../../../src/application/ports/observability/runtime-environment.port.js';
 import { AppLogger } from '../../../../src/observability/logger.js';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DependencyEcosystem } from '../../../../src/domain/enums/dependency.enums.js';
+import { CredentialRecordStatus } from '../../../../src/domain/enums/integration.enums.js';
+import { encryptConfig } from '../../../../src/application/credentials.js';
 
 describe('Backend: Import Dependencies From GitHub Use Case', () => {
   let useCase: ImportDependenciesFromGithubUseCase;
@@ -14,7 +17,22 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
   let mockGithubGateway: GithubIntegrationGateway;
   let mockContentRepository: ContentRepository;
   let mockCredentialRepository: CredentialRepository;
+  let mockEnvironmentProvider: RuntimeEnvironmentProvider;
   let mockLogger: AppLogger;
+
+  const mockEnvironment = {
+    githubAppId: 'app-123',
+    githubAppPrivateKey: 'private-key',
+    credentialsEncryptionKey: Buffer.alloc(32).toString('base64'),
+  };
+
+  function buildGithubCredential(installationId = 'install-123') {
+    return {
+      status: CredentialRecordStatus.Connected,
+      revokedAt: null,
+      encryptedConfig: encryptConfig({ installationId }, mockEnvironmentProvider),
+    };
+  }
 
   beforeEach(() => {
     mockDependencyWatcherRepository = {
@@ -35,6 +53,10 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
       findCredential: vi.fn(),
     } as any;
 
+    mockEnvironmentProvider = {
+      read: vi.fn().mockReturnValue(mockEnvironment),
+    } as any;
+
     mockLogger = {
       error: vi.fn(),
     } as any;
@@ -44,6 +66,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
       mockGithubGateway,
       mockContentRepository,
       mockCredentialRepository,
+      mockEnvironmentProvider,
       mockLogger,
     );
   });
@@ -88,7 +111,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
       await expect(useCase.execute('user-123', 'test-workspace')).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw error when GitHub token fetch fails', async () => {
+    it('should throw BadRequestException when GitHub token fetch fails', async () => {
       vi.mocked(mockContentRepository.getWorkspaceBySlug).mockResolvedValue({
         id: 'workspace-123',
         workspaceSlug: 'test-workspace',
@@ -99,12 +122,26 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           repositories: [{ id: 'repo-1', fullName: 'owner/repo' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue(undefined as any);
 
-      await expect(useCase.execute('user-123', 'test-workspace')).rejects.toThrow('github_token_fetch_failed');
+      await expect(useCase.execute('user-123', 'test-workspace')).rejects.toThrow('github_installation_token_unavailable');
+    });
+
+    it('should throw BadRequestException when installation id is missing from credential config', async () => {
+      vi.mocked(mockContentRepository.getWorkspaceBySlug).mockResolvedValue({
+        id: 'workspace-123',
+        workspaceSlug: 'test-workspace',
+      } as any);
+      vi.mocked(mockContentRepository.listProjects).mockResolvedValue([
+        {
+          workspaceSlug: 'test-workspace',
+          repositories: [{ id: 'repo-1', fullName: 'owner/repo' }],
+        },
+      ] as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential('') as any);
+
+      await expect(useCase.execute('user-123', 'test-workspace')).rejects.toThrow('github_app_installation_not_configured');
     });
 
     it('should skip repositories without package.json', async () => {
@@ -118,9 +155,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           repositories: [{ id: 'repo-1', fullName: 'owner/repo' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       vi.mocked(mockGithubGateway.fetchFileContent).mockResolvedValue('');
 
@@ -153,15 +188,18 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           repositories: [{ id: 'repo-1', fullName: 'owner/repo' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       vi.mocked(mockGithubGateway.fetchFileContent).mockResolvedValue(JSON.stringify(packageJson));
 
       await useCase.execute('user-123', 'test-workspace');
 
       expect(mockCredentialRepository.findCredential).toHaveBeenCalledWith('user-123', 'test-workspace', 'github-app');
+      expect(mockGithubGateway.fetchInstallationToken).toHaveBeenCalledWith({
+        appId: 'app-123',
+        privateKey: 'private-key',
+        installationId: 'install-123',
+      });
       expect(mockDependencyWatcherRepository.upsert).toHaveBeenCalledTimes(4);
       expect(mockDependencyWatcherRepository.upsert).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -212,9 +250,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           repositories: [{ id: 'repo-1', fullName: 'owner/repo' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       vi.mocked(mockGithubGateway.fetchFileContent).mockResolvedValue(JSON.stringify(packageJson));
 
@@ -243,9 +279,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           repositories: [{ id: 'repo-1', fullName: 'owner/repo' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       vi.mocked(mockGithubGateway.fetchFileContent).mockResolvedValue(JSON.stringify(packageJson));
 
@@ -277,9 +311,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           ],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       vi.mocked(mockGithubGateway.fetchFileContent)
         .mockRejectedValueOnce(new Error('Network error'))
@@ -323,9 +355,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           ],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       vi.mocked(mockGithubGateway.fetchFileContent).mockResolvedValue(JSON.stringify(packageJson));
 
@@ -360,13 +390,11 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           repositories: [{ id: 'repo-2', fullName: 'owner/repo2' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       vi.mocked(mockGithubGateway.fetchFileContent).mockResolvedValue(JSON.stringify(packageJson));
 
-      const result = await useCase.execute('user-123', 'test-workspace', ['project-1']);
+      const result = await useCase.execute('user-123', 'test-workspace', { projectIds: ['project-1'] });
 
       expect(result.total).toBe(1);
       expect(result.imported).toBe(1);
@@ -398,9 +426,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           repositories: [{ id: 'repo-2', fullName: 'owner/repo2' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       vi.mocked(mockGithubGateway.fetchFileContent).mockResolvedValue(JSON.stringify(packageJson));
 
@@ -433,9 +459,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
           repositories: [{ id: 'repo-1', fullName: 'owner/php-repo' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       
       // Mock package.json not found, composer.json found
@@ -475,9 +499,7 @@ mockito = "0.31"
           repositories: [{ id: 'repo-1', fullName: 'owner/rust-repo' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       
       // Mock package.json, composer.json not found, Cargo.toml found
@@ -515,9 +537,7 @@ pytest~=7.4.0
           repositories: [{ id: 'repo-1', fullName: 'owner/python-repo' }],
         },
       ] as any);
-      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue({
-        publicMetadata: { installationId: 'install-123' },
-      } as any);
+      vi.mocked(mockCredentialRepository.findCredential).mockResolvedValue(buildGithubCredential() as any);
       vi.mocked(mockGithubGateway.fetchInstallationToken).mockResolvedValue('token-123');
       
       // Mock package.json, composer.json, Cargo.toml not found, requirements.txt found

@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { trimText } from '../domain/strings.js';
 import { isEligibleFileForCoverage } from '../application/utils/github/coverage-file-filter.utils.js';
+import { RateLimitError, parseRateLimitFromHeaders } from '../application/utils/retry/backoff.utils.js';
 
 function timingSafeEqualString(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left);
@@ -42,6 +43,10 @@ export async function fetchGithubInstallationToken(input: { appId: string; priva
       'x-github-api-version': '2022-11-28',
     },
   });
+  if (response.status === 429) {
+    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
+    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
+  }
   if (!response.ok) return '';
   const payload = await response.json() as { token?: string };
   return String(payload.token || '');
@@ -61,6 +66,10 @@ export async function fetchComparePayload(repoFullName: string, before: string, 
       'x-github-api-version': '2022-11-28',
     },
   });
+  if (response.status === 429) {
+    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
+    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
+  }
   if (!response.ok) {
     return { files: [], commits: [] };
   }
@@ -140,6 +149,10 @@ export async function fetchGithubInstallationRepositories(input: {
       'x-github-api-version': '2022-11-28',
     },
   });
+  if (response.status === 429) {
+    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
+    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
+  }
   if (!response.ok) return [];
   const data = (await response.json()) as {
     repositories?: Array<{
@@ -194,6 +207,10 @@ export async function fetchRecentCommits(input: {
       'x-github-api-version': '2022-11-28',
     },
   });
+  if (response.status === 429) {
+    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
+    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
+  }
   if (!response.ok) return [];
   const data = (await response.json()) as Array<{
     sha?: string;
@@ -280,6 +297,10 @@ export async function fetchGithubRepositoryTree(repoFullName: string, defaultBra
       'x-github-api-version': '2022-11-28',
     },
   });
+  if (response.status === 429) {
+    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
+    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
+  }
   if (!response.ok) throw new Error(`github_repository_tree_http_${response.status}`);
   const data = (await response.json()) as {
     tree?: Array<{ path?: string; type?: string }>;
@@ -303,6 +324,10 @@ export async function fetchGithubFileContent(repoFullName: string, path: string,
       'x-github-api-version': '2022-11-28',
     },
   });
+  if (response.status === 429) {
+    const retryAfter = parseRateLimitFromHeaders(Object.fromEntries(response.headers.entries()));
+    throw new RateLimitError('GitHub API rate limit exceeded', retryAfter ?? undefined);
+  }
   if (!response.ok) return '';
   const data = (await response.json()) as {
     content?: string;
