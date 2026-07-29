@@ -334,7 +334,7 @@ export function ProjectKnowledgeForceGraph({
       }
     }
 
-    function updateTopicState() {
+    function updateTopicState(isInitial = false) {
       const currentExpanded = expandedTopicIdsRef.current;
       const hiddenChildIds = new Set<string>();
 
@@ -385,11 +385,8 @@ export function ProjectKnowledgeForceGraph({
       node
         .style('transition', 'opacity 0.25s ease')
         .style('opacity', (d) => (hiddenChildIds.has(d.id) ? 0 : 1))
-        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
-
-      setTimeout(() => {
-        node.style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
-      }, 250);
+        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null))
+        .style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
 
       link
         .style('transition', 'opacity 0.25s ease')
@@ -397,22 +394,21 @@ export function ProjectKnowledgeForceGraph({
           const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
           const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
           return (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) ? 0 : 1;
-        });
-
-      setTimeout(() => {
-        link.style('display', (l) => {
+        })
+        .style('display', (l) => {
           const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
           const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
           return (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) ? 'none' : null;
         });
-      }, 250);
 
       refreshForces();
-      simulation.alpha(0.2).restart();
+      if (!isInitial) {
+        simulation.alpha(0.15).restart();
+      }
     }
 
-    updateTopicStateRef.current = updateTopicState;
-    updateTopicState();
+    updateTopicStateRef.current = () => updateTopicState(false);
+    updateTopicState(true);
 
     const drag = d3.drag<SVGGElement, GraphNode>()
       .on('start', (event, item) => {
@@ -432,20 +428,19 @@ export function ProjectKnowledgeForceGraph({
     node.call(drag);
     updateLabels();
 
-    // Pre-tick the simulation to get initial stable positions before fitting
+    // Synchronously pre-calculate 300 physics ticks so nodes reach equilibrium before rendering
     simulation.tick(denseMap ? 300 : 200);
+    simulation.stop();
 
-    // Apply fit transform with smooth 400ms transition after stabilization (matching commit a0518977fb6c52cafe31300a62a5d48aa3e23112)
-    setTimeout(() => {
-      const latestSize = sizeRef.current;
-      const initialTransform = computeFitTransform(
-        graphNodes,
-        hiddenNodeIds,
-        latestSize.width,
-        latestSize.height
-      );
-      d3.select(svgElement).transition().duration(400).call(zoom.transform, initialTransform);
-    }, 100);
+    // Immediately compute and apply fit transform so the initial render is perfectly centered and stable
+    const latestSize = sizeRef.current;
+    const initialTransform = computeFitTransform(
+      graphNodes,
+      hiddenChildIdsRef.current,
+      latestSize.width,
+      latestSize.height
+    );
+    svg.call(zoom.transform, initialTransform);
 
     function updateLabels() {
       labels
