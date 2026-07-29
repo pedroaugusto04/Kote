@@ -319,15 +319,10 @@ export function ProjectKnowledgeForceGraph({
       .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength(linkStrength).distance(linkDistance))
       .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap, hiddenChildIdsRef.current)))
       .force('center', d3.forceCenter(currentSize.width / 2, currentSize.height / 2))
-      .force('collide', d3.forceCollide<GraphNode>().radius((item) => collisionRadius(item as GraphNode, hiddenChildIdsRef.current)).iterations(1))
-      .velocityDecay(0.55)
-      .alphaDecay(0.035)
-      .alphaMin(0.002)
+      .force('collide', d3.forceCollide<GraphNode>().radius((item) => collisionRadius(item as GraphNode, hiddenChildIdsRef.current)))
       .on('tick', () => renderGraph(performance.now()));
     simulationRef.current = simulation;
 
-    // Helper: re-apply charge and collision accessors so D3 re-evaluates per-node values
-    // (D3 caches accessor results at init time — we must re-set them when visibility changes)
     function refreshForces() {
       const chargeForce = simulation.force('charge') as d3.ForceManyBody<GraphNode> | null;
       if (chargeForce) {
@@ -350,7 +345,6 @@ export function ProjectKnowledgeForceGraph({
       });
       hiddenChildIdsRef.current = hiddenChildIds;
 
-      // Build a lookup: childId → parent topic node
       const childToTopic = new Map<string, GraphNode>();
       graphNodes.forEach((n) => {
         if (n.type === 'topic' && n.childNoteIds) {
@@ -360,7 +354,6 @@ export function ProjectKnowledgeForceGraph({
 
       graphNodes.forEach((n) => {
         if (hiddenChildIds.has(n.id)) {
-          // Collapse: pin to parent topic position with zero velocity
           const parent = childToTopic.get(n.id);
           if (parent && parent.x != null && parent.y != null) {
             n.x = parent.x;
@@ -371,8 +364,6 @@ export function ProjectKnowledgeForceGraph({
             n.vy = 0;
           }
         } else {
-          // Expand: if this node was previously pinned (fx is a number), seed it
-          // in a ring around its parent topic so it unfolds smoothly
           if (typeof n.fx === 'number' && n.type !== 'topic' && n.type !== 'project') {
             const parent = childToTopic.get(n.id);
             if (parent && parent.x != null && parent.y != null) {
@@ -380,8 +371,8 @@ export function ProjectKnowledgeForceGraph({
               const idx = siblings.indexOf(n.id);
               const count = siblings.length || 1;
               const angle = ((idx >= 0 ? idx : 0) / count) * 2 * Math.PI;
-              n.x = parent.x + Math.cos(angle) * 45;
-              n.y = parent.y + Math.sin(angle) * 45;
+              n.x = parent.x + Math.cos(angle) * 35;
+              n.y = parent.y + Math.sin(angle) * 35;
             }
             n.vx = 0;
             n.vy = 0;
@@ -391,37 +382,25 @@ export function ProjectKnowledgeForceGraph({
         }
       });
 
-      // Fade out hidden nodes/links, then remove from layout after transition
       node
         .style('opacity', (d) => (hiddenChildIds.has(d.id) ? 0 : 1))
-        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
-
-      // Delay display:none so the opacity transition can play
-      setTimeout(() => {
-        node.style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
-      }, 280);
+        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null))
+        .style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
 
       link
         .style('opacity', (l) => {
           const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
           const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
           return (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) ? 0 : 1;
-        });
-
-      setTimeout(() => {
-        link.style('display', (l) => {
+        })
+        .style('display', (l) => {
           const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
           const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
           return (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) ? 'none' : null;
         });
-      }, 280);
 
-      // CRITICAL: re-initialize charge/collision so D3 re-evaluates per-node strengths
-      // with the updated hiddenChildIdsRef (hidden nodes get 0 charge & 0 collision)
       refreshForces();
-
-      // Gentle reheat — just enough to float nodes into position
-      simulation.alpha(0.04).restart();
+      simulation.alpha(0.3).restart();
     }
 
     updateTopicStateRef.current = updateTopicState;
@@ -429,7 +408,7 @@ export function ProjectKnowledgeForceGraph({
 
     const drag = d3.drag<SVGGElement, GraphNode>()
       .on('start', (event, item) => {
-        if (!event.active) simulation.alphaTarget(0.08).restart();
+        if (!event.active) simulation.alphaTarget(0.25).restart();
         item.fx = item.x;
         item.fy = item.y;
       })
@@ -669,8 +648,8 @@ export function ProjectKnowledgeForceGraph({
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 720;
     if (simulation && !isMobile) {
       simulation.force('center', d3.forceCenter(size.width / 2, size.height / 2));
-      // Re-heat simulation very gently so nodes adjust to the new center
-      simulation.alpha(0.03).restart();
+      // Re-heat simulation slightly so nodes adjust to the new center
+      simulation.alpha(0.1).restart();
     }
   }, [size.width, size.height]);
 
@@ -744,18 +723,18 @@ function linkDistance(item: GraphLink) {
   const sourceIsTopic = sourceId.startsWith('topic:');
   const targetIsTopic = targetId.startsWith('topic:');
 
-  // Intra-cluster link (between topic hub and member note): tight orbit
+  // Intra-cluster link (between topic hub and member note)
   if ((sourceIsTopic && !targetIsTopic) || (targetIsTopic && !sourceIsTopic)) {
     const nonTopicId = sourceIsTopic ? targetId : sourceId;
     if (!nonTopicId.startsWith('project:') && !nonTopicId.startsWith('folder:')) {
-      return 38;
+      return 45;
     }
   }
 
   if (sourceIsTopic || targetIsTopic) return 130;
-  if (item.type === 'contains') return 105;
-  if (item.type === 'filed-in' || item.type === 'from-repository') return 95;
-  return 85;
+  if (item.type === 'contains') return 110;
+  if (item.type === 'filed-in' || item.type === 'from-repository') return 100;
+  return 90;
 }
 
 function linkStrength(item: GraphLink) {
@@ -763,24 +742,24 @@ function linkStrength(item: GraphLink) {
   const sourceId = typeof item.source === 'object' ? item.source.id : String(item.source);
   const targetId = typeof item.target === 'object' ? item.target.id : String(item.target);
   if (sourceId.startsWith('topic:') || targetId.startsWith('topic:')) return 0.85;
-  if (item.type === 'contains') return 0.7;
-  if (item.type === 'filed-in') return 0.55;
-  if (item.type === 'from-repository') return 0.4;
+  if (item.type === 'contains') return 0.75;
+  if (item.type === 'filed-in') return 0.6;
+  if (item.type === 'from-repository') return 0.45;
   return 0.15;
 }
 
 function chargeStrength(item: GraphNode, denseMap: boolean, hiddenChildIds?: Set<string> | null) {
   if (hiddenChildIds?.has(item.id)) return 0;
-  const base = item.type === 'project' ? -200 : item.type === 'topic' ? -150 : item.type === 'note' ? -50 : -70;
-  return denseMap ? base * 1.15 : base;
+  const base = item.type === 'project' ? -350 : item.type === 'topic' ? -280 : item.type === 'note' ? -120 : -150;
+  return denseMap ? base * 1.3 : base;
 }
 
 function collisionRadius(item: GraphNode, hiddenChildIds?: Set<string> | null) {
   if (hiddenChildIds?.has(item.id)) return 0;
   const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
-  if (item.type === 'topic') return radius + 14;
-  if (isReviewNote(item)) return radius + 8;
-  const labelAllowance = item.type === 'note' ? 10 : item.type === 'tag' ? 8 : 14;
+  if (item.type === 'topic') return radius + 24;
+  if (isReviewNote(item)) return radius + 14;
+  const labelAllowance = item.type === 'note' ? 24 : item.type === 'tag' ? 20 : 28;
   return radius + labelAllowance;
 }
 
@@ -818,8 +797,8 @@ function graphNodePosition(item: GraphNode, time: number, staticPosition: boolea
   const y = item.y || 0;
   if (staticPosition) return { x, y };
   const phase = hashNodeId(item.id) % 628;
-  const amplitude = item.type === 'project' ? 0.2 : 0.4;
-  const t = time / 3200;
+  const amplitude = item.type === 'project' ? 0.8 : 1.7;
+  const t = time / 1600;
   return {
     x: x + Math.sin(t + phase) * amplitude,
     y: y + Math.cos(t * 0.85 + phase) * amplitude,
