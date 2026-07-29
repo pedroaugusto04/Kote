@@ -236,6 +236,16 @@ export function ProjectKnowledgeForceGraph({
       }
     });
 
+    // Append luminous halo aura ring behind member notes for instant visual cluster identification
+    node
+      .filter((item) => noteToTopicColorMap.has(item.id))
+      .append('circle')
+      .attr('class', 'knowledge-map-cluster-halo')
+      .attr('r', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) + 5)
+      .attr('fill', (item) => noteToTopicColorMap.get(item.id)!)
+      .attr('opacity', 0.3)
+      .style('pointer-events', 'none');
+
     const circles = node
       .append('circle')
       .attr('r', (item) => item.size || knowledgeMapNodeStyles[item.type].radius)
@@ -246,7 +256,8 @@ export function ProjectKnowledgeForceGraph({
         return 'rgba(255,255,255,0.74)';
       })
       .attr('stroke-width', (item) => {
-        if (item.type === 'topic' || noteToTopicColorMap.has(item.id)) return 2.2;
+        if (item.type === 'topic') return 2.5;
+        if (noteToTopicColorMap.has(item.id)) return 2.8;
         return 1.2;
       });
 
@@ -647,21 +658,21 @@ export function ProjectKnowledgeForceGraph({
       size.height
     );
 
-    d3.select(svgElement).transition().duration(300).call(zoom.transform, transform);
+    d3.select(svgElement).transition().duration(750).ease(d3.easeCubicInOut).call(zoom.transform, transform);
   }, [size.width, size.height, graph]);
 
   const handleZoomIn = () => {
     const svgElement = svgRef.current;
     const zoom = zoomRef.current;
     if (!svgElement || !zoom) return;
-    d3.select(svgElement).transition().duration(250).call(zoom.scaleBy, 1.3);
+    d3.select(svgElement).transition().duration(300).call(zoom.scaleBy, 1.3);
   };
 
   const handleZoomOut = () => {
     const svgElement = svgRef.current;
     const zoom = zoomRef.current;
     if (!svgElement || !zoom) return;
-    d3.select(svgElement).transition().duration(250).call(zoom.scaleBy, 1 / 1.3);
+    d3.select(svgElement).transition().duration(300).call(zoom.scaleBy, 1 / 1.3);
   };
 
   const handleFitScreen = () => {
@@ -676,7 +687,7 @@ export function ProjectKnowledgeForceGraph({
       size.height
     );
 
-    d3.select(svgElement).transition().duration(400).call(zoom.transform, transform);
+    d3.select(svgElement).transition().duration(750).ease(d3.easeCubicInOut).call(zoom.transform, transform);
   };
 
   return (
