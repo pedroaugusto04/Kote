@@ -289,11 +289,29 @@ export function ProjectKnowledgeForceGraph({
 
     node.append('title').text((item) => [item.label, item.subtitle, item.date].filter(Boolean).join('\n'));
 
+    // Pre-distribute topic hub positions in a balanced radial arrangement around the canvas center
+    const topicNodesList = graphNodes.filter((n) => n.type === 'topic');
+    const totalTopics = topicNodesList.length;
+    const centerX = currentSize.width / 2;
+    const centerY = currentSize.height / 2;
+    const topicRadius = Math.min(centerX, centerY) * 0.45;
+
+    topicNodesList.forEach((topicNode, idx) => {
+      const angle = (idx / Math.max(1, totalTopics)) * 2 * Math.PI - Math.PI / 2;
+      const tx = centerX + Math.cos(angle) * topicRadius;
+      const ty = centerY + Math.sin(angle) * topicRadius;
+      if (topicNode.x === undefined || topicNode.x === 0) {
+        topicNode.x = tx;
+        topicNode.y = ty;
+      }
+    });
+
     const simulation = d3.forceSimulation<GraphNode>(graphNodes)
       .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength(linkStrength).distance(linkDistance))
       .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap)))
       .force('center', d3.forceCenter(currentSize.width / 2, currentSize.height / 2))
       .force('collide', d3.forceCollide<GraphNode>().radius(collisionRadius))
+      .velocityDecay(0.35)
       .on('tick', () => renderGraph(performance.now()));
     simulationRef.current = simulation;
 
@@ -315,8 +333,23 @@ export function ProjectKnowledgeForceGraph({
             n.y = parentTopic.y;
             n.fx = parentTopic.x;
             n.fy = parentTopic.y;
+            n.vx = 0;
+            n.vy = 0;
           }
         } else if (n.type !== 'topic') {
+          // Gently initialize position in a ring around parent topic upon expansion
+          if (n.fx !== null) {
+            const parentTopic = graphNodes.find((t) => t.type === 'topic' && t.childNoteIds?.includes(n.id));
+            if (parentTopic && parentTopic.x !== undefined && parentTopic.y !== undefined) {
+              const childIndex = parentTopic.childNoteIds?.indexOf(n.id) ?? 0;
+              const totalChildren = parentTopic.childCount || 1;
+              const angle = (childIndex / Math.max(1, totalChildren)) * 2 * Math.PI;
+              n.x = parentTopic.x + Math.cos(angle) * 35;
+              n.y = parentTopic.y + Math.sin(angle) * 35;
+              n.vx = Math.cos(angle) * 0.2;
+              n.vy = Math.sin(angle) * 0.2;
+            }
+          }
           n.fx = null;
           n.fy = null;
         }
@@ -333,7 +366,8 @@ export function ProjectKnowledgeForceGraph({
         return null;
       });
 
-      simulation.alpha(0.3).restart();
+      simulation.velocityDecay(0.4);
+      simulation.alpha(0.12).restart();
     }
 
     updateTopicStateRef.current = updateTopicState;
