@@ -104,14 +104,21 @@ export class SemanticClusteringService {
     if (clusters.length === 0) return baseMap;
 
     // Build condensed topic nodes and links
-    const newNodes = [...baseMap.nodes];
-    const newLinks = [...baseMap.links];
     const clusteredNoteIds = new Set<string>();
+    clusters.forEach((cluster) => {
+      cluster.members.forEach((m) => clusteredNoteIds.add(m.id));
+    });
+
+    // Remove direct project-to-member links for clustered notes so member notes anchor only to their topic hub
+    const newNodes = [...baseMap.nodes];
+    const newLinks = baseMap.links.filter((link) => {
+      const isProjectToClusteredNote = link.source.startsWith('project:') && clusteredNoteIds.has(link.target);
+      return !isProjectToClusteredNote;
+    });
 
     clusters.forEach((cluster, index) => {
       const topicId = `topic:cluster_${index}_${cluster.centroidNote.noteId}`;
       const memberNoteIds = cluster.members.map((m) => m.id);
-      memberNoteIds.forEach((id) => clusteredNoteIds.add(id));
 
       const topicNode: KnowledgeMapNode = {
         id: topicId,
@@ -121,7 +128,7 @@ export class SemanticClusteringService {
         childNoteIds: memberNoteIds,
         childCount: cluster.members.length,
         projectSlug: baseMap.projectSlug,
-        size: Math.min(22, 14 + cluster.members.length * 2),
+        size: Math.min(24, 16 + cluster.members.length * 2),
       };
 
       newNodes.push(topicNode);
@@ -135,12 +142,12 @@ export class SemanticClusteringService {
             source: topicId,
             target: member.id,
             type: 'contains',
-            strength: 0.85,
+            strength: 0.9,
           });
         }
       });
 
-      // Link topic to project or folder/category
+      // Link topic hub node to the project/folder container
       const sampleMember = cluster.members[0];
       const memberLinks = baseMap.links.filter(
         (l) => l.source === sampleMember.id || l.target === sampleMember.id,
@@ -156,7 +163,7 @@ export class SemanticClusteringService {
               source: topicId,
               target: otherId,
               type: link.type,
-              strength: 0.5,
+              strength: 0.4,
             });
           }
         }

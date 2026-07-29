@@ -551,17 +551,30 @@ function graphLinkNode(value: string | number | GraphNode) {
 function linkDistance(item: GraphLink) {
   const sourceId = typeof item.source === 'object' ? item.source.id : String(item.source);
   const targetId = typeof item.target === 'object' ? item.target.id : String(item.target);
-  if (sourceId.startsWith('topic:') || targetId.startsWith('topic:')) return 40;
-  if (item.type === 'contains') return 110;
-  if (item.type === 'filed-in' || item.type === 'from-repository') return 100;
-  return 90;
+  const sourceIsTopic = sourceId.startsWith('topic:');
+  const targetIsTopic = targetId.startsWith('topic:');
+
+  // Intra-cluster link (between topic hub and member note): tight orbit
+  if ((sourceIsTopic && !targetIsTopic && !targetId.startsWith('project:') && !targetId.startsWith('folder:')) ||
+      (targetIsTopic && !sourceIsTopic && !sourceId.startsWith('project:') && !sourceId.startsWith('folder:'))) {
+    return 35;
+  }
+
+  // Inter-cluster link (between topic hub and container): long distance to push islands apart
+  if (sourceIsTopic || targetIsTopic) {
+    return 180;
+  }
+
+  if (item.type === 'contains') return 120;
+  if (item.type === 'filed-in' || item.type === 'from-repository') return 110;
+  return 100;
 }
 
 function linkStrength(item: GraphLink) {
   if (item.strength !== undefined) return item.strength;
   const sourceId = typeof item.source === 'object' ? item.source.id : String(item.source);
   const targetId = typeof item.target === 'object' ? item.target.id : String(item.target);
-  if (sourceId.startsWith('topic:') || targetId.startsWith('topic:')) return 0.85;
+  if (sourceId.startsWith('topic:') || targetId.startsWith('topic:')) return 0.9;
   if (item.type === 'contains') return 0.75;
   if (item.type === 'filed-in') return 0.6;
   if (item.type === 'from-repository') return 0.45;
@@ -569,12 +582,13 @@ function linkStrength(item: GraphLink) {
 }
 
 function chargeStrength(item: GraphNode, denseMap: boolean) {
-  const base = item.type === 'project' ? -350 : item.type === 'topic' ? -260 : item.type === 'note' ? -120 : -150;
+  const base = item.type === 'project' ? -500 : item.type === 'topic' ? -550 : item.type === 'note' ? -100 : -160;
   return denseMap ? base * 1.3 : base;
 }
 
 function collisionRadius(item: GraphNode) {
   const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
+  if (item.type === 'topic') return radius + 45;
   if (isReviewNote(item)) return radius + 14;
   const labelAllowance = item.type === 'note' ? 24 : item.type === 'tag' ? 20 : 28;
   return radius + labelAllowance;
