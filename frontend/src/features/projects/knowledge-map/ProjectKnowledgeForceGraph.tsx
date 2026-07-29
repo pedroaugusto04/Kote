@@ -295,7 +295,7 @@ export function ProjectKnowledgeForceGraph({
     const totalTopics = topicNodesList.length;
     const centerX = currentSize.width / 2;
     const centerY = currentSize.height / 2;
-    const topicRadius = Math.min(centerX, centerY) * 0.42;
+    const topicRadius = Math.min(centerX, centerY) * 0.32;
 
     topicNodesList.forEach((topicNode, idx) => {
       const angle = (idx / Math.max(1, totalTopics)) * 2 * Math.PI - Math.PI / 2;
@@ -727,14 +727,14 @@ function linkDistance(item: GraphLink) {
   if ((sourceIsTopic && !targetIsTopic) || (targetIsTopic && !sourceIsTopic)) {
     const nonTopicId = sourceIsTopic ? targetId : sourceId;
     if (!nonTopicId.startsWith('project:') && !nonTopicId.startsWith('folder:')) {
-      return 45;
+      return 40;
     }
   }
 
-  if (sourceIsTopic || targetIsTopic) return 130;
-  if (item.type === 'contains') return 110;
-  if (item.type === 'filed-in' || item.type === 'from-repository') return 100;
-  return 90;
+  if (sourceIsTopic || targetIsTopic) return 110;
+  if (item.type === 'contains') return 85;
+  if (item.type === 'filed-in' || item.type === 'from-repository') return 75;
+  return 70;
 }
 
 function linkStrength(item: GraphLink) {
@@ -745,21 +745,21 @@ function linkStrength(item: GraphLink) {
   if (item.type === 'contains') return 0.75;
   if (item.type === 'filed-in') return 0.6;
   if (item.type === 'from-repository') return 0.45;
-  return 0.15;
+  return 0.2;
 }
 
 function chargeStrength(item: GraphNode, denseMap: boolean, hiddenChildIds?: Set<string> | null) {
   if (hiddenChildIds?.has(item.id)) return 0;
-  const base = item.type === 'project' ? -350 : item.type === 'topic' ? -280 : item.type === 'note' ? -120 : -150;
-  return denseMap ? base * 1.3 : base;
+  const base = item.type === 'project' ? -220 : item.type === 'topic' ? -180 : item.type === 'note' ? -70 : -90;
+  return denseMap ? base * 1.15 : base;
 }
 
 function collisionRadius(item: GraphNode, hiddenChildIds?: Set<string> | null) {
   if (hiddenChildIds?.has(item.id)) return 0;
   const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
-  if (item.type === 'topic') return radius + 24;
-  if (isReviewNote(item)) return radius + 14;
-  const labelAllowance = item.type === 'note' ? 24 : item.type === 'tag' ? 20 : 28;
+  if (item.type === 'topic') return radius + 18;
+  if (isReviewNote(item)) return radius + 10;
+  const labelAllowance = item.type === 'note' ? 14 : item.type === 'tag' ? 12 : 18;
   return radius + labelAllowance;
 }
 
