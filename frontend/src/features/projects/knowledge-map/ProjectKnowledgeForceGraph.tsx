@@ -316,9 +316,9 @@ export function ProjectKnowledgeForceGraph({
 
     const simulation = d3.forceSimulation<GraphNode>(graphNodes)
       .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength(linkStrength).distance(linkDistance))
-      .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap)))
+      .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap, hiddenChildIdsRef.current)))
       .force('center', d3.forceCenter(currentSize.width / 2, currentSize.height / 2))
-      .force('collide', d3.forceCollide<GraphNode>().radius(collisionRadius))
+      .force('collide', d3.forceCollide<GraphNode>().radius((item) => collisionRadius(item as GraphNode, hiddenChildIdsRef.current)))
       .velocityDecay(0.45)
       .alphaDecay(0.028)
       .on('tick', () => renderGraph(performance.now()));
@@ -333,6 +333,7 @@ export function ProjectKnowledgeForceGraph({
           n.childNoteIds.forEach((childId) => hiddenChildIds.add(childId));
         }
       });
+      hiddenChildIdsRef.current = hiddenChildIds;
 
       graphNodes.forEach((n) => {
         if (hiddenChildIds.has(n.id)) {
@@ -346,17 +347,17 @@ export function ProjectKnowledgeForceGraph({
             n.vy = 0;
           }
         } else if (n.type !== 'topic') {
-          // Gently initialize position in a ring around parent topic upon expansion
+          // Position child notes in a gentle ring around parent topic upon expansion
           if (n.fx !== null) {
             const parentTopic = graphNodes.find((t) => t.type === 'topic' && t.childNoteIds?.includes(n.id));
             if (parentTopic && parentTopic.x !== undefined && parentTopic.y !== undefined) {
               const childIndex = parentTopic.childNoteIds?.indexOf(n.id) ?? 0;
               const totalChildren = parentTopic.childCount || 1;
               const angle = (childIndex / Math.max(1, totalChildren)) * 2 * Math.PI;
-              n.x = parentTopic.x + Math.cos(angle) * 35;
-              n.y = parentTopic.y + Math.sin(angle) * 35;
-              n.vx = Math.cos(angle) * 0.2;
-              n.vy = Math.sin(angle) * 0.2;
+              n.x = parentTopic.x + Math.cos(angle) * 30;
+              n.y = parentTopic.y + Math.sin(angle) * 30;
+              n.vx = 0;
+              n.vy = 0;
             }
           }
           n.fx = null;
@@ -365,18 +366,28 @@ export function ProjectKnowledgeForceGraph({
       });
 
       node
-        .style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null))
-        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
+        .style('transition', 'opacity 0.2s ease-out')
+        .style('opacity', (d) => (hiddenChildIds.has(d.id) ? 0 : 1))
+        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null))
+        .style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
 
-      link.style('display', (l) => {
-        const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
-        const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
-        if (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) return 'none';
-        return null;
-      });
+      link
+        .style('transition', 'opacity 0.2s ease-out')
+        .style('opacity', (l) => {
+          const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
+          const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
+          if (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) return 0;
+          return 1;
+        })
+        .style('display', (l) => {
+          const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
+          const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
+          if (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) return 'none';
+          return null;
+        });
 
-      simulation.velocityDecay(0.4);
-      simulation.alpha(0.12).restart();
+      simulation.velocityDecay(0.45);
+      simulation.alpha(0.08).restart();
     }
 
     updateTopicStateRef.current = updateTopicState;
@@ -700,42 +711,42 @@ function linkDistance(item: GraphLink) {
   const targetIsTopic = targetId.startsWith('topic:');
 
   // Intra-cluster link (between topic hub and member note): tight orbit
-  if ((sourceIsTopic && !targetIsTopic && !targetId.startsWith('project:') && !targetId.startsWith('folder:')) ||
-      (targetIsTopic && !sourceIsTopic && !sourceId.startsWith('project:') && !sourceId.startsWith('folder:'))) {
-    return 35;
+  if ((sourceIsTopic && !targetIsTopic) || (targetIsTopic && !sourceIsTopic)) {
+    const nonTopicId = sourceIsTopic ? targetId : sourceId;
+    if (!nonTopicId.startsWith('project:') && !nonTopicId.startsWith('folder:')) {
+      return 38;
+    }
   }
 
-  // Inter-cluster link (between topic hub and container): long distance to push islands apart
-  if (sourceIsTopic || targetIsTopic) {
-    return 180;
-  }
-
-  if (item.type === 'contains') return 120;
-  if (item.type === 'filed-in' || item.type === 'from-repository') return 110;
-  return 100;
+  if (sourceIsTopic || targetIsTopic) return 130;
+  if (item.type === 'contains') return 105;
+  if (item.type === 'filed-in' || item.type === 'from-repository') return 95;
+  return 85;
 }
 
 function linkStrength(item: GraphLink) {
   if (item.strength !== undefined) return item.strength;
   const sourceId = typeof item.source === 'object' ? item.source.id : String(item.source);
   const targetId = typeof item.target === 'object' ? item.target.id : String(item.target);
-  if (sourceId.startsWith('topic:') || targetId.startsWith('topic:')) return 0.9;
-  if (item.type === 'contains') return 0.75;
-  if (item.type === 'filed-in') return 0.6;
-  if (item.type === 'from-repository') return 0.45;
+  if (sourceId.startsWith('topic:') || targetId.startsWith('topic:')) return 0.85;
+  if (item.type === 'contains') return 0.7;
+  if (item.type === 'filed-in') return 0.55;
+  if (item.type === 'from-repository') return 0.4;
   return 0.15;
 }
 
-function chargeStrength(item: GraphNode, denseMap: boolean) {
-  const base = item.type === 'project' ? -500 : item.type === 'topic' ? -550 : item.type === 'note' ? -100 : -160;
-  return denseMap ? base * 1.3 : base;
+function chargeStrength(item: GraphNode, denseMap: boolean, hiddenChildIds?: Set<string> | null) {
+  if (hiddenChildIds?.has(item.id)) return 0;
+  const base = item.type === 'project' ? -380 : item.type === 'topic' ? -280 : item.type === 'note' ? -110 : -140;
+  return denseMap ? base * 1.2 : base;
 }
 
-function collisionRadius(item: GraphNode) {
+function collisionRadius(item: GraphNode, hiddenChildIds?: Set<string> | null) {
+  if (hiddenChildIds?.has(item.id)) return 0;
   const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
-  if (item.type === 'topic') return radius + 45;
-  if (isReviewNote(item)) return radius + 14;
-  const labelAllowance = item.type === 'note' ? 24 : item.type === 'tag' ? 20 : 28;
+  if (item.type === 'topic') return radius + 24;
+  if (isReviewNote(item)) return radius + 12;
+  const labelAllowance = item.type === 'note' ? 20 : item.type === 'tag' ? 16 : 24;
   return radius + labelAllowance;
 }
 
