@@ -319,11 +319,25 @@ export function ProjectKnowledgeForceGraph({
       .force('link', d3.forceLink<GraphNode, GraphLink>(graphLinks).id((item) => item.id).strength(linkStrength).distance(linkDistance))
       .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap, hiddenChildIdsRef.current)))
       .force('center', d3.forceCenter(currentSize.width / 2, currentSize.height / 2))
-      .force('collide', d3.forceCollide<GraphNode>().radius((item) => collisionRadius(item as GraphNode, hiddenChildIdsRef.current)))
-      .velocityDecay(0.5)
-      .alphaDecay(0.03)
+      .force('collide', d3.forceCollide<GraphNode>().radius((item) => collisionRadius(item as GraphNode, hiddenChildIdsRef.current)).iterations(1))
+      .velocityDecay(0.55)
+      .alphaDecay(0.035)
+      .alphaMin(0.002)
       .on('tick', () => renderGraph(performance.now()));
     simulationRef.current = simulation;
+
+    // Helper: re-apply charge and collision accessors so D3 re-evaluates per-node values
+    // (D3 caches accessor results at init time — we must re-set them when visibility changes)
+    function refreshForces() {
+      const chargeForce = simulation.force('charge') as d3.ForceManyBody<GraphNode> | null;
+      if (chargeForce) {
+        chargeForce.strength((item) => chargeStrength(item as GraphNode, denseMap, hiddenChildIdsRef.current));
+      }
+      const collideForce = simulation.force('collide') as d3.ForceCollide<GraphNode> | null;
+      if (collideForce) {
+        collideForce.radius((item) => collisionRadius(item as GraphNode, hiddenChildIdsRef.current));
+      }
+    }
 
     function updateTopicState() {
       const currentExpanded = expandedTopicIdsRef.current;
@@ -366,8 +380,8 @@ export function ProjectKnowledgeForceGraph({
               const idx = siblings.indexOf(n.id);
               const count = siblings.length || 1;
               const angle = ((idx >= 0 ? idx : 0) / count) * 2 * Math.PI;
-              n.x = parent.x + Math.cos(angle) * 40;
-              n.y = parent.y + Math.sin(angle) * 40;
+              n.x = parent.x + Math.cos(angle) * 45;
+              n.y = parent.y + Math.sin(angle) * 45;
             }
             n.vx = 0;
             n.vy = 0;
@@ -385,7 +399,7 @@ export function ProjectKnowledgeForceGraph({
       // Delay display:none so the opacity transition can play
       setTimeout(() => {
         node.style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
-      }, 260);
+      }, 280);
 
       link
         .style('opacity', (l) => {
@@ -400,10 +414,14 @@ export function ProjectKnowledgeForceGraph({
           const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
           return (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) ? 'none' : null;
         });
-      }, 260);
+      }, 280);
 
-      // Gentle reheat — just enough to settle the ring, not enough to cause jitter
-      simulation.alpha(0.06).restart();
+      // CRITICAL: re-initialize charge/collision so D3 re-evaluates per-node strengths
+      // with the updated hiddenChildIdsRef (hidden nodes get 0 charge & 0 collision)
+      refreshForces();
+
+      // Gentle reheat — just enough to float nodes into position
+      simulation.alpha(0.04).restart();
     }
 
     updateTopicStateRef.current = updateTopicState;
@@ -411,7 +429,7 @@ export function ProjectKnowledgeForceGraph({
 
     const drag = d3.drag<SVGGElement, GraphNode>()
       .on('start', (event, item) => {
-        if (!event.active) simulation.alphaTarget(0.25).restart();
+        if (!event.active) simulation.alphaTarget(0.08).restart();
         item.fx = item.x;
         item.fy = item.y;
       })
@@ -651,8 +669,8 @@ export function ProjectKnowledgeForceGraph({
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 720;
     if (simulation && !isMobile) {
       simulation.force('center', d3.forceCenter(size.width / 2, size.height / 2));
-      // Re-heat simulation slightly so nodes adjust to the new center
-      simulation.alpha(0.1).restart();
+      // Re-heat simulation very gently so nodes adjust to the new center
+      simulation.alpha(0.03).restart();
     }
   }, [size.width, size.height]);
 
@@ -753,16 +771,16 @@ function linkStrength(item: GraphLink) {
 
 function chargeStrength(item: GraphNode, denseMap: boolean, hiddenChildIds?: Set<string> | null) {
   if (hiddenChildIds?.has(item.id)) return 0;
-  const base = item.type === 'project' ? -380 : item.type === 'topic' ? -280 : item.type === 'note' ? -110 : -140;
-  return denseMap ? base * 1.2 : base;
+  const base = item.type === 'project' ? -200 : item.type === 'topic' ? -150 : item.type === 'note' ? -50 : -70;
+  return denseMap ? base * 1.15 : base;
 }
 
 function collisionRadius(item: GraphNode, hiddenChildIds?: Set<string> | null) {
   if (hiddenChildIds?.has(item.id)) return 0;
   const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
-  if (item.type === 'topic') return radius + 24;
-  if (isReviewNote(item)) return radius + 12;
-  const labelAllowance = item.type === 'note' ? 20 : item.type === 'tag' ? 16 : 24;
+  if (item.type === 'topic') return radius + 14;
+  if (isReviewNote(item)) return radius + 8;
+  const labelAllowance = item.type === 'note' ? 10 : item.type === 'tag' ? 8 : 14;
   return radius + labelAllowance;
 }
 
