@@ -43,7 +43,7 @@ export class SemanticClusteringService {
   async clusterKnowledgeMap(
     userId: string,
     baseMap: ProjectKnowledgeMapResponse,
-    similarityThreshold = 0.60,
+    similarityThreshold = 0.68,
   ): Promise<ProjectKnowledgeMapResponse> {
     const noteNodes = baseMap.nodes.filter((node) => node.type === KnowledgeMapNodeTypeEnum.Note && node.noteId);
     if (noteNodes.length < 2) return baseMap;
