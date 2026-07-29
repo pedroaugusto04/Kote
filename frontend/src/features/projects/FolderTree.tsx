@@ -23,7 +23,7 @@ export function FolderTree({ folders, selectedFolderId, onSelect }: FolderTreePr
   const handleToggle = (folderId: string) => {
     setCollapsedFolders((prev) => ({
       ...prev,
-      [folderId]: !prev[folderId],
+      [folderId]: !(prev[folderId] ?? true),
     }));
   };
 
@@ -65,7 +65,7 @@ function FolderTreeNode({
   collapsedFolders,
   onToggle,
 }: FolderTreeNodeProps) {
-  const isCollapsed = collapsedFolders[folder.id] || false;
+  const isCollapsed = collapsedFolders[folder.id] ?? true;
   const hasChildren = folder.children && folder.children.length > 0;
 
   return (
