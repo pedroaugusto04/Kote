@@ -38,12 +38,12 @@ function findMedoidNote(members: KnowledgeMapNode[], embeddingsByNoteId: Map<str
 
 @Injectable()
 export class SemanticClusteringService {
-  constructor(private readonly noteEmbeddingRepository: NoteEmbeddingRepository) {}
+  constructor(private readonly noteEmbeddingRepository: NoteEmbeddingRepository) { }
 
   async clusterKnowledgeMap(
     userId: string,
     baseMap: ProjectKnowledgeMapResponse,
-    similarityThreshold = 0.68,
+    similarityThreshold = 0.60,
   ): Promise<ProjectKnowledgeMapResponse> {
     const noteNodes = baseMap.nodes.filter((node) => node.type === KnowledgeMapNodeTypeEnum.Note && node.noteId);
     if (noteNodes.length < 2) return baseMap;

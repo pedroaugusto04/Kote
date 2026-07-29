@@ -294,15 +294,23 @@ export function ProjectKnowledgeForceGraph({
     const totalTopics = topicNodesList.length;
     const centerX = currentSize.width / 2;
     const centerY = currentSize.height / 2;
-    const topicRadius = Math.min(centerX, centerY) * 0.45;
+    const topicRadius = Math.min(centerX, centerY) * 0.42;
 
     topicNodesList.forEach((topicNode, idx) => {
       const angle = (idx / Math.max(1, totalTopics)) * 2 * Math.PI - Math.PI / 2;
-      const tx = centerX + Math.cos(angle) * topicRadius;
-      const ty = centerY + Math.sin(angle) * topicRadius;
-      if (topicNode.x === undefined || topicNode.x === 0) {
-        topicNode.x = tx;
-        topicNode.y = ty;
+      topicNode.x = centerX + Math.cos(angle) * topicRadius;
+      topicNode.y = centerY + Math.sin(angle) * topicRadius;
+    });
+
+    // Pre-position all other non-topic nodes in a gentle golden spiral to eliminate initial (0,0) overlap collisions
+    const otherNodes = graphNodes.filter((n) => n.type !== 'topic' && n.type !== 'project');
+    const goldenAngle = 2.39996;
+    otherNodes.forEach((node, i) => {
+      if (node.x === undefined || node.x === 0 || isNaN(node.x)) {
+        const r = Math.sqrt(i + 1) * 20 + 45;
+        const angle = i * goldenAngle;
+        node.x = centerX + Math.cos(angle) * r;
+        node.y = centerY + Math.sin(angle) * r;
       }
     });
 
@@ -311,7 +319,8 @@ export function ProjectKnowledgeForceGraph({
       .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap)))
       .force('center', d3.forceCenter(currentSize.width / 2, currentSize.height / 2))
       .force('collide', d3.forceCollide<GraphNode>().radius(collisionRadius))
-      .velocityDecay(0.35)
+      .velocityDecay(0.45)
+      .alphaDecay(0.028)
       .on('tick', () => renderGraph(performance.now()));
     simulationRef.current = simulation;
 
@@ -764,8 +773,8 @@ function graphNodePosition(item: GraphNode, time: number, staticPosition: boolea
   const y = item.y || 0;
   if (staticPosition) return { x, y };
   const phase = hashNodeId(item.id) % 628;
-  const amplitude = item.type === 'project' ? 0.8 : 1.7;
-  const t = time / 1600;
+  const amplitude = item.type === 'project' ? 0.3 : 0.6;
+  const t = time / 2400;
   return {
     x: x + Math.sin(t + phase) * amplitude,
     y: y + Math.cos(t * 0.85 + phase) * amplitude,
