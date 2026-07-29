@@ -152,8 +152,11 @@ export function deleteProjectFolder(projectSlug: string, folderId: string) {
   });
 }
 
-export async function fetchProjectCoverage(projectSlug: string) {
-  const res = await request<any>(`/api/projects/${encodeURIComponent(projectSlug)}/coverage`);
+export async function fetchProjectCoverage(projectSlug: string, forceSync = false) {
+  const url = forceSync
+    ? `/api/projects/${encodeURIComponent(projectSlug)}/coverage?forceSync=true`
+    : `/api/projects/${encodeURIComponent(projectSlug)}/coverage`;
+  const res = await request<any>(url);
   return res?.coverage || res;
 }
 

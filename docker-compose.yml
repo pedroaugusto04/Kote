@@ -1,7 +1,14 @@
+x-default-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_DB: ${KB_POSTGRES_DB:-knowledge_base}
       POSTGRES_USER: ${KB_POSTGRES_USER:-postgres}
@@ -25,6 +32,7 @@ services:
     init: true
     stdin_open: true
     tty: true
+    logging: *default-logging
     env_file:
       - .env
     environment:
@@ -36,8 +44,7 @@ services:
       KB_API_INSPECT_PORT: ${KB_API_INSPECT_PORT:-9229}
       KB_LOG_FILE_ENABLED: ${KB_LOG_FILE_ENABLED:-true}
       KB_LOG_DIR: ${KB_LOG_DIR:-/app/logs}
-      KB_LOG_MAX_FILES: ${KB_LOG_MAX_FILES:-30}
-      KB_LOG_MAX_SIZE: ${KB_LOG_MAX_SIZE:-20m}
+      KB_LOG_MAX_FILES: ${KB_LOG_MAX_FILES:-7}
       KB_LOG_LEVEL: ${KB_LOG_LEVEL:-debug}
       # Browser extension IDs (comma-separated, for chrome-extension:// origins)
       KB_ALLOWED_EXTENSION_IDS: ${KB_ALLOWED_EXTENSION_IDS:-}
@@ -172,6 +179,7 @@ services:
     image: node:22-alpine
     working_dir: /app
     restart: unless-stopped
+    logging: *default-logging
     env_file:
       - .env
     environment:
@@ -193,6 +201,7 @@ services:
   rabbitmq:
     image: rabbitmq:4-management-alpine
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "${KB_RABBITMQ_PORT:-5673}:5672"
       - "${KB_RABBITMQ_MANAGEMENT_PORT:-15673}:15672"
@@ -210,6 +219,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "${KB_OLLAMA_PORT:-11434}:11434"
     volumes:

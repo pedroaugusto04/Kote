@@ -299,13 +299,19 @@ export class ProjectsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get project knowledge coverage' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiQuery({ name: 'forceSync', required: false, description: 'Force refresh of file tree from GitHub' })
   @ApiResponse({ status: 200, description: 'Project coverage retrieved successfully' })
   async getCoverage(
     @CurrentUser() user: AuthenticatedUser,
     @ProjectId() projectId: string,
     @Param('projectSlug') projectSlug: string,
+    @Query('forceSync') forceSync?: string,
   ) {
-    const result = await this.getProjectCoverageUseCase.execute(user.id, { projectId, workspaceSlug: projectSlug });
+    const result = await this.getProjectCoverageUseCase.execute(user.id, {
+      projectId,
+      workspaceSlug: projectSlug,
+      forceSync: forceSync === 'true',
+    });
     return { ok: true, ...result, coverage: result };
   }
 }

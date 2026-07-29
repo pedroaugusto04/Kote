@@ -7,21 +7,17 @@ import { SyncProjectFilesService } from '../../services/projects/sync-project-fi
 export class GetProjectCoverageUseCase {
   constructor(
     private readonly projectCoverageRepository: ProjectCoverageRepository,
-    private readonly syncProjectFilesService?: SyncProjectFilesService,
+    private readonly syncProjectFilesService: SyncProjectFilesService,
   ) {}
 
-  async execute(userId: string, input: { projectId: string; workspaceSlug?: string }): Promise<ProjectCoverageResult> {
-    let res = await this.projectCoverageRepository.getProjectCoverage(userId, input.projectId);
-    if (res.totalFiles === 0 && this.syncProjectFilesService) {
+  async execute(userId: string, input: { projectId: string; workspaceSlug?: string; forceSync?: boolean }): Promise<ProjectCoverageResult> {
+    if (input.forceSync) {
       try {
-        const syncedCount = await this.syncProjectFilesService.syncProject(userId, input.projectId);
-        if (syncedCount > 0) {
-          res = await this.projectCoverageRepository.getProjectCoverage(userId, input.projectId);
-        }
+        await this.syncProjectFilesService.syncProject(userId, input.projectId);
       } catch {
         // Fallback to initial result if sync fails
       }
     }
-    return res;
+    return this.projectCoverageRepository.getProjectCoverage(userId, input.projectId);
   }
 }
