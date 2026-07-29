@@ -227,12 +227,28 @@ export function ProjectKnowledgeForceGraph({
         }
       });
 
+    // Build lookup for node ID -> parent topic cluster color for visual UI/UX identification
+    const noteToTopicColorMap = new Map<string, string>();
+    graphNodes.forEach((item) => {
+      if (item.type === 'topic' && item.childNoteIds) {
+        const color = TOPIC_COLORS[hashNodeId(item.id) % TOPIC_COLORS.length];
+        item.childNoteIds.forEach((cid) => noteToTopicColorMap.set(cid, color));
+      }
+    });
+
     const circles = node
       .append('circle')
       .attr('r', (item) => item.size || knowledgeMapNodeStyles[item.type].radius)
       .attr('fill', nodeColor)
-      .attr('stroke', 'rgba(255,255,255,0.74)')
-      .attr('stroke-width', 1.2);
+      .attr('stroke', (item) => {
+        if (item.type === 'topic') return '#ffffff';
+        if (noteToTopicColorMap.has(item.id)) return noteToTopicColorMap.get(item.id)!;
+        return 'rgba(255,255,255,0.74)';
+      })
+      .attr('stroke-width', (item) => {
+        if (item.type === 'topic' || noteToTopicColorMap.has(item.id)) return 2.2;
+        return 1.2;
+      });
 
     // Append numeric count badge for topic hub nodes
     const topicNodes = node.filter((item) => item.type === 'topic' && Boolean(item.childCount));
@@ -392,17 +408,15 @@ export function ProjectKnowledgeForceGraph({
     // Pre-tick the simulation to get initial stable positions before fitting
     simulation.tick(denseMap ? 300 : 200);
 
-    // Apply fit transform with smooth 400ms transition after stabilization (matching commit a0518977fb6c52cafe31300a62a5d48aa3e23112)
-    setTimeout(() => {
-      const latestSize = sizeRef.current;
-      const initialTransform = computeFitTransform(
-        graphNodes,
-        hiddenNodeIds,
-        latestSize.width,
-        latestSize.height
-      );
-      d3.select(svgElement).transition().duration(400).call(zoom.transform, initialTransform);
-    }, 100);
+    // Apply fit transform synchronously so the map paints centered on F5 without any secondary tick or camera jump
+    const latestSize = sizeRef.current;
+    const initialTransform = computeFitTransform(
+      graphNodes,
+      hiddenNodeIds,
+      latestSize.width,
+      latestSize.height
+    );
+    svg.call(zoom.transform, initialTransform);
 
     function updateLabels() {
       labels
