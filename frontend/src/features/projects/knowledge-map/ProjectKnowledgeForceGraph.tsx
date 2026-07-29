@@ -61,6 +61,15 @@ export function ProjectKnowledgeForceGraph({
   }, [searchQuery]);
 
   const [expandedTopicIds, setExpandedTopicIds] = useState<Set<string>>(() => new Set());
+  const expandedTopicIdsRef = useRef<Set<string>>(expandedTopicIds);
+  const updateTopicStateRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    expandedTopicIdsRef.current = expandedTopicIds;
+    if (updateTopicStateRef.current) {
+      updateTopicStateRef.current();
+    }
+  }, [expandedTopicIds]);
 
   const handleToggleTopic = useCallback((topicId: string) => {
     setExpandedTopicIds((prev) => {
@@ -79,23 +88,10 @@ export function ProjectKnowledgeForceGraph({
     onToggleTopicRef.current = handleToggleTopic;
   }, [handleToggleTopic]);
 
-  const graph = useMemo(() => {
-    const hiddenChildIds = new Set<string>();
-    nodes.forEach((node) => {
-      if (node.type === 'topic' && !expandedTopicIds.has(node.id) && node.childNoteIds) {
-        node.childNoteIds.forEach((childId) => hiddenChildIds.add(childId));
-      }
-    });
-
-    const activeNodes = nodes.filter((n) => !hiddenChildIds.has(n.id));
-    const activeNodeIds = new Set(activeNodes.map((n) => n.id));
-    const activeLinks = links.filter((l) => activeNodeIds.has(l.source) && activeNodeIds.has(l.target));
-
-    return {
-      nodes: activeNodes.map((node) => ({ ...node })),
-      links: activeLinks.map((link) => ({ ...link })),
-    };
-  }, [links, nodes, expandedTopicIds]);
+  const graph = useMemo(() => ({
+    nodes: nodes.map((node) => ({ ...node })),
+    links: links.map((link) => ({ ...link })),
+  }), [links, nodes]);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -300,6 +296,48 @@ export function ProjectKnowledgeForceGraph({
       .force('collide', d3.forceCollide<GraphNode>().radius(collisionRadius))
       .on('tick', () => renderGraph(performance.now()));
     simulationRef.current = simulation;
+
+    function updateTopicState() {
+      const currentExpanded = expandedTopicIdsRef.current;
+      const hiddenChildIds = new Set<string>();
+
+      graphNodes.forEach((n) => {
+        if (n.type === 'topic' && !currentExpanded.has(n.id) && n.childNoteIds) {
+          n.childNoteIds.forEach((childId) => hiddenChildIds.add(childId));
+        }
+      });
+
+      graphNodes.forEach((n) => {
+        if (hiddenChildIds.has(n.id)) {
+          const parentTopic = graphNodes.find((t) => t.type === 'topic' && t.childNoteIds?.includes(n.id));
+          if (parentTopic && parentTopic.x !== undefined && parentTopic.y !== undefined) {
+            n.x = parentTopic.x;
+            n.y = parentTopic.y;
+            n.fx = parentTopic.x;
+            n.fy = parentTopic.y;
+          }
+        } else if (n.type !== 'topic') {
+          n.fx = null;
+          n.fy = null;
+        }
+      });
+
+      node
+        .style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null))
+        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
+
+      link.style('display', (l) => {
+        const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
+        const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
+        if (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) return 'none';
+        return null;
+      });
+
+      simulation.alpha(0.3).restart();
+    }
+
+    updateTopicStateRef.current = updateTopicState;
+    updateTopicState();
 
     const drag = d3.drag<SVGGElement, GraphNode>()
       .on('start', (event, item) => {
