@@ -261,64 +261,6 @@ export class FileNotesSummaryProvider {
       const notesJson = JSON.stringify(notes);
       const safeNotes = notes || [];
 
-      const notesHtml = safeNotes.map(note => {
-        const noteId = note?.id || '';
-        const title = note?.title || 'Untitled';
-        const summary = note?.summary || 'No summary';
-        const date = note?.date || note?.occurredAt || new Date().toISOString();
-        return `
-          <div class="note-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
-            <div class="note-title">${this.escapeHtml(title)}</div>
-            <div class="note-summary">${this.escapeHtml(summary)}</div>
-            <div class="note-date" data-date="${date}">${date}</div>
-          </div>
-        `;
-      }).join('');
-
-      let relatedHtml = '';
-      if (this.relatedNotes === undefined) {
-        relatedHtml = `
-          <div class="related-section">
-            <h3 class="related-title-container">💡 Related Notes <span class="badge">Searching...</span></h3>
-            <div id="related-notes-container">
-              <div class="loading-section" style="padding: 15px; margin: 10px 0;">
-                <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
-                <p style="font-size: 0.9em; margin: 5px 0 0 0; color: var(--vscode-descriptionForeground);">Searching for semantic matches...</p>
-              </div>
-            </div>
-          </div>
-        `;
-      } else if (this.relatedNotes.length > 0) {
-        const items = this.relatedNotes.map(note => {
-          const noteId = note?.id || '';
-          const title = note?.title || 'Untitled';
-          const summary = note?.summary || 'No summary';
-          return `
-            <div class="note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
-              <div class="note-title">${this.escapeHtml(title)} <span class="badge">Related</span></div>
-              <div class="note-summary">${this.escapeHtml(summary).substring(0, 200)}${summary && summary.length > 200 ? '...' : ''}</div>
-            </div>
-          `;
-        }).join('');
-        relatedHtml = `
-          <div class="related-section">
-            <h3 class="related-title-container">💡 Related Notes <span class="badge">${this.relatedNotes.length}</span></h3>
-            <div id="related-notes-container">
-              ${items}
-            </div>
-          </div>
-        `;
-      } else {
-        relatedHtml = `
-          <div class="related-section">
-            <h3 class="related-title-container">💡 Related Notes</h3>
-            <div id="related-notes-container">
-              <p style="font-style: italic; color: var(--vscode-descriptionForeground);">No related notes found.</p>
-            </div>
-          </div>
-        `;
-      }
-
       return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -333,10 +275,14 @@ export class FileNotesSummaryProvider {
       background-color: var(--vscode-editor-background);
       padding: 20px;
       margin: 0;
+      line-height: 1.6;
     }
-    h1 { margin: 0 0 16px 0; }
-    h3 { margin: 24px 0 12px 0; }
-    p { margin: 8px 0; }
+    h1 {
+      font-size: 1.5em;
+      margin-bottom: 10px;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      padding-bottom: 10px;
+    }
     .loading-section {
       background: var(--vscode-editor-background);
       border: 1px solid var(--vscode-panel-border);
@@ -358,30 +304,73 @@ export class FileNotesSummaryProvider {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    .notes-section { margin-top: 32px; }
-    .note-item {
-      padding: 12px;
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 6px;
-      margin-bottom: 8px;
-      cursor: pointer;
-    }
-    .note-item:hover { background: var(--vscode-editor-hoverBackground); }
-    .note-title { font-weight: 600; margin-bottom: 4px; }
-    .note-summary { font-size: 0.9em; color: var(--vscode-descriptionForeground); margin-bottom: 4px; }
-    .note-date { font-size: 0.85em; color: var(--vscode-descriptionForeground); }
 
-    /* Related notes styling */
-    .related-section {
-      margin-top: 32px;
+    /* Tabs Layout */
+    .tabs-container {
+      margin-top: 30px;
+      border-top: 1px solid var(--vscode-panel-border);
       padding-top: 20px;
-      border-top: 1px dashed var(--vscode-panel-border);
     }
-    .related-title-container {
+    .tabs-header {
+      display: flex;
+      gap: 12px;
+      border-bottom: 1px solid var(--vscode-panel-border);
+      margin-bottom: 16px;
+    }
+    .tab-button {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--vscode-foreground);
+      opacity: 0.7;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-size: var(--vscode-font-size);
+      font-weight: 500;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
+    .tab-button:hover {
+      opacity: 1;
+    }
+    .tab-button.active {
+      border-bottom-color: var(--vscode-button-background);
+      opacity: 1;
+      font-weight: 600;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+
+    .notes-list {
+      margin-top: 0;
+    }
+    .note-item {
+      padding: 10px;
+      margin-bottom: 10px;
+      background-color: var(--vscode-editor-inactiveSelectionBackground);
+      border: 1px solid var(--vscode-panel-border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .note-item:hover {
+      background-color: var(--vscode-editor-selectionBackground);
+    }
+    .note-title {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .note-summary {
+      font-size: 0.9em;
+      color: var(--vscode-descriptionForeground);
+    }
+
+    /* Related notes styling */
     .badge {
       font-size: 0.75em;
       padding: 2px 6px;
@@ -409,31 +398,63 @@ export class FileNotesSummaryProvider {
     <p style="font-size: 0.9em; color: var(--vscode-descriptionForeground);">Notes are available below while summary loads</p>
   </div>
 
-  <div class="notes-section">
-    <h3>📝 Notes (${safeNotes.length})</h3>
-    ${notesHtml}
+  <div class="tabs-container">
+    <div class="tabs-header">
+      <button class="tab-button active" onclick="selectTab('linked-notes')">Linked Notes <span class="badge">${safeNotes.length}</span></button>
+      <button class="tab-button" onclick="selectTab('related-notes')">Related Notes <span class="badge" id="related-badge">${this.relatedNotes === undefined ? 'Searching...' : this.relatedNotes.length}</span></button>
+    </div>
+    
+    <div id="linked-notes" class="tab-content active">
+      <div class="notes-list">
+        ${safeNotes.map(note => `
+          <div class="note-item" onclick="openNote('${this.escapeHtml(String(note.id))}')">
+            <div class="note-title">${this.escapeHtml(note.title || 'Untitled')}</div>
+            <div class="note-summary">${this.escapeHtml(note.summary || 'No summary').substring(0, 200)}${note.summary && note.summary.length > 200 ? '...' : ''}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    
+    <div id="related-notes" class="tab-content">
+      <div id="related-notes-container">
+        ${this.relatedNotes === undefined ? `
+          <div class="loading-section" style="padding: 15px; margin: 10px 0;">
+            <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+            <p style="font-size: 0.9em; margin: 5px 0 0 0; color: var(--vscode-descriptionForeground);">Searching for semantic matches...</p>
+          </div>
+        ` : this.relatedNotes.length > 0 ? this.relatedNotes.map(note => {
+            const noteId = note?.id || '';
+            const title = note?.title || 'Untitled';
+            const summary = note?.summary || 'No summary';
+            return `
+              <div class="note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
+                <div class="note-title">${this.escapeHtml(title)} <span class="badge">Related</span></div>
+                <div class="note-summary">${this.escapeHtml(summary).substring(0, 200)}${summary && summary.length > 200 ? '...' : ''}</div>
+              </div>
+            `;
+          }).join('') : `
+          <p style="font-style: italic; color: var(--vscode-descriptionForeground); margin: 10px 0;">No related notes found.</p>
+        `}
+      </div>
+    </div>
   </div>
-
-  ${relatedHtml}
 
   <script>
     const vscode = acquireVsCodeApi();
     const notes = ${notesJson};
     
-    // Format dates in browser
-    document.querySelectorAll('.note-date').forEach(el => {
-      const dateStr = el.getAttribute('data-date');
-      if (dateStr) {
-        try {
-          el.textContent = new Date(dateStr).toLocaleDateString();
-        } catch (e) {
-          el.textContent = dateStr;
-        }
-      }
-    });
-    
     function openNote(noteId) {
       vscode.postMessage({ command: 'openNote', noteId });
+    }
+
+    function selectTab(tabId) {
+      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      const activeBtn = document.querySelector(\`.tab-button[onclick="selectTab('\${tabId}')"]\`);
+      const activeContent = document.getElementById(tabId);
+      if (activeBtn) activeBtn.classList.add('active');
+      if (activeContent) activeContent.classList.add('active');
     }
 
     // Related notes listener
@@ -442,17 +463,16 @@ export class FileNotesSummaryProvider {
       if (message.command === 'relatedNotesLoaded') {
         const related = message.notes || [];
         const container = document.getElementById('related-notes-container');
-        const badge = document.querySelector('.related-title-container .badge');
+        const badge = document.getElementById('related-badge');
         if (!container) return;
-        
-        if (related.length === 0) {
-          container.innerHTML = '<p style="font-style: italic; color: var(--vscode-descriptionForeground); margin: 10px 0;">No related notes found.</p>';
-          if (badge) badge.remove();
-          return;
-        }
         
         if (badge) {
           badge.textContent = related.length;
+        }
+        
+        if (related.length === 0) {
+          container.innerHTML = '<p style="font-style: italic; color: var(--vscode-descriptionForeground); margin: 10px 0;">No related notes found.</p>';
+          return;
         }
         
         container.innerHTML = related.map(note => {
