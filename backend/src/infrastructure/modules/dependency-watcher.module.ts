@@ -2,12 +2,14 @@ import { Module } from '@nestjs/common';
 
 import { DependencyWatcherService } from '../../application/services/dependency-watcher/dependency-watcher.service.js';
 import { DependencyWatcherWorker } from '../../application/workers/dependency-watcher.worker.js';
+import { DependencyImportWorker } from '../../application/workers/dependency-import.worker.js';
 import { DefaultDependencyAlertGateway } from '../ai/dependency-alert.gateway.js';
 import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
 import { DependencyAlertGateway } from '../../application/ports/dependency-watcher/dependency-alert.port.js';
 import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { RegistryStrategyProvider } from '../../application/ports/dependency-registry/registry-strategy.provider.js';
 import { RabbitMqDependencyCheckQueuePublisher } from '../queue/rabbitmq-dependency-check-queue.publisher.js';
+import { RabbitMqDependencyImportQueuePublisher } from '../queue/rabbitmq-dependency-import-queue.publisher.js';
 import { DatabaseModule } from './database.module.js';
 import { NotesModule } from './notes.module.js';
 import { AuthModule } from './auth.module.js';
@@ -32,8 +34,10 @@ import { CheckDependencyUseCase } from '../../application/use-cases/dependency-w
     PostgresDependencyWatcherRepository,
     DefaultDependencyAlertGateway,
     RabbitMqDependencyCheckQueuePublisher,
+    RabbitMqDependencyImportQueuePublisher,
     DependencyWatcherService,
     DependencyWatcherWorker,
+    DependencyImportWorker,
     CheckDependencyUseCase,
     {
       provide: DependencyWatcherRepository,

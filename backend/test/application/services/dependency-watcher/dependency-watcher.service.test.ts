@@ -10,6 +10,8 @@ import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../../..
 import { UserRepository } from '../../../../src/application/ports/auth/auth.repository.js';
 import { ContentRepository } from '../../../../src/application/ports/notes/content.repository.js';
 import { AppLogger } from '../../../../src/observability/logger.js';
+import { RabbitMqDependencyCheckQueuePublisher } from '../../../../src/infrastructure/queue/rabbitmq-dependency-check-queue.publisher.js';
+import { RabbitMqDependencyImportQueuePublisher } from '../../../../src/infrastructure/queue/rabbitmq-dependency-import-queue.publisher.js';
 import { DependencyUrgency, DependencyEcosystem } from '../../../../src/domain/enums/dependency.enums.js';
 import { AiProvider } from '../../../../src/domain/enums/ai.enums.js';
 
@@ -24,6 +26,8 @@ describe('Backend: Dependency Watcher Service', () => {
   let mockEnvironmentProvider: RuntimeEnvironmentProvider;
   let mockUserRepository: UserRepository;
   let mockContentRepository: ContentRepository;
+  let mockDependencyCheckQueuePublisher: RabbitMqDependencyCheckQueuePublisher;
+  let mockDependencyImportQueuePublisher: RabbitMqDependencyImportQueuePublisher;
   let mockLogger: AppLogger;
 
   const mockRecord: DependencyWatchRecord = {
@@ -38,6 +42,7 @@ describe('Backend: Dependency Watcher Service', () => {
     checkIntervalHours: 24,
     lastCheckedAt: new Date(Date.now() - 48 * 60 * 60 * 1000),
     lastAlertedAt: null,
+    lastUrgency: null,
     enabled: true,
     repositoryId: 'repo-123',
     createdAt: new Date(),
@@ -73,6 +78,7 @@ describe('Backend: Dependency Watcher Service', () => {
 
     mockDependencyWatcherRepository = {
       findDueForCheck: vi.fn(),
+      findEnabledWorkspaces: vi.fn().mockResolvedValue([]),
       update: vi.fn(),
       isWorkspaceEnabled: vi.fn().mockResolvedValue(true),
     } as unknown as DependencyWatcherRepository;
@@ -83,8 +89,9 @@ describe('Backend: Dependency Watcher Service', () => {
 
     mockRegistryStrategyProvider = {
       getStrategy: vi.fn().mockReturnValue({
+        ecosystem: DependencyEcosystem.Npm,
         fetchLatestVersion: mockFetchLatestVersion,
-      } as RegistryStrategy),
+      } as unknown as RegistryStrategy),
     } as unknown as RegistryStrategyProvider;
 
     mockIngestEntryUseCase = {
@@ -101,6 +108,7 @@ describe('Backend: Dependency Watcher Service', () => {
 
     mockLogger = {
       error: vi.fn(),
+      info: vi.fn(),
     } as unknown as AppLogger;
 
     mockUserRepository = {
@@ -115,7 +123,20 @@ describe('Backend: Dependency Watcher Service', () => {
           repositories: [{ id: 'repo-123', fullName: 'owner/repo' }],
         },
       ]),
+      getWorkspaceById: vi.fn().mockResolvedValue({
+        id: 'workspace-123',
+        userId: 'user-123',
+        workspaceSlug: 'test-workspace',
+      }),
     } as unknown as ContentRepository;
+
+    mockDependencyCheckQueuePublisher = {
+      publish: vi.fn(),
+    } as unknown as RabbitMqDependencyCheckQueuePublisher;
+
+    mockDependencyImportQueuePublisher = {
+      publish: vi.fn(),
+    } as unknown as RabbitMqDependencyImportQueuePublisher;
 
     service = new DependencyWatcherService(
       mockDependencyWatcherRepository,
@@ -126,259 +147,85 @@ describe('Backend: Dependency Watcher Service', () => {
       mockEnvironmentProvider,
       mockUserRepository,
       mockContentRepository,
+      mockDependencyCheckQueuePublisher,
+      mockDependencyImportQueuePublisher,
       mockLogger,
     );
   });
 
   describe('Business Rules', () => {
-    it('should skip packages where current version equals latest version', async () => {
-      mockFetchLatestVersion.mockResolvedValue({ version: '4.18.0', repositoryUrl: '' });
+    it('should queue check jobs for enabled workspaces', async () => {
       vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
 
       const result = await service.runCheck(24);
 
-      expect(result.checked).toBe(1);
-      expect(result.updates).toBe(0);
-      expect(mockIngestEntryUseCase.execute).not.toHaveBeenCalled();
-      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
+      expect(result.queued).toBe(1);
+      expect(result.workspaces).toBe(1);
+      expect(mockDependencyCheckQueuePublisher.publish).toHaveBeenCalled();
     });
 
-    it('should skip packages where latest version equals latest seen version', async () => {
-      mockFetchLatestVersion.mockResolvedValue(mockVersionInfo);
-      const seenVersionRecord = {
-        ...mockRecord,
-        latestSeenVersion: '4.19.0',
-      };
-
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([seenVersionRecord]);
-
-      const result = await service.runCheck(24);
-
-      expect(result.checked).toBe(1);
-      expect(result.updates).toBe(0);
-      expect(mockIngestEntryUseCase.execute).not.toHaveBeenCalled();
-    });
-
-    it('should process packages with new version available', async () => {
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
-
-      const result = await service.runCheck(24);
-
-      expect(result.checked).toBe(1);
-      expect(result.updates).toBe(1);
-      expect(mockIngestEntryUseCase.execute).toHaveBeenCalled();
-    });
-
-    it('should create note with changelog summary for updates', async () => {
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
-
-      await service.runCheck(24);
-
-      expect(mockIngestEntryUseCase.execute).toHaveBeenCalledWith(
-        expect.objectContaining({
-          event: expect.objectContaining({
-            projectSlug: 'my-project',
-          }),
-          content: expect.objectContaining({
-            rawText: expect.stringContaining('Security vulnerability fix'),
-          }),
-        }),
-        mockRecord.userId,
-        mockRecord.workspaceSlug,
-        {},
-      );
-    });
-
-    it('should send email alert for critical urgency', async () => {
-      const criticalAnalysis: DependencyAlertResult = {
-        ...mockAnalysis,
-        urgency: DependencyUrgency.Critical,
-      };
-
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(criticalAnalysis);
-
-      await service.runCheck(24);
-
-      expect(mockEmailService.sendEmail).toHaveBeenCalledWith(
-        expect.objectContaining({
-          to: 'user@example.com',
-          templateName: 'dependency-alert',
-          templateData: expect.objectContaining({
-            packageName: 'express',
-            currentVersion: '4.18.0',
-            latestVersion: '4.19.0',
-            urgency: DependencyUrgency.Critical,
-          }),
-        }),
-      );
-    });
-
-    it('should send email alert for recommended urgency', async () => {
-      const recommendedAnalysis: DependencyAlertResult = {
-        ...mockAnalysis,
-        urgency: DependencyUrgency.Recommended,
-      };
-
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(recommendedAnalysis);
-
-      await service.runCheck(24);
-
-      expect(mockEmailService.sendEmail).toHaveBeenCalled();
-    });
-
-    it('should NOT send email alert for optional urgency', async () => {
-      const optionalAnalysis: DependencyAlertResult = {
-        ...mockAnalysis,
-        urgency: DependencyUrgency.Optional,
-      };
-
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(optionalAnalysis);
-
-      await service.runCheck(24);
-
-      expect(mockEmailService.sendEmail).not.toHaveBeenCalled();
-    });
-
-    it('should update dependency watch record with latest version and alert timestamp', async () => {
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
-
-      await service.runCheck(24);
-
-      expect(mockDependencyWatcherRepository.update).toHaveBeenCalledWith(
-        mockRecord.id,
-        expect.objectContaining({
-          latestSeenVersion: '4.19.0',
-          lastAlertedAt: expect.any(Date),
-        }),
-      );
-    });
-
-    it('should handle missing AI provider gracefully', async () => {
-      const noAiEnvironment = {
-        ...mockEnvironment,
-        dependencyWatcherAiProvider: AiProvider.None,
-      };
-      vi.mocked(mockEnvironmentProvider.read).mockReturnValue(noAiEnvironment);
-
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-
-      const result = await service.runCheck(24);
-
-      expect(result.checked).toBe(1);
-      expect(result.updates).toBe(1);
-      expect(mockIngestEntryUseCase.execute).toHaveBeenCalled();
-      expect(mockDependencyAlertGateway.analyze).not.toHaveBeenCalled();
-    });
-
-    it('should handle missing API key gracefully', async () => {
-      const noKeyEnvironment = {
-        ...mockEnvironment,
-        dependencyWatcherAiApiKey: '',
-        defaultChatAiApiKey: '',
-      };
-      vi.mocked(mockEnvironmentProvider.read).mockReturnValue(noKeyEnvironment);
-
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
-
-      const result = await service.runCheck(24);
-
-      expect(result.checked).toBe(1);
-      expect(result.updates).toBe(1);
-      expect(mockDependencyAlertGateway.analyze).not.toHaveBeenCalled();
-    });
-
-    it('should log error when no strategy available for ecosystem', async () => {
-      const unsupportedRecord = {
-        ...mockRecord,
-        ecosystem: DependencyEcosystem.Gradle,
-      };
-
-      vi.mocked(mockRegistryStrategyProvider.getStrategy).mockReturnValue(undefined);
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([unsupportedRecord]);
-
-      const result = await service.runCheck(24);
-
-      expect(result.checked).toBe(1);
-      expect(result.updates).toBe(0);
-      expect(result.errors).toBe(0);
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'dependency_watcher_no_strategy',
-        expect.objectContaining({
-          ecosystem: DependencyEcosystem.Gradle,
-        }),
-      );
-    });
-
-    it('should process multiple packages in batch', async () => {
-      const records = [
-        mockRecord,
-        { ...mockRecord, id: 'record-456', packageName: 'lodash', currentVersion: '4.17.0' },
-      ];
-
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue(records);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
-
-      const result = await service.runCheck(24);
-
-      expect(result.checked).toBe(2);
-      expect(result.updates).toBe(2);
-      expect(mockIngestEntryUseCase.execute).toHaveBeenCalledTimes(2);
-    });
-
-    it('should continue processing other packages when one fails', async () => {
-      const records = [
-        mockRecord,
-        { ...mockRecord, id: 'record-456', packageName: 'lodash' },
-      ];
-
-      mockFetchLatestVersion
-        .mockResolvedValueOnce(mockVersionInfo)
-        .mockRejectedValueOnce(new Error('registry unavailable'));
-
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue(records);
-      vi.mocked(mockDependencyAlertGateway.analyze).mockResolvedValue(mockAnalysis);
-
-      const result = await service.runCheck(24);
-
-      expect(result.checked).toBe(2);
-      expect(result.updates).toBe(1);
-      expect(result.errors).toBe(1);
-      expect(mockIngestEntryUseCase.execute).toHaveBeenCalledTimes(1);
-      expect(mockLogger.error).toHaveBeenCalledWith(
-        'dependency_watcher_check_package_failed',
-        expect.objectContaining({ packageName: 'lodash' }),
-      );
-    });
-
-    it('should skip packages when workspace-level watcher is disabled', async () => {
+    it('should skip disabled workspaces', async () => {
       vi.mocked(mockDependencyWatcherRepository.isWorkspaceEnabled).mockResolvedValue(false);
       vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
 
       const result = await service.runCheck(24);
 
-      expect(result.checked).toBe(0);
-      expect(result.updates).toBe(0);
-      expect(mockFetchLatestVersion).not.toHaveBeenCalled();
+      expect(result.queued).toBe(0);
+      expect(result.workspaces).toBe(0);
+      expect(mockDependencyCheckQueuePublisher.publish).not.toHaveBeenCalled();
     });
 
-    it('should update lastCheckedAt even when no update available', async () => {
-      mockFetchLatestVersion.mockResolvedValue({ version: '4.18.0', repositoryUrl: '' });
-      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([mockRecord]);
+    it('should return zero when no dependencies are due for check', async () => {
+      vi.mocked(mockDependencyWatcherRepository.findDueForCheck).mockResolvedValue([]);
 
-      await service.runCheck(24);
+      const result = await service.runCheck(24);
 
-      expect(mockDependencyWatcherRepository.update).toHaveBeenCalledWith(
-        mockRecord.id,
-        expect.objectContaining({
-          lastCheckedAt: expect.any(Date),
-        }),
-      );
+      expect(result.queued).toBe(0);
+      expect(result.workspaces).toBe(0);
+      expect(mockDependencyCheckQueuePublisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('should queue import jobs for enabled workspaces', async () => {
+      vi.mocked(mockDependencyWatcherRepository.findEnabledWorkspaces).mockResolvedValue([
+        {
+          id: 'workspace-123',
+          userId: 'user-123',
+          workspaceSlug: 'test-workspace',
+        },
+      ]);
+
+      const result = await service.runImport();
+
+      expect(result.queued).toBe(1);
+      expect(result.workspaces).toBe(1);
+      expect(mockDependencyImportQueuePublisher.publish).toHaveBeenCalled();
+    });
+
+    it('should return zero when no workspaces are enabled for import', async () => {
+      vi.mocked(mockDependencyWatcherRepository.findEnabledWorkspaces).mockResolvedValue([]);
+
+      const result = await service.runImport();
+
+      expect(result.queued).toBe(0);
+      expect(result.workspaces).toBe(0);
+      expect(mockDependencyImportQueuePublisher.publish).not.toHaveBeenCalled();
+    });
+
+    it('should skip disabled workspaces during import', async () => {
+      vi.mocked(mockDependencyWatcherRepository.findEnabledWorkspaces).mockResolvedValue([
+        {
+          id: 'workspace-123',
+          userId: 'user-123',
+          workspaceSlug: 'test-workspace',
+        },
+      ]);
+      vi.mocked(mockDependencyWatcherRepository.isWorkspaceEnabled).mockResolvedValue(false);
+
+      const result = await service.runImport();
+
+      expect(result.queued).toBe(0);
+      expect(result.workspaces).toBe(0);
+      expect(mockDependencyImportQueuePublisher.publish).not.toHaveBeenCalled();
     });
   });
 });

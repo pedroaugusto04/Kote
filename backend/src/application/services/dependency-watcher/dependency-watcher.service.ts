@@ -13,9 +13,8 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Importance, DependencyUrgency } from '../../../contracts/enums.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { RabbitMqDependencyCheckQueuePublisher } from '../../../infrastructure/queue/rabbitmq-dependency-check-queue.publisher.js';
+import { RabbitMqDependencyImportQueuePublisher } from '../../../infrastructure/queue/rabbitmq-dependency-import-queue.publisher.js';
 
-// checkPackage is still used by the RabbitMQ consumer for async processing
-// It's no longer called directly by runCheck (cron job)
 
 @Injectable()
 export class DependencyWatcherService {
@@ -29,6 +28,7 @@ export class DependencyWatcherService {
     private readonly userRepository: UserRepository,
     private readonly contentRepository: ContentRepository,
     private readonly dependencyCheckQueuePublisher: RabbitMqDependencyCheckQueuePublisher,
+    private readonly dependencyImportQueuePublisher: RabbitMqDependencyImportQueuePublisher,
     private readonly logger: AppLogger,
   ) {}
 
@@ -98,7 +98,58 @@ export class DependencyWatcherService {
     return { queued: totalQueued, workspaces: workspaceIds.length };
   }
 
-  private async checkPackage(record: DependencyWatchRecord): Promise<boolean> {
+  async runImport(): Promise<{ queued: number; workspaces: number }> {
+    const enabledWorkspaces = await this.dependencyWatcherRepository.findEnabledWorkspaces();
+    
+    if (enabledWorkspaces.length === 0) {
+      return { queued: 0, workspaces: 0 };
+    }
+
+    let totalQueued = 0;
+
+    for (const workspace of enabledWorkspaces) {
+      const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(workspace.id);
+      if (!workspaceEnabled) continue;
+
+      const projects = await this.contentRepository.listProjects(workspace.userId);
+      const workspaceProjects = projects.filter((p) => p.workspaceSlug === workspace.workspaceSlug);
+
+      if (workspaceProjects.length === 0) continue;
+
+      const repositoryIds = workspaceProjects.flatMap((project) => 
+        project.repositories.map((repo) => repo.id)
+      );
+
+      if (repositoryIds.length === 0) continue;
+
+      const jobId = randomUUID();
+
+      await this.dependencyImportQueuePublisher.publish({
+        jobId,
+        userId: workspace.userId,
+        workspaceSlug: workspace.workspaceSlug,
+        workspaceId: workspace.id,
+        repositoryIds,
+      });
+
+      totalQueued += repositoryIds.length;
+
+      this.logger.info('dependency_watcher_import_queued', {
+        workspaceId: workspace.id,
+        workspaceSlug: workspace.workspaceSlug,
+        repositoryCount: repositoryIds.length,
+      });
+    }
+
+    this.logger.info('dependency_watcher_import_completed', {
+      workspaces: enabledWorkspaces.length,
+      totalQueued,
+    });
+
+    return { queued: totalQueued, workspaces: enabledWorkspaces.length };
+  }
+
+  async checkPackage(record: DependencyWatchRecord): Promise<boolean> {
     const strategy = this.registryStrategyProvider.getStrategy(record.ecosystem);
     if (!strategy) {
       this.logger.error('dependency_watcher_no_strategy', { ecosystem: record.ecosystem });

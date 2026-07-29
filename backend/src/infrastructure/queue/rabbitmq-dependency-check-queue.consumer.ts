@@ -104,7 +104,7 @@ export class RabbitMqDependencyCheckQueueConsumer extends BaseRabbitMqConsumer {
 
         try {
           checked++;
-          const hasUpdate = await this.dependencyWatcherService['checkPackage'](dependency);
+          const hasUpdate = await this.dependencyWatcherService.checkPackage(dependency);
           
           if (hasUpdate) {
             updates++;

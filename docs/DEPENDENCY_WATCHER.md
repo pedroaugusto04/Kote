@@ -22,14 +22,16 @@ Dependency Watcher tracks your project dependencies and alerts you when new vers
 
 3. **Enable per Workspace**: Enable Dependency Watcher on the same card. Each workspace controls monitoring independently.
 
-4. **Automatic Monitoring**: A daily cron job checks for new versions of tracked dependencies (only for enabled workspaces and monitored repositories).
+4. **Automatic Import**: A daily cron job (default: 7 AM) reimports dependencies from your GitHub repositories to sync the `currentVersion` with the actual versions in your code. This prevents false alerts for updates you've already applied. Controlled by `DEPENDENCY_WATCHER_IMPORT_CRON`.
 
-5. **AI Analysis**: When an update is found, AI analyzes the changelog to determine urgency:
+5. **Automatic Check**: A separate daily cron job (default: 9 AM) checks for new versions of tracked dependencies (only for enabled workspaces and monitored repositories). This runs 2 hours after the import to ensure data is up-to-date. Controlled by `DEPENDENCY_WATCHER_CRON`.
+
+6. **AI Analysis**: When an update is found, AI analyzes the changelog to determine urgency:
    - **Critical**: Security vulnerabilities, breaking changes
    - **Recommended**: Important features, deprecations
    - **Optional**: Minor updates, bug fixes
 
-6. **Alerts & Notes**:
+7. **Alerts & Notes**:
    - Email alerts for critical and recommended updates (sent to the **account owner's email**)
    - Automatic note creation in the knowledge base with full analysis
    - Timeline category for filtering dependency updates
@@ -39,11 +41,17 @@ Dependency Watcher tracks your project dependencies and alerts you when new vers
 ### 1. Server Environment Variables
 
 ```env
-# Cron schedule (e.g., daily at 9 AM)
+# Import cron schedule (e.g., daily at 7 AM - 2 hours before check)
+DEPENDENCY_WATCHER_IMPORT_CRON="0 7 * * *"
+
+# Check cron schedule (e.g., daily at 9 AM)
 DEPENDENCY_WATCHER_CRON="0 9 * * *"
 
 # Check interval in hours
 DEPENDENCY_WATCHER_CHECK_INTERVAL_HOURS=24
+
+# Only check stable releases (ignore pre-release/beta versions)
+DEPENDENCY_WATCHER_STABLE_ONLY=true
 
 # AI provider for analysis (optional, uses default chat AI if not set)
 DEPENDENCY_WATCHER_AI_PROVIDER=openai

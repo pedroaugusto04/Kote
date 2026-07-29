@@ -3,7 +3,7 @@ import { eq, and, lt, or, inArray, isNull } from 'drizzle-orm';
 
 import { dependencyWatch, dependencyMonitoredRepositories, workspaces } from '../persistence/schema/index.js';
 import { PostgresDatabase } from '../persistence/database.js';
-import { DependencyWatcherRepository, type DependencyWatchRecord, type CreateDependencyWatchInput, type UpdateDependencyWatchInput } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
+import { DependencyWatcherRepository, type DependencyWatchRecord, type CreateDependencyWatchInput, type UpdateDependencyWatchInput, type EnabledWorkspace } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { DependencyEcosystem } from '../../domain/enums/dependency.enums.js';
 
 @Injectable()
@@ -413,6 +413,24 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       .limit(1);
 
     return workspace?.dependencyWatcherEnabled ?? false;
+  }
+
+  async findEnabledWorkspaces(): Promise<EnabledWorkspace[]> {
+    const db = this.getDb();
+    const records = await db
+      .select({
+        id: workspaces.id,
+        userId: workspaces.userId,
+        workspaceSlug: workspaces.workspaceSlug,
+      })
+      .from(workspaces)
+      .where(eq(workspaces.dependencyWatcherEnabled, true));
+
+    return records.map((record) => ({
+      id: record.id,
+      userId: record.userId,
+      workspaceSlug: record.workspaceSlug,
+    }));
   }
 
   private mapToRecord(record: any): DependencyWatchRecord {

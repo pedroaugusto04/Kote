@@ -36,6 +36,12 @@ export type UpdateDependencyWatchInput = {
   enabled?: boolean;
 };
 
+export type EnabledWorkspace = {
+  id: string;
+  userId: string;
+  workspaceSlug: string;
+};
+
 export abstract class DependencyWatcherRepository {
   abstract upsert(input: CreateDependencyWatchInput): Promise<DependencyWatchRecord>;
   abstract batchUpsert(inputs: CreateDependencyWatchInput[]): Promise<void>;
@@ -44,6 +50,7 @@ export abstract class DependencyWatcherRepository {
   abstract findByRepositoryIdsEnabled(userId: string, workspaceId: string, repositoryIds: string[]): Promise<DependencyWatchRecord[]>;
   abstract findById(userId: string, workspaceId: string, dependencyId: string): Promise<DependencyWatchRecord | null>;
   abstract findDueForCheck(hours: number): Promise<DependencyWatchRecord[]>;
+  abstract findEnabledWorkspaces(): Promise<EnabledWorkspace[]>;
   abstract update(id: string, input: UpdateDependencyWatchInput): Promise<void>;
   abstract batchUpdateLastCheckedAt(ids: string[]): Promise<void>;
   abstract delete(id: string): Promise<void>;
