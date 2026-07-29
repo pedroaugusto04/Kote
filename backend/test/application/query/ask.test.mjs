@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { AskKnowledgeUseCase } from '../../../dist/application/use-cases/query/ask-knowledge.use-case.js';
 import { RunAskAiUseCase } from '../../../dist/application/use-cases/query/run-ask-ai.use-case.js';
 import { ListAskHistoryUseCase } from '../../../dist/application/use-cases/query/list-ask-history.use-case.js';
+import { AppLogger } from '../../../dist/observability/logger.js';
 
 const dummyAiEntitlement = {
   async requireAndConsume() {
@@ -116,16 +117,13 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
     }),
   };
 
-  const mockQuotaService = {
-    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
-  };
   const dummyContentQueryRepository = {
     list: async () => [],
   };
   const dummyLogger = {
+    info: () => {},
     warn: () => {},
     error: () => {},
-    info: () => {},
     debug: () => {},
   };
 
@@ -135,10 +133,10 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
-    mockQuotaService,
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
+    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
   );
 
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'infra' });
@@ -332,16 +330,13 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
     }),
   };
 
-  const mockQuotaService = {
-    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
-  };
   const dummyContentQueryRepository = {
     list: async () => [],
   };
   const dummyLogger = {
+    info: () => {},
     warn: () => {},
     error: () => {},
-    info: () => {},
     debug: () => {},
   };
 
@@ -351,10 +346,10 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
-    mockQuotaService,
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
+    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
   );
 
   const history = [
@@ -444,16 +439,13 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
     }),
   };
 
-  const mockQuotaService = {
-    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
-  };
   const dummyContentQueryRepository = {
     list: async () => [],
   };
   const dummyLogger = {
+    info: () => {},
     warn: () => {},
     error: () => {},
-    info: () => {},
     debug: () => {},
   };
 
@@ -463,10 +455,10 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
-    mockQuotaService,
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
+    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
   );
 
   const history = [
@@ -586,16 +578,13 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
     }),
   };
 
-  const mockQuotaService = {
-    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
-  };
   const dummyContentQueryRepository = {
     list: async () => [],
   };
   const dummyLogger = {
+    info: () => {},
     warn: () => {},
     error: () => {},
-    info: () => {},
     debug: () => {},
   };
 
@@ -605,10 +594,10 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
-    mockQuotaService,
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
+    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
   );
 
   const result = await useCase.execute('Summarize my recent notes', 'user-123', { projectSlug: 'infra', workspaceSlug: 'default' });
@@ -624,6 +613,12 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
 test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddings fails', async () => {
   const mockEmbeddingGateway = {
     generateEmbeddings: async () => {
+      throw new Error('Embedding API is offline');
+    },
+  };
+
+  const mockEmbeddingQueue = {
+    publishQueryEmbedding: async () => {
       throw new Error('Embedding API is offline');
     },
   };
@@ -736,9 +731,6 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
     }),
   };
 
-  const mockQuotaService = {
-    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
-  };
 
   let loggerWarnCalled = false;
   const mockLogger = {
@@ -748,6 +740,8 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
       assert.equal(msg, 'ask_knowledge.vector_search_failed_in_hybrid');
       assert.equal(meta.error, 'Embedding API is offline');
     },
+    error: () => {},
+    debug: () => {},
   };
 
   const useCase = new AskKnowledgeUseCase(
@@ -756,10 +750,10 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
-    mockQuotaService,
     mockContentQueryRepository,
     mockLogger,
     dummyAiEntitlement,
+    mockEmbeddingQueue,
   );
 
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'infra', workspaceId: 'ws-123' });
@@ -845,13 +839,12 @@ test('AskKnowledgeUseCase selects lexically relevant FTS-only chunks instead of 
     }),
   };
 
-  const mockQuotaService = {
-    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
-  };
 
   const mockLogger = {
     info: () => {},
     warn: () => {},
+    error: () => {},
+    debug: () => {},
   };
 
   const useCase = new AskKnowledgeUseCase(
@@ -860,10 +853,10 @@ test('AskKnowledgeUseCase selects lexically relevant FTS-only chunks instead of 
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
-    mockQuotaService,
     mockContentQueryRepository,
     mockLogger,
     dummyAiEntitlement,
+    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
   );
 
   const result = await useCase.execute('How do I rollback deploy?', 'user-123', { workspaceId: 'ws-123' });
@@ -1008,13 +1001,12 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
     }),
   };
 
-  const mockQuotaService = {
-    async checkAndIncrementAiUsage() { return { allowed: true, limit: -1, current: 0 }; },
-  };
 
   const mockLogger = {
     info: () => {},
     warn: () => {},
+    error: () => {},
+    debug: () => {},
   };
 
   const useCase = new AskKnowledgeUseCase(
@@ -1023,10 +1015,10 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
-    mockQuotaService,
     mockContentQueryRepository,
     mockLogger,
     dummyAiEntitlement,
+    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
   );
 
   const result = await useCase.execute('fts', 'user-123', { projectSlug: 'infra', workspaceId: 'ws-123' });

@@ -429,7 +429,9 @@ test('ai integrations activate only with server-managed configuration and test d
   process.env.KB_REVIEW_AI_API_KEY = '';
   await assert.rejects(
     () => connections.connect({ userId: user.id, workspaceSlug: 'default', provider: 'ai-conversation' }),
-    /conversation_ai_not_configured/,
+    (err) => {
+      return err.response?.code === 'conversation_ai_not_configured';
+    },
   );
 });
 

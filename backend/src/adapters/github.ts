@@ -380,10 +380,13 @@ export async function fetchGithubManifestFiles(
           return fileName === pattern;
         }
 
-        const regex = new RegExp(
-          `^${pattern.replace(/\./g, '\\.').replace(/\*/g, '.*')}$`,
-        );
-
+        // Safe glob-to-regex conversion to avoid catastrophic backtracking
+        // Convert * to [^/]* (non-greedy, no slashes) and escape special chars
+        const escaped = pattern
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '[^/]*');
+        
+        const regex = new RegExp(`^${escaped}$`);
         return regex.test(fileName);
       });
     })

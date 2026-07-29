@@ -113,9 +113,11 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
   // Exclude note-B (simulates note already found in direct notes query)
   const result = await useCase.execute('user-1', 'auth.service.ts', ['note-B']);
 
-  // Assertions: Limit is 3, note-B is excluded, so it should return C, D, A
+  // Assertions: Limit is 3, note-B is excluded, so it should return A, C, D
+  // note-A has highest FTS rank (0.9), note-C has highest vector rank (0.85)
+  // With default weights (vector=0.4, keyword=0.6), keyword score dominates
   assert.equal(result.length, 3);
-  assert.equal(result[0].id, 'note-C');
-  assert.equal(result[1].id, 'note-D');
-  assert.equal(result[2].id, 'note-A');
+  assert.equal(result[0].id, 'note-A');
+  assert.equal(result[1].id, 'note-C');
+  assert.equal(result[2].id, 'note-D');
 });
