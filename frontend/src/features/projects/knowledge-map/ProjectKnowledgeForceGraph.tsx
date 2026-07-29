@@ -334,7 +334,7 @@ export function ProjectKnowledgeForceGraph({
       }
     }
 
-    function updateTopicState(isInitial = false) {
+    function updateTopicState() {
       const currentExpanded = expandedTopicIdsRef.current;
       const hiddenChildIds = new Set<string>();
 
@@ -344,43 +344,6 @@ export function ProjectKnowledgeForceGraph({
         }
       });
       hiddenChildIdsRef.current = hiddenChildIds;
-
-      const childToTopic = new Map<string, GraphNode>();
-      graphNodes.forEach((n) => {
-        if (n.type === 'topic' && n.childNoteIds) {
-          n.childNoteIds.forEach((cid) => childToTopic.set(cid, n));
-        }
-      });
-
-      graphNodes.forEach((n) => {
-        if (hiddenChildIds.has(n.id)) {
-          const parent = childToTopic.get(n.id);
-          if (parent && parent.x != null && parent.y != null) {
-            n.x = parent.x;
-            n.y = parent.y;
-            n.fx = parent.x;
-            n.fy = parent.y;
-            n.vx = 0;
-            n.vy = 0;
-          }
-        } else {
-          if (typeof n.fx === 'number' && n.type !== 'topic' && n.type !== 'project') {
-            const parent = childToTopic.get(n.id);
-            if (parent && parent.x != null && parent.y != null) {
-              const siblings = parent.childNoteIds ?? [];
-              const idx = siblings.indexOf(n.id);
-              const count = siblings.length || 1;
-              const angle = ((idx >= 0 ? idx : 0) / count) * 2 * Math.PI;
-              n.x = parent.x + Math.cos(angle) * 35;
-              n.y = parent.y + Math.sin(angle) * 35;
-            }
-            n.vx = 0;
-            n.vy = 0;
-          }
-          n.fx = null;
-          n.fy = null;
-        }
-      });
 
       node
         .style('transition', 'opacity 0.25s ease')
@@ -402,13 +365,11 @@ export function ProjectKnowledgeForceGraph({
         });
 
       refreshForces();
-      if (!isInitial) {
-        simulation.alpha(0.15).restart();
-      }
+      simulation.alpha(0.15).restart();
     }
 
-    updateTopicStateRef.current = () => updateTopicState(false);
-    updateTopicState(true);
+    updateTopicStateRef.current = updateTopicState;
+    updateTopicState();
 
     const drag = d3.drag<SVGGElement, GraphNode>()
       .on('start', (event, item) => {
@@ -428,19 +389,20 @@ export function ProjectKnowledgeForceGraph({
     node.call(drag);
     updateLabels();
 
-    // Synchronously pre-calculate 300 physics ticks so nodes reach equilibrium before rendering
+    // Pre-tick the simulation to get initial stable positions before fitting
     simulation.tick(denseMap ? 300 : 200);
-    simulation.stop();
 
-    // Immediately compute and apply fit transform so the initial render is perfectly centered and stable
-    const latestSize = sizeRef.current;
-    const initialTransform = computeFitTransform(
-      graphNodes,
-      hiddenChildIdsRef.current,
-      latestSize.width,
-      latestSize.height
-    );
-    svg.call(zoom.transform, initialTransform);
+    // Apply fit transform with smooth 400ms transition after stabilization (matching commit a0518977fb6c52cafe31300a62a5d48aa3e23112)
+    setTimeout(() => {
+      const latestSize = sizeRef.current;
+      const initialTransform = computeFitTransform(
+        graphNodes,
+        hiddenNodeIds,
+        latestSize.width,
+        latestSize.height
+      );
+      d3.select(svgElement).transition().duration(400).call(zoom.transform, initialTransform);
+    }, 100);
 
     function updateLabels() {
       labels
