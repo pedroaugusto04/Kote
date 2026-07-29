@@ -1,8 +1,8 @@
 import { createPortal } from 'react-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchProjectCoverage } from '../../../shared/api/client';
 import { UI_MESSAGES } from '../../../shared/constants/ui.constants';
-import { BookOpenIcon } from '../../../shared/ui/icons';
+import { BookOpenIcon, RefreshCwIcon } from '../../../shared/ui/icons';
 
 export enum CoverageHealthStatus {
   High = 'high',
@@ -33,11 +33,20 @@ interface ProjectCoverageModalProps {
 }
 
 export function ProjectCoverageModal({ projectSlug, projectDisplayName, onClose }: ProjectCoverageModalProps) {
-  const { data, isLoading } = useQuery<ProjectCoverageData>({
+  const queryClient = useQueryClient();
+  const { data, isLoading, isFetching } = useQuery<ProjectCoverageData>({
     queryKey: ['projectCoverage', projectSlug],
     queryFn: () => fetchProjectCoverage(projectSlug),
     enabled: Boolean(projectSlug),
   });
+
+  const handleForceSync = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['projectCoverage', projectSlug] });
+    await queryClient.fetchQuery({
+      queryKey: ['projectCoverage', projectSlug],
+      queryFn: () => fetchProjectCoverage(projectSlug, true),
+    });
+  };
 
   if (isLoading || !data) {
     return createPortal(
@@ -83,7 +92,20 @@ export function ProjectCoverageModal({ projectSlug, projectDisplayName, onClose 
             <div className="card-kicker">Knowledge Coverage</div>
             <h2 id="coverage-modal-title">{projectDisplayName || projectSlug}</h2>
           </div>
-          <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={onClose}>×</button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button
+              className="filter-chip"
+              type="button"
+              onClick={handleForceSync}
+              disabled={isFetching}
+              title="Refresh file tree from GitHub"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.8rem' }}
+            >
+              <RefreshCwIcon style={{ width: '14px', height: '14px', opacity: isFetching ? 0.5 : 1 }} />
+              {isFetching ? 'Syncing...' : 'Sync Files'}
+            </button>
+            <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={onClose}>×</button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px', padding: '14px 16px', background: 'var(--panel-bg-subtle, rgba(255, 255, 255, 0.03))', borderRadius: '8px', border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))' }}>

@@ -11,7 +11,7 @@ import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
-import { type NoteStatusFilter } from '../../shared/api/models/note-status';
+import { noteStatusValues, QuickNoteStatus, StatusFilter, type NoteStatusFilter } from '../../shared/api/models/note-status';
 import { BulkActionType, BulkStatusUpdate } from '../../shared/api/models/bulk-action';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifySuccess } from '../../shared/ui/notifications';
@@ -20,9 +20,8 @@ import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
 import { Select } from '../../shared/ui/select';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
+import { PROJECTS_WORKSPACE_MESSAGES } from './projects-ui.constants';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
-
-
 
 const CATEGORY_LABELS: Record<string, string> = {
   all: 'All',
@@ -39,7 +38,14 @@ const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> 
   label: CATEGORY_LABELS[value] ?? formatDisplayToken(value),
 }));
 
-
+const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
+  { value: StatusFilter.Open, label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
+  { value: '', label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.ALL },
+  ...noteStatusValues.map((value) => ({
+    value,
+    label: formatDisplayToken(value),
+  })),
+];
 
 export function ProjectTimeline({
   dashboard,
@@ -105,7 +111,8 @@ export function ProjectTimeline({
     setIsBulkUpdating(true);
     try {
       const ids = visibleItems.map((item) => item.noteId);
-      await bulkUpdateNoteStatuses(ids, status as any);
+      const targetQuickStatus: QuickNoteStatus = status === BulkStatusUpdate.Resolved ? QuickNoteStatus.Resolved : QuickNoteStatus.Archived;
+      await bulkUpdateNoteStatuses(ids, targetQuickStatus);
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.PROJECTS.ALL });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.NOTES.ALL });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.DASHBOARD });
@@ -122,20 +129,20 @@ export function ProjectTimeline({
 
   return (
     <div className="project-timeline">
-      <div className="timeline-filter-row-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        {isMobile ? (
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <label className="sr-only" htmlFor="timeline-category-select">Filter by category</label>
+      <div className="timeline-filter-row-container">
+        <div className="timeline-filters-group">
+          <div className="timeline-status-filter-wrap">
+            <label className="sr-only" htmlFor="timeline-status-select">{UI_MESSAGES.FILTER_BY_STATUS}</label>
             <Select
-              ariaLabel="Filter by category"
-              id="timeline-category-select"
-              options={categoryOptions}
-              value={category}
-              onChange={(value) => onCategoryChange(value as ProjectTimelineCategory)}
+              ariaLabel={UI_MESSAGES.FILTER_BY_STATUS}
+              className="timeline-status-select"
+              id="timeline-status-select"
+              options={statusOptions}
+              value={status}
+              onChange={(nextValue) => onStatusChange(nextValue as NoteStatusFilter)}
             />
           </div>
-        ) : (
-          <div className="timeline-filter-row" role="group" aria-label="Timeline category" style={{ margin: 0 }}>
+          <div className="timeline-filter-row timeline-category-chips-scroll" role="group" aria-label="Timeline category">
             {categoryOptions.map((option) => (
               <button
                 aria-pressed={category === option.value}
@@ -148,7 +155,7 @@ export function ProjectTimeline({
               </button>
             ))}
           </div>
-        )}
+        </div>
         {visibleItems.length > 0 && (
           <div className="bulk-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button className="bulk-action-btn" type="button" disabled={isBulkUpdating} onClick={() => setConfirmBulk({ type: BulkActionType.Resolve })}>

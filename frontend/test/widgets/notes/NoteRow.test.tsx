@@ -43,6 +43,7 @@ describe('NoteRow', () => {
           status: NoteStatus.Active,
           summary: 'Resumo',
           source: 'manual-api',
+          sourceChannel: 'manual',
           attachmentCount: 2,
         }}
         onDelete={onDelete}
@@ -104,6 +105,7 @@ describe('NoteRow', () => {
           status: NoteStatus.Resolved,
           summary: 'Resumo',
           source: 'manual-api',
+          sourceChannel: 'manual',
           attachmentCount: 0,
         }}
         onOpen={vi.fn()}
@@ -124,14 +126,16 @@ describe('NoteRow', () => {
       project: 'platform',
       workspace: 'default',
       folderId: null,
+      categories: [],
       tags: ['deploy'],
       date: '2026-04-27',
       status: NoteStatus.Archived,
       summary: 'Resumo',
       source: 'manual-api',
+      sourceChannel: 'manual',
       attachmentCount: 0,
       editor: { rawText: 'Resumo', reminderDate: '', reminderTime: '', reminderAt: '' },
-    } as any;
+    };
 
     renderWithAppProviders(
       <NoteRow
@@ -187,6 +191,7 @@ describe('NoteRow', () => {
           status: NoteStatus.Active,
           summary: 'Resumo',
           source: 'manual-api',
+          sourceChannel: 'manual',
           attachmentCount: 0,
         }}
         onOpen={vi.fn()}
@@ -220,6 +225,7 @@ describe('NoteRow', () => {
           status: NoteStatus.Active,
           summary: 'Resumo',
           source: 'whatsapp-webhook',
+          sourceChannel: 'whatsapp',
           attachmentCount: 0,
         }}
         onOpen={vi.fn()}

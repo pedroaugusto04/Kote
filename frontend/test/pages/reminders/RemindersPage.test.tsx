@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { RemindersPage } from '../../../src/pages/reminders/RemindersPage';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
+import { NoteStatus } from '../../../src/shared/api/models/note-status';
 
 const dashboard: Dashboard = {
   workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
@@ -144,10 +145,8 @@ describe('RemindersPage', () => {
               title: 'Sent earlier',
               project: 'n8n-automations',
               workspace: 'default',
-              status: 'sent',
+              status: NoteStatus.Sent,
               isOverdue: false,
-              reminderDate: '2099-05-01',
-              reminderTime: '08:00',
               reminderAt: '2099-05-01T08:00:00.000Z',
               relativePath: '20 Inbox/sent-earlier.md',
             },
@@ -156,10 +155,8 @@ describe('RemindersPage', () => {
               title: 'Pending later',
               project: 'n8n-automations',
               workspace: 'default',
-              status: 'pending',
+              status: NoteStatus.Pending,
               isOverdue: false,
-              reminderDate: '2099-06-15',
-              reminderTime: '09:00',
               reminderAt: '2099-06-15T09:00:00.000Z',
               relativePath: '20 Inbox/pending-later.md',
             },
@@ -168,10 +165,8 @@ describe('RemindersPage', () => {
               title: 'Pending earlier',
               project: 'n8n-automations',
               workspace: 'default',
-              status: 'pending',
+              status: NoteStatus.Pending,
               isOverdue: false,
-              reminderDate: '2099-06-10',
-              reminderTime: '09:00',
               reminderAt: '2099-06-10T09:00:00.000Z',
               relativePath: '20 Inbox/pending-earlier.md',
             },

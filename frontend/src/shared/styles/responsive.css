@@ -178,15 +178,27 @@
   }
   
   .profile-detail-row { grid-template-columns: 1fr; gap: 6px; }
+  .page-head-title-row { width: 100%; min-width: 0; }
+  .page-head-select { width: 100% !important; max-width: 100% !important; min-width: 0 !important; }
+  .page-head-actions-row { width: 100%; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .page-head-actions-row > button { flex: 1 1 0%; min-height: 40px; padding: 0 12px; justify-content: center; white-space: nowrap; }
   .folder-browser-head-top { align-items: stretch; flex-direction: column; }
   .folder-browser-actions { align-items: center; flex-direction: row; justify-content: flex-start; gap: 8px; }
-  .timeline-filter-row {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .timeline-category-chips-scroll {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    scrollbar-width: none;
   }
-  
-  .timeline-filter-row button {
-    width: 100%;
+  .timeline-category-chips-scroll::-webkit-scrollbar { display: none; }
+  .timeline-category-chips-scroll button {
+    flex: 0 0 auto !important;
+    width: auto !important;
   }
   .note-reader-top { flex-direction: column; }
   .note-reader-actions { justify-content: flex-start; }
@@ -359,6 +371,8 @@
   .landing-integration-card.c5,
   .landing-integration-card.c6 {
     position: static;
+    width: auto;
+    justify-self: stretch;
     justify-content: center;
     min-width: 0;
     min-height: 46px;
@@ -768,3 +782,20 @@
   }
 }
 
+
+
+/* Semantic search information layout */
+@media (max-width: 860px) {
+  .landing-ai-search-features {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin: 0;
+  }
+
+  .landing-ai-search-feature-item + .landing-ai-search-feature-item {
+    border-top: 1px solid var(--line-soft);
+    border-left: 0;
+    padding-top: 16px;
+    padding-left: 8px;
+  }
+}
