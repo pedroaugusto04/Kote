@@ -62,6 +62,7 @@ export function ProjectKnowledgeForceGraph({
 
   const [expandedTopicIds, setExpandedTopicIds] = useState<Set<string>>(() => new Set());
   const expandedTopicIdsRef = useRef<Set<string>>(expandedTopicIds);
+  const hiddenChildIdsRef = useRef<Set<string>>(new Set());
   const updateTopicStateRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
