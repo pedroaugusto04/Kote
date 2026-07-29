@@ -16,8 +16,7 @@ services:
       KB_LOG_PRETTY_CONSOLE: ${KB_LOG_PRETTY_CONSOLE:-true}
       KB_LOG_FILE_ENABLED: ${KB_LOG_FILE_ENABLED:-true}
       KB_LOG_DIR: ${KB_LOG_DIR:-/var/log/knowledge-base-api}
-      KB_LOG_MAX_FILES: ${KB_LOG_MAX_FILES:-30}
-      KB_LOG_MAX_SIZE: ${KB_LOG_MAX_SIZE:-20m}
+      KB_LOG_MAX_FILES: ${KB_LOG_MAX_FILES:-7}
       KB_LOG_LEVEL: ${KB_LOG_LEVEL:-info}
       # Browser extension IDs (comma-separated, for chrome-extension:// origins)
       KB_ALLOWED_EXTENSION_IDS: ${KB_ALLOWED_EXTENSION_IDS:-}

@@ -65,16 +65,16 @@ export class ProcessGithubPushService {
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
     private readonly aiEntitlement: AiEntitlementService,
     private readonly contentRepository: ContentRepository,
+    private readonly syncProjectFilesService: SyncProjectFilesService,
     private readonly credentials?: CredentialRepository,
     private readonly whatsappReplySender?: WhatsappReplySender,
     private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
-    private readonly syncProjectFilesService?: SyncProjectFilesService,
   ) {
     this.logger = AppLogger.create();
   }
 
   async execute(input: ProcessGithubPushInput) {
-    if (this.syncProjectFilesService && input.projectSlug) {
+    if (input.projectSlug) {
       this.syncProjectFilesService.syncProject(input.userId, input.projectSlug).catch((err) => {
         this.logger.warn('Failed to sync project files on push:', err);
       });
