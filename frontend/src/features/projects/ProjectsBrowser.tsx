@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import type { ProjectTimelineCategory, ProjectTimelineItem } from '../../shared/api/models/project-timeline';
@@ -6,6 +7,7 @@ import type { Project } from '../../shared/api/models/project';
 import { formatDisplayToken } from '../../shared/utils/format';
 import { Panel, Tags } from '../../shared/ui/primitives';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { FolderTree } from './FolderTree';
 import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
 import { ProjectTimeline } from './ProjectTimeline';
@@ -83,13 +85,15 @@ export function ProjectsBrowser({
   isStale = false,
   timelineResetKey,
 }: ProjectsBrowserProps) {
+  const isMobile = useMediaQuery('(max-width: 860px)');
+  const [isFoldersExpanded, setIsFoldersExpanded] = useState(false);
   const folderScopeLabel = selectedFolder ? `${selectedFolder.displayName} ${UI_MESSAGES.AND_DESCENDANT_FOLDERS}` : UI_MESSAGES.ALL_PROJECT_NOTES;
 
   return (
     <Panel className="project-workspace-panel">
       <div className="page-head">
         <div>
-          <div className="project-title-row" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="project-title-row">
             <h2>{project.displayName}</h2>
             {project.projectSlug && (
               <ProjectCoverageBadge projectSlug={project.projectSlug} projectDisplayName={project.displayName} />
@@ -140,10 +144,30 @@ export function ProjectsBrowser({
       </div>
 
       <div className="project-browser">
-        <aside className="folder-browser">
+        <aside className={`folder-browser${isMobile ? ' mobile-collapsible' : ''}`}>
           <div className="folder-browser-head">
             <div className="folder-browser-head-top">
-              <strong>{UI_MESSAGES.FOLDERS}</strong>
+              {isMobile ? (
+                <button
+                  type="button"
+                  className="folder-browser-toggle-btn"
+                  onClick={() => setIsFoldersExpanded(!isFoldersExpanded)}
+                  aria-expanded={isFoldersExpanded}
+                >
+                  <strong>{UI_MESSAGES.FOLDERS}</strong>
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 16 16"
+                    className={`chevron-icon ${isFoldersExpanded ? 'expanded' : 'collapsed'}`}
+                    width="14"
+                    height="14"
+                  >
+                    <path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+                  </svg>
+                </button>
+              ) : (
+                <strong>{UI_MESSAGES.FOLDERS}</strong>
+              )}
               <div className="folder-browser-actions">
                 <button aria-label={UI_MESSAGES.NEW_FOLDER} className="row-action-button" title={UI_MESSAGES.NEW_FOLDER} type="button" onClick={onCreateFolder}>
                   <svg aria-hidden="true" viewBox="0 0 16 16">
@@ -162,11 +186,16 @@ export function ProjectsBrowser({
             </div>
             <span className="meta">{folderScopeLabel}</span>
           </div>
-          <FolderTree
-            folders={folderTree}
-            selectedFolderId={selectedFolderId}
-            onSelect={onFolderSelect}
-          />
+          {(!isMobile || isFoldersExpanded) && (
+            <FolderTree
+              folders={folderTree}
+              selectedFolderId={selectedFolderId}
+              onSelect={(folderId) => {
+                onFolderSelect(folderId);
+                if (isMobile) setIsFoldersExpanded(false);
+              }}
+            />
+          )}
         </aside>
         <div className="project-browser-main">
           <div className="project-view-tabs" role="tablist" aria-label="Project views">

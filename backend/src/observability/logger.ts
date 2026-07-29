@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import * as winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
+import * as path from 'node:path';
 
 import { redactSensitiveValue } from './redact.js';
 import { getRequestContext } from './request-context.js';
@@ -140,15 +141,15 @@ export class AppLogger implements OnModuleInit, OnModuleDestroy {
 
   private initializeWinston() {
     const logDir = process.env.KB_LOG_DIR || '/app/logs';
-    const maxFiles = parseInt(process.env.KB_LOG_MAX_FILES || '30', 10);
-    const maxSize = process.env.KB_LOG_MAX_SIZE || '20m';
+    const maxFiles = parseInt(process.env.KB_LOG_MAX_FILES || '7', 10);
 
     const fileTransport = new DailyRotateFile({
       dirname: logDir,
       filename: 'application-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
-      maxSize: maxSize,
       maxFiles: maxFiles,
+      zippedArchive: true,
+      auditFile: path.join(logDir, '.application-log-rotation.json'),
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json(),
@@ -159,9 +160,10 @@ export class AppLogger implements OnModuleInit, OnModuleDestroy {
       dirname: logDir,
       filename: 'error-%DATE%.log',
       datePattern: 'YYYY-MM-DD',
-      maxSize: maxSize,
       maxFiles: maxFiles,
       level: 'error',
+      zippedArchive: true,
+      auditFile: path.join(logDir, '.error-log-rotation.json'),
       format: winston.format.combine(
         winston.format.timestamp(),
         winston.format.json(),

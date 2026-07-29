@@ -16,7 +16,7 @@ import {
 import { SOURCE_VALUES, formatDisplayToken } from '../../shared/utils/format';
 import { fetchGithubRepositories, fetchIntegrations } from '../../shared/api/integrations';
 import type { ProjectTimelineCategory, ProjectTimelineItem, ProjectTimelineItemCategory } from '../../shared/api/models/project-timeline';
-import { StatusFilter, type NoteStatus, type NoteStatusFilter } from '../../shared/api/models/note-status';
+import { noteStatusValues, StatusFilter, type NoteStatusFilter } from '../../shared/api/models/note-status';
 import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
@@ -68,7 +68,7 @@ import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
 const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
   { value: StatusFilter.Open, label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
   { value: '', label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.ALL },
-  ...(['active', 'pending', 'overdue', 'sent', 'resolved', 'archived'] as NoteStatus[]).map((value) => ({
+  ...noteStatusValues.map((value) => ({
     value,
     label: formatDisplayToken(value),
   })),
@@ -346,20 +346,11 @@ export function ProjectsWorkspace({
               value={selected?.projectSlug || ''}
               onChange={openProject}
             />
-            <label className="sr-only" htmlFor="projects-page-status-select">{UI_MESSAGES.FILTER_BY_STATUS}</label>
-            <Select
-              ariaLabel={UI_MESSAGES.FILTER_BY_STATUS}
-              className="page-head-select status-select"
-              id="projects-page-status-select"
-              options={statusOptions}
-              value={timelineStatus}
-              onChange={(nextValue) => setTimelineStatus(nextValue as NoteStatusFilter)}
-            />
           </div>
         )}
         subtitle=""
         action={
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="page-head-actions-row">
             {!isMobile && (
               <InfoTooltip
                 content="Drag files anywhere on this page to automatically create notes with attachments"

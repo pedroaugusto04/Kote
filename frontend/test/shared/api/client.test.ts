@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { ApiClientError, fetchAskHistory, fetchCurrentUser, fetchDashboard, getErrorMessage, runQuery } from '../../../src/shared/api/client';
+import { NoteStatus } from '../../../src/shared/api/models/note-status';
 import { resolveApiPath } from '../../../src/shared/api/api-path';
 import { request, requestText, resetRequestStateForTests } from '../../../src/shared/api/request';
 
@@ -86,7 +87,7 @@ describe('api client', () => {
     }));
     vi.stubGlobal('fetch', fetchMock);
 
-    await runQuery({ query: 'Nota1', workspaceSlug: 'workspace1', status: 'resolved', limit: 50, page: 1, pageSize: 10 });
+    await runQuery({ query: 'Nota1', workspaceSlug: 'workspace1', status: NoteStatus.Resolved, limit: 50, page: 1, pageSize: 10 });
 
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining('/api/query?query=Nota1&projectSlug=&workspaceSlug=workspace1&status=resolved&limit=10&page=1&pageSize=10'),

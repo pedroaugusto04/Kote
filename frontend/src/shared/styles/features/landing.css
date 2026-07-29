@@ -185,6 +185,22 @@
   margin: 0 auto 36px;
 }
 
+.landing-lead-statement,
+.landing-lead-detail {
+  display: block;
+}
+
+.landing-lead-statement {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.landing-lead-detail {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
 .landing-actions {
   display: flex;
   align-items: center;
@@ -539,6 +555,7 @@
 
 .landing-integration-card {
   position: absolute;
+  width: 148px;
   padding: 10px 16px;
   background: var(--panel);
   border: 1px solid var(--line-soft);
@@ -546,6 +563,7 @@
   box-shadow: var(--shadow);
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 10px;
   font-size: 13px;
   font-weight: 600;
@@ -580,9 +598,9 @@
 }
 
 .landing-integration-card.c1 { top: 15%; left: 18%; }
-.landing-integration-card.c2 { top: 12%; right: 18%; }
-.landing-integration-card.c3 { bottom: 15%; left: 15%; }
-.landing-integration-card.c4 { bottom: 12%; right: 15%; }
+.landing-integration-card.c2 { top: 15%; right: 18%; }
+.landing-integration-card.c3 { bottom: 15%; left: 18%; }
+.landing-integration-card.c4 { bottom: 15%; right: 18%; }
 .landing-integration-card.c5 { top: 48%; left: 8%; }
 .landing-integration-card.c6 { top: 48%; right: 8%; }
 
@@ -1035,4 +1053,44 @@
 
 .landing-footer-meta a:hover {
   color: var(--active-text);
+}
+
+
+/* Semantic search information layout */
+.landing-ai-search-info {
+  width: 100%;
+}
+
+.landing-ai-search-features {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+  max-width: 820px;
+  margin: 0 auto;
+  text-align: left;
+}
+
+.landing-ai-search-feature-item {
+  gap: 12px;
+  padding: 4px 0;
+  border: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.landing-ai-search-feature-item + .landing-ai-search-feature-item {
+  padding-top: 4px;
+  border-left: 1px solid var(--line-soft);
+  padding-left: 32px;
+}
+
+.landing-ai-search-feature-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--cyan);
+}
+
+.landing-ai-search-feature-icon svg {
+  width: 100%;
+  height: 100%;
 }

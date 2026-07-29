@@ -6,7 +6,7 @@ import { withFrontendBasePath } from '../../app/base-path';
 import { useTypewriterWord } from '../../layouts/use-typewriter-word';
 import { BrandMark } from '../../shared/ui/brand-mark';
 import { ThemeToggle } from '../../shared/ui/theme-toggle';
-import { GitHubIcon, WhatsAppIcon, TelegramIcon, SparklesIcon, PencilIcon, MessagesIcon } from '../../shared/ui/icons';
+import { GitHubIcon, WhatsAppIcon, SparklesIcon, MessagesIcon, SearchIcon } from '../../shared/ui/icons';
 
 const typewriterWords = ['capture', 'organize', 'retrieve', 'connect'];
 
@@ -72,9 +72,8 @@ export function LandingPage() {
               Your team writes the code. Let us <span className="landing-highlight auth-typewriter-word" style={{ position: 'relative', display: 'inline-block' }}><span style={{ visibility: 'hidden', userSelect: 'none', pointerEvents: 'none' }}>{fullWord}</span><span style={{ position: 'absolute', left: 0, bottom: 0, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{animatedWord}<span className="auth-typewriter-cursor" aria-hidden="true" /></span></span> the context.
             </h1>
             <p className="landing-lead">
-              Git remembers what changed. Kote remembers why.
-              <br />
-              Automatically capture AI conversations, Git activity, and development decisions, then surface this context exactly when you need it.
+              <span className="landing-lead-statement">Git remembers what changed. Kote remembers why.</span>
+              <span className="landing-lead-detail">Automatically capture AI conversations, Git activity, and development decisions, then surface this context exactly when you need it.</span>
             </p>
             <div className="landing-actions">
               <Link className="landing-button-link primary" to={routes.auth}>Enter workspace</Link>
@@ -159,20 +158,15 @@ export function LandingPage() {
             <div className="landing-integration-container reveal-scale">
               <div className="landing-integration-center">
                 <BrandMark />
-                <strong>Active Context Hub</strong>
+                <strong>Kote</strong>
                 <span>Unified Knowledge</span>
               </div>
 
-              <svg className="landing-integration-svg" viewBox="0 0 1000 380" aria-hidden="true">
-                <defs>
-                  <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                    <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--line-soft)" />
-                  </marker>
-                </defs>
-                <path d="M 220 70 L 440 140" stroke="var(--line-soft)" strokeWidth="1.5" strokeDasharray="4 4" markerEnd="url(#arrow)" />
-                <path d="M 780 60 L 560 140" stroke="var(--line-soft)" strokeWidth="1.5" strokeDasharray="4 4" markerEnd="url(#arrow)" />
-                <path d="M 180 320 L 440 240" stroke="var(--line-soft)" strokeWidth="1.5" strokeDasharray="4 4" markerEnd="url(#arrow)" />
-                <path d="M 820 330 L 560 240" stroke="var(--line-soft)" strokeWidth="1.5" strokeDasharray="4 4" markerEnd="url(#arrow)" />
+              <svg className="landing-integration-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                <path d="M 24 20 L 44.6 38" stroke="var(--line-soft)" strokeWidth="0.4" strokeDasharray="1 1" strokeLinecap="round" />
+                <path d="M 76 20 L 55.4 38" stroke="var(--line-soft)" strokeWidth="0.4" strokeDasharray="1 1" strokeLinecap="round" />
+                <path d="M 24 80 L 44.6 62" stroke="var(--line-soft)" strokeWidth="0.4" strokeDasharray="1 1" strokeLinecap="round" />
+                <path d="M 76 80 L 55.4 62" stroke="var(--line-soft)" strokeWidth="0.4" strokeDasharray="1 1" strokeLinecap="round" />
               </svg>
 
               <div className="landing-integration-card c1">
@@ -256,21 +250,16 @@ export function LandingPage() {
 
             <div className="landing-ai-search-wrapper">
               <div className="landing-ai-search-info reveal-up">
-                <h3>Find context by meaning, not just keywords.</h3>
-                <p>
-                  Engineering discussions and notes are fragmented. Our AI Search queries the semantic
-                  intent of your query, finding relevant context even when keywords don't match.
-                </p>
                 <div className="landing-ai-search-features">
                   <div className="landing-ai-search-feature-item">
-                    <span className="landing-ai-search-feature-icon">✨</span>
+                    <span className="landing-ai-search-feature-icon"><SparklesIcon /></span>
                     <div className="landing-ai-search-feature-content">
                       <h4>Natural Language Answers</h4>
                       <p>Ask questions like "How do we handle retry timeouts?" and get direct answers synthesized from notes.</p>
                     </div>
                   </div>
                   <div className="landing-ai-search-feature-item">
-                    <span className="landing-ai-search-feature-icon">🗂️</span>
+                    <span className="landing-ai-search-feature-icon"><SearchIcon /></span>
                     <div className="landing-ai-search-feature-content">
                       <h4>Project-Scoped Search</h4>
                       <p>Filter searches to specific active repositories, or run global workspace-wide assistant runs.</p>
