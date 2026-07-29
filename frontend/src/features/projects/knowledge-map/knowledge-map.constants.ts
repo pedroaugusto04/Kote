@@ -13,7 +13,7 @@ export const knowledgeMapNodeStyles: Record<KnowledgeMapNodeType, { label: strin
   note: { label: 'Note', color: '#86efac', radius: 10 },
   tag: { label: 'Tag', color: '#fca5a5', radius: 9 },
   category: { label: 'Category', color: '#fdba74', radius: 10 },
-  topic: { label: 'Topic', color: '#a855f7', radius: 14 },
+  topic: { label: 'Topic', color: '#a855f7', radius: 20 },
 };
 
 export const knowledgeMapReviewNodeStyle = { label: 'Review notes', color: '#e879f9', radius: knowledgeMapNodeStyles.note.radius };

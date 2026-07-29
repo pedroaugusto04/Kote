@@ -121,7 +121,6 @@ export function ProjectKnowledgeForceGraph({
     feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
     const viewport = svg.append('g').attr('class', 'knowledge-map-viewport');
-    const hullLayer = viewport.append('g').attr('class', 'knowledge-map-hulls');
     const linkLayer = viewport.append('g').attr('class', 'knowledge-map-links');
     const nodeLayer = viewport.append('g').attr('class', 'knowledge-map-nodes');
     const graphNodes = graph.nodes as GraphNode[];
@@ -387,48 +386,7 @@ export function ProjectKnowledgeForceGraph({
       updateVisuals(null, searchQueryRef.current);
     }
 
-    function renderHulls(time: number) {
-      const groups = new Map<string, Array<[number, number]>>();
-      const currentHidden = hiddenNodeIdsRef.current ?? new Set<string>();
-
-      graphNodes.forEach((n) => {
-        if (currentHidden.has(n.id)) return;
-        const key = n.category || (n.type === 'folder' ? n.id : null);
-        if (!key) return;
-        const pos = graphNodePosition(n, time, isDriftDisabled);
-        if (!groups.has(key)) groups.set(key, []);
-        groups.get(key)!.push([pos.x, pos.y]);
-      });
-
-      const hullData: Array<{ key: string; path: string; color: string }> = [];
-      groups.forEach((points, key) => {
-        if (points.length < 3) return;
-        const hull = d3.polygonHull(points);
-        if (!hull) return;
-        const path = `M${hull.join('L')}Z`;
-        const color = (knowledgeMapNodeStyles as Record<string, { color: string }>)[key]?.color || '#c4b5fd';
-        hullData.push({ key, path, color });
-      });
-
-      const selection = hullLayer.selectAll<SVGPathElement, { key: string; path: string; color: string }>('path')
-        .data(hullData, (d) => d.key);
-
-      selection.exit().remove();
-
-      selection.enter()
-        .append('path')
-        .merge(selection)
-        .attr('d', (d) => d.path)
-        .attr('fill', (d) => d.color)
-        .attr('fill-opacity', 0.08)
-        .attr('stroke', (d) => d.color)
-        .attr('stroke-opacity', 0.25)
-        .attr('stroke-width', 1.5)
-        .attr('stroke-dasharray', '4 4');
-    }
-
     function renderGraph(time: number) {
-      renderHulls(time);
       link
         .attr('x1', (item) => graphNodePosition(graphLinkNode(item.source), time, isDriftDisabled).x)
         .attr('y1', (item) => graphNodePosition(graphLinkNode(item.source), time, isDriftDisabled).y)
@@ -591,6 +549,9 @@ function graphLinkNode(value: string | number | GraphNode) {
 }
 
 function linkDistance(item: GraphLink) {
+  const sourceId = typeof item.source === 'object' ? item.source.id : String(item.source);
+  const targetId = typeof item.target === 'object' ? item.target.id : String(item.target);
+  if (sourceId.startsWith('topic:') || targetId.startsWith('topic:')) return 40;
   if (item.type === 'contains') return 110;
   if (item.type === 'filed-in' || item.type === 'from-repository') return 100;
   return 90;
@@ -598,6 +559,9 @@ function linkDistance(item: GraphLink) {
 
 function linkStrength(item: GraphLink) {
   if (item.strength !== undefined) return item.strength;
+  const sourceId = typeof item.source === 'object' ? item.source.id : String(item.source);
+  const targetId = typeof item.target === 'object' ? item.target.id : String(item.target);
+  if (sourceId.startsWith('topic:') || targetId.startsWith('topic:')) return 0.85;
   if (item.type === 'contains') return 0.75;
   if (item.type === 'filed-in') return 0.6;
   if (item.type === 'from-repository') return 0.45;
@@ -605,7 +569,7 @@ function linkStrength(item: GraphLink) {
 }
 
 function chargeStrength(item: GraphNode, denseMap: boolean) {
-  const base = item.type === 'project' ? -350 : item.type === 'note' ? -120 : -150;
+  const base = item.type === 'project' ? -350 : item.type === 'topic' ? -260 : item.type === 'note' ? -120 : -150;
   return denseMap ? base * 1.3 : base;
 }
 
@@ -618,7 +582,7 @@ function collisionRadius(item: GraphNode) {
 
 function shouldShowLabel(item: GraphNode, zoomScale: number, activeNodeId: string, isLargeGraph: boolean) {
   if (item.id === activeNodeId) return true;
-  if (item.type === 'project' || item.type === 'repository' || item.type === 'folder') return true;
+  if (item.type === 'project' || item.type === 'repository' || item.type === 'folder' || item.type === 'topic') return true;
   
   const thresholdOffset = isLargeGraph ? 0.3 : 0;
   

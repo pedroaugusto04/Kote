@@ -126,6 +126,20 @@ export class SemanticClusteringService {
 
       newNodes.push(topicNode);
 
+      // Link topic hub node directly to its cluster member notes with strong physical attraction
+      cluster.members.forEach((member) => {
+        const linkId = `contains:${topicId}->${member.id}`;
+        if (!newLinks.some((l) => l.id === linkId)) {
+          newLinks.push({
+            id: linkId,
+            source: topicId,
+            target: member.id,
+            type: 'contains',
+            strength: 0.85,
+          });
+        }
+      });
+
       // Link topic to project or folder/category
       const sampleMember = cluster.members[0];
       const memberLinks = baseMap.links.filter(
