@@ -320,8 +320,8 @@ export function ProjectKnowledgeForceGraph({
       .force('charge', d3.forceManyBody().strength((item) => chargeStrength(item as GraphNode, denseMap, hiddenChildIdsRef.current)))
       .force('center', d3.forceCenter(currentSize.width / 2, currentSize.height / 2))
       .force('collide', d3.forceCollide<GraphNode>().radius((item) => collisionRadius(item as GraphNode, hiddenChildIdsRef.current)))
-      .velocityDecay(0.45)
-      .alphaDecay(0.028)
+      .velocityDecay(0.5)
+      .alphaDecay(0.03)
       .on('tick', () => renderGraph(performance.now()));
     simulationRef.current = simulation;
 
@@ -336,59 +336,74 @@ export function ProjectKnowledgeForceGraph({
       });
       hiddenChildIdsRef.current = hiddenChildIds;
 
+      // Build a lookup: childId → parent topic node
+      const childToTopic = new Map<string, GraphNode>();
+      graphNodes.forEach((n) => {
+        if (n.type === 'topic' && n.childNoteIds) {
+          n.childNoteIds.forEach((cid) => childToTopic.set(cid, n));
+        }
+      });
+
       graphNodes.forEach((n) => {
         if (hiddenChildIds.has(n.id)) {
-          const parentTopic = graphNodes.find((t) => t.type === 'topic' && t.childNoteIds?.includes(n.id));
-          if (parentTopic && parentTopic.x !== undefined && parentTopic.y !== undefined) {
-            n.x = parentTopic.x;
-            n.y = parentTopic.y;
-            n.fx = parentTopic.x;
-            n.fy = parentTopic.y;
+          // Collapse: pin to parent topic position with zero velocity
+          const parent = childToTopic.get(n.id);
+          if (parent && parent.x != null && parent.y != null) {
+            n.x = parent.x;
+            n.y = parent.y;
+            n.fx = parent.x;
+            n.fy = parent.y;
             n.vx = 0;
             n.vy = 0;
           }
-        } else if (n.type !== 'topic') {
-          // Position child notes in a gentle ring around parent topic upon expansion
-          if (n.fx !== null) {
-            const parentTopic = graphNodes.find((t) => t.type === 'topic' && t.childNoteIds?.includes(n.id));
-            if (parentTopic && parentTopic.x !== undefined && parentTopic.y !== undefined) {
-              const childIndex = parentTopic.childNoteIds?.indexOf(n.id) ?? 0;
-              const totalChildren = parentTopic.childCount || 1;
-              const angle = (childIndex / Math.max(1, totalChildren)) * 2 * Math.PI;
-              n.x = parentTopic.x + Math.cos(angle) * 30;
-              n.y = parentTopic.y + Math.sin(angle) * 30;
-              n.vx = 0;
-              n.vy = 0;
+        } else {
+          // Expand: if this node was previously pinned (fx is a number), seed it
+          // in a ring around its parent topic so it unfolds smoothly
+          if (typeof n.fx === 'number' && n.type !== 'topic' && n.type !== 'project') {
+            const parent = childToTopic.get(n.id);
+            if (parent && parent.x != null && parent.y != null) {
+              const siblings = parent.childNoteIds ?? [];
+              const idx = siblings.indexOf(n.id);
+              const count = siblings.length || 1;
+              const angle = ((idx >= 0 ? idx : 0) / count) * 2 * Math.PI;
+              n.x = parent.x + Math.cos(angle) * 40;
+              n.y = parent.y + Math.sin(angle) * 40;
             }
+            n.vx = 0;
+            n.vy = 0;
           }
           n.fx = null;
           n.fy = null;
         }
       });
 
+      // Fade out hidden nodes/links, then remove from layout after transition
       node
-        .style('transition', 'opacity 0.2s ease-out')
         .style('opacity', (d) => (hiddenChildIds.has(d.id) ? 0 : 1))
-        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null))
-        .style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
+        .style('pointer-events', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
+
+      // Delay display:none so the opacity transition can play
+      setTimeout(() => {
+        node.style('display', (d) => (hiddenChildIds.has(d.id) ? 'none' : null));
+      }, 260);
 
       link
-        .style('transition', 'opacity 0.2s ease-out')
         .style('opacity', (l) => {
           const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
           const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
-          if (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) return 0;
-          return 1;
-        })
-        .style('display', (l) => {
-          const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
-          const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
-          if (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) return 'none';
-          return null;
+          return (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) ? 0 : 1;
         });
 
-      simulation.velocityDecay(0.45);
-      simulation.alpha(0.08).restart();
+      setTimeout(() => {
+        link.style('display', (l) => {
+          const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
+          const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
+          return (hiddenChildIds.has(sId) || hiddenChildIds.has(tId)) ? 'none' : null;
+        });
+      }, 260);
+
+      // Gentle reheat — just enough to settle the ring, not enough to cause jitter
+      simulation.alpha(0.06).restart();
     }
 
     updateTopicStateRef.current = updateTopicState;
@@ -785,8 +800,8 @@ function graphNodePosition(item: GraphNode, time: number, staticPosition: boolea
   const y = item.y || 0;
   if (staticPosition) return { x, y };
   const phase = hashNodeId(item.id) % 628;
-  const amplitude = item.type === 'project' ? 0.3 : 0.6;
-  const t = time / 2400;
+  const amplitude = item.type === 'project' ? 0.2 : 0.4;
+  const t = time / 3200;
   return {
     x: x + Math.sin(t + phase) * amplitude,
     y: y + Math.cos(t * 0.85 + phase) * amplitude,
