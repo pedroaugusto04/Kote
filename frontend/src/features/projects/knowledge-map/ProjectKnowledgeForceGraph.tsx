@@ -1,5 +1,5 @@
 import * as d3 from 'd3';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { KnowledgeMapLink, KnowledgeMapNode } from '../../../shared/api/models/project-knowledge-map';
 import { knowledgeMapLinkStyles, knowledgeMapNodeStyles, knowledgeMapReviewNodeStyle } from './knowledge-map.constants';
@@ -60,10 +60,42 @@ export function ProjectKnowledgeForceGraph({
     searchQueryRef.current = searchQuery;
   }, [searchQuery]);
 
-  const graph = useMemo(() => ({
-    nodes: nodes.map((node) => ({ ...node })),
-    links: links.map((link) => ({ ...link })),
-  }), [links, nodes]);
+  const [expandedTopicIds, setExpandedTopicIds] = useState<Set<string>>(() => new Set());
+
+  const handleToggleTopic = useCallback((topicId: string) => {
+    setExpandedTopicIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(topicId)) {
+        next.delete(topicId);
+      } else {
+        next.add(topicId);
+      }
+      return next;
+    });
+  }, []);
+
+  const onToggleTopicRef = useRef(handleToggleTopic);
+  useEffect(() => {
+    onToggleTopicRef.current = handleToggleTopic;
+  }, [handleToggleTopic]);
+
+  const graph = useMemo(() => {
+    const hiddenChildIds = new Set<string>();
+    nodes.forEach((node) => {
+      if (node.type === 'topic' && !expandedTopicIds.has(node.id) && node.childNoteIds) {
+        node.childNoteIds.forEach((childId) => hiddenChildIds.add(childId));
+      }
+    });
+
+    const activeNodes = nodes.filter((n) => !hiddenChildIds.has(n.id));
+    const activeNodeIds = new Set(activeNodes.map((n) => n.id));
+    const activeLinks = links.filter((l) => activeNodeIds.has(l.source) && activeNodeIds.has(l.target));
+
+    return {
+      nodes: activeNodes.map((node) => ({ ...node })),
+      links: activeLinks.map((link) => ({ ...link })),
+    };
+  }, [links, nodes, expandedTopicIds]);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -181,13 +213,21 @@ export function ProjectKnowledgeForceGraph({
       .on('click', (_event, item) => {
         activeNodeId = item.id;
         updateVisuals(item.id, searchQueryRef.current);
-        if (item.type === 'note' && item.noteId) onOpenNoteRef.current(item.noteId);
+        if (item.type === 'topic') {
+          onToggleTopicRef.current(item.id);
+        } else if (item.type === 'note' && item.noteId) {
+          onOpenNoteRef.current(item.noteId);
+        }
       })
       .on('keydown', (event, item) => {
-        if (item.type !== 'note' || !item.noteId) return;
         if (event.key !== 'Enter' && event.key !== ' ') return;
-        event.preventDefault();
-        onOpenNoteRef.current(item.noteId);
+        if (item.type === 'topic') {
+          event.preventDefault();
+          onToggleTopicRef.current(item.id);
+        } else if (item.type === 'note' && item.noteId) {
+          event.preventDefault();
+          onOpenNoteRef.current(item.noteId);
+        }
       });
 
     const circles = node
@@ -196,6 +236,30 @@ export function ProjectKnowledgeForceGraph({
       .attr('fill', nodeColor)
       .attr('stroke', 'rgba(255,255,255,0.74)')
       .attr('stroke-width', 1.2);
+
+    // Append numeric count badge for topic hub nodes
+    const topicNodes = node.filter((item) => item.type === 'topic' && Boolean(item.childCount));
+
+    topicNodes
+      .append('circle')
+      .attr('cx', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) * 0.75)
+      .attr('cy', (item) => -(item.size || knowledgeMapNodeStyles[item.type].radius) * 0.75)
+      .attr('r', 9)
+      .attr('fill', '#0f172a')
+      .attr('stroke', '#ffffff')
+      .attr('stroke-width', 1.5);
+
+    topicNodes
+      .append('text')
+      .attr('x', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) * 0.75)
+      .attr('y', (item) => -(item.size || knowledgeMapNodeStyles[item.type].radius) * 0.75 + 0.5)
+      .attr('text-anchor', 'middle')
+      .attr('dominant-baseline', 'central')
+      .attr('fill', '#ffffff')
+      .attr('font-size', '10px')
+      .attr('font-weight', 'bold')
+      .style('pointer-events', 'none')
+      .text((item) => String(item.childCount || 0));
 
     // Append text icon symbol inside node circles
     node
