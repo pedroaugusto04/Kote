@@ -295,7 +295,7 @@ export function ProjectKnowledgeForceGraph({
     const totalTopics = topicNodesList.length;
     const centerX = currentSize.width / 2;
     const centerY = currentSize.height / 2;
-    const topicRadius = Math.min(centerX, centerY) * 0.32;
+    const topicRadius = Math.min(centerX, centerY) * 0.36;
 
     topicNodesList.forEach((topicNode, idx) => {
       const angle = (idx / Math.max(1, totalTopics)) * 2 * Math.PI - Math.PI / 2;
@@ -427,18 +427,15 @@ export function ProjectKnowledgeForceGraph({
     // Pre-tick the simulation to get initial stable positions before fitting
     simulation.tick(denseMap ? 300 : 200);
 
-    // Apply fit after simulation has stabilized
-    // Run for both mobile and desktop initially to center the view
-    setTimeout(() => {
-      const latestSize = sizeRef.current;
-      const initialTransform = computeFitTransform(
-        graphNodes,
-        hiddenNodeIds,
-        latestSize.width,
-        latestSize.height
-      );
-      d3.select(svgElement).transition().duration(400).call(zoom.transform, initialTransform);
-    }, 100);
+    // Apply initial fit transform synchronously so the map renders centered without jumping
+    const combinedHidden = new Set([...(hiddenNodeIds ?? []), ...hiddenChildIdsRef.current]);
+    const initialTransform = computeFitTransform(
+      graphNodes,
+      combinedHidden,
+      currentSize.width,
+      currentSize.height
+    );
+    svg.call(zoom.transform, initialTransform);
 
     function updateLabels() {
       labels
@@ -727,14 +724,14 @@ function linkDistance(item: GraphLink) {
   if ((sourceIsTopic && !targetIsTopic) || (targetIsTopic && !sourceIsTopic)) {
     const nonTopicId = sourceIsTopic ? targetId : sourceId;
     if (!nonTopicId.startsWith('project:') && !nonTopicId.startsWith('folder:')) {
-      return 40;
+      return 42;
     }
   }
 
-  if (sourceIsTopic || targetIsTopic) return 110;
-  if (item.type === 'contains') return 85;
-  if (item.type === 'filed-in' || item.type === 'from-repository') return 75;
-  return 70;
+  if (sourceIsTopic || targetIsTopic) return 120;
+  if (item.type === 'contains') return 95;
+  if (item.type === 'filed-in' || item.type === 'from-repository') return 85;
+  return 80;
 }
 
 function linkStrength(item: GraphLink) {
@@ -745,21 +742,21 @@ function linkStrength(item: GraphLink) {
   if (item.type === 'contains') return 0.75;
   if (item.type === 'filed-in') return 0.6;
   if (item.type === 'from-repository') return 0.45;
-  return 0.2;
+  return 0.15;
 }
 
 function chargeStrength(item: GraphNode, denseMap: boolean, hiddenChildIds?: Set<string> | null) {
   if (hiddenChildIds?.has(item.id)) return 0;
-  const base = item.type === 'project' ? -220 : item.type === 'topic' ? -180 : item.type === 'note' ? -70 : -90;
-  return denseMap ? base * 1.15 : base;
+  const base = item.type === 'project' ? -260 : item.type === 'topic' ? -220 : item.type === 'note' ? -90 : -110;
+  return denseMap ? base * 1.2 : base;
 }
 
 function collisionRadius(item: GraphNode, hiddenChildIds?: Set<string> | null) {
   if (hiddenChildIds?.has(item.id)) return 0;
   const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
-  if (item.type === 'topic') return radius + 18;
-  if (isReviewNote(item)) return radius + 10;
-  const labelAllowance = item.type === 'note' ? 14 : item.type === 'tag' ? 12 : 18;
+  if (item.type === 'topic') return radius + 20;
+  if (isReviewNote(item)) return radius + 12;
+  const labelAllowance = item.type === 'note' ? 18 : item.type === 'tag' ? 16 : 22;
   return radius + labelAllowance;
 }
 
