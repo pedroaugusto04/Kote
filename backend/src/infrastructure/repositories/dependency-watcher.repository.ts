@@ -32,13 +32,20 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       .limit(1);
 
     if (existing.length > 0) {
+      const updateData: any = {
+        currentVersion: input.currentVersion,
+        repositoryId: input.repositoryId || existing[0].repositoryId,
+        updatedAt: new Date(),
+      };
+
+      // Clear lastUrgency when currentVersion changes to force re-analysis
+      if (input.currentVersion !== existing[0].currentVersion) {
+        updateData.lastUrgency = null;
+      }
+
       const [updated] = await db
         .update(dependencyWatch)
-        .set({
-          currentVersion: input.currentVersion,
-          repositoryId: input.repositoryId || existing[0].repositoryId,
-          updatedAt: new Date(),
-        })
+        .set(updateData)
         .where(eq(dependencyWatch.id, existing[0].id))
         .returning();
 
@@ -132,13 +139,21 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
 
       // Batch update
       for (const { id, input } of toUpdate) {
+        const updateData: any = {
+          currentVersion: input.currentVersion,
+          repositoryId: input.repositoryId,
+          updatedAt: new Date(),
+        };
+
+        // Clear lastUrgency when currentVersion changes to force re-analysis
+        const existing = existingMap.get(`${input.ecosystem}:${input.packageName}`);
+        if (existing && input.currentVersion !== existing.currentVersion) {
+          updateData.lastUrgency = null;
+        }
+
         await tx
           .update(dependencyWatch)
-          .set({
-            currentVersion: input.currentVersion,
-            repositoryId: input.repositoryId,
-            updatedAt: new Date(),
-          })
+          .set(updateData)
           .where(eq(dependencyWatch.id, id));
       }
     });
