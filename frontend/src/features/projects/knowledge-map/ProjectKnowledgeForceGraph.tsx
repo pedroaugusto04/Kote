@@ -216,7 +216,7 @@ export function ProjectKnowledgeForceGraph({
         if (item.type === 'note') return '📄';
         if (item.type === 'tag') return '#';
         if (item.type === 'category') return '🗂';
-        if (item.type === 'topic') return '💡';
+        if (item.type === 'topic') return '✦';
         return '';
       });
 
@@ -594,8 +594,15 @@ function shouldShowLabel(item: GraphNode, zoomScale: number, activeNodeId: strin
   return zoomScale >= (1.5 + thresholdOffset);
 }
 
+const TOPIC_COLORS = ['#a855f7', '#06b6d4', '#ec4899', '#f59e0b', '#10b981', '#6366f1', '#3b82f6', '#14b8a6'];
+
 function nodeColor(item: GraphNode) {
-  return isReviewNote(item) ? knowledgeMapReviewNodeStyle.color : knowledgeMapNodeStyles[item.type].color;
+  if (isReviewNote(item)) return knowledgeMapReviewNodeStyle.color;
+  if (item.type === 'topic') {
+    const idx = hashNodeId(item.id) % TOPIC_COLORS.length;
+    return TOPIC_COLORS[idx];
+  }
+  return knowledgeMapNodeStyles[item.type].color;
 }
 
 function isReviewNote(item: GraphNode) {

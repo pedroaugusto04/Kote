@@ -116,7 +116,7 @@ export class SemanticClusteringService {
       const topicNode: KnowledgeMapNode = {
         id: topicId,
         type: KnowledgeMapNodeTypeEnum.Topic,
-        label: `💡 ${cluster.centroidNote.label}`,
+        label: cluster.centroidNote.label,
         subtitle: `${cluster.members.length} notas semelhantes`,
         childNoteIds: memberNoteIds,
         childCount: cluster.members.length,
