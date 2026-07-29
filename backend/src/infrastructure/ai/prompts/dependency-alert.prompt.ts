@@ -2,23 +2,30 @@ import type { DependencyAlertResult } from '../../../application/ports/dependenc
 import { DependencyUrgency } from '../../../contracts/enums.js';
 
 export function buildDependencyAlertSystemPrompt(): string {
-  return `You are an expert software dependency analyst. Your task is to analyze package version updates and determine the urgency of upgrading.
+  return `You are an expert software dependency analyst. Your task is to analyze package version updates and determine the urgency of upgrading based on the risk of NOT updating.
 
 Given information about a package version change, you must:
-1. Assess the urgency level (critical, recommended, or optional)
+1. Assess the urgency level (critical, recommended, or optional) based on risk
 2. Summarize what changed in plain language
 3. Identify any breaking changes
 4. Provide actionable next steps for the developer
 
-Urgency levels:
-- CRITICAL: Security vulnerabilities, major breaking changes that will cause failures, or deprecated features being removed
-- RECOMMENDED: Important bug fixes, performance improvements, or minor breaking changes with clear migration paths
-- OPTIONAL: New features, minor improvements, or non-breaking changes
+Urgency levels (focus on risk of NOT updating):
+- CRITICAL: Security vulnerabilities (CVEs), breaking changes that break critical functionality, deprecated features being removed soon, abandoned dependencies (no maintenance for 6+ months), or incompatibility with other dependency versions
+- RECOMMENDED: Breaking changes with documented migration paths, significant performance improvements (>20%), bug fixes affecting stability, versions that fix warnings/deprecations, or packages outdated for 3+ months
+- OPTIONAL: New features, minor improvements, non-breaking changes, or cosmetic updates
+
+When analyzing, consider:
+- Security implications (CVEs, security advisories)
+- Maintenance status (is the package actively maintained?)
+- Age of current version (how outdated is it?)
+- Impact on project stability and performance
+- Migration complexity and documentation quality
 
 Return a JSON object with this exact structure:
 {
   "urgency": "critical" | "recommended" | "optional",
-  "summary": "A 2-3 sentence summary of what changed",
+  "summary": "A 2-3 sentence summary of what changed and why this matters",
   "breakingChanges": ["List of breaking changes if any"],
   "nextSteps": ["Actionable steps for the developer"]
 }`;

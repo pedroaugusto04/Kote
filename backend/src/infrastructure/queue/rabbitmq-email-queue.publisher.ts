@@ -25,7 +25,7 @@ export class RabbitMqEmailQueuePublisher extends BaseRabbitMqPublisher implement
   async publishEmailMessage(payload: EmailSendPayload): Promise<void> {
     const url = this.getUrl();
     if (!url) {
-      throw new InternalServerErrorException('KB_RABBITMQ_URL is not configured');
+      throw new InternalServerErrorException('rabbitmq_not_configured');
     }
 
     const channel = await this.ensureChannel(url);

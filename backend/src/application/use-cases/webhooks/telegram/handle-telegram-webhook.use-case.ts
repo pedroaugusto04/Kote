@@ -28,7 +28,7 @@ export class HandleTelegramWebhookUseCase {
       throw new UnauthorizedException('invalid_webhook_token');
     }
     if (!externalId) {
-      throw new UnauthorizedException('missing_external_identity');
+      throw new UnauthorizedException('external_identity_required');
     }
     const connectionCode = extractTelegramConnectionCode(body);
     if (connectionCode && this.connections) {

@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { and, count, desc, eq, gte, lt, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, gte, lt, inArray, sql } from 'drizzle-orm';
 
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 import { EmailService } from '../email/email.service.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { users, notes, projects, workspaces } from '../../../infrastructure/persistence/schema/index.js';
+import { users, notes, projects, workspaces, dependencyWatch, dependencyMonitoredRepositories } from '../../../infrastructure/persistence/schema/index.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { WeeklySummaryGateway } from '../../ports/weekly-summary/weekly-summary.port.js';
 import { WeeklySummaryQueuePublisher } from '../../ports/weekly-summary/weekly-summary-queue.publisher.js';
-import { AiProvider, IntegrationProvider } from '../../../contracts/enums.js';
+import { AiProvider, IntegrationProvider, DependencyUrgency } from '../../../contracts/enums.js';
 import type { WeeklySummaryAnalysis } from '../../../contracts/weekly-summary.js';
 
 @Injectable()
@@ -84,6 +84,67 @@ export class WeeklySummaryService {
     }
   }
 
+  private async getDependencyCountsByProject(userId: string): Promise<Record<string, { critical: number; recommended: number; optional: number }>> {
+    const db = this.db.getDb();
+
+    // Get enabled workspaces for dependency watcher
+    const enabledWorkspaces = await db
+      .select({ id: workspaces.id, workspaceSlug: workspaces.workspaceSlug })
+      .from(workspaces)
+      .where(and(eq(workspaces.userId, userId), eq(workspaces.dependencyWatcherEnabled, true)));
+
+    if (enabledWorkspaces.length === 0) return {};
+
+    const workspaceIds = enabledWorkspaces.map((ws) => ws.id);
+    const workspaceSlugMap = new Map(enabledWorkspaces.map((ws) => [ws.id, ws.workspaceSlug]));
+
+    // Get dependency counts by urgency and workspace
+    const dependencyCounts = await db
+      .select({
+        workspaceId: dependencyWatch.workspaceId,
+        lastUrgency: dependencyWatch.lastUrgency,
+        count: count(),
+      })
+      .from(dependencyWatch)
+      .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
+      .innerJoin(dependencyMonitoredRepositories, and(
+        eq(dependencyMonitoredRepositories.userId, dependencyWatch.userId),
+        eq(dependencyMonitoredRepositories.workspaceId, dependencyWatch.workspaceId),
+        eq(dependencyMonitoredRepositories.repositoryId, dependencyWatch.repositoryId),
+      ))
+      .where(
+        and(
+          eq(dependencyWatch.userId, userId),
+          inArray(dependencyWatch.workspaceId, workspaceIds),
+          eq(workspaces.dependencyWatcherEnabled, true),
+          eq(dependencyWatch.enabled, true),
+          sql`${dependencyWatch.currentVersion} != ${dependencyWatch.latestSeenVersion}`,
+        ),
+      )
+      .groupBy(dependencyWatch.workspaceId, dependencyWatch.lastUrgency);
+
+    // Group by project (using workspaceSlug as project identifier)
+    const result: Record<string, { critical: number; recommended: number; optional: number }> = {};
+
+    for (const row of dependencyCounts as any[]) {
+      const workspaceSlug = workspaceSlugMap.get(row.workspaceId) || 'unknown';
+      if (!result[workspaceSlug]) {
+        result[workspaceSlug] = { critical: 0, recommended: 0, optional: 0 };
+      }
+
+      const urgency = row.lastUrgency;
+      if (urgency === DependencyUrgency.Critical) {
+        result[workspaceSlug].critical = Number(row.count);
+      } else if (urgency === DependencyUrgency.Recommended) {
+        result[workspaceSlug].recommended = Number(row.count);
+      } else if (urgency === DependencyUrgency.Optional) {
+        result[workspaceSlug].optional = Number(row.count);
+      }
+    }
+
+    return result;
+  }
+
   async sendWeeklySummaryToUser(user: { id: string; email: string; displayName?: string }, userNotesByProject: Record<string, any[]>) {
     const totalNotes = Object.values(userNotesByProject).reduce((s, arr) => s + arr.length, 0);
     if (totalNotes === 0) return { sent: false, reason: 'no_notes', totalNotes: 0 };
@@ -117,6 +178,9 @@ export class WeeklySummaryService {
       this.logger.info('weekly_summary.skipped_user_review_ai_inactive', { userId: user.id });
       return { sent: false, reason: 'user_review_ai_inactive', totalNotes };
     }
+
+    // Get dependency counts
+    const dependencyCounts = await this.getDependencyCountsByProject(user.id);
 
     // Prepare payload for AI generation
     const aiPayload = {
@@ -178,6 +242,7 @@ export class WeeklySummaryService {
         displayName: user.displayName || '',
         appName,
         aiSummary,
+        dependencyCounts,
       },
     });
 

@@ -23,20 +23,20 @@ export class DefaultEmbeddingGateway extends EmbeddingGateway {
     if (config.provider === AiProvider.Gemini) {
       if (config.model === 'gemini-embedding-2') {
         if (!this.gemini2Strategy) {
-          throw new InternalServerErrorException('Gemini2EmbeddingStrategy not provided');
+          throw new InternalServerErrorException('embedding_strategy_not_available');
         }
         return this.gemini2Strategy;
       }
 
       if (!this.gemini001Strategy) {
-        throw new InternalServerErrorException('Gemini001EmbeddingStrategy not provided');
+        throw new InternalServerErrorException('embedding_strategy_not_available');
       }
       return this.gemini001Strategy;
     }
 
     if (config.provider === AiProvider.Ollama || config.provider === AiProvider.OpenAi) {
       if (!this.openAiStrategy) {
-        throw new InternalServerErrorException('OpenAiEmbeddingStrategy not provided');
+        throw new InternalServerErrorException('embedding_strategy_not_available');
       }
       return this.openAiStrategy;
     }

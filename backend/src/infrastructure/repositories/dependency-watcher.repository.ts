@@ -308,6 +308,11 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       })
       .from(dependencyWatch)
       .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
+      .innerJoin(dependencyMonitoredRepositories, and(
+        eq(dependencyMonitoredRepositories.userId, dependencyWatch.userId),
+        eq(dependencyMonitoredRepositories.workspaceId, dependencyWatch.workspaceId),
+        eq(dependencyMonitoredRepositories.repositoryId, dependencyWatch.repositoryId),
+      ))
       .where(
         and(
           eq(dependencyWatch.enabled, true),

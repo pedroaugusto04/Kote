@@ -116,9 +116,18 @@ export class DependencyWatcherService {
 
       if (workspaceProjects.length === 0) continue;
 
-      const repositoryIds = workspaceProjects.flatMap((project) => 
+      const allRepositoryIds = workspaceProjects.flatMap((project) => 
         project.repositories.map((repo) => repo.id)
       );
+
+      if (allRepositoryIds.length === 0) continue;
+
+      const monitoredRepositoryIds = await this.dependencyWatcherRepository.listMonitoredRepositoryIds(
+        workspace.userId,
+        workspace.id,
+      );
+
+      const repositoryIds = allRepositoryIds.filter((repoId) => monitoredRepositoryIds.includes(repoId));
 
       if (repositoryIds.length === 0) continue;
 

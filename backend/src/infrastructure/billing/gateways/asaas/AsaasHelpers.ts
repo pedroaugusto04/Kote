@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus } from '@nestjs/common';
+import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 
 export const ASAAS_SANDBOX_BASE_URL = 'https://api-sandbox.asaas.com/v3';
 export const PLAN_PRICE_SCALE = 2;
@@ -79,15 +79,15 @@ export function parseExternalReference(ref?: string | null): {
   type: 'new' | 'upgrade' | 'change_cycle';
   billingIntentId: string;
 } {
-  if (!ref) throw new HttpException('externalReference is missing', 400);
+  if (!ref) throw new BadRequestException('external_reference_missing');
 
   const params = new URLSearchParams(ref);
 
   const type = params.get('t') as 'new' | 'upgrade' | 'change_cycle' | null;
   const billingIntentId = params.get('id');
 
-  if (!type) throw new HttpException('type not found in externalReference', 400);
-  if (!billingIntentId) throw new HttpException('id not found in externalReference', 400);
+  if (!type) throw new BadRequestException('external_reference_invalid');
+  if (!billingIntentId) throw new BadRequestException('external_reference_invalid');
 
   return { type, billingIntentId };
 }

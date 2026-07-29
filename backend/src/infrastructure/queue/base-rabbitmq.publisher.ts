@@ -37,7 +37,7 @@ export abstract class BaseRabbitMqPublisher implements OnModuleDestroy {
     if (this.connecting) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       if (this.channel) return this.channel;
-      throw new InternalServerErrorException('internal_server_error');
+      throw new InternalServerErrorException('rabbitmq_not_configured');
     }
 
     this.connecting = true;

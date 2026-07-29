@@ -22,12 +22,12 @@ export class HandleStripeWebhookUseCase {
       const signature = Array.isArray(sigHeader) ? sigHeader[0] : sigHeader;
       
       if (!signature) {
-        throw new UnauthorizedException('Missing Stripe signature');
+        throw new UnauthorizedException('missing_webhook_signature');
       }
 
       const isValid = this.verifySignature(rawBodyStr || JSON.stringify(body), signature, webhookSecret);
       if (!isValid) {
-        throw new UnauthorizedException('Invalid Stripe signature');
+        throw new UnauthorizedException('invalid_webhook_signature');
       }
     }
 

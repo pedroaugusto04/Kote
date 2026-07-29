@@ -9,5 +9,13 @@ Project: {{projectName}} — {{count}} note(s)
 {{/notes}}
 {{/projects}}
 
+{{#dependencyCounts}}
+Dependency Updates:
+{{#this}}
+{{@key}}:
+  Critical: {{critical}} | Recommended: {{recommended}} | Optional: {{optional}}
+{{/this}}
+{{/dependencyCounts}}
+
 Thanks,
 The {{appName}} team

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, HttpCode, HttpStatus, BadRequestException } from '@nestjs/common';
+import { Body, Controller, Post, HttpCode, HttpStatus, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
 import { WelcomeEmailService } from '../../../../application/use-cases/welcome-email.use-case.js';
@@ -35,10 +35,10 @@ export class TestEmailController {
 
   private validateAuth(authHeader: string | undefined): void {
     if (!this.authSecret) {
-      throw new BadRequestException('TEST_EMAIL_AUTH_SECRET not configured');
+      throw new BadRequestException('test_email_auth_not_configured');
     }
     if (!authHeader || authHeader !== `Bearer ${this.authSecret}`) {
-      throw new BadRequestException('Invalid or missing authentication token');
+      throw new UnauthorizedException('invalid_test_email_auth');
     }
   }
 

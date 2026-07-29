@@ -497,7 +497,7 @@ export class PostgresNoteRepository {
   async getByIdOrThrow(userId: string, id: string, tx?: any): Promise<NoteRecord> {
     const note = await this.getById(userId, id, tx);
     if (!note) {
-      throw new InternalServerErrorException('note_not_found');
+      throw new NotFoundException('note_not_found');
     }
     return note;
   }

@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { ProcessGithubPushService } from '../../services/integrations/process-github-push.service.js';
@@ -63,7 +63,7 @@ export class GithubBackfillUseCase {
   async cancel(jobId: string, userId: string): Promise<boolean> {
     const job = await this.githubBackfillJobRepository.findById(jobId, userId);
     if (!job) {
-      throw new BadRequestException('job_not_found');
+      throw new NotFoundException('job_not_found');
     }
     if (job.status === 'completed' || job.status === 'failed' || job.status === 'quota_exceeded' || job.status === 'cancelled') {
       throw new BadRequestException('job_already_finished');

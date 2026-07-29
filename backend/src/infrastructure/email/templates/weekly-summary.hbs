@@ -20,6 +20,18 @@
   {{/notableNotes}}
 {{/aiSummary.byProject}}
 
+{{#dependencyCounts}}
+<h2 style="margin: 24px 0 12px;">Dependency Updates</h2>
+{{#this}}
+<h3 style="margin: 16px 0 8px;">{{@key}}</h3>
+<p style="margin: 8px 0;">
+  <strong>Critical:</strong> {{critical}} | 
+  <strong>Recommended:</strong> {{recommended}} | 
+  <strong>Optional:</strong> {{optional}}
+</p>
+{{/this}}
+{{/dependencyCounts}}
+
 <h2 style="margin: 24px 0 12px;">Recommendations</h2>
 <ul>
   {{#aiSummary.recommendations}}
