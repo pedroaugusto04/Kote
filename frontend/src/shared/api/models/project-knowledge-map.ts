@@ -1,9 +1,19 @@
 import type { ProjectTimelineCategory, ProjectTimelineItemCategory } from './project-timeline';
 
-export const knowledgeMapNodeTypeValues = ['project', 'repository', 'folder', 'note', 'tag', 'category'] as const;
+export const KnowledgeMapNodeTypeEnum = {
+  Project: 'project',
+  Repository: 'repository',
+  Folder: 'folder',
+  Note: 'note',
+  Tag: 'tag',
+  Category: 'category',
+  Topic: 'topic',
+} as const;
+
+export const knowledgeMapNodeTypeValues = Object.values(KnowledgeMapNodeTypeEnum);
+export type KnowledgeMapNodeType = (typeof KnowledgeMapNodeTypeEnum)[keyof typeof KnowledgeMapNodeTypeEnum];
 export const knowledgeMapLinkTypeValues = ['contains', 'filed-in', 'tagged-with', 'from-repository', 'classified-as'] as const;
 
-export type KnowledgeMapNodeType = (typeof knowledgeMapNodeTypeValues)[number];
 export type KnowledgeMapLinkType = (typeof knowledgeMapLinkTypeValues)[number];
 
 export type KnowledgeMapNode = {
@@ -12,6 +22,8 @@ export type KnowledgeMapNode = {
   label: string;
   subtitle?: string;
   noteId?: string;
+  childNoteIds?: string[];
+  childCount?: number;
   projectSlug?: string;
   category?: ProjectTimelineItemCategory;
   status?: string;

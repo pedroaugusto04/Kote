@@ -14,9 +14,14 @@ import { collectFolderDescendantIds } from '../../utils/content/project-folder.u
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EventType, SourceChannel, TimelineCategory } from '../../../contracts/enums.js';
 
+import { SemanticClusteringService } from '../../services/query/semantic-clustering.service.js';
+
 @Injectable()
 export class ListProjectKnowledgeMapUseCase {
-  constructor(private readonly contentRepository: ContentRepository) {}
+  constructor(
+    private readonly contentRepository: ContentRepository,
+    private readonly semanticClusteringService?: SemanticClusteringService,
+  ) {}
 
   async execute(userId: string, input: ListProjectKnowledgeMapInput): Promise<ProjectKnowledgeMapResponse> {
     const project = await this.contentRepository.getProjectById(userId, input.projectId);
@@ -37,7 +42,13 @@ export class ListProjectKnowledgeMapUseCase {
     }
 
     const notes = await this.contentRepository.listProjectKnowledgeMapItems(userId, queryInput);
-    return buildProjectKnowledgeMap(project, folders, notes);
+    const baseMap = buildProjectKnowledgeMap(project, folders, notes);
+
+    if (this.semanticClusteringService) {
+      return this.semanticClusteringService.clusterKnowledgeMap(userId, baseMap);
+    }
+
+    return baseMap;
   }
 }
 

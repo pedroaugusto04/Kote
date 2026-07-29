@@ -823,3 +823,16 @@ export const dependencyMonitoredRepositories = pgTable('kb_dependency_monitored_
   uniqueRepo: uniqueIndex('kb_dependency_monitored_repositories_unique_idx').on(table.userId, table.workspaceId, table.repositoryId),
 }));
 
+export const projectMapClusters = pgTable('kb_project_map_clusters', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
+  projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  clustersPayload: jsonb('clusters_payload').notNull().default('{}'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userWorkspaceProjectUniqueIdx: uniqueIndex('kb_project_map_clusters_user_workspace_project_idx').on(table.userId, table.workspaceId, table.projectId),
+}));
+
+

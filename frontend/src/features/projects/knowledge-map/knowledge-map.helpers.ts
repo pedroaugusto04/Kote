@@ -1,4 +1,4 @@
-import type { KnowledgeMapLink, KnowledgeMapNode } from '../../../shared/api/models/project-knowledge-map';
+import { KnowledgeMapNodeTypeEnum, type KnowledgeMapLink, type KnowledgeMapNode } from '../../../shared/api/models/project-knowledge-map';
 import type { KnowledgeMapVisibleNodeType } from './knowledge-map.constants';
 
 export type KnowledgeMapDataset = {
@@ -13,7 +13,7 @@ export function filterKnowledgeMapDataset(
 ): KnowledgeMapDataset {
   let nodes = dataset.nodes.filter((node) => {
     if (!visibleTypes.has(node.type)) return false;
-    if (node.type === 'note') {
+    if (node.type === KnowledgeMapNodeTypeEnum.Note) {
       if (node.isReview && !visibleTypes.has('review-note')) return false;
       if (node.date && maxDateFilter !== undefined && maxDateFilter !== null) {
         if (new Date(node.date).getTime() > maxDateFilter) return false;
@@ -22,22 +22,24 @@ export function filterKnowledgeMapDataset(
     return true;
   });
 
-  const visibleNoteIds = new Set(nodes.filter((n) => n.type === 'note').map((n) => n.id));
+  const visibleItemIds = new Set(
+    nodes.filter((n) => n.type === KnowledgeMapNodeTypeEnum.Note || n.type === KnowledgeMapNodeTypeEnum.Topic).map((n) => n.id),
+  );
   const activeFolders = new Set<string>();
   const activeTags = new Set<string>();
   const activeCategories = new Set<string>();
   const activeRepositories = new Set<string>();
 
   dataset.links.forEach((link) => {
-    const sourceIsNote = visibleNoteIds.has(link.source);
-    const targetIsNote = visibleNoteIds.has(link.target);
+    const sourceIsItem = visibleItemIds.has(link.source);
+    const targetIsItem = visibleItemIds.has(link.target);
 
-    if (sourceIsNote || targetIsNote) {
-      const otherId = sourceIsNote ? link.target : link.source;
-      if (otherId.startsWith('folder:')) activeFolders.add(otherId);
-      if (otherId.startsWith('tag:')) activeTags.add(otherId);
-      if (otherId.startsWith('category:')) activeCategories.add(otherId);
-      if (otherId.startsWith('repository:')) activeRepositories.add(otherId);
+    if (sourceIsItem || targetIsItem) {
+      const otherId = sourceIsItem ? link.target : link.source;
+      if (otherId.startsWith(`${KnowledgeMapNodeTypeEnum.Folder}:`)) activeFolders.add(otherId);
+      if (otherId.startsWith(`${KnowledgeMapNodeTypeEnum.Tag}:`)) activeTags.add(otherId);
+      if (otherId.startsWith(`${KnowledgeMapNodeTypeEnum.Category}:`)) activeCategories.add(otherId);
+      if (otherId.startsWith(`${KnowledgeMapNodeTypeEnum.Repository}:`)) activeRepositories.add(otherId);
     }
   });
 
@@ -46,7 +48,7 @@ export function filterKnowledgeMapDataset(
   while (changed) {
     changed = false;
     dataset.links.forEach((link) => {
-      if (link.type === 'contains' && link.source.startsWith('folder:') && link.target.startsWith('folder:')) {
+      if (link.type === 'contains' && link.source.startsWith(`${KnowledgeMapNodeTypeEnum.Folder}:`) && link.target.startsWith(`${KnowledgeMapNodeTypeEnum.Folder}:`)) {
         if (activeFolders.has(link.target) && !activeFolders.has(link.source)) {
           activeFolders.add(link.source);
           changed = true;
@@ -56,12 +58,13 @@ export function filterKnowledgeMapDataset(
   }
 
   nodes = nodes.filter((node) => {
-    if (node.type === 'project') return true;
-    if (node.type === 'note') return true;
-    if (node.type === 'folder') return activeFolders.has(node.id);
-    if (node.type === 'tag') return activeTags.has(node.id);
-    if (node.type === 'category') return activeCategories.has(node.id);
-    if (node.type === 'repository') return activeRepositories.has(node.id);
+    if (node.type === KnowledgeMapNodeTypeEnum.Project) return true;
+    if (node.type === KnowledgeMapNodeTypeEnum.Note) return true;
+    if (node.type === KnowledgeMapNodeTypeEnum.Topic) return true;
+    if (node.type === KnowledgeMapNodeTypeEnum.Folder) return activeFolders.has(node.id);
+    if (node.type === KnowledgeMapNodeTypeEnum.Tag) return activeTags.has(node.id);
+    if (node.type === KnowledgeMapNodeTypeEnum.Category) return activeCategories.has(node.id);
+    if (node.type === KnowledgeMapNodeTypeEnum.Repository) return activeRepositories.has(node.id);
     return false;
   });
 
@@ -72,5 +75,6 @@ export function filterKnowledgeMapDataset(
 }
 
 export function knowledgeMapFolderIdFromNodeId(nodeId: string) {
-  return nodeId.startsWith('folder:') ? nodeId.slice('folder:'.length) : '';
+  const prefix = `${KnowledgeMapNodeTypeEnum.Folder}:`;
+  return nodeId.startsWith(prefix) ? nodeId.slice(prefix.length) : '';
 }

@@ -35,6 +35,8 @@ import { PostgresProjectCoverageRepository } from '../repositories/project-cover
 import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../interfaces/http/guards/project-resolution.guard.js';
 
 import { SyncProjectFilesService } from '../../application/services/projects/sync-project-files.service.js';
+import { SemanticClusteringService } from '../../application/services/query/semantic-clustering.service.js';
+import { ProjectMapClusterRepository } from '../repositories/project-map-cluster.repository.js';
 
 @Module({
   imports: [
@@ -69,6 +71,8 @@ import { SyncProjectFilesService } from '../../application/services/projects/syn
     GetProjectCoverageUseCase,
     ListProjectDependenciesUseCase,
     SyncProjectFilesService,
+    SemanticClusteringService,
+    ProjectMapClusterRepository,
     PostgresProjectCoverageRepository,
     PostgresDependencyWatcherRepository,
     { provide: ProjectCoverageRepository, useExisting: PostgresProjectCoverageRepository },

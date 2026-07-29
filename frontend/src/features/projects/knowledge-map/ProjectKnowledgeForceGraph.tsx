@@ -121,6 +121,7 @@ export function ProjectKnowledgeForceGraph({
     feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
 
     const viewport = svg.append('g').attr('class', 'knowledge-map-viewport');
+    const hullLayer = viewport.append('g').attr('class', 'knowledge-map-hulls');
     const linkLayer = viewport.append('g').attr('class', 'knowledge-map-links');
     const nodeLayer = viewport.append('g').attr('class', 'knowledge-map-nodes');
     const graphNodes = graph.nodes as GraphNode[];
@@ -216,6 +217,7 @@ export function ProjectKnowledgeForceGraph({
         if (item.type === 'note') return '📄';
         if (item.type === 'tag') return '#';
         if (item.type === 'category') return '🗂';
+        if (item.type === 'topic') return '💡';
         return '';
       });
 
@@ -385,7 +387,48 @@ export function ProjectKnowledgeForceGraph({
       updateVisuals(null, searchQueryRef.current);
     }
 
+    function renderHulls(time: number) {
+      const groups = new Map<string, Array<[number, number]>>();
+      const currentHidden = hiddenNodeIdsRef.current ?? new Set<string>();
+
+      graphNodes.forEach((n) => {
+        if (currentHidden.has(n.id)) return;
+        const key = n.category || (n.type === 'folder' ? n.id : null);
+        if (!key) return;
+        const pos = graphNodePosition(n, time, isDriftDisabled);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push([pos.x, pos.y]);
+      });
+
+      const hullData: Array<{ key: string; path: string; color: string }> = [];
+      groups.forEach((points, key) => {
+        if (points.length < 3) return;
+        const hull = d3.polygonHull(points);
+        if (!hull) return;
+        const path = `M${hull.join('L')}Z`;
+        const color = (knowledgeMapNodeStyles as Record<string, { color: string }>)[key]?.color || '#c4b5fd';
+        hullData.push({ key, path, color });
+      });
+
+      const selection = hullLayer.selectAll<SVGPathElement, { key: string; path: string; color: string }>('path')
+        .data(hullData, (d) => d.key);
+
+      selection.exit().remove();
+
+      selection.enter()
+        .append('path')
+        .merge(selection)
+        .attr('d', (d) => d.path)
+        .attr('fill', (d) => d.color)
+        .attr('fill-opacity', 0.08)
+        .attr('stroke', (d) => d.color)
+        .attr('stroke-opacity', 0.25)
+        .attr('stroke-width', 1.5)
+        .attr('stroke-dasharray', '4 4');
+    }
+
     function renderGraph(time: number) {
+      renderHulls(time);
       link
         .attr('x1', (item) => graphNodePosition(graphLinkNode(item.source), time, isDriftDisabled).x)
         .attr('y1', (item) => graphNodePosition(graphLinkNode(item.source), time, isDriftDisabled).y)
