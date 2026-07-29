@@ -1,8 +1,6 @@
 services:
   api:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    image: ${KB_API_IMAGE:-ghcr.io/pedroaugusto04/knowledge-base-api:latest}
     restart: unless-stopped
     env_file:
       - .env.prod

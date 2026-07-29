@@ -71,11 +71,19 @@ jobs:
     environment: production
     permissions:
       contents: read
+      packages: write
     env:
       KB_RUN_INTEGRATION_TESTS: ${{ vars.KB_RUN_INTEGRATION_TESTS || 'false' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - name: Downcase repository owner
+        id: string
+        run: |
+          echo "owner=${OWNER,,}" >> "$GITHUB_OUTPUT"
+        env:
+          OWNER: ${{ github.repository_owner }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -266,7 +274,6 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
           VPS_SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          VPS_GITHUB_REPO_TOKEN: ${{ secrets.VPS_GITHUB_REPO_TOKEN }}
           VPS_APP_DIR: ${{ vars.VPS_APP_DIR }}
           KB_PUBLIC_BASE_URL: ${{ vars.KB_PUBLIC_BASE_URL }}
           KB_API_PUBLIC_BASE_URL: ${{ vars.KB_API_PUBLIC_BASE_URL }}
@@ -303,7 +310,6 @@ jobs:
           test -n "$VPS_USER" || { echo "Missing secret: VPS_USER"; exit 1; }
           test -n "$VPS_SSH_PORT" || { echo "Missing secret/variable: VPS_SSH_PORT"; exit 1; }
           test -n "$VPS_SSH_PRIVATE_KEY" || { echo "Missing secret: VPS_SSH_PRIVATE_KEY"; exit 1; }
-          test -n "$VPS_GITHUB_REPO_TOKEN" || { echo "Missing secret: VPS_GITHUB_REPO_TOKEN"; exit 1; }
           test -n "$VPS_APP_DIR" || { echo "Missing variable: VPS_APP_DIR"; exit 1; }
           test -n "$KB_PUBLIC_BASE_URL" || { echo "Missing variable: KB_PUBLIC_BASE_URL"; exit 1; }
           test -n "$KB_API_PUBLIC_BASE_URL" || { echo "Missing variable: KB_API_PUBLIC_BASE_URL"; exit 1; }
@@ -343,45 +349,75 @@ jobs:
           ssh -i ~/.ssh/deploy_key -p "$SERVER_PORT" -o StrictHostKeyChecking=yes "$SERVER_USER@$SERVER_HOST" \
             "command -v rsync >/dev/null 2>&1 || { echo 'rsync nao encontrado no servidor remoto'; exit 1; }; mkdir -p \"$VPS_APP_DIR\""
 
-      - name: Sync backend env to VPS
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.string.outputs.owner }}/knowledge-base-api:latest
+            ghcr.io/${{ steps.string.outputs.owner }}/knowledge-base-api:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Sync backend config and compose to VPS
         env:
           SERVER_HOST: ${{ secrets.VPS_HOST }}
           SERVER_USER: ${{ secrets.VPS_USER }}
           SERVER_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
           VPS_APP_DIR: ${{ vars.VPS_APP_DIR }}
         run: |
-          rsync -az --delete \
+          rsync -az \
             -e "ssh -i ~/.ssh/deploy_key -p $SERVER_PORT -o StrictHostKeyChecking=yes" \
-            .deploy/backend.env "$SERVER_USER@$SERVER_HOST:$VPS_APP_DIR/backend.env"
+            .deploy/backend.env docker-compose.prod.yml "$SERVER_USER@$SERVER_HOST:$VPS_APP_DIR/"
 
       - name: Deploy backend on VPS
         uses: appleboy/ssh-action@v1.2.4
         env:
-          VPS_GITHUB_REPO_TOKEN: ${{ secrets.VPS_GITHUB_REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_ACTOR: ${{ github.actor }}
           VPS_APP_DIR: ${{ vars.VPS_APP_DIR }}
+          IMAGE_TAG: ${{ github.sha }}
+          OWNER: ${{ steps.string.outputs.owner }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           port: ${{ secrets.VPS_SSH_PORT || '22' }}
           key: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
-          envs: VPS_GITHUB_REPO_TOKEN,VPS_APP_DIR
+          envs: GH_TOKEN,GH_ACTOR,VPS_APP_DIR,IMAGE_TAG,OWNER
           script: |
             set -euo pipefail
             cd "$VPS_APP_DIR"
             chmod 600 backend.env
             # Force overwrite .env.prod with fresh backend.env
             cp -f backend.env .env.prod
-            GITHUB_AUTH_HEADER="$(printf 'x-access-token:%s' "$VPS_GITHUB_REPO_TOKEN" | base64 | tr -d '\n')"
-            git -c http.https://github.com/.extraheader="AUTHORIZATION: basic $GITHUB_AUTH_HEADER" fetch --all --prune
-            git checkout main
-            # Keep VPS working tree deterministic for deploys; discard local tracked drift.
-            git reset --hard origin/main
-            # Force overwrite again after git pull to ensure latest env
-            cp -f backend.env .env.prod
-            # Force rebuild without cache to ensure latest code
-            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml build --no-cache api
-            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans api
-            sudo docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T api node backend/dist/infrastructure/persistence/run-migrations.js
+            
+            # Log in to GHCR
+            echo "$GH_TOKEN" | sudo docker login ghcr.io -u "$GH_ACTOR" --password-stdin
+            
+            # Define image tag and pull
+            KB_API_IMAGE="ghcr.io/$OWNER/knowledge-base-api:$IMAGE_TAG"
+            sudo KB_API_IMAGE="$KB_API_IMAGE" docker compose --env-file .env.prod -f docker-compose.prod.yml pull api
+            
+            # Start service with new image
+            sudo KB_API_IMAGE="$KB_API_IMAGE" docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --remove-orphans api
+            
+            # Run migrations
+            sudo KB_API_IMAGE="$KB_API_IMAGE" docker compose --env-file .env.prod -f docker-compose.prod.yml exec -T api node backend/dist/infrastructure/persistence/run-migrations.js
+            
+            # Logout and prune old images
+            sudo docker logout ghcr.io
             sudo docker image prune -f
 
   deploy-frontend:
