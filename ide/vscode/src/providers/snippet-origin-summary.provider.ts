@@ -296,9 +296,14 @@ export class SnippetOriginSummaryProvider {
     const matches = response.matches || [];
     const hasGit = Boolean(git && git.commitHash);
 
-    // Classify into Linked Notes (Git/Direct) vs Related Notes (AI Sessions/Context)
-    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git');
-    const relatedMatches = matches.filter((m) => !linkedMatches.includes(m));
+    const isAiSession = (m: SnippetNoteMatch) => {
+      const channel = (m.note.sourceChannel || m.note.canonicalType || '').toLowerCase();
+      return channel.includes('claude') || channel.includes('antigravity') || channel.includes('codex') || channel.includes('opencode') || channel.includes('ai-chat');
+    };
+
+    // Classify into Linked Notes (Git/Direct/Manual) vs Related AI Sessions (AI Chat Sessions)
+    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git' || !isAiSession(m));
+    const relatedMatches = matches.filter((m) => isAiSession(m) && !m.relevance.isOriginMatch);
 
     const linkedHtml = linkedMatches.length > 0
       ? `<div class="timeline">${linkedMatches.map((m) => this.renderMatchCard(m)).join('')}</div>`
