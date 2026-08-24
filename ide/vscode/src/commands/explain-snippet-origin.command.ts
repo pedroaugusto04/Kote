@@ -7,6 +7,7 @@ import { SnippetOriginSummaryProvider } from '../providers/snippet-origin-summar
 export function registerExplainSnippetOriginCommand(
   context: vscode.ExtensionContext,
   kbClient: KbClient,
+  getProjectSlug?: () => string,
 ): void {
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -46,12 +47,15 @@ export function registerExplainSnippetOriginCommand(
           gitInfo = await extractGitSnippetOrigin(workspaceRoot, relativePath, startLine, endLine);
         }
 
+        const projectSlug = getProjectSlug ? getProjectSlug() : kbClient.defaultProjectSlug;
+
         await SnippetOriginSummaryProvider.show(context.extensionUri, kbClient, {
           filePath: relativePath,
           snippet: selectedText,
           startLine,
           endLine,
           gitInfo,
+          projectSlug,
         });
       },
     ),

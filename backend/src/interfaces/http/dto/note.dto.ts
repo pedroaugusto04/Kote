@@ -164,6 +164,8 @@ export const notesBySnippetQuerySchema = z.object({
   commitDate: z.string().trim().optional().default(''),
   author: z.string().trim().optional().default(''),
   commitMessage: z.string().trim().optional().default(''),
+  projectSlug: z.string().trim().optional(),
+  workspaceSlug: z.string().trim().optional(),
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
 });
 export type NotesBySnippetQuery = z.infer<typeof notesBySnippetQuerySchema>;
@@ -175,6 +177,8 @@ export const notesBySnippetBodySchema = z.object({
   commitDate: z.string().trim().optional().default(''),
   author: z.string().trim().optional().default(''),
   commitMessage: z.string().trim().optional().default(''),
+  projectSlug: z.string().trim().optional(),
+  workspaceSlug: z.string().trim().optional(),
   limit: z.number().int().min(1).max(50).optional().default(20),
 });
 export type NotesBySnippetBody = z.infer<typeof notesBySnippetBodySchema>;

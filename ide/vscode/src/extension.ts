@@ -155,7 +155,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     getActiveProjectSlug,
     historyManager
   );
-  registerExplainSnippetOriginCommand(context, kbClient);
+  registerExplainSnippetOriginCommand(context, kbClient, getActiveProjectSlug);
 
   // -------------------------------------------------------------------------
   // CodeLens & Note Content Providers (Engineering Memory)

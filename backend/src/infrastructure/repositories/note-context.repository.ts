@@ -18,9 +18,19 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
     return this.contentObjectStorage.hydrateMarkdown(note);
   }
 
-  async findNotesByFile(userId: string, filePath: string, options?: { limit?: number }): Promise<NoteRecord[]> {
+  async findNotesByFile(userId: string, filePath: string, options?: { limit?: number; projectSlug?: string }): Promise<NoteRecord[]> {
     const db = this.database.getDb();
     const limit = options?.limit ?? 15;
+
+    const conditions = [
+      eq(notes.userId, userId),
+      eq(noteLinks.userId, userId),
+      eq(noteLinks.target, filePath),
+    ];
+
+    if (options?.projectSlug) {
+      conditions.push(eq(projects.projectSlug, options.projectSlug));
+    }
 
     const result = await db
       .select({
@@ -49,13 +59,7 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .innerJoin(noteLinks, eq(notes.id, noteLinks.noteId))
-      .where(
-        and(
-          eq(notes.userId, userId),
-          eq(noteLinks.userId, userId),
-          eq(noteLinks.target, filePath)
-        )
-      )
+      .where(and(...conditions))
       .orderBy(desc(notes.occurredAt))
       .limit(limit);
 

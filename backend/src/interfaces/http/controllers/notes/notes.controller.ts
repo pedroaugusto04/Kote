@@ -236,6 +236,8 @@ export class NotesController {
     return this.findNotesBySnippetUseCase.execute(user.id, {
       filePath: query.filePath,
       codeSnippet: query.codeSnippet,
+      projectSlug: query.projectSlug,
+      workspaceSlug: query.workspaceSlug,
       gitContext: {
         commitHash: query.commitHash,
         author: query.author,
@@ -257,6 +259,8 @@ export class NotesController {
     return this.findNotesBySnippetUseCase.execute(user.id, {
       filePath: body.filePath,
       codeSnippet: body.codeSnippet,
+      projectSlug: body.projectSlug,
+      workspaceSlug: body.workspaceSlug,
       gitContext: {
         commitHash: body.commitHash,
         author: body.author,

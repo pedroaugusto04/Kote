@@ -11,6 +11,8 @@ export interface FindNotesBySnippetInput {
   filePath: string;
   codeSnippet?: string;
   gitContext?: GitCommitContext;
+  projectSlug?: string;
+  workspaceSlug?: string;
   limit?: number;
 }
 

@@ -20,17 +20,18 @@ export class FindNotesBySnippetUseCase {
   ) {}
 
   async execute(userId: string, input: FindNotesBySnippetInput): Promise<SnippetNotesResponse> {
-    const { filePath, codeSnippet = '', gitContext, limit = 20 } = input;
+    const { filePath, codeSnippet = '', gitContext, projectSlug, limit = 20 } = input;
 
     this.logger.info('find_notes_by_snippet.start', {
       userId,
       filePath,
+      projectSlug,
       hasSnippet: Boolean(codeSnippet),
       commitHash: gitContext?.commitHash,
       commitDate: gitContext?.commitDate,
     });
 
-    const fileNotes = await this.noteContextRepository.findNotesByFile(userId, filePath, { limit: 50 });
+    const fileNotes = await this.noteContextRepository.findNotesByFile(userId, filePath, { limit: 50, projectSlug });
 
     if (fileNotes.length === 0) {
       return {

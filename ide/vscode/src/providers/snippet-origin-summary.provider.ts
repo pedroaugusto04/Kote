@@ -10,6 +10,7 @@ export interface SnippetOriginInput {
   startLine: number;
   endLine: number;
   gitInfo: GitSnippetOriginInfo | null;
+  projectSlug?: string;
 }
 
 export class SnippetOriginSummaryProvider {
@@ -103,6 +104,7 @@ export class SnippetOriginSummaryProvider {
       const response: SnippetNotesResponse = await this.kbClient.findNotesBySnippet({
         filePath: this.input.filePath,
         codeSnippet: this.input.snippet,
+        projectSlug: this.input.projectSlug,
         commitHash: this.input.gitInfo?.commitHash,
         commitDate: this.input.gitInfo?.commitDate,
         author: this.input.gitInfo?.author,

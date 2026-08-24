@@ -531,6 +531,8 @@ export class KbClient {
   async findNotesBySnippet(payload: {
     filePath: string;
     codeSnippet?: string;
+    projectSlug?: string;
+    workspaceSlug?: string;
     commitHash?: string;
     commitDate?: string;
     author?: string;
@@ -539,7 +541,11 @@ export class KbClient {
   }, options?: { signal?: AbortSignal }): Promise<SnippetNotesResponse> {
     return this.fetch<SnippetNotesResponse>('/api/notes/by-snippet', {
       method: 'POST',
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        ...payload,
+        projectSlug: payload.projectSlug || this.config.defaultProjectSlug,
+        workspaceSlug: payload.workspaceSlug || this.config.workspaceSlug,
+      }),
       signal: options?.signal,
     });
   }
