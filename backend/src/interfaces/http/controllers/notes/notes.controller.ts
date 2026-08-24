@@ -195,7 +195,7 @@ export class NotesController {
     @Query(new ZodValidationPipe(relatedNotesByFileQuerySchema, 'invalid_related_notes_by_file_query')) query: RelatedNotesByFileQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.findRelatedNotesByFileUseCase.execute(user.id, query.filePath, query.excludeIds);
+    return this.findRelatedNotesByFileUseCase.execute(user.id, query.filePath, query.excludeIds, query.query);
   }
 
   @Get('by-file/summary')

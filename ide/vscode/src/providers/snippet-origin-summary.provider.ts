@@ -113,7 +113,35 @@ export class SnippetOriginSummaryProvider {
       }, { signal });
 
       if (signal.aborted) return;
-      this.panel.webview.html = this.getMainHtml(response);
+
+      const directMatches = response.matches || [];
+      const isGitChannel = (channel?: string) => GIT_SOURCE_CHANNELS.some((g) => (channel || '').toLowerCase().includes(g));
+      const linkedMatches = directMatches.filter((m) => m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel));
+      const linkedIds = linkedMatches.map((m) => m.note.id);
+
+      // Extract code identifier tokens from snippet for semantic query
+      const snippetTokens = (this.input.snippet || '').match(/[a-zA-Z0-9_$]{3,}/g) || [];
+      const snippetQuery = Array.from(new Set(snippetTokens)).slice(0, 8).join(' ');
+
+      // Hybrid fetch: retrieve semantic vector matches excluding ONLY the Tab 1 IDs
+      let semanticNotes: any[] = [];
+      try {
+        semanticNotes = await this.kbClient.findRelatedNotesByFile(
+          this.input.filePath,
+          linkedIds,
+          {
+            projectSlug: this.input.projectSlug,
+            query: snippetQuery,
+            limit: 10,
+            signal,
+          }
+        );
+      } catch (e) {
+        // Best-effort semantic search fallback
+      }
+
+      if (signal.aborted) return;
+      this.panel.webview.html = this.getMainHtml(response, semanticNotes);
     } catch (err) {
       if (signal.aborted) return;
       SnippetOriginSummaryProvider.outputChannel.appendLine(`Error loading snippet notes: ${err instanceof Error ? err.message : String(err)}`);
@@ -262,12 +290,20 @@ export class SnippetOriginSummaryProvider {
 </html>`;
   }
 
+  private truncateText(text?: string, maxLength: number = 220): string {
+    if (!text || typeof text !== 'string') return '';
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+    if (cleaned.length <= maxLength) return cleaned;
+    return cleaned.substring(0, maxLength).trim() + '…';
+  }
+
   private renderMatchCard(match: SnippetNoteMatch): string {
     const note = match.note;
     const relevance = match.relevance;
     const badge = this.getSourceBadge(note.sourceChannel, note.canonicalType);
     const isOrigin = relevance.isOriginMatch;
     const formattedDate = this.formatDate(note.date || note.createdAt);
+    const summaryText = this.truncateText(note.summary || 'Click to view conversation details', 220);
 
     return `
       <div class="card ${isOrigin ? 'origin-match' : ''}" onclick="openNote('${this.escapeHtml(note.id)}')">
@@ -276,8 +312,8 @@ export class SnippetOriginSummaryProvider {
           ${isOrigin ? '<div class="badge badge-origin">Direct Commit Origin</div>' : ''}
           <span class="card-date">${this.escapeHtml(formattedDate)}</span>
         </div>
-        <h3 class="card-title">${this.escapeHtml(note.title || 'Untitled Note')}</h3>
-        <p class="card-summary">${this.escapeHtml(note.summary || 'Click to view conversation details')}</p>
+        <h3 class="card-title">${this.escapeHtml(this.truncateText(note.title || 'Untitled Note', 90))}</h3>
+        <p class="card-summary">${this.escapeHtml(summaryText)}</p>
         ${relevance.reason ? `<div class="card-reason">${this.escapeHtml(relevance.reason)}</div>` : ''}
         <div class="card-footer">
           <span class="view-link">View session / note &rarr;</span>
@@ -580,6 +616,13 @@ export class SnippetOriginSummaryProvider {
       margin: 0 0 8px;
       font-size: 0.88em;
       color: var(--desc);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+      max-height: 4.2em;
     }
 
     .card-reason {

@@ -483,7 +483,7 @@ export class KbClient {
   async findRelatedNotesByFile(
     filePath: string,
     excludeIds: string[],
-    options?: { signal?: AbortSignal; limit?: number; projectSlug?: string }
+    options?: { signal?: AbortSignal; limit?: number; projectSlug?: string; query?: string }
   ): Promise<KbNote[]> {
     const params = new URLSearchParams({
       filePath,
@@ -492,6 +492,9 @@ export class KbClient {
     const slug = options?.projectSlug || this.config.defaultProjectSlug;
     if (slug) {
       params.set('projectSlug', slug);
+    }
+    if (options?.query) {
+      params.set('query', options.query);
     }
     if (excludeIds.length > 0) {
       params.set('excludeIds', excludeIds.join(','));

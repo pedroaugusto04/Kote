@@ -74,7 +74,7 @@ export function calculateTemporalProximity(
     return { score: 1.0, isOriginMatch: true, reason: RELEVANCE_REASONS.DIRECT_COMMIT_MATCH };
   }
   if (diffHours <= TEMPORAL_WINDOWS_HOURS.CLOSE_MATCH) {
-    return { score: 0.8, isOriginMatch: true, reason: RELEVANCE_REASONS.CLOSE_TO_COMMIT };
+    return { score: 0.8, isOriginMatch: false, reason: RELEVANCE_REASONS.CLOSE_TO_COMMIT };
   }
   if (diffHours <= TEMPORAL_WINDOWS_HOURS.WEEK_MATCH) {
     return { score: 0.5, isOriginMatch: false, reason: RELEVANCE_REASONS.SAME_WEEK_COMMIT };

@@ -24,15 +24,18 @@ export class FindRelatedNotesByFileUseCase {
     private readonly embeddingQueue: EmbeddingQueuePublisher,
   ) {}
 
-  async execute(userId: string, filePath: string, excludeIds: string[] = []): Promise<ReturnType<typeof noteSummary>[]> {
+  async execute(
+    userId: string,
+    filePath: string,
+    excludeIds: string[] = [],
+    customQuery?: string,
+  ): Promise<ReturnType<typeof noteSummary>[]> {
     const env = this.runtimeEnv.read();
 
-    if (isGenericFile(filePath)) {
-      this.logger.info('codelens_related.skipped_generic_file', { filePath });
-      return [];
-    }
+    const isGeneric = isGenericFile(filePath);
+    const fileQuery = isGeneric ? '' : filePathToQuery(filePath);
+    const queryText = [fileQuery, customQuery].filter(Boolean).join(' ').trim();
 
-    const queryText = filePathToQuery(filePath);
     if (!queryText) {
       this.logger.info('codelens_related.empty_query', { filePath });
       return [];

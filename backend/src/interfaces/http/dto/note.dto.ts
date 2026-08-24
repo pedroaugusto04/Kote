@@ -147,12 +147,14 @@ export type FileNotesSummaryQuery = z.infer<typeof fileNotesSummaryQuerySchema>;
 export const relatedNotesByFileQuerySchema = z.object({
   filePath: z.string().trim().min(1, 'filePath is required'),
   excludeIds: z.string().trim().optional().default(''),
+  query: z.string().trim().optional(),
   limit: z.coerce.number().int().min(1).max(20).optional().default(5),
 }).transform((input) => ({
   filePath: input.filePath,
   excludeIds: input.excludeIds
     ? input.excludeIds.split(',').map((id) => id.trim()).filter(Boolean)
     : [],
+  query: input.query,
   limit: input.limit,
 }));
 export type RelatedNotesByFileQuery = z.infer<typeof relatedNotesByFileQuerySchema>;
