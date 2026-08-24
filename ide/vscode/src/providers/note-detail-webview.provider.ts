@@ -188,7 +188,7 @@ export class NoteDetailWebviewProvider {
       </div>
       <div class="actions">
         <a href="${noteWebUrl}" target="_blank" class="action-button">
-          <span class="emoji">🌐</span> View on Kote Web
+          View on Kote Web &rarr;
         </a>
       </div>
     </div>
@@ -207,11 +207,22 @@ export class NoteDetailWebviewProvider {
 
   private getBaseStyles(): string {
     return `
+    :root {
+      --bg: var(--vscode-editor-background);
+      --fg: var(--vscode-foreground);
+      --border: var(--vscode-widget-border, var(--vscode-panel-border, rgba(148, 163, 184, 0.14)));
+      --card-bg: var(--vscode-editorWidget-background, rgba(15, 23, 29, 0.65));
+      --card-hover: var(--vscode-list-hoverBackground, rgba(83, 199, 222, 0.08));
+      --accent: #53c7de;
+      --accent-soft: rgba(83, 199, 222, 0.12);
+      --desc: var(--vscode-descriptionForeground, #8da0ae);
+      --radius: 8px;
+    }
     body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      color: var(--vscode-foreground);
-      background-color: var(--vscode-editor-background);
+      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+      font-size: var(--vscode-font-size, 13px);
+      color: var(--fg);
+      background-color: var(--bg);
       margin: 0;
       padding: 0;
     }
@@ -226,7 +237,7 @@ export class NoteDetailWebviewProvider {
     return `
     .header {
       padding: 20px;
-      border-bottom: 1px solid var(--vscode-panel-border);
+      border-bottom: 1px solid var(--border);
       margin-bottom: 20px;
     }
     .header h1 {
@@ -247,33 +258,33 @@ export class NoteDetailWebviewProvider {
     }
     .label {
       font-weight: 600;
-      color: var(--vscode-descriptionForeground);
+      color: var(--desc);
     }
     .value {
-      color: var(--vscode-foreground);
+      color: var(--fg);
     }
     .actions {
       display: flex;
       gap: 12px;
     }
     .action-button {
-      padding: 8px 16px;
-      background-color: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      border: none;
-      border-radius: 4px;
+      padding: 6px 14px;
+      background-color: var(--card-bg);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
       cursor: pointer;
       font-size: var(--vscode-font-size);
+      font-weight: 500;
       text-decoration: none;
       display: inline-flex;
       align-items: center;
       gap: 6px;
-    }
-    .action-button .emoji {
-      filter: brightness(0) invert(1);
+      transition: all 0.2s ease;
     }
     .action-button:hover {
-      background-color: var(--vscode-button-hoverBackground);
+      background-color: var(--accent-soft);
+      border-color: var(--accent);
     }
     .content {
       padding: 20px;

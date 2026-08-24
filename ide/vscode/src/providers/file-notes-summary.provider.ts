@@ -508,6 +508,18 @@ export class FileNotesSummaryProvider {
     }
   }
 
+  private getSourceBadge(sourceChannel?: string, source?: string): { label: string; className: string } {
+    const s = (sourceChannel || source || '').toLowerCase();
+    if (s.includes('claude')) return { label: 'Claude Code', className: 'badge-claude' };
+    if (s.includes('antigravity')) return { label: 'Antigravity', className: 'badge-antigravity' };
+    if (s.includes('codex')) return { label: 'Codex', className: 'badge-codex' };
+    if (s.includes('opencode')) return { label: 'OpenCode', className: 'badge-opencode' };
+    if (s.includes('whatsapp')) return { label: 'WhatsApp', className: 'badge-whatsapp' };
+    if (s.includes('telegram')) return { label: 'Telegram', className: 'badge-telegram' };
+    if (s.includes('github') || s.includes('commit')) return { label: 'Git Commit', className: 'badge-git' };
+    return { label: 'Note', className: 'badge-note' };
+  }
+
   private getHtml(
     summary: {
       summary: string;
@@ -761,6 +773,13 @@ export class FileNotesSummaryProvider {
       color: var(--accent);
       font-weight: 600;
     }
+
+    .badge-claude { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .badge-antigravity { background: rgba(83, 199, 222, 0.15); color: #53c7de; }
+    .badge-codex { background: rgba(125, 211, 165, 0.15); color: #7dd3a5; }
+    .badge-opencode { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
+    .badge-git { background: rgba(137, 87, 229, 0.15); color: #a78bfa; }
+    .badge-note { background: rgba(148, 163, 184, 0.1); color: var(--fg); }
       font-weight: normal;
     }
     .note-item.related-item {
@@ -833,12 +852,18 @@ export class FileNotesSummaryProvider {
     
     <div id="linked-notes" class="tab-content active">
       <div class="notes-list">
-        ${notes.map(note => `
-          <div class="note-item" onclick="openNote('${this.escapeHtml(String(note.id))}')">
-            <div class="note-title">${this.escapeHtml(note.title || 'Untitled')}</div>
-            <div class="note-summary">${this.escapeHtml(note.summary || 'No summary').substring(0, 200)}${note.summary && note.summary.length > 200 ? '...' : ''}</div>
-          </div>
-        `).join('')}
+        ${notes.map(note => {
+          const badge = this.getSourceBadge(note.sourceChannel, note.source);
+          return `
+            <div class="note-item" onclick="openNote('${this.escapeHtml(String(note.id))}')">
+              <div class="note-title" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                <span>${this.escapeHtml(note.title || 'Untitled')}</span>
+                <span class="badge ${badge.className}">${this.escapeHtml(badge.label)}</span>
+              </div>
+              <div class="note-summary">${this.escapeHtml(note.summary || 'No summary').substring(0, 200)}${note.summary && note.summary.length > 200 ? '...' : ''}</div>
+            </div>
+          `;
+        }).join('')}
       </div>
     </div>
     
@@ -847,20 +872,24 @@ export class FileNotesSummaryProvider {
         ${this.relatedNotes === undefined ? `
           <div class="loading-section" style="padding: 15px; margin: 10px 0;">
             <div class="spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
-            <p style="font-size: 0.9em; margin: 5px 0 0 0; color: var(--vscode-descriptionForeground);">Searching for semantic matches...</p>
+            <p style="font-size: 0.9em; margin: 5px 0 0 0; color: var(--desc);">Searching for semantic matches...</p>
           </div>
         ` : this.relatedNotes.length > 0 ? this.relatedNotes.map(note => {
             const noteId = note?.id || '';
             const title = note?.title || 'Untitled';
-            const summary = note?.summary || 'No summary';
+            const summaryText = note?.summary || 'No summary';
+            const badge = this.getSourceBadge(note?.sourceChannel, note?.source);
             return `
               <div class="note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
-                <div class="note-title">${this.escapeHtml(title)} <span class="badge">Related</span></div>
-                <div class="note-summary">${this.escapeHtml(summary).substring(0, 200)}${summary && summary.length > 200 ? '...' : ''}</div>
+                <div class="note-title" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                  <span>${this.escapeHtml(title)}</span>
+                  <span class="badge ${badge.className}">${this.escapeHtml(badge.label)}</span>
+                </div>
+                <div class="note-summary">${this.escapeHtml(summaryText).substring(0, 200)}${summaryText && summaryText.length > 200 ? '...' : ''}</div>
               </div>
             `;
           }).join('') : `
-          <p style="font-style: italic; color: var(--vscode-descriptionForeground); margin: 10px 0;">No related notes found.</p>
+          <p style="font-style: italic; color: var(--desc); margin: 10px 0;">No related notes found.</p>
         `}
       </div>
     </div>
