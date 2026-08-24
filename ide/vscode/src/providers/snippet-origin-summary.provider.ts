@@ -164,16 +164,16 @@ export class SnippetOriginSummaryProvider {
     }
   }
 
-  private getSourceBadge(sourceChannel?: string, source?: string): { label: string; icon: string; className: string } {
+  private getSourceBadge(sourceChannel?: string, source?: string): { label: string; className: string } {
     const s = (sourceChannel || source || '').toLowerCase();
-    if (s.includes('claude')) return { label: 'Claude Code', icon: '🤖', className: 'badge-claude' };
-    if (s.includes('antigravity')) return { label: 'Antigravity', icon: '✨', className: 'badge-antigravity' };
-    if (s.includes('codex')) return { label: 'Codex', icon: '💻', className: 'badge-codex' };
-    if (s.includes('opencode')) return { label: 'OpenCode', icon: '⚡', className: 'badge-opencode' };
-    if (s.includes('whatsapp')) return { label: 'WhatsApp', icon: '💬', className: 'badge-whatsapp' };
-    if (s.includes('telegram')) return { label: 'Telegram', icon: '✈️', className: 'badge-telegram' };
-    if (s.includes('github') || s.includes('commit')) return { label: 'Git Commit', icon: '🔀', className: 'badge-git' };
-    return { label: 'Note', icon: '📝', className: 'badge-note' };
+    if (s.includes('claude')) return { label: 'Claude Code', className: 'badge-claude' };
+    if (s.includes('antigravity')) return { label: 'Antigravity', className: 'badge-antigravity' };
+    if (s.includes('codex')) return { label: 'Codex', className: 'badge-codex' };
+    if (s.includes('opencode')) return { label: 'OpenCode', className: 'badge-opencode' };
+    if (s.includes('whatsapp')) return { label: 'WhatsApp', className: 'badge-whatsapp' };
+    if (s.includes('telegram')) return { label: 'Telegram', className: 'badge-telegram' };
+    if (s.includes('github') || s.includes('commit')) return { label: 'Git Commit', className: 'badge-git' };
+    return { label: 'Note', className: 'badge-note' };
   }
 
   private getLoadingHtml(): string {
@@ -277,15 +277,13 @@ export class SnippetOriginSummaryProvider {
     return `
       <div class="card ${isOrigin ? 'origin-match' : ''}" onclick="openNote('${this.escapeHtml(note.id)}')">
         <div class="card-header">
-          <div class="badge ${badge.className}">
-            <span>${badge.icon}</span> ${this.escapeHtml(badge.label)}
-          </div>
-          ${isOrigin ? '<div class="badge badge-origin">🌟 Direct Commit Origin</div>' : ''}
+          <div class="badge ${badge.className}">${this.escapeHtml(badge.label)}</div>
+          ${isOrigin ? '<div class="badge badge-origin">Direct Commit Origin</div>' : ''}
           <span class="card-date">${this.escapeHtml(formattedDate)}</span>
         </div>
         <h3 class="card-title">${this.escapeHtml(note.title || 'Untitled Note')}</h3>
         <p class="card-summary">${this.escapeHtml(note.summary || 'Click to view conversation details')}</p>
-        ${relevance.reason ? `<div class="card-reason">💡 ${this.escapeHtml(relevance.reason)}</div>` : ''}
+        ${relevance.reason ? `<div class="card-reason">${this.escapeHtml(relevance.reason)}</div>` : ''}
         <div class="card-footer">
           <span class="view-link">View session / note &rarr;</span>
         </div>
@@ -620,7 +618,7 @@ export class SnippetOriginSummaryProvider {
 <body>
   <div class="header">
     <div class="title-row">
-      <h1 class="main-title"><span class="icon-accent">💡</span> Kote Code Origin</h1>
+      <h1 class="main-title">Code Origin</h1>
       <button class="btn" onclick="copySnippet()">Copy Snippet</button>
     </div>
     <div class="file-path">${this.escapeHtml(this.input.filePath)} (Lines ${this.input.startLine}–${this.input.endLine})</div>
@@ -628,7 +626,7 @@ export class SnippetOriginSummaryProvider {
 
   ${hasGit ? `
   <div class="git-card">
-    <div class="git-card-title">🔀 Git Commit Origin</div>
+    <div class="git-card-title">Git Commit Origin</div>
     <div class="git-info-grid">
       <div class="git-item"><strong>Commit:</strong> <code>${this.escapeHtml(git?.commitHash?.slice(0, 7) || '')}</code></div>
       <div class="git-item"><strong>Author:</strong> ${this.escapeHtml(git?.author || '')}</div>
@@ -648,11 +646,11 @@ export class SnippetOriginSummaryProvider {
   <!-- Tabs Navigation -->
   <div class="tabs-header">
     <button class="tab-btn active" onclick="switchTab('linkedTab', this)">
-      <span>🔀 Linked Notes</span>
+      <span>Linked Notes</span>
       <span class="tab-count">${linkedMatches.length}</span>
     </button>
     <button class="tab-btn" onclick="switchTab('relatedTab', this)">
-      <span>🤖 Related AI Sessions</span>
+      <span>Related AI Sessions</span>
       <span class="tab-count">${relatedMatches.length}</span>
     </button>
   </div>

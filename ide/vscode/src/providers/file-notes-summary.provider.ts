@@ -796,7 +796,7 @@ export class FileNotesSummaryProvider {
 <body>
   <button class="copy-button" onclick="copySummary()">Copy Summary</button>
   
-  <h1>💡 Kote File Notes Summary</h1>
+  <h1>File Notes Summary</h1>
   <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>
   <p><strong>Generated:</strong> <span class="generated-date" data-date="${this.escapeHtml(summary.generatedAt)}">${this.escapeHtml(summary.generatedAt)}</span></p>
   ${summary.fallback ? `<div class="fallback-notice"><strong>${summary.fallbackReason === FILE_NOTES_SUMMARY_FALLBACK_REASON.FEATURE_DISABLED ? 'AI summary is not enabled.' : summary.fallbackReason === FILE_NOTES_SUMMARY_FALLBACK_REASON.QUOTA_EXCEEDED ? 'AI credits exhausted.' : 'AI summary is temporarily unavailable.'}</strong> The notes below are still available.</div>` : ''}
