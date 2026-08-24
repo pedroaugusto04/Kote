@@ -1,3 +1,10 @@
+export const SPECIAL_PROJECT_SLUGS = {
+  INBOX: 'inbox',
+  ALL_PROJECTS: 'all projects',
+} as const;
+
+export type SpecialProjectSlug = (typeof SPECIAL_PROJECT_SLUGS)[keyof typeof SPECIAL_PROJECT_SLUGS];
+
 export type Repository = {
   id: string;
   workspaceSlug: string;
@@ -20,3 +27,4 @@ export type Project = {
   favorite: boolean;
   activitySparkline?: { date: string; count: number }[];
 };
+

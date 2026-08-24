@@ -6,6 +6,7 @@ import { PostgresDatabase } from '../persistence/database.js';
 import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { notes, projects, noteLinks } from '../persistence/schema/index.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
+import { SPECIAL_PROJECT_SLUGS } from '../../domain/projects.js';
 
 @Injectable()
 export class PostgresNoteContextRepository implements NoteContextRepository {
@@ -29,7 +30,12 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
     ];
 
     if (options?.projectSlug) {
-      conditions.push(eq(projects.projectSlug, options.projectSlug));
+      const slug = options.projectSlug.trim().toLowerCase();
+      if (slug === SPECIAL_PROJECT_SLUGS.INBOX || slug === SPECIAL_PROJECT_SLUGS.ALL_PROJECTS) {
+        conditions.push(sql`(${projects.projectSlug} = ${SPECIAL_PROJECT_SLUGS.INBOX} OR ${projects.projectSlug} IS NULL OR ${notes.projectId} IS NULL)`);
+      } else {
+        conditions.push(sql`(${projects.projectSlug} = ${options.projectSlug} OR ${projects.projectSlug} = ${SPECIAL_PROJECT_SLUGS.INBOX} OR ${projects.projectSlug} IS NULL OR ${notes.projectId} IS NULL)`);
+      }
     }
 
     const result = await db

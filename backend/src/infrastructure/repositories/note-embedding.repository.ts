@@ -7,6 +7,7 @@ import {
   type SimilarChunk,
 } from '../../application/ports/notes/note-embedding.repository.js';
 import { PostgresDatabase } from '../persistence/database.js';
+import { SPECIAL_PROJECT_SLUGS } from '../../domain/projects.js';
 
 function embeddingFromRow(row: Record<string, unknown>): NoteEmbeddingRecord {
   return {
@@ -130,7 +131,7 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
     }
     if (projectId) {
       values.push(projectId);
-      optionalClauses.push(`AND n.project_id = $${values.length}`);
+      optionalClauses.push(`AND (n.project_id = $${values.length} OR p.project_slug = '${SPECIAL_PROJECT_SLUGS.INBOX}' OR n.project_id IS NULL)`);
     }
 
     const result = await this.database.getPool().query(
@@ -138,6 +139,7 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
               1 - (e.embedding <=> $2::vector) AS similarity
        FROM kb_note_embeddings e
        JOIN kb_notes n ON n.id = e.note_id AND n.user_id = e.user_id
+       LEFT JOIN kb_projects p ON p.id = n.project_id
        WHERE e.user_id = $1
          AND 1 - (e.embedding <=> $2::vector) >= $3
          ${optionalClauses.join('\n         ')}

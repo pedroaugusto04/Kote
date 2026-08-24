@@ -18,6 +18,7 @@ import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, workspaces, projects, categories, noteCategories } from '../persistence/schema/index.js';
 import { PostgresNoteRepository } from './note.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
+import { SPECIAL_PROJECT_SLUGS } from '../../domain/projects.js';
 
 /** Fallback cap when FTS runs without an explicit ftsLimit from the caller. */
 const DEFAULT_FTS_CANDIDATE_LIMIT = 40;
@@ -59,7 +60,12 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
       conditions.push(eq(notes.projectId, filters.projectId));
     }
     if (filters?.projectSlug) {
-      conditions.push(eq(projects.projectSlug, filters.projectSlug));
+      const slug = filters.projectSlug.trim().toLowerCase();
+      if (slug === SPECIAL_PROJECT_SLUGS.INBOX || slug === SPECIAL_PROJECT_SLUGS.ALL_PROJECTS) {
+        conditions.push(sql`(${projects.projectSlug} = ${SPECIAL_PROJECT_SLUGS.INBOX} OR ${projects.projectSlug} IS NULL OR ${notes.projectId} IS NULL)`);
+      } else {
+        conditions.push(sql`(${projects.projectSlug} = ${filters.projectSlug} OR ${projects.projectSlug} = ${SPECIAL_PROJECT_SLUGS.INBOX} OR ${projects.projectSlug} IS NULL OR ${notes.projectId} IS NULL)`);
+      }
     }
     if (filters?.status) {
       if (filters.status === StatusFilter.Open) {
