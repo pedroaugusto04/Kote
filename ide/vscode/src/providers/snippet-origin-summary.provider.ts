@@ -291,18 +291,17 @@ export class SnippetOriginSummaryProvider {
     const matches = response.matches || [];
     const hasGit = Boolean(git && git.commitHash);
 
-    const isAi = (n: { sourceChannel?: string; canonicalType?: string }) => isAiSessionChannel(n.sourceChannel, n.canonicalType);
-
-    // 1. Linked Matches: Direct commit origin, GitHub webhooks, manual non-AI notes
-    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git' || !isAi(m.note));
+    // 1. Linked Matches: Direct commit origin match or GitHub webhook notes
+    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git');
+    const linkedIds = new Set(linkedMatches.map((m) => m.note.id));
 
     // 2. Direct File AI Sessions (non-origin)
-    const directFileAiMatches = matches.filter((m) => isAi(m.note) && !m.relevance.isOriginMatch);
+    const directFileAiMatches = matches.filter((m) => !linkedIds.has(m.note.id));
 
     // 3. Semantic Vector AI Sessions (cross-file & conceptual matches)
-    const directIds = new Set(matches.map((m) => m.note.id));
+    const allDirectIds = new Set(matches.map((m) => m.note.id));
     const semanticAiMatches: SnippetNoteMatch[] = semanticNotes
-      .filter((n) => isAi(n) && !directIds.has(n.id))
+      .filter((n) => !allDirectIds.has(n.id))
       .map((n) => ({
         note: n,
         relevance: {

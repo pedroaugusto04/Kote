@@ -5,6 +5,13 @@ export const KNOWN_AI_SESSION_CHANNELS = [
   'codex',
   'opencode',
   'ai-chat',
+  'ai',
+  'chat',
+  'session',
+  'kote',
+  'ide',
+  'cli',
+  'note',
 ] as const;
 
 export interface SourceBadge {
@@ -13,11 +20,14 @@ export interface SourceBadge {
 }
 
 /**
- * Checks whether a given sourceChannel or canonicalType represents an AI chat session.
+ * Checks whether a given sourceChannel, canonicalType or source represents an AI chat session or note.
  */
 export function isAiSessionChannel(sourceChannel?: string, fallbackChannel?: string): boolean {
   const channel = (sourceChannel || fallbackChannel || '').toLowerCase();
-  return KNOWN_AI_SESSION_CHANNELS.some((ai) => channel.includes(ai));
+  if (channel.includes('github') || channel.includes('commit')) {
+    return false;
+  }
+  return true;
 }
 
 /**
