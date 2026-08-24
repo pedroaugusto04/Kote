@@ -71,7 +71,7 @@ export class SnippetOriginSummaryProvider {
 
     const panel = vscode.window.createWebviewPanel(
       'kote.snippetOriginSummary',
-      `Kote: Code Origin - ${input.filePath}:${input.startLine}-${input.endLine}`,
+      `Kote Code Origin: ${input.filePath}:${input.startLine}-${input.endLine}`,
       column || vscode.ViewColumn.Beside,
       {
         enableScripts: true,
@@ -185,8 +185,8 @@ export class SnippetOriginSummaryProvider {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
   <style>
     body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
+      font-family: var(--vscode-font-family, sans-serif);
+      font-size: var(--vscode-font-size, 13px);
       color: var(--vscode-foreground);
       background-color: var(--vscode-editor-background);
       padding: 30px 20px;
@@ -197,11 +197,11 @@ export class SnippetOriginSummaryProvider {
       margin: 0;
     }
     .spinner {
-      border: 3px solid var(--vscode-progressBar-background, rgba(255,255,255,0.1));
-      border-top: 3px solid var(--vscode-button-background, #007ACC);
+      border: 3px solid rgba(148, 163, 184, 0.2);
+      border-top: 3px solid #53c7de;
       border-radius: 50%;
-      width: 36px;
-      height: 36px;
+      width: 34px;
+      height: 34px;
       animation: spin 0.9s linear infinite;
       margin: 0 auto 16px;
     }
@@ -218,7 +218,7 @@ export class SnippetOriginSummaryProvider {
 <body>
   <div class="loading-text">
     <div class="spinner"></div>
-    <p>Searching Git commit history and related AI sessions…</p>
+    <p>Searching Git history and related AI sessions…</p>
   </div>
 </body>
 </html>`;
@@ -233,26 +233,27 @@ export class SnippetOriginSummaryProvider {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline';">
   <style>
     body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
+      font-family: var(--vscode-font-family, sans-serif);
+      font-size: var(--vscode-font-size, 13px);
       color: var(--vscode-foreground);
       background-color: var(--vscode-editor-background);
       padding: 24px;
     }
     .error-box {
-      background-color: var(--vscode-inputValidation-errorBackground, rgba(255,0,0,0.1));
-      border: 1px solid var(--vscode-inputValidation-errorBorder, #f44336);
+      background-color: var(--vscode-inputValidation-errorBackground, rgba(239,68,68,0.1));
+      border: 1px solid var(--vscode-inputValidation-errorBorder, #ef4444);
       padding: 16px;
-      border-radius: 6px;
+      border-radius: 8px;
       margin-bottom: 16px;
     }
     button {
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
+      background: #53c7de;
+      color: #090f14;
       border: none;
       padding: 8px 16px;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
+      font-weight: 600;
     }
   </style>
 </head>
@@ -266,39 +267,53 @@ export class SnippetOriginSummaryProvider {
 </html>`;
   }
 
+  private renderMatchCard(match: SnippetNoteMatch): string {
+    const note = match.note;
+    const relevance = match.relevance;
+    const badge = this.getSourceBadge(note.sourceChannel, note.canonicalType);
+    const isOrigin = relevance.isOriginMatch;
+    const formattedDate = this.formatDate(note.date || note.createdAt);
+
+    return `
+      <div class="card ${isOrigin ? 'origin-match' : ''}" onclick="openNote('${this.escapeHtml(note.id)}')">
+        <div class="card-header">
+          <div class="badge ${badge.className}">
+            <span>${badge.icon}</span> ${this.escapeHtml(badge.label)}
+          </div>
+          ${isOrigin ? '<div class="badge badge-origin">🌟 Direct Commit Origin</div>' : ''}
+          <span class="card-date">${this.escapeHtml(formattedDate)}</span>
+        </div>
+        <h3 class="card-title">${this.escapeHtml(note.title || 'Untitled Note')}</h3>
+        <p class="card-summary">${this.escapeHtml(note.summary || 'Click to view conversation details')}</p>
+        ${relevance.reason ? `<div class="card-reason">💡 ${this.escapeHtml(relevance.reason)}</div>` : ''}
+        <div class="card-footer">
+          <span class="view-link">View session / note &rarr;</span>
+        </div>
+      </div>
+    `;
+  }
+
   private getMainHtml(response: SnippetNotesResponse): string {
     const git = response.gitContext || this.input.gitInfo;
     const matches = response.matches || [];
     const hasGit = Boolean(git && git.commitHash);
 
-    const timelineItems = matches.map((match) => {
-      const note = match.note;
-      const relevance = match.relevance;
-      const badge = this.getSourceBadge(note.sourceChannel, note.canonicalType);
-      const isOrigin = relevance.isOriginMatch;
-      const formattedDate = this.formatDate(note.date || note.createdAt);
+    // Classify into Linked Notes (Git/Direct) vs Related Notes (AI Sessions/Context)
+    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git');
+    const relatedMatches = matches.filter((m) => !linkedMatches.includes(m));
 
-      return `
-        <div class="timeline-item ${isOrigin ? 'origin-match' : ''}" onclick="openNote('${this.escapeHtml(note.id)}')">
-          <div class="timeline-dot ${isOrigin ? 'dot-origin' : ''}"></div>
-          <div class="card">
-            <div class="card-header">
-              <div class="badge ${badge.className}">
-                <span>${badge.icon}</span> ${this.escapeHtml(badge.label)}
-              </div>
-              ${isOrigin ? '<div class="badge badge-origin">🌟 Commit Origin Match</div>' : ''}
-              <span class="card-date">${this.escapeHtml(formattedDate)}</span>
-            </div>
-            <h3 class="card-title">${this.escapeHtml(note.title || 'Untitled Note')}</h3>
-            <p class="card-summary">${this.escapeHtml(note.summary || 'Click to view details')}</p>
-            ${relevance.reason ? `<div class="card-reason">💡 ${this.escapeHtml(relevance.reason)}</div>` : ''}
-            <div class="card-footer">
-              <span class="view-link">View conversation / note &rarr;</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+    const linkedHtml = linkedMatches.length > 0
+      ? `<div class="timeline">${linkedMatches.map((m) => this.renderMatchCard(m)).join('')}</div>`
+      : `<div class="empty-state">
+          <p>No direct Git commit links attached to this snippet yet.</p>
+          ${hasGit ? `<p style="font-size: 0.85em;">Origin recorded via Git commit history above.</p>` : ''}
+        </div>`;
+
+    const relatedHtml = relatedMatches.length > 0
+      ? `<div class="timeline">${relatedMatches.map((m) => this.renderMatchCard(m)).join('')}</div>`
+      : `<div class="empty-state">
+          <p>No related AI chat sessions found for this snippet.</p>
+        </div>`;
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -310,28 +325,30 @@ export class SnippetOriginSummaryProvider {
     :root {
       --bg: var(--vscode-editor-background);
       --fg: var(--vscode-foreground);
-      --border: var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
-      --card-bg: var(--vscode-editorWidget-background, rgba(255, 255, 255, 0.04));
-      --card-hover: var(--vscode-list-hoverBackground, rgba(255, 255, 255, 0.08));
-      --accent: var(--vscode-textLink-foreground, #3794ff);
-      --desc: var(--vscode-descriptionForeground, #888);
+      --border: var(--vscode-widget-border, var(--vscode-panel-border, rgba(148, 163, 184, 0.14)));
+      --card-bg: var(--vscode-editorWidget-background, rgba(15, 23, 29, 0.65));
+      --card-hover: var(--vscode-list-hoverBackground, rgba(83, 199, 222, 0.08));
+      --accent: #53c7de;
+      --accent-soft: rgba(83, 199, 222, 0.12);
+      --desc: var(--vscode-descriptionForeground, #8da0ae);
+      --radius: 8px;
     }
 
     * { box-sizing: border-box; }
 
     body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
+      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+      font-size: var(--vscode-font-size, 13px);
       color: var(--fg);
       background-color: var(--bg);
-      padding: 24px;
+      padding: 20px;
       margin: 0;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     .header {
-      margin-bottom: 20px;
-      padding-bottom: 16px;
+      margin-bottom: 16px;
+      padding-bottom: 14px;
       border-bottom: 1px solid var(--border);
     }
 
@@ -340,41 +357,45 @@ export class SnippetOriginSummaryProvider {
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      flex-wrap: wrap;
     }
 
     .main-title {
-      font-size: 1.3em;
+      font-size: 1.25em;
       font-weight: 600;
       margin: 0;
+      color: var(--fg);
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
+    .main-title .icon-accent {
+      color: var(--accent);
+    }
+
     .file-path {
-      font-size: 0.9em;
+      font-size: 0.88em;
       color: var(--desc);
       font-family: var(--vscode-editor-font-family, monospace);
       margin-top: 4px;
     }
 
-    /* Git Box */
+    /* Git Context Card */
     .git-card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-left: 4px solid #8957e5;
-      border-radius: 6px;
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
       padding: 12px 16px;
       margin: 16px 0;
     }
 
     .git-card-title {
-      font-size: 0.85em;
+      font-size: 0.8em;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      color: #a371f7;
+      color: var(--accent);
       margin-bottom: 6px;
       display: flex;
       align-items: center;
@@ -385,7 +406,7 @@ export class SnippetOriginSummaryProvider {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 8px;
-      font-size: 0.9em;
+      font-size: 0.88em;
     }
 
     .git-item strong {
@@ -399,12 +420,12 @@ export class SnippetOriginSummaryProvider {
       color: var(--fg);
     }
 
-    /* Snippet container */
+    /* Code Snippet Box */
     .snippet-card {
-      background: var(--vscode-editor-background);
+      background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 6px;
-      margin: 16px 0 24px;
+      border-radius: var(--radius);
+      margin: 16px 0;
       overflow: hidden;
     }
 
@@ -423,72 +444,87 @@ export class SnippetOriginSummaryProvider {
       padding: 12px;
       margin: 0;
       font-family: var(--vscode-editor-font-family, monospace);
-      font-size: 0.9em;
+      font-size: 0.88em;
       overflow-x: auto;
       white-space: pre;
     }
 
-    /* Timeline */
-    .section-title {
-      font-size: 1.1em;
-      font-weight: 600;
-      margin: 24px 0 16px;
+    /* Tabs Header */
+    .tabs-header {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin: 20px 0 16px 0;
+    }
+
+    .tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--desc);
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 0.9em;
+      font-weight: 500;
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-
-    .timeline {
-      position: relative;
-      padding-left: 24px;
-      margin-left: 8px;
-      border-left: 2px solid var(--border);
-    }
-
-    .timeline-item {
-      position: relative;
-      margin-bottom: 20px;
-      cursor: pointer;
-    }
-
-    .timeline-dot {
-      position: absolute;
-      left: -31px;
-      top: 14px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--border);
-      border: 2px solid var(--bg);
+      gap: 6px;
       transition: all 0.2s ease;
     }
 
-    .timeline-item:hover .timeline-dot {
-      background: var(--accent);
-      transform: scale(1.2);
+    .tab-btn:hover {
+      color: var(--fg);
+      background: rgba(148, 163, 184, 0.05);
+      border-radius: 4px 4px 0 0;
     }
 
-    .timeline-dot.dot-origin {
-      background: #e3b341;
-      box-shadow: 0 0 8px rgba(227, 179, 65, 0.5);
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .tab-count {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.78em;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Cards & Timeline */
+    .timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .card {
       background: var(--card-bg);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius);
       padding: 14px 16px;
-      transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+      cursor: pointer;
+      transition: all 0.2s ease;
     }
 
-    .timeline-item:hover .card {
+    .card:hover {
       background: var(--card-hover);
       border-color: var(--accent);
-      transform: translateX(2px);
+      transform: translateY(-1px);
     }
 
-    .timeline-item.origin-match .card {
-      border-left: 3px solid #e3b341;
+    .card.origin-match {
+      border-left: 3px solid #7dd3a5;
     }
 
     .card-header {
@@ -507,22 +543,22 @@ export class SnippetOriginSummaryProvider {
 
     .card-title {
       margin: 0 0 6px;
-      font-size: 1.05em;
+      font-size: 1em;
       font-weight: 600;
       color: var(--fg);
     }
 
     .card-summary {
       margin: 0 0 8px;
-      font-size: 0.9em;
+      font-size: 0.88em;
       color: var(--desc);
     }
 
     .card-reason {
-      font-size: 0.8em;
-      color: #e3b341;
-      background: rgba(227, 179, 65, 0.1);
-      padding: 4px 8px;
+      font-size: 0.78em;
+      color: var(--accent);
+      background: var(--accent-soft);
+      padding: 3px 8px;
       border-radius: 4px;
       display: inline-block;
       margin-bottom: 8px;
@@ -543,42 +579,48 @@ export class SnippetOriginSummaryProvider {
       padding: 2px 8px;
       border-radius: 12px;
       font-weight: 500;
-      background: rgba(255,255,255,0.08);
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--fg);
     }
 
-    .badge-claude { background: rgba(217, 119, 6, 0.15); color: #f59e0b; }
-    .badge-antigravity { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-    .badge-codex { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-    .badge-opencode { background: rgba(139, 92, 246, 0.15); color: #a78bfa; }
-    .badge-origin { background: rgba(227, 179, 65, 0.2); color: #fbbf24; font-weight: 600; }
+    .badge-claude { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
+    .badge-antigravity { background: rgba(83, 199, 222, 0.15); color: #53c7de; }
+    .badge-codex { background: rgba(125, 211, 165, 0.15); color: #7dd3a5; }
+    .badge-opencode { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
+    .badge-origin { background: rgba(125, 211, 165, 0.18); color: #7dd3a5; font-weight: 600; }
+    .badge-git { background: rgba(137, 87, 229, 0.15); color: #a78bfa; }
 
     /* Empty state */
     .empty-state {
       background: var(--card-bg);
       border: 1px dashed var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius);
       padding: 24px;
       text-align: center;
       color: var(--desc);
-      margin-top: 16px;
+      margin-top: 12px;
     }
 
     .btn {
       background: var(--card-bg);
       color: var(--fg);
       border: 1px solid var(--border);
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 0.8em;
+      font-size: 0.82em;
+      transition: all 0.2s ease;
     }
-    .btn:hover { background: var(--card-hover); }
+    .btn:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <div class="title-row">
-      <h1 class="main-title">💡 Kote: Code Origin & History</h1>
+      <h1 class="main-title"><span class="icon-accent">💡</span> Kote Code Origin</h1>
       <button class="btn" onclick="copySnippet()">Copy Snippet</button>
     </div>
     <div class="file-path">${this.escapeHtml(this.input.filePath)} (Lines ${this.input.startLine}–${this.input.endLine})</div>
@@ -603,20 +645,26 @@ export class SnippetOriginSummaryProvider {
     <pre class="snippet-code"><code>${this.escapeHtml(this.input.snippet)}</code></pre>
   </div>
 
-  <div class="section-title">
-    <span>⏱️ AI Sessions & Decisions Timeline (${matches.length})</span>
+  <!-- Tabs Navigation -->
+  <div class="tabs-header">
+    <button class="tab-btn active" onclick="switchTab('linkedTab', this)">
+      <span>🔀 Linked Notes</span>
+      <span class="tab-count">${linkedMatches.length}</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('relatedTab', this)">
+      <span>🤖 Related AI Sessions</span>
+      <span class="tab-count">${relatedMatches.length}</span>
+    </button>
   </div>
 
-  ${matches.length > 0 ? `
-    <div class="timeline">
-      ${timelineItems}
-    </div>
-  ` : `
-    <div class="empty-state">
-      <p>No recorded AI sessions or notes specifically matched this code snippet in <code>${this.escapeHtml(this.input.filePath)}</code>.</p>
-      <p style="font-size: 0.85em;">Origin recorded via Git commit history above.</p>
-    </div>
-  `}
+  <!-- Tab Contents -->
+  <div id="linkedTab" class="tab-content active">
+    ${linkedHtml}
+  </div>
+
+  <div id="relatedTab" class="tab-content">
+    ${relatedHtml}
+  </div>
 
   <script>
     const vscode = acquireVsCodeApi();
@@ -627,6 +675,13 @@ export class SnippetOriginSummaryProvider {
 
     function copySnippet() {
       vscode.postMessage({ command: 'copyText', text: ${JSON.stringify(this.input.snippet)} });
+    }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).classList.add('active');
+      btn.classList.add('active');
     }
   </script>
 </body>

@@ -530,11 +530,25 @@ export class FileNotesSummaryProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <style>
+    :root {
+      --bg: var(--vscode-editor-background);
+      --fg: var(--vscode-foreground);
+      --border: var(--vscode-widget-border, var(--vscode-panel-border, rgba(148, 163, 184, 0.14)));
+      --card-bg: var(--vscode-editorWidget-background, rgba(15, 23, 29, 0.65));
+      --card-hover: var(--vscode-list-hoverBackground, rgba(83, 199, 222, 0.08));
+      --accent: #53c7de;
+      --accent-soft: rgba(83, 199, 222, 0.12);
+      --desc: var(--vscode-descriptionForeground, #8da0ae);
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      color: var(--vscode-foreground);
-      background-color: var(--vscode-editor-background);
+      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+      font-size: var(--vscode-font-size, 13px);
+      color: var(--fg);
+      background-color: var(--bg);
       padding: 20px;
       margin: 0;
       line-height: 1.6;
@@ -552,7 +566,7 @@ export class FileNotesSummaryProvider {
       display: inline-block;
       width: 2px;
       height: 1.1em;
-      background-color: var(--vscode-button-background, #4f9cf7);
+      background-color: var(--accent);
       margin-left: 2px;
       vertical-align: text-bottom;
       animation: tw-blink 0.8s step-end infinite;
@@ -566,85 +580,88 @@ export class FileNotesSummaryProvider {
     }
     h1, h2, h3 {
       margin-top: 0;
-      color: var(--vscode-foreground);
+      color: var(--fg);
     }
     h1 {
-      font-size: 1.5em;
-      margin-bottom: 10px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      padding-bottom: 10px;
+      font-size: 1.4em;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
     }
     h2 {
-      font-size: 1.3em;
-      margin-top: 25px;
-      margin-bottom: 15px;
+      font-size: 1.2em;
+      margin-top: 24px;
+      margin-bottom: 14px;
     }
     h3 {
-      font-size: 1.1em;
-      margin-top: 20px;
+      font-size: 1.05em;
+      margin-top: 18px;
       margin-bottom: 10px;
     }
     .summary {
-      background-color: var(--vscode-textBlockQuote-background);
-      border-left: 4px solid var(--vscode-textBlockQuote-border);
-      padding: 15px;
-      margin: 20px 0;
+      background-color: var(--card-bg);
+      border-left: 3px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin: 16px 0;
       font-style: italic;
     }
     .fallback-notice {
-      background-color: var(--vscode-inputValidation-warningBackground);
-      border: 1px solid var(--vscode-inputValidation-warningBorder);
-      color: var(--vscode-inputValidation-warningForeground);
+      background-color: rgba(240, 185, 90, 0.12);
+      border: 1px solid rgba(240, 185, 90, 0.3);
+      color: #ffe3ac;
       padding: 12px 15px;
-      margin: 20px 0;
+      border-radius: var(--radius);
+      margin: 16px 0;
     }
     .understanding {
-      margin: 20px 0;
+      margin: 16px 0;
     }
     .timeline {
       margin: 20px 0;
     }
     .timeline-item {
-      border-left: 2px solid var(--vscode-panel-border);
-      padding-left: 20px;
-      margin-bottom: 20px;
+      border-left: 2px solid var(--border);
+      padding-left: 18px;
+      margin-bottom: 16px;
       position: relative;
       cursor: pointer;
       transition: border-left-color 0.2s;
     }
     .timeline-item:hover {
-      border-left-color: var(--vscode-button-background);
+      border-left-color: var(--accent);
     }
     .timeline-item::before {
       content: '';
       position: absolute;
       left: -6px;
-      top: 5px;
+      top: 6px;
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background-color: var(--vscode-button-foreground);
+      background-color: var(--accent);
     }
     .timeline-date {
-      font-size: 0.9em;
-      color: var(--vscode-descriptionForeground);
-      margin-bottom: 5px;
+      font-size: 0.85em;
+      color: var(--desc);
+      margin-bottom: 4px;
     }
     .timeline-title {
-      font-weight: bold;
-      margin-bottom: 5px;
+      font-weight: 600;
+      margin-bottom: 4px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
     .timeline-description {
-      color: var(--vscode-foreground);
+      color: var(--fg);
+      font-size: 0.9em;
     }
     .note-link {
       font-size: 0.85em;
-      color: var(--vscode-textLink-foreground);
+      color: var(--accent);
       text-decoration: none;
-      font-weight: normal;
+      font-weight: 500;
     }
     .note-link:hover {
       text-decoration: underline;
@@ -652,36 +669,38 @@ export class FileNotesSummaryProvider {
     
     /* Tabs Layout */
     .tabs-container {
-      margin-top: 30px;
-      border-top: 1px solid var(--vscode-panel-border);
-      padding-top: 20px;
+      margin-top: 24px;
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
     }
     .tabs-header {
       display: flex;
-      gap: 12px;
-      border-bottom: 1px solid var(--vscode-panel-border);
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
       margin-bottom: 16px;
     }
     .tab-button {
       background: none;
       border: none;
       border-bottom: 2px solid transparent;
-      color: var(--vscode-foreground);
-      opacity: 0.7;
-      padding: 8px 12px;
+      color: var(--desc);
+      padding: 8px 16px;
       cursor: pointer;
-      font-size: var(--vscode-font-size);
+      font-size: 0.9em;
       font-weight: 500;
       display: flex;
       align-items: center;
       gap: 6px;
+      transition: all 0.2s ease;
     }
     .tab-button:hover {
-      opacity: 1;
+      color: var(--fg);
+      background: rgba(148, 163, 184, 0.05);
+      border-radius: 4px 4px 0 0;
     }
     .tab-button.active {
-      border-bottom-color: var(--vscode-button-background);
-      opacity: 1;
+      color: var(--accent);
+      border-bottom-color: var(--accent);
       font-weight: 600;
     }
     .tab-content {
@@ -695,49 +714,53 @@ export class FileNotesSummaryProvider {
       margin-top: 0;
     }
     .note-item {
-      padding: 10px;
+      padding: 12px 14px;
       margin-bottom: 10px;
-      background-color: var(--vscode-editor-inactiveSelectionBackground);
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 4px;
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: all 0.2s ease;
     }
     .note-item:hover {
-      background-color: var(--vscode-editor-selectionBackground);
+      background-color: var(--card-hover);
+      border-color: var(--accent);
     }
     .note-title {
-      font-weight: bold;
-      margin-bottom: 5px;
+      font-weight: 600;
+      margin-bottom: 4px;
     }
     .note-summary {
-      font-size: 0.9em;
-      color: var(--vscode-descriptionForeground);
+      font-size: 0.88em;
+      color: var(--desc);
     }
     .copy-button {
       position: fixed;
-      top: 20px;
-      right: 20px;
-      background-color: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      border: none;
-      padding: 8px 16px;
+      top: 16px;
+      right: 16px;
+      background-color: var(--card-bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
       cursor: pointer;
-      font-size: var(--vscode-font-size);
+      font-size: 0.85em;
       border-radius: 4px;
       z-index: 1000;
+      transition: all 0.2s ease;
     }
     .copy-button:hover {
-      background-color: var(--vscode-button-hoverBackground);
+      background-color: var(--card-hover);
+      border-color: var(--accent);
     }
 
-    /* Related notes styling */
     .badge {
-      font-size: 0.75em;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: var(--vscode-badge-background);
-      color: var(--vscode-badge-foreground);
+      font-size: 0.78em;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
       font-weight: normal;
     }
     .note-item.related-item {
