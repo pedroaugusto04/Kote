@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import type { KbClient } from '../kb-client';
 import type { SnippetNoteMatch, SnippetNotesResponse } from '../types';
 import type { GitSnippetOriginInfo } from '../utils/git-blame';
-import { isAiSessionChannel, resolveSourceBadge } from '../utils/source-channel';
+import { GIT_SOURCE_CHANNELS, isAiSessionChannel, resolveSourceBadge } from '../utils/source-channel';
 import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
 
 export interface SnippetOriginInput {
@@ -292,7 +292,8 @@ export class SnippetOriginSummaryProvider {
     const hasGit = Boolean(git && git.commitHash);
 
     // 1. Linked Matches: Direct commit origin match or GitHub webhook notes
-    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git');
+    const isGitChannel = (channel?: string) => GIT_SOURCE_CHANNELS.some((g) => (channel || '').toLowerCase().includes(g));
+    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel));
     const linkedIds = new Set(linkedMatches.map((m) => m.note.id));
 
     // 2. Direct File AI Sessions (non-origin)
