@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { FILE_NOTES_SUMMARY_FALLBACK_REASON, KbClient } from '../kb-client';
+import { resolveSourceBadge } from '../utils/source-channel';
 import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
 
 export class FileNotesSummaryProvider {
@@ -509,15 +510,7 @@ export class FileNotesSummaryProvider {
   }
 
   private getSourceBadge(sourceChannel?: string, source?: string): { label: string; className: string } {
-    const s = (sourceChannel || source || '').toLowerCase();
-    if (s.includes('claude')) return { label: 'Claude Code', className: 'badge-claude' };
-    if (s.includes('antigravity')) return { label: 'Antigravity', className: 'badge-antigravity' };
-    if (s.includes('codex')) return { label: 'Codex', className: 'badge-codex' };
-    if (s.includes('opencode')) return { label: 'OpenCode', className: 'badge-opencode' };
-    if (s.includes('whatsapp')) return { label: 'WhatsApp', className: 'badge-whatsapp' };
-    if (s.includes('telegram')) return { label: 'Telegram', className: 'badge-telegram' };
-    if (s.includes('github') || s.includes('commit')) return { label: 'Git Commit', className: 'badge-git' };
-    return { label: 'Note', className: 'badge-note' };
+    return resolveSourceBadge(sourceChannel, source);
   }
 
   private getHtml(

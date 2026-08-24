@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { KbClient } from '../kb-client';
 import type { SnippetNoteMatch, SnippetNotesResponse } from '../types';
 import type { GitSnippetOriginInfo } from '../utils/git-blame';
+import { isAiSessionChannel, resolveSourceBadge } from '../utils/source-channel';
 import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
 
 export interface SnippetOriginInput {
@@ -167,15 +168,7 @@ export class SnippetOriginSummaryProvider {
   }
 
   private getSourceBadge(sourceChannel?: string, source?: string): { label: string; className: string } {
-    const s = (sourceChannel || source || '').toLowerCase();
-    if (s.includes('claude')) return { label: 'Claude Code', className: 'badge-claude' };
-    if (s.includes('antigravity')) return { label: 'Antigravity', className: 'badge-antigravity' };
-    if (s.includes('codex')) return { label: 'Codex', className: 'badge-codex' };
-    if (s.includes('opencode')) return { label: 'OpenCode', className: 'badge-opencode' };
-    if (s.includes('whatsapp')) return { label: 'WhatsApp', className: 'badge-whatsapp' };
-    if (s.includes('telegram')) return { label: 'Telegram', className: 'badge-telegram' };
-    if (s.includes('github') || s.includes('commit')) return { label: 'Git Commit', className: 'badge-git' };
-    return { label: 'Note', className: 'badge-note' };
+    return resolveSourceBadge(sourceChannel, source);
   }
 
   private getLoadingHtml(): string {
@@ -298,10 +291,7 @@ export class SnippetOriginSummaryProvider {
     const matches = response.matches || [];
     const hasGit = Boolean(git && git.commitHash);
 
-    const isAiSession = (m: SnippetNoteMatch) => {
-      const channel = (m.note.sourceChannel || m.note.canonicalType || '').toLowerCase();
-      return channel.includes('claude') || channel.includes('antigravity') || channel.includes('codex') || channel.includes('opencode') || channel.includes('ai-chat');
-    };
+    const isAiSession = (m: SnippetNoteMatch) => isAiSessionChannel(m.note.sourceChannel, m.note.canonicalType);
 
     // Classify into Linked Notes (Git/Direct/Manual) vs Related AI Sessions (AI Chat Sessions)
     const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git' || !isAiSession(m));
