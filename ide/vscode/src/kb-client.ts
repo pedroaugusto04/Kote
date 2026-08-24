@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import https from 'node:https';
 import http from 'node:http';
-import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, AskHistoryEntry } from './types';
+import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, AskHistoryEntry, SnippetNoteMatch, GitCommitContext, SnippetNotesResponse } from './types';
 
 export const FILE_NOTES_SUMMARY_FALLBACK_REASON = {
   FEATURE_DISABLED: 'feature_disabled',
@@ -15,7 +15,7 @@ export const FILE_NOTES_SUMMARY_FALLBACK_REASON = {
 // Config (mirrors the CLI config file used by the extension)
 // ---------------------------------------------------------------------------
 
-export type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult } from './types';
+export type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, SnippetNoteMatch, GitCommitContext, SnippetNotesResponse } from './types';
 
 const CONFIG_PATH = path.join(os.homedir(), '.config', 'kb', 'config.json');
 
@@ -527,4 +527,21 @@ export class KbClient {
       signal: options?.signal,
     });
   }
+
+  async findNotesBySnippet(payload: {
+    filePath: string;
+    codeSnippet?: string;
+    commitHash?: string;
+    commitDate?: string;
+    author?: string;
+    commitMessage?: string;
+    limit?: number;
+  }, options?: { signal?: AbortSignal }): Promise<SnippetNotesResponse> {
+    return this.fetch<SnippetNotesResponse>('/api/notes/by-snippet', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      signal: options?.signal,
+    });
+  }
 }
+

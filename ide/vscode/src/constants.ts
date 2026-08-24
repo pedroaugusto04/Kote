@@ -8,6 +8,7 @@ export const EXTENSION_COMMANDS = {
   CONFIGURE_AI_SESSION_MODE: 'kote.configureAiSessionMode',
   OPEN_SYNC_TAB: 'kote.openSyncTab',
   SIDEBAR_VIEW_FOCUS: 'kote.sidebarView.focus',
+  EXPLAIN_SNIPPET_ORIGIN: 'kote.explainSnippetOrigin',
 } as const;
 
 export const GLOBAL_STATE_KEYS = {

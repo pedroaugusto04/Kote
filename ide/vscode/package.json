@@ -83,6 +83,12 @@
         "title": "Kote: Configure AI Session Save Mode",
         "category": "Kote",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "kote.explainSnippetOrigin",
+        "title": "Kote: Explain Why This Code Exists",
+        "category": "Kote",
+        "icon": "$(lightbulb)"
       }
     ],
     "keybindings": [
@@ -91,10 +97,20 @@
         "key": "ctrl+shift+k",
         "mac": "cmd+shift+k",
         "when": "editorTextFocus"
+      },
+      {
+        "command": "kote.explainSnippetOrigin",
+        "key": "ctrl+shift+e",
+        "mac": "cmd+shift+e",
+        "when": "editorTextFocus"
       }
     ],
     "menus": {
       "editor/context": [
+        {
+          "command": "kote.explainSnippetOrigin",
+          "group": "kote@0"
+        },
         {
           "command": "kote.saveSelection",
           "when": "editorHasSelection",

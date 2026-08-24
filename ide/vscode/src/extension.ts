@@ -5,6 +5,7 @@ import { SidebarViewProvider } from './providers/sidebar-view.provider';
 import { StatusBarProvider } from './providers/status-bar.provider';
 import { registerAskCommand } from './commands/ask.command';
 import { registerSaveNoteCommand } from './commands/save-note.command';
+import { registerExplainSnippetOriginCommand } from './commands/explain-snippet-origin.command';
 import { disposeErrorReporter, logInfo } from './error-reporter';
 import { AiHistoryManager } from './ai-history/history-manager';
 import { ClaudeCodeHistoryProvider } from './ai-history/providers/claude-code.provider';
@@ -154,6 +155,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     getActiveProjectSlug,
     historyManager
   );
+  registerExplainSnippetOriginCommand(context, kbClient);
 
   // -------------------------------------------------------------------------
   // CodeLens & Note Content Providers (Engineering Memory)

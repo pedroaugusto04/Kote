@@ -141,3 +141,30 @@ export type ChatFromWebview =
   | { type: 'saveNote'; content: string; projectSlug: string; title?: string }
   | { type: 'loadHistory' }
   | { type: 'clearHistory' };
+
+export interface GitCommitContext {
+  commitHash?: string;
+  author?: string;
+  commitDate?: string;
+  commitMessage?: string;
+}
+
+export interface SnippetRelevance {
+  score: number;
+  isOriginMatch: boolean;
+  reason: string;
+}
+
+export interface SnippetNoteMatch {
+  note: KbNote;
+  relevance: SnippetRelevance;
+}
+
+export interface SnippetNotesResponse {
+  ok: boolean;
+  filePath: string;
+  gitContext?: GitCommitContext;
+  matches: SnippetNoteMatch[];
+  total: number;
+}
+

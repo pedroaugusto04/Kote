@@ -16,6 +16,7 @@ import {
   GetNoteDetailUseCase,
   ListPaginatedNotesUseCase,
   FindNotesByFileUseCase,
+  FindNotesBySnippetUseCase,
   FindRelatedNotesByFileUseCase,
   GenerateFileNotesSummaryUseCase,
 } from '../../../../application/use-cases/index.js';
@@ -34,6 +35,8 @@ import {
   notesListQuerySchema,
   fileNotesSummaryQuerySchema,
   relatedNotesByFileQuerySchema,
+  notesBySnippetQuerySchema,
+  notesBySnippetBodySchema,
   type CreateNoteBody,
   type NoteAttachmentContentParam,
   type NoteIdParam,
@@ -44,6 +47,8 @@ import {
   type NotesListQuery,
   type FileNotesSummaryQuery,
   type RelatedNotesByFileQuery,
+  type NotesBySnippetQuery,
+  type NotesBySnippetBody,
 } from '../../dto/note.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
@@ -69,6 +74,7 @@ export class NotesController {
     private readonly getNoteDetail: GetNoteDetailUseCase,
     private readonly listNotesUseCase: ListPaginatedNotesUseCase,
     private readonly findNotesByFileUseCase: FindNotesByFileUseCase,
+    private readonly findNotesBySnippetUseCase: FindNotesBySnippetUseCase,
     private readonly findRelatedNotesByFileUseCase: FindRelatedNotesByFileUseCase,
     private readonly generateFileNotesSummaryUseCase: GenerateFileNotesSummaryUseCase,
   ) { }
@@ -217,6 +223,48 @@ export class NotesController {
     };
 
     return this.generateFileNotesSummaryUseCase.execute(user.id, summaryRequest);
+  }
+
+  @Get('by-snippet')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Find notes and AI sessions related to a code snippet and commit' })
+  @ApiResponse({ status: 200, description: 'Notes for snippet retrieved successfully' })
+  async getBySnippet(
+    @Query(new ZodValidationPipe(notesBySnippetQuerySchema, 'invalid_notes_by_snippet_query')) query: NotesBySnippetQuery,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.findNotesBySnippetUseCase.execute(user.id, {
+      filePath: query.filePath,
+      codeSnippet: query.codeSnippet,
+      gitContext: {
+        commitHash: query.commitHash,
+        author: query.author,
+        commitDate: query.commitDate,
+        commitMessage: query.commitMessage,
+      },
+      limit: query.limit,
+    });
+  }
+
+  @Post('by-snippet')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Find notes and AI sessions related to a code snippet and commit (POST)' })
+  @ApiResponse({ status: 200, description: 'Notes for snippet retrieved successfully' })
+  async postBySnippet(
+    @Body(new ZodValidationPipe(notesBySnippetBodySchema, 'invalid_notes_by_snippet_payload')) body: NotesBySnippetBody,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.findNotesBySnippetUseCase.execute(user.id, {
+      filePath: body.filePath,
+      codeSnippet: body.codeSnippet,
+      gitContext: {
+        commitHash: body.commitHash,
+        author: body.author,
+        commitDate: body.commitDate,
+        commitMessage: body.commitMessage,
+      },
+      limit: body.limit,
+    });
   }
 
   @Get('auto/global')

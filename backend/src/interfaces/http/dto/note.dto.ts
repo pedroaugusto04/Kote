@@ -156,3 +156,26 @@ export const relatedNotesByFileQuerySchema = z.object({
   limit: input.limit,
 }));
 export type RelatedNotesByFileQuery = z.infer<typeof relatedNotesByFileQuerySchema>;
+
+export const notesBySnippetQuerySchema = z.object({
+  filePath: z.string().trim().min(1, 'filePath is required'),
+  codeSnippet: z.string().optional().default(''),
+  commitHash: z.string().trim().optional().default(''),
+  commitDate: z.string().trim().optional().default(''),
+  author: z.string().trim().optional().default(''),
+  commitMessage: z.string().trim().optional().default(''),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+});
+export type NotesBySnippetQuery = z.infer<typeof notesBySnippetQuerySchema>;
+
+export const notesBySnippetBodySchema = z.object({
+  filePath: z.string().trim().min(1, 'filePath is required'),
+  codeSnippet: z.string().optional().default(''),
+  commitHash: z.string().trim().optional().default(''),
+  commitDate: z.string().trim().optional().default(''),
+  author: z.string().trim().optional().default(''),
+  commitMessage: z.string().trim().optional().default(''),
+  limit: z.number().int().min(1).max(50).optional().default(20),
+});
+export type NotesBySnippetBody = z.infer<typeof notesBySnippetBodySchema>;
+
