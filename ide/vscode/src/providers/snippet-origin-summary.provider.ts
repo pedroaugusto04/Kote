@@ -286,16 +286,49 @@ export class SnippetOriginSummaryProvider {
     `;
   }
 
-  private getMainHtml(response: SnippetNotesResponse): string {
+  private getMainHtml(response: SnippetNotesResponse, semanticNotes: any[] = []): string {
     const git = response.gitContext || this.input.gitInfo;
     const matches = response.matches || [];
     const hasGit = Boolean(git && git.commitHash);
 
-    const isAiSession = (m: SnippetNoteMatch) => isAiSessionChannel(m.note.sourceChannel, m.note.canonicalType);
+    const isAi = (n: { sourceChannel?: string; canonicalType?: string }) => isAiSessionChannel(n.sourceChannel, n.canonicalType);
 
-    // Classify into Linked Notes (Git/Direct/Manual) vs Related AI Sessions (AI Chat Sessions)
-    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git' || !isAiSession(m));
-    const relatedMatches = matches.filter((m) => isAiSession(m) && !m.relevance.isOriginMatch);
+    // 1. Linked Matches: Direct commit origin, GitHub webhooks, manual non-AI notes
+    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || m.note.sourceChannel === 'github' || m.note.sourceChannel === 'git' || !isAi(m.note));
+
+    // 2. Direct File AI Sessions (non-origin)
+    const directFileAiMatches = matches.filter((m) => isAi(m.note) && !m.relevance.isOriginMatch);
+
+    // 3. Semantic Vector AI Sessions (cross-file & conceptual matches)
+    const directIds = new Set(matches.map((m) => m.note.id));
+    const semanticAiMatches: SnippetNoteMatch[] = semanticNotes
+      .filter((n) => isAi(n) && !directIds.has(n.id))
+      .map((n) => ({
+        note: n,
+        relevance: {
+          score: 0.5,
+          isOriginMatch: false,
+          reason: 'Semantic vector match from related discussion',
+        },
+      }));
+
+    // Combine & Deduplicate for Tab 2
+    const seenIds = new Set<string>();
+    const relatedMatches: SnippetNoteMatch[] = [];
+
+    for (const m of [...directFileAiMatches, ...semanticAiMatches]) {
+      if (!seenIds.has(m.note.id)) {
+        seenIds.add(m.note.id);
+        relatedMatches.push(m);
+      }
+    }
+
+    // Sort chronologically newest to oldest
+    relatedMatches.sort((a, b) => {
+      const dateA = new Date(a.note.date || a.note.createdAt || 0).getTime();
+      const dateB = new Date(b.note.date || b.note.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
 
     const linkedHtml = linkedMatches.length > 0
       ? `<div class="timeline">${linkedMatches.map((m) => this.renderMatchCard(m)).join('')}</div>`
