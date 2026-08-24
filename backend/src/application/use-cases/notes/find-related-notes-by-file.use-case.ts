@@ -29,6 +29,7 @@ export class FindRelatedNotesByFileUseCase {
     filePath: string,
     excludeIds: string[] = [],
     customQuery?: string,
+    projectSlug?: string,
   ): Promise<ReturnType<typeof noteSummary>[]> {
     const env = this.runtimeEnv.read();
 
@@ -56,17 +57,26 @@ export class FindRelatedNotesByFileUseCase {
       userId,
       filePath,
       queryText,
+      projectSlug,
       isEmbeddingConfigured,
     });
 
     const candidateLimit = env.codeLensSearchCandidateLimit;
     const excludeSet = new Set(excludeIds);
 
+    let projectId: string | undefined;
+    if (projectSlug) {
+      const project = await this.contentRepository.getProjectBySlug(userId, projectSlug);
+      if (project) {
+        projectId = project.id;
+      }
+    }
+
     const [vectorResult, ftsNotes] = await Promise.all([
       isEmbeddingConfigured
-        ? this.searchVectorChunks(userId, queryText, embeddingConfig, env.codeLensSearchMinSimilarity, candidateLimit)
+        ? this.searchVectorChunks(userId, queryText, embeddingConfig, env.codeLensSearchMinSimilarity, candidateLimit, projectId)
         : Promise.resolve({ chunks: [] as Array<{ noteId: string; similarity: number }> }),
-      this.contentQueryRepository.list(userId, { query: queryText, ftsLimit: candidateLimit }),
+      this.contentQueryRepository.list(userId, { query: queryText, ftsLimit: candidateLimit, projectSlug }),
     ]);
 
     this.logger.info('codelens_related.search_phase_complete', {
@@ -152,6 +162,7 @@ export class FindRelatedNotesByFileUseCase {
     embeddingConfig: { provider: AiProvider; baseUrl: string; model: string; apiKey: string },
     minSimilarity: number,
     limit: number,
+    projectId?: string,
   ) {
     try {
       const embeddings = await this.embeddingQueue.publishQueryEmbedding({
@@ -167,6 +178,7 @@ export class FindRelatedNotesByFileUseCase {
       const chunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
         limit,
         minSimilarity,
+        projectId,
       });
 
       return { chunks };

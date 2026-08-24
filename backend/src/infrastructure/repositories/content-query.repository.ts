@@ -41,6 +41,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     userId: string,
     filters?: {
       projectId?: string;
+      projectSlug?: string;
       workspaceId?: string;
       status?: string;
       query?: string;
@@ -56,6 +57,9 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     }
     if (filters?.projectId) {
       conditions.push(eq(notes.projectId, filters.projectId));
+    }
+    if (filters?.projectSlug) {
+      conditions.push(eq(projects.projectSlug, filters.projectSlug));
     }
     if (filters?.status) {
       if (filters.status === StatusFilter.Open) {

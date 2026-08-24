@@ -81,6 +81,7 @@ export abstract class ContentQueryRepository {
     userId: string,
     filters?: {
       projectId?: string;
+      projectSlug?: string;
       workspaceId?: string;
       status?: string;
       query?: string;
