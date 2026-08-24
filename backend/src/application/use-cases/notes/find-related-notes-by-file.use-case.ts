@@ -34,7 +34,7 @@ export class FindRelatedNotesByFileUseCase {
 
     const isGeneric = isGenericFile(filePath);
     const fileQuery = isGeneric ? '' : filePathToQuery(filePath);
-    const queryText = [fileQuery, customQuery].filter(Boolean).join(' ').trim();
+    const queryText = [fileQuery, customQuery].filter(Boolean).join('\n').trim();
 
     if (!queryText) {
       this.logger.info('codelens_related.empty_query', { filePath });

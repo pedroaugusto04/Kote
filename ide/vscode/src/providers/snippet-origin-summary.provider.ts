@@ -119,9 +119,8 @@ export class SnippetOriginSummaryProvider {
       const linkedMatches = directMatches.filter((m) => m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel));
       const linkedIds = linkedMatches.map((m) => m.note.id);
 
-      // Extract code identifier tokens from snippet for semantic query
-      const snippetTokens = (this.input.snippet || '').match(/[a-zA-Z0-9_$]{3,}/g) || [];
-      const snippetQuery = Array.from(new Set(snippetTokens)).slice(0, 8).join(' ');
+      // Pass full selected code snippet block (capped at 1,000 chars) for semantic AI search
+      const snippetQuery = (this.input.snippet || '').trim().slice(0, 1000);
 
       // Hybrid fetch: retrieve semantic vector matches excluding ONLY the Tab 1 IDs
       let semanticNotes: any[] = [];
