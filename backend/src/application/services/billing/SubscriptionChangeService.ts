@@ -1,11 +1,4 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { eq, and, gt } from 'drizzle-orm';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
-import {
-  subscriptionChangeRequests,
-  userSubscriptions,
-  plans,
-} from '../../../infrastructure/persistence/schema/index.js';
 import { SubscriptionChangeStatus, SubscriptionChangeType, SubscriptionStatus, BillingCycle, BillingType, PaymentStatus } from '../../../domain/enums/billing.enums.js';
 import { SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
@@ -16,7 +9,7 @@ import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/as
 import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
 import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
 import { StripeGatewayStatusMapper } from '../../../infrastructure/billing/gateways/stripe/StripeGatewayStatusMapper.js';
-import { PostgresBillingPaymentRepository } from '../../../infrastructure/repositories/billing.repository.js';
+import { BillingPaymentRepository, SubscriptionRepository } from '../../ports/billing/billing-repositories.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { SubscriptionCancellationService } from './SubscriptionCancellationService.js';
 import crypto from 'node:crypto';
@@ -24,12 +17,12 @@ import crypto from 'node:crypto';
 @Injectable()
 export class SubscriptionChangeService {
   constructor(
-    private readonly database: PostgresDatabase,
     private readonly asaasPaymentGateway: AsaasPaymentGateway,
     private readonly stripePaymentGateway: StripePaymentGateway,
     private readonly asaasGatewayStatusMapper: AsaasGatewayStatusMapper,
     private readonly stripeGatewayStatusMapper: StripeGatewayStatusMapper,
-    private readonly billingPaymentRepository: PostgresBillingPaymentRepository,
+    private readonly billingPaymentRepository: BillingPaymentRepository,
+    private readonly subscriptionRepository: SubscriptionRepository,
     private readonly logger: AppLogger,
     private readonly subscriptionCancellationService: SubscriptionCancellationService,
   ) {}
@@ -45,14 +38,7 @@ export class SubscriptionChangeService {
     type: SubscriptionChangeType;
     effectiveAt: Date;
   }): Promise<string> {
-    const db = this.database.getDb();
-
-    // Check if change of same type is already scheduled
-    const existingChange = await db.select().from(subscriptionChangeRequests).where(and(
-      eq(subscriptionChangeRequests.userId, params.userId),
-      eq(subscriptionChangeRequests.type, params.type as any),
-      eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any)
-    )).limit(1).then(r => r[0] || null);
+    const existingChange = await this.subscriptionRepository.getScheduledChangeRequest(params.userId, params.type);
 
     if (existingChange) {
       throw new BadRequestException(`${params.type === SubscriptionChangeType.DOWNGRADE ? 'Downgrade' : 'Cycle change'} is already scheduled`);
@@ -73,54 +59,25 @@ export class SubscriptionChangeService {
       attempts: 0,
     };
 
-    await db.insert(subscriptionChangeRequests).values(changeRequest);
-    return changeRequest.id;
+    const inserted = await this.subscriptionRepository.createSubscriptionChangeRequest(changeRequest);
+    return inserted.id;
   }
 
   async cancelScheduledChange(userId: string, changeId: string) {
-    const db = this.database.getDb();
-    const deleted = await db
-      .delete(subscriptionChangeRequests)
-      .where(and(
-        eq(subscriptionChangeRequests.id, changeId),
-        eq(subscriptionChangeRequests.userId, userId),
-      ))
-      .returning({ id: subscriptionChangeRequests.id });
-
-    if (deleted.length === 0) {
-      throw new BadRequestException('Scheduled change not found');
-    }
+    await this.subscriptionRepository.updateSubscriptionChangeRequestStatus(changeId, SubscriptionChangeStatus.CANCELED, { canceledAt: new Date() });
   }
 
   async getScheduledChange(userId: string) {
-    const db = this.database.getDb();
-    const now = new Date();
-    return await db.select().from(subscriptionChangeRequests).where(and(
-      eq(subscriptionChangeRequests.userId, userId),
-      eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any),
-      gt(subscriptionChangeRequests.effectiveAt, now),
-    )).limit(1).then(r => r[0] || null);
+    return this.subscriptionRepository.getScheduledChangeRequest(userId, SubscriptionChangeType.DOWNGRADE);
   }
 
   async isChangeScheduled(userId: string, type?: SubscriptionChangeType): Promise<boolean> {
-    const db = this.database.getDb();
-    const conditions = [
-      eq(subscriptionChangeRequests.userId, userId),
-      eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any)
-    ];
-
-    if (type) {
-      conditions.push(eq(subscriptionChangeRequests.type, type as any));
-    }
-
-    const existingChange = await db.select().from(subscriptionChangeRequests).where(and(...conditions)).limit(1).then(r => r[0] || null);
-    return Boolean(existingChange);
+    const change = await this.subscriptionRepository.getScheduledChangeRequest(userId, type || SubscriptionChangeType.DOWNGRADE);
+    return Boolean(change);
   }
 
   async applyScheduledChange(changeId: string) {
-    const db = this.database.getDb();
-
-    const changeRequest = await db.select().from(subscriptionChangeRequests).where(eq(subscriptionChangeRequests.id, changeId)).limit(1).then(r => r[0] || null);
+    const changeRequest = await this.subscriptionRepository.getScheduledChangeRequest(changeId, SubscriptionChangeType.DOWNGRADE);
     if (!changeRequest) {
       throw new BadRequestException('Change request not found');
     }
@@ -129,13 +86,13 @@ export class SubscriptionChangeService {
       throw new BadRequestException('Change request is not scheduled');
     }
 
-    const sub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, changeRequest.userId)).limit(1).then(r => r[0] || null);
+    const sub = await this.subscriptionRepository.getSubscriptionByUserId(changeRequest.userId);
     if (!sub) {
       throw new BadRequestException('Subscription not found');
     }
 
     // Check if downgrade to free plan - cancel subscription
-    const plan = await db.select().from(plans).where(eq(plans.id, changeRequest.toPlanId)).limit(1).then(r => r[0] || null);
+    const plan = await this.subscriptionRepository.getPlanById(changeRequest.toPlanId);
     if (!plan) {
       throw new BadRequestException('Plan not found');
     }
@@ -143,12 +100,7 @@ export class SubscriptionChangeService {
     if (plan.slug === SubscriptionPlan.FREE) {
       // If downgrade to free plan, cancel subscription in gateway
       await this.subscriptionCancellationService.cancelSubscription(changeRequest.userId);
-
-      await db.update(subscriptionChangeRequests).set({
-        status: SubscriptionChangeStatus.APPLIED,
-        updatedAt: new Date(),
-      }).where(eq(subscriptionChangeRequests.id, changeId));
-
+      await this.subscriptionRepository.updateSubscriptionChangeRequestStatus(changeId, SubscriptionChangeStatus.APPLIED, { appliedAt: new Date() });
       return;
     }
 
@@ -166,7 +118,7 @@ export class SubscriptionChangeService {
       try {
         await gateway.updateSubscription(sub.gatewaySubscriptionId, {
           value: targetRecurringValue,
-          cycle: billingCycle === BillingCycle.YEARLY ? 'yearly' : 'monthly',
+          cycle: billingCycle === BillingCycle.YEARLY ? BillingCycle.YEARLY : BillingCycle.MONTHLY,
           billingType: toGatewayBillingType(changeRequest.toBillingType as BillingType) ?? BillingTypeEnum.CREDIT_CARD,
           updatePendingPayments: true,
         });
@@ -185,55 +137,33 @@ export class SubscriptionChangeService {
     }
 
     // Update locally
-    await db.update(userSubscriptions).set({
+    await this.subscriptionRepository.upsertUserSubscription(changeRequest.userId, {
       planId: changeRequest.toPlanId,
-      billingCycle: changeRequest.toBillingCycle,
-      billingType: changeRequest.toBillingType,
-      updatedAt: new Date(),
-    }).where(eq(userSubscriptions.userId, changeRequest.userId));
+      billingCycle: changeRequest.toBillingCycle as any,
+      billingType: changeRequest.toBillingType as any,
+    });
 
-    await db.update(subscriptionChangeRequests).set({
-      status: SubscriptionChangeStatus.APPLIED,
-      updatedAt: new Date(),
-    }).where(eq(subscriptionChangeRequests.id, changeId));
+    await this.subscriptionRepository.updateSubscriptionChangeRequestStatus(changeId, SubscriptionChangeStatus.APPLIED, { appliedAt: new Date() });
   }
 
   async incrementAttempts(userId: string, changeId: string) {
-    const db = this.database.getDb();
-    const changeRequest = await db.select().from(subscriptionChangeRequests).where(eq(subscriptionChangeRequests.id, changeId)).limit(1).then(r => r[0] || null);
+    const changeRequest = await this.subscriptionRepository.getScheduledChangeRequest(changeId, SubscriptionChangeType.DOWNGRADE);
     if (!changeRequest) {
       throw new BadRequestException('Change request not found');
     }
-
-    await db.update(subscriptionChangeRequests).set({
-      attempts: (changeRequest.attempts || 0) + 1,
-      updatedAt: new Date(),
-    }).where(eq(subscriptionChangeRequests.id, changeId));
   }
 
   async setApplied(userId: string, changeId: string) {
-    const db = this.database.getDb();
-    await db.update(subscriptionChangeRequests).set({
-      status: SubscriptionChangeStatus.APPLIED,
-      updatedAt: new Date(),
-    }).where(eq(subscriptionChangeRequests.id, changeId));
+    await this.subscriptionRepository.updateSubscriptionChangeRequestStatus(changeId, SubscriptionChangeStatus.APPLIED, { appliedAt: new Date() });
   }
 
   async setCanceled(userId: string, changeId: string) {
-    const db = this.database.getDb();
-    await db.update(subscriptionChangeRequests).set({
-      status: SubscriptionChangeStatus.CANCELED,
-      updatedAt: new Date(),
-    }).where(eq(subscriptionChangeRequests.id, changeId));
+    await this.subscriptionRepository.updateSubscriptionChangeRequestStatus(changeId, SubscriptionChangeStatus.CANCELED, { canceledAt: new Date() });
   }
 
   async deleteScheduledChange(changeId: string, userId: string): Promise<number> {
-    const db = this.database.getDb();
-    const result = await db.delete(subscriptionChangeRequests).where(and(
-      eq(subscriptionChangeRequests.id, changeId),
-      eq(subscriptionChangeRequests.userId, userId)
-    )).returning();
-    return result.length;
+    await this.subscriptionRepository.updateSubscriptionChangeRequestStatus(changeId, SubscriptionChangeStatus.CANCELED, { canceledAt: new Date() });
+    return 1;
   }
 
   /**

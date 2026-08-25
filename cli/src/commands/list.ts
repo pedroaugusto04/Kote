@@ -1,5 +1,6 @@
 import pc from 'picocolors';
-import { client, ApiClientError } from '../client.js';
+import { client } from '../client.js';
+import { handleCliError } from '../utils/error-handler.js';
 
 export async function runListProjects(): Promise<void> {
   try {
@@ -17,13 +18,8 @@ export async function runListProjects(): Promise<void> {
       console.log(` - ${pc.bold(slug)}: ${pc.gray(name)}`);
     }
     console.log();
-  } catch (error: any) {
-    if (error instanceof ApiClientError) {
-      console.error(pc.red(`Error (${error.status}): ${(error.body as any)?.message || error.message}`));
-    } else {
-      console.error(pc.red(`Error: ${error.message || 'Failed to list projects'}`));
-    }
-    process.exit(1);
+  } catch (error) {
+    handleCliError(error, 'Failed to list projects');
   }
 }
 
@@ -44,12 +40,7 @@ export async function runListWorkspaces(): Promise<void> {
       console.log(` - ${pc.bold(slug)}: ${pc.gray(name)}`);
     }
     console.log();
-  } catch (error: any) {
-    if (error instanceof ApiClientError) {
-      console.error(pc.red(`Error (${error.status}): ${(error.body as any)?.message || error.message}`));
-    } else {
-      console.error(pc.red(`Error: ${error.message || 'Failed to list workspaces'}`));
-    }
-    process.exit(1);
+  } catch (error) {
+    handleCliError(error, 'Failed to list workspaces');
   }
 }

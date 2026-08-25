@@ -12,7 +12,8 @@ import type { SaveNoteResult } from '../../models/note-save-result.models.js';
 import { NoteLifecycleService } from '../../services/content/note-lifecycle.service.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
-import { toProjectFromIngest, toIngestPayloadWithProject, toNoteInputFromIngest, toProjectSaveInput, toNotePathsFromIngest, toSaveNoteResult } from '../../mappers/ingest.mapper.js';
+import { toProjectFromIngest, toProjectFromRecord, toIngestPayloadWithProject, toNoteInputFromIngest, toProjectSaveInput, toNotePathsFromIngest, toSaveNoteResult } from '../../mappers/ingest.mapper.js';
+
 
 
 type IngestExecutionOptions = {
@@ -34,32 +35,70 @@ export class IngestEntryUseCase {
 
   async execute(input: IngestPayload, userId: string, workspaceSlug = '', options: IngestExecutionOptions = {}) {
     return this.database.getDb().transaction(async (tx) => {
-      const result = await saveIngestedNote(
-        this.contentRepository,
-        this.noteLifecycleService,
+      const result = await saveIngestedNote({
+        contentRepository: this.contentRepository,
+        noteLifecycleService: this.noteLifecycleService,
         userId,
         input,
-        this.environmentProvider.read().reminderTimeZone,
-        workspaceSlug,
+        reminderTimeZone: this.environmentProvider.read().reminderTimeZone,
+        workspaceSlugOverride: workspaceSlug,
         options,
         tx,
-      );
+      });
 
       return result;
     });
   }
 }
 
-async function saveIngestedNote(
+export interface SaveIngestedNoteParams {
+  contentRepository: ContentRepository;
+  noteLifecycleService: NoteLifecycleService;
+  userId: string;
+  input: IngestPayload;
+  reminderTimeZone: string;
+  workspaceSlugOverride?: string;
+  options?: IngestExecutionOptions;
+  tx?: any;
+}
+
+async function resolveCategoryIds(
   contentRepository: ContentRepository,
-  noteLifecycleService: NoteLifecycleService,
   userId: string,
-  input: IngestPayload,
-  reminderTimeZone: string,
-  workspaceSlugOverride = '',
-  options: IngestExecutionOptions = {},
-  tx?: any
-): Promise<SaveNoteResult> {
+  workspaceId: string,
+  canonicalType: string | undefined,
+  providedCategoryIds?: string[],
+  tx?: any,
+): Promise<string[]> {
+  if (providedCategoryIds !== undefined) {
+    return providedCategoryIds;
+  }
+  if (!canonicalType) {
+    return [];
+  }
+  let category = await contentRepository.findCategoryByName(userId, workspaceId, canonicalType, tx);
+  if (!category) {
+    category = await contentRepository.createCategory(userId, workspaceId, {
+      name: canonicalType,
+      color: '#9e9e9e',
+      icon: '',
+    }, tx);
+  }
+  return [category.id];
+}
+
+async function saveIngestedNote(params: SaveIngestedNoteParams): Promise<SaveNoteResult> {
+  const {
+    contentRepository,
+    noteLifecycleService,
+    userId,
+    input,
+    reminderTimeZone,
+    workspaceSlugOverride = '',
+    options = {},
+    tx,
+  } = params;
+
   const parsed = withDerivedReminderAt(ingestPayloadSchema.parse(input), reminderTimeZone);
   const workspaceSlug = slugify(workspaceSlugOverride || String(parsed.metadata.workspaceSlug || 'default')) || 'default';
   const workspace = await contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
@@ -71,25 +110,7 @@ async function saveIngestedNote(
   const projectId = isMatchingProject ? existingProject.id : crypto.randomUUID();
 
   const project: Project = isMatchingProject
-    ? {
-      projectSlug: existingProject.projectSlug,
-      displayName: existingProject.displayName,
-      workspaceSlug: existingProject.workspaceSlug || workspaceSlug,
-      repositories: existingProject.repositories.map((repo) => ({
-        id: repo.id,
-        workspaceSlug: existingProject.workspaceSlug || workspaceSlug,
-        externalId: repo.externalId,
-        fullName: repo.fullName,
-        htmlUrl: repo.htmlUrl,
-        description: repo.description,
-        defaultBranch: repo.defaultBranch,
-        createdAt: repo.createdAt,
-        updatedAt: repo.updatedAt,
-      })),
-      defaultTags: existingProject.defaultTags,
-      enabled: existingProject.enabled,
-      favorite: existingProject.favorite,
-    }
+    ? toProjectFromRecord(existingProject, workspaceSlug)
     : toProjectFromIngest(parsed, workspaceSlug);
   
   const payload = toIngestPayloadWithProject(parsed, project.projectSlug);
@@ -117,23 +138,15 @@ async function saveIngestedNote(
     const projectSaveInput = toProjectSaveInput(project, workspaceId, projectId);
     await contentRepository.upsertProject(userId, projectSaveInput);
   }
-  let categoryIds = options.categoryIds;
-  if (categoryIds === undefined) {
-    const categoryName = payload.classification.canonicalType;
-    if (categoryName) {
-      let category = await contentRepository.findCategoryByName(userId, workspaceId, categoryName, tx);
-      if (!category) {
-        category = await contentRepository.createCategory(userId, workspaceId, {
-          name: categoryName,
-          color: '#9e9e9e',
-          icon: '',
-        }, tx);
-      }
-      categoryIds = [category.id];
-    } else {
-      categoryIds = [];
-    }
-  }
+
+  const categoryIds = await resolveCategoryIds(
+    contentRepository,
+    userId,
+    workspaceId,
+    payload.classification.canonicalType,
+    options.categoryIds,
+    tx,
+  );
 
   const { note, attachments } = await noteLifecycleService.saveNote(
     userId,

@@ -8,9 +8,11 @@ import { ObjectStorage } from '../ports/notes/object-storage.js';
 import { EmbeddingJobType, type EmbeddingJobPayload } from '../ports/notes/embedding-queue.publisher.js';
 import { NoteChunkingService } from '../services/content/note-chunking.service.js';
 import type { NoteChunkAttachment } from '../models/note-chunk.models.js';
-import { resolveAttachmentTextContent } from '../../domain/utils/attachment.utils.js';
+import { resolveAttachmentTextContent } from '../helpers/attachment-resolver.helper.js';
+
 import type { AttachmentRecord } from '../models/repository-records.models.js';
 import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
+import { isNoteEligibleForEmbedding } from '../../domain/utils/note-embedding.utils.js';
 import { AppLogger } from '../../observability/logger.js';
 
 const EXCHANGE_NAME = 'kb.embedding';
@@ -249,6 +251,10 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
       this.logger.warn('embedding_worker.note_not_found', { noteId });
       // Note was deleted between publish and consume — clean up any stale embeddings
       await this.noteEmbeddingRepository.deleteByNoteId(userId, noteId);
+      return;
+    }
+
+    if (!isNoteEligibleForEmbedding(note)) {
       return;
     }
 

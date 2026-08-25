@@ -27,6 +27,52 @@ import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
 import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
 
 
+export const NOTE_BASE_SELECT_FIELDS = {
+  id: notes.id,
+  userId: notes.userId,
+  path: notes.path,
+  title: notes.title,
+  projectId: notes.projectId,
+  workspaceId: notes.workspaceId,
+  workspaceSlug: workspaces.workspaceSlug,
+  projectSlug: projects.projectSlug,
+  folderId: notes.folderId,
+  status: notes.status,
+  tags: notes.tags,
+  occurredAt: notes.occurredAt,
+  sourceChannel: notes.sourceChannel,
+  source: notes.source,
+  summary: notes.summary,
+  markdownStorageKey: notes.markdownStorageKey,
+  metadata: notes.metadata,
+  sessionId: notes.sessionId,
+  reminderAt: notes.reminderAt,
+  isPinned: notes.isPinned,
+  createdAt: notes.createdAt,
+  updatedAt: notes.updatedAt,
+  categories: sql<unknown[]>`COALESCE(
+    json_agg(
+      json_build_object(
+        'id', ${categories.id},
+        'user_id', ${categories.userId},
+        'workspace_id', ${categories.workspaceId},
+        'name', ${categories.name},
+        'color', ${categories.color},
+        'icon', ${categories.icon},
+        'is_system', ${categories.isSystem},
+        'created_at', ${categories.createdAt},
+        'updated_at', ${categories.updatedAt}
+      )
+    ) FILTER (WHERE ${categories.id} IS NOT NULL),
+    '[]'::json
+  )`.as('categories'),
+};
+
+export const NOTE_FULL_SELECT_FIELDS = {
+  ...NOTE_BASE_SELECT_FIELDS,
+  attachmentCount: count(attachments.id).as('attachment_count'),
+};
+
 @Injectable()
 export class PostgresNoteRepository {
   constructor(
@@ -111,47 +157,7 @@ export class PostgresNoteRepository {
     }
 
     const result = await db
-      .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        projectSlug: projects.projectSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        attachmentCount: count(attachments.id).as('attachment_count'),
-        categories: sql<unknown[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
-      })
+      .select(NOTE_FULL_SELECT_FIELDS)
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -259,47 +265,7 @@ export class PostgresNoteRepository {
     const pagination = buildPaginationMeta({ page: selectedPage, pageSize: input.pageSize }, total);
 
     const result = await db
-      .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        projectSlug: projects.projectSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        attachmentCount: count(attachments.id).as('attachment_count'),
-        categories: sql<unknown[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
-      })
+      .select(NOTE_FULL_SELECT_FIELDS)
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -398,6 +364,10 @@ export class PostgresNoteRepository {
     }
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, values, input.category);
+    if (input.category !== TimelineCategory.DependencyWatcher) {
+      values.push(SourceChannel.DependencyWatcher, 'dependency_watcher');
+      clauses.push(`n.source_channel <> $${values.length - 1} and n.source_channel <> $${values.length} and n.source <> $${values.length - 1} and n.source <> $${values.length}`);
+    }
     if (input.excludeReviewNotes) {
       values.push(SourceChannel.Github, EventType.CodeReview);
       clauses.push(`NOT (n.source_channel = $${values.length - 1} OR (n.metadata->>'eventType') = $${values.length})`);
@@ -566,50 +536,23 @@ export class PostgresNoteRepository {
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
   }
 
+  async getLatest(userId: string) {
+    const db = this.database.getDb();
+    const rows = await db
+      .select({ id: notes.id })
+      .from(notes)
+      .where(eq(notes.userId, userId))
+      .orderBy(desc(notes.createdAt))
+      .limit(1);
+    if (!rows.length) return null;
+    return this.getById(userId, rows[0].id);
+  }
+
   async getByIds(userId: string, ids: string[]) {
     if (ids.length === 0) return [];
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        projectSlug: projects.projectSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        categories: sql<unknown[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
-      })
+      .select(NOTE_BASE_SELECT_FIELDS)
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -625,47 +568,10 @@ export class PostgresNoteRepository {
   async getBySourceAndSessionId(userId: string, source: string, sessionId: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        projectSlug: projects.projectSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        categories: sql<unknown[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
-      })
+      .select(NOTE_BASE_SELECT_FIELDS)
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
+      .leftJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(and(
@@ -673,7 +579,7 @@ export class PostgresNoteRepository {
         eq(notes.source, source),
         eq(notes.sessionId, sessionId)
       ))
-      .groupBy(notes.id, projects.projectSlug)
+      .groupBy(notes.id, projects.projectSlug, workspaces.workspaceSlug)
       .limit(1);
 
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;

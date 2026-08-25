@@ -1,31 +1,25 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { eq, and, inArray } from 'drizzle-orm';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
-import {
-  userSubscriptions,
-  billingPayments,
-} from '../../../infrastructure/persistence/schema/index.js';
 import { SubscriptionStatus, PaymentStatus } from '../../../domain/enums/billing.enums.js';
 import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { BillingIntentService } from './BillingIntentService.js';
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
+import { SubscriptionRepository, BillingPaymentRepository } from '../../ports/billing/billing-repositories.js';
 
 @Injectable()
 export class SubscriptionCancellationService {
   constructor(
-    private readonly database: PostgresDatabase,
     private readonly logger: AppLogger,
     private readonly asaasPaymentGateway: AsaasPaymentGateway,
     private readonly stripePaymentGateway: StripePaymentGateway,
     private readonly billingIntentService: BillingIntentService,
+    private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly billingPaymentRepository: BillingPaymentRepository,
   ) {}
 
   async cancelPendingPayment(userId: string, paymentId: string) {
-    const db = this.database.getDb();
-
-    const payment = await db.select().from(billingPayments).where(eq(billingPayments.id, paymentId)).limit(1).then(r => r[0] || null);
+    const payment = await this.billingPaymentRepository.getPaymentById(paymentId);
     if (!payment) {
       throw new BadRequestException('Payment not found');
     }
@@ -51,20 +45,18 @@ export class SubscriptionCancellationService {
       throw new BadRequestException('Failed to cancel payment on gateway. Please try again later.');
     }
 
-    await db.update(billingPayments).set({ status: PaymentStatus.CANCELED }).where(eq(billingPayments.id, paymentId));
+    await this.billingPaymentRepository.updatePaymentStatus(paymentId, PaymentStatus.CANCELED);
 
-    const sub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, userId)).limit(1).then(r => r[0] || null);
+    const sub = await this.subscriptionRepository.getSubscriptionByUserId(userId);
     if (sub && sub.status === SubscriptionStatus.PENDING) {
-      await db.update(userSubscriptions).set({ status: SubscriptionStatus.CANCELED }).where(eq(userSubscriptions.userId, userId));
+      await this.subscriptionRepository.upsertUserSubscription(userId, { status: SubscriptionStatus.CANCELED });
     }
 
     await this.billingIntentService.cancelLatestPendingOneShotIntent(userId);
   }
 
   async cancelSubscription(userId: string) {
-    const db = this.database.getDb();
-    
-    const sub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, userId)).limit(1).then(r => r[0] || null);
+    const sub = await this.subscriptionRepository.getSubscriptionByUserId(userId);
     if (!sub) {
       throw new BadRequestException('Subscription not found');
     }
@@ -81,12 +73,8 @@ export class SubscriptionCancellationService {
       throw new BadRequestException('Failed to cancel subscription on gateway. Please try again later.');
     }
 
-    const openPayments = await db.select().from(billingPayments).where(and(
-      eq(billingPayments.userId, userId),
-      inArray(billingPayments.status, [PaymentStatus.PENDING, PaymentStatus.OVERDUE])
-    ));
+    const openPayments = await this.billingPaymentRepository.getOpenPaymentsByUserId(userId);
     
-    const canceledPaymentIds: string[] = [];
     for (const payment of openPayments) {
       try {
         await gateway.cancelPayment(payment.gatewayPaymentId);
@@ -94,23 +82,19 @@ export class SubscriptionCancellationService {
         this.logger.error(`Failed to cancel payment ${payment.gatewayPaymentId} on gateway: ${e.message}`);
         throw new BadRequestException('Failed to cancel payment on gateway. Please try again later.');
       }
-      await db.update(billingPayments).set({ status: PaymentStatus.CANCELED }).where(eq(billingPayments.id, payment.id));
-      canceledPaymentIds.push(payment.id);
+      await this.billingPaymentRepository.updatePaymentStatus(payment.id, PaymentStatus.CANCELED);
     }
 
-    await db.update(userSubscriptions).set({
+    await this.subscriptionRepository.upsertUserSubscription(userId, {
       status: SubscriptionStatus.CANCELED,
       canceledAt: new Date(),
-      updatedAt: new Date(),
-    }).where(eq(userSubscriptions.userId, userId));
+    });
 
     await this.billingIntentService.cancelLatestPendingOneShotIntent(userId);
   }
 
   async disableSubscription(userId: string) {
-    const db = this.database.getDb();
-    
-    const sub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, userId)).limit(1).then(r => r[0] || null);
+    const sub = await this.subscriptionRepository.getSubscriptionByUserId(userId);
     if (!sub) {
       throw new BadRequestException('Subscription not found');
     }
@@ -127,12 +111,8 @@ export class SubscriptionCancellationService {
       throw new BadRequestException('Failed to cancel subscription on gateway. Please try again later.');
     }
 
-    const openPayments = await db.select().from(billingPayments).where(and(
-      eq(billingPayments.userId, userId),
-      inArray(billingPayments.status, [PaymentStatus.PENDING, PaymentStatus.OVERDUE])
-    ));
+    const openPayments = await this.billingPaymentRepository.getOpenPaymentsByUserId(userId);
     
-    const canceledPaymentIds: string[] = [];
     for (const payment of openPayments) {
       try {
         await gateway.cancelPayment(payment.gatewayPaymentId);
@@ -140,15 +120,13 @@ export class SubscriptionCancellationService {
         this.logger.error(`Failed to cancel payment ${payment.gatewayPaymentId} on gateway: ${e.message}`);
         throw new BadRequestException('Failed to cancel payment on gateway. Please try again later.');
       }
-      await db.update(billingPayments).set({ status: PaymentStatus.CANCELED }).where(eq(billingPayments.id, payment.id));
-      canceledPaymentIds.push(payment.id);
+      await this.billingPaymentRepository.updatePaymentStatus(payment.id, PaymentStatus.CANCELED);
     }
 
-    await db.update(userSubscriptions).set({
+    await this.subscriptionRepository.upsertUserSubscription(userId, {
       status: SubscriptionStatus.INACTIVE,
       canceledAt: new Date(),
-      updatedAt: new Date(),
-    }).where(eq(userSubscriptions.userId, userId));
+    });
 
     await this.billingIntentService.cancelLatestPendingOneShotIntent(userId);
   }

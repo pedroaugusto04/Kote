@@ -13,15 +13,14 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
   readonly id = 'antigravity';
   readonly name = 'Antigravity';
 
-  private getHistoryDir(): string {
+  private getHistoryDirs(): string[] {
     const configPath = vscode.workspace.getConfiguration('kb').get<string>('antigravityLogPath');
-    if (configPath) return configPath;
+    if (configPath) return [configPath];
 
-    const idePath = path.join(os.homedir(), '.gemini', 'antigravity-ide', 'brain');
-    if (fs.existsSync(idePath)) {
-      return idePath;
-    }
-    return path.join(os.homedir(), '.gemini', 'antigravity', 'brain');
+    return [
+      path.join(os.homedir(), '.gemini', 'antigravity-cli', 'brain'),
+      path.join(os.homedir(), '.gemini', 'antigravity-ide', 'brain'),
+    ];
   }
 
   private getLogFilePath(folderPath: string): string | null {
@@ -34,37 +33,43 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
   async isEnabled(): Promise<boolean> {
     try {
-      return fs.existsSync(this.getHistoryDir());
+      return this.getHistoryDirs().some(dir => fs.existsSync(dir));
     } catch {
       return false;
     }
   }
 
   async getRecentSessions(limit?: number): Promise<AiSession[]> {
-    const dir = this.getHistoryDir();
-    if (!fs.existsSync(dir)) return [];
+    const candidateDirs = this.getHistoryDirs().filter(d => fs.existsSync(d));
+    if (candidateDirs.length === 0) return [];
 
     const sessions: AiSession[] = [];
+    const seenSessionIds = new Set<string>();
+    const allFolderStats: { folder: string; folderPath: string; isDirectory: boolean; mtime: number }[] = [];
+
     try {
-      const folders = fs.readdirSync(dir);
-      const folderStats = folders.map(folder => {
-        const folderPath = path.join(dir, folder);
-        try {
-          const stat = fs.statSync(folderPath);
-          return { folder, folderPath, isDirectory: stat.isDirectory(), mtime: stat.mtimeMs };
-        } catch {
-          return { folder, folderPath, isDirectory: false, mtime: 0 };
+      for (const dir of candidateDirs) {
+        const folders = fs.readdirSync(dir);
+        for (const folder of folders) {
+          if (seenSessionIds.has(folder)) continue;
+          const folderPath = path.join(dir, folder);
+          try {
+            const stat = fs.statSync(folderPath);
+            if (stat.isDirectory() && this.getLogFilePath(folderPath) !== null) {
+              allFolderStats.push({ folder, folderPath, isDirectory: true, mtime: stat.mtimeMs });
+              seenSessionIds.add(folder);
+            }
+          } catch {
+            // ignore
+          }
         }
-      }).filter(x => {
-        if (!x.isDirectory) return false;
-        return this.getLogFilePath(x.folderPath) !== null;
-      });
+      }
 
       // Sort folders by mtime descending
-      folderStats.sort((a, b) => b.mtime - a.mtime);
+      allFolderStats.sort((a, b) => b.mtime - a.mtime);
 
       const count = limit !== undefined ? limit : 20;
-      const recentFolders = folderStats.slice(0, count);
+      const recentFolders = allFolderStats.slice(0, count);
 
       for (const f of recentFolders) {
         const logFilePath = this.getLogFilePath(f.folderPath);
@@ -82,7 +87,7 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
   }
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
-    const historyDir = this.getHistoryDir();
+    const candidateDirs = this.getHistoryDirs().filter(d => fs.existsSync(d));
     const timeouts = new Map<string, NodeJS.Timeout>();
 
     const handleFile = (fsPath: string) => {
@@ -106,17 +111,21 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       timeouts.set(fsPath, timeout);
     };
 
-    const watcher = watchRecursive(
-      historyDir,
-      (fileName) => fileName === 'transcript_full.jsonl' || fileName === 'transcript.jsonl',
-      (filePath) => handleFile(filePath)
+    const watchers = candidateDirs.map(historyDir =>
+      watchRecursive(
+        historyDir,
+        (fileName) => fileName === 'transcript_full.jsonl' || fileName === 'transcript.jsonl',
+        (filePath) => handleFile(filePath)
+      )
     );
 
     return new vscode.Disposable(() => {
       for (const t of timeouts.values()) {
         clearTimeout(t);
       }
-      watcher.dispose();
+      for (const watcher of watchers) {
+        watcher.dispose();
+      }
     });
   }
 

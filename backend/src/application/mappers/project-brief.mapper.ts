@@ -1,10 +1,67 @@
 import crypto from 'node:crypto';
+import { NotFoundException } from '@nestjs/common';
 
 import type { NoteRecord } from '../models/repository-records.models.js';
-import { ProjectBriefFallbackReason, type ProjectBrief, type ProjectBriefContextItem } from '../models/project-brief.models.js';
+import {
+  ProjectBriefFallbackReason,
+  type ProjectBrief,
+  type ProjectBriefContextItem,
+  type ResolvedProjectBriefScope,
+} from '../models/project-brief.models.js';
+import type { ContentRepository } from '../ports/notes/content.repository.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 
 const RAW_TEXT_LIMIT = 6_000;
+
+export async function resolveProjectBriefScope(
+  contentRepository: ContentRepository,
+  userId: string,
+  projectId: string,
+  workspaceIdInput?: string,
+): Promise<ResolvedProjectBriefScope> {
+  if (projectId === 'all') {
+    const workspace = await resolveTargetWorkspace(contentRepository, userId, workspaceIdInput);
+    return {
+      isAll: true,
+      projectSlug: 'all',
+      workspaceId: workspace.id,
+      workspaceSlug: workspace.workspaceSlug,
+    };
+  }
+
+  const project = await contentRepository.getProjectById(userId, projectId);
+  if (!project || !project.enabled) {
+    throw new NotFoundException('project_not_found');
+  }
+
+  return {
+    isAll: false,
+    projectSlug: project.projectSlug,
+    workspaceId: project.workspaceId || '',
+    workspaceSlug: project.workspaceSlug || '',
+  };
+}
+
+async function resolveTargetWorkspace(
+  contentRepository: ContentRepository,
+  userId: string,
+  workspaceIdInput?: string,
+) {
+  const workspaces = await contentRepository.listWorkspaces(userId);
+  if (workspaceIdInput) {
+    const found = workspaces.find((w) => w.id === workspaceIdInput);
+    if (!found) {
+      throw new NotFoundException('workspace_not_found');
+    }
+    return found;
+  }
+
+  if (workspaces.length === 0) {
+    throw new NotFoundException('workspace_not_found');
+  }
+
+  return workspaces[0];
+}
 
 export function toProjectBriefContextItem(note: NoteRecord): ProjectBriefContextItem {
   return {

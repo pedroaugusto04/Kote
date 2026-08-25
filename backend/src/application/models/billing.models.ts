@@ -7,6 +7,15 @@ import {
   type BillingIntentStatus,
 } from '../../infrastructure/persistence/schema/index.js';
 
+export type {
+  PaymentGateway,
+  PaymentStatus,
+  PaymentKind,
+  BillingType,
+  BillingCycle,
+  BillingIntentStatus,
+};
+
 export interface BillingCustomerRecord {
   id: string;
   userId: string;
@@ -86,6 +95,40 @@ export interface UserSubscriptionRecord {
   nextDueDate?: Date | null;
   startedAt?: Date | null;
   pastDueAt?: Date | null;
+  canceledAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface PlanRecord {
+  id: string;
+  slug: string;
+  displayName: string;
+  description?: string | null;
+  priceCents: number;
+  priceUsdCents: number;
+  maxStorageBytes: number;
+  maxAiCreditsPerMonth: number;
+  maxWorkspaces: number;
+  maxProjectsPerWorkspace: number;
+  isActive: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface SubscriptionChangeRequestRecord {
+  id: string;
+  userId: string;
+  fromSubscriptionId?: string | null;
+  fromGateway?: string | null;
+  fromGatewaySubscriptionId?: string | null;
+  toPlanId: string;
+  toBillingCycle: string;
+  toBillingType: string;
+  type: string;
+  status: string;
+  effectiveAt: Date;
+  appliedAt?: Date | null;
   canceledAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;

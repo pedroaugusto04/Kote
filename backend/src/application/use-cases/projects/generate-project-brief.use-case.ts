@@ -6,8 +6,9 @@ import { ProjectBriefAiGateway } from '../../ports/projects/project-brief-ai.gat
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
+import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
-import { toProjectBriefContextItem, toEmptyProjectBrief, toNormalizedBrief, toSha256 } from '../../mappers/project-brief.mapper.js';
+import { toProjectBriefContextItem, toEmptyProjectBrief, toNormalizedBrief, toSha256, resolveProjectBriefScope } from '../../mappers/project-brief.mapper.js';
 
 
 const CONTEXT_WINDOW = 30;
@@ -23,39 +24,12 @@ export class GenerateProjectBriefUseCase {
   ) {}
 
   async execute(userId: string, projectId: string, workspaceIdInput?: string) {
-    let workspaceSlug = '';
-    let workspaceId = '';
-    let isAll = false;
-    let projectSlug = '';
-
-    if (projectId === 'all') {
-      isAll = true;
-      projectSlug = 'all';
-      if (workspaceIdInput) {
-        workspaceId = workspaceIdInput;
-        const workspaces = await this.contentRepository.listWorkspaces(userId);
-        const workspace = workspaces.find((w) => w.id === workspaceIdInput);
-        if (workspace) {
-          workspaceSlug = workspace.workspaceSlug;
-        } else {
-          throw new NotFoundException('workspace_not_found');
-        }
-      } else {
-        const workspaces = await this.contentRepository.listWorkspaces(userId);
-        if (workspaces.length > 0) {
-          workspaceSlug = workspaces[0].workspaceSlug;
-          workspaceId = workspaces[0].id;
-        } else {
-          throw new NotFoundException('workspace_not_found');
-        }
-      }
-    } else {
-      const project = await this.contentRepository.getProjectById(userId, projectId);
-      if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-      workspaceSlug = project.workspaceSlug || '';
-      workspaceId = project.workspaceId || '';
-      projectSlug = project.projectSlug;
-    }
+    const { isAll, projectSlug, workspaceId, workspaceSlug } = await resolveProjectBriefScope(
+      this.contentRepository,
+      userId,
+      projectId,
+      workspaceIdInput,
+    );
 
     const config = this.aiConfig();
     await this.aiEntitlement.requireAndConsume({
@@ -68,7 +42,7 @@ export class GenerateProjectBriefUseCase {
 
     const generatedAt = new Date().toISOString();
     const items = (await this.contentRepository.listNotes(userId))
-      .filter((note) => note.workspaceId === workspaceId && (isAll || (note.projectId && note.projectId === projectId)))
+      .filter((note) => !isDependencyNote(note) && note.workspaceId === workspaceId && (isAll || (note.projectId && note.projectId === projectId)))
       .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || left.title.localeCompare(right.title))
       .slice(0, CONTEXT_WINDOW)
       .map(toProjectBriefContextItem);

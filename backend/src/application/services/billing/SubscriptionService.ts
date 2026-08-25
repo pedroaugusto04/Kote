@@ -1,15 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { eq, and, desc } from 'drizzle-orm';
 import crypto from 'node:crypto';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
-import {
-  plans,
-  users,
-  userSubscriptions,
-  billingPayments,
-  billingCustomers,
-  subscriptionChangeRequests,
-} from '../../../infrastructure/persistence/schema/index.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
@@ -36,7 +26,9 @@ import { SubscriptionUpgradeService } from './SubscriptionUpgradeService.js';
 import { SubscriptionContext } from './subscriptionStrategy/subscriptionContext.js';
 import type { SubscriptionChangeResult } from '../../models/subscription-change.models.js';
 import { SubscriptionChangeService } from './SubscriptionChangeService.js';
-import { PostgresBillingPaymentRepository } from '../../../infrastructure/repositories/billing.repository.js';
+import { BillingPaymentRepository, SubscriptionRepository, BillingCustomerRepository } from '../../ports/billing/billing-repositories.js';
+import { SubscriptionPlanMapper, BillingPaymentMapper } from '../../mappers/billing.mapper.js';
+import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { UpdateSubscriptionStrategyFactory } from './subscriptionStrategy/UpdateSubscriptionStrategyFactory.js';
 import { canCancelPayment, isActiveSubscriptionStatus } from '../../../infrastructure/utils/billing/paymentUtils.js';
 
@@ -44,7 +36,6 @@ import { canCancelPayment, isActiveSubscriptionStatus } from '../../../infrastru
 @Injectable()
 export class SubscriptionService {
   constructor(
-    private readonly database: PostgresDatabase,
     private readonly logger: AppLogger,
     private readonly billingIntentService: BillingIntentService,
     private readonly subscriptionUpgradeService: SubscriptionUpgradeService,
@@ -53,28 +44,16 @@ export class SubscriptionService {
     private readonly stripePaymentGateway: StripePaymentGateway,
     private readonly asaasGatewayStatusMapper: AsaasGatewayStatusMapper,
     private readonly stripeGatewayStatusMapper: StripeGatewayStatusMapper,
-    private readonly billingPaymentRepository: PostgresBillingPaymentRepository,
+    private readonly billingPaymentRepository: BillingPaymentRepository,
     private readonly updateSubscriptionStrategyFactory: UpdateSubscriptionStrategyFactory,
+    private readonly subscriptionRepository: SubscriptionRepository,
+    private readonly billingCustomerRepository: BillingCustomerRepository,
+    private readonly userRepository: UserRepository,
   ) {}
 
   async getPlans() {
-    const db = this.database.getDb();
-    const activePlans = await db.select().from(plans).where(eq(plans.isActive, true)).orderBy(plans.priceCents);
-    return activePlans.map(plan => ({
-      id: plan.id,
-      name: plan.displayName,
-      description: plan.description,
-      price: plan.priceCents / 100,
-      annualPrice: (plan.priceCents * 12 * 0.8) / 100,
-      priceUsd: plan.priceUsdCents / 100,
-      annualPriceUsd: (plan.priceUsdCents * 12 * 0.8) / 100,
-      maxStorageBytes: Number(plan.maxStorageBytes),
-      maxAiCreditsPerMonth: plan.maxAiCreditsPerMonth,
-      maxWorkspaces: plan.maxWorkspaces,
-      maxProjectsPerWorkspace: plan.maxProjectsPerWorkspace,
-      isDefault: plan.slug === SubscriptionPlan.FREE,
-      isVisible: plan.isActive,
-    }));
+    const activePlans = await this.subscriptionRepository.getActivePlans();
+    return activePlans.map(SubscriptionPlanMapper.toPlanDto);
   }
 
   async registerOrUpdateSubscription(
@@ -88,9 +67,8 @@ export class SubscriptionService {
     countryCode?: string,
     creditCardToken?: string,
   ): Promise<SubscriptionChangeResult> {
-    const db = this.database.getDb();
+    const targetPlan = await this.subscriptionRepository.getPlanById(planId);
 
-    const targetPlan = await db.select().from(plans).where(eq(plans.id, planId)).limit(1).then(r => r[0] || null);
     if (!targetPlan) {
       throw new BadRequestException('Plan not found');
     }
@@ -98,17 +76,17 @@ export class SubscriptionService {
       throw new BadRequestException('Plan unavailable');
     }
 
-    const currentSub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, userId)).limit(1).then(r => r[0] || null);
+    const currentSub = await this.subscriptionRepository.getSubscriptionByUserId(userId);
 
     if (!cpfCnpj) {
-      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1).then(r => r[0] || null);
+      const user = await this.userRepository.findUserById(userId);
       cpfCnpj = user?.cpfCnpj || '';
     }
 
     if (cpfCnpj) {
-      const user = await db.select().from(users).where(eq(users.id, userId)).limit(1).then(r => r[0] || null);
+      const user = await this.userRepository.findUserById(userId);
       if (user && user.cpfCnpj !== cpfCnpj) {
-        await db.update(users).set({ cpfCnpj, updatedAt: new Date() }).where(eq(users.id, userId));
+        await this.userRepository.updateUser({ userId, cpfCnpj });
       }
     }
 
@@ -165,8 +143,10 @@ export class SubscriptionService {
     const shouldCheckCardOnFile =
       type === BillingType.CREDIT_CARD || cycle === BillingCycle.MONTHLY;
 
+    const getCustomer = async () => this.billingCustomerRepository.getCustomerByUserId(userId, gatewayName as any);
+
     if (shouldCheckCardOnFile && cycle === BillingCycle.MONTHLY && type !== BillingType.CREDIT_CARD) {
-      const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
+      const customerRow = await getCustomer();
       const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
       if (hasCreditCardOnFile) {
         throw new BadRequestException('With a registered card, monthly subscriptions must use credit card.');
@@ -174,7 +154,7 @@ export class SubscriptionService {
     }
 
     if (isInternational && type === BillingType.CREDIT_CARD && !isFreePlan) {
-      const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
+      const customerRow = await getCustomer();
       const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
       if (!hasCreditCardOnFile && !normalizedCreditCardToken) {
         throw new BadRequestException('Credit card details are required for international subscriptions.');
@@ -183,7 +163,7 @@ export class SubscriptionService {
 
     // Create or sync the gateway customer id for the selected gateway.
     let gatewayCustomerId = '';
-    const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, gatewayName as any))).limit(1).then(r => r[0] || null);
+    const customerRow = await getCustomer();
     if (customerRow?.gatewayCustomerId) {
       gatewayCustomerId = customerRow.gatewayCustomerId;
     }
@@ -197,23 +177,11 @@ export class SubscriptionService {
       gatewayCustomerId = customer.id;
     }
 
-    await db.insert(billingCustomers).values({
-      id: crypto.randomUUID(),
-      userId,
-      gateway: gatewayName as any,
-      gatewayCustomerId,
-      hasCreditCardOnFile: false,
-    }).onConflictDoUpdate({
-      target: [billingCustomers.userId, billingCustomers.gateway],
-      set: {
-        gatewayCustomerId,
-        updatedAt: new Date(),
-      },
-    });
+    await this.billingCustomerRepository.upsertCustomer(userId, gatewayName as any, gatewayCustomerId);
 
     let activePlanRow = null;
     if (activeSubRow) {
-      activePlanRow = await db.select().from(plans).where(eq(plans.id, activeSubRow.planId)).limit(1).then(r => r[0] || null);
+      activePlanRow = await this.subscriptionRepository.getPlanById(activeSubRow.planId);
     }
     const activePlan = activePlanRow ? {
       id: activePlanRow.id,
@@ -288,11 +256,10 @@ export class SubscriptionService {
     createdFromIntentId?: string;
     gatewayName?: string;
   }): Promise<{ id: string }> {
-    const db = this.database.getDb();
     const gatewayName = params.gatewayName || PAYMENT_GATEWAY.ASAAS;
     const gateway = gatewayName === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
-    
-    const targetPlan = await db.select().from(plans).where(eq(plans.id, params.targetPlanId)).limit(1).then(r => r[0] || null);
+
+    const targetPlan = await this.subscriptionRepository.getPlanById(params.targetPlanId);
     if (!targetPlan) {
       throw new BadRequestException('Plan not found');
     }
@@ -334,16 +301,7 @@ export class SubscriptionService {
       createdFromIntentId: params.createdFromIntentId ?? null,
     };
 
-    await db
-      .insert(userSubscriptions)
-      .values(values)
-      .onConflictDoUpdate({
-        target: [userSubscriptions.userId],
-        set: {
-          ...values,
-          updatedAt: new Date(),
-        },
-      });
+    await this.subscriptionRepository.upsertUserSubscription(params.userId, values as any);
 
     if (params.createdFromIntentId) {
       await this.billingIntentService.markDoneWithSubscription(
@@ -361,13 +319,13 @@ export class SubscriptionService {
         ? this.asaasGatewayStatusMapper 
         : this.stripeGatewayStatusMapper;
 
-      const pendingPayments = (subscriptionPayments ?? []).filter((payment) => {
+      const pendingPayments = (subscriptionPayments ?? []).filter((payment: any) => {
         if (!payment?.id) return false;
         const normalizedStatus = paymentMapper.normalizePaymentStatus(payment.status, null);
         return normalizedStatus === PaymentStatus.PENDING;
       });
 
-      const autoGeneratedPayment = pendingPayments.find((payment) => {
+      const autoGeneratedPayment = pendingPayments.find((payment: any) => {
         if (!payment.dueDate) return true;
         const parsedDueDate = new Date(payment.dueDate);
         if (!parsedDueDate) return true;
@@ -378,7 +336,7 @@ export class SubscriptionService {
         const safeAutoGeneratedDueDate = autoGeneratedPayment.dueDate ? new Date(autoGeneratedPayment.dueDate) : currentPeriodEnd;
         const normalizedStatus = paymentMapper.normalizePaymentStatus(autoGeneratedPayment.status, null) ?? PaymentStatus.PENDING;
 
-        await db.insert(billingPayments).values({
+        await this.billingPaymentRepository.upsertSubscriptionPayment({
           id: crypto.randomUUID(),
           subscriptionId: params.userId,
           userId: params.userId,
@@ -387,7 +345,7 @@ export class SubscriptionService {
           status: normalizedStatus,
           billingType: autoGeneratedPayment.billingType ?? params.billingType ?? null,
           gatewayStatus: autoGeneratedPayment.status ?? null,
-          value: String(autoGeneratedPayment.value ?? price),
+          value: autoGeneratedPayment.value ?? price,
           dueDate: safeAutoGeneratedDueDate,
           paidAt: autoGeneratedPayment.paidAt ? new Date(autoGeneratedPayment.paidAt) : null,
           invoiceUrl: autoGeneratedPayment.invoiceUrl || null,
@@ -396,14 +354,6 @@ export class SubscriptionService {
           pixQrCodeUrl: autoGeneratedPayment.pixQrCodeUrl || null,
           description: autoGeneratedPayment.description || null,
           kind: 'recurring',
-        }).onConflictDoUpdate({
-          target: [billingPayments.gatewayPaymentId],
-          set: {
-            status: normalizedStatus,
-            dueDate: safeAutoGeneratedDueDate,
-            paidAt: autoGeneratedPayment.paidAt ? new Date(autoGeneratedPayment.paidAt) : null,
-            updatedAt: new Date(),
-          }
         });
 
         this.logger.info(`Recurring payment ${autoGeneratedPayment.id} synced after subscription creation`);
@@ -416,14 +366,12 @@ export class SubscriptionService {
   }
 
   async confirmUpgrade(subscriptionId: string, targetPlanId: string): Promise<void> {
-    const db = this.database.getDb();
-    
-    const sub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, subscriptionId)).limit(1).then(r => r[0] || null);
+    const sub = await this.subscriptionRepository.getSubscriptionByUserId(subscriptionId);
     if (!sub) {
       throw new BadRequestException('Subscription not found');
     }
 
-    const plan = await db.select().from(plans).where(eq(plans.id, targetPlanId)).limit(1).then(r => r[0] || null);
+    const plan = await this.subscriptionRepository.getPlanById(targetPlanId);
     if (!plan) {
       throw new BadRequestException('Plan not found');
     }
@@ -455,13 +403,9 @@ export class SubscriptionService {
     }
 
     // Update subscription plan locally
-    await db
-      .update(userSubscriptions)
-      .set({
-        planId: targetPlanId,
-        updatedAt: new Date(),
-      })
-      .where(eq(userSubscriptions.userId, subscriptionId));
+    await this.subscriptionRepository.upsertUserSubscription(subscriptionId, {
+      planId: targetPlanId,
+    });
   }
 
   async refreshSubscriptionFromPayments(params: {
@@ -470,8 +414,6 @@ export class SubscriptionService {
     userId: string;
     status?: SubscriptionStatus | null;
   }): Promise<void> {
-    const db = this.database.getDb();
-
     if (!params.subscriptionId) return;
 
     const gateway = params.gatewaySubscriptionId ? 
@@ -493,28 +435,14 @@ export class SubscriptionService {
       return;
     }
 
-    const latestRecurringPayment = await db
-      .select()
-      .from(billingPayments)
-      .where(and(
-        eq(billingPayments.userId, params.userId),
-        eq(billingPayments.kind, 'recurring')
-      ))
-      .orderBy(desc(billingPayments.dueDate))
-      .limit(1)
-      .then(r => r[0] || null);
+    const latestRecurringPayment = await this.billingPaymentRepository.getLatestPendingPaymentByUserId(params.userId);
 
     if (!latestRecurringPayment) {
       this.logger.info(`No recurring payment found for subscription ${params.subscriptionId}`);
       return;
     }
 
-    const subRow = await db
-      .select()
-      .from(userSubscriptions)
-      .where(eq(userSubscriptions.userId, params.subscriptionId))
-      .limit(1)
-      .then(r => r[0] || null);
+    const subRow = await this.subscriptionRepository.getSubscriptionByUserId(params.subscriptionId);
 
     if (!subRow) {
       this.logger.warn(`Subscription row not found in database: ${params.subscriptionId}`);
@@ -571,36 +499,21 @@ export class SubscriptionService {
     }
 
     // update due date based on last payment
-    await db
-      .update(userSubscriptions)
-      .set({
-        status: newStatus ?? undefined,
-        pastDueAt,
-        nextDueDate: nextDueDate ?? undefined,
-        currentPeriodStart: currentPeriodStart ?? undefined,
-        currentPeriodEnd: currentPeriodEnd ?? undefined,
-        updatedAt: new Date(),
-      })
-      .where(eq(userSubscriptions.userId, params.subscriptionId));
+    await this.subscriptionRepository.upsertUserSubscription(params.subscriptionId, {
+      status: newStatus ?? undefined,
+      pastDueAt,
+      nextDueDate: nextDueDate ?? undefined,
+      currentPeriodStart: currentPeriodStart ?? undefined,
+      currentPeriodEnd: currentPeriodEnd ?? undefined,
+    });
   }
 
   async getSubscriptionByCreatedFromIntentId(userId: string, intentId: string) {
-    const db = this.database.getDb();
-    return db
-      .select()
-      .from(userSubscriptions)
-      .where(and(
-        eq(userSubscriptions.userId, userId),
-        eq(userSubscriptions.createdFromIntentId, intentId),
-      ))
-      .limit(1)
-      .then((rows) => rows[0] ?? null);
+    return this.subscriptionRepository.getSubscriptionByCreatedFromIntentId(userId, intentId);
   }
 
   async getSubscriptionStatusSummary(userId: string) {
-    const db = this.database.getDb();
-    
-    const subRow = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, userId)).limit(1).then(r => r[0] || null);
+    const subRow = await this.subscriptionRepository.getSubscriptionByUserId(userId);
     
     const latestSubSummary = subRow ? {
       userId: subRow.userId,
@@ -618,53 +531,22 @@ export class SubscriptionService {
 
     const paymentRow = await this.billingPaymentRepository.getLatestPendingPaymentByUserId(userId);
 
-    const latestPendingPaymentSummary = paymentRow ? {
-      id: paymentRow.id,
-      subscriptionId: paymentRow.subscriptionId,
-      userId: paymentRow.userId,
-      gateway: paymentRow.gateway,
-      gatewayPaymentId: paymentRow.gatewayPaymentId,
-      status: paymentRow.status,
-      billingType: paymentRow.billingType,
-      kind: paymentRow.kind,
-      value: Number(paymentRow.value),
-      dueDate: paymentRow.dueDate.toISOString(),
-      bankSlipUrl: paymentRow.bankSlipUrl,
-      pixQrCode: paymentRow.pixQrCode,
-      pixQrCodeUrl: paymentRow.pixQrCodeUrl,
-      invoiceUrl: paymentRow.invoiceUrl,
-      stripeClientSecret: paymentRow.gateway === PAYMENT_GATEWAY.STRIPE ? paymentRow.stripeClientSecret ?? null : null,
-      canCancel: canCancelPayment(paymentRow),
-    } : null;
+    const latestPendingPaymentSummary = BillingPaymentMapper.toPendingPaymentSummary(paymentRow);
 
     const customerGateway = (subRow?.gatewayName || PAYMENT_GATEWAY.ASAAS) as any;
-    const customerRow = await db.select().from(billingCustomers).where(and(eq(billingCustomers.userId, userId), eq(billingCustomers.gateway, customerGateway))).limit(1).then(r => r[0] || null);
+    const customerRow = await this.billingCustomerRepository.getCustomerByUserId(userId, customerGateway);
     const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
 
     const scheduledChange = await this.subscriptionChangeService.getScheduledChange(userId);
     let scheduledChangeDTO = null;
     if (scheduledChange) {
-      const targetPlan = await db.select().from(plans).where(eq(plans.id, scheduledChange.toPlanId)).limit(1).then(r => r[0] || null);
+      const targetPlan = await this.subscriptionRepository.getPlanById(scheduledChange.toPlanId);
       scheduledChangeDTO = {
         id: scheduledChange.id,
         userId: scheduledChange.userId,
         fromSubscriptionId: scheduledChange.fromSubscriptionId,
         toPlanId: scheduledChange.toPlanId,
-        toPlan: targetPlan ? {
-          id: targetPlan.id,
-          name: targetPlan.displayName,
-          description: targetPlan.description,
-          price: targetPlan.priceCents / 100,
-          annualPrice: (targetPlan.priceCents * 12 * 0.8) / 100,
-          priceUsd: targetPlan.priceUsdCents / 100,
-          annualPriceUsd: (targetPlan.priceUsdCents * 12 * 0.8) / 100,
-          maxStorageBytes: Number(targetPlan.maxStorageBytes),
-          maxAiCreditsPerMonth: targetPlan.maxAiCreditsPerMonth,
-          maxWorkspaces: targetPlan.maxWorkspaces,
-          maxProjectsPerWorkspace: targetPlan.maxProjectsPerWorkspace,
-          isDefault: targetPlan.slug === SubscriptionPlan.FREE,
-          isVisible: targetPlan.isActive,
-        } : null,
+        toPlan: targetPlan ? SubscriptionPlanMapper.toPlanDto(targetPlan) : null,
         toBillingCycle: scheduledChange.toBillingCycle,
         toBillingType: scheduledChange.toBillingType,
         type: scheduledChange.type,
@@ -697,13 +579,11 @@ export class SubscriptionService {
   }
 
   async upgradeSubscriptionWithProration(ctx: SubscriptionContext): Promise<SubscriptionChangeResult> {
-    const db = this.database.getDb();
-
     if (!ctx.activeSub) {
       throw new BadRequestException('Cannot perform upgrade without an active subscription');
     }
 
-    const currentSub = await db.select().from(userSubscriptions).where(eq(userSubscriptions.userId, ctx.userId)).limit(1).then(r => r[0] || null);
+    const currentSub = await this.subscriptionRepository.getSubscriptionByUserId(ctx.userId);
     if (currentSub?.status === SubscriptionStatus.PAST_DUE) {
       throw new BadRequestException('Cannot perform upgrade with past due subscription. Please settle the pending recurring payment and try again.');
     }
@@ -785,7 +665,6 @@ export class SubscriptionService {
     subscriptionId?: string;
   }): Promise<void> {
     const { ctx, intentType, paymentValue, paymentDescription, description, subscriptionId } = params;
-    const db = this.database.getDb();
     const gateway = ctx.gateway === GatewayNameEnum.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
     const mapper = ctx.gateway === GatewayNameEnum.STRIPE ? this.stripeGatewayStatusMapper : this.asaasGatewayStatusMapper;
     const creditCardToken = ctx.newBillingType === BillingType.CREDIT_CARD ? ctx.newCreditCardToken : undefined;
@@ -816,9 +695,9 @@ export class SubscriptionService {
 
     const normalizedStatus = mapper.normalizePaymentStatus(payment.status, null) ?? PaymentStatus.PENDING;
 
-    await db.insert(billingPayments).values({
+    await this.billingPaymentRepository.upsertSubscriptionPayment({
       id: crypto.randomUUID(),
-      subscriptionId: subscriptionId ?? null,
+      subscriptionId: subscriptionId ?? ctx.userId,
       userId: ctx.userId,
       gateway: ctx.gateway.toLowerCase() as any,
       gatewayPaymentId: payment.id,
@@ -826,7 +705,7 @@ export class SubscriptionService {
       billingType: ctx.newBillingType,
       kind: 'upgrade',
       gatewayStatus: payment.status ?? undefined,
-      value: String(paymentValue),
+      value: paymentValue,
       dueDate,
       paidAt: payment.paidAt ? new Date(payment.paidAt) : null,
       invoiceUrl: payment.invoiceUrl || null,

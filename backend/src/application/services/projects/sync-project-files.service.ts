@@ -1,66 +1,34 @@
 import { Injectable } from '@nestjs/common';
-import { eq, or } from 'drizzle-orm';
 
 import { ProjectCoverageRepository } from '../../ports/projects/project-coverage.repository.js';
 import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { decryptConfig } from '../../credentials.js';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
-import { projects, workspaces, projectRepositories, repositories } from '../../../infrastructure/persistence/schema/index.js';
 import { AppLogger } from '../../../observability/logger.js';
 
 @Injectable()
 export class SyncProjectFilesService {
-  private readonly logger: AppLogger;
-
   constructor(
     private readonly projectCoverageRepository: ProjectCoverageRepository,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly database: PostgresDatabase,
-    private readonly credentialRepository?: CredentialRepository,
-  ) {
-    this.logger = AppLogger.create();
-  }
+    private readonly contentRepository: ContentRepository,
+    private readonly credentialRepository: CredentialRepository,
+    private readonly logger: AppLogger,
+  ) {}
 
   async syncProject(userId: string, projectId: string): Promise<number> {
-    const db = this.database.getDb();
-
-    // 1. Find project and linked repositories using Drizzle ORM
-    const [project] = await db
-      .select({
-        id: projects.id,
-        slug: projects.projectSlug,
-        workspaceId: projects.workspaceId,
-      })
-      .from(projects)
-      .where(or(eq(projects.id, projectId), eq(projects.projectSlug, projectId)))
-      .limit(1);
+    // 1. Find project and linked repositories via ContentRepository port
+    const project = await this.contentRepository.getProjectById(userId, projectId)
+      || await this.contentRepository.getProjectBySlug(userId, projectId);
 
     if (!project) return 0;
 
-    // Get workspace slug
-    let workspaceSlug = 'default';
-    if (project.workspaceId) {
-      const [ws] = await db
-        .select({ slug: workspaces.workspaceSlug })
-        .from(workspaces)
-        .where(eq(workspaces.id, project.workspaceId))
-        .limit(1);
-      if (ws?.slug) workspaceSlug = ws.slug;
-    }
-
-    // Get linked repos via join in Drizzle ORM
-    const linkedRepos = await db
-      .select({
-        fullName: repositories.fullName,
-        defaultBranch: repositories.defaultBranch,
-      })
-      .from(projectRepositories)
-      .innerJoin(repositories, eq(repositories.id, projectRepositories.repositoryId))
-      .where(eq(projectRepositories.projectId, project.id));
+    const workspaceSlug = project.workspaceSlug || 'default';
+    const linkedRepos = project.repositories || [];
 
     if (linkedRepos.length === 0) return 0;
 
@@ -87,7 +55,7 @@ export class SyncProjectFilesService {
           }
         }
       } catch (err) {
-        this.logger.warn(`Failed to resolve GitHub installation token for project ${project.slug}:`, { error: String(err) });
+        this.logger.warn(`Failed to resolve GitHub installation token for project ${project.projectSlug}:`, { error: String(err) });
       }
     }
 

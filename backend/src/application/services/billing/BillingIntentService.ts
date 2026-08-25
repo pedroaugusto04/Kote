@@ -1,15 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { eq, and, or } from 'drizzle-orm';
 import crypto from 'node:crypto';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
-import { billingIntents } from '../../../infrastructure/persistence/schema/index.js';
 import { BillingCycle, BillingIntentStatus, BillingIntentType } from '../../../domain/enums/billing.enums.js';
 import { buildExternalReference } from '../../../infrastructure/billing/gateways/asaas/AsaasHelpers.js';
+import { BillingIntentRepository } from '../../ports/billing/billing-repositories.js';
 
 @Injectable()
 export class BillingIntentService {
   constructor(
-    private readonly database: PostgresDatabase,
+    private readonly billingIntentRepository: BillingIntentRepository,
   ) {}
 
   async resolveIntentFromExternalReference(ref?: string | null) {
@@ -23,18 +21,12 @@ export class BillingIntentService {
       throw new Error('id not found in externalReference');
     }
 
-    const db = this.database.getDb();
-    const result = await db
-      .select()
-      .from(billingIntents)
-      .where(eq(billingIntents.id, intentId))
-      .limit(1);
+    const intent = await this.billingIntentRepository.getIntentById(intentId);
 
-    if (result.length === 0) {
+    if (!intent) {
       return { shouldProcess: false, intent: null };
     }
 
-    const intent = result[0];
     const shouldProcess =
       intent.status === BillingIntentStatus.PENDING ||
       intent.status === BillingIntentStatus.PROCESSING;
@@ -50,19 +42,9 @@ export class BillingIntentService {
     subscriptionId?: string;
     creditCardToken?: string | null;
   }): Promise<{ externalReference: string }> {
-    const db = this.database.getDb();
-    
     // Check for duplicate pending intents for NEW or UPGRADE types
     if (params.type === BillingIntentType.NEW || params.type === BillingIntentType.UPGRADE) {
-      const pendingOneShotIntent = await db
-        .select()
-        .from(billingIntents)
-        .where(and(
-          eq(billingIntents.userId, params.userId),
-          eq(billingIntents.status, BillingIntentStatus.PENDING),
-        ))
-        .limit(1)
-        .then(r => r[0] || null);
+      const pendingOneShotIntent = await this.billingIntentRepository.getPendingOneShotIntentByUserId(params.userId);
 
       if (pendingOneShotIntent && (pendingOneShotIntent.type === BillingIntentType.NEW || pendingOneShotIntent.type === BillingIntentType.UPGRADE)) {
         throw new BadRequestException('There is already a pending charge awaiting payment');
@@ -71,7 +53,7 @@ export class BillingIntentService {
     
     const intentId = crypto.randomUUID();
 
-    await db.insert(billingIntents).values({
+    await this.billingIntentRepository.createIntent({
       id: intentId,
       type: params.type,
       status: BillingIntentStatus.PENDING,
@@ -87,66 +69,26 @@ export class BillingIntentService {
   }
 
   async claimForProcessing(userId: string, intentId: string): Promise<boolean> {
-    const db = this.database.getDb();
-
-    // Claim pattern: verifica se o intent está PENDING e marca como PROCESSING de forma atômica
-    const result = await db
-      .update(billingIntents)
-      .set({ status: BillingIntentStatus.PROCESSING, updatedAt: new Date() })
-      .where(and(
-        eq(billingIntents.id, intentId),
-        eq(billingIntents.userId, userId),
-        eq(billingIntents.status, BillingIntentStatus.PENDING)
-      ))
-      .returning();
-
-    return result.length > 0;
+    return this.billingIntentRepository.claimForProcessing(userId, intentId);
   }
 
   async markDone(userId: string, intentId: string) {
-    const db = this.database.getDb();
-    await db
-      .update(billingIntents)
-      .set({ status: BillingIntentStatus.DONE, updatedAt: new Date() })
-      .where(eq(billingIntents.id, intentId));
+    await this.billingIntentRepository.updateIntentStatus(intentId, BillingIntentStatus.DONE);
   }
 
   async markDoneWithSubscription(userId: string, intentId: string, subscriptionId: string) {
-    const db = this.database.getDb();
-    await db
-      .update(billingIntents)
-      .set({ status: BillingIntentStatus.DONE, subscriptionId, updatedAt: new Date() })
-      .where(eq(billingIntents.id, intentId));
+    await this.billingIntentRepository.updateIntentStatus(intentId, BillingIntentStatus.DONE, { subscriptionId });
   }
 
   async markFailed(userId: string, intentId: string) {
-    const db = this.database.getDb();
-    await db
-      .update(billingIntents)
-      .set({ status: BillingIntentStatus.FAILED, updatedAt: new Date() })
-      .where(eq(billingIntents.id, intentId));
+    await this.billingIntentRepository.updateIntentStatus(intentId, BillingIntentStatus.FAILED);
   }
 
   async markCanceled(userId: string, intentId: string) {
-    const db = this.database.getDb();
-    await db
-      .update(billingIntents)
-      .set({ status: BillingIntentStatus.CANCELED, updatedAt: new Date() })
-      .where(eq(billingIntents.id, intentId));
+    await this.billingIntentRepository.updateIntentStatus(intentId, BillingIntentStatus.CANCELED);
   }
 
   async cancelLatestPendingOneShotIntent(userId: string) {
-    const db = this.database.getDb();
-    await db
-      .update(billingIntents)
-      .set({ status: BillingIntentStatus.CANCELED, updatedAt: new Date() })
-      .where(and(
-        eq(billingIntents.userId, userId),
-        eq(billingIntents.status, BillingIntentStatus.PENDING),
-        or(
-          eq(billingIntents.type, BillingIntentType.NEW),
-          eq(billingIntents.type, BillingIntentType.UPGRADE)
-        )
-      ));
+    await this.billingIntentRepository.cancelLatestPendingOneShotIntent(userId);
   }
 }

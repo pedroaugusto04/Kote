@@ -10,7 +10,9 @@ import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { WeeklySummaryGateway } from '../../ports/weekly-summary/weekly-summary.port.js';
 import { WeeklySummaryQueuePublisher } from '../../ports/weekly-summary/weekly-summary-queue.publisher.js';
-import { AiProvider, IntegrationProvider, DependencyUrgency } from '../../../contracts/enums.js';
+import { WeeklySummaryEmailMapper } from '../../mappers/weekly-summary-email.mapper.js';
+import { AiProvider, IntegrationProvider, DependencyUrgency, SourceChannel } from '../../../contracts/enums.js';
+import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import type { WeeklySummaryAnalysis } from '../../../contracts/weekly-summary.js';
 
 @Injectable()
@@ -35,7 +37,12 @@ export class WeeklySummaryService {
       const counts = await db
         .select({ userId: notes.userId, note_count: count() })
         .from(notes)
-        .where(and(gte(notes.createdAt, new Date(startIso)), lt(notes.createdAt, new Date(endIso))))
+        .where(and(
+          gte(notes.createdAt, new Date(startIso)),
+          lt(notes.createdAt, new Date(endIso)),
+          sql`(${notes.sourceChannel} IS NULL OR (${notes.sourceChannel} <> ${SourceChannel.DependencyWatcher} AND ${notes.sourceChannel} <> 'dependency_watcher'))`,
+          sql`(${notes.source} IS NULL OR (${notes.source} <> ${SourceChannel.DependencyWatcher} AND ${notes.source} <> 'dependency_watcher'))`,
+        ))
         .groupBy(notes.userId)
         .orderBy(desc(count()))
         .limit(pageSize)
@@ -207,36 +214,13 @@ export class WeeklySummaryService {
       aiPayload,
     );
 
-    const subject = `${appName} — Weekly summary (${totalNotes} new note${totalNotes > 1 ? 's' : ''})`;
-
-    const textParts: string[] = [];
-    textParts.push(`Hi ${user.displayName || ''},`);
-    textParts.push('\n' + aiSummary.overview);
-    textParts.push('\nKey Highlights:');
-    for (const highlight of aiSummary.keyHighlights) {
-      textParts.push(`- ${highlight}`);
-    }
-    textParts.push('\nBy Project:');
-    for (const project of aiSummary.byProject) {
-      textParts.push(`\n${project.projectName} (${project.noteCount} notes)`);
-      textParts.push(project.summary);
-      if (project.notableNotes.length > 0) {
-        textParts.push('Notable notes:');
-        for (const note of project.notableNotes) {
-          textParts.push(`- ${note.title}: ${note.summary}`);
-        }
-      }
-    }
-    textParts.push('\nRecommendations:');
-    for (const rec of aiSummary.recommendations) {
-      textParts.push(`- ${rec}`);
-    }
-    textParts.push('\nThanks — sent by Kote');
+    const subject = WeeklySummaryEmailMapper.toSubject(appName, totalNotes);
+    const text = WeeklySummaryEmailMapper.toTextContent(user.displayName, appName, aiSummary);
 
     await this.emailService.sendEmail({
       to: user.email,
       subject,
-      text: textParts.join('\n'),
+      text,
       templateName: 'weekly-summary',
       templateData: {
         displayName: user.displayName || '',
@@ -264,7 +248,13 @@ export class WeeklySummaryService {
       })
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
-      .where(and(eq(notes.userId, userId), gte(notes.createdAt, new Date(startIso)), lt(notes.createdAt, new Date(endIso))))
+      .where(and(
+        eq(notes.userId, userId),
+        gte(notes.createdAt, new Date(startIso)),
+        lt(notes.createdAt, new Date(endIso)),
+        sql`(${notes.sourceChannel} IS NULL OR (${notes.sourceChannel} <> ${SourceChannel.DependencyWatcher} AND ${notes.sourceChannel} <> 'dependency_watcher'))`,
+        sql`(${notes.source} IS NULL OR (${notes.source} <> ${SourceChannel.DependencyWatcher} AND ${notes.source} <> 'dependency_watcher'))`,
+      ))
       .orderBy(desc(notes.createdAt));
 
     const userNotesByProject: Record<string, any[]> = {};

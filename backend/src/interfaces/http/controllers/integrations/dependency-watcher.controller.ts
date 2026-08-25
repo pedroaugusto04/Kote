@@ -8,7 +8,7 @@ import { CheckProjectDependenciesUseCase } from '../../../../application/use-cas
 import { CheckDependencyUseCase } from '../../../../application/use-cases/dependency-watcher/check-dependency.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import type { AuthenticatedUser } from '../../../../application/auth.js';
-import { PostgresWorkspaceRepository } from '../../../../infrastructure/repositories/workspace.repository.js';
+import { ContentRepository } from '../../../../application/ports/notes/content.repository.js';
 import { DependencyWatcherRepository } from '../../../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
 
@@ -22,7 +22,7 @@ export class DependencyWatcherController {
     private readonly saveDependencyMonitoredRepositoriesUseCase: SaveDependencyMonitoredRepositoriesUseCase,
     private readonly checkProjectDependenciesUseCase: CheckProjectDependenciesUseCase,
     private readonly checkDependencyUseCase: CheckDependencyUseCase,
-    private readonly workspaceRepository: PostgresWorkspaceRepository,
+    private readonly contentRepository: ContentRepository,
     private readonly dependencyWatcherRepository: DependencyWatcherRepository,
   ) {}
 
@@ -85,12 +85,13 @@ export class DependencyWatcherController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('workspaceSlug') workspaceSlug: string,
   ) {
-    const workspace = await this.workspaceRepository.getBySlug(user.id, workspaceSlug);
+    const workspace = await this.contentRepository.getWorkspaceBySlug(user.id, workspaceSlug);
     if (!workspace) {
       throw new NotFoundException('workspace_not_found');
     }
 
-    await this.workspaceRepository.update(workspace.id, {
+    await this.contentRepository.upsertWorkspace(user.id, {
+      ...workspace,
       dependencyWatcherEnabled: true,
     });
 
@@ -107,12 +108,13 @@ export class DependencyWatcherController {
     @CurrentUser() user: AuthenticatedUser,
     @Param('workspaceSlug') workspaceSlug: string,
   ) {
-    const workspace = await this.workspaceRepository.getBySlug(user.id, workspaceSlug);
+    const workspace = await this.contentRepository.getWorkspaceBySlug(user.id, workspaceSlug);
     if (!workspace) {
       throw new NotFoundException('workspace_not_found');
     }
 
-    await this.workspaceRepository.update(workspace.id, {
+    await this.contentRepository.upsertWorkspace(user.id, {
+      ...workspace,
       dependencyWatcherEnabled: false,
     });
 
@@ -158,7 +160,7 @@ export class DependencyWatcherController {
     @Param('dependencyId') dependencyId: string,
     @Body() body: { workspaceSlug: string; enabled: boolean },
   ) {
-    const workspace = await this.workspaceRepository.getBySlug(user.id, body.workspaceSlug);
+    const workspace = await this.contentRepository.getWorkspaceBySlug(user.id, body.workspaceSlug);
     if (!workspace) {
       throw new NotFoundException('workspace_not_found');
     }

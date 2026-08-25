@@ -22,43 +22,19 @@ test('SubscriptionUpgradeService prorates when upgrading between paid plans', as
     priceUsdCents: 10000,
   };
 
-  let queryCount = 0;
-  const mockDatabase = {
-    getDb() {
-      return {
-        select() {
-          return {
-            from() {
-              return {
-                where() {
-                  const currentQuery = queryCount;
-                  queryCount++;
-                  return {
-                    limit() {
-                      return {
-                        async then(callback) {
-                          if (currentQuery === 0) {
-                            return callback([proPlan]);
-                          }
-                          return callback([enterprisePlan]);
-                        },
-                      };
-                    },
-                  };
-                },
-              };
-            },
-          };
-        },
-      };
+  const mockSubscriptionRepository = {
+    async getPlanById(id) {
+      if (id === 'pro-plan-uuid') return proPlan;
+      if (id === 'enterprise-plan-uuid') return enterprisePlan;
+      return null;
     },
   };
 
   const service = new SubscriptionUpgradeService(
-    mockDatabase,
     { getSubscriptionByGatewayId: async () => ({ nextDueDate: new Date().toISOString() }) },
     { getSubscriptionByGatewayId: async () => ({ nextDueDate: new Date().toISOString() }) },
     { error: () => {}, warn: () => {}, info: () => {} },
+    mockSubscriptionRepository,
   );
 
   const periodEnd = new Date(Date.now() + 15 * 24 * 60 * 60 * 1000 + 10000);
@@ -75,11 +51,15 @@ test('SubscriptionUpgradeService prorates when upgrading between paid plans', as
 });
 
 test('getUpgradeFirstPaymentValue requires a gateway subscription', async () => {
+  const mockSubscriptionRepository = {
+    async getPlanById() { return null; },
+  };
+
   const service = new SubscriptionUpgradeService(
-    { getDb: () => ({}) },
     { getSubscriptionByGatewayId: async () => null },
     { getSubscriptionByGatewayId: async () => null },
     { error: () => {}, warn: () => {}, info: () => {} },
+    mockSubscriptionRepository,
   );
 
   await assert.rejects(

@@ -75,3 +75,10 @@ export type SaveProjectBriefHistoryInput = {
   provider: string;
   model: string;
 };
+
+export type ResolvedProjectBriefScope = {
+  isAll: boolean;
+  projectSlug: string;
+  workspaceId: string;
+  workspaceSlug: string;
+};

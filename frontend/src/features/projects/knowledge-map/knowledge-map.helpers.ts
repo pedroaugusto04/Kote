@@ -15,6 +15,7 @@ export function filterKnowledgeMapDataset(
     if (!visibleTypes.has(node.type)) return false;
     if (node.type === KnowledgeMapNodeTypeEnum.Note) {
       if (node.isReview && !visibleTypes.has('review-note')) return false;
+      if (node.category === 'dependency-watcher') return false;
       if (node.date && maxDateFilter !== undefined && maxDateFilter !== null) {
         if (new Date(node.date).getTime() > maxDateFilter) return false;
       }

@@ -83,6 +83,22 @@ test('buildProjectKnowledgeMap deduplicates tags and categories and links core n
   assert.ok(result.links.some((link) => link.source === 'note:note-1' && link.target === 'repository:repo-1' && link.type === 'from-repository'));
 });
 
+test('buildProjectKnowledgeMap filters out dependency notes to prevent map clutter', () => {
+  const result = buildProjectKnowledgeMap(project, folders, [
+    note({ id: 'note-1', title: 'Feature note', sourceChannel: 'manual' }),
+    note({ id: 'dep-1', title: '[Dependency Update] lodash: 4.17.20 -> 4.17.21', sourceChannel: 'dependency-watcher', source: 'dependency-watcher', tags: ['dependency-update', 'lodash'] }),
+    note({ id: 'dep-2', title: '[Dependency Update] axios: 1.0.0 -> 1.1.0', sourceChannel: 'dependency_watcher', source: 'dependency_watcher', tags: ['dependency-update', 'axios'] }),
+  ]);
+
+  assert.equal(result.stats.noteCount, 1);
+  assert.equal(result.nodes.some((node) => node.id === 'note:dep-1'), false);
+  assert.equal(result.nodes.some((node) => node.id === 'note:dep-2'), false);
+  assert.equal(result.nodes.some((node) => node.id === 'category:dependency-watcher'), false);
+  assert.equal(result.nodes.some((node) => node.id === 'tag:dependency-update'), false);
+  assert.equal(result.nodes.some((node) => node.id === 'tag:lodash'), false);
+  assert.equal(result.nodes.some((node) => node.id === 'note:note-1'), true);
+});
+
 test('list project knowledge map rejects projects outside the user scope', async () => {
   const repository = {
     async getProjectById() {

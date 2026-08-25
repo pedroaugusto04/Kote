@@ -369,4 +369,24 @@ describe('filterKnowledgeMapDataset', () => {
     expect(filtered.links.map((link) => link.id)).not.toContain('contains:project:platform->note:review-1');
     expect(filtered.links.map((link) => link.id)).not.toContain('classified-as:note:review-1->category:manual');
   });
+
+  it('hides dependency notes and their links to keep map clean', () => {
+    const dataset = graphResponse({
+      nodes: [
+        ...graphResponse().nodes,
+        { id: 'note:dep-1', type: 'note', label: '[Dependency Update] lodash', noteId: 'dep-1', projectSlug: 'platform', category: 'dependency-watcher' },
+      ],
+      links: [
+        ...graphResponse().links,
+        { id: 'contains:project:platform->note:dep-1', source: 'project:platform', target: 'note:dep-1', type: 'contains' },
+        { id: 'classified-as:note:dep-1->category:dependency-watcher', source: 'note:dep-1', target: 'category:dependency-watcher', type: 'classified-as' },
+      ],
+    });
+
+    const filtered = filterKnowledgeMapDataset(dataset, new Set(['project', 'folder', 'note', 'tag', 'category']));
+
+    expect(filtered.nodes.map((node) => node.id)).not.toContain('note:dep-1');
+    expect(filtered.links.map((link) => link.id)).not.toContain('contains:project:platform->note:dep-1');
+    expect(filtered.links.map((link) => link.id)).not.toContain('classified-as:note:dep-1->category:dependency-watcher');
+  });
 });

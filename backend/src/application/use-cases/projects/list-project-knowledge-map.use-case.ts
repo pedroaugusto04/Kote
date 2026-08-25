@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { slugify } from '../../../domain/strings.js';
+import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import type {
   KnowledgeMapLink,
   KnowledgeMapLinkType,
@@ -57,6 +58,7 @@ export function buildProjectKnowledgeMap(
   folders: ProjectFolderRecord[],
   notes: NoteRecord[],
 ): ProjectKnowledgeMapResponse {
+  const filteredNotes = notes.filter((note) => !isDependencyNote(note));
   const nodes = new Map<string, KnowledgeMapNode>();
   const links = new Map<string, KnowledgeMapLink>();
   const projectNodeId = projectNode(project.projectSlug);
@@ -85,7 +87,7 @@ export function buildProjectKnowledgeMap(
     addLink(links, projectNodeId, nodeId, 'contains', 0.45);
   }
 
-  const folderIdsWithNotes = new Set(notes.map((note) => note.folderId).filter(Boolean) as string[]);
+  const folderIdsWithNotes = new Set(filteredNotes.map((note) => note.folderId).filter(Boolean) as string[]);
   const folderIdsToRender = collectAncestorFolderIds(folders, folderIdsWithNotes);
   for (const folder of folders.filter((item) => folderIdsToRender.has(item.id))) {
     const nodeId = folderNode(folder.id);
@@ -103,7 +105,7 @@ export function buildProjectKnowledgeMap(
     addLink(links, parentNodeId, nodeId, 'contains', 0.55);
   }
 
-  for (const note of notes) {
+  for (const note of filteredNotes) {
     const noteNodeId = noteNode(note.id);
     const category = projectKnowledgeMapCategory(note);
     addNode(nodes, {
@@ -161,7 +163,7 @@ export function buildProjectKnowledgeMap(
     nodes: [...nodes.values()],
     links: [...links.values()],
     stats: {
-      noteCount: notes.length,
+      noteCount: filteredNotes.length,
       tagCount: [...nodes.values()].filter((node) => node.type === 'tag').length,
       folderCount: [...nodes.values()].filter((node) => node.type === 'folder').length,
       repositoryCount: project.repositories.length,

@@ -13,6 +13,7 @@ import type { VaultNoteSummary } from '../../models/vault-note.models.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 import { ConversationConfidence, EmbeddingTaskType, SpecialQueryIntent, IntegrationProvider } from '../../../contracts/enums.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
+import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
 import { getSpecialQueryIntent, matchesIntent, selectTopFtsOnlyChunksPerNote } from '../../utils/query/query.utils.js';
 import { chunkRankKey, rankHybridContextChunks } from '../../utils/rag/hybrid-rag.utils.js';
@@ -275,7 +276,8 @@ export class AskKnowledgeUseCase {
     }
 
     const noteIds = Array.from(new Set(allChunks.map((chunk) => chunk.noteId)));
-    const notes = await this.contentRepository.getNotesByIds(userId, noteIds);
+    const rawNotes = await this.contentRepository.getNotesByIds(userId, noteIds);
+    const notes = rawNotes.filter((note) => !isDependencyNote(note));
     this.logger.info('ask_knowledge.notes_fetched', {
       requestedIds: noteIds.length,
       fetchedNotes: notes.length,
@@ -556,10 +558,11 @@ export class AskKnowledgeUseCase {
     specialIntent: SpecialQueryIntent,
     options: AskScope,
   ): Promise<AskContextResult> {
-    const allNotes = await this.contentRepository.listNotes(userId, {
+    const rawNotes = await this.contentRepository.listNotes(userId, {
       projectId: options.projectId,
       workspaceId: options.workspaceId,
     });
+    const allNotes = rawNotes.filter((note) => !isDependencyNote(note));
     const noteMap = new Map(allNotes.map((note) => [note.id, note]));
 
     const thirtyDaysAgo = new Date();

@@ -1,4 +1,7 @@
-import { BillingCycle, PaymentKind } from '../../persistence/schema/index.js';
+import { BillingCycle, PaymentKind, GatewayNameEnum } from '../../../domain/enums/billing.enums.js';
+
+export { GatewayNameEnum };
+
 
 export enum BillingTypeEnum {
   BOLETO = 'boleto',
@@ -6,10 +9,6 @@ export enum BillingTypeEnum {
   CREDIT_CARD = 'credit_card',
 }
 
-export enum GatewayNameEnum {
-  ASAAS = 'ASAAS',
-  STRIPE = 'STRIPE',
-}
 
 export interface GatewayCustomer {
   id: string;

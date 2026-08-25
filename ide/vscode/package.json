@@ -2,7 +2,7 @@
   "name": "kote-vscode",
   "displayName": "Kote",
   "description": "Integrate your Kote directly into VS Code — search, ask AI, save notes without leaving your editor.",
-  "version": "3.5.6",
+  "version": "3.5.7",
   "publisher": "kote",
   "license": "MIT",
   "repository": {
@@ -161,7 +161,7 @@
       "kote.antigravityLogPath": {
         "type": "string",
         "default": "",
-        "description": "Custom path to Antigravity brain directory. If not set, defaults to ~/.gemini/antigravity/brain"
+        "description": "Custom path to Antigravity brain directory. If not set, defaults to ~/.gemini/antigravity-cli/brain and ~/.gemini/antigravity-ide/brain"
       },
       "kote.claudeCodeLogPath": {
         "type": "string",

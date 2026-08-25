@@ -22,6 +22,8 @@ import {
   BillingCustomerRepository,
   BillingPaymentRepository,
   BillingWebhookEventRepository,
+  SubscriptionRepository,
+  BillingIntentRepository,
 } from '../../application/ports/billing/billing-repositories.js';
 
 import { PostgresUserRepository } from '../repositories/auth.repository.js';
@@ -49,6 +51,8 @@ import {
   PostgresBillingCustomerRepository,
   PostgresBillingPaymentRepository,
   PostgresBillingWebhookEventRepository,
+  PostgresSubscriptionRepository,
+  PostgresBillingIntentRepository,
 } from '../repositories/billing.repository.js';
 
 const repositories = [
@@ -76,6 +80,8 @@ const repositories = [
   PostgresBillingCustomerRepository,
   PostgresBillingPaymentRepository,
   PostgresBillingWebhookEventRepository,
+  PostgresSubscriptionRepository,
+  PostgresBillingIntentRepository,
   { provide: SchemaMigrator, useExisting: PostgresSchemaMigrator },
   { provide: QuotaRepository, useExisting: PostgresQuotaRepository },
   { provide: UserRepository, useExisting: PostgresUserRepository },
@@ -96,6 +102,8 @@ const repositories = [
   { provide: BillingCustomerRepository, useExisting: PostgresBillingCustomerRepository },
   { provide: BillingPaymentRepository, useExisting: PostgresBillingPaymentRepository },
   { provide: BillingWebhookEventRepository, useExisting: PostgresBillingWebhookEventRepository },
+  { provide: SubscriptionRepository, useExisting: PostgresSubscriptionRepository },
+  { provide: BillingIntentRepository, useExisting: PostgresBillingIntentRepository },
 ];
 
 @Module({

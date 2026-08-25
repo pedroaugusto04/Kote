@@ -1026,5 +1026,103 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
   assert.equal(generateCalled, true);
 });
 
+test('AskKnowledgeUseCase excludes dependency notes from special intent recent context', async () => {
+  const mockContentRepository = {
+    listWorkspaces: async () => [{ id: 'default', workspaceSlug: 'default' }],
+    listNotes: async () => [
+      {
+        id: 'note-1',
+        path: 'docs/recent.md',
+        type: 'event',
+        title: 'Recent Release',
+        projectSlug: 'infra',
+        workspaceSlug: 'default',
+        folderId: null,
+        status: 'active',
+        tags: [],
+        occurredAt: new Date().toISOString(),
+        sourceChannel: 'manual',
+        summary: 'Recent release summary',
+        markdown: 'Release content',
+        markdownStorageKey: '',
+        frontmatter: {},
+        metadata: {},
+        origin: '',
+        source: 'manual',
+        links: [],
+      },
+      {
+        id: 'dep-1',
+        path: 'docs/dep.md',
+        type: 'event',
+        title: '[Dependency Update] lodash',
+        projectSlug: 'infra',
+        workspaceSlug: 'default',
+        folderId: null,
+        status: 'active',
+        tags: ['dependency-update'],
+        occurredAt: new Date().toISOString(),
+        sourceChannel: 'dependency-watcher',
+        summary: 'Automated dependency update',
+        markdown: 'Bumped lodash',
+        markdownStorageKey: '',
+        frontmatter: {},
+        metadata: {},
+        origin: '',
+        source: 'dependency-watcher',
+        links: [],
+      },
+    ],
+  };
+
+  let generatedContext = null;
+  const mockAnswerGenerationGateway = {
+    generate: async (_config, payload) => {
+      generatedContext = payload.context;
+      return {
+        answer: 'Recent summary',
+        confidence: 'high',
+        requestedAttachments: false,
+        sources: [],
+      };
+    },
+  };
+
+  const mockRuntimeEnv = {
+    read: () => ({
+      conversationAiProvider: 'openai',
+      conversationAiBaseUrl: 'http://openai.api',
+      conversationAiModel: 'gpt-4',
+      conversationAiApiKey: 'key-456',
+    }),
+  };
+
+  const mockLogger = {
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+    debug: () => {},
+  };
+
+  const useCase = new AskKnowledgeUseCase(
+    {},
+    {},
+    mockContentRepository,
+    mockAnswerGenerationGateway,
+    mockRuntimeEnv,
+    {},
+    mockLogger,
+    dummyAiEntitlement,
+    { publishQueryEmbedding: async () => [] },
+  );
+
+  const result = await useCase.execute('Summarize my recent notes', 'user-123', { workspaceId: 'default' });
+  assert.equal(result.ok, true);
+  assert.ok(generatedContext);
+  assert.equal(generatedContext.length, 1);
+  assert.equal(generatedContext[0].noteId, 'note-1');
+  assert.equal(generatedContext[0].title, 'Recent Release');
+});
+
 
 

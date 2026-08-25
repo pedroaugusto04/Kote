@@ -27,10 +27,12 @@ import {
 import { filterKnowledgeMapDataset } from './knowledge-map.helpers';
 
 type ProjectKnowledgeMapPageProps = Pick<ProjectsPageContext, 'dashboard' | 'openNote' | 'selectedProject'>;
-const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues.map((value) => ({
-  value,
-  label: formatDisplayToken(value),
-}));
+const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> = projectTimelineCategoryValues
+  .filter((value) => value !== 'dependency-watcher')
+  .map((value) => ({
+    value,
+    label: formatDisplayToken(value),
+  }));
 
 export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }: ProjectKnowledgeMapPageProps) {
   const isMobile = useMediaQuery('(max-width: 768px)');

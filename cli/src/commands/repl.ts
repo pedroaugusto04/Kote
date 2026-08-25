@@ -98,34 +98,26 @@ function readlineAutocompletePrompt(promptText: string, commands: string[]): Pro
       }
 
       if (key && (key.name === 'return' || key.name === 'enter')) {
-        if (matches.length > 0) {
-          const selectedMatch = matches[selectedIndex];
-          
-          if (selectedMatch === '/save ' || selectedMatch === '/ask ' || selectedMatch === '/sync ') {
-            // Autofill command and let user continue typing
-            cleanupOverlay(matches);
-            input = selectedMatch;
-            cursor = input.length;
-            selectedIndex = 0;
-            render();
-            return;
-          }
-
-          // Self-executing commands
-          cleanupOverlay(matches);
-          process.stdin.removeListener('keypress', onKeypress);
-          process.stdin.setRawMode(false);
-          console.log();
-          resolve(selectedMatch);
-          return;
-        }
-
-        // Normal text submission
         cleanupOverlay(matches);
         process.stdin.removeListener('keypress', onKeypress);
         process.stdin.setRawMode(false);
         console.log();
-        resolve(input);
+
+        if (matches.length === 0) {
+          resolve(input);
+          return;
+        }
+
+        const selectedMatch = matches[selectedIndex];
+        if (selectedMatch === '/save ' || selectedMatch === '/ask ' || selectedMatch === '/sync ') {
+          input = selectedMatch;
+          cursor = input.length;
+          selectedIndex = 0;
+          render();
+          return;
+        }
+
+        resolve(selectedMatch);
         return;
       }
 

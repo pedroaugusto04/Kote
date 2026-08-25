@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { WebhookTrigger } from '../../../contracts/enums.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
+import { isNoteEligibleForEmbedding } from '../../../domain/utils/note-embedding.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { EmbeddingPriority } from '../../../domain/enums/knowledge.enums.js';
@@ -59,9 +60,11 @@ export class BulkUpdateNoteStatusUseCase {
         });
 
         // Trigger side effects
-        try {
-          await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: note.id, priority: EmbeddingPriority.Low });
-        } catch { /* ignore */ }
+        if (isNoteEligibleForEmbedding(note)) {
+          try {
+            await this.embeddingQueue.publish({ type: EmbeddingJobType.Index, userId, noteId: note.id, priority: EmbeddingPriority.Low });
+          } catch { /* ignore */ }
+        }
 
         try {
           await this.noteEventDispatcher.dispatch({

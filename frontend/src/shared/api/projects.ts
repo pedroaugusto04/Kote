@@ -152,12 +152,11 @@ export function deleteProjectFolder(projectSlug: string, folderId: string) {
   });
 }
 
-export async function fetchProjectCoverage(projectSlug: string, forceSync = false) {
-  const url = forceSync
-    ? `/api/projects/${encodeURIComponent(projectSlug)}/coverage?forceSync=true`
-    : `/api/projects/${encodeURIComponent(projectSlug)}/coverage`;
+export async function fetchProjectCoverage<T = any>(projectSlug: string, forceSync = false): Promise<T> {
+  const basePath = buildApiPath(API_PATHS.PROJECT_COVERAGE, { projectSlug });
+  const url = forceSync ? `${basePath}?forceSync=true` : basePath;
   const res = await request<any>(url);
-  return res?.coverage || res;
+  return (res?.coverage || res) as T;
 }
 
 export function fetchProjectDependencies(projectSlug: string) {

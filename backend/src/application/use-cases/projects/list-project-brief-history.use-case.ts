@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import type { PaginationInput } from '../../../contracts/pagination.js';
+import { resolveProjectBriefScope } from '../../mappers/project-brief.mapper.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 
@@ -13,25 +14,12 @@ export class ListProjectBriefHistoryUseCase {
 
   async execute(userId: string, input: PaginationInput & { projectId: string; workspaceId?: string }) {
     const { projectId, page, pageSize, workspaceId: workspaceIdInput } = input;
-    let workspaceId = '';
-    let isAll = false;
-    if (projectId === 'all') {
-      isAll = true;
-      if (workspaceIdInput) {
-        workspaceId = workspaceIdInput;
-      } else {
-        const workspaces = await this.contentRepository.listWorkspaces(userId);
-        if (workspaces.length > 0) {
-          workspaceId = workspaces[0].id;
-        } else {
-          throw new NotFoundException('workspace_not_found');
-        }
-      }
-    } else {
-      const project = await this.contentRepository.getProjectById(userId, projectId);
-      if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-      workspaceId = project.workspaceId || '';
-    }
+    const { isAll, workspaceId } = await resolveProjectBriefScope(
+      this.contentRepository,
+      userId,
+      projectId,
+      workspaceIdInput,
+    );
 
     return this.historyRepository.list({
       userId,

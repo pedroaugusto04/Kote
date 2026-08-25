@@ -231,3 +231,73 @@ test('generate project brief rejects missing project, disconnected AI, and AI fa
     /project_brief_ai_not_connected/,
   );
 });
+
+test('generate project brief excludes dependency notes from context items and sources', async (t) => {
+  const { repositories, user, project } = await setup(t);
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/platform/feature.md',
+    type: 'decision',
+    title: 'Architecture Decision',
+    projectSlug: 'platform',
+    workspaceSlug: 'default',
+    folderId: null,
+    status: 'active',
+    tags: ['arch'],
+    occurredAt: '2026-05-01T12:00:00.000Z',
+    sourceChannel: 'manual',
+    summary: 'Core arch decision',
+    markdown: '',
+    frontmatter: {},
+    metadata: { rawText: 'Core arch decision text' },
+    origin: 'test',
+    source: 'manual',
+    links: [],
+  });
+
+  await repositories.contentRepository.upsertNote(user.id, {
+    path: '20 Inbox/platform/dep-update.md',
+    type: 'event',
+    title: '[Dependency Update] axios: 1.0.0 -> 1.1.0',
+    projectSlug: 'platform',
+    workspaceSlug: 'default',
+    folderId: null,
+    status: 'active',
+    tags: ['dependency-update', 'axios'],
+    occurredAt: '2026-05-01T13:00:00.000Z',
+    sourceChannel: 'dependency-watcher',
+    summary: 'Automated bump',
+    markdown: '',
+    frontmatter: {},
+    metadata: { rawText: 'Automated bump text' },
+    origin: 'test',
+    source: 'dependency-watcher',
+    links: [],
+  });
+
+  let receivedPayload = null;
+  const gateway = {
+    async generate(_config, payload) {
+      receivedPayload = payload;
+      return {
+        projectSlug: payload.projectSlug,
+        generatedAt: payload.generatedAt,
+        summary: 'Platform brief',
+        status: 'Active',
+        recentChanges: [],
+        decisions: [],
+        openItems: [],
+        risks: [],
+        nextSteps: [],
+        sources: payload.items.map((i) => ({ noteId: i.noteId, title: i.title, path: i.path, date: i.date })),
+      };
+    },
+  };
+
+  const result = await useCase(repositories, gateway).execute(user.id, project.id);
+
+  assert.equal(result.ok, true);
+  assert.equal(receivedPayload.items.length, 1);
+  assert.equal(receivedPayload.items[0].title, 'Architecture Decision');
+  assert.equal(result.brief.sources.length, 1);
+  assert.equal(result.brief.sources[0].title, 'Architecture Decision');
+});

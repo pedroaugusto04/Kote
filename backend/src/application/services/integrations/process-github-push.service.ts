@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 
 import { AiProvider, CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { buildWhatsappHighSeverityCodeReviewMessage } from '../../../domain/notifications.js';
@@ -66,11 +66,12 @@ export class ProcessGithubPushService {
     private readonly aiEntitlement: AiEntitlementService,
     private readonly contentRepository: ContentRepository,
     private readonly syncProjectFilesService: SyncProjectFilesService,
-    private readonly credentials?: CredentialRepository,
-    private readonly whatsappReplySender?: WhatsappReplySender,
-    private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
+    @Optional() private readonly credentials?: CredentialRepository,
+    @Optional() private readonly whatsappReplySender?: WhatsappReplySender,
+    @Optional() private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
+    @Optional() logger?: AppLogger,
   ) {
-    this.logger = AppLogger.create();
+    this.logger = logger || AppLogger.create();
   }
 
   async execute(input: ProcessGithubPushInput) {

@@ -9,21 +9,6 @@ test('createNewSubscriptionPayment creates a pending charge without activating t
   let createSubscriptionCalled = false;
   let paymentCreated = false;
 
-  const mockDatabase = {
-    getDb() {
-      return {
-        insert() {
-          return {
-            values() {
-              paymentCreated = true;
-              return { then: (cb) => cb([]) };
-            },
-          };
-        },
-      };
-    },
-  };
-
   const mockGateway = {
     createPayment: async () => ({
       id: 'pay-1',
@@ -31,8 +16,13 @@ test('createNewSubscriptionPayment creates a pending charge without activating t
     }),
   };
 
+  const mockBillingPaymentRepository = {
+    async upsertSubscriptionPayment() {
+      paymentCreated = true;
+    },
+  };
+
   const service = new SubscriptionService(
-    mockDatabase,
     { info: () => {}, warn: () => {}, error: () => {} },
     {
       createIntentAndExternalReference: async () => ({ externalReference: 'intent=1' }),
@@ -43,8 +33,11 @@ test('createNewSubscriptionPayment creates a pending charge without activating t
     null,
     { normalizePaymentStatus: () => 'pending' },
     null,
-    null,
+    mockBillingPaymentRepository,
     { getChangeKind: () => SubscriptionChangeKind.NEW },
+    null,
+    null,
+    null,
   );
 
   service.createNewSubscription = async () => {

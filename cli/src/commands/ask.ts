@@ -1,6 +1,7 @@
 import pc from 'picocolors';
 import { spinner } from '@clack/prompts';
-import { client, ApiClientError } from '../client.js';
+import { client } from '../client.js';
+import { handleCliError } from '../utils/error-handler.js';
 
 export async function runAsk(question: string, options: { project?: string }): Promise<void> {
   const q = question.trim();
@@ -40,13 +41,7 @@ export async function runAsk(question: string, options: { project?: string }): P
     } else {
       console.log(pc.yellow('Could not retrieve an answer. No context available.'));
     }
-  } catch (error: any) {
-    s.stop(pc.red('Search failed'));
-    if (error instanceof ApiClientError) {
-      console.error(pc.red(`Error (${error.status}): ${(error.body as any)?.message || error.message}`));
-    } else {
-      console.error(pc.red(`Error: ${error.message || 'Failed to communicate with KB'}`));
-    }
-    process.exit(1);
+  } catch (error) {
+    handleCliError(error, 'Search failed', s);
   }
 }

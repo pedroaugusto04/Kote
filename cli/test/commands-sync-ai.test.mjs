@@ -33,12 +33,20 @@ test('Sync AI sessions command integration', async (t) => {
       'utf8'
     );
 
-    // Setup Antigravity mock logs
-    const antigravityDir = path.join(TEST_DIR, '.gemini', 'antigravity', 'brain', 'conv-123', '.system_generated', 'logs');
+    // Setup Antigravity mock logs (both IDE and CLI)
+    const antigravityDir = path.join(TEST_DIR, '.gemini', 'antigravity-ide', 'brain', 'conv-123', '.system_generated', 'logs');
     fs.mkdirSync(antigravityDir, { recursive: true });
     fs.writeFileSync(
       path.join(antigravityDir, 'overview.txt'),
       `{"source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "<USER_REQUEST>Hello Antigravity</USER_REQUEST>"}\n{"source": "MODEL", "type": "PLANNER_RESPONSE", "content": "Hello human"}\n`,
+      'utf8'
+    );
+
+    const antigravityCliDir = path.join(TEST_DIR, '.gemini', 'antigravity-cli', 'brain', 'conv-cli-456', '.system_generated', 'logs');
+    fs.mkdirSync(antigravityCliDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(antigravityCliDir, 'transcript.jsonl'),
+      `{"source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "<USER_REQUEST>Hello from Agy CLI</USER_REQUEST>"}\n{"source": "MODEL", "type": "PLANNER_RESPONSE", "content": "Hello from model"}\n`,
       'utf8'
     );
 
@@ -121,8 +129,8 @@ test('Sync AI sessions command integration', async (t) => {
       let capturedOptions = null;
       t.mock.method(clack, 'select', async (opts) => {
         capturedOptions = opts.options;
-        // Find the Antigravity session from the list
-        const antiSess = opts.options.find(o => o.value.providerId === 'antigravity');
+        // Find the Antigravity standard session from the list
+        const antiSess = opts.options.find(o => o.value.providerId === 'antigravity' && o.value.title.includes('Hello Antigravity'));
         return antiSess.value;
       });
 
@@ -139,6 +147,8 @@ test('Sync AI sessions command integration', async (t) => {
 
       // Check captured select options contained our providers
       assert.ok(capturedOptions, 'Should have prompted with options');
+      const antiSessions = capturedOptions.filter(o => o.value.providerId === 'antigravity');
+      assert.equal(antiSessions.length, 2, 'Should list both standard Antigravity and Agy CLI sessions');
       const providersList = capturedOptions.map(o => o.value.providerId);
       assert.ok(providersList.includes('antigravity'), 'Should list Antigravity session');
       assert.ok(providersList.includes('claude-code'), 'Should list Claude Code session');
