@@ -1058,16 +1058,14 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />);
 
     expect(await screen.findByRole('heading', { name: 'Your team writes the code. Let us capture the context.' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'With Kote, you don\'t need to guess.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Engineered for technical precision.' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Semantic Search & AI Assistant' })).toBeInTheDocument();
-    expect(screen.getByText('Natural Language Answers')).toBeInTheDocument();
-    expect(screen.getByText('Project-Scoped Search')).toBeInTheDocument();
-    expect(document.querySelectorAll('.landing-ai-search-feature-item')).toHaveLength(2);
-    expect(screen.getByText('Impact & Priorities')).toBeInTheDocument();
-    expect(screen.getByText('GitHub Sync')).toBeInTheDocument();
-    expect(screen.getByText('AI Sessions')).toBeInTheDocument();
-    expect(screen.getByText('Messages')).toBeInTheDocument();
-    expect(screen.getByText('WhatsApp')).toBeInTheDocument();
+    expect(screen.getByText('GitHub Repositories')).toBeInTheDocument();
+    expect(screen.getByText('AI Coding Sessions')).toBeInTheDocument();
+    expect(screen.getByText('VS Code Extension')).toBeInTheDocument();
+    expect(screen.getByText('Kote CLI')).toBeInTheDocument();
+    expect(screen.getByText('Chat & Messaging')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Browser Extension' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/auth');
     expect(screen.getByRole('link', { name: 'Create account' })).toHaveAttribute('href', '/auth?mode=signup');
 

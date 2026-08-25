@@ -1,5 +1,5 @@
-import { BillingCycle } from '../enums/billing.enums.js';
-import { GatewayNameEnum } from '../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { BillingCycle, GatewayNameEnum } from '../enums/billing.enums.js';
+
 
 export type PlanPriceFields = {
   priceCents: number;

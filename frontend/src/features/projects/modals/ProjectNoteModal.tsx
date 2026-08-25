@@ -109,13 +109,14 @@ export function ProjectNoteModal({
     },
   });
 
-  const attachmentError = useMemo(() => {
+  const attachmentError = useMemo<string | undefined>(() => {
     if (!errors.attachments) return undefined;
-    if (errors.attachments.message) return errors.attachments.message;
-    const errArray = errors.attachments as any;
+    if (typeof errors.attachments.message === 'string') return errors.attachments.message;
+    const errArray = errors.attachments as unknown as Array<Record<string, { message?: string }> | undefined>;
     if (Array.isArray(errArray)) {
       const firstErr = errArray.find(Boolean);
-      return firstErr?.mimeType?.message || firstErr?.sizeBytes?.message || firstErr?.message;
+      const msg = firstErr?.mimeType?.message || firstErr?.sizeBytes?.message || (typeof firstErr?.message === 'string' ? firstErr.message : undefined);
+      return typeof msg === 'string' ? msg : undefined;
     }
     return undefined;
   }, [errors.attachments]);

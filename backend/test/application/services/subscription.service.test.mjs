@@ -26,51 +26,20 @@ test('SubscriptionService throws when trying to subscribe to the same active pla
     billingType: 'credit_card',
   };
 
-  // Mock Database
-  let queryIndex = 0;
-  const mockDatabase = {
-    getDb() {
-      return {
-        select() {
-          return {
-            from() {
-              return {
-                where() {
-                  const currentIndex = queryIndex;
-                  queryIndex++;
-                  return {
-                    limit() {
-                      return {
-                        async then(callback) {
-                          if (currentIndex === 0) {
-                            // Target plan query
-                            return callback([mockPlan]);
-                          } else if (currentIndex === 1) {
-                            // Current subscription query
-                            return callback([mockSub]);
-                          } else if (currentIndex === 2) {
-                            // User query (cpfCnpj)
-                            return callback([{ cpfCnpj: '' }]);
-                          } else if (currentIndex === 3) {
-                            // Pending payment query (returns none)
-                            return callback([]);
-                          }
-                          return callback([]);
-                        }
-                      };
-                    }
-                  };
-                }
-              };
-            }
-          };
-        }
-      };
-    }
+  const mockSubscriptionRepository = {
+    async getPlanById(id) { return mockPlan; },
+    async getSubscriptionByUserId(userId) { return mockSub; },
+  };
+  const mockUserRepository = {
+    async findUserById(id) { return { cpfCnpj: '' }; },
+    async updateUser() {},
+  };
+  const mockBillingCustomerRepository = {
+    async getCustomerByUserId() { return null; },
+    async upsertCustomer() {},
   };
 
   const service = new SubscriptionService(
-    mockDatabase,
     null,
     null,
     null,
@@ -81,6 +50,9 @@ test('SubscriptionService throws when trying to subscribe to the same active pla
     null,
     null,
     { getChangeKind: () => 'NEW' },
+    mockSubscriptionRepository,
+    mockBillingCustomerRepository,
+    mockUserRepository,
   );
 
   await assert.rejects(

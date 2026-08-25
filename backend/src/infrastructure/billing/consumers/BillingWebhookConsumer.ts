@@ -15,6 +15,7 @@ import { BillingIntentService } from '../../../application/services/billing/Bill
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { BillingEventBus } from '../../../application/event-buses/billing-event.bus.js';
+import { BillingWebhookMapper } from '../../../application/mappers/billing-webhook.mapper.js';
 import {
   parseDateTimeInput,
   toMoneyNumber,
@@ -275,17 +276,15 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
       }
     }
 
-    const paymentData = {
+    const paymentData = BillingWebhookMapper.toPaymentData({
       subscriptionId,
       userId,
       gateway,
       gatewayPaymentId,
-      status: payStatus,
-      billingType: payment.billingType ?? existingPayment?.billingType ?? null,
-      kind: existingPayment?.kind || ((intent?.type === BillingIntentType.NEW || intent?.type === BillingIntentType.UPGRADE)
-        ? DomainPaymentKind.UPGRADE
-        : DomainPaymentKind.RECURRING) as PaymentKind,
-      gatewayStatus: payment.status || null,
+      payStatus,
+      payment,
+      existingPayment,
+      intent,
       value,
       dueDate,
       paidAt,
@@ -293,10 +292,8 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
       bankSlipUrl,
       pixQrCode,
       pixQrCodeUrl,
-      description: payment.description || existingPayment?.description || null,
-      stripeClientSecret: payment.stripeClientSecret ?? existingPayment?.stripeClientSecret ?? null,
-      lastGatewayEventAt: eventCreatedAt,
-    };
+      eventCreatedAt,
+    });
 
     await this.paymentRepository.upsertSubscriptionPayment(paymentData);
 

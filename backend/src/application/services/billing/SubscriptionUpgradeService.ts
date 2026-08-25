@@ -1,16 +1,14 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
-import { plans } from '../../../infrastructure/persistence/schema/index.js';
+import { Injectable, BadRequestException, Optional } from '@nestjs/common';
 import { BillingCycle, BillingType } from '../../../domain/enums/billing.enums.js';
 import { resolvePlanPriceCentsForGateway, resolvePlanValueForCycle } from '../../../domain/utils/plan-pricing.utils.js';
 import { formatGatewayDueDate } from '../../../domain/utils/subscription.utils.js';
 import { compareMoney, PLAN_PRICE_SCALE, toMoneyDecimal, toMoneyNumber } from '../../../infrastructure/utils/money.js';
 import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
-import { GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { GatewayNameEnum } from '../../../domain/enums/billing.enums.js';
 import { toGatewayBillingType } from '../../../infrastructure/billing/helpers/billingTypeMapper.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { SubscriptionRepository } from '../../ports/billing/billing-repositories.js';
 import type { SubscriptionContext } from './subscriptionStrategy/subscriptionContext.js';
 
 type BillingValueInput = string | number | { toString(): string } | null | undefined;
@@ -18,10 +16,10 @@ type BillingValueInput = string | number | { toString(): string } | null | undef
 @Injectable()
 export class SubscriptionUpgradeService {
   constructor(
-    private readonly database: PostgresDatabase,
     private readonly asaasPaymentGateway: AsaasPaymentGateway,
     private readonly stripePaymentGateway: StripePaymentGateway,
     private readonly logger: AppLogger,
+    private readonly subscriptionRepository: SubscriptionRepository,
   ) {}
 
   async getUpgradeFirstPaymentValue(ctx: SubscriptionContext): Promise<number> {
@@ -108,10 +106,8 @@ export class SubscriptionUpgradeService {
       throw new BadRequestException('Plan IDs cannot be empty');
     }
 
-    const db = this.database.getDb();
-
-    const currentPlan = await db.select().from(plans).where(eq(plans.id, params.currentPlanId)).limit(1).then(r => r[0] || null);
-    const newPlan = await db.select().from(plans).where(eq(plans.id, params.newPlanId)).limit(1).then(r => r[0] || null);
+    const currentPlan = await this.subscriptionRepository.getPlanById(params.currentPlanId);
+    const newPlan = await this.subscriptionRepository.getPlanById(params.newPlanId);
 
     if (!currentPlan || !newPlan) {
       throw new BadRequestException('Plan not found for proration calculation');

@@ -39,6 +39,29 @@ export function toProjectFromIngest(payload: IngestPayload, workspaceSlug: strin
   };
 }
 
+export function toProjectFromRecord(existingProject: import('../models/repository-records.models.js').SaveProjectInput, fallbackWorkspaceSlug: string): Project {
+  const workspaceSlug = existingProject.workspaceSlug || fallbackWorkspaceSlug;
+  return {
+    projectSlug: existingProject.projectSlug,
+    displayName: existingProject.displayName,
+    workspaceSlug,
+    repositories: (existingProject.repositories || []).map((repo) => ({
+      id: repo.id,
+      workspaceSlug,
+      externalId: repo.externalId,
+      fullName: repo.fullName,
+      htmlUrl: repo.htmlUrl,
+      description: repo.description,
+      defaultBranch: repo.defaultBranch,
+      createdAt: repo.createdAt,
+      updatedAt: repo.updatedAt,
+    })),
+    defaultTags: existingProject.defaultTags || [],
+    enabled: existingProject.enabled !== false,
+    favorite: Boolean(existingProject.favorite),
+  };
+}
+
 export function toIngestPayloadWithProject(parsed: IngestPayload, projectSlug: string): IngestPayload {
   const normalizedStatus = normalizeManualNoteStatus({
     requestedStatus: parsed.classification.status,

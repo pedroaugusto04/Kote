@@ -5,7 +5,23 @@ import {
   type GatewayWebhookEventRecord,
   type WebhookEventCreateParams,
   type WebhookEventCreateResult,
+  type PlanRecord,
+  type UserSubscriptionRecord,
+  type SubscriptionChangeRequestRecord,
 } from '../../models/billing.models.js';
+
+export abstract class SubscriptionRepository {
+  abstract getActivePlans(): Promise<PlanRecord[]>;
+  abstract getPlanById(id: string): Promise<PlanRecord | null>;
+  abstract getPlanBySlug(slug: string): Promise<PlanRecord | null>;
+  abstract getSubscriptionByUserId(userId: string): Promise<UserSubscriptionRecord | null>;
+  abstract getSubscriptionByGatewaySubscriptionId(gatewaySubscriptionId: string): Promise<UserSubscriptionRecord | null>;
+  abstract getSubscriptionByCreatedFromIntentId(userId: string, intentId: string): Promise<UserSubscriptionRecord | null>;
+  abstract upsertUserSubscription(userId: string, data: Partial<UserSubscriptionRecord>): Promise<UserSubscriptionRecord>;
+  abstract createSubscriptionChangeRequest(data: Omit<SubscriptionChangeRequestRecord, 'createdAt' | 'updatedAt'>): Promise<SubscriptionChangeRequestRecord>;
+  abstract getScheduledChangeRequest(userId: string, type: string): Promise<SubscriptionChangeRequestRecord | null>;
+  abstract updateSubscriptionChangeRequestStatus(id: string, status: string, options?: { appliedAt?: Date; canceledAt?: Date }): Promise<void>;
+}
 
 export abstract class BillingCustomerRepository {
   abstract getCustomerByGatewayId(gateway: PaymentGateway, gatewayCustomerId: string): Promise<BillingCustomerRecord | null>;
@@ -30,6 +46,11 @@ export abstract class BillingPaymentRepository {
       id?: string;
     }
   ): Promise<BillingPaymentRecord>;
+  abstract hasRecurringPaymentInRealDebt(userId: string, subscriptionId?: string): Promise<boolean>;
+  abstract getLatestPendingPaymentByUserId(userId: string): Promise<BillingPaymentRecord | null>;
+  abstract getPaymentById(id: string): Promise<BillingPaymentRecord | null>;
+  abstract getOpenPaymentsByUserId(userId: string): Promise<BillingPaymentRecord[]>;
+  abstract updatePaymentStatus(id: string, status: string): Promise<void>;
 }
 
 export abstract class BillingWebhookEventRepository {
@@ -39,4 +60,26 @@ export abstract class BillingWebhookEventRepository {
   abstract markWebhookEventDone(id: string): Promise<void>;
   abstract markWebhookEventFailed(id: string, error: string): Promise<void>;
   abstract markWebhookEventAlerted(id: string, alertMarker: string): Promise<void>;
+}
+
+export interface BillingIntentRecord {
+  id: string;
+  type: string;
+  status: string;
+  userId: string;
+  planId: string;
+  subscriptionId?: string | null;
+  billingCycle: string;
+  creditCardToken?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export abstract class BillingIntentRepository {
+  abstract getIntentById(intentId: string): Promise<BillingIntentRecord | null>;
+  abstract getPendingOneShotIntentByUserId(userId: string): Promise<BillingIntentRecord | null>;
+  abstract createIntent(data: Omit<BillingIntentRecord, 'createdAt' | 'updatedAt'>): Promise<BillingIntentRecord>;
+  abstract claimForProcessing(userId: string, intentId: string): Promise<boolean>;
+  abstract updateIntentStatus(intentId: string, status: string, options?: { subscriptionId?: string }): Promise<void>;
+  abstract cancelLatestPendingOneShotIntent(userId: string): Promise<void>;
 }

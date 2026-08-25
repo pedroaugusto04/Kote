@@ -1,21 +1,22 @@
 import { Body, Controller, Post, HttpCode, HttpStatus, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBody } from '@nestjs/swagger';
 
+import { z } from 'zod';
+
 import { WelcomeEmailService } from '../../../../application/use-cases/welcome-email.use-case.js';
 import { WeeklySummaryService } from '../../../../application/services/content/weekly-summary.service.js';
 import { NotifyHighSeverityFindingsService } from '../../../../application/use-cases/notifications/notify-high-severity-findings.use-case.js';
 import { UserService } from '../../../../application/services/auth/user.service.js';
 import { RuntimeEnvironmentProvider } from '../../../../application/ports/observability/runtime-environment.port.js';
+import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
-const testEmailBodySchema = {
-  type: 'object',
-  properties: {
-    email: { type: 'string', format: 'email' },
-  },
-  required: ['email'],
-} as const;
+const testEmailBodySchema = z.object({
+  email: z.string().email(),
+  noteId: z.string().optional(),
+  noteLink: z.string().optional(),
+});
 
-type TestEmailBody = { email: string };
+type TestEmailBody = z.infer<typeof testEmailBodySchema>;
 
 @ApiTags('Test Email')
 @Controller('api/test-email')
@@ -49,7 +50,7 @@ export class TestEmailController {
   @ApiResponse({ status: 400, description: 'Invalid request or user not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async sendWelcomeEmail(
-    @Body() body: TestEmailBody,
+    @Body(new ZodValidationPipe(testEmailBodySchema, 'invalid_test_email_payload')) body: TestEmailBody,
     @Body('auth') authHeader?: string,
   ) {
     this.validateAuth(authHeader);
@@ -65,7 +66,7 @@ export class TestEmailController {
   @ApiResponse({ status: 400, description: 'Invalid request or user not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async sendWeeklySummaryEmail(
-    @Body() body: TestEmailBody,
+    @Body(new ZodValidationPipe(testEmailBodySchema, 'invalid_test_email_payload')) body: TestEmailBody,
     @Body('auth') authHeader?: string,
   ) {
     this.validateAuth(authHeader);
@@ -105,7 +106,7 @@ export class TestEmailController {
   @ApiResponse({ status: 400, description: 'Invalid request or user not found' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async sendCodeReviewAlertEmail(
-    @Body() body: TestEmailBody & { noteId?: string; noteLink?: string },
+    @Body(new ZodValidationPipe(testEmailBodySchema, 'invalid_test_email_payload')) body: TestEmailBody,
     @Body('auth') authHeader?: string,
   ) {
     this.validateAuth(authHeader);

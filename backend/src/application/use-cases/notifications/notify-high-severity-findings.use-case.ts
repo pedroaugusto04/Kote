@@ -2,12 +2,10 @@ import { Injectable } from '@nestjs/common';
 
 import { EmailService } from '../../services/email/email.service.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { buildWhatsappHighSeverityCodeReviewMessage } from '../../../domain/notifications.js';
 import { type IngestPayload } from '../../../contracts/ingest.js';
-import { desc, eq, and } from 'drizzle-orm';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
-import { notes } from '../../../infrastructure/persistence/schema/index.js';
 
 @Injectable()
 export class NotifyHighSeverityFindingsService {
@@ -15,7 +13,7 @@ export class NotifyHighSeverityFindingsService {
     private readonly emailService: EmailService,
     private readonly users: UserRepository,
     private readonly logger: AppLogger,
-    private readonly db: PostgresDatabase,
+    private readonly contentRepository: ContentRepository,
   ) {}
 
   async sendEmailForHighFindings(payload: IngestPayload, userId: string, noteLink?: string): Promise<void> {
@@ -62,33 +60,16 @@ export class NotifyHighSeverityFindingsService {
     noteLink?: string,
     noteId?: string,
   ): Promise<{ sent: boolean; noteId?: string; message?: string; totalFindings?: number; highSeverityFindings?: number }> {
-    const db = this.db.getDb();
-    let noteQuery = db
-      .select({
-        id: notes.id,
-        title: notes.title,
-        summary: notes.summary,
-        projectId: notes.projectId,
-        metadata: notes.metadata,
-        createdAt: notes.createdAt,
-      })
-      .from(notes);
+    const note = noteId
+      ? await this.contentRepository.getNoteById(userId, noteId)
+      : await this.contentRepository.getLatestNote(userId);
 
-    if (noteId) {
-      noteQuery = noteQuery.where(and(eq(notes.userId, userId), eq(notes.id, noteId))) as any;
-    } else {
-      noteQuery = noteQuery.where(eq(notes.userId, userId)).orderBy(desc(notes.createdAt)).limit(1) as any;
-    }
-
-    const noteRows = await noteQuery;
-
-    if (!noteRows.length) {
+    if (!note) {
       return { sent: false, message: noteId ? 'Note not found' : 'No notes found for this user' };
     }
 
-    const note = noteRows[0] as any;
-    const metadata = note.metadata || {};
-    const reviewFindings = metadata.reviewFindings || [];
+    const metadata = (note.metadata as Record<string, any>) || {};
+    const reviewFindings = (metadata.reviewFindings as Array<{ severity: string; file?: string; summary: string; recommendation?: string }>) || [];
 
     if (!reviewFindings.length) {
       return { 
@@ -100,7 +81,7 @@ export class NotifyHighSeverityFindingsService {
       };
     }
 
-    const hasHighSeverity = reviewFindings.some((f: any) => ['high', 'critical'].includes(f.severity));
+    const hasHighSeverity = reviewFindings.some((f) => ['high', 'critical'].includes(f.severity));
     if (!hasHighSeverity) {
       return { 
         sent: false, 
@@ -113,31 +94,32 @@ export class NotifyHighSeverityFindingsService {
 
     const payload = {
       event: {
-        projectSlug: metadata.projectSlug || 'inbox',
-        type: 'code_review' as const,
-        occurredAt: note.createdAt,
+        projectSlug: (metadata.projectSlug as string) || 'inbox',
+        type: 'code_review',
+        occurredAt: note.createdAt || note.occurredAt || new Date().toISOString(),
       },
       metadata: metadata,
       source: {
         conversationId: note.id,
-      } as any,
+      },
       content: {
         rawText: note.summary || '',
         sections: {
-          summary: metadata.summary || note.summary || '',
-          impact: metadata.impact || '',
+          summary: (metadata.summary as string) || note.summary || '',
+          impact: (metadata.impact as string) || '',
           reviewFindings: reviewFindings,
         },
-      } as any,
-    };
+      },
+    } as unknown as IngestPayload;
 
-    await this.sendEmailForHighFindings(payload as any, userId, noteLink);
+    await this.sendEmailForHighFindings(payload, userId, noteLink);
 
     return { 
       sent: true, 
       noteId: note.id,
       totalFindings: reviewFindings.length,
-      highSeverityFindings: reviewFindings.filter((f: any) => ['high', 'critical'].includes(f.severity)).length 
+      highSeverityFindings: reviewFindings.filter((f) => ['high', 'critical'].includes(f.severity)).length 
     };
   }
 }
+

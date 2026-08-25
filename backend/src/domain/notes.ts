@@ -1,7 +1,7 @@
 import path from 'node:path';
 
 import type { IngestPayload } from '../contracts/ingest.js';
-import { CanonicalType } from '../contracts/enums.js';
+import { CanonicalType, SourceChannel } from '../contracts/enums.js';
 import { renderFrontmatter } from './frontmatter.js';
 import type { Project } from './projects.js';
 import { sanitizeFileStem, trimText } from './strings.js';
@@ -156,7 +156,7 @@ export function renderEventNote(project: Project, payload: IngestPayload, paths:
 
   // For dependency watcher notes, rawText already contains the full formatted content
   // Avoid duplicating sections by rendering only rawText
-  if (payload.source.system === 'dependency-watcher') {
+  if (payload.source.system === SourceChannel.DependencyWatcher) {
     return [
       frontmatter,
       `# ${trimText(payload.content.title, payload.content.rawText)}`,

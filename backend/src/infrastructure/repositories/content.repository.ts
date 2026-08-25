@@ -200,6 +200,10 @@ export class PostgresContentRepository extends ContentRepository {
     return this.noteRepository.getById(userId, id, tx);
   }
 
+  async getLatestNote(userId: string) {
+    return this.noteRepository.getLatest(userId);
+  }
+
   async getNoteByPath(userId: string, path: string, tx?: any) {
     return this.noteRepository.getByPath(userId, path, tx);
   }

@@ -70,6 +70,12 @@ export enum PaymentGateway {
   STRIPE = 'stripe',
 }
 
+export enum GatewayNameEnum {
+  ASAAS = 'ASAAS',
+  STRIPE = 'STRIPE',
+}
+
+
 export enum WebhookProcessStatus {
   PENDING = 'pending',
   PROCESSING = 'processing',

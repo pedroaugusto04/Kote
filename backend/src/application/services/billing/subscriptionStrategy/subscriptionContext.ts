@@ -1,5 +1,4 @@
-import { BillingCycle, BillingType } from '../../../../domain/enums/billing.enums.js';
-import { GatewayNameEnum } from '../../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { BillingCycle, BillingType, GatewayNameEnum } from '../../../../domain/enums/billing.enums.js';
 
 export interface SubscriptionPlanDTO {
   id: string;

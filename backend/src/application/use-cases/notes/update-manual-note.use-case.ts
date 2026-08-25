@@ -7,7 +7,6 @@ import { NoteLifecycleService } from '../../services/content/note-lifecycle.serv
 import { requireProject, requireNote, requireProjectFolderOptional } from '../../helpers/resource-validation.helpers.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
-import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 
 @Injectable()
 export class UpdateNoteUseCase {

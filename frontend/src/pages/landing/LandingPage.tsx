@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { routes } from '../../app/routing/routes';
@@ -6,15 +6,87 @@ import { withFrontendBasePath } from '../../app/base-path';
 import { useTypewriterWord } from '../../layouts/use-typewriter-word';
 import { BrandMark } from '../../shared/ui/brand-mark';
 import { ThemeToggle } from '../../shared/ui/theme-toggle';
-import { GitHubIcon, WhatsAppIcon, SparklesIcon, MessagesIcon, SearchIcon } from '../../shared/ui/icons';
+import {
+  GitHubIcon,
+  WhatsAppIcon,
+  SparklesIcon,
+  GitCommitIcon,
+  FileCodeIcon,
+  CliIcon,
+  VscodeIcon,
+  GlobeIcon,
+} from '../../shared/ui/icons';
 
 const typewriterWords = ['capture', 'organize', 'retrieve', 'connect'];
 
+interface TimelineItem {
+  id: string;
+  sha: string;
+  author: string;
+  message: string;
+  status: 'traditional' | 'connected';
+  file: string;
+  analysisSummary: string;
+  riskOrImpact: string;
+  recommendation: string;
+  linkedNote?: string;
+}
+
+const timelineData: TimelineItem[] = [
+  {
+    id: '1',
+    sha: 'e4b1a29',
+    author: 'pedro-eng',
+    message: 'fix: decrease connection pool max from 20 to 5',
+    status: 'traditional',
+    file: 'src/infrastructure/database/pool.ts',
+    analysisSummary: 'Connection pool reduced without documented throughput benchmarks or load testing.',
+    riskOrImpact: 'High risk of connection starvation and request timeouts during concurrent background syncs.',
+    recommendation: 'Document max connection rationale in an ADR note and link load test benchmarks.',
+  },
+  {
+    id: '2',
+    sha: '7f9c2d1',
+    author: 'alex-dev',
+    message: 'refactor: bypass redis cache on user session lookup',
+    status: 'traditional',
+    file: 'src/application/services/auth-session.service.ts',
+    analysisSummary: 'Session cache query bypasses Redis invalidation layer without linked architectural context.',
+    riskOrImpact: 'Direct PostgreSQL query load spike during peak authentication traffic.',
+    recommendation: 'Link issue context and create an architecture note for the session cache deprecation.',
+  },
+  {
+    id: '3',
+    sha: '3d8a1f6',
+    author: 'pedro-eng',
+    message: 'feat: webhook idempotency validation with redis ttl',
+    status: 'connected',
+    file: 'src/interfaces/http/controllers/webhooks.controller.ts',
+    analysisSummary: 'Grounded in ADR-04: Payment Webhook Idempotency. Validates X-Idempotency-Key via Redis SETNX with 24h TTL.',
+    riskOrImpact: 'Guarantees zero duplicate charge processing during payment gateway network retries.',
+    recommendation: 'Architectural rules validated against knowledge base. Ready for review.',
+    linkedNote: 'ADR-04: Payment Webhook Idempotency',
+  },
+  {
+    id: '4',
+    sha: '9c4b8e2',
+    author: 'pedro-eng',
+    message: 'feat: httpOnly refresh token rotation & cookie mitigation',
+    status: 'connected',
+    file: 'src/adapters/auth/token-manager.ts',
+    analysisSummary: 'AI pair-programming session indexed: Threat model analysis for CSRF/XSS with benchmarked cookie rotation.',
+    riskOrImpact: 'Full architectural alignment and zero token leakage in browser local storage.',
+    recommendation: 'Session security contract verified against RFC-12 specification.',
+    linkedNote: 'RFC-12: Auth Token Security Architecture',
+  },
+];
+
 export function LandingPage() {
   const { typed: animatedWord, full: fullWord } = useTypewriterWord(typewriterWords);
+  const [selectedTimelineId, setSelectedTimelineId] = useState<string>('3');
 
   useEffect(() => {
-    const selector = '.reveal-up, .reveal-left, .reveal-right, .reveal-scale';
+    const selector = '.reveal-up, .reveal-scale';
     if (typeof IntersectionObserver === 'undefined') {
       const elements = document.querySelectorAll(selector);
       elements.forEach((el) => el.classList.add('active'));
@@ -31,8 +103,8 @@ export function LandingPage() {
         });
       },
       {
-        threshold: 0.05,
-        rootMargin: '0px 0px -60px 0px',
+        threshold: 0.08,
+        rootMargin: '0px 0px -40px 0px',
       }
     );
 
@@ -44,98 +116,202 @@ export function LandingPage() {
     };
   }, []);
 
+  const activeTimeline = timelineData.find((item) => item.id === selectedTimelineId) || timelineData[2];
+
   return (
     <main className="landing-layout">
-      <section className="landing-shell" aria-label="Kote landing page">
+      <div className="landing-grid-overlay" aria-hidden="true" />
 
-        {/* HEADER / TOPBAR */}
+      <section className="landing-shell" aria-label="Kote landing page">
+        {/* TOPBAR / NAVIGATION */}
         <header className="landing-topbar">
-          <Link className="landing-brand" to={routes.auth} aria-label="Kote">
-            <BrandMark />
-            <div>
-              <strong>Kote</strong>
-              <span>Your Team's Second Brain</span>
+          <div className="landing-topbar-inner">
+            <Link className="landing-brand" to={routes.auth} aria-label="Kote Home">
+              <BrandMark />
+              <div className="landing-brand-text">
+                <div className="landing-brand-title">
+                  <strong>Kote</strong>
+                </div>
+                <span className="landing-brand-subtitle">Engineering Memory</span>
+              </div>
+            </Link>
+
+            <nav className="landing-nav-links" aria-label="Landing page sections">
+              <a href="#context-gap" className="landing-nav-link">The Gap</a>
+              <a href="#ecosystem" className="landing-nav-link">Integrations</a>
+              <a href="#capabilities" className="landing-nav-link">Capabilities</a>
+              <a href="#ai-search" className="landing-nav-link">Ask AI</a>
+            </nav>
+
+            <div className="landing-topbar-actions">
+              <ThemeToggle className="theme-toggle landing-theme-toggle" />
+              <Link className="landing-button-ghost" to={routes.auth}>Sign in</Link>
+              <Link className="landing-button-primary" to={`${routes.auth}?mode=signup`}>
+                <span>Create account</span>
+                <svg className="landing-btn-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
             </div>
-          </Link>
-          <div className="landing-topbar-actions">
-            <ThemeToggle className="theme-toggle landing-theme-toggle" />
-            <Link className="landing-button-link" to={routes.auth}>Sign in</Link>
-            <Link className="landing-button-link primary" to={`${routes.auth}?mode=signup`}>Create account</Link>
           </div>
         </header>
 
         {/* HERO SECTION */}
         <section className="landing-section hero" aria-labelledby="landing-title">
           <div className="landing-container">
-            <span className="landing-kicker">Connected technical memory</span>
             <h1 id="landing-title" className="landing-title" aria-label="Your team writes the code. Let us capture the context.">
-              Your team writes the code. Let us <span className="landing-highlight auth-typewriter-word" style={{ position: 'relative', display: 'inline-block' }}><span style={{ visibility: 'hidden', userSelect: 'none', pointerEvents: 'none' }}>{fullWord}</span><span style={{ position: 'absolute', left: 0, bottom: 0, display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap' }}>{animatedWord}<span className="auth-typewriter-cursor" aria-hidden="true" /></span></span> the context.
+              <span className="landing-title-row">Your team writes the code.</span>
+              <span className="landing-title-row">
+                Let us{' '}
+                <span className="landing-typewriter-container">
+                  <span className="landing-typewriter-ghost">{fullWord}</span>
+                  <span className="landing-typewriter-active">
+                    {animatedWord}
+                    <span className="auth-typewriter-cursor" aria-hidden="true" />
+                  </span>
+                </span>{' '}
+                the context.
+              </span>
             </h1>
+
             <p className="landing-lead">
-              <span className="landing-lead-statement">Git remembers what changed. Kote remembers why.</span>
-              <span className="landing-lead-detail">Automatically capture AI conversations, Git activity, and development decisions, then surface this context exactly when you need it.</span>
+              <strong className="landing-lead-bold">Git remembers what changed. Kote remembers why.</strong>
+              <span className="landing-lead-desc">
+                Automatically capture AI coding sessions, architecture decisions, and PR discussions to surface technical context exactly when you need it.
+              </span>
             </p>
+
             <div className="landing-actions">
-              <Link className="landing-button-link primary" to={routes.auth}>Enter workspace</Link>
-              <Link className="landing-button-link secondary" to={`${routes.auth}?mode=signup`}>Start with a new account</Link>
+              <Link className="landing-button-primary large" to={routes.auth}>
+                <span>Enter workspace</span>
+                <svg className="landing-btn-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+              <Link className="landing-button-secondary large" to={`${routes.auth}?mode=signup`}>
+                Start free account
+              </Link>
             </div>
 
-            {/* DASHBOARD PREVIEW SCREENSHOT */}
-            <div className="landing-dashboard-wrapper" aria-label="Kote Dashboard Preview">
-              <div className="landing-mock-browser-bar">
-                <div className="landing-mock-browser-dot" />
-                <div className="landing-mock-browser-dot" />
-                <div className="landing-mock-browser-dot" />
-                <div className="landing-mock-browser-url">https://knowledgebase.sbs/kote/</div>
+            {/* DASHBOARD PREVIEW SCREENSHOT IN CLEAN FRAME */}
+            <div className="landing-hero-visual reveal-scale" aria-label="Kote Dashboard Preview">
+              <div className="landing-frame-outer">
+                <div className="landing-mock-browser-bar">
+                  <div className="landing-browser-controls">
+                    <span className="landing-browser-dot red" />
+                    <span className="landing-browser-dot yellow" />
+                    <span className="landing-browser-dot green" />
+                  </div>
+                  <div className="landing-mock-browser-url">
+                    <span className="landing-url-lock">🔒</span>
+                    <span>https://knowledgebase.sbs/kote/dashboard</span>
+                  </div>
+                </div>
+
+                <div className="landing-screenshot-container">
+                  <img
+                    src={withFrontendBasePath('/dashboard-screenshot.png')}
+                    alt="Kote Engineering Dashboard"
+                    className="landing-real-screenshot"
+                    loading="eager"
+                  />
+                </div>
               </div>
-              <img src={withFrontendBasePath('/dashboard-screenshot.png')} alt="Kote Dashboard" className="landing-real-screenshot" />
             </div>
           </div>
         </section>
 
-        {/* TIMELINE GAP SECTION */}
-        <section className="landing-section" aria-labelledby="timeline-title">
+        {/* SECTION 2: THE CONTEXT GAP (INTERACTIVE TIMELINE) */}
+        <section id="context-gap" className="landing-section" aria-labelledby="timeline-title">
           <div className="landing-container">
             <header className="landing-section-header reveal-up">
               <span className="landing-kicker">The Context Gap</span>
               <h2 id="timeline-title">The repository is clear. The reasons, not so much.</h2>
               <p>
-                Standard git history tells you what changed, but rarely explains the why behind critical decisions.
-                We bridge that context gap.
+                Standard git commits capture the diff, but lose the discussion, the alternative approaches considered, and the architectural approval.
               </p>
             </header>
 
-            <div className="landing-commit-timeline reveal-scale">
-              <div className="landing-timeline-rail" />
-              <div className="landing-timeline-nodes">
-                <div className="landing-timeline-node amber">
-                  <div className="landing-timeline-tooltip">
-                    <h4>commit 4d2e9a: fix retry</h4>
-                    <p>"Why did we use 5s? Who approved it? Chat thread is lost."</p>
+            <div className="landing-timeline-card reveal-up">
+              <div className="landing-timeline-split">
+                {/* COMMIT LIST */}
+                <div className="landing-timeline-commits">
+                  <div className="landing-timeline-commits-header">
+                    <span className="landing-mono-label">Git Commit Stream</span>
+                  </div>
+
+                  <div className="landing-commit-items" role="tablist">
+                    {timelineData.map((item) => {
+                      const isSelected = item.id === selectedTimelineId;
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={isSelected}
+                          className={`landing-commit-row ${isSelected ? 'active' : ''}`}
+                          onClick={() => setSelectedTimelineId(item.id)}
+                        >
+                          <div className="landing-commit-status-icon">
+                            <GitCommitIcon className="landing-row-icon traditional" />
+                          </div>
+                          <div className="landing-commit-row-details">
+                            <div className="landing-commit-row-top">
+                              <code className="landing-commit-sha">{item.sha}</code>
+                              <span className="landing-commit-author">{item.author}</span>
+                            </div>
+                            <p className="landing-commit-msg">{item.message}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="landing-timeline-node amber">
-                  <div className="landing-timeline-tooltip">
-                    <h4>commit 9b8c1a: update webhook</h4>
-                    <p>"Config changed without an issue link or review description."</p>
+
+                {/* CONTEXT INSPECTION PANEL */}
+                <div className="landing-timeline-inspector">
+                  <div className="landing-inspector-header">
+                    <span className="landing-mono-label">Kote AI Review</span>
                   </div>
-                </div>
-                <div className="landing-timeline-node cyan">
-                  <div className="landing-timeline-tooltip">
-                    <h4>commit 1e4f2b: exponential backoff</h4>
-                    <p>"Linked to Kote note: Standard retry-policy. Context preserved."</p>
-                  </div>
-                </div>
-                <div className="landing-timeline-node cyan">
-                  <div className="landing-timeline-tooltip">
-                    <h4>commit 8a3f9c: add telemetry</h4>
-                    <p>"PR has 14 inline review findings captured as actionable issues."</p>
-                  </div>
-                </div>
-                <div className="landing-timeline-node green">
-                  <div className="landing-timeline-tooltip">
-                    <h4>commit 2d7b4e: release v1.4</h4>
-                    <p>"All critical architecture context locked in and fully indexed."</p>
+
+                  <div className="landing-inspector-body">
+                    <div className="landing-inspector-meta">
+                      <div className="landing-meta-pair">
+                        <span className="label">Commit:</span>
+                        <code>{activeTimeline.sha}</code>
+                      </div>
+                      <div className="landing-meta-pair">
+                        <span className="label">Author:</span>
+                        <span>{activeTimeline.author}</span>
+                      </div>
+                    </div>
+
+                    <div className="landing-inspector-message-box">
+                      <span className="landing-box-title">Commit Message</span>
+                      <p className="landing-box-text">{activeTimeline.message}</p>
+                    </div>
+
+                    <div className={`landing-inspector-context-box`}>
+                      <div className="landing-finding-field">
+                        <span className="landing-field-label">AI Finding:</span>
+                        <p>{activeTimeline.analysisSummary}</p>
+                      </div>
+                      <div className="landing-finding-field">
+                        <span className="landing-field-label"></span>
+                        <p>{activeTimeline.riskOrImpact}</p>
+                      </div>
+                      <div className="landing-finding-field">
+                        <span className="landing-field-label">Recommendation:</span>
+                        <p>{activeTimeline.recommendation}</p>
+                      </div>
+
+                      {activeTimeline.linkedNote && (
+                        <div className="landing-adr-tag">
+                          <FileCodeIcon className="landing-adr-icon" />
+                          <span>Linked Note: <strong>{activeTimeline.linkedNote}</strong></span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -143,158 +319,203 @@ export function LandingPage() {
           </div>
         </section>
 
-        {/* INTEGRATIONS MAP SECTION */}
-        <section className="landing-section" aria-labelledby="integrations-title">
+        {/* SECTION 3: INTEGRATIONS / CAPTURE ECOSYSTEM */}
+        <section id="ecosystem" className="landing-section" aria-labelledby="integrations-title">
           <div className="landing-container">
             <header className="landing-section-header reveal-up">
-              <span className="landing-kicker">Unified Context</span>
-              <h2 id="integrations-title">Where engineering memory lives.</h2>
+              <span className="landing-kicker">Unified Ingestion</span>
+              <h2 id="integrations-title">Where engineering memory happens.</h2>
               <p>
-                Kote seamlessly bridges the gap between your communication channels and your codebase,
-                automatically grouping files and discussions.
+                Capture context from the tools your team uses every single day — without disrupting developer flow.
               </p>
             </header>
 
-            <div className="landing-integration-container reveal-scale">
-              <div className="landing-integration-center">
-                <BrandMark />
-                <strong>Kote</strong>
-                <span>Unified Knowledge</span>
+            <div className="landing-ecosystem-grid reveal-up">
+              <div className="landing-ecosystem-card">
+                <div className="landing-eco-header">
+                  <div className="landing-eco-icon-wrap github">
+                    <GitHubIcon />
+                  </div>
+                </div>
+                <h3>GitHub Repositories</h3>
+                <p>Sync commit trees, pull request reviews, and issue discussions directly with your technical notes.</p>
+                <div className="landing-eco-footer">
+                </div>
               </div>
 
-              <svg className="landing-integration-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-                <path d="M 24 20 L 44.6 38" stroke="var(--line-soft)" strokeWidth="0.4" strokeDasharray="1 1" strokeLinecap="round" />
-                <path d="M 76 20 L 55.4 38" stroke="var(--line-soft)" strokeWidth="0.4" strokeDasharray="1 1" strokeLinecap="round" />
-                <path d="M 24 80 L 44.6 62" stroke="var(--line-soft)" strokeWidth="0.4" strokeDasharray="1 1" strokeLinecap="round" />
-                <path d="M 76 80 L 55.4 62" stroke="var(--line-soft)" strokeWidth="0.4" strokeDasharray="1 1" strokeLinecap="round" />
-              </svg>
+              <div className="landing-ecosystem-card">
+                <div className="landing-eco-header">
+                  <div className="landing-eco-icon-wrap ai">
+                    <SparklesIcon />
+                  </div>
+                </div>
+                <h3>AI Coding Sessions</h3>
+                <p>Capture architecture decisions made during sessions in Antigravity, Claude Code, Cursor, or OpenCode.</p>
+              </div>
 
-              <div className="landing-integration-card c1">
-                <span className="landing-integration-card-icon"><GitHubIcon /></span>
-                <span>GitHub Sync</span>
+              <div className="landing-ecosystem-card">
+                <div className="landing-eco-header">
+                  <div className="landing-eco-icon-wrap vscode">
+                    <VscodeIcon />
+                  </div>
+                </div>
+                <h3>VS Code Extension</h3>
+                <p>Highlight code snippets and create or link knowledge base notes without leaving your editor.</p>
+                <div className="landing-eco-footer">
+                </div>
               </div>
-              <div className="landing-integration-card c2">
-                <span className="landing-integration-card-icon"><SparklesIcon /></span>
-                <span>AI Sessions</span>
+
+              <div className="landing-ecosystem-card">
+                <div className="landing-eco-header">
+                  <div className="landing-eco-icon-wrap cli">
+                    <CliIcon />
+                  </div>
+                </div>
+                <h3>Kote CLI</h3>
+                <p>Capture quick terminal notes, query technical memory with natural language, and sync local AI sessions.</p>
               </div>
-              <div className="landing-integration-card c3">
-                <span className="landing-integration-card-icon"><MessagesIcon /></span>
-                <span>Messages</span>
+
+              <div className="landing-ecosystem-card">
+                <div className="landing-eco-header">
+                  <div className="landing-eco-icon-wrap chat">
+                    <WhatsAppIcon />
+                  </div>
+                </div>
+                <h3>Chat & Messaging</h3>
+                <p>Forward key decisions from WhatsApp or team channels directly to Kote's AI ingestion pipeline.</p>
               </div>
-              <div className="landing-integration-card c4">
-                <span className="landing-integration-card-icon whatsapp-icon"><WhatsAppIcon /></span>
-                <span>WhatsApp</span>
+
+              <div className="landing-ecosystem-card">
+                <div className="landing-eco-header">
+                  <div className="landing-eco-icon-wrap browser">
+                    <GlobeIcon />
+                  </div>
+                </div>
+                <h3>Browser Extension</h3>
+                <p>Clip API docs, RFCs, StackOverflow fixes, and GitHub gists with clean markdown extraction.</p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* FEATURES GRID SECTION */}
-        <section className="landing-section landing-grid-bg" aria-labelledby="features-title">
+        {/* SECTION 4: DEVELOPER CAPABILITIES */}
+        <section id="capabilities" className="landing-section" aria-labelledby="capabilities-title">
           <div className="landing-container">
             <header className="landing-section-header reveal-up">
-              <span className="landing-kicker">Features Grid</span>
-              <h2 id="features-title">With Kote, you don't need to guess.</h2>
+              <span className="landing-kicker">Developer First</span>
+              <h2 id="capabilities-title">Engineered for technical precision.</h2>
               <p>
-                The time between understanding and acting decreases — and clarity becomes part of the process.
+                Everything in Kote is built to reduce cognitive load and keep your team aligned.
               </p>
             </header>
 
-            <div className="landing-features-grid">
-
-              <div className="landing-feature-card reveal-scale">
-                <div className="landing-feature-copy">
-                  <span>Impact & Priorities</span>
-                  <h3>Prioritize what needs engineering alignment.</h3>
+            <div className="landing-bento-grid reveal-up">
+              {/* CAPABILITY 1: KNOWLEDGE MAP SPOTLIGHT */}
+              <div className="landing-bento-item">
+                <div className="landing-bento-copy">
+                  <h3>Interactive Project Knowledge Map</h3>
                   <p>
-                    Identify knowledge gaps, critical architectural changes, and overdue review findings
-                    based on real-world updates and repository history.
+                    Visualize dependencies, connected notes, and architectural clusters across your repositories. Spot orphaned code and undocumented modules at a glance.
                   </p>
                 </div>
-                <div className="landing-feature-visual">
-                  <div className="landing-mock-evidence">
-                    <div className="landing-mock-priority-item">
-                      <div className="landing-mock-priority-header">
-                        <span className="landing-badge danger">High Impact</span>
-                        <span className="landing-mock-meta">telemetry-service / 14 reports</span>
-                      </div>
-                      <h4>Fragmented staging telemetry</h4>
-                      <p>Multiple trace drop events occurred on production webhook sync.</p>
+                <div className="landing-bento-visual map-preview">
+                  <img
+                    src={withFrontendBasePath('/Kote-Map.png')}
+                    alt="Kote Interactive Knowledge Map"
+                    className="landing-bento-img"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+
+              {/* CAPABILITY 2: CLI TERMINAL */}
+              <div className="landing-bento-item">
+                <div className="landing-bento-copy">
+                  <h3>Zero Context Switching with CLI</h3>
+                  <p>
+                    Capture notes, query technical memory, and sync local AI coding sessions directly from your terminal.
+                  </p>
+                </div>
+                <div className="landing-bento-visual terminal-preview">
+                  <div className="landing-mock-terminal">
+                    <div className="landing-mock-terminal-bar">
+                      <span className="terminal-dot" />
+                      <span className="terminal-dot" />
+                      <span className="terminal-dot" />
+                      <span className="terminal-title">zsh — kote</span>
                     </div>
-                    <div className="landing-mock-priority-item">
-                      <div className="landing-mock-priority-header">
-                        <span className="landing-badge warning">Medium Impact</span>
-                        <span className="landing-mock-meta">telemetry-service / 6 logs</span>
-                      </div>
-                      <h4>Vague auth exceptions</h4>
-                      <p>Cognito configuration returned unmapped auth flow exceptions.</p>
+                    <div className="landing-mock-terminal-body">
+                      <div className="terminal-line"><span className="p">$</span> kote "ADR-04: Implement exponential backoff" -p backend</div>
+                      <div className="terminal-response green">✔ Success! Created note in project: backend</div>
+                      <div className="terminal-line"><span className="p">$</span> kote ask "How is webhook signature verified?"</div>
+                      <div className="terminal-response cyan">✔ Search complete!</div>
+                      <div className="terminal-response-detail">"Webhook signatures are verified using HMAC-SHA256 with timestamp validation."</div>
+                      <div className="terminal-response-sources">Sources: ADR-04: Resilient Ingestion Standard</div>
                     </div>
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </section>
 
-        {/* ASK AI SEMANTIC SEARCH */}
-        <section className="landing-section" aria-labelledby="ai-search-title">
+        {/* SECTION 5: ASK AI SEMANTIC SEARCH DEEP-DIVE */}
+        <section id="ai-search" className="landing-section" aria-labelledby="ai-search-title">
           <div className="landing-container">
             <header className="landing-section-header reveal-up">
               <span className="landing-kicker">Ask AI</span>
               <h2 id="ai-search-title">Semantic Search & AI Assistant</h2>
               <p>
-                Get direct answers from your knowledge base notes using advanced semantic embeddings.
+                Retrieve exact answers with direct citations to your notes, code references, and team decisions.
               </p>
             </header>
 
-            <div className="landing-ai-search-wrapper">
-              <div className="landing-ai-search-info reveal-up">
-                <div className="landing-ai-search-features">
-                  <div className="landing-ai-search-feature-item">
-                    <span className="landing-ai-search-feature-icon"><SparklesIcon /></span>
-                    <div className="landing-ai-search-feature-content">
-                      <h4>Natural Language Answers</h4>
-                      <p>Ask questions like "How do we handle retry timeouts?" and get direct answers synthesized from notes.</p>
-                    </div>
-                  </div>
-                  <div className="landing-ai-search-feature-item">
-                    <span className="landing-ai-search-feature-icon"><SearchIcon /></span>
-                    <div className="landing-ai-search-feature-content">
-                      <h4>Project-Scoped Search</h4>
-                      <p>Filter searches to specific active repositories, or run global workspace-wide assistant runs.</p>
-                    </div>
-                  </div>
+            <div className="landing-ai-search-frame reveal-scale">
+              <div className="landing-mock-browser-bar">
+                <div className="landing-browser-controls">
+                  <span className="landing-browser-dot red" />
+                  <span className="landing-browser-dot yellow" />
+                  <span className="landing-browser-dot green" />
+                </div>
+                <div className="landing-mock-browser-url">
+                  <span className="landing-url-lock">🔒</span>
+                  <span>https://knowledgebase.sbs/kote/search</span>
                 </div>
               </div>
 
-              <div className="landing-ai-search-visual reveal-scale">
-                <div className="landing-dashboard-wrapper large-preview" aria-label="Ask AI Assistant Preview">
-                  <div className="landing-mock-browser-bar">
-                    <div className="landing-mock-browser-dot" />
-                    <div className="landing-mock-browser-dot" />
-                    <div className="landing-mock-browser-dot" />
-                    <div className="landing-mock-browser-url">https://knowledgebase.sbs/knowledge-base/search</div>
-                  </div>
-                  <img src={withFrontendBasePath('/search-screenshot.png')} alt="Ask AI Assistant" className="landing-real-screenshot" />
-                </div>
+              <div className="landing-screenshot-container">
+                <img
+                  src={withFrontendBasePath('/search-screenshot.png')}
+                  alt="Ask AI Semantic Search in Kote"
+                  className="landing-real-screenshot"
+                  loading="lazy"
+                />
               </div>
             </div>
           </div>
         </section>
 
-        {/* CALL TO ACTION BANNER */}
+        {/* SECTION 6: CALL TO ACTION */}
         <section className="landing-section landing-cta-section" aria-label="Get started call to action">
           <div className="landing-container">
             <div className="landing-cta-banner reveal-scale">
-              <h2>Bring clarity to your codebase.</h2>
-              <p>
-                Start capturing knowledge where engineering already happens and keep your technical context
-                connected to the projects that need them next.
-              </p>
-              <div className="landing-actions" style={{ marginBottom: 0 }}>
-                <Link className="landing-button-link primary" to={routes.auth}>Enter workspace</Link>
-                <Link className="landing-button-link secondary" to={`${routes.auth}?mode=signup`}>Create an account</Link>
+              <div className="landing-cta-inner">
+                <span className="landing-kicker cta-kicker">Start Today</span>
+                <h2>Bring clarity to your engineering memory.</h2>
+                <p>
+                  Start capturing knowledge where engineering already happens and keep your technical context connected to the projects that need them next.
+                </p>
+                <div className="landing-actions">
+                  <Link className="landing-button-primary large" to={routes.auth}>
+                    <span>Enter workspace</span>
+                    <svg className="landing-btn-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M6 3.5L10.5 8L6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </Link>
+                  <Link className="landing-button-secondary large" to={`${routes.auth}?mode=signup`}>
+                    Create free account
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
@@ -302,20 +523,52 @@ export function LandingPage() {
 
         {/* FOOTER */}
         <footer className="landing-footer">
-          <div className="landing-footer-content">
-            <div className="landing-footer-logo">
-              <BrandMark />
-              <strong>Kote</strong>
+          <div className="landing-container">
+            <div className="landing-footer-grid">
+              <div className="landing-footer-brand">
+                <div className="landing-brand">
+                  <BrandMark />
+                  <strong>Kote</strong>
+                </div>
+                <p className="landing-footer-tagline">
+                  Engineering knowledge management & context layer for modern technical teams.
+                </p>
+              </div>
+
+              <div className="landing-footer-col">
+                <strong>Product</strong>
+                <a href="#context-gap">The Context Gap</a>
+                <a href="#ecosystem">Integrations</a>
+                <a href="#capabilities">Knowledge Map</a>
+                <a href="#ai-search">Ask AI Assistant</a>
+              </div>
+
+              <div className="landing-footer-col">
+                <strong>Ecosystem</strong>
+                <Link to={routes.auth}>Web Application</Link>
+                <a href="https://www.npmjs.com/package/@pedroaugusto04/kote-cli" target="_blank" rel="noopener noreferrer">
+                  CLI Package
+                </a>
+                <Link to={routes.extensionPrivacy}>Browser Extension</Link>
+                <Link to={routes.help}>Documentation</Link>
+              </div>
+
+              <div className="landing-footer-col">
+                <strong>Connect</strong>
+                <a href="mailto:pedroaugustoaduarte@gmail.com">Contact Support</a>
+                <Link to={routes.auth}>Sign In</Link>
+                <Link to={`${routes.auth}?mode=signup`}>Create Workspace</Link>
+              </div>
             </div>
-            <div className="landing-footer-meta">
-              <span>Knowledge management for modern engineering teams.</span>
-              <a href="mailto:pedroaugustoaduarte@gmail.com">Contact Support</a>
+
+            <div className="landing-footer-bottom">
               <span>© 2026 Kote. All rights reserved.</span>
             </div>
           </div>
         </footer>
-
       </section>
     </main>
   );
 }
+
+

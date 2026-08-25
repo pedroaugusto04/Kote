@@ -22,6 +22,7 @@ export const API_PATHS = {
   PROJECT_BRIEF: '/api/projects/{projectSlug}/brief',
   PROJECT_BRIEF_HISTORY: '/api/projects/{projectSlug}/brief/history',
   PROJECT_DEPENDENCIES: '/api/projects/{projectSlug}/dependencies',
+  PROJECT_COVERAGE: '/api/projects/{projectSlug}/coverage',
 
   // Notes paths
   NOTES: '/api/notes',

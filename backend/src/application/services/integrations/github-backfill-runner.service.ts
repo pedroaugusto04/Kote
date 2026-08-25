@@ -9,6 +9,7 @@ import { GithubIntegrationGateway } from '../../ports/integrations/github-integr
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { GithubBackfillJobRepository } from '../../ports/integrations/github-backfill-job.repository.js';
+import { GithubBackfillMapper } from '../../mappers/github-backfill.mapper.js';
 import { AppLogger } from '../../../observability/logger.js';
 
 @Injectable()
@@ -181,48 +182,20 @@ export class GithubBackfillRunnerService {
           token,
         );
 
-        const added: string[] = [];
-        const modified: string[] = [];
-        const removed: string[] = [];
-
-        for (const file of commitDiff.files) {
-          if (file.status === 'added') {
-            added.push(file.filename);
-          } else if (file.status === 'modified') {
-            modified.push(file.filename);
-          } else if (file.status === 'removed') {
-            removed.push(file.filename);
-          }
-        }
+        const body = GithubBackfillMapper.toPushBody({
+          branch,
+          parentSha: commit.parentSha,
+          commitSha: commit.sha,
+          installationId,
+          repository,
+          commitMessage: commit.message,
+          commitTimestamp: commit.timestamp,
+          commitUrl: commit.url,
+          files: commitDiff.files,
+        });
 
         const result = await this.processGithubPushService.execute({
-          body: {
-            ref: `refs/heads/${branch}`,
-            before: commit.parentSha,
-            after: commit.sha,
-            installation: { id: installationId },
-            repository: {
-              id: repository.id,
-              full_name: repository.fullName,
-              name: repository.name,
-              private: repository.private,
-            },
-            head_commit: {
-              id: commit.sha,
-              message: commit.message,
-              timestamp: commit.timestamp,
-              url: commit.url,
-            },
-            commits: [{
-              id: commit.sha,
-              message: commit.message,
-              added,
-              modified,
-              removed,
-            }],
-            pusher: { name: 'github-backfill' },
-            sender: { login: 'github-backfill' },
-          },
+          body,
           userId,
           workspaceSlug: job.workspaceSlug,
           projectSlug,

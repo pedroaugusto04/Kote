@@ -4,6 +4,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 
 import type { PageContext } from '../app/page-context';
+import { PageContextProvider } from '../app/page-context-provider';
 import { navItems, routes, type View } from '../app/routing/routes';
 import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite } from '../shared/api/client';
 import { fetchSubscriptionStatus } from '../shared/api/billing';
@@ -22,7 +23,7 @@ const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => 
 const SetupPage = lazy(() => import('../pages/setup/SetupPage').then(m => ({ default: m.SetupPage })));
 const AuthPage = lazy(() => import('../pages/auth/AuthPage').then(m => ({ default: m.AuthPage })));
 const HelpPage = lazy(() => import('../pages/help/HelpPage').then(m => ({ default: m.HelpPage })));
-const AutomationsPage = lazy(() => import('../pages/automations/AutomationsPage').then((m: any) => ({ default: m?.default ?? m.AutomationsPage })));
+const AutomationsPage = lazy(() => import('../pages/automations/AutomationsPage').then(m => ({ default: m.AutomationsPage })));
 const HomePage = lazy(() => import('../pages/home/HomePage').then(m => ({ default: m.HomePage })));
 const ProjectsPage = lazy(() => import('../pages/projects/ProjectsPage').then(m => ({ default: m.ProjectsPage })));
 const RemindersPage = lazy(() => import('../pages/reminders/RemindersPage').then(m => ({ default: m.RemindersPage })));
@@ -698,25 +699,27 @@ export function AppShell() {
         </header>
         <section className="view" aria-live="polite">
           <Breadcrumbs projects={dashboard.projects} />
-          <Suspense fallback={<GlobalLoadingOverlay />}>
-            <Routes>
-              <Route path="/" element={<HomePage {...pageContext} />} />
-              <Route path="/projects" element={<ProjectsPage {...pageContext} />} />
-              <Route path="/map" element={<ProjectKnowledgeMapPage dashboard={pageContext.dashboard} openNote={pageContext.openNote} selectedProject={pageContext.selectedProject} />} />
-              <Route path="/map/:projectSlug" element={<ProjectKnowledgeMapPage dashboard={pageContext.dashboard} openNote={pageContext.openNote} selectedProject={pageContext.selectedProject} />} />
-              <Route path="/projects/:projectSlug" element={<ProjectsPage {...pageContext} />} />
-              <Route path="/vault" element={<Navigate replace to={routes.projects} />} />
-              <Route path="/vault/:noteId" element={shouldBlockNoteRoute ? null : <VaultPage {...pageContext} />} />
-              <Route path="/search" element={<SearchPage {...pageContext} />} />
-              <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
-              <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
-              <Route path="/automations/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
-              <Route path="/automations/subscription" element={<SubscriptionPage />} />
-              <Route path="/automations" element={<AutomationsPage />} />
-              <Route path="/help" element={<HelpPage />} />
-              <Route path="*" element={<HomePage {...pageContext} />} />
-            </Routes>
-          </Suspense>
+          <PageContextProvider value={pageContext}>
+            <Suspense fallback={<GlobalLoadingOverlay />}>
+              <Routes>
+                <Route path="/" element={<HomePage {...pageContext} />} />
+                <Route path="/projects" element={<ProjectsPage {...pageContext} />} />
+                <Route path="/map" element={<ProjectKnowledgeMapPage dashboard={pageContext.dashboard} openNote={pageContext.openNote} selectedProject={pageContext.selectedProject} />} />
+                <Route path="/map/:projectSlug" element={<ProjectKnowledgeMapPage dashboard={pageContext.dashboard} openNote={pageContext.openNote} selectedProject={pageContext.selectedProject} />} />
+                <Route path="/projects/:projectSlug" element={<ProjectsPage {...pageContext} />} />
+                <Route path="/vault" element={<Navigate replace to={routes.projects} />} />
+                <Route path="/vault/:noteId" element={shouldBlockNoteRoute ? null : <VaultPage {...pageContext} />} />
+                <Route path="/search" element={<SearchPage {...pageContext} />} />
+                <Route path="/reminders" element={<RemindersPage {...pageContext} />} />
+                <Route path="/profile" element={<ProfilePage workspace={activeWorkspace} />} />
+                <Route path="/automations/integrations" element={<IntegrationsPage workspaceSlug={activeWorkspace.workspaceSlug} />} />
+                <Route path="/automations/subscription" element={<SubscriptionPage />} />
+                <Route path="/automations" element={<AutomationsPage />} />
+                <Route path="/help" element={<HelpPage />} />
+                <Route path="*" element={<HomePage {...pageContext} />} />
+              </Routes>
+            </Suspense>
+          </PageContextProvider>
         </section>
       </main>
       {noteModal ? (

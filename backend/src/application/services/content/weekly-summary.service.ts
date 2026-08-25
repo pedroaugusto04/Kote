@@ -10,6 +10,7 @@ import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { WeeklySummaryGateway } from '../../ports/weekly-summary/weekly-summary.port.js';
 import { WeeklySummaryQueuePublisher } from '../../ports/weekly-summary/weekly-summary-queue.publisher.js';
+import { WeeklySummaryEmailMapper } from '../../mappers/weekly-summary-email.mapper.js';
 import { AiProvider, IntegrationProvider, DependencyUrgency } from '../../../contracts/enums.js';
 import type { WeeklySummaryAnalysis } from '../../../contracts/weekly-summary.js';
 
@@ -207,36 +208,13 @@ export class WeeklySummaryService {
       aiPayload,
     );
 
-    const subject = `${appName} — Weekly summary (${totalNotes} new note${totalNotes > 1 ? 's' : ''})`;
-
-    const textParts: string[] = [];
-    textParts.push(`Hi ${user.displayName || ''},`);
-    textParts.push('\n' + aiSummary.overview);
-    textParts.push('\nKey Highlights:');
-    for (const highlight of aiSummary.keyHighlights) {
-      textParts.push(`- ${highlight}`);
-    }
-    textParts.push('\nBy Project:');
-    for (const project of aiSummary.byProject) {
-      textParts.push(`\n${project.projectName} (${project.noteCount} notes)`);
-      textParts.push(project.summary);
-      if (project.notableNotes.length > 0) {
-        textParts.push('Notable notes:');
-        for (const note of project.notableNotes) {
-          textParts.push(`- ${note.title}: ${note.summary}`);
-        }
-      }
-    }
-    textParts.push('\nRecommendations:');
-    for (const rec of aiSummary.recommendations) {
-      textParts.push(`- ${rec}`);
-    }
-    textParts.push('\nThanks — sent by Kote');
+    const subject = WeeklySummaryEmailMapper.toSubject(appName, totalNotes);
+    const text = WeeklySummaryEmailMapper.toTextContent(user.displayName, appName, aiSummary);
 
     await this.emailService.sendEmail({
       to: user.email,
       subject,
-      text: textParts.join('\n'),
+      text,
       templateName: 'weekly-summary',
       templateData: {
         displayName: user.displayName || '',

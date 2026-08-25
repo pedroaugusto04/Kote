@@ -99,18 +99,26 @@ export function AuthPage({ onAuthenticated }: { onAuthenticated: () => void }) {
 
   return (
     <main className="auth-layout">
+      <div className="auth-grid-overlay" aria-hidden="true" />
       <section className="auth-panel auth-panel-standalone" aria-label="Authentication">
         <div className="auth-panel-head">
-          <Link className="brand auth-brand" to={routes.home} aria-label="Go to Home">
+          <Link className="auth-brand" to={routes.home} aria-label="Go to Home">
             <BrandMark />
-            <div>
-              <strong>Kote</strong>
-              <span>Your Team's Second Brain</span>
+            <div className="auth-brand-text">
+              <div className="auth-brand-title">
+                <strong>Kote</strong>
+              </div>
+              <span className="auth-brand-subtitle">Engineering Memory</span>
             </div>
           </Link>
           <div className="auth-panel-head-actions">
             <ThemeToggle className="theme-toggle auth-theme-toggle" />
-            <Link className="topbar-link landing-link" to={routes.home}>Overview</Link>
+            <Link className="auth-back-link" to={routes.home} aria-label="Overview">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M10 12.5L5.5 8L10 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Overview</span>
+            </Link>
           </div>
         </div>
         <div className="segmented-control" role="tablist" aria-label="Access mode">
