@@ -26,7 +26,7 @@ test('FindNotesBySnippetUseCase returns empty when file has no notes', async () 
   assert.equal(result.gitContext.commitHash, 'abc1234');
 });
 
-test('FindNotesBySnippetUseCase scores notes based on temporal commit proximity and snippet keywords, sorted by relevance score', async () => {
+test('FindNotesBySnippetUseCase prioritizes selected-code overlap over commit timing', async () => {
   const logger = { info: () => {}, warn: () => {} };
 
   const commitDate = '2026-03-15T14:30:00.000Z';
@@ -111,22 +111,24 @@ test('FindNotesBySnippetUseCase scores notes based on temporal commit proximity 
   assert.equal(result.matches.length, 3);
   assert.equal(result.gitContext.commitHash, 'commit-999');
 
-  // Verify relevance score ordering: note-commit-day (highest score & isOriginMatch) -> note-recent -> note-old
+  // Verify relevance score ordering: note-commit-day (highest score) -> note-recent -> note-old
   assert.equal(result.matches[0].note.id, 'note-commit-day');
   assert.equal(result.matches[1].note.id, 'note-recent');
   assert.equal(result.matches[2].note.id, 'note-old');
 
-  // note-commit-day should have high score and isOriginMatch = true
+  // A same-day note is relevant, but only a matching SHA is a direct origin.
   const commitMatch = result.matches.find((m) => m.note.id === 'note-commit-day');
-  assert.equal(commitMatch.relevance.isOriginMatch, true);
+  assert.equal(commitMatch.relevance.isOriginMatch, false);
   assert.ok(commitMatch.relevance.score >= 0.8);
 
   // note-recent should have high snippet score
   const recentNote = result.matches.find((m) => m.note.id === 'note-recent');
   assert.ok(recentNote.relevance.score > 0.1);
+  assert.ok(commitMatch.relevance.contentScore > recentNote.relevance.contentScore);
+  assert.equal(typeof commitMatch.relevance.temporalScore, 'number');
 });
 
-test('FindNotesBySnippetUseCase matches direct commitHash in note metadata', async () => {
+test('FindNotesBySnippetUseCase matches direct GitHub headSha in note metadata', async () => {
   const logger = { info: () => {}, warn: () => {} };
 
   const mockNotes = [
@@ -136,7 +138,7 @@ test('FindNotesBySnippetUseCase matches direct commitHash in note metadata', asy
       summary: 'Generated migration script',
       path: 'src/db/migrate.ts',
       markdown: 'Generated migration',
-      metadata: { commitHash: 'abcdef1234567890' },
+      metadata: { headSha: 'abcdef1234567890' },
       categories: [],
       tags: [],
       occurredAt: '2026-01-01T00:00:00.000Z',
@@ -188,5 +190,6 @@ test('FindNotesBySnippetUseCase matches direct commitHash in note metadata', asy
   assert.equal(result.matches[0].note.id, 'note-hash-match');
   assert.equal(result.matches[0].relevance.isOriginMatch, true);
   assert.equal(result.matches[0].relevance.score, 1.0);
+  assert.equal(result.matches[0].relevance.contentScore, 1.0);
   assert.equal(result.matches[0].relevance.reason, 'Direct commit hash match');
 });

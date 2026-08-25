@@ -2,8 +2,16 @@ import * as vscode from 'vscode';
 import type { KbClient } from '../kb-client';
 import type { SnippetNoteMatch, SnippetNotesResponse } from '../types';
 import type { GitSnippetOriginInfo } from '../utils/git-blame';
-import { GIT_SOURCE_CHANNELS, isAiSessionChannel, resolveSourceBadge } from '../utils/source-channel';
+import { GIT_SOURCE_CHANNELS, resolveSourceBadge } from '../utils/source-channel';
 import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
+import { KOTE_WEBVIEW_FOUNDATION_STYLES } from './kote-webview-design';
+
+const LINEAGE_RELEVANCE_THRESHOLDS = {
+  sameFileContent: 0.65,
+  semanticSimilarity: 0.62,
+} as const;
+
+const MAX_RELATED_COMMITS = 20;
 
 export interface SnippetOriginInput {
   filePath: string;
@@ -30,7 +38,7 @@ export class SnippetOriginSummaryProvider {
     this.panel = panel;
 
     if (!SnippetOriginSummaryProvider.outputChannel) {
-      SnippetOriginSummaryProvider.outputChannel = vscode.window.createOutputChannel('Kote Snippet Origin');
+      SnippetOriginSummaryProvider.outputChannel = vscode.window.createOutputChannel('Kote Code Lineage');
     }
 
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
@@ -73,7 +81,7 @@ export class SnippetOriginSummaryProvider {
 
     const panel = vscode.window.createWebviewPanel(
       'kote.snippetOriginSummary',
-      `Kote Code Origin: ${input.filePath}:${input.startLine}-${input.endLine}`,
+      `Kote Code Lineage: ${input.filePath}:${input.startLine}-${input.endLine}`,
       column || vscode.ViewColumn.Beside,
       {
         enableScripts: true,
@@ -110,28 +118,27 @@ export class SnippetOriginSummaryProvider {
         commitDate: this.input.gitInfo?.commitDate,
         author: this.input.gitInfo?.author,
         commitMessage: this.input.gitInfo?.commitMessage,
+        limit: 50,
       }, { signal });
 
       if (signal.aborted) return;
 
-      const directMatches = response.matches || [];
-      const isGitChannel = (channel?: string) => GIT_SOURCE_CHANNELS.some((g) => (channel || '').toLowerCase().includes(g));
-      const linkedMatches = directMatches.filter((m) => m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel));
-      const linkedIds = linkedMatches.map((m) => m.note.id);
+      const directIds = (response.matches || []).map((m) => m.note.id);
 
       // Pass full selected code snippet block (capped at 1,000 chars) for semantic AI search
       const snippetQuery = (this.input.snippet || '').trim().slice(0, 1000);
 
-      // Hybrid fetch: retrieve semantic vector matches excluding ONLY the Tab 1 IDs
+      // Hybrid fetch: retrieve cross-file semantic matches, excluding all direct file matches.
       let semanticNotes: any[] = [];
       try {
         semanticNotes = await this.kbClient.findRelatedNotesByFile(
           this.input.filePath,
-          linkedIds,
+          directIds,
           {
             projectSlug: this.input.projectSlug,
             query: snippetQuery,
             limit: 10,
+            searchProfile: 'snippet',
             signal,
           }
         );
@@ -240,7 +247,7 @@ export class SnippetOriginSummaryProvider {
 <body>
   <div class="loading-text">
     <div class="spinner"></div>
-    <p>Searching Git history and related AI sessions…</p>
+    <p>Searching Git history and related notes…</p>
   </div>
 </body>
 </html>`;
@@ -281,7 +288,7 @@ export class SnippetOriginSummaryProvider {
 </head>
 <body>
   <div class="error-box">
-    <strong>Failed to load code origin</strong>
+    <strong>Failed to load Kote Code Lineage</strong>
     <p>${this.escapeHtml(errorMsg)}</p>
   </div>
   <button onclick="acquireVsCodeApi().postMessage({ command: 'refresh' })">Try Again</button>
@@ -308,15 +315,39 @@ export class SnippetOriginSummaryProvider {
       <div class="card ${isOrigin ? 'origin-match' : ''}" onclick="openNote('${this.escapeHtml(note.id)}')">
         <div class="card-header">
           <div class="badge ${badge.className}">${this.escapeHtml(badge.label)}</div>
-          ${isOrigin ? '<div class="badge badge-origin">Direct Commit Origin</div>' : ''}
+          ${isOrigin ? '<div class="badge badge-origin">Exact commit match</div>' : ''}
           <span class="card-date">${this.escapeHtml(formattedDate)}</span>
         </div>
         <h3 class="card-title">${this.escapeHtml(this.truncateText(note.title || 'Untitled Note', 90))}</h3>
         <p class="card-summary">${this.escapeHtml(summaryText)}</p>
         ${relevance.reason ? `<div class="card-reason">${this.escapeHtml(relevance.reason)}</div>` : ''}
         <div class="card-footer">
-          <span class="view-link">View session / note &rarr;</span>
+          <span class="view-link">View note &rarr;</span>
         </div>
+      </div>
+    `;
+  }
+
+  private renderCollapsibleMatches(
+    sectionId: string,
+    matches: SnippetNoteMatch[],
+    previewLimit: number,
+    emptyState: string,
+  ): string {
+    if (matches.length === 0) return emptyState;
+
+    const preview = matches.slice(0, previewLimit);
+    const remaining = matches.slice(previewLimit);
+
+    return `
+      <div class="timeline">
+        ${preview.map((match) => this.renderMatchCard(match)).join('')}
+        ${remaining.length > 0 ? `
+          <div id="${sectionId}-more" class="additional-results">
+            ${remaining.map((match) => this.renderMatchCard(match)).join('')}
+          </div>
+          <button class="show-more-btn" data-label="Show ${remaining.length} more" onclick="toggleMore('#${sectionId}-more', this)">Show ${remaining.length} more</button>
+        ` : ''}
       </div>
     `;
   }
@@ -326,35 +357,49 @@ export class SnippetOriginSummaryProvider {
     const matches = response.matches || [];
     const hasGit = Boolean(git && git.commitHash);
 
-    // 1. Linked Matches: Direct commit origin match or GitHub webhook notes
+    // 1. Related commits are factual file links. They remain visible regardless
+    // of age, while selected-code overlap determines their order.
     const isGitChannel = (channel?: string) => GIT_SOURCE_CHANNELS.some((g) => (channel || '').toLowerCase().includes(g));
-    const rawLinkedMatches = matches.filter((m) => m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel));
+    const rawLinkedMatches = matches.filter((m) => (
+      m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel)
+    ));
 
-    // Sort linked matches by score DESC, then by date DESC
+    // Exact commit hashes first, then selected-code overlap, then newest date.
     rawLinkedMatches.sort((a, b) => {
-      const scoreA = a.relevance?.score ?? 0;
-      const scoreB = b.relevance?.score ?? 0;
-      if (scoreB !== scoreA) {
-        return scoreB - scoreA;
+      if (a.relevance.isOriginMatch !== b.relevance.isOriginMatch) {
+        return a.relevance.isOriginMatch ? -1 : 1;
+      }
+      const contentScoreA = a.relevance?.contentScore ?? 0;
+      const contentScoreB = b.relevance?.contentScore ?? 0;
+      if (contentScoreB !== contentScoreA) {
+        return contentScoreB - contentScoreA;
       }
       const dateA = new Date(a.note.date || a.note.createdAt || 0).getTime();
       const dateB = new Date(b.note.date || b.note.createdAt || 0).getTime();
       return dateB - dateA;
     });
-    const linkedMatches = rawLinkedMatches.slice(0, 5);
+    const linkedMatches = rawLinkedMatches.slice(0, MAX_RELATED_COMMITS);
     const linkedIds = new Set(rawLinkedMatches.map((m) => m.note.id));
 
-    // 2. Direct File AI Sessions (non-origin)
-    const directFileAiMatches = matches.filter((m) => !linkedIds.has(m.note.id));
+    // 2. File notes need selected-code overlap; their date does not determine relevance.
+    const directFileMatches = matches.filter((m) => (
+      !linkedIds.has(m.note.id)
+      && m.relevance.contentScore >= LINEAGE_RELEVANCE_THRESHOLDS.sameFileContent
+    ));
 
-    // 3. Semantic Vector AI Sessions (cross-file & conceptual matches)
+    // 3. Cross-file notes need a calibrated vector similarity, rather than an RRF rank.
     const allDirectIds = new Set(matches.map((m) => m.note.id));
-    const semanticAiMatches: SnippetNoteMatch[] = semanticNotes
-      .filter((n) => !allDirectIds.has(n.id))
+    const semanticMatches: SnippetNoteMatch[] = semanticNotes
+      .filter((n) => (
+        !allDirectIds.has(n.id)
+        && typeof n.semanticSimilarity === 'number'
+        && n.semanticSimilarity >= LINEAGE_RELEVANCE_THRESHOLDS.semanticSimilarity
+      ))
       .map((n) => ({
         note: n,
         relevance: {
-          score: typeof n.score === 'number' ? n.score : 0.5,
+          score: n.semanticSimilarity,
+          contentScore: n.semanticSimilarity,
           isOriginMatch: false,
           reason: 'Semantic vector match from related discussion',
         },
@@ -364,7 +409,7 @@ export class SnippetOriginSummaryProvider {
     const seenIds = new Set<string>();
     const allRelatedMatches: SnippetNoteMatch[] = [];
 
-    for (const m of [...directFileAiMatches, ...semanticAiMatches]) {
+    for (const m of [...directFileMatches, ...semanticMatches]) {
       if (!seenIds.has(m.note.id)) {
         seenIds.add(m.note.id);
         allRelatedMatches.push(m);
@@ -383,20 +428,106 @@ export class SnippetOriginSummaryProvider {
       return dateB - dateA;
     });
 
-    const relatedMatches = allRelatedMatches.slice(0, 7);
+    const relatedMatches = allRelatedMatches;
 
-    const linkedHtml = linkedMatches.length > 0
-      ? `<div class="timeline">${linkedMatches.map((m) => this.renderMatchCard(m)).join('')}</div>`
-      : `<div class="empty-state">
-          <p>No direct Git commit links attached to this snippet yet.</p>
-          ${hasGit ? `<p style="font-size: 0.85em;">Origin recorded via Git commit history above.</p>` : ''}
-        </div>`;
+    // 4. Unified Snippet Evolution Timeline (chronologically newest to oldest)
+    type TimelineEntry = {
+      date: string;
+      title: string;
+      description: string;
+      noteId?: string;
+      badge: { label: string; className: string };
+      isCommit?: boolean;
+      isOrigin?: boolean;
+    };
 
-    const relatedHtml = relatedMatches.length > 0
-      ? `<div class="timeline">${relatedMatches.map((m) => this.renderMatchCard(m)).join('')}</div>`
-      : `<div class="empty-state">
-          <p>No related AI chat sessions found for this snippet.</p>
-        </div>`;
+    const timelineItems: TimelineEntry[] = [];
+
+    // Add Git Commit if available
+    if (hasGit && git?.commitDate) {
+      timelineItems.push({
+        date: git.commitDate,
+        title: `Latest line change: ${git.commitHash ? git.commitHash.slice(0, 7) : ''} (${git.author || 'Unknown'})`,
+        description: git.commitMessage || 'No commit message',
+        badge: { label: 'Git Commit', className: 'badge-git' },
+        isCommit: true,
+      });
+    }
+
+    // Timeline presents commit evidence only. Related notes stay in their tab.
+    for (const match of linkedMatches) {
+      const note = match.note;
+      const badge = this.getSourceBadge(note.sourceChannel, note.canonicalType);
+      const isOrigin = match.relevance?.isOriginMatch;
+      const rawText = typeof (note.metadata as Record<string, unknown> | undefined)?.rawText === 'string'
+        ? String(note.metadata?.rawText)
+        : '';
+      timelineItems.push({
+        date: note.date || note.createdAt || '',
+        title: note.title || 'Untitled Note',
+        description: note.summary || rawText || note.content || 'No description',
+        noteId: note.id,
+        badge,
+        isOrigin,
+      });
+    }
+
+    // Sort timeline chronologically: newest to oldest
+    timelineItems.sort((a, b) => {
+      const timeA = new Date(a.date).getTime() || 0;
+      const timeB = new Date(b.date).getTime() || 0;
+      return timeB - timeA;
+    });
+
+    const renderedTimelineHtml = timelineItems.length > 0
+      ? `
+        <div class="timeline-section">
+          <div class="timeline-section-header">
+            <h2 class="timeline-heading">Timeline</h2>
+            <div class="timeline-controls">
+              <span class="timeline-count">${timelineItems.length} ${timelineItems.length === 1 ? 'event' : 'events'}</span>
+              <button class="show-more-btn" data-label="Show timeline" onclick="toggleSection('lineage-timeline', this)">Show timeline</button>
+            </div>
+          </div>
+          <div id="lineage-timeline" class="vertical-timeline collapsible-section">
+            ${timelineItems.map((item, index) => `
+              <div class="vertical-timeline-item ${item.isCommit ? 'timeline-commit' : ''} ${item.isOrigin ? 'timeline-origin' : ''} ${item.noteId ? 'clickable' : ''} ${index >= 8 ? 'timeline-extra' : ''}" ${item.noteId ? `onclick="openNote('${this.escapeHtml(item.noteId)}')"` : ''}>
+                <div class="timeline-item-header">
+                  <span class="vertical-timeline-date">${this.escapeHtml(this.formatDate(item.date))}</span>
+                  <div class="badge ${item.badge.className}">${this.escapeHtml(item.badge.label)}</div>
+                  ${item.isOrigin ? '<span class="badge badge-origin">Exact commit match</span>' : ''}
+                </div>
+                <div class="vertical-timeline-title">
+                  <span>${this.escapeHtml(this.truncateText(item.title, 90))}</span>
+                  ${item.noteId ? `<span class="timeline-link">View note →</span>` : ''}
+                </div>
+                <div class="vertical-timeline-description">${this.escapeHtml(this.truncateText(item.description, 220))}</div>
+              </div>
+            `).join('')}
+            ${timelineItems.length > 8 ? `<button class="show-more-btn" data-label="Show ${timelineItems.length - 8} more" onclick="toggleMore('.timeline-extra', this)">Show ${timelineItems.length - 8} more</button>` : ''}
+          </div>
+        </div>
+      `
+      : '';
+
+    const linkedHtml = this.renderCollapsibleMatches(
+      'linked-notes',
+      linkedMatches,
+      3,
+      `<div class="empty-state">
+          <p>No commits linked to this file were found.</p>
+          ${hasGit ? `<p style="font-size: 0.85em;">Git history is shown above.</p>` : ''}
+        </div>`,
+    );
+
+    const relatedHtml = this.renderCollapsibleMatches(
+      'related-notes',
+      relatedMatches,
+      5,
+      `<div class="empty-state">
+          <p>No high-confidence related notes found for this snippet.</p>
+        </div>`,
+    );
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -405,103 +536,7 @@ export class SnippetOriginSummaryProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <style>
-    :root {
-      --bg: var(--vscode-editor-background);
-      --fg: var(--vscode-foreground);
-      --border: var(--vscode-widget-border, var(--vscode-panel-border, rgba(148, 163, 184, 0.14)));
-      --card-bg: var(--vscode-editorWidget-background, rgba(15, 23, 29, 0.65));
-      --card-hover: var(--vscode-list-hoverBackground, rgba(83, 199, 222, 0.08));
-      --accent: #53c7de;
-      --accent-soft: rgba(83, 199, 222, 0.12);
-      --desc: var(--vscode-descriptionForeground, #8da0ae);
-      --radius: 8px;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-      font-size: var(--vscode-font-size, 13px);
-      color: var(--fg);
-      background-color: var(--bg);
-      padding: 20px;
-      margin: 0;
-      line-height: 1.6;
-    }
-
-    .header {
-      margin-bottom: 16px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .title-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .main-title {
-      font-size: 1.25em;
-      font-weight: 600;
-      margin: 0;
-      color: var(--fg);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .main-title .icon-accent {
-      color: var(--accent);
-    }
-
-    .file-path {
-      font-size: 0.88em;
-      color: var(--desc);
-      font-family: var(--vscode-editor-font-family, monospace);
-      margin-top: 4px;
-    }
-
-    /* Git Context Card */
-    .git-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-left: 3px solid var(--accent);
-      border-radius: var(--radius);
-      padding: 12px 16px;
-      margin: 16px 0;
-    }
-
-    .git-card-title {
-      font-size: 0.8em;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      color: var(--accent);
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .git-info-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 8px;
-      font-size: 0.88em;
-    }
-
-    .git-item strong {
-      color: var(--desc);
-      font-weight: normal;
-    }
-
-    .git-commit-msg {
-      margin-top: 8px;
-      font-style: italic;
-      color: var(--fg);
-    }
+    ${KOTE_WEBVIEW_FOUNDATION_STYLES}
 
     /* Code Snippet Box */
     .snippet-card {
@@ -532,56 +567,35 @@ export class SnippetOriginSummaryProvider {
       white-space: pre;
     }
 
-    /* Tabs Header */
-    .tabs-header {
-      display: flex;
-      gap: 8px;
-      border-bottom: 1px solid var(--border);
-      margin: 20px 0 16px 0;
-    }
-
-    .tab-btn {
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--desc);
-      padding: 8px 16px;
-      cursor: pointer;
-      font-size: 0.9em;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-    }
-
-    .tab-btn:hover {
-      color: var(--fg);
-      background: rgba(148, 163, 184, 0.05);
-      border-radius: 4px 4px 0 0;
-    }
-
-    .tab-btn.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-      font-weight: 600;
-    }
-
-    .tab-count {
-      background: var(--accent-soft);
-      color: var(--accent);
-      font-size: 0.78em;
-      padding: 2px 7px;
-      border-radius: 10px;
-      font-weight: 600;
-    }
-
-    .tab-content {
+    .additional-results,
+    .timeline-extra {
       display: none;
     }
 
-    .tab-content.active {
+    .additional-results.is-expanded {
+      display: contents;
+    }
+
+    .timeline-extra.is-expanded {
       display: block;
+    }
+
+    .show-more-btn {
+      align-self: flex-start;
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 0.85em;
+      font-weight: 600;
+      margin-top: 2px;
+      padding: 6px 10px;
+    }
+
+    .show-more-btn:hover {
+      background: var(--accent-soft);
+      border-color: var(--accent);
     }
 
     /* Cards & Timeline */
@@ -660,73 +674,156 @@ export class SnippetOriginSummaryProvider {
       font-weight: 500;
     }
 
-    /* Badges */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.75em;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-weight: 500;
-      background: rgba(148, 163, 184, 0.1);
-      color: var(--fg);
-    }
-
-    .badge-claude { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-    .badge-antigravity { background: rgba(83, 199, 222, 0.15); color: #53c7de; }
-    .badge-codex { background: rgba(125, 211, 165, 0.15); color: #7dd3a5; }
-    .badge-opencode { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
-    .badge-origin { background: rgba(125, 211, 165, 0.18); color: #7dd3a5; font-weight: 600; }
-    .badge-git { background: rgba(137, 87, 229, 0.15); color: #a78bfa; }
-
-    /* Empty state */
-    .empty-state {
+    /* Vertical Timeline Section */
+    .timeline-section {
+      margin: 20px 0 16px 0;
       background: var(--card-bg);
-      border: 1px dashed var(--border);
-      border-radius: var(--radius);
-      padding: 24px;
-      text-align: center;
-      color: var(--desc);
-      margin-top: 12px;
-    }
-
-    .btn {
-      background: var(--card-bg);
-      color: var(--fg);
       border: 1px solid var(--border);
-      padding: 5px 12px;
-      border-radius: 4px;
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+
+    .timeline-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .timeline-heading {
+      font-size: 1.05em;
+      font-weight: 600;
+      margin: 0;
+      color: var(--fg);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .timeline-count {
+      font-size: 0.8em;
+      color: var(--desc);
+    }
+
+    .timeline-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .vertical-timeline {
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .collapsible-section {
+      display: none;
+    }
+
+    .collapsible-section.is-expanded {
+      display: flex;
+    }
+
+    .vertical-timeline-item {
+      border-left: 2px solid var(--border);
+      padding-left: 18px;
+      padding-bottom: 16px;
+      margin-bottom: 0;
+      position: relative;
+      transition: border-left-color 0.2s;
+    }
+
+    .vertical-timeline-item:last-child {
+      border-left-color: transparent;
+      padding-bottom: 4px;
+    }
+
+    .vertical-timeline-item.clickable {
       cursor: pointer;
+    }
+
+    .vertical-timeline-item:hover {
+      border-left-color: var(--accent);
+    }
+
+    .vertical-timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -6px;
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: var(--accent);
+      border: 2px solid var(--bg);
+    }
+
+    .vertical-timeline-item.timeline-commit::before {
+      background-color: #a78bfa;
+    }
+
+    .vertical-timeline-item.timeline-origin::before {
+      background-color: #7dd3a5;
+    }
+
+    .timeline-item-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .vertical-timeline-date {
+      font-size: 0.8em;
+      color: var(--desc);
+    }
+
+    .vertical-timeline-title {
+      font-weight: 600;
+      font-size: 0.95em;
+      color: var(--fg);
+      margin-bottom: 4px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .vertical-timeline-description {
+      color: var(--desc);
+      font-size: 0.86em;
+      line-height: 1.45;
+    }
+
+    .timeline-link {
       font-size: 0.82em;
-      transition: all 0.2s ease;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+      white-space: nowrap;
     }
-    .btn:hover {
-      background: var(--card-hover);
-      border-color: var(--accent);
+
+    .vertical-timeline-item:hover .timeline-link {
+      text-decoration: underline;
     }
+
+    /* Lineage-specific badges */
+    .badge-origin { background: rgba(125, 211, 165, 0.18); color: #7dd3a5; font-weight: 600; }
+
   </style>
 </head>
 <body>
   <div class="header">
     <div class="title-row">
-      <h1 class="main-title">Code Origin</h1>
+      <h1 class="main-title">Kote Code Lineage</h1>
       <button class="btn" onclick="copySnippet()">Copy Snippet</button>
     </div>
     <div class="file-path">${this.escapeHtml(this.input.filePath)} (Lines ${this.input.startLine}–${this.input.endLine})</div>
   </div>
-
-  ${hasGit ? `
-  <div class="git-card">
-    <div class="git-card-title">Git Commit Origin</div>
-    <div class="git-info-grid">
-      <div class="git-item"><strong>Commit:</strong> <code>${this.escapeHtml(git?.commitHash?.slice(0, 7) || '')}</code></div>
-      <div class="git-item"><strong>Author:</strong> ${this.escapeHtml(git?.author || '')}</div>
-      <div class="git-item"><strong>Date:</strong> ${this.escapeHtml(this.formatDate(git?.commitDate))}</div>
-    </div>
-    ${git?.commitMessage ? `<div class="git-commit-msg">"${this.escapeHtml(git.commitMessage)}"</div>` : ''}
-  </div>
-  ` : ''}
 
   <div class="snippet-card">
     <div class="snippet-header">
@@ -735,14 +832,16 @@ export class SnippetOriginSummaryProvider {
     <pre class="snippet-code"><code>${this.escapeHtml(this.input.snippet)}</code></pre>
   </div>
 
+  ${renderedTimelineHtml}
+
   <!-- Tabs Navigation -->
   <div class="tabs-header">
     <button class="tab-btn active" onclick="switchTab('linkedTab', this)">
-      <span>Linked Notes</span>
+      <span>Related Commits</span>
       <span class="tab-count">${linkedMatches.length}</span>
     </button>
     <button class="tab-btn" onclick="switchTab('relatedTab', this)">
-      <span>Related AI Sessions</span>
+      <span>Related Notes</span>
       <span class="tab-count">${relatedMatches.length}</span>
     </button>
   </div>
@@ -765,6 +864,20 @@ export class SnippetOriginSummaryProvider {
 
     function copySnippet() {
       vscode.postMessage({ command: 'copyText', text: ${JSON.stringify(this.input.snippet)} });
+    }
+
+    function toggleMore(selector, button) {
+      const elements = Array.from(document.querySelectorAll(selector));
+      const expanded = !elements.some(element => element.classList.contains('is-expanded'));
+      elements.forEach(element => element.classList.toggle('is-expanded', expanded));
+      button.textContent = expanded ? 'Show less' : button.dataset.label;
+    }
+
+    function toggleSection(id, button) {
+      const section = document.getElementById(id);
+      const expanded = !section.classList.contains('is-expanded');
+      section.classList.toggle('is-expanded', expanded);
+      button.textContent = expanded ? 'Hide timeline' : button.dataset.label;
     }
 
     function switchTab(tabId, btn) {

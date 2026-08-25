@@ -144,6 +144,12 @@ export type RuntimeEnvironment = {
   codeLensSearchRrfK: number;
   codeLensSearchMaxConcurrency: number;
   codeLensSearchResultLimit: number;
+  codeLensSnippetSearchMinSimilarity: number;
+  codeLensSnippetSearchCandidateLimit: number;
+  codeLensSnippetSearchVectorWeight: number;
+  codeLensSnippetSearchKeywordWeight: number;
+  codeLensSnippetSearchRrfK: number;
+  codeLensSnippetSearchResultLimit: number;
 };
 
 export abstract class RuntimeEnvironmentProvider {

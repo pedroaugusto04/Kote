@@ -43,12 +43,12 @@ export class FindNotesBySnippetUseCase {
       };
     }
 
+    // Rank file-linked notes from the code the user selected. Commit text is
+    // contextual evidence for the UI, not a competing search query.
     const snippetTokens = extractCodeTokens(codeSnippet);
-    const commitTokens = extractCodeTokens(gitContext?.commitMessage);
-    const allQueryTokens = Array.from(new Set([...snippetTokens, ...commitTokens]));
 
     const scoredNotes = fileNotes.map((note) => {
-      const relevance = computeSnippetRelevance(note, allQueryTokens, gitContext);
+      const relevance = computeSnippetRelevance(note, snippetTokens, gitContext);
       return {
         noteRecord: note,
         relevance,

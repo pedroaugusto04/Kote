@@ -9,12 +9,13 @@ export const TEMPORAL_WINDOWS_HOURS = {
 } as const;
 
 export const RELEVANCE_WEIGHTS = {
-  TEMPORAL: 0.6,
-  CONTENT: 0.4,
+  TEMPORAL: 0.2,
+  CONTENT: 0.8,
 } as const;
 
 export const RELEVANCE_REASONS = {
   DIRECT_COMMIT_HASH_MATCH: 'Direct commit hash match',
+  SAME_DAY_COMMIT: 'Same day as commit (within 12h)',
   DIRECT_COMMIT_MATCH: 'Direct commit timeframe match (±12h)',
   CLOSE_TO_COMMIT: 'Close to commit date (±2 days)',
   SAME_WEEK_COMMIT: 'Same week as commit',
@@ -80,7 +81,7 @@ export function calculateTemporalProximity(
   const diffHours = Math.abs(commitTime - noteTime) / (1000 * 60 * 60);
 
   if (diffHours <= TEMPORAL_WINDOWS_HOURS.DIRECT_MATCH) {
-    return { score: 1.0, isOriginMatch: true, reason: RELEVANCE_REASONS.DIRECT_COMMIT_MATCH };
+    return { score: 1.0, isOriginMatch: false, reason: RELEVANCE_REASONS.SAME_DAY_COMMIT };
   }
   if (diffHours <= TEMPORAL_WINDOWS_HOURS.CLOSE_MATCH) {
     return { score: 0.8, isOriginMatch: false, reason: RELEVANCE_REASONS.CLOSE_TO_COMMIT };
@@ -144,6 +145,7 @@ export function computeSnippetRelevance(
   const noteCommit = String(
     (note.metadata as Record<string, unknown> | undefined)?.commitHash ||
     (note.metadata as Record<string, unknown> | undefined)?.commit ||
+    (note.metadata as Record<string, unknown> | undefined)?.headSha ||
     ''
   ).trim().toLowerCase();
 
@@ -155,6 +157,8 @@ export function computeSnippetRelevance(
   ) {
     return {
       score: 1.0,
+      contentScore: 1.0,
+      temporalScore: 1.0,
       isOriginMatch: true,
       reason: RELEVANCE_REASONS.DIRECT_COMMIT_HASH_MATCH,
     };
@@ -187,6 +191,8 @@ export function computeSnippetRelevance(
 
   return {
     score: Number(finalScore.toFixed(3)),
+    contentScore: content.score,
+    temporalScore: temporal.score ?? undefined,
     isOriginMatch: temporal.isOriginMatch,
     reason,
   };

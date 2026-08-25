@@ -151,6 +151,7 @@ export const relatedNotesByFileQuerySchema = z.object({
   query: z.string().trim().optional(),
   projectSlug: z.string().trim().optional(),
   limit: z.coerce.number().int().min(1).max(20).optional().default(5),
+  searchProfile: z.enum(['file', 'snippet']).optional().default('file'),
 }).transform((input) => ({
   filePath: input.filePath,
   excludeIds: input.excludeIds
@@ -159,6 +160,7 @@ export const relatedNotesByFileQuerySchema = z.object({
   query: input.query,
   projectSlug: input.projectSlug,
   limit: input.limit,
+  searchProfile: input.searchProfile,
 }));
 export type RelatedNotesByFileQuery = z.infer<typeof relatedNotesByFileQuerySchema>;
 

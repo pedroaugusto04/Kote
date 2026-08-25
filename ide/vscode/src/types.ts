@@ -48,6 +48,9 @@ export interface KbNote {
   sourceChannel?: string;
   content?: string;
   summary?: string;
+  metadata?: Record<string, unknown>;
+  relevanceScore?: number;
+  semanticSimilarity?: number;
 }
 
 export interface KbReminder {
@@ -151,6 +154,8 @@ export interface GitCommitContext {
 
 export interface SnippetRelevance {
   score: number;
+  contentScore: number;
+  temporalScore?: number;
   isOriginMatch: boolean;
   reason: string;
 }

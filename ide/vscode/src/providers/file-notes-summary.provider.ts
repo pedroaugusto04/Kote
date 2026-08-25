@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { FILE_NOTES_SUMMARY_FALLBACK_REASON, KbClient } from '../kb-client';
 import { resolveSourceBadge } from '../utils/source-channel';
 import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
+import { KOTE_WEBVIEW_FOUNDATION_STYLES } from './kote-webview-design';
 
 export class FileNotesSummaryProvider {
   private static currentPanel: FileNotesSummaryProvider | undefined;
@@ -269,25 +270,12 @@ export class FileNotesSummaryProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <style>
-    body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      color: var(--vscode-foreground);
-      background-color: var(--vscode-editor-background);
-      padding: 20px;
-      margin: 0;
-      line-height: 1.6;
-    }
-    h1 {
-      font-size: 1.5em;
-      margin-bottom: 10px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      padding-bottom: 10px;
-    }
+    ${KOTE_WEBVIEW_FOUNDATION_STYLES}
+
     .loading-section {
-      background: var(--vscode-editor-background);
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 8px;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
       padding: 20px;
       margin: 20px 0;
       text-align: center;
@@ -306,61 +294,16 @@ export class FileNotesSummaryProvider {
       100% { transform: rotate(360deg); }
     }
 
-    /* Tabs Layout */
     .tabs-container {
-      margin-top: 30px;
-      border-top: 1px solid var(--vscode-panel-border);
-      padding-top: 20px;
-    }
-    .tabs-header {
-      display: flex;
-      gap: 12px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      margin-bottom: 16px;
-    }
-    .tab-button {
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--vscode-foreground);
-      opacity: 0.7;
-      padding: 8px 12px;
-      cursor: pointer;
-      font-size: var(--vscode-font-size);
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .tab-button:hover {
-      opacity: 1;
-    }
-    .tab-button.active {
-      border-bottom-color: var(--vscode-button-background);
-      opacity: 1;
-      font-weight: 600;
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
+      margin-top: 24px;
     }
 
     .notes-list {
       margin-top: 0;
     }
     .note-item {
-      padding: 10px;
+      padding: 14px 16px;
       margin-bottom: 10px;
-      background-color: var(--vscode-editor-inactiveSelectionBackground);
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    .note-item:hover {
-      background-color: var(--vscode-editor-selectionBackground);
     }
     .note-title {
       font-weight: bold;
@@ -368,18 +311,10 @@ export class FileNotesSummaryProvider {
     }
     .note-summary {
       font-size: 0.9em;
-      color: var(--vscode-descriptionForeground);
+      color: var(--desc);
     }
 
     /* Related notes styling */
-    .badge {
-      font-size: 0.75em;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: var(--vscode-badge-background);
-      color: var(--vscode-badge-foreground);
-      font-weight: normal;
-    }
     .note-item.related-item {
       border-style: dashed;
       opacity: 0.85;
@@ -390,8 +325,12 @@ export class FileNotesSummaryProvider {
   </style>
 </head>
 <body>
-  <h1>💡 Kote File Notes Summary</h1>
-  <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>
+  <div class="header">
+    <div class="title-row">
+      <h1 class="main-title">Kote File Notes Summary</h1>
+    </div>
+    <div class="file-path">${this.escapeHtml(this.filePath)}</div>
+  </div>
  
   <div class="loading-section">
     <div class="spinner"></div>
@@ -401,14 +340,14 @@ export class FileNotesSummaryProvider {
 
   <div class="tabs-container">
     <div class="tabs-header">
-      <button class="tab-button active" onclick="selectTab('linked-notes')">Linked Notes <span class="badge">${safeNotes.length}</span></button>
-      <button class="tab-button" onclick="selectTab('related-notes')">Related Notes <span class="badge" id="related-badge">${this.relatedNotes === undefined ? 'Searching...' : this.relatedNotes.length}</span></button>
+      <button class="tab-btn active" onclick="selectTab('linked-notes')">Linked Notes <span class="tab-count">${safeNotes.length}</span></button>
+      <button class="tab-btn" onclick="selectTab('related-notes')">Related Notes <span class="tab-count" id="related-badge">${this.relatedNotes === undefined ? 'Searching...' : this.relatedNotes.length}</span></button>
     </div>
     
     <div id="linked-notes" class="tab-content active">
       <div class="notes-list">
         ${safeNotes.map(note => `
-          <div class="note-item" onclick="openNote('${this.escapeHtml(String(note.id))}')">
+          <div class="card clickable note-item" onclick="openNote('${this.escapeHtml(String(note.id))}')">
             <div class="note-title">${this.escapeHtml(note.title || 'Untitled')}</div>
             <div class="note-summary">${this.escapeHtml(note.summary || 'No summary').substring(0, 200)}${note.summary && note.summary.length > 200 ? '...' : ''}</div>
           </div>
@@ -428,7 +367,7 @@ export class FileNotesSummaryProvider {
             const title = note?.title || 'Untitled';
             const summary = note?.summary || 'No summary';
             return `
-              <div class="note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
+              <div class="card clickable note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
                 <div class="note-title">${this.escapeHtml(title)} <span class="badge">Related</span></div>
                 <div class="note-summary">${this.escapeHtml(summary).substring(0, 200)}${summary && summary.length > 200 ? '...' : ''}</div>
               </div>
@@ -449,10 +388,10 @@ export class FileNotesSummaryProvider {
     }
 
     function selectTab(tabId) {
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       
-      const activeBtn = document.querySelector(\`.tab-button[onclick="selectTab('\${tabId}')"]\`);
+      const activeBtn = document.querySelector(\`.tab-btn[onclick="selectTab('\${tabId}')"]\`);
       const activeContent = document.getElementById(tabId);
       if (activeBtn) activeBtn.classList.add('active');
       if (activeContent) activeContent.classList.add('active');
@@ -481,7 +420,7 @@ export class FileNotesSummaryProvider {
           const title = note?.title || 'Untitled';
           const summary = note?.summary || 'No summary';
           return \`
-            <div class="note-item related-item" onclick="openNote('\${escapeHtmlString(noteId)}')">
+            <div class="card clickable note-item related-item" onclick="openNote('\${escapeHtmlString(noteId)}')">
               <div class="note-title">\${escapeHtmlString(title)} <span class="badge">Related</span></div>
               <div class="note-summary">\${escapeHtmlString(summary).substring(0, 200)}\${summary && summary.length > 200 ? '...' : ''}</div>
             </div>
@@ -535,29 +474,7 @@ export class FileNotesSummaryProvider {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <style>
-    :root {
-      --bg: var(--vscode-editor-background);
-      --fg: var(--vscode-foreground);
-      --border: var(--vscode-widget-border, var(--vscode-panel-border, rgba(148, 163, 184, 0.14)));
-      --card-bg: var(--vscode-editorWidget-background, rgba(15, 23, 29, 0.65));
-      --card-hover: var(--vscode-list-hoverBackground, rgba(83, 199, 222, 0.08));
-      --accent: #53c7de;
-      --accent-soft: rgba(83, 199, 222, 0.12);
-      --desc: var(--vscode-descriptionForeground, #8da0ae);
-      --radius: 8px;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
-      font-size: var(--vscode-font-size, 13px);
-      color: var(--fg);
-      background-color: var(--bg);
-      padding: 20px;
-      margin: 0;
-      line-height: 1.6;
-    }
+    ${KOTE_WEBVIEW_FOUNDATION_STYLES}
 
     /* Typewriter effect styles */
     .typewriter-content {
@@ -583,15 +500,9 @@ export class FileNotesSummaryProvider {
     .typewriter-done .typewriter-cursor {
       display: none;
     }
-    h1, h2, h3 {
+    h2, h3 {
       margin-top: 0;
       color: var(--fg);
-    }
-    h1 {
-      font-size: 1.4em;
-      margin-bottom: 12px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 12px;
     }
     h2 {
       font-size: 1.2em;
@@ -621,9 +532,14 @@ export class FileNotesSummaryProvider {
     }
     .understanding {
       margin: 16px 0;
+      padding: 14px 16px;
     }
     .timeline {
       margin: 20px 0;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
     }
     .timeline-item {
       border-left: 2px solid var(--border);
@@ -678,58 +594,12 @@ export class FileNotesSummaryProvider {
       border-top: 1px solid var(--border);
       padding-top: 16px;
     }
-    .tabs-header {
-      display: flex;
-      gap: 8px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 16px;
-    }
-    .tab-button {
-      background: none;
-      border: none;
-      border-bottom: 2px solid transparent;
-      color: var(--desc);
-      padding: 8px 16px;
-      cursor: pointer;
-      font-size: 0.9em;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-    }
-    .tab-button:hover {
-      color: var(--fg);
-      background: rgba(148, 163, 184, 0.05);
-      border-radius: 4px 4px 0 0;
-    }
-    .tab-button.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-      font-weight: 600;
-    }
-    .tab-content {
-      display: none;
-    }
-    .tab-content.active {
-      display: block;
-    }
-
     .notes-list {
       margin-top: 0;
     }
     .note-item {
-      padding: 12px 14px;
+      padding: 14px 16px;
       margin-bottom: 10px;
-      background-color: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-    .note-item:hover {
-      background-color: var(--card-hover);
-      border-color: var(--accent);
     }
     .note-title {
       font-weight: 600;
@@ -739,40 +609,6 @@ export class FileNotesSummaryProvider {
       font-size: 0.88em;
       color: var(--desc);
     }
-    .copy-button {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      background-color: var(--card-bg);
-      color: var(--fg);
-      border: 1px solid var(--border);
-      padding: 6px 14px;
-      cursor: pointer;
-      font-size: 0.85em;
-      border-radius: 4px;
-      z-index: 1000;
-      transition: all 0.2s ease;
-    }
-    .copy-button:hover {
-      background-color: var(--card-hover);
-      border-color: var(--accent);
-    }
-
-    .badge {
-      font-size: 0.78em;
-      padding: 2px 7px;
-      border-radius: 10px;
-      background: var(--accent-soft);
-      color: var(--accent);
-      font-weight: 600;
-    }
-
-    .badge-claude { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
-    .badge-antigravity { background: rgba(83, 199, 222, 0.15); color: #53c7de; }
-    .badge-codex { background: rgba(125, 211, 165, 0.15); color: #7dd3a5; }
-    .badge-opencode { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
-    .badge-git { background: rgba(137, 87, 229, 0.15); color: #a78bfa; }
-    .badge-note { background: rgba(148, 163, 184, 0.1); color: var(--fg); font-weight: normal; }
     .note-item.related-item {
       border-style: dashed;
       opacity: 0.85;
@@ -804,11 +640,14 @@ export class FileNotesSummaryProvider {
   </style>
 </head>
 <body>
-  <button class="copy-button" onclick="copySummary()">Copy Summary</button>
-  
-  <h1>File Notes Summary</h1>
-  <p><strong>File:</strong> ${this.escapeHtml(this.filePath)}</p>
-  <p><strong>Generated:</strong> <span class="generated-date" data-date="${this.escapeHtml(summary.generatedAt)}">${this.escapeHtml(summary.generatedAt)}</span></p>
+  <div class="header">
+    <div class="title-row">
+      <h1 class="main-title">File Notes Summary</h1>
+      <button class="btn" onclick="copySummary()">Copy Summary</button>
+    </div>
+    <div class="file-path">${this.escapeHtml(this.filePath)}</div>
+    <div class="generated-meta">Generated <span class="generated-date" data-date="${this.escapeHtml(summary.generatedAt)}">${this.escapeHtml(summary.generatedAt)}</span></div>
+  </div>
   ${summary.fallback ? `<div class="fallback-notice"><strong>${summary.fallbackReason === FILE_NOTES_SUMMARY_FALLBACK_REASON.FEATURE_DISABLED ? 'AI summary is not enabled.' : summary.fallbackReason === FILE_NOTES_SUMMARY_FALLBACK_REASON.QUOTA_EXCEEDED ? 'AI credits exhausted.' : 'AI summary is temporarily unavailable.'}</strong> The notes below are still available.</div>` : ''}
   
   <div class="summary">
@@ -816,7 +655,7 @@ export class FileNotesSummaryProvider {
     <p id="typewriter-summary">${this.escapeHtml(summary.summary)}</p>
   </div>
 
-  <div class="understanding">
+  <div class="card understanding">
     <h3>Understanding</h3>
     <p id="typewriter-understanding">${this.escapeHtml(summary.understanding)}</p>
   </div>
@@ -837,8 +676,8 @@ export class FileNotesSummaryProvider {
 
   <div class="tabs-container">
     <div class="tabs-header">
-      <button class="tab-button active" onclick="selectTab('linked-notes')">Linked Notes <span class="badge">${notes.length}</span></button>
-      <button class="tab-button" onclick="selectTab('related-notes')">Related Notes <span class="badge" id="related-badge">${this.relatedNotes === undefined ? 'Searching...' : this.relatedNotes.length}</span></button>
+      <button class="tab-btn active" onclick="selectTab('linked-notes')">Linked Notes <span class="tab-count">${notes.length}</span></button>
+      <button class="tab-btn" onclick="selectTab('related-notes')">Related Notes <span class="tab-count" id="related-badge">${this.relatedNotes === undefined ? 'Searching...' : this.relatedNotes.length}</span></button>
     </div>
     
     <div id="linked-notes" class="tab-content active">
@@ -846,7 +685,7 @@ export class FileNotesSummaryProvider {
         ${notes.map(note => {
           const badge = this.getSourceBadge(note.sourceChannel, note.source);
           return `
-            <div class="note-item" onclick="openNote('${this.escapeHtml(String(note.id))}')">
+            <div class="card clickable note-item" onclick="openNote('${this.escapeHtml(String(note.id))}')">
               <div class="note-title" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                 <span>${this.escapeHtml(note.title || 'Untitled')}</span>
                 <span class="badge ${badge.className}">${this.escapeHtml(badge.label)}</span>
@@ -871,7 +710,7 @@ export class FileNotesSummaryProvider {
             const summaryText = note?.summary || 'No summary';
             const badge = this.getSourceBadge(note?.sourceChannel, note?.source);
             return `
-              <div class="note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
+              <div class="card clickable note-item related-item" onclick="openNote('${this.escapeHtml(String(noteId))}')">
                 <div class="note-title" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
                   <span>${this.escapeHtml(title)}</span>
                   <span class="badge ${badge.className}">${this.escapeHtml(badge.label)}</span>
@@ -986,10 +825,10 @@ export class FileNotesSummaryProvider {
     }
 
     function selectTab(tabId) {
-      document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
       
-      const activeBtn = document.querySelector(\`.tab-button[onclick="selectTab('\${tabId}')"]\`);
+      const activeBtn = document.querySelector(\`.tab-btn[onclick="selectTab('\${tabId}')"]\`);
       const activeContent = document.getElementById(tabId);
       if (activeBtn) activeBtn.classList.add('active');
       if (activeContent) activeContent.classList.add('active');
@@ -1042,7 +881,7 @@ export class FileNotesSummaryProvider {
           const title = note?.title || 'Untitled';
           const summary = note?.summary || 'No summary';
           return \`
-            <div class="note-item related-item" onclick="openNote('\${escapeHtmlString(noteId)}')">
+            <div class="card clickable note-item related-item" onclick="openNote('\${escapeHtmlString(noteId)}')">
               <div class="note-title">\${escapeHtmlString(title)} <span class="badge">Related</span></div>
               <div class="note-summary">\${escapeHtmlString(summary).substring(0, 200)}\${summary && summary.length > 200 ? '...' : ''}</div>
             </div>

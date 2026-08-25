@@ -72,6 +72,7 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
 
   const mockNoteEmbeddingRepository = {
     findSimilar: async (userId, embedding, options) => {
+      vectorSearchOptions.push(options);
       return [
         { noteId: 'note-B', similarity: 0.95 },
         { noteId: 'note-C', similarity: 0.85 },
@@ -80,10 +81,22 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
     },
   };
 
-  const mockEmbeddingGateway = {
-    generateEmbeddings: async () => {
+  const mockEmbeddingQueue = {
+    publishQueryEmbedding: async () => {
       return [[0.1, 0.2, 0.3]];
     },
+  };
+
+  const vectorSearchOptions = [];
+  const ftsFilters = [];
+  mockContentQueryRepository.list = async (userId, filters) => {
+    ftsFilters.push(filters);
+    return [
+      { id: 'note-A', title: 'Note A', ftsRank: 0.9, occurredAt: new Date().toISOString(), status: 'active', tags: [], categories: [], summary: '' },
+      { id: 'note-B', title: 'Note B', ftsRank: 0.8, occurredAt: new Date().toISOString(), status: 'active', tags: [], categories: [], summary: '' },
+      { id: 'note-C', title: 'Note C', ftsRank: 0.7, occurredAt: new Date().toISOString(), status: 'active', tags: [], categories: [], summary: '' },
+      { id: 'note-D', title: 'Note D', ftsRank: 0.6, occurredAt: new Date().toISOString(), status: 'active', tags: [], categories: [], summary: '' },
+    ];
   };
 
   const mockRuntimeEnv = {
@@ -98,26 +111,50 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
       codeLensSearchKeywordWeight: 0.6,
       codeLensSearchRrfK: 20,
       codeLensSearchResultLimit: 3,
+      codeLensSnippetSearchMinSimilarity: 0.44,
+      codeLensSnippetSearchCandidateLimit: 11,
+      codeLensSnippetSearchVectorWeight: 0.7,
+      codeLensSnippetSearchKeywordWeight: 0.3,
+      codeLensSnippetSearchRrfK: 17,
+      codeLensSnippetSearchResultLimit: 2,
     }),
   };
 
   const useCase = new FindRelatedNotesByFileUseCase(
     mockContentRepository,
     mockContentQueryRepository,
-    mockEmbeddingGateway,
+    null,
     mockNoteEmbeddingRepository,
     mockRuntimeEnv,
     logger,
+    mockEmbeddingQueue,
   );
 
   // Exclude note-B (simulates note already found in direct notes query)
   const result = await useCase.execute('user-1', 'auth.service.ts', ['note-B']);
 
-  // Assertions: Limit is 3, note-B is excluded, so it should return A, C, D
-  // note-A has highest FTS rank (0.9), note-C has highest vector rank (0.85)
-  // With default weights (vector=0.4, keyword=0.6), keyword score dominates
+  // Assertions: Limit is 3, note-B is excluded, so C, D and A remain.
+  // C and D rank above A because they have both vector and keyword evidence.
   assert.equal(result.length, 3);
-  assert.equal(result[0].id, 'note-A');
-  assert.equal(result[1].id, 'note-C');
-  assert.equal(result[2].id, 'note-D');
+  assert.equal(result[0].id, 'note-C');
+  assert.equal(result[1].id, 'note-D');
+  assert.equal(result[2].id, 'note-A');
+  assert.equal(result[0].semanticSimilarity, 0.85);
+  assert.equal(result[1].semanticSimilarity, 0.75);
+  assert.equal(result[2].semanticSimilarity, undefined);
+
+  const snippetResult = await useCase.execute(
+    'user-1',
+    'auth.service.ts',
+    [],
+    'selectedSnippetIdentifier()',
+    undefined,
+    1,
+    'snippet',
+  );
+
+  assert.equal(snippetResult.length, 1);
+  assert.deepEqual(vectorSearchOptions.at(-1), { limit: 11, minSimilarity: 0.44, projectId: undefined });
+  assert.equal(ftsFilters.at(-1).query, 'selectedSnippetIdentifier()');
+  assert.equal(ftsFilters.at(-1).ftsLimit, 11);
 });

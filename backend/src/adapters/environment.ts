@@ -215,5 +215,12 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
     codeLensSearchRrfK: normalizeNumber(env.KB_CODELENS_SEARCH_RRF_K, 20),
     codeLensSearchMaxConcurrency: normalizeNumber(env.KB_CODELENS_SEARCH_MAX_CONCURRENCY, 2),
     codeLensSearchResultLimit: normalizeNumber(env.KB_CODELENS_SEARCH_RESULT_LIMIT, 5),
+    // Selected code needs semantic relevance to outweigh keyword coincidence.
+    codeLensSnippetSearchMinSimilarity: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_MIN_SIMILARITY, 0.30),
+    codeLensSnippetSearchCandidateLimit: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_CANDIDATE_LIMIT, 20),
+    codeLensSnippetSearchVectorWeight: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_VECTOR_WEIGHT, 0.7),
+    codeLensSnippetSearchKeywordWeight: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_KEYWORD_WEIGHT, 0.3),
+    codeLensSnippetSearchRrfK: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_RRF_K, 20),
+    codeLensSnippetSearchResultLimit: normalizeNumber(env.KB_CODELENS_SNIPPET_SEARCH_RESULT_LIMIT, 10),
   };
 }

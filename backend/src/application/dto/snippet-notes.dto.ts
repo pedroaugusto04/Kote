@@ -18,6 +18,8 @@ export interface FindNotesBySnippetInput {
 
 export interface SnippetRelevance {
   score: number;
+  contentScore: number;
+  temporalScore?: number;
   isOriginMatch: boolean;
   reason: string;
 }

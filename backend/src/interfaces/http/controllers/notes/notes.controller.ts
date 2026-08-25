@@ -190,12 +190,21 @@ export class NotesController {
   @ApiQuery({ name: 'filePath', description: 'Relative file path to search related notes for' })
   @ApiQuery({ name: 'excludeIds', description: 'IDs of notes to exclude (comma separated)', required: false })
   @ApiQuery({ name: 'limit', description: 'Maximum number of notes to return', required: false })
+  @ApiQuery({ name: 'searchProfile', enum: ['file', 'snippet'], required: false })
   @ApiResponse({ status: 200, description: 'Related notes retrieved successfully' })
   async findRelatedByFile(
     @Query(new ZodValidationPipe(relatedNotesByFileQuerySchema, 'invalid_related_notes_by_file_query')) query: RelatedNotesByFileQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.findRelatedNotesByFileUseCase.execute(user.id, query.filePath, query.excludeIds, query.query, query.projectSlug);
+    return this.findRelatedNotesByFileUseCase.execute(
+      user.id,
+      query.filePath,
+      query.excludeIds,
+      query.query,
+      query.projectSlug,
+      query.limit,
+      query.searchProfile,
+    );
   }
 
   @Get('by-file/summary')

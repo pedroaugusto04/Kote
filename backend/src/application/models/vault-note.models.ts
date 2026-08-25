@@ -20,6 +20,8 @@ export type VaultNoteSummary = {
   attachmentCount: number;
   isPinned?: boolean;
   ftsRank?: number;
+  relevanceScore?: number;
+  semanticSimilarity?: number;
 };
 
 export type VaultNoteAttachment = {
