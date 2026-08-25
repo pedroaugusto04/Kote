@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { KbClient, isConfigured } from '../kb-client';
+import { logInfo } from '../error-reporter';
 
 export class KoteCodeLensProvider implements vscode.CodeLensProvider {
   private _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
@@ -34,9 +35,11 @@ export class KoteCodeLensProvider implements vscode.CodeLensProvider {
     try {
       const notes = await this.kbClient.findNotesByFile(relativePath);
       if (!notes || notes.length === 0) {
+        logInfo('CodeLens', `No notes found for ${relativePath}`);
         return [];
       }
 
+      logInfo('CodeLens', `Found ${notes.length} notes for ${relativePath}`);
       const range = new vscode.Range(0, 0, 0, 0);
       const command: vscode.Command = {
         title: `💡 Kote: ${notes.length} ${notes.length === 1 ? 'note' : 'notes'}/decisions about this file`,
@@ -45,7 +48,8 @@ export class KoteCodeLensProvider implements vscode.CodeLensProvider {
       };
 
       return [new vscode.CodeLens(range, command)];
-    } catch {
+    } catch (err) {
+      logInfo('CodeLens', `Error providing CodeLens for ${relativePath}: ${err instanceof Error ? err.message : String(err)}`);
       return [];
     }
   }

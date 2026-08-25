@@ -18,6 +18,7 @@ export class FileNotesSummaryProvider {
     private readonly filePath: string,
     private readonly notes: any[],
     private readonly extensionUri: vscode.Uri,
+    private readonly projectSlug?: string,
   ) {
     this.panel = panel;
 
@@ -53,6 +54,7 @@ export class FileNotesSummaryProvider {
     kbClient: KbClient,
     filePath: string,
     notes: any[],
+    projectSlug?: string,
   ) {
     const column = vscode.window.activeTextEditor
       ? vscode.window.activeTextEditor.viewColumn
@@ -83,6 +85,7 @@ export class FileNotesSummaryProvider {
       filePath,
       notes,
       extensionUri,
+      projectSlug,
     );
   }
 
@@ -99,7 +102,7 @@ export class FileNotesSummaryProvider {
 
     // Fire off async fetch of related notes
     const excludeIds = this.notes.map(n => n.id);
-    this.kbClient.findRelatedNotesByFile(this.filePath, excludeIds, { signal })
+    this.kbClient.findRelatedNotesByFile(this.filePath, excludeIds, { signal, projectSlug: this.projectSlug })
       .then(related => {
         if (signal.aborted) return;
         this.relatedNotes = related;
@@ -121,7 +124,7 @@ export class FileNotesSummaryProvider {
 
     try {
       const summary = await Promise.race([
-        this.kbClient.getFileNotesSummary(this.filePath, { signal }),
+        this.kbClient.getFileNotesSummary(this.filePath, { signal, projectSlug: this.projectSlug }),
         new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Request timeout after 30 seconds')), 30000)
         )

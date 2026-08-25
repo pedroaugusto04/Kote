@@ -3,6 +3,9 @@ import { StatusFilter, terminalStatuses } from '../../../contracts/status-filter
 import { SpecialQueryIntent, CanonicalType, KnowledgeStatus } from '../../../contracts/enums.js';
 import type { VaultNoteSummary } from '../../models/vault-note.models.js';
 
+type KnowledgeRankingQuery = Pick<QueryInput, 'query' | 'limit'>
+  & Partial<Pick<QueryInput, 'projectId' | 'workspaceId' | 'status'>>;
+
 export function tokenizeQuery(query: string): string[] {
   return query
     .toLowerCase()
@@ -107,7 +110,7 @@ export function matchesIntent(note: VaultNoteSummary, intent: SpecialQueryIntent
   return false;
 }
 
-export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<QueryInput, 'query' | 'projectId' | 'workspaceId' | 'status' | 'limit'>) {
+export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: KnowledgeRankingQuery) {
   const intent = getSpecialQueryIntent(query.query);
 
   return notes
@@ -167,7 +170,7 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Pick<Quer
 export function rankHybridKnowledgeMatches(
   notes: VaultNoteSummary[],
   similarChunks: Array<{ noteId: string; similarity: number }>,
-  query: Pick<QueryInput, 'query' | 'projectId' | 'workspaceId' | 'status' | 'limit'>,
+  query: KnowledgeRankingQuery,
   weights: { vector: number; keyword: number } = { vector: 0.4, keyword: 0.6 },
   k = 20,
 ) {

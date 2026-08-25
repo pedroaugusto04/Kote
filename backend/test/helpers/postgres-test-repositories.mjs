@@ -19,6 +19,7 @@ import { ObjectStorageMissingContentError } from '../../dist/application/ports/n
 import { PostgresWorkspaceRepository } from '../../dist/infrastructure/repositories/workspace.repository.js';
 import { PostgresProjectRepository } from '../../dist/infrastructure/repositories/project.repository.js';
 import { PostgresNoteRepository } from '../../dist/infrastructure/repositories/note.repository.js';
+import { PostgresNoteContextRepository } from '../../dist/infrastructure/repositories/note-context.repository.js';
 import { PostgresFolderRepository } from '../../dist/infrastructure/repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../../dist/infrastructure/repositories/attachment.repository.js';
 import { PostgresCategoryRepository } from '../../dist/infrastructure/repositories/category.repository.js';
@@ -237,6 +238,7 @@ export async function createPostgresTestRepositories(t) {
   const workspaceRepository = new PostgresWorkspaceRepository(database);
   const projectRepository = new PostgresProjectRepository(database);
   const noteRepository = new PostgresNoteRepository(database, contentObjectStorage);
+  const noteContextRepository = new PostgresNoteContextRepository(database, contentObjectStorage);
   const folderRepository = new PostgresFolderRepository(database);
   const attachmentRepository = new PostgresAttachmentRepository(database, contentObjectStorage);
   const categoryRepository = new PostgresCategoryRepository(database);
@@ -363,6 +365,7 @@ export async function createPostgresTestRepositories(t) {
     quotaService,
     embeddingQueuePublisher,
     noteLifecycleService,
+    noteContextRepository,
     database,
   };
 }

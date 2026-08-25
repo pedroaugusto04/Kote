@@ -18,7 +18,7 @@ import {
   FindNotesByFileUseCase,
   FindNotesBySnippetUseCase,
   FindRelatedNotesByFileUseCase,
-  GenerateFileNotesSummaryUseCase,
+  GenerateFileNotesSummaryByFileUseCase,
 } from '../../../../application/use-cases/index.js';
 import { BrowserExtensionGuard } from '../../guards/auth.guards.js';
 import { CurrentUser } from '../../auth.decorators.js';
@@ -76,7 +76,7 @@ export class NotesController {
     private readonly findNotesByFileUseCase: FindNotesByFileUseCase,
     private readonly findNotesBySnippetUseCase: FindNotesBySnippetUseCase,
     private readonly findRelatedNotesByFileUseCase: FindRelatedNotesByFileUseCase,
-    private readonly generateFileNotesSummaryUseCase: GenerateFileNotesSummaryUseCase,
+    private readonly generateFileNotesSummaryByFileUseCase: GenerateFileNotesSummaryByFileUseCase,
   ) { }
 
   @Post()
@@ -181,7 +181,7 @@ export class NotesController {
     @Query(new ZodValidationPipe(notesByFileQuerySchema, 'invalid_notes_by_file_query')) query: NotesByFileQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.findNotesByFileUseCase.execute(user.id, query.filePath);
+    return this.findNotesByFileUseCase.execute(user.id, query.filePath, { projectSlug: query.projectSlug });
   }
 
   @Get('by-file/related')
@@ -216,22 +216,11 @@ export class NotesController {
     @Query(new ZodValidationPipe(fileNotesSummaryQuerySchema, 'invalid_file_notes_summary_query')) query: FileNotesSummaryQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const notes = await this.findNotesByFileUseCase.executeRecords(user.id, query.filePath, { projectSlug: query.projectSlug });
-
-    const summaryRequest = {
+    return this.generateFileNotesSummaryByFileUseCase.execute(user.id, {
       filePath: query.filePath,
       workspaceSlug: query.workspaceSlug,
-      notes: notes.map((note) => ({
-        id: note.id,
-        title: note.title,
-        date: note.occurredAt || note.createdAt || '',
-        content: note.markdown || note.summary || '',
-        summary: note.summary,
-        workspaceSlug: note.workspaceSlug,
-      })),
-    };
-
-    return this.generateFileNotesSummaryUseCase.execute(user.id, summaryRequest);
+      projectSlug: query.projectSlug,
+    });
   }
 
   @Get('by-snippet')
@@ -249,6 +238,7 @@ export class NotesController {
       workspaceSlug: query.workspaceSlug,
       gitContext: {
         commitHash: query.commitHash,
+        commitHashes: query.commitHashes.split(',').map((hash) => hash.trim()).filter(Boolean).slice(0, 20),
         author: query.author,
         commitDate: query.commitDate,
         commitMessage: query.commitMessage,
@@ -272,6 +262,7 @@ export class NotesController {
       workspaceSlug: body.workspaceSlug,
       gitContext: {
         commitHash: body.commitHash,
+        commitHashes: body.commitHashes,
         author: body.author,
         commitDate: body.commitDate,
         commitMessage: body.commitMessage,

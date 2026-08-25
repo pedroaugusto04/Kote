@@ -60,7 +60,7 @@ Kote runs in the background, indexing your interactions and development activity
 1. **Development & AI Sessions:** The VS Code extension automatically logs local AI conversations and saves highlighted code snippets to your context engine.
 2. **Git Workflow:** The GitHub integration analyzes commit diffs on push, generating technical summaries and flagging potential operational issues.
 3. **Quick Notes:** Send text or audio messages to Kote's messaging integrations to log quick notes or environment configurations.
-4. **CodeLens Integration:** When opening files in VS Code, Kote displays accumulated knowledge and decisions directly in your editor. Click to view an AI-powered summary of why that code exists.
+4. **CodeLens Integration:** When opening files in VS Code, Kote displays accumulated knowledge and decisions directly in your editor. Click to view related notes or open Kote Code Lineage (`Ctrl+Shift+E`) for an interactive origin timeline.
 5. **Search & Retrieval:** Ask natural language questions in your IDE, CLI, WhatsApp, or the Web interface to instantly retrieve past decisions and context.
 
 ---
@@ -102,6 +102,7 @@ Integrates directly with your editor to capture context during development.
 </p>
 
 * **CodeLens Integration**: See relevant notes and decisions right above your code. Click for an AI-powered timeline of key changes.
+* **Kote Code Lineage**: Highlight any code snippet and press `Ctrl+Shift+E` (or right-click → *"Kote: Explain Why This Code Exists"*) to view an interactive origin timeline of past AI chats, git commits, and decisions specifically for the selected code.
 * **AI Chat Sidebar**: Query your context engine without leaving the editor.
 * **Quick Save**: Save code selections as notes with a right-click.
 * **AI Session Sync**: Automatically syncs local AI CLI sessions (Antigravity, Codex, Claude Code, etc.) in the background.

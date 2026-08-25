@@ -123,6 +123,7 @@ export type BulkUpdateNoteStatusBody = z.infer<typeof bulkUpdateNoteStatusBodySc
 
 export const notesByFileQuerySchema = z.object({
   filePath: z.string().trim().min(1, 'filePath is required'),
+  projectSlug: z.string().trim().optional(),
 });
 export type NotesByFileQuery = z.infer<typeof notesByFileQuerySchema>;
 
@@ -168,6 +169,7 @@ export const notesBySnippetQuerySchema = z.object({
   filePath: z.string().trim().min(1, 'filePath is required'),
   codeSnippet: z.string().optional().default(''),
   commitHash: z.string().trim().optional().default(''),
+  commitHashes: z.string().trim().optional().default(''),
   commitDate: z.string().trim().optional().default(''),
   author: z.string().trim().optional().default(''),
   commitMessage: z.string().trim().optional().default(''),
@@ -181,6 +183,7 @@ export const notesBySnippetBodySchema = z.object({
   filePath: z.string().trim().min(1, 'filePath is required'),
   codeSnippet: z.string().optional().default(''),
   commitHash: z.string().trim().optional().default(''),
+  commitHashes: z.array(z.string().trim().min(1)).max(20).optional().default([]),
   commitDate: z.string().trim().optional().default(''),
   author: z.string().trim().optional().default(''),
   commitMessage: z.string().trim().optional().default(''),

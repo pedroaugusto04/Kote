@@ -23,6 +23,7 @@ import { notes, attachments, NoteStatus, projects, workspaces, categories, noteC
 import { resolveIds } from './utils/id-resolution.helpers.js';
 import { isAiSource } from '../../domain/notes.js';
 import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
+import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
 import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
 
 
@@ -37,8 +38,16 @@ export class PostgresNoteRepository {
     return this.contentObjectStorage.hydrateMarkdown(note);
   }
 
-  private async syncNoteLinks(dbOrTx: any, userId: string, noteId: string, input: SaveNoteInput) {
-    const isLinksExplicitlyProvided = input.links !== undefined;
+  private async syncNoteLinks(
+    dbOrTx: Pick<ReturnType<PostgresDatabase['getDb']>, 'delete' | 'insert'>,
+    userId: string,
+    noteId: string,
+    input: SaveNoteInput,
+  ) {
+    const metadataChangedFiles = Array.isArray(input.metadata?.changedFiles)
+      ? input.metadata.changedFiles.filter((file): file is string => typeof file === 'string')
+      : [];
+    const isLinksExplicitlyProvided = input.links !== undefined || metadataChangedFiles.length > 0;
 
     if (isLinksExplicitlyProvided) {
       await dbOrTx
@@ -56,31 +65,33 @@ export class PostgresNoteRepository {
         );
     }
 
+    const pathTarget = normalizeFilePath(input.path);
+    const explicitTargets = new Set(
+      [...(Array.isArray(input.links) ? input.links : []), ...metadataChangedFiles]
+        .map(normalizeFilePath)
+        .filter(Boolean),
+    );
     const linksToInsert: typeof noteLinks.$inferInsert[] = [];
 
-    if (input.path && input.path.trim()) {
+    if (pathTarget) {
       linksToInsert.push({
         id: crypto.randomUUID(),
         userId,
         noteId,
-        target: input.path.trim(),
+        target: pathTarget,
         metadata: { source: 'path' },
       });
+      explicitTargets.delete(pathTarget);
     }
 
-    if (isLinksExplicitlyProvided && Array.isArray(input.links)) {
-      for (const file of input.links) {
-        const fileStr = String(file).trim();
-        if (fileStr) {
-          linksToInsert.push({
-            id: crypto.randomUUID(),
-            userId,
-            noteId,
-            target: fileStr,
-            metadata: { source: 'links' },
-          });
-        }
-      }
+    for (const target of explicitTargets) {
+      linksToInsert.push({
+        id: crypto.randomUUID(),
+        userId,
+        noteId,
+        target,
+        metadata: { source: 'links' },
+      });
     }
 
     if (linksToInsert.length > 0) {

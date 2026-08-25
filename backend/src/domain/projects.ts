@@ -5,6 +5,12 @@ export const SPECIAL_PROJECT_SLUGS = {
 
 export type SpecialProjectSlug = (typeof SPECIAL_PROJECT_SLUGS)[keyof typeof SPECIAL_PROJECT_SLUGS];
 
+export function isSpecialProjectSlug(slug?: string | null): boolean {
+  if (!slug) return true;
+  const s = slug.trim().toLowerCase();
+  return s === '' || s === SPECIAL_PROJECT_SLUGS.INBOX || s === SPECIAL_PROJECT_SLUGS.ALL_PROJECTS;
+}
+
 export type Repository = {
   id: string;
   workspaceSlug: string;

@@ -218,6 +218,10 @@ const sections: HelpSection[] = [
         title: 'File Summary AI',
         body: 'Generates concise summaries of files opened in your IDE, highlighting key functionality, important patterns, and relevant context to help you quickly understand code structure and purpose.'
       },
+      {
+        title: 'Code Lineage AI',
+        body: 'Traces the history of any code snippet by finding related developer notes, past AI conversations, and git commits to give you the full story behind the code.'
+      },
     ],
   },
   {
@@ -304,6 +308,17 @@ Body:
           'Use the link in the preview to open the note in the Kote web application',
         ],
         tip: 'This feature helps you quickly access relevant context and decisions without leaving your editor. CodeLens not working? Make sure it\'s enabled in your VS Code settings ("editor.codeLens": true). It\'s enabled by default, but may have been disabled globally.',
+      },
+      {
+        title: 'Kote Code Lineage',
+        body: 'Understand why a specific snippet of code was written, its origin, git history, and related AI conversations. Highlight any code selection and press Ctrl+Shift+E (Cmd+Shift+E on Mac), right-click and select "Kote: Explain Why This Code Exists", or click the CodeLens indicator.',
+        steps: [
+          'Highlight any block of code in your editor',
+          'Press Ctrl+Shift+E (or right-click → "Kote: Explain Why This Code Exists")',
+          'Explore the interactive lineage timeline showing notes, git commits, past AI conversations, and source channels specifically related to the selected code',
+          'Click any note card to preview its details or jump directly to the Kote web application',
+        ],
+        tip: 'Code Lineage uses intelligent search across your team\'s developer notes, AI sessions, and commit diffs to explain the history behind selected code.',
       },
       { title: 'Extension documentation', body: 'For detailed extension features, keyboard shortcuts, and configuration options, check the VS Code extension documentation on GitHub.', tip: 'View VS Code extension README at https://github.com/pedroaugusto04/Knowledge-Base/blob/main/ide/vscode/README.md' },
     ],

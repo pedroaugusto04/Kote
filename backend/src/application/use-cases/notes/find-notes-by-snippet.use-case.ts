@@ -11,6 +11,7 @@ import {
   extractCodeTokens,
   computeSnippetRelevance,
 } from '../../utils/notes/snippet-notes.utils.js';
+import { classifyDirectLineageMatch } from '../../utils/notes/code-lineage.utils.js';
 
 @Injectable()
 export class FindNotesBySnippetUseCase {
@@ -31,7 +32,14 @@ export class FindNotesBySnippetUseCase {
       commitDate: gitContext?.commitDate,
     });
 
-    const fileNotes = await this.noteContextRepository.findNotesByFile(userId, filePath, { limit: 50, projectSlug });
+    const commitHashes = [gitContext?.commitHash, ...(gitContext?.commitHashes || [])]
+      .map((hash) => String(hash || '').trim())
+      .filter(Boolean);
+    const fileNotes = await this.noteContextRepository.findNotesByFile(userId, filePath, {
+      limit: 200,
+      projectSlug,
+      commitHashes,
+    });
 
     if (fileNotes.length === 0) {
       return {
@@ -49,11 +57,14 @@ export class FindNotesBySnippetUseCase {
 
     const scoredNotes = fileNotes.map((note) => {
       const relevance = computeSnippetRelevance(note, snippetTokens, gitContext);
+      const category = classifyDirectLineageMatch(note, relevance);
       return {
         noteRecord: note,
-        relevance,
+        relevance: category ? { ...relevance, category } : null,
       };
-    });
+    }).filter((match): match is typeof match & { relevance: NonNullable<typeof match.relevance> } => (
+      match.relevance !== null
+    ));
 
     // Sort by relevance score DESC (origin match first, then highest score, then newest date)
     scoredNotes.sort((a, b) => {

@@ -3,6 +3,7 @@ import { FileNotesSummaryFallbackReason } from '../../../domain/enums/ai.enums.j
 export type FileNotesSummaryRequest = {
   filePath: string;
   workspaceSlug?: string;
+  projectSlug?: string;
   notes: Array<{
     id: string;
     title: string;
@@ -10,6 +11,7 @@ export type FileNotesSummaryRequest = {
     content: string;
     summary?: string;
     workspaceSlug?: string;
+    revision?: string;
   }>;
 };
 
@@ -50,16 +52,18 @@ export function buildFileNotesSummaryFallback(
   request: FileNotesSummaryRequest,
   reason: FileNotesSummaryFallbackReason,
 ): FileNotesSummaryResponse {
-  const sortedNotes = [...request.notes].sort((left, right) => (
-    new Date(left.date).getTime() - new Date(right.date).getTime()
-  ));
+  const safeTime = (date: string) => {
+    const timestamp = new Date(date).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  };
+  const sortedNotes = [...request.notes].sort((left, right) => safeTime(left.date) - safeTime(right.date));
   const messages = FALLBACK_MESSAGES[reason];
 
   return {
     summary: messages.summary || `Found ${request.notes.length} note${request.notes.length === 1 ? '' : 's'} about this file.`,
     understanding: messages.understanding,
     timeline: sortedNotes.map((note) => ({
-      date: new Date(note.date).toISOString().split('T')[0],
+      date: safeTime(note.date) ? new Date(note.date).toISOString().split('T')[0] : '',
       title: note.title || 'Untitled',
       description: note.summary || note.content?.substring(0, 200) || 'No description',
       noteId: note.id,

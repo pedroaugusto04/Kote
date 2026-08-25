@@ -141,7 +141,12 @@ export function computeSnippetRelevance(
   queryTokens: string[],
   commitContext?: GitCommitContext,
 ): SnippetRelevance {
-  const targetCommit = String(commitContext?.commitHash || '').trim().toLowerCase();
+  const targetCommits = new Set([
+    commitContext?.commitHash,
+    ...(commitContext?.commitHashes || []),
+  ].map((hash) => String(hash || '').trim().toLowerCase()).filter((hash) => (
+    hash && !hash.startsWith('00000000')
+  )));
   const noteCommit = String(
     (note.metadata as Record<string, unknown> | undefined)?.commitHash ||
     (note.metadata as Record<string, unknown> | undefined)?.commit ||
@@ -150,12 +155,12 @@ export function computeSnippetRelevance(
   ).trim().toLowerCase();
 
   if (
-    targetCommit &&
+    targetCommits.size > 0 &&
     noteCommit &&
-    !targetCommit.startsWith('00000000') &&
-    (noteCommit.startsWith(targetCommit) || targetCommit.startsWith(noteCommit))
+    Array.from(targetCommits).some((hash) => noteCommit.startsWith(hash) || hash.startsWith(noteCommit))
   ) {
     return {
+      category: 'origin',
       score: 1.0,
       contentScore: 1.0,
       temporalScore: 1.0,
@@ -190,6 +195,7 @@ export function computeSnippetRelevance(
   const reason = temporal.reason || content.reason || RELEVANCE_REASONS.FILE_CONTEXT;
 
   return {
+    category: 'same-file',
     score: Number(finalScore.toFixed(3)),
     contentScore: content.score,
     temporalScore: temporal.score ?? undefined,

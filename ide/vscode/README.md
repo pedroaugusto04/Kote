@@ -13,6 +13,7 @@ For more details, visit the [GitHub Repository](https://github.com/pedroaugusto0
 ## Features
 
 - **CodeLens Integration**: Automatically displays relevant notes and decisions at the top of files that have associated knowledge in your Kote. Click the CodeLens indicator to view and open related notes directly in your editor.
+- **Kote Code Lineage**: Highlight any code snippet and press `Ctrl+Shift+E` (or right-click → *"Kote: Explain Why This Code Exists"*) to view an interactive origin timeline of past decisions, git commit history, and related AI sessions specifically for the selected code.
 - **Dedicated Sidebar**: Interactive AI chat and manual note saving
 - **Quick AI Questions**: Ask questions without leaving your editor (Ctrl+Shift+K)
 - **Save Code Selection**: Right-click any code selection to save as a note
@@ -100,12 +101,24 @@ When you open a file that has associated notes or decisions in your Kote, a Code
 
 This feature helps you quickly access relevant context and decisions without leaving your editor.
 
+#### Kote Code Lineage (Explain Why Code Exists)
+
+**Keyboard Shortcut**: `Ctrl+Shift+E` (Windows/Linux) or `Cmd+Shift+E` (Mac)
+
+Understand the background, git history, and technical decisions behind any block of code:
+
+1. Highlight any block of code in your editor
+2. Press `Ctrl+Shift+E` (or right-click and choose **"Kote: Explain Why This Code Exists"**)
+3. Explore the **Kote Code Lineage** interactive timeline panel showing related notes, git commit diffs, source channel badges (VS Code, CLI, GitHub, WhatsApp), and past AI conversations
+4. Click any note card to open its detail preview or jump directly to the Kote web application
+
 ## Commands
 
 | Command | Shortcut | Description |
 |---------|----------|-------------|
 | `Kote: Open Chat` | - | Open the AI chat in the sidebar |
 | `Kote: Ask (Quick Input)` | `Ctrl+Shift+K` | Quick AI question from selected text |
+| `Kote: Explain Why This Code Exists` | `Ctrl+Shift+E` | Open Kote Code Lineage origin timeline for selected code |
 | `Kote: Save Selection as Note` | - | Save selected code as a note |
 | `Kote: Save Active File as Note` | - | Save current file as a note |
 | `Kote: Refresh Sidebar` | - | Refresh the sidebar content |
@@ -115,6 +128,7 @@ This feature helps you quickly access relevant context and decisions without lea
 
 The extension adds context menu items when you have text selected:
 
+- **Kote: Explain Why This Code Exists**: Open Kote Code Lineage timeline for highlighted code
 - **Kote: Save Selection as Note**: Save selected text as a note
 - **Kote: Open Chat**: Open the AI chat sidebar
 

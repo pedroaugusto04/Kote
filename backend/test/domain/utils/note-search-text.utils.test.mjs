@@ -23,6 +23,20 @@ See [docs](/path) for details.
   assert.doesNotMatch(text, /\[docs\]/);
 });
 
+test('buildNoteBodySearchText preserves identifiers inside fenced code blocks', () => {
+  const text = buildNoteBodySearchText(`
+\`\`\`ts
+async function reconcileSubscription(invoiceId: string) {
+  return billingGateway.capture(invoiceId);
+}
+\`\`\`
+  `);
+
+  assert.match(text, /reconcileSubscription/);
+  assert.match(text, /billingGateway/);
+  assert.doesNotMatch(text, /```/);
+});
+
 test('buildNoteBodySearchText returns empty for blank input', () => {
   assert.equal(buildNoteBodySearchText(''), '');
   assert.equal(buildNoteBodySearchText('   '), '');

@@ -1,15 +1,10 @@
 import * as vscode from 'vscode';
 import type { KbClient } from '../kb-client';
-import type { SnippetNoteMatch, SnippetNotesResponse } from '../types';
+import type { KbNote, SnippetNoteMatch, SnippetNotesResponse } from '../types';
 import type { GitSnippetOriginInfo } from '../utils/git-blame';
-import { GIT_SOURCE_CHANNELS, resolveSourceBadge } from '../utils/source-channel';
+import { resolveSourceBadge } from '../utils/source-channel';
 import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
 import { KOTE_WEBVIEW_FOUNDATION_STYLES } from './kote-webview-design';
-
-const LINEAGE_RELEVANCE_THRESHOLDS = {
-  sameFileContent: 0.65,
-  semanticSimilarity: 0.62,
-} as const;
 
 const MAX_RELATED_COMMITS = 20;
 
@@ -115,6 +110,7 @@ export class SnippetOriginSummaryProvider {
         codeSnippet: this.input.snippet,
         projectSlug: this.input.projectSlug,
         commitHash: this.input.gitInfo?.commitHash,
+        commitHashes: this.input.gitInfo?.commits.map((commit) => commit.commitHash),
         commitDate: this.input.gitInfo?.commitDate,
         author: this.input.gitInfo?.author,
         commitMessage: this.input.gitInfo?.commitMessage,
@@ -125,11 +121,11 @@ export class SnippetOriginSummaryProvider {
 
       const directIds = (response.matches || []).map((m) => m.note.id);
 
-      // Pass full selected code snippet block (capped at 1,000 chars) for semantic AI search
-      const snippetQuery = (this.input.snippet || '').trim().slice(0, 1000);
+      // Pass full selected code snippet block (capped at 3,000 chars) for semantic AI search
+      const snippetQuery = (this.input.snippet || '').trim().slice(0, 3000);
 
       // Hybrid fetch: retrieve cross-file semantic matches, excluding all direct file matches.
-      let semanticNotes: any[] = [];
+      let semanticNotes: KbNote[] = [];
       try {
         semanticNotes = await this.kbClient.findRelatedNotesByFile(
           this.input.filePath,
@@ -356,12 +352,19 @@ export class SnippetOriginSummaryProvider {
     const git = response.gitContext || this.input.gitInfo;
     const matches = response.matches || [];
     const hasGit = Boolean(git && git.commitHash);
+    const gitCommits = this.input.gitInfo?.commits?.length
+      ? this.input.gitInfo.commits
+      : git?.commitHash
+        ? [git]
+        : [];
+
+    const snippetLines = (this.input.snippet || '').split('\n').length;
+    const isSnippetCollapsible = snippetLines > 8 || (this.input.snippet || '').length > 350;
 
     // 1. Related commits are factual file links. They remain visible regardless
     // of age, while selected-code overlap determines their order.
-    const isGitChannel = (channel?: string) => GIT_SOURCE_CHANNELS.some((g) => (channel || '').toLowerCase().includes(g));
     const rawLinkedMatches = matches.filter((m) => (
-      m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel)
+      m.relevance.category === 'origin' || m.relevance.category === 'linked-commit'
     ));
 
     // Exact commit hashes first, then selected-code overlap, then newest date.
@@ -383,23 +386,19 @@ export class SnippetOriginSummaryProvider {
 
     // 2. File notes need selected-code overlap; their date does not determine relevance.
     const directFileMatches = matches.filter((m) => (
-      !linkedIds.has(m.note.id)
-      && m.relevance.contentScore >= LINEAGE_RELEVANCE_THRESHOLDS.sameFileContent
+      !linkedIds.has(m.note.id) && m.relevance.category === 'same-file'
     ));
 
     // 3. Cross-file notes need a calibrated vector similarity, rather than an RRF rank.
     const allDirectIds = new Set(matches.map((m) => m.note.id));
     const semanticMatches: SnippetNoteMatch[] = semanticNotes
-      .filter((n) => (
-        !allDirectIds.has(n.id)
-        && typeof n.semanticSimilarity === 'number'
-        && n.semanticSimilarity >= LINEAGE_RELEVANCE_THRESHOLDS.semanticSimilarity
-      ))
+      .filter((n) => !allDirectIds.has(n.id) && n.lineageCategory === 'cross-file-related')
       .map((n) => ({
         note: n,
         relevance: {
-          score: n.semanticSimilarity,
-          contentScore: n.semanticSimilarity,
+          category: 'cross-file-related',
+          score: n.semanticSimilarity || 0,
+          contentScore: n.semanticSimilarity || 0,
           isOriginMatch: false,
           reason: 'Semantic vector match from related discussion',
         },
@@ -443,15 +442,17 @@ export class SnippetOriginSummaryProvider {
 
     const timelineItems: TimelineEntry[] = [];
 
-    // Add Git Commit if available
-    if (hasGit && git?.commitDate) {
-      timelineItems.push({
-        date: git.commitDate,
-        title: `Latest line change: ${git.commitHash ? git.commitHash.slice(0, 7) : ''} (${git.author || 'Unknown'})`,
-        description: git.commitMessage || 'No commit message',
-        badge: { label: 'Git Commit', className: 'badge-git' },
-        isCommit: true,
-      });
+    // Add every commit currently represented in the selected lines.
+    for (const commit of gitCommits) {
+      if (commit.commitDate) {
+        timelineItems.push({
+          date: commit.commitDate,
+          title: `Git commit: ${commit.commitHash ? commit.commitHash.slice(0, 7) : ''} (${commit.author || 'Unknown'})`,
+          description: commit.commitMessage || 'No commit message',
+          badge: { label: 'Git Commit', className: 'badge-git' },
+          isCommit: true,
+        });
+      }
     }
 
     // Timeline presents commit evidence only. Related notes stay in their tab.
@@ -565,6 +566,40 @@ export class SnippetOriginSummaryProvider {
       font-size: 0.88em;
       overflow-x: auto;
       white-space: pre;
+    }
+
+    .snippet-code.is-collapsible {
+      max-height: 160px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .snippet-code.is-collapsible::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 40px;
+      background: linear-gradient(transparent, var(--bg));
+      pointer-events: none;
+    }
+
+    .snippet-code.is-expanded {
+      max-height: none;
+      overflow-x: auto;
+    }
+
+    .snippet-code.is-expanded::after {
+      display: none;
+    }
+
+    .snippet-footer {
+      padding: 6px 12px;
+      background: var(--card-bg);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
     }
 
     .additional-results,
@@ -828,8 +863,14 @@ export class SnippetOriginSummaryProvider {
   <div class="snippet-card">
     <div class="snippet-header">
       <span>Inspected Code Snippet</span>
+      <span>${snippetLines} ${snippetLines === 1 ? 'line' : 'lines'}</span>
     </div>
-    <pre class="snippet-code"><code>${this.escapeHtml(this.input.snippet)}</code></pre>
+    <pre class="snippet-code ${isSnippetCollapsible ? 'is-collapsible' : ''}"><code>${this.escapeHtml(this.input.snippet)}</code></pre>
+    ${isSnippetCollapsible ? `
+      <div class="snippet-footer">
+        <button class="show-more-btn snippet-toggle-btn" data-label="Show full snippet (${snippetLines} lines)" onclick="toggleSnippetCode(this)">Show full snippet (${snippetLines} lines)</button>
+      </div>
+    ` : ''}
   </div>
 
   ${renderedTimelineHtml}
@@ -864,6 +905,13 @@ export class SnippetOriginSummaryProvider {
 
     function copySnippet() {
       vscode.postMessage({ command: 'copyText', text: ${JSON.stringify(this.input.snippet)} });
+    }
+
+    function toggleSnippetCode(btn) {
+      const codeEl = document.querySelector('.snippet-code');
+      if (!codeEl) return;
+      const expanded = codeEl.classList.toggle('is-expanded');
+      btn.textContent = expanded ? 'Collapse snippet' : btn.dataset.label;
     }
 
     function toggleMore(selector, button) {

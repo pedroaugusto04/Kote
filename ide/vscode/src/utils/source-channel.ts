@@ -39,14 +39,18 @@ export interface SourceBadge {
 }
 
 /**
+ * Checks whether a given channel string represents a git source channel.
+ */
+export function isGitChannel(sourceChannel?: string): boolean {
+  const channel = (sourceChannel || '').toLowerCase();
+  return GIT_SOURCE_CHANNELS.some((g) => channel.includes(g));
+}
+
+/**
  * Checks whether a given sourceChannel, canonicalType or source represents an AI chat session or note.
  */
 export function isAiSessionChannel(sourceChannel?: string, fallbackChannel?: string): boolean {
-  const channel = (sourceChannel || fallbackChannel || '').toLowerCase();
-  if (GIT_SOURCE_CHANNELS.some((g) => channel.includes(g))) {
-    return false;
-  }
-  return true;
+  return !isGitChannel(sourceChannel || fallbackChannel);
 }
 
 /**

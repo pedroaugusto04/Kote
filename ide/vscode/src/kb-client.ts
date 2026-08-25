@@ -17,13 +17,15 @@ export const FILE_NOTES_SUMMARY_FALLBACK_REASON = {
 
 export type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, SnippetNoteMatch, GitCommitContext, SnippetNotesResponse } from './types';
 
+import { SPECIAL_PROJECT_SLUGS } from './utils/project';
+
 const CONFIG_PATH = path.join(os.homedir(), '.config', 'kb', 'config.json');
 
 export function loadKbConfig(): KbConfig {
   const defaults: KbConfig = {
     apiUrl: 'https://knowledgebase.sbs/kote/api',
     workspaceSlug: 'default',
-    defaultProjectSlug: 'inbox',
+    defaultProjectSlug: SPECIAL_PROJECT_SLUGS.INBOX,
     cookies: {},
   };
   try {
@@ -476,8 +478,12 @@ export class KbClient {
     saveKbConfig({ workspaceSlug });
   }
 
-  async findNotesByFile(filePath: string): Promise<KbNote[]> {
-    return this.fetch<KbNote[]>(`/api/notes/by-file?filePath=${encodeURIComponent(filePath)}`);
+  async findNotesByFile(filePath: string, options?: { projectSlug?: string }): Promise<KbNote[]> {
+    const params = new URLSearchParams({ filePath });
+    if (options?.projectSlug) {
+      params.set('projectSlug', options.projectSlug);
+    }
+    return this.fetch<KbNote[]>(`/api/notes/by-file?${params.toString()}`);
   }
 
   async findRelatedNotesByFile(
@@ -489,9 +495,8 @@ export class KbClient {
       filePath,
       limit: String(options?.limit ?? 10),
     });
-    const slug = options?.projectSlug || this.config.defaultProjectSlug;
-    if (slug) {
-      params.set('projectSlug', slug);
+    if (options?.projectSlug) {
+      params.set('projectSlug', options.projectSlug);
     }
     if (options?.query) {
       params.set('query', options.query);
@@ -529,9 +534,8 @@ export class KbClient {
       filePath,
       workspaceSlug: this.config.workspaceSlug || 'default',
     });
-    const slug = options?.projectSlug || this.config.defaultProjectSlug;
-    if (slug) {
-      params.set('projectSlug', slug);
+    if (options?.projectSlug) {
+      params.set('projectSlug', options.projectSlug);
     }
 
     return this.fetch<{
@@ -553,6 +557,7 @@ export class KbClient {
     projectSlug?: string;
     workspaceSlug?: string;
     commitHash?: string;
+    commitHashes?: string[];
     commitDate?: string;
     author?: string;
     commitMessage?: string;

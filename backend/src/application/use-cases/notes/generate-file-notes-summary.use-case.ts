@@ -47,6 +47,13 @@ export class GenerateFileNotesSummaryUseCase {
     }
 
     const workspaceSlug = request.workspaceSlug || request.notes[0]?.workspaceSlug || 'default';
+    const cacheScope = {
+      userId,
+      workspaceSlug,
+      projectSlug: request.projectSlug,
+      filePath: request.filePath,
+    };
+    const noteVersions = request.notes.map((note) => ({ id: note.id, date: note.date, revision: note.revision }));
     const config = {
       conversationAiProvider: this.env.fileNotesSummaryAiProvider,
       conversationAiBaseUrl: this.env.fileNotesSummaryAiBaseUrl,
@@ -60,8 +67,8 @@ export class GenerateFileNotesSummaryUseCase {
 
     // Check cache only after the integration state has been validated.
     const cached = this.cacheService.get(
-      request.filePath,
-      request.notes.map((n) => ({ id: n.id, date: n.date })),
+      cacheScope,
+      noteVersions,
     );
     if (cached) {
       this.logger.info('generate_file_notes_summary.cache_hit');
@@ -93,8 +100,8 @@ export class GenerateFileNotesSummaryUseCase {
     
     // Cache the result
     this.cacheService.set(
-      request.filePath,
-      request.notes.map((n) => ({ id: n.id, date: n.date })),
+      cacheScope,
+      noteVersions,
       result,
     );
     
@@ -144,7 +151,7 @@ export class GenerateFileNotesSummaryUseCase {
 
     try {
       const parsedJson = JSON.parse(content);
-      return parseFileNotesSummaryResponse(parsedJson);
+      return parseFileNotesSummaryResponse(parsedJson, request.notes.map((note) => note.id));
     } catch (error) {
       this.logger.warn('generate_file_notes_summary.parse_failed', {
         error: error instanceof Error ? error.message : String(error),

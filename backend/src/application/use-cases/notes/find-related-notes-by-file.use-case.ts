@@ -1,15 +1,16 @@
 import { Injectable } from '@nestjs/common';
 import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import { EmbeddingGateway } from '../../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { EmbeddingTaskType, type AiProvider } from '../../../contracts/enums.js';
+import { AiProvider } from '../../../contracts/enums.js';
 import { rankHybridKnowledgeMatches } from '../../utils/query/query.utils.js';
 import { filePathToQuery, isGenericFile } from '../../utils/query/file-query.utils.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
+import { extractCodeTokens } from '../../utils/notes/snippet-notes.utils.js';
+import { CODE_LINEAGE_RELEVANCE_THRESHOLDS } from '../../utils/notes/code-lineage.utils.js';
 
 type RelatedNotesSearchProfile = 'file' | 'snippet';
 
@@ -27,7 +28,6 @@ export class FindRelatedNotesByFileUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly contentQueryRepository: ContentQueryRepository,
-    private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
@@ -58,16 +58,15 @@ export class FindRelatedNotesByFileUseCase {
       return [];
     }
 
-    const embeddingConfig = {
-      provider: env.codeLensSearchAiProvider as AiProvider,
-      baseUrl: env.codeLensSearchAiBaseUrl,
-      model: env.codeLensSearchAiModel,
-      apiKey: env.codeLensSearchAiApiKey,
-    };
-
     const isEmbeddingConfigured = Boolean(
-      embeddingConfig.provider && embeddingConfig.apiKey && embeddingConfig.model,
+      env.embeddingAiProvider
+      && env.embeddingAiProvider !== AiProvider.None
+      && env.embeddingAiApiKey
+      && env.embeddingAiModel,
     );
+    const ftsQueryText = searchProfile === 'snippet'
+      ? extractCodeTokens(queryText).slice(0, 32).join(' ')
+      : queryText;
 
     this.logger.info('codelens_related.start', {
       userId,
@@ -77,6 +76,7 @@ export class FindRelatedNotesByFileUseCase {
       searchProfile,
       resultLimit,
       isEmbeddingConfigured,
+      ftsQueryText,
     });
 
     const candidateLimit = searchConfig.candidateLimit;
@@ -92,9 +92,11 @@ export class FindRelatedNotesByFileUseCase {
 
     const [vectorResult, ftsNotes] = await Promise.all([
       isEmbeddingConfigured
-        ? this.searchVectorChunks(userId, queryText, embeddingConfig, searchConfig.minSimilarity, candidateLimit, projectId)
+        ? this.searchVectorChunks(userId, queryText, searchConfig.minSimilarity, candidateLimit, projectId)
         : Promise.resolve({ chunks: [] as Array<{ noteId: string; similarity: number }> }),
-      this.contentQueryRepository.list(userId, { query: queryText, ftsLimit: candidateLimit, projectSlug }),
+      ftsQueryText
+        ? this.contentQueryRepository.list(userId, { query: ftsQueryText, ftsLimit: candidateLimit, projectSlug })
+        : Promise.resolve([]),
     ]);
 
     this.logger.info('codelens_related.search_phase_complete', {
@@ -113,16 +115,34 @@ export class FindRelatedNotesByFileUseCase {
     }
 
     const hasVectorResults = filteredChunks.length > 0;
+    const ftsNoteIds = new Set(filteredFts.map((note) => note.id));
+    const vectorOnlyIds = Array.from(new Set(filteredChunks.map((chunk) => chunk.noteId)))
+      .filter((noteId) => !ftsNoteIds.has(noteId));
+    const vectorOnlyRecords = vectorOnlyIds.length > 0
+      ? await this.contentRepository.getNotesByIds(userId, vectorOnlyIds)
+      : [];
+    const vectorOnlyNotes = vectorOnlyRecords.map((note) => ({
+      ...noteSummary(note),
+      ftsRank: 0,
+    }));
+    const hybridCandidates = [...filteredFts, ...vectorOnlyNotes];
+
+    this.logger.info('codelens_related.candidates_merged', {
+      ftsCandidatesCount: filteredFts.length,
+      vectorOnlyCandidatesCount: vectorOnlyNotes.length,
+      totalCandidatesCount: hybridCandidates.length,
+    });
+
     const queryInput = {
       query: queryText,
       limit: resultLimit,
-    } as any;
+    };
 
     let matches: Array<ReturnType<typeof rankHybridKnowledgeMatches>[number]>;
 
     if (hasVectorResults) {
       matches = rankHybridKnowledgeMatches(
-        filteredFts,
+        hybridCandidates,
         filteredChunks,
         queryInput,
         { vector: searchConfig.vectorWeight, keyword: searchConfig.keywordWeight },
@@ -155,7 +175,19 @@ export class FindRelatedNotesByFileUseCase {
         }));
     }
 
-    const topMatches = matches.slice(0, resultLimit);
+    const relevantMatches = searchProfile === 'snippet'
+      ? matches.filter((match) => {
+          const semanticSim = semanticSimilarityByNoteId.get(match.id) || 0;
+          if (semanticSim >= CODE_LINEAGE_RELEVANCE_THRESHOLDS.semanticSimilarity) {
+            return true;
+          }
+          if (!hasVectorResults && match.score > 0) {
+            return true;
+          }
+          return false;
+        })
+      : matches;
+    const topMatches = relevantMatches.slice(0, resultLimit);
 
     if (topMatches.length === 0) {
       this.logger.info('codelens_related.no_matches', { filePath, queryText });
@@ -175,6 +207,7 @@ export class FindRelatedNotesByFileUseCase {
         ...noteSummary(n),
         relevanceScore: matchByNoteId.get(n.id)?.score,
         semanticSimilarity: semanticSimilarityByNoteId.get(n.id),
+        ...(searchProfile === 'snippet' ? { lineageCategory: 'cross-file-related' as const } : {}),
       }));
 
     this.logger.info('codelens_related.complete', {
@@ -214,7 +247,6 @@ export class FindRelatedNotesByFileUseCase {
   private async searchVectorChunks(
     userId: string,
     queryText: string,
-    embeddingConfig: { provider: AiProvider; baseUrl: string; model: string; apiKey: string },
     minSimilarity: number,
     limit: number,
     projectId?: string,
@@ -230,11 +262,16 @@ export class FindRelatedNotesByFileUseCase {
         return { chunks: [] as Array<{ noteId: string; similarity: number }> };
       }
 
-      const chunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
-        limit,
+      const rawChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
+        limit: Math.min(limit * 4, 200),
         minSimilarity,
         projectId,
       });
+      const chunks = Array.from(rawChunks.reduce((byNote, chunk) => {
+        const current = byNote.get(chunk.noteId);
+        if (!current || chunk.similarity > current.similarity) byNote.set(chunk.noteId, chunk);
+        return byNote;
+      }, new Map<string, typeof rawChunks[number]>()).values()).slice(0, limit);
 
       return { chunks };
     } catch (error) {

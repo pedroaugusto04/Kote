@@ -51,7 +51,10 @@ export interface KbNote {
   metadata?: Record<string, unknown>;
   relevanceScore?: number;
   semanticSimilarity?: number;
+  lineageCategory?: CodeLineageCategory;
 }
+
+export type CodeLineageCategory = 'origin' | 'linked-commit' | 'same-file' | 'cross-file-related';
 
 export interface KbReminder {
   id: string;
@@ -147,12 +150,14 @@ export type ChatFromWebview =
 
 export interface GitCommitContext {
   commitHash?: string;
+  commitHashes?: string[];
   author?: string;
   commitDate?: string;
   commitMessage?: string;
 }
 
 export interface SnippetRelevance {
+  category: CodeLineageCategory;
   score: number;
   contentScore: number;
   temporalScore?: number;
@@ -172,4 +177,3 @@ export interface SnippetNotesResponse {
   matches: SnippetNoteMatch[];
   total: number;
 }
-

@@ -56,7 +56,7 @@ test('FindNotesBySnippetUseCase prioritizes selected-code overlap over commit ti
       title: 'Fix: handle refundPayment timeouts',
       summary: 'Added retry for refundPayment in webhook handling',
       path: 'src/services/billing.ts',
-      markdown: 'We had to implement refundPayment with idempotencyKey',
+      markdown: 'We had to implement refundPayment with idempotencyKey via gateway',
       metadata: {},
       categories: [],
       tags: ['billing', 'refund'],
@@ -108,17 +108,17 @@ test('FindNotesBySnippetUseCase prioritizes selected-code overlap over commit ti
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.matches.length, 3);
+  assert.equal(result.matches.length, 2);
   assert.equal(result.gitContext.commitHash, 'commit-999');
 
-  // Verify relevance score ordering: note-commit-day (highest score) -> note-recent -> note-old
+  // Low-overlap file notes are removed by the backend before the response.
   assert.equal(result.matches[0].note.id, 'note-commit-day');
   assert.equal(result.matches[1].note.id, 'note-recent');
-  assert.equal(result.matches[2].note.id, 'note-old');
 
   // A same-day note is relevant, but only a matching SHA is a direct origin.
   const commitMatch = result.matches.find((m) => m.note.id === 'note-commit-day');
   assert.equal(commitMatch.relevance.isOriginMatch, false);
+  assert.equal(commitMatch.relevance.category, 'same-file');
   assert.ok(commitMatch.relevance.score >= 0.8);
 
   // note-recent should have high snippet score
@@ -181,7 +181,8 @@ test('FindNotesBySnippetUseCase matches direct GitHub headSha in note metadata',
     filePath: 'src/db/migrate.ts',
     codeSnippet: 'export async function migrate() {}',
     gitContext: {
-      commitHash: 'abcdef1234567890',
+      commitHash: 'different-primary-commit',
+      commitHashes: ['different-primary-commit', 'abcdef1234567890'],
       commitDate: '2026-05-10T00:00:00.000Z', // Note date is months away, but commit hash matches!
     },
   });
@@ -189,6 +190,7 @@ test('FindNotesBySnippetUseCase matches direct GitHub headSha in note metadata',
   assert.equal(result.ok, true);
   assert.equal(result.matches[0].note.id, 'note-hash-match');
   assert.equal(result.matches[0].relevance.isOriginMatch, true);
+  assert.equal(result.matches[0].relevance.category, 'origin');
   assert.equal(result.matches[0].relevance.score, 1.0);
   assert.equal(result.matches[0].relevance.contentScore, 1.0);
   assert.equal(result.matches[0].relevance.reason, 'Direct commit hash match');

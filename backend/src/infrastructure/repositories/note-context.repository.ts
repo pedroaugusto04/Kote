@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, sql, desc, or } from 'drizzle-orm';
-import { NoteContextRepository } from '../../application/ports/notes/note-context.repository.js';
+import { eq, and, sql, desc, or, like } from 'drizzle-orm';
+import { NoteContextRepository, type FindNotesByFileOptions } from '../../application/ports/notes/note-context.repository.js';
 import { NoteRecord } from '../../application/models/repository-records.models.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { notes, projects, noteLinks } from '../persistence/schema/index.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
-import { SPECIAL_PROJECT_SLUGS } from '../../domain/projects.js';
+import { SPECIAL_PROJECT_SLUGS, isSpecialProjectSlug } from '../../domain/projects.js';
+import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
 
 @Injectable()
 export class PostgresNoteContextRepository implements NoteContextRepository {
@@ -19,24 +20,57 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
     return this.contentObjectStorage.hydrateMarkdown(note);
   }
 
-  async findNotesByFile(userId: string, filePath: string, options?: { limit?: number; projectSlug?: string }): Promise<NoteRecord[]> {
+  async findNotesByFile(userId: string, filePath: string, options?: FindNotesByFileOptions): Promise<NoteRecord[]> {
     const db = this.database.getDb();
     const limit = options?.limit ?? 15;
+    const commitHashes = (options?.commitHashes || []).map((hash) => hash.trim().toLowerCase()).filter(Boolean).slice(0, 20);
+
+    const normalizedPath = normalizeFilePath(filePath);
+    if (!normalizedPath) return [];
+
+    const slashPath = '/' + normalizedPath;
+
+    const pathCondition = or(
+      eq(notes.path, normalizedPath),
+      eq(notes.path, slashPath),
+      like(notes.path, `%/${normalizedPath}`),
+      sql`${normalizedPath} LIKE '%/' || ${notes.path}`,
+      eq(noteLinks.target, normalizedPath),
+      eq(noteLinks.target, slashPath),
+      like(noteLinks.target, `%/${normalizedPath}`),
+      sql`${normalizedPath} LIKE '%/' || ${noteLinks.target}`,
+    );
 
     const conditions = [
       eq(notes.userId, userId),
-      eq(noteLinks.userId, userId),
-      eq(noteLinks.target, filePath),
+      pathCondition,
     ];
 
     if (options?.projectSlug) {
       const slug = options.projectSlug.trim().toLowerCase();
-      if (slug === SPECIAL_PROJECT_SLUGS.INBOX || slug === SPECIAL_PROJECT_SLUGS.ALL_PROJECTS) {
+      if (isSpecialProjectSlug(slug)) {
         conditions.push(sql`(${projects.projectSlug} = ${SPECIAL_PROJECT_SLUGS.INBOX} OR ${projects.projectSlug} IS NULL OR ${notes.projectId} IS NULL)`);
       } else {
-        conditions.push(sql`(${projects.projectSlug} = ${options.projectSlug} OR ${projects.projectSlug} = ${SPECIAL_PROJECT_SLUGS.INBOX} OR ${projects.projectSlug} IS NULL OR ${notes.projectId} IS NULL)`);
+        conditions.push(sql`(${projects.projectSlug} = ${slug} OR ${projects.projectSlug} = ${SPECIAL_PROJECT_SLUGS.INBOX} OR ${projects.projectSlug} IS NULL OR ${notes.projectId} IS NULL)`);
       }
     }
+
+    const noteCommitHash = sql<string>`lower(coalesce(
+      ${notes.metadata}->>'commitHash',
+      ${notes.metadata}->>'commit',
+      ${notes.metadata}->>'headSha',
+      ''
+    ))`;
+    const originCommitOrder = commitHashes.length > 0
+      ? sql<number>`CASE WHEN EXISTS (
+          SELECT 1 FROM unnest(ARRAY[${sql.join(commitHashes.map((hash) => sql`${hash}`), sql`, `)}]) AS selected(hash)
+          WHERE ${noteCommitHash} <> ''
+            AND (
+              ${noteCommitHash} LIKE selected.hash || '%'
+              OR selected.hash LIKE ${noteCommitHash} || '%'
+            )
+        ) THEN 1 ELSE 0 END`
+      : sql<number>`0`;
 
     const result = await db
       .select({
@@ -64,9 +98,10 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
       })
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
-      .innerJoin(noteLinks, eq(notes.id, noteLinks.noteId))
+      .leftJoin(noteLinks, and(eq(notes.id, noteLinks.noteId), eq(noteLinks.userId, userId)))
       .where(and(...conditions))
-      .orderBy(desc(notes.occurredAt))
+      .groupBy(notes.id, projects.projectSlug)
+      .orderBy(desc(originCommitOrder), desc(notes.occurredAt))
       .limit(limit);
 
     const records = result.map(noteFromRow);

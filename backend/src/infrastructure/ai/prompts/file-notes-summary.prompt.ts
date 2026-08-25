@@ -1,6 +1,8 @@
 import { z } from 'zod';
 
-import type { AnswerContextChunk } from '../../../application/ports/query/answer-generation.gateway.js';
+export const FILE_NOTES_SUMMARY_MAX_NOTES = 50;
+export const FILE_NOTES_SUMMARY_MAX_NOTE_CHARS = 3_500;
+export const FILE_NOTES_SUMMARY_MAX_TOTAL_CHARS = 60_000;
 
 export const fileNotesSummaryResponseSchema = z.object({
   summary: z.string().trim().default(''),
@@ -53,21 +55,52 @@ export function buildFileNotesSummaryPrompt(payload: {
     summary?: string;
   }>;
 }) {
-  return JSON.stringify({
-    filePath: payload.filePath,
-    notes: payload.notes.map((note) => ({
+  let remainingChars = FILE_NOTES_SUMMARY_MAX_TOTAL_CHARS;
+  const safeTime = (date: string) => {
+    const timestamp = new Date(date).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  };
+  const orderedNotes = [...payload.notes]
+    .sort((left, right) => safeTime(left.date) - safeTime(right.date))
+    .slice(-FILE_NOTES_SUMMARY_MAX_NOTES);
+  const notes = orderedNotes.map((note, index) => {
+    const summary = String(note.summary || '').trim();
+    const content = String(note.content || '').trim();
+    const evidence = summary && content && summary !== content
+      ? `Summary: ${summary}\n\nContent: ${content}`
+      : content || summary;
+    const remainingNotes = orderedNotes.length - index;
+    const fairShare = remainingNotes > 0 ? Math.floor(remainingChars / remainingNotes) : 0;
+    const allowedChars = Math.max(0, Math.min(FILE_NOTES_SUMMARY_MAX_NOTE_CHARS, fairShare));
+    const boundedEvidence = evidence.slice(0, allowedChars);
+    remainingChars -= boundedEvidence.length;
+    return {
       id: note.id,
       title: note.title,
       date: note.date,
-      content: note.content || note.summary || '',
-    })),
+      content: boundedEvidence,
+    };
+  });
+
+  return JSON.stringify({
+    filePath: payload.filePath,
+    notes,
   });
 }
 
-export function parseFileNotesSummaryResponse(input: unknown) {
+export function parseFileNotesSummaryResponse(input: unknown, allowedNoteIds?: Iterable<string>) {
   const parsed = fileNotesSummaryResponseSchema.parse(input);
+  const allowed = allowedNoteIds ? new Set(allowedNoteIds) : null;
+  const safeTime = (date: string) => {
+    const timestamp = new Date(date).getTime();
+    return Number.isFinite(timestamp) ? timestamp : 0;
+  };
   return {
     ...parsed,
+    timeline: parsed.timeline
+      .filter((entry) => !allowed || allowed.has(entry.noteId))
+      .sort((left, right) => safeTime(left.date) - safeTime(right.date)),
+    keyChanges: parsed.keyChanges.filter((entry) => !allowed || allowed.has(entry.noteId)),
     generatedAt: new Date().toISOString(),
   };
 }

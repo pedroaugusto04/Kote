@@ -1,4 +1,5 @@
 import type { CategoryRecord } from './repository-records.models.js';
+import type { CodeLineageCategory } from './code-lineage.models.js';
 
 export type VaultNoteSummary = {
   id: string;
@@ -22,6 +23,7 @@ export type VaultNoteSummary = {
   ftsRank?: number;
   relevanceScore?: number;
   semanticSimilarity?: number;
+  lineageCategory?: CodeLineageCategory;
 };
 
 export type VaultNoteAttachment = {

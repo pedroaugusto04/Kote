@@ -26,7 +26,7 @@ test('isGenericFile detects generic file names', () => {
 test('FindRelatedNotesByFileUseCase skips generic files', async () => {
   const logger = { info: () => {}, warn: () => {} };
   const mockRuntimeEnv = { read: () => ({}) };
-  const useCase = new FindRelatedNotesByFileUseCase(null, null, null, null, mockRuntimeEnv, logger);
+  const useCase = new FindRelatedNotesByFileUseCase(null, null, null, mockRuntimeEnv, logger, null);
   const result = await useCase.execute('user-1', 'src/index.ts');
   assert.deepEqual(result, []);
 });
@@ -101,10 +101,10 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
 
   const mockRuntimeEnv = {
     read: () => ({
-      codeLensSearchAiProvider: 'ollama',
-      codeLensSearchAiBaseUrl: 'http://ollama',
-      codeLensSearchAiModel: 'nomic',
-      codeLensSearchAiApiKey: 'key',
+      embeddingAiProvider: 'ollama',
+      embeddingAiBaseUrl: 'http://ollama',
+      embeddingAiModel: 'nomic',
+      embeddingAiApiKey: 'key',
       codeLensSearchMinSimilarity: 0.30,
       codeLensSearchCandidateLimit: 20,
       codeLensSearchVectorWeight: 0.4,
@@ -123,7 +123,6 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
   const useCase = new FindRelatedNotesByFileUseCase(
     mockContentRepository,
     mockContentQueryRepository,
-    null,
     mockNoteEmbeddingRepository,
     mockRuntimeEnv,
     logger,
@@ -154,7 +153,130 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
   );
 
   assert.equal(snippetResult.length, 1);
-  assert.deepEqual(vectorSearchOptions.at(-1), { limit: 11, minSimilarity: 0.44, projectId: undefined });
-  assert.equal(ftsFilters.at(-1).query, 'selectedSnippetIdentifier()');
+  assert.equal(snippetResult[0].lineageCategory, 'cross-file-related');
+  assert.deepEqual(vectorSearchOptions.at(-1), { limit: 44, minSimilarity: 0.44, projectId: undefined });
+  assert.equal(ftsFilters.at(-1).query, 'selectedsnippetidentifier');
   assert.equal(ftsFilters.at(-1).ftsLimit, 11);
+});
+
+test('FindRelatedNotesByFileUseCase keeps vector-only notes in the result set', async () => {
+  const now = new Date().toISOString();
+  const noteRecord = {
+    id: 'semantic-only',
+    title: 'Retry orchestration decision',
+    workspaceSlug: 'default',
+    projectSlug: 'kote',
+    path: 'notes/retry.md',
+    occurredAt: now,
+    status: 'active',
+    tags: [],
+    categories: [],
+    sourceChannel: 'ai-chat',
+    source: 'codex',
+    summary: 'Explains why invoice retries use an idempotency guard.',
+    markdownStorageKey: '',
+    metadata: {},
+    isPinned: false,
+    createdAt: now,
+    updatedAt: now,
+  };
+  const vectorOptions = [];
+  const useCase = new FindRelatedNotesByFileUseCase(
+    {
+      getNotesByIds: async (_userId, ids) => ids.includes(noteRecord.id) ? [noteRecord] : [],
+    },
+    { list: async () => [] },
+    {
+      findSimilar: async (_userId, _embedding, options) => {
+        vectorOptions.push(options);
+        return [
+          { noteId: noteRecord.id, similarity: 0.82, chunkIndex: 0 },
+          { noteId: noteRecord.id, similarity: 0.79, chunkIndex: 1 },
+        ];
+      },
+    },
+    {
+      read: () => ({
+        embeddingAiProvider: 'openai',
+        embeddingAiModel: 'text-embedding-3-small',
+        embeddingAiApiKey: 'secret',
+        codeLensSnippetSearchMinSimilarity: 0.3,
+        codeLensSnippetSearchCandidateLimit: 10,
+        codeLensSnippetSearchVectorWeight: 0.7,
+        codeLensSnippetSearchKeywordWeight: 0.3,
+        codeLensSnippetSearchRrfK: 20,
+        codeLensSnippetSearchResultLimit: 10,
+      }),
+    },
+    { info: () => {}, warn: () => {} },
+    { publishQueryEmbedding: async () => [[0.1, 0.2]] },
+  );
+
+  const result = await useCase.execute(
+    'user-1',
+    'src/billing/retry.ts',
+    [],
+    'reconcileInvoiceWithIdempotencyGuard()',
+    undefined,
+    10,
+    'snippet',
+  );
+
+  assert.equal(result.length, 1);
+  assert.equal(result[0].id, 'semantic-only');
+  assert.equal(result[0].semanticSimilarity, 0.82);
+  assert.equal(result[0].lineageCategory, 'cross-file-related');
+  assert.deepEqual(vectorOptions[0], { limit: 40, minSimilarity: 0.3, projectId: undefined });
+});
+
+test('snippet profile removes candidates below the backend lineage threshold', async () => {
+  const now = new Date().toISOString();
+  const useCase = new FindRelatedNotesByFileUseCase(
+    {
+      getNotesByIds: async (_userId, ids) => ids.map((id) => ({
+        id,
+        title: id,
+        path: `${id}.md`,
+        categories: [],
+        tags: [],
+        status: 'active',
+        summary: id,
+        source: 'codex',
+        sourceChannel: 'ai-chat',
+        metadata: {},
+        occurredAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    },
+    { list: async () => [] },
+    { findSimilar: async () => [{ noteId: 'below-threshold', similarity: 0.47 }] },
+    {
+      read: () => ({
+        embeddingAiProvider: 'openai',
+        embeddingAiModel: 'embedding-model',
+        embeddingAiApiKey: 'secret',
+        codeLensSnippetSearchMinSimilarity: 0.3,
+        codeLensSnippetSearchCandidateLimit: 10,
+        codeLensSnippetSearchVectorWeight: 0.7,
+        codeLensSnippetSearchKeywordWeight: 0.3,
+        codeLensSnippetSearchRrfK: 20,
+        codeLensSnippetSearchResultLimit: 10,
+      }),
+    },
+    { info: () => {}, warn: () => {} },
+    { publishQueryEmbedding: async () => [[0.1, 0.2]] },
+  );
+
+  const result = await useCase.execute(
+    'user-1',
+    'src/billing/retry.ts',
+    [],
+    'retryInvoice()',
+    undefined,
+    10,
+    'snippet',
+  );
+
+  assert.deepEqual(result, []);
 });

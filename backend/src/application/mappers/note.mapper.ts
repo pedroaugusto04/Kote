@@ -5,6 +5,7 @@ import type { IngestPayload } from '../../contracts/ingest.js';
 import { hasReminder, normalizeManualNoteStatus } from '../../domain/note-status.js';
 import { isAiSource } from '../../domain/notes.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
+import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
 import type { CategoryRecord } from '../models/repository-records.models.js';
 import type { CreateManualNoteDto } from '../dto/note.dto.js';
 import { stripTitleHeader } from '../use-cases/notes/note-editor.helpers.js';
@@ -35,6 +36,14 @@ export function toIngestPayload(
   const cleanedRawText = stripTitleHeader(dto.rawText, dto.title);
   const activeSource = dto.source?.trim();
   const isAiChat = isAiSource(activeSource);
+  const changedFiles = Array.isArray(dto.metadata?.changedFiles)
+    ? dto.metadata.changedFiles.filter((file): file is string => typeof file === 'string')
+    : [];
+  const links = Array.from(new Set(
+    [dto.path, ...changedFiles]
+      .map(normalizeFilePath)
+      .filter(Boolean),
+  ));
 
   return {
     source: {
@@ -79,6 +88,9 @@ export function toIngestPayload(
       rawText: dto.rawText,
       ...(dto.metadata || {}),
     },
-    links: [],
+    // `path` is the source-code path supplied by IDE clients. The note itself
+    // still receives its generated vault path later in the ingest pipeline;
+    // source files belong in the explicit note-link relation.
+    links,
   };
 }

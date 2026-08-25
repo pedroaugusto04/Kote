@@ -5,7 +5,9 @@ export function buildNoteBodySearchText(markdown: string, rawTextFallback = ''):
   if (!source) return '';
 
   let text = source;
-  text = text.replace(/```[\s\S]*?```/g, ' ');
+  // Keep fenced-code contents searchable. Removing the whole block made code
+  // identifiers invisible to FTS, which is especially harmful for lineage.
+  text = text.replace(/```[^\n]*\n?([\s\S]*?)```/g, '$1');
   text = text.replace(/`([^`]+)`/g, '$1');
   text = text.replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1');
   text = text.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
