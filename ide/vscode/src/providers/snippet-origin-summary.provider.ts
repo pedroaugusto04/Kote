@@ -328,8 +328,21 @@ export class SnippetOriginSummaryProvider {
 
     // 1. Linked Matches: Direct commit origin match or GitHub webhook notes
     const isGitChannel = (channel?: string) => GIT_SOURCE_CHANNELS.some((g) => (channel || '').toLowerCase().includes(g));
-    const linkedMatches = matches.filter((m) => m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel));
-    const linkedIds = new Set(linkedMatches.map((m) => m.note.id));
+    const rawLinkedMatches = matches.filter((m) => m.relevance.isOriginMatch || isGitChannel(m.note.sourceChannel));
+
+    // Sort linked matches by score DESC, then by date DESC
+    rawLinkedMatches.sort((a, b) => {
+      const scoreA = a.relevance?.score ?? 0;
+      const scoreB = b.relevance?.score ?? 0;
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+      const dateA = new Date(a.note.date || a.note.createdAt || 0).getTime();
+      const dateB = new Date(b.note.date || b.note.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+    const linkedMatches = rawLinkedMatches.slice(0, 5);
+    const linkedIds = new Set(rawLinkedMatches.map((m) => m.note.id));
 
     // 2. Direct File AI Sessions (non-origin)
     const directFileAiMatches = matches.filter((m) => !linkedIds.has(m.note.id));
@@ -341,7 +354,7 @@ export class SnippetOriginSummaryProvider {
       .map((n) => ({
         note: n,
         relevance: {
-          score: 0.5,
+          score: typeof n.score === 'number' ? n.score : 0.5,
           isOriginMatch: false,
           reason: 'Semantic vector match from related discussion',
         },
@@ -349,21 +362,28 @@ export class SnippetOriginSummaryProvider {
 
     // Combine & Deduplicate for Tab 2
     const seenIds = new Set<string>();
-    const relatedMatches: SnippetNoteMatch[] = [];
+    const allRelatedMatches: SnippetNoteMatch[] = [];
 
     for (const m of [...directFileAiMatches, ...semanticAiMatches]) {
       if (!seenIds.has(m.note.id)) {
         seenIds.add(m.note.id);
-        relatedMatches.push(m);
+        allRelatedMatches.push(m);
       }
     }
 
-    // Sort chronologically newest to oldest
-    relatedMatches.sort((a, b) => {
+    // Sort by relevance score DESC, tie-break by date newest to oldest
+    allRelatedMatches.sort((a, b) => {
+      const scoreA = a.relevance?.score ?? 0;
+      const scoreB = b.relevance?.score ?? 0;
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
       const dateA = new Date(a.note.date || a.note.createdAt || 0).getTime();
       const dateB = new Date(b.note.date || b.note.createdAt || 0).getTime();
       return dateB - dateA;
     });
+
+    const relatedMatches = allRelatedMatches.slice(0, 7);
 
     const linkedHtml = linkedMatches.length > 0
       ? `<div class="timeline">${linkedMatches.map((m) => this.renderMatchCard(m)).join('')}</div>`

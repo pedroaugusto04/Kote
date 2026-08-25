@@ -513,7 +513,7 @@ export class KbClient {
     }
   }
 
-  async getFileNotesSummary(filePath: string, options?: { signal?: AbortSignal }): Promise<{
+  async getFileNotesSummary(filePath: string, options?: { signal?: AbortSignal; projectSlug?: string }): Promise<{
     summary: string;
     understanding: string;
     timeline: Array<{ date: string; title: string; description: string; noteId: string }>;
@@ -522,6 +522,15 @@ export class KbClient {
     fallback?: boolean;
     fallbackReason?: 'feature_disabled' | 'quota_exceeded' | 'generation_failed';
   }> {
+    const params = new URLSearchParams({
+      filePath,
+      workspaceSlug: this.config.workspaceSlug || 'default',
+    });
+    const slug = options?.projectSlug || this.config.defaultProjectSlug;
+    if (slug) {
+      params.set('projectSlug', slug);
+    }
+
     return this.fetch<{
       summary: string;
       understanding: string;
@@ -530,7 +539,7 @@ export class KbClient {
       generatedAt: string;
       fallback?: boolean;
       fallbackReason?: 'feature_disabled' | 'quota_exceeded' | 'generation_failed';
-    }>(`/api/notes/by-file/summary?filePath=${encodeURIComponent(filePath)}&workspaceSlug=${encodeURIComponent(this.config.workspaceSlug || 'default')}`, {
+    }>(`/api/notes/by-file/summary?${params.toString()}`, {
       signal: options?.signal,
     });
   }

@@ -772,9 +772,7 @@ export class FileNotesSummaryProvider {
     .badge-codex { background: rgba(125, 211, 165, 0.15); color: #7dd3a5; }
     .badge-opencode { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
     .badge-git { background: rgba(137, 87, 229, 0.15); color: #a78bfa; }
-    .badge-note { background: rgba(148, 163, 184, 0.1); color: var(--fg); }
-      font-weight: normal;
-    }
+    .badge-note { background: rgba(148, 163, 184, 0.1); color: var(--fg); font-weight: normal; }
     .note-item.related-item {
       border-style: dashed;
       opacity: 0.85;

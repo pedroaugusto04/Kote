@@ -14,6 +14,7 @@ export const RELEVANCE_WEIGHTS = {
 } as const;
 
 export const RELEVANCE_REASONS = {
+  DIRECT_COMMIT_HASH_MATCH: 'Direct commit hash match',
   DIRECT_COMMIT_MATCH: 'Direct commit timeframe match (±12h)',
   CLOSE_TO_COMMIT: 'Close to commit date (±2 days)',
   SAME_WEEK_COMMIT: 'Same week as commit',
@@ -23,7 +24,7 @@ export const RELEVANCE_REASONS = {
   FILE_CONTEXT: 'File context discussion',
 } as const;
 
-// Common programming language keywords to exclude from identifier extraction
+// Common programming language keywords to exclude from identifier extraction (JS/TS, Python, Go, Rust, Java/Kotlin, etc.)
 const CODE_KEYWORDS = new Set([
   'import', 'export', 'from', 'const', 'let', 'var', 'function', 'class',
   'return', 'async', 'await', 'if', 'else', 'try', 'catch', 'throw', 'new',
@@ -31,6 +32,14 @@ const CODE_KEYWORDS = new Set([
   'null', 'undefined', 'true', 'false', 'void', 'default', 'case', 'switch',
   'while', 'for', 'of', 'in', 'extends', 'implements', 'private', 'public',
   'protected', 'readonly', 'static', 'promise', 'any', 'unknown', 'never',
+  // Python / Ruby
+  'def', 'self', 'cls', 'lambda', 'pass', 'yield', 'elif', 'raise', 'except',
+  'with', 'module', 'end',
+  // Go / Rust
+  'fn', 'func', 'struct', 'impl', 'trait', 'mut', 'pub', 'package', 'chan',
+  'defer', 'match', 'enum',
+  // Java / Kotlin / C# / Scala
+  'val', 'fun', 'override', 'sealed', 'record', 'object', 'abstract', 'final',
 ]);
 
 /**
@@ -131,6 +140,26 @@ export function computeSnippetRelevance(
   queryTokens: string[],
   commitContext?: GitCommitContext,
 ): SnippetRelevance {
+  const targetCommit = String(commitContext?.commitHash || '').trim().toLowerCase();
+  const noteCommit = String(
+    (note.metadata as Record<string, unknown> | undefined)?.commitHash ||
+    (note.metadata as Record<string, unknown> | undefined)?.commit ||
+    ''
+  ).trim().toLowerCase();
+
+  if (
+    targetCommit &&
+    noteCommit &&
+    !targetCommit.startsWith('00000000') &&
+    (noteCommit.startsWith(targetCommit) || targetCommit.startsWith(noteCommit))
+  ) {
+    return {
+      score: 1.0,
+      isOriginMatch: true,
+      reason: RELEVANCE_REASONS.DIRECT_COMMIT_HASH_MATCH,
+    };
+  }
+
   const temporal = calculateTemporalProximity(
     note.occurredAt || note.createdAt,
     commitContext?.commitDate,

@@ -26,7 +26,7 @@ test('FindNotesBySnippetUseCase returns empty when file has no notes', async () 
   assert.equal(result.gitContext.commitHash, 'abc1234');
 });
 
-test('FindNotesBySnippetUseCase scores notes based on temporal commit proximity and snippet keywords, sorted chronologically', async () => {
+test('FindNotesBySnippetUseCase scores notes based on temporal commit proximity and snippet keywords, sorted by relevance score', async () => {
   const logger = { info: () => {}, warn: () => {} };
 
   const commitDate = '2026-03-15T14:30:00.000Z';
@@ -111,9 +111,9 @@ test('FindNotesBySnippetUseCase scores notes based on temporal commit proximity 
   assert.equal(result.matches.length, 3);
   assert.equal(result.gitContext.commitHash, 'commit-999');
 
-  // Verify chronological ordering: most recent (June 2026) -> March 2026 -> Jan 2025
-  assert.equal(result.matches[0].note.id, 'note-recent');
-  assert.equal(result.matches[1].note.id, 'note-commit-day');
+  // Verify relevance score ordering: note-commit-day (highest score & isOriginMatch) -> note-recent -> note-old
+  assert.equal(result.matches[0].note.id, 'note-commit-day');
+  assert.equal(result.matches[1].note.id, 'note-recent');
   assert.equal(result.matches[2].note.id, 'note-old');
 
   // note-commit-day should have high score and isOriginMatch = true
@@ -124,4 +124,69 @@ test('FindNotesBySnippetUseCase scores notes based on temporal commit proximity 
   // note-recent should have high snippet score
   const recentNote = result.matches.find((m) => m.note.id === 'note-recent');
   assert.ok(recentNote.relevance.score > 0.1);
+});
+
+test('FindNotesBySnippetUseCase matches direct commitHash in note metadata', async () => {
+  const logger = { info: () => {}, warn: () => {} };
+
+  const mockNotes = [
+    {
+      id: 'note-hash-match',
+      title: 'AI Session discussing database migration',
+      summary: 'Generated migration script',
+      path: 'src/db/migrate.ts',
+      markdown: 'Generated migration',
+      metadata: { commitHash: 'abcdef1234567890' },
+      categories: [],
+      tags: [],
+      occurredAt: '2026-01-01T00:00:00.000Z',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      projectSlug: 'kote-app',
+      workspaceSlug: 'default',
+      status: 'active',
+      source: 'ai-chat',
+      sourceChannel: 'claude-code',
+      projectId: 'p1',
+      workspaceId: 'w1',
+    },
+    {
+      id: 'note-unrelated',
+      title: 'Random note',
+      summary: 'Unrelated note',
+      path: 'src/db/migrate.ts',
+      markdown: 'Random content',
+      metadata: {},
+      categories: [],
+      tags: [],
+      occurredAt: '2026-05-01T00:00:00.000Z',
+      createdAt: '2026-05-01T00:00:00.000Z',
+      projectSlug: 'kote-app',
+      workspaceSlug: 'default',
+      status: 'active',
+      source: 'ide',
+      sourceChannel: 'ide',
+      projectId: 'p1',
+      workspaceId: 'w1',
+    },
+  ];
+
+  const mockNoteContextRepo = {
+    findNotesByFile: async () => mockNotes,
+  };
+
+  const useCase = new FindNotesBySnippetUseCase(mockNoteContextRepo, logger);
+  const result = await useCase.execute('user-1', {
+    filePath: 'src/db/migrate.ts',
+    codeSnippet: 'export async function migrate() {}',
+    gitContext: {
+      commitHash: 'abcdef1234567890',
+      commitDate: '2026-05-10T00:00:00.000Z', // Note date is months away, but commit hash matches!
+    },
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.matches[0].note.id, 'note-hash-match');
+  assert.equal(result.matches[0].relevance.isOriginMatch, true);
+  assert.equal(result.matches[0].relevance.score, 1.0);
+  assert.equal(result.matches[0].relevance.reason, 'Direct commit hash match');
 });

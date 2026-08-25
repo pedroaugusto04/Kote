@@ -55,8 +55,14 @@ export class FindNotesBySnippetUseCase {
       };
     });
 
-    // Sort chronologically from newest to oldest (occurredAt DESC)
+    // Sort by relevance score DESC (origin match first, then highest score, then newest date)
     scoredNotes.sort((a, b) => {
+      if (a.relevance.isOriginMatch !== b.relevance.isOriginMatch) {
+        return a.relevance.isOriginMatch ? -1 : 1;
+      }
+      if (b.relevance.score !== a.relevance.score) {
+        return b.relevance.score - a.relevance.score;
+      }
       const timeA = new Date(a.noteRecord.occurredAt || a.noteRecord.createdAt || 0).getTime();
       const timeB = new Date(b.noteRecord.occurredAt || b.noteRecord.createdAt || 0).getTime();
       return timeB - timeA;

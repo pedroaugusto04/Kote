@@ -141,6 +141,7 @@ export type NotesListQuery = z.infer<typeof notesListQuerySchema>;
 export const fileNotesSummaryQuerySchema = z.object({
   filePath: z.string().trim().min(1, 'filePath is required'),
   workspaceSlug: z.string().trim().min(1).max(80).regex(/^[a-zA-Z0-9._-]+$/).optional(),
+  projectSlug: z.string().trim().optional(),
 });
 export type FileNotesSummaryQuery = z.infer<typeof fileNotesSummaryQuerySchema>;
 

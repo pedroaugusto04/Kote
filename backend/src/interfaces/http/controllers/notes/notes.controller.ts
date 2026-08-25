@@ -207,7 +207,7 @@ export class NotesController {
     @Query(new ZodValidationPipe(fileNotesSummaryQuerySchema, 'invalid_file_notes_summary_query')) query: FileNotesSummaryQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const notes = await this.findNotesByFileUseCase.execute(user.id, query.filePath);
+    const notes = await this.findNotesByFileUseCase.executeRecords(user.id, query.filePath, { projectSlug: query.projectSlug });
 
     const summaryRequest = {
       filePath: query.filePath,
@@ -215,10 +215,10 @@ export class NotesController {
       notes: notes.map((note) => ({
         id: note.id,
         title: note.title,
-        date: note.date,
-        content: note.summary || '',
+        date: note.occurredAt || note.createdAt || '',
+        content: note.markdown || note.summary || '',
         summary: note.summary,
-        workspaceSlug: note.workspace,
+        workspaceSlug: note.workspaceSlug,
       })),
     };
 
