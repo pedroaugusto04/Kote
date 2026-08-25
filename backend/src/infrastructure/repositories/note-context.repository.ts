@@ -35,10 +35,17 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
       eq(notes.path, slashPath),
       like(notes.path, `%/${normalizedPath}`),
       sql`${normalizedPath} LIKE '%/' || ${notes.path}`,
-      eq(noteLinks.target, normalizedPath),
-      eq(noteLinks.target, slashPath),
-      like(noteLinks.target, `%/${normalizedPath}`),
-      sql`${normalizedPath} LIKE '%/' || ${noteLinks.target}`,
+      sql`EXISTS (
+        SELECT 1 FROM ${noteLinks} nl
+        WHERE nl.note_id = ${notes.id}
+          AND nl.user_id = ${userId}
+          AND (
+            nl.target = ${normalizedPath}
+            OR nl.target = ${slashPath}
+            OR nl.target LIKE ${'%/' + normalizedPath}
+            OR ${normalizedPath} LIKE '%/' || nl.target
+          )
+      )`,
     );
 
     const conditions = [
@@ -61,16 +68,20 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
       ${notes.metadata}->>'headSha',
       ''
     ))`;
-    const originCommitOrder = commitHashes.length > 0
-      ? sql<number>`CASE WHEN EXISTS (
+
+    const orderByClauses = [];
+    if (commitHashes.length > 0) {
+      const originCommitOrder = sql<number>`CASE WHEN EXISTS (
           SELECT 1 FROM unnest(ARRAY[${sql.join(commitHashes.map((hash) => sql`${hash}`), sql`, `)}]) AS selected(hash)
           WHERE ${noteCommitHash} <> ''
             AND (
               ${noteCommitHash} LIKE selected.hash || '%'
               OR selected.hash LIKE ${noteCommitHash} || '%'
             )
-        ) THEN 1 ELSE 0 END`
-      : sql<number>`0`;
+        ) THEN 1 ELSE 0 END`;
+      orderByClauses.push(desc(originCommitOrder));
+    }
+    orderByClauses.push(desc(notes.occurredAt));
 
     const result = await db
       .select({
@@ -98,10 +109,8 @@ export class PostgresNoteContextRepository implements NoteContextRepository {
       })
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
-      .leftJoin(noteLinks, and(eq(notes.id, noteLinks.noteId), eq(noteLinks.userId, userId)))
       .where(and(...conditions))
-      .groupBy(notes.id, projects.projectSlug)
-      .orderBy(desc(originCommitOrder), desc(notes.occurredAt))
+      .orderBy(...orderByClauses)
       .limit(limit);
 
     const records = result.map(noteFromRow);
