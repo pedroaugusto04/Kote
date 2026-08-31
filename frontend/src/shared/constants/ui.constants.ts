@@ -119,6 +119,9 @@ export const UI_MESSAGES = {
   LISTBOX_SUFFIX: '-listbox',
 
   // Common labels
+  DOWNLOAD_NOTE: 'Download note',
+  DOWNLOAD_NOTE_MD: 'Download note (.md)',
+  DOWNLOAD_MD_BUTTON: 'Download .md',
   EDIT_NOTE: 'Edit note',
   EDIT_FOLDER: 'Edit folder',
   EDIT_PROJECT: 'Edit project',

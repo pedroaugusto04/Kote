@@ -326,3 +326,13 @@ export function RefreshCwIcon({ className, style }: { className?: string; style?
     </svg>
   );
 }
+
+export function DownloadIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 16 16" className={className} style={style}>
+      <path d="M8 2.5v7.5m0 0l-3-3m3 3l3-3" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M3 12.5h10" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+

@@ -12,14 +12,18 @@ import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { useMobileSwipe } from '../../shared/ui/use-mobile-swipe';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
-import { PencilIcon, TrashIcon } from '../../shared/ui/icons';
+import { DownloadIcon, PencilIcon, TrashIcon } from '../../shared/ui/icons';
+import { downloadNoteAsFile } from '../../shared/utils/note-export';
 import { NoteBody, NoteAttachments } from '../../widgets/notes/NoteReaderContent';
 import { RelatedNotesSection } from '../../widgets/notes/RelatedNotesSection';
 import { FloatingNoteNavigation } from '../../widgets/notes/FloatingNoteNavigation';
 import { useNoteEditor } from './useNoteEditor';
 import { NoteEditorForm } from './NoteEditorForm';
+
+
 
 export function VaultPage({
   dashboard,
@@ -201,9 +205,18 @@ export function VaultPage({
                   <QuickNoteStatusActions note={noteQuery.data} />
                   <div className="note-action-divider" />
                   <button
-                    aria-label={`Edit note ${noteQuery.data.title}`}
+                    aria-label={`${UI_MESSAGES.DOWNLOAD_NOTE} ${noteQuery.data.title}`}
+                    className="row-action-button"
+                    title={UI_MESSAGES.DOWNLOAD_NOTE_MD}
+                    type="button"
+                    onClick={() => downloadNoteAsFile(noteQuery.data)}
+                  >
+                    <DownloadIcon />
+                  </button>
+                  <button
+                    aria-label={`${UI_MESSAGES.EDIT_NOTE} ${noteQuery.data.title}`}
                     className="row-action-button edit"
-                    title="Edit note"
+                    title={UI_MESSAGES.EDIT_NOTE}
                     type="button"
                     onClick={noteEditor.handleEdit}
                   >
@@ -211,9 +224,9 @@ export function VaultPage({
                   </button>
                   {deleteNote && (
                     <button
-                      aria-label={`Delete note ${noteQuery.data.title}`}
+                      aria-label={`${UI_MESSAGES.DELETE_NOTE} ${noteQuery.data.title}`}
                       className="row-action-button danger"
-                      title="Delete note"
+                      title={UI_MESSAGES.DELETE_NOTE}
                       type="button"
                       onClick={() => deleteNote({ id: noteQuery.data.id, title: noteQuery.data.title })}
                     >

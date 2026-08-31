@@ -4,11 +4,16 @@ import React from 'react';
 import { formatDisplayToken, formatDateInUserTimeZone, formatTimeInUserTimeZone } from '../../shared/utils/format';
 import { makeTitleClickable } from '../../shared/utils/text';
 import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import type { Project } from '../../shared/api/models/project';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, InlineMessage, Tags } from '../../shared/ui/primitives';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
+import { DownloadIcon } from '../../shared/ui/icons';
+import { downloadNoteAsFile } from '../../shared/utils/note-export';
 import { AttachmentIndicator } from './AttachmentIndicator';
+
+
 import { NoteBody, NoteAttachments } from './NoteReaderContent';
 import { RelatedNotesSection } from './RelatedNotesSection';
 
@@ -70,6 +75,16 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
         </div>
         {noteQuery.data && (
           <div className="knowledge-map-drawer-actions">
+            <button
+              className="icon-button"
+              type="button"
+              title={UI_MESSAGES.DOWNLOAD_NOTE_MD}
+              aria-label={`${UI_MESSAGES.DOWNLOAD_NOTE} ${noteQuery.data.title}`}
+              onClick={() => downloadNoteAsFile(noteQuery.data)}
+            >
+              <DownloadIcon style={{ width: '13px', height: '13px', marginRight: '6px' }} />
+              {UI_MESSAGES.DOWNLOAD_MD_BUTTON}
+            </button>
             <button className="icon-button" type="button" onClick={() => onOpenFullPage(noteId)}>
               Open page
             </button>
