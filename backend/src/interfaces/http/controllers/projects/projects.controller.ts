@@ -1,5 +1,6 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import type { AuthenticatedUser } from '../../../../application/auth.js';
 import {
@@ -17,6 +18,7 @@ import {
   UpdateProjectFolderUseCase,
   UpdateProjectUseCase,
   GetProjectCoverageUseCase,
+  ExportProjectNotesZipUseCase,
 } from '../../../../application/use-cases/index.js';
 import { ListProjectDependenciesUseCase } from '../../../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
@@ -24,6 +26,7 @@ import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guar
 import {
   createProjectBodySchema,
   createProjectFolderBodySchema,
+  exportProjectNotesZipQuerySchema,
   projectKnowledgeMapQuerySchema,
   projectSlugParamSchema,
   projectTimelineQuerySchema,
@@ -33,6 +36,7 @@ import {
   paginationInputSchema,
   type CreateProjectBody,
   type CreateProjectFolderBody,
+  type ExportProjectNotesZipQuery,
   type ProjectKnowledgeMapQuery,
   type ProjectSlugParam,
   type ProjectTimelineQuery,
@@ -66,6 +70,7 @@ export class ProjectsController {
     private readonly updateProjectFolderUseCase: UpdateProjectFolderUseCase,
     private readonly deleteProjectFolderUseCase: DeleteProjectFolderUseCase,
     private readonly getProjectCoverageUseCase: GetProjectCoverageUseCase,
+    private readonly exportProjectNotesZipUseCase: ExportProjectNotesZipUseCase,
     private readonly listProjectDependenciesUseCase: ListProjectDependenciesUseCase,
   ) { }
 
@@ -125,6 +130,29 @@ export class ProjectsController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.setProjectFavoriteUseCase.execute(user.id, projectId, body.favorite);
+  }
+
+  @Get('export/zip')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export project notes as a ZIP file containing markdown files and an index' })
+  @ApiResponse({ status: 200, description: 'ZIP file containing markdown notes and INDEX.md' })
+  async exportNotesZip(
+    @Query(new ZodValidationPipe(exportProjectNotesZipQuerySchema, 'invalid_export_zip_query')) query: ExportProjectNotesZipQuery,
+    @CurrentUser() user: AuthenticatedUser,
+    @Res() res: Response,
+  ) {
+    const result = await this.exportProjectNotesZipUseCase.execute(user.id, {
+      projectSlug: query.projectSlug,
+      folderId: query.folderId,
+      category: query.category,
+      status: query.status,
+      query: query.query,
+    });
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.setHeader('Content-Length', String(result.buffer.length));
+    return res.send(result.buffer);
   }
 
   @Get('timeline')

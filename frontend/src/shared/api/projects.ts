@@ -5,7 +5,7 @@ import type { ProjectKnowledgeMapQuery, ProjectKnowledgeMapResponse } from './mo
 import type { ProjectTimelineCategory, ProjectTimelineItem } from './models/project-timeline';
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import type { Workspace } from './models/workspace';
-import { request } from './request';
+import { request, requestBlob } from './request';
 import { API_PATHS, buildApiPath } from './api-paths.constants';
 
 export type CreateProjectParams = {
@@ -161,5 +161,43 @@ export async function fetchProjectCoverage<T = any>(projectSlug: string, forceSy
 
 export function fetchProjectDependencies(projectSlug: string) {
   return request<import('./models/dependency-watcher').ProjectDependenciesResponse>(buildApiPath(API_PATHS.PROJECT_DEPENDENCIES, { projectSlug }));
+}
+
+export type ExportProjectNotesZipParams = {
+  projectSlug?: string;
+  folderId?: string;
+  category?: ProjectTimelineCategory;
+  status?: string;
+  query?: string;
+};
+
+export async function exportProjectNotesZip(params: ExportProjectNotesZipParams = {}) {
+  const search = new URLSearchParams();
+  if (params.projectSlug) search.set('projectSlug', params.projectSlug);
+  if (params.folderId) search.set('folderId', params.folderId);
+  if (params.category && params.category !== 'all') search.set('category', params.category);
+  if (params.status !== undefined) search.set('status', params.status);
+  if (params.query?.trim()) search.set('query', params.query.trim());
+
+  const queryString = search.toString();
+  const url = `${API_PATHS.PROJECTS_EXPORT_ZIP}${queryString ? `?${queryString}` : ''}`;
+  const result = await requestBlob(url);
+
+  const fallbackFilename = `kote-${params.projectSlug || 'all-projects'}-${new Date().toISOString().split('T')[0]}.zip`;
+  const filename = result.filename || fallbackFilename;
+
+  if (typeof window !== 'undefined') {
+    const objectUrl = window.URL.createObjectURL(result.blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(objectUrl);
+    document.body.removeChild(a);
+  }
+
+  return { ok: true, filename };
 }
 

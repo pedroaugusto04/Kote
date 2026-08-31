@@ -1,10 +1,8 @@
-import type * as vscode from 'vscode';
-import type { AiProviderId, AiRole } from './constants';
+import type { AiProviderId, AiRole } from './constants.js';
 
 export interface AiTurn {
   role: AiRole;
   content: string;
-  timestamp?: number;
 }
 
 export interface AiSessionAttachment {
@@ -27,7 +25,5 @@ export interface AiSession {
 export interface AiHistoryProvider {
   readonly id: AiProviderId;
   readonly name: string;
-  isEnabled(): Promise<boolean>;
   getRecentSessions(limit?: number): Promise<AiSession[]>;
-  watchSessions(callback: (session: AiSession) => void): vscode.Disposable;
 }

@@ -8,6 +8,7 @@ import { eq, and, count, desc, sql, inArray, notInArray, or, gte, type SQL } fro
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
 import type {
+  ExportProjectNotesInput,
   ListProjectTimelineInput,
   ProjectTimelineFilterCategory,
 } from '../../application/models/project-timeline.models.js';
@@ -302,7 +303,7 @@ export class PostgresNoteRepository {
     if (input.status) {
       if (input.status === StatusFilter.Open) {
         values.push(terminalStatuses);
-        clauses.push(`n.status != all($${values.length}::note_status_enum[])`);
+        clauses.push(`(n.status is null or n.status != all($${values.length}::note_status_enum[]))`);
       } else {
         values.push(input.status);
         clauses.push(`n.status::text = $${values.length}`);
@@ -353,6 +354,55 @@ export class PostgresNoteRepository {
       items: result.rows.map((row) => projectTimelineItem(noteFromRow(row))),
       pagination,
     };
+  }
+
+  async findNotesForExport(userId: string, input: ExportProjectNotesInput): Promise<NoteRecord[]> {
+    const values: unknown[] = [userId];
+    const clauses = ['n.user_id = $1'];
+
+    const joinSql = `
+      left join kb_projects p on p.id = n.project_id
+    `;
+
+    if (input.projectId) {
+      values.push(input.projectId);
+      clauses.push(`n.project_id = $${values.length}`);
+    }
+
+    appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
+    appendTimelineCategoryClause(clauses, values, input.category);
+    if (input.status) {
+      if (input.status === StatusFilter.Open) {
+        values.push(terminalStatuses);
+        clauses.push(`(n.status is null or n.status != all($${values.length}::note_status_enum[]))`);
+      } else {
+        values.push(input.status);
+        clauses.push(`n.status::text = $${values.length}`);
+      }
+    }
+
+    if (input.query && input.query.trim()) {
+      values.push(`%${input.query.trim().toLowerCase()}%`);
+      clauses.push(`(
+        lower(n.title) like $${values.length} or 
+        lower(coalesce(n.summary, '')) like $${values.length} or 
+        lower(coalesce(n.body_search_text, '')) like $${values.length}
+      )`);
+    }
+
+    const where = clauses.join(' and ');
+
+    const result = await this.database.getPool().query(
+      `select n.*
+       from kb_notes n
+       ${joinSql}
+       where ${where}
+       order by n.occurred_at asc, n.created_at asc, n.title asc
+       limit 5000`,
+      values
+    );
+
+    return result.rows.map((row) => noteFromRow(row));
   }
 
   async listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput) {

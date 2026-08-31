@@ -8,6 +8,7 @@ import { toMessage, logInfo } from '../error-reporter';
 import { loadAskHistory, clearAskHistory, addAskEntry } from '../utils/ask-history';
 import { AiHistoryManager } from '../ai-history/history-manager';
 import { resolveProjectSlug } from '../utils/project';
+import { detectActiveProject } from '../project-detector.js';
 
 // ---------------------------------------------------------------------------
 // Provider for Sidebar (Chat + Login Setup)
@@ -296,12 +297,30 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
           break;
         }
 
-        case 'changeProject':
+        case 'changeProject': {
           logInfo('SidebarProvider', `Active project changed by user: ${msg.projectSlug}`);
-          this.activeProject = msg.projectSlug || null;
-          this._context.workspaceState.update('kote.activeProjectSlug', this.activeProject);
-          vscode.commands.executeCommand('kote.updateStatusBar', this.activeProject);
+          if (!msg.projectSlug || msg.projectSlug === 'auto') {
+            this._context.workspaceState.update('kote.activeProjectSlug', null);
+            const detected = await detectActiveProject(this._client, vscode.workspace.workspaceFolders ?? []);
+            this.activeProject = detected;
+            vscode.commands.executeCommand('kote.updateStatusBar', this.activeProject || 'inbox');
+            this._post({
+              type: 'setProject',
+              projectSlug: 'auto',
+              detectedProject: this.activeProject || 'inbox',
+            });
+          } else {
+            this.activeProject = msg.projectSlug;
+            this._context.workspaceState.update('kote.activeProjectSlug', this.activeProject);
+            vscode.commands.executeCommand('kote.updateStatusBar', this.activeProject);
+            this._post({
+              type: 'setProject',
+              projectSlug: this.activeProject,
+              detectedProject: this.activeProject,
+            });
+          }
           break;
+        }
 
         case 'getUnsyncedSessions': {
           try {
@@ -348,10 +367,18 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
   }
 
   async setActiveProject(projectSlug: string) {
-    this.activeProject = projectSlug;
-    this._context.workspaceState.update('kote.activeProjectSlug', projectSlug);
-    this._post({ type: 'setProject', projectSlug });
-    vscode.commands.executeCommand('kote.updateStatusBar', projectSlug);
+    if (!projectSlug || projectSlug === 'auto') {
+      this._context.workspaceState.update('kote.activeProjectSlug', null);
+      const detected = await detectActiveProject(this._client, vscode.workspace.workspaceFolders ?? []);
+      this.activeProject = detected;
+      this._post({ type: 'setProject', projectSlug: 'auto', detectedProject: this.activeProject || 'inbox' });
+      vscode.commands.executeCommand('kote.updateStatusBar', this.activeProject || 'inbox');
+    } else {
+      this.activeProject = projectSlug;
+      this._context.workspaceState.update('kote.activeProjectSlug', projectSlug);
+      this._post({ type: 'setProject', projectSlug, detectedProject: projectSlug });
+      vscode.commands.executeCommand('kote.updateStatusBar', projectSlug);
+    }
   }
 
   async refresh() {
@@ -378,10 +405,21 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
   private async _loadProjects() {
     try {
       const projects = await this._client.listProjects();
-      this._post({ type: 'projects', projects });
+      const savedOverride = this._context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
+      const detected = await detectActiveProject(this._client, vscode.workspace.workspaceFolders ?? []);
+      if (!savedOverride || savedOverride === 'auto') {
+        this.activeProject = detected;
+      }
+      this._post({
+        type: 'projects',
+        projects,
+        detectedProject: detected || 'inbox',
+        selectedProject: savedOverride || 'auto',
+      });
       this._post({
         type: 'setProject',
-        projectSlug: this.activeProject ?? '',
+        projectSlug: savedOverride || 'auto',
+        detectedProject: detected || 'inbox',
       });
     } catch (err: unknown) {
       this._post({ type: 'error', message: toMessage(err) });

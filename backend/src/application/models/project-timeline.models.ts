@@ -47,6 +47,15 @@ export type ListProjectTimelineInput = {
   orderByPin?: boolean;
 };
 
+export type ExportProjectNotesInput = {
+  projectId?: string;
+  folderId?: string;
+  folderIds?: string[];
+  category: ProjectTimelineCategory;
+  status?: string;
+  query?: string;
+};
+
 export type PaginatedProjectTimeline = {
   items: ProjectTimelineItem[];
   pagination: PaginationMeta;

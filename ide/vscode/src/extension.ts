@@ -56,7 +56,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     statusBarProvider.setConnecting();
     try {
       const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
-      if (savedProject !== null) {
+      if (savedProject !== null && savedProject !== 'auto') {
         activeProject = savedProject;
       } else {
         activeProject = await detectActiveProject(kbClient, folders);
@@ -109,7 +109,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (isConfigured()) {
         try {
           const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
-          if (savedProject !== null) {
+          if (savedProject !== null && savedProject !== 'auto') {
             activeProject = savedProject;
           } else {
             activeProject = await detectActiveProject(kbClient, folders);
@@ -124,9 +124,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.commands.executeCommand('kote.refreshCodeLenses');
     }),
 
-    vscode.commands.registerCommand('kote.updateStatusBar', (projectSlug: string) => {
+    vscode.commands.registerCommand('kote.updateStatusBar', async (projectSlug?: string) => {
       if (statusBarProvider) {
-        void setProjectWithCoverage(resolveProjectSlug(projectSlug, kbClient.defaultProjectSlug));
+        let slug = projectSlug;
+        if (!slug || slug === 'auto') {
+          slug = (await detectActiveProject(kbClient, vscode.workspace.workspaceFolders ?? [])) || undefined;
+        }
+        void setProjectWithCoverage(resolveProjectSlug(slug, kbClient.defaultProjectSlug));
       }
     })
   );

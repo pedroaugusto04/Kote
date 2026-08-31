@@ -1,22 +1,13 @@
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import * as vscode from 'vscode';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-import { resolveProjectSlugFromDir } from '../../project-detector.js';
+import { loadConfig } from '../../config.js';
+import { resolveProjectSlugFromDir } from '../../utils/project-detector.js';
 import { toUrlSlug } from '../../utils/text.js';
-import { watchRecursive } from '../../utils/watcher.js';
-import {
-  AI_HISTORY_CONFIG,
-  AI_PROVIDER,
-  AI_PROVIDER_NAME,
-  AI_SESSION_FILE_DEBOUNCE_MS,
-  AI_SESSION_PATH,
-  DEFAULT_AI_SESSION_LIMIT,
-  JSONL_EXTENSION,
-} from '../constants';
-import type { AiHistoryProvider, AiSession, AiTurn } from '../types';
-import { asRecord, buildSessionTitle, extractTextContent, keepFinalAssistantTurns, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
+import { AI_PROVIDER, AI_PROVIDER_NAME, AI_SESSION_PATH, JSONL_EXTENSION } from '../constants.js';
+import type { AiHistoryProvider, AiSession, AiTurn } from '../types.js';
+import { asRecord, buildSessionTitle, extractTextContent, isSession, keepFinalAssistantTurns, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils.js';
 
 const CLAUDE_RECORD_TYPE = {
   USER: 'user',
@@ -85,40 +76,9 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
   readonly id = AI_PROVIDER.CLAUDE_CODE;
   readonly name = AI_PROVIDER_NAME[this.id];
 
-  private getHistoryDir(): string {
-    const config = vscode.workspace.getConfiguration(AI_HISTORY_CONFIG.SECTION);
-    return config.get<string>(AI_HISTORY_CONFIG.CLAUDE_CODE_LOG_PATH) || path.join(os.homedir(), ...AI_SESSION_PATH.CLAUDE_CODE);
-  }
-
-  async isEnabled(): Promise<boolean> {
-    return fs.existsSync(this.getHistoryDir());
-  }
-
-  async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {
-    return recentFiles(this.getHistoryDir(), (filePath) => filePath.endsWith(JSONL_EXTENSION), limit)
-      .map(parseFile)
-      .filter((session): session is AiSession => session !== null);
-  }
-
-  watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
-    const timeouts = new Map<string, NodeJS.Timeout>();
-    const watcher = watchRecursive(
-      this.getHistoryDir(),
-      (fileName) => fileName.endsWith(JSONL_EXTENSION),
-      (filePath) => {
-        const pending = timeouts.get(filePath);
-        if (pending) clearTimeout(pending);
-        timeouts.set(filePath, setTimeout(() => {
-          timeouts.delete(filePath);
-          const session = parseFile(filePath);
-          if (session) callback(session);
-        }, AI_SESSION_FILE_DEBOUNCE_MS));
-      },
-    );
-
-    return new vscode.Disposable(() => {
-      for (const timeout of timeouts.values()) clearTimeout(timeout);
-      watcher.dispose();
-    });
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
+    const config = loadConfig();
+    const historyDir = config.aiProviders?.claudeCodeLogPath || path.join(os.homedir(), ...AI_SESSION_PATH.CLAUDE_CODE);
+    return recentFiles(historyDir, (filePath) => filePath.endsWith(JSONL_EXTENSION), limit).map(parseFile).filter(isSession);
   }
 }

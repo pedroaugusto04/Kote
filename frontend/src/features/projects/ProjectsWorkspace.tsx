@@ -7,6 +7,7 @@ import {
   deleteNote,
   deleteProject,
   deleteProjectFolder,
+  exportProjectNotesZip,
   fetchAllProjectsTimeline,
   fetchProjectFolders,
   fetchProjectTimeline,
@@ -61,7 +62,7 @@ import {
 import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
-import { SearchIcon } from '../../shared/ui/icons';
+import { DownloadIcon, SearchIcon } from '../../shared/ui/icons';
 import { InfoTooltip } from '../../shared/ui/info-tooltip';
 import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
 
@@ -301,6 +302,24 @@ export function ProjectsWorkspace({
     },
   });
 
+  const exportZipMutation = useMutation({
+    mutationFn: () => {
+      return globalLoading.trackPromise(
+        exportProjectNotesZip({
+          projectSlug: selectedSlug || undefined,
+          folderId: selectedFolderId === ROOT_FOLDER_ID ? undefined : selectedFolderId,
+          category: timelineCategory,
+          status: timelineStatus,
+          query: hasSearchQuery ? debouncedSearchInput : undefined,
+        })
+      );
+    },
+    onSuccess: () => {
+      notifySuccess(PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP_SUCCESS);
+    },
+    onError: (error) => notifyGeneralFormError(error, PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP_ERROR),
+  });
+
   return (
     <>
       <div
@@ -356,6 +375,17 @@ export function ProjectsWorkspace({
                 content="Drag files anywhere on this page to automatically create notes with attachments"
               />
             )}
+            <button
+              className="icon-button"
+              type="button"
+              title={PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP}
+              aria-label={PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP}
+              onClick={() => exportZipMutation.mutate()}
+              disabled={exportZipMutation.isPending}
+            >
+              <DownloadIcon style={{ width: '1rem', height: '1rem', marginRight: '0.4rem' }} />
+              {exportZipMutation.isPending ? 'Exporting...' : PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP}
+            </button>
             {createNote ? (
               <button className="icon-button" type="button" onClick={() => createNote()}>
                 {UI_MESSAGES.QUICK_NOTE}

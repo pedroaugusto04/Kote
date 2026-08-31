@@ -840,4 +840,41 @@ describe('ProjectsPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Enter the note text.');
     await waitFor(() => expect(screen.getByLabelText('Text')).toHaveFocus());
   });
+
+  it('exports notes using the selected all-status filter', async () => {
+    let requestedExportUrl = '';
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const urlStr = String(input);
+      if (urlStr === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (urlStr === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (urlStr.startsWith('/api/projects/export/zip')) {
+        requestedExportUrl = urlStr;
+        return new Response(new Blob(['fake zip content'], { type: 'application/zip' }), {
+          status: 200,
+          headers: {
+            'content-type': 'application/zip',
+            'content-disposition': 'attachment; filename="kote-platform-2026-09-08.zip"',
+          },
+        });
+      }
+      return Response.json({ ok: true, timeline: [], pagination: { total: 0, page: 1, pageSize: 20, totalPages: 1 } });
+    }));
+
+    renderProjects({ selectedProject: 'platform' });
+    fireEvent.click(screen.getByRole('button', { name: 'Filter by status' }));
+    fireEvent.click(screen.getByRole('option', { name: 'All' }));
+
+    const exportBtn = screen.getByRole('button', { name: 'Export (.zip)' });
+    expect(exportBtn).toBeInTheDocument();
+
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(requestedExportUrl).toContain('/api/projects/export/zip');
+      expect(requestedExportUrl).toContain('projectSlug=platform');
+      expect(requestedExportUrl).toContain('status=');
+    });
+
+    expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('ZIP archive downloaded successfully');
+  });
 });

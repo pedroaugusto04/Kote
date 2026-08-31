@@ -180,6 +180,56 @@ export async function requestText(path: string, init: RequestInit = {}): Promise
   return executeTextRequest(path, init, { hasRetried: false });
 }
 
+async function sendBlob(path: string, init: RequestInit = {}): Promise<{ response: Response; blob: Blob }> {
+  const response = await fetch(resolveApiPath(path), {
+    ...buildInit({
+      ...init,
+      headers: { accept: 'application/zip, application/octet-stream, application/json, */*', ...(init.headers || {}) },
+    }),
+  });
+  return { response, blob: await response.blob() };
+}
+
+async function executeBlobRequest(path: string, init: RequestInit = {}, options: RequestOptions): Promise<{ blob: Blob; filename?: string }> {
+  const { response, blob } = await sendBlob(path, init);
+  if (response.ok) {
+    const disposition = response.headers.get('content-disposition');
+    let filename: string | undefined;
+    if (disposition) {
+      const match = disposition.match(/filename=["']?([^"';]+)["']?/i);
+      if (match) filename = match[1];
+    }
+    return { blob, filename };
+  }
+
+  let payload: unknown = null;
+  try {
+    const text = await blob.text();
+    payload = readJsonFromText(text);
+  } catch {
+    // ignore
+  }
+
+  if (!shouldAttemptRefresh(path, response, payload, options)) {
+    throw toApiClientError(response, payload);
+  }
+
+  try {
+    await refreshSession();
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 401) {
+      await logoutSilently();
+    }
+    throw error;
+  }
+
+  return executeBlobRequest(path, init, { hasRetried: true });
+}
+
+export async function requestBlob(path: string, init: RequestInit = {}): Promise<{ blob: Blob; filename?: string }> {
+  return executeBlobRequest(path, init, { hasRetried: false });
+}
+
 export function resetRequestStateForTests() {
   refreshPromise = null;
 }

@@ -11,6 +11,7 @@ import {
   DEFAULT_FALLBACK_PROJECT_SLUG,
   SOURCE_CHANNELS
 } from '../constants';
+import { AI_ROLE } from './constants';
 
 type SessionPromptAction = typeof SESSION_PROMPT_ACTIONS[keyof typeof SESSION_PROMPT_ACTIONS];
 type AiSessionSaveMode = typeof AI_SESSION_SAVE_MODES[keyof typeof AI_SESSION_SAVE_MODES];
@@ -30,7 +31,8 @@ export class AiHistoryManager {
   private savedSessions = new Map<string, number>(); // key -> timestamp "providerId:sessionId"
   private ignoredSessions = new Map<string, number>(); // key -> timestamp "providerId:sessionId"
   private promptingSessions = new Set<string>(); // prevent overlapping popups for the same active session
-  private pendingPromptSessions = new Map<string, AiSession>(); // latest changed session seen while a popup is open
+  private pendingPromptSessions = new Map<string, AiSession>(); // latest changed session seen while a popup or save is in progress
+  private inFlightSaves = new Set<string>(); // prevent overlapping save requests for the same active session
   private readonly MAX_SAVED_SESSIONS = 200; // Maximum number of saved sessions to track
   private readonly MAX_IGNORED_SESSIONS = 500; // Maximum number of ignored sessions to track
   private readonly SESSION_TTL_DAYS = 60; // Remove sessions older than 60 days
@@ -376,6 +378,12 @@ export class AiHistoryManager {
       return;
     }
 
+    // If a save is already in-flight for this session, keep the newest version pending.
+    if (this.inFlightSaves.has(key)) {
+      this.pendingPromptSessions.set(key, session);
+      return;
+    }
+
     // If the session is explicitly ignored by the user, do nothing.
     if (this.ignoredSessions.has(key)) {
       this.rememberSessionHash(key, hash);
@@ -386,10 +394,15 @@ export class AiHistoryManager {
     // If the session is already marked as saved, auto-save updates silently.
     if (this.savedSessions.has(key)) {
       this.pendingPromptSessions.delete(key);
-      const saved = await this.autoSaveSessionToVault(client, session);
-      if (saved) {
-        this.rememberSessionHash(key, hash);
-        this.markSessionAsSaved(provider.id, session.sessionId);
+      this.inFlightSaves.add(key);
+      try {
+        const saved = await this.autoSaveSessionToVault(client, session);
+        if (saved) {
+          this.rememberSessionHash(key, hash);
+          this.markSessionAsSaved(provider.id, session.sessionId);
+        }
+      } finally {
+        this.inFlightSaves.delete(key);
         await this.processPendingPromptSession(client, provider, key);
       }
       return;
@@ -405,10 +418,15 @@ export class AiHistoryManager {
     // In auto-save mode: save new sessions and updates immediately.
     if (this.getAiSessionSaveMode() === AI_SESSION_SAVE_MODES.AUTO_SAVE) {
       this.pendingPromptSessions.delete(key);
-      this.markSessionAsSaved(provider.id, session.sessionId);
-      const saved = await this.autoSaveSessionToVault(client, session);
-      if (saved) {
-        this.rememberSessionHash(key, hash);
+      this.inFlightSaves.add(key);
+      try {
+        const saved = await this.autoSaveSessionToVault(client, session);
+        if (saved) {
+          this.markSessionAsSaved(provider.id, session.sessionId);
+          this.rememberSessionHash(key, hash);
+        }
+      } finally {
+        this.inFlightSaves.delete(key);
         await this.processPendingPromptSession(client, provider, key);
       }
       return;
@@ -427,13 +445,10 @@ export class AiHistoryManager {
       const action = await this.askSessionAction(provider);
 
       if (action === SESSION_PROMPT_ACTIONS.AUTO_SAVE) {
-        this.markSessionAsSaved(provider.id, session.sessionId);
         const saved = await this.saveSessionToVault(client, session);
         if (saved) {
+          this.markSessionAsSaved(provider.id, session.sessionId);
           this.rememberSessionHash(key, hash);
-        } else {
-          this.savedSessions.delete(key);
-          this.forgetSessionHash(key);
         }
       } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
         this.openPreview(session);
@@ -590,8 +605,10 @@ export class AiHistoryManager {
           SESSION_PROMPT_ACTIONS.PREVIEW_EDIT
         );
         if (action === SESSION_PROMPT_ACTIONS.AUTO_SAVE) {
-          this.markSessionAsSaved(selected.session.providerId, selected.session.sessionId);
-          await this.saveSessionToVault(client, selected.session);
+          const saved = await this.saveSessionToVault(client, selected.session);
+          if (saved) {
+            this.markSessionAsSaved(selected.session.providerId, selected.session.sessionId);
+          }
         } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
           await this.openPreview(selected.session);
         }
@@ -624,7 +641,7 @@ export class AiHistoryManager {
     rawText += `\n---\n\n`;
 
     for (const turn of session.turns) {
-      const roleHeader = turn.role === 'user' ? '👤 User' : '✨ Assistant';
+      const roleHeader = turn.role === AI_ROLE.USER ? '👤 User' : '✨ Assistant';
       rawText += `### ${roleHeader}\n${turn.content}\n\n`;
     }
     return rawText;
@@ -784,17 +801,12 @@ export class AiHistoryManager {
           increment: (1 / total) * 100
         });
 
-        this.markSessionAsSaved(item.providerId, item.sessionId);
         const saved = await this.saveSessionToVault(client, session, true);
         if (saved) {
+          this.markSessionAsSaved(item.providerId, item.sessionId);
           const key = `${item.providerId}:${item.sessionId}`;
           const hash = this.computeSessionHash(session);
           this.rememberSessionHash(key, hash);
-        } else {
-          // clean up so they can retry
-          const key = `${item.providerId}:${item.sessionId}`;
-          this.savedSessions.delete(key);
-          this.saveState();
         }
       }
     });

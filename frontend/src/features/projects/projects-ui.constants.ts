@@ -15,4 +15,9 @@ export const PROJECTS_WORKSPACE_MESSAGES = {
     DELETE_FOLDER: 'Folder {displayName} will only be removed if it is empty.',
     DELETE_NOTE: 'Deleting note {title} also removes its linked reminder, when present.',
   },
+  
+  EXPORT_ZIP: 'Export (.zip)',
+  EXPORT_ZIP_START: 'Exporting notes to ZIP...',
+  EXPORT_ZIP_SUCCESS: 'ZIP archive downloaded successfully',
+  EXPORT_ZIP_ERROR: 'Could not export notes as ZIP',
 } as const;

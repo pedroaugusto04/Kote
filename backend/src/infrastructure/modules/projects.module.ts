@@ -6,6 +6,7 @@ import { AiModule } from './ai.module.js';
 import { WorkspacesModule } from './workspaces.module.js';
 import { EnvModule } from './env.module.js';
 import { QuotaModule } from './quota.module.js';
+import { StorageModule } from './storage.module.js';
 
 import {
   ListPaginatedProjectsUseCase,
@@ -25,6 +26,7 @@ import {
   GetReviewDetailUseCase,
   ListPaginatedReviewsUseCase,
   GetProjectCoverageUseCase,
+  ExportProjectNotesZipUseCase,
 } from '../../application/use-cases/index.js';
 import { ListProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
 import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
@@ -47,6 +49,7 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     WorkspacesModule,
     EnvModule,
     QuotaModule,
+    StorageModule,
   ],
   controllers: [
     ProjectsController,
@@ -69,6 +72,7 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     GetReviewDetailUseCase,
     ListPaginatedReviewsUseCase,
     GetProjectCoverageUseCase,
+    ExportProjectNotesZipUseCase,
     ListProjectDependenciesUseCase,
     SyncProjectFilesService,
     SemanticClusteringService,
@@ -85,6 +89,7 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     GetProjectBriefUseCase,
     ListProjectBriefHistoryUseCase,
     GetProjectCoverageUseCase,
+    ExportProjectNotesZipUseCase,
     SyncProjectFilesService,
     ProjectCoverageRepository,
     CreateProjectUseCase,

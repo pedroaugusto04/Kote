@@ -37,6 +37,7 @@ export {
   setProjectFavorite,
   updateProject,
   updateProjectFolder,
+  exportProjectNotesZip,
 } from './projects';
 export { fetchReminderBoard, fetchReminders, updateReminderStatus, bulkUpdateReminderStatuses } from './reminders';
 export { runQuery } from './query';

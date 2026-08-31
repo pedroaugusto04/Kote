@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import type { ListNotesInput } from '../../application/models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../application/models/project-knowledge-map.models.js';
-import type { ListProjectTimelineInput } from '../../application/models/project-timeline.models.js';
+import type { ExportProjectNotesInput, ListProjectTimelineInput } from '../../application/models/project-timeline.models.js';
 import type { ListProjectsInput, PaginatedProjects } from '../../application/models/project-list.models.js';
 import type { Project } from '../../domain/projects.js';
 import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
@@ -190,6 +190,10 @@ export class PostgresContentRepository extends ContentRepository {
 
   async listProjectTimeline(userId: string, input: ListProjectTimelineInput) {
     return this.noteRepository.listProjectTimeline(userId, input);
+  }
+
+  async findNotesForExport(userId: string, input: ExportProjectNotesInput) {
+    return this.noteRepository.findNotesForExport(userId, input);
   }
 
   async listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput) {

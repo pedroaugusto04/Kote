@@ -12,6 +12,19 @@ export function sameText(left: string, right: string): boolean {
   return normalizeComparableText(left) === normalizeComparableText(right);
 }
 
+export function sanitizeFileName(value: string | null | undefined, fallback = 'note'): string {
+  const sanitized = (value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return sanitized || fallback;
+}
+
+
 export function stripSourceHeader(rawText: string): string {
   if (!rawText) return rawText;
   const lines = rawText.split('\n');

@@ -14,7 +14,7 @@ import type {
 } from '../../models/repository-records.models.js';
 import type { ListNotesInput, PaginatedNotes } from '../../models/note-list.models.js';
 import type { ListProjectKnowledgeMapInput } from '../../models/project-knowledge-map.models.js';
-import type { ListProjectTimelineInput, PaginatedProjectTimeline } from '../../models/project-timeline.models.js';
+import type { ExportProjectNotesInput, ListProjectTimelineInput, PaginatedProjectTimeline } from '../../models/project-timeline.models.js';
 import type { ListProjectsInput, PaginatedProjects } from '../../models/project-list.models.js';
 import type { ReviewView } from '../../models/review.models.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../models/vault-note.models.js';
@@ -56,6 +56,7 @@ export abstract class ContentRepository {
   abstract listNotesLite(userId: string, filters?: { projectId?: string; workspaceId?: string }): Promise<Array<{ id: string; projectId: string | null; workspaceId: string; folderId: string | null; title: string; status: string; occurredAt: string }>>;
   abstract listNotesPage(userId: string, input: ListNotesInput): Promise<PaginatedNotes>;
   abstract listProjectTimeline(userId: string, input: ListProjectTimelineInput): Promise<PaginatedProjectTimeline>;
+  abstract findNotesForExport(userId: string, input: ExportProjectNotesInput): Promise<NoteRecord[]>;
   abstract listProjectKnowledgeMapItems(userId: string, input: ListProjectKnowledgeMapInput): Promise<NoteRecord[]>;
   abstract getNoteById(userId: string, id: string, tx?: any): Promise<NoteRecord | null>;
   abstract getLatestNote(userId: string): Promise<NoteRecord | null>;

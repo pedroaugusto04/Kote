@@ -1,22 +1,12 @@
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
-import * as vscode from 'vscode';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-import { resolveProjectSlugFromDir } from '../../project-detector.js';
-import { watchRecursive } from '../../utils/watcher.js';
-import {
-  AI_HISTORY_CONFIG,
-  AI_PROVIDER,
-  AI_PROVIDER_NAME,
-  AI_ROLE,
-  AI_SESSION_FILE_DEBOUNCE_MS,
-  AI_SESSION_PATH,
-  ANTIGRAVITY_LOG_FILES,
-  DEFAULT_AI_SESSION_LIMIT,
-} from '../constants';
-import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn } from '../types';
-import { asRecord, buildSessionTitle, keepFinalAssistantTurns, readJsonLines, safeMtime } from './provider.utils';
+import { loadConfig } from '../../config.js';
+import { resolveProjectSlugFromDir } from '../../utils/project-detector.js';
+import { AI_PROVIDER, AI_PROVIDER_NAME, AI_ROLE, AI_SESSION_PATH, ANTIGRAVITY_LOG_FILES } from '../constants.js';
+import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn } from '../types.js';
+import { asRecord, buildSessionTitle, keepFinalAssistantTurns, readJsonLines, safeMtime } from './provider.utils.js';
 
 const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
 
@@ -88,14 +78,6 @@ function extractWorkspace(content: string): string | null {
   return fs.statSync(candidate).isDirectory() ? candidate : path.dirname(candidate);
 }
 
-function findLogFile(sessionDir: string): string | null {
-  for (const fileName of ANTIGRAVITY_LOG_FILES) {
-    const filePath = path.join(sessionDir, '.system_generated', 'logs', fileName);
-    if (fs.existsSync(filePath)) return filePath;
-  }
-  return null;
-}
-
 function loadAttachments(sessionDir: string): AiSessionAttachment[] {
   try {
     return fs.readdirSync(sessionDir)
@@ -114,6 +96,14 @@ function loadAttachments(sessionDir: string): AiSessionAttachment[] {
   } catch {
     return [];
   }
+}
+
+function findLogFile(sessionDir: string): string | null {
+  for (const fileName of ANTIGRAVITY_LOG_FILES) {
+    const filePath = path.join(sessionDir, '.system_generated', 'logs', fileName);
+    if (fs.existsSync(filePath)) return filePath;
+  }
+  return null;
 }
 
 function parseSession(sessionDir: string, sessionId: string): AiSession | null {
@@ -140,33 +130,22 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
   }
 }
 
-function sessionIdFromLogPath(filePath: string): string {
-  const parts = filePath.split(path.sep);
-  const brainIndex = parts.lastIndexOf('brain');
-  return parts[brainIndex + 1] || path.basename(path.dirname(path.dirname(path.dirname(filePath))));
+function historyDirectories(): string[] {
+  const configPath = loadConfig().aiProviders?.antigravityLogPath;
+  if (configPath) return [configPath];
+  return [
+    path.join(os.homedir(), ...AI_SESSION_PATH.ANTIGRAVITY_CLI),
+    path.join(os.homedir(), ...AI_SESSION_PATH.ANTIGRAVITY_IDE),
+  ];
 }
 
 export class AntigravityHistoryProvider implements AiHistoryProvider {
   readonly id = AI_PROVIDER.ANTIGRAVITY;
   readonly name = AI_PROVIDER_NAME[this.id];
 
-  private getHistoryDirs(): string[] {
-    const config = vscode.workspace.getConfiguration(AI_HISTORY_CONFIG.SECTION);
-    const configured = config.get<string>(AI_HISTORY_CONFIG.ANTIGRAVITY_LOG_PATH);
-    if (configured) return [configured];
-    return [
-      path.join(os.homedir(), ...AI_SESSION_PATH.ANTIGRAVITY_CLI),
-      path.join(os.homedir(), ...AI_SESSION_PATH.ANTIGRAVITY_IDE),
-    ];
-  }
-
-  async isEnabled(): Promise<boolean> {
-    return this.getHistoryDirs().some((dir) => fs.existsSync(dir));
-  }
-
-  async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {
+  async getRecentSessions(limit?: number): Promise<AiSession[]> {
     const sessions = new Map<string, AiSession>();
-    for (const historyDir of this.getHistoryDirs()) {
+    for (const historyDir of historyDirectories()) {
       if (!fs.existsSync(historyDir)) continue;
       let sessionIds: string[];
       try {
@@ -187,33 +166,7 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
       }
     }
 
-    return [...sessions.values()]
-      .sort((left, right) => right.timestamp - left.timestamp)
-      .slice(0, Math.max(0, limit));
-  }
-
-  watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
-    const timeouts = new Map<string, NodeJS.Timeout>();
-    const watchers = this.getHistoryDirs()
-      .filter((dir) => fs.existsSync(dir))
-      .map((historyDir) => watchRecursive(
-        historyDir,
-        (fileName) => ANTIGRAVITY_LOG_FILES.includes(fileName as typeof ANTIGRAVITY_LOG_FILES[number]),
-        (filePath) => {
-          const sessionDir = path.dirname(path.dirname(path.dirname(filePath)));
-          const pending = timeouts.get(sessionDir);
-          if (pending) clearTimeout(pending);
-          timeouts.set(sessionDir, setTimeout(() => {
-            timeouts.delete(sessionDir);
-            const session = parseSession(sessionDir, sessionIdFromLogPath(filePath));
-            if (session) callback(session);
-          }, AI_SESSION_FILE_DEBOUNCE_MS));
-        },
-      ));
-
-    return new vscode.Disposable(() => {
-      for (const timeout of timeouts.values()) clearTimeout(timeout);
-      for (const watcher of watchers) watcher.dispose();
-    });
+    const sorted = [...sessions.values()].sort((left, right) => right.timestamp - left.timestamp);
+    return typeof limit === 'number' ? sorted.slice(0, Math.max(0, limit)) : sorted;
   }
 }

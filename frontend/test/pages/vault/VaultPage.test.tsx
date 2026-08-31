@@ -4,9 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { VaultPage } from '../../../src/pages/vault/VaultPage';
+import { UI_MESSAGES } from '../../../src/shared/constants/ui.constants';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import type { NoteDetail, NoteSummary } from '../../../src/shared/api/models/note';
 import { NoteStatus } from '../../../src/shared/api/models/note-status';
+
 
 const apiSpies = vi.hoisted(() => ({
   fetchNote: vi.fn(),
@@ -85,14 +87,42 @@ describe('VaultPage', () => {
 
     expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
 
-    const editBtn = screen.getByRole('button', { name: `Edit note ${note.title}` });
-    const deleteBtn = screen.getByRole('button', { name: `Delete note ${note.title}` });
+    const downloadBtn = screen.getByRole('button', { name: `${UI_MESSAGES.DOWNLOAD_NOTE} ${note.title}` });
+    const editBtn = screen.getByRole('button', { name: `${UI_MESSAGES.EDIT_NOTE} ${note.title}` });
+    const deleteBtn = screen.getByRole('button', { name: `${UI_MESSAGES.DELETE_NOTE} ${note.title}` });
 
+    expect(downloadBtn).toBeInTheDocument();
+    expect(downloadBtn).toHaveAttribute('title', UI_MESSAGES.DOWNLOAD_NOTE_MD);
     expect(editBtn).toBeInTheDocument();
     expect(deleteBtn).toBeInTheDocument();
 
     fireEvent.click(deleteBtn);
     expect(deleteNote).toHaveBeenCalledWith({ id: note.id, title: note.title });
+  });
+
+  it('triggers note download as markdown when download button is clicked', async () => {
+    const createObjectURLSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:http://localhost/test-blob');
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    const note = buildNoteSummary({ id: 'note-download', title: 'Nota para Baixar' });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue(buildNoteDetail(note));
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
+
+    const downloadBtn = screen.getByRole('button', { name: `${UI_MESSAGES.DOWNLOAD_NOTE} ${note.title}` });
+    fireEvent.click(downloadBtn);
+
+    expect(createObjectURLSpy).toHaveBeenCalledTimes(1);
+    expect(clickSpy).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:http://localhost/test-blob');
+
+    createObjectURLSpy.mockRestore();
+    revokeObjectURLSpy.mockRestore();
+    clickSpy.mockRestore();
   });
 
   it('disables the previous button on the first note in the project', async () => {

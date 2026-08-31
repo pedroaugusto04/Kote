@@ -50,6 +50,15 @@ export const projectKnowledgeMapQuerySchema = z.object({
   excludeReviewNotes: z.coerce.boolean().optional().default(false),
 });
 
+export const exportProjectNotesZipQuerySchema = z.object({
+  projectSlug: z.string().trim().optional(),
+  folderId: z.string().trim().optional(),
+  category: z.enum(projectTimelineCategories).default(TimelineCategory.All),
+  status: z.enum(notesListStatusFilterValues).default(StatusFilter.Open),
+  query: z.string().trim().optional(),
+});
+export type ExportProjectNotesZipQuery = z.infer<typeof exportProjectNotesZipQuerySchema>;
+
 export const updateProjectBodySchema = z
   .object({
     displayName: z.string().trim().min(1, 'Project name is required.').max(120, 'Maximum length is 120 characters.'),

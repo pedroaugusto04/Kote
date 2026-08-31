@@ -11,7 +11,7 @@ test('Sync AI sessions command integration', async (t) => {
   // Mock os.homedir to direct provider searches to our temp directory
   t.mock.method(os, 'homedir', () => TEST_DIR);
 
-  t.before(() => {
+  t.before(async () => {
     if (fs.existsSync(TEST_DIR)) fs.rmSync(TEST_DIR, { recursive: true });
     fs.mkdirSync(TEST_DIR, { recursive: true });
 
@@ -20,7 +20,7 @@ test('Sync AI sessions command integration', async (t) => {
     fs.mkdirSync(claudeDir, { recursive: true });
     fs.writeFileSync(
       path.join(claudeDir, 'claude-sess.jsonl'),
-      `{"role": "user", "content": "How to build CLI?"}\n{"role": "assistant", "content": "Run npm run build:cli"}\n`,
+      `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"How to build CLI?"}]}}\n{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"I will inspect the project."},{"type":"tool_use","name":"Read"}]}}\n{"type":"user","message":{"role":"user","content":[{"type":"tool_result","content":"internal tool output"}]}}\n{"type":"user","isMeta":true,"message":{"role":"user","content":"<system-reminder>internal instructions</system-reminder>"}}\n{"type":"assistant","message":{"role":"assistant","content":[{"type":"thinking","thinking":"private reasoning"},{"type":"text","text":"Run npm run build:cli"}]}}\n`,
       'utf8'
     );
 
@@ -29,7 +29,7 @@ test('Sync AI sessions command integration', async (t) => {
     fs.mkdirSync(codexDir, { recursive: true });
     fs.writeFileSync(
       path.join(codexDir, 'codex-sess.jsonl'),
-      `{"role": "user", "content": "Hello Codex"}\n{"role": "assistant", "content": "Hi there"}\n`,
+      `{"type":"session_meta","payload":{"id":"codex-session-id"}}\n{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>internal context</environment_context>"}]}}\n{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Hello Codex, keep this question complete."}]}}\n{"type":"response_item","payload":{"type":"reasoning","summary":[{"type":"summary_text","text":"private reasoning"}]}}\n{"type":"response_item","payload":{"type":"message","role":"assistant","phase":"commentary","content":[{"type":"output_text","text":"I am inspecting files."}]}}\n{"type":"response_item","payload":{"type":"message","role":"assistant","phase":"final_answer","content":[{"type":"output_text","text":"Hi there, this is the complete final answer."}]}}\n`,
       'utf8'
     );
 
@@ -37,8 +37,8 @@ test('Sync AI sessions command integration', async (t) => {
     const antigravityDir = path.join(TEST_DIR, '.gemini', 'antigravity-ide', 'brain', 'conv-123', '.system_generated', 'logs');
     fs.mkdirSync(antigravityDir, { recursive: true });
     fs.writeFileSync(
-      path.join(antigravityDir, 'overview.txt'),
-      `{"source": "USER_EXPLICIT", "type": "USER_INPUT", "content": "<USER_REQUEST>Hello Antigravity</USER_REQUEST>"}\n{"source": "MODEL", "type": "PLANNER_RESPONSE", "content": "Hello human"}\n`,
+      path.join(antigravityDir, 'transcript_full.jsonl'),
+      `{"source":"USER_EXPLICIT","type":"USER_INPUT","content":"<USER_REQUEST>Hello Antigravity</USER_REQUEST><SYSTEM_MESSAGE>internal system content</SYSTEM_MESSAGE>"}\n{"source":"MODEL","type":"PLANNER_RESPONSE","content":"I am inspecting files."}\n{"source":"MODEL","type":"GENERIC","content":"Created At: now Tool output that must not be saved"}\n{"source":"MODEL","type":"PLANNER_RESPONSE","content":"<thought>private reasoning</thought>Hello human"}\n`,
       'utf8'
     );
 
@@ -54,7 +54,7 @@ test('Sync AI sessions command integration', async (t) => {
     const opencodeDir = path.join(TEST_DIR, '.local', 'share', 'opencode');
     fs.mkdirSync(opencodeDir, { recursive: true });
     try {
-      const { DatabaseSync } = require('node:sqlite');
+      const { DatabaseSync } = await import('node:sqlite');
       const db = new DatabaseSync(path.join(opencodeDir, 'opencode.db'));
       db.exec(`
         CREATE TABLE session (id TEXT, title TEXT, time_created INTEGER, time_updated INTEGER, slug TEXT);
@@ -65,13 +65,79 @@ test('Sync AI sessions command integration', async (t) => {
         INSERT INTO session VALUES ('ses_1', 'OpenCode Session Title', 1000, 1000, 'open-slug');
         INSERT INTO message VALUES ('msg_1', 'ses_1', 1000, '{"role": "user"}');
         INSERT INTO part VALUES ('p_1', 'msg_1', 'ses_1', 1000, '{"type": "text", "text": "Hello OpenCode"}');
-        INSERT INTO message VALUES ('msg_2', 'ses_1', 2000, '{"role": "assistant"}');
-        INSERT INTO part VALUES ('p_2', 'msg_2', 'ses_1', 2000, '{"type": "text", "text": "Hello from OpenCode Assistant!"}');
+        INSERT INTO message VALUES ('msg_2', 'ses_1', 1500, '{"role": "assistant", "finish": "tool-calls"}');
+        INSERT INTO part VALUES ('p_2', 'msg_2', 'ses_1', 1500, '{"type": "text", "text": "I will inspect the repository."}');
+        INSERT INTO message VALUES ('msg_3', 'ses_1', 2000, '{"role": "assistant", "finish": "stop"}');
+        INSERT INTO part VALUES ('p_3', 'msg_3', 'ses_1', 2000, '{"type": "reasoning", "text": "private OpenCode reasoning"}');
+        INSERT INTO part VALUES ('p_4', 'msg_3', 'ses_1', 2100, '{"type": "text", "text": "Hello from OpenCode Assistant!"}');
       `);
       db.close();
     } catch {
       // In case sqlite module isn't loaded/supported in test context (though it should be)
     }
+  });
+
+  await t.test('provider strategies parse current logs without internal model noise', async () => {
+    const { ClaudeCodeHistoryProvider } = await import('../../cli/dist/ai-history/providers/claude-code.provider.js');
+    const { CodexHistoryProvider } = await import('../../cli/dist/ai-history/providers/codex.provider.js');
+    const { AntigravityHistoryProvider } = await import('../../cli/dist/ai-history/providers/antigravity.provider.js');
+    const { OpenCodeHistoryProvider } = await import('../../cli/dist/ai-history/providers/opencode.provider.js');
+
+    const claude = (await new ClaudeCodeHistoryProvider().getRecentSessions()).find(session => session.sessionId === 'claude-sess');
+    assert.ok(claude, 'Should parse the current nested Claude transcript format');
+    assert.deepEqual(claude.turns, [
+      { role: 'user', content: 'How to build CLI?' },
+      { role: 'assistant', content: 'Run npm run build:cli' },
+    ]);
+
+    const codex = (await new CodexHistoryProvider().getRecentSessions()).find(session => session.sessionId === 'codex-session-id');
+    assert.ok(codex, 'Should parse the current Codex rollout format');
+    assert.deepEqual(codex.turns, [
+      { role: 'user', content: 'Hello Codex, keep this question complete.' },
+      { role: 'assistant', content: 'Hi there, this is the complete final answer.' },
+    ]);
+
+    const antigravity = (await new AntigravityHistoryProvider().getRecentSessions()).find(session => session.sessionId === 'conv-123');
+    assert.ok(antigravity, 'Should parse the current Antigravity transcript format');
+    assert.deepEqual(antigravity.turns, [
+      { role: 'user', content: 'Hello Antigravity' },
+      { role: 'assistant', content: 'Hello human' },
+    ]);
+
+    const openCode = (await new OpenCodeHistoryProvider().getRecentSessions()).find(session => session.sessionId === 'ses_1');
+    assert.ok(openCode, 'Should parse the current OpenCode database format');
+    assert.deepEqual(openCode.turns, [
+      { role: 'user', content: 'Hello OpenCode' },
+      { role: 'assistant', content: 'Hello from OpenCode Assistant!' },
+    ]);
+  });
+
+  await t.test('history manager composes provider strategies and sorts their sessions', async () => {
+    const { AiHistoryManager } = await import('../../cli/dist/ai-history/history-manager.js');
+    const firstProvider = {
+      id: 'claude-code',
+      name: 'Claude Code',
+      async getRecentSessions() {
+        return [{ providerId: this.id, sessionId: 'older', title: 'Older', turns: [], timestamp: 1 }];
+      },
+    };
+    const secondProvider = {
+      id: 'codex-cli',
+      name: 'Codex CLI',
+      async getRecentSessions() {
+        return [{ providerId: this.id, sessionId: 'newer', title: 'Newer', turns: [], timestamp: 2 }];
+      },
+    };
+    const unavailableProvider = {
+      id: 'open-code',
+      name: 'OpenCode',
+      async getRecentSessions() {
+        throw new Error('Provider unavailable');
+      },
+    };
+
+    const sessions = await new AiHistoryManager([firstProvider, unavailableProvider, secondProvider]).getAllSessions();
+    assert.deepEqual(sessions.map(session => session.sessionId), ['newer', 'older']);
   });
 
   t.after(() => {
@@ -169,6 +235,10 @@ test('Sync AI sessions command integration', async (t) => {
       assert.ok(createdNote.rawText.includes('Source: Antigravity'));
       assert.ok(createdNote.rawText.includes('### 👤 User\nHello Antigravity'));
       assert.ok(createdNote.rawText.includes('### ✨ Assistant\nHello human'));
+      assert.ok(!createdNote.rawText.includes('internal system content'));
+      assert.ok(!createdNote.rawText.includes('private reasoning'));
+      assert.ok(!createdNote.rawText.includes('I am inspecting files.'));
+      assert.ok(!createdNote.rawText.includes('Tool output that must not be saved'));
 
     } finally {
       await server.close();
@@ -205,7 +275,7 @@ test('Sync AI sessions command integration', async (t) => {
     for (let i = 0; i < 25; i++) {
       fs.writeFileSync(
         path.join(paginatedDir, `session-${i}.jsonl`),
-        `{"role": "user", "content": "Query number ${i}"}\n{"role": "assistant", "content": "Response ${i}"}\n`,
+        `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Query number ${i}"}]}}\n{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Response ${i}"}]}}\n`,
         'utf8'
       );
     }

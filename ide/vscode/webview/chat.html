@@ -1037,12 +1037,26 @@
 
   // ── Project selector ──────────────────────────────────────────────────────
 
-  function renderProjects(projects, current) {
+  let currentProjects = [];
+  let detectedProjectSlug = 'inbox';
+
+  function renderProjects(projects, selectedSlug, detectedSlug) {
+    if (projects) currentProjects = projects;
+    if (detectedSlug) detectedProjectSlug = detectedSlug;
+
     const sel = document.getElementById('projectSelect');
-    const optionsHtml = projects.map(p =>
-      `<option value="${escHtml(p.projectSlug)}" ${p.projectSlug === current ? 'selected' : ''}>${escHtml(p.displayName)}</option>`
-    ).join('');
-    sel.innerHTML = `<option value="" ${!current ? 'selected' : ''}>All Projects</option>` + optionsHtml;
+    const detectedProject = currentProjects.find(p => p.projectSlug === detectedProjectSlug);
+    const detectedName = detectedProject ? detectedProject.displayName : (detectedProjectSlug === 'inbox' ? 'Inbox' : detectedProjectSlug || 'Inbox');
+
+    const effectiveSelected = selectedSlug !== undefined ? selectedSlug : (sel.value || 'auto');
+    const isAuto = !effectiveSelected || effectiveSelected === 'auto';
+
+    let optionsHtml = `<option value="auto" ${isAuto ? 'selected' : ''}>Auto (${escHtml(detectedName)})</option>`;
+    for (const p of currentProjects) {
+      const isSelected = !isAuto && p.projectSlug === effectiveSelected;
+      optionsHtml += `<option value="${escHtml(p.projectSlug)}" ${isSelected ? 'selected' : ''}>${escHtml(p.displayName)}</option>`;
+    }
+    sel.innerHTML = optionsHtml;
   }
 
   // ── Message handler ───────────────────────────────────────────────────────
@@ -1084,7 +1098,9 @@
         `;
         document.getElementById('messages').appendChild(el);
         scrollToBottom();
-        if (msg.projectSlug) document.getElementById('projectSelect').value = msg.projectSlug;
+        if (msg.projectSlug) {
+          renderProjects(null, msg.projectSlug);
+        }
         break;
       }
 
@@ -1096,11 +1112,11 @@
       }
 
       case 'projects':
-        renderProjects(msg.projects, '');
+        renderProjects(msg.projects, msg.selectedProject || 'auto', msg.detectedProject || 'inbox');
         break;
 
       case 'setProject':
-        document.getElementById('projectSelect').value = msg.projectSlug;
+        renderProjects(null, msg.projectSlug || 'auto', msg.detectedProject);
         break;
 
       case 'noteSaved': {
