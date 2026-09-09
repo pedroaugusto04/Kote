@@ -248,6 +248,81 @@
   color: var(--text-soft);
 }
 
+.note-synthesis-memory {
+  display: grid;
+  gap: 14px;
+}
+
+.note-synthesis-group {
+  display: grid;
+  gap: 7px;
+}
+
+.note-synthesis-group h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.note-synthesis-group ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.note-synthesis-group li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.note-synthesis-group li::before {
+  flex: 0 0 auto;
+  width: 5px;
+  height: 5px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: "";
+}
+
+.note-synthesis-status {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.35;
+  text-transform: capitalize;
+}
+
+.note-synthesis-status.is-rejected {
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+.note-synthesis-status.is-superseded {
+  border-color: var(--warning-border);
+  color: var(--amber);
+}
+
+.note-raw-toggle {
+  align-self: flex-start;
+  margin-top: 2px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 /* Keep progress quiet, but make an unavailable synthesis immediately legible. */
 .note-ai-synthesis-state {
   gap: 0;

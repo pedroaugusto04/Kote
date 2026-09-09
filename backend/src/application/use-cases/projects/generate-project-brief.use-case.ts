@@ -13,6 +13,7 @@ import { NoteSynthesisRepository } from '../../ports/notes/note-synthesis.reposi
 import crypto from 'node:crypto';
 import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
 import { NoteSynthesisStatus } from '../../constants/ai-session-synthesis.constants.js';
+import { formatSynthesisForRetrieval } from '../../services/content/ai-session-synthesis-transcript.service.js';
 
 
 const CONTEXT_WINDOW = 30;
@@ -54,7 +55,7 @@ export class GenerateProjectBriefUseCase {
       if (note.sourceChannel !== SourceChannel.AiChat && note.source !== SourceChannel.AiChat) return note;
       const synthesis = await this.synthesisRepository.getByNoteId(userId, note.id);
       if (!synthesis || synthesis.status !== NoteSynthesisStatus.Completed || synthesis.sourceHash !== crypto.createHash('sha256').update(note.markdown || '').digest('hex')) return note;
-      return { ...note, summary: synthesis.overview, metadata: { ...note.metadata, rawText: synthesis.memory.map((item) => `${item.kind}: ${item.text}`).join('\n') } };
+      return { ...note, summary: synthesis.overview, metadata: { ...note.metadata, rawText: formatSynthesisForRetrieval(synthesis.overview, synthesis.memory) } };
     }));
     const items = enrichedNotes.map(toProjectBriefContextItem);
     const contextHash = toSha256(JSON.stringify(items));

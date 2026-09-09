@@ -37,6 +37,14 @@ export function buildDeterministicSynthesis(turns: AiSessionTurn[]): { overview:
   };
 }
 
+export function formatSynthesisForRetrieval(overview: string, memory: NoteSynthesisItem[]): string {
+  const items = memory.map((item) => {
+    const kind = item.kind.replace(/_/g, " ");
+    return `${kind} [${item.status}]: ${item.text}`;
+  });
+  return [`Session overview: ${overview.trim()}`, ...items].filter(Boolean).join("\n");
+}
+
 export function buildSynthesisTranscript(turns: AiSessionTurn[]): string {
   return turns.map((turn) => `TURN ${turn.number} [${turn.role.toUpperCase()}]\n${turn.text}`).join('\n\n');
 }

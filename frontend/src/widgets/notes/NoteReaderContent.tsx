@@ -102,6 +102,7 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
   const synthesizedOverview = synthesis?.status === NOTE_SYNTHESIS_STATUS.COMPLETED ? synthesis.overview : '';
   const synthesisState = getSynthesisState(synthesis?.status, isSynthesisManuallyRequested);
   const canCollapseTranscript = isAiConversation && aiTurns.length >= COLLAPSIBLE_TRANSCRIPT_MIN_TURNS;
+  const synthesisGroups = groupSynthesisMemory(synthesis?.memory || []);
 
   // For dependency watcher notes, rawText already contains the full formatted content
   // Avoid rendering extra sections
@@ -118,8 +119,28 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
         <section className="note-body-section note-ai-summary note-section-card">
           <div className="note-section-header"><span className="note-section-dot summary" /><span className="note-section-title">Session synthesis</span></div>
           <MarkdownView markdown={synthesizedOverview} />
-          {synthesis?.memory?.length ? <ul>{synthesis.memory.map((item, index) => <li key={`${item.kind}-${index}`}><strong>{item.kind}:</strong> {item.text}</li>)}</ul> : null}
-          {canCollapseTranscript ? <button type="button" className="note-raw-toggle" onClick={() => setIsTranscriptExpanded((expanded) => !expanded)}>{isTranscriptExpanded ? 'Hide transcript' : `Show transcript (${aiTurns.length} turns)`}</button> : null}
+          {synthesisGroups.length ? (
+            <div className="note-synthesis-memory">
+              {synthesisGroups.map((group) => (
+                <section className="note-synthesis-group" key={group.kind}>
+                  <h3>{group.label}</h3>
+                  <ul>
+                    {group.items.map((item, index) => (
+                      <li key={`${group.kind}-${index}`}>
+                        {item.status !== "unknown" ? <span className={`note-synthesis-status is-${item.status}`}>{formatSynthesisStatus(item.status)}</span> : null}
+                        <span>{item.text}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          ) : null}
+          {canCollapseTranscript ? (
+            <button type="button" className="note-raw-toggle icon-button secondary" aria-expanded={isTranscriptExpanded} onClick={() => setIsTranscriptExpanded((expanded) => !expanded)}>
+              {isTranscriptExpanded ? "Hide transcript" : `Show transcript (${aiTurns.length} turns)`}
+            </button>
+          ) : null}
         </section>
       ) : null}
       {!synthesizedOverview && synthesisState ? (
@@ -170,6 +191,26 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
       ) : null}
     </div>
   );
+}
+
+type SynthesisMemoryItem = { kind: string; text: string; status: string; turnRefs: number[] };
+
+const SYNTHESIS_KIND_LABELS: Record<string, string> = {
+  goal: "Goals", outcome: "Outcomes", decision: "Decisions", change: "Changes",
+  failed_attempt: "Failed attempts", open_item: "Open items", fact: "Context",
+};
+
+function groupSynthesisMemory(memory: SynthesisMemoryItem[]) {
+  const groups = new Map<string, SynthesisMemoryItem[]>();
+  for (const item of memory) {
+    const kind = SYNTHESIS_KIND_LABELS[item.kind] ? item.kind : "fact";
+    groups.set(kind, [...(groups.get(kind) || []), item]);
+  }
+  return Array.from(groups, ([kind, items]) => ({ kind, label: SYNTHESIS_KIND_LABELS[kind], items }));
+}
+
+function formatSynthesisStatus(status: string) {
+  return status.replace(/_/g, " ");
 }
 
 function getSynthesisState(status?: NoteSynthesisStatus, isManuallyRequested = false) {
