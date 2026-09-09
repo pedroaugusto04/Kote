@@ -65,6 +65,7 @@ export abstract class ContentRepository {
   abstract getNoteBySourceAndSessionId(userId: string, source: string, sessionId: string): Promise<NoteRecord | null>;
   abstract upsertNote(userId: string, input: SaveNoteInput, tx?: any): Promise<NoteRecord>;
   abstract updateNote(userId: string, input: SaveNoteInput, tx?: any): Promise<NoteRecord>;
+  abstract updateNoteSummary(userId: string, noteId: string, summary: string): Promise<void>;
   abstract updateNoteBodySearchText(userId: string, noteId: string, bodySearchText: string): Promise<void>;
   abstract updateReminderStatus(userId: string, id: string, status: string): Promise<NoteRecord | null>;
   abstract updateNoteStatuses(userId: string, ids: string[], status: string): Promise<void>;

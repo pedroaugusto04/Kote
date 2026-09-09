@@ -16,6 +16,8 @@ import { PushSubscriptionRepository } from '../../application/ports/push/push-su
 import { ProjectBriefHistoryRepository } from '../../application/ports/projects/project-brief-history.repository.js';
 import { AskHistoryRepository } from '../../application/ports/query/ask-history.repository.js';
 import { NoteEmbeddingRepository } from '../../application/ports/notes/note-embedding.repository.js';
+import { NoteSynthesisRepository } from '../../application/ports/notes/note-synthesis.repository.js';
+import { AiSessionSynthesisOutboxRepository } from '../../application/ports/notes/ai-session-synthesis-outbox.repository.js';
 import { NoteContextRepository } from '../../application/ports/notes/note-context.repository.js';
 import { QuotaRepository } from '../../application/ports/quota/quota.repository.js';
 import {
@@ -32,6 +34,8 @@ import { PostgresContentRepository } from '../repositories/content.repository.js
 import { PostgresDatabase } from '../persistence/database.js';
 import { PostgresIntegrationRepository } from '../repositories/integrations.repository.js';
 import { PostgresNoteEmbeddingRepository } from '../repositories/note-embedding.repository.js';
+import { PostgresNoteSynthesisRepository } from '../repositories/note-synthesis.repository.js';
+import { PostgresAiSessionSynthesisOutboxRepository } from '../repositories/ai-session-synthesis-outbox.repository.js';
 import { PostgresProjectBriefHistoryRepository } from '../repositories/project-brief-history.repository.js';
 import { PostgresAskHistoryRepository } from '../repositories/ask-history.repository.js';
 import { PostgresSchemaMigrator } from '../persistence/schema.migrator.js';
@@ -71,6 +75,8 @@ const repositories = [
   PostgresContentRepository,
   PostgresContentQueryRepository,
   PostgresNoteEmbeddingRepository,
+  PostgresNoteSynthesisRepository,
+  PostgresAiSessionSynthesisOutboxRepository,
   PostgresNoteContextRepository,
   PostgresWorkflowStateRepository,
   PostgresWebhookEventRepository,
@@ -84,6 +90,8 @@ const repositories = [
   PostgresBillingIntentRepository,
   { provide: SchemaMigrator, useExisting: PostgresSchemaMigrator },
   { provide: QuotaRepository, useExisting: PostgresQuotaRepository },
+  { provide: NoteSynthesisRepository, useExisting: PostgresNoteSynthesisRepository },
+  { provide: AiSessionSynthesisOutboxRepository, useExisting: PostgresAiSessionSynthesisOutboxRepository },
   { provide: UserRepository, useExisting: PostgresUserRepository },
   { provide: ProjectBriefHistoryRepository, useExisting: PostgresProjectBriefHistoryRepository },
   { provide: AskHistoryRepository, useExisting: PostgresAskHistoryRepository },

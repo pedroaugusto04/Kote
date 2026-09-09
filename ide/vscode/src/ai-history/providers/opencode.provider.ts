@@ -16,7 +16,7 @@ import {
   OPEN_CODE_FINAL_FINISH,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiTurn } from '../types';
-import { asRecord, keepFinalAssistantTurns, parseAiRole } from './provider.utils';
+import { asRecord, keepFinalAssistantTurns, parseAiRole, toTimestampMs } from './provider.utils';
 
 interface OpenCodeRow {
   sessionId: string;
@@ -36,13 +36,15 @@ interface SessionAccumulator {
 function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): void {
   let accumulator = sessions.get(row.sessionId);
   if (!accumulator) {
+    const internalTimestamp = toTimestampMs(row.timestamp);
     accumulator = {
       session: {
         providerId: AI_PROVIDER.OPEN_CODE,
         sessionId: row.sessionId,
         title: row.title || `${AI_PROVIDER_NAME[AI_PROVIDER.OPEN_CODE]} Session`,
         turns: [],
-        timestamp: Number(row.timestamp),
+        timestamp: internalTimestamp ?? 0,
+        timestampIsInternal: internalTimestamp !== null,
         projectSlug: row.projectSlug || undefined,
       },
       messages: new Map(),

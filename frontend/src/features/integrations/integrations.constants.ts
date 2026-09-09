@@ -5,6 +5,7 @@ export enum IntegrationProvider {
   PushNotifications = 'push-notifications',
   PrContextAi = 'pr-context-ai',
   FileNotesSummaryAi = 'file-notes-summary-ai',
+  AiSessionSynthesis = 'ai-session-synthesis',
   DependencyWatcher = 'dependency-watcher',
 }
 
@@ -15,6 +16,7 @@ export const INTEGRATION_LOGOS: Record<string, { src: string; label: string }> =
   [IntegrationProvider.PushNotifications]: { src: 'https://cdn.simpleicons.org/pushover/3B5998', label: 'Push Notifications' },
   [IntegrationProvider.PrContextAi]: { src: 'https://cdn.simpleicons.org/github/0052CC', label: 'PR Context AI' },
   [IntegrationProvider.FileNotesSummaryAi]: { src: 'https://cdn.simpleicons.org/openai/412991', label: 'File Notes Summary AI' },
+  [IntegrationProvider.AiSessionSynthesis]: { src: 'https://cdn.simpleicons.org/openai/412991', label: 'AI Session Synthesis' },
   [IntegrationProvider.DependencyWatcher]: { src: 'https://cdn.simpleicons.org/npm/CC3534', label: 'Dependency Watcher' },
 };
 

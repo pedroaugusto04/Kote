@@ -20,6 +20,7 @@ export interface AiSession {
   title: string;
   turns: AiTurn[];
   timestamp: number;
+  timestampIsInternal: boolean;
   projectSlug?: string;
   attachments?: AiSessionAttachment[];
 }

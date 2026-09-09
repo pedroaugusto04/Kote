@@ -5,6 +5,9 @@ import type { ReviewView } from '../../application/models/review.models.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../application/models/vault-note.models.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 import { EventType, SourceChannel } from '../../contracts/enums.js';
+import type { NoteSynthesisRecord } from '../../application/models/note-synthesis.models.js';
+import crypto from 'node:crypto';
+import { NoteSynthesisStatus } from '../../application/constants/ai-session-synthesis.constants.js';
 
 
 function attachmentContentPath(noteId: string, attachmentId: string): string {
@@ -59,6 +62,7 @@ export function noteDetail(
   record: NoteRecord,
   attachments: AttachmentRecord[] = [],
   navigation?: { previous: { id: string; title: string } | null; next: { id: string; title: string } | null }
+  , synthesis?: NoteSynthesisRecord | null
 ): VaultNoteDetail {
   return {
     ...noteSummary({ ...record, attachmentCount: attachments.length || record.attachmentCount || 0 }),
@@ -78,6 +82,15 @@ export function noteDetail(
     attachments: attachments.map((attachment) => noteAttachment(record.id, attachment)),
     editor: null,
     navigation: navigation || { previous: null, next: null },
+    // Never expose a completed synthesis for a different transcript version.
+    synthesis: synthesis ? {
+      status: synthesis.status === NoteSynthesisStatus.Completed && synthesis.sourceHash !== crypto.createHash('sha256').update(record.markdown || '').digest('hex') ? NoteSynthesisStatus.Pending : synthesis.status,
+      mode: synthesis.mode,
+      overview: synthesis.status === NoteSynthesisStatus.Completed && synthesis.sourceHash !== crypto.createHash('sha256').update(record.markdown || '').digest('hex') ? '' : synthesis.overview,
+      memory: synthesis.status === NoteSynthesisStatus.Completed && synthesis.sourceHash !== crypto.createHash('sha256').update(record.markdown || '').digest('hex') ? [] : synthesis.memory,
+      generatedAt: synthesis.generatedAt,
+      sourceHash: synthesis.sourceHash,
+    } : null,
   };
 }
 

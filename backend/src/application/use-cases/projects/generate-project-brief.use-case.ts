@@ -9,6 +9,10 @@ import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
 import { toProjectBriefContextItem, toEmptyProjectBrief, toNormalizedBrief, toSha256, resolveProjectBriefScope } from '../../mappers/project-brief.mapper.js';
+import { NoteSynthesisRepository } from '../../ports/notes/note-synthesis.repository.js';
+import crypto from 'node:crypto';
+import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
+import { NoteSynthesisStatus } from '../../constants/ai-session-synthesis.constants.js';
 
 
 const CONTEXT_WINDOW = 30;
@@ -21,6 +25,7 @@ export class GenerateProjectBriefUseCase {
     private readonly aiGateway: ProjectBriefAiGateway,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly aiEntitlement: AiEntitlementService,
+    private readonly synthesisRepository: NoteSynthesisRepository,
   ) {}
 
   async execute(userId: string, projectId: string, workspaceIdInput?: string) {
@@ -41,11 +46,17 @@ export class GenerateProjectBriefUseCase {
     });
 
     const generatedAt = new Date().toISOString();
-    const items = (await this.contentRepository.listNotes(userId))
+    const candidateNotes = (await this.contentRepository.listNotes(userId))
       .filter((note) => !isDependencyNote(note) && note.workspaceId === workspaceId && (isAll || (note.projectId && note.projectId === projectId)))
       .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || left.title.localeCompare(right.title))
-      .slice(0, CONTEXT_WINDOW)
-      .map(toProjectBriefContextItem);
+      .slice(0, CONTEXT_WINDOW);
+    const enrichedNotes = await Promise.all(candidateNotes.map(async (note) => {
+      if (note.sourceChannel !== SourceChannel.AiChat && note.source !== SourceChannel.AiChat) return note;
+      const synthesis = await this.synthesisRepository.getByNoteId(userId, note.id);
+      if (!synthesis || synthesis.status !== NoteSynthesisStatus.Completed || synthesis.sourceHash !== crypto.createHash('sha256').update(note.markdown || '').digest('hex')) return note;
+      return { ...note, summary: synthesis.overview, metadata: { ...note.metadata, rawText: synthesis.memory.map((item) => `${item.kind}: ${item.text}`).join('\n') } };
+    }));
+    const items = enrichedNotes.map(toProjectBriefContextItem);
     const contextHash = toSha256(JSON.stringify(items));
 
     if (items.length === 0) {

@@ -100,6 +100,7 @@ export const httpErrorCatalog = {
   project_brief_ai_not_configured: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Project Brief AI is not configured.', logLevel: HttpErrorLogLevel.Warn },
   project_brief_ai_not_connected: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'Project Brief AI is not connected.', logLevel: HttpErrorLogLevel.Warn },
   file_notes_summary_ai_not_connected: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'File Notes Summary AI is not enabled for this workspace.', logLevel: HttpErrorLogLevel.Warn },
+  ai_session_synthesis_not_connected: { statusCode: HttpStatus.BAD_REQUEST, safeMessage: 'AI Session Synthesis is not enabled for this workspace.', logLevel: HttpErrorLogLevel.Warn },
   project_brief_generation_failed: { statusCode: HttpStatus.SERVICE_UNAVAILABLE, safeMessage: 'Project brief generation failed.', logLevel: HttpErrorLogLevel.Warn },
   credentials_encryption_key_must_be_32_bytes_base64: { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, safeMessage: 'Credential encryption is unavailable.', logLevel: HttpErrorLogLevel.Error },
   invalid_encrypted_config: { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, safeMessage: 'Stored credential is invalid.', logLevel: HttpErrorLogLevel.Error },

@@ -20,6 +20,8 @@ function embeddingFromRow(row: Record<string, unknown>): NoteEmbeddingRecord {
     model: String(row.model || ''),
     createdAt: String(row.created_at || ''),
     updatedAt: String(row.updated_at || ''),
+    representation: (String(row.representation || 'raw') as 'raw' | 'synthesis'),
+    sourceRefs: Array.isArray(row.source_refs) ? row.source_refs.map(Number) : [],
   };
 }
 
@@ -56,19 +58,20 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
       await client.query('BEGIN');
 
       // Remove stale chunks that exceed the new chunk count
+      const representation = chunks[0].representation || 'raw';
       await client.query(
         `DELETE FROM kb_note_embeddings
-         WHERE user_id = $1 AND note_id = $2 AND chunk_index >= $3`,
-        [userId, noteId, chunks.length],
+         WHERE user_id = $1 AND note_id = $2 AND representation = $3 AND chunk_index >= $4`,
+        [userId, noteId, representation, chunks.length],
       );
 
       const values: unknown[] = [];
       const valueRows: string[] = [];
 
       chunks.forEach((chunk, i) => {
-        const offset = i * 6;
+        const offset = i * 8;
         valueRows.push(
-          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::vector, $${offset + 6})`,
+          `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}::vector, $${offset + 6}, $${offset + 7}, $${offset + 8}::jsonb)`,
         );
         values.push(
           userId,
@@ -77,17 +80,21 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
           chunk.chunkText,
           formatEmbeddingForPg(chunk.embedding),
           chunk.model,
+          chunk.representation || 'raw',
+          JSON.stringify(chunk.sourceRefs || []),
         );
       });
 
       await client.query(
-        `INSERT INTO kb_note_embeddings (user_id, note_id, chunk_index, chunk_text, embedding, model)
+        `INSERT INTO kb_note_embeddings (user_id, note_id, chunk_index, chunk_text, embedding, model, representation, source_refs)
          VALUES ${valueRows.join(', ')}
-         ON CONFLICT (note_id, chunk_index)
+        ON CONFLICT (note_id, representation, chunk_index)
          DO UPDATE SET
            chunk_text = EXCLUDED.chunk_text,
            embedding = EXCLUDED.embedding,
            model = EXCLUDED.model,
+           representation = EXCLUDED.representation,
+           source_refs = EXCLUDED.source_refs,
            updated_at = now()`,
         values,
       );
@@ -105,6 +112,13 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
     await this.database.getPool().query(
       'DELETE FROM kb_note_embeddings WHERE user_id = $1 AND note_id = $2',
       [userId, noteId],
+    );
+  }
+
+  async deleteByNoteIdAndRepresentation(userId: string, noteId: string, representation: 'raw' | 'synthesis'): Promise<void> {
+    await this.database.getPool().query(
+      'DELETE FROM kb_note_embeddings WHERE user_id = $1 AND note_id = $2 AND representation = $3',
+      [userId, noteId, representation],
     );
   }
 
@@ -133,17 +147,21 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
       values.push(projectId);
       optionalClauses.push(`AND (n.project_id = $${values.length} OR p.project_slug = '${SPECIAL_PROJECT_SLUGS.INBOX}' OR n.project_id IS NULL)`);
     }
+    if (options.representation && options.representation !== 'all') {
+      values.push(options.representation);
+      optionalClauses.push(`AND e.representation = $${values.length}`);
+    }
 
     const result = await this.database.getPool().query(
       `SELECT e.*,
-              1 - (e.embedding <=> $2::vector) AS similarity
+              (1 - (e.embedding <=> $2::vector)) + CASE WHEN e.representation = 'synthesis' THEN 0.035 ELSE 0 END AS similarity
        FROM kb_note_embeddings e
        JOIN kb_notes n ON n.id = e.note_id AND n.user_id = e.user_id
        LEFT JOIN kb_projects p ON p.id = n.project_id
        WHERE e.user_id = $1
          AND 1 - (e.embedding <=> $2::vector) >= $3
          ${optionalClauses.join('\n         ')}
-       ORDER BY e.embedding <=> $2::vector
+       ORDER BY similarity DESC
        LIMIT $4`,
       values,
     );

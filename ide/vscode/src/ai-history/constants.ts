@@ -43,6 +43,7 @@ export const AI_TEXT_CONTENT_TYPE = 'text';
 export const DEFAULT_AI_SESSION_LIMIT = 20;
 export const AI_SESSION_FILE_DEBOUNCE_MS = 500;
 export const AI_SESSION_DATABASE_DEBOUNCE_MS = 1000;
+export const AUTO_SAVE_MAX_AGE_MS = 15 * 60 * 1000;
 
 export const ANTIGRAVITY_LOG_FILES = ['transcript_full.jsonl', 'transcript.jsonl'] as const;
 

@@ -18,7 +18,7 @@ import {
   JSONL_EXTENSION,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiTurn } from '../types';
-import { asRecord, buildSessionTitle, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
+import { asRecord, buildSessionTitle, latestRecordTimestamp, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
 
 const CODEX_RECORD_TYPE = {
   SESSION_META: 'session_meta',
@@ -77,13 +77,16 @@ function parseFile(filePath: string): AiSession | null {
     const metadata = sessionMetadata(records);
     const cwd = typeof metadata?.cwd === 'string' ? metadata.cwd : '';
     const sessionId = typeof metadata?.id === 'string' ? metadata.id : path.basename(filePath, JSONL_EXTENSION);
+    const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
+    const timestamp = internalTimestamp ?? safeMtime(filePath);
 
     return {
       providerId: AI_PROVIDER.CODEX_CLI,
       sessionId,
       title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.CODEX_CLI], turns),
       turns,
-      timestamp: safeMtime(filePath),
+      timestamp,
+      timestampIsInternal: internalTimestamp !== null,
       projectSlug: cwd ? resolveProjectSlugFromDir(cwd) : undefined,
     };
   } catch {

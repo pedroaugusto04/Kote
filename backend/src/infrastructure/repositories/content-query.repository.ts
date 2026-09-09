@@ -19,6 +19,7 @@ import { notes, attachments, workspaces, projects, categories, noteCategories } 
 import { PostgresNoteRepository } from './note.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
 import { SPECIAL_PROJECT_SLUGS, isSpecialProjectSlug } from '../../domain/projects.js';
+import { PostgresNoteSynthesisRepository } from './note-synthesis.repository.js';
 
 /** Fallback cap when FTS runs without an explicit ftsLimit from the caller. */
 const DEFAULT_FTS_CANDIDATE_LIMIT = 40;
@@ -30,6 +31,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     private readonly contentObjectStorage: ContentObjectStorageService,
     private readonly noteRepository: PostgresNoteRepository,
     private readonly attachmentRepository: PostgresAttachmentRepository,
+    private readonly synthesisRepository: PostgresNoteSynthesisRepository,
   ) {
     super();
   }
@@ -262,7 +264,8 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         workspaceId: note.workspaceId,
       }),
     ]);
-    return noteDetail(note, noteAttachments, neighbors);
+    const synthesis = await this.synthesisRepository.getByNoteId(userId, id);
+    return noteDetail(note, noteAttachments, neighbors, synthesis);
   }
 
   async getNoteNeighbors(userId: string, noteId: string, input?: { projectId?: string; workspaceId?: string; folderId?: string; status?: string }) {

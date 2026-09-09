@@ -42,6 +42,7 @@ export const guidedIntegrationProviderSchema = z.enum([
   IntegrationProviderEnum.PushNotifications,
   IntegrationProviderEnum.PrContextAi,
   IntegrationProviderEnum.FileNotesSummaryAi,
+  IntegrationProviderEnum.AiSessionSynthesis,
   IntegrationProviderEnum.DependencyWatcher,
 ]);
 export const aiIntegrationProviderSchema = z.enum([
@@ -50,6 +51,7 @@ export const aiIntegrationProviderSchema = z.enum([
   IntegrationProviderEnum.ProjectBriefAi,
   IntegrationProviderEnum.PrContextAi,
   IntegrationProviderEnum.FileNotesSummaryAi,
+  IntegrationProviderEnum.AiSessionSynthesis,
 ]);
 
 export const providerParamSchema = z.object({

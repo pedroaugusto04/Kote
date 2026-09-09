@@ -28,6 +28,7 @@ export enum AiOperationType {
   NOTE_REVIEW = 'note_review',
   GITHUB_PR_CONTEXT = 'github_pr_context',
   FILE_NOTES_SUMMARY = 'file_notes_summary',
+  AI_SESSION_SYNTHESIS = 'ai_session_synthesis',
 }
 
 export interface PlanLimits {
@@ -36,4 +37,3 @@ export interface PlanLimits {
   maxWorkspaces: number;
   maxProjectsPerWorkspace: number;
 }
-

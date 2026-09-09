@@ -18,7 +18,7 @@ export {
   fetchDependencyMonitoredRepositories,
   saveDependencyMonitoredRepositories,
 } from './integrations';
-export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, fetchRelatedNotes, bulkUpdateNoteStatuses } from './notes';
+export { createNote, deleteNote, fetchNote, fetchNotes, updateNote, pinNote, requestNoteSynthesis, fetchRelatedNotes, bulkUpdateNoteStatuses } from './notes';
 export {
   createProject,
   createProjectFolder,

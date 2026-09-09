@@ -38,6 +38,10 @@ export type RuntimeEnvironment = {
   fileNotesSummaryAiBaseUrl: string;
   fileNotesSummaryAiModel: string;
   fileNotesSummaryAiApiKey: string;
+  aiSessionSynthesisProvider: AiProvider;
+  aiSessionSynthesisBaseUrl: string;
+  aiSessionSynthesisModel: string;
+  aiSessionSynthesisApiKey: string;
   prContextAiProvider: AiProvider;
   prContextAiBaseUrl: string;
   prContextAiModel: string;

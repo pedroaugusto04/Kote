@@ -90,6 +90,7 @@ export function buildIntegrationStatuses(input: {
   const conversationAiActive = environment.conversationAiProvider !== AiProvider.None;
   const projectBriefAiActive = environment.projectBriefAiProvider !== AiProvider.None;
   const fileNotesSummaryAiActive = environment.fileNotesSummaryAiProvider !== AiProvider.None;
+  const aiSessionSynthesisActive = environment.aiSessionSynthesisProvider !== AiProvider.None;
   const dependencyWatcherAiActive = environment.dependencyWatcherAiProvider !== AiProvider.None;
   const reviewAiEnv = {
     KB_REVIEW_AI_PROVIDER: reviewAiActive,
@@ -114,6 +115,12 @@ export function buildIntegrationStatuses(input: {
     KB_FILE_NOTES_SUMMARY_AI_BASE_URL: fileNotesSummaryAiActive ? Boolean(environment.fileNotesSummaryAiBaseUrl) : true,
     KB_FILE_NOTES_SUMMARY_AI_MODEL: fileNotesSummaryAiActive ? Boolean(environment.fileNotesSummaryAiModel) : true,
     KB_FILE_NOTES_SUMMARY_AI_API_KEY: fileNotesSummaryAiActive ? secretConfigured(environment.fileNotesSummaryAiApiKey) : true,
+  };
+  const aiSessionSynthesisEnv = {
+    KB_AI_SESSION_SYNTHESIS_PROVIDER: aiSessionSynthesisActive,
+    KB_AI_SESSION_SYNTHESIS_BASE_URL: aiSessionSynthesisActive ? Boolean(environment.aiSessionSynthesisBaseUrl) : true,
+    KB_AI_SESSION_SYNTHESIS_MODEL: aiSessionSynthesisActive ? Boolean(environment.aiSessionSynthesisModel) : true,
+    KB_AI_SESSION_SYNTHESIS_API_KEY: aiSessionSynthesisActive ? secretConfigured(environment.aiSessionSynthesisApiKey) : true,
   };
   const dependencyWatcherEnv = {
     KB_DEPENDENCY_WATCHER_CRON: Boolean(environment.dependencyWatcherCron),
@@ -278,6 +285,21 @@ export function buildIntegrationStatuses(input: {
         warnings: [
           !fileNotesSummaryAiActive ? 'File Notes Summary provider is set to none.' : '',
           fileNotesSummaryAiActive && !environment.fileNotesSummaryAiApiKey ? 'File Notes Summary AI is active without an API key.' : '',
+        ].filter(Boolean),
+      },
+      {
+        id: IntegrationProvider.AiSessionSynthesis,
+        name: 'AI Session Synthesis',
+        description: 'Summarizes new AI session notes into structured, searchable memory while preserving the raw transcript.',
+        status: statusFromFlags([aiSessionSynthesisActive, ...Object.values(aiSessionSynthesisEnv)]),
+        requiredEnv: Object.keys(aiSessionSynthesisEnv),
+        configuredEnv: configuredEnv(aiSessionSynthesisEnv),
+        missingEnv: missingEnv(aiSessionSynthesisEnv),
+        links: [],
+        checklist: ['Choose a provider other than none.', 'Define the synthesis model and base URL.', 'Configure the corresponding API key.'],
+        warnings: [
+          !aiSessionSynthesisActive ? 'AI Session Synthesis provider is set to none.' : '',
+          aiSessionSynthesisActive && !environment.aiSessionSynthesisApiKey ? 'AI Session Synthesis is active without an API key.' : '',
         ].filter(Boolean),
       },
       {

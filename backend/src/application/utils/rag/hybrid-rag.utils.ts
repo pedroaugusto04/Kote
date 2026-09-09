@@ -1,5 +1,5 @@
-export function chunkRankKey(noteId: string, chunkIndex: number): string {
-  return `${noteId}_${chunkIndex}`;
+export function chunkRankKey(noteId: string, chunkIndex: number, representation?: string): string {
+  return `${noteId}_${representation || 'raw'}_${chunkIndex}`;
 }
 
 export type HybridChunkCandidate<TChunk extends { noteId: string; chunkIndex: number }, TNote> = {
@@ -15,7 +15,7 @@ export type RankedHybridChunk<TChunk, TNote> = {
   hybridScore: number;
 };
 
-export function rankHybridContextChunks<TChunk extends { noteId: string; chunkIndex: number }, TNote>(
+export function rankHybridContextChunks<TChunk extends { noteId: string; chunkIndex: number; representation?: string }, TNote>(
   candidates: HybridChunkCandidate<TChunk, TNote>[],
   options: {
     vectorWeight: number;
@@ -41,27 +41,27 @@ export function rankHybridContextChunks<TChunk extends { noteId: string; chunkIn
 
   const vectorRankMap = buildRankMap(
     candidates.filter((candidate) => candidate.vectorScore > 0),
-    (candidate) => chunkRankKey(candidate.chunk.noteId, candidate.chunk.chunkIndex),
+    (candidate) => chunkRankKey(candidate.chunk.noteId, candidate.chunk.chunkIndex, candidate.chunk.representation),
     (left, right) => {
       if (right.vectorScore !== left.vectorScore) return right.vectorScore - left.vectorScore;
-      return chunkRankKey(left.chunk.noteId, left.chunk.chunkIndex)
-        .localeCompare(chunkRankKey(right.chunk.noteId, right.chunk.chunkIndex));
+      return chunkRankKey(left.chunk.noteId, left.chunk.chunkIndex, left.chunk.representation)
+        .localeCompare(chunkRankKey(right.chunk.noteId, right.chunk.chunkIndex, right.chunk.representation));
     },
   );
 
   const keywordRankMap = buildRankMap(
     candidates.filter((candidate) => candidate.keywordScore > 0),
-    (candidate) => chunkRankKey(candidate.chunk.noteId, candidate.chunk.chunkIndex),
+    (candidate) => chunkRankKey(candidate.chunk.noteId, candidate.chunk.chunkIndex, candidate.chunk.representation),
     (left, right) => {
       if (right.keywordScore !== left.keywordScore) return right.keywordScore - left.keywordScore;
-      return chunkRankKey(left.chunk.noteId, left.chunk.chunkIndex)
-        .localeCompare(chunkRankKey(right.chunk.noteId, right.chunk.chunkIndex));
+      return chunkRankKey(left.chunk.noteId, left.chunk.chunkIndex, left.chunk.representation)
+        .localeCompare(chunkRankKey(right.chunk.noteId, right.chunk.chunkIndex, right.chunk.representation));
     },
   );
 
   return candidates
     .map((candidate) => {
-      const key = chunkRankKey(candidate.chunk.noteId, candidate.chunk.chunkIndex);
+      const key = chunkRankKey(candidate.chunk.noteId, candidate.chunk.chunkIndex, candidate.chunk.representation);
       const vectorRank = vectorRankMap.get(key);
       const keywordRank = keywordRankMap.get(key);
       const rrfScore =
@@ -82,6 +82,11 @@ export function rankHybridContextChunks<TChunk extends { noteId: string; chunkIn
     })
     .filter((item) => item.hybridScore > 0)
     .sort((left, right) => right.hybridScore - left.hybridScore)
+    .reduce<RankedHybridChunk<TChunk, TNote>[]>((selected, item) => {
+      const countForNote = selected.filter((entry) => entry.chunk.noteId === item.chunk.noteId).length;
+      if (countForNote < 2) selected.push(item);
+      return selected;
+    }, [])
     .slice(0, topLimit);
 }
 

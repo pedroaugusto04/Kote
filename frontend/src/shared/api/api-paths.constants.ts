@@ -29,6 +29,7 @@ export const API_PATHS = {
   NOTES: '/api/notes',
   NOTE_DETAIL: '/api/notes/{id}',
   NOTE_PIN: '/api/notes/{id}/pin',
+  NOTE_SYNTHESIS: '/api/notes/{id}/synthesis',
   NOTE_RELATED: '/api/notes/{id}/related',
   NOTES_BULK_STATUS: '/api/notes/bulk/status',
   NOTES_AUTO_GLOBAL: '/api/notes/auto/global',

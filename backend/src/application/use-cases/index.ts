@@ -72,6 +72,7 @@ export { FindNotesBySnippetUseCase } from './notes/find-notes-by-snippet.use-cas
 export { FindRelatedNotesByFileUseCase } from './notes/find-related-notes-by-file.use-case.js';
 export { GenerateFileNotesSummaryUseCase } from './notes/generate-file-notes-summary.use-case.js';
 export { GenerateFileNotesSummaryByFileUseCase } from './notes/generate-file-notes-summary-by-file.use-case.js';
+export { RequestAiSessionSynthesisUseCase } from './notes/request-ai-session-synthesis.use-case.js';
 export { GetAutoActionGlobalUseCase } from './settings/get-auto-action-global.use-case.js';
 export { SetAutoActionGlobalUseCase } from './settings/set-auto-action-global.use-case.js';
 export { GetStripeConfigUseCase } from './billing/get-stripe-config.use-case.js';
@@ -82,6 +83,5 @@ export { CancelPaymentUseCase } from './billing/cancel-payment.use-case.js';
 export { CancelScheduledChangeUseCase } from './billing/cancel-scheduled-change.use-case.js';
 export { HandleAsaasWebhookUseCase } from './webhooks/asaas/handle-asaas-webhook.use-case.js';
 export { HandleStripeWebhookUseCase } from './webhooks/stripe/handle-stripe-webhook.use-case.js';
-
 
 

@@ -6,6 +6,7 @@ export enum IntegrationProvider {
   ProjectBriefAi = 'project-brief-ai',
   PrContextAi = 'pr-context-ai',
   FileNotesSummaryAi = 'file-notes-summary-ai',
+  AiSessionSynthesis = 'ai-session-synthesis',
   GithubApp = 'github-app',
   PushNotifications = 'push-notifications',
   DependencyWatcher = 'dependency-watcher',

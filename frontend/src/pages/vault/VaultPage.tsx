@@ -1,11 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatDateInUserTimeZone, formatTimeInUserTimeZone } from '../../shared/utils/format';
 import { makeTitleClickable } from '../../shared/utils/text';
-import { fetchNotes } from '../../shared/api/client';
+import { fetchNotes, requestNoteSynthesis } from '../../shared/api/client';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge, EmptyState, PageHead, Tags } from '../../shared/ui/primitives';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
@@ -13,6 +13,7 @@ import { usePaginationState } from '../../shared/ui/use-pagination-state';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { useMobileSwipe } from '../../shared/ui/use-mobile-swipe';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
+import { notifyError, notifySuccess } from '../../shared/ui/notifications';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
 import { QuickNoteStatusActions } from '../../widgets/notes/QuickNoteStatusActions';
 import { DownloadIcon, PencilIcon, TrashIcon } from '../../shared/ui/icons';
@@ -52,8 +53,24 @@ export function VaultPage({
     enabled: Boolean(noteId && effectiveProject),
   });
   const [contentOpacity, setContentOpacity] = useState(1);
+  const [manuallyRequestedSynthesisHash, setManuallyRequestedSynthesisHash] = useState<string | null>(null);
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
   const noteEditor = useNoteEditor(noteQuery.data || null, workspaceSlug);
+  const requestSynthesisMutation = useMutation({
+    mutationFn: () => requestNoteSynthesis(noteId),
+    onSuccess: async ({ sourceHash }) => {
+      setManuallyRequestedSynthesisHash(sourceHash);
+      notifySuccess('Synthesis requested.');
+      await noteQuery.refetch();
+    },
+    onError: () => {
+      notifyError('Could not schedule the synthesis.');
+    },
+  });
+
+  useEffect(() => {
+    setManuallyRequestedSynthesisHash(null);
+  }, [noteId]);
 
   useEffect(() => {
     if (noteQuery.data?.project && noteQuery.data.project !== selectedProject) {
@@ -281,6 +298,10 @@ export function VaultPage({
                 title={noteQuery.data.title}
                 source={noteQuery.data.source}
                 sourceChannel={noteQuery.data.sourceChannel}
+                synthesis={noteQuery.data.synthesis}
+                onRequestSynthesis={() => requestSynthesisMutation.mutate()}
+                isRequestingSynthesis={requestSynthesisMutation.isPending}
+                isSynthesisManuallyRequested={manuallyRequestedSynthesisHash === noteQuery.data.synthesis?.sourceHash}
               />
             )}
             <RelatedNotesSection noteId={noteQuery.data.id} openNote={openNote} />

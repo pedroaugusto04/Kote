@@ -7,13 +7,15 @@ import { NoteLifecycleService } from '../../services/content/note-lifecycle.serv
 import { requireProject, requireNote, requireProjectFolderOptional } from '../../helpers/resource-validation.helpers.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
+import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 
 @Injectable()
 export class UpdateNoteUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly noteLifecycleService: NoteLifecycleService
+    private readonly noteLifecycleService: NoteLifecycleService,
+    private readonly database: PostgresDatabase,
   ) {}
 
   async execute(input: UpdateNoteDto, userId: string, tx?: any) {
@@ -64,19 +66,13 @@ export class UpdateNoteUseCase {
       categoryIds: sanitizedInput.categoryIds,
     };
 
-    const { note: updated } = await this.noteLifecycleService.saveNote(
+    const save = (transaction?: any) => this.noteLifecycleService.saveNote(
       userId,
-      {
-        noteInput: updatedNoteInput,
-        attachments: sanitizedInput.attachments,
-      },
-      {
-        existingNoteId: note.id,
-        workspaceSlug: note.workspaceSlug || undefined,
-        projectSlug: note.projectSlug || undefined,
-      },
-      tx,
+      { noteInput: updatedNoteInput, attachments: sanitizedInput.attachments },
+      { existingNoteId: note.id, workspaceSlug: note.workspaceSlug || undefined, projectSlug: note.projectSlug || undefined },
+      transaction,
     );
+    const { note: updated } = tx ? await save(tx) : await this.database.getDb().transaction(save);
 
     return { ok: true as const, noteId: updated.id };
   }

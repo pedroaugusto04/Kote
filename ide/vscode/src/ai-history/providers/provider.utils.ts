@@ -12,6 +12,36 @@ export function asRecord(value: unknown): JsonRecord | null {
   return value !== null && typeof value === 'object' ? value as JsonRecord : null;
 }
 
+export function toTimestampMs(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value < 1_000_000_000_000 ? value * 1000 : value;
+  }
+  if (typeof value !== 'string') return null;
+
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && value.trim() !== '') {
+    return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric;
+  }
+
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function latestRecordTimestamp(records: unknown[], fields: readonly string[]): number | null {
+  let latest: number | null = null;
+  for (const value of records) {
+    const record = asRecord(value);
+    const payload = asRecord(record?.payload);
+    for (const field of fields) {
+      const timestamp = toTimestampMs(record?.[field] ?? payload?.[field]);
+      if (timestamp !== null && (latest === null || timestamp > latest)) {
+        latest = timestamp;
+      }
+    }
+  }
+  return latest;
+}
+
 export function parseAiRole(value: unknown): AiRole | null {
   if (value === AI_ROLE.USER || value === AI_ROLE.ASSISTANT) return value;
   return null;

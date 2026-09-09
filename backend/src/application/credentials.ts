@@ -26,6 +26,7 @@ export const guidedProviders = [
   IntegrationProvider.ProjectBriefAi,
   IntegrationProvider.PrContextAi,
   IntegrationProvider.FileNotesSummaryAi,
+  IntegrationProvider.AiSessionSynthesis,
   IntegrationProvider.PushNotifications,
   IntegrationProvider.DependencyWatcher,
 ] as const;
@@ -62,6 +63,7 @@ const providerLabels: Record<GuidedIntegrationProvider, { name: string; descript
   [IntegrationProvider.ProjectBriefAi]: { name: 'Project Brief AI', description: 'Manual operational project brief generation with managed configuration.' },
   [IntegrationProvider.PrContextAi]: { name: 'PR Context AI', description: 'Automatic Pull Request memory and context retrieval with managed configuration.' },
   [IntegrationProvider.FileNotesSummaryAi]: { name: 'File Notes Summary AI', description: 'Server-managed provider and model for AI-powered file notes summary in VS Code.' },
+  [IntegrationProvider.AiSessionSynthesis]: { name: 'AI Session Synthesis', description: 'Turn noisy AI session transcripts into searchable project memory.' },
   [IntegrationProvider.PushNotifications]: { name: 'Push Notifications', description: 'Receive browser push notifications for reminders and updates.' },
   [IntegrationProvider.DependencyWatcher]: { name: 'Dependency Watcher', description: 'Automatically check for new dependency versions, create notes with changelogs, and send email alerts for critical updates.' },
 };
@@ -99,7 +101,7 @@ export function decryptConfig(encrypted: unknown, environmentProvider: RuntimeEn
 
 function publicCredential(record: IntegrationCredentialRecord | null, provider: GuidedIntegrationProvider, workspaceSlug: string): StoredIntegration {
   const label = providerLabels[provider];
-  const isAiProvider = provider.startsWith('ai-') || provider.endsWith('-ai');
+  const isAiProvider = provider.startsWith('ai-') || provider.endsWith('-ai') || provider === IntegrationProvider.AiSessionSynthesis;
   const connectAction = { type: IntegrationActionType.Connect, label: provider === IntegrationProvider.GithubApp ? 'Connect GitHub' : isAiProvider ? 'Enable' : `Connect ${label.name}` };
   if (!record) {
     return {
@@ -163,7 +165,7 @@ function connectedSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.Telegram) return ['Telegram chat connected.'];
   if (provider === IntegrationProvider.PushNotifications) return ['Push notifications are active on this browser/device.'];
   if (provider === IntegrationProvider.DependencyWatcher) return ['Dependency Watcher enabled.', 'Dependencies are being monitored for updates.'];
-  if (provider.startsWith('ai-') || provider.endsWith('-ai')) return ['Feature active for this workspace.'];
+  if (provider.startsWith('ai-') || provider.endsWith('-ai') || provider === IntegrationProvider.AiSessionSynthesis) return ['Feature active for this workspace.'];
   return ['Integration connected.'];
 }
 
@@ -238,7 +240,7 @@ export class IntegrationCredentialService {
       }
       const integration = publicCredential(records.find((record) => record.provider === provider) || null, provider, workspaceSlug);
       if (
-        provider.startsWith('ai-') || provider.endsWith('-ai')
+        provider.startsWith('ai-') || provider.endsWith('-ai') || provider === IntegrationProvider.AiSessionSynthesis
       ) {
         const configuration = aiEnvStatus(provider, this.environmentProvider);
         if (integration.status === StoredIntegrationStatus.Connected && !configuration.configured) {

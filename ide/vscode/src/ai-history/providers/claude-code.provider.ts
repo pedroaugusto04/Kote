@@ -16,7 +16,7 @@ import {
   JSONL_EXTENSION,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiTurn } from '../types';
-import { asRecord, buildSessionTitle, extractTextContent, keepFinalAssistantTurns, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
+import { asRecord, buildSessionTitle, extractTextContent, keepFinalAssistantTurns, latestRecordTimestamp, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
 
 const CLAUDE_RECORD_TYPE = {
   USER: 'user',
@@ -65,15 +65,18 @@ function resolveProjectSlug(filePath: string): string | undefined {
 
 function parseFile(filePath: string): AiSession | null {
   try {
-    const turns = parseTurns(readJsonLines(fs.readFileSync(filePath, 'utf8')));
+    const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
+    const turns = parseTurns(records);
     if (turns.length === 0) return null;
+    const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
 
     return {
       providerId: AI_PROVIDER.CLAUDE_CODE,
       sessionId: path.basename(filePath, JSONL_EXTENSION),
       title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.CLAUDE_CODE], turns),
       turns,
-      timestamp: safeMtime(filePath),
+      timestamp: internalTimestamp ?? safeMtime(filePath),
+      timestampIsInternal: internalTimestamp !== null,
       projectSlug: resolveProjectSlug(filePath),
     };
   } catch {

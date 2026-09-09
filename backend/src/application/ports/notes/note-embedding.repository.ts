@@ -8,6 +8,8 @@ export type NoteEmbeddingRecord = {
   model: string;
   createdAt: string;
   updatedAt: string;
+  representation?: 'raw' | 'synthesis';
+  sourceRefs?: number[];
 };
 
 export type SimilarChunk = NoteEmbeddingRecord & {
@@ -19,6 +21,7 @@ export type FindSimilarOptions = {
   minSimilarity?: number;
   workspaceId?: string;
   projectId?: string;
+  representation?: 'raw' | 'synthesis' | 'all';
 };
 
 export abstract class NoteEmbeddingRepository {
@@ -29,6 +32,7 @@ export abstract class NoteEmbeddingRepository {
   ): Promise<void>;
 
   abstract deleteByNoteId(userId: string, noteId: string): Promise<void>;
+  abstract deleteByNoteIdAndRepresentation(userId: string, noteId: string, representation: 'raw' | 'synthesis'): Promise<void>;
 
   abstract findSimilar(
     userId: string,

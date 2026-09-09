@@ -16,7 +16,7 @@ import {
   DEFAULT_AI_SESSION_LIMIT,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn } from '../types';
-import { asRecord, buildSessionTitle, keepFinalAssistantTurns, readJsonLines, safeMtime } from './provider.utils';
+import { asRecord, buildSessionTitle, keepFinalAssistantTurns, latestRecordTimestamp, readJsonLines, safeMtime } from './provider.utils';
 
 const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
 
@@ -135,8 +135,10 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
 
   try {
     const content = fs.readFileSync(logFile, 'utf8');
-    const turns = parseTurns(readJsonLines(content));
+    const records = readJsonLines(content);
+    const turns = parseTurns(records);
     if (turns.length === 0) return null;
+    const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
 
     const workspace = extractWorkspace(content);
     return {
@@ -144,7 +146,8 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
       sessionId,
       title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.ANTIGRAVITY], turns),
       turns,
-      timestamp: safeMtime(logFile),
+      timestamp: internalTimestamp ?? safeMtime(logFile),
+      timestampIsInternal: internalTimestamp !== null,
       projectSlug: workspace ? resolveProjectSlugFromDir(workspace) : undefined,
       attachments: loadAttachments(sessionDir),
     };

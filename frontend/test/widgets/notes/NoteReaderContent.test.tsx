@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { resetRequestStateForTests } from '../../../src/shared/api/request';
-import { NoteAttachments } from '../../../src/widgets/notes/NoteReaderContent';
+import { NoteAttachments, NoteBody } from '../../../src/widgets/notes/NoteReaderContent';
 
 afterEach(() => {
   cleanup();
@@ -62,5 +62,33 @@ describe('NoteAttachments', () => {
     await waitFor(() => {
       expect(screen.getByLabelText('Preview of payload.json')).toHaveTextContent('{"ok":true}');
     });
+  });
+});
+
+describe('NoteBody synthesis states', () => {
+  it('renders queued synthesis as a distinct, neutral section', () => {
+    const onRequestSynthesis = vi.fn();
+    render(<NoteBody markdown="" rawText="User: Help me plan this." summary="" title="Session" synthesis={{ status: 'pending', overview: '', memory: [] }} onRequestSynthesis={onRequestSynthesis} />);
+
+    expect(screen.getByText('Session synthesis')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveClass('note-ai-synthesis-state', 'is-pending');
+    fireEvent.click(screen.getByRole('button', { name: 'Generate now' }));
+    expect(onRequestSynthesis).toHaveBeenCalledOnce();
+  });
+
+  it('keeps the manual trigger hidden after the request is accepted', () => {
+    render(<NoteBody markdown="" rawText="User: Help me plan this." summary="" title="Session" synthesis={{ status: 'pending', overview: '', memory: [] }} isSynthesisManuallyRequested />);
+
+    expect(screen.getByText('Requested')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Generate now' })).not.toBeInTheDocument();
+  });
+
+  it('keeps a failed synthesis informative without hiding the transcript', () => {
+    render(<NoteBody markdown="" rawText="User: Help me plan this." summary="" title="Session" synthesis={{ status: 'failed', overview: '', memory: [] }} />);
+
+    expect(screen.getByText('Unavailable')).toBeInTheDocument();
+    expect(screen.getByText('User: Help me plan this.')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveClass('is-unavailable');
   });
 });

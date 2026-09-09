@@ -19,6 +19,7 @@ import {
   FindNotesBySnippetUseCase,
   FindRelatedNotesByFileUseCase,
   GenerateFileNotesSummaryByFileUseCase,
+  RequestAiSessionSynthesisUseCase,
 } from '../../../../application/use-cases/index.js';
 import { BrowserExtensionGuard } from '../../guards/auth.guards.js';
 import { CurrentUser } from '../../auth.decorators.js';
@@ -77,6 +78,7 @@ export class NotesController {
     private readonly findNotesBySnippetUseCase: FindNotesBySnippetUseCase,
     private readonly findRelatedNotesByFileUseCase: FindRelatedNotesByFileUseCase,
     private readonly generateFileNotesSummaryByFileUseCase: GenerateFileNotesSummaryByFileUseCase,
+    private readonly requestAiSessionSynthesis: RequestAiSessionSynthesisUseCase,
   ) { }
 
   @Post()
@@ -121,6 +123,19 @@ export class NotesController {
   ) {
     const dto = toUpdateNoteDto(body, params.id, projectId);
     return this.updateNote.execute(dto, user.id);
+  }
+
+  @Post(':id/synthesis')
+  @UseGuards(TrustedOriginGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Request immediate AI session synthesis' })
+  @ApiParam({ name: 'id', description: 'AI session note ID' })
+  @ApiResponse({ status: 200, description: 'Synthesis queued for immediate processing' })
+  requestSynthesis(
+    @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.requestAiSessionSynthesis.execute(user.id, params.id);
   }
 
   @Delete(':id')

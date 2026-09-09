@@ -467,6 +467,7 @@ export class PostgresNoteRepository {
         title: notes.title,
         projectId: notes.projectId,
         workspaceId: notes.workspaceId,
+        workspaceSlug: workspaces.workspaceSlug,
         projectSlug: projects.projectSlug,
         folderId: notes.folderId,
         status: notes.status,
@@ -501,10 +502,11 @@ export class PostgresNoteRepository {
       })
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
+      .leftJoin(workspaces, eq(workspaces.id, notes.workspaceId))
       .leftJoin(noteCategories, eq(noteCategories.noteId, notes.id))
       .leftJoin(categories, eq(categories.id, noteCategories.categoryId))
       .where(and(eq(notes.userId, userId), eq(notes.id, id)))
-      .groupBy(notes.id, projects.projectSlug)
+      .groupBy(notes.id, projects.projectSlug, workspaces.workspaceSlug)
       .limit(1);
 
     return result[0] ? this.hydrateMarkdown(noteFromRow(result[0])) : null;
@@ -718,6 +720,10 @@ export class PostgresNoteRepository {
     return this.getByIdOrThrow(userId, String(input.id ?? ''), tx);
   }
 
+  async updateSummary(userId: string, noteId: string, summary: string): Promise<void> {
+    await this.database.getDb().update(notes).set({ summary }).where(and(eq(notes.userId, userId), eq(notes.id, noteId)));
+  }
+
   async updateReminderStatus(userId: string, id: string, status: string) {
     const db = this.database.getDb();
     const result = await db
@@ -859,10 +865,7 @@ export class PostgresNoteRepository {
   async updateBodySearchText(userId: string, noteId: string, bodySearchText: string) {
     await this.database.getDb()
       .update(notes)
-      .set({
-        bodySearchText,
-        updatedAt: new Date(),
-      })
+      .set({ bodySearchText })
       .where(and(eq(notes.userId, userId), eq(notes.id, noteId)));
   }
 
@@ -981,7 +984,7 @@ export class PostgresNoteRepository {
       ...dbNotes.map((n) => ({
         createdAt: n.createdAt.toISOString(),
         type: 'note' as const,
-        isAi: n.sourceChannel === 'ai-chat' || isAiSource(n.source),
+        isAi: n.sourceChannel === SourceChannel.AiChat || isAiSource(n.source),
       })),
       ...dbAsks.map((a) => ({
         createdAt: a.createdAt.toISOString(),

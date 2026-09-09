@@ -11,7 +11,8 @@ type ManagedAiProvider =
   | IntegrationProvider.AiConversation
   | IntegrationProvider.ProjectBriefAi
   | IntegrationProvider.PrContextAi
-  | IntegrationProvider.FileNotesSummaryAi;
+  | IntegrationProvider.FileNotesSummaryAi
+  | IntegrationProvider.AiSessionSynthesis;
 
 type AiEntitlementInput = {
   userId: string;
@@ -31,6 +32,7 @@ const DISABLED_ERROR_CODES: Record<ManagedAiProvider, string> = {
   [IntegrationProvider.ProjectBriefAi]: 'project_brief_ai_not_connected',
   [IntegrationProvider.PrContextAi]: 'pr_context_ai_not_connected',
   [IntegrationProvider.FileNotesSummaryAi]: 'file_notes_summary_ai_not_connected',
+  [IntegrationProvider.AiSessionSynthesis]: 'ai_session_synthesis_not_connected',
 };
 
 @Injectable()

@@ -10,7 +10,11 @@ import { NoteEventDispatcher } from '../webhooks/note-event-dispatcher.js';
 import { WebhookTrigger } from '../../../contracts/enums.js';
 import { calculateAttachmentSize } from '../../../domain/strings.js';
 import { isNoteEligibleForEmbedding } from '../../../domain/utils/note-embedding.utils.js';
+import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { NoteSynthesisRepository } from '../../ports/notes/note-synthesis.repository.js';
+import { AiSessionSynthesisOutboxRepository } from '../../ports/notes/ai-session-synthesis-outbox.repository.js';
+import { AI_SESSION_SYNTHESIS_PROCESSING } from '../../constants/ai-session-synthesis.constants.js';
 import type { NoteRecord, AttachmentRecord, SaveNoteInput } from '../../models/repository-records.models.js';
 
 @Injectable()
@@ -21,6 +25,8 @@ export class NoteLifecycleService {
     private readonly embeddingQueue: EmbeddingQueuePublisher,
     private readonly noteEventDispatcher: NoteEventDispatcher,
     private readonly logger: AppLogger,
+    private readonly synthesisRepository: NoteSynthesisRepository,
+    private readonly synthesisOutbox: AiSessionSynthesisOutboxRepository,
   ) {}
 
   async saveNote(
@@ -43,6 +49,9 @@ export class NoteLifecycleService {
   ): Promise<{ note: NoteRecord; attachments: AttachmentRecord[] }> {
     const { noteInput, attachments: incomingAttachments } = input;
     const targetNoteId = options.existingNoteId || noteInput.id;
+    const previousNote = targetNoteId
+      ? await this.contentRepository.getNoteById(userId, targetNoteId, tx)
+      : null;
 
     // 1. Calculate size and check quota
     const incomingNoteSize = await this.calculateTotalIncomingSize(userId, noteInput.markdown, incomingAttachments, targetNoteId, tx);
@@ -63,6 +72,24 @@ export class NoteLifecycleService {
 
     // 3. Reconcile Attachments
     const attachments = await this.reconcileAttachments(userId, note.id, incomingAttachments, options.existingNoteId, tx);
+
+    // Delay synthesis until the transcript has been unchanged for a while. This
+    // avoids generating (and billing) for intermediate conversation snapshots.
+    if (this.isAiSession(note) && this.hasAiSessionTranscriptChanged(previousNote, note)) {
+      const sourceHash = crypto.createHash('sha256').update(note.markdown || '').digest('hex');
+      const workspaceSlug = options.workspaceSlug || note.workspaceSlug || '';
+      const idleDelayMs = this.getSynthesisIdleDelayMs();
+      const availableAt = new Date(Date.now() + idleDelayMs);
+      await this.synthesisRepository.upsertPending({ userId, noteId: note.id, sourceHash }, tx);
+      await this.synthesisOutbox.enqueue({ userId, noteId: note.id, workspaceSlug, sourceHash, availableAt }, tx);
+      this.logger.info('ai_session_synthesis.scheduled_after_inactivity', {
+        userId,
+        noteId: note.id,
+        workspaceSlug,
+        idleDelayMs,
+        availableAt: availableAt.toISOString(),
+      });
+    }
 
     // 4. Background side-effects (Embedding & Webhooks)
     await this.dispatchBackgroundEvents(userId, note, options);
@@ -141,6 +168,9 @@ export class NoteLifecycleService {
   }
 
   private async dispatchEmbeddingIndex(userId: string, note: NoteRecord): Promise<void> {
+    // AI sessions enter RAG only after their synthesis worker completes, or
+    // explicitly selects the raw-transcript fallback.
+    if (this.isAiSession(note)) return;
     if (!isNoteEligibleForEmbedding(note)) {
       return;
     }
@@ -159,6 +189,22 @@ export class NoteLifecycleService {
         error: e instanceof Error ? e.message : String(e),
       });
     }
+  }
+
+  private isAiSession(note: NoteRecord): boolean {
+    return note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat;
+  }
+
+  private hasAiSessionTranscriptChanged(previousNote: NoteRecord | null, note: NoteRecord): boolean {
+    if (!previousNote || !this.isAiSession(previousNote)) return true;
+    return crypto.createHash('sha256').update(previousNote.markdown || '').digest('hex')
+      !== crypto.createHash('sha256').update(note.markdown || '').digest('hex');
+  }
+
+  private getSynthesisIdleDelayMs(): number {
+    const configured = Number(process.env.KB_AI_SESSION_SYNTHESIS_IDLE_MS);
+    if (!Number.isFinite(configured) || configured <= 0) return AI_SESSION_SYNTHESIS_PROCESSING.idleDelayDefaultMs;
+    return Math.max(AI_SESSION_SYNTHESIS_PROCESSING.idleDelayMinimumMs, configured);
   }
 
   private async dispatchWebhookEvent(

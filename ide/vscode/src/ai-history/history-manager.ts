@@ -11,7 +11,10 @@ import {
   DEFAULT_FALLBACK_PROJECT_SLUG,
   SOURCE_CHANNELS
 } from '../constants';
-import { AI_ROLE } from './constants';
+import {
+  AI_ROLE,
+  AUTO_SAVE_MAX_AGE_MS,
+} from './constants';
 
 type SessionPromptAction = typeof SESSION_PROMPT_ACTIONS[keyof typeof SESSION_PROMPT_ACTIONS];
 type AiSessionSaveMode = typeof AI_SESSION_SAVE_MODES[keyof typeof AI_SESSION_SAVE_MODES];
@@ -118,7 +121,7 @@ export class AiHistoryManager {
           const key = `${provider.id}:${s.sessionId}`;
           const isSaved = this.savedSessions.has(key);
           const isIgnored = this.ignoredSessions.has(key);
-          const isVeryRecent = (now - s.timestamp) < RECENT_ACTIVE_THRESHOLD_MS;
+          const isVeryRecent = s.timestampIsInternal && (now - s.timestamp) < RECENT_ACTIVE_THRESHOLD_MS;
 
           // If auto-save is enabled and this session is very recent and hasn't been handled yet,
           // don't pre-seed its hash so that checkAllProviders will save it immediately!
@@ -406,8 +409,14 @@ export class AiHistoryManager {
       return;
     }
 
+    const canAutoSave = session.timestampIsInternal && (Date.now() - session.timestamp) <= AUTO_SAVE_MAX_AGE_MS;
+
     // If the session is already marked as saved, auto-save updates silently.
     if (this.savedSessions.has(key)) {
+      if (!canAutoSave) {
+        this.rememberSessionHash(key, hash);
+        return;
+      }
       this.pendingPromptSessions.delete(key);
       this.inFlightSaves.add(key);
       try {
@@ -433,6 +442,14 @@ export class AiHistoryManager {
     // In auto-save mode: save new sessions and updates immediately.
     if (this.getAiSessionSaveMode() === AI_SESSION_SAVE_MODES.AUTO_SAVE) {
       this.pendingPromptSessions.delete(key);
+
+      // Keep historical sessions available for manual import, but do not
+      // upload them just because their log file was discovered or touched.
+      if (!canAutoSave) {
+        this.rememberSessionHash(key, hash);
+        return;
+      }
+
       this.inFlightSaves.add(key);
       try {
         const saved = await this.autoSaveSessionToVault(client, session);

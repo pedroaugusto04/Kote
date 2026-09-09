@@ -15,7 +15,8 @@ export const AI_PROVIDERS_REGISTRY: Record<
   | IntegrationProvider.AiConversation
   | IntegrationProvider.ProjectBriefAi
   | IntegrationProvider.PrContextAi
-  | IntegrationProvider.FileNotesSummaryAi,
+  | IntegrationProvider.FileNotesSummaryAi
+  | IntegrationProvider.AiSessionSynthesis,
   AiProviderRegistryEntry
 > = {
   [IntegrationProvider.AiReview]: {
@@ -58,10 +59,18 @@ export const AI_PROVIDERS_REGISTRY: Record<
     label: 'File Notes Summary AI',
     errorCode: 'file_notes_summary_ai_not_configured',
   },
+  [IntegrationProvider.AiSessionSynthesis]: {
+    providerKey: 'aiSessionSynthesisProvider',
+    baseUrlKey: 'aiSessionSynthesisBaseUrl',
+    modelKey: 'aiSessionSynthesisModel',
+    apiKeyKey: 'aiSessionSynthesisApiKey',
+    label: 'AI Session Synthesis',
+    errorCode: 'ai_session_synthesis_not_configured',
+  },
 };
 
 export function getAiProviderConfigStatus(
-  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi,
+  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi | IntegrationProvider.AiSessionSynthesis,
   environment: RuntimeEnvironment,
 ) {
   const config = getAiProviderConfig(provider, environment);
@@ -76,7 +85,7 @@ export function getAiProviderConfigStatus(
 }
 
 export function getAiProviderConfig(
-  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi,
+  provider: IntegrationProvider.AiReview | IntegrationProvider.AiConversation | IntegrationProvider.ProjectBriefAi | IntegrationProvider.PrContextAi | IntegrationProvider.FileNotesSummaryAi | IntegrationProvider.AiSessionSynthesis,
   environment: RuntimeEnvironment,
 ) {
   const entry = AI_PROVIDERS_REGISTRY[provider];

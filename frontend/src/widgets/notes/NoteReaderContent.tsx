@@ -3,7 +3,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { normalizeComparableText, sameText, stripSourceHeader } from '../../shared/utils/text';
 import { formatFileSize, SOURCE_VALUES } from '../../shared/utils/format';
-import type { NoteAttachment } from '../../shared/api/models/note';
+import { NOTE_SYNTHESIS_STATUS, type NoteAttachment, type NoteSynthesisStatus } from '../../shared/api/models/note';
 import { fetchAttachmentText } from '../../shared/api/notes';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
 import { MarkdownView } from '../markdown/MarkdownView';
@@ -20,6 +20,8 @@ type TextPreviewState = {
   status: 'loading' | 'loaded' | 'error';
   text: string;
 };
+
+const COLLAPSIBLE_TRANSCRIPT_MIN_TURNS = 8;
 
 const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown', 'mdown', 'mkd']);
 const TEXT_EXTENSIONS = new Set([
@@ -84,7 +86,7 @@ const TEXT_MIME_TYPES = new Set([
   'image/svg+xml',
 ]);
 
-export function NoteBody({ markdown, rawText, summary, title, source, sourceChannel }: { markdown: string; rawText: string; summary: string; title: string; source?: string; sourceChannel?: string }) {
+export function NoteBody({ markdown, rawText, summary, title, source, sourceChannel, synthesis, onRequestSynthesis, isRequestingSynthesis = false, isSynthesisManuallyRequested = false }: { markdown: string; rawText: string; summary: string; title: string; source?: string; sourceChannel?: string; synthesis?: { status: NoteSynthesisStatus; overview: string; memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }> } | null; onRequestSynthesis?: () => void; isRequestingSynthesis?: boolean; isSynthesisManuallyRequested?: boolean }) {
   const extraMarkdown = readerExtraSections(markdown, title);
   const hasExtra = Boolean(extraMarkdown);
   const cleanedRawText = stripSourceHeader(rawText).replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
@@ -96,6 +98,10 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
   const activeSource = source;
   const aiTurns = parseAiConversationTurns(cleanedRawText);
   const isAiConversation = aiTurns.length > 0;
+  const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(true);
+  const synthesizedOverview = synthesis?.status === NOTE_SYNTHESIS_STATUS.COMPLETED ? synthesis.overview : '';
+  const synthesisState = getSynthesisState(synthesis?.status, isSynthesisManuallyRequested);
+  const canCollapseTranscript = isAiConversation && aiTurns.length >= COLLAPSIBLE_TRANSCRIPT_MIN_TURNS;
 
   // For dependency watcher notes, rawText already contains the full formatted content
   // Avoid rendering extra sections
@@ -108,7 +114,34 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
           <SourceBadge source={activeSource} />
         </div>
       )}
-      {cleanedRawText ? (
+      {synthesizedOverview ? (
+        <section className="note-body-section note-ai-summary note-section-card">
+          <div className="note-section-header"><span className="note-section-dot summary" /><span className="note-section-title">Session synthesis</span></div>
+          <MarkdownView markdown={synthesizedOverview} />
+          {synthesis?.memory?.length ? <ul>{synthesis.memory.map((item, index) => <li key={`${item.kind}-${index}`}><strong>{item.kind}:</strong> {item.text}</li>)}</ul> : null}
+          {canCollapseTranscript ? <button type="button" className="note-raw-toggle" onClick={() => setIsTranscriptExpanded((expanded) => !expanded)}>{isTranscriptExpanded ? 'Hide transcript' : `Show transcript (${aiTurns.length} turns)`}</button> : null}
+        </section>
+      ) : null}
+      {!synthesizedOverview && synthesisState ? (
+        <section className={`note-body-section note-ai-synthesis-state note-section-card is-${synthesisState.tone}`} role="status" aria-live="polite">
+          <div className="note-section-header">
+            <span className="note-section-dot synthesis" />
+            <span className="note-section-title">Session synthesis</span>
+          </div>
+          <div className="note-ai-synthesis-state-content">
+            <span className="note-ai-synthesis-indicator" aria-hidden="true" />
+            <div className="note-ai-synthesis-status-row">
+              <p className="note-ai-synthesis-state-title">{synthesisState.title}</p>
+              {synthesisState.canRequest && onRequestSynthesis ? (
+                <button type="button" className="note-ai-synthesis-trigger" onClick={onRequestSynthesis} disabled={isRequestingSynthesis}>
+                  {isRequestingSynthesis ? 'Requesting…' : synthesisState.actionLabel}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      ) : null}
+      {cleanedRawText && (!canCollapseTranscript || isTranscriptExpanded) ? (
         <section className={`note-body-section ${showLabel && !isAiConversation ? 'note-section-card' : ''}`}>
           {showLabel && !isAiConversation ? (
             <div className="note-section-header">
@@ -137,6 +170,37 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
       ) : null}
     </div>
   );
+}
+
+function getSynthesisState(status?: NoteSynthesisStatus, isManuallyRequested = false) {
+  if (status === NOTE_SYNTHESIS_STATUS.PENDING) {
+    return {
+      tone: isManuallyRequested ? 'requested' : 'pending',
+      title: isManuallyRequested ? 'Requested' : 'Scheduled',
+      canRequest: !isManuallyRequested,
+      actionLabel: 'Generate now',
+    };
+  }
+
+  if (status === NOTE_SYNTHESIS_STATUS.PROCESSING) {
+    return {
+      tone: 'processing',
+      title: 'Generating',
+      canRequest: false,
+      actionLabel: '',
+    };
+  }
+
+  if (status === NOTE_SYNTHESIS_STATUS.FAILED || status === NOTE_SYNTHESIS_STATUS.SKIPPED) {
+    return {
+      tone: 'unavailable',
+      title: 'Unavailable',
+      canRequest: true,
+      actionLabel: 'Retry',
+    };
+  }
+
+  return null;
 }
 
 export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {

@@ -120,6 +120,12 @@ export function pinNote(id: string, pinned: boolean) {
   });
 }
 
+export function requestNoteSynthesis(id: string) {
+  return request<{ ok: true; availableAt: string; sourceHash: string }>(buildApiPath(API_PATHS.NOTE_SYNTHESIS, { id }), {
+    method: 'POST',
+  });
+}
+
 export function fetchRelatedNotes(id: string): Promise<NoteSummary[]> {
   return request<NoteSummary[]>(buildApiPath(API_PATHS.NOTE_RELATED, { id }));
 }

@@ -14,6 +14,9 @@ import type { AttachmentRecord } from '../models/repository-records.models.js';
 import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
 import { isNoteEligibleForEmbedding } from '../../domain/utils/note-embedding.utils.js';
 import { AppLogger } from '../../observability/logger.js';
+import { NoteSynthesisRepository } from '../ports/notes/note-synthesis.repository.js';
+import crypto from 'node:crypto';
+import { NoteSynthesisStatus } from '../constants/ai-session-synthesis.constants.js';
 
 const EXCHANGE_NAME = 'kb.embedding';
 const LOW_PRIORITY_QUEUE = 'kb.embedding.low';
@@ -48,6 +51,7 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
     private readonly objectStorage: ObjectStorage,
+    private readonly synthesisRepository: NoteSynthesisRepository,
   ) {}
 
   async onModuleInit() {
@@ -299,6 +303,27 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
     }));
 
     await this.noteEmbeddingRepository.upsertChunks(userId, noteId, records);
+
+    // Keep a second, compact representation for semantic retrieval. Raw chunks
+    // remain indexed for exact evidence and backwards compatibility.
+    const synthesis = await this.synthesisRepository.getByNoteId(userId, noteId);
+    const sourceHash = crypto.createHash('sha256').update(note.markdown || '').digest('hex');
+    if (synthesis?.status === NoteSynthesisStatus.Completed && synthesis.sourceHash === sourceHash && synthesis.overview.trim()) {
+      const synthesisText = [synthesis.overview, ...synthesis.memory.map((item) => `${item.kind}: ${item.text}`)].join('\n');
+      const synthesisChunks = this.chunkingService.chunkNote({ title: note.title, body: synthesisText, projectSlug: note.projectSlug || '', path: note.path || '' });
+      const synthesisTexts = synthesisChunks.map((chunk) => chunk.chunkText);
+      const synthesisEmbeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, synthesisTexts);
+      if (synthesisEmbeddings.length === synthesisChunks.length) {
+        await this.noteEmbeddingRepository.upsertChunks(userId, noteId, synthesisChunks.map((chunk, index) => ({
+          userId, noteId, chunkIndex: chunk.chunkIndex, chunkText: chunk.chunkText, embedding: synthesisEmbeddings[index], model: env.embeddingAiModel,
+          representation: 'synthesis' as const,
+          sourceRefs: synthesis.memory.flatMap((item) => item.turnRefs || []),
+        })));
+      }
+    } else {
+      // A prior synthesis cannot be used as evidence for a changed transcript.
+      await this.noteEmbeddingRepository.deleteByNoteIdAndRepresentation(userId, noteId, 'synthesis');
+    }
 
     const bodySearchText = resolveNoteBodySearchText(note.markdown, note.metadata);
     if (bodySearchText) {

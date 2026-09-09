@@ -39,6 +39,9 @@ export const AI_CREDIT_COSTS: Record<string, number> = {
 
   /** File notes summary for VS Code codelens. */
   file_notes_summary: 3,
+
+  /** One synthesis generated for a newly ingested AI session. */
+  ai_session_synthesis: 3,
 };
 
 //Plan credit limits (max AI credits per month)

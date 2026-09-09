@@ -67,7 +67,7 @@ export class CreateManualNoteUseCase {
       existingNoteId,
       categoryIds,
       existingNotePath: sanitizedInput.path,
-    }).then((result) => {
+    }).then(async (result) => {
       this.noteEventDispatcher.dispatch({
         event: WebhookTrigger.NoteCreated,
         noteId: result.noteId,
@@ -82,4 +82,3 @@ export class CreateManualNoteUseCase {
     });
   }
 }
-

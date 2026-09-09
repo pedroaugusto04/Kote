@@ -225,6 +225,10 @@
   background: var(--purple);
 }
 
+.note-section-dot.synthesis {
+  background: var(--muted);
+}
+
 .note-section-title {
   color: var(--muted);
   font-family: var(--mono);
@@ -242,6 +246,179 @@
 
 .note-ai-summary .markdown {
   color: var(--text-soft);
+}
+
+/* Keep progress quiet, but make an unavailable synthesis immediately legible. */
+.note-ai-synthesis-state {
+  gap: 0;
+  border-color: var(--line-soft);
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+.note-ai-synthesis-state:hover {
+  border-color: var(--line-soft);
+  box-shadow: none;
+}
+
+.note-ai-synthesis-state.is-unavailable {
+  margin-top: 4px;
+  border-color: var(--danger-border);
+  background: var(--surface-danger);
+}
+
+.note-ai-synthesis-state.is-unavailable .note-section-dot.synthesis {
+  background: var(--danger);
+}
+
+.note-ai-synthesis-state .note-section-header {
+  margin-bottom: 10px;
+}
+
+.note-ai-synthesis-state-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.note-ai-synthesis-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.note-ai-synthesis-indicator {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1px solid var(--muted);
+  border-radius: 50%;
+  opacity: 0.8;
+}
+
+.note-ai-synthesis-state.is-processing .note-ai-synthesis-indicator {
+  border-color: var(--line);
+  border-top-color: var(--accent);
+  animation: note-synthesis-spin 1.4s linear infinite;
+}
+
+.note-ai-synthesis-state.is-pending .note-ai-synthesis-indicator,
+.note-ai-synthesis-state.is-requested .note-ai-synthesis-indicator {
+  position: relative;
+  border-color: var(--muted);
+  animation: none;
+}
+
+.note-ai-synthesis-state.is-pending .note-ai-synthesis-indicator::before,
+.note-ai-synthesis-state.is-pending .note-ai-synthesis-indicator::after {
+  position: absolute;
+  bottom: 7px;
+  left: 7px;
+  width: 1px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--muted);
+  content: '';
+  transform-origin: 50% 100%;
+}
+
+.note-ai-synthesis-state.is-pending .note-ai-synthesis-indicator::after {
+  height: 4px;
+  transform: rotate(125deg);
+}
+
+.note-ai-synthesis-state.is-requested .note-ai-synthesis-indicator {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.note-ai-synthesis-state.is-requested .note-ai-synthesis-indicator::after {
+  display: block;
+  width: 7px;
+  height: 4px;
+  margin: 4px 0 0 4px;
+  border-bottom: 2px solid var(--surface-1);
+  border-left: 2px solid var(--surface-1);
+  content: '';
+  transform: rotate(-45deg);
+}
+
+.note-ai-synthesis-state.is-processing .note-ai-synthesis-indicator {
+  animation-duration: 850ms;
+}
+
+.note-ai-synthesis-state.is-unavailable .note-ai-synthesis-indicator {
+  border-color: var(--danger-border);
+  background: var(--surface-danger-strong);
+}
+
+.note-ai-synthesis-state.is-unavailable .note-ai-synthesis-indicator::after {
+  display: block;
+  width: 4px;
+  height: 4px;
+  margin: 5px;
+  border-radius: 50%;
+  background: var(--danger);
+  content: '';
+}
+
+.note-ai-synthesis-state-title {
+  margin: 0;
+}
+
+.note-ai-synthesis-state-title {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.note-ai-synthesis-state.is-unavailable .note-ai-synthesis-state-title {
+  color: var(--danger-text);
+}
+
+.note-ai-synthesis-trigger {
+  min-height: 28px;
+  padding: 4px 9px;
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  background: var(--surface-hover-accent);
+  color: var(--active-text);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+
+.note-ai-synthesis-trigger:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--surface-active);
+  transform: translateY(-1px);
+}
+
+.note-ai-synthesis-trigger:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.note-ai-synthesis-state.is-unavailable .note-ai-synthesis-trigger {
+  border-color: var(--danger-border);
+  background: var(--surface-danger-strong);
+  color: var(--danger-text);
+}
+
+@keyframes note-synthesis-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .note-ai-synthesis-state.is-processing .note-ai-synthesis-indicator {
+    animation: none;
+  }
 }
 
 .markdown {
@@ -652,5 +829,3 @@
     word-break: break-word !important;
   }
 }
-
-

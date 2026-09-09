@@ -32,6 +32,7 @@ import {
   FindRelatedNotesByFileUseCase,
   GenerateFileNotesSummaryUseCase,
   GenerateFileNotesSummaryByFileUseCase,
+  RequestAiSessionSynthesisUseCase,
   IngestEntryUseCase,
   QueryKnowledgeUseCase,
   GetAutoActionGlobalUseCase,
@@ -43,6 +44,8 @@ import { NoteChunkingService } from '../../application/services/content/note-chu
 import { NoteEventDispatcher } from '../../application/services/webhooks/note-event-dispatcher.js';
 import { NoteLifecycleService } from '../../application/services/content/note-lifecycle.service.js';
 import { FileNotesSummaryCacheService } from '../../application/services/content/file-notes-summary-cache.service.js';
+import { AiSessionSynthesisOutboxRelay } from '../../application/services/content/ai-session-synthesis-outbox-relay.service.js';
+import { AiSessionSynthesisWorker } from '../../application/workers/ai-session-synthesis.worker.js';
 import { AutoActionWorker } from '../../application/workers/auto-action.worker.js';
 import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
 import { SettingsRepository } from '../../application/ports/settings.repository.js';
@@ -79,6 +82,8 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     NoteEventDispatcher,
     NoteLifecycleService,
     FileNotesSummaryCacheService,
+    AiSessionSynthesisOutboxRelay,
+    AiSessionSynthesisWorker,
     AutoActionWorker,
     
     GetAutoActionGlobalUseCase,
@@ -96,6 +101,7 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     FindRelatedNotesByFileUseCase,
     GenerateFileNotesSummaryUseCase,
     GenerateFileNotesSummaryByFileUseCase,
+    RequestAiSessionSynthesisUseCase,
     IngestEntryUseCase,
     QueryKnowledgeUseCase,
     PostgresSettingsRepository,
