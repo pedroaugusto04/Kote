@@ -335,7 +335,8 @@ export async function createPostgresTestRepositories(t) {
     quotaService,
     embeddingQueuePublisher,
     { dispatch: async () => {} },
-    { info() {}, warn() {}, error() {}, debug() {} }
+    { info() {}, warn() {}, error() {}, debug() {} },
+    { scheduleAfterInactivity: async () => {} },
   );
 
   return {
