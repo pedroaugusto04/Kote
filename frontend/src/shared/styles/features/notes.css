@@ -316,7 +316,8 @@
 }
 
 .note-raw-toggle {
-  align-self: flex-start;
+  justify-self: start;
+  width: max-content;
   margin-top: 2px;
   font-family: var(--mono);
   font-size: 11px;

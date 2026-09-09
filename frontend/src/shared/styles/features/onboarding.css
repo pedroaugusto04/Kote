@@ -136,10 +136,14 @@
 .onboarding-item-check {
   width: 32px;
   height: 32px;
-  border-radius: 8px;
-  display: grid;
-  place-items: center;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
   font-size: 14px;
+  line-height: 1;
+  text-align: center;
   background: var(--surface-5);
   color: var(--muted);
   border: 1px solid var(--line-soft);
@@ -349,4 +353,3 @@
   fill: currentColor;
   flex-shrink: 0;
 }
-

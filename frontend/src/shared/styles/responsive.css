@@ -552,7 +552,7 @@
   .onboarding-checklist-progress { align-self: flex-start; }
   .onboarding-item { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; padding: 8px 10px; }
   .onboarding-item-badge { display: none; }
-  .onboarding-item-check { width: 28px; height: 28px; font-size: 12px; border-radius: 6px; }
+  .onboarding-item-check { width: 28px; height: 28px; font-size: 12px; }
   .home-kpi { min-height: auto; gap: 14px; padding: 16px; }
   .chart-box { height: 240px; min-height: 240px; }
   .chart-box.compact { height: 220px; min-height: 220px; }
