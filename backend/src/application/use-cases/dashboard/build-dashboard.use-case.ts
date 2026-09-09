@@ -31,12 +31,16 @@ export class BuildDashboardUseCase {
   ) { }
 
   async execute(userId: string) {
-    const [workspaces, projects, notes, reviews, rawReminders, askHistoryResult, projectBriefsCount] = await Promise.all([
+    const [workspaces, projects, bundle, askHistoryResult, projectBriefsCount] = await Promise.all([
       this.contentRepository.listWorkspaces(userId),
       this.contentRepository.listProjectsWithNoteCount(userId),
-      this.contentQueryRepository.list(userId),
-      this.contentQueryRepository.listReviews(userId),
-      this.contentQueryRepository.listReminders(userId),
+      this.contentQueryRepository.listDashboardBundle
+        ? this.contentQueryRepository.listDashboardBundle(userId)
+        : Promise.all([
+            this.contentQueryRepository.list(userId),
+            this.contentQueryRepository.listReviews(userId),
+            this.contentQueryRepository.listReminders(userId),
+          ]).then(([notes, reviews, reminders]) => ({ notes, reviews, reminders })),
       this.askHistoryRepository
         ? this.askHistoryRepository.list({ userId, page: 1, pageSize: 1 }).catch(() => null)
         : null,
@@ -45,6 +49,7 @@ export class BuildDashboardUseCase {
         : 0,
     ]);
 
+    const { notes, reviews, reminders: rawReminders } = bundle;
     const totalAskQueries = askHistoryResult?.pagination?.total ?? 0;
     const totalProjectBriefs = projectBriefsCount ?? 0;
 
@@ -54,19 +59,34 @@ export class BuildDashboardUseCase {
     const start = shiftDateKey(end, -(7 - 1));
     const dayKeys = Array.from({ length: 7 }, (_, index) => shiftDateKey(start, index));
 
-    const coverageResults = await Promise.all(
-      projects.map(async (project) => {
-        try {
-          const res = await this.projectCoverageRepository.getProjectCoverage(userId, project.id);
-          return { projectSlug: project.projectSlug, coveragePercentage: res.coveragePercentage };
-        } catch {
-          return { projectSlug: project.projectSlug, coveragePercentage: 0 };
+    let coverageMap = new Map<string, number>();
+    if (this.projectCoverageRepository?.getProjectsCoveragePercentage && projects.length > 0) {
+      try {
+        const projectIds = projects.map((p) => p.id).filter(Boolean);
+        const percentageById = await this.projectCoverageRepository.getProjectsCoveragePercentage(userId, projectIds);
+        for (const project of projects) {
+          const pct = percentageById.get(project.id) ?? 0;
+          coverageMap.set(project.projectSlug, pct);
+          coverageMap.set(project.id, pct);
         }
-      })
-    );
-    const coverageMap = new Map<string, number>(
-      coverageResults.map((r) => [r.projectSlug, r.coveragePercentage])
-    );
+      } catch {
+        // Fallback gracefully
+      }
+    } else if (this.projectCoverageRepository && projects.length > 0) {
+      const coverageResults = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            const res = await this.projectCoverageRepository.getProjectCoverage(userId, project.id);
+            return { projectSlug: project.projectSlug, coveragePercentage: res.coveragePercentage };
+          } catch {
+            return { projectSlug: project.projectSlug, coveragePercentage: 0 };
+          }
+        })
+      );
+      coverageMap = new Map<string, number>(
+        coverageResults.map((r) => [r.projectSlug, r.coveragePercentage])
+      );
+    }
 
     const enrichedProjects = projects.map((project) => {
       const projectNotes = notes.filter((n) => n.project === project.projectSlug);

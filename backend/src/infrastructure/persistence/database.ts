@@ -52,6 +52,9 @@ export class PostgresDatabase implements OnModuleDestroy {
     this.pool = new Pool({
       connectionString,
       ssl: buildSslConfig(environment),
+      max: 25,
+      connectionTimeoutMillis: 5000,
+      idleTimeoutMillis: 30000,
     });
 
     return this.pool;

@@ -89,11 +89,24 @@ function extractWorkspace(content: string): string | null {
 }
 
 function findLogFile(sessionDir: string): string | null {
+  const candidates: { filePath: string; mtimeMs: number }[] = [];
   for (const fileName of ANTIGRAVITY_LOG_FILES) {
     const filePath = path.join(sessionDir, '.system_generated', 'logs', fileName);
-    if (fs.existsSync(filePath)) return filePath;
+    try {
+      if (fs.existsSync(filePath)) {
+        const stat = fs.statSync(filePath);
+        if (stat.size > 0) {
+          candidates.push({ filePath, mtimeMs: stat.mtimeMs });
+        }
+      }
+    } catch {
+      // ignore transient stat errors
+    }
   }
-  return null;
+
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  return candidates[0].filePath;
 }
 
 function loadAttachments(sessionDir: string): AiSessionAttachment[] {
@@ -165,7 +178,8 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
   }
 
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {
-    const sessions = new Map<string, AiSession>();
+    const candidateDirs: { sessionDir: string; sessionId: string; mtime: number }[] = [];
+
     for (const historyDir of this.getHistoryDirs()) {
       if (!fs.existsSync(historyDir)) continue;
       let sessionIds: string[];
@@ -175,21 +189,51 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
         continue;
       }
       for (const sessionId of sessionIds) {
-        if (sessions.has(sessionId)) continue;
         const sessionDir = path.join(historyDir, sessionId);
         try {
-          if (!fs.statSync(sessionDir).isDirectory()) continue;
+          const stat = fs.statSync(sessionDir);
+          if (!stat.isDirectory()) continue;
+          let mtime = stat.mtimeMs;
+          for (const fileName of ANTIGRAVITY_LOG_FILES) {
+            const logPath = path.join(sessionDir, '.system_generated', 'logs', fileName);
+            try {
+              if (fs.existsSync(logPath)) {
+                const logStat = fs.statSync(logPath);
+                if (logStat.mtimeMs > mtime) {
+                  mtime = logStat.mtimeMs;
+                }
+              }
+            } catch {
+              // ignore stat errors
+            }
+          }
+          candidateDirs.push({ sessionDir, sessionId, mtime });
         } catch {
           continue;
         }
-        const session = parseSession(sessionDir, sessionId);
-        if (session) sessions.set(sessionId, session);
       }
     }
 
-    return [...sessions.values()]
-      .sort((left, right) => right.timestamp - left.timestamp)
-      .slice(0, Math.max(0, limit));
+    candidateDirs.sort((left, right) => right.mtime - left.mtime);
+
+    const targetLimit = Math.max(0, limit);
+    const sessions: AiSession[] = [];
+    const seenSessionIds = new Set<string>();
+
+    for (const candidate of candidateDirs) {
+      if (seenSessionIds.has(candidate.sessionId)) continue;
+      seenSessionIds.add(candidate.sessionId);
+
+      const session = parseSession(candidate.sessionDir, candidate.sessionId);
+      if (session) {
+        sessions.push(session);
+        if (sessions.length >= targetLimit) {
+          break;
+        }
+      }
+    }
+
+    return sessions;
   }
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {

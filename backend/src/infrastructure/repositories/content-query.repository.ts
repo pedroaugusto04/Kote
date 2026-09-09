@@ -332,6 +332,14 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     return (await this.loadNotes(userId)).map(reminderFromNote).filter((reminder): reminder is ReminderView => Boolean(reminder));
   }
 
+  async listDashboardBundle(userId: string) {
+    const rawNotes = await this.loadNotes(userId);
+    const notes = rawNotes.map(noteSummary);
+    const reviews = rawNotes.map(reviewFromNote).filter((review): review is ReviewView => Boolean(review));
+    const reminders = rawNotes.map(reminderFromNote).filter((reminder): reminder is ReminderView => Boolean(reminder));
+    return { notes, reviews, reminders };
+  }
+
   async listDueRemindersByChannel(channel: ReminderDeliveryChannel, now: string) {
     const reminderTimeZone = readEnvironment().reminderTimeZone;
     const db = this.database.getDb();

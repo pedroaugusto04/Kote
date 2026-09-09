@@ -4,12 +4,14 @@ import { PrometheusExporter } from '@opentelemetry/exporter-prometheus';
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
 import { PgInstrumentation } from '@opentelemetry/instrumentation-pg';
 
-const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://10.0.0.52:4318/v1/traces';
+const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT?.trim();
 const serviceName = process.env.OTEL_SERVICE_NAME || 'kote-backend';
 
-const traceExporter = new OTLPTraceExporter({
-  url: otlpEndpoint,
-});
+const traceExporter = otlpEndpoint
+  ? new OTLPTraceExporter({
+      url: otlpEndpoint,
+    })
+  : undefined;
 
 const prometheusExporter = new PrometheusExporter({
   port: 9464,
@@ -17,7 +19,7 @@ const prometheusExporter = new PrometheusExporter({
 });
 
 const sdk = new NodeSDK({
-  traceExporter,
+  ...(traceExporter ? { traceExporter } : {}),
   metricReader: prometheusExporter,
   instrumentations: [
     getNodeAutoInstrumentations(),

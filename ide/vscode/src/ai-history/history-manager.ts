@@ -103,6 +103,10 @@ export class AiHistoryManager {
     }
 
     // Load initial recent sessions from active providers to populate the list on startup
+    const now = Date.now();
+    const RECENT_ACTIVE_THRESHOLD_MS = 15 * 60 * 1000; // Sessions modified in the last 15 minutes
+    const saveMode = this.getAiSessionSaveMode();
+
     for (const provider of this.providers.values()) {
       try {
         const enabled = await provider.isEnabled();
@@ -111,8 +115,18 @@ export class AiHistoryManager {
         for (const s of initial) {
           this.addOrUpdateRecentSession(s, true);
 
-          // Record the hash of existing sessions so they don't trigger prompts
           const key = `${provider.id}:${s.sessionId}`;
+          const isSaved = this.savedSessions.has(key);
+          const isIgnored = this.ignoredSessions.has(key);
+          const isVeryRecent = (now - s.timestamp) < RECENT_ACTIVE_THRESHOLD_MS;
+
+          // If auto-save is enabled and this session is very recent and hasn't been handled yet,
+          // don't pre-seed its hash so that checkAllProviders will save it immediately!
+          if (saveMode === AI_SESSION_SAVE_MODES.AUTO_SAVE && isVeryRecent && !isSaved && !isIgnored) {
+            continue;
+          }
+
+          // Record the hash of existing sessions so they don't trigger prompts
           const hash = this.computeSessionHash(s);
           this.knownSessionHashes.set(key, hash);
         }
@@ -141,6 +155,9 @@ export class AiHistoryManager {
       }
     }
 
+    // Initial check to auto-save any recent active sessions right after startup
+    void this.checkAllProviders(client);
+
     // Watch for window focus to trigger a check immediately
     const focusDisposable = vscode.window.onDidChangeWindowState(async (e) => {
       if (e.focused) {
@@ -150,11 +167,9 @@ export class AiHistoryManager {
     this.activeDisposables.push(focusDisposable);
     context.subscriptions.push(focusDisposable);
 
-    // Periodic check every 15 seconds (only when window is active to conserve resources)
+    // Periodic check every 15 seconds to reliably sync background changes even when window is not focused
     const interval = setInterval(async () => {
-      if (vscode.window.state.focused) {
-        await this.checkAllProviders(client);
-      }
+      await this.checkAllProviders(client);
     }, 15000);
     this.activeDisposables.push(new vscode.Disposable(() => clearInterval(interval)));
 

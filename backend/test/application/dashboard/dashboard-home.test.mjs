@@ -221,3 +221,48 @@ test('dashboard home normalizes reminder statuses with the same model used by re
     { id: 'reminder:active-reminder', status: 'pending' },
   ]);
 });
+
+test('builds dashboard using listDashboardBundle and getProjectsCoveragePercentage in single batch', async () => {
+  const userId = 'user-bundle-1';
+  const now = '2026-05-08T12:00:00.000Z';
+  const workspaces = [{ workspaceSlug: 'default', displayName: 'Default', whatsappChatJid: '', telegramChatId: '', createdAt: now, updatedAt: now }];
+  const projectList = [
+    { id: 'p1', projectSlug: 'alpha', displayName: 'Alpha', workspaceSlug: 'default', defaultTags: [], enabled: true, repositories: [], createdAt: now, updatedAt: now },
+    { id: 'p2', projectSlug: 'beta', displayName: 'Beta', workspaceSlug: 'default', defaultTags: [], enabled: true, repositories: [], createdAt: now, updatedAt: now },
+  ];
+  let bundleCalled = false;
+  const contentRepository = {
+    listWorkspaces: async () => workspaces,
+    listProjectsWithNoteCount: async () => projectList,
+  };
+  const contentQueryRepository = {
+    listDashboardBundle: async () => {
+      bundleCalled = true;
+      return { notes: [], reviews: [], reminders: [] };
+    },
+  };
+  let batchCoverageCalled = false;
+  const projectCoverageRepository = {
+    getProjectsCoveragePercentage: async (_userId, projectIds) => {
+      batchCoverageCalled = true;
+      assert.deepEqual(projectIds, ['p1', 'p2']);
+      return new Map([['p1', 85], ['p2', 92.5]]);
+    },
+    getProjectCoverage: async () => {
+      throw new Error('should not be called when batch method is present');
+    },
+  };
+
+  const useCase = new BuildDashboardUseCase(
+    contentRepository,
+    contentQueryRepository,
+    { execute: async (_userId, reminders) => reminders },
+    projectCoverageRepository,
+  );
+
+  const dashboard = await useCase.execute(userId);
+  assert.equal(bundleCalled, true);
+  assert.equal(batchCoverageCalled, true);
+  assert.equal(dashboard.projects.find((p) => p.projectSlug === 'alpha')?.coveragePercentage, 85);
+  assert.equal(dashboard.projects.find((p) => p.projectSlug === 'beta')?.coveragePercentage, 92.5);
+});

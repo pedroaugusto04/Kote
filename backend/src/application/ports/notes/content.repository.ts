@@ -98,4 +98,9 @@ export abstract class ContentQueryRepository {
   abstract getReviewById(userId: string, id: string): Promise<ReviewView | null>;
   abstract listReminders(userId: string): Promise<ReminderView[]>;
   abstract listDueRemindersByChannel(channel: ReminderDeliveryChannel, nowIso: string): Promise<DueReminderView[]>;
+  abstract listDashboardBundle?(userId: string): Promise<{
+    notes: VaultNoteSummary[];
+    reviews: ReviewView[];
+    reminders: ReminderView[];
+  }>;
 }
