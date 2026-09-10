@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -6,6 +5,7 @@ import { AI_SESSION_SYNTHESIS_PROCESSING } from '../../constants/ai-session-synt
 import type { NoteRecord } from '../../models/repository-records.models.js';
 import { AiSessionSynthesisOutboxRepository } from '../../ports/notes/ai-session-synthesis-outbox.repository.js';
 import { NoteSynthesisRepository } from '../../ports/notes/note-synthesis.repository.js';
+import { getAiSessionSourceHash } from './ai-session-synthesis-transcript.service.js';
 
 @Injectable()
 export class AiSessionSynthesisScheduler {
@@ -38,7 +38,7 @@ export class AiSessionSynthesisScheduler {
     return this.outbox.enqueue({ userId, noteId: note.id, workspaceSlug: note.workspaceSlug || '', sourceHash, availableAt: new Date(), force: true });
   }
 
-  private sourceHash(note: NoteRecord): string { return crypto.createHash('sha256').update(note.markdown || '').digest('hex'); }
+  private sourceHash(note: NoteRecord): string { return getAiSessionSourceHash(note.markdown); }
   private isAiSession(note: NoteRecord): boolean { return note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat; }
   private hasTranscriptChanged(previousNote: NoteRecord | null, note: NoteRecord): boolean { return !previousNote || !this.isAiSession(previousNote) || this.sourceHash(previousNote) !== this.sourceHash(note); }
   private hasGeneratedSynthesis(synthesis: Awaited<ReturnType<NoteSynthesisRepository['getByNoteId']>>): boolean { return Boolean(synthesis?.generatedAt && synthesis.overview.trim()); }

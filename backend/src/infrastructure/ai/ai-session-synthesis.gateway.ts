@@ -6,9 +6,9 @@ import { buildAiSessionSynthesisSystemPrompt, buildAiSessionSynthesisPrompt, par
 
 @Injectable()
 export class DefaultAiSessionSynthesisGateway extends AiSessionSynthesisGateway {
-  async generate(config: AiSessionSynthesisConfig, transcript: string, language: string): Promise<SessionSynthesisResult> {
+  async generate(config: AiSessionSynthesisConfig, transcript: string): Promise<SessionSynthesisResult> {
     if (config.provider === AiProvider.None || !config.apiKey || !config.model) throw new Error('ai_session_synthesis_not_configured');
-    const result = await runStructuredChatCompletion(config, buildAiSessionSynthesisSystemPrompt(), buildAiSessionSynthesisPrompt(transcript, language), parseAiSessionSynthesis);
+    const result = await runStructuredChatCompletion(config, buildAiSessionSynthesisSystemPrompt(), buildAiSessionSynthesisPrompt(transcript), parseAiSessionSynthesis);
     if (!result) throw new Error('ai_session_synthesis_empty');
     return result;
   }

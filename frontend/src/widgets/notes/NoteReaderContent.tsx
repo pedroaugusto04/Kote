@@ -12,6 +12,7 @@ import { CDNImage } from '../../shared/ui/CDNImage';
 import { SourceBadge } from './SourceBadge';
 import { AiConversationView } from './AiConversationView';
 import { parseAiConversationTurns } from './ai-conversation';
+import { getSynthesisState, groupSynthesisMemory, NOTE_SYNTHESIS_ACTION_LABEL } from './note-synthesis.constants';
 
 type AttachmentPreviewKind = 'image' | 'audio' | 'video' | 'pdf' | 'markdown' | 'text' | 'none';
 
@@ -86,7 +87,7 @@ const TEXT_MIME_TYPES = new Set([
   'image/svg+xml',
 ]);
 
-export function NoteBody({ markdown, rawText, summary, title, source, sourceChannel, synthesis, onRequestSynthesis, isRequestingSynthesis = false, isSynthesisManuallyRequested = false }: { markdown: string; rawText: string; summary: string; title: string; source?: string; sourceChannel?: string; synthesis?: { status: NoteSynthesisStatus; overview: string; memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }> } | null; onRequestSynthesis?: () => void; isRequestingSynthesis?: boolean; isSynthesisManuallyRequested?: boolean }) {
+export function NoteBody({ markdown, rawText, summary, title, source, sourceChannel, synthesis, onRequestSynthesis, isRequestingSynthesis = false, isSynthesisManuallyRequested = false }: { markdown: string; rawText: string; summary: string; title: string; source?: string; sourceChannel?: string; synthesis?: { status: NoteSynthesisStatus; overview: string; memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }>; availableAt?: string | null } | null; onRequestSynthesis?: () => void; isRequestingSynthesis?: boolean; isSynthesisManuallyRequested?: boolean }) {
   const extraMarkdown = readerExtraSections(markdown, title);
   const hasExtra = Boolean(extraMarkdown);
   const cleanedRawText = stripSourceHeader(rawText).replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
@@ -100,7 +101,7 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
   const isAiConversation = aiTurns.length > 0;
   const [isTranscriptExpanded, setIsTranscriptExpanded] = useState(true);
   const synthesizedOverview = synthesis?.status === NOTE_SYNTHESIS_STATUS.COMPLETED ? synthesis.overview : '';
-  const synthesisState = getSynthesisState(synthesis?.status, isSynthesisManuallyRequested);
+  const synthesisState = getSynthesisState(synthesis?.status, isSynthesisManuallyRequested, synthesis?.availableAt);
   const canCollapseTranscript = isAiConversation && aiTurns.length >= COLLAPSIBLE_TRANSCRIPT_MIN_TURNS;
   const synthesisGroups = groupSynthesisMemory(synthesis?.memory || []);
 
@@ -155,7 +156,7 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
               <p className="note-ai-synthesis-state-title">{synthesisState.title}</p>
               {synthesisState.canRequest && onRequestSynthesis ? (
                 <button type="button" className="note-ai-synthesis-trigger" onClick={onRequestSynthesis} disabled={isRequestingSynthesis}>
-                  {isRequestingSynthesis ? 'Requesting…' : synthesisState.actionLabel}
+                  {isRequestingSynthesis ? NOTE_SYNTHESIS_ACTION_LABEL.REQUESTING : synthesisState.actionLabel}
                 </button>
               ) : null}
             </div>
@@ -193,55 +194,8 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
   );
 }
 
-type SynthesisMemoryItem = { kind: string; text: string; status: string; turnRefs: number[] };
-
-const SYNTHESIS_KIND_LABELS: Record<string, string> = {
-  goal: "Goals", outcome: "Outcomes", decision: "Decisions", change: "Changes",
-  failed_attempt: "Failed attempts", open_item: "Open items", fact: "Context",
-};
-
-function groupSynthesisMemory(memory: SynthesisMemoryItem[]) {
-  const groups = new Map<string, SynthesisMemoryItem[]>();
-  for (const item of memory) {
-    const kind = SYNTHESIS_KIND_LABELS[item.kind] ? item.kind : "fact";
-    groups.set(kind, [...(groups.get(kind) || []), item]);
-  }
-  return Array.from(groups, ([kind, items]) => ({ kind, label: SYNTHESIS_KIND_LABELS[kind], items }));
-}
-
 function formatSynthesisStatus(status: string) {
   return status.replace(/_/g, " ");
-}
-
-function getSynthesisState(status?: NoteSynthesisStatus, isManuallyRequested = false) {
-  if (status === NOTE_SYNTHESIS_STATUS.PENDING) {
-    return {
-      tone: isManuallyRequested ? 'requested' : 'pending',
-      title: isManuallyRequested ? 'Requested' : 'Scheduled',
-      canRequest: !isManuallyRequested,
-      actionLabel: 'Generate now',
-    };
-  }
-
-  if (status === NOTE_SYNTHESIS_STATUS.PROCESSING) {
-    return {
-      tone: 'processing',
-      title: 'Generating',
-      canRequest: false,
-      actionLabel: '',
-    };
-  }
-
-  if (status === NOTE_SYNTHESIS_STATUS.FAILED || status === NOTE_SYNTHESIS_STATUS.SKIPPED) {
-    return {
-      tone: 'unavailable',
-      title: 'Unavailable',
-      canRequest: true,
-      actionLabel: 'Retry',
-    };
-  }
-
-  return null;
 }
 
 export function NoteAttachments({ attachments }: { attachments?: NoteAttachment[] }) {

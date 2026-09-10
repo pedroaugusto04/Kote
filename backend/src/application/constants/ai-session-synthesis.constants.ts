@@ -52,3 +52,9 @@ export const AI_SESSION_SYNTHESIS_PROCESSING = {
   outboxPollDefaultMs: 5_000,
   outboxPollMinimumMs: 250,
 } as const;
+
+export const AI_SESSION_SYNTHESIS_RETRIEVAL = {
+  maxSessions: 3,
+  maxEvidenceChunksPerSession: 2,
+  maxContextChars: 10_000,
+} as const;

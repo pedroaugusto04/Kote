@@ -84,6 +84,23 @@ describe('NoteBody synthesis states', () => {
     expect(screen.queryByRole('button', { name: 'Generate now' })).not.toBeInTheDocument();
   });
 
+  it('renders scheduled synthesis with remaining time when availableAt is present', () => {
+    const futureDate = new Date(Date.now() + 23 * 3600 * 1000).toISOString();
+    render(
+      <NoteBody
+        markdown=""
+        rawText="User: Help me plan this."
+        summary=""
+        title="Session"
+        synthesis={{ status: 'pending', overview: '', memory: [], availableAt: futureDate }}
+      />
+    );
+
+    expect(screen.getByText('Session synthesis')).toBeInTheDocument();
+    expect(screen.getByText('Scheduled · in 23h')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveClass('note-ai-synthesis-state', 'is-pending');
+  });
+
   it('keeps a failed synthesis informative without hiding the transcript', () => {
     render(<NoteBody markdown="" rawText="User: Help me plan this." summary="" title="Session" synthesis={{ status: 'failed', overview: '', memory: [] }} />);
 

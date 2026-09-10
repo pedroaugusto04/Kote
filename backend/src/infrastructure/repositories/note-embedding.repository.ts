@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import {
   NoteEmbeddingRepository,
+  EmbeddingRepresentation,
   type FindSimilarOptions,
   type NoteEmbeddingRecord,
   type SimilarChunk,
@@ -20,7 +21,7 @@ function embeddingFromRow(row: Record<string, unknown>): NoteEmbeddingRecord {
     model: String(row.model || ''),
     createdAt: String(row.created_at || ''),
     updatedAt: String(row.updated_at || ''),
-    representation: (String(row.representation || 'raw') as 'raw' | 'synthesis'),
+    representation: (String(row.representation || EmbeddingRepresentation.Raw) as EmbeddingRepresentation),
     sourceRefs: Array.isArray(row.source_refs) ? row.source_refs.map(Number) : [],
   };
 }
@@ -58,7 +59,7 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
       await client.query('BEGIN');
 
       // Remove stale chunks that exceed the new chunk count
-      const representation = chunks[0].representation || 'raw';
+      const representation = chunks[0].representation || EmbeddingRepresentation.Raw;
       await client.query(
         `DELETE FROM kb_note_embeddings
          WHERE user_id = $1 AND note_id = $2 AND representation = $3 AND chunk_index >= $4`,
@@ -80,7 +81,7 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
           chunk.chunkText,
           formatEmbeddingForPg(chunk.embedding),
           chunk.model,
-          chunk.representation || 'raw',
+          chunk.representation || EmbeddingRepresentation.Raw,
           JSON.stringify(chunk.sourceRefs || []),
         );
       });
@@ -115,7 +116,7 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
     );
   }
 
-  async deleteByNoteIdAndRepresentation(userId: string, noteId: string, representation: 'raw' | 'synthesis'): Promise<void> {
+  async deleteByNoteIdAndRepresentation(userId: string, noteId: string, representation: EmbeddingRepresentation): Promise<void> {
     await this.database.getPool().query(
       'DELETE FROM kb_note_embeddings WHERE user_id = $1 AND note_id = $2 AND representation = $3',
       [userId, noteId, representation],
@@ -147,14 +148,21 @@ export class PostgresNoteEmbeddingRepository extends NoteEmbeddingRepository {
       values.push(projectId);
       optionalClauses.push(`AND (n.project_id = $${values.length} OR p.project_slug = '${SPECIAL_PROJECT_SLUGS.INBOX}' OR n.project_id IS NULL)`);
     }
-    if (options.representation && options.representation !== 'all') {
+    if (options.representation && options.representation !== EmbeddingRepresentation.All) {
       values.push(options.representation);
       optionalClauses.push(`AND e.representation = $${values.length}`);
     }
 
+    const synthesisBoost = options.synthesisBoost;
+    let synthesisBoostSql = '0.035';
+    if (synthesisBoost !== undefined) {
+      values.push(synthesisBoost);
+      synthesisBoostSql = `$${values.length}`;
+    }
+
     const result = await this.database.getPool().query(
       `SELECT e.*,
-              (1 - (e.embedding <=> $2::vector)) + CASE WHEN e.representation = 'synthesis' THEN 0.035 ELSE 0 END AS similarity
+              (1 - (e.embedding <=> $2::vector)) + CASE WHEN e.representation = '${EmbeddingRepresentation.Synthesis}' THEN ${synthesisBoostSql}::double precision ELSE 0 END AS similarity
        FROM kb_note_embeddings e
        JOIN kb_notes n ON n.id = e.note_id AND n.user_id = e.user_id
        LEFT JOIN kb_projects p ON p.id = n.project_id

@@ -14,7 +14,7 @@ import { resolveContentScopeFromSlugs } from '../../../utils/content/content-sco
 import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { AiEntitlementService } from '../../../services/ai/ai-entitlement.service.js';
 import { EmbeddingGateway } from '../../../ports/notes/embedding.gateway.js';
-import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
+import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../../ports/notes/embedding-queue.publisher.js';
 import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
 import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.port.js';
@@ -422,6 +422,7 @@ export class HandleGithubPullRequestUseCase {
               limit: 8,
               workspaceId: workspaceId || undefined,
               minSimilarity: environment.ragMinSimilarity ?? 0.45,
+              representation: EmbeddingRepresentation.Raw,
             });
 
             this.logger.info('github_pr_semantic_search_results', {

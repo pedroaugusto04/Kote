@@ -88,6 +88,7 @@ export function noteDetail(
       mode: synthesis.mode,
       overview: synthesis.status === NoteSynthesisStatus.Completed && synthesis.sourceHash !== crypto.createHash('sha256').update(record.markdown || '').digest('hex') ? '' : synthesis.overview,
       memory: synthesis.status === NoteSynthesisStatus.Completed && synthesis.sourceHash !== crypto.createHash('sha256').update(record.markdown || '').digest('hex') ? [] : synthesis.memory,
+      availableAt: synthesis.availableAt || null,
       generatedAt: synthesis.generatedAt,
       sourceHash: synthesis.sourceHash,
     } : null,

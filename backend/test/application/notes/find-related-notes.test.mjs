@@ -63,3 +63,48 @@ test('FindRelatedNotesUseCase preserves descending similarity order from note em
   assert.equal(result[1].id, 'note-B');
   assert.equal(result[2].id, 'note-C');
 });
+
+test('FindRelatedNotesUseCase uses raw embedding chunk 0 even when synthesis embedding is listed first', async () => {
+  let passedQueryEmbedding = null;
+  let passedOptions = null;
+
+  const mockContentRepository = {
+    getNoteById: async (userId, noteId) => ({
+      id: noteId,
+      title: 'Source Note',
+      workspaceSlug: 'ws',
+      projectSlug: 'ps',
+      path: 'source.md',
+      markdown: 'source content',
+      markdownStorageKey: '',
+      frontmatter: {},
+      metadata: {},
+      origin: '',
+      source: '',
+      links: [],
+    }),
+    getNotesByIds: async (userId, ids) => [
+      { id: 'note-A', title: 'Note A', workspaceSlug: 'ws', projectSlug: 'ps', path: 'note-a.md', markdown: '', markdownStorageKey: '', frontmatter: {}, metadata: {}, origin: '', source: '', links: [] },
+    ],
+  };
+
+  const mockNoteEmbeddingRepository = {
+    getNoteEmbeddings: async (userId, noteId) => [
+      { chunkIndex: 0, representation: 'synthesis', embedding: [0.99, 0.99, 0.99] },
+      { chunkIndex: 0, representation: 'raw', embedding: [0.1, 0.2, 0.3] },
+    ],
+    findSimilar: async (userId, embedding, options) => {
+      passedQueryEmbedding = embedding;
+      passedOptions = options;
+      return [{ noteId: 'note-A', similarity: 0.9 }];
+    },
+  };
+
+  const useCase = new FindRelatedNotesUseCase(mockContentRepository, mockNoteEmbeddingRepository);
+  const result = await useCase.execute('user-123', 'source-note', 3);
+
+  assert.equal(result.length, 1);
+  assert.deepEqual(passedQueryEmbedding, [0.1, 0.2, 0.3]);
+  assert.equal(passedOptions.representation, 'raw');
+});
+

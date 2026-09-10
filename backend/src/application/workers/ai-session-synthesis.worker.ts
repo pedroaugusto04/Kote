@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { AiSessionSynthesisOutboxRepository } from '../ports/notes/ai-session-synthesis-outbox.repository.js';
 import { AiSessionSynthesisGateway } from '../ports/notes/ai-session-synthesis.gateway.js';
@@ -13,7 +12,7 @@ import { IntegrationProvider } from '../../contracts/enums.js';
 import type { NoteSynthesisItem } from '../models/note-synthesis.models.js';
 import { AppLogger } from '../../observability/logger.js';
 import { AI_SESSION_SYNTHESIS_PROCESSING, AI_SESSION_SYNTHESIS_QUEUE, AiSessionSynthesisErrorCode, AiSessionSynthesisJobStatus } from '../constants/ai-session-synthesis.constants.js';
-import { buildDeterministicSynthesis, buildSynthesisTranscript, detectSynthesisLanguage, isDeterministicSynthesis, parseAiSessionTurns } from '../services/content/ai-session-synthesis-transcript.service.js';
+import { buildDeterministicSynthesis, buildSynthesisTranscript, getAiSessionSourceHash, isDeterministicSynthesis, parseAiSessionTurns } from '../services/content/ai-session-synthesis-transcript.service.js';
 
 @Injectable()
 export class AiSessionSynthesisWorker implements OnModuleInit, OnModuleDestroy {
@@ -68,7 +67,7 @@ export class AiSessionSynthesisWorker implements OnModuleInit, OnModuleDestroy {
       });
 
       const note = await this.content.getNoteById(job.userId, job.noteId);
-      if (!note || crypto.createHash('sha256').update(note.markdown || '').digest('hex') !== job.sourceHash) {
+      if (!note || getAiSessionSourceHash(note.markdown) !== job.sourceHash) {
         await this.outbox.complete(job.id, AiSessionSynthesisJobStatus.Superseded);
         this.logger.info('ai_session_synthesis.superseded', { jobId: job.id, noteId: job.noteId, attempt: job.attempts });
         return;
@@ -109,13 +108,13 @@ export class AiSessionSynthesisWorker implements OnModuleInit, OnModuleDestroy {
           }
         }
         const env = this.environment.read(); const transcript = buildSynthesisTranscript(turns);
-        const output = await this.gateway.generate({ provider: env.aiSessionSynthesisProvider, baseUrl: env.aiSessionSynthesisBaseUrl, model: env.aiSessionSynthesisModel, apiKey: env.aiSessionSynthesisApiKey }, transcript, detectSynthesisLanguage(transcript));
+        const output = await this.gateway.generate({ provider: env.aiSessionSynthesisProvider, baseUrl: env.aiSessionSynthesisBaseUrl, model: env.aiSessionSynthesisModel, apiKey: env.aiSessionSynthesisApiKey }, transcript);
         overview = output.overview; memory = output.memory.map((item) => ({ ...item, turnRefs: item.turnRefs.filter((ref) => ref >= 1 && ref <= turns.length) })); provider = String(env.aiSessionSynthesisProvider); model = env.aiSessionSynthesisModel;
       }
 
       await this.syntheses.markCompleted({ userId: job.userId, noteId: job.noteId, sourceHash: job.sourceHash, mode: deterministic ? 'deterministic' : 'ai', overview, memory, provider, model });
       const current = await this.content.getNoteById(job.userId, job.noteId);
-      if (current && crypto.createHash('sha256').update(current.markdown || '').digest('hex') === job.sourceHash) {
+      if (current && getAiSessionSourceHash(current.markdown) === job.sourceHash) {
         await this.content.updateNoteSummary(job.userId, job.noteId, overview);
         await this.publishRaw(job.userId, job.noteId);
         await this.outbox.complete(job.id, AiSessionSynthesisJobStatus.Completed);

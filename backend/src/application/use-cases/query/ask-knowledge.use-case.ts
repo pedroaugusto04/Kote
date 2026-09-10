@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingGateway, type EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
-import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
+import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
 import type { SimilarChunk } from '../../ports/notes/note-embedding.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -12,12 +12,17 @@ import type { NoteRecord } from '../../models/repository-records.models.js';
 import type { VaultNoteSummary } from '../../models/vault-note.models.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 import { ConversationConfidence, EmbeddingTaskType, SpecialQueryIntent, IntegrationProvider } from '../../../contracts/enums.js';
+import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
 import { getSpecialQueryIntent, matchesIntent, selectTopFtsOnlyChunksPerNote } from '../../utils/query/query.utils.js';
 import { chunkRankKey, rankHybridContextChunks } from '../../utils/rag/hybrid-rag.utils.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
+import { NoteSynthesisRepository } from '../../ports/notes/note-synthesis.repository.js';
+import { NoteSynthesisStatus, AI_SESSION_SYNTHESIS_RETRIEVAL } from '../../constants/ai-session-synthesis.constants.js';
+import type { NoteSynthesisRecord } from '../../models/note-synthesis.models.js';
+import { getAiSessionSourceHash } from '../../services/content/ai-session-synthesis-transcript.service.js';
 
 type AskRelatedNote = {
   id: string;
@@ -37,7 +42,12 @@ type CandidateChunk = {
   chunkIndex: number;
   chunkText: string;
   similarity: number;
+  representation?: EmbeddingRepresentation;
+  sourceRefs?: number[];
 };
+
+type RankedCandidate = { chunk: CandidateChunk; note: NoteRecord; hybridScore: number };
+type ContextAssemblyEntry = RankedCandidate & { text: string };
 
 type AskScope = {
   workspaceId?: string;
@@ -58,6 +68,7 @@ export class AskKnowledgeUseCase {
     private readonly logger: AppLogger,
     private readonly aiEntitlement: AiEntitlementService,
     private readonly embeddingQueue: EmbeddingQueuePublisher,
+    private readonly synthesisRepository: NoteSynthesisRepository,
   ) {
     this.env = this.runtimeEnv.read();
   }
@@ -278,6 +289,7 @@ export class AskKnowledgeUseCase {
     const noteIds = Array.from(new Set(allChunks.map((chunk) => chunk.noteId)));
     const rawNotes = await this.contentRepository.getNotesByIds(userId, noteIds);
     const notes = rawNotes.filter((note) => !isDependencyNote(note));
+    const validSyntheses = await this.loadValidSyntheses(userId, notes);
     this.logger.info('ask_knowledge.notes_fetched', {
       requestedIds: noteIds.length,
       fetchedNotes: notes.length,
@@ -315,7 +327,7 @@ export class AskKnowledgeUseCase {
         : 0,
     });
 
-    return this.buildAskContextResult(rankedChunks, noteMap);
+    return this.buildAskContextResult(userId, rankedChunks, noteMap, validSyntheses);
   }
 
   private async searchVectorCandidateChunks(
@@ -347,12 +359,28 @@ export class AskKnowledgeUseCase {
         candidateLimit: ragConfig.candidateLimit,
       });
 
-      const results = await this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
-        limit: ragConfig.candidateLimit,
-        workspaceId: options.workspaceId,
-        projectId: options.projectId,
-        minSimilarity: ragConfig.minSimilarity,
-      });
+      const [synthesisResults, rawResults] = await Promise.all([
+        this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
+          limit: ragConfig.candidateLimit,
+          workspaceId: options.workspaceId,
+          projectId: options.projectId,
+          minSimilarity: ragConfig.minSimilarity,
+          representation: EmbeddingRepresentation.Synthesis,
+          synthesisBoost: 0,
+        }),
+        this.noteEmbeddingRepository.findSimilar(userId, questionEmbedding, {
+          limit: ragConfig.candidateLimit,
+          workspaceId: options.workspaceId,
+          projectId: options.projectId,
+          minSimilarity: ragConfig.minSimilarity,
+          representation: EmbeddingRepresentation.Raw,
+          synthesisBoost: 0,
+        }),
+      ]);
+      const results = Array.from(new Map(
+        [...synthesisResults, ...rawResults]
+          .map((chunk) => [chunkRankKey(chunk.noteId, chunk.chunkIndex, chunk.representation), chunk] as const),
+      ).values());
 
       this.logger.info('ask_knowledge.vector_search_complete', {
         resultCount: results.length,
@@ -446,12 +474,14 @@ export class AskKnowledgeUseCase {
 
       const ftsOnlyKeywordScoreByChunkKey = new Map<string, number>();
       const additionalChunks = selectedFtsChunks.map(({ chunk, keywordScore }) => {
-        ftsOnlyKeywordScoreByChunkKey.set(chunkRankKey(chunk.noteId, chunk.chunkIndex), keywordScore);
+        ftsOnlyKeywordScoreByChunkKey.set(chunkRankKey(chunk.noteId, chunk.chunkIndex, chunk.representation), keywordScore);
         return {
           noteId: chunk.noteId,
           chunkIndex: chunk.chunkIndex,
           chunkText: chunk.chunkText,
           similarity: 0,
+          representation: chunk.representation,
+          sourceRefs: chunk.sourceRefs,
         };
       });
 
@@ -478,7 +508,7 @@ export class AskKnowledgeUseCase {
     const note = noteMap.get(chunk.noteId);
     if (!note) return null;
 
-    const chunkKey = chunkRankKey(chunk.noteId, chunk.chunkIndex);
+    const chunkKey = chunkRankKey(chunk.noteId, chunk.chunkIndex, chunk.representation);
     const ftsOnlyKeywordScore = ftsOnlyKeywordScoreByChunkKey.get(chunkKey);
     const ftsNote = ftsNotesMap.get(chunk.noteId);
     const noteKeywordScore = ftsNote?.ftsRank && ftsNote.ftsRank > 0 ? ftsNote.ftsRank : 0;
@@ -488,6 +518,8 @@ export class AskKnowledgeUseCase {
       note,
       vectorScore: chunk.similarity,
       keywordScore: ftsOnlyKeywordScore ?? noteKeywordScore,
+      representation: chunk.representation,
+      sourceRefs: chunk.sourceRefs,
     };
   }
 
@@ -520,20 +552,45 @@ export class AskKnowledgeUseCase {
     });
   }
 
-  private buildAskContextResult(
-    rankedChunks: Array<{ chunk: CandidateChunk; note: NoteRecord; hybridScore: number }>,
+  private async buildAskContextResult(
+    userId: string,
+    rankedChunks: RankedCandidate[],
     noteMap: Map<string, NoteRecord>,
-  ): AskContextResult {
-    const contextChunks = rankedChunks.map(({ chunk, note }) => ({
-      noteId: chunk.noteId,
-      title: note.title,
-      path: note.path,
-      projectSlug: note.projectSlug,
-      workspaceId: note.workspaceId,
-      chunkText: chunk.chunkText,
-    }));
+    validSyntheses: Map<string, NoteSynthesisRecord>,
+  ): Promise<AskContextResult> {
+    const grouped = groupRankedCandidates(rankedChunks);
 
-    const topNoteIds = Array.from(new Set(rankedChunks.map((result) => result.note.id)));
+    const contextChunks: AnswerContextChunk[] = [];
+    let contextChars = 0;
+    const topNoteIds: string[] = [];
+    const rawEmbeddingsByNoteId = await this.loadRawEvidence(userId, validSyntheses, noteMap);
+    for (const [noteId, entries] of grouped) {
+      if (topNoteIds.length >= AI_SESSION_SYNTHESIS_RETRIEVAL.maxSessions) break;
+      const note = noteMap.get(noteId);
+      if (!note) continue;
+      topNoteIds.push(noteId);
+      const synthesis = validSyntheses.get(noteId);
+      const synthesisEntry = synthesis ? entries.find((entry) => entry.chunk.representation === EmbeddingRepresentation.Synthesis) : undefined;
+      const rawEntries = entries.filter((entry) => entry.chunk.representation !== EmbeddingRepresentation.Synthesis);
+      const refs = new Set(synthesisEntry?.chunk.sourceRefs || []);
+      const storedRawEntries = rawEmbeddingsByNoteId.get(noteId) || [];
+      const evidenceEntries = selectEvidenceEntries(rawEntries, storedRawEntries, refs);
+      const ordered = buildContextEntries(entries, synthesisEntry, evidenceEntries);
+
+      for (const entry of ordered) {
+        if (contextChars + entry.text.length > AI_SESSION_SYNTHESIS_RETRIEVAL.maxContextChars) continue;
+        contextChunks.push({
+          noteId: entry.chunk.noteId,
+          title: note.title,
+          path: note.path,
+          projectSlug: note.projectSlug,
+          workspaceId: note.workspaceId,
+          chunkText: entry.text,
+        });
+        contextChars += entry.text.length;
+      }
+    }
+
     const relatedNotes = topNoteIds
       .map((noteId) => noteMap.get(noteId))
       .filter((note): note is NoteRecord => Boolean(note))
@@ -548,9 +605,32 @@ export class AskKnowledgeUseCase {
     this.logger.info('ask_knowledge.context_built', {
       contextChunksCount: contextChunks.length,
       relatedNotesCount: relatedNotes.length,
+      contextChars,
+      memoryChunksCount: contextChunks.filter((chunk) => chunk.chunkText.startsWith('[Session memory]')).length,
+      evidenceChunksCount: contextChunks.filter((chunk) => chunk.chunkText.startsWith('[Original evidence]')).length,
     });
 
     return { contextChunks, relatedNotes };
+  }
+
+  private async loadRawEvidence(
+    userId: string,
+    syntheses: Map<string, NoteSynthesisRecord>,
+    noteMap: Map<string, NoteRecord>,
+  ): Promise<Map<string, RankedCandidate[]>> {
+    const result = new Map<string, RankedCandidate[]>();
+    if (syntheses.size === 0) return result;
+
+    const records = await this.noteEmbeddingRepository.getNotesEmbeddings(userId, [...syntheses.keys()]);
+    for (const record of records) {
+      if (record.representation !== EmbeddingRepresentation.Raw) continue;
+      const note = noteMap.get(record.noteId);
+      if (!note) continue;
+      const entries = result.get(record.noteId) || [];
+      entries.push({ chunk: { ...record, similarity: 0 }, note, hybridScore: 0 });
+      result.set(record.noteId, entries);
+    }
+    return result;
   }
 
   private async resolveSpecialIntentContext(
@@ -614,6 +694,70 @@ export class AskKnowledgeUseCase {
 
     return { contextChunks, relatedNotes };
   }
+
+  private async loadValidSyntheses(userId: string, notes: NoteRecord[]): Promise<Map<string, NoteSynthesisRecord>> {
+    const result = new Map<string, NoteSynthesisRecord>();
+    const aiNotes = notes.filter((note) => note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat);
+    const records = await Promise.all(aiNotes.map(async (note) => {
+      const synthesis = await this.synthesisRepository!.getByNoteId(userId, note.id);
+      const sourceHash = getAiSessionSourceHash(note.markdown);
+      return synthesis?.status === NoteSynthesisStatus.Completed
+        && synthesis.sourceHash === sourceHash
+        && Boolean(synthesis.overview.trim())
+        ? [note.id, synthesis] as const
+        : null;
+    }));
+    for (const record of records) {
+      if (record) result.set(record[0], record[1]);
+    }
+    return result;
+  }
+}
+
+function groupRankedCandidates(candidates: RankedCandidate[]): Map<string, RankedCandidate[]> {
+  const grouped = new Map<string, RankedCandidate[]>();
+  for (const candidate of candidates) {
+    const entries = grouped.get(candidate.note.id) || [];
+    entries.push(candidate);
+    grouped.set(candidate.note.id, entries);
+  }
+  return grouped;
+}
+
+function selectEvidenceEntries(
+  rankedRawEntries: RankedCandidate[],
+  storedRawEntries: RankedCandidate[],
+  refs: ReadonlySet<number>,
+): RankedCandidate[] {
+  const matches = (entry: RankedCandidate) => refs.size === 0 || (entry.chunk.sourceRefs || []).some((ref) => refs.has(ref));
+  const rankedMatches = rankedRawEntries.filter(matches);
+  if (rankedMatches.length > 0) return rankedMatches;
+  const storedMatches = storedRawEntries.filter(matches);
+  if (storedMatches.length > 0) return storedMatches;
+  if (refs.size > 0) return [];
+  return rankedRawEntries.length > 0 ? rankedRawEntries : storedRawEntries;
+}
+
+function buildContextEntries(
+  entries: RankedCandidate[],
+  synthesisEntry: RankedCandidate | undefined,
+  evidenceEntries: RankedCandidate[],
+): ContextAssemblyEntry[] {
+  if (!synthesisEntry) {
+    return entries
+      .slice(0, AI_SESSION_SYNTHESIS_RETRIEVAL.maxEvidenceChunksPerSession)
+      .map((entry) => ({ ...entry, text: entry.chunk.chunkText }));
+  }
+
+  return [
+    { ...synthesisEntry, text: `[Session memory]\n${synthesisEntry.chunk.chunkText}` },
+    ...evidenceEntries
+      .slice(0, AI_SESSION_SYNTHESIS_RETRIEVAL.maxEvidenceChunksPerSession)
+      .map((entry) => ({
+        ...entry,
+        text: `[Original evidence${entry.chunk.sourceRefs?.length ? ` — turns ${entry.chunk.sourceRefs.join(', ')}` : ''}]\n${entry.chunk.chunkText}`,
+      })),
+  ];
 }
 
 function emptyAskContext(): AskContextResult {

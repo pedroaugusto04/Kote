@@ -154,7 +154,7 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
 
   assert.equal(snippetResult.length, 1);
   assert.equal(snippetResult[0].lineageCategory, 'cross-file-related');
-  assert.deepEqual(vectorSearchOptions.at(-1), { limit: 44, minSimilarity: 0.44, projectId: undefined });
+  assert.deepEqual(vectorSearchOptions.at(-1), { limit: 44, minSimilarity: 0.44, projectId: undefined, representation: 'raw' });
   assert.equal(ftsFilters.at(-1).query, 'selectedsnippetidentifier');
   assert.equal(ftsFilters.at(-1).ftsLimit, 11);
 });
@@ -226,7 +226,7 @@ test('FindRelatedNotesByFileUseCase keeps vector-only notes in the result set', 
   assert.equal(result[0].id, 'semantic-only');
   assert.equal(result[0].semanticSimilarity, 0.82);
   assert.equal(result[0].lineageCategory, 'cross-file-related');
-  assert.deepEqual(vectorOptions[0], { limit: 40, minSimilarity: 0.3, projectId: undefined });
+  assert.deepEqual(vectorOptions[0], { limit: 40, minSimilarity: 0.3, projectId: undefined, representation: 'raw' });
 });
 
 test('snippet profile removes candidates below the backend lineage threshold', async () => {

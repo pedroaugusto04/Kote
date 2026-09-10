@@ -5,6 +5,7 @@ import { AskKnowledgeUseCase } from '../../../dist/application/use-cases/query/a
 import { RunAskAiUseCase } from '../../../dist/application/use-cases/query/run-ask-ai.use-case.js';
 import { ListAskHistoryUseCase } from '../../../dist/application/use-cases/query/list-ask-history.use-case.js';
 import { AppLogger } from '../../../dist/observability/logger.js';
+import crypto from 'node:crypto';
 
 const dummyAiEntitlement = {
   async requireAndConsume() {
@@ -731,7 +732,6 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
     }),
   };
 
-
   let loggerWarnCalled = false;
   const mockLogger = {
     info: () => {},
@@ -1124,5 +1124,35 @@ test('AskKnowledgeUseCase excludes dependency notes from special intent recent c
   assert.equal(generatedContext[0].title, 'Recent Release');
 });
 
-
-
+test('AskKnowledgeUseCase prefers session memory and expands linked raw evidence', async () => {
+  const markdown = '# Session\n\n### User\nWhat deployment strategy should we use?\n\n### Assistant\nUse blue-green deployment and validate rollback timing.';
+  const sourceHash = crypto.createHash('sha256').update(markdown).digest('hex');
+  const note = {
+    id: 'ai-note', path: 'sessions/deploy.md', type: 'note', title: 'Deployment session', projectSlug: 'infra',
+    workspaceSlug: 'default', workspaceId: 'ws-1', sourceChannel: 'ai-chat', source: 'ai-chat', markdown, summary: '', tags: [],
+  };
+  const repository = {
+    findSimilar: async (_userId, _embedding, options) => options.representation === 'synthesis'
+      ? [{ noteId: 'ai-note', chunkIndex: 0, chunkText: 'decision [current]: Use blue-green deployment.', embedding: [1], model: 'm', createdAt: '', updatedAt: '', representation: 'synthesis', sourceRefs: [2], similarity: 0.8 }]
+      : [{ noteId: 'ai-note', chunkIndex: 0, chunkText: 'TURN 2 [ASSISTANT]\nUse blue-green deployment and validate rollback timing.', embedding: [1], model: 'm', createdAt: '', updatedAt: '', representation: 'raw', sourceRefs: [2], similarity: 0.7 }],
+    getNotesEmbeddings: async () => [],
+  };
+  const content = { listWorkspaces: async () => [{ id: 'ws-1', workspaceSlug: 'default' }], getNotesByIds: async () => [note] };
+  const answer = {
+    generate: async (_config, input) => {
+      assert.equal(input.context.length, 2);
+      assert.match(input.context[0].chunkText, /Session memory/);
+      assert.match(input.context[1].chunkText, /Original evidence/);
+      return { answer: 'Use blue-green deployment.', confidence: 'high', requestedAttachments: false, sources: [{ noteId: 'ai-note' }] };
+    },
+  };
+  const env = { read: () => ({
+    embeddingAiProvider: 'test', embeddingAiBaseUrl: 'http://embedding', embeddingAiModel: 'm', embeddingAiApiKey: 'key',
+    conversationAiProvider: 'test', conversationAiBaseUrl: 'http://conversation', conversationAiModel: 'm', conversationAiApiKey: 'key',
+    ragCandidateLimit: 16, ragMinSimilarity: 0.3, ragHybridVectorWeight: 0.7, ragHybridKeywordWeight: 0.3,
+    ragTopChunksLimit: 10, ragRrfK: 20, ragRecencyBonusEnabled: false,
+  }) };
+  const synthesis = { getByNoteId: async () => ({ status: 'completed', sourceHash, overview: 'Deployment decision.', memory: [{ kind: 'decision', text: 'Use blue-green deployment.', status: 'current', turnRefs: [2] }] }) };
+  const useCase = new AskKnowledgeUseCase({}, repository, content, answer, env, { list: async () => [] }, { info() {}, warn() {}, error() {}, debug() {} }, dummyAiEntitlement, { publishQueryEmbedding: async () => [[1]] }, synthesis);
+  assert.equal((await useCase.execute('What deployment strategy?', 'user-123', { workspaceId: 'ws-1' })).ok, true);
+});

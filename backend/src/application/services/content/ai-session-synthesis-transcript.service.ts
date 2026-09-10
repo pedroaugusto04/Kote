@@ -1,7 +1,16 @@
 import { AI_SESSION_SYNTHESIS_PROCESSING } from '../../constants/ai-session-synthesis.constants.js';
+import crypto from 'node:crypto';
 import type { NoteSynthesisItem } from '../../models/note-synthesis.models.js';
 
 export type AiSessionTurn = { role: 'user' | 'assistant'; text: string; number: number };
+
+export type SynthesisRetrievalChunk = { chunkText: string; sourceRefs: number[] };
+
+const SYNTHESIS_RETRIEVAL_CHUNK_MAX_CHARS = 2_400;
+
+export function getAiSessionSourceHash(markdown: string | null | undefined): string {
+  return crypto.createHash('sha256').update(markdown || '').digest('hex');
+}
 
 export function parseAiSessionTurns(markdown: string): AiSessionTurn[] {
   const turns: AiSessionTurn[] = [];
@@ -38,19 +47,51 @@ export function buildDeterministicSynthesis(turns: AiSessionTurn[]): { overview:
 }
 
 export function formatSynthesisForRetrieval(overview: string, memory: NoteSynthesisItem[]): string {
-  const items = memory.map((item) => {
-    const kind = item.kind.replace(/_/g, " ");
-    return `${kind} [${item.status}]: ${item.text}`;
-  });
+  const items = memory.map(formatSynthesisMemoryItem);
   return [`Session overview: ${overview.trim()}`, ...items].filter(Boolean).join("\n");
+}
+
+/**
+ * Builds compact retrieval units without losing the relationship between a
+ * memory item and the transcript turns that support it.
+ */
+export function buildSynthesisRetrievalChunks(overview: string, memory: NoteSynthesisItem[]): SynthesisRetrievalChunk[] {
+  const units = [
+    overview.trim() ? { text: `Session overview: ${overview.trim()}`, refs: memory.flatMap((item) => item.turnRefs || []) } : null,
+    ...memory.map((item) => ({
+      text: formatSynthesisMemoryItem(item),
+      refs: item.turnRefs || [],
+    })),
+  ].filter((unit): unit is { text: string; refs: number[] } => Boolean(unit?.text));
+
+  const chunks: SynthesisRetrievalChunk[] = [];
+  let text = '';
+  let refs: number[] = [];
+  for (const unit of units) {
+    const candidate = text ? `${text}\n${unit.text}` : unit.text;
+    if (text && candidate.length > SYNTHESIS_RETRIEVAL_CHUNK_MAX_CHARS) {
+      chunks.push({ chunkText: text, sourceRefs: [...new Set(refs)] });
+      text = unit.text;
+      refs = [...unit.refs];
+    } else {
+      text = candidate;
+      refs.push(...unit.refs);
+    }
+  }
+  if (text) chunks.push({ chunkText: text, sourceRefs: [...new Set(refs)] });
+  return chunks;
+}
+
+function formatSynthesisMemoryItem(item: NoteSynthesisItem): string {
+  const kind = item.kind.replace(/_/g, ' ');
+  const details = [
+    item.files?.length ? `Files: ${item.files.join(', ')}` : '',
+    item.entities?.length ? `Entities: ${item.entities.join(', ')}` : '',
+  ].filter(Boolean).join(' | ');
+  return `${kind} [${item.status}]: ${item.text}${details ? ` | ${details}` : ''}`;
 }
 
 export function buildSynthesisTranscript(turns: AiSessionTurn[]): string {
   return turns.map((turn) => `TURN ${turn.number} [${turn.role.toUpperCase()}]\n${turn.text}`).join('\n\n');
 }
 
-export function detectSynthesisLanguage(text: string): string {
-  const portuguese = (text.match(/\b(o|a|de|que|para|com|não|uma|um|está)\b/gi) || []).length;
-  const english = (text.match(/\b(the|and|for|with|not|this|that|is|are)\b/gi) || []).length;
-  return portuguese > english ? 'pt-BR' : 'en';
-}

@@ -302,3 +302,30 @@ export function getTimelineNodeColor(category: string, type?: string) {
   if (category === SOURCE_VALUES.DEPENDENCY_WATCHER) return 'var(--orange)';
   return 'var(--muted)';
 }
+
+export const RELATIVE_TIME_UNITS = {
+  SHORTLY: 'shortly',
+  MINUTES_SUFFIX: 'm',
+  HOURS_SUFFIX: 'h',
+  DAYS_SUFFIX: 'd',
+  PREFIX_IN: 'in',
+} as const;
+
+export function formatRelativeTimeUntil(
+  targetIsoDate: string | null | undefined,
+  now: Date = new Date()
+): string {
+  if (!targetIsoDate) return '';
+  const target = new Date(targetIsoDate);
+  if (Number.isNaN(target.getTime())) return '';
+  const diffMs = target.getTime() - now.getTime();
+  if (diffMs <= 0) return RELATIVE_TIME_UNITS.SHORTLY;
+  const diffMinutes = Math.round(diffMs / 60_000);
+  if (diffMinutes < 1) return RELATIVE_TIME_UNITS.SHORTLY;
+  if (diffMinutes < 60) return `${RELATIVE_TIME_UNITS.PREFIX_IN} ${diffMinutes}${RELATIVE_TIME_UNITS.MINUTES_SUFFIX}`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${RELATIVE_TIME_UNITS.PREFIX_IN} ${diffHours}${RELATIVE_TIME_UNITS.HOURS_SUFFIX}`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${RELATIVE_TIME_UNITS.PREFIX_IN} ${diffDays}${RELATIVE_TIME_UNITS.DAYS_SUFFIX}`;
+}
+

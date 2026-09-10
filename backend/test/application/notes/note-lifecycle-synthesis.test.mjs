@@ -69,3 +69,36 @@ test('uses the same scheduler for an immediate regeneration request', async () =
   assert.equal(outboxCalls.length, 1);
   assert.equal(outboxCalls[0].force, true);
 });
+
+test('dispatches embedding index immediately when saving an AI session note', async () => {
+  const storedNote = note('User: session request');
+  const embeddingJobs = [];
+  const content = {
+    getNoteById: async () => storedNote,
+    updateNote: async (_userId, input) => ({ ...storedNote, ...input, sizeBytes: input.sizeBytes }),
+    upsertNote: async (_userId, input) => ({ ...input, id: 'note-1' }),
+    listAttachments: async () => [],
+  };
+  const syntheses = {
+    getByNoteId: async () => null,
+    upsertPending: async () => {},
+  };
+  const outbox = { enqueue: async () => {} };
+  const logger = { info() {}, error() {} };
+  const scheduler = new AiSessionSynthesisScheduler(syntheses, outbox, logger);
+  const service = new NoteLifecycleService(
+    content,
+    { checkQuota: async () => ({ allowed: true }) },
+    { publish: async (job) => { embeddingJobs.push(job); } },
+    { dispatch: async () => {} },
+    logger,
+    scheduler,
+  );
+
+  await service.saveNote(userId, { noteInput: { ...storedNote, markdown: 'User: updated request' } }, { existingNoteId: storedNote.id });
+
+  assert.equal(embeddingJobs.length, 1);
+  assert.equal(embeddingJobs[0].noteId, 'note-1');
+  assert.equal(embeddingJobs[0].type, 'index');
+});
+

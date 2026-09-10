@@ -36,7 +36,9 @@ export type VaultNoteAttachment = {
 };
 
 export type VaultNoteDetail = VaultNoteSummary & {
-  synthesis?: Pick<NoteSynthesisRecord, 'status' | 'mode' | 'overview' | 'memory' | 'generatedAt' | 'sourceHash'> | null;
+  synthesis?: (Pick<NoteSynthesisRecord, 'status' | 'mode' | 'overview' | 'memory' | 'generatedAt' | 'sourceHash'> & {
+    availableAt?: string | null;
+  }) | null;
   markdown: string;
   frontmatter: Record<string, unknown>;
   attachments: VaultNoteAttachment[];

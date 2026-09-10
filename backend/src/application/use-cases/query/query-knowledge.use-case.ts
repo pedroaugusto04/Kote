@@ -4,7 +4,7 @@ import type { QueryInput } from '../../../contracts/query.js';
 import { buildPaginationMeta, DEFAULT_PAGE_SIZE } from '../../../contracts/pagination.js';
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingGateway } from '../../ports/notes/embedding.gateway.js';
-import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
+import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
 import { rankKnowledgeMatches, rankHybridKnowledgeMatches } from '../../utils/query/query.utils.js';
@@ -125,12 +125,18 @@ export class QueryKnowledgeUseCase {
         return { chunks: [] as Array<{ noteId: string; similarity: number }> };
       }
 
-      const chunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
+      const searchOptions = {
         limit: this.ftsCandidateLimit(input),
         workspaceId: input.workspaceId,
         projectId: input.projectId,
         minSimilarity: this.env.searchMinSimilarity ?? 0.35,
-      });
+        synthesisBoost: 0,
+      };
+      const [synthesisChunks, rawChunks] = await Promise.all([
+        this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, { ...searchOptions, representation: EmbeddingRepresentation.Synthesis }),
+        this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, { ...searchOptions, representation: EmbeddingRepresentation.Raw }),
+      ]);
+      const chunks = [...synthesisChunks, ...rawChunks];
 
       this.logger.info('query_knowledge.vector_search_complete', {
         resultCount: chunks.length,

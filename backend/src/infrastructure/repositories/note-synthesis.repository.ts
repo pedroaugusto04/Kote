@@ -11,6 +11,7 @@ function map(row: Record<string, unknown>): NoteSynthesisRecord {
     overview: String(row.overview || ''), memory: (Array.isArray(row.memory) ? row.memory : []) as NoteSynthesisItem[],
     sourceHash: String(row.source_hash || ''), provider: String(row.provider || ''), model: String(row.model || ''),
     errorCode: row.error_code ? String(row.error_code) : null,
+    availableAt: row.available_at ? new Date(String(row.available_at)).toISOString() : null,
     generatedAt: row.generated_at ? new Date(String(row.generated_at)).toISOString() : null,
     createdAt: new Date(String(row.created_at)).toISOString(), updatedAt: new Date(String(row.updated_at)).toISOString(),
   };
@@ -69,7 +70,14 @@ export class PostgresNoteSynthesisRepository extends NoteSynthesisRepository {
   }
 
   async getByNoteId(userId: string, noteId: string) {
-    const result = await this.database.getPool().query('SELECT * FROM kb_note_syntheses WHERE user_id=$1 AND note_id=$2', [userId,noteId]);
+    const result = await this.database.getPool().query(
+      `SELECT s.*, o.available_at
+       FROM kb_note_syntheses s
+       LEFT JOIN kb_ai_session_synthesis_outbox o
+         ON o.note_id = s.note_id AND o.source_hash = s.source_hash
+       WHERE s.user_id = $1 AND s.note_id = $2`,
+      [userId, noteId],
+    );
     return result.rows[0] ? map(result.rows[0]) : null;
   }
 }

@@ -22,6 +22,7 @@ export type NoteSynthesisRecord = {
   provider: string;
   model: string;
   errorCode: string | null;
+  availableAt?: string | null;
   generatedAt: string | null;
   createdAt: string;
   updatedAt: string;

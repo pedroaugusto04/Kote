@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
+import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
 import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 
 @Injectable()
@@ -19,13 +19,23 @@ export class FindRelatedNotesUseCase {
       return [];
     }
 
-    // Use the first chunk's embedding (which represents the start/title/core content)
-    const queryEmbedding = embeddings[0].embedding;
+    const rawEmbedding =
+      embeddings.find(
+        (e) => (e.representation || EmbeddingRepresentation.Raw) === EmbeddingRepresentation.Raw && e.chunkIndex === 0,
+      ) ??
+      embeddings.find(
+        (e) => (e.representation || EmbeddingRepresentation.Raw) === EmbeddingRepresentation.Raw,
+      ) ??
+      embeddings[0];
+
+    // Use the raw chunk's embedding (which represents the start/title/core content)
+    const queryEmbedding = rawEmbedding.embedding;
 
     // Find similar chunks in the workspace (we search up to 20 chunks to have enough variety after deduplication)
     const similarChunks = await this.noteEmbeddingRepository.findSimilar(userId, queryEmbedding, {
       limit: 20,
       minSimilarity: 0.35,
+      representation: EmbeddingRepresentation.Raw,
     });
 
     // Deduplicate by noteId, excluding the current note

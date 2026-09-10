@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
-import { EmbeddingGateway } from '../ports/notes/embedding.gateway.js';
+import { EmbeddingGateway, type EmbeddingConfig } from '../ports/notes/embedding.gateway.js';
 import { NoteEmbeddingRepository } from '../ports/notes/note-embedding.repository.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 import { ContentRepository } from '../ports/notes/content.repository.js';
@@ -10,14 +10,16 @@ import { NoteChunkingService } from '../services/content/note-chunking.service.j
 import type { NoteChunkAttachment } from '../models/note-chunk.models.js';
 import { resolveAttachmentTextContent } from '../helpers/attachment-resolver.helper.js';
 
-import type { AttachmentRecord } from '../models/repository-records.models.js';
+import type { AttachmentRecord, NoteRecord } from '../models/repository-records.models.js';
 import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
 import { isNoteEligibleForEmbedding } from '../../domain/utils/note-embedding.utils.js';
 import { AppLogger } from '../../observability/logger.js';
 import { NoteSynthesisRepository } from '../ports/notes/note-synthesis.repository.js';
-import crypto from 'node:crypto';
 import { NoteSynthesisStatus } from '../constants/ai-session-synthesis.constants.js';
-import { formatSynthesisForRetrieval } from '../services/content/ai-session-synthesis-transcript.service.js';
+import { buildSynthesisRetrievalChunks, getAiSessionSourceHash, parseAiSessionTurns } from '../services/content/ai-session-synthesis-transcript.service.js';
+import { SourceChannel } from '../../domain/enums/knowledge.enums.js';
+import { EmbeddingRepresentation } from '../ports/notes/note-embedding.repository.js';
+import type { NoteSynthesisRecord } from '../models/note-synthesis.models.js';
 
 const EXCHANGE_NAME = 'kb.embedding';
 const LOW_PRIORITY_QUEUE = 'kb.embedding.low';
@@ -237,19 +239,13 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
       })),
     );
 
-    const chunks = this.chunkingService.chunkNote({
-      title: note.title,
-      body: note.markdown,
-      projectSlug: note.projectSlug || '',
-      path: note.path || '',
-      attachments: processedAttachments,
-    });
+    const chunks = this.buildRawChunks(note, processedAttachments);
 
     const existingEmbeddings = await this.noteEmbeddingRepository.getNoteEmbeddings(userId, noteId);
     const textToEmbeddingMap = new Map<string, number[]>();
     for (const rec of existingEmbeddings) {
       if (rec.model === env.embeddingAiModel && Array.isArray(rec.embedding) && rec.embedding.length > 0) {
-        textToEmbeddingMap.set(rec.chunkText, rec.embedding);
+        textToEmbeddingMap.set(`${rec.representation || EmbeddingRepresentation.Raw}:${rec.chunkText}`, rec.embedding);
       }
     }
 
@@ -257,7 +253,7 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
     const chunkEmbeddings: (number[] | null)[] = [];
 
     for (const chunk of chunks) {
-      const existing = textToEmbeddingMap.get(chunk.chunkText);
+      const existing = textToEmbeddingMap.get(`${EmbeddingRepresentation.Raw}:${chunk.chunkText}`);
       if (existing) {
         chunkEmbeddings.push(existing);
       } else {
@@ -301,6 +297,8 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
       chunkText: chunk.chunkText,
       embedding: finalEmbeddings[i],
       model: env.embeddingAiModel,
+      representation: EmbeddingRepresentation.Raw,
+      sourceRefs: chunk.sourceRefs,
     }));
 
     await this.noteEmbeddingRepository.upsertChunks(userId, noteId, records);
@@ -308,22 +306,12 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
     // Keep a second, compact representation for semantic retrieval. Raw chunks
     // remain indexed for exact evidence and backwards compatibility.
     const synthesis = await this.synthesisRepository.getByNoteId(userId, noteId);
-    const sourceHash = crypto.createHash('sha256').update(note.markdown || '').digest('hex');
-    if (synthesis?.status === NoteSynthesisStatus.Completed && synthesis.sourceHash === sourceHash && synthesis.overview.trim()) {
-      const synthesisText = formatSynthesisForRetrieval(synthesis.overview, synthesis.memory);
-      const synthesisChunks = this.chunkingService.chunkNote({ title: note.title, body: synthesisText, projectSlug: note.projectSlug || '', path: note.path || '' });
-      const synthesisTexts = synthesisChunks.map((chunk) => chunk.chunkText);
-      const synthesisEmbeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, synthesisTexts);
-      if (synthesisEmbeddings.length === synthesisChunks.length) {
-        await this.noteEmbeddingRepository.upsertChunks(userId, noteId, synthesisChunks.map((chunk, index) => ({
-          userId, noteId, chunkIndex: chunk.chunkIndex, chunkText: chunk.chunkText, embedding: synthesisEmbeddings[index], model: env.embeddingAiModel,
-          representation: 'synthesis' as const,
-          sourceRefs: synthesis.memory.flatMap((item) => item.turnRefs || []),
-        })));
-      }
+    const sourceHash = getAiSessionSourceHash(note.markdown);
+    if (synthesis && this.isUsableSynthesis(synthesis, sourceHash)) {
+      await this.indexSynthesis(userId, noteId, env, embeddingConfig, synthesis, textToEmbeddingMap);
     } else {
       // A prior synthesis cannot be used as evidence for a changed transcript.
-      await this.noteEmbeddingRepository.deleteByNoteIdAndRepresentation(userId, noteId, 'synthesis');
+      await this.noteEmbeddingRepository.deleteByNoteIdAndRepresentation(userId, noteId, EmbeddingRepresentation.Synthesis);
     }
 
     const bodySearchText = resolveNoteBodySearchText(note.markdown, note.metadata);
@@ -336,6 +324,64 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
       chunksCount: chunks.length,
       reusedChunksCount: chunks.length - textsToEmbed.length,
     });
+  }
+
+  private buildRawChunks(note: NoteRecord, attachments: NoteChunkAttachment[]) {
+    const isAiSession = note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat;
+    const turns = isAiSession ? parseAiSessionTurns(note.markdown || '') : [];
+    if (!isAiSession || turns.length === 0) {
+      return this.chunkingService.chunkNote({ title: note.title, body: note.markdown, projectSlug: note.projectSlug || '', path: note.path || '', attachments })
+        .map((chunk) => ({ ...chunk, sourceRefs: [] as number[] }));
+    }
+
+    const turnChunks = turns.flatMap((turn) => this.chunkingService.chunkNote({
+      title: note.title,
+      body: `TURN ${turn.number} [${turn.role.toUpperCase()}]\n${turn.text}`,
+      projectSlug: note.projectSlug || '',
+      path: note.path || '',
+    }).map((chunk) => ({ ...chunk, sourceRefs: [turn.number] })));
+    const attachmentChunks = this.chunkingService.chunkNote({ title: note.title, body: '', projectSlug: note.projectSlug || '', path: note.path || '', attachments })
+      .map((chunk) => ({ ...chunk, sourceRefs: [] as number[] }));
+    return [...turnChunks, ...attachmentChunks].map((chunk, index) => ({ ...chunk, chunkIndex: index }));
+  }
+
+  private isUsableSynthesis(synthesis: NoteSynthesisRecord | null, sourceHash: string): boolean {
+    return synthesis?.status === NoteSynthesisStatus.Completed && synthesis.sourceHash === sourceHash && Boolean(synthesis.overview?.trim());
+  }
+
+  private async indexSynthesis(
+    userId: string,
+    noteId: string,
+    env: ReturnType<RuntimeEnvironmentProvider['read']>,
+    embeddingConfig: EmbeddingConfig,
+    synthesis: NoteSynthesisRecord,
+    existingEmbeddings: Map<string, number[]>,
+  ) {
+    const synthesisChunks = buildSynthesisRetrievalChunks(synthesis.overview, synthesis.memory);
+    const pendingTexts: string[] = [];
+    const embeddings: (number[] | null)[] = [];
+    for (const chunk of synthesisChunks) {
+      const existing = existingEmbeddings.get(`${EmbeddingRepresentation.Synthesis}:${chunk.chunkText}`);
+      embeddings.push(existing || null);
+      if (!existing) pendingTexts.push(chunk.chunkText);
+    }
+    const generated = pendingTexts.length > 0 ? await this.embeddingGateway.generateEmbeddings(embeddingConfig, pendingTexts) : [];
+    if (generated.length !== pendingTexts.length) {
+      await this.noteEmbeddingRepository.deleteByNoteIdAndRepresentation(userId, noteId, EmbeddingRepresentation.Synthesis);
+      this.logger.warn('low_priority_embedding_worker.synthesis_embeddings_count_mismatch', {
+        noteId,
+        expected: pendingTexts.length,
+        received: generated.length,
+      });
+      return;
+    }
+
+    let generatedIndex = 0;
+    await this.noteEmbeddingRepository.upsertChunks(userId, noteId, synthesisChunks.map((chunk, index) => ({
+      userId, noteId, chunkIndex: index, chunkText: chunk.chunkText,
+      embedding: embeddings[index] || generated[generatedIndex++], model: env.embeddingAiModel,
+      representation: EmbeddingRepresentation.Synthesis, sourceRefs: chunk.sourceRefs,
+    })));
   }
 
   private async processDelete(userId: string, noteId: string) {

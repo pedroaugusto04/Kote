@@ -23,6 +23,7 @@ import { PostgresNoteContextRepository } from '../../dist/infrastructure/reposit
 import { PostgresFolderRepository } from '../../dist/infrastructure/repositories/folder.repository.js';
 import { PostgresAttachmentRepository } from '../../dist/infrastructure/repositories/attachment.repository.js';
 import { PostgresCategoryRepository } from '../../dist/infrastructure/repositories/category.repository.js';
+import { PostgresNoteSynthesisRepository } from '../../dist/infrastructure/repositories/note-synthesis.repository.js';
 import { NoteLifecycleService } from '../../dist/application/services/content/note-lifecycle.service.js';
 
 import { drizzle } from 'drizzle-orm/node-postgres';
@@ -252,11 +253,13 @@ export async function createPostgresTestRepositories(t) {
     categoryRepository,
     contentObjectStorage
   );
+  const noteSynthesisRepository = new PostgresNoteSynthesisRepository(database);
   const contentQueryRepository = new PostgresContentQueryRepository(
     database,
     contentObjectStorage,
     noteRepository,
-    attachmentRepository
+    attachmentRepository,
+    noteSynthesisRepository
   );
   const workflowStateRepository = new PostgresWorkflowStateRepository(database);
   const pushSubscriptionRepository = new PostgresPushSubscriptionRepository(database);

@@ -40,7 +40,15 @@ export type NoteAttachment = {
 };
 
 export type NoteDetail = NoteSummary & {
-  synthesis?: { status: NoteSynthesisStatus; mode: string; overview: string; memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }>; generatedAt: string | null; sourceHash: string } | null;
+  synthesis?: {
+    status: NoteSynthesisStatus;
+    mode: string;
+    overview: string;
+    memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }>;
+    availableAt?: string | null;
+    generatedAt: string | null;
+    sourceHash: string;
+  } | null;
   markdown: string;
   frontmatter: Record<string, unknown>;
   links: string[];

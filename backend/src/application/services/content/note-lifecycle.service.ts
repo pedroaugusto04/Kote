@@ -5,7 +5,7 @@ import { QuotaService } from '../quota/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
-import { EmbeddingPriority, SourceChannel } from '../../../domain/enums/knowledge.enums.js';
+import { EmbeddingPriority } from '../../../domain/enums/knowledge.enums.js';
 import { NoteEventDispatcher } from '../webhooks/note-event-dispatcher.js';
 import { WebhookTrigger } from '../../../contracts/enums.js';
 import { calculateAttachmentSize } from '../../../domain/strings.js';
@@ -147,14 +147,7 @@ export class NoteLifecycleService {
     await this.dispatchWebhookEvent(userId, note, options);
   }
 
-  private isAiSession(note: NoteRecord): boolean {
-    return note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat;
-  }
-
   private async dispatchEmbeddingIndex(userId: string, note: NoteRecord): Promise<void> {
-    // AI sessions enter RAG only after their synthesis worker completes, or
-    // explicitly selects the raw-transcript fallback.
-    if (this.isAiSession(note)) return;
     if (!isNoteEligibleForEmbedding(note)) {
       return;
     }

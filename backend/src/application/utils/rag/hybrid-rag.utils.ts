@@ -1,5 +1,7 @@
+import { EmbeddingRepresentation } from '../../ports/notes/note-embedding.repository.js';
+
 export function chunkRankKey(noteId: string, chunkIndex: number, representation?: string): string {
-  return `${noteId}_${representation || 'raw'}_${chunkIndex}`;
+  return `${noteId}_${representation || EmbeddingRepresentation.Raw}_${chunkIndex}`;
 }
 
 export type HybridChunkCandidate<TChunk extends { noteId: string; chunkIndex: number }, TNote> = {

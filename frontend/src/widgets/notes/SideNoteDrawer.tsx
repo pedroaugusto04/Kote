@@ -112,6 +112,7 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
               title={noteQuery.data.title}
               source={noteQuery.data.source}
               sourceChannel={noteQuery.data.sourceChannel}
+              synthesis={noteQuery.data.synthesis}
             />
             <RelatedNotesSection noteId={noteQuery.data.id} openNote={onOpenFullPage} />
           </>

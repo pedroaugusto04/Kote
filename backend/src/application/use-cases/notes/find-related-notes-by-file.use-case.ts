@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ContentRepository, ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import { NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
+import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../ports/notes/embedding-queue.publisher.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -266,6 +266,7 @@ export class FindRelatedNotesByFileUseCase {
         limit: Math.min(limit * 4, 200),
         minSimilarity,
         projectId,
+        representation: EmbeddingRepresentation.Raw,
       });
       const chunks = Array.from(rawChunks.reduce((byNote, chunk) => {
         const current = byNote.get(chunk.noteId);

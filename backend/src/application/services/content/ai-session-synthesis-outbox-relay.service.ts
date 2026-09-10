@@ -17,6 +17,7 @@ export class AiSessionSynthesisOutboxRelay implements OnModuleInit, OnModuleDest
       Number(process.env.KB_AI_SESSION_SYNTHESIS_OUTBOX_POLL_MS || AI_SESSION_SYNTHESIS_PROCESSING.outboxPollDefaultMs),
     );
     this.timer = setInterval(() => void this.flush(), interval);
+    this.timer.unref?.();
   }
   onModuleDestroy() { if (this.timer) clearInterval(this.timer); }
 
@@ -24,7 +25,8 @@ export class AiSessionSynthesisOutboxRelay implements OnModuleInit, OnModuleDest
     if (this.running) return;
     this.running = true;
     try {
-      for (const job of await this.outbox.listReadyForPublish()) {
+      const jobs = await this.outbox.listReadyForPublish();
+      for (const job of jobs) {
         try {
           await this.publisher.publish({ jobId: job.id });
           await this.outbox.markPublished(job.id);
@@ -33,6 +35,8 @@ export class AiSessionSynthesisOutboxRelay implements OnModuleInit, OnModuleDest
           this.logger.warn('ai_session_synthesis.outbox_publish_failed', { jobId: job.id, error: error instanceof Error ? error.message : String(error) });
         }
       }
+    } catch (error) {
+      this.logger.warn('ai_session_synthesis.outbox_flush_failed', { error: error instanceof Error ? error.message : String(error) });
     } finally { this.running = false; }
   }
 }

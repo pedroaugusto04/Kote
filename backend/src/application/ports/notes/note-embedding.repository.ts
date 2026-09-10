@@ -1,3 +1,12 @@
+export const EmbeddingRepresentation = {
+  Raw: 'raw',
+  Synthesis: 'synthesis',
+  All: 'all',
+} as const;
+
+export type EmbeddingRepresentation = typeof EmbeddingRepresentation.Raw | typeof EmbeddingRepresentation.Synthesis;
+export type EmbeddingRepresentationFilter = EmbeddingRepresentation | typeof EmbeddingRepresentation.All;
+
 export type NoteEmbeddingRecord = {
   id: string;
   userId: string;
@@ -8,7 +17,7 @@ export type NoteEmbeddingRecord = {
   model: string;
   createdAt: string;
   updatedAt: string;
-  representation?: 'raw' | 'synthesis';
+  representation?: EmbeddingRepresentation;
   sourceRefs?: number[];
 };
 
@@ -21,7 +30,9 @@ export type FindSimilarOptions = {
   minSimilarity?: number;
   workspaceId?: string;
   projectId?: string;
-  representation?: 'raw' | 'synthesis' | 'all';
+  representation?: EmbeddingRepresentationFilter;
+  /** Preserve legacy synthesis preference for consumers that are not synthesis-aware. */
+  synthesisBoost?: number;
 };
 
 export abstract class NoteEmbeddingRepository {
@@ -32,7 +43,7 @@ export abstract class NoteEmbeddingRepository {
   ): Promise<void>;
 
   abstract deleteByNoteId(userId: string, noteId: string): Promise<void>;
-  abstract deleteByNoteIdAndRepresentation(userId: string, noteId: string, representation: 'raw' | 'synthesis'): Promise<void>;
+  abstract deleteByNoteIdAndRepresentation(userId: string, noteId: string, representation: EmbeddingRepresentation): Promise<void>;
 
   abstract findSimilar(
     userId: string,

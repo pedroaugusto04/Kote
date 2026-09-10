@@ -31,7 +31,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     private readonly contentObjectStorage: ContentObjectStorageService,
     private readonly noteRepository: PostgresNoteRepository,
     private readonly attachmentRepository: PostgresAttachmentRepository,
-    private readonly synthesisRepository: PostgresNoteSynthesisRepository,
+    private readonly synthesisRepository?: PostgresNoteSynthesisRepository,
   ) {
     super();
   }
@@ -264,7 +264,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
         workspaceId: note.workspaceId,
       }),
     ]);
-    const synthesis = await this.synthesisRepository.getByNoteId(userId, id);
+    const synthesis = this.synthesisRepository ? await this.synthesisRepository.getByNoteId(userId, id) : null;
     return noteDetail(note, noteAttachments, neighbors, synthesis);
   }
 

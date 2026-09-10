@@ -5,5 +5,5 @@ export type SessionSynthesisResult = { overview: string; memory: NoteSynthesisIt
 export type AiSessionSynthesisConfig = { provider: AiProvider; baseUrl: string; model: string; apiKey: string };
 
 export abstract class AiSessionSynthesisGateway {
-  abstract generate(config: AiSessionSynthesisConfig, transcript: string, language: string): Promise<SessionSynthesisResult>;
+  abstract generate(config: AiSessionSynthesisConfig, transcript: string): Promise<SessionSynthesisResult>;
 }

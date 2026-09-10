@@ -86,8 +86,8 @@ export function buildAiSessionSynthesisSystemPrompt() {
   return `You synthesize an AI coding session into durable project memory. Return ONLY valid JSON with keys overview and memory. memory MUST be a flat array of atomic memory item objects; never return headings, topic groups, a single object, or an object wrapper. Every item MUST include kind and text. kind must be one of goal, outcome, decision, change, failed_attempt, open_item, or fact. text must be self-contained, concrete, and useful without the transcript; do not repeat the overview. The overview must be 1-3 concise prose sentences, with no Markdown headings or bullets. Never invent information, never expose chain-of-thought, and mark uncertainty as unknown. Preserve rejected or superseded alternatives with their status. turnRefs refer to the numbered transcript turns. Write in the dominant language of the transcript.`;
 }
 
-export function buildAiSessionSynthesisPrompt(transcript: string, language: string) {
-  return JSON.stringify({ language, transcript });
+export function buildAiSessionSynthesisPrompt(transcript: string) {
+  return JSON.stringify({ transcript });
 }
 
 export function parseAiSessionSynthesis(value: unknown): { overview: string; memory: NoteSynthesisItem[] } {
