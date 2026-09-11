@@ -6,7 +6,7 @@ import { CredentialRepository } from '../../ports/integrations/integrations.repo
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
-import { decryptConfig } from '../../credentials.js';
+import { decryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import { AppLogger } from '../../../observability/logger.js';
 
 @Injectable()

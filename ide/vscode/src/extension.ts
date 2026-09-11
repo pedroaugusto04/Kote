@@ -168,7 +168,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   });
 
   const getActiveProjectSlug = () => resolveProjectSlug(sidebarProvider?.activeProject ?? activeProject, kbClient.defaultProjectSlug);
-  historyManager.startWatching(kbClient, context, getActiveProjectSlug);
+  const getActiveProjectSelection = () => ({
+    projectSlug: sidebarProvider?.activeProject ?? activeProject,
+    isManuallySelected: (() => {
+      const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
+      return savedProject !== null && savedProject !== 'auto';
+    })(),
+  });
+  historyManager.startWatching(kbClient, context, getActiveProjectSelection);
 
   registerAskCommand(context, kbClient, getActiveProjectSlug);
   registerSaveNoteCommand(

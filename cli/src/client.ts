@@ -32,9 +32,13 @@ export class ApiClientError extends Error {
 function parseSetCookie(cookieHeaders: string[]): Record<string, string> {
   const cookies: Record<string, string> = {};
   for (const header of cookieHeaders) {
-    const parts = header.split(';')[0]?.trim().split('=') || [];
-    if (parts[0] && parts[1] !== undefined) {
-      cookies[parts[0]] = decodeURIComponent(parts[1]);
+    const firstPart = header.split(';')[0]?.trim();
+    if (!firstPart) continue;
+    const eqIdx = firstPart.indexOf('=');
+    if (eqIdx > 0) {
+      const name = firstPart.slice(0, eqIdx).trim();
+      const val = firstPart.slice(eqIdx + 1);
+      cookies[name] = decodeURIComponent(val);
     }
   }
   return cookies;

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { AiProvider, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus, EmbeddingTaskType } from '../../../../contracts/enums.js';
-import { buildGithubPrReviewEvent, buildGithubPrContextNoteEvent } from '../../../github-review.js';
+import { buildGithubPrReviewEvent, buildGithubPrContextNoteEvent } from '../../../services/integrations/github-review.service.js';
 import type { GithubPullRequestWebhookRequest } from '../../../models/webhook-request.models.js';
 import type { ChangedFile } from '../../../models/github-webhook.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';

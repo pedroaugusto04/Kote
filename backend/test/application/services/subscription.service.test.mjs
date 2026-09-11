@@ -56,16 +56,15 @@ test('SubscriptionService throws when trying to subscribe to the same active pla
   );
 
   await assert.rejects(
-    service.registerOrUpdateSubscription(
-      'user-1',
-      'user@example.com',
-      'User',
+    service.registerOrUpdateSubscription({
+      userId: 'user-1',
+      userEmail: 'user@example.com',
+      userDisplayName: 'User',
       planId,
-      BillingCycle.MONTHLY,
-      BillingType.CREDIT_CARD,
-      undefined,
-      'US'
-    ),
+      billingCycle: BillingCycle.MONTHLY,
+      billingType: BillingType.CREDIT_CARD,
+      countryCode: 'US',
+    }),
     (err) => {
       assert.equal(err.status, 400);
       assert.match(err.message, /already subscribed to this plan/i);

@@ -108,7 +108,13 @@ export class CodexHistoryProvider implements AiHistoryProvider {
   }
 
   getSourceMtime(): number {
-    return safeMtime(this.getHistoryDir());
+    const historyDir = this.getHistoryDir();
+    // Codex stores rollouts under date directories. Updating a rollout changes
+    // the JSONL file's mtime, but not the root sessions directory's mtime.
+    // Tracking that root directory therefore makes the poller permanently skip
+    // new turns after its first scan.
+    const latestRollout = recentFiles(historyDir, (filePath) => filePath.endsWith(JSONL_EXTENSION), 1)[0];
+    return Math.max(safeMtime(historyDir), safeMtime(latestRollout || historyDir));
   }
 
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {

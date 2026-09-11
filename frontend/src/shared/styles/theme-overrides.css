@@ -495,9 +495,63 @@
 }
 
 :root[data-theme="light"] .knowledge-map-loading {
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    var(--panel);
+  background-size: 34px 34px;
+  border-color: var(--line-soft);
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .km-loading-link-base {
+  stroke: var(--line);
+  opacity: 0.65;
+}
+
+:root[data-theme="light"] .km-loading-link-active {
+  stroke: var(--cyan);
+  opacity: 0.9;
+}
+
+:root[data-theme="light"] .km-loading-ring {
+  stroke: var(--amber);
+}
+
+:root[data-theme="light"] .km-loading-node.project {
+  filter: drop-shadow(0 2px 4px rgba(161, 98, 7, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.repo {
+  filter: drop-shadow(0 2px 4px rgba(3, 105, 161, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.folder {
+  filter: drop-shadow(0 2px 4px rgba(126, 34, 206, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.note {
+  filter: drop-shadow(0 2px 4px rgba(21, 128, 61, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.topic {
+  fill: #c026d3;
+  filter: drop-shadow(0 2px 4px rgba(192, 38, 211, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.tag {
+  filter: drop-shadow(0 2px 4px rgba(185, 28, 28, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node-inner {
+  fill: #ffffff;
+  opacity: 0.95;
+}
+
+:root[data-theme="light"] .knowledge-map-loading-title {
   background: var(--panel);
   border-color: var(--line);
-  color: var(--muted);
+  box-shadow: var(--shadow-sm);
 }
 
 :root[data-theme="light"] .knowledge-map-zoom-controls {

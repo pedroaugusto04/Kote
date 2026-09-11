@@ -633,7 +633,8 @@
     justify-content: center;
   }
   
-  .knowledge-map-canvas { min-height: 520px; }
+  .knowledge-map-canvas,
+  .knowledge-map-loading { min-height: 520px; }
   .knowledge-map-canvas svg { height: 520px; }
   .knowledge-map-actions { width: 100%; }
   

@@ -268,6 +268,13 @@
   justify-content: space-between;
   gap: 18px;
   margin-bottom: 18px;
+  min-width: 0;
+}
+
+.page-head > div:first-child {
+  min-width: 0;
+  flex: 1 1 auto;
+  max-width: 100%;
 }
 
 .page-head-back {

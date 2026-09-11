@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { AskKnowledgeUseCase } from '../../../dist/application/use-cases/query/ask-knowledge.use-case.js';
+import { RagRetrievalService } from '../../../dist/application/services/query/rag-retrieval.service.js';
+import { RagContextAssemblerService } from '../../../dist/application/services/query/rag-context-assembler.service.js';
 import { RunAskAiUseCase } from '../../../dist/application/use-cases/query/run-ask-ai.use-case.js';
 import { ListAskHistoryUseCase } from '../../../dist/application/use-cases/query/list-ask-history.use-case.js';
 import { AppLogger } from '../../../dist/observability/logger.js';
@@ -12,6 +14,51 @@ const dummyAiEntitlement = {
     return { allowed: true, limit: -1, current: 0 };
   },
 };
+
+function createAskKnowledgeUseCase({
+  mockEmbeddingGateway = {},
+  mockNoteEmbeddingRepository = {},
+  mockContentRepository = {},
+  mockAnswerGenerationGateway = {},
+  mockRuntimeEnv = {},
+  dummyContentQueryRepository = { list: async () => [] },
+  mockContentQueryRepository,
+  dummyLogger = { info() {}, warn() {}, error() {}, debug() {} },
+  mockLogger,
+  dummyAiEntitlement: customAiEntitlement,
+  mockEmbeddingQueue,
+  queryEmbeddingPublisher,
+  synthesisService,
+} = {}) {
+  const contentQueryRepo = mockContentQueryRepository ?? dummyContentQueryRepository;
+  const logger = mockLogger ?? dummyLogger;
+  const entitlement = customAiEntitlement ?? dummyAiEntitlement;
+  const embeddingPublisher = mockEmbeddingQueue ?? queryEmbeddingPublisher ?? { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] };
+
+  const ragRetrievalService = new RagRetrievalService(
+    mockEmbeddingGateway,
+    mockNoteEmbeddingRepository,
+    mockContentRepository,
+    contentQueryRepo,
+    embeddingPublisher,
+    logger,
+    synthesisService,
+  );
+  const ragContextAssemblerService = new RagContextAssemblerService(
+    mockContentRepository,
+    ragRetrievalService,
+    logger,
+  );
+  return new AskKnowledgeUseCase(
+    ragRetrievalService,
+    ragContextAssemblerService,
+    mockContentRepository,
+    mockAnswerGenerationGateway,
+    mockRuntimeEnv,
+    logger,
+    entitlement,
+  );
+}
 
 test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates answer', async () => {
   // Mocks
@@ -128,7 +175,7 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
     debug: () => {},
   };
 
-  const useCase = new AskKnowledgeUseCase(
+  const useCase = createAskKnowledgeUseCase({
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
@@ -137,8 +184,8 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
-    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
-  );
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+  });
 
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'infra' });
 
@@ -341,7 +388,7 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
     debug: () => {},
   };
 
-  const useCase = new AskKnowledgeUseCase(
+  const useCase = createAskKnowledgeUseCase({
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
@@ -350,8 +397,8 @@ test('AskKnowledgeUseCase rewrites the question using the gateway when history i
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
-    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
-  );
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+  });
 
   const history = [
     { question: 'What is the platform application?', answer: 'It is a dashboard.', projectSlug: 'infra', timestamp: '' },
@@ -450,7 +497,7 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
     debug: () => {},
   };
 
-  const useCase = new AskKnowledgeUseCase(
+  const useCase = createAskKnowledgeUseCase({
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
@@ -459,8 +506,8 @@ test('AskKnowledgeUseCase ignores history for standalone questions', async () =>
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
-    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
-  );
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+  });
 
   const history = [
     { question: 'me envie o contrato', answer: 'Sending the contract.', projectSlug: 'legal', timestamp: '' },
@@ -589,7 +636,7 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
     debug: () => {},
   };
 
-  const useCase = new AskKnowledgeUseCase(
+  const useCase = createAskKnowledgeUseCase({
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
@@ -598,8 +645,8 @@ test('AskKnowledgeUseCase handles special query intent and retrieves matching no
     dummyContentQueryRepository,
     dummyLogger,
     dummyAiEntitlement,
-    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
-  );
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+  });
 
   const result = await useCase.execute('Summarize my recent notes', 'user-123', { projectSlug: 'infra', workspaceSlug: 'default' });
 
@@ -744,7 +791,7 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
     debug: () => {},
   };
 
-  const useCase = new AskKnowledgeUseCase(
+  const useCase = createAskKnowledgeUseCase({
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
@@ -754,7 +801,7 @@ test('AskKnowledgeUseCase falls back to FTS keyword search when generateEmbeddin
     mockLogger,
     dummyAiEntitlement,
     mockEmbeddingQueue,
-  );
+  });
 
   const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'infra', workspaceId: 'ws-123' });
 
@@ -847,7 +894,7 @@ test('AskKnowledgeUseCase selects lexically relevant FTS-only chunks instead of 
     debug: () => {},
   };
 
-  const useCase = new AskKnowledgeUseCase(
+  const useCase = createAskKnowledgeUseCase({
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
@@ -856,8 +903,8 @@ test('AskKnowledgeUseCase selects lexically relevant FTS-only chunks instead of 
     mockContentQueryRepository,
     mockLogger,
     dummyAiEntitlement,
-    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
-  );
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+  });
 
   const result = await useCase.execute('How do I rollback deploy?', 'user-123', { workspaceId: 'ws-123' });
   assert.equal(result.ok, true);
@@ -1009,7 +1056,7 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
     debug: () => {},
   };
 
-  const useCase = new AskKnowledgeUseCase(
+  const useCase = createAskKnowledgeUseCase({
     mockEmbeddingGateway,
     mockNoteEmbeddingRepository,
     mockContentRepository,
@@ -1018,8 +1065,8 @@ test('AskKnowledgeUseCase merges vector and FTS results into hybrid ranking cont
     mockContentQueryRepository,
     mockLogger,
     dummyAiEntitlement,
-    { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
-  );
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[0.1, 0.2, 0.3]] },
+  });
 
   const result = await useCase.execute('fts', 'user-123', { projectSlug: 'infra', workspaceId: 'ws-123' });
   assert.equal(result.ok, true);
@@ -1104,17 +1151,14 @@ test('AskKnowledgeUseCase excludes dependency notes from special intent recent c
     debug: () => {},
   };
 
-  const useCase = new AskKnowledgeUseCase(
-    {},
-    {},
+  const useCase = createAskKnowledgeUseCase({
     mockContentRepository,
     mockAnswerGenerationGateway,
     mockRuntimeEnv,
-    {},
     mockLogger,
     dummyAiEntitlement,
-    { publishQueryEmbedding: async () => [] },
-  );
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [] },
+  });
 
   const result = await useCase.execute('Summarize my recent notes', 'user-123', { workspaceId: 'default' });
   assert.equal(result.ok, true);
@@ -1153,6 +1197,16 @@ test('AskKnowledgeUseCase prefers session memory and expands linked raw evidence
     ragTopChunksLimit: 10, ragRrfK: 20, ragRecencyBonusEnabled: false,
   }) };
   const synthesis = { getByNoteId: async () => ({ status: 'completed', sourceHash, overview: 'Deployment decision.', memory: [{ kind: 'decision', text: 'Use blue-green deployment.', status: 'current', turnRefs: [2] }] }) };
-  const useCase = new AskKnowledgeUseCase({}, repository, content, answer, env, { list: async () => [] }, { info() {}, warn() {}, error() {}, debug() {} }, dummyAiEntitlement, { publishQueryEmbedding: async () => [[1]] }, synthesis);
+  const useCase = createAskKnowledgeUseCase({
+    mockNoteEmbeddingRepository: repository,
+    mockContentRepository: content,
+    mockAnswerGenerationGateway: answer,
+    mockRuntimeEnv: env,
+    dummyContentQueryRepository: { list: async () => [] },
+    dummyLogger: { info() {}, warn() {}, error() {}, debug() {} },
+    dummyAiEntitlement,
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[1]] },
+    synthesisService: synthesis,
+  });
   assert.equal((await useCase.execute('What deployment strategy?', 'user-123', { workspaceId: 'ws-1' })).ok, true);
 });

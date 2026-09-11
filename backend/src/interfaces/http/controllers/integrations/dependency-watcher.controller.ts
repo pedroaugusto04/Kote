@@ -7,7 +7,7 @@ import { SaveDependencyMonitoredRepositoriesUseCase } from '../../../../applicat
 import { CheckProjectDependenciesUseCase } from '../../../../application/use-cases/dependency-watcher/check-project-dependencies.use-case.js';
 import { CheckDependencyUseCase } from '../../../../application/use-cases/dependency-watcher/check-dependency.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import type { AuthenticatedUser } from '../../../../application/auth.js';
+import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import { ContentRepository } from '../../../../application/ports/notes/content.repository.js';
 import { DependencyWatcherRepository } from '../../../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';

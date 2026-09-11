@@ -56,12 +56,12 @@ export function SideNoteDrawer({ noteId, onClose, onOpenFullPage, dashboardProje
       <header className="knowledge-map-drawer-head">
         <div className="knowledge-map-drawer-title-row">
           {noteQuery.data ? (
-            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0 }}>
+            <h2 style={{ fontSize: '20px', fontWeight: '700', margin: 0, minWidth: 0, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
               {(() => {
                 const { text: titleText, url: titleUrl } = makeTitleClickable(noteQuery.data.title);
                 return titleUrl ? (
                   <>
-                    {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{titleUrl}</a>
+                    {titleText} - <a href={titleUrl} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline', wordBreak: 'break-all', overflowWrap: 'anywhere' }}>{titleUrl}</a>
                   </>
                 ) : noteQuery.data.title;
               })()}

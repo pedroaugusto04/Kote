@@ -4,6 +4,7 @@ import { KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import { resolveProjectSlug } from '../utils/project';
 import { SessionHandoffManager } from './handoff/session-handoff.manager';
+import { watchActiveSessionStarts } from './hooks/installer';
 import {
   EXTENSION_COMMANDS,
   GLOBAL_STATE_KEYS,
@@ -15,10 +16,16 @@ import {
 import {
   AI_ROLE,
   AUTO_SAVE_MAX_AGE_MS,
+  matchProviderFromHarnessName,
 } from './constants';
 
 type SessionPromptAction = typeof SESSION_PROMPT_ACTIONS[keyof typeof SESSION_PROMPT_ACTIONS];
 type AiSessionSaveMode = typeof AI_SESSION_SAVE_MODES[keyof typeof AI_SESSION_SAVE_MODES];
+
+interface ActiveProjectSelection {
+  projectSlug: string | null;
+  isManuallySelected: boolean;
+}
 
 const SESSION_MODE_PICKED_KEY = GLOBAL_STATE_KEYS.AI_SESSION_MODE_PICKED;
 
@@ -49,6 +56,7 @@ export class AiHistoryManager {
       () => this.currentClient!,
       () => this.providers,
       (session) => this.getMarkdownText(session),
+      () => this.context!.extensionUri,
     );
   }
 
@@ -72,16 +80,16 @@ export class AiHistoryManager {
     return hash.toString(36);
   }
 
-  private getActiveProjectSlug?: () => string | null;
+  private getActiveProjectSelection?: () => ActiveProjectSelection;
 
   async startWatching(
     client: KbClient,
     context: vscode.ExtensionContext,
-    getActiveProjectSlug?: () => string | null
+    getActiveProjectSelection?: () => ActiveProjectSelection,
   ) {
     this.currentClient = client;
     this.context = context;
-    this.getActiveProjectSlug = getActiveProjectSlug;
+    this.getActiveProjectSelection = getActiveProjectSelection;
 
     // Clean up active watchers
     for (const d of this.activeDisposables) {
@@ -186,6 +194,40 @@ export class AiHistoryManager {
     });
     this.activeDisposables.push(focusDisposable);
     context.subscriptions.push(focusDisposable);
+
+    // Watch for immediate harness session start events (triggered before the first user message)
+    const hookStartDisposable = watchActiveSessionStarts((info) => {
+      if (info.targetProvider) {
+        this.handoff.onHarnessLaunched(info.targetProvider, this.recentSessions);
+      }
+    });
+    this.activeDisposables.push(hookStartDisposable);
+    context.subscriptions.push(hookStartDisposable);
+
+    // Watch for terminals opened with coding agent names
+    const terminalDisposable = vscode.window.onDidOpenTerminal((terminal) => {
+      const matchedProvider = matchProviderFromHarnessName(terminal.name);
+      if (matchedProvider) {
+        this.handoff.onHarnessLaunched(matchedProvider, this.recentSessions);
+      }
+    });
+    this.activeDisposables.push(terminalDisposable);
+    context.subscriptions.push(terminalDisposable);
+
+    // Watch for shell commands executed in integrated terminals (e.g. typing "agy" or "claude" in bash)
+    if (typeof (vscode.window as any).onDidStartTerminalShellExecution === 'function') {
+      const shellExecDisposable = (vscode.window as any).onDidStartTerminalShellExecution(
+        (e: any) => {
+          const command = (e.execution?.commandLine?.value || '').trim();
+          const matchedProvider = matchProviderFromHarnessName(command);
+          if (matchedProvider) {
+            this.handoff.onHarnessLaunched(matchedProvider, this.recentSessions);
+          }
+        },
+      );
+      this.activeDisposables.push(shellExecDisposable);
+      context.subscriptions.push(shellExecDisposable);
+    }
 
     // Periodic check every 15 seconds to reliably sync background changes even when window is not focused
     const interval = setInterval(async () => {
@@ -726,8 +768,7 @@ export class AiHistoryManager {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
-      const activeProject = this.getActiveProjectSlug ? this.getActiveProjectSlug() : null;
-      const projectSlug = resolveProjectSlug(session.projectSlug || activeProject, client.defaultProjectSlug);
+      const projectSlug = this.getSessionProjectSlug(session, client.defaultProjectSlug);
       await client.createNote({
         title: titleWithDate,
         rawText,
@@ -754,8 +795,7 @@ export class AiHistoryManager {
     try {
       const titleWithDate = this.getTitleWithDate(session);
       const rawText = this.getMarkdownText(session);
-      const activeProject = this.getActiveProjectSlug ? this.getActiveProjectSlug() : null;
-      const projectSlug = resolveProjectSlug(session.projectSlug || activeProject, client.defaultProjectSlug);
+      const projectSlug = this.getSessionProjectSlug(session, client.defaultProjectSlug);
       await client.createNote({
         title: titleWithDate,
         rawText,
@@ -774,6 +814,20 @@ export class AiHistoryManager {
       logInfo('AI History', `Failed to auto-save note: ${toMessage(err)}`);
       return false;
     }
+  }
+
+  private getSessionProjectSlug(session: AiSession, defaultProjectSlug?: string): string {
+    const selection = this.getActiveProjectSelection?.();
+    const activeProject = resolveProjectSlug(selection?.projectSlug, defaultProjectSlug);
+
+    // A manually chosen project is explicit user intent. Likewise, when Auto
+    // cannot map the workspace and falls back to Inbox, don't send Codex's
+    // local cwd-derived slug (which may not exist in Kote) to the API.
+    if (selection?.isManuallySelected || activeProject === DEFAULT_FALLBACK_PROJECT_SLUG) {
+      return activeProject;
+    }
+
+    return resolveProjectSlug(session.projectSlug || activeProject, defaultProjectSlug);
   }
 
   private lastSyncPromptTime = 0;
@@ -933,4 +987,3 @@ export class AiHistoryManager {
     }
   }
 }
-

@@ -9,7 +9,7 @@ import { AppLogger } from '../../../../src/observability/logger.js';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { DependencyEcosystem } from '../../../../src/domain/enums/dependency.enums.js';
 import { CredentialRecordStatus } from '../../../../src/domain/enums/integration.enums.js';
-import { encryptConfig } from '../../../../src/application/credentials.js';
+import { encryptConfig } from '../../../../src/application/utils/security/credentials-crypto.utils.js';
 
 describe('Backend: Import Dependencies From GitHub Use Case', () => {
   let useCase: ImportDependenciesFromGithubUseCase;

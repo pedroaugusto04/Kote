@@ -9,6 +9,7 @@ import {
   type UserSubscriptionRecord,
   type SubscriptionChangeRequestRecord,
 } from '../../models/billing.models.js';
+import { type SubscriptionChangeType } from '../../../domain/enums/billing.enums.js';
 
 export abstract class SubscriptionRepository {
   abstract getActivePlans(): Promise<PlanRecord[]>;
@@ -21,6 +22,8 @@ export abstract class SubscriptionRepository {
   abstract createSubscriptionChangeRequest(data: Omit<SubscriptionChangeRequestRecord, 'createdAt' | 'updatedAt'>): Promise<SubscriptionChangeRequestRecord>;
   abstract getScheduledChangeRequest(userId: string, type: string): Promise<SubscriptionChangeRequestRecord | null>;
   abstract updateSubscriptionChangeRequestStatus(id: string, status: string, options?: { appliedAt?: Date; canceledAt?: Date }): Promise<void>;
+  abstract findPastDueOlderThan(cutoffDate: Date, limit?: number): Promise<UserSubscriptionRecord[]>;
+  abstract findScheduledChangesDue(type: SubscriptionChangeType, cutoffDate: Date, maxAttempts?: number, limit?: number): Promise<SubscriptionChangeRequestRecord[]>;
 }
 
 export abstract class BillingCustomerRepository {

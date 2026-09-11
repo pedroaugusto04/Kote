@@ -2,7 +2,7 @@ import { CanActivate, ExecutionContext, ForbiddenException, HttpException, HttpS
 import type { Request } from 'express';
 
 import { readEnvironment } from '../../../adapters/environment.js';
-import { AuthService } from '../../../application/auth.js';
+import { AuthService } from '../../../application/services/auth/auth.service.js';
 import type { AuthenticatedRequest } from '../auth.decorators.js';
 import { accessTokenFromRequest, assertTrustedBrowserOrigin } from '../http-security.js';
 import { requestIp } from '../request-ip.js';

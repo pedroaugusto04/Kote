@@ -336,7 +336,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
                 </div>
               </div>
             ) : (
-              <section className="search-box ask-ai-input-section">
+              <section className="ask-ai-input-section">
                 <div className="ask-ai-input-row">
                   <AskAiIcon className="ask-ai-input-icon" />
                   <input

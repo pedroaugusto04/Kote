@@ -3,8 +3,8 @@ import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@ne
 import type { Response } from 'express';
 
 import { readEnvironment } from '../../../../adapters/environment.js';
-import type { AuthenticatedUser } from '../../../../application/auth.js';
-import { IntegrationConnectionService } from '../../../../application/integration-connections.js';
+import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
+import { IntegrationConnectionService } from '../../../../application/services/integrations/integration-connection.service.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
 import { githubAppCallbackQuerySchema, type GithubAppCallbackQuery } from '../../dto/integration-credentials.dto.js';

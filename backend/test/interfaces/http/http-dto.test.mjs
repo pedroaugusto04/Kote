@@ -142,6 +142,22 @@ test('create note dto normalizes project, tags and keeps reminderAt as transport
   assert.deepEqual(createNoteBodySchema.parse({ projectSlug: 'acme', title: 'Test', rawText: 'texto' }).categoryIds, []);
 });
 
+
+test('note dto accepts only validated ZIP attachment content', () => {
+  const emptyZip = Buffer.from('504b0506000000000000000000000000000000000000', 'hex').toString('base64');
+  const input = {
+    projectSlug: 'acme',
+    title: 'Archive',
+    attachments: [{ fileName: 'archive.zip', mimeType: 'application/zip', sizeBytes: 1, dataBase64: emptyZip }],
+  };
+
+  const parsed = createNoteBodySchema.parse(input);
+  assert.equal(parsed.attachments[0].sizeBytes, Buffer.from(emptyZip, 'base64').length);
+  assert.equal(updateNoteBodySchema.parse({ title: 'Archive', attachments: [{ ...input.attachments[0], mimeType: 'application/x-zip-compressed' }] }).attachments[0].mimeType, 'application/x-zip-compressed');
+  assert.throws(() => createNoteBodySchema.parse({ ...input, attachments: [{ ...input.attachments[0], dataBase64: Buffer.from('not a zip').toString('base64') }] }));
+  assert.throws(() => createNoteBodySchema.parse({ ...input, attachments: [{ ...input.attachments[0], fileName: 'archive.txt' }] }));
+});
+
 test('project timeline dto accepts known categories and optional folder filters only', () => {
   assert.deepEqual(projectTimelineQuerySchema.parse({ page: '2', pageSize: '10', category: 'manual', folderId: ' folder-1 ' }), {
     page: 2,
