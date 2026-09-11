@@ -180,6 +180,10 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
     return this.getHistoryDirs().some((dir) => fs.existsSync(dir));
   }
 
+  getSourceMtime(): number {
+    return Math.max(0, ...this.getHistoryDirs().map(safeMtime));
+  }
+
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {
     const candidateDirs: { sessionDir: string; sessionId: string; mtime: number }[] = [];
 

@@ -39,6 +39,7 @@ export class AiHistoryManager {
   private readonly MAX_SAVED_SESSIONS = 200; // Maximum number of saved sessions to track
   private readonly MAX_IGNORED_SESSIONS = 500; // Maximum number of ignored sessions to track
   private readonly SESSION_TTL_DAYS = 60; // Remove sessions older than 60 days
+  private readonly lastSeenProviderMtime = new Map<string, number>(); // providerId -> last known source mtime
 
   registerProvider(provider: AiHistoryProvider) {
     this.providers.set(provider.id, provider);
@@ -890,9 +891,20 @@ export class AiHistoryManager {
       try {
         const enabled = await provider.isEnabled();
         if (!enabled) continue;
+
+        // Skip the full scan when the provider source has not changed since the
+        // last poll. getSourceMtime returning 0 means "always scan" (opt-out).
+        const currentMtime = provider.getSourceMtime?.() ?? 0;
+        const lastMtime = this.lastSeenProviderMtime.get(provider.id) ?? 0;
+        if (currentMtime > 0 && currentMtime <= lastMtime) continue;
+
         const sessions = await provider.getRecentSessions();
         for (const s of sessions) {
           await this.handleChangedSession(client, provider, s);
+        }
+
+        if (currentMtime > 0) {
+          this.lastSeenProviderMtime.set(provider.id, currentMtime);
         }
       } catch {
         // silent fallback

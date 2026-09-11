@@ -31,4 +31,12 @@ export interface AiHistoryProvider {
   isEnabled(): Promise<boolean>;
   getRecentSessions(limit?: number): Promise<AiSession[]>;
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable;
+  /**
+   * Returns the latest modification timestamp (ms) of the provider's session
+   * source (directory or database file). Used by the poll loop to skip a full
+   * scan when the source has not changed since the previous check.
+   *
+   * Returning 0 disables the optimisation for this provider (always scans).
+   */
+  getSourceMtime?(): number;
 }

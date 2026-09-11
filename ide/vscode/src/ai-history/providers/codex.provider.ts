@@ -107,6 +107,10 @@ export class CodexHistoryProvider implements AiHistoryProvider {
     return fs.existsSync(this.getHistoryDir());
   }
 
+  getSourceMtime(): number {
+    return safeMtime(this.getHistoryDir());
+  }
+
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {
     return recentFiles(this.getHistoryDir(), (filePath) => filePath.endsWith(JSONL_EXTENSION), limit)
       .map(parseFile)

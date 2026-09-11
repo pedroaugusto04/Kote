@@ -16,7 +16,7 @@ import {
   OPEN_CODE_FINAL_FINISH,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiTurn } from '../types';
-import { asRecord, keepFinalAssistantTurns, parseAiRole, toTimestampMs } from './provider.utils';
+import { asRecord, keepFinalAssistantTurns, parseAiRole, safeMtime, toTimestampMs } from './provider.utils';
 
 interface OpenCodeRow {
   sessionId: string;
@@ -104,6 +104,10 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
     } catch {
       return false;
     }
+  }
+
+  getSourceMtime(): number {
+    return safeMtime(this.getDbPath());
   }
 
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {
