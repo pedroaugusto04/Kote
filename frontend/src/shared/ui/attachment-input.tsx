@@ -1,6 +1,6 @@
 import React from 'react';
 import { notifyError } from './notifications';
-import { isMimeTypeSupported, getAcceptAttribute } from '../constants/attachment-types';
+import { isMimeTypeSupported, getAcceptAttribute, normalizeAttachmentMimeType } from '../constants/attachment-types';
 
 export type PendingAttachment = {
   fileName: string;
@@ -47,6 +47,7 @@ export function AttachmentInput({
         notifyError(`Unsupported file type: ${file.name}. Only common images, documents, audio, video, archives, and code files are supported.`);
         continue;
       }
+      const mimeType = normalizeAttachmentMimeType(file.type, file.name);
       if (file.size > MAX_SIZE) {
         notifyError(`File ${file.name} is too large. Max size is ${(MAX_SIZE / (1024 * 1024)).toFixed(0)} MB.`);
         continue;
@@ -55,7 +56,7 @@ export function AttachmentInput({
         const base64 = await fileToBase64(file);
         newAttachments.push({
           fileName: file.name,
-          mimeType: file.type || 'application/octet-stream',
+          mimeType,
           sizeBytes: file.size,
           dataBase64: base64,
         });

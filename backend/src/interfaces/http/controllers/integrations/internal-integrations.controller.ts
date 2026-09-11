@@ -1,7 +1,7 @@
 import { Controller, Body, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiParam, ApiBody, ApiSecurity } from '@nestjs/swagger';
 
-import { IntegrationCredentialService } from '../../../../application/credentials.js';
+import { IntegrationCredentialService } from '../../../../application/services/integrations/integration-credentials.service.js';
 import { InternalServiceTokenGuard } from '../../guards/auth.guards.js';
 import {
   providerParamSchema,

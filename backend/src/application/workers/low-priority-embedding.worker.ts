@@ -1,25 +1,9 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
-import { EmbeddingGateway, type EmbeddingConfig } from '../ports/notes/embedding.gateway.js';
-import { NoteEmbeddingRepository } from '../ports/notes/note-embedding.repository.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
-import { ContentRepository } from '../ports/notes/content.repository.js';
-import { ObjectStorage } from '../ports/notes/object-storage.js';
 import { EmbeddingJobType, type EmbeddingJobPayload } from '../ports/notes/embedding-queue.publisher.js';
-import { NoteChunkingService } from '../services/content/note-chunking.service.js';
-import type { NoteChunkAttachment } from '../models/note-chunk.models.js';
-import { resolveAttachmentTextContent } from '../helpers/attachment-resolver.helper.js';
-
-import type { AttachmentRecord, NoteRecord } from '../models/repository-records.models.js';
-import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
-import { isNoteEligibleForEmbedding } from '../../domain/utils/note-embedding.utils.js';
+import { EmbeddingJobProcessorService } from '../services/notes/embedding-job-processor.service.js';
 import { AppLogger } from '../../observability/logger.js';
-import { NoteSynthesisRepository } from '../ports/notes/note-synthesis.repository.js';
-import { NoteSynthesisStatus } from '../constants/ai-session-synthesis.constants.js';
-import { buildSynthesisRetrievalChunks, getAiSessionSourceHash, parseAiSessionTurns } from '../services/content/ai-session-synthesis-transcript.service.js';
-import { SourceChannel } from '../../domain/enums/knowledge.enums.js';
-import { EmbeddingRepresentation } from '../ports/notes/note-embedding.repository.js';
-import type { NoteSynthesisRecord } from '../models/note-synthesis.models.js';
 
 const EXCHANGE_NAME = 'kb.embedding';
 const LOW_PRIORITY_QUEUE = 'kb.embedding.low';
@@ -47,14 +31,9 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
   private closed = false;
 
   constructor(
-    private readonly embeddingGateway: EmbeddingGateway,
-    private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
-    private readonly contentRepository: ContentRepository,
-    private readonly chunkingService: NoteChunkingService,
+    private readonly processor: EmbeddingJobProcessorService,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
-    private readonly objectStorage: ObjectStorage,
-    private readonly synthesisRepository: NoteSynthesisRepository,
   ) {}
 
   async onModuleInit() {
@@ -155,13 +134,13 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
     try {
       switch (job.type) {
         case EmbeddingJobType.Index:
-          await this.processIndex(job.userId, job.noteId);
+          await this.processor.processIndex(job.userId, job.noteId);
           break;
         case EmbeddingJobType.Delete:
-          await this.processDelete(job.userId, job.noteId);
+          await this.processor.processDelete(job.userId, job.noteId);
           break;
         case EmbeddingJobType.ReindexAll:
-          await this.processReindexAll(job.userId);
+          await this.processor.processReindexAll(job.userId);
           break;
         default:
           this.logger.warn('low_priority_embedding_worker.unexpected_job_type', { job });
@@ -202,221 +181,5 @@ export class LowPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestroy
       }
     }
   }
-
-  private async processIndex(userId: string, noteId: string) {
-    const note = await this.contentRepository.getNoteById(userId, noteId);
-    if (!note) {
-      this.logger.warn('low_priority_embedding_worker.note_not_found', { noteId });
-      await this.noteEmbeddingRepository.deleteByNoteId(userId, noteId);
-      return;
-    }
-
-    if (!isNoteEligibleForEmbedding(note)) {
-      return;
-    }
-
-    const env = this.runtimeEnv.read();
-    const embeddingConfig = {
-      provider: env.embeddingAiProvider,
-      baseUrl: env.embeddingAiBaseUrl,
-      model: env.embeddingAiModel,
-      apiKey: env.embeddingAiApiKey,
-    };
-    const attachments = await this.contentRepository.listAttachments(userId, noteId);
-
-    this.logger.info('low_priority_embedding_worker.attachments_found', {
-      noteId,
-      count: attachments.length,
-      files: attachments.map((a) => ({ fileName: a.fileName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, hasStorageKey: Boolean(a.storageKey) })),
-    });
-
-    const processedAttachments: NoteChunkAttachment[] = await Promise.all(
-      attachments.map(async (attachment: AttachmentRecord) => ({
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        sizeBytes: attachment.sizeBytes,
-        content: await resolveAttachmentTextContent(attachment, this.objectStorage, this.logger, 'low_priority_embedding_worker', noteId),
-      })),
-    );
-
-    const chunks = this.buildRawChunks(note, processedAttachments);
-
-    const existingEmbeddings = await this.noteEmbeddingRepository.getNoteEmbeddings(userId, noteId);
-    const textToEmbeddingMap = new Map<string, number[]>();
-    for (const rec of existingEmbeddings) {
-      if (rec.model === env.embeddingAiModel && Array.isArray(rec.embedding) && rec.embedding.length > 0) {
-        textToEmbeddingMap.set(`${rec.representation || EmbeddingRepresentation.Raw}:${rec.chunkText}`, rec.embedding);
-      }
-    }
-
-    const textsToEmbed: string[] = [];
-    const chunkEmbeddings: (number[] | null)[] = [];
-
-    for (const chunk of chunks) {
-      const existing = textToEmbeddingMap.get(`${EmbeddingRepresentation.Raw}:${chunk.chunkText}`);
-      if (existing) {
-        chunkEmbeddings.push(existing);
-      } else {
-        chunkEmbeddings.push(null);
-        textsToEmbed.push(chunk.chunkText);
-      }
-    }
-
-    let generatedEmbeddings: number[][] = [];
-    if (textsToEmbed.length > 0) {
-      generatedEmbeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, textsToEmbed);
-      if (generatedEmbeddings.length !== textsToEmbed.length) {
-        this.logger.warn('low_priority_embedding_worker.embeddings_count_mismatch', {
-          noteId,
-          expected: textsToEmbed.length,
-          received: generatedEmbeddings.length,
-        });
-        return;
-      }
-    }
-
-    let genIndex = 0;
-    const finalEmbeddings: number[][] = [];
-    for (const emb of chunkEmbeddings) {
-      if (emb !== null) {
-        finalEmbeddings.push(emb);
-      } else {
-        finalEmbeddings.push(generatedEmbeddings[genIndex++]);
-      }
-    }
-
-    if (finalEmbeddings.length === 0) {
-      this.logger.warn('low_priority_embedding_worker.no_embeddings_generated', { noteId });
-      return;
-    }
-
-    const records = chunks.map((chunk, i) => ({
-      userId,
-      noteId,
-      chunkIndex: chunk.chunkIndex,
-      chunkText: chunk.chunkText,
-      embedding: finalEmbeddings[i],
-      model: env.embeddingAiModel,
-      representation: EmbeddingRepresentation.Raw,
-      sourceRefs: chunk.sourceRefs,
-    }));
-
-    await this.noteEmbeddingRepository.upsertChunks(userId, noteId, records);
-
-    // Keep a second, compact representation for semantic retrieval. Raw chunks
-    // remain indexed for exact evidence and backwards compatibility.
-    const synthesis = await this.synthesisRepository.getByNoteId(userId, noteId);
-    const sourceHash = getAiSessionSourceHash(note.markdown);
-    if (synthesis && this.isUsableSynthesis(synthesis, sourceHash)) {
-      await this.indexSynthesis(userId, noteId, env, embeddingConfig, synthesis, textToEmbeddingMap);
-    } else {
-      // A prior synthesis cannot be used as evidence for a changed transcript.
-      await this.noteEmbeddingRepository.deleteByNoteIdAndRepresentation(userId, noteId, EmbeddingRepresentation.Synthesis);
-    }
-
-    const bodySearchText = resolveNoteBodySearchText(note.markdown, note.metadata);
-    if (bodySearchText) {
-      await this.contentRepository.updateNoteBodySearchText(userId, noteId, bodySearchText);
-    }
-
-    this.logger.info('low_priority_embedding_worker.indexed', {
-      noteId,
-      chunksCount: chunks.length,
-      reusedChunksCount: chunks.length - textsToEmbed.length,
-    });
-  }
-
-  private buildRawChunks(note: NoteRecord, attachments: NoteChunkAttachment[]) {
-    const isAiSession = note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat;
-    const turns = isAiSession ? parseAiSessionTurns(note.markdown || '') : [];
-    if (!isAiSession || turns.length === 0) {
-      return this.chunkingService.chunkNote({ title: note.title, body: note.markdown, projectSlug: note.projectSlug || '', path: note.path || '', attachments })
-        .map((chunk) => ({ ...chunk, sourceRefs: [] as number[] }));
-    }
-
-    const turnChunks = turns.flatMap((turn) => this.chunkingService.chunkNote({
-      title: note.title,
-      body: `TURN ${turn.number} [${turn.role.toUpperCase()}]\n${turn.text}`,
-      projectSlug: note.projectSlug || '',
-      path: note.path || '',
-    }).map((chunk) => ({ ...chunk, sourceRefs: [turn.number] })));
-    const attachmentChunks = this.chunkingService.chunkNote({ title: note.title, body: '', projectSlug: note.projectSlug || '', path: note.path || '', attachments })
-      .map((chunk) => ({ ...chunk, sourceRefs: [] as number[] }));
-    return [...turnChunks, ...attachmentChunks].map((chunk, index) => ({ ...chunk, chunkIndex: index }));
-  }
-
-  private isUsableSynthesis(synthesis: NoteSynthesisRecord | null, sourceHash: string): boolean {
-    return synthesis?.status === NoteSynthesisStatus.Completed && synthesis.sourceHash === sourceHash && Boolean(synthesis.overview?.trim());
-  }
-
-  private async indexSynthesis(
-    userId: string,
-    noteId: string,
-    env: ReturnType<RuntimeEnvironmentProvider['read']>,
-    embeddingConfig: EmbeddingConfig,
-    synthesis: NoteSynthesisRecord,
-    existingEmbeddings: Map<string, number[]>,
-  ) {
-    const synthesisChunks = buildSynthesisRetrievalChunks(synthesis.overview, synthesis.memory);
-    const pendingTexts: string[] = [];
-    const embeddings: (number[] | null)[] = [];
-    for (const chunk of synthesisChunks) {
-      const existing = existingEmbeddings.get(`${EmbeddingRepresentation.Synthesis}:${chunk.chunkText}`);
-      embeddings.push(existing || null);
-      if (!existing) pendingTexts.push(chunk.chunkText);
-    }
-    const generated = pendingTexts.length > 0 ? await this.embeddingGateway.generateEmbeddings(embeddingConfig, pendingTexts) : [];
-    if (generated.length !== pendingTexts.length) {
-      await this.noteEmbeddingRepository.deleteByNoteIdAndRepresentation(userId, noteId, EmbeddingRepresentation.Synthesis);
-      this.logger.warn('low_priority_embedding_worker.synthesis_embeddings_count_mismatch', {
-        noteId,
-        expected: pendingTexts.length,
-        received: generated.length,
-      });
-      return;
-    }
-
-    let generatedIndex = 0;
-    await this.noteEmbeddingRepository.upsertChunks(userId, noteId, synthesisChunks.map((chunk, index) => ({
-      userId, noteId, chunkIndex: index, chunkText: chunk.chunkText,
-      embedding: embeddings[index] || generated[generatedIndex++], model: env.embeddingAiModel,
-      representation: EmbeddingRepresentation.Synthesis, sourceRefs: chunk.sourceRefs,
-    })));
-  }
-
-  private async processDelete(userId: string, noteId: string) {
-    await this.noteEmbeddingRepository.deleteByNoteId(userId, noteId);
-  }
-
-  private async processReindexAll(userId: string) {
-    const notes = await this.contentRepository.listNotes(userId);
-
-    this.logger.info('low_priority_embedding_worker.reindex_all_started', {
-      userId,
-      totalNotes: notes.length,
-    });
-
-    let indexed = 0;
-    let failed = 0;
-
-    for (const note of notes) {
-      try {
-        await this.processIndex(userId, note.id);
-        indexed++;
-      } catch (error) {
-        failed++;
-        this.logger.error('low_priority_embedding_worker.reindex_note_failed', {
-          noteId: note.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    this.logger.info('low_priority_embedding_worker.reindex_all_completed', {
-      userId,
-      indexed,
-      failed,
-      total: notes.length,
-    });
-  }
 }
+

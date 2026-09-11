@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider, MissingCredentialError } from '../../../contracts/enums.js';
-import { decryptConfig } from '../../credentials.js';
+import { decryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import { ProcessGithubPushService } from './process-github-push.service.js';
 import { GithubRepositoryResolutionService } from './github-repository-resolution.service.js';
 import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';

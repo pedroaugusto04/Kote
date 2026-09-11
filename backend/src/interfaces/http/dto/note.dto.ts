@@ -6,6 +6,7 @@ import { slugifyProjectName } from '../../../domain/strings.js';
 import { normalizeTime } from '../../../domain/time.js';
 import { AUTO_ACTION_NONE, AUTO_ACTION_RESOLVED, AUTO_ACTION_ARCHIVED } from '../../../domain/auto-action.constants.js';
 import { isAttachmentMimeTypeSupported } from '../../../domain/constants/attachment.constants.js';
+import { decodeBase64, isValidZipArchive, isZipAttachment, isZipFileName } from '../../../domain/utils/attachment-validation.utils.js';
 import { normalizedSlugList, optionalStringArraySchema } from './dto-normalizers.js';
 import { paginationInputSchema } from '../../../contracts/pagination.js';
 import { notesListStatusFilterValues, StatusFilter } from '../../../contracts/status-filters.js';
@@ -25,6 +26,25 @@ const noteAttachmentSchema = z.object({
   ),
   sizeBytes: z.number().int().nonnegative().max(attachmentMaxSize, `Attachment must be ${attachmentMaxSize / (1024 * 1024)} MB or smaller.`).default(0),
   dataBase64: z.string().default(''),
+}).superRefine((attachment, context) => {
+  const decoded = decodeBase64(attachment.dataBase64);
+  if (!decoded) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['dataBase64'], message: 'Attachment content must be valid Base64.' });
+    return;
+  }
+  if (decoded.length > attachmentMaxSize) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['dataBase64'], message: `Attachment must be ${attachmentMaxSize / (1024 * 1024)} MB or smaller.` });
+  }
+  if (!isZipAttachment(attachment.fileName, attachment.mimeType)) return;
+  if (!isZipFileName(attachment.fileName)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['fileName'], message: 'ZIP attachments must use a .zip file name.' });
+  }
+  if (!isValidZipArchive(decoded)) {
+    context.addIssue({ code: z.ZodIssueCode.custom, path: ['dataBase64'], message: 'ZIP attachment content is invalid.' });
+  }
+}).transform((attachment) => {
+  const decoded = decodeBase64(attachment.dataBase64);
+  return decoded ? { ...attachment, sizeBytes: decoded.length } : attachment;
 });
 
 export const createNoteBodySchema = z

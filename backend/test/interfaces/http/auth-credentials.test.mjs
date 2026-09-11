@@ -2,9 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 
-import { AuthService } from '../../../dist/application/auth.js';
-import { IntegrationConnectionService } from '../../../dist/application/integration-connections.js';
-import { IntegrationCredentialService } from '../../../dist/application/credentials.js';
+import { AuthService } from '../../../dist/application/services/auth/auth.service.js';
+import { IntegrationConnectionService } from '../../../dist/application/services/integrations/integration-connection.service.js';
+import { IntegrationCredentialService } from '../../../dist/application/services/integrations/integration-credentials.service.js';
 import { GithubRepositoryResolutionService } from '../../../dist/application/services/integrations/github-repository-resolution.service.js';
 import { TrustedOriginGuard } from '../../../dist/interfaces/http/guards/auth.guards.js';
 import { AuthController, InternalIntegrationsController, UserIntegrationsController } from '../../../dist/interfaces/http/controllers/index.js';

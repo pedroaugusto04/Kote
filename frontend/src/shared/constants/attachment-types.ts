@@ -23,6 +23,9 @@ export const SUPPORTED_MIME_TYPES = new Set([
   'text/html',
   'application/sql',
   'text/x-sql',
+  // Archives
+  'application/zip',
+  'application/x-zip-compressed',
   // Audio
   'audio/mpeg',
   'audio/mp3',
@@ -55,14 +58,24 @@ export const SUPPORTED_MIME_TYPES = new Set([
   'text/javascript',
 ]);
 
-export function isMimeTypeSupported(mimeType: string, fileName?: string): boolean {
+export function isZipFileName(fileName?: string): boolean {
+  return fileName?.trim().toLowerCase().endsWith('.zip') ?? false;
+}
+
+export function normalizeAttachmentMimeType(mimeType: string, fileName?: string): string {
   const normalizedMime = mimeType ? mimeType.toLowerCase().trim() : '';
+  if ((!normalizedMime || normalizedMime === 'application/octet-stream') && isZipFileName(fileName)) return 'application/zip';
+  return normalizedMime || 'application/octet-stream';
+}
+
+export function isMimeTypeSupported(mimeType: string, fileName?: string): boolean {
+  const normalizedMime = normalizeAttachmentMimeType(mimeType, fileName);
   if (SUPPORTED_MIME_TYPES.has(normalizedMime)) {
     return true;
   }
   // Some browsers do not set mimeType for code files (e.g. .py, .go, .rs, .ts).
   // We can fallback to checking extension for code files if mimeType is empty or generic.
-  if (!normalizedMime || normalizedMime === 'application/octet-stream') {
+  if (normalizedMime === 'application/octet-stream') {
     const ext = fileName?.split('.').pop()?.toLowerCase();
     if (ext) {
       const codeExtensions = new Set([
@@ -77,6 +90,6 @@ export function isMimeTypeSupported(mimeType: string, fileName?: string): boolea
 export function getAcceptAttribute(): string {
   // Convert supported mime types to a comma separated string for HTML accept attribute
   // Add some common extensions just in case browsers don't match MIME types correctly
-  const commonExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.csv', '.json', '.sql'];
+  const commonExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.txt', '.md', '.csv', '.json', '.sql', '.zip'];
   return Array.from(SUPPORTED_MIME_TYPES).concat(commonExtensions).join(',');
 }

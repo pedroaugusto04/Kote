@@ -24,7 +24,7 @@ import { PAYMENT_GATEWAY, COUNTRY_CODE } from '../../../domain/constants/billing
 import { BillingIntentService } from './BillingIntentService.js';
 import { SubscriptionUpgradeService } from './SubscriptionUpgradeService.js';
 import { SubscriptionContext } from './subscriptionStrategy/subscriptionContext.js';
-import type { SubscriptionChangeResult } from '../../models/subscription-change.models.js';
+import type { SubscriptionChangeResult, RegisterOrUpdateSubscriptionInput } from '../../models/subscription-change.models.js';
 import { SubscriptionChangeService } from './SubscriptionChangeService.js';
 import { BillingPaymentRepository, SubscriptionRepository, BillingCustomerRepository } from '../../ports/billing/billing-repositories.js';
 import { SubscriptionPlanMapper, BillingPaymentMapper } from '../../mappers/billing.mapper.js';
@@ -57,16 +57,20 @@ export class SubscriptionService {
   }
 
   async registerOrUpdateSubscription(
-    userId: string,
-    userEmail: string,
-    userDisplayName: string | null,
-    planId: string,
-    billingCycle?: BillingCycle,
-    billingType?: BillingType,
-    cpfCnpj?: string,
-    countryCode?: string,
-    creditCardToken?: string,
+    input: RegisterOrUpdateSubscriptionInput,
   ): Promise<SubscriptionChangeResult> {
+    const {
+      userId,
+      userEmail,
+      userDisplayName,
+      planId,
+      billingCycle,
+      billingType,
+      countryCode,
+      creditCardToken,
+    } = input;
+    let { cpfCnpj } = input;
+
     const targetPlan = await this.subscriptionRepository.getPlanById(planId);
 
     if (!targetPlan) {

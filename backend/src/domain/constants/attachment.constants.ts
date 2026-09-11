@@ -23,6 +23,9 @@ export const ATTACHMENT_MIME_TYPES = new Set([
   'text/html',
   'application/sql',
   'text/x-sql',
+  // Archives
+  'application/zip',
+  'application/x-zip-compressed',
   // Audio
   'audio/mpeg',
   'audio/mp3',
@@ -55,6 +58,15 @@ export const ATTACHMENT_MIME_TYPES = new Set([
   'text/javascript',
 ]);
 
+export const ZIP_MIME_TYPES = new Set([
+  'application/zip',
+  'application/x-zip-compressed',
+]);
+
 export function isAttachmentMimeTypeSupported(mimeType: string): boolean {
   return ATTACHMENT_MIME_TYPES.has(mimeType);
+}
+
+export function isZipAttachmentMimeType(mimeType: string): boolean {
+  return ZIP_MIME_TYPES.has(mimeType.toLowerCase().trim());
 }

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
 
-import type { AuthenticatedUser } from '../../../../application/auth.js';
+import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import {
   BuildReminderDispatchUseCase,
   IngestEntryUseCase,
