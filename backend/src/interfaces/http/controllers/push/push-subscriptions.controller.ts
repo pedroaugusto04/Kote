@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody } from '@nestjs/swagger';
-import type { AuthenticatedUser } from '../../../../application/auth.js';
+import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import {
   CreatePushSubscriptionUseCase,
   DeletePushSubscriptionUseCase,

@@ -1,5 +1,5 @@
 import { extractWhatsappExternalId, parseWhatsappEvolutionMessage } from './webhook.utils.js';
-import { extractWhatsappConnectionCode } from '../../integration-connections.js';
+import { extractWhatsappConnectionCode } from '../../services/integrations/integration-connection.service.js';
 import { conversationInputSchema, type ConversationInput } from '../../../contracts/conversation.js';
 import { WebhookIgnoreReason } from '../../../contracts/enums.js';
 

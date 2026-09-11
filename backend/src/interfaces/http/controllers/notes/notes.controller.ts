@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Q
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 
-import type { AuthenticatedUser } from '../../../../application/auth.js';
+import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import {
   CreateManualNoteUseCase,
   DeleteNoteUseCase,

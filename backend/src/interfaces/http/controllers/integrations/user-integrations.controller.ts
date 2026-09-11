@@ -1,9 +1,9 @@
 import { Body, Controller, Delete, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 
-import type { AuthenticatedUser } from '../../../../application/auth.js';
-import { IntegrationConnectionService } from '../../../../application/integration-connections.js';
-import { IntegrationCredentialService } from '../../../../application/credentials.js';
+import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
+import { IntegrationConnectionService } from '../../../../application/services/integrations/integration-connection.service.js';
+import { IntegrationCredentialService } from '../../../../application/services/integrations/integration-credentials.service.js';
 import { GithubBackfillUseCase } from '../../../../application/use-cases/integrations/github-backfill.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';

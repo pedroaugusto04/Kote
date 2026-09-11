@@ -2,11 +2,9 @@ import { schedule } from 'node-cron';
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { SubscriptionChangeService } from '../services/billing/SubscriptionChangeService.js';
 import { SubscriptionService } from '../services/billing/SubscriptionService.js';
+import { SubscriptionRepository } from '../ports/billing/billing-repositories.js';
 import { AppLogger } from '../../observability/logger.js';
-import { eq, and, lt } from 'drizzle-orm';
-import { PostgresDatabase } from '../../infrastructure/persistence/database.js';
-import { subscriptionChangeRequests, userSubscriptions } from '../../infrastructure/persistence/schema/index.js';
-import { SubscriptionChangeStatus, SubscriptionChangeType } from '../../domain/enums/billing.enums.js';
+import { SubscriptionChangeType } from '../../domain/enums/billing.enums.js';
 
 const CHANGE_SUBSCRIPTION_WORKER_AUTORUN = (() => {
   const raw = process.env.CHANGE_SUBSCRIPTION_WORKER_AUTORUN;
@@ -21,7 +19,7 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly subscriptionService: SubscriptionService,
     private readonly subscriptionChangeService: SubscriptionChangeService,
-    private readonly database: PostgresDatabase,
+    private readonly subscriptionRepository: SubscriptionRepository,
     private readonly logger: AppLogger,
   ) {}
 
@@ -61,7 +59,13 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
   async runChangeSubscriptionJob() {
     this.logger.info('[worker] Executando job de mudanca de assinaturas...');
 
-    const subscriptionsDowngradesChanges = await this.getEffectiveDowngrades();
+    const now = new Date();
+    const subscriptionsDowngradesChanges = await this.subscriptionRepository.findScheduledChangesDue(
+      SubscriptionChangeType.DOWNGRADE,
+      now,
+      10,
+      100,
+    );
 
     for (const subscriptionDowngradeChange of subscriptionsDowngradesChanges) {
       let shouldIncrementAttempts = true;
@@ -99,7 +103,12 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
       }
     }
 
-    const subscriptionsCycleChanges = await this.getEffectiveCycleChanges();
+    const subscriptionsCycleChanges = await this.subscriptionRepository.findScheduledChangesDue(
+      SubscriptionChangeType.CHANGE_CYCLE,
+      now,
+      10,
+      100,
+    );
 
     for (const subscriptionCycleChange of subscriptionsCycleChanges) {
       let shouldIncrementAttempts = true;
@@ -140,39 +149,10 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
     this.logger.info('[worker] Job de mudanca de assinaturas finalizado');
   }
 
-  private async getEffectiveDowngrades() {
-    const db = this.database.getDb();
-    const now = new Date();
-    return await db
-      .select()
-      .from(subscriptionChangeRequests)
-      .where(and(
-        eq(subscriptionChangeRequests.type, SubscriptionChangeType.DOWNGRADE as any),
-        eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any),
-        lt(subscriptionChangeRequests.effectiveAt, now),
-        lt(subscriptionChangeRequests.attempts, 10),
-      ))
-      .limit(100);
-  }
-
-  private async getEffectiveCycleChanges() {
-    const db = this.database.getDb();
-    const now = new Date();
-    return await db
-      .select()
-      .from(subscriptionChangeRequests)
-      .where(and(
-        eq(subscriptionChangeRequests.type, SubscriptionChangeType.CHANGE_CYCLE as any),
-        eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any),
-        lt(subscriptionChangeRequests.effectiveAt, now),
-        lt(subscriptionChangeRequests.attempts, 10),
-      ))
-      .limit(100);
-  }
-
   private async shouldCancelMissedScheduledChange(
-    scheduledChange: { fromSubscriptionId: string; effectiveAt?: Date | string | null }
+    scheduledChange: { fromSubscriptionId?: string | null; effectiveAt?: Date | string | null }
   ): Promise<boolean> {
+    if (!scheduledChange.fromSubscriptionId) return false;
     const effectiveAt = this.normalizeDate(scheduledChange.effectiveAt);
     if (!effectiveAt) return false;
 
@@ -180,13 +160,7 @@ export class ChangeSubscriptionWorker implements OnModuleInit, OnModuleDestroy {
     const expectedDueDate = new Date(effectiveAt);
     expectedDueDate.setDate(expectedDueDate.getDate() + 1);
 
-    const db = this.database.getDb();
-    const subscription = await db
-      .select()
-      .from(userSubscriptions)
-      .where(eq(userSubscriptions.userId, scheduledChange.fromSubscriptionId))
-      .limit(1)
-      .then(r => r[0] || null);
+    const subscription = await this.subscriptionRepository.getSubscriptionByUserId(scheduledChange.fromSubscriptionId);
     
     const currentNextDueDate = this.normalizeDate(subscription?.nextDueDate);
     if (!currentNextDueDate) return false;

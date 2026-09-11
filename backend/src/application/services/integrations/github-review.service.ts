@@ -1,13 +1,13 @@
-import { GithubReviewMapper } from './mappers/github-review.mapper.js';
-import { CanonicalType, EventType, KnowledgeKind, KnowledgeStatus, SourceChannel } from '../contracts/enums.js';
-import { ingestPayloadSchema } from '../contracts/ingest.js';
-import { defaultImportance } from '../domain/classification.js';
-import { trimText } from '../domain/strings.js';
-import { GithubIntegrationGateway } from './ports/integrations/github-integration.port.js';
-import { ReviewAnalysisGateway } from './ports/projects/review-analysis.port.js';
-import type { RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
-import type { AppLogger } from '../observability/logger.js';
-import type { GithubPushPayload, GithubPullRequestPayload, ChangedFile } from './models/github-webhook.models.js';
+import { GithubReviewMapper } from '../../mappers/github-review.mapper.js';
+import { CanonicalType, EventType, KnowledgeKind, KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
+import { ingestPayloadSchema } from '../../../contracts/ingest.js';
+import { defaultImportance } from '../../../domain/classification.js';
+import { trimText } from '../../../domain/strings.js';
+import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
+import { ReviewAnalysisGateway } from '../../ports/projects/review-analysis.port.js';
+import type { RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
+import type { AppLogger } from '../../../observability/logger.js';
+import type { GithubPushPayload, GithubPullRequestPayload, ChangedFile } from '../../models/github-webhook.models.js';
 import {
   extractRepositoryInfo,
   normalizeProjectSlug,
@@ -16,7 +16,7 @@ import {
   extractChangedFilesFromCommits,
   isValidCommitSha,
   formatCorrelationId,
-} from './utils/github/github-review.helpers.js';
+} from '../../utils/github/github-review.helpers.js';
 
 // ============================================================================
 // GitHub Push Review Event Builder

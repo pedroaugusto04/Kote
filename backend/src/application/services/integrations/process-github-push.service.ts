@@ -2,7 +2,7 @@ import { Injectable, Optional } from '@nestjs/common';
 
 import { AiProvider, CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { buildWhatsappHighSeverityCodeReviewMessage } from '../../../domain/notifications.js';
-import { buildGithubReviewEvent } from '../../github-review.js';
+import { buildGithubReviewEvent } from './github-review.service.js';
 import { formatCorrelationId } from '../../utils/github/github-review.helpers.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { NotifyHighSeverityFindingsService } from '../../use-cases/notifications/notify-high-severity-findings.use-case.js';

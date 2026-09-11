@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { Observable, from, concat } from 'rxjs';
 import { filter, map, switchMap } from 'rxjs';
 
-import type { AuthenticatedUser } from '../../../../application/auth.js';
+import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
 import { BillingCycle, BillingType } from '../../../../domain/enums/billing.enums.js';

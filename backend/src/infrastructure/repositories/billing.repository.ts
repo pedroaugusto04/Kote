@@ -33,7 +33,7 @@ import {
   BillingType,
   PaymentKind,
 } from '../persistence/schema/index.js';
-import { PaymentStatus } from '../../domain/enums/billing.enums.js';
+import { PaymentStatus, SubscriptionStatus, SubscriptionChangeStatus, SubscriptionChangeType } from '../../domain/enums/billing.enums.js';
 import {
   pickHighestPriorityPendingPayment,
 } from '../utils/billing/paymentUtils.js';
@@ -601,6 +601,38 @@ export class PostgresSubscriptionRepository extends SubscriptionRepository {
         updatedAt: new Date(),
       })
       .where(eq(subscriptionChangeRequests.id, id));
+  }
+
+  async findPastDueOlderThan(cutoffDate: Date, limit: number = 100): Promise<UserSubscriptionRecord[]> {
+    const db = this.database.getDb();
+    return db
+      .select()
+      .from(userSubscriptions)
+      .where(and(
+        eq(userSubscriptions.status, SubscriptionStatus.PAST_DUE as any),
+        lt(userSubscriptions.pastDueAt, cutoffDate)
+      ))
+      .limit(limit);
+  }
+
+  async findScheduledChangesDue(
+    type: SubscriptionChangeType,
+    cutoffDate: Date,
+    maxAttempts: number = 10,
+    limit: number = 100,
+  ): Promise<SubscriptionChangeRequestRecord[]> {
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(subscriptionChangeRequests)
+      .where(and(
+        eq(subscriptionChangeRequests.type, type as any),
+        eq(subscriptionChangeRequests.status, SubscriptionChangeStatus.SCHEDULED as any),
+        lt(subscriptionChangeRequests.effectiveAt, cutoffDate),
+        lt(subscriptionChangeRequests.attempts, maxAttempts),
+      ))
+      .limit(limit);
+    return result as SubscriptionChangeRequestRecord[];
   }
 }
 

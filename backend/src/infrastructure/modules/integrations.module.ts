@@ -16,10 +16,10 @@ import { DependencyWatcherModule } from './dependency-watcher.module.js';
 
 import {
   IntegrationConnectionService,
-} from '../../application/integration-connections.js';
+} from '../../application/services/integrations/integration-connection.service.js';
 import {
   IntegrationCredentialService,
-} from '../../application/credentials.js';
+} from '../../application/services/integrations/integration-credentials.service.js';
 import { PostgresWorkspaceRepository } from '../repositories/workspace.repository.js';
 import {
   HandleGithubPushUseCase,

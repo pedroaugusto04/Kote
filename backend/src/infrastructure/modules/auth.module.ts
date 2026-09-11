@@ -4,7 +4,7 @@ import { EnvModule } from './env.module.js';
 import { DatabaseModule } from './database.module.js';
 import { StorageModule } from './storage.module.js';
 
-import { AuthService } from '../../application/auth.js';
+import { AuthService } from '../../application/services/auth/auth.service.js';
 import { WelcomeEmailService } from '../../application/use-cases/welcome-email.use-case.js';
 import { SchemaMigrator, UserRepository } from '../../application/ports/auth/auth.repository.js';
 import { GoogleOAuthGateway } from '../../application/ports/auth/google-oauth.gateway.js';

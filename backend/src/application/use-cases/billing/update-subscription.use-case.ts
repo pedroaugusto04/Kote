@@ -23,17 +23,17 @@ export class UpdateSubscriptionUseCase {
     countryCode?: string;
     creditCardToken?: string;
   }) {
-    const result = await this.subscriptionService.registerOrUpdateSubscription(
-      params.userId,
-      params.email,
-      params.displayName,
-      params.planId,
-      params.billingCycle,
-      params.billingType,
-      params.cpfCnpj,
-      params.countryCode,
-      params.creditCardToken,
-    );
+    const result = await this.subscriptionService.registerOrUpdateSubscription({
+      userId: params.userId,
+      userEmail: params.email,
+      userDisplayName: params.displayName,
+      planId: params.planId,
+      billingCycle: params.billingCycle,
+      billingType: params.billingType,
+      cpfCnpj: params.cpfCnpj,
+      countryCode: params.countryCode,
+      creditCardToken: params.creditCardToken,
+    });
 
     this.billingEventBus.emit(params.userId);
 
