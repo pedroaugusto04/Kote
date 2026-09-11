@@ -573,5 +573,40 @@ export class KbClient {
       signal: options?.signal,
     });
   }
+
+  async getSessionHandoff(payload: {
+    rawText?: string;
+    noteId?: string;
+    provider?: string;
+    projectSlug?: string;
+    workspaceSlug?: string;
+    autoDetectPrevious?: boolean;
+  }): Promise<{
+    ok: boolean;
+    handoffMarkdown: string;
+    sourceProvider?: string;
+    sourceNoteId?: string;
+    sourceTitle?: string;
+    sourceTimestamp?: string;
+    cached?: boolean;
+  }> {
+    return this.fetch<{
+      ok: boolean;
+      handoffMarkdown: string;
+      sourceProvider?: string;
+      sourceNoteId?: string;
+      sourceTitle?: string;
+      sourceTimestamp?: string;
+      cached?: boolean;
+    }>('/api/notes/session-handoff', {
+      method: 'POST',
+      body: JSON.stringify({
+        ...payload,
+        workspaceSlug: payload.workspaceSlug || this.config.workspaceSlug || 'default',
+        projectSlug: payload.projectSlug || this.config.defaultProjectSlug,
+      }),
+    });
+  }
 }
+
 

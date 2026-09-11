@@ -29,6 +29,7 @@ export enum AiOperationType {
   GITHUB_PR_CONTEXT = 'github_pr_context',
   FILE_NOTES_SUMMARY = 'file_notes_summary',
   AI_SESSION_SYNTHESIS = 'ai_session_synthesis',
+  SESSION_HANDOFF = 'session_handoff',
 }
 
 export interface PlanLimits {

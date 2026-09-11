@@ -3,6 +3,7 @@ import { AiHistoryProvider, AiSession } from './types';
 import { KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import { resolveProjectSlug } from '../utils/project';
+import { SessionHandoffManager } from './handoff/session-handoff.manager';
 import {
   EXTENSION_COMMANDS,
   GLOBAL_STATE_KEYS,
@@ -40,6 +41,20 @@ export class AiHistoryManager {
   private readonly MAX_IGNORED_SESSIONS = 500; // Maximum number of ignored sessions to track
   private readonly SESSION_TTL_DAYS = 60; // Remove sessions older than 60 days
   private readonly lastSeenProviderMtime = new Map<string, number>(); // providerId -> last known source mtime
+  private currentClient?: KbClient;
+  readonly handoff: SessionHandoffManager;
+
+  constructor() {
+    this.handoff = new SessionHandoffManager(
+      () => this.currentClient!,
+      () => this.providers,
+      (session) => this.getMarkdownText(session),
+    );
+  }
+
+  getRecentSessionsList(): AiSession[] {
+    return this.recentSessions;
+  }
 
   registerProvider(provider: AiHistoryProvider) {
     this.providers.set(provider.id, provider);
@@ -64,6 +79,7 @@ export class AiHistoryManager {
     context: vscode.ExtensionContext,
     getActiveProjectSlug?: () => string | null
   ) {
+    this.currentClient = client;
     this.context = context;
     this.getActiveProjectSlug = getActiveProjectSlug;
 
@@ -389,6 +405,11 @@ export class AiHistoryManager {
     // Only trigger popup if content has actually changed.
     if (lastHash === hash) {
       return;
+    }
+
+    const isNewSession = !lastHash;
+    if (isNewSession) {
+      this.handoff.onNewSessionDetected(provider, session, this.recentSessions);
     }
 
     this.addOrUpdateRecentSession(session);
@@ -912,3 +933,4 @@ export class AiHistoryManager {
     }
   }
 }
+

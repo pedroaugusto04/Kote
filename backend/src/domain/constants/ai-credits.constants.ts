@@ -42,6 +42,9 @@ export const AI_CREDIT_COSTS: Record<string, number> = {
 
   /** One synthesis generated for a newly ingested AI session. */
   ai_session_synthesis: 3,
+
+  /** On-demand session handoff summary for coding agents. */
+  session_handoff: 2,
 };
 
 //Plan credit limits (max AI credits per month)

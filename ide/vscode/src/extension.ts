@@ -6,12 +6,13 @@ import { StatusBarProvider } from './providers/status-bar.provider';
 import { registerAskCommand } from './commands/ask.command';
 import { registerSaveNoteCommand } from './commands/save-note.command';
 import { registerExplainSnippetOriginCommand } from './commands/explain-snippet-origin.command';
-import { disposeErrorReporter, logInfo } from './error-reporter';
+import { disposeErrorReporter, logInfo, toMessage } from './error-reporter';
 import { AiHistoryManager } from './ai-history/history-manager';
 import { ClaudeCodeHistoryProvider } from './ai-history/providers/claude-code.provider';
 import { CodexHistoryProvider } from './ai-history/providers/codex.provider';
 import { AntigravityHistoryProvider } from './ai-history/providers/antigravity.provider';
 import { OpenCodeHistoryProvider } from './ai-history/providers/opencode.provider';
+import { autoRegisterHarnessHooks } from './ai-history/hooks/installer';
 import { KoteCodeLensProvider } from './providers/codelens.provider';
 import { KoteNoteContentProvider } from './providers/note-viewer.provider';
 import { FileNotesSummaryProvider } from './providers/file-notes-summary.provider';
@@ -146,8 +147,25 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
     vscode.commands.registerCommand('kote.openSyncTab', () => {
       sidebarProvider.switchToTab('sync');
+    }),
+
+    vscode.commands.registerCommand('kote.viewActiveSessionHandoff', async () => {
+      const markdown = historyManager.handoff.getActiveHandoffMarkdown();
+      if (!markdown) {
+        vscode.window.showInformationMessage('Kote: No active session handoff context available yet.');
+        return;
+      }
+      await historyManager.handoff.openHandoffPreview(markdown, 'active chat');
+    }),
+
+    vscode.commands.registerCommand('kote.copySessionHandoff', async () => {
+      await historyManager.handoff.showHandoffQuickPick(historyManager.getRecentSessionsList());
     })
   );
+
+  void autoRegisterHarnessHooks().catch((err) => {
+    logInfo('Hooks', `Auto-registration of harness hooks skipped: ${toMessage(err)}`);
+  });
 
   const getActiveProjectSlug = () => resolveProjectSlug(sidebarProvider?.activeProject ?? activeProject, kbClient.defaultProjectSlug);
   historyManager.startWatching(kbClient, context, getActiveProjectSlug);

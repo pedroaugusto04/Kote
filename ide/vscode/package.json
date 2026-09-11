@@ -2,7 +2,7 @@
   "name": "kote-vscode",
   "displayName": "Kote",
   "description": "Integrate your Kote directly into VS Code — search, ask AI, save notes without leaving your editor.",
-  "version": "3.6.6",
+  "version": "3.6.7",
   "publisher": "kote",
   "license": "MIT",
   "repository": {
@@ -94,6 +94,18 @@
         "command": "kote.showFileNotes",
         "title": "Kote: View File Notes & Decisions",
         "category": "Kote"
+      },
+      {
+        "command": "kote.viewActiveSessionHandoff",
+        "title": "Kote: View Active Session Handoff",
+        "category": "Kote",
+        "icon": "$(file-text)"
+      },
+      {
+        "command": "kote.copySessionHandoff",
+        "title": "Kote: Generate & Copy Session Handoff",
+        "category": "Kote",
+        "icon": "$(clippy)"
       }
     ],
     "keybindings": [

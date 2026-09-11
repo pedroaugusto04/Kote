@@ -73,6 +73,7 @@ export { FindRelatedNotesByFileUseCase } from './notes/find-related-notes-by-fil
 export { GenerateFileNotesSummaryUseCase } from './notes/generate-file-notes-summary.use-case.js';
 export { GenerateFileNotesSummaryByFileUseCase } from './notes/generate-file-notes-summary-by-file.use-case.js';
 export { RequestAiSessionSynthesisUseCase } from './notes/request-ai-session-synthesis.use-case.js';
+export { GenerateSessionHandoffUseCase } from './notes/generate-session-handoff.use-case.js';
 export { GetAutoActionGlobalUseCase } from './settings/get-auto-action-global.use-case.js';
 export { SetAutoActionGlobalUseCase } from './settings/set-auto-action-global.use-case.js';
 export { GetStripeConfigUseCase } from './billing/get-stripe-config.use-case.js';

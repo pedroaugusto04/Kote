@@ -20,6 +20,7 @@ import {
   FindRelatedNotesByFileUseCase,
   GenerateFileNotesSummaryByFileUseCase,
   RequestAiSessionSynthesisUseCase,
+  GenerateSessionHandoffUseCase,
 } from '../../../../application/use-cases/index.js';
 import { BrowserExtensionGuard } from '../../guards/auth.guards.js';
 import { CurrentUser } from '../../auth.decorators.js';
@@ -51,6 +52,10 @@ import {
   type NotesBySnippetQuery,
   type NotesBySnippetBody,
 } from '../../dto/note.dto.js';
+import {
+  sessionHandoffBodySchema,
+  type SessionHandoffBody,
+} from '../../dto/session-handoff.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
 import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
@@ -79,6 +84,7 @@ export class NotesController {
     private readonly findRelatedNotesByFileUseCase: FindRelatedNotesByFileUseCase,
     private readonly generateFileNotesSummaryByFileUseCase: GenerateFileNotesSummaryByFileUseCase,
     private readonly requestAiSessionSynthesis: RequestAiSessionSynthesisUseCase,
+    private readonly generateSessionHandoffUseCase: GenerateSessionHandoffUseCase,
   ) { }
 
   @Post()
@@ -136,6 +142,18 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
   ) {
     return this.requestAiSessionSynthesis.execute(user.id, params.id);
+  }
+
+  @Post('session-handoff')
+  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate or retrieve on-demand session handoff' })
+  @ApiResponse({ status: 200, description: 'Session handoff generated successfully' })
+  async sessionHandoff(
+    @Body(new ZodValidationPipe(sessionHandoffBodySchema, 'invalid_session_handoff_payload')) body: SessionHandoffBody,
+    @CurrentUser() user: AuthenticatedUser,
+  ) {
+    return this.generateSessionHandoffUseCase.execute(user.id, body);
   }
 
   @Delete(':id')
