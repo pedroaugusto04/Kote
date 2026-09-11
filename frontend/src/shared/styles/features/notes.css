@@ -1,6 +1,7 @@
 /* Note Reader and Markdown rendering templates */
 .note-reader {
   min-width: 0;
+  max-width: 100%;
   min-height: 620px;
 }
 
@@ -19,12 +20,15 @@
 
 .vault-reader {
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .note-reader-head {
   display: grid;
   gap: 10px;
   min-width: 0;
+  max-width: 100%;
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--line-soft);
@@ -35,6 +39,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .note-reader-actions {
@@ -46,8 +52,10 @@
 
 .note-title {
   min-width: 0;
+  max-width: 100%;
   margin-bottom: 0;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .note-meta-row {
@@ -138,6 +146,7 @@
   flex-direction: column;
   gap: 4px;
   max-width: 860px;
+  min-width: 0;
 }
 
 .vault-note-title {
@@ -148,6 +157,8 @@
   color: var(--text-strong);
   overflow-wrap: anywhere;
   word-break: break-word;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .vault-title-link {
@@ -158,6 +169,8 @@
   color: var(--cyan);
   text-decoration: underline;
   word-break: break-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .note-reader-actions-bar {
@@ -182,6 +195,7 @@
   display: grid;
   gap: 16px;
   min-width: 0;
+  max-width: 100%;
   margin-top: 12px;
 }
 
@@ -189,6 +203,7 @@
   display: grid;
   gap: 10px;
   min-width: 0;
+  max-width: 100%;
 }
 
 .note-section-card {
@@ -198,6 +213,10 @@
   background: var(--surface-1);
   box-shadow: var(--shadow-sm);
   transition: border-color 160ms ease, box-shadow 160ms ease;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .note-section-card:hover {
@@ -280,6 +299,14 @@
   color: var(--text-soft);
   font-size: 13px;
   line-height: 1.5;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.note-synthesis-group li > span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .note-synthesis-group li::before {
@@ -500,11 +527,31 @@
 .markdown {
   color: var(--text);
   line-height: 1.7;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown strong {
   color: var(--text-strong);
   font-weight: 700;
+}
+
+.markdown p,
+.markdown li,
+.markdown span,
+.markdown blockquote,
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown code:not(.markdown-code-block-content code) {
@@ -515,12 +562,19 @@
   padding: 3px 6px;
   border-radius: 6px;
   border: 1px solid var(--line-soft);
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  max-width: 100%;
+  display: inline;
 }
 
 .markdown .auto-link {
   color: var(--accent);
   text-decoration: underline;
   word-break: break-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .markdown .auto-link:hover {
@@ -528,15 +582,46 @@
   text-decoration: underline;
 }
 
+.markdown table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.markdown img {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown blockquote {
+  margin: 12px 0;
+  padding: 8px 16px;
+  border-left: 3px solid var(--line-soft);
+  color: var(--text-soft);
+  background: var(--surface-2);
+  border-radius: 0 6px 6px 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .note-reader .markdown {
   min-width: 0;
+  max-width: 100%;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .note-reader .markdown h1,
 .note-reader .markdown h2,
 .note-reader .markdown p {
+  min-width: 0;
+  max-width: 100%;
   overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .markdown h2 {
@@ -661,6 +746,8 @@
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   transition: max-height 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .markdown-code-block.collapsed {
@@ -674,12 +761,15 @@
   padding: 8px 14px;
   background: #15151a;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 0;
+  max-width: 100%;
 }
 
 .markdown-code-block-meta {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 .markdown-code-block-lang {
@@ -701,6 +791,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .markdown-code-block-toggle,
@@ -714,6 +805,7 @@
   padding: 3px 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .markdown-code-block-toggle:hover,
@@ -727,7 +819,9 @@
   display: flex;
   position: relative;
   min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .markdown-code-line-numbers {
@@ -738,6 +832,7 @@
   border-right: 1px solid rgba(255, 255, 255, 0.06);
   user-select: none;
   text-align: right;
+  flex-shrink: 0;
 }
 
 .markdown-code-line-numbers span {
@@ -748,7 +843,9 @@
 }
 
 .markdown-code-block-content {
-  flex: 1;
+  flex: 1 1 0%;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
   padding: 14px 16px;
   overflow-x: auto;
@@ -802,12 +899,16 @@
 .ai-conversation {
   display: grid;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ai-conversation-turn {
   padding: 12px 14px;
   border-radius: 8px;
   border-left: 3px solid transparent;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ai-conversation-turn--user {
@@ -825,6 +926,7 @@
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
+  min-width: 0;
 }
 
 .ai-conversation-role-icon {
@@ -848,6 +950,13 @@
   color: var(--accent);
 }
 
+.ai-conversation-content {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .ai-conversation-content .markdown {
   font-size: 14px;
 }
@@ -869,24 +978,16 @@
     overflow-x: hidden !important;
   }
 
-  .note-reader pre,
-  .note-reader code,
-  .markdown-code-block pre,
-  .markdown-code-block code,
-  .markdown-code-block-content,
-  .markdown-code-block-content code {
+  .note-reader code:not(.markdown-code-block-content code) {
     white-space: pre-wrap !important;
-    word-break: break-all !important;
+    word-break: break-word !important;
     overflow-wrap: anywhere !important;
-  }
-
-  .markdown-code-line-numbers {
-    display: none !important;
   }
 
   .note-reader table {
     display: block !important;
     width: 100% !important;
+    max-width: 100% !important;
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
@@ -901,6 +1002,7 @@
   .note-reader h4,
   .note-reader div {
     max-width: 100% !important;
+    min-width: 0 !important;
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
   }

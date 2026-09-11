@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider, MissingCredentialError } from '../../../contracts/enums.js';
-import { decryptConfig } from '../../credentials.js';
+import { decryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import type { RepositoryRecord } from '../../models/repository-records.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { GithubIntegrationGateway, type GithubInstallationRepository } from '../../ports/integrations/github-integration.port.js';

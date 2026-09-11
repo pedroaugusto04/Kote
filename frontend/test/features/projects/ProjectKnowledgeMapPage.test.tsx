@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { ProjectKnowledgeMapPage } from '../../../src/features/projects/knowledge-map/ProjectKnowledgeMapPage';
 import { filterKnowledgeMapDataset } from '../../../src/features/projects/knowledge-map/knowledge-map.helpers';
+import { knowledgeMapReviewNodeStyle } from '../../../src/features/projects/knowledge-map/knowledge-map.constants';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import type { ProjectKnowledgeMapResponse } from '../../../src/shared/api/models/project-knowledge-map';
 import type { ProjectFolder } from '../../../src/shared/api/models/project-folder';
@@ -195,9 +196,9 @@ describe('ProjectKnowledgeMapPage', () => {
     const reviewLegendItem = within(legend).getByText('Review notes').closest('span');
     const repositoryLegendItem = within(legend).queryByText('Repository')?.closest('span');
 
-    expect(reviewLegendItem?.querySelector('i')).toHaveStyle({ background: '#e879f9' });
-    expect(reviewLegendItem?.querySelector('i')).not.toHaveStyle({ background: '#7dd3fc' });
-    expect(repositoryLegendItem?.querySelector('i')).not.toHaveStyle({ background: '#e879f9' });
+    expect(reviewLegendItem?.querySelector('i')).toHaveStyle({ background: knowledgeMapReviewNodeStyle.color });
+    expect(reviewLegendItem?.querySelector('i')).not.toHaveStyle({ background: '#0284c7' });
+    expect(repositoryLegendItem?.querySelector('i')).not.toHaveStyle({ background: knowledgeMapReviewNodeStyle.color });
   });
 
   it('opens note nodes from the map in a side drawer and allows full page navigation', async () => {

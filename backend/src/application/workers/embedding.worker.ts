@@ -1,18 +1,8 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
-import { EmbeddingGateway } from '../ports/notes/embedding.gateway.js';
-import { NoteEmbeddingRepository } from '../ports/notes/note-embedding.repository.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
-import { ContentRepository } from '../ports/notes/content.repository.js';
-import { ObjectStorage } from '../ports/notes/object-storage.js';
-import { EmbeddingJobType, type EmbeddingJobPayload } from '../ports/notes/embedding-queue.publisher.js';
-import { NoteChunkingService } from '../services/content/note-chunking.service.js';
-import type { NoteChunkAttachment } from '../models/note-chunk.models.js';
-import { resolveAttachmentTextContent } from '../helpers/attachment-resolver.helper.js';
-
-import type { AttachmentRecord } from '../models/repository-records.models.js';
-import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
-import { isNoteEligibleForEmbedding } from '../../domain/utils/note-embedding.utils.js';
+import { type EmbeddingJobPayload } from '../ports/notes/embedding-queue.publisher.js';
+import { EmbeddingJobProcessorService } from '../services/notes/embedding-job-processor.service.js';
 import { AppLogger } from '../../observability/logger.js';
 
 const EXCHANGE_NAME = 'kb.embedding';
@@ -47,13 +37,9 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
   private closed = false;
 
   constructor(
-    private readonly embeddingGateway: EmbeddingGateway,
-    private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
-    private readonly contentRepository: ContentRepository,
-    private readonly chunkingService: NoteChunkingService,
+    private readonly processor: EmbeddingJobProcessorService,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
-    private readonly objectStorage: ObjectStorage,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -184,22 +170,7 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      switch (job.type) {
-        case EmbeddingJobType.Index:
-          await this.processIndex(job.userId, job.noteId);
-          break;
-        case EmbeddingJobType.Delete:
-          await this.processDelete(job.userId, job.noteId);
-          break;
-        case EmbeddingJobType.ReindexAll:
-          await this.processReindexAll(job.userId);
-          break;
-        case EmbeddingJobType.QueryEmbedding:
-          await this.processQueryEmbedding(ch, job as EmbeddingJobPayload & { type: EmbeddingJobType.QueryEmbedding; queryText: string; replyTo?: string; correlationId?: string });
-          break;
-        default:
-          this.logger.warn('embedding_worker.unknown_job_type', { job });
-      }
+      await this.processor.processJob(ch, job);
 
       ch.ack(msg);
 
@@ -242,205 +213,6 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   // ---------------------------------------------------------------------------
-  // Job processors
-  // ---------------------------------------------------------------------------
-
-  private async processIndex(userId: string, noteId: string) {
-    const note = await this.contentRepository.getNoteById(userId, noteId);
-    if (!note) {
-      this.logger.warn('embedding_worker.note_not_found', { noteId });
-      // Note was deleted between publish and consume — clean up any stale embeddings
-      await this.noteEmbeddingRepository.deleteByNoteId(userId, noteId);
-      return;
-    }
-
-    if (!isNoteEligibleForEmbedding(note)) {
-      return;
-    }
-
-    const env = this.runtimeEnv.read();
-    const embeddingConfig = {
-      provider: env.embeddingAiProvider,
-      baseUrl: env.embeddingAiBaseUrl,
-      model: env.embeddingAiModel,
-      apiKey: env.embeddingAiApiKey,
-    };
-    const attachments = await this.contentRepository.listAttachments(userId, noteId);
-
-    this.logger.info('embedding_worker.attachments_found', {
-      noteId,
-      count: attachments.length,
-      files: attachments.map((a) => ({ fileName: a.fileName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, hasStorageKey: Boolean(a.storageKey) })),
-    });
-
-    const processedAttachments: NoteChunkAttachment[] = await Promise.all(
-      attachments.map(async (attachment: AttachmentRecord) => ({
-        fileName: attachment.fileName,
-        mimeType: attachment.mimeType,
-        sizeBytes: attachment.sizeBytes,
-        content: await resolveAttachmentTextContent(attachment, this.objectStorage, this.logger, 'embedding_worker', noteId),
-      })),
-    );
-
-    const chunks = this.chunkingService.chunkNote({
-      title: note.title,
-      body: note.markdown,
-      projectSlug: note.projectSlug || '',
-      path: note.path || '',
-      attachments: processedAttachments,
-    });
-
-    if (chunks.length === 0) {
-      // No meaningful content — delete any stale embeddings
-      await this.noteEmbeddingRepository.deleteByNoteId(userId, noteId);
-      return;
-    }
-
-    const existingEmbeddings = await this.noteEmbeddingRepository.getNoteEmbeddings(userId, noteId);
-    const textToEmbeddingMap = new Map<string, number[]>();
-    for (const rec of existingEmbeddings) {
-      if (rec.model === env.embeddingAiModel && Array.isArray(rec.embedding) && rec.embedding.length > 0) {
-        textToEmbeddingMap.set(rec.chunkText, rec.embedding);
-      }
-    }
-
-    const textsToEmbed: string[] = [];
-    const chunkEmbeddings: (number[] | null)[] = [];
-
-    for (const chunk of chunks) {
-      const existing = textToEmbeddingMap.get(chunk.chunkText);
-      if (existing) {
-        chunkEmbeddings.push(existing);
-      } else {
-        chunkEmbeddings.push(null);
-        textsToEmbed.push(chunk.chunkText);
-      }
-    }
-
-    let generatedEmbeddings: number[][] = [];
-    if (textsToEmbed.length > 0) {
-      generatedEmbeddings = await this.embeddingGateway.generateEmbeddings(embeddingConfig, textsToEmbed);
-      if (generatedEmbeddings.length !== textsToEmbed.length) {
-        this.logger.warn('embedding_worker.embeddings_count_mismatch', {
-          noteId,
-          expected: textsToEmbed.length,
-          received: generatedEmbeddings.length,
-        });
-        return;
-      }
-    }
-
-    let genIndex = 0;
-    const finalEmbeddings: number[][] = [];
-    for (const emb of chunkEmbeddings) {
-      if (emb !== null) {
-        finalEmbeddings.push(emb);
-      } else {
-        finalEmbeddings.push(generatedEmbeddings[genIndex++]);
-      }
-    }
-
-    if (finalEmbeddings.length === 0) {
-      this.logger.warn('embedding_worker.no_embeddings_generated', { noteId });
-      return;
-    }
-
-    const records = chunks.map((chunk, i) => ({
-      userId,
-      noteId,
-      chunkIndex: chunk.chunkIndex,
-      chunkText: chunk.chunkText,
-      embedding: finalEmbeddings[i],
-      model: env.embeddingAiModel,
-    }));
-
-    await this.noteEmbeddingRepository.upsertChunks(userId, noteId, records);
-
-    const bodySearchText = resolveNoteBodySearchText(note.markdown, note.metadata);
-    if (bodySearchText) {
-      await this.contentRepository.updateNoteBodySearchText(userId, noteId, bodySearchText);
-    }
-
-    this.logger.info('embedding_worker.indexed', {
-      noteId,
-      chunksCount: chunks.length,
-      reusedChunksCount: chunks.length - textsToEmbed.length,
-    });
-  }
-
-  private async processDelete(userId: string, noteId: string) {
-    await this.noteEmbeddingRepository.deleteByNoteId(userId, noteId);
-    this.logger.info('embedding_worker.deleted_embeddings', { noteId });
-  }
-
-  private async processReindexAll(userId: string) {
-    const notes = await this.contentRepository.listNotes(userId);
-
-    this.logger.info('embedding_worker.reindex_all_started', {
-      userId,
-      totalNotes: notes.length,
-    });
-
-    let indexed = 0;
-    let failed = 0;
-
-    for (const note of notes) {
-      try {
-        await this.processIndex(userId, note.id);
-        indexed++;
-      } catch (error) {
-        failed++;
-        this.logger.error('embedding_worker.reindex_note_failed', {
-          noteId: note.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    this.logger.info('embedding_worker.reindex_all_completed', {
-      userId,
-      indexed,
-      failed,
-      total: notes.length,
-    });
-  }
-
-  private async processQueryEmbedding(ch: any, job: EmbeddingJobPayload & { type: EmbeddingJobType.QueryEmbedding; queryText: string; replyTo?: string; correlationId?: string }) {
-    const env = this.runtimeEnv.read();
-    const embeddingConfig = {
-      provider: env.embeddingAiProvider,
-      baseUrl: env.embeddingAiBaseUrl,
-      model: env.embeddingAiModel,
-      apiKey: env.embeddingAiApiKey,
-    };
-
-    try {
-      const embeddings = await this.embeddingGateway.generateEmbeddings(
-        embeddingConfig,
-        [job.queryText],
-      );
-
-      if (job.replyTo) {
-        await ch.sendToQueue(job.replyTo, Buffer.from(JSON.stringify({
-          embeddings,
-          correlationId: job.correlationId,
-        })));
-      }
-    } catch (error) {
-      this.logger.error('embedding_worker.query_embedding_failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      if (job.replyTo) {
-        await ch.sendToQueue(job.replyTo, Buffer.from(JSON.stringify({
-          embeddings: [],
-          correlationId: job.correlationId,
-          error: error instanceof Error ? error.message : String(error),
-        })));
-      }
-    }
-  }
-
-  // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
 
@@ -455,3 +227,4 @@ export class EmbeddingWorker implements OnModuleInit, OnModuleDestroy {
     return String(process.env.KB_RABBITMQ_URL || '').trim();
   }
 }
+

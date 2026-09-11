@@ -24,7 +24,7 @@ export function ProjectCoverageBadge({ projectSlug, projectDisplayName, onlyCirc
   const { coveragePercentage, healthStatus } = data;
   const isHigh = healthStatus === CoverageHealthStatus.High;
   const isModerate = healthStatus === CoverageHealthStatus.Moderate;
-  const colorHex = isHigh ? '#34d399' : isModerate ? '#fbbf24' : '#f87171';
+  const colorHex = isHigh ? 'var(--green)' : isModerate ? 'var(--amber)' : 'var(--red)';
 
   const radius = 6.5;
   const circumference = 2 * Math.PI * radius;
@@ -41,8 +41,8 @@ export function ProjectCoverageBadge({ projectSlug, projectDisplayName, onlyCirc
         }}
         title={`Knowledge Coverage: ${coveragePercentage}% (Click for details)`}
         style={{
-          background: 'rgba(255, 255, 255, 0.05)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
+          background: 'var(--surface-2)',
+          border: '1px solid var(--line)',
           borderRadius: '12px',
           padding: onlyCircle ? '2px' : '2px 8px',
           cursor: 'pointer',
@@ -52,7 +52,7 @@ export function ProjectCoverageBadge({ projectSlug, projectDisplayName, onlyCirc
         }}
       >
         <svg width="18" height="18" viewBox="0 0 18 18" style={{ transform: 'rotate(-90deg)', flexShrink: 0 }}>
-          <circle cx="9" cy="9" r={radius} fill="transparent" stroke="rgba(255, 255, 255, 0.12)" strokeWidth="2.5" />
+          <circle cx="9" cy="9" r={radius} fill="transparent" stroke="var(--line-soft)" strokeWidth="2.5" />
           <circle cx="9" cy="9" r={radius} fill="transparent" stroke={colorHex} strokeWidth="2.5" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" />
         </svg>
         {!onlyCircle && (

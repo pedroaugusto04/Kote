@@ -269,8 +269,8 @@ export function ProjectNoteModal({
                             <span
                               className="category-dot"
                               style={{
-                                '--dot-color-light': category.color || '#cccccc',
-                                '--dot-color-dark': category.colorDark || category.color || '#cccccc'
+                                '--dot-color-light': category.color || '#94a3b8',
+                              '--dot-color-dark': category.colorDark || category.color || '#94a3b8'
                               } as React.CSSProperties}
                             />
                             <span>{formatDisplayToken(category.name)}</span>

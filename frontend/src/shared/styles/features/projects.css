@@ -1154,12 +1154,15 @@
   outline: none;
 }
 
-.knowledge-map-node.note {
+.knowledge-map-node.note,
+.knowledge-map-node.topic {
   cursor: pointer;
 }
 
 .knowledge-map-node.note:hover circle,
-.knowledge-map-node.note:focus-visible circle {
+.knowledge-map-node.note:focus-visible circle,
+.knowledge-map-node.topic:hover circle,
+.knowledge-map-node.topic:focus-visible circle {
   stroke: var(--active-text);
   stroke-width: 2px;
 }
@@ -1181,54 +1184,209 @@
 }
 
 .knowledge-map-loading {
+  position: relative;
   min-height: clamp(700px, calc(100vh - 210px), 860px);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border: 1px dashed var(--line-soft);
-  border-radius: 12px;
-  background: var(--surface-2);
-  color: var(--muted);
-  gap: 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    var(--surface-2);
+  background-size: 34px 34px;
+  color: var(--text-soft);
+  gap: 20px;
+  padding: 32px 16px;
+  user-select: none;
+  overflow: hidden;
 }
 
-/* Skeleton graph pulsing animations */
-.skeleton-graph {
+.knowledge-map-loading-graphic {
   position: relative;
-  width: 240px;
-  height: 160px;
-  margin-bottom: 8px;
+  width: 280px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.skeleton-node {
-  position: absolute;
-  width: 24px;
-  height: 24px;
+.knowledge-map-loading-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Links */
+.km-loading-link-base {
+  stroke: var(--line);
+  stroke-width: 1.5;
+  opacity: 0.55;
+}
+
+.km-loading-link-active {
+  stroke: var(--cyan);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 6;
+  opacity: 0.85;
+  animation: km-loading-dash 1.6s linear infinite;
+}
+
+@keyframes km-loading-dash {
+  from {
+    stroke-dashoffset: 20;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Node pulse rings */
+.km-loading-ring {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 1.5;
+  animation: km-loading-pulse-ring 2.4s cubic-bezier(0.2, 0.8, 0.4, 1) infinite;
+  transform-origin: 140px 90px;
+}
+
+.km-loading-ring.delay {
+  animation-delay: 1.2s;
+}
+
+@keyframes km-loading-pulse-ring {
+  0% {
+    r: 16;
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 0.3;
+  }
+  100% {
+    r: 32;
+    opacity: 0;
+  }
+}
+
+/* Node styles with theme-aware colors */
+.km-loading-node {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.km-loading-node.project {
+  fill: var(--amber);
+  filter: drop-shadow(0 0 6px rgba(240, 185, 90, 0.5));
+  animation: km-node-float 3s ease-in-out infinite alternate;
+}
+
+.km-loading-node.repo {
+  fill: var(--cyan);
+  filter: drop-shadow(0 0 5px rgba(83, 199, 222, 0.45));
+  animation: km-node-float 3s ease-in-out infinite alternate 0.4s;
+}
+
+.km-loading-node.folder {
+  fill: var(--purple);
+  filter: drop-shadow(0 0 5px rgba(192, 132, 252, 0.45));
+  animation: km-node-float 3s ease-in-out infinite alternate 0.8s;
+}
+
+.km-loading-node.note {
+  fill: var(--green);
+  filter: drop-shadow(0 0 4px rgba(125, 211, 165, 0.45));
+  animation: km-node-float 3s ease-in-out infinite alternate 1.2s;
+}
+
+.km-loading-node.topic {
+  fill: #e879f9;
+  filter: drop-shadow(0 0 4px rgba(232, 121, 249, 0.45));
+  animation: km-node-float 3s ease-in-out infinite alternate 1.6s;
+}
+
+.km-loading-node.tag {
+  fill: var(--red);
+  filter: drop-shadow(0 0 4px rgba(255, 122, 122, 0.45));
+  animation: km-node-float 3s ease-in-out infinite alternate 2s;
+}
+
+@keyframes km-node-float {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-2px) scale(1.04);
+  }
+  100% {
+    transform: translateY(1px) scale(0.98);
+  }
+}
+
+.km-loading-node-inner {
+  fill: #ffffff;
+  opacity: 0.85;
+}
+
+/* Loading label and hint */
+.knowledge-map-loading-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.knowledge-map-loading-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: var(--surface-1);
+  border: 1px solid var(--line-soft);
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-strong);
+  box-shadow: var(--shadow);
+}
+
+.knowledge-map-loading-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: var(--line);
-  animation: pulse-skeleton 1.5s infinite ease-in-out;
+  background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
+  animation: km-dot-pulse 1.4s ease-in-out infinite;
 }
 
-.skeleton-line {
-  position: absolute;
-  height: 2px;
-  background: var(--line-soft);
-  opacity: 0.4;
-  animation: pulse-skeleton-line 1.5s infinite ease-in-out;
-  transform-origin: left center;
+@keyframes km-dot-pulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
-.skeleton-node.node-1 { top: 20%; left: 20%; background: var(--cyan); }
-.skeleton-node.node-2 { top: 65%; left: 10%; }
-.skeleton-node.node-3 { top: 40%; left: 50%; background: var(--accent-border); }
-.skeleton-node.node-4 { top: 15%; left: 75%; }
-.skeleton-node.node-5 { top: 70%; left: 70%; }
+.knowledge-map-loading-subtext {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 320px;
+  line-height: 1.4;
+}
 
-.skeleton-line.line-1 { top: 32%; left: 28%; width: 55px; transform: rotate(22deg); }
-.skeleton-line.line-2 { top: 32%; left: 28%; width: 95px; transform: rotate(10deg); }
-.skeleton-line.line-3 { top: 73%; left: 20%; width: 85px; transform: rotate(-22deg); }
-.skeleton-line.line-4 { top: 48%; left: 58%; width: 55px; transform: rotate(30deg); }
+@media (prefers-reduced-motion: reduce) {
+  .km-loading-link-active,
+  .km-loading-ring,
+  .km-loading-node,
+  .knowledge-map-loading-dot {
+    animation: none !important;
+  }
+}
 
 /* Knowledge Map Drawer */
 .knowledge-map-container-layout {
@@ -1258,6 +1416,7 @@
   right: 14px;
   bottom: 14px;
   width: 420px;
+  max-width: calc(100vw - 28px);
   height: calc(100% - 28px);
   min-width: 0;
   overflow: hidden;
@@ -1282,6 +1441,7 @@
   -webkit-backdrop-filter: none;
   animation: slide-in-right 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   z-index: auto;
+  max-width: 100%;
 }
 
 .knowledge-map-drawer-head {
@@ -1291,6 +1451,8 @@
   flex-direction: column;
   gap: 10px;
   background: linear-gradient(180deg, var(--surface-2), var(--surface-1));
+  min-width: 0;
+  max-width: 100%;
 }
 
 .knowledge-map-drawer-title-row {
@@ -1298,6 +1460,7 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .knowledge-map-drawer-title-row h2 {
@@ -1306,11 +1469,10 @@
   margin: 0;
   line-height: 1.35;
   color: var(--text-strong);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .knowledge-map-drawer-close {
@@ -1328,6 +1490,7 @@
   display: flex;
   gap: 8px;
   justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .knowledge-map-drawer-content {
@@ -1338,6 +1501,8 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .knowledge-map-drawer-meta-row {
@@ -1345,19 +1510,13 @@
   flex-wrap: wrap;
   gap: 6px;
   align-items: center;
-}
-
-/* Side Note Drawer horizontal scroll prevention */
-.knowledge-map-drawer-content pre,
-.knowledge-map-drawer-content code {
-  white-space: pre-wrap !important;
-  word-break: break-all !important;
-  overflow-wrap: break-word !important;
+  min-width: 0;
 }
 
 .knowledge-map-drawer-content table {
   display: block;
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -1365,14 +1524,24 @@
 .knowledge-map-drawer-content p,
 .knowledge-map-drawer-content li,
 .knowledge-map-drawer-content span,
+.knowledge-map-drawer-content a,
 .knowledge-map-drawer-content h1,
 .knowledge-map-drawer-content h2,
 .knowledge-map-drawer-content h3,
 .knowledge-map-drawer-content h4,
-.knowledge-map-drawer-content div {
+.knowledge-map-drawer-content h5,
+.knowledge-map-drawer-content h6,
+.knowledge-map-drawer-content blockquote {
   max-width: 100%;
-  overflow-wrap: break-word !important;
+  min-width: 0;
+  overflow-wrap: anywhere !important;
   word-break: break-word !important;
+}
+
+.knowledge-map-drawer-content code:not(.markdown-code-block-content code) {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: anywhere !important;
 }
 
 .knowledge-map-drawer-content img {

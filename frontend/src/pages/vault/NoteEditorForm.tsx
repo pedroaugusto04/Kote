@@ -49,12 +49,12 @@ export function NoteEditorForm({
         style={{
           fontSize: '24px',
           fontWeight: '700',
-          border: '1px solid var(--border)',
+          border: '1px solid var(--line)',
           padding: '8px 12px',
-          borderRadius: '4px',
+          borderRadius: '8px',
           width: '100%',
           maxWidth: '600px',
-          backgroundColor: 'var(--bg)',
+          backgroundColor: 'var(--input-bg)',
           color: 'var(--text)',
           outline: 'none',
           transition: 'border-color 0.2s ease',
@@ -90,9 +90,10 @@ export function NoteEditorForm({
                     gap: '6px',
                     padding: '6px 12px',
                     borderRadius: '20px',
-                    border: checked ? '1px solid var(--text)' : '1px solid var(--border)',
+                    border: checked ? '1px solid var(--accent-border)' : '1px solid var(--line)',
                     cursor: 'pointer',
-                    backgroundColor: checked ? 'var(--bg-accent)' : 'var(--bg)',
+                    backgroundColor: checked ? 'var(--surface-active)' : 'var(--input-bg)',
+                    color: checked ? 'var(--active-text)' : 'var(--text)',
                     transition: 'all 0.2s ease',
                     userSelect: 'none',
                   }}
@@ -112,8 +113,8 @@ export function NoteEditorForm({
                   <span
                     className="category-dot"
                     style={{
-                      '--dot-color-light': category.color || '#cccccc',
-                      '--dot-color-dark': category.colorDark || category.color || '#cccccc'
+                      '--dot-color-light': category.color || '#94a3b8',
+                      '--dot-color-dark': category.colorDark || category.color || '#94a3b8'
                     } as React.CSSProperties}
                   />
                   <span>{formatDisplayToken(category.name)}</span>
@@ -136,14 +137,14 @@ export function NoteEditorForm({
           style={{
             width: '100%',
             padding: '12px',
-            border: '1px solid var(--border)',
-            borderRadius: '4px',
+            border: '1px solid var(--line)',
+            borderRadius: '8px',
             fontSize: '14px',
             fontFamily: 'var(--mono)',
             lineHeight: '1.6',
             resize: 'vertical',
             minHeight: '300px',
-            backgroundColor: 'var(--bg)',
+            backgroundColor: 'var(--input-bg)',
             color: 'var(--text)',
           }}
         />

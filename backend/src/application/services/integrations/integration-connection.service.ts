@@ -1,19 +1,19 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException, Optional } from '@nestjs/common';
 import crypto from 'node:crypto';
 
-import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, ExternalIdentityType, ExternalIdKey, WorkspaceBindingField, ConnectionCallbackStatus, MissingCredentialError } from '../contracts/enums.js';
-import { slugifyProjectName, slugifyWorkspaceName } from '../domain/strings.js';
-import { encryptConfig } from './credentials.js';
-import type { IntegrationConnectionSessionRecord, WorkspaceRecord } from './models/repository-records.models.js';
-import { GithubIntegrationGateway } from './ports/integrations/github-integration.port.js';
-import { ContentRepository } from './ports/notes/content.repository.js';
-import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from './ports/integrations/integrations.repository.js';
-import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
-import { AI_PROVIDERS_REGISTRY, getAiProviderConfigStatus } from './ai-providers-registry.js';
-import { GithubRepositoryResolutionService } from './services/integrations/github-repository-resolution.service.js';
-import { WhatsappReplySender } from './ports/integrations/whatsapp-reply.sender.js';
-import { TelegramMessageSender } from './ports/integrations/telegram-message.sender.js';
-import { AppLogger } from '../observability/logger.js';
+import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, ExternalIdentityType, ExternalIdKey, WorkspaceBindingField, ConnectionCallbackStatus, MissingCredentialError } from '../../../contracts/enums.js';
+import { slugifyProjectName, slugifyWorkspaceName } from '../../../domain/strings.js';
+import { encryptConfig } from '../../utils/security/credentials-crypto.utils.js';
+import type { IntegrationConnectionSessionRecord, WorkspaceRecord } from '../../models/repository-records.models.js';
+import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
+import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from '../../ports/integrations/integrations.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { AI_PROVIDERS_REGISTRY, getAiProviderConfigStatus } from '../../constants/ai-providers.constants.js';
+import { GithubRepositoryResolutionService } from './github-repository-resolution.service.js';
+import { WhatsappReplySender } from '../../ports/integrations/whatsapp-reply.sender.js';
+import { TelegramMessageSender } from '../../ports/integrations/telegram-message.sender.js';
+import { AppLogger } from '../../../observability/logger.js';
 import {
   appendQuery,
   buildBrowserRedirectUrl,
@@ -31,10 +31,10 @@ import {
   sha256,
   type ConnectionSessionMetadata,
   type ConnectionSessionView,
-} from './integrations/connection-session.helpers.js';
+} from '../../integrations/connection-session.helpers.js';
 
-import { parseWhatsappEvolutionMessage } from './utils/webhook/webhook.utils.js';
-import { WHATSAPP_INTRO_MESSAGE, TELEGRAM_INTRO_MESSAGE } from './integrations/connection-messages.js';
+import { parseWhatsappEvolutionMessage } from '../../utils/webhook/webhook.utils.js';
+import { WHATSAPP_INTRO_MESSAGE, TELEGRAM_INTRO_MESSAGE } from '../../integrations/connection-messages.js';
 
 export type { ConnectionSessionView };
 

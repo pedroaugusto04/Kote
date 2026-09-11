@@ -910,6 +910,70 @@
   font-size: 10.5px;
 }
 
+:root[data-theme="light"] .landing-button-primary {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: #ffffff;
+}
+
+:root[data-theme="light"] .landing-button-primary:hover {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(3, 105, 161, 0.25);
+}
+
+:root[data-theme="light"] .landing-button-secondary {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--text-strong);
+}
+
+:root[data-theme="light"] .landing-button-secondary:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-border);
+  color: var(--active-text);
+}
+
+:root[data-theme="light"] .landing-mock-terminal {
+  background: var(--surface-1);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+:root[data-theme="light"] .landing-mock-terminal-bar {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--line);
+}
+
+:root[data-theme="light"] .terminal-dot {
+  background: var(--line);
+}
+
+:root[data-theme="light"] .terminal-line {
+  color: var(--text);
+}
+
+:root[data-theme="light"] .terminal-line .p {
+  color: var(--cyan);
+}
+
+:root[data-theme="light"] .terminal-response.cyan {
+  color: var(--cyan);
+}
+
+:root[data-theme="light"] .terminal-response.green {
+  color: var(--green);
+}
+
+:root[data-theme="light"] .terminal-response-detail {
+  color: var(--text-soft);
+}
+
+:root[data-theme="light"] .terminal-response-sources {
+  color: var(--muted);
+}
+
 /* --------------------------------------------------------------------------
    SECTION 5: ASK AI SEMANTIC SEARCH FRAME
    -------------------------------------------------------------------------- */

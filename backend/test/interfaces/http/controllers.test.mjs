@@ -234,3 +234,15 @@ test('notes controller serves attachment content with inline headers', async () 
   assert.match(response.headers['Content-Disposition'], /^inline; filename="user-1-note-1-att-1\.txt"/);
   assert.equal(response.sent.toString('utf8'), 'hello');
 });
+
+
+test('notes controller forces ZIP attachment downloads', async () => {
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  const notes = new NotesController({ execute: async () => null }, { execute: async () => null }, { execute: async () => null }, {
+    execute: async () => ({ fileName: 'archive.zip', mimeType: 'application/zip', sizeBytes: 22, body: Buffer.alloc(22) }),
+  });
+  const response = { headers: {}, setHeader(name, value) { this.headers[name] = value; }, send(body) { this.sent = body; return this; } };
+
+  await notes.attachmentContent({ noteId: 'note-1', attachmentId: 'att-1' }, user, response);
+  assert.match(response.headers['Content-Disposition'], /^attachment; filename="archive\.zip"/);
+});

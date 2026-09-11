@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { readEnvironment } from '../../../dist/adapters/environment.js';
-import { buildIntegrationStatuses } from '../../../dist/application/integrations.js';
+import { buildIntegrationStatuses } from '../../../dist/application/services/integrations/integrations-status.service.js';
 
 const baseProjects = [
   {

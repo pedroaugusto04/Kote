@@ -70,7 +70,7 @@ export function ProjectCoverageModal({ projectSlug, projectDisplayName, onClose 
 
   const isHigh = healthStatus === CoverageHealthStatus.High;
   const isModerate = healthStatus === CoverageHealthStatus.Moderate;
-  const colorHex = isHigh ? '#34d399' : isModerate ? '#fbbf24' : '#f87171';
+  const colorHex = isHigh ? 'var(--green)' : isModerate ? 'var(--amber)' : 'var(--red)';
   const statusLabel = isHigh ? 'High Health' : isModerate ? 'Moderate Coverage' : 'Knowledge Gaps Detected';
 
   const radius = 22;
@@ -108,10 +108,10 @@ export function ProjectCoverageModal({ projectSlug, projectDisplayName, onClose 
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px', padding: '14px 16px', background: 'var(--panel-bg-subtle, rgba(255, 255, 255, 0.03))', borderRadius: '8px', border: '1px solid var(--border-color, rgba(255, 255, 255, 0.08))' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px', padding: '14px 16px', background: 'var(--surface-2)', borderRadius: '8px', border: '1px solid var(--line)' }}>
           <div style={{ position: 'relative', width: '54px', height: '54px', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg width="54" height="54" viewBox="0 0 54 54" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="27" cy="27" r={radius} fill="transparent" stroke="rgba(255, 255, 255, 0.1)" strokeWidth="5" />
+              <circle cx="27" cy="27" r={radius} fill="transparent" stroke="var(--line-soft)" strokeWidth="5" />
               <circle cx="27" cy="27" r={radius} fill="transparent" stroke={colorHex} strokeWidth="5" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" />
             </svg>
             <BookOpenIcon style={{ position: 'absolute', width: '18px', height: '18px', color: colorHex }} />
@@ -127,25 +127,25 @@ export function ProjectCoverageModal({ projectSlug, projectDisplayName, onClose 
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--muted)', marginBottom: '16px' }}>
           <div>
-            <strong style={{ color: 'var(--text-color)' }}>{coveredFiles}</strong> of {totalFiles} Files Documented
+            <strong style={{ color: 'var(--text)' }}>{coveredFiles}</strong> of {totalFiles} Files Documented
           </div>
           <div>
-            <strong style={{ color: uncoveredFiles > 0 ? '#f87171' : 'var(--text-color)' }}>{uncoveredFiles}</strong> Knowledge Gaps
+            <strong style={{ color: uncoveredFiles > 0 ? 'var(--red)' : 'var(--text)' }}>{uncoveredFiles}</strong> Knowledge Gaps
           </div>
         </div>
 
         {folderBreakdown.length > 0 && (
           <div className="integration-card-body" style={{ marginBottom: '20px' }}>
-            <p className="meta" style={{ fontWeight: 600, color: 'var(--text-color)', marginBottom: '10px' }}>
+            <p className="meta" style={{ fontWeight: 600, color: 'var(--text)', marginBottom: '10px' }}>
               Coverage by Directory:
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {folderBreakdown.map((folder) => (
                 <div key={folder.folderPath} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.85rem' }}>
                   <span style={{ fontFamily: 'monospace' }}>{folder.folderPath}/</span>
-                  <span style={{ fontWeight: 600, color: folder.percentage >= 80 ? '#34d399' : folder.percentage >= 50 ? '#fbbf24' : '#f87171' }}>
+                  <span style={{ fontWeight: 600, color: folder.percentage >= 80 ? 'var(--green)' : folder.percentage >= 50 ? 'var(--amber)' : 'var(--red)' }}>
                     {folder.percentage}% ({folder.coveredFiles}/{folder.totalFiles})
                   </span>
                 </div>

@@ -1,8 +1,39 @@
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import * as vscode from 'vscode';
-
 import type { KbClient } from '../../kb-client';
 import { toMessage } from '../../error-reporter';
 import type { AiHistoryProvider, AiSession } from '../types';
+import { SessionHandoffViewProvider } from '../../providers/session-handoff-view.provider';
+
+export function persistLastHandoffFile(markdown: string): void {
+  try {
+    const koteDir = path.join(os.homedir(), '.config', 'kote');
+    if (!fs.existsSync(koteDir)) {
+      fs.mkdirSync(koteDir, { recursive: true });
+    }
+    const lastHandoffPath = path.join(koteDir, 'last-handoff.md');
+    fs.writeFileSync(lastHandoffPath, markdown, 'utf8');
+  } catch {}
+}
+
+export function injectHandoffIntoActiveTerminal(markdown: string): boolean {
+  const terminal = vscode.window.activeTerminal;
+  if (!terminal) return false;
+
+  terminal.show(true);
+
+  // Normalize line endings
+  const normalized = markdown.replace(/\r\n/g, '\n').trim();
+
+  // Use bracketed paste mode (\x1b[200~ ... \x1b[201~) so CLI interactive prompts (Antigravity, Claude, OpenCode)
+  // treat the entire multiline payload as a single atomic paste rather than submitting on every newline.
+  const bracketedPayload = `\x1b[200~${normalized}\x1b[201~`;
+
+  terminal.sendText(bracketedPayload, false);
+  return true;
+}
 
 export class SessionHandoffManager {
   private lastHandoffMarkdown: string | null = null;
@@ -13,31 +44,59 @@ export class SessionHandoffManager {
     private readonly getClient: () => KbClient,
     private readonly getProviders: () => Map<string, AiHistoryProvider>,
     private readonly formatSessionMarkdown: (session: AiSession) => string,
+    private readonly getExtensionUri?: () => vscode.Uri,
   ) {}
+
+  onHarnessLaunched(
+    targetProviderId: string,
+    recentSessions: AiSession[],
+  ): void {
+    const candidate = this.findCandidatePreviousSession(targetProviderId, recentSessions);
+    if (!candidate) return;
+
+    const launchKey = `launch:${candidate.sessionId}->${targetProviderId}`;
+    if (this.promptedHandoffPairs.has(launchKey)) return;
+    this.promptedHandoffPairs.add(launchKey);
+
+    const providers = this.getProviders();
+    const prevProviderName = providers.get(candidate.providerId)?.name || candidate.providerId;
+    const newProviderName = providers.get(targetProviderId)?.name || targetProviderId;
+
+    void this.promptHandoffForCandidate(candidate, prevProviderName, newProviderName);
+  }
 
   onNewSessionDetected(
     currentProvider: AiHistoryProvider,
     currentSession: AiSession,
     recentSessions: AiSession[],
   ): void {
-    const candidate = this.findCandidatePreviousSession(currentSession, recentSessions);
+    const candidate = this.findCandidatePreviousSession(
+      currentSession.providerId,
+      recentSessions,
+      currentSession.sessionId,
+    );
     if (!candidate) return;
 
     const pairKey = `${candidate.sessionId}->${currentSession.sessionId}`;
     if (this.promptedHandoffPairs.has(pairKey)) return;
     this.promptedHandoffPairs.add(pairKey);
 
-    void this.promptSessionHandoff(currentProvider, currentSession, candidate);
+    const providers = this.getProviders();
+    const prevProviderName = providers.get(candidate.providerId)?.name || candidate.providerId;
+    const newProviderName = currentProvider.name;
+
+    void this.promptHandoffForCandidate(candidate, prevProviderName, newProviderName);
   }
 
   findCandidatePreviousSession(
-    currentSession: AiSession,
+    targetProviderId: string,
     recentSessions: AiSession[],
+    excludeSessionId?: string,
   ): AiSession | null {
     const now = Date.now();
     for (const s of recentSessions) {
-      if (s.sessionId === currentSession.sessionId) continue;
-      if (s.providerId === currentSession.providerId) continue;
+      if (excludeSessionId && s.sessionId === excludeSessionId) continue;
+      if (s.providerId === targetProviderId) continue;
       if (s.turns.length < 2) continue;
       if (now - s.timestamp > this.HANDOFF_RECENCY_MAX_AGE_MS) continue;
       return s;
@@ -45,15 +104,11 @@ export class SessionHandoffManager {
     return null;
   }
 
-  private async promptSessionHandoff(
-    currentProvider: AiHistoryProvider,
-    _currentSession: AiSession,
+  private async promptHandoffForCandidate(
     candidate: AiSession,
+    prevProviderName: string,
+    newProviderName: string,
   ): Promise<void> {
-    const providers = this.getProviders();
-    const prevProviderName = providers.get(candidate.providerId)?.name || candidate.providerId;
-    const newProviderName = currentProvider.name;
-
     const message = `Kote: Previous session detected in ${prevProviderName} ("${candidate.title}"). Inject this context into ${newProviderName}?`;
     const action = await vscode.window.showInformationMessage(
       message,
@@ -85,14 +140,25 @@ export class SessionHandoffManager {
 
       if (res && res.handoffMarkdown) {
         this.lastHandoffMarkdown = res.handoffMarkdown;
+        persistLastHandoffFile(res.handoffMarkdown);
         await vscode.env.clipboard.writeText(res.handoffMarkdown);
 
+        const injected = injectHandoffIntoActiveTerminal(res.handoffMarkdown);
+        const msg = injected
+          ? `Kote: Session handoff context injected into active terminal for ${targetName}.`
+          : `Kote: Session handoff context copied to clipboard for ${targetName}.`;
+
         const choice = await vscode.window.showInformationMessage(
-          `Kote: Session handoff context injected. Copied to clipboard for ${targetName}.`,
+          msg,
           'View Injected Context',
         );
         if (choice === 'View Injected Context') {
-          await this.openHandoffPreview(res.handoffMarkdown, targetName);
+          await this.openHandoffPreview(res.handoffMarkdown, targetName, {
+            sourceProvider: previousSession.providerId,
+            sourceTitle: previousSession.title,
+            sourceTimestamp: String(previousSession.timestamp),
+            projectSlug: previousSession.projectSlug,
+          });
         }
         return res.handoffMarkdown;
       }
@@ -109,6 +175,35 @@ export class SessionHandoffManager {
     try {
       const client = this.getClient();
       const targetName = targetProviderName || 'new chat';
+      const extensionUri = this.getExtensionUri?.();
+
+      if (extensionUri) {
+        SessionHandoffViewProvider.show(
+          {
+            sourceProvider: previousSession.providerId,
+            targetProviderName: targetName,
+            sourceTitle: previousSession.title,
+            sourceTimestamp: String(previousSession.timestamp),
+            projectSlug: previousSession.projectSlug,
+          },
+          extensionUri,
+          async () => {
+            const rawText = this.formatSessionMarkdown(previousSession);
+            const res = await client.getSessionHandoff({
+              rawText,
+              provider: previousSession.providerId,
+              projectSlug: previousSession.projectSlug,
+            });
+            this.lastHandoffMarkdown = res.handoffMarkdown;
+            return res.handoffMarkdown;
+          },
+          (markdown) => {
+            this.lastHandoffMarkdown = markdown;
+          },
+        );
+        return;
+      }
+
       const rawText = this.formatSessionMarkdown(previousSession);
       const res = await client.getSessionHandoff({
         rawText,
@@ -118,32 +213,54 @@ export class SessionHandoffManager {
 
       if (res && res.handoffMarkdown) {
         this.lastHandoffMarkdown = res.handoffMarkdown;
-        await this.openHandoffPreview(res.handoffMarkdown, targetName);
+        await this.openHandoffPreview(res.handoffMarkdown, targetName, {
+          sourceProvider: previousSession.providerId,
+          sourceTitle: previousSession.title,
+          sourceTimestamp: String(previousSession.timestamp),
+          projectSlug: previousSession.projectSlug,
+        });
       }
     } catch (err) {
       vscode.window.showErrorMessage(`Kote: Failed to generate session handoff: ${toMessage(err)}`);
     }
   }
 
-  async openHandoffPreview(markdown: string, targetProviderName: string): Promise<void> {
+  async openHandoffPreview(
+    markdown: string,
+    targetProviderName: string,
+    meta?: {
+      sourceProvider?: string;
+      sourceTitle?: string;
+      sourceTimestamp?: string;
+      projectSlug?: string;
+    },
+  ): Promise<void> {
     try {
+      const extensionUri = this.getExtensionUri?.();
+      if (extensionUri) {
+        SessionHandoffViewProvider.show(
+          {
+            initialMarkdown: markdown,
+            sourceProvider: meta?.sourceProvider || 'Previous Session',
+            targetProviderName,
+            sourceTitle: meta?.sourceTitle,
+            sourceTimestamp: meta?.sourceTimestamp,
+            projectSlug: meta?.projectSlug,
+          },
+          extensionUri,
+          undefined,
+          () => {
+            this.lastHandoffMarkdown = markdown;
+          },
+        );
+        return;
+      }
+
       const doc = await vscode.workspace.openTextDocument({
         content: markdown,
         language: 'markdown',
       });
       await vscode.window.showTextDocument(doc);
-
-      const action = await vscode.window.showInformationMessage(
-        `Kote: Review the generated handoff. Choose "Accept and Inject" to copy context for ${targetProviderName}.`,
-        'Accept and Inject',
-        'Cancel',
-      );
-
-      if (action === 'Accept and Inject') {
-        this.lastHandoffMarkdown = markdown;
-        await vscode.env.clipboard.writeText(markdown);
-        vscode.window.showInformationMessage('Kote: Session handoff accepted and copied to clipboard.');
-      }
     } catch (err) {
       vscode.window.showErrorMessage(`Kote: Failed to open handoff preview: ${toMessage(err)}`);
     }

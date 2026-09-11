@@ -17,6 +17,15 @@
   --red: #ff7a7a;
   --purple: #c084fc;
   --danger: #ef4444;
+  --primary: #53c7de;
+  --primary-hover: #38bdf8;
+  --accent-hover: #38bdf8;
+  --orange: #fb923c;
+  --border: #24323c;
+  --surface-0: #090f14;
+  --surface-selected: rgba(83, 199, 222, 0.14);
+  --border-hover: rgba(83, 199, 222, 0.40);
+  --text-muted: #8da0ae;
   --body-overlay: linear-gradient(180deg, rgba(18, 29, 36, 0.82), rgba(9, 15, 20, 0.96));
   --body-radial: radial-gradient(circle at 68% 0%, rgba(83, 199, 222, 0.08), transparent 34%);
   --glass-panel: rgba(15, 23, 29, 0.88);
@@ -83,35 +92,43 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f8fafc;
+  --bg: #f1f5f9;
   --panel: #ffffff;
   --line: #cbd5e1;
-  --line-soft: rgba(15, 23, 42, 0.06);
+  --line-soft: rgba(15, 23, 42, 0.10);
+  --border: #cbd5e1;
   --text: #0f172a;
   --text-strong: #0f172a;
   --text-soft: #334155;
   --muted: #475569;
+  --text-muted: #475569;
   --faint: #525f70;
   --cyan: #0369a1;
   --green: #15803d;
   --amber: #a16207;
+  --orange: #c2410c;
   --red: #b91c1c;
-  --danger: #ef4444;
+  --danger: #dc2626;
   --purple: #7e22ce;
   --accent: #0369a1;
+  --primary: #0369a1;
   --primary-hover: #075985;
+  --accent-hover: #075985;
+  --surface-0: #f1f5f9;
+  --surface-selected: rgba(3, 105, 161, 0.10);
+  --border-hover: rgba(3, 105, 161, 0.40);
   --surface-10: #e2e8f0;
   --surface-bg: #ffffff;
   --body-overlay: linear-gradient(168deg,
-      rgba(248, 250, 252, 0.94) 0%,
-      rgba(241, 245, 249, 0.85) 100%);
+      rgba(241, 245, 249, 0.96) 0%,
+      rgba(226, 232, 240, 0.88) 100%);
   --body-radial:
-    radial-gradient(ellipse 120% 60% at 72% -4%, rgba(3, 105, 161, 0.05), transparent 52%),
-    radial-gradient(ellipse 90% 50% at 8% 18%, rgba(21, 128, 61, 0.03), transparent 44%);
-  --glass-panel: rgba(255, 255, 255, 0.85);
-  --glass-topbar: rgba(248, 250, 252, 0.82);
-  --surface-1: #f8fafc;
-  --surface-2: #f1f5f9;
+    radial-gradient(ellipse 120% 60% at 72% -4%, rgba(3, 105, 161, 0.04), transparent 52%),
+    radial-gradient(ellipse 90% 50% at 8% 18%, rgba(21, 128, 61, 0.02), transparent 44%);
+  --glass-panel: rgba(255, 255, 255, 0.92);
+  --glass-topbar: rgba(241, 245, 249, 0.88);
+  --surface-1: #ffffff;
+  --surface-2: #f8fafc;
   --surface-3: #e2e8f0;
   --surface-4: rgba(15, 23, 42, 0.04);
   --surface-5: rgba(15, 23, 42, 0.06);
@@ -125,10 +142,10 @@
   --surface-warning: rgba(161, 98, 7, 0.06);
   --surface-success: rgba(21, 128, 61, 0.06);
   --surface-info: rgba(3, 105, 161, 0.06);
-  --surface-backdrop: rgba(15, 23, 42, 0.22);
-  --surface-overlay: rgba(15, 23, 42, 0.18);
+  --surface-backdrop: rgba(15, 23, 42, 0.35);
+  --surface-overlay: rgba(15, 23, 42, 0.28);
   --input-bg: #ffffff;
-  --image-bg: #f1f5f9;
+  --image-bg: #e2e8f0;
   --brand-mark-border: rgba(3, 105, 161, 0.28);
   --brand-mark-bg: linear-gradient(145deg, #eff6ff, #ffffff);
   --active-text: #0369a1;
@@ -140,17 +157,17 @@
   --success-text-soft: #15803d;
   --info-text: #0369a1;
   --status-shadow: 0 0 0 4px rgba(21, 128, 61, 0.08);
-  --border-strong: rgba(15, 23, 42, 0.16);
-  --border-subtle: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.20);
+  --border-subtle: rgba(15, 23, 42, 0.12);
   --accent-border: rgba(3, 105, 161, 0.28);
-  --danger-border: rgba(185, 28, 28, 0.20);
-  --warning-border: rgba(161, 98, 7, 0.20);
-  --success-border: rgba(21, 128, 61, 0.20);
-  --success-border-soft: rgba(21, 128, 61, 0.16);
-  --info-border: rgba(3, 105, 161, 0.20);
+  --danger-border: rgba(185, 28, 28, 0.22);
+  --warning-border: rgba(161, 98, 7, 0.22);
+  --success-border: rgba(21, 128, 61, 0.22);
+  --success-border-soft: rgba(21, 128, 61, 0.18);
+  --info-border: rgba(3, 105, 161, 0.22);
   --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.09), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
   --shadow: 0 2px 4px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.03);
   --shadow-strong: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 8px 10px -6px rgba(15, 23, 42, 0.06);
   --card-shadow-hover: 0 10px 25px -5px rgba(3, 105, 161, 0.12), 0 0 0 1px var(--accent-border);

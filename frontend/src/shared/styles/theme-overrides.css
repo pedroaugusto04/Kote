@@ -30,8 +30,30 @@
 :root[data-theme="light"] .note-reader {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 28px;
+  box-shadow: 0 4px 24px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .note-reader .markdown p,
+:root[data-theme="light"] .note-reader .markdown li {
+  color: var(--text);
+}
+
+:root[data-theme="light"] .note-section-card {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+
+:root[data-theme="light"] .related-note-card {
+  background: var(--panel);
+  border-color: var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+:root[data-theme="light"] .related-note-card:hover {
+  background: var(--surface-2);
+  border-color: var(--accent-border);
   box-shadow: var(--shadow);
 }
 
@@ -93,6 +115,20 @@
   background: var(--surface-3);
   border-color: var(--line);
   color: var(--text);
+}
+
+:root[data-theme="light"] .icon-button.danger-button,
+:root[data-theme="light"] .danger-button {
+  background: var(--surface-danger);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+}
+
+:root[data-theme="light"] .icon-button.danger-button:hover:not(:disabled),
+:root[data-theme="light"] .danger-button:hover:not(:disabled) {
+  background: var(--red);
+  border-color: var(--red);
+  color: #ffffff;
 }
 
 /* Filter chips — standalone chips use surface-2; active matches segmented selected pill */
@@ -256,7 +292,13 @@
 
 /* Kanban */
 :root[data-theme="light"] .kanban-card {
+  background: var(--panel);
   border-color: var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+:root[data-theme="light"] .kanban-card:hover {
+  border-color: var(--accent-border);
   box-shadow: var(--shadow);
 }
 
@@ -495,9 +537,63 @@
 }
 
 :root[data-theme="light"] .knowledge-map-loading {
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+    var(--panel);
+  background-size: 34px 34px;
+  border-color: var(--line-soft);
+  color: var(--muted);
+}
+
+:root[data-theme="light"] .km-loading-link-base {
+  stroke: var(--line);
+  opacity: 0.65;
+}
+
+:root[data-theme="light"] .km-loading-link-active {
+  stroke: var(--cyan);
+  opacity: 0.9;
+}
+
+:root[data-theme="light"] .km-loading-ring {
+  stroke: var(--amber);
+}
+
+:root[data-theme="light"] .km-loading-node.project {
+  filter: drop-shadow(0 2px 4px rgba(161, 98, 7, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.repo {
+  filter: drop-shadow(0 2px 4px rgba(3, 105, 161, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.folder {
+  filter: drop-shadow(0 2px 4px rgba(126, 34, 206, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.note {
+  filter: drop-shadow(0 2px 4px rgba(21, 128, 61, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.topic {
+  fill: #c026d3;
+  filter: drop-shadow(0 2px 4px rgba(192, 38, 211, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node.tag {
+  filter: drop-shadow(0 2px 4px rgba(185, 28, 28, 0.3));
+}
+
+:root[data-theme="light"] .km-loading-node-inner {
+  fill: #ffffff;
+  opacity: 0.95;
+}
+
+:root[data-theme="light"] .knowledge-map-loading-title {
   background: var(--panel);
   border-color: var(--line);
-  color: var(--muted);
+  box-shadow: var(--shadow-sm);
 }
 
 :root[data-theme="light"] .knowledge-map-zoom-controls {
@@ -570,3 +666,67 @@
 :root[data-theme="light"] .note-body-label {
   color: var(--text-soft);
 }
+
+/* Toggle switch thumb definition */
+:root[data-theme="light"] .kb-toggle input + span > span {
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22), 0 0 0 1px rgba(15, 23, 42, 0.12);
+}
+
+/* Drag & drop modal card */
+:root[data-theme="light"] .drag-drop-card {
+  background: var(--panel);
+  border-color: var(--line);
+  box-shadow: var(--shadow-strong);
+}
+
+:root[data-theme="light"] .drag-drop-card h3 {
+  color: var(--text-strong);
+}
+
+:root[data-theme="light"] .drag-drop-card p {
+  color: var(--muted);
+}
+
+/* AI Waiting and loader states: crisp typography without dark-mode glow blur */
+:root[data-theme="light"] .ask-waiting-text h3,
+:root[data-theme="light"] .brief-waiting-content h3,
+:root[data-theme="light"] .brief-thinking-content h3 {
+  text-shadow: none;
+  color: var(--cyan);
+}
+
+:root[data-theme="light"] .core-center,
+:root[data-theme="light"] .brief-core-center {
+  box-shadow: var(--shadow-md);
+}
+
+:root[data-theme="light"] .core-ring,
+:root[data-theme="light"] .brief-core-ring {
+  border-color: var(--accent-border);
+}
+
+:root[data-theme="light"] .skeleton-card {
+  box-shadow: var(--shadow);
+}
+
+:root[data-theme="light"] .skeleton-card .ask-ai-identity {
+  text-shadow: none;
+}
+
+/* Markdown auto-links hover */
+:root[data-theme="light"] .markdown .auto-link:hover {
+  color: var(--accent-hover);
+}
+
+/* Info tooltip in light mode */
+:root[data-theme="light"] .info-tooltip-content {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--text);
+  box-shadow: var(--shadow-md);
+}
+
+:root[data-theme="light"] .info-tooltip-content::after {
+  border-top-color: var(--panel);
+}
+

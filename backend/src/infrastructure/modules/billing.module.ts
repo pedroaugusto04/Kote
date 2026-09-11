@@ -25,6 +25,8 @@ import { ChangeSubscriptionWorker } from '../../application/workers/change-subsc
 import { BillingWorker } from '../../application/workers/billing.worker.js';
 import { WebhookOutboxRelayWorker } from '../../application/workers/webhook-outbox-relay.worker.js';
 
+import { PaymentGatewayFactory } from '../../application/services/billing/payment-gateway.factory.js';
+
 @Module({
   imports: [DatabaseModule, LoggerModule, AuthModule],
   controllers: [AsaasWebhookController, StripeWebhookController],
@@ -34,6 +36,7 @@ import { WebhookOutboxRelayWorker } from '../../application/workers/webhook-outb
     AsaasGatewayStatusMapper,
     StripePaymentGateway,
     StripeGatewayStatusMapper,
+    PaymentGatewayFactory,
     RabbitMqBillingQueuePublisher,
     { provide: BillingQueuePublisher, useExisting: RabbitMqBillingQueuePublisher },
     BillingWebhookConsumer,
@@ -56,6 +59,7 @@ import { WebhookOutboxRelayWorker } from '../../application/workers/webhook-outb
     AsaasGatewayStatusMapper,
     StripePaymentGateway,
     StripeGatewayStatusMapper,
+    PaymentGatewayFactory,
     BillingQueuePublisher,
     BillingIntentService,
     SubscriptionService,

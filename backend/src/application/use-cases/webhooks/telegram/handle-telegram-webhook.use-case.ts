@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
-import { extractTelegramChatId, extractTelegramConnectionCode, IntegrationConnectionService } from '../../../integration-connections.js';
+import { extractTelegramChatId, extractTelegramConnectionCode, IntegrationConnectionService } from '../../../services/integrations/integration-connection.service.js';
 import type { TelegramWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
