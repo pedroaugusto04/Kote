@@ -15,6 +15,7 @@ import { SideNoteDrawer } from '../../../widgets/notes/SideNoteDrawer';
 import { useMediaQuery } from '../../../shared/ui/use-media-query';
 import { flattenFolders } from '../projects.helpers';
 import { ProjectKnowledgeForceGraph } from './ProjectKnowledgeForceGraph';
+import { KnowledgeMapLoading } from './KnowledgeMapLoading';
 import {
   defaultVisibleKnowledgeMapNodeTypes,
   knowledgeMapLimitOptions,
@@ -219,20 +220,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
       ) : null}
 
       {query.isLoading ? (
-        <div className="knowledge-map-loading" role="status" aria-label="Loading map...">
-          <div className="skeleton-graph">
-            <div className="skeleton-node node-1"></div>
-            <div className="skeleton-node node-2"></div>
-            <div className="skeleton-node node-3"></div>
-            <div className="skeleton-node node-4"></div>
-            <div className="skeleton-node node-5"></div>
-            <div className="skeleton-line line-1"></div>
-            <div className="skeleton-line line-2"></div>
-            <div className="skeleton-line line-3"></div>
-            <div className="skeleton-line line-4"></div>
-          </div>
-          <span>Loading map...</span>
-        </div>
+        <KnowledgeMapLoading />
       ) : graph ? (
         <>
           <KnowledgeMapControls

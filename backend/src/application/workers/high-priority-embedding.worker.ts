@@ -1,8 +1,8 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 
-import { EmbeddingGateway } from '../ports/notes/embedding.gateway.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
 import { EmbeddingJobType, type EmbeddingJobPayload } from '../ports/notes/embedding-queue.publisher.js';
+import { EmbeddingJobProcessorService } from '../services/notes/embedding-job-processor.service.js';
 import { AppLogger } from '../../observability/logger.js';
 
 const EXCHANGE_NAME = 'kb.embedding';
@@ -27,7 +27,7 @@ export class HighPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestro
   private closed = false;
 
   constructor(
-    private readonly embeddingGateway: EmbeddingGateway,
+    private readonly processor: EmbeddingJobProcessorService,
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly logger: AppLogger,
   ) {}
@@ -130,7 +130,7 @@ export class HighPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestro
     try {
       switch (job.type) {
         case EmbeddingJobType.QueryEmbedding:
-          await this.processQueryEmbedding(ch, job as EmbeddingJobPayload & { type: EmbeddingJobType.QueryEmbedding; queryText: string; replyTo?: string; correlationId?: string });
+          await this.processor.processQueryEmbedding(ch, job as EmbeddingJobPayload & { type: EmbeddingJobType.QueryEmbedding; queryText: string; replyTo?: string; correlationId?: string });
           break;
         default:
           this.logger.warn('high_priority_embedding_worker.unexpected_job_type', { job });
@@ -171,39 +171,5 @@ export class HighPriorityEmbeddingWorker implements OnModuleInit, OnModuleDestro
       }
     }
   }
-
-  private async processQueryEmbedding(ch: any, job: EmbeddingJobPayload & { type: EmbeddingJobType.QueryEmbedding; queryText: string; replyTo?: string; correlationId?: string }) {
-    const env = this.runtimeEnv.read();
-    const embeddingConfig = {
-      provider: env.embeddingAiProvider,
-      baseUrl: env.embeddingAiBaseUrl,
-      model: env.embeddingAiModel,
-      apiKey: env.embeddingAiApiKey,
-    };
-
-    try {
-      const embeddings = await this.embeddingGateway.generateEmbeddings(
-        embeddingConfig,
-        [job.queryText],
-      );
-
-      if (job.replyTo) {
-        await ch.sendToQueue(job.replyTo, Buffer.from(JSON.stringify({
-          embeddings,
-          correlationId: job.correlationId,
-        })));
-      }
-    } catch (error) {
-      this.logger.error('high_priority_embedding_worker.query_embedding_failed', {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      if (job.replyTo) {
-        await ch.sendToQueue(job.replyTo, Buffer.from(JSON.stringify({
-          embeddings: [],
-          correlationId: job.correlationId,
-          error: error instanceof Error ? error.message : String(error),
-        })));
-      }
-    }
-  }
 }
+

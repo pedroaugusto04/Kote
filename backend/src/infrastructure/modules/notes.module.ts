@@ -39,6 +39,9 @@ import {
   GetAutoActionGlobalUseCase,
   SetAutoActionGlobalUseCase,
 } from '../../application/use-cases/index.js';
+import { RagRetrievalService } from '../../application/services/query/rag-retrieval.service.js';
+import { RagContextAssemblerService } from '../../application/services/query/rag-context-assembler.service.js';
+import { EmbeddingJobProcessorService } from '../../application/services/notes/embedding-job-processor.service.js';
 import { HighPriorityEmbeddingWorker } from '../../application/workers/high-priority-embedding.worker.js';
 import { LowPriorityEmbeddingWorker } from '../../application/workers/low-priority-embedding.worker.js';
 import { NoteChunkingService } from '../../application/services/content/note-chunking.service.js';
@@ -77,6 +80,9 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     DeleteNoteUseCase,
     GetNoteAttachmentContentUseCase,
     GetNoteDetailUseCase,
+    RagRetrievalService,
+    RagContextAssemblerService,
+    EmbeddingJobProcessorService,
     HighPriorityEmbeddingWorker,
     LowPriorityEmbeddingWorker,
     NoteChunkingService,

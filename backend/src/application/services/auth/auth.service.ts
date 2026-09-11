@@ -1,17 +1,17 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException, OnModuleInit, UnauthorizedException } from '@nestjs/common';
 
-import type { KbUser } from './models/repository-records.models.js';
-import { GoogleOAuthGateway, type GoogleOAuthProfile } from './ports/auth/google-oauth.gateway.js';
-import { WelcomeEmailService } from './use-cases/welcome-email.use-case.js';
-import { ObjectStorage } from './ports/notes/object-storage.js';
-import { SchemaMigrator, UserRepository } from './ports/auth/auth.repository.js';
-import { RuntimeEnvironmentProvider } from './ports/observability/runtime-environment.port.js';
-import { readEnvironment } from '../adapters/environment.js';
-import { BILLING_ERROR_MESSAGES } from '../domain/constants/billing.constants.js';
-import { JwtService, type TokenPair } from './services/auth/jwt.service.js';
-import { PasswordService } from './services/auth/password.service.js';
-import { GoogleOAuthService } from './services/integrations/google-oauth.service.js';
-import { AvatarService, type AvatarContent, avatarMaxSizeBytes } from './services/content/avatar.service.js';
+import type { KbUser } from '../../models/repository-records.models.js';
+import { GoogleOAuthGateway, type GoogleOAuthProfile } from '../../ports/auth/google-oauth.gateway.js';
+import { WelcomeEmailService } from '../../use-cases/welcome-email.use-case.js';
+import { ObjectStorage } from '../../ports/notes/object-storage.js';
+import { SchemaMigrator, UserRepository } from '../../ports/auth/auth.repository.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
+import { readEnvironment } from '../../../adapters/environment.js';
+import { BILLING_ERROR_MESSAGES } from '../../../domain/constants/billing.constants.js';
+import { JwtService, type TokenPair } from './jwt.service.js';
+import { PasswordService } from './password.service.js';
+import { GoogleOAuthService } from '../integrations/google-oauth.service.js';
+import { AvatarService, type AvatarContent, avatarMaxSizeBytes } from '../content/avatar.service.js';
 
 export type AuthenticatedUser = {
   id: string;
@@ -51,7 +51,6 @@ function toAuthenticatedUser(user: KbUser): AuthenticatedUser {
     vsCodeInstalledAt: user.vsCodeInstalledAt ?? null,
   };
 }
-
 
 @Injectable()
 export class AuthService implements OnModuleInit {

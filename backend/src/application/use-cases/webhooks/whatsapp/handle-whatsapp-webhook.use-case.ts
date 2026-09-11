@@ -3,7 +3,7 @@ import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/co
 import { calculateAttachmentSize } from '../../../../domain/strings.js';
 import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus, ExternalIdentityType, WebhookEventType } from '../../../../contracts/enums.js';
 import type { ConversationInput } from '../../../../contracts/conversation.js';
-import { IntegrationConnectionService } from '../../../integration-connections.js';
+import { IntegrationConnectionService } from '../../../services/integrations/integration-connection.service.js';
 import type { WhatsappWebhookRequest } from '../../../models/webhook-request.models.js';
 import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';

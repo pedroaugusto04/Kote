@@ -1,7 +1,7 @@
 import { Injectable} from '@nestjs/common';
 import { type Channel, type ConsumeMessage } from 'amqplib';
 import { CredentialRecordStatus, IntegrationProvider } from '../../contracts/enums.js';
-import { decryptConfig } from '../../application/credentials.js';
+import { decryptConfig } from '../../application/utils/security/credentials-crypto.utils.js';
 import { DependencyWatcherRepository, type CreateDependencyWatchInput } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { GithubIntegrationGateway } from '../../application/ports/integrations/github-integration.port.js';
 import { ContentRepository } from '../../application/ports/notes/content.repository.js';

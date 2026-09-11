@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, NotFoundException, Param, Patch, Post, Q
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
 import type { Response } from 'express';
 
-import type { AuthenticatedUser } from '../../../../application/auth.js';
+import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import {
   CreateManualNoteUseCase,
   DeleteNoteUseCase,
@@ -57,7 +57,8 @@ import {
   type SessionHandoffBody,
 } from '../../dto/session-handoff.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
-import { inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
+import { attachmentContentDisposition, inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
+import { isZipAttachmentMimeType } from '../../../../domain/constants/attachment.constants.js';
 import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
 import { ProjectId } from '../../project.decorators.js';
 import { WorkspaceId } from '../../workspace.decorators.js';
@@ -187,7 +188,9 @@ export class NotesController {
 
     response.setHeader('Content-Type', content.mimeType);
     response.setHeader('Content-Length', String(content.body.byteLength || content.sizeBytes));
-    response.setHeader('Content-Disposition', inlineContentDisposition(content.fileName));
+    response.setHeader('Content-Disposition', isZipAttachmentMimeType(content.mimeType)
+      ? attachmentContentDisposition(content.fileName)
+      : inlineContentDisposition(content.fileName));
     return response.send(content.body);
   }
 

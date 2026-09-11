@@ -1,11 +1,8 @@
 import { schedule } from 'node-cron';
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { SubscriptionCancellationService } from '../services/billing/SubscriptionCancellationService.js';
+import { SubscriptionRepository } from '../ports/billing/billing-repositories.js';
 import { AppLogger } from '../../observability/logger.js';
-import { eq, and, lt } from 'drizzle-orm';
-import { PostgresDatabase } from '../../infrastructure/persistence/database.js';
-import { userSubscriptions } from '../../infrastructure/persistence/schema/index.js';
-import { SubscriptionStatus } from '../../domain/enums/billing.enums.js';
 
 const BILLING_WORKER_AUTORUN = (() => {
   const raw = process.env.BILLING_WORKER_AUTORUN;
@@ -30,7 +27,7 @@ export class BillingWorker implements OnModuleInit, OnModuleDestroy {
 
   constructor(
     private readonly subscriptionCancellationService: SubscriptionCancellationService,
-    private readonly database: PostgresDatabase,
+    private readonly subscriptionRepository: SubscriptionRepository,
     private readonly logger: AppLogger,
   ) {}
 
@@ -71,7 +68,9 @@ export class BillingWorker implements OnModuleInit, OnModuleDestroy {
   async runPastDueJob() {
     this.logger.info('[worker] Executando job de cancelamento de assinaturas PAST_DUE alem do prazo...');
 
-    const subscriptionsToCancel = await this.findPastDueOlderThan(MAX_DAYS_PAST_DUE);
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - MAX_DAYS_PAST_DUE);
+    const subscriptionsToCancel = await this.subscriptionRepository.findPastDueOlderThan(cutoffDate, 100);
 
     for (const sub of subscriptionsToCancel) {
       try {
@@ -89,20 +88,5 @@ export class BillingWorker implements OnModuleInit, OnModuleDestroy {
     }
 
     this.logger.info('[worker] Job de cancelamento de assinaturas PAST_DUE finalizado');
-  }
-
-  private async findPastDueOlderThan(maxDays: number): Promise<Array<{ userId: string; status: string; updatedAt: Date }>> {
-    const db = this.database.getDb();
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - maxDays);
-
-    return await db
-      .select()
-      .from(userSubscriptions)
-      .where(and(
-        eq(userSubscriptions.status, SubscriptionStatus.PAST_DUE as any),
-        lt(userSubscriptions.pastDueAt, cutoffDate)
-      ))
-      .limit(100);
   }
 }

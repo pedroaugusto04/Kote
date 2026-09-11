@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildGithubReviewEvent } from '../../../dist/application/github-review.js';
+import { buildGithubReviewEvent } from '../../../dist/application/services/integrations/github-review.service.js';
 import { HandleGithubPushUseCase } from '../../../dist/application/use-cases/index.js';
 
 function githubWebhookInput(body) {

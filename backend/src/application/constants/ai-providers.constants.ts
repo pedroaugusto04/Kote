@@ -1,5 +1,5 @@
-import { IntegrationProvider } from '../contracts/enums.js';
-import type { RuntimeEnvironment } from './ports/observability/runtime-environment.port.js';
+import { IntegrationProvider } from '../../contracts/enums.js';
+import type { RuntimeEnvironment } from '../ports/observability/runtime-environment.port.js';
 
 export type AiProviderRegistryEntry = {
   providerKey: keyof RuntimeEnvironment;

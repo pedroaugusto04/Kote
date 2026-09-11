@@ -57,3 +57,19 @@ export const CODEX_INTERNAL_USER_PREFIXES = [
   '<skills_instructions>',
   '<apps_instructions>',
 ] as const;
+
+export function matchProviderFromHarnessName(name: string): AiProviderId | null {
+  const lower = name.toLowerCase().trim();
+  if (lower.includes('claude')) return AI_PROVIDER.CLAUDE_CODE;
+  if (
+    lower.includes('antigravity') ||
+    lower.includes('gemini') ||
+    /(?:^|[^a-z0-9])agy(?:$|[^a-z0-9])/.test(lower) ||
+    lower === 'agy'
+  ) {
+    return AI_PROVIDER.ANTIGRAVITY;
+  }
+  if (lower.includes('opencode') || lower.includes('open-code')) return AI_PROVIDER.OPEN_CODE;
+  if (lower.includes('codex')) return AI_PROVIDER.CODEX_CLI;
+  return null;
+}

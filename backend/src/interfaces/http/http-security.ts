@@ -2,8 +2,7 @@ import { ForbiddenException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
 import { readEnvironment } from '../../adapters/environment.js';
-import type { TokenPair } from '../../application/auth.js';
-import { parseCookies } from '../../application/auth.js';
+import { parseCookies, type TokenPair } from '../../application/services/auth/auth.service.js';
 
 const accessCookieName = 'kb_access_token';
 const refreshCookieName = 'kb_refresh_token';

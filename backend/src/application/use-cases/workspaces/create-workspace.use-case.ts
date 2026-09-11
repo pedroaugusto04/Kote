@@ -2,12 +2,12 @@ import { ConflictException, Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { slugifyWorkspaceName } from '../../../domain/strings.js';
-import { encryptConfig } from '../../credentials.js';
+import { encryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import type { CreateWorkspaceInput } from '../../models/workspace-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
-import { getAiProviderConfigStatus } from '../../ai-providers-registry.js';
+import { getAiProviderConfigStatus } from '../../constants/ai-providers.constants.js';
 import { QuotaService } from '../../services/quota/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
 import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';

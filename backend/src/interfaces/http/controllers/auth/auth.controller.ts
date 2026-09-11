@@ -3,7 +3,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBody, ApiConsumes, ApiQuery, Api
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
 
-import { AuthService, type AuthenticatedUser } from '../../../../application/auth.js';
+import { AuthService, type AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../../../application/ports/observability/runtime-environment.port.js';
 import { readEnvironment } from '../../../../adapters/environment.js';
 

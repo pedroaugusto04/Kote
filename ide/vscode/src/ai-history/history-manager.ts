@@ -4,6 +4,7 @@ import { KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import { resolveProjectSlug } from '../utils/project';
 import { SessionHandoffManager } from './handoff/session-handoff.manager';
+import { watchActiveSessionStarts } from './hooks/installer';
 import {
   EXTENSION_COMMANDS,
   GLOBAL_STATE_KEYS,
@@ -15,6 +16,7 @@ import {
 import {
   AI_ROLE,
   AUTO_SAVE_MAX_AGE_MS,
+  matchProviderFromHarnessName,
 } from './constants';
 
 type SessionPromptAction = typeof SESSION_PROMPT_ACTIONS[keyof typeof SESSION_PROMPT_ACTIONS];
@@ -49,6 +51,7 @@ export class AiHistoryManager {
       () => this.currentClient!,
       () => this.providers,
       (session) => this.getMarkdownText(session),
+      () => this.context!.extensionUri,
     );
   }
 
@@ -186,6 +189,40 @@ export class AiHistoryManager {
     });
     this.activeDisposables.push(focusDisposable);
     context.subscriptions.push(focusDisposable);
+
+    // Watch for immediate harness session start events (triggered before the first user message)
+    const hookStartDisposable = watchActiveSessionStarts((info) => {
+      if (info.targetProvider) {
+        this.handoff.onHarnessLaunched(info.targetProvider, this.recentSessions);
+      }
+    });
+    this.activeDisposables.push(hookStartDisposable);
+    context.subscriptions.push(hookStartDisposable);
+
+    // Watch for terminals opened with coding agent names
+    const terminalDisposable = vscode.window.onDidOpenTerminal((terminal) => {
+      const matchedProvider = matchProviderFromHarnessName(terminal.name);
+      if (matchedProvider) {
+        this.handoff.onHarnessLaunched(matchedProvider, this.recentSessions);
+      }
+    });
+    this.activeDisposables.push(terminalDisposable);
+    context.subscriptions.push(terminalDisposable);
+
+    // Watch for shell commands executed in integrated terminals (e.g. typing "agy" or "claude" in bash)
+    if (typeof (vscode.window as any).onDidStartTerminalShellExecution === 'function') {
+      const shellExecDisposable = (vscode.window as any).onDidStartTerminalShellExecution(
+        (e: any) => {
+          const command = (e.execution?.commandLine?.value || '').trim();
+          const matchedProvider = matchProviderFromHarnessName(command);
+          if (matchedProvider) {
+            this.handoff.onHarnessLaunched(matchedProvider, this.recentSessions);
+          }
+        },
+      );
+      this.activeDisposables.push(shellExecDisposable);
+      context.subscriptions.push(shellExecDisposable);
+    }
 
     // Periodic check every 15 seconds to reliably sync background changes even when window is not focused
     const interval = setInterval(async () => {
