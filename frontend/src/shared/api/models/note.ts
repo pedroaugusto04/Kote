@@ -29,6 +29,16 @@ export type NoteSummary = {
   attachmentCount: number;
   isOverdue?: boolean;
   isPinned?: boolean;
+  aiUsage?: {
+    provider: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    reasoningTokens?: number;
+    cachedTokens?: number;
+    estimatedCostUsd: number;
+  };
 };
 
 export type NoteAttachment = {

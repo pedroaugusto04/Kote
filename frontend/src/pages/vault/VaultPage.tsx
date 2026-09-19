@@ -302,6 +302,7 @@ export function VaultPage({
                 onRequestSynthesis={() => requestSynthesisMutation.mutate()}
                 isRequestingSynthesis={requestSynthesisMutation.isPending}
                 isSynthesisManuallyRequested={manuallyRequestedSynthesisHash === noteQuery.data.synthesis?.sourceHash}
+                aiUsage={noteQuery.data.aiUsage}
               />
             )}
             <RelatedNotesSection noteId={noteQuery.data.id} openNote={openNote} />

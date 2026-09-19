@@ -10,6 +10,8 @@ import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { toIngestPayload, type NoteMapperContext } from '../../mappers/note.mapper.js';
 import { requireProject } from '../../helpers/resource-validation.helpers.js';
 import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
+import { isNoteAiUsage } from '../../../domain/ai-usage.js';
+import { AppLogger } from '../../../observability/logger.js';
 
 @Injectable()
 export class CreateManualNoteUseCase {
@@ -18,6 +20,7 @@ export class CreateManualNoteUseCase {
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly noteEventDispatcher: NoteEventDispatcher,
+    private readonly logger: AppLogger,
   ) { }
 
   async execute(input: CreateManualNoteDto, userId: string) {
@@ -68,6 +71,20 @@ export class CreateManualNoteUseCase {
       categoryIds,
       existingNotePath: sanitizedInput.path,
     }).then(async (result) => {
+      const aiUsage = isNoteAiUsage(sanitizedInput.metadata?.aiUsage) ? sanitizedInput.metadata.aiUsage : undefined;
+      this.logger.info('note.created', {
+        noteId: result.noteId,
+        userId,
+        workspaceSlug,
+        projectSlug: project.projectSlug,
+        source: sanitizedInput.source,
+        sessionId: sanitizedInput.sessionId,
+        hasAiUsage: Boolean(aiUsage),
+        aiModel: aiUsage?.model,
+        aiTotalTokens: aiUsage?.totalTokens,
+        aiEstimatedCostUsd: aiUsage?.estimatedCostUsd,
+      });
+
       this.noteEventDispatcher.dispatch({
         event: WebhookTrigger.NoteCreated,
         noteId: result.noteId,

@@ -19,6 +19,7 @@ import {
   ListAskConversationsUseCase,
   GetAskConversationTurnsUseCase,
   GetProductivityInsightsRawUseCase,
+  GetAiTokenAnalyticsUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
@@ -34,6 +35,7 @@ import {
   reviewsListQuerySchema,
   updateReminderStatusBodySchema,
   bulkUpdateReminderStatusBodySchema,
+  aiAnalyticsQuerySchema,
   type ReminderBoardQuery,
   type ReminderIdParam,
   type ProjectsListQuery,
@@ -42,6 +44,7 @@ import {
   type ReviewsListQuery,
   type UpdateReminderStatusBody,
   type BulkUpdateReminderStatusBody,
+  type AiAnalyticsQuery,
 } from '../../dto/dashboard.dto.js';
 import { queryRequestSchema, type QueryRequest } from '../../dto/query.dto.js';
 import { askHistoryQuerySchema, askRequestSchema, conversationIdParamSchema, type AskHistoryQuery, type AskRequest, type ConversationIdParam } from '../../dto/ask.dto.js';
@@ -88,6 +91,7 @@ export class DashboardController {
     private readonly getAskConversationTurnsUseCase: GetAskConversationTurnsUseCase,
     private readonly bulkUpdateReminderStatusUseCase: BulkUpdateReminderStatusUseCase,
     private readonly getProductivityInsightsUseCase: GetProductivityInsightsRawUseCase,
+    private readonly getAiTokenAnalyticsUseCase: GetAiTokenAnalyticsUseCase,
   ) {}
 
   @Get('dashboard')
@@ -96,6 +100,27 @@ export class DashboardController {
   @ApiResponse({ status: 200, description: 'Dashboard data retrieved successfully' })
   dashboard(@CurrentUser() user: AuthenticatedUser) {
     return this.buildDashboard.execute(user.id);
+  }
+
+  @Get('dashboard/ai-analytics')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get AI token usage analytics and cost metrics' })
+  @ApiResponse({ status: 200, description: 'AI token analytics retrieved successfully' })
+  @UseGuards(OptionalProjectResolutionGuard)
+  async getAiAnalytics(
+    @CurrentUser() user: AuthenticatedUser,
+    @WorkspaceId() workspaceId?: string,
+    @ProjectId() projectId?: string,
+    @Query(new ZodValidationPipe(aiAnalyticsQuerySchema, 'invalid_ai_analytics_query')) query?: AiAnalyticsQuery,
+  ) {
+    return this.getAiTokenAnalyticsUseCase.execute(user.id, {
+      workspaceId: normalizeScopeId(workspaceId),
+      projectId: normalizeScopeId(projectId),
+      startDate: query?.startDate,
+      endDate: query?.endDate,
+      model: query?.model,
+      provider: query?.provider,
+    });
   }
 
   @Get('productivity/insights')

@@ -10,9 +10,11 @@ import { MarkdownView } from '../markdown/MarkdownView';
 import { TypewriterMarkdown } from '../markdown/TypewriterMarkdown';
 import { CDNImage } from '../../shared/ui/CDNImage';
 import { SourceBadge } from './SourceBadge';
+import { AiUsagePill } from './AiUsagePill';
 import { AiConversationView } from './AiConversationView';
 import { parseAiConversationTurns } from './ai-conversation';
 import { getSynthesisState, groupSynthesisMemory, NOTE_SYNTHESIS_ACTION_LABEL } from './note-synthesis.constants';
+import type { NoteSummary } from '../../shared/api/models/note';
 
 type AttachmentPreviewKind = 'image' | 'audio' | 'video' | 'pdf' | 'markdown' | 'text' | 'none';
 
@@ -87,7 +89,7 @@ const TEXT_MIME_TYPES = new Set([
   'image/svg+xml',
 ]);
 
-export function NoteBody({ markdown, rawText, summary, title, source, sourceChannel, synthesis, onRequestSynthesis, isRequestingSynthesis = false, isSynthesisManuallyRequested = false }: { markdown: string; rawText: string; summary: string; title: string; source?: string; sourceChannel?: string; synthesis?: { status: NoteSynthesisStatus; overview: string; memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }>; availableAt?: string | null } | null; onRequestSynthesis?: () => void; isRequestingSynthesis?: boolean; isSynthesisManuallyRequested?: boolean }) {
+export function NoteBody({ markdown, rawText, summary, title, source, sourceChannel, synthesis, onRequestSynthesis, isRequestingSynthesis = false, isSynthesisManuallyRequested = false, aiUsage }: { markdown: string; rawText: string; summary: string; title: string; source?: string; sourceChannel?: string; synthesis?: { status: NoteSynthesisStatus; overview: string; memory: Array<{ kind: string; text: string; status: string; turnRefs: number[] }>; availableAt?: string | null } | null; onRequestSynthesis?: () => void; isRequestingSynthesis?: boolean; isSynthesisManuallyRequested?: boolean; aiUsage?: NoteSummary['aiUsage'] }) {
   const extraMarkdown = readerExtraSections(markdown, title);
   const hasExtra = Boolean(extraMarkdown);
   const cleanedRawText = stripSourceHeader(rawText).replace(/^---\n((?:(?!\n#{1,3}\s)[\s\S])*?)\n---\n?/, '');
@@ -111,9 +113,10 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
 
   return (
     <div className="note-body">
-      {activeSource && (
-        <div style={{ marginBottom: '16px' }}>
-          <SourceBadge source={activeSource} />
+      {(activeSource || aiUsage) && (
+        <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {activeSource && <SourceBadge source={activeSource} />}
+          {aiUsage && <AiUsagePill usage={aiUsage} />}
         </div>
       )}
       {synthesizedOverview ? (

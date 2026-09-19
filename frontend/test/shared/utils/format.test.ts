@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { formatRelativeTimeUntil, formatUsDate, reminderDisplayDateTime } from '../../../src/shared/utils/format';
+import { formatProviderName, formatRelativeTimeUntil, formatUsDate, reminderDisplayDateTime } from '../../../src/shared/utils/format';
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -61,6 +61,33 @@ describe('formatRelativeTimeUntil', () => {
 
   it('formats remaining days', () => {
     expect(formatRelativeTimeUntil('2026-09-13T12:00:00.000Z', baseNow)).toBe('in 3d');
+  });
+});
+
+describe('formatProviderName', () => {
+  it('formats known AI providers with proper casing and names', () => {
+    expect(formatProviderName('antigravity')).toBe('Antigravity');
+    expect(formatProviderName('claude-code')).toBe('Claude Code');
+    expect(formatProviderName('claude')).toBe('Claude');
+    expect(formatProviderName('codex-cli')).toBe('Codex CLI');
+    expect(formatProviderName('codex')).toBe('Codex');
+    expect(formatProviderName('open-code')).toBe('OpenCode');
+    expect(formatProviderName('opencode')).toBe('OpenCode');
+    expect(formatProviderName('cursor')).toBe('Cursor');
+    expect(formatProviderName('gemini')).toBe('Gemini');
+    expect(formatProviderName('copilot')).toBe('Copilot');
+  });
+
+  it('formats generic or kebab-case provider identifiers into title case', () => {
+    expect(formatProviderName('custom-provider')).toBe('Custom Provider');
+    expect(formatProviderName('ollama')).toBe('Ollama');
+    expect(formatProviderName('my_tool')).toBe('My Tool');
+  });
+
+  it('handles empty and null values gracefully', () => {
+    expect(formatProviderName('')).toBe('');
+    expect(formatProviderName(null)).toBe('');
+    expect(formatProviderName(undefined)).toBe('');
   });
 });
 

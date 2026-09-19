@@ -25,6 +25,7 @@ export type VaultNoteSummary = {
   relevanceScore?: number;
   semanticSimilarity?: number;
   lineageCategory?: CodeLineageCategory;
+  aiUsage?: import('../../domain/ai-usage.js').NoteAiUsage;
 };
 
 export type VaultNoteAttachment = {

@@ -32,6 +32,10 @@ function getMarkdownText(session: AiSession): string {
   if (session.projectSlug) {
     rawText += `Project: ${session.projectSlug}\n`;
   }
+  if (session.tokenUsage) {
+    const costStr = session.tokenUsage.estimatedCostUsd ? ` ($${session.tokenUsage.estimatedCostUsd.toFixed(4)})` : '';
+    rawText += `Model: ${session.tokenUsage.model} | Tokens: ${session.tokenUsage.totalTokens.toLocaleString()}${costStr}\n`;
+  }
   rawText += `\n---\n\n`;
   
   for (const turn of session.turns) {
@@ -44,11 +48,14 @@ function getMarkdownText(session: AiSession): string {
 function selectionOptions(sessions: AiSession[], displayedCount: number) {
   const options: Array<{ value: AiSession | typeof LOAD_MORE; label: string; hint: string }> = sessions
     .slice(0, displayedCount)
-    .map((session) => ({
-      value: session,
-      label: `[${AI_PROVIDER_NAME[session.providerId]}] ${session.title}`,
-      hint: `${new Date(session.timestamp).toISOString().split('T')[0]} (${session.turns.length} turns)`,
-    }));
+    .map((session) => {
+      const tokHint = session.tokenUsage ? ` • ${session.tokenUsage.totalTokens.toLocaleString()} tok` : '';
+      return {
+        value: session,
+        label: `[${AI_PROVIDER_NAME[session.providerId]}] ${session.title}`,
+        hint: `${new Date(session.timestamp).toISOString().split('T')[0]} (${session.turns.length} turns${tokHint})`,
+      };
+    });
 
   if (sessions.length <= displayedCount) return options;
   options.push({
@@ -113,6 +120,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
       source: session.providerId,
       sessionId: session.sessionId,
       attachments: session.attachments,
+      metadata: session.tokenUsage ? { aiUsage: session.tokenUsage } : {},
     });
 
     s.stop(pc.green('Import complete!'));

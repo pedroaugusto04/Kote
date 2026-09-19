@@ -877,4 +877,42 @@ describe('ProjectsPage', () => {
 
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('ZIP archive downloaded successfully');
   });
+
+  it('switches to AI Analytics tab inside a project view', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const urlStr = String(input);
+      if (urlStr === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
+      if (urlStr === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
+      if (urlStr.includes('/api/ai-tokens/analytics')) {
+        return Response.json({
+          ok: true,
+          totalTokens: 12000,
+          totalInputTokens: 10000,
+          totalOutputTokens: 2000,
+          totalEstimatedCostUsd: 0.05,
+          totalAiSessions: 2,
+          topModel: 'claude-3-5-sonnet',
+          availableModels: ['claude-3-5-sonnet'],
+          availableProviders: ['claude-code'],
+          byModel: [{ model: 'claude-3-5-sonnet', totalTokens: 12000, estimatedCostUsd: 0.05, sessionCount: 2, percentage: 100 }],
+          byProvider: [{ provider: 'claude-code', totalTokens: 12000, estimatedCostUsd: 0.05, sessionCount: 2, percentage: 100 }],
+          dailyTrend: [{ date: '2026-09-19', totalTokens: 12000, estimatedCostUsd: 0.05, sessionCount: 2 }],
+        });
+      }
+      return Response.json({ ok: true, timeline: [], pagination: { total: 0, page: 1, pageSize: 20, totalPages: 1 } });
+    }));
+
+    renderProjects({ selectedProject: 'platform' });
+
+    // Timeline tab is active by default
+    expect(screen.getByRole('tab', { name: 'Timeline' })).toHaveClass('active');
+
+    // AI Analytics tab is present in project views
+    const aiTab = screen.getByRole('tab', { name: 'AI Analytics' });
+    expect(aiTab).toBeInTheDocument();
+
+    fireEvent.click(aiTab);
+    expect(aiTab).toHaveClass('active');
+    expect(await screen.findByText(/AI Token Analytics & Costs/i)).toBeInTheDocument();
+  });
 });

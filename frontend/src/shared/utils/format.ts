@@ -146,6 +146,31 @@ export function formatDisplayToken(value: string | null | undefined) {
     .join(' ');
 }
 
+export const KNOWN_AI_PROVIDERS: Record<string, string> = {
+  antigravity: 'Antigravity',
+  'claude-code': 'Claude Code',
+  claude: 'Claude',
+  'codex-cli': 'Codex CLI',
+  codex: 'Codex',
+  'open-code': 'OpenCode',
+  opencode: 'OpenCode',
+  cursor: 'Cursor',
+  gemini: 'Gemini',
+  copilot: 'Copilot',
+  chatgpt: 'ChatGPT',
+  openai: 'OpenAI',
+};
+
+export function formatProviderName(provider: string | null | undefined): string {
+  if (!provider) return '';
+  const trimmed = provider.trim();
+  const normalized = trimmed.toLowerCase().replace(/[\s_]+/g, '-');
+  if (KNOWN_AI_PROVIDERS[normalized]) {
+    return KNOWN_AI_PROVIDERS[normalized];
+  }
+  return formatDisplayToken(trimmed);
+}
+
 export function getCleanSummary(summary: string | undefined): string {
   if (!summary) return '';
   const cleaned = stripSourceHeader(summary);
@@ -327,5 +352,15 @@ export function formatRelativeTimeUntil(
   if (diffHours < 24) return `${RELATIVE_TIME_UNITS.PREFIX_IN} ${diffHours}${RELATIVE_TIME_UNITS.HOURS_SUFFIX}`;
   const diffDays = Math.floor(diffHours / 24);
   return `${RELATIVE_TIME_UNITS.PREFIX_IN} ${diffDays}${RELATIVE_TIME_UNITS.DAYS_SUFFIX}`;
+}
+
+export function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(2)}M`;
+  }
+  if (tokens >= 1_000) {
+    return `${(tokens / 1_000).toFixed(1)}k`;
+  }
+  return tokens.toLocaleString();
 }
 

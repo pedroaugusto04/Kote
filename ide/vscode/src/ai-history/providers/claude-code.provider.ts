@@ -15,8 +15,9 @@ import {
   DEFAULT_AI_SESSION_LIMIT,
   JSONL_EXTENSION,
 } from '../constants';
-import type { AiHistoryProvider, AiSession, AiTurn } from '../types';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types';
 import { asRecord, buildSessionTitle, extractTextContent, keepFinalAssistantTurns, latestRecordTimestamp, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
+import { calculateSessionCostSync } from '../pricing';
 
 const CLAUDE_RECORD_TYPE = {
   USER: 'user',
@@ -63,6 +64,52 @@ function resolveProjectSlug(filePath: string): string | undefined {
   return toUrlSlug(segments[segments.length - 1] || parentDir);
 }
 
+function extractClaudeTokenUsage(records: unknown[]): AiTokenUsage | undefined {
+  let model = '';
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cachedTokens = 0;
+
+  for (const value of records) {
+    const record = asRecord(value);
+    if (!record || record.type !== CLAUDE_RECORD_TYPE.ASSISTANT) continue;
+    const message = asRecord(record.message);
+    if (!message) continue;
+
+    if (typeof message.model === 'string' && message.model) {
+      model = message.model;
+    }
+
+    const usage = asRecord(message.usage);
+    if (usage) {
+      if (typeof usage.input_tokens === 'number') inputTokens += usage.input_tokens;
+      if (typeof usage.output_tokens === 'number') outputTokens += usage.output_tokens;
+      if (typeof usage.cache_read_input_tokens === 'number') cachedTokens += usage.cache_read_input_tokens;
+    }
+  }
+
+  if (!model && inputTokens === 0 && outputTokens === 0) return undefined;
+  const resolvedModel = model || 'claude-3-5-sonnet';
+
+  const estimatedCostUsd = calculateSessionCostSync({
+    provider: 'anthropic',
+    model: resolvedModel,
+    inputTokens,
+    outputTokens,
+    cachedTokens,
+  });
+
+  return {
+    provider: AI_PROVIDER.CLAUDE_CODE,
+    model: resolvedModel,
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
+    estimatedCostUsd,
+  };
+}
+
 function parseFile(filePath: string): AiSession | null {
   try {
     const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
@@ -78,6 +125,7 @@ function parseFile(filePath: string): AiSession | null {
       timestamp: internalTimestamp ?? safeMtime(filePath),
       timestampIsInternal: internalTimestamp !== null,
       projectSlug: resolveProjectSlug(filePath),
+      tokenUsage: extractClaudeTokenUsage(records),
     };
   } catch {
     return null;

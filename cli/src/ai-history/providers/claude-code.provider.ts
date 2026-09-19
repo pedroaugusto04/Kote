@@ -6,7 +6,8 @@ import { loadConfig } from '../../config.js';
 import { resolveProjectSlugFromDir } from '../../utils/project-detector.js';
 import { toUrlSlug } from '../../utils/text.js';
 import { AI_PROVIDER, AI_PROVIDER_NAME, AI_SESSION_PATH, JSONL_EXTENSION } from '../constants.js';
-import type { AiHistoryProvider, AiSession, AiTurn } from '../types.js';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types.js';
+import { calculateSessionCostSync } from '../pricing.js';
 import { asRecord, buildSessionTitle, extractTextContent, isSession, keepFinalAssistantTurns, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils.js';
 
 const CLAUDE_RECORD_TYPE = {
@@ -54,10 +55,59 @@ function resolveProjectSlug(filePath: string): string | undefined {
   return toUrlSlug(segments[segments.length - 1] || parentDir);
 }
 
+function extractClaudeTokenUsage(records: unknown[]): AiTokenUsage | undefined {
+  let model = '';
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let cachedTokens = 0;
+
+  for (const value of records) {
+    const record = asRecord(value);
+    if (!record || record.type !== CLAUDE_RECORD_TYPE.ASSISTANT) continue;
+    const message = asRecord(record.message);
+    if (!message) continue;
+
+    if (typeof message.model === 'string' && message.model) {
+      model = message.model;
+    }
+
+    const usage = asRecord(message.usage);
+    if (usage) {
+      if (typeof usage.input_tokens === 'number') inputTokens += usage.input_tokens;
+      if (typeof usage.output_tokens === 'number') outputTokens += usage.output_tokens;
+      if (typeof usage.cache_read_input_tokens === 'number') cachedTokens += usage.cache_read_input_tokens;
+    }
+  }
+
+  if (!model && inputTokens === 0 && outputTokens === 0) return undefined;
+  const resolvedModel = model || 'claude-3-5-sonnet';
+
+  const estimatedCostUsd = calculateSessionCostSync({
+    provider: 'anthropic',
+    model: resolvedModel,
+    inputTokens,
+    outputTokens,
+    cachedTokens,
+  });
+
+  return {
+    provider: AI_PROVIDER.CLAUDE_CODE,
+    model: resolvedModel,
+    inputTokens,
+    outputTokens,
+    totalTokens: inputTokens + outputTokens,
+    cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
+    estimatedCostUsd,
+  };
+}
+
 function parseFile(filePath: string): AiSession | null {
   try {
-    const turns = parseTurns(readJsonLines(fs.readFileSync(filePath, 'utf8')));
+    const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
+    const turns = parseTurns(records);
     if (turns.length === 0) return null;
+
+    const tokenUsage = extractClaudeTokenUsage(records);
 
     return {
       providerId: AI_PROVIDER.CLAUDE_CODE,
@@ -66,6 +116,7 @@ function parseFile(filePath: string): AiSession | null {
       turns,
       timestamp: safeMtime(filePath),
       projectSlug: resolveProjectSlug(filePath),
+      tokenUsage,
     };
   } catch {
     return null;

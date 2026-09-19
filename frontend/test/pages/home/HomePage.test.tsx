@@ -541,4 +541,57 @@ describe('HomePage', () => {
     fireEvent.click(screen.getByText('Import recent commits'));
     expect(await screen.findByRole('dialog', { name: /import recent commit history/i })).toBeInTheDocument();
   });
+
+  it('switches between Overview and AI Analytics & Costs tabs', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('/api/projects/timeline')) {
+        return Response.json({
+          ok: true,
+          timeline: [],
+          pagination: { page: 1, pageSize: 10, total: 0, totalPages: 1, hasNext: false, hasPrevious: false },
+        });
+      }
+      if (url.includes('/api/ai-tokens/analytics')) {
+        return Response.json({
+          ok: true,
+          totalTokens: 50000,
+          totalInputTokens: 40000,
+          totalOutputTokens: 10000,
+          totalEstimatedCostUsd: 0.15,
+          totalAiSessions: 5,
+          topModel: 'gpt-5.2',
+          availableModels: ['gpt-5.2'],
+          availableProviders: ['codex'],
+          byModel: [{ model: 'gpt-5.2', totalTokens: 50000, estimatedCostUsd: 0.15, sessionCount: 5, percentage: 100 }],
+          byProvider: [{ provider: 'codex', totalTokens: 50000, estimatedCostUsd: 0.15, sessionCount: 5, percentage: 100 }],
+          dailyTrend: [{ date: '2026-09-19', totalTokens: 50000, estimatedCostUsd: 0.15, sessionCount: 5 }],
+        });
+      }
+      if (url.includes('/api/integrations/github-app/backfill/status')) {
+        return Response.json({ ok: false, status: 'not_found' });
+      }
+      return Response.error();
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHomeWithDashboard(dashboard);
+
+    // Initial view is Overview
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveClass('active');
+    expect(screen.getByLabelText('Operational indicators')).toBeInTheDocument();
+
+    // Click AI Analytics & Costs tab
+    fireEvent.click(screen.getByRole('tab', { name: 'AI Analytics & Costs' }));
+
+    expect(screen.getByRole('tab', { name: 'AI Analytics & Costs' })).toHaveClass('active');
+    expect(screen.getByLabelText('AI Token Analytics')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Operational indicators')).not.toBeInTheDocument();
+
+    // Switch back to Overview
+    fireEvent.click(screen.getByRole('tab', { name: 'Overview' }));
+    expect(screen.getByRole('tab', { name: 'Overview' })).toHaveClass('active');
+    expect(screen.getByLabelText('Operational indicators')).toBeInTheDocument();
+    expect(screen.queryByLabelText('AI Token Analytics')).not.toBeInTheDocument();
+  });
 });

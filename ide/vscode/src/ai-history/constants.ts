@@ -58,6 +58,12 @@ export const CODEX_INTERNAL_USER_PREFIXES = [
   '<apps_instructions>',
 ] as const;
 
+export const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/models';
+export const PRICING_TIMEOUT_MS = 3500;
+export const PRICING_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+export const TOKENS_PER_MILLION = 1_000_000;
+export const FREE_PROVIDER_KEYWORDS = ['ollama', 'local', 'vllm', 'qwen'] as const;
+
 export function matchProviderFromHarnessName(name: string): AiProviderId | null {
   const lower = name.toLowerCase().trim();
   if (lower.includes('claude')) return AI_PROVIDER.CLAUDE_CODE;

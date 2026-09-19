@@ -15,8 +15,9 @@ import {
   ANTIGRAVITY_LOG_FILES,
   DEFAULT_AI_SESSION_LIMIT,
 } from '../constants';
-import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn } from '../types';
+import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn, AiTokenUsage } from '../types';
 import { asRecord, buildSessionTitle, keepFinalAssistantTurns, latestRecordTimestamp, readJsonLines, safeMtime } from './provider.utils';
+import { calculateSessionCostSync } from '../pricing';
 
 const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
 
@@ -129,6 +130,73 @@ function loadAttachments(sessionDir: string): AiSessionAttachment[] {
   }
 }
 
+function extractAntigravityModel(content: string): string {
+  const settingsBlocks = [...content.matchAll(/<USER_SETTINGS_CHANGE>([\s\S]*?)<\/USER_SETTINGS_CHANGE>/gi)];
+  for (let i = settingsBlocks.length - 1; i >= 0; i--) {
+    const block = settingsBlocks[i][1];
+    const match =
+      block.match(/`Model Selection`\s+from\s+.*?\s+to\s+(.*?)(?:\.\s+No need|\.\s*$|\.\s*\n)/i) ||
+      block.match(/`Model Selection`\s+from\s+.*?\s+to\s+([^\n]+)/i) ||
+      block.match(/model:\s*([^\n<]+)/i);
+    if (match?.[1]) {
+      let candidate = match[1].trim();
+      candidate = candidate.replace(/\.\s*No need.*$/i, '').replace(/\.$/, '').trim();
+      if (candidate && candidate.toLowerCase() !== 'none') {
+        return candidate;
+      }
+    }
+  }
+  return 'Gemini 3.8 Flash (High)';
+}
+
+function extractAntigravityTokenUsage(sessionDir: string, content: string): AiTokenUsage | undefined {
+  const model = extractAntigravityModel(content);
+  let inputTokens = 0;
+  let outputTokens = 0;
+
+  const candidateFiles = [
+    path.join(sessionDir, 'token_usage.json'),
+    path.join(sessionDir, 'statusline.json'),
+    path.join(sessionDir, '.system_generated', 'token_usage.json'),
+    path.join(os.homedir(), '.gemini', 'antigravity-cli', 'last_statusline.json'),
+    path.join(os.homedir(), '.gemini', 'antigravity-ide', 'last_statusline.json'),
+  ];
+
+  for (const candidate of candidateFiles) {
+    try {
+      if (fs.existsSync(candidate)) {
+        const data = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+        const inTok = Number(data.context_window?.total_input_tokens ?? data.inputTokens ?? data.input_tokens);
+        const outTok = Number(data.context_window?.total_output_tokens ?? data.outputTokens ?? data.output_tokens);
+        if (inTok > 0 || outTok > 0) {
+          inputTokens = inTok;
+          outputTokens = outTok;
+          break;
+        }
+      }
+    } catch {}
+  }
+
+  if (inputTokens === 0 && outputTokens === 0) return undefined;
+
+  const totalTokens = inputTokens + outputTokens;
+  const estimatedCostUsd = calculateSessionCostSync({
+    provider: 'gemini',
+    model,
+    inputTokens,
+    outputTokens,
+  });
+
+  return {
+    provider: AI_PROVIDER.ANTIGRAVITY,
+    model,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    estimatedCostUsd,
+  };
+}
+
 function parseSession(sessionDir: string, sessionId: string): AiSession | null {
   const logFile = findLogFile(sessionDir);
   if (!logFile) return null;
@@ -141,6 +209,8 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
     const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
 
     const workspace = extractWorkspace(content);
+    const tokenUsage = extractAntigravityTokenUsage(sessionDir, content);
+
     return {
       providerId: AI_PROVIDER.ANTIGRAVITY,
       sessionId,
@@ -150,6 +220,7 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
       timestampIsInternal: internalTimestamp !== null,
       projectSlug: workspace ? resolveProjectSlugFromDir(workspace) : undefined,
       attachments: loadAttachments(sessionDir),
+      tokenUsage,
     };
   } catch {
     return null;
