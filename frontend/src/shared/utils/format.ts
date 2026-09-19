@@ -329,3 +329,13 @@ export function formatRelativeTimeUntil(
   return `${RELATIVE_TIME_UNITS.PREFIX_IN} ${diffDays}${RELATIVE_TIME_UNITS.DAYS_SUFFIX}`;
 }
 
+export function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(2)}M`;
+  }
+  if (tokens >= 1_000) {
+    return `${(tokens / 1_000).toFixed(1)}k`;
+  }
+  return tokens.toLocaleString();
+}
+

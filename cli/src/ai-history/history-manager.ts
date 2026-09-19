@@ -2,6 +2,7 @@ import { AntigravityHistoryProvider } from './providers/antigravity.provider.js'
 import { ClaudeCodeHistoryProvider } from './providers/claude-code.provider.js';
 import { CodexHistoryProvider } from './providers/codex.provider.js';
 import { OpenCodeHistoryProvider } from './providers/opencode.provider.js';
+import { getLiveOrCachedPricingTable } from './pricing.js';
 import type { AiHistoryProvider, AiSession } from './types.js';
 
 function defaultProviders(): AiHistoryProvider[] {
@@ -17,6 +18,7 @@ export class AiHistoryManager {
   constructor(private readonly providers: readonly AiHistoryProvider[] = defaultProviders()) {}
 
   async getAllSessions(): Promise<AiSession[]> {
+    await getLiveOrCachedPricingTable();
     const results = await Promise.allSettled(this.providers.map((provider) => provider.getRecentSessions()));
     return results
       .filter((result): result is PromiseFulfilledResult<AiSession[]> => result.status === 'fulfilled')

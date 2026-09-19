@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { AiHistoryProvider, AiSession } from './types';
+import { getLiveOrCachedPricingTable } from './pricing';
 import { KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import { resolveProjectSlug } from '../utils/project';
@@ -134,6 +135,8 @@ export class AiHistoryManager {
     const now = Date.now();
     const RECENT_ACTIVE_THRESHOLD_MS = 15 * 60 * 1000; // Sessions modified in the last 15 minutes
     const saveMode = this.getAiSessionSaveMode();
+
+    await getLiveOrCachedPricingTable();
 
     for (const provider of this.providers.values()) {
       try {
@@ -581,6 +584,7 @@ export class AiHistoryManager {
       title: 'Scanning AI session logs...',
       cancellable: false
     }, async () => {
+      await getLiveOrCachedPricingTable();
       for (const provider of this.providers.values()) {
         try {
           const enabled = await provider.isEnabled();
@@ -734,6 +738,10 @@ export class AiHistoryManager {
     if (session.projectSlug) {
       rawText += `Project: ${session.projectSlug}\n`;
     }
+    if (session.tokenUsage) {
+      const costStr = session.tokenUsage.estimatedCostUsd ? ` ($${session.tokenUsage.estimatedCostUsd.toFixed(4)})` : '';
+      rawText += `Model: ${session.tokenUsage.model} | Tokens: ${session.tokenUsage.totalTokens.toLocaleString()}${costStr}\n`;
+    }
     rawText += `\n---\n\n`;
 
     for (const turn of session.turns) {
@@ -778,6 +786,7 @@ export class AiHistoryManager {
         sessionId: session.sessionId,
         occurredAt: new Date(session.timestamp).toISOString(),
         attachments: session.attachments,
+        metadata: session.tokenUsage ? { aiUsage: session.tokenUsage } : undefined,
       });
 
       if (!silent) {
@@ -805,6 +814,7 @@ export class AiHistoryManager {
         sessionId: session.sessionId,
         occurredAt: new Date(session.timestamp).toISOString(),
         attachments: session.attachments,
+        metadata: session.tokenUsage ? { aiUsage: session.tokenUsage } : undefined,
       });
 
       vscode.commands.executeCommand(EXTENSION_COMMANDS.REFRESH);
@@ -834,6 +844,7 @@ export class AiHistoryManager {
   private readonly SYNC_PROMPT_COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours cooldown
 
   async getUnsyncedSessions(): Promise<AiSession[]> {
+    await getLiveOrCachedPricingTable();
     const unsynced: AiSession[] = [];
     for (const provider of this.providers.values()) {
       try {

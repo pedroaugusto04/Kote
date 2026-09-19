@@ -17,6 +17,7 @@ import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
 import { useIsMobile } from '../../shared/hooks/useIsMobile';
 
 import { ProjectCoverageBadge } from '../../features/projects/components/ProjectCoverageBadge';
+import { AiTokenAnalyticsPanel } from '../../widgets/dashboard/AiTokenAnalyticsPanel';
 
 export function HomePage({ dashboard, openNote, openProject, createNote, onNoteModalClose, setOnNoteModalClose }: PageContext) {
   const { home } = dashboard;
@@ -50,6 +51,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
 
   const [selectedTimelineProject, setSelectedTimelineProject] = useState<string>('');
   const [activeActivityTab, setActiveActivityTab] = useState<'notes' | 'ai' | 'hours'>('notes');
+  const [activeDashboardTab, setActiveDashboardTab] = useState<'overview' | 'ai-analytics'>('overview');
 
   const isMobile = useIsMobile();
 
@@ -253,7 +255,11 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
         )}
         <PageHead
           title="Home"
-          subtitle={`Relevant updates from the last ${home.windowDays} days.`}
+          subtitle={
+            activeDashboardTab === 'overview'
+              ? `Relevant updates from the last ${home.windowDays} days.`
+              : 'Real-time AI tokens, model distribution and estimated costs.'
+          }
           action={
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               {!isMobile && (
@@ -269,7 +275,35 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
             </div>
           }
         />
-        <section className="home-layout">
+
+        <div
+          className="segmented-control"
+          role="tablist"
+          aria-label="Dashboard views"
+          style={{ maxWidth: '380px', marginBottom: '20px' }}
+        >
+          <button
+            className={activeDashboardTab === 'overview' ? 'active' : ''}
+            onClick={() => setActiveDashboardTab('overview')}
+            role="tab"
+            aria-selected={activeDashboardTab === 'overview'}
+            type="button"
+          >
+            Overview
+          </button>
+          <button
+            className={activeDashboardTab === 'ai-analytics' ? 'active' : ''}
+            onClick={() => setActiveDashboardTab('ai-analytics')}
+            role="tab"
+            aria-selected={activeDashboardTab === 'ai-analytics'}
+            type="button"
+          >
+            AI Analytics & Costs
+          </button>
+        </div>
+
+        {activeDashboardTab === 'overview' ? (
+          <section className="home-layout">
         {activeWorkspace ? (
           <OnboardingChecklist dashboard={dashboard} workspaceSlug={workspaceSlug} />
         ) : null}
@@ -530,6 +564,11 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
           </Panel>
         </section>
       </section>
+        ) : (
+          <section aria-label="AI Token Analytics">
+            <AiTokenAnalyticsPanel workspaceSlug={workspaceSlug} />
+          </section>
+        )}
       </div>
     </>
   );

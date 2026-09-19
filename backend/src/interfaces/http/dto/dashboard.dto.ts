@@ -65,6 +65,31 @@ export const bulkUpdateReminderStatusBodySchema = z.object({
   status: z.nativeEnum(KnowledgeStatus),
 });
 
+export const aiAnalyticsQuerySchema = z.object({
+  workspaceSlug: z.string().default(''),
+  projectSlug: z.string().default(''),
+  startDate: z.string().default(''),
+  endDate: z.string().default(''),
+  model: z.string().default(''),
+  provider: z.string().default(''),
+}).transform((input) => {
+  const normalizeDate = (val?: string) => {
+    if (!val) return undefined;
+    const trimmed = val.trim();
+    if (!trimmed) return undefined;
+    const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+    return match ? match[1] : undefined;
+  };
+  return {
+    workspaceSlug: input.workspaceSlug ? slugifyWorkspaceName(input.workspaceSlug) : undefined,
+    projectSlug: input.projectSlug ? slugifyProjectName(input.projectSlug) : undefined,
+    startDate: normalizeDate(input.startDate),
+    endDate: normalizeDate(input.endDate),
+    model: input.model && input.model.trim() !== 'all' && input.model.trim() !== '' ? input.model.trim() : undefined,
+    provider: input.provider && input.provider.trim() !== 'all' && input.provider.trim() !== '' ? input.provider.trim() : undefined,
+  };
+});
+
 export type ReminderBoardQuery = z.infer<typeof reminderBoardQuerySchema>;
 export type ReminderIdParam = z.infer<typeof reminderIdParamSchema>;
 export type ReviewIdParam = z.infer<typeof reviewIdParamSchema>;
@@ -73,3 +98,4 @@ export type ReviewsListQuery = z.infer<typeof reviewsListQuerySchema>;
 export type RemindersListQuery = z.infer<typeof remindersListQuerySchema>;
 export type UpdateReminderStatusBody = z.infer<typeof updateReminderStatusBodySchema>;
 export type BulkUpdateReminderStatusBody = z.infer<typeof bulkUpdateReminderStatusBodySchema>;
+export type AiAnalyticsQuery = z.infer<typeof aiAnalyticsQuerySchema>;
