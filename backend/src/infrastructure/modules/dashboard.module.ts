@@ -8,7 +8,7 @@ import { WorkspacesModule } from './workspaces.module.js';
 import { NotesModule } from './notes.module.js';
 import { EnvModule } from './env.module.js';
 
-import { BuildDashboardUseCase, LogApplicationAccessUseCase, GetProductivityInsightsRawUseCase } from '../../application/use-cases/index.js';
+import { BuildDashboardUseCase, LogApplicationAccessUseCase, GetProductivityInsightsRawUseCase, GetAiTokenAnalyticsUseCase } from '../../application/use-cases/index.js';
 import { DashboardController, ApplicationAccessController } from '../../interfaces/http/controllers/index.js';
 
 @Module({
@@ -30,6 +30,10 @@ import { DashboardController, ApplicationAccessController } from '../../interfac
     BuildDashboardUseCase,
     LogApplicationAccessUseCase,
     GetProductivityInsightsRawUseCase,
+    GetAiTokenAnalyticsUseCase,
+  ],
+  exports: [
+    GetAiTokenAnalyticsUseCase,
   ],
 })
 export class DashboardModule {}

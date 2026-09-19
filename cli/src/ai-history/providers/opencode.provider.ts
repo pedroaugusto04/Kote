@@ -4,7 +4,8 @@ import path from 'node:path';
 
 import { loadConfig } from '../../config.js';
 import { AI_PROVIDER, AI_PROVIDER_NAME, AI_ROLE, AI_SESSION_PATH, AI_TEXT_CONTENT_TYPE, OPEN_CODE_FINAL_FINISH } from '../constants.js';
-import type { AiHistoryProvider, AiSession, AiTurn } from '../types.js';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types.js';
+import { calculateSessionCostWithRateSync } from '../pricing.js';
 import { asRecord, keepFinalAssistantTurns, parseAiRole } from './provider.utils.js';
 
 interface OpenCodeRow {
@@ -20,6 +21,13 @@ interface OpenCodeRow {
 interface SessionAccumulator {
   session: AiSession;
   messages: Map<string, { role: AiTurn['role']; textParts: string[] }>;
+  modelID?: string;
+  providerID?: string;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cachedTokens: number;
+  cost: number;
 }
 
 function databasePath(): string {
@@ -44,6 +52,11 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
         projectSlug: row.projectSlug || undefined,
       },
       messages: new Map(),
+      inputTokens: 0,
+      outputTokens: 0,
+      reasoningTokens: 0,
+      cachedTokens: 0,
+      cost: 0,
     };
     sessions.set(row.sessionId, accumulator);
   }
@@ -52,6 +65,28 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
   const message = asRecord(JSON.parse(row.messageData));
   const role = parseAiRole(message?.role);
   if (!role) return;
+
+  // Track model and tokens from assistant messages
+  if (role === AI_ROLE.ASSISTANT) {
+    if (typeof message?.modelID === 'string' && message.modelID) {
+      accumulator.modelID = message.modelID;
+    }
+    if (typeof message?.providerID === 'string' && message.providerID) {
+      accumulator.providerID = message.providerID;
+    }
+    if (typeof message?.cost === 'number' && Number.isFinite(message.cost)) {
+      accumulator.cost += message.cost;
+    }
+    const tokens = asRecord(message?.tokens);
+    if (tokens) {
+      if (typeof tokens.input === 'number') accumulator.inputTokens += tokens.input;
+      if (typeof tokens.output === 'number') accumulator.outputTokens += tokens.output;
+      if (typeof tokens.reasoning === 'number') accumulator.reasoningTokens += tokens.reasoning;
+      const cache = asRecord(tokens.cache);
+      if (typeof cache?.read === 'number') accumulator.cachedTokens += cache.read;
+    }
+  }
+
   if (role === AI_ROLE.ASSISTANT && message?.finish !== OPEN_CODE_FINAL_FINISH) return;
 
   let entry = accumulator.messages.get(row.messageId);
@@ -68,11 +103,37 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
 
 function finalizeSessions(accumulators: Map<string, SessionAccumulator>): AiSession[] {
   const sessions: AiSession[] = [];
-  for (const { session, messages } of accumulators.values()) {
+  for (const acc of accumulators.values()) {
+    const { session, messages, modelID, providerID, inputTokens, outputTokens, reasoningTokens, cachedTokens, cost } = acc;
     const parsedTurns = [...messages.values()]
       .map(({ role, textParts }) => ({ role, content: textParts.join('\n\n').trim() }))
       .filter((turn) => turn.content);
     session.turns = keepFinalAssistantTurns(parsedTurns);
+
+    if (modelID || inputTokens > 0 || outputTokens > 0) {
+      const resolvedModel = modelID || 'unknown';
+      const costResult = calculateSessionCostWithRateSync({
+        provider: providerID || 'opencode',
+        model: resolvedModel,
+        inputTokens,
+        outputTokens,
+        cachedTokens,
+        nativeCost: cost > 0 ? cost : undefined,
+      });
+
+      session.tokenUsage = {
+        provider: providerID || AI_PROVIDER.OPEN_CODE,
+        model: resolvedModel,
+        inputTokens,
+        outputTokens,
+        totalTokens: inputTokens + outputTokens,
+        reasoningTokens: reasoningTokens > 0 ? reasoningTokens : undefined,
+        cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
+        estimatedCostUsd: costResult.cost,
+        rates: costResult.rates,
+      };
+    }
+
     if (session.turns.length > 0) sessions.push(session);
   }
   return sessions;

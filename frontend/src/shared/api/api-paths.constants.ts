@@ -54,6 +54,7 @@ export const API_PATHS = {
 
   // Dashboard paths
   DASHBOARD: '/api/dashboard',
+  AI_TOKEN_ANALYTICS: '/api/dashboard/ai-analytics',
   PRODUCTIVITY_INSIGHTS: '/api/productivity/insights',
 
   // Ask paths

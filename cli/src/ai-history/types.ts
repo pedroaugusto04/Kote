@@ -12,6 +12,21 @@ export interface AiSessionAttachment {
   dataBase64: string;
 }
 
+export interface AiTokenUsage {
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  reasoningTokens?: number;
+  cachedTokens?: number;
+  estimatedCostUsd: number;
+  rates?: {
+    inputPerMillion: number;
+    outputPerMillion: number;
+  };
+}
+
 export interface AiSession {
   providerId: AiProviderId;
   sessionId: string;
@@ -20,6 +35,7 @@ export interface AiSession {
   timestamp: number;
   projectSlug?: string;
   attachments?: AiSessionAttachment[];
+  tokenUsage?: AiTokenUsage;
 }
 
 export interface AiHistoryProvider {

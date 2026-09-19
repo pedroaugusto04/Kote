@@ -154,6 +154,7 @@ test('updates existing manual note when matching sessionId and source instead of
     ingest,
     repositories.runtimeEnvironmentProvider,
     noopDispatcher,
+    loggerMock,
   );
 
   // 1. Create the initial session note
@@ -216,13 +217,15 @@ test('resolves the primary note type from selected categories by priority', asyn
     icon: '',
   });
 
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, { info(){}, warn(){}, error(){}, debug(){} }, repositories.database);
+  const loggerMock = { info(){}, warn(){}, error(){}, debug(){} };
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database);
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
     repositories.contentRepository,
     ingest,
     repositories.runtimeEnvironmentProvider,
     noopDispatcher,
+    loggerMock,
   );
   const created = await createNote.execute({
     projectId: platform.id,
@@ -861,6 +864,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
     ingest,
     repositories.runtimeEnvironmentProvider,
     noopDispatcher,
+    loggerMock,
   );
 
   // 1. Create a manual note with empty categoryIds
@@ -942,6 +946,7 @@ test('manages manual note creation with title but empty/missing rawText', async 
     ingest,
     repositories.runtimeEnvironmentProvider,
     noopDispatcher,
+    loggerMock,
   );
 
   // Create manual note with title and empty rawText

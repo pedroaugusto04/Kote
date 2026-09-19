@@ -146,6 +146,83 @@ export function formatDisplayToken(value: string | null | undefined) {
     .join(' ');
 }
 
+export const KNOWN_AI_PROVIDERS: Record<string, string> = {
+  antigravity: 'Antigravity',
+  'claude-code': 'Claude Code',
+  claude: 'Claude',
+  'codex-cli': 'Codex CLI',
+  codex: 'Codex',
+  'open-code': 'OpenCode',
+  opencode: 'OpenCode',
+  cursor: 'Cursor',
+  gemini: 'Gemini',
+  copilot: 'Copilot',
+  chatgpt: 'ChatGPT',
+  openai: 'OpenAI',
+};
+
+export function formatProviderName(provider: string | null | undefined): string {
+  if (!provider) return '';
+  const trimmed = provider.trim();
+  const normalized = trimmed.toLowerCase().replace(/[\s_]+/g, '-');
+  if (KNOWN_AI_PROVIDERS[normalized]) {
+    return KNOWN_AI_PROVIDERS[normalized];
+  }
+  return formatDisplayToken(trimmed);
+}
+
+export function formatCostPerMillion(costUsd: number | undefined | null, totalTokens: number | undefined | null): string {
+  if (typeof costUsd !== 'number' || !totalTokens || totalTokens <= 0) return '';
+  const rate = (costUsd / totalTokens) * 1_000_000;
+  if (rate === 0) return '$0.00/1M';
+  if (rate < 0.01) {
+    return `$${rate.toFixed(4)}/1M`;
+  }
+  return `$${rate.toFixed(2)}/1M`;
+}
+
+export interface ModelRates {
+  inputPerMillion: number;
+  outputPerMillion: number;
+}
+
+export function formatRateValue(val: number): string {
+  if (val === 0) return '0';
+  if (val < 0.01) return val.toFixed(4);
+  return Number.isInteger(val) ? val.toString() : val.toFixed(2);
+}
+
+export function formatModelRate(rates: ModelRates | undefined | null): string {
+  if (!rates) return '';
+  if (rates.inputPerMillion === 0 && rates.outputPerMillion === 0) {
+    return 'grátis';
+  }
+  if (rates.inputPerMillion === rates.outputPerMillion) {
+    return `$${formatRateValue(rates.inputPerMillion)}/1M`;
+  }
+  return `$${formatRateValue(rates.inputPerMillion)} in / $${formatRateValue(rates.outputPerMillion)} out`;
+}
+
+export function formatCostComparison(
+  costUsd: number | undefined | null,
+  totalTokens: number | undefined | null,
+  rates?: ModelRates | null
+): string {
+  const sessionRate = formatCostPerMillion(costUsd, totalTokens);
+  const modelRate = formatModelRate(rates);
+
+  if (sessionRate && modelRate) {
+    return `sessão: ${sessionRate} • ref: ${modelRate}`;
+  }
+  if (sessionRate) {
+    return sessionRate;
+  }
+  if (modelRate) {
+    return `ref: ${modelRate}`;
+  }
+  return '';
+}
+
 export function getCleanSummary(summary: string | undefined): string {
   if (!summary) return '';
   const cleaned = stripSourceHeader(summary);
@@ -327,5 +404,15 @@ export function formatRelativeTimeUntil(
   if (diffHours < 24) return `${RELATIVE_TIME_UNITS.PREFIX_IN} ${diffHours}${RELATIVE_TIME_UNITS.HOURS_SUFFIX}`;
   const diffDays = Math.floor(diffHours / 24);
   return `${RELATIVE_TIME_UNITS.PREFIX_IN} ${diffDays}${RELATIVE_TIME_UNITS.DAYS_SUFFIX}`;
+}
+
+export function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) {
+    return `${(tokens / 1_000_000).toFixed(2)}M`;
+  }
+  if (tokens >= 1_000) {
+    return `${(tokens / 1_000).toFixed(1)}k`;
+  }
+  return tokens.toLocaleString();
 }
 

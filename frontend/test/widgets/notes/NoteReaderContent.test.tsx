@@ -108,4 +108,28 @@ describe('NoteBody synthesis states', () => {
     expect(screen.getByText('User: Help me plan this.')).toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveClass('is-unavailable');
   });
+
+  it('renders token count, cost, and rate per 1M tokens with AiUsagePill', () => {
+    render(
+      <NoteBody
+        markdown="Hello"
+        rawText="Hello"
+        summary=""
+        title="AI Session"
+        aiUsage={{
+          provider: 'claude-code',
+          model: 'claude-3-5-sonnet',
+          totalTokens: 20_000,
+          inputTokens: 16_000,
+          outputTokens: 4_000,
+          estimatedCostUsd: 0.10,
+        }}
+      />
+    );
+
+    expect(screen.getByText('claude-3-5-sonnet')).toBeInTheDocument();
+    expect(screen.getByText('20,000 tok')).toBeInTheDocument();
+    expect(screen.getByText('$0.1000')).toBeInTheDocument();
+    expect(screen.getByText('($5.00/1M)')).toBeInTheDocument();
+  });
 });

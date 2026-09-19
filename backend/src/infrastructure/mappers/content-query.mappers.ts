@@ -8,6 +8,7 @@ import { EventType, SourceChannel } from '../../contracts/enums.js';
 import type { NoteSynthesisRecord } from '../../application/models/note-synthesis.models.js';
 import crypto from 'node:crypto';
 import { NoteSynthesisStatus } from '../../application/constants/ai-session-synthesis.constants.js';
+import { isNoteAiUsage } from '../../domain/ai-usage.js';
 
 
 function attachmentContentPath(noteId: string, attachmentId: string): string {
@@ -44,6 +45,7 @@ export function noteSummary(record: NoteRecord): VaultNoteSummary {
     attachmentCount: record.attachmentCount || 0,
     isPinned: record.isPinned,
     ftsRank: record.ftsRank,
+    aiUsage: isNoteAiUsage(record.metadata?.aiUsage) ? record.metadata.aiUsage : undefined,
   };
 }
 
@@ -73,11 +75,12 @@ export function noteDetail(
       categories: record.categories.map((c) => c.name),
       workspace: record.workspaceSlug || '',
       source_channel: record.sourceChannel,
-      event_type: String(record.metadata.eventType || ''),
+      event_type: String(record.metadata?.eventType || ''),
       project: record.projectSlug || '',
       status: record.status,
       tags: record.tags,
       occurred_at: record.occurredAt || record.createdAt || '',
+      ai_usage: record.metadata?.aiUsage || undefined,
     },
     attachments: attachments.map((attachment) => noteAttachment(record.id, attachment)),
     editor: null,

@@ -1,6 +1,7 @@
 export { buildGoogleAuthStartUrl, deleteCurrentUserAvatar, fetchCurrentUser, login, logout, signup, uploadCurrentUserAvatar, fetchConnectionToken, reportVscodeInstalled } from './auth';
 export { logApplicationAccess } from './application';
-export { fetchDashboard, fetchProductivityInsights } from './dashboard';
+export { fetchDashboard, fetchProductivityInsights, fetchAiTokenAnalytics } from './dashboard';
+export type { AiTokenAnalyticsResponse, ModelUsageShare, ProviderUsageShare, DailyTokenPoint } from './models/ai-token-analytics';
 export {
   connectIntegration,
   fetchGithubRepositories,

@@ -17,8 +17,9 @@ import {
   DEFAULT_AI_SESSION_LIMIT,
   JSONL_EXTENSION,
 } from '../constants';
-import type { AiHistoryProvider, AiSession, AiTurn } from '../types';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types';
 import { asRecord, buildSessionTitle, latestRecordTimestamp, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
+import { calculateSessionCostWithRateSync } from '../pricing';
 
 const CODEX_RECORD_TYPE = {
   SESSION_META: 'session_meta',
@@ -68,6 +69,75 @@ function sessionMetadata(records: unknown[]) {
   return null;
 }
 
+interface CodexTokenUsagePayload {
+  input_tokens?: number;
+  output_tokens?: number;
+  cached_input_tokens?: number;
+  reasoning_output_tokens?: number;
+  total_tokens?: number;
+}
+
+function extractCodexTokenUsage(records: unknown[]): AiTokenUsage | undefined {
+  let model = '';
+  let tokenUsage: CodexTokenUsagePayload | undefined;
+
+  for (const value of records) {
+    const record = asRecord(value);
+    if (!record) continue;
+
+    if (record.type === 'turn_context') {
+      const payload = asRecord(record.payload);
+      if (typeof payload?.model === 'string' && payload.model) {
+        model = payload.model;
+      }
+    } else if (record.type === 'event_msg') {
+      const payload = asRecord(record.payload);
+      if (payload?.type === 'token_count' && payload.info) {
+        const info = asRecord(payload.info);
+        const total = asRecord(info?.total_token_usage);
+        if (total) {
+          tokenUsage = {
+            input_tokens: typeof total.input_tokens === 'number' ? total.input_tokens : undefined,
+            output_tokens: typeof total.output_tokens === 'number' ? total.output_tokens : undefined,
+            cached_input_tokens: typeof total.cached_input_tokens === 'number' ? total.cached_input_tokens : undefined,
+            reasoning_output_tokens: typeof total.reasoning_output_tokens === 'number' ? total.reasoning_output_tokens : undefined,
+            total_tokens: typeof total.total_tokens === 'number' ? total.total_tokens : undefined,
+          };
+        }
+      }
+    }
+  }
+
+  if (!tokenUsage && !model) return undefined;
+
+  const inputTokens = Number(tokenUsage?.input_tokens) || 0;
+  const outputTokens = Number(tokenUsage?.output_tokens) || 0;
+  const totalTokens = Number(tokenUsage?.total_tokens) || (inputTokens + outputTokens);
+  const cachedTokens = typeof tokenUsage?.cached_input_tokens === 'number' ? tokenUsage.cached_input_tokens : undefined;
+  const reasoningTokens = typeof tokenUsage?.reasoning_output_tokens === 'number' ? tokenUsage.reasoning_output_tokens : undefined;
+  const resolvedModel = model || 'gpt-5.2';
+
+  const costResult = calculateSessionCostWithRateSync({
+    provider: 'openai',
+    model: resolvedModel,
+    inputTokens,
+    outputTokens,
+    cachedTokens,
+  });
+
+  return {
+    provider: AI_PROVIDER.CODEX_CLI,
+    model: resolvedModel,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    reasoningTokens,
+    cachedTokens,
+    estimatedCostUsd: costResult.cost,
+    rates: costResult.rates,
+  };
+}
+
 function parseFile(filePath: string): AiSession | null {
   try {
     const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
@@ -88,6 +158,7 @@ function parseFile(filePath: string): AiSession | null {
       timestamp,
       timestampIsInternal: internalTimestamp !== null,
       projectSlug: cwd ? resolveProjectSlugFromDir(cwd) : undefined,
+      tokenUsage: extractCodexTokenUsage(records),
     };
   } catch {
     return null;
