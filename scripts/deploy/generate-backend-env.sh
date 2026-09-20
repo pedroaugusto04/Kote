@@ -4,7 +4,9 @@ set -euo pipefail
 OUTPUT_FILE="${1:-.deploy/backend.env}"
 
 mkdir -p "$(dirname "$OUTPUT_FILE")"
+umask 077
 > "$OUTPUT_FILE"
+chmod 600 "$OUTPUT_FILE"
 
 write_kv() {
   local key="$1"
