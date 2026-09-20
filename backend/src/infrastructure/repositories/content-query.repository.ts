@@ -335,8 +335,101 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
     return (await this.loadNotes(userId)).map(reminderFromNote).filter((reminder): reminder is ReminderView => Boolean(reminder));
   }
 
+  /**
+   * The dashboard needs the same note view as the list APIs, but loading it via
+   * one joined query multiplies rows by attachments × categories before JSON
+   * aggregation. Fetching the independent relations in parallel avoids that
+   * work while preserving the resulting note summaries.
+   */
+  private async loadDashboardNotes(userId: string): Promise<NoteRecord[]> {
+    const db = this.database.getDb();
+    const [noteRows, attachmentCountRows, categoryRows] = await Promise.all([
+      db
+        .select({
+          id: notes.id,
+          userId: notes.userId,
+          path: notes.path,
+          title: notes.title,
+          projectId: notes.projectId,
+          workspaceId: notes.workspaceId,
+          projectSlug: projects.projectSlug,
+          workspaceSlug: workspaces.workspaceSlug,
+          folderId: notes.folderId,
+          status: notes.status,
+          tags: notes.tags,
+          occurredAt: notes.occurredAt,
+          sourceChannel: notes.sourceChannel,
+          source: notes.source,
+          summary: notes.summary,
+          markdownStorageKey: notes.markdownStorageKey,
+          metadata: notes.metadata,
+          sessionId: notes.sessionId,
+          reminderAt: notes.reminderAt,
+          isPinned: notes.isPinned,
+          createdAt: notes.createdAt,
+          updatedAt: notes.updatedAt,
+        })
+        .from(notes)
+        .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
+        .leftJoin(projects, eq(projects.id, notes.projectId))
+        .where(eq(notes.userId, userId))
+        .orderBy(desc(notes.occurredAt), notes.title),
+      db
+        .select({ noteId: attachments.noteId, attachmentCount: count(attachments.id).as('attachment_count') })
+        .from(attachments)
+        .where(eq(attachments.userId, userId))
+        .groupBy(attachments.noteId),
+      db
+        .select({
+          noteId: noteCategories.noteId,
+          category: {
+            id: categories.id,
+            userId: categories.userId,
+            workspaceId: categories.workspaceId,
+            name: categories.name,
+            color: categories.color,
+            colorDark: categories.colorDark,
+            icon: categories.icon,
+            isSystem: categories.isSystem,
+            createdAt: categories.createdAt,
+            updatedAt: categories.updatedAt,
+          },
+        })
+        .from(noteCategories)
+        .innerJoin(notes, eq(notes.id, noteCategories.noteId))
+        .innerJoin(categories, eq(categories.id, noteCategories.categoryId))
+        .where(eq(notes.userId, userId)),
+    ]);
+
+    const attachmentCountByNote = new Map(
+      attachmentCountRows.map((row) => [row.noteId, Number(row.attachmentCount)]),
+    );
+    const categoriesByNote = new Map<string, typeof categoryRows[number]['category'][]>();
+    for (const row of categoryRows) {
+      const noteCategories = categoriesByNote.get(row.noteId);
+      if (noteCategories) noteCategories.push(row.category);
+      else categoriesByNote.set(row.noteId, [row.category]);
+    }
+
+    return noteRows.map((note) => {
+      const noteCategoryRows = categoriesByNote.get(note.id) || [];
+      const attachmentCount = attachmentCountByNote.get(note.id) || 0;
+
+      // `loadNotes` aggregates attachment rows after joining categories, so the
+      // public dashboard count historically reflects that multiplicity. Keep
+      // the response identical while moving the work out of PostgreSQL's join.
+      const dashboardAttachmentCount = attachmentCount * Math.max(noteCategoryRows.length, 1);
+
+      return noteFromRow({
+        ...note,
+        attachmentCount: dashboardAttachmentCount,
+        categories: noteCategoryRows,
+      });
+    });
+  }
+
   async listDashboardBundle(userId: string) {
-    const rawNotes = await this.loadNotes(userId);
+    const rawNotes = await this.loadDashboardNotes(userId);
     const notes = rawNotes.map(noteSummary);
     const reviews = rawNotes.map(reviewFromNote).filter((review): review is ReviewView => Boolean(review));
     const reminders = rawNotes.map(reminderFromNote).filter((reminder): reminder is ReminderView => Boolean(reminder));

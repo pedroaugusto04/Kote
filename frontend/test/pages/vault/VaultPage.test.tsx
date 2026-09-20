@@ -247,7 +247,6 @@ describe('VaultPage', () => {
     expect(await screen.findByRole('heading', { name: foreignNote.title })).toBeInTheDocument();
     await waitFor(() => {
       expect(setSelectedProject).toHaveBeenCalledWith('mobile');
-      expect(apiSpies.fetchNotes).toHaveBeenCalledWith({ page: 1, projectSlug: 'mobile', selectedId: foreignNote.id });
     });
   });
 

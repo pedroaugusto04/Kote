@@ -10,7 +10,12 @@ import {
 test('AI Pricing Engine', async (t) => {
   const samplePricingTable = {
     'openai:gpt-4o': { inputPerMillion: 2.5, outputPerMillion: 10.0, cachedInputPerMillion: 1.25 },
-    'anthropic:claude-3-5-sonnet': { inputPerMillion: 3.0, outputPerMillion: 15.0, cachedInputPerMillion: 0.3 },
+    'anthropic:claude-3-5-sonnet': {
+      inputPerMillion: 3.0,
+      outputPerMillion: 15.0,
+      cachedInputPerMillion: 0.3,
+      cacheWriteInputPerMillion: 3.75,
+    },
   };
 
   await t.test('calculates correct cost when model is in dynamic/cached table', () => {
@@ -40,6 +45,22 @@ test('AI Pricing Engine', async (t) => {
       samplePricingTable
     );
     assert.equal(cost, 0.02875);
+  });
+
+  await t.test('calculates cache-write tokens with their dedicated rate', () => {
+    const cost = calculateSessionCostSync(
+      {
+        provider: 'anthropic',
+        model: 'claude-3-5-sonnet',
+        inputTokens: 10_000,
+        outputTokens: 1_000,
+        cachedTokens: 2_000,
+        cacheWriteTokens: 3_000,
+      },
+      samplePricingTable
+    );
+    // 5,000 regular + 2,000 cache-read + 3,000 cache-write + 1,000 output.
+    assert.equal(cost, 0.04185);
   });
 
   await t.test('prefers native cost when provided by provider (e.g. OpenCode)', () => {

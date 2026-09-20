@@ -88,8 +88,15 @@ export class BuildDashboardUseCase {
       );
     }
 
+    const notesByProject = new Map<string, typeof notes>();
+    for (const note of notes) {
+      const projectNotes = notesByProject.get(note.project);
+      if (projectNotes) projectNotes.push(note);
+      else notesByProject.set(note.project, [note]);
+    }
+
     const enrichedProjects = projects.map((project) => {
-      const projectNotes = notes.filter((n) => n.project === project.projectSlug);
+      const projectNotes = notesByProject.get(project.projectSlug) || [];
       const countsByDay = new Map<string, number>();
       for (const note of projectNotes) {
         const match = note.date.match(/^\d{4}-\d{2}-\d{2}/);

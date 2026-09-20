@@ -1,29 +1,34 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchProjectCoverage } from '../../../shared/api/client';
-import { ProjectCoverageModal, CoverageHealthStatus, type ProjectCoverageData } from './ProjectCoverageModal';
+import { ProjectCoverageModal, type ProjectCoverageData } from './ProjectCoverageModal';
 
 interface ProjectCoverageBadgeProps {
   projectSlug: string;
   projectDisplayName?: string;
+  /** Dashboard coverage is computed in one batch; use it to avoid one request per visible project. */
+  coveragePercentage?: number;
   onlyCircle?: boolean;
 }
 
-export function ProjectCoverageBadge({ projectSlug, projectDisplayName, onlyCircle = false }: ProjectCoverageBadgeProps) {
+const HIGH_COVERAGE_THRESHOLD = 80;
+const MODERATE_COVERAGE_THRESHOLD = 50;
+
+export function ProjectCoverageBadge({ projectSlug, projectDisplayName, coveragePercentage: initialCoveragePercentage, onlyCircle = false }: ProjectCoverageBadgeProps) {
   const [showModal, setShowModal] = useState(false);
 
-  const { data } = useQuery<ProjectCoverageData>({
+  const { data: fetchedCoverage } = useQuery<ProjectCoverageData>({
     queryKey: ['projectCoverage', projectSlug],
     queryFn: () => fetchProjectCoverage(projectSlug),
-    enabled: Boolean(projectSlug),
+    enabled: Boolean(projectSlug) && initialCoveragePercentage === undefined,
     staleTime: 60 * 1000,
   });
 
-  if (!data) return null;
+  const coveragePercentage = initialCoveragePercentage ?? fetchedCoverage?.coveragePercentage;
+  if (coveragePercentage === undefined) return null;
 
-  const { coveragePercentage, healthStatus } = data;
-  const isHigh = healthStatus === CoverageHealthStatus.High;
-  const isModerate = healthStatus === CoverageHealthStatus.Moderate;
+  const isHigh = coveragePercentage >= HIGH_COVERAGE_THRESHOLD;
+  const isModerate = coveragePercentage >= MODERATE_COVERAGE_THRESHOLD && !isHigh;
   const colorHex = isHigh ? 'var(--green)' : isModerate ? 'var(--amber)' : 'var(--red)';
 
   const radius = 6.5;

@@ -3,6 +3,7 @@ import { and, count, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 
 import {
   WeeklySummaryRepository,
+  type WeeklySummaryCriticalDependency,
   type WeeklySummaryNoteRow,
   type WeeklySummaryUser,
   type WeeklySummaryUserNoteCount,
@@ -13,6 +14,7 @@ import {
   dependencyMonitoredRepositories,
   dependencyWatch,
   notes,
+  projectRepositories,
   projects,
   users,
   workspaces,
@@ -68,63 +70,65 @@ export class PostgresWeeklySummaryRepository extends WeeklySummaryRepository {
     }));
   }
 
-  async getDependencyCountsByProject(
+  async getCriticalDependencyUpdates(
     userId: string,
-  ): Promise<Record<string, { critical: number; recommended: number; optional: number }>> {
+  ): Promise<WeeklySummaryCriticalDependency[]> {
     const database = this.db.getDb();
     const enabledWorkspaces = await database
       .select({ id: workspaces.id, workspaceSlug: workspaces.workspaceSlug })
       .from(workspaces)
       .where(and(eq(workspaces.userId, userId), eq(workspaces.dependencyWatcherEnabled, true)));
 
-    if (enabledWorkspaces.length === 0) return {};
+    if (enabledWorkspaces.length === 0) return [];
 
     const workspaceIds = enabledWorkspaces.map((ws: { id: string }) => ws.id);
     const workspaceSlugMap = new Map(enabledWorkspaces.map((ws: { id: string; workspaceSlug: string }) => [ws.id, ws.workspaceSlug]));
 
-    const dependencyCounts = await database
+    const records = await database
       .select({
+        id: dependencyWatch.id,
         workspaceId: dependencyWatch.workspaceId,
-        lastUrgency: dependencyWatch.lastUrgency,
-        count: count(),
+        ecosystem: dependencyWatch.ecosystem,
+        packageName: dependencyWatch.packageName,
+        currentVersion: dependencyWatch.currentVersion,
+        latestSeenVersion: dependencyWatch.latestSeenVersion,
+        repositoryId: dependencyWatch.repositoryId,
+        projectDisplayName: projects.displayName,
       })
       .from(dependencyWatch)
       .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
-      .innerJoin(
-        dependencyMonitoredRepositories,
-        and(
-          eq(dependencyMonitoredRepositories.userId, dependencyWatch.userId),
-          eq(dependencyMonitoredRepositories.workspaceId, dependencyWatch.workspaceId),
-          eq(dependencyMonitoredRepositories.repositoryId, dependencyWatch.repositoryId),
-        ),
-      )
+      .leftJoin(projectRepositories, eq(projectRepositories.repositoryId, dependencyWatch.repositoryId))
+      .leftJoin(projects, eq(projects.id, projectRepositories.projectId))
       .where(
         and(
           eq(dependencyWatch.userId, userId),
           inArray(dependencyWatch.workspaceId, workspaceIds),
           eq(workspaces.dependencyWatcherEnabled, true),
           eq(dependencyWatch.enabled, true),
+          eq(dependencyWatch.lastUrgency, DependencyUrgency.Critical),
+          sql`${dependencyWatch.latestSeenVersion} != ''`,
           sql`${dependencyWatch.currentVersion} != ${dependencyWatch.latestSeenVersion}`,
         ),
       )
-      .groupBy(dependencyWatch.workspaceId, dependencyWatch.lastUrgency);
+      .orderBy(dependencyWatch.packageName);
 
-    const result: Record<string, { critical: number; recommended: number; optional: number }> = {};
+    const seen = new Set<string>();
+    const result: WeeklySummaryCriticalDependency[] = [];
 
-    for (const row of dependencyCounts as Array<{ workspaceId: string; lastUrgency: string | null; count: number }>) {
-      const workspaceSlug = workspaceSlugMap.get(row.workspaceId) || 'unknown';
-      if (!result[workspaceSlug]) {
-        result[workspaceSlug] = { critical: 0, recommended: 0, optional: 0 };
-      }
+    for (const row of records) {
+      const workspaceSlug = workspaceSlugMap.get(row.workspaceId) || '';
+      const key = `${row.workspaceId}:${row.ecosystem}:${row.packageName}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
 
-      const urgency = row.lastUrgency;
-      if (urgency === DependencyUrgency.Critical) {
-        result[workspaceSlug].critical = Number(row.count);
-      } else if (urgency === DependencyUrgency.Recommended) {
-        result[workspaceSlug].recommended = Number(row.count);
-      } else if (urgency === DependencyUrgency.Optional) {
-        result[workspaceSlug].optional = Number(row.count);
-      }
+      result.push({
+        packageName: row.packageName,
+        currentVersion: row.currentVersion,
+        latestVersion: row.latestSeenVersion,
+        ecosystem: row.ecosystem,
+        workspaceSlug,
+        projectName: row.projectDisplayName || null,
+      });
     }
 
     return result;

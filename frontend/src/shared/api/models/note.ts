@@ -37,11 +37,27 @@ export type NoteSummary = {
     totalTokens: number;
     reasoningTokens?: number;
     cachedTokens?: number;
+    cacheWriteTokens?: number;
     estimatedCostUsd: number;
     rates?: {
       inputPerMillion: number;
       outputPerMillion: number;
     };
+    byModel?: Array<{
+      model: string;
+      provider?: string;
+      inputTokens: number;
+      outputTokens: number;
+      totalTokens: number;
+      cachedTokens?: number;
+      cacheWriteTokens?: number;
+      reasoningTokens?: number;
+      estimatedCostUsd: number;
+      rates?: {
+        inputPerMillion: number;
+        outputPerMillion: number;
+      };
+    }>;
   };
 };
 

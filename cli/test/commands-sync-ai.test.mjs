@@ -112,6 +112,146 @@ test('Sync AI sessions command integration', async (t) => {
     ]);
   });
 
+  await t.test('provider strategies correctly extract multi-model token usage into byModel array', async () => {
+    const { ClaudeCodeHistoryProvider } = await import('../../cli/dist/ai-history/providers/claude-code.provider.js');
+
+    // Create a multi-model Claude log file
+    const multiClaudeDir = path.join(TEST_DIR, '.claude', 'projects', 'multi-model-proj');
+    fs.mkdirSync(multiClaudeDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(multiClaudeDir, 'multi-claude.jsonl'),
+      `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Plan task"}]}}\n` +
+      `{"type":"assistant","message":{"model":"claude-3-5-sonnet-20241022","role":"assistant","content":[{"type":"text","text":"Planning..."}],"usage":{"input_tokens":1000,"output_tokens":200,"cache_read_input_tokens":500}}}\n` +
+      `{"type":"assistant","message":{"model":"claude-3-5-haiku-20241022","role":"assistant","content":[{"type":"text","text":"Executing fast check..."}],"usage":{"input_tokens":500,"output_tokens":100,"cache_read_input_tokens":0}}}\n`,
+      'utf8'
+    );
+
+    const claudeProvider = new ClaudeCodeHistoryProvider();
+    const sessions = await claudeProvider.getRecentSessions();
+    const multiSession = sessions.find((s) => s.sessionId === 'multi-claude');
+    assert.ok(multiSession);
+    assert.ok(multiSession.tokenUsage);
+    assert.equal(multiSession.tokenUsage.totalTokens, 1800);
+    assert.equal(multiSession.tokenUsage.inputTokens, 1500);
+    assert.equal(multiSession.tokenUsage.outputTokens, 300);
+    assert.ok(Array.isArray(multiSession.tokenUsage.byModel));
+    assert.equal(multiSession.tokenUsage.byModel.length, 2);
+
+    const sonnet = multiSession.tokenUsage.byModel.find((m) => m.model === 'claude-3-5-sonnet-20241022');
+    assert.ok(sonnet);
+    assert.equal(sonnet.inputTokens, 1000);
+    assert.equal(sonnet.outputTokens, 200);
+    assert.equal(sonnet.totalTokens, 1200);
+    assert.equal(sonnet.cachedTokens, 500);
+
+    const haiku = multiSession.tokenUsage.byModel.find((m) => m.model === 'claude-3-5-haiku-20241022');
+    assert.ok(haiku);
+    assert.equal(haiku.inputTokens, 500);
+    assert.equal(haiku.outputTokens, 100);
+    assert.equal(haiku.totalTokens, 600);
+
+    // Test Antigravity multi-model token extraction
+    const { AntigravityHistoryProvider } = await import('../../cli/dist/ai-history/providers/antigravity.provider.js');
+    const multiAntiDir = path.join(TEST_DIR, '.gemini', 'antigravity-cli', 'brain', 'conv-multi-anti');
+    const logsDir = path.join(multiAntiDir, '.system_generated', 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+
+    fs.writeFileSync(
+      path.join(logsDir, 'transcript.jsonl'),
+      `{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","content":"<USER_REQUEST>Initial request</USER_REQUEST><USER_SETTINGS_CHANGE>The user changed setting \`Model Selection\` from None to Gemini 3.7 Flash (Medium). No need to comment.</USER_SETTINGS_CHANGE>"}\n` +
+      `{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","content":"Short response"}\n` +
+      `{"step_index":2,"source":"USER_EXPLICIT","type":"USER_INPUT","status":"DONE","content":"<USER_REQUEST>Second request</USER_REQUEST><USER_SETTINGS_CHANGE>The user changed setting \`Model Selection\` from Gemini 3.7 Flash (Medium) to Gemini 3.6 Flash (Low). No need to comment.</USER_SETTINGS_CHANGE>"}\n` +
+      `{"step_index":3,"source":"MODEL","type":"PLANNER_RESPONSE","status":"DONE","content":"Much longer response with Gemini 3.6 to test weighted token allocation proportionally across the models in the transcript."}\n`,
+      'utf8'
+    );
+
+    fs.writeFileSync(
+      path.join(multiAntiDir, 'statusline.json'),
+      JSON.stringify({
+        model: { id: 'Gemini 3.6 Flash (Low)', display_name: 'Gemini 3.6 Flash (Low)' },
+        context_window: {
+          total_input_tokens: 10000,
+          total_output_tokens: 2000,
+          current_usage: { cache_read_input_tokens: 500 }
+        }
+      }),
+      'utf8'
+    );
+
+    const antiProvider = new AntigravityHistoryProvider();
+    const antiSessions = await antiProvider.getRecentSessions();
+    const multiAntiSession = antiSessions.find((s) => s.sessionId === 'conv-multi-anti');
+    assert.ok(multiAntiSession);
+    assert.ok(multiAntiSession.tokenUsage);
+    assert.equal(multiAntiSession.tokenUsage.totalTokens, 12000);
+    assert.equal(multiAntiSession.tokenUsage.inputTokens, 10000);
+    assert.equal(multiAntiSession.tokenUsage.outputTokens, 2000);
+    assert.ok(Array.isArray(multiAntiSession.tokenUsage.byModel));
+    assert.equal(multiAntiSession.tokenUsage.byModel.length, 2);
+
+    const flash36 = multiAntiSession.tokenUsage.byModel.find((m) => m.model === 'Gemini 3.6 Flash (Low)');
+    assert.ok(flash36);
+    assert.ok(flash36.totalTokens > 0);
+
+    const flash37 = multiAntiSession.tokenUsage.byModel.find((m) => m.model === 'Gemini 3.7 Flash (Medium)');
+    assert.ok(flash37);
+    assert.ok(flash37.totalTokens > 0);
+
+    assert.equal(flash36.totalTokens + flash37.totalTokens, 12000);
+    assert.equal(flash36.inputTokens + flash37.inputTokens, 10000);
+    assert.equal(flash36.outputTokens + flash37.outputTokens, 2000);
+    assert.ok(flash36.totalTokens > flash37.totalTokens, 'Flash 3.6 should have more tokens due to heavier content in its step');
+    assert.equal(multiAntiSession.tokenUsage.model, 'Gemini 3.6 Flash (Low)', 'Primary model should be the one with more tokens');
+
+    fs.rmSync(multiAntiDir, { recursive: true, force: true });
+
+    // Test Codex multi-model token extraction
+    const { CodexHistoryProvider } = await import('../../cli/dist/ai-history/providers/codex.provider.js');
+    const multiCodexDir = path.join(TEST_DIR, '.codex', 'sessions', '2026', '09', '19');
+    fs.mkdirSync(multiCodexDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(multiCodexDir, 'rollout-multi-codex.jsonl'),
+      `{"type":"session_meta","payload":{"id":"multi-codex","model":"gpt-6-astra"}}\n` +
+      `{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"First turn"}]}}\n` +
+      `{"type":"token_usage_record","payload":{"usage":{"input_tokens":5000,"output_tokens":1000,"cached_input_tokens":1200,"reasoning_output_tokens":100}}}\n` +
+      `{"type":"event_msg","payload":{"type":"thread_settings_applied","thread_settings":{"model":"gpt-5.6-sol"}}}\n` +
+      `{"type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Second turn"}]}}\n` +
+      `{"type":"token_usage_record","payload":{"usage":{"input_tokens":2000,"output_tokens":400,"cached_input_tokens":500,"reasoning_output_tokens":50}}}\n`,
+      'utf8'
+    );
+
+    const codexProvider = new CodexHistoryProvider();
+    const codexSessions = await codexProvider.getRecentSessions();
+    const multiCodexSession = codexSessions.find((s) => s.sessionId === 'multi-codex');
+    assert.ok(multiCodexSession);
+    assert.ok(multiCodexSession.tokenUsage);
+    assert.equal(multiCodexSession.tokenUsage.totalTokens, 8400);
+    assert.equal(multiCodexSession.tokenUsage.inputTokens, 7000);
+    assert.equal(multiCodexSession.tokenUsage.outputTokens, 1400);
+    assert.equal(multiCodexSession.tokenUsage.cachedTokens, 1700);
+    assert.equal(multiCodexSession.tokenUsage.reasoningTokens, 150);
+    assert.ok(Array.isArray(multiCodexSession.tokenUsage.byModel));
+    assert.equal(multiCodexSession.tokenUsage.byModel.length, 2);
+
+    const astra = multiCodexSession.tokenUsage.byModel.find((m) => m.model === 'gpt-6-astra');
+    assert.ok(astra);
+    assert.equal(astra.inputTokens, 5000);
+    assert.equal(astra.outputTokens, 1000);
+    assert.equal(astra.totalTokens, 6000);
+    assert.equal(astra.cachedTokens, 1200);
+    assert.equal(astra.reasoningTokens, 100);
+
+    const sol = multiCodexSession.tokenUsage.byModel.find((m) => m.model === 'gpt-5.6-sol');
+    assert.ok(sol);
+    assert.equal(sol.inputTokens, 2000);
+    assert.equal(sol.outputTokens, 400);
+    assert.equal(sol.totalTokens, 2400);
+    assert.equal(sol.cachedTokens, 500);
+    assert.equal(sol.reasoningTokens, 50);
+
+    fs.rmSync(multiCodexDir, { recursive: true, force: true });
+  });
+
   await t.test('history manager composes provider strategies and sorts their sessions', async () => {
     const { AiHistoryManager } = await import('../../cli/dist/ai-history/history-manager.js');
     const firstProvider = {

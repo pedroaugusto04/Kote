@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useMemo, useRef } from 'react';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { fetchAiTokenAnalytics } from '../../shared/api/client';
 import type { AiTokenAnalyticsResponse } from '../../shared/api/models/ai-token-analytics';
 import { formatCostComparison, formatProviderName, formatTokens } from '../../shared/utils/format';
 import { Panel, EmptyState, Badge } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
+import { CalendarIcon } from '../../shared/ui/icons';
 
 interface AiTokenAnalyticsPanelProps {
   workspaceSlug?: string;
@@ -34,7 +35,7 @@ type AiAnalyticsTab = (typeof AI_ANALYTICS_TAB)[keyof typeof AI_ANALYTICS_TAB];
 const AI_ANALYTICS_QUERY_KEY = 'ai-token-analytics';
 const AI_ANALYTICS_STALE_TIME_MS = 60_000;
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+export const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 const DATE_PRESETS = [
   { label: '7D', days: 7 },
@@ -43,6 +44,7 @@ const DATE_PRESETS = [
 ] as const;
 
 const FILTER_LABELS = {
+  ALL_PROJECTS: 'All Projects',
   ALL_MODELS: 'All Models',
   ALL_PROVIDERS: 'All Providers',
   DATE_FROM_PLACEHOLDER: 'YYYY-MM-DD',
@@ -51,23 +53,114 @@ const FILTER_LABELS = {
   NO_MATCHES: 'No AI sessions match the selected filters.',
 } as const;
 
+/**
+ * Mask date input to strictly enforce YYYY-MM-DD format as user types.
+ */
+export function maskDateInput(raw: string, prevValue: string = ''): string {
+  if (raw.length < prevValue.length && raw.endsWith('-')) {
+    raw = raw.slice(0, -1);
+  }
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 4) {
+    return digits;
+  }
+  if (digits.length <= 6) {
+    return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+  }
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+}
+
+interface DateFilterInputProps {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  ariaLabel: string;
+  title: string;
+}
+
+function DateFilterInput({ value, onChange, placeholder, ariaLabel, title }: DateFilterInputProps) {
+  const datePickerRef = useRef<HTMLInputElement>(null);
+
+  const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const masked = maskDateInput(e.target.value, value);
+    onChange(masked);
+  };
+
+  const handleCalendarClick = () => {
+    if (datePickerRef.current) {
+      if (typeof datePickerRef.current.showPicker === 'function') {
+        try {
+          datePickerRef.current.showPicker();
+        } catch {
+          datePickerRef.current.focus();
+        }
+      } else {
+        datePickerRef.current.focus();
+        datePickerRef.current.click();
+      }
+    }
+  };
+
+  return (
+    <div className="date-filter-input-wrap">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={handleTextChange}
+        placeholder={placeholder}
+        title={title}
+        aria-label={ariaLabel}
+        maxLength={10}
+        className="date-filter-text-input"
+      />
+      <button
+        type="button"
+        className="date-filter-calendar-btn"
+        aria-label={`Open calendar for ${ariaLabel}`}
+        title="Open calendar picker"
+        onClick={handleCalendarClick}
+      >
+        <CalendarIcon style={{ width: '13px', height: '13px' }} />
+      </button>
+      <input
+        ref={datePickerRef}
+        type="date"
+        tabIndex={-1}
+        aria-hidden="true"
+        value={DATE_REGEX.test(value.trim()) ? value.trim() : ''}
+        onChange={(e) => {
+          if (e.target.value) {
+            onChange(e.target.value);
+          }
+        }}
+        className="date-filter-native-picker"
+      />
+    </div>
+  );
+}
+
 export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAnalyticsPanelProps) {
+  const isDirectProjectTab = Boolean(projectSlug);
   const [activeTab, setActiveTab] = useState<AiAnalyticsTab>(AI_ANALYTICS_TAB.MODELS);
 
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
+  const effectiveProjectSlug = isDirectProjectTab ? projectSlug : (selectedProject || undefined);
+
   // Validated date query parameters (only send when complete YYYY-MM-DD)
   const queryStartDate = DATE_REGEX.test(startDate.trim()) ? startDate.trim() : undefined;
   const queryEndDate = DATE_REGEX.test(endDate.trim()) ? endDate.trim() : undefined;
 
-  const { data, isLoading, isError } = useQuery<AiTokenAnalyticsResponse>({
+  const { data, isPending, isLoading, isError } = useQuery<AiTokenAnalyticsResponse>({
     queryKey: [
       AI_ANALYTICS_QUERY_KEY,
       workspaceSlug,
-      projectSlug,
+      effectiveProjectSlug,
       queryStartDate,
       queryEndDate,
       selectedModel,
@@ -76,23 +169,30 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
     queryFn: () =>
       fetchAiTokenAnalytics({
         workspaceSlug,
-        projectSlug,
+        projectSlug: effectiveProjectSlug,
         startDate: queryStartDate,
         endDate: queryEndDate,
         model: selectedModel || undefined,
         provider: selectedProvider || undefined,
       }),
     staleTime: AI_ANALYTICS_STALE_TIME_MS,
-    placeholderData: (previousData) => previousData,
+    placeholderData: keepPreviousData,
   });
 
-  const isFiltered = Boolean(startDate || endDate || selectedModel || selectedProvider);
+  const isFiltered = Boolean(
+    startDate ||
+      endDate ||
+      selectedModel ||
+      selectedProvider ||
+      (!isDirectProjectTab && selectedProject)
+  );
 
   const activeFilterCount =
     (startDate ? 1 : 0) +
     (endDate ? 1 : 0) +
     (selectedModel ? 1 : 0) +
-    (selectedProvider ? 1 : 0);
+    (selectedProvider ? 1 : 0) +
+    (!isDirectProjectTab && selectedProject ? 1 : 0);
 
   const handleDatePreset = (days: number | null) => {
     if (days === null) {
@@ -108,11 +208,22 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
   };
 
   const handleResetFilters = () => {
+    if (!isDirectProjectTab) {
+      setSelectedProject('');
+    }
     setSelectedModel('');
     setSelectedProvider('');
     setStartDate('');
     setEndDate('');
   };
+
+  const projectOptions = useMemo(() => {
+    const list = data?.availableProjects || [];
+    return [
+      { value: '', label: FILTER_LABELS.ALL_PROJECTS },
+      ...list.map((p) => ({ value: p, label: p })),
+    ];
+  }, [data?.availableProjects]);
 
   const modelOptions = useMemo(() => {
     const list = data?.availableModels || [];
@@ -130,27 +241,27 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
     ];
   }, [data?.availableProviders]);
 
-  if (isLoading && !data) {
-    return (
-      <Panel className="home-panel ai-token-panel">
-        <div className="panel-head">
-          <h2>AI Token & Cost Analytics</h2>
-        </div>
-        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted)' }}>
-          Loading AI token analytics...
-        </div>
-      </Panel>
-    );
-  }
+  if (isPending || isLoading || !data) {
+    if (isError) {
+      return (
+        <Panel className="home-panel ai-token-panel">
+          <div className="panel-head">
+            <h2>AI Token & Cost Analytics</h2>
+          </div>
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--red)' }}>
+            Failed to load AI token analytics.
+          </div>
+        </Panel>
+      );
+    }
 
-  if (isError || !data) {
     return (
       <Panel className="home-panel ai-token-panel">
         <div className="panel-head">
           <h2>AI Token & Cost Analytics</h2>
         </div>
-        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--red)' }}>
-          Failed to load AI token analytics.
+        <div style={{ padding: '48px 32px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div className="global-loading-spinner" style={{ width: '36px', height: '36px' }} />
         </div>
       </Panel>
     );
@@ -177,20 +288,11 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
   }));
 
   return (
-    <Panel className="home-panel ai-token-panel" style={{ overflow: 'hidden' }}>
-      <div
-        className="panel-head"
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '8px',
-        }}
-      >
+    <Panel className="home-panel ai-token-panel">
+      <div className="panel-head ai-token-panel-head">
         <div>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span> AI Token Analytics & Costs</span>
+          <h2>
+            <span>AI Token Analytics & Costs</span>
             <Badge value={`${data.totalAiSessions} sessions`} tone="accent" />
             {isFiltered && (
               <Badge value={`${activeFilterCount} filter${activeFilterCount > 1 ? 's' : ''}`} tone="neutral" />
@@ -198,7 +300,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
           </h2>
         </div>
         {hasSessions && (
-          <div className="tab-buttons" style={{ display: 'flex', gap: '4px' }}>
+          <div className="tab-buttons">
             <button
               type="button"
               className={`tab-btn ${activeTab === AI_ANALYTICS_TAB.MODELS ? 'active' : ''}`}
@@ -219,20 +321,22 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
 
       {/* Filter Controls Bar */}
       {!showInitialEmptyState && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '10px',
-            alignItems: 'center',
-            padding: '10px 16px',
-            background: 'rgba(255, 255, 255, 0.02)',
-            borderBottom: '1px solid var(--border)',
-            fontSize: '12px',
-          }}
-        >
+        <div className="ai-token-filter-bar">
+          {/* Project Filter */}
+          {!isDirectProjectTab && (
+            <div className="ai-token-filter-item">
+              <Select
+                ariaLabel="Filter by Project"
+                className="page-head-select"
+                options={projectOptions}
+                value={selectedProject}
+                onChange={setSelectedProject}
+              />
+            </div>
+          )}
+
           {/* Model Filter */}
-          <div style={{ minWidth: '150px' }}>
+          <div className="ai-token-filter-item">
             <Select
               ariaLabel="Filter by Model"
               className="page-head-select"
@@ -243,7 +347,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
           </div>
 
           {/* Provider Filter */}
-          <div style={{ minWidth: '140px' }}>
+          <div className="ai-token-filter-item">
             <Select
               ariaLabel="Filter by Provider"
               className="page-head-select"
@@ -253,66 +357,33 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
             />
           </div>
 
-          {/* Date Filter Range */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <span style={{ color: 'var(--muted)', fontSize: '11px', fontWeight: 600 }}>Date:</span>
-            <input
-              type="text"
+          {/* Date Filter Range with Mask & Calendar */}
+          <div className="ai-token-date-range-group">
+            <span className="ai-token-date-label">Date:</span>
+            <DateFilterInput
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={setStartDate}
               placeholder={FILTER_LABELS.DATE_FROM_PLACEHOLDER}
               title="Start date (YYYY-MM-DD)"
-              aria-label="Start date (YYYY-MM-DD)"
-              maxLength={10}
-              style={{
-                width: '105px',
-                padding: '6px 8px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--card-bg, rgba(0, 0, 0, 0.2))',
-                color: 'var(--text)',
-                fontSize: '12px',
-                fontFamily: 'var(--mono, monospace)',
-              }}
+              ariaLabel="Start date (YYYY-MM-DD)"
             />
-            <span style={{ color: 'var(--muted)', fontSize: '11px' }}>to</span>
-            <input
-              type="text"
+            <span className="ai-token-date-to-label">to</span>
+            <DateFilterInput
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={setEndDate}
               placeholder={FILTER_LABELS.DATE_TO_PLACEHOLDER}
               title="End date (YYYY-MM-DD)"
-              aria-label="End date (YYYY-MM-DD)"
-              maxLength={10}
-              style={{
-                width: '105px',
-                padding: '6px 8px',
-                borderRadius: '6px',
-                border: '1px solid var(--border)',
-                background: 'var(--card-bg, rgba(0, 0, 0, 0.2))',
-                color: 'var(--text)',
-                fontSize: '12px',
-                fontFamily: 'var(--mono, monospace)',
-              }}
+              ariaLabel="End date (YYYY-MM-DD)"
             />
 
             {/* Quick Presets */}
-            <div style={{ display: 'flex', gap: '4px', marginLeft: '4px' }}>
+            <div className="ai-token-presets-group">
               {DATE_PRESETS.map((preset) => (
                 <button
                   key={preset.label}
                   type="button"
                   onClick={() => handleDatePreset(preset.days)}
-                  style={{
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    fontWeight: 600,
-                    border: '1px solid var(--border)',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    color: 'var(--muted)',
-                    cursor: 'pointer',
-                  }}
+                  className="icon-button secondary ai-token-preset-btn"
                 >
                   {preset.label}
                 </button>
@@ -325,17 +396,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
             <button
               type="button"
               onClick={handleResetFilters}
-              style={{
-                padding: '4px 10px',
-                borderRadius: '4px',
-                fontSize: '11px',
-                fontWeight: 600,
-                border: '1px solid var(--border)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: 'var(--red, #ef4444)',
-                cursor: 'pointer',
-                marginLeft: 'auto',
-              }}
+              className="icon-button secondary ai-token-reset-btn"
             >
               {FILTER_LABELS.RESET_FILTERS}
             </button>
@@ -355,95 +416,64 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
           <button
             type="button"
             onClick={handleResetFilters}
-            className="btn btn-secondary"
-            style={{ fontSize: '12px', padding: '6px 14px' }}
+            className="icon-button secondary"
+            style={{ fontSize: '12px', padding: '6px 14px', minHeight: '32px' }}
           >
             {FILTER_LABELS.RESET_FILTERS}
           </button>
         </div>
       ) : (
-        <div style={{ padding: '16px' }}>
+        <div className="ai-token-content">
           {/* KPI Summary Cards */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-              gap: '12px',
-              marginBottom: '20px',
-            }}
-          >
-            <div
-              style={{
-                background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '12px 14px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <div className="ai-token-kpis">
+            <div className="ai-token-kpi-card">
+              <div className="ai-token-kpi-title">
                 Est. Total Cost
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--emerald, #10b981)', marginTop: '4px' }}>
+              <div className="ai-token-kpi-val cost">
                 ${data.totalEstimatedCostUsd.toFixed(4)}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+              <div className="ai-token-kpi-sub">
                 USD (live dynamic pricing)
               </div>
             </div>
 
-            <div
-              style={{
-                background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '12px 14px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div className="ai-token-kpi-card">
+              <div className="ai-token-kpi-title">
                 Total Tokens
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>
+              <div className="ai-token-kpi-val">
                 {formatTokens(data.totalTokens)}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+              <div className="ai-token-kpi-sub">
                 {formatTokens(data.totalInputTokens)} in / {formatTokens(data.totalOutputTokens)} out
               </div>
             </div>
 
-            <div
-              style={{
-                background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '12px 14px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div className="ai-token-kpi-card">
+              <div className="ai-token-kpi-title">
                 AI Sessions
               </div>
-              <div style={{ fontSize: '20px', fontWeight: 700, marginTop: '4px' }}>
+              <div className="ai-token-kpi-val">
                 {data.totalAiSessions}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+              <div className="ai-token-kpi-sub">
                 Matching sessions
               </div>
             </div>
 
-            <div
-              style={{
-                background: 'var(--card-bg, rgba(255, 255, 255, 0.03))',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                padding: '12px 14px',
-              }}
-            >
-              <div style={{ fontSize: '11px', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <div className="ai-token-kpi-card">
+              <div className="ai-token-kpi-title">
                 Top Model
               </div>
-              <div style={{ fontSize: '15px', fontWeight: 700, marginTop: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={data.topModel}>
+              <div
+                className="ai-token-kpi-val"
+                style={{ fontSize: '15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                title={data.topModel}
+              >
                 {data.topModel}
               </div>
-              <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+              <div className="ai-token-kpi-sub">
                 {data.byModel[0]?.percentage || 0}% of filtered tokens{data.byModel[0] ? ` • (${formatCostComparison(data.byModel[0].estimatedCostUsd, data.byModel[0].totalTokens, data.byModel[0].rates)})` : ''}
               </div>
             </div>
@@ -451,9 +481,9 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
 
           {/* Main Visual: Model Share or Daily Trend */}
           {activeTab === AI_ANALYTICS_TAB.MODELS ? (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', alignItems: 'center' }}>
+            <div className="ai-token-model-share-layout">
               {/* Donut Chart */}
-              <div style={{ width: '100%', height: '220px', position: 'relative' }}>
+              <div className="ai-token-chart-container">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -487,26 +517,15 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
               </div>
 
               {/* Breakdown List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div className="ai-token-model-list">
                 {data.byModel.map((modelItem, idx) => {
                   const color = MODEL_PALETTE[idx % MODEL_PALETTE.length];
                   const comparisonFormatted = formatCostComparison(modelItem.estimatedCostUsd, modelItem.totalTokens, modelItem.rates);
                   return (
-                    <div
-                      key={modelItem.model}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '6px 10px',
-                        background: 'rgba(255, 255, 255, 0.02)',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <div key={modelItem.model} className="ai-token-model-row">
+                      <div className="ai-token-model-left">
                         <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
-                        <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={modelItem.model}>
                           {modelItem.model}
                         </span>
                         {comparisonFormatted && (
@@ -514,11 +533,11 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
                             ({comparisonFormatted})
                           </span>
                         )}
-                        <span style={{ color: 'var(--muted)', fontSize: '11px' }}>
+                        <span style={{ color: 'var(--muted)', fontSize: '11px', whiteSpace: 'nowrap' }}>
                           ({modelItem.sessionCount} sess)
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                      <div className="ai-token-model-right">
                         <span style={{ fontWeight: 600, color: 'var(--accent, #a78bfa)' }}>
                           {modelItem.percentage}%
                         </span>
@@ -536,31 +555,57 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
             </div>
           ) : (
             /* Daily Trend Area Chart */
-            <div style={{ width: '100%', height: '220px' }}>
+            <div style={{ width: '100%', height: '220px', minWidth: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                <AreaChart data={trendData} margin={{ left: 0, right: 8, top: 12, bottom: 0 }}>
                   <CartesianGrid stroke="var(--chart-grid, rgba(255,255,255,0.05))" vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis, #9ca3af)" fontSize={12} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis, #9ca3af)" fontSize={11} minTickGap={16} />
                   <YAxis
                     allowDecimals={false}
                     tickLine={false}
                     axisLine={false}
                     stroke="var(--chart-axis, #9ca3af)"
-                    fontSize={12}
-                    width={40}
-                    tickFormatter={(v) => formatTokens(v)}
+                    fontSize={10}
+                    width={44}
+                    domain={[0, 'auto']}
+                    tickFormatter={(v) => formatTokens(Number(v) || 0)}
                   />
                   <Tooltip
-                    contentStyle={{
-                      background: 'var(--chart-tooltip-bg, #1f2937)',
-                      border: '1px solid var(--chart-tooltip-border, rgba(255,255,255,0.1))',
-                      borderRadius: 8,
-                      color: 'var(--chart-tooltip-text, #fff)',
+                    content={({ active, payload }) => {
+                      if (!active || !payload || !payload.length) return null;
+                      const item = payload[0]?.payload as (typeof trendData)[number] | undefined;
+                      if (!item) return null;
+                      return (
+                        <div
+                          style={{
+                            background: 'var(--chart-tooltip-bg, #1f2937)',
+                            border: '1px solid var(--chart-tooltip-border, rgba(255,255,255,0.1))',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            color: 'var(--chart-tooltip-text, #fff)',
+                            fontSize: '12px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, marginBottom: '6px', color: 'var(--muted)' }}>
+                            {item.date}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6', display: 'inline-block' }} />
+                            <span>Tokens: <strong>{Number(item.tokens).toLocaleString()}</strong></span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                            <span>Est. Cost: <strong>${Number(item.cost).toFixed(4)}</strong></span>
+                          </div>
+                          {typeof item.sessionCount === 'number' && (
+                            <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
+                              {item.sessionCount} session{item.sessionCount !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
+                      );
                     }}
-                    formatter={(val: unknown, name: unknown) => [
-                      name === 'tokens' ? `${Number(val).toLocaleString()} tokens` : `$${Number(val).toFixed(4)}`,
-                      name === 'tokens' ? 'Tokens' : 'Est. Cost',
-                    ]}
                   />
                   <Area
                     type="monotone"

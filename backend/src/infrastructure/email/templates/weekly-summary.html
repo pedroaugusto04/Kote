@@ -10,6 +10,14 @@
         {{/notes}}
       </ul>
     {{/projects}}
+    {{#if criticalDependencyUpdates.length}}
+      <h4>Dependency Updates (Critical)</h4>
+      <ul>
+        {{#each criticalDependencyUpdates}}
+          <li><strong>{{packageName}}</strong>: {{currentVersion}} &rarr; {{latestVersion}}{{#if projectName}} (<em>{{projectName}}</em>){{/if}}</li>
+        {{/each}}
+      </ul>
+    {{/if}}
     <p>Thanks,<br/>The {{appName}} team</p>
   </body>
 </html>

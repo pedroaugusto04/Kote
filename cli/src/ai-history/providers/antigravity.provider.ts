@@ -5,8 +5,8 @@ import path from 'node:path';
 import { loadConfig } from '../../config.js';
 import { resolveProjectSlugFromDir } from '../../utils/project-detector.js';
 import { AI_PROVIDER, AI_PROVIDER_NAME, AI_ROLE, AI_SESSION_PATH, ANTIGRAVITY_LOG_FILES } from '../constants.js';
-import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn, AiTokenUsage } from '../types.js';
-import { calculateSessionCostWithRateSync } from '../pricing.js';
+import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types.js';
+import { calculateTokenUsageCost } from '../token-accounting.js';
 import { asRecord, buildSessionTitle, keepFinalAssistantTurns, readJsonLines, safeMtime } from './provider.utils.js';
 
 const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
@@ -120,28 +120,214 @@ function findLogFile(sessionDir: string): string | null {
   return candidates[0].filePath;
 }
 
-function extractAntigravityModel(content: string): string {
-  const settingsBlocks = [...content.matchAll(/<USER_SETTINGS_CHANGE>([\s\S]*?)<\/USER_SETTINGS_CHANGE>/gi)];
-  for (let i = settingsBlocks.length - 1; i >= 0; i--) {
-    const block = settingsBlocks[i][1];
-    const match =
-      block.match(/`Model Selection`\s+from\s+.*?\s+to\s+(.*?)(?:\.\s+No need|\.\s*$|\.\s*\n)/i) ||
-      block.match(/`Model Selection`\s+from\s+.*?\s+to\s+([^\n]+)/i);
-    if (match?.[1]) {
-      let candidate = match[1].trim();
-      candidate = candidate.replace(/\.\s*No need.*$/i, '').replace(/\.$/, '').trim();
-      if (candidate && candidate.toLowerCase() !== 'none') {
-        return candidate;
+interface AntigravityModelTransition {
+  from?: string;
+  to: string;
+}
+
+function parseModelChanges(text: string): AntigravityModelTransition[] {
+  const transitions: AntigravityModelTransition[] = [];
+  const settingsBlocks = [...text.matchAll(/<USER_SETTINGS_CHANGE>([\s\S]*?)<\/USER_SETTINGS_CHANGE>/gi)];
+  for (const block of settingsBlocks) {
+    const inner = block[1];
+    const clean = (val: string | undefined): string | undefined => {
+      if (!val) return undefined;
+      const v = val.trim().replace(/\.\s*No need.*$/i, '').replace(/\.$/, '').trim();
+      return v.toLowerCase() === 'none' || !v ? undefined : v;
+    };
+
+    const matchDetailed = inner.match(/`Model Selection`\s+from\s+(.*?)\s+to\s+(.*?)(?:\.\s+No need|\.\s*$|\.\s*\n|$)/i);
+    if (matchDetailed) {
+      const from = clean(matchDetailed[1]);
+      const to = clean(matchDetailed[2]);
+      if (to) {
+        transitions.push({ from, to });
+        continue;
       }
+    }
+
+    const matchTo = inner.match(/`Model Selection`\s+from\s+.*?\s+to\s+([^\n.]+)/i) || inner.match(/model:\s*([^\n<]+)/i);
+    if (matchTo) {
+      const to = clean(matchTo[1]);
+      if (to) {
+        transitions.push({ to });
+      }
+    }
+  }
+  return transitions;
+}
+
+function extractAntigravityModel(content: string): string {
+  const changes = parseModelChanges(content);
+  for (let i = changes.length - 1; i >= 0; i--) {
+    if (changes[i].to) {
+      return changes[i].to;
     }
   }
   return 'Gemini 3.8 Flash (High)';
 }
 
-function extractAntigravityTokenUsage(sessionDir: string, content: string): AiTokenUsage | undefined {
-  const model = extractAntigravityModel(content);
+function calculateAntigravityModelWeights(
+  records: unknown[],
+  content: string,
+  fallbackModel: string,
+): Map<string, number> {
+  const modelWeights = new Map<string, number>();
+
+  if (Array.isArray(records) && records.length > 0) {
+    const transitionPoints: Array<{ index: number; from?: string; to: string }> = [];
+
+    for (let i = 0; i < records.length; i++) {
+      const rec = asRecord(records[i]);
+      if (!rec) continue;
+      const text = typeof rec.content === 'string' ? rec.content : '';
+      if (text.includes('<USER_SETTINGS_CHANGE>')) {
+        const changes = parseModelChanges(text);
+        for (const change of changes) {
+          transitionPoints.push({ index: i, ...change });
+        }
+      }
+    }
+
+    let activeModel = fallbackModel;
+    if (transitionPoints.length > 0) {
+      if (transitionPoints[0].index === 0) {
+        activeModel = transitionPoints[0].to;
+      } else if (transitionPoints[0].from) {
+        activeModel = transitionPoints[0].from;
+      }
+    }
+
+    let nextTransitionIdx = 0;
+    for (let i = 0; i < records.length; i++) {
+      while (nextTransitionIdx < transitionPoints.length && transitionPoints[nextTransitionIdx].index <= i) {
+        activeModel = transitionPoints[nextTransitionIdx].to;
+        nextTransitionIdx++;
+      }
+
+      const rec = asRecord(records[i]);
+      let weight = 1;
+      if (rec) {
+        const textLen = typeof rec.content === 'string' ? rec.content.length : 0;
+        const thinkingLen = typeof rec.thinking === 'string' ? rec.thinking.length : 0;
+        weight = Math.max(1, textLen + thinkingLen);
+      }
+
+      modelWeights.set(activeModel, (modelWeights.get(activeModel) || 0) + weight);
+    }
+  }
+
+  if (modelWeights.size === 0) {
+    const changes = parseModelChanges(content);
+    if (changes.length > 0) {
+      const models = new Set<string>();
+      for (const c of changes) {
+        if (c.from) models.add(c.from);
+        models.add(c.to);
+      }
+      for (const m of models) {
+        modelWeights.set(m, 1);
+      }
+    } else {
+      modelWeights.set(fallbackModel, 1);
+    }
+  }
+
+  return modelWeights;
+}
+
+function allocateTokensByWeight(
+  modelWeights: Map<string, number>,
+  totalInputTokens: number,
+  totalOutputTokens: number,
+  totalCachedTokens: number,
+): Array<{
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedTokens?: number;
+}> {
+  const totalWeight = Array.from(modelWeights.values()).reduce((sum, w) => sum + w, 0);
+  if (totalWeight <= 0) {
+    const firstModel = modelWeights.keys().next().value || 'Gemini 3.8 Flash (High)';
+    return [{
+      model: firstModel,
+      inputTokens: totalInputTokens,
+      outputTokens: totalOutputTokens,
+      totalTokens: totalInputTokens + totalOutputTokens,
+      cachedTokens: totalCachedTokens > 0 ? totalCachedTokens : undefined,
+    }];
+  }
+
+  const results: Array<{
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    cachedTokens?: number;
+    weight: number;
+  }> = [];
+
+  let allocatedInput = 0;
+  let allocatedOutput = 0;
+  let allocatedCached = 0;
+
+  const entries = Array.from(modelWeights.entries());
+  for (let i = 0; i < entries.length; i++) {
+    const [model, weight] = entries[i];
+    const ratio = weight / totalWeight;
+
+    const inputTokens = Math.round(totalInputTokens * ratio);
+    const outputTokens = Math.round(totalOutputTokens * ratio);
+    const cachedTokens = totalCachedTokens > 0 ? Math.round(totalCachedTokens * ratio) : 0;
+
+    allocatedInput += inputTokens;
+    allocatedOutput += outputTokens;
+    allocatedCached += cachedTokens;
+
+    results.push({
+      model,
+      inputTokens,
+      outputTokens,
+      totalTokens: inputTokens + outputTokens,
+      cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
+      weight,
+    });
+  }
+
+  results.sort((a, b) => b.weight - a.weight);
+  const diffInput = totalInputTokens - allocatedInput;
+  const diffOutput = totalOutputTokens - allocatedOutput;
+  const diffCached = totalCachedTokens - allocatedCached;
+
+  if (results.length > 0) {
+    results[0].inputTokens += diffInput;
+    results[0].outputTokens += diffOutput;
+    results[0].totalTokens = results[0].inputTokens + results[0].outputTokens;
+    if (totalCachedTokens > 0) {
+      results[0].cachedTokens = Math.max(0, (results[0].cachedTokens || 0) + diffCached) || undefined;
+    }
+  }
+
+  return results.map(({ model, inputTokens, outputTokens, totalTokens, cachedTokens }) => ({
+    model,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    cachedTokens,
+  }));
+}
+
+function extractAntigravityTokenUsage(
+  sessionDir: string,
+  content: string,
+  records: unknown[] = [],
+): AiTokenUsage | undefined {
+  let fallbackModel = extractAntigravityModel(content);
   let inputTokens = 0;
   let outputTokens = 0;
+  let cachedTokens = 0;
 
   const candidateFiles = [
     path.join(sessionDir, 'token_usage.json'),
@@ -157,9 +343,16 @@ function extractAntigravityTokenUsage(sessionDir: string, content: string): AiTo
         const data = JSON.parse(fs.readFileSync(candidate, 'utf8'));
         const inTok = Number(data.context_window?.total_input_tokens ?? data.inputTokens ?? data.input_tokens);
         const outTok = Number(data.context_window?.total_output_tokens ?? data.outputTokens ?? data.output_tokens);
+        const cacheTok = Number(data.context_window?.current_usage?.cache_read_input_tokens ?? data.cachedTokens ?? data.cached_tokens);
+        const statusModel = typeof data.model === 'object' && data.model?.display_name ? String(data.model.display_name) : (typeof data.model?.id === 'string' ? String(data.model.id) : undefined);
+
         if (inTok > 0 || outTok > 0) {
           inputTokens = inTok;
           outputTokens = outTok;
+          if (cacheTok > 0) cachedTokens = cacheTok;
+          if (statusModel && statusModel.toLowerCase() !== 'none') {
+            fallbackModel = statusModel;
+          }
           break;
         }
       }
@@ -169,21 +362,50 @@ function extractAntigravityTokenUsage(sessionDir: string, content: string): AiTo
   if (inputTokens === 0 && outputTokens === 0) return undefined;
 
   const totalTokens = inputTokens + outputTokens;
-  const costResult = calculateSessionCostWithRateSync({
-    provider: 'gemini',
-    model,
-    inputTokens,
-    outputTokens,
-  });
+  const modelWeights = calculateAntigravityModelWeights(records, content, fallbackModel);
+  const allocated = allocateTokensByWeight(modelWeights, inputTokens, outputTokens, cachedTokens);
+
+  const byModel: ModelUsageDetail[] = [];
+  let totalEstimatedCost = 0;
+
+  for (const item of allocated) {
+    const costResult = calculateTokenUsageCost({
+      provider: 'gemini',
+      model: item.model,
+      usage: {
+        inputTokens: item.inputTokens,
+        outputTokens: item.outputTokens,
+        cachedTokens: item.cachedTokens,
+      },
+    });
+
+    totalEstimatedCost += costResult.cost;
+
+    byModel.push({
+      model: item.model,
+      provider: AI_PROVIDER.ANTIGRAVITY,
+      inputTokens: item.inputTokens,
+      outputTokens: item.outputTokens,
+      totalTokens: item.totalTokens,
+      cachedTokens: item.cachedTokens,
+      estimatedCostUsd: costResult.cost,
+      rates: costResult.rates,
+    });
+  }
+
+  byModel.sort((a, b) => b.totalTokens - a.totalTokens);
+  const primary = byModel[0];
 
   return {
     provider: AI_PROVIDER.ANTIGRAVITY,
-    model,
+    model: primary?.model || fallbackModel,
     inputTokens,
     outputTokens,
     totalTokens,
-    estimatedCostUsd: costResult.cost,
-    rates: costResult.rates,
+    cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
+    estimatedCostUsd: Number(totalEstimatedCost.toFixed(6)),
+    rates: primary?.rates,
+    byModel: byModel.length > 0 ? byModel : undefined,
   };
 }
 
@@ -193,11 +415,12 @@ function parseSession(sessionDir: string, sessionId: string): AiSession | null {
 
   try {
     const content = fs.readFileSync(logFile, 'utf8');
-    const turns = parseTurns(readJsonLines(content));
+    const records = readJsonLines(content);
+    const turns = parseTurns(records);
     if (turns.length === 0) return null;
 
     const workspace = extractWorkspace(content);
-    const tokenUsage = extractAntigravityTokenUsage(sessionDir, content);
+    const tokenUsage = extractAntigravityTokenUsage(sessionDir, content, records);
 
     return {
       providerId: AI_PROVIDER.ANTIGRAVITY,

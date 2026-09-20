@@ -6,9 +6,10 @@ import { Badge, EmptyState, PageHead, Panel, Tags } from '../../shared/ui/primit
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { OnboardingChecklist } from '../../features/onboarding/OnboardingChecklist';
 import { AttachmentIndicator } from '../../widgets/notes/AttachmentIndicator';
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect, useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchAllProjectsTimeline, fetchGithubBackfillStatus, fetchProjectTimeline, fetchProductivityInsights } from '../../shared/api/client';
+import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Select } from '../../shared/ui/select';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
@@ -20,6 +21,7 @@ import { ProjectCoverageBadge } from '../../features/projects/components/Project
 import { AiTokenAnalyticsPanel } from '../../widgets/dashboard/AiTokenAnalyticsPanel';
 
 export function HomePage({ dashboard, openNote, openProject, createNote, onNoteModalClose, setOnNoteModalClose }: PageContext) {
+  const queryClient = useQueryClient();
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
   const workspaceSlug = activeWorkspace?.workspaceSlug || '';
@@ -80,101 +82,94 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
     staleTime: 60_000,
   });
 
-  const pInsights = productivityQuery.data;
+  // Keep date-derived insights fresh whenever this component renders on a new day.
+  const insightsCalendarDay = new Date().toDateString();
+  const { currentStreak, weeklyAiData, hourlyCounts, totalAiInteractions } = useMemo(() => {
+    const pInsights = productivityQuery.data;
+    const formatDateStr = (dt: Date) =>
+      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    const addDays = (dateStr: string, days: number): string => {
+      const d = new Date(`${dateStr}T12:00:00`);
+      d.setDate(d.getDate() + days);
+      return formatDateStr(d);
+    };
+    const getOffsetDateStr = (daysOffset: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + daysOffset);
+      return formatDateStr(d);
+    };
+    const nowDt = new Date();
+    const todayStr = formatDateStr(nowDt);
+    const yesterdayStr = formatDateStr(new Date(nowDt.getTime() - 24 * 60 * 60 * 1000));
+    let currentStreak = 0;
+    const weeklyAiData: { label: string; sessions: number }[] = [];
+    let hourlyCounts: { hour: number; label: string; Activity: number }[] = [];
+    let totalAiInteractions = 0;
 
-  // Helpers for timezone mapping
-  const formatDateStr = (dt: Date) =>
-    `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    if (pInsights) {
+      const activities = pInsights.activities || [];
+      const activeDays = new Set<string>();
+      const weeklyRanges = Array.from({ length: 4 }, (_, index) => {
+        const i = 3 - index;
+        const startStr = getOffsetDateStr(-i * 7 - 6);
+        const endStr = getOffsetDateStr(-i * 7);
+        return { startStr, endStr, sessions: 0 };
+      });
+      const thirtyDaysAgoStr = getOffsetDateStr(-30);
 
-  const addDays = (dateStr: string, days: number): string => {
-    const d = new Date(`${dateStr}T12:00:00`); // Parse mid-day to avoid DST edge-cases
-    d.setDate(d.getDate() + days);
-    return formatDateStr(d);
-  };
+      hourlyCounts = Array.from({ length: 24 }, (_, hour) => ({
+        hour,
+        label: `${String(hour).padStart(2, '0')}:00`,
+        Activity: 0,
+      }));
 
-  const getOffsetDateStr = (daysOffset: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + daysOffset);
-    return formatDateStr(d);
-  };
+      // Parse each timestamp once. The previous implementation parsed every
+      // activity once per chart, even though all charts use the same day/hour.
+      for (const activity of activities) {
+        const date = new Date(activity.createdAt);
+        const dayStr = formatDateStr(date);
+        activeDays.add(dayStr);
 
-  const nowDt = new Date();
-  const todayStr = formatDateStr(nowDt);
-  const yesterdayStr = formatDateStr(new Date(nowDt.getTime() - 24 * 60 * 60 * 1000));
+        if (activity.isAi) {
+          totalAiInteractions++;
+          for (const range of weeklyRanges) {
+            if (dayStr >= range.startStr && dayStr <= range.endStr) range.sessions++;
+          }
+        }
 
-  let currentStreak = 0;
-  let weeklyAiData: { label: string; sessions: number }[] = [];
-  let hourlyCounts: { hour: number; label: string; Activity: number }[] = [];
-  let totalAiInteractions = 0;
-
-  if (pInsights) {
-    const activities = pInsights.activities || [];
-    totalAiInteractions = activities.filter((a) => a.isAi).length;
-
-    // 1. Calculate active usage streak
-    const activeDays = new Set(
-      activities.map((a) => {
-        const d = new Date(a.createdAt);
-        return formatDateStr(d);
-      })
-    );
-
-    let startCheckingFrom: string | null = null;
-    if (activeDays.has(todayStr)) {
-      startCheckingFrom = todayStr;
-    } else if (activeDays.has(yesterdayStr)) {
-      startCheckingFrom = yesterdayStr;
-    }
-
-    if (startCheckingFrom) {
-      let currentCheckStr = startCheckingFrom;
-      while (activeDays.has(currentCheckStr)) {
-        currentStreak++;
-        currentCheckStr = addDays(currentCheckStr, -1);
+        if (dayStr >= thirtyDaysAgoStr) {
+          hourlyCounts[date.getHours()].Activity++;
+        }
       }
-    }
 
-    // 2. Weekly AI Sessions (last 4 weeks)
-    for (let i = 3; i >= 0; i--) {
-      const startOffset = -i * 7 - 6;
-      const endOffset = -i * 7;
-      const startStr = getOffsetDateStr(startOffset);
-      const endStr = getOffsetDateStr(endOffset);
+      let startCheckingFrom: string | null = null;
+      if (activeDays.has(todayStr)) {
+        startCheckingFrom = todayStr;
+      } else if (activeDays.has(yesterdayStr)) {
+        startCheckingFrom = yesterdayStr;
+      }
 
-      const count = activities.filter((a) => {
-        const d = new Date(a.createdAt);
-        const dayStr = formatDateStr(d);
-        return a.isAi && dayStr >= startStr && dayStr <= endStr;
-      }).length;
+      if (startCheckingFrom) {
+        let currentCheckStr = startCheckingFrom;
+        while (activeDays.has(currentCheckStr)) {
+          currentStreak++;
+          currentCheckStr = addDays(currentCheckStr, -1);
+        }
+      }
 
+      // 2. Weekly AI Sessions (last 4 weeks)
       const formatShortDate = (str: string) => {
         const [, m, d] = str.split('-');
         return `${d}/${m}`;
       };
-
-      weeklyAiData.push({
-        label: `${formatShortDate(startStr)} to ${formatShortDate(endStr)}`,
-        sessions: count,
-      });
-    }
-
-    // 3. Hourly Activity (last 30 days)
-    hourlyCounts = Array.from({ length: 24 }, (_, hour) => ({
-      hour,
-      label: `${String(hour).padStart(2, '0')}:00`,
-      Activity: 0,
-    }));
-
-    const thirtyDaysAgoStr = getOffsetDateStr(-30);
-    activities.forEach((a) => {
-      const d = new Date(a.createdAt);
-      const dayStr = formatDateStr(d);
-      if (dayStr >= thirtyDaysAgoStr) {
-        const hour = d.getHours();
-        hourlyCounts[hour].Activity += 1;
+      weeklyAiData.push(...weeklyRanges.map((range) => ({
+        label: `${formatShortDate(range.startStr)} to ${formatShortDate(range.endStr)}`,
+        sessions: range.sessions,
+      })));
       }
-    });
-  }
+
+    return { currentStreak, weeklyAiData, hourlyCounts, totalAiInteractions };
+  }, [insightsCalendarDay, productivityQuery.data]);
 
   const timelineQuery = useQuery({
     queryKey: ['home-project-timeline', selectedTimelineProject],
@@ -322,7 +317,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
           ))}
 
           {/* New Streak KPI Card */}
-          {pInsights && (
+          {productivityQuery.data && (
             <article className="home-kpi insights-kpi-card" key="streak-kpi">
               <div className="home-kpi-head">
                 <span className="card-kicker">Usage Streak</span>
@@ -335,7 +330,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
           )}
 
           {/* New AI Interactions KPI Card */}
-          {pInsights && (
+          {productivityQuery.data && (
             <article className="home-kpi insights-kpi-card" key="ai-kpi">
               <div className="home-kpi-head">
                 <span className="card-kicker">AI Interactions</span>
@@ -357,7 +352,16 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
             {home.priorities.length ? (
               <div className="list">
                 {home.priorities.slice(0, 5).map((priority) => (
-                  <article className="list-row clickable home-priority-row" key={priority.id} onClick={() => openTarget(priority.target)}>
+                  <article
+                    className="list-row clickable home-priority-row"
+                    key={priority.id}
+                    onClick={() => openTarget(priority.target)}
+                    onMouseEnter={() => {
+                      if (priority.target.kind !== 'project' && priority.target.id) {
+                        void queryClient.prefetchQuery(noteDetailQueryOptions(priority.target.id));
+                      }
+                    }}
+                  >
                     <div className="list-row-body">
                       <div className="meta-row">
                         <Badge value={formatDisplayToken(priorityLabel(priority))} tone={priorityTone(priority)} />
@@ -385,7 +389,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
                 >
                   Notes (7d)
                 </button>
-                {pInsights && (
+                {productivityQuery.data && (
                   <>
                     <button
                       type="button"
@@ -477,7 +481,16 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
                   const activeSource = item.source || item.sourceChannel;
                   const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
                   return (
-                    <article className="home-timeline-item clickable" key={item.id} onClick={() => openNote(item.noteId)}>
+                    <article
+                      className="home-timeline-item clickable"
+                      key={item.id}
+                      onClick={() => openNote(item.noteId)}
+                      onMouseEnter={() => {
+                        if (item.noteId) {
+                          void queryClient.prefetchQuery(noteDetailQueryOptions(item.noteId));
+                        }
+                      }}
+                    >
                       <div
                         className="home-timeline-dot"
                         style={{
@@ -543,7 +556,11 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
                 return (
                   <div className="home-project-link" key={project.project} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <ProjectCoverageBadge projectSlug={project.project} projectDisplayName={project.label} />
+                      <ProjectCoverageBadge
+                        projectSlug={project.project}
+                        projectDisplayName={project.label}
+                        coveragePercentage={dashboard.projects.find((item) => item.projectSlug === project.project)?.coveragePercentage}
+                      />
                       <span
                         style={{ cursor: 'pointer', fontWeight: 500 }}
                         role="button"
@@ -566,7 +583,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
       </section>
         ) : (
           <section aria-label="AI Token Analytics">
-            <AiTokenAnalyticsPanel workspaceSlug={workspaceSlug} />
+            <AiTokenAnalyticsPanel workspaceSlug={workspaceSlug || undefined} />
           </section>
         )}
       </div>

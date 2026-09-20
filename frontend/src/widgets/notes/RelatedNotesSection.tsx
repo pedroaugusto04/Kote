@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchRelatedNotes } from '../../shared/api/client';
+import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { Badge } from '../../shared/ui/primitives';
 import { noteTypeLabel, getCleanSummary, formatDateInUserTimeZone, formatTimeInUserTimeZone } from '../../shared/utils/format';
 import { SourceBadge } from './SourceBadge';
@@ -11,6 +12,7 @@ type RelatedNotesSectionProps = {
 };
 
 export function RelatedNotesSection({ noteId, openNote }: RelatedNotesSectionProps) {
+  const queryClient = useQueryClient();
   const { data: relatedNotes, isLoading, isError } = useQuery({
     queryKey: ['notes', 'related', noteId],
     queryFn: () => fetchRelatedNotes(noteId),
@@ -36,6 +38,9 @@ export function RelatedNotesSection({ noteId, openNote }: RelatedNotesSectionPro
               key={note.id}
               className="related-note-card clickable"
               onClick={() => openNote(note.id)}
+              onMouseEnter={() => {
+                void queryClient.prefetchQuery(noteDetailQueryOptions(note.id));
+              }}
             >
               <div className="related-note-card-meta">
                 <Badge value={noteTypeLabel(note.type)} tone={note.type} />

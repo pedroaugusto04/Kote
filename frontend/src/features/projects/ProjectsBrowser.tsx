@@ -97,7 +97,7 @@ export function ProjectsBrowser({
           <div className="project-title-row">
             <h2>{project.displayName}</h2>
             {project.projectSlug && (
-              <ProjectCoverageBadge projectSlug={project.projectSlug} projectDisplayName={project.displayName} />
+              <ProjectCoverageBadge projectSlug={project.projectSlug} projectDisplayName={project.displayName} coveragePercentage={project.coveragePercentage} />
             )}
             <div className="project-title-actions" aria-label="Project actions">
               {onEditProject ? (

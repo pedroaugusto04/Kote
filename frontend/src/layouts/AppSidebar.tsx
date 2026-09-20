@@ -137,6 +137,7 @@ export function AppSidebar({
                   <ProjectCoverageBadge
                     projectSlug={project.projectSlug}
                     projectDisplayName={project.displayName}
+                    coveragePercentage={project.coveragePercentage}
                     onlyCircle
                   />
                   <button

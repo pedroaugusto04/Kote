@@ -102,8 +102,8 @@ export class WeeklySummaryService {
       return { sent: false, reason: 'user_review_ai_inactive', totalNotes };
     }
 
-    // Get dependency counts
-    const dependencyCounts = await this.weeklySummaryRepo.getDependencyCountsByProject(user.id);
+    // Get critical dependency updates
+    const criticalDependencyUpdates = await this.weeklySummaryRepo.getCriticalDependencyUpdates(user.id);
 
     // Prepare payload for AI generation
     const aiPayload = {
@@ -131,7 +131,7 @@ export class WeeklySummaryService {
     );
 
     const subject = WeeklySummaryEmailMapper.toSubject(appName, totalNotes);
-    const text = WeeklySummaryEmailMapper.toTextContent(user.displayName, appName, aiSummary);
+    const text = WeeklySummaryEmailMapper.toTextContent(user.displayName, appName, aiSummary, criticalDependencyUpdates);
 
     await this.emailService.sendEmail({
       to: user.email,
@@ -142,7 +142,7 @@ export class WeeklySummaryService {
         displayName: user.displayName || '',
         appName,
         aiSummary,
-        dependencyCounts,
+        criticalDependencyUpdates,
       },
     });
 

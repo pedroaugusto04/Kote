@@ -46,4 +46,5 @@ export interface AiTokenAnalyticsResponse {
   dailyTrend: DailyTokenPoint[];
   availableModels: string[];
   availableProviders: string[];
+  availableProjects?: string[];
 }

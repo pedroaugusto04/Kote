@@ -897,36 +897,54 @@
 
 /* AI Conversation turn styling */
 .ai-conversation {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   min-width: 0;
   max-width: 100%;
 }
 
 .ai-conversation-turn {
-  padding: 12px 14px;
-  border-radius: 8px;
-  border-left: 3px solid transparent;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px;
+  border-radius: 10px;
+  border: 1px solid var(--line-soft);
   min-width: 0;
   max-width: 100%;
+  box-sizing: border-box;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.ai-conversation-turn:hover {
+  border-color: var(--border-hover);
 }
 
 .ai-conversation-turn--user {
-  border-left-color: var(--muted);
-  background: var(--surface-3);
+  width: 100%;
+  border-left: 3px solid var(--muted);
+  background: var(--surface-2);
 }
 
 .ai-conversation-turn--assistant {
-  border-left-color: var(--accent);
-  background: var(--surface-4);
+  width: 100%;
+  border-left: 3px solid var(--accent);
+  background: var(--surface-1);
 }
 
 .ai-conversation-role {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
   min-width: 0;
+}
+
+.ai-conversation-role-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .ai-conversation-role-icon {
@@ -936,10 +954,17 @@
 
 .ai-conversation-role-label {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.ai-conversation-turn-index {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--faint);
+  margin-left: 2px;
 }
 
 .ai-conversation-turn--user .ai-conversation-role-label {
@@ -950,6 +975,39 @@
   color: var(--accent);
 }
 
+.ai-conversation-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 7px;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: all 140ms ease;
+}
+
+.ai-conversation-turn:hover .ai-conversation-copy-btn,
+.ai-conversation-copy-btn:focus-visible {
+  opacity: 1;
+}
+
+.ai-conversation-copy-btn:hover {
+  opacity: 1;
+  background: var(--surface-hover);
+  border-color: var(--line-soft);
+  color: var(--text);
+}
+
+.ai-conversation-copy-btn.copied {
+  color: var(--green);
+  opacity: 1;
+}
+
 .ai-conversation-content {
   min-width: 0;
   max-width: 100%;
@@ -958,7 +1016,13 @@
 }
 
 .ai-conversation-content .markdown {
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.72;
+}
+
+.ai-conversation-turn--user .ai-conversation-content .markdown {
+  font-size: 14.5px;
+  color: var(--text-soft);
 }
 
 @media (max-width: 768px) {
@@ -976,6 +1040,10 @@
   .note-reader {
     max-width: 100% !important;
     overflow-x: hidden !important;
+  }
+
+  .ai-conversation-copy-btn {
+    opacity: 0.9 !important;
   }
 
   .note-reader code:not(.markdown-code-block-content code) {

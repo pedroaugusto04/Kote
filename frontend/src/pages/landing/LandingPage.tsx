@@ -209,12 +209,16 @@ export function LandingPage() {
                 </div>
 
                 <div className="landing-screenshot-container">
-                  <img
-                    src={withFrontendBasePath('/dashboard-screenshot.png')}
-                    alt="Kote Engineering Dashboard"
-                    className="landing-real-screenshot"
-                    loading="eager"
-                  />
+                  <picture>
+                    <source srcSet={withFrontendBasePath('/dashboard-screenshot.webp')} type="image/webp" />
+                    <img
+                      src={withFrontendBasePath('/dashboard-screenshot.png')}
+                      alt="Kote Engineering Dashboard"
+                      className="landing-real-screenshot"
+                      decoding="async"
+                      loading="eager"
+                    />
+                  </picture>
                 </div>
               </div>
             </div>
@@ -419,12 +423,16 @@ export function LandingPage() {
                   </p>
                 </div>
                 <div className="landing-bento-visual map-preview">
-                  <img
-                    src={withFrontendBasePath('/Kote-Map.png')}
-                    alt="Kote Interactive Knowledge Map"
-                    className="landing-bento-img"
-                    loading="lazy"
-                  />
+                  <picture>
+                    <source srcSet={withFrontendBasePath('/Kote-Map.webp')} type="image/webp" />
+                    <img
+                      src={withFrontendBasePath('/Kote-Map.png')}
+                      alt="Kote Interactive Knowledge Map"
+                      className="landing-bento-img"
+                      decoding="async"
+                      loading="lazy"
+                    />
+                  </picture>
                 </div>
               </div>
 
@@ -484,12 +492,16 @@ export function LandingPage() {
               </div>
 
               <div className="landing-screenshot-container">
-                <img
-                  src={withFrontendBasePath('/search-screenshot.png')}
-                  alt="Ask AI Semantic Search in Kote"
-                  className="landing-real-screenshot"
-                  loading="lazy"
-                />
+                <picture>
+                  <source srcSet={withFrontendBasePath('/search-screenshot.webp')} type="image/webp" />
+                  <img
+                    src={withFrontendBasePath('/search-screenshot.png')}
+                    alt="Ask AI Semantic Search in Kote"
+                    className="landing-real-screenshot"
+                    decoding="async"
+                    loading="lazy"
+                  />
+                </picture>
               </div>
             </div>
           </div>
@@ -570,5 +582,4 @@ export function LandingPage() {
     </main>
   );
 }
-
 

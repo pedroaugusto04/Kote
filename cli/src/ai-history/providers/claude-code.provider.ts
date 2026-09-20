@@ -6,8 +6,8 @@ import { loadConfig } from '../../config.js';
 import { resolveProjectSlugFromDir } from '../../utils/project-detector.js';
 import { toUrlSlug } from '../../utils/text.js';
 import { AI_PROVIDER, AI_PROVIDER_NAME, AI_SESSION_PATH, JSONL_EXTENSION } from '../constants.js';
-import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types.js';
-import { calculateSessionCostWithRateSync } from '../pricing.js';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types.js';
+import { calculateTokenUsageCost } from '../token-accounting.js';
 import { asRecord, buildSessionTitle, extractTextContent, isSession, keepFinalAssistantTurns, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils.js';
 
 const CLAUDE_RECORD_TYPE = {
@@ -56,10 +56,8 @@ function resolveProjectSlug(filePath: string): string | undefined {
 }
 
 function extractClaudeTokenUsage(records: unknown[]): AiTokenUsage | undefined {
-  let model = '';
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let cachedTokens = 0;
+  const modelAccumulator = new Map<string, { inputTokens: number; outputTokens: number; cachedTokens: number; cacheWriteTokens: number }>();
+  let lastModel = '';
 
   for (const value of records) {
     const record = asRecord(value);
@@ -67,38 +65,83 @@ function extractClaudeTokenUsage(records: unknown[]): AiTokenUsage | undefined {
     const message = asRecord(record.message);
     if (!message) continue;
 
-    if (typeof message.model === 'string' && message.model) {
-      model = message.model;
+    const rawModel = typeof message.model === 'string' ? message.model.trim() : '';
+    const currentModel = (rawModel && !rawModel.includes('<') && !rawModel.includes('>')) ? rawModel : (lastModel || 'claude-3-5-sonnet');
+    lastModel = currentModel;
+
+    let acc = modelAccumulator.get(currentModel);
+    if (!acc) {
+      acc = { inputTokens: 0, outputTokens: 0, cachedTokens: 0, cacheWriteTokens: 0 };
+      modelAccumulator.set(currentModel, acc);
     }
 
     const usage = asRecord(message.usage);
     if (usage) {
-      if (typeof usage.input_tokens === 'number') inputTokens += usage.input_tokens;
-      if (typeof usage.output_tokens === 'number') outputTokens += usage.output_tokens;
-      if (typeof usage.cache_read_input_tokens === 'number') cachedTokens += usage.cache_read_input_tokens;
+      if (typeof usage.input_tokens === 'number') acc.inputTokens += usage.input_tokens;
+      if (typeof usage.output_tokens === 'number') acc.outputTokens += usage.output_tokens;
+      if (typeof usage.cache_read_input_tokens === 'number') acc.cachedTokens += usage.cache_read_input_tokens;
+      if (typeof usage.cache_creation_input_tokens === 'number') acc.cacheWriteTokens += usage.cache_creation_input_tokens;
     }
   }
 
-  if (!model && inputTokens === 0 && outputTokens === 0) return undefined;
-  const resolvedModel = model || 'claude-3-5-sonnet';
+  if (modelAccumulator.size === 0) return undefined;
 
-  const costResult = calculateSessionCostWithRateSync({
-    provider: 'anthropic',
-    model: resolvedModel,
-    inputTokens,
-    outputTokens,
-    cachedTokens,
-  });
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalCachedTokens = 0;
+  let totalCacheWriteTokens = 0;
+  let totalEstimatedCost = 0;
+
+  const byModel: ModelUsageDetail[] = [];
+
+  for (const [mName, acc] of modelAccumulator.entries()) {
+    const mTotal = acc.inputTokens + acc.outputTokens;
+    const costResult = calculateTokenUsageCost({
+      provider: 'anthropic',
+      model: mName,
+      usage: {
+        inputTokens: acc.inputTokens,
+        outputTokens: acc.outputTokens,
+        cachedTokens: acc.cachedTokens,
+        cacheWriteTokens: acc.cacheWriteTokens,
+      },
+    });
+
+    totalInputTokens += acc.inputTokens;
+    totalOutputTokens += acc.outputTokens;
+    totalCachedTokens += acc.cachedTokens;
+    totalCacheWriteTokens += acc.cacheWriteTokens;
+    totalEstimatedCost += costResult.cost;
+
+    byModel.push({
+      model: mName,
+      provider: AI_PROVIDER.CLAUDE_CODE,
+      inputTokens: acc.inputTokens,
+      outputTokens: acc.outputTokens,
+      totalTokens: mTotal,
+      cachedTokens: acc.cachedTokens > 0 ? acc.cachedTokens : undefined,
+      cacheWriteTokens: acc.cacheWriteTokens > 0 ? acc.cacheWriteTokens : undefined,
+      estimatedCostUsd: costResult.cost,
+      rates: costResult.rates,
+    });
+  }
+
+  // Sort byModel descending by totalTokens
+  byModel.sort((a, b) => b.totalTokens - a.totalTokens);
+  const primary = byModel[0];
+  const primaryModel = primary?.model || lastModel || 'claude-3-5-sonnet';
 
   return {
     provider: AI_PROVIDER.CLAUDE_CODE,
-    model: resolvedModel,
-    inputTokens,
-    outputTokens,
-    totalTokens: inputTokens + outputTokens,
-    cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
-    estimatedCostUsd: costResult.cost,
-    rates: costResult.rates,
+    model: primaryModel,
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+    totalTokens: totalInputTokens + totalOutputTokens,
+    cachedTokens: totalCachedTokens > 0 ? totalCachedTokens : undefined,
+    cacheWriteTokens: totalCacheWriteTokens > 0 ? totalCacheWriteTokens : undefined,
+    estimatedCostUsd: Number(totalEstimatedCost.toFixed(6)),
+    rates: primary?.rates,
+    byModel: byModel.length > 0 ? byModel : undefined,
   };
 }
 

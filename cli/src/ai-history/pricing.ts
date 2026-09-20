@@ -14,12 +14,14 @@ export interface TokenRate {
   inputPerMillion: number;
   outputPerMillion: number;
   cachedInputPerMillion?: number;
+  cacheWriteInputPerMillion?: number;
 }
 
 interface OpenRouterModelPricing {
   prompt?: string;
   completion?: string;
   input_cache_read?: string;
+  input_cache_write?: string;
 }
 
 interface OpenRouterModelItem {
@@ -37,7 +39,13 @@ export interface CalculateCostInput {
   inputTokens: number;
   outputTokens: number;
   cachedTokens?: number;
+  cacheWriteTokens?: number;
   nativeCost?: number;
+}
+
+function parsePricePerMillion(raw: string | undefined): number | undefined {
+  const value = Number.parseFloat(raw || '');
+  return Number.isFinite(value) && value >= 0 ? value * TOKENS_PER_MILLION : undefined;
 }
 
 let memoryPricingCache: Record<string, TokenRate> | null = null;
@@ -113,15 +121,16 @@ export async function getLiveOrCachedPricingTable(): Promise<Record<string, Toke
       const dynamic: Record<string, TokenRate> = {};
 
       for (const m of json.data || []) {
-        const p = parseFloat(m.pricing?.prompt || '');
-        const c = parseFloat(m.pricing?.completion || '');
-        if (!Number.isNaN(p) && !Number.isNaN(c) && p >= 0 && c >= 0) {
+        const inputPerMillion = parsePricePerMillion(m.pricing?.prompt);
+        const outputPerMillion = parsePricePerMillion(m.pricing?.completion);
+        if (inputPerMillion !== undefined && outputPerMillion !== undefined) {
+          const cachedInputPerMillion = parsePricePerMillion(m.pricing?.input_cache_read);
+          const cacheWriteInputPerMillion = parsePricePerMillion(m.pricing?.input_cache_write);
           const rate: TokenRate = {
-            inputPerMillion: p * TOKENS_PER_MILLION,
-            outputPerMillion: c * TOKENS_PER_MILLION,
-            cachedInputPerMillion: m.pricing?.input_cache_read
-              ? parseFloat(m.pricing.input_cache_read) * TOKENS_PER_MILLION
-              : undefined,
+            inputPerMillion,
+            outputPerMillion,
+            cachedInputPerMillion,
+            cacheWriteInputPerMillion,
           };
 
           const idLower = m.id.toLowerCase();
@@ -236,15 +245,19 @@ export function calculateSessionCostWithRateSync(
     return { cost: 0.0 };
   }
 
-  const cached = Math.max(0, input.cachedTokens || 0);
-  const regularInput = Math.max(0, input.inputTokens - cached);
+  const reportedInput = Math.max(0, Number.isFinite(input.inputTokens) ? input.inputTokens : 0);
+  const cached = Math.min(reportedInput, Math.max(0, input.cachedTokens || 0));
+  const remainingAfterCache = Math.max(0, reportedInput - cached);
+  const cacheWrite = Math.min(remainingAfterCache, Math.max(0, input.cacheWriteTokens || 0));
+  const regularInput = Math.max(0, reportedInput - cached - cacheWrite);
   const output = Math.max(0, input.outputTokens);
 
   const inputRate = rate.inputPerMillion / TOKENS_PER_MILLION;
   const cachedRate = (rate.cachedInputPerMillion ?? rate.inputPerMillion * 0.5) / TOKENS_PER_MILLION;
+  const cacheWriteRate = (rate.cacheWriteInputPerMillion ?? rate.inputPerMillion) / TOKENS_PER_MILLION;
   const outputRate = rate.outputPerMillion / TOKENS_PER_MILLION;
 
-  const totalCost = regularInput * inputRate + cached * cachedRate + output * outputRate;
+  const totalCost = regularInput * inputRate + cached * cachedRate + cacheWrite * cacheWriteRate + output * outputRate;
   const cost = Number.isFinite(totalCost) ? Number(totalCost.toFixed(6)) : 0.0;
   return {
     cost,

@@ -14,6 +14,22 @@ export interface AiSessionAttachment {
   dataBase64: string;
 }
 
+export interface ModelUsageDetail {
+  model: string;
+  provider?: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedTokens?: number;
+  cacheWriteTokens?: number;
+  reasoningTokens?: number;
+  estimatedCostUsd: number;
+  rates?: {
+    inputPerMillion: number;
+    outputPerMillion: number;
+  };
+}
+
 export interface AiTokenUsage {
   provider: string;
   model: string;
@@ -22,11 +38,13 @@ export interface AiTokenUsage {
   totalTokens: number;
   reasoningTokens?: number;
   cachedTokens?: number;
+  cacheWriteTokens?: number;
   estimatedCostUsd: number;
   rates?: {
     inputPerMillion: number;
     outputPerMillion: number;
   };
+  byModel?: ModelUsageDetail[];
 }
 
 export interface AiSession {

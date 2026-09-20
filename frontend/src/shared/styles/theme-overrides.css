@@ -40,6 +40,36 @@
   color: var(--text);
 }
 
+:root[data-theme="light"] .ai-conversation-turn--user {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  border-left: 3px solid #94a3b8;
+}
+
+:root[data-theme="light"] .ai-conversation-turn--assistant {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  border-left: 3px solid var(--accent);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+:root[data-theme="light"] .ai-conversation-copy-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .markdown-code-block {
+  background: #1e242e;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .markdown-code-block-header {
+  background: #161b22;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 :root[data-theme="light"] .note-section-card {
   background: var(--surface-2);
   border-color: var(--line);

@@ -9,13 +9,12 @@ Project: {{projectName}} — {{count}} note(s)
 {{/notes}}
 {{/projects}}
 
-{{#dependencyCounts}}
-Dependency Updates:
-{{#this}}
-{{@key}}:
-  Critical: {{critical}} | Recommended: {{recommended}} | Optional: {{optional}}
-{{/this}}
-{{/dependencyCounts}}
+{{#if criticalDependencyUpdates.length}}
+Dependency Updates (Critical):
+{{#each criticalDependencyUpdates}}
+- {{packageName}}: {{currentVersion}} -> {{latestVersion}}{{#if projectName}} ({{projectName}}){{/if}}
+{{/each}}
+{{/if}}
 
 Thanks,
 The {{appName}} team

@@ -1,6 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query';
 import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import type { ProjectTimelineItem } from '../../shared/api/models/project-timeline';
+import { noteDetailQueryOptions } from '../../shared/api/note-query';
 import { formatDisplayToken, formatUsDate, formatUsDateTime, getCleanSummary, getTimelineNodeColor, projectName } from '../../shared/utils/format';
 import { makeTitleClickable } from '../../shared/utils/text';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
@@ -38,9 +40,16 @@ export function ProjectTimelineCard({
   onDelete?: (note: NoteSummary) => void;
   onPin?: (noteId: string, pinned: boolean) => void;
 }) {
+  const queryClient = useQueryClient();
   const activeSource = item.source || item.sourceChannel;
   const displayTags = buildNoteDisplayTags({ tags: item.tags, categories: item.categories });
   const { text: titleText, url: titleUrl } = makeTitleClickable(item.title);
+
+  const handlePrefetch = () => {
+    if (item.noteId) {
+      void queryClient.prefetchQuery(noteDetailQueryOptions(item.noteId));
+    }
+  };
 
   return (
     <article
@@ -48,6 +57,8 @@ export function ProjectTimelineCard({
       key={item.id}
       onClick={() => onOpen(item.noteId)}
       onDoubleClick={() => onOpenFullPage?.(item.noteId)}
+      onMouseEnter={handlePrefetch}
+      onFocus={handlePrefetch}
     >
       <div
         className="project-timeline-marker"

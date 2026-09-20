@@ -37,8 +37,8 @@ export const queryClient = new QueryClient({
 // Persist cache to localStorage for offline startup
 // ---------------------------------------------------------------------------
 
-/** Keys that should never be persisted (auth tokens, sensitive data). */
-const EXCLUDED_QUERY_KEY_PREFIXES = new Set(['auth']);
+/** Keys that should never be persisted (auth tokens, dynamic analytics data). */
+const EXCLUDED_QUERY_KEY_PREFIXES = new Set(['auth', 'ai-token-analytics']);
 
 const persister = createSyncStoragePersister({
   storage: typeof window !== 'undefined' ? window.localStorage : undefined,

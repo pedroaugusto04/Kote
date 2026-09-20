@@ -136,7 +136,7 @@ export function AppShell() {
   const currentUserQuery = useQuery({
     queryKey: QUERY_KEYS.AUTH.ME,
     queryFn: fetchCurrentUser,
-    enabled: Boolean(dashboard && activeWorkspace && !isSetupRoute),
+    enabled: !isSetupRoute,
   });
   const currentUser = currentUserQuery.data?.user;
 

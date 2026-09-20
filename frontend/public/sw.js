@@ -13,7 +13,7 @@
  * Bump this version string whenever a deploy changes the app shell.
  * The activate handler will automatically purge older caches.
  */
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const SHELL_CACHE = `kb-shell-${CACHE_VERSION}`;
 
 /**
@@ -24,7 +24,7 @@ const SHELL_CACHE = `kb-shell-${CACHE_VERSION}`;
 const SHELL_URLS = [
   './',
   'manifest.json',
-  'Kote-Logo.png',
+  'Kote-Logo-512.png',
 ];
 
 // ---------------------------------------------------------------------------
@@ -128,7 +128,7 @@ self.addEventListener('push', (event) => {
   const title = data.title || 'Knowledge Base';
   // Resolve icon URL relative to sw.js location (same directory)
   const swDir = self.location.href.replace(/\/[^\/]*$/, '/');
-  const defaultIcon = swDir + 'Kote-Logo.png';
+  const defaultIcon = swDir + 'Kote-Logo-512.png';
   const options = {
     body: data.body || 'Novo lembrete recebido.',
     icon: data.icon || defaultIcon,

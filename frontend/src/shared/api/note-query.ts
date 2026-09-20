@@ -24,10 +24,19 @@ export function ensureNoteDetail(queryClient: QueryClient, noteId: string) {
 }
 
 export async function invalidateNoteRelatedQueries(queryClient: QueryClient) {
-  await queryClient.invalidateQueries({
-    predicate: (query) => {
-      const topKey = query.queryKey[0];
-      return typeof topKey === 'string' && !['auth', 'integrations', 'github-repositories'].includes(topKey);
-    }
-  });
+  // A note mutation affects these views, but must not refetch unrelated billing,
+  // integration, webhook, or Ask AI data.
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    queryClient.invalidateQueries({ queryKey: ['note'] }),
+    queryClient.invalidateQueries({ queryKey: ['notes'] }),
+    queryClient.invalidateQueries({ queryKey: ['project-timeline'] }),
+    queryClient.invalidateQueries({ queryKey: ['project-folders'] }),
+    queryClient.invalidateQueries({ queryKey: ['projects-search'] }),
+    queryClient.invalidateQueries({ queryKey: ['global-search-popover'] }),
+    queryClient.invalidateQueries({ queryKey: ['home-project-timeline'] }),
+    queryClient.invalidateQueries({ queryKey: ['projectCoverage'] }),
+    queryClient.invalidateQueries({ queryKey: ['reminders'] }),
+    queryClient.invalidateQueries({ queryKey: ['reminder-board'] }),
+  ]);
 }

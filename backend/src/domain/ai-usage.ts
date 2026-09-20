@@ -1,3 +1,19 @@
+export interface ModelUsageDetail {
+  model: string;
+  provider?: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cachedTokens?: number;
+  cacheWriteTokens?: number;
+  reasoningTokens?: number;
+  estimatedCostUsd: number;
+  rates?: {
+    inputPerMillion: number;
+    outputPerMillion: number;
+  };
+}
+
 export interface NoteAiUsage {
   provider: string;
   model: string;
@@ -6,11 +22,13 @@ export interface NoteAiUsage {
   totalTokens: number;
   reasoningTokens?: number;
   cachedTokens?: number;
+  cacheWriteTokens?: number;
   estimatedCostUsd: number;
   rates?: {
     inputPerMillion: number;
     outputPerMillion: number;
   };
+  byModel?: ModelUsageDetail[];
 }
 
 export const AI_ANALYTICS_DEFAULTS = {

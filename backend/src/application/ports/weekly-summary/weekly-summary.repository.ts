@@ -19,6 +19,15 @@ export interface WeeklySummaryUser {
   displayName: string | null;
 }
 
+export interface WeeklySummaryCriticalDependency {
+  packageName: string;
+  currentVersion: string;
+  latestVersion: string;
+  ecosystem: string;
+  workspaceSlug: string;
+  projectName?: string | null;
+}
+
 export abstract class WeeklySummaryRepository {
   abstract listUserNoteCountsForRange(
     startIso: string,
@@ -29,9 +38,9 @@ export abstract class WeeklySummaryRepository {
 
   abstract listUsersByIds(userIds: string[]): Promise<WeeklySummaryUser[]>;
 
-  abstract getDependencyCountsByProject(
+  abstract getCriticalDependencyUpdates(
     userId: string,
-  ): Promise<Record<string, { critical: number; recommended: number; optional: number }>>;
+  ): Promise<WeeklySummaryCriticalDependency[]>;
 
   abstract listUserWorkspaceSlugs(userId: string): Promise<string[]>;
 
