@@ -13,7 +13,7 @@ import {
   CODEX_INTERNAL_USER_PREFIXES,
   JSONL_EXTENSION,
 } from '../constants.js';
-import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types.js';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types.js';
 import { calculateSessionCostWithRateSync } from '../pricing.js';
 import { asRecord, buildSessionTitle, isSession, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils.js';
 
@@ -121,6 +121,18 @@ function extractCodexTokenUsage(records: unknown[]): AiTokenUsage | undefined {
     cachedTokens,
   });
 
+  const detail: ModelUsageDetail = {
+    model: resolvedModel,
+    provider: AI_PROVIDER.CODEX_CLI,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    reasoningTokens,
+    cachedTokens,
+    estimatedCostUsd: costResult.cost,
+    rates: costResult.rates,
+  };
+
   return {
     provider: AI_PROVIDER.CODEX_CLI,
     model: resolvedModel,
@@ -131,6 +143,7 @@ function extractCodexTokenUsage(records: unknown[]): AiTokenUsage | undefined {
     cachedTokens,
     estimatedCostUsd: costResult.cost,
     rates: costResult.rates,
+    byModel: [detail],
   };
 }
 

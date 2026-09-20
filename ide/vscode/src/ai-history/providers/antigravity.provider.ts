@@ -15,7 +15,7 @@ import {
   ANTIGRAVITY_LOG_FILES,
   DEFAULT_AI_SESSION_LIMIT,
 } from '../constants';
-import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn, AiTokenUsage } from '../types';
+import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types';
 import { asRecord, buildSessionTitle, keepFinalAssistantTurns, latestRecordTimestamp, readJsonLines, safeMtime } from './provider.utils';
 import { calculateSessionCostWithRateSync } from '../pricing';
 
@@ -150,9 +150,10 @@ function extractAntigravityModel(content: string): string {
 }
 
 function extractAntigravityTokenUsage(sessionDir: string, content: string): AiTokenUsage | undefined {
-  const model = extractAntigravityModel(content);
+  let model = extractAntigravityModel(content);
   let inputTokens = 0;
   let outputTokens = 0;
+  let cachedTokens = 0;
 
   const candidateFiles = [
     path.join(sessionDir, 'token_usage.json'),
@@ -168,9 +169,16 @@ function extractAntigravityTokenUsage(sessionDir: string, content: string): AiTo
         const data = JSON.parse(fs.readFileSync(candidate, 'utf8'));
         const inTok = Number(data.context_window?.total_input_tokens ?? data.inputTokens ?? data.input_tokens);
         const outTok = Number(data.context_window?.total_output_tokens ?? data.outputTokens ?? data.output_tokens);
+        const cacheTok = Number(data.context_window?.current_usage?.cache_read_input_tokens ?? data.cachedTokens ?? data.cached_tokens);
+        const statusModel = typeof data.model === 'object' && data.model?.display_name ? String(data.model.display_name) : (typeof data.model?.id === 'string' ? String(data.model.id) : undefined);
+
         if (inTok > 0 || outTok > 0) {
           inputTokens = inTok;
           outputTokens = outTok;
+          if (cacheTok > 0) cachedTokens = cacheTok;
+          if (statusModel && statusModel.toLowerCase() !== 'none') {
+            model = statusModel;
+          }
           break;
         }
       }
@@ -185,7 +193,19 @@ function extractAntigravityTokenUsage(sessionDir: string, content: string): AiTo
     model,
     inputTokens,
     outputTokens,
+    cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
   });
+
+  const detail: ModelUsageDetail = {
+    model,
+    provider: AI_PROVIDER.ANTIGRAVITY,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
+    estimatedCostUsd: costResult.cost,
+    rates: costResult.rates,
+  };
 
   return {
     provider: AI_PROVIDER.ANTIGRAVITY,
@@ -193,8 +213,10 @@ function extractAntigravityTokenUsage(sessionDir: string, content: string): AiTo
     inputTokens,
     outputTokens,
     totalTokens,
+    cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
     estimatedCostUsd: costResult.cost,
     rates: costResult.rates,
+    byModel: [detail],
   };
 }
 

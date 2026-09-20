@@ -17,7 +17,7 @@ import {
   DEFAULT_AI_SESSION_LIMIT,
   JSONL_EXTENSION,
 } from '../constants';
-import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types';
 import { asRecord, buildSessionTitle, latestRecordTimestamp, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
 import { calculateSessionCostWithRateSync } from '../pricing';
 
@@ -125,6 +125,18 @@ function extractCodexTokenUsage(records: unknown[]): AiTokenUsage | undefined {
     cachedTokens,
   });
 
+  const detail: ModelUsageDetail = {
+    model: resolvedModel,
+    provider: AI_PROVIDER.CODEX_CLI,
+    inputTokens,
+    outputTokens,
+    totalTokens,
+    reasoningTokens,
+    cachedTokens,
+    estimatedCostUsd: costResult.cost,
+    rates: costResult.rates,
+  };
+
   return {
     provider: AI_PROVIDER.CODEX_CLI,
     model: resolvedModel,
@@ -135,6 +147,7 @@ function extractCodexTokenUsage(records: unknown[]): AiTokenUsage | undefined {
     cachedTokens,
     estimatedCostUsd: costResult.cost,
     rates: costResult.rates,
+    byModel: [detail],
   };
 }
 

@@ -42,6 +42,20 @@ export type NoteSummary = {
       inputPerMillion: number;
       outputPerMillion: number;
     };
+    byModel?: Array<{
+      model: string;
+      provider?: string;
+      inputTokens: number;
+      outputTokens: number;
+      totalTokens: number;
+      cachedTokens?: number;
+      reasoningTokens?: number;
+      estimatedCostUsd: number;
+      rates?: {
+        inputPerMillion: number;
+        outputPerMillion: number;
+      };
+    }>;
   };
 };
 

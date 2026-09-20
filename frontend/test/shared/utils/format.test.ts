@@ -127,10 +127,10 @@ describe('formatModelRate & formatCostComparison', () => {
 
   it('formats side-by-side comparison of session cost and model reference rate', () => {
     expect(formatCostComparison(0.12, 24_000, { inputPerMillion: 3, outputPerMillion: 15 })).toBe(
-      'sessão: $5.00/1M • ref: $3 in / $15 out'
+      'session: $5.00/1M • ref: $3 in / $15 out'
     );
     expect(formatCostComparison(0, 50_000, { inputPerMillion: 0, outputPerMillion: 0 })).toBe(
-      'sessão: $0.00/1M • ref: grátis'
+      'session: $0.00/1M • ref: grátis'
     );
   });
 

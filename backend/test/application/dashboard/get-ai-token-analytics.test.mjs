@@ -23,6 +23,7 @@ test('GetAiTokenAnalyticsUseCase', async (t) => {
       {
         id: 'note-2',
         title: 'Claude session',
+        projectSlug: 'project-a',
         source: 'claude-code',
         occurredAt: '2026-03-11T12:00:00Z',
         metadata: {
@@ -44,6 +45,7 @@ test('GetAiTokenAnalyticsUseCase', async (t) => {
       {
         id: 'note-3',
         title: 'Codex session 1',
+        projectSlug: 'project-b',
         source: 'codex-cli',
         occurredAt: '2026-03-11T15:00:00Z',
         metadata: {
@@ -61,6 +63,7 @@ test('GetAiTokenAnalyticsUseCase', async (t) => {
       {
         id: 'note-4',
         title: 'Codex session 2',
+        projectSlug: 'project-b',
         source: 'codex-cli',
         occurredAt: '2026-03-12T09:00:00Z',
         metadata: {
@@ -113,9 +116,10 @@ test('GetAiTokenAnalyticsUseCase', async (t) => {
     assert.equal(result.dailyTrend[0].totalTokens, 36_000);
     assert.equal(result.dailyTrend[0].sessionCount, 2);
 
-    // Available models and providers
+    // Available models, providers, and projects
     assert.deepEqual(result.availableModels, ['claude-3-5-sonnet', 'gpt-5.2']);
     assert.deepEqual(result.availableProviders, ['claude-code', 'codex-cli']);
+    assert.deepEqual(result.availableProjects, ['project-a', 'project-b']);
   });
 
   await t.test('filters sessions by model while preserving availableModels list', async () => {
@@ -224,6 +228,71 @@ test('GetAiTokenAnalyticsUseCase', async (t) => {
     assert.deepEqual(result.availableModels, ['claude-3-5-sonnet', 'deepseek-v3', 'gpt-5.2']);
   });
 
+  await t.test('aggregates multi-model sessions with byModel breakdown correctly', async () => {
+    const mockNotes = [
+      {
+        id: 'note-multi-1',
+        title: 'Multi-model orchestrator session',
+        source: 'claude-code',
+        occurredAt: '2026-03-15T10:00:00Z',
+        metadata: {
+          aiUsage: {
+            provider: 'claude-code',
+            model: 'claude-3-5-sonnet',
+            inputTokens: 60_000,
+            outputTokens: 4_000,
+            totalTokens: 64_000,
+            estimatedCostUsd: 0.20,
+            byModel: [
+              {
+                model: 'claude-3-5-sonnet',
+                provider: 'claude-code',
+                inputTokens: 45_000,
+                outputTokens: 3_000,
+                totalTokens: 48_000,
+                estimatedCostUsd: 0.18,
+                rates: { inputPerMillion: 3, outputPerMillion: 15 },
+              },
+              {
+                model: 'claude-3-5-haiku',
+                provider: 'claude-code',
+                inputTokens: 15_000,
+                outputTokens: 1_000,
+                totalTokens: 16_000,
+                estimatedCostUsd: 0.02,
+                rates: { inputPerMillion: 0.8, outputPerMillion: 4 },
+              },
+            ],
+          },
+        },
+      },
+    ];
+
+    const useCase = new GetAiTokenAnalyticsUseCase({ listNotes: async () => mockNotes }, fakeLogger);
+    const result = await useCase.execute('user-1');
+
+    assert.equal(result.totalAiSessions, 1);
+    assert.equal(result.totalTokens, 64_000);
+    assert.equal(result.totalEstimatedCostUsd, 0.20);
+    assert.equal(result.topModel, 'claude-3-5-sonnet');
+    assert.equal(result.byModel.length, 2);
+
+    const sonnet = result.byModel.find((m) => m.model === 'claude-3-5-sonnet');
+    assert.ok(sonnet);
+    assert.equal(sonnet.totalTokens, 48_000);
+    assert.equal(sonnet.estimatedCostUsd, 0.18);
+    assert.equal(sonnet.percentage, 75);
+
+    const haiku = result.byModel.find((m) => m.model === 'claude-3-5-haiku');
+    assert.ok(haiku);
+    assert.equal(haiku.totalTokens, 16_000);
+    assert.equal(haiku.estimatedCostUsd, 0.02);
+    assert.equal(haiku.percentage, 25);
+
+    assert.deepEqual(result.availableModels, ['claude-3-5-haiku', 'claude-3-5-sonnet']);
+    assert.deepEqual(result.availableProjects, []);
+  });
+
   await t.test('handles empty notes list gracefully', async () => {
     const mockContentRepository = {
       listNotes: async () => [],
@@ -241,5 +310,6 @@ test('GetAiTokenAnalyticsUseCase', async (t) => {
     assert.deepEqual(result.dailyTrend, []);
     assert.deepEqual(result.availableModels, []);
     assert.deepEqual(result.availableProviders, []);
+    assert.deepEqual(result.availableProjects, []);
   });
 });

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, CartesianGrid, XAxis, YAxis } from 'recharts';
 import { fetchAiTokenAnalytics } from '../../shared/api/client';
 import type { AiTokenAnalyticsResponse } from '../../shared/api/models/ai-token-analytics';
@@ -43,6 +43,7 @@ const DATE_PRESETS = [
 ] as const;
 
 const FILTER_LABELS = {
+  ALL_PROJECTS: 'All Projects',
   ALL_MODELS: 'All Models',
   ALL_PROVIDERS: 'All Providers',
   DATE_FROM_PLACEHOLDER: 'YYYY-MM-DD',
@@ -52,22 +53,26 @@ const FILTER_LABELS = {
 } as const;
 
 export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAnalyticsPanelProps) {
+  const isDirectProjectTab = Boolean(projectSlug);
   const [activeTab, setActiveTab] = useState<AiAnalyticsTab>(AI_ANALYTICS_TAB.MODELS);
 
+  const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedModel, setSelectedModel] = useState<string>('');
   const [selectedProvider, setSelectedProvider] = useState<string>('');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
+  const effectiveProjectSlug = isDirectProjectTab ? projectSlug : (selectedProject || undefined);
+
   // Validated date query parameters (only send when complete YYYY-MM-DD)
   const queryStartDate = DATE_REGEX.test(startDate.trim()) ? startDate.trim() : undefined;
   const queryEndDate = DATE_REGEX.test(endDate.trim()) ? endDate.trim() : undefined;
 
-  const { data, isLoading, isError } = useQuery<AiTokenAnalyticsResponse>({
+  const { data, isPending, isLoading, isError } = useQuery<AiTokenAnalyticsResponse>({
     queryKey: [
       AI_ANALYTICS_QUERY_KEY,
       workspaceSlug,
-      projectSlug,
+      effectiveProjectSlug,
       queryStartDate,
       queryEndDate,
       selectedModel,
@@ -76,23 +81,30 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
     queryFn: () =>
       fetchAiTokenAnalytics({
         workspaceSlug,
-        projectSlug,
+        projectSlug: effectiveProjectSlug,
         startDate: queryStartDate,
         endDate: queryEndDate,
         model: selectedModel || undefined,
         provider: selectedProvider || undefined,
       }),
     staleTime: AI_ANALYTICS_STALE_TIME_MS,
-    placeholderData: (previousData) => previousData,
+    placeholderData: keepPreviousData,
   });
 
-  const isFiltered = Boolean(startDate || endDate || selectedModel || selectedProvider);
+  const isFiltered = Boolean(
+    startDate ||
+      endDate ||
+      selectedModel ||
+      selectedProvider ||
+      (!isDirectProjectTab && selectedProject)
+  );
 
   const activeFilterCount =
     (startDate ? 1 : 0) +
     (endDate ? 1 : 0) +
     (selectedModel ? 1 : 0) +
-    (selectedProvider ? 1 : 0);
+    (selectedProvider ? 1 : 0) +
+    (!isDirectProjectTab && selectedProject ? 1 : 0);
 
   const handleDatePreset = (days: number | null) => {
     if (days === null) {
@@ -108,11 +120,22 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
   };
 
   const handleResetFilters = () => {
+    if (!isDirectProjectTab) {
+      setSelectedProject('');
+    }
     setSelectedModel('');
     setSelectedProvider('');
     setStartDate('');
     setEndDate('');
   };
+
+  const projectOptions = useMemo(() => {
+    const list = data?.availableProjects || [];
+    return [
+      { value: '', label: FILTER_LABELS.ALL_PROJECTS },
+      ...list.map((p) => ({ value: p, label: p })),
+    ];
+  }, [data?.availableProjects]);
 
   const modelOptions = useMemo(() => {
     const list = data?.availableModels || [];
@@ -130,27 +153,27 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
     ];
   }, [data?.availableProviders]);
 
-  if (isLoading && !data) {
-    return (
-      <Panel className="home-panel ai-token-panel">
-        <div className="panel-head">
-          <h2>AI Token & Cost Analytics</h2>
-        </div>
-        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--muted)' }}>
-          Loading AI token analytics...
-        </div>
-      </Panel>
-    );
-  }
+  if (isPending || isLoading || !data) {
+    if (isError) {
+      return (
+        <Panel className="home-panel ai-token-panel">
+          <div className="panel-head">
+            <h2>AI Token & Cost Analytics</h2>
+          </div>
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--red)' }}>
+            Failed to load AI token analytics.
+          </div>
+        </Panel>
+      );
+    }
 
-  if (isError || !data) {
     return (
       <Panel className="home-panel ai-token-panel">
         <div className="panel-head">
           <h2>AI Token & Cost Analytics</h2>
         </div>
-        <div style={{ padding: '32px', textAlign: 'center', color: 'var(--red)' }}>
-          Failed to load AI token analytics.
+        <div style={{ padding: '48px 32px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div className="global-loading-spinner" style={{ width: '36px', height: '36px' }} />
         </div>
       </Panel>
     );
@@ -231,6 +254,19 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
             fontSize: '12px',
           }}
         >
+          {/* Project Filter */}
+          {!isDirectProjectTab && (
+            <div style={{ minWidth: '150px' }}>
+              <Select
+                ariaLabel="Filter by Project"
+                className="page-head-select"
+                options={projectOptions}
+                value={selectedProject}
+                onChange={setSelectedProject}
+              />
+            </div>
+          )}
+
           {/* Model Filter */}
           <div style={{ minWidth: '150px' }}>
             <Select
@@ -303,15 +339,11 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
                   key={preset.label}
                   type="button"
                   onClick={() => handleDatePreset(preset.days)}
+                  className="icon-button secondary"
                   style={{
+                    minHeight: '30px',
                     padding: '4px 8px',
-                    borderRadius: '4px',
                     fontSize: '11px',
-                    fontWeight: 600,
-                    border: '1px solid var(--border)',
-                    background: 'rgba(255, 255, 255, 0.04)',
-                    color: 'var(--muted)',
-                    cursor: 'pointer',
                   }}
                 >
                   {preset.label}
@@ -325,16 +357,12 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
             <button
               type="button"
               onClick={handleResetFilters}
+              className="icon-button secondary"
               style={{
-                padding: '4px 10px',
-                borderRadius: '4px',
-                fontSize: '11px',
-                fontWeight: 600,
-                border: '1px solid var(--border)',
-                background: 'rgba(239, 68, 68, 0.1)',
-                color: 'var(--red, #ef4444)',
-                cursor: 'pointer',
                 marginLeft: 'auto',
+                minHeight: '30px',
+                padding: '4px 10px',
+                fontSize: '12px',
               }}
             >
               {FILTER_LABELS.RESET_FILTERS}
@@ -355,8 +383,8 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
           <button
             type="button"
             onClick={handleResetFilters}
-            className="btn btn-secondary"
-            style={{ fontSize: '12px', padding: '6px 14px' }}
+            className="icon-button secondary"
+            style={{ fontSize: '12px', padding: '6px 14px', minHeight: '32px' }}
           >
             {FILTER_LABELS.RESET_FILTERS}
           </button>
@@ -538,7 +566,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
             /* Daily Trend Area Chart */
             <div style={{ width: '100%', height: '220px' }}>
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={trendData} margin={{ left: 0, right: 10, top: 12, bottom: 0 }}>
+                <AreaChart data={trendData} margin={{ left: 10, right: 10, top: 12, bottom: 0 }}>
                   <CartesianGrid stroke="var(--chart-grid, rgba(255,255,255,0.05))" vertical={false} />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} stroke="var(--chart-axis, #9ca3af)" fontSize={12} />
                   <YAxis
@@ -546,21 +574,47 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
                     tickLine={false}
                     axisLine={false}
                     stroke="var(--chart-axis, #9ca3af)"
-                    fontSize={12}
-                    width={40}
-                    tickFormatter={(v) => formatTokens(v)}
+                    fontSize={11}
+                    width={52}
+                    domain={[0, 'auto']}
+                    tickFormatter={(v) => formatTokens(Number(v) || 0)}
                   />
                   <Tooltip
-                    contentStyle={{
-                      background: 'var(--chart-tooltip-bg, #1f2937)',
-                      border: '1px solid var(--chart-tooltip-border, rgba(255,255,255,0.1))',
-                      borderRadius: 8,
-                      color: 'var(--chart-tooltip-text, #fff)',
+                    content={({ active, payload }) => {
+                      if (!active || !payload || !payload.length) return null;
+                      const item = payload[0]?.payload as (typeof trendData)[number] | undefined;
+                      if (!item) return null;
+                      return (
+                        <div
+                          style={{
+                            background: 'var(--chart-tooltip-bg, #1f2937)',
+                            border: '1px solid var(--chart-tooltip-border, rgba(255,255,255,0.1))',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            color: 'var(--chart-tooltip-text, #fff)',
+                            fontSize: '12px',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                          }}
+                        >
+                          <div style={{ fontWeight: 600, marginBottom: '6px', color: 'var(--muted)' }}>
+                            {item.date}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#8b5cf6', display: 'inline-block' }} />
+                            <span>Tokens: <strong>{Number(item.tokens).toLocaleString()}</strong></span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                            <span>Est. Cost: <strong>${Number(item.cost).toFixed(4)}</strong></span>
+                          </div>
+                          {typeof item.sessionCount === 'number' && (
+                            <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '4px' }}>
+                              {item.sessionCount} session{item.sessionCount !== 1 ? 's' : ''}
+                            </div>
+                          )}
+                        </div>
+                      );
                     }}
-                    formatter={(val: unknown, name: unknown) => [
-                      name === 'tokens' ? `${Number(val).toLocaleString()} tokens` : `$${Number(val).toFixed(4)}`,
-                      name === 'tokens' ? 'Tokens' : 'Est. Cost',
-                    ]}
                   />
                   <Area
                     type="monotone"

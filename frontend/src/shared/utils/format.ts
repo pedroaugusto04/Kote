@@ -212,7 +212,7 @@ export function formatCostComparison(
   const modelRate = formatModelRate(rates);
 
   if (sessionRate && modelRate) {
-    return `sessão: ${sessionRate} • ref: ${modelRate}`;
+    return `session: ${sessionRate} • ref: ${modelRate}`;
   }
   if (sessionRate) {
     return sessionRate;
@@ -407,12 +407,15 @@ export function formatRelativeTimeUntil(
 }
 
 export function formatTokens(tokens: number): string {
+  if (!tokens || isNaN(tokens) || tokens <= 0) return '0';
   if (tokens >= 1_000_000) {
-    return `${(tokens / 1_000_000).toFixed(2)}M`;
+    const val = tokens / 1_000_000;
+    return `${val % 1 === 0 ? val : val.toFixed(1)}M`;
   }
   if (tokens >= 1_000) {
-    return `${(tokens / 1_000).toFixed(1)}k`;
+    const val = tokens / 1_000;
+    return `${val % 1 === 0 ? val : val.toFixed(1)}k`;
   }
-  return tokens.toLocaleString();
+  return Math.round(tokens).toLocaleString();
 }
 

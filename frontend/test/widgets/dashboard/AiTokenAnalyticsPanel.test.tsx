@@ -66,9 +66,10 @@ const mockAnalyticsData: AiTokenAnalyticsResponse = {
   ],
   availableModels: ['claude-3-5-sonnet', 'gpt-5.2'],
   availableProviders: ['claude-code', 'codex-cli', 'antigravity'],
+  availableProjects: ['project-alpha', 'project-beta'],
 };
 
-function renderPanel() {
+function renderPanel(props?: { workspaceSlug?: string; projectSlug?: string }) {
   const client = new QueryClient({
     defaultOptions: {
       queries: { retry: false },
@@ -77,7 +78,7 @@ function renderPanel() {
 
   return render(
     <QueryClientProvider client={client}>
-      <AiTokenAnalyticsPanel workspaceSlug="test-ws" />
+      <AiTokenAnalyticsPanel workspaceSlug="test-ws" {...props} />
     </QueryClientProvider>
   );
 }
@@ -96,7 +97,7 @@ describe('AiTokenAnalyticsPanel', () => {
     expect(await screen.findByText(/AI Token Analytics & Costs/i)).toBeInTheDocument();
     expect(screen.getByText('3 sessions')).toBeInTheDocument();
     expect(screen.getByText('$0.1875')).toBeInTheDocument();
-    expect(screen.getByText('42.0k')).toBeInTheDocument();
+    expect(screen.getByText('42k')).toBeInTheDocument();
     expect(screen.getAllByText('claude-3-5-sonnet').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('($5.00/1M)')).toBeInTheDocument();
     expect(screen.getByText('($3.75/1M)')).toBeInTheDocument();
@@ -123,7 +124,7 @@ describe('AiTokenAnalyticsPanel', () => {
 
     renderPanel();
 
-    await screen.findByText(/AI Token Analytics & Costs/i);
+    await screen.findByText('3 sessions');
 
     const preset7d = screen.getByRole('button', { name: '7D' });
     fireEvent.click(preset7d);
@@ -154,7 +155,7 @@ describe('AiTokenAnalyticsPanel', () => {
 
     renderPanel();
 
-    await screen.findByText(/AI Token Analytics & Costs/i);
+    await screen.findByText('3 sessions');
 
     const startDateInput = screen.getByLabelText('Start date (YYYY-MM-DD)') as HTMLInputElement;
     fireEvent.change(startDateInput, { target: { value: '2026-03-01' } });
@@ -173,7 +174,7 @@ describe('AiTokenAnalyticsPanel', () => {
 
     renderPanel();
 
-    await screen.findByText(/AI Token Analytics & Costs/i);
+    await screen.findByText('3 sessions');
 
     const providerSelect = screen.getByLabelText('Filter by Provider');
     fireEvent.click(providerSelect);
@@ -181,5 +182,62 @@ describe('AiTokenAnalyticsPanel', () => {
     expect(screen.getByRole('option', { name: 'Antigravity' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Claude Code' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Codex CLI' })).toBeInTheDocument();
+  });
+
+  it('switches to the Daily Trend tab without errors', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(mockAnalyticsData), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    renderPanel();
+
+    await screen.findByText('3 sessions');
+
+    const trendTabBtn = screen.getByRole('button', { name: 'Daily Trend' });
+    expect(trendTabBtn).toBeInTheDocument();
+
+    fireEvent.click(trendTabBtn);
+    expect(trendTabBtn).toHaveClass('active');
+  });
+
+  it('renders project filter before model filter when projectSlug prop is not provided', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(mockAnalyticsData), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    renderPanel();
+
+    await screen.findByText('3 sessions');
+
+    const projectSelect = screen.getByLabelText('Filter by Project');
+    expect(projectSelect).toBeInTheDocument();
+
+    fireEvent.click(projectSelect);
+    expect(screen.getByRole('option', { name: 'All Projects' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'project-alpha' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'project-beta' })).toBeInTheDocument();
+  });
+
+  it('hides project filter when projectSlug prop is provided directly', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify(mockAnalyticsData), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+
+    renderPanel({ projectSlug: 'project-alpha' });
+
+    await screen.findByText('3 sessions');
+
+    expect(screen.queryByLabelText('Filter by Project')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Filter by Model')).toBeInTheDocument();
+    expect(screen.getByLabelText('Filter by Provider')).toBeInTheDocument();
   });
 });

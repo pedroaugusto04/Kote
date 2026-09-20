@@ -566,7 +566,7 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
       </section>
         ) : (
           <section aria-label="AI Token Analytics">
-            <AiTokenAnalyticsPanel workspaceSlug={workspaceSlug} />
+            <AiTokenAnalyticsPanel workspaceSlug={workspaceSlug || undefined} />
           </section>
         )}
       </div>

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { loadConfig } from '../../config.js';
 import { AI_PROVIDER, AI_PROVIDER_NAME, AI_ROLE, AI_SESSION_PATH, AI_TEXT_CONTENT_TYPE, OPEN_CODE_FINAL_FINISH } from '../constants.js';
-import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types.js';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types.js';
 import { calculateSessionCostWithRateSync } from '../pricing.js';
 import { asRecord, keepFinalAssistantTurns, parseAiRole } from './provider.utils.js';
 
@@ -18,16 +18,20 @@ interface OpenCodeRow {
   partData?: string;
 }
 
-interface SessionAccumulator {
-  session: AiSession;
-  messages: Map<string, { role: AiTurn['role']; textParts: string[] }>;
-  modelID?: string;
+interface ModelTokenAccumulator {
   providerID?: string;
   inputTokens: number;
   outputTokens: number;
   reasoningTokens: number;
   cachedTokens: number;
   cost: number;
+}
+
+interface SessionAccumulator {
+  session: AiSession;
+  messages: Map<string, { role: AiTurn['role']; textParts: string[] }>;
+  models: Map<string, ModelTokenAccumulator>;
+  lastModelID?: string;
 }
 
 function databasePath(): string {
@@ -52,11 +56,7 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
         projectSlug: row.projectSlug || undefined,
       },
       messages: new Map(),
-      inputTokens: 0,
-      outputTokens: 0,
-      reasoningTokens: 0,
-      cachedTokens: 0,
-      cost: 0,
+      models: new Map(),
     };
     sessions.set(row.sessionId, accumulator);
   }
@@ -68,22 +68,29 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
 
   // Track model and tokens from assistant messages
   if (role === AI_ROLE.ASSISTANT) {
-    if (typeof message?.modelID === 'string' && message.modelID) {
-      accumulator.modelID = message.modelID;
+    const modelID = (typeof message?.modelID === 'string' && message.modelID.trim()) ? message.modelID.trim() : (accumulator.lastModelID || 'unknown');
+    accumulator.lastModelID = modelID;
+    const providerID = typeof message?.providerID === 'string' ? message.providerID : undefined;
+
+    let mAcc = accumulator.models.get(modelID);
+    if (!mAcc) {
+      mAcc = { providerID, inputTokens: 0, outputTokens: 0, reasoningTokens: 0, cachedTokens: 0, cost: 0 };
+      accumulator.models.set(modelID, mAcc);
     }
-    if (typeof message?.providerID === 'string' && message.providerID) {
-      accumulator.providerID = message.providerID;
+    if (providerID && !mAcc.providerID) {
+      mAcc.providerID = providerID;
     }
+
     if (typeof message?.cost === 'number' && Number.isFinite(message.cost)) {
-      accumulator.cost += message.cost;
+      mAcc.cost += message.cost;
     }
     const tokens = asRecord(message?.tokens);
     if (tokens) {
-      if (typeof tokens.input === 'number') accumulator.inputTokens += tokens.input;
-      if (typeof tokens.output === 'number') accumulator.outputTokens += tokens.output;
-      if (typeof tokens.reasoning === 'number') accumulator.reasoningTokens += tokens.reasoning;
+      if (typeof tokens.input === 'number') mAcc.inputTokens += tokens.input;
+      if (typeof tokens.output === 'number') mAcc.outputTokens += tokens.output;
+      if (typeof tokens.reasoning === 'number') mAcc.reasoningTokens += tokens.reasoning;
       const cache = asRecord(tokens.cache);
-      if (typeof cache?.read === 'number') accumulator.cachedTokens += cache.read;
+      if (typeof cache?.read === 'number') mAcc.cachedTokens += cache.read;
     }
   }
 
@@ -104,33 +111,65 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
 function finalizeSessions(accumulators: Map<string, SessionAccumulator>): AiSession[] {
   const sessions: AiSession[] = [];
   for (const acc of accumulators.values()) {
-    const { session, messages, modelID, providerID, inputTokens, outputTokens, reasoningTokens, cachedTokens, cost } = acc;
+    const { session, messages, models, lastModelID } = acc;
     const parsedTurns = [...messages.values()]
       .map(({ role, textParts }) => ({ role, content: textParts.join('\n\n').trim() }))
       .filter((turn) => turn.content);
     session.turns = keepFinalAssistantTurns(parsedTurns);
 
-    if (modelID || inputTokens > 0 || outputTokens > 0) {
-      const resolvedModel = modelID || 'unknown';
-      const costResult = calculateSessionCostWithRateSync({
-        provider: providerID || 'opencode',
-        model: resolvedModel,
-        inputTokens,
-        outputTokens,
-        cachedTokens,
-        nativeCost: cost > 0 ? cost : undefined,
-      });
+    if (models.size > 0) {
+      const byModel: ModelUsageDetail[] = [];
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
+      let totalReasoningTokens = 0;
+      let totalCachedTokens = 0;
+      let totalEstimatedCost = 0;
+
+      for (const [mID, mData] of models.entries()) {
+        const mTotal = mData.inputTokens + mData.outputTokens;
+        const costResult = calculateSessionCostWithRateSync({
+          provider: mData.providerID || 'opencode',
+          model: mID,
+          inputTokens: mData.inputTokens,
+          outputTokens: mData.outputTokens,
+          cachedTokens: mData.cachedTokens,
+          nativeCost: mData.cost > 0 ? mData.cost : undefined,
+        });
+
+        totalInputTokens += mData.inputTokens;
+        totalOutputTokens += mData.outputTokens;
+        totalReasoningTokens += mData.reasoningTokens;
+        totalCachedTokens += mData.cachedTokens;
+        totalEstimatedCost += costResult.cost;
+
+        byModel.push({
+          model: mID,
+          provider: mData.providerID || AI_PROVIDER.OPEN_CODE,
+          inputTokens: mData.inputTokens,
+          outputTokens: mData.outputTokens,
+          totalTokens: mTotal,
+          reasoningTokens: mData.reasoningTokens > 0 ? mData.reasoningTokens : undefined,
+          cachedTokens: mData.cachedTokens > 0 ? mData.cachedTokens : undefined,
+          estimatedCostUsd: costResult.cost,
+          rates: costResult.rates,
+        });
+      }
+
+      byModel.sort((a, b) => b.totalTokens - a.totalTokens);
+      const primary = byModel[0];
+      const primaryModel = primary?.model || lastModelID || 'unknown';
 
       session.tokenUsage = {
-        provider: providerID || AI_PROVIDER.OPEN_CODE,
-        model: resolvedModel,
-        inputTokens,
-        outputTokens,
-        totalTokens: inputTokens + outputTokens,
-        reasoningTokens: reasoningTokens > 0 ? reasoningTokens : undefined,
-        cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
-        estimatedCostUsd: costResult.cost,
-        rates: costResult.rates,
+        provider: primary?.provider || AI_PROVIDER.OPEN_CODE,
+        model: primaryModel,
+        inputTokens: totalInputTokens,
+        outputTokens: totalOutputTokens,
+        totalTokens: totalInputTokens + totalOutputTokens,
+        reasoningTokens: totalReasoningTokens > 0 ? totalReasoningTokens : undefined,
+        cachedTokens: totalCachedTokens > 0 ? totalCachedTokens : undefined,
+        estimatedCostUsd: Number(totalEstimatedCost.toFixed(6)),
+        rates: primary?.rates,
+        byModel: byModel.length > 0 ? byModel : undefined,
       };
     }
 

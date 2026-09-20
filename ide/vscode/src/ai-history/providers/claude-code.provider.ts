@@ -15,7 +15,7 @@ import {
   DEFAULT_AI_SESSION_LIMIT,
   JSONL_EXTENSION,
 } from '../constants';
-import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage } from '../types';
+import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types';
 import { asRecord, buildSessionTitle, extractTextContent, keepFinalAssistantTurns, latestRecordTimestamp, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
 import { calculateSessionCostWithRateSync } from '../pricing';
 
@@ -65,10 +65,8 @@ function resolveProjectSlug(filePath: string): string | undefined {
 }
 
 function extractClaudeTokenUsage(records: unknown[]): AiTokenUsage | undefined {
-  let model = '';
-  let inputTokens = 0;
-  let outputTokens = 0;
-  let cachedTokens = 0;
+  const modelAccumulator = new Map<string, { inputTokens: number; outputTokens: number; cachedTokens: number }>();
+  let lastModel = '';
 
   for (const value of records) {
     const record = asRecord(value);
@@ -76,38 +74,73 @@ function extractClaudeTokenUsage(records: unknown[]): AiTokenUsage | undefined {
     const message = asRecord(record.message);
     if (!message) continue;
 
-    if (typeof message.model === 'string' && message.model) {
-      model = message.model;
+    const currentModel = (typeof message.model === 'string' && message.model.trim()) ? message.model.trim() : (lastModel || 'claude-3-5-sonnet');
+    lastModel = currentModel;
+
+    let acc = modelAccumulator.get(currentModel);
+    if (!acc) {
+      acc = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 };
+      modelAccumulator.set(currentModel, acc);
     }
 
     const usage = asRecord(message.usage);
     if (usage) {
-      if (typeof usage.input_tokens === 'number') inputTokens += usage.input_tokens;
-      if (typeof usage.output_tokens === 'number') outputTokens += usage.output_tokens;
-      if (typeof usage.cache_read_input_tokens === 'number') cachedTokens += usage.cache_read_input_tokens;
+      if (typeof usage.input_tokens === 'number') acc.inputTokens += usage.input_tokens;
+      if (typeof usage.output_tokens === 'number') acc.outputTokens += usage.output_tokens;
+      if (typeof usage.cache_read_input_tokens === 'number') acc.cachedTokens += usage.cache_read_input_tokens;
     }
   }
 
-  if (!model && inputTokens === 0 && outputTokens === 0) return undefined;
-  const resolvedModel = model || 'claude-3-5-sonnet';
+  if (modelAccumulator.size === 0) return undefined;
 
-  const costResult = calculateSessionCostWithRateSync({
-    provider: 'anthropic',
-    model: resolvedModel,
-    inputTokens,
-    outputTokens,
-    cachedTokens,
-  });
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  let totalCachedTokens = 0;
+  let totalEstimatedCost = 0;
+
+  const byModel: ModelUsageDetail[] = [];
+
+  for (const [mName, acc] of modelAccumulator.entries()) {
+    const mTotal = acc.inputTokens + acc.outputTokens;
+    const costResult = calculateSessionCostWithRateSync({
+      provider: 'anthropic',
+      model: mName,
+      inputTokens: acc.inputTokens,
+      outputTokens: acc.outputTokens,
+      cachedTokens: acc.cachedTokens,
+    });
+
+    totalInputTokens += acc.inputTokens;
+    totalOutputTokens += acc.outputTokens;
+    totalCachedTokens += acc.cachedTokens;
+    totalEstimatedCost += costResult.cost;
+
+    byModel.push({
+      model: mName,
+      provider: AI_PROVIDER.CLAUDE_CODE,
+      inputTokens: acc.inputTokens,
+      outputTokens: acc.outputTokens,
+      totalTokens: mTotal,
+      cachedTokens: acc.cachedTokens > 0 ? acc.cachedTokens : undefined,
+      estimatedCostUsd: costResult.cost,
+      rates: costResult.rates,
+    });
+  }
+
+  byModel.sort((a, b) => b.totalTokens - a.totalTokens);
+  const primary = byModel[0];
+  const primaryModel = primary?.model || lastModel || 'claude-3-5-sonnet';
 
   return {
     provider: AI_PROVIDER.CLAUDE_CODE,
-    model: resolvedModel,
-    inputTokens,
-    outputTokens,
-    totalTokens: inputTokens + outputTokens,
-    cachedTokens: cachedTokens > 0 ? cachedTokens : undefined,
-    estimatedCostUsd: costResult.cost,
-    rates: costResult.rates,
+    model: primaryModel,
+    inputTokens: totalInputTokens,
+    outputTokens: totalOutputTokens,
+    totalTokens: totalInputTokens + totalOutputTokens,
+    cachedTokens: totalCachedTokens > 0 ? totalCachedTokens : undefined,
+    estimatedCostUsd: Number(totalEstimatedCost.toFixed(6)),
+    rates: primary?.rates,
+    byModel: byModel.length > 0 ? byModel : undefined,
   };
 }
 

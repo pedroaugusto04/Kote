@@ -112,6 +112,45 @@ test('Sync AI sessions command integration', async (t) => {
     ]);
   });
 
+  await t.test('provider strategies correctly extract multi-model token usage into byModel array', async () => {
+    const { ClaudeCodeHistoryProvider } = await import('../../cli/dist/ai-history/providers/claude-code.provider.js');
+
+    // Create a multi-model Claude log file
+    const multiClaudeDir = path.join(TEST_DIR, '.claude', 'projects', 'multi-model-proj');
+    fs.mkdirSync(multiClaudeDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(multiClaudeDir, 'multi-claude.jsonl'),
+      `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Plan task"}]}}\n` +
+      `{"type":"assistant","message":{"model":"claude-3-5-sonnet-20241022","role":"assistant","content":[{"type":"text","text":"Planning..."}],"usage":{"input_tokens":1000,"output_tokens":200,"cache_read_input_tokens":500}}}\n` +
+      `{"type":"assistant","message":{"model":"claude-3-5-haiku-20241022","role":"assistant","content":[{"type":"text","text":"Executing fast check..."}],"usage":{"input_tokens":500,"output_tokens":100,"cache_read_input_tokens":0}}}\n`,
+      'utf8'
+    );
+
+    const claudeProvider = new ClaudeCodeHistoryProvider();
+    const sessions = await claudeProvider.getRecentSessions();
+    const multiSession = sessions.find((s) => s.sessionId === 'multi-claude');
+    assert.ok(multiSession);
+    assert.ok(multiSession.tokenUsage);
+    assert.equal(multiSession.tokenUsage.totalTokens, 1800);
+    assert.equal(multiSession.tokenUsage.inputTokens, 1500);
+    assert.equal(multiSession.tokenUsage.outputTokens, 300);
+    assert.ok(Array.isArray(multiSession.tokenUsage.byModel));
+    assert.equal(multiSession.tokenUsage.byModel.length, 2);
+
+    const sonnet = multiSession.tokenUsage.byModel.find((m) => m.model === 'claude-3-5-sonnet-20241022');
+    assert.ok(sonnet);
+    assert.equal(sonnet.inputTokens, 1000);
+    assert.equal(sonnet.outputTokens, 200);
+    assert.equal(sonnet.totalTokens, 1200);
+    assert.equal(sonnet.cachedTokens, 500);
+
+    const haiku = multiSession.tokenUsage.byModel.find((m) => m.model === 'claude-3-5-haiku-20241022');
+    assert.ok(haiku);
+    assert.equal(haiku.inputTokens, 500);
+    assert.equal(haiku.outputTokens, 100);
+    assert.equal(haiku.totalTokens, 600);
+  });
+
   await t.test('history manager composes provider strategies and sorts their sessions', async () => {
     const { AiHistoryManager } = await import('../../cli/dist/ai-history/history-manager.js');
     const firstProvider = {
