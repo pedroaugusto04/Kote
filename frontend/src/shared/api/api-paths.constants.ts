@@ -23,6 +23,8 @@ export const API_PATHS = {
   PROJECT_BRIEF_HISTORY: '/api/projects/{projectSlug}/brief/history',
   PROJECT_DEPENDENCIES: '/api/projects/{projectSlug}/dependencies',
   PROJECT_COVERAGE: '/api/projects/{projectSlug}/coverage',
+  PROJECT_DECISIONS: '/api/projects/{projectSlug}/decisions',
+  PROJECT_DECISIONS_EXPORT_ADR: '/api/projects/{projectSlug}/decisions/export-adr',
   PROJECTS_EXPORT_ZIP: '/api/projects/export/zip',
 
   // Notes paths

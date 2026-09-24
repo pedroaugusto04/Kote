@@ -177,3 +177,35 @@ export interface SnippetNotesResponse {
   matches: SnippetNoteMatch[];
   total: number;
 }
+
+export interface KbDecisionItem {
+  id: string;
+  noteId: string;
+  noteTitle: string;
+  notePath: string;
+  projectSlug: string;
+  sourceChannel: string;
+  source?: string;
+  occurredAt: string;
+  generatedAt?: string | null;
+  kind: 'decision' | 'failed_attempt';
+  text: string;
+  status: 'current' | 'superseded' | 'rejected' | 'deprecated' | string;
+  turnRefs: number[];
+  files: string[];
+  entities: string[];
+}
+
+export interface KbDecisionsResponse {
+  ok: boolean;
+  items: KbDecisionItem[];
+  availableFiles: string[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrevious: boolean;
+  };
+}

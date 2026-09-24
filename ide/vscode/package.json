@@ -111,6 +111,11 @@
         "command": "kote.openNoteDetail",
         "title": "Kote: Open Note Detail",
         "category": "Kote"
+      },
+      {
+        "command": "kote.showProjectDecisions",
+        "title": "Kote: View Project Decisions (Living ADRs)",
+        "category": "Kote"
       }
     ],
     "keybindings": [

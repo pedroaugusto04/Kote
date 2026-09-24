@@ -210,6 +210,62 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!noteId) return;
       await NoteDetailWebviewProvider.show(context.extensionUri, kbClient, noteId);
     }),
+    vscode.commands.registerCommand('kote.showProjectDecisions', async () => {
+      const projectSlug = getActiveProjectSlug();
+      if (!projectSlug) {
+        vscode.window.showInformationMessage('No active Kote project found.');
+        return;
+      }
+
+      await vscode.window.withProgress(
+        {
+          location: vscode.ProgressLocation.Notification,
+          title: `Fetching decisions for ${projectSlug}...`,
+          cancellable: false,
+        },
+        async () => {
+          try {
+            const res = await kbClient.listProjectDecisions(projectSlug, { pageSize: 50 });
+            if (!res.items || res.items.length === 0) {
+              vscode.window.showInformationMessage(`No recorded architecture decisions found for project "${projectSlug}".`);
+              return;
+            }
+
+            const items: (vscode.QuickPickItem & { noteId?: string })[] = res.items.map((item) => {
+              const statusMap: Record<string, string> = {
+                current: 'Accepted',
+                superseded: 'Superseded',
+                rejected: 'Rejected',
+                deprecated: 'Deprecated',
+              };
+              const statusLabel = statusMap[item.status] || item.status.toUpperCase();
+              const kindLabel = item.kind === 'failed_attempt' ? 'Failed Attempt' : 'Decision';
+              const filesInfo = item.files.length > 0 ? ` • ${item.files.length} file(s)` : '';
+              const dateInfo = item.occurredAt ? item.occurredAt.split('T')[0] : '';
+
+              return {
+                label: `[${statusLabel}] ${item.text.split('\n')[0].replace(/^#+\s*/, '').slice(0, 80)}`,
+                description: `${kindLabel} • ${dateInfo}${filesInfo}`,
+                detail: item.text,
+                noteId: item.noteId,
+              };
+            });
+
+            const picked = await vscode.window.showQuickPick(items, {
+              placeHolder: `Select an ADR/Decision to view details (${items.length} decisions)`,
+              matchOnDescription: true,
+              matchOnDetail: true,
+            });
+
+            if (picked?.noteId) {
+              await vscode.commands.executeCommand('kote.openNoteDetail', picked.noteId);
+            }
+          } catch (err: any) {
+            vscode.window.showErrorMessage(`Failed to fetch project decisions: ${toMessage(err)}`);
+          }
+        }
+      );
+    }),
   );
 
   // -------------------------------------------------------------------------

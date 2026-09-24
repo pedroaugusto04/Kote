@@ -20,6 +20,8 @@ export { UpdateProjectUseCase } from './projects/update-project.use-case.js';
 export { SetProjectFavoriteUseCase } from './projects/set-project-favorite.use-case.js';
 export { GetProjectCoverageUseCase } from './projects/get-project-coverage.use-case.js';
 export { ExportProjectNotesZipUseCase } from './projects/export-project-notes-zip.use-case.js';
+export { ListProjectDecisionsUseCase } from './projects/list-project-decisions.use-case.js';
+export { ExportProjectAdrsUseCase } from './projects/export-project-adrs.use-case.js';
 export { CreateManualNoteUseCase } from './notes/create-manual-note.use-case.js';
 export { DeleteNoteUseCase } from './notes/delete-manual-note.use-case.js';
 export { GetNoteAttachmentContentUseCase } from './notes/get-note-attachment-content.use-case.js';

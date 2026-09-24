@@ -59,6 +59,22 @@ export const exportProjectNotesZipQuerySchema = z.object({
 });
 export type ExportProjectNotesZipQuery = z.infer<typeof exportProjectNotesZipQuerySchema>;
 
+export const projectDecisionsQuerySchema = paginationInputSchema.extend({
+  status: z.string().trim().optional(),
+  file: z.string().trim().optional(),
+  search: z.string().trim().optional(),
+  kind: z.enum(['decision', 'failed_attempt', 'all']).optional().default('all'),
+});
+export type ProjectDecisionsQuery = z.infer<typeof projectDecisionsQuerySchema>;
+
+export const exportProjectAdrsQuerySchema = z.object({
+  status: z.string().trim().optional(),
+  file: z.string().trim().optional(),
+  search: z.string().trim().optional(),
+  kind: z.enum(['decision', 'failed_attempt', 'all']).optional().default('all'),
+});
+export type ExportProjectAdrsQuery = z.infer<typeof exportProjectAdrsQuerySchema>;
+
 export const updateProjectBodySchema = z
   .object({
     displayName: z.string().trim().min(1, 'Project name is required.').max(120, 'Maximum length is 120 characters.'),

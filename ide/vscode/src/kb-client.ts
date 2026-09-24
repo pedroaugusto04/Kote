@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import https from 'node:https';
 import http from 'node:http';
-import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, AskHistoryEntry, SnippetNoteMatch, GitCommitContext, SnippetNotesResponse } from './types';
+import type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, AskHistoryEntry, SnippetNoteMatch, GitCommitContext, SnippetNotesResponse, KbDecisionItem, KbDecisionsResponse } from './types';
 
 export const FILE_NOTES_SUMMARY_FALLBACK_REASON = {
   FEATURE_DISABLED: 'feature_disabled',
@@ -15,7 +15,7 @@ export const FILE_NOTES_SUMMARY_FALLBACK_REASON = {
 // Config (mirrors the CLI config file used by the extension)
 // ---------------------------------------------------------------------------
 
-export type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, SnippetNoteMatch, GitCommitContext, SnippetNotesResponse } from './types';
+export type { KbConfig, KbProject, KbNote, KbReminder, KbAskResult, KbCreateNotePayload, KbCreateNoteResult, SnippetNoteMatch, GitCommitContext, SnippetNotesResponse, KbDecisionItem, KbDecisionsResponse } from './types';
 
 import { SPECIAL_PROJECT_SLUGS } from './utils/project';
 
@@ -605,6 +605,33 @@ export class KbClient {
         workspaceSlug: payload.workspaceSlug || this.config.workspaceSlug || 'default',
         projectSlug: payload.projectSlug || this.config.defaultProjectSlug,
       }),
+    });
+  }
+
+  async listProjectDecisions(
+    projectSlug: string,
+    params: {
+      status?: string;
+      file?: string;
+      search?: string;
+      kind?: 'decision' | 'failed_attempt' | 'all';
+      page?: number;
+      pageSize?: number;
+    } = {},
+    options?: { signal?: AbortSignal }
+  ): Promise<KbDecisionsResponse> {
+    const query = new URLSearchParams();
+    if (params.status) query.set('status', params.status);
+    if (params.file) query.set('file', params.file);
+    if (params.search) query.set('search', params.search);
+    if (params.kind && params.kind !== 'all') query.set('kind', params.kind);
+    if (params.page) query.set('page', String(params.page));
+    if (params.pageSize) query.set('pageSize', String(params.pageSize));
+
+    const qs = query.toString();
+    return this.fetch<KbDecisionsResponse>(`/api/projects/${encodeURIComponent(projectSlug)}/decisions${qs ? `?${qs}` : ''}`, {
+      method: 'GET',
+      signal: options?.signal,
     });
   }
 }

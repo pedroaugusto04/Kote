@@ -1,4 +1,5 @@
 import type { NoteSynthesisRecord, NoteSynthesisItem } from '../../models/note-synthesis.models.js';
+import type { ListProjectDecisionsInput, ListProjectDecisionsResult } from '../../models/project-decisions.models.js';
 
 export abstract class NoteSynthesisRepository {
   abstract upsertPending(input: { userId: string; noteId: string; sourceHash: string; mode?: 'ai' | 'deterministic'; force?: boolean }, tx?: any): Promise<NoteSynthesisRecord>;
@@ -7,4 +8,5 @@ export abstract class NoteSynthesisRepository {
   abstract markFailed(userId: string, noteId: string, sourceHash: string, errorCode: string): Promise<void>;
   abstract markSkipped(userId: string, noteId: string, sourceHash: string, errorCode: string): Promise<void>;
   abstract getByNoteId(userId: string, noteId: string): Promise<NoteSynthesisRecord | null>;
+  abstract listProjectDecisions(userId: string, input: ListProjectDecisionsInput): Promise<ListProjectDecisionsResult>;
 }

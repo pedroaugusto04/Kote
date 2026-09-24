@@ -3,6 +3,7 @@ import type { ProjectBriefResponse, SavedProjectBriefResponse, ProjectBriefHisto
 import type { ProjectFolder } from './models/project-folder';
 import type { ProjectKnowledgeMapQuery, ProjectKnowledgeMapResponse } from './models/project-knowledge-map';
 import type { ProjectTimelineCategory, ProjectTimelineItem } from './models/project-timeline';
+import type { ProjectDecisionsResponse, FetchProjectDecisionsParams, ExportProjectAdrsParams } from './models/project-decisions';
 import { DEFAULT_PAGE_SIZE, type PaginatedResponse } from './models/pagination';
 import type { Workspace } from './models/workspace';
 import { request, requestBlob } from './request';
@@ -200,4 +201,47 @@ export async function exportProjectNotesZip(params: ExportProjectNotesZipParams 
 
   return { ok: true, filename };
 }
+
+export function fetchProjectDecisions(projectSlug: string, params: FetchProjectDecisionsParams = {}) {
+  const search = new URLSearchParams({
+    page: String(params.page || 1),
+    pageSize: String(params.pageSize || 20),
+  });
+  if (params.status) search.set('status', params.status);
+  if (params.file) search.set('file', params.file);
+  if (params.search?.trim()) search.set('search', params.search.trim());
+  if (params.kind && params.kind !== 'all') search.set('kind', params.kind);
+
+  return request<ProjectDecisionsResponse>(`${buildApiPath(API_PATHS.PROJECT_DECISIONS, { projectSlug })}?${search.toString()}`);
+}
+
+export async function exportProjectAdrsZip(projectSlug: string, params: ExportProjectAdrsParams = {}) {
+  const search = new URLSearchParams();
+  if (params.status) search.set('status', params.status);
+  if (params.file) search.set('file', params.file);
+  if (params.search?.trim()) search.set('search', params.search.trim());
+  if (params.kind && params.kind !== 'all') search.set('kind', params.kind);
+
+  const queryString = search.toString();
+  const url = `${buildApiPath(API_PATHS.PROJECT_DECISIONS_EXPORT_ADR, { projectSlug })}${queryString ? `?${queryString}` : ''}`;
+  const result = await requestBlob(url);
+
+  const fallbackFilename = `kote-${projectSlug}-adrs-${new Date().toISOString().split('T')[0]}.zip`;
+  const filename = result.filename || fallbackFilename;
+
+  if (typeof window !== 'undefined') {
+    const objectUrl = window.URL.createObjectURL(result.blob);
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(objectUrl);
+    document.body.removeChild(a);
+  }
+
+  return { ok: true, filename };
+}
+
 

@@ -49,7 +49,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 import { ProjectFolderModal } from './modals/ProjectFolderModal';
 import { ProjectNoteModal } from './modals/ProjectNoteModal';
 import { ProjectModal } from './modals/ProjectModal';
-import { ProjectsBrowser } from './ProjectsBrowser';
+import { ProjectsBrowser, type ProjectBrowserView } from './ProjectsBrowser';
 import { flattenFolders } from './projects.helpers';
 import {
   ConfirmKind,
@@ -95,7 +95,7 @@ export function ProjectsWorkspace({
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState(ROOT_FOLDER_ID);
   const [timelineCategory, setTimelineCategory] = useState<ProjectTimelineCategory>('all');
-  const [projectView, setProjectView] = useState<'timeline' | 'dependencies' | 'ai-analytics'>('timeline');
+  const [projectView, setProjectView] = useState<ProjectBrowserView>('timeline');
   const [timelineStatus, setTimelineStatus] = useState<NoteStatusFilter>(StatusFilter.Open);
   const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);

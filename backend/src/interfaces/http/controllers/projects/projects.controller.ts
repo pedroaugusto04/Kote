@@ -19,6 +19,8 @@ import {
   UpdateProjectUseCase,
   GetProjectCoverageUseCase,
   ExportProjectNotesZipUseCase,
+  ListProjectDecisionsUseCase,
+  ExportProjectAdrsUseCase,
 } from '../../../../application/use-cases/index.js';
 import { ListProjectDependenciesUseCase } from '../../../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
@@ -27,6 +29,8 @@ import {
   createProjectBodySchema,
   createProjectFolderBodySchema,
   exportProjectNotesZipQuerySchema,
+  projectDecisionsQuerySchema,
+  exportProjectAdrsQuerySchema,
   projectKnowledgeMapQuerySchema,
   projectSlugParamSchema,
   projectTimelineQuerySchema,
@@ -37,6 +41,8 @@ import {
   type CreateProjectBody,
   type CreateProjectFolderBody,
   type ExportProjectNotesZipQuery,
+  type ProjectDecisionsQuery,
+  type ExportProjectAdrsQuery,
   type ProjectKnowledgeMapQuery,
   type ProjectSlugParam,
   type ProjectTimelineQuery,
@@ -72,6 +78,8 @@ export class ProjectsController {
     private readonly getProjectCoverageUseCase: GetProjectCoverageUseCase,
     private readonly exportProjectNotesZipUseCase: ExportProjectNotesZipUseCase,
     private readonly listProjectDependenciesUseCase: ListProjectDependenciesUseCase,
+    private readonly listProjectDecisionsUseCase: ListProjectDecisionsUseCase,
+    private readonly exportProjectAdrsUseCase: ExportProjectAdrsUseCase,
   ) { }
 
   @Post()
@@ -341,6 +349,55 @@ export class ProjectsController {
       forceSync: forceSync === 'true',
     });
     return { ok: true, ...result, coverage: result };
+  }
+
+  @Get(':projectSlug/decisions')
+  @UseGuards(ProjectResolutionGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List architecture and code decisions for a project' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'Project decisions retrieved successfully' })
+  async listDecisions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectSlug') projectSlug: string,
+    @Query(new ZodValidationPipe(projectDecisionsQuerySchema, 'invalid_project_decisions_query')) query: ProjectDecisionsQuery,
+  ) {
+    const result = await this.listProjectDecisionsUseCase.execute(user.id, {
+      projectSlug,
+      status: query.status,
+      file: query.file,
+      search: query.search,
+      kind: query.kind,
+      page: query.page,
+      pageSize: query.pageSize,
+    });
+    return { ok: true, ...result };
+  }
+
+  @Get(':projectSlug/decisions/export-adr')
+  @UseGuards(ProjectResolutionGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export project decisions as Architecture Decision Record (ADR) markdown files in a ZIP archive' })
+  @ApiParam({ name: 'projectSlug', description: 'Project slug' })
+  @ApiResponse({ status: 200, description: 'ZIP file containing ADR markdown files and INDEX.md' })
+  async exportAdrsZip(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('projectSlug') projectSlug: string,
+    @Query(new ZodValidationPipe(exportProjectAdrsQuerySchema, 'invalid_export_adr_query')) query: ExportProjectAdrsQuery,
+    @Res() res: Response,
+  ) {
+    const result = await this.exportProjectAdrsUseCase.execute(user.id, {
+      projectSlug,
+      status: query.status,
+      file: query.file,
+      search: query.search,
+      kind: query.kind,
+    });
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.setHeader('Content-Length', String(result.buffer.length));
+    return res.send(result.buffer);
   }
 }
 

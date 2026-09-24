@@ -27,6 +27,8 @@ import {
   ListPaginatedReviewsUseCase,
   GetProjectCoverageUseCase,
   ExportProjectNotesZipUseCase,
+  ListProjectDecisionsUseCase,
+  ExportProjectAdrsUseCase,
 } from '../../application/use-cases/index.js';
 import { ListProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
 import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
@@ -73,6 +75,8 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     ListPaginatedReviewsUseCase,
     GetProjectCoverageUseCase,
     ExportProjectNotesZipUseCase,
+    ListProjectDecisionsUseCase,
+    ExportProjectAdrsUseCase,
     ListProjectDependenciesUseCase,
     SyncProjectFilesService,
     SemanticClusteringService,
@@ -90,6 +94,8 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     ListProjectBriefHistoryUseCase,
     GetProjectCoverageUseCase,
     ExportProjectNotesZipUseCase,
+    ListProjectDecisionsUseCase,
+    ExportProjectAdrsUseCase,
     SyncProjectFilesService,
     ProjectCoverageRepository,
     CreateProjectUseCase,
