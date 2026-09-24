@@ -9,6 +9,7 @@ export const EXTENSION_COMMANDS = {
   OPEN_SYNC_TAB: 'kote.openSyncTab',
   SIDEBAR_VIEW_FOCUS: 'kote.sidebarView.focus',
   EXPLAIN_SNIPPET_ORIGIN: 'kote.explainSnippetOrigin',
+  OPEN_NOTE_DETAIL: 'kote.openNoteDetail',
 } as const;
 
 export const GLOBAL_STATE_KEYS = {

@@ -106,6 +106,11 @@
         "title": "Kote: Generate & Copy Session Handoff",
         "category": "Kote",
         "icon": "$(clippy)"
+      },
+      {
+        "command": "kote.openNoteDetail",
+        "title": "Kote: Open Note Detail",
+        "category": "Kote"
       }
     ],
     "keybindings": [
@@ -189,6 +194,21 @@
         "type": "string",
         "default": "",
         "description": "Custom path to OpenCode database file. If not set, defaults to ~/.local/share/opencode/opencode.db"
+      },
+      "kote.inlineAnnotations.enabled": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable subtle inline annotations at the end of the active line indicating context and decisions from Kote."
+      },
+      "kote.inlineAnnotations.showHover": {
+        "type": "boolean",
+        "default": true,
+        "description": "Enable rich interactive hover tooltip showing Kote context and decisions on the active line."
+      },
+      "kote.inlineAnnotations.debounceMs": {
+        "type": "number",
+        "default": 500,
+        "description": "Debounce time in milliseconds before computing inline context annotations when cursor moves."
       }
     }
   },

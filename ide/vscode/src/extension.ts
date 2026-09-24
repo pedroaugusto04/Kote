@@ -16,6 +16,8 @@ import { autoRegisterHarnessHooks } from './ai-history/hooks/installer';
 import { KoteCodeLensProvider } from './providers/codelens.provider';
 import { KoteNoteContentProvider } from './providers/note-viewer.provider';
 import { FileNotesSummaryProvider } from './providers/file-notes-summary.provider';
+import { NoteDetailWebviewProvider } from './providers/note-detail-webview.provider';
+import { LineContextProvider } from './providers/line-context.provider';
 import { resolveProjectSlug } from './utils/project';
 
 let kbClient: KbClient;
@@ -203,7 +205,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('kote.showFileNotes', async (relativePath: string, notes: any[]) => {
       const projectSlug = getActiveProjectSlug();
       await FileNotesSummaryProvider.show(context.extensionUri, kbClient, relativePath, notes, projectSlug);
-    })
+    }),
+    vscode.commands.registerCommand('kote.openNoteDetail', async (noteId: string) => {
+      if (!noteId) return;
+      await NoteDetailWebviewProvider.show(context.extensionUri, kbClient, noteId);
+    }),
+  );
+
+  // -------------------------------------------------------------------------
+  // Inline Context & Line Blame Annotation
+  // -------------------------------------------------------------------------
+  const lineContextProvider = new LineContextProvider(kbClient, getActiveProjectSlug);
+  context.subscriptions.push(
+    lineContextProvider,
+    vscode.languages.registerHoverProvider({ scheme: 'file' }, lineContextProvider),
   );
 
   // -------------------------------------------------------------------------
