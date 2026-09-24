@@ -1,6 +1,6 @@
 import { useState, useTransition } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchProjectDecisions, exportProjectAdrsZip, type ProjectDecisionItem } from '../../shared/api/client';
+import { fetchProjectDecisions, exportProjectAdrsZip, getProjectDecisionStatusLabel, type ProjectDecisionItem } from '../../shared/api/client';
 import { EmptyState, InlineMessage, Badge } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { DownloadIcon, SearchIcon } from '../../shared/ui/icons';
@@ -77,177 +77,8 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
     }
   };
 
-  const getStatusLabel = (s: string) => {
-    switch (s) {
-      case 'current':
-        return 'Accepted';
-      case 'superseded':
-        return 'Superseded';
-      case 'rejected':
-        return 'Rejected';
-      case 'deprecated':
-        return 'Deprecated';
-      default:
-        return s.toUpperCase();
-    }
-  };
-
   return (
     <div className="project-decisions-panel">
-      <style>{`
-        .project-decisions-panel {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          padding: 0.25rem 0;
-        }
-        .decisions-toolbar {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.75rem;
-          padding-bottom: 0.5rem;
-          border-bottom: 1px solid var(--border-subtle);
-        }
-        .decisions-filter-group {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .decisions-search-input {
-          display: flex;
-          align-items: center;
-          background: var(--surface-secondary);
-          border: 1px solid var(--border-subtle);
-          border-radius: 6px;
-          padding: 0 0.6rem;
-          gap: 0.4rem;
-          min-width: 180px;
-        }
-        .decisions-search-input input {
-          border: none;
-          background: transparent;
-          color: inherit;
-          padding: 0.35rem 0;
-          font-size: 0.85rem;
-          outline: none;
-          width: 100%;
-        }
-        .decisions-file-select {
-          max-width: 200px;
-          font-size: 0.85rem;
-          padding: 0.35rem 0.5rem;
-          background: var(--surface-secondary);
-          color: inherit;
-          border: 1px solid var(--border-subtle);
-          border-radius: 6px;
-        }
-        .decision-cards-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.85rem;
-        }
-        .decision-card {
-          display: flex;
-          flex-direction: column;
-          gap: 0.6rem;
-          padding: 1rem 1.15rem;
-          background: var(--surface-panel);
-          border: 1px solid var(--border-subtle);
-          border-radius: 8px;
-          transition: border-color 0.15s ease;
-        }
-        .decision-card:hover {
-          border-color: var(--border-hover, var(--border-strong));
-        }
-        .decision-card-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-        .decision-card-badges {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
-        .decision-kind-tag {
-          font-size: 0.72rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          padding: 2px 7px;
-          border-radius: 4px;
-        }
-        .decision-kind-decision {
-          background: rgba(59, 130, 246, 0.12);
-          color: #3b82f6;
-          border: 1px solid rgba(59, 130, 246, 0.25);
-        }
-        .decision-kind-failed {
-          background: rgba(245, 158, 11, 0.12);
-          color: #f59e0b;
-          border: 1px solid rgba(245, 158, 11, 0.25);
-        }
-        .decision-card-body {
-          font-size: 0.92rem;
-          line-height: 1.55;
-          color: var(--text-normal);
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-        .decision-card-footer {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 0.6rem;
-          margin-top: 0.25rem;
-          padding-top: 0.6rem;
-          border-top: 1px dashed var(--border-subtle);
-          font-size: 0.8rem;
-        }
-        .decision-files-row {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 0.35rem;
-        }
-        .decision-file-chip {
-          display: inline-flex;
-          align-items: center;
-          font-family: var(--font-mono, monospace);
-          font-size: 0.75rem;
-          padding: 2px 6px;
-          background: var(--surface-secondary);
-          border: 1px solid var(--border-subtle);
-          border-radius: 4px;
-          color: var(--text-muted);
-          cursor: pointer;
-        }
-        .decision-file-chip:hover {
-          color: var(--text-normal);
-          border-color: var(--border-hover);
-        }
-        .decision-note-button {
-          background: transparent;
-          border: none;
-          color: var(--accent, #3b82f6);
-          font-size: 0.8rem;
-          font-weight: 500;
-          cursor: pointer;
-          padding: 0;
-          text-decoration: underline;
-        }
-        .decision-note-button:hover {
-          color: var(--accent-hover, #60a5fa);
-        }
-      `}</style>
-
       {/* Toolbar */}
       <div className="decisions-toolbar">
         <div className="decisions-filter-group">
@@ -390,7 +221,7 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
                     >
                       {item.kind === 'failed_attempt' ? 'Failed Attempt' : 'Decision'}
                     </span>
-                    <Badge value={getStatusLabel(item.status)} tone={getStatusBadgeTone(item.status)} />
+                    <Badge value={getProjectDecisionStatusLabel(item.status)} tone={getStatusBadgeTone(item.status)} />
                     {item.sourceChannel && <SourceBadge source={item.sourceChannel} iconSize={14} />}
                   </div>
                   <span className="meta meta-date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>

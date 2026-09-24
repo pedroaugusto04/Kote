@@ -84,7 +84,7 @@ export class PostgresNoteSynthesisRepository extends NoteSynthesisRepository {
 
   async listProjectDecisions(userId: string, input: ListProjectDecisionsInput): Promise<ListProjectDecisionsResult> {
     const page = Math.max(1, input.page || 1);
-    const pageSize = Math.min(100, Math.max(1, input.pageSize || 20));
+    const pageSize = Math.min(5000, Math.max(1, input.pageSize || 20));
     const offset = (page - 1) * pageSize;
 
     const queryParams: any[] = [userId, input.projectSlug];
@@ -108,7 +108,7 @@ export class PostgresNoteSynthesisRepository extends NoteSynthesisRepository {
 
     if (input.file) {
       queryParams.push(JSON.stringify([input.file]));
-      whereClauses.push(`(item_val->'files') @> $${queryParams.length}::jsonb`);
+      whereClauses.push(`(CASE WHEN jsonb_typeof(item_val->'files') = 'array' THEN item_val->'files' ELSE '[]'::jsonb END) @> $${queryParams.length}::jsonb`);
     }
 
     if (input.search && input.search.trim()) {
@@ -141,7 +141,13 @@ export class PostgresNoteSynthesisRepository extends NoteSynthesisRepository {
         FROM kb_note_syntheses s
         JOIN kb_notes n ON n.id = s.note_id
         JOIN kb_projects p ON p.id = n.project_id
-        CROSS JOIN LATERAL jsonb_array_elements(s.memory) WITH ORDINALITY AS item(item_val, ordinality)
+        CROSS JOIN LATERAL jsonb_array_elements(
+          CASE 
+            WHEN s.memory IS NOT NULL AND jsonb_typeof(s.memory) = 'array' 
+            THEN s.memory 
+            ELSE '[]'::jsonb 
+          END
+        ) WITH ORDINALITY AS item(item_val, ordinality)
         WHERE ${whereSql}
       )
       SELECT *, count(*) OVER() as total_count
@@ -153,16 +159,29 @@ export class PostgresNoteSynthesisRepository extends NoteSynthesisRepository {
     queryParams.push(pageSize, offset);
 
     const filesQuery = `
-      SELECT DISTINCT jsonb_array_elements_text(item_val->'files') as file_path
+      SELECT DISTINCT file_path
       FROM kb_note_syntheses s
       JOIN kb_notes n ON n.id = s.note_id
       JOIN kb_projects p ON p.id = n.project_id
-      CROSS JOIN LATERAL jsonb_array_elements(s.memory) as item(item_val)
+      CROSS JOIN LATERAL jsonb_array_elements(
+        CASE 
+          WHEN s.memory IS NOT NULL AND jsonb_typeof(s.memory) = 'array' 
+          THEN s.memory 
+          ELSE '[]'::jsonb 
+        END
+      ) as item(item_val)
+      CROSS JOIN LATERAL jsonb_array_elements_text(
+        CASE 
+          WHEN item_val->'files' IS NOT NULL AND jsonb_typeof(item_val->'files') = 'array' 
+          THEN item_val->'files' 
+          ELSE '[]'::jsonb 
+        END
+      ) as files(file_path)
       WHERE s.user_id = $1 
         AND p.project_slug = $2 
         AND s.status = '${NoteSynthesisStatus.Completed}'
         AND (item_val->>'kind') IN ('decision', 'failed_attempt')
-        AND jsonb_array_length(coalesce(item_val->'files', '[]'::jsonb)) > 0
+        AND file_path IS NOT NULL AND length(trim(file_path)) > 0
       ORDER BY file_path ASC
       LIMIT 100
     `;
@@ -183,8 +202,12 @@ export class PostgresNoteSynthesisRepository extends NoteSynthesisRepository {
       projectSlug: String(row.project_slug || ''),
       sourceChannel: String(row.source_channel || ''),
       source: row.source ? String(row.source) : undefined,
-      occurredAt: new Date(String(row.occurred_at)).toISOString(),
-      generatedAt: row.generated_at ? new Date(String(row.generated_at)).toISOString() : null,
+      occurredAt: row.occurred_at && !isNaN(new Date(row.occurred_at).getTime())
+        ? new Date(row.occurred_at).toISOString()
+        : new Date().toISOString(),
+      generatedAt: row.generated_at && !isNaN(new Date(row.generated_at).getTime())
+        ? new Date(row.generated_at).toISOString()
+        : null,
       kind: row.kind as ProjectDecisionItem['kind'],
       text: String(row.text || ''),
       status: String(row.status || 'unknown') as ProjectDecisionItem['status'],

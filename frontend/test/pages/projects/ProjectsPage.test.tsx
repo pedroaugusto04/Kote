@@ -342,6 +342,7 @@ describe('ProjectsPage', () => {
     expect(repositoryCheckbox).not.toBeChecked();
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Billing API' } });
     fireEvent.click(repositoryCheckbox);
+    fireEvent.click(screen.getByTitle('Toggle default tags'));
     fireEvent.change(screen.getByLabelText('Tags'), { target: { value: 'finance' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 
@@ -386,9 +387,11 @@ describe('ProjectsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'New note' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Revisar rollout' } });
     fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'confirmar deploy' } });
+    fireEvent.click(screen.getByTitle('Toggle tags'));
     const tagsInput = screen.getByLabelText('Tags');
     fireEvent.change(tagsInput, { target: { value: 'deploy' } });
     fireEvent.keyDown(tagsInput, { key: 'Enter' });
+    fireEvent.click(screen.getByTitle('Toggle reminder'));
     fireEvent.change(screen.getByLabelText('Reminder'), { target: { value: '2026-04-29T09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
 

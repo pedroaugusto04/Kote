@@ -315,7 +315,7 @@ export async function detectActiveProject(
   client: KbClient,
   folders: readonly vscode.WorkspaceFolder[],
 ): Promise<string | null> {
-  let projects: KbProject[] = [];
+  let projects: KbProject[];
   try {
     projects = await client.listProjects();
   } catch {
