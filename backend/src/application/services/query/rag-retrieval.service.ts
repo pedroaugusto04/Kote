@@ -11,7 +11,6 @@ import type { NoteSynthesisRecord } from '../../models/note-synthesis.models.js'
 import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { selectTopFtsOnlyChunksPerNote } from '../../utils/query/query.utils.js';
 import { chunkRankKey, rankHybridContextChunks } from '../../utils/rag/hybrid-rag.utils.js';
-import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
 import { NoteSynthesisStatus } from '../../constants/ai-session-synthesis.constants.js';
 import { getAiSessionSourceHash } from '../content/ai-session-synthesis-transcript.service.js';
 import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
@@ -413,7 +412,7 @@ export class RagRetrievalService {
         noteId: chunk.chunk.noteId,
         vectorScore: chunk.vectorScore,
         keywordScore: chunk.keywordScore,
-        ftsRank: noteSummary(chunk.note).ftsRank,
+        ftsRank: chunk.note.ftsRank,
       })),
     });
 

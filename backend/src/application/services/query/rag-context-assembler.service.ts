@@ -7,7 +7,7 @@ import type { NoteSynthesisRecord } from '../../models/note-synthesis.models.js'
 import { EmbeddingRepresentation } from '../../ports/notes/note-embedding.repository.js';
 import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { matchesIntent } from '../../utils/query/query.utils.js';
-import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
+import { noteSummary } from '../../mappers/vault-note.mapper.js';
 import { SpecialQueryIntent } from '../../../contracts/enums.js';
 import { AI_SESSION_SYNTHESIS_RETRIEVAL } from '../../constants/ai-session-synthesis.constants.js';
 import { RagRetrievalService, type RankedCandidate, type RagScope } from './rag-retrieval.service.js';

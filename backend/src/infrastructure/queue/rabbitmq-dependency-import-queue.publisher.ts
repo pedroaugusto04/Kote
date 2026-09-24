@@ -9,18 +9,17 @@ const ROUTING_KEY = 'dependency_import.run';
 const DLX_NAME = `${EXCHANGE_NAME}.dlx`;
 const DLQ_NAME = `${QUEUE_NAME}.dlq`;
 
-export type DependencyImportJobMessage = {
-  jobId: string;
-  userId: string;
-  workspaceSlug: string;
-  workspaceId: string;
-  projectIds?: string[];
-  repositoryIds?: string[];
-  retryCount?: number;
-};
+import {
+  DependencyImportQueuePublisher,
+  type DependencyImportJobMessage,
+} from '../../application/ports/dependency-watcher/dependency-import-queue.publisher.js';
+
+export { type DependencyImportJobMessage };
 
 @Injectable()
-export class RabbitMqDependencyImportQueuePublisher extends BaseRabbitMqPublisher {
+export class RabbitMqDependencyImportQueuePublisher
+  extends BaseRabbitMqPublisher
+  implements DependencyImportQueuePublisher {
   constructor(logger: AppLogger) {
     super(logger);
   }

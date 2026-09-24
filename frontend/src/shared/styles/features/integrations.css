@@ -160,6 +160,25 @@
   padding: 18px;
 }
 
+.modal-panel .repository-picker {
+  max-height: 150px;
+}
+
+.modal-panel .repository-option {
+  min-height: 38px;
+  padding: 6px 10px;
+}
+
+.integration-modal .form-actions {
+  position: sticky;
+  bottom: -18px;
+  background: var(--panel);
+  padding: 10px 0 2px;
+  margin-top: 8px;
+  border-top: 1px solid var(--line-soft);
+  z-index: 10;
+}
+
 .integration-modal-title {
   display: flex;
   align-items: center;

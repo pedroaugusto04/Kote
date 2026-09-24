@@ -12,8 +12,8 @@ import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Importance, DependencyUrgency } from '../../../contracts/enums.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { RabbitMqDependencyCheckQueuePublisher } from '../../../infrastructure/queue/rabbitmq-dependency-check-queue.publisher.js';
-import { RabbitMqDependencyImportQueuePublisher } from '../../../infrastructure/queue/rabbitmq-dependency-import-queue.publisher.js';
+import { DependencyCheckQueuePublisher } from '../../ports/dependency-watcher/dependency-check-queue.publisher.js';
+import { DependencyImportQueuePublisher } from '../../ports/dependency-watcher/dependency-import-queue.publisher.js';
 
 
 @Injectable()
@@ -27,8 +27,8 @@ export class DependencyWatcherService {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly userRepository: UserRepository,
     private readonly contentRepository: ContentRepository,
-    private readonly dependencyCheckQueuePublisher: RabbitMqDependencyCheckQueuePublisher,
-    private readonly dependencyImportQueuePublisher: RabbitMqDependencyImportQueuePublisher,
+    private readonly dependencyCheckQueuePublisher: DependencyCheckQueuePublisher,
+    private readonly dependencyImportQueuePublisher: DependencyImportQueuePublisher,
     private readonly logger: AppLogger,
   ) {}
 

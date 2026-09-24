@@ -196,3 +196,9 @@ export function currentDateTimeInTimeZone(timeZone = 'UTC', now = new Date()): {
     time: formatTimeInTimeZone(now, timeZone),
   };
 }
+
+export function shiftDateKey(dateKey: string, days: number): string {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return formatDateInTimeZone(date, 'UTC');
+}

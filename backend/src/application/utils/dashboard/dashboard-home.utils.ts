@@ -1,5 +1,5 @@
 import { CanonicalType, HomePriorityType, HomeTargetKind, KnowledgeStatus, ReviewFindingSeverity, SourceChannel, TimelineCategory } from '../../../contracts/enums.js';
-import { formatDateInTimeZone, normalizeTimeZone } from '../../../domain/time.js';
+import { formatDateInTimeZone, normalizeTimeZone, shiftDateKey } from '../../../domain/time.js';
 import type { Project } from '../../../domain/projects.js';
 import type { DashboardHomeSummary, HomePriority } from '../../models/dashboard-home.models.js';
 import type { ReminderView } from '../../models/reminder.models.js';
@@ -53,12 +53,6 @@ function isActiveNoteStatus(status: string | null | undefined) {
 
 function projectLabel(projects: Project[], slug: string) {
   return projects.find((project) => project.projectSlug === slug)?.displayName || slug || 'No project';
-}
-
-function shiftDateKey(dateKey: string, days: number) {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day + days));
-  return formatDateInTimeZone(date, 'UTC');
 }
 
 function recentWindow(now: Date, windowDays: number, timeZone: string) {

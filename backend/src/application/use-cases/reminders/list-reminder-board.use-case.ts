@@ -5,7 +5,7 @@ import type { ReminderBoardInput } from '../../models/reminder-board.models.js';
 import { reminderBoardColumnKeys } from '../../models/reminder-board.models.js';
 import type { ReminderBoardCard, ReminderBoardResponse } from '../../models/reminder.models.js';
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import { sortRemindersBySchedule } from './reminder-list.helpers.js';
+import { boardColumnKey, emptyColumns, sortRemindersBySchedule } from './reminder-list.helpers.js';
 import { RefreshReminderStatusesUseCase } from './refresh-reminder-statuses.use-case.js';
 
 @Injectable()
@@ -55,17 +55,4 @@ export class ListReminderBoardUseCase {
 
     return { columns };
   }
-}
-
-function emptyColumns(limitPerColumn: number): ReminderBoardResponse['columns'] {
-  return reminderBoardColumnKeys.reduce((acc, key) => {
-    acc[key] = { items: [], total: 0, page: 1, pageSize: limitPerColumn, totalPages: 1, hasNext: false };
-    return acc;
-  }, {} as ReminderBoardResponse['columns']);
-}
-
-function boardColumnKey(reminder: Pick<ReminderBoardCard, 'status' | 'isOverdue'>): ReminderBoardColumnKey {
-  if (reminder.status === KnowledgeStatus.Resolved) return ReminderBoardColumnKey.Resolved;
-  if (reminder.status === KnowledgeStatus.Archived) return ReminderBoardColumnKey.Archived;
-  return reminder.status === KnowledgeStatus.Overdue || reminder.isOverdue ? ReminderBoardColumnKey.Overdue : ReminderBoardColumnKey.Upcoming;
 }

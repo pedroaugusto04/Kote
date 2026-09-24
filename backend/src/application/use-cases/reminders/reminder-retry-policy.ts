@@ -23,3 +23,9 @@ function clampRandom(value: number): number {
   if (value > 1) return 1;
   return value;
 }
+
+export function isFutureRetry(nextRetryAt: string, referenceNowIso: string): boolean {
+  const retryAtMs = Date.parse(nextRetryAt);
+  const nowMs = Date.parse(referenceNowIso);
+  return !Number.isNaN(retryAtMs) && !Number.isNaN(nowMs) && retryAtMs > nowMs;
+}

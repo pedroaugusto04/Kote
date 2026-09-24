@@ -61,6 +61,7 @@ import {
 } from './projects.types';
 import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
+import { ProjectDecisionsPanel } from './ProjectDecisionsPanel';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { DownloadIcon, SearchIcon } from '../../shared/ui/icons';
 import { InfoTooltip } from '../../shared/ui/info-tooltip';
@@ -461,26 +462,50 @@ export function ProjectsWorkspace({
                   <p>{timelineCategory === 'all' ? UI_MESSAGES.NOTES_FROM_ALL_PROJECTS : `${CATEGORY_LABELS[timelineCategory] || formatDisplayToken(timelineCategory)} notes from all projects`}</p>
                 </div>
               </div>
-              <ProjectTimeline
-                dashboard={dashboard}
-                items={allProjectsTimelineQuery.data?.timeline || []}
-                pagination={allProjectsTimelineQuery.data?.pagination}
-                category={timelineCategory}
-                onCategoryChange={(category) => {
-                  setTimelineCategory(category);
-                  timelinePagination.setPage(1);
-                }}
-                status={timelineStatus}
-                onStatusChange={setTimelineStatus}
-                onDeleteNote={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
-                onEditNote={(note) => loadNoteMutation.mutate(note.id)}
-                onOpenNote={handleOpenNote}
-                onOpenNoteFullPage={openNote}
-                onPageChange={timelinePagination.setPage}
-                isStale={allProjectsTimelineQuery.isPlaceholderData}
-                resetKey={`all:${timelineCategory}:${timelineStatus}:timeline`}
-                allowPin={true}
-              />
+              <div className="project-view-tabs" role="tablist" aria-label="All project views" style={{ marginBottom: '1.25rem' }}>
+                <button
+                  aria-selected={projectView === 'timeline'}
+                  className={projectView === 'timeline' ? 'filter-chip active' : 'filter-chip'}
+                  role="tab"
+                  type="button"
+                  onClick={() => setProjectView('timeline')}
+                >
+                  Timeline
+                </button>
+                <button
+                  aria-selected={projectView === 'decisions'}
+                  className={projectView === 'decisions' ? 'filter-chip active' : 'filter-chip'}
+                  role="tab"
+                  type="button"
+                  onClick={() => setProjectView('decisions')}
+                >
+                  Decisions
+                </button>
+              </div>
+              {projectView === 'decisions' ? (
+                <ProjectDecisionsPanel projectSlug="all" onOpenNote={handleOpenNote} />
+              ) : (
+                <ProjectTimeline
+                  dashboard={dashboard}
+                  items={allProjectsTimelineQuery.data?.timeline || []}
+                  pagination={allProjectsTimelineQuery.data?.pagination}
+                  category={timelineCategory}
+                  onCategoryChange={(category) => {
+                    setTimelineCategory(category);
+                    timelinePagination.setPage(1);
+                  }}
+                  status={timelineStatus}
+                  onStatusChange={setTimelineStatus}
+                  onDeleteNote={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
+                  onEditNote={(note) => loadNoteMutation.mutate(note.id)}
+                  onOpenNote={handleOpenNote}
+                  onOpenNoteFullPage={openNote}
+                  onPageChange={timelinePagination.setPage}
+                  isStale={allProjectsTimelineQuery.isPlaceholderData}
+                  resetKey={`all:${timelineCategory}:${timelineStatus}:timeline`}
+                  allowPin={true}
+                />
+              )}
             </Panel>
           ) : selected ? (
             <ProjectsBrowser

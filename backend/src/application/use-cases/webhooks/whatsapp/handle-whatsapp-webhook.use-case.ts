@@ -23,6 +23,7 @@ import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './wha
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
 import { resolveWorkspaceIdFromSlug } from '../../../utils/content/content-scope.utils.js';
+import { formatAskReply, normalizeReplyText } from '../../../utils/webhook/whatsapp-webhook-reply.utils.js';
 
 type WhatsappWebhookContext = {
   headers: Record<string, string>;
@@ -543,31 +544,4 @@ export class HandleWhatsappWebhookUseCase {
       error: event.error,
     });
   }
-}
-
-function normalizeReplyText(value: unknown) {
-  return String(value || '').trim() || 'I could not build the reply. Please try again.';
-}
-
-function formatAskReply(
-  result: Awaited<ReturnType<AskKnowledgeUseCase['execute']>>,
-  attachmentResolution?: WhatsappAskAttachmentResolution,
-) {
-  const lines = [
-    String(result.answer || '').trim() || 'I could not build the answer. Please try again.',
-    ...formatAskAttachmentNotices(attachmentResolution),
-  ];
-  return lines.filter(Boolean).join('\n');
-}
-
-function formatAskAttachmentNotices(attachmentResolution?: WhatsappAskAttachmentResolution) {
-  if (!attachmentResolution?.requested) return [];
-  const notices: string[] = [];
-  if (attachmentResolution.noteCount > 0 && attachmentResolution.attachmentCount === 0) {
-    notices.push('I could not find any attached files in the notes found.');
-  }
-  if (attachmentResolution.oversizedCount > 0) {
-    notices.push(`I found ${attachmentResolution.oversizedCount} file(s) larger than 15 MB, which were not sent due to the size limit.`);
-  }
-  return notices;
 }

@@ -21,39 +21,8 @@ import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.p
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import { GithubRepositoryResolutionService } from '../../../services/integrations/github-repository-resolution.service.js';
 import { AppLogger } from '../../../../observability/logger.js';
-
-type GithubPullRequestPayload = {
-  action?: string;
-  number?: number;
-  pull_request?: {
-    number?: number;
-    title?: string;
-    body?: string;
-    base?: { sha?: string };
-    head?: { sha?: string };
-  };
-  installation?: { id?: string | number };
-  repository?: {
-    id?: string | number;
-    full_name?: string;
-    private?: boolean;
-  };
-  sender?: { login?: string };
-};
-
-function githubPrAuditPayload(body: GithubPullRequestPayload): Record<string, unknown> {
-  return {
-    action: String(body.action || ''),
-    prNumber: body.pull_request?.number == null ? 0 : Number(body.pull_request.number),
-    installationId: body.installation?.id == null ? '' : String(body.installation.id),
-    repositoryId: body.repository?.id == null ? '' : String(body.repository.id),
-    repositoryFullName: String(body.repository?.full_name || '').trim(),
-    repositoryPrivate: body.repository?.private === true,
-    baseSha: String(body.pull_request?.base?.sha || ''),
-    headSha: String(body.pull_request?.head?.sha || ''),
-    senderLogin: String(body.sender?.login || ''),
-  };
-}
+import { githubPrAuditPayload, type GithubPullRequestPayload } from '../../../utils/github/github-audit.utils.js';
+import { filterAndTruncateChangedFiles } from '../../../utils/github/github-diff-filter.utils.js';
 
 @Injectable()
 export class HandleGithubPullRequestUseCase {
@@ -689,71 +658,4 @@ export class HandleGithubPullRequestUseCase {
       return undefined;
     }
   }
-}
-
-const IGNORED_EXTENSIONS = ['.map', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.pdf', '.zip', '.gz', '.tar', '.mp4'];
-const IGNORED_FILENAMES = ['package-lock.json', 'pnpm-lock.yaml', 'yarn.lock', 'composer.lock', 'go.sum', 'cargo.lock'];
-
-function isIgnoredFile(filename: string): boolean {
-  const lower = filename.toLowerCase();
-  if (IGNORED_FILENAMES.some(f => lower.endsWith(f))) {
-    return true;
-  }
-  if (IGNORED_EXTENSIONS.some(ext => lower.endsWith(ext))) {
-    return true;
-  }
-  return false;
-}
-
-export function filterAndTruncateChangedFiles(
-  files: Array<{ filename: string; status: string; patch?: string }>,
-  maxIndividualPatchLength = 10000,
-  maxTotalPatchLength = 40000,
-): Array<{ filename: string; status: string; patch: string }> {
-  let accumulatedLength = 0;
-  const processedFiles: Array<{ filename: string; status: string; patch: string }> = [];
-
-  for (const file of files) {
-    if (isIgnoredFile(file.filename)) {
-      processedFiles.push({
-        filename: file.filename,
-        status: file.status,
-        patch: '[Lockfile / binary / generated file diff omitted]',
-      });
-      continue;
-    }
-
-    let patch = file.patch || '';
-    if (!patch) {
-      processedFiles.push({
-        filename: file.filename,
-        status: file.status,
-        patch: '',
-      });
-      continue;
-    }
-
-    // Cap individual patch
-    if (patch.length > maxIndividualPatchLength) {
-      patch = patch.substring(0, maxIndividualPatchLength) + `\n\n[Diff truncated for ${file.filename} due to size...]`;
-    }
-
-    // Check total limit
-    if (accumulatedLength + patch.length > maxTotalPatchLength) {
-      processedFiles.push({
-        filename: file.filename,
-        status: file.status,
-        patch: '[Diff patch omitted due to total size limit]',
-      });
-    } else {
-      accumulatedLength += patch.length;
-      processedFiles.push({
-        filename: file.filename,
-        status: file.status,
-        patch,
-      });
-    }
-  }
-
-  return processedFiles;
 }

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 import type { CreateProjectFolderInput } from '../models/project-folder-input.models.js';
-import type { SaveProjectFolderInput, ProjectFolderRecord } from '../models/repository-records.models.js';
+import type { SaveProjectFolderInput, ProjectFolderRecord, NoteRecord } from '../models/repository-records.models.js';
 import { buildFolderFullSlugPath, folderSlugFromDisplayName } from '../utils/content/project-folder.utils.js';
 
 export function toFolderCreateInput(
@@ -48,5 +48,12 @@ export function toFolderUpdateRewrite(
     fullSlugPath,
     createdAt: folder.createdAt,
     updatedAt: new Date().toISOString(),
+  };
+}
+
+export function toNoteWithRewrittenPath(note: NoteRecord, path: string): NoteRecord {
+  return {
+    ...note,
+    path,
   };
 }

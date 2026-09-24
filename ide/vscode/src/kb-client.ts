@@ -588,7 +588,6 @@ export class KbClient {
     sourceNoteId?: string;
     sourceTitle?: string;
     sourceTimestamp?: string;
-    cached?: boolean;
   }> {
     return this.fetch<{
       ok: boolean;
@@ -597,7 +596,6 @@ export class KbClient {
       sourceNoteId?: string;
       sourceTitle?: string;
       sourceTimestamp?: string;
-      cached?: boolean;
     }>('/api/notes/session-handoff', {
       method: 'POST',
       body: JSON.stringify({
@@ -635,5 +633,4 @@ export class KbClient {
     });
   }
 }
-
 

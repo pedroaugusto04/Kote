@@ -2,20 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ContentQueryRepository, ContentRepository } from '../../ports/notes/content.repository.js';
 import { buildDashboardHome } from '../../utils/dashboard/dashboard-home.utils.js';
 import { RefreshReminderStatusesUseCase } from '../reminders/refresh-reminder-statuses.use-case.js';
-import { formatDateInTimeZone } from '../../../domain/time.js';
+import { formatDateInTimeZone, shiftDateKey } from '../../../domain/time.js';
 import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 import { ProjectCoverageRepository } from '../../ports/projects/project-coverage.repository.js';
-
-
-function shiftDateKey(dateKey: string, days: number): string {
-  const [year, month, day] = dateKey.split('-').map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day + days));
-  const y = date.getUTCFullYear();
-  const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-  const d = String(date.getUTCDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
 
 export { buildDashboardHome };
 
@@ -58,35 +48,7 @@ export class BuildDashboardUseCase {
     const end = formatDateInTimeZone(now, zone);
     const start = shiftDateKey(end, -(7 - 1));
     const dayKeys = Array.from({ length: 7 }, (_, index) => shiftDateKey(start, index));
-
-    let coverageMap = new Map<string, number>();
-    if (this.projectCoverageRepository?.getProjectsCoveragePercentage && projects.length > 0) {
-      try {
-        const projectIds = projects.map((p) => p.id).filter(Boolean);
-        const percentageById = await this.projectCoverageRepository.getProjectsCoveragePercentage(userId, projectIds);
-        for (const project of projects) {
-          const pct = percentageById.get(project.id) ?? 0;
-          coverageMap.set(project.projectSlug, pct);
-          coverageMap.set(project.id, pct);
-        }
-      } catch {
-        // Fallback gracefully
-      }
-    } else if (this.projectCoverageRepository && projects.length > 0) {
-      const coverageResults = await Promise.all(
-        projects.map(async (project) => {
-          try {
-            const res = await this.projectCoverageRepository.getProjectCoverage(userId, project.id);
-            return { projectSlug: project.projectSlug, coveragePercentage: res.coveragePercentage };
-          } catch {
-            return { projectSlug: project.projectSlug, coveragePercentage: 0 };
-          }
-        })
-      );
-      coverageMap = new Map<string, number>(
-        coverageResults.map((r) => [r.projectSlug, r.coveragePercentage])
-      );
-    }
+    const coverageMap = await this.resolveProjectsCoverageMap(userId, projects);
 
     const notesByProject = new Map<string, typeof notes>();
     for (const note of notes) {
@@ -136,5 +98,46 @@ export class BuildDashboardUseCase {
         totalProjectBriefs,
       ),
     };
+  }
+
+  private async resolveProjectsCoverageMap(
+    userId: string,
+    projects: { id: string; projectSlug: string }[],
+  ): Promise<Map<string, number>> {
+    const coverageMap = new Map<string, number>();
+    if (!this.projectCoverageRepository || projects.length === 0) {
+      return coverageMap;
+    }
+
+    if (this.projectCoverageRepository.getProjectsCoveragePercentage) {
+      try {
+        const projectIds = projects.map((p) => p.id).filter(Boolean);
+        const percentageById = await this.projectCoverageRepository.getProjectsCoveragePercentage(userId, projectIds);
+        for (const project of projects) {
+          const pct = percentageById.get(project.id) ?? 0;
+          coverageMap.set(project.projectSlug, pct);
+          coverageMap.set(project.id, pct);
+        }
+        return coverageMap;
+      } catch {
+        return coverageMap;
+      }
+    }
+
+    const coverageResults = await Promise.all(
+      projects.map(async (project) => {
+        try {
+          const res = await this.projectCoverageRepository!.getProjectCoverage(userId, project.id);
+          return { projectSlug: project.projectSlug, coveragePercentage: res.coveragePercentage };
+        } catch {
+          return { projectSlug: project.projectSlug, coveragePercentage: 0 };
+        }
+      }),
+    );
+
+    for (const res of coverageResults) {
+      coverageMap.set(res.projectSlug, res.coveragePercentage);
+    }
+    return coverageMap;
   }
 }

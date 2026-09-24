@@ -10,7 +10,7 @@ import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-en
 import { getAiProviderConfigStatus } from '../../constants/ai-providers.constants.js';
 import { QuotaService } from '../../services/quota/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
-import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
+import { QuotaExceededException } from '../../exceptions/quota-exceeded.exception.js';
 import { assertWorkspaceSlugUnique } from '../../helpers/resource-validation.helpers.js';
 
 import crypto from 'node:crypto';

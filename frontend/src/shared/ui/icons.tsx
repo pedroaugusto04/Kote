@@ -36,9 +36,9 @@ export function ArchiveIcon() {
   );
 }
 
-export function SearchIcon({ className }: { className?: string }) {
+export function SearchIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <svg aria-hidden="true" viewBox="0 0 16 16" className={className} style={{ width: '1em', height: '1em' }}>
+    <svg aria-hidden="true" viewBox="0 0 16 16" className={className} style={{ width: '1em', height: '1em', ...style }}>
       <circle cx="6.5" cy="6.5" r="4.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
       <path d="M10 10l4.5 4.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
     </svg>

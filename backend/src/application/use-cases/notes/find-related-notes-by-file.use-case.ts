@@ -7,7 +7,7 @@ import { AppLogger } from '../../../observability/logger.js';
 import { AiProvider } from '../../../contracts/enums.js';
 import { rankHybridKnowledgeMatches } from '../../utils/query/query.utils.js';
 import { filePathToQuery, isGenericFile } from '../../utils/query/file-query.utils.js';
-import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
+import { noteSummary } from '../../mappers/vault-note.mapper.js';
 import type { NoteRecord } from '../../models/repository-records.models.js';
 import { extractCodeTokens } from '../../utils/notes/snippet-notes.utils.js';
 import { CODE_LINEAGE_RELEVANCE_THRESHOLDS } from '../../utils/notes/code-lineage.utils.js';

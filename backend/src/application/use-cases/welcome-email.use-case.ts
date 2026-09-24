@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { EmailService } from '../services/email/email.service.js';
 import { AppLogger } from '../../observability/logger.js';
 import { RuntimeEnvironmentProvider } from '../ports/observability/runtime-environment.port.js';
+import { extractAppNameFromEmail } from '../../domain/strings.js';
 
 type UserMinimal = { id: string; email: string; displayName: string };
 
@@ -18,9 +19,7 @@ export class WelcomeEmailService {
     if (!user?.email) return;
 
     const env = this.environmentProvider.read();
-    const rawFrom = String(env.emailFrom || '');
-    const displayFromMatch = rawFrom.match(/^\s*([^<]+)\s*</);
-    const appName = displayFromMatch && displayFromMatch[1] ? displayFromMatch[1].trim() : 'Kote';
+    const appName = extractAppNameFromEmail(env.emailFrom);
     const subject = `Welcome to ${appName}!`;
 
     const text = `Hello ${user.displayName || 'user'},\n\n` +

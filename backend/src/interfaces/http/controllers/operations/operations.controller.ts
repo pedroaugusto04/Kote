@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import {
@@ -8,9 +9,12 @@ import {
   MarkReminderAsSentUseCase,
   ProcessAgentConversationUseCase,
   ReindexAllEmbeddingsUseCase,
+  ExportGlobalUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
+import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
+import { OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
 import {
   agentConversationBodySchema,
   ingestBodySchema,
@@ -34,6 +38,7 @@ export class OperationsController {
     private readonly reminderDispatch: BuildReminderDispatchUseCase,
     private readonly markReminders: MarkReminderAsSentUseCase,
     private readonly reindexEmbeddings: ReindexAllEmbeddingsUseCase,
+    private readonly exportGlobal: ExportGlobalUseCase,
   ) {}
 
   @Post('ingest')
@@ -46,7 +51,7 @@ export class OperationsController {
   }
 
   @Post('conversation/agent')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Process agent conversation' })
   @ApiResponse({ status: 200, description: 'Conversation processed successfully' })
@@ -59,6 +64,7 @@ export class OperationsController {
   }
 
   @Get('reminders/dispatch')
+  @UseGuards(WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get reminder dispatch' })
   @ApiResponse({ status: 200, description: 'Reminder dispatch retrieved successfully' })
@@ -70,7 +76,7 @@ export class OperationsController {
   }
 
   @Post('reminders/mark-sent')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark reminders as sent' })
   @ApiResponse({ status: 200, description: 'Reminders marked as sent' })
@@ -89,5 +95,17 @@ export class OperationsController {
   @ApiResponse({ status: 200, description: 'Embeddings reindexed successfully' })
   reindexAllEmbeddings(@CurrentUser() user: AuthenticatedUser) {
     return this.reindexEmbeddings.execute(user.id);
+  }
+
+  @Get('export/global')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Export the account knowledge and structure as a ZIP file' })
+  @ApiResponse({ status: 200, description: 'Global Kote portability export' })
+  async exportGlobalData(@CurrentUser() user: AuthenticatedUser, @Res() res: Response) {
+    const result = await this.exportGlobal.execute(user.id);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
+    res.setHeader('Content-Length', String(result.buffer.length));
+    return res.send(result.buffer);
   }
 }

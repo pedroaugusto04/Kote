@@ -196,6 +196,17 @@ export interface KbDecisionItem {
   entities: string[];
 }
 
+export const KB_DECISION_STATUS_LABELS: Record<string, string> = {
+  current: 'Accepted',
+  superseded: 'Superseded',
+  rejected: 'Rejected',
+  deprecated: 'Deprecated',
+};
+
+export function getKbDecisionStatusLabel(status: string): string {
+  return KB_DECISION_STATUS_LABELS[status] || status.toUpperCase();
+}
+
 export interface KbDecisionsResponse {
   ok: boolean;
   items: KbDecisionItem[];

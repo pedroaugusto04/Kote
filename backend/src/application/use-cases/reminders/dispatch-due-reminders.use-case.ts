@@ -9,7 +9,7 @@ import { ReminderDeliveryGateway } from '../../ports/reminders/reminder-delivery
 import { ReminderDispatchRepository } from '../../ports/reminders/workflow-state.repository.js';
 import { formatReminderScheduledAtLabel, reminderDispatchKey } from './reminder-schedule.js';
 import { MarkReminderAsSentUseCase } from './mark-reminder-as-sent.use-case.js';
-import { MAX_REMINDER_DELIVERY_ATTEMPTS, nextReminderRetryAt } from './reminder-retry-policy.js';
+import { isFutureRetry, MAX_REMINDER_DELIVERY_ATTEMPTS, nextReminderRetryAt } from './reminder-retry-policy.js';
 import { ReminderEventBus } from '../../event-buses/reminder-event.bus.js';
 
 @Injectable()
@@ -152,10 +152,4 @@ export class DispatchDueRemindersUseCase {
       `Scheduled for: ${formatReminderScheduledAtLabel(reminder.scheduledAt)}`,
     ].join('\n');
   }
-}
-
-function isFutureRetry(nextRetryAt: string, referenceNowIso: string): boolean {
-  const retryAtMs = Date.parse(nextRetryAt);
-  const nowMs = Date.parse(referenceNowIso);
-  return !Number.isNaN(retryAtMs) && !Number.isNaN(nowMs) && retryAtMs > nowMs;
 }

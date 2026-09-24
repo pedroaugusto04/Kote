@@ -12,12 +12,12 @@ import type {
   ListProjectTimelineInput,
   ProjectTimelineFilterCategory,
 } from '../../application/models/project-timeline.models.js';
-import type { NoteRecord, SaveNoteInput } from '../../application/models/repository-records.models.js';
+import type { NoteLinkRecord, NoteRecord, SaveNoteInput } from '../../application/models/repository-records.models.js';
 import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
 import { StatusFilter, terminalStatuses } from '../../contracts/status-filters.js';
 import { EventType, SourceChannel, TimelineCategory } from '../../contracts/enums.js';
-import { noteSummary } from '../mappers/content-query.mappers.js';
+import { noteSummary } from '../../application/mappers/vault-note.mapper.js';
 import { noteFromRow, toIsoTimestamp } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory, noteLinks } from '../persistence/schema/index.js';
@@ -208,6 +208,25 @@ export class PostgresNoteRepository {
       title: row.title,
       status: row.status,
       occurredAt: row.occurredAt ? toIsoTimestamp(row.occurredAt) : '',
+    }));
+  }
+
+  async listLinksByNoteIds(userId: string, noteIds: string[]): Promise<NoteLinkRecord[]> {
+    if (noteIds.length === 0) return [];
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(noteLinks)
+      .where(and(eq(noteLinks.userId, userId), inArray(noteLinks.noteId, noteIds)))
+      .orderBy(noteLinks.noteId, noteLinks.createdAt);
+
+    return result.map((row) => ({
+      id: String(row.id),
+      userId: String(row.userId),
+      noteId: String(row.noteId),
+      target: String(row.target),
+      metadata: (row.metadata || {}) as Record<string, unknown>,
+      createdAt: toIsoTimestamp(row.createdAt),
     }));
   }
 
@@ -666,7 +685,13 @@ export class PostgresNoteRepository {
       // Fall through to insert if existingId was provided but record not found
     }
 
-    const { projectId, workspaceId } = await resolveIds(this.database, userId, input.projectSlug ?? null, input.workspaceSlug ?? 'default');
+    let projectId: string | null = input.projectId || null;
+    let workspaceId: string | null = input.workspaceId || null;
+    if (!projectId || !workspaceId) {
+      const resolved = await resolveIds(this.database, userId, !projectId ? (input.projectSlug ?? null) : null, !workspaceId ? (input.workspaceSlug ?? 'default') : 'default');
+      projectId = projectId || resolved.projectId;
+      workspaceId = workspaceId || resolved.workspaceId;
+    }
 
     const categoryIds = input.categoryIds ?? [];
 
@@ -677,8 +702,8 @@ export class PostgresNoteRepository {
         userId,
         path: input.path,
         title: input.title,
-        projectId,
-        workspaceId,
+        projectId: projectId || null,
+        workspaceId: workspaceId!,
         folderId: input.folderId,
         status: input.status as NoteStatus,
         tags: input.tags,

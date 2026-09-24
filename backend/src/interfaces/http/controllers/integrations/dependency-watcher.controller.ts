@@ -10,7 +10,10 @@ import { CurrentUser } from '../../auth.decorators.js';
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
 import { ContentRepository } from '../../../../application/ports/notes/content.repository.js';
 import { DependencyWatcherRepository } from '../../../../application/ports/dependency-watcher/dependency-watcher.repository.js';
-import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
+import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
+import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
+import { ProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
+import { WorkspaceId } from '../../workspace.decorators.js';
 
 @ApiTags('Integrations')
 @Controller('api/integrations/dependency-watch')
@@ -27,6 +30,7 @@ export class DependencyWatcherController {
   ) {}
 
   @Get('repositories')
+  @UseGuards(WorkspaceResolutionGuard)
   @ApiBearerAuth()
   async listMonitoredRepositories(
     @CurrentUser() user: AuthenticatedUser,
@@ -40,6 +44,7 @@ export class DependencyWatcherController {
   }
 
   @Put('repositories')
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async saveMonitoredRepositories(
@@ -58,6 +63,7 @@ export class DependencyWatcherController {
   }
 
   @Post('import')
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async importDependencies(
@@ -79,6 +85,7 @@ export class DependencyWatcherController {
   }
 
   @Patch(':workspaceSlug/enable')
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async enable(
@@ -102,6 +109,7 @@ export class DependencyWatcherController {
   }
 
   @Patch(':workspaceSlug/disable')
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async disable(
@@ -125,6 +133,7 @@ export class DependencyWatcherController {
   }
 
   @Post('check-project')
+  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async checkProject(
@@ -139,6 +148,7 @@ export class DependencyWatcherController {
   }
 
   @Post('check-dependency')
+  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async checkDependency(
@@ -153,19 +163,16 @@ export class DependencyWatcherController {
   }
 
   @Patch('dependency/:dependencyId/toggle')
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async toggleDependency(
     @CurrentUser() user: AuthenticatedUser,
+    @WorkspaceId() workspaceId: string,
     @Param('dependencyId') dependencyId: string,
     @Body() body: { workspaceSlug: string; enabled: boolean },
   ) {
-    const workspace = await this.contentRepository.getWorkspaceBySlug(user.id, body.workspaceSlug);
-    if (!workspace) {
-      throw new NotFoundException('workspace_not_found');
-    }
-
-    const dependency = await this.dependencyWatcherRepository.findById(user.id, workspace.id, dependencyId);
+    const dependency = await this.dependencyWatcherRepository.findById(user.id, workspaceId, dependencyId);
     if (!dependency) {
       throw new NotFoundException('dependency_not_found');
     }

@@ -26,6 +26,7 @@ export const API_PATHS = {
   PROJECT_DECISIONS: '/api/projects/{projectSlug}/decisions',
   PROJECT_DECISIONS_EXPORT_ADR: '/api/projects/{projectSlug}/decisions/export-adr',
   PROJECTS_EXPORT_ZIP: '/api/projects/export/zip',
+  EXPORT_GLOBAL: '/api/export/global',
 
   // Notes paths
   NOTES: '/api/notes',

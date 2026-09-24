@@ -19,13 +19,13 @@ import { BillingWebhookMapper } from '../../../application/mappers/billing-webho
 import {
   parseDateTimeInput,
   toMoneyNumber,
-  parseExternalReference,
 } from '../gateways/asaas/AsaasHelpers.js';
+import { parseExternalReference } from '../../../application/utils/billing/billing-intent.utils.js';
 import {
   type PaymentGateway,
   type PaymentKind,
   type PaymentStatus as SchemaPaymentStatus,
-} from '../../../infrastructure/persistence/schema/index.js';
+} from '../../../application/models/billing.models.js';
 import {
   BillingIntentStatus,
   BillingIntentType,

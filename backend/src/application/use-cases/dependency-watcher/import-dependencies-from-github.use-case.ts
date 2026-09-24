@@ -6,7 +6,7 @@ import { DependencyWatcherRepository } from '../../ports/dependency-watcher/depe
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { RabbitMqDependencyImportQueuePublisher } from '../../../infrastructure/queue/rabbitmq-dependency-import-queue.publisher.js';
+import { DependencyImportQueuePublisher } from '../../ports/dependency-watcher/dependency-import-queue.publisher.js';
 
 type ImportOptions = {
   projectIds?: string[];
@@ -25,7 +25,7 @@ export class ImportDependenciesFromGithubUseCase {
     private readonly dependencyWatcherRepository: DependencyWatcherRepository,
     private readonly contentRepository: ContentRepository,
     private readonly credentialRepository: CredentialRepository,
-    private readonly dependencyImportQueuePublisher: RabbitMqDependencyImportQueuePublisher,
+    private readonly dependencyImportQueuePublisher: DependencyImportQueuePublisher,
     private readonly logger: AppLogger,
   ) {}
 

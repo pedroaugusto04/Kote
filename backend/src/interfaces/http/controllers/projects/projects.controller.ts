@@ -340,12 +340,10 @@ export class ProjectsController {
   async getCoverage(
     @CurrentUser() user: AuthenticatedUser,
     @ProjectId() projectId: string,
-    @Param('projectSlug') projectSlug: string,
     @Query('forceSync') forceSync?: string,
   ) {
     const result = await this.getProjectCoverageUseCase.execute(user.id, {
       projectId,
-      workspaceSlug: projectSlug,
       forceSync: forceSync === 'true',
     });
     return { ok: true, ...result, coverage: result };

@@ -11,6 +11,7 @@ import { WeeklySummaryRepository, type WeeklySummaryNoteRow } from '../../ports/
 import { WeeklySummaryEmailMapper } from '../../mappers/weekly-summary-email.mapper.js';
 import { AiProvider, IntegrationProvider } from '../../../contracts/enums.js';
 import type { WeeklySummaryAnalysis } from '../../../contracts/weekly-summary.js';
+import { extractAppNameFromEmail } from '../../../domain/strings.js';
 
 @Injectable()
 export class WeeklySummaryService {
@@ -76,9 +77,7 @@ export class WeeklySummaryService {
     if (totalNotes === 0) return { sent: false, reason: 'no_notes', totalNotes: 0 };
 
     const environment = this.environmentProvider.read();
-    const rawFrom = String(environment.emailFrom || '');
-    const displayFromMatch = rawFrom.match(/^\s*([^<]+)\s*</);
-    const appName = displayFromMatch && displayFromMatch[1] ? displayFromMatch[1].trim() : 'Kote';
+    const appName = extractAppNameFromEmail(environment.emailFrom);
 
     // Check if review AI is active globally
     if (environment.reviewAiProvider === AiProvider.None) {

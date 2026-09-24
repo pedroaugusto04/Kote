@@ -12,7 +12,8 @@ import { ContentQueryRepository } from '../../application/ports/notes/content.re
 import { ContentObjectStorageService } from '../../application/services/content/content-object-storage.service.js';
 import { resolveReminderScheduledAt } from '../../application/use-cases/reminders/reminder-schedule.js';
 import { reminderDispatchEligibleStatuses } from '../../domain/note-status.js';
-import { noteDetail, noteSummary, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';
+import { noteSummary } from '../../application/mappers/vault-note.mapper.js';
+import { noteDetail, reminderFromNote, reviewFromNote } from '../mappers/content-query.mappers.js';
 import { noteFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, workspaces, projects, categories, noteCategories } from '../persistence/schema/index.js';

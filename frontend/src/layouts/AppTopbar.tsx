@@ -44,6 +44,8 @@ interface AppTopbarProps {
   quotaStatus?: QuotaAndBillingStatusDTO | null;
   view: View;
   onSignOut: () => void;
+  onExportData: () => void;
+  isExportingData: boolean;
 }
 
 export function AppTopbar({
@@ -70,6 +72,8 @@ export function AppTopbar({
   quotaStatus,
   view,
   onSignOut,
+  onExportData,
+  isExportingData,
 }: AppTopbarProps) {
   return (
     <header className="topbar">
@@ -206,6 +210,15 @@ export function AppTopbar({
               <Link className="profile-menu-link" role="menuitem" to={routes.automations}>
                 Automations
               </Link>
+              <button
+                className="profile-menu-link"
+                role="menuitem"
+                type="button"
+                disabled={isExportingData}
+                onClick={onExportData}
+              >
+                {isExportingData ? 'Exporting...' : 'Export data'}
+              </button>
               <Link className="profile-menu-link" role="menuitem" to={routes.help}>
                 {UI_MESSAGES.DOCUMENTATION}
               </Link>

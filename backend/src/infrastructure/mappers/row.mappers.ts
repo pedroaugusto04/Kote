@@ -192,6 +192,8 @@ export function projectFromRow(row: Row): ProjectRecord {
     defaultTags: stringArray(field(row, 'default_tags', 'defaultTags')),
     enabled: row.enabled !== false,
     favorite: field(row, 'is_favorite', 'isFavorite') === true,
+    createdAt: field(row, 'created_at', 'createdAt') ? toIsoTimestamp(field(row, 'created_at', 'createdAt')) : '',
+    updatedAt: field(row, 'updated_at', 'updatedAt') ? toIsoTimestamp(field(row, 'updated_at', 'updatedAt')) : '',
     noteCount: field(row, 'note_count', 'noteCount') != null ? Number(field(row, 'note_count', 'noteCount')) : undefined,
   };
 }

@@ -582,12 +582,20 @@
   color: var(--text);
   background: var(--surface-4);
   text-decoration: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .profile-menu-link:hover {
   border-color: var(--accent-border);
   background: var(--surface-hover-strong);
   color: var(--active-text);
+}
+
+.profile-menu-link:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 /* Cards, Badge Tags & Attachment Badges */

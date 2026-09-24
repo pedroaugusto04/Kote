@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
-import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
+import { QuotaExceededException } from '../../exceptions/quota-exceeded.exception.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { QuotaService } from '../quota/quota.service.js';
 

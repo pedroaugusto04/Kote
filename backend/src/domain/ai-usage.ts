@@ -46,3 +46,20 @@ export function isNoteAiUsage(value: unknown): value is NoteAiUsage {
     typeof candidate.model === 'string'
   );
 }
+
+export function getModelUsages(usage: NoteAiUsage, defaultSource?: string): ModelUsageDetail[] {
+  if (Array.isArray(usage.byModel) && usage.byModel.length > 0) {
+    return usage.byModel;
+  }
+  return [
+    {
+      model: (usage.model || AI_ANALYTICS_DEFAULTS.UNKNOWN_MODEL).trim(),
+      provider: (usage.provider || defaultSource || AI_ANALYTICS_DEFAULTS.DEFAULT_PROVIDER).trim(),
+      inputTokens: usage.inputTokens || 0,
+      outputTokens: usage.outputTokens || 0,
+      totalTokens: usage.totalTokens,
+      estimatedCostUsd: typeof usage.estimatedCostUsd === 'number' ? usage.estimatedCostUsd : 0,
+      rates: usage.rates,
+    },
+  ];
+}

@@ -1,5 +1,7 @@
-import { KnowledgeStatus } from '../../../contracts/enums.js';
+import { KnowledgeStatus, ReminderBoardColumnKey } from '../../../contracts/enums.js';
 import { StatusFilter } from '../../../contracts/status-filters.js';
+import { reminderBoardColumnKeys } from '../../models/reminder-board.models.js';
+import type { ReminderBoardCard, ReminderBoardResponse } from '../../models/reminder.models.js';
 
 export function reminderTimestamp(reminder: { reminderAt?: string; reminderDate?: string; reminderTime?: string }) {
   const direct = Date.parse(reminder.reminderAt || '');
@@ -46,4 +48,17 @@ export function sortRemindersForList<T extends { id: string; title: string; stat
       || left.title.localeCompare(right.title)
       || left.id.localeCompare(right.id);
   });
+}
+
+export function emptyColumns(limitPerColumn: number): ReminderBoardResponse['columns'] {
+  return reminderBoardColumnKeys.reduce((acc, key) => {
+    acc[key] = { items: [], total: 0, page: 1, pageSize: limitPerColumn, totalPages: 1, hasNext: false };
+    return acc;
+  }, {} as ReminderBoardResponse['columns']);
+}
+
+export function boardColumnKey(reminder: Pick<ReminderBoardCard, 'status' | 'isOverdue'>): ReminderBoardColumnKey {
+  if (reminder.status === KnowledgeStatus.Resolved) return ReminderBoardColumnKey.Resolved;
+  if (reminder.status === KnowledgeStatus.Archived) return ReminderBoardColumnKey.Archived;
+  return reminder.status === KnowledgeStatus.Overdue || reminder.isOverdue ? ReminderBoardColumnKey.Overdue : ReminderBoardColumnKey.Upcoming;
 }
