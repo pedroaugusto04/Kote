@@ -48,8 +48,12 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
 
     const systemPrompt = buildAnswerGenerationSystemPrompt();
     const userContent = buildAnswerGenerationPrompt(payload);
-
-    const content = await runChatCompletion(chatConfig, systemPrompt, userContent);
+    let content: string;
+    try {
+      content = await runChatCompletion(chatConfig, systemPrompt, userContent);
+    } catch {
+      return null;
+    }
     if (!content) return null;
 
     try {

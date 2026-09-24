@@ -232,7 +232,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
     const codeSnippet = document.getText(ctxRange).trim() || lineText;
 
     // 2. Fetch Kote Notes for this commit / line
-    let matches: SnippetNoteMatch[] = [];
+    let matches: SnippetNoteMatch[];
     const commitHash = gitCommit.commitHash;
     const cachedNotes = this.commitNotesCache.get(commitHash);
     const now = Date.now();
@@ -265,7 +265,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
           const resMatches = response.matches || [];
           this.commitNotesCache.set(commitHash, { matches: resMatches, timestamp: Date.now() });
           return resMatches;
-        } catch (err) {
+        } catch {
           logInfo('LineContext', `Failed to find notes for snippet at ${relativePath}:${line}`);
           return [];
         } finally {
@@ -365,7 +365,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
   async provideHover(
     document: vscode.TextDocument,
     position: vscode.Position,
-    token: vscode.CancellationToken,
+    _token: vscode.CancellationToken,
   ): Promise<vscode.Hover | null> {
     if (!this.isEnabled() || !this.isHoverEnabled() || !isConfigured()) {
       return null;

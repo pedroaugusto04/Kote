@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { NoteContextRepository } from '../../ports/notes/note-context.repository.js';
-import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
+import { noteSummary } from '../../mappers/vault-note.mapper.js';
 
 @Injectable()
 export class FindNotesByFileUseCase {

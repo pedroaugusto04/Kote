@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import type { AgentConversationState } from '../../../../contracts/agent-conversation.js';
+import { formatDisplayToken } from '../../../../domain/strings.js';
 import { formatDateTimeInTimeZone } from '../../../../domain/time.js';
 import type { SaveNoteResult } from '../../../models/note-save-result.models.js';
 
@@ -67,14 +68,6 @@ export class ConversationAgentPresenter {
       state.draft.tags.length ? `Tags: ${state.draft.tags.join(', ')}` : '',
     ].filter(Boolean).join('\n');
   }
-}
-
-function formatDisplayToken(value: string | null | undefined) {
-  return String(value || '')
-    .split(/[-_\s]+/)
-    .filter(Boolean)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(' ') || 'Not Defined';
 }
 
 function formatReminder(note: SaveNoteResult['note']) {

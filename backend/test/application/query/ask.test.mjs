@@ -1210,3 +1210,50 @@ test('AskKnowledgeUseCase prefers session memory and expands linked raw evidence
   });
   assert.equal((await useCase.execute('What deployment strategy?', 'user-123', { workspaceId: 'ws-1' })).ok, true);
 });
+
+test('AskKnowledgeUseCase returns friendly answer and ok: true when answer generation gateway fails or throws', async () => {
+  const note = {
+    id: 'note-1',
+    userId: 'user-123',
+    title: 'Deployment',
+    path: 'docs/deploy.md',
+    workspaceSlug: 'default',
+    markdown: 'Deploy steps.',
+  };
+  const repository = {
+    findSimilar: async () => [{ noteId: 'note-1', chunkIndex: 0, chunkText: 'Deploy steps.', embedding: [1], similarity: 0.9 }],
+  };
+  const content = {
+    listWorkspaces: async () => [{ id: 'ws-1', workspaceSlug: 'default' }],
+    getNotesByIds: async () => [note],
+  };
+  const answer = {
+    generate: async () => {
+      throw new Error('AI provider offline');
+    },
+    rewriteQuery: async () => 'How to deploy?',
+  };
+  const env = {
+    read: () => ({
+      embeddingAiProvider: 'test', embeddingAiBaseUrl: 'http://embedding', embeddingAiModel: 'm', embeddingAiApiKey: 'key',
+      conversationAiProvider: 'test', conversationAiBaseUrl: 'http://conversation', conversationAiModel: 'm', conversationAiApiKey: 'key',
+    }),
+  };
+  const useCase = createAskKnowledgeUseCase({
+    mockNoteEmbeddingRepository: repository,
+    mockContentRepository: content,
+    mockAnswerGenerationGateway: answer,
+    mockRuntimeEnv: env,
+    dummyContentQueryRepository: { list: async () => [] },
+    dummyLogger: { info() {}, warn() {}, error() {}, debug() {} },
+    dummyAiEntitlement,
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[1]] },
+  });
+
+  const result = await useCase.execute('How to deploy?', 'user-123', { workspaceId: 'ws-1' });
+  assert.equal(result.ok, true);
+  assert.match(result.answer, /unable to generate an answer at the moment/i);
+  assert.equal(result.confidence, 'low');
+  assert.equal(result.relatedNotes.length, 1);
+});
+

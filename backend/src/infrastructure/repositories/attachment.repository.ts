@@ -119,6 +119,17 @@ export class PostgresAttachmentRepository {
     return result.map(attachmentFromRow);
   }
 
+  async listForExport(userId: string) {
+    const db = this.database.getDb();
+    const result = await db
+      .select()
+      .from(attachments)
+      .where(eq(attachments.userId, userId))
+      .orderBy(attachments.noteId, attachments.createdAt);
+
+    return result.map(attachmentFromRow);
+  }
+
   async deleteByNoteId(userId: string, noteId: string) {
     const db = this.database.getDb();
     const result = await db

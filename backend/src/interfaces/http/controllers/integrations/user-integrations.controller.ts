@@ -7,6 +7,7 @@ import { IntegrationCredentialService } from '../../../../application/services/i
 import { GithubBackfillUseCase } from '../../../../application/use-cases/integrations/github-backfill.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
+import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
 import {
   connectIntegrationBodySchema,
   githubBackfillBodySchema,
@@ -40,6 +41,7 @@ export class UserIntegrationsController {
   ) {}
 
   @Get()
+  @UseGuards(WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List user integrations' })
   @ApiResponse({ status: 200, description: 'Integrations retrieved successfully' })
@@ -51,7 +53,7 @@ export class UserIntegrationsController {
   }
 
   @Post('github-app/backfill')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Import recent GitHub commits as code reviews' })
   @ApiResponse({ status: 200, description: 'Backfill started successfully' })
@@ -67,6 +69,7 @@ export class UserIntegrationsController {
   }
 
   @Get('github-app/backfill/status')
+  @UseGuards(WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get GitHub backfill job status' })
   @ApiResponse({ status: 200, description: 'Backfill status retrieved successfully' })
@@ -98,7 +101,7 @@ export class UserIntegrationsController {
   }
 
   @Post('github-app/backfill/cancel')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel running GitHub backfill job' })
   @ApiResponse({ status: 200, description: 'Backfill cancelled successfully' })
@@ -111,7 +114,7 @@ export class UserIntegrationsController {
   }
 
   @Post(':provider/connect')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Connect to an integration provider' })
   @ApiParam({ name: 'provider', description: 'Integration provider' })
@@ -132,7 +135,7 @@ export class UserIntegrationsController {
   }
 
   @Post(':provider/test')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Test an integration connection' })
   @ApiParam({ name: 'provider', description: 'Integration provider' })
@@ -146,6 +149,7 @@ export class UserIntegrationsController {
   }
 
   @Get('github-app/repositories')
+  @UseGuards(WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List GitHub App repositories' })
   @ApiResponse({ status: 200, description: 'Repositories retrieved successfully' })
@@ -157,7 +161,7 @@ export class UserIntegrationsController {
   }
 
   @Post('github-app/repositories')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Save GitHub App repositories' })
   @ApiResponse({ status: 200, description: 'Repositories saved successfully' })
@@ -182,7 +186,7 @@ export class UserIntegrationsController {
   }
 
   @Delete(':provider')
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke integration connection' })
   @ApiParam({ name: 'provider', description: 'Integration provider' })

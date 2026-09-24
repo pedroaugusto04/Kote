@@ -49,11 +49,7 @@ import {
 import { queryRequestSchema, type QueryRequest } from '../../dto/query.dto.js';
 import { askHistoryQuerySchema, askRequestSchema, conversationIdParamSchema, type AskHistoryQuery, type AskRequest, type ConversationIdParam } from '../../dto/ask.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
-import { paginatedResponse } from '../../http-helpers.js';
-
-function normalizeScopeId(value?: string) {
-  return value && value !== 'all' ? value : undefined;
-}
+import { paginatedResponse, normalizeScopeId } from '../../http-helpers.js';
 
 function buildQueryUseCaseInput(
   query: QueryRequest,

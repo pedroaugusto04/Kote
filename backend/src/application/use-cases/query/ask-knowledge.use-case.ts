@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import type { EmbeddingConfig } from '../../ports/notes/embedding.gateway.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { AnswerGenerationGateway } from '../../ports/query/answer-generation.gateway.js';
+import { AnswerGenerationGateway, type AnswerGenerationResponse } from '../../ports/query/answer-generation.gateway.js';
 import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
 import { ConversationConfidence, IntegrationProvider } from '../../../contracts/enums.js';
@@ -134,11 +134,19 @@ export class AskKnowledgeUseCase {
       };
     }
 
-    const result = await this.answerGenerationGateway.generate(this.buildConversationAiConfig(), {
-      question,
-      context: contextChunks,
-      conversationHistory,
-    });
+    let result: AnswerGenerationResponse | null = null;
+    try {
+      result = await this.answerGenerationGateway.generate(this.buildConversationAiConfig(), {
+        question,
+        context: contextChunks,
+        conversationHistory,
+      });
+    } catch (error) {
+      this.logger.error('ask_knowledge.generation_error', {
+        cause: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     this.logger.info('ask_knowledge.answer_generated', {
       confidence: result?.confidence,
     });
@@ -146,12 +154,12 @@ export class AskKnowledgeUseCase {
     if (!result) {
       this.logger.info('ask_knowledge.generation_failed');
       return {
-        ok: false,
-        answer: 'Failed to generate an answer from the AI model.',
+        ok: true,
+        answer: 'I am unable to generate an answer at the moment because the AI service is temporarily unavailable or encountered an issue. Please check your AI provider configuration or try again in a few moments.',
         confidence: ConversationConfidence.Low,
         requestedAttachments: false,
         sources: [],
-        relatedNotes: [],
+        relatedNotes,
       };
     }
 

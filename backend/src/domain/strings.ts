@@ -101,3 +101,26 @@ export function calculateAttachmentSize(sizeBytes?: number | null, dataBase64?: 
   }
   return 0;
 }
+
+export function formatDisplayToken(value: string | null | undefined, fallback = 'Not Defined'): string {
+  const formatted = String(value || '')
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(' ');
+  return formatted || fallback;
+}
+
+export function displayNameFromSlug(value: string | null | undefined): string {
+  return formatDisplayToken(value, '');
+}
+
+export const displayNameFromProjectSlug = displayNameFromSlug;
+
+export function extractAppNameFromEmail(emailFrom?: string | null, fallback = 'Kote'): string {
+  const raw = String(emailFrom || '');
+  const match = raw.match(/^\s*([^<]+)\s*</);
+  return match && match[1] ? match[1].trim() : fallback;
+}
+
+

@@ -1,12 +1,14 @@
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { fetchProjectDecisions, exportProjectAdrsZip, type ProjectDecisionItem } from '../../shared/api/client';
-import { EmptyState, InlineMessage, Badge } from '../../shared/ui/primitives';
+import { EmptyState, InlineMessage } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { DownloadIcon, SearchIcon } from '../../shared/ui/icons';
 import { formatUsDate } from '../../shared/utils/format';
 import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
+import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
+import { PROJECTS_WORKSPACE_MESSAGES } from './projects.constants';
 
 interface ProjectDecisionsPanelProps {
   projectSlug: string;
@@ -14,29 +16,22 @@ interface ProjectDecisionsPanelProps {
 }
 
 export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisionsPanelProps) {
-  const [status, setStatus] = useState<string>('');
-  const [kind, setKind] = useState<'all' | 'decision' | 'failed_attempt'>('all');
   const [file, setFile] = useState<string>('');
   const [searchInput, setSearchInput] = useState<string>('');
-  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
+  const debouncedSearch = useDebouncedValue(searchInput, PROJECTS_WORKSPACE_MESSAGES.SEARCH.DEBOUNCE_MS);
   const [page, setPage] = useState<number>(1);
   const [isExporting, setIsExporting] = useState<boolean>(false);
-  const [, startTransition] = useTransition();
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
     setPage(1);
-    startTransition(() => {
-      setDebouncedSearch(value);
-    });
   };
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['project-decisions', projectSlug, status, kind, file, debouncedSearch, page],
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['project-decisions', projectSlug, file, debouncedSearch, page],
     queryFn: () =>
       fetchProjectDecisions(projectSlug, {
-        status: status || undefined,
-        kind: kind,
+        kind: 'all',
         file: file || undefined,
         search: debouncedSearch.trim() || undefined,
         page,
@@ -49,8 +44,7 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
     try {
       setIsExporting(true);
       const res = await exportProjectAdrsZip(projectSlug, {
-        status: status || undefined,
-        kind: kind,
+        kind: 'all',
         file: file || undefined,
         search: debouncedSearch.trim() || undefined,
       });
@@ -63,258 +57,11 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
     }
   };
 
-  const getStatusBadgeTone = (s: string) => {
-    switch (s) {
-      case 'current':
-        return 'success';
-      case 'superseded':
-        return 'muted';
-      case 'rejected':
-      case 'deprecated':
-        return 'danger';
-      default:
-        return 'neutral';
-    }
-  };
-
-  const getStatusLabel = (s: string) => {
-    switch (s) {
-      case 'current':
-        return 'Accepted';
-      case 'superseded':
-        return 'Superseded';
-      case 'rejected':
-        return 'Rejected';
-      case 'deprecated':
-        return 'Deprecated';
-      default:
-        return s.toUpperCase();
-    }
-  };
-
   return (
     <div className="project-decisions-panel">
-      <style>{`
-        .project-decisions-panel {
-          display: flex;
-          flex-direction: column;
-          gap: 1rem;
-          padding: 0.25rem 0;
-        }
-        .decisions-toolbar {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: space-between;
-          gap: 0.75rem;
-          padding-bottom: 0.5rem;
-          border-bottom: 1px solid var(--border-subtle);
-        }
-        .decisions-filter-group {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 0.5rem;
-        }
-        .decisions-search-input {
-          display: flex;
-          align-items: center;
-          background: var(--surface-secondary);
-          border: 1px solid var(--border-subtle);
-          border-radius: 6px;
-          padding: 0 0.6rem;
-          gap: 0.4rem;
-          min-width: 180px;
-        }
-        .decisions-search-input input {
-          border: none;
-          background: transparent;
-          color: inherit;
-          padding: 0.35rem 0;
-          font-size: 0.85rem;
-          outline: none;
-          width: 100%;
-        }
-        .decisions-file-select {
-          max-width: 200px;
-          font-size: 0.85rem;
-          padding: 0.35rem 0.5rem;
-          background: var(--surface-secondary);
-          color: inherit;
-          border: 1px solid var(--border-subtle);
-          border-radius: 6px;
-        }
-        .decision-cards-list {
-          display: flex;
-          flex-direction: column;
-          gap: 0.85rem;
-        }
-        .decision-card {
-          display: flex;
-          flex-direction: column;
-          gap: 0.6rem;
-          padding: 1rem 1.15rem;
-          background: var(--surface-panel);
-          border: 1px solid var(--border-subtle);
-          border-radius: 8px;
-          transition: border-color 0.15s ease;
-        }
-        .decision-card:hover {
-          border-color: var(--border-hover, var(--border-strong));
-        }
-        .decision-card-head {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 0.5rem;
-        }
-        .decision-card-badges {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          flex-wrap: wrap;
-        }
-        .decision-kind-tag {
-          font-size: 0.72rem;
-          font-weight: 600;
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          padding: 2px 7px;
-          border-radius: 4px;
-        }
-        .decision-kind-decision {
-          background: rgba(59, 130, 246, 0.12);
-          color: #3b82f6;
-          border: 1px solid rgba(59, 130, 246, 0.25);
-        }
-        .decision-kind-failed {
-          background: rgba(245, 158, 11, 0.12);
-          color: #f59e0b;
-          border: 1px solid rgba(245, 158, 11, 0.25);
-        }
-        .decision-card-body {
-          font-size: 0.92rem;
-          line-height: 1.55;
-          color: var(--text-normal);
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-        .decision-card-footer {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 0.6rem;
-          margin-top: 0.25rem;
-          padding-top: 0.6rem;
-          border-top: 1px dashed var(--border-subtle);
-          font-size: 0.8rem;
-        }
-        .decision-files-row {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 0.35rem;
-        }
-        .decision-file-chip {
-          display: inline-flex;
-          align-items: center;
-          font-family: var(--font-mono, monospace);
-          font-size: 0.75rem;
-          padding: 2px 6px;
-          background: var(--surface-secondary);
-          border: 1px solid var(--border-subtle);
-          border-radius: 4px;
-          color: var(--text-muted);
-          cursor: pointer;
-        }
-        .decision-file-chip:hover {
-          color: var(--text-normal);
-          border-color: var(--border-hover);
-        }
-        .decision-note-button {
-          background: transparent;
-          border: none;
-          color: var(--accent, #3b82f6);
-          font-size: 0.8rem;
-          font-weight: 500;
-          cursor: pointer;
-          padding: 0;
-          text-decoration: underline;
-        }
-        .decision-note-button:hover {
-          color: var(--accent-hover, #60a5fa);
-        }
-      `}</style>
-
       {/* Toolbar */}
       <div className="decisions-toolbar">
         <div className="decisions-filter-group">
-          {/* Status Chips */}
-          <button
-            type="button"
-            className={status === '' ? 'filter-chip active' : 'filter-chip'}
-            onClick={() => {
-              setStatus('');
-              setPage(1);
-            }}
-          >
-            All Status
-          </button>
-          <button
-            type="button"
-            className={status === 'current' ? 'filter-chip active' : 'filter-chip'}
-            onClick={() => {
-              setStatus(status === 'current' ? '' : 'current');
-              setPage(1);
-            }}
-          >
-            Accepted
-          </button>
-          <button
-            type="button"
-            className={status === 'superseded' ? 'filter-chip active' : 'filter-chip'}
-            onClick={() => {
-              setStatus(status === 'superseded' ? '' : 'superseded');
-              setPage(1);
-            }}
-          >
-            Superseded
-          </button>
-          <button
-            type="button"
-            className={status === 'rejected' ? 'filter-chip active' : 'filter-chip'}
-            onClick={() => {
-              setStatus(status === 'rejected' ? '' : 'rejected');
-              setPage(1);
-            }}
-          >
-            Rejected
-          </button>
-
-          {/* Kind Filter */}
-          <button
-            type="button"
-            className={kind === 'decision' ? 'filter-chip active' : 'filter-chip'}
-            onClick={() => {
-              setKind(kind === 'decision' ? 'all' : 'decision');
-              setPage(1);
-            }}
-          >
-            Decisions
-          </button>
-          <button
-            type="button"
-            className={kind === 'failed_attempt' ? 'filter-chip active' : 'filter-chip'}
-            onClick={() => {
-              setKind(kind === 'failed_attempt' ? 'all' : 'failed_attempt');
-              setPage(1);
-            }}
-          >
-            Failed Attempts
-          </button>
-
           {/* File Filter Dropdown */}
           {data?.availableFiles && data.availableFiles.length > 0 && (
             <select
@@ -380,7 +127,14 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
         <>
           <div className="decision-cards-list">
             {data.items.map((item: ProjectDecisionItem) => (
-              <article key={item.id} className="decision-card">
+              <article
+                key={item.id}
+                className={`decision-card ${item.noteId && onOpenNote ? 'clickable' : ''}`}
+                onClick={() => {
+                  if (window.getSelection()?.toString()) return;
+                  if (item.noteId) onOpenNote?.(item.noteId);
+                }}
+              >
                 <div className="decision-card-head">
                   <div className="decision-card-badges">
                     <span
@@ -390,7 +144,11 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
                     >
                       {item.kind === 'failed_attempt' ? 'Failed Attempt' : 'Decision'}
                     </span>
-                    <Badge value={getStatusLabel(item.status)} tone={getStatusBadgeTone(item.status)} />
+                    {projectSlug === 'all' && item.projectSlug && (
+                      <span className="decision-project-tag" title={`Project: ${item.projectSlug}`}>
+                        {item.projectSlug}
+                      </span>
+                    )}
                     {item.sourceChannel && <SourceBadge source={item.sourceChannel} iconSize={14} />}
                   </div>
                   <span className="meta meta-date" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
@@ -409,7 +167,8 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
                           type="button"
                           className="decision-file-chip"
                           title={`Filter by ${filePath}`}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setFile(filePath);
                             setPage(1);
                           }}
@@ -426,7 +185,10 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
                     <button
                       type="button"
                       className="decision-note-button"
-                      onClick={() => onOpenNote?.(item.noteId)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenNote?.(item.noteId);
+                      }}
                       title={`Open source note: ${item.noteTitle}`}
                     >
                       {item.noteTitle || 'View Source Note'} &rarr;

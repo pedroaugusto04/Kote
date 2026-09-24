@@ -7,6 +7,10 @@
   width: 100%;
 }
 
+.kb-select.open {
+  z-index: 60;
+}
+
 .kb-select-sizer {
   display: flex;
   align-items: center;
@@ -101,7 +105,7 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 15;
+  z-index: 70;
   padding: 6px;
   border: 1px solid var(--line-soft);
   border-radius: 10px;
@@ -109,10 +113,15 @@
   box-shadow: var(--shadow-strong);
 }
 
+.kb-select-popover.open-up {
+  top: auto;
+  bottom: calc(100% + 6px);
+}
+
 .kb-select-listbox {
   display: grid;
   gap: 4px;
-  max-height: 280px;
+  max-height: 220px;
   margin: 0;
   padding: 0;
   overflow-y: auto;
@@ -582,12 +591,20 @@
   color: var(--text);
   background: var(--surface-4);
   text-decoration: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
 .profile-menu-link:hover {
   border-color: var(--accent-border);
   background: var(--surface-hover-strong);
   color: var(--active-text);
+}
+
+.profile-menu-link:disabled {
+  cursor: wait;
+  opacity: 0.65;
 }
 
 /* Cards, Badge Tags & Attachment Badges */
@@ -1891,7 +1908,7 @@
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 15;
+  z-index: 70;
   padding: 6px;
   border: 1px solid var(--line-soft);
   border-radius: 10px;

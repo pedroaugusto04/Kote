@@ -1,10 +1,10 @@
-import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { KanbanPage } from '../../../src/pages/kanban/KanbanPage';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
+import { createMockDashboard, createMockProject } from '../../fixtures/dashboard.fixture';
 
 const notificationSpies = vi.hoisted(() => ({
   notifyError: vi.fn(),
@@ -21,37 +21,12 @@ vi.mock('../../../src/shared/ui/notifications', async () => {
   };
 });
 
-const dashboard: Dashboard = {
-  workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
+const dashboard: Dashboard = createMockDashboard({
   projects: [
-    {
-      projectSlug: 'n8n-automations',
-      displayName: 'N8N Automations',
-      repositories: [],
-      workspaceSlug: 'default',
-      defaultTags: [],
-      enabled: true,
-      favorite: false,
-    },
-    {
-      projectSlug: 'ops',
-      displayName: 'Ops',
-      repositories: [],
-      workspaceSlug: 'default',
-      defaultTags: [],
-      enabled: true,
-      favorite: false,
-    },
+    createMockProject({ projectSlug: 'n8n-automations', displayName: 'N8N Automations' }),
+    createMockProject({ projectSlug: 'ops', displayName: 'Ops' }),
   ],
-  home: {
-    windowDays: 7,
-    metrics: [],
-    activityByDay: [],
-    activityByProject: [],
-    priorities: [],
-    recentInterestingEvents: [],
-  },
-};
+});
 
 afterEach(() => {
   cleanup();

@@ -11,36 +11,7 @@ import { ProcessGithubPushService } from '../../../services/integrations/process
 import { GithubRepositoryResolutionService } from '../../../services/integrations/github-repository-resolution.service.js';
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
 import { AppLogger } from '../../../../observability/logger.js';
-
-type GithubPushPayload = {
-  ref?: string;
-  before?: string;
-  after?: string;
-  deleted?: boolean;
-  installation?: { id?: string | number };
-  repository?: {
-    id?: string | number;
-    full_name?: string;
-    private?: boolean;
-  };
-  pusher?: { name?: string };
-  sender?: { login?: string };
-};
-
-function githubAuditPayload(body: GithubPushPayload): Record<string, unknown> {
-  return {
-    installationId: body.installation?.id == null ? '' : String(body.installation.id),
-    repositoryId: body.repository?.id == null ? '' : String(body.repository.id),
-    repositoryFullName: String(body.repository?.full_name || '').trim(),
-    repositoryPrivate: body.repository?.private === true,
-    ref: String(body.ref || ''),
-    before: String(body.before || ''),
-    after: String(body.after || ''),
-    deleted: body.deleted === true,
-    pusherName: String(body.pusher?.name || ''),
-    senderLogin: String(body.sender?.login || ''),
-  };
-}
+import { githubAuditPayload, type GithubPushPayload } from '../../../utils/github/github-audit.utils.js';
 
 @Injectable()
 export class HandleGithubPushUseCase {

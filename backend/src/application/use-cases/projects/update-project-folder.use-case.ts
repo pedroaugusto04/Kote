@@ -3,9 +3,9 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { rewriteNotePathForFolder } from '../../../domain/notes.js';
 import type { UpdateProjectFolderInput } from '../../models/project-folder-input.models.js';
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
-import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
-import { toFolderUpdateRewrite } from '../../mappers/project-folder.mapper.js';
+import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/content/project-folder.utils.js';
+import { toFolderUpdateRewrite, toNoteWithRewrittenPath } from '../../mappers/project-folder.mapper.js';
 
 type FolderRewrite = {
   previous: ProjectFolderRecord;
@@ -76,7 +76,7 @@ export class UpdateProjectFolderUseCase {
       const loadedNote = notesMap.get(note.id);
       const rewrite = note.folderId ? rewrittenByFolderId.get(note.folderId) : null;
       if (!loadedNote || !rewrite) continue;
-      updatedNotes.push(noteInputWithPath(loadedNote, rewriteNotePathForFolder(
+      updatedNotes.push(toNoteWithRewrittenPath(loadedNote, rewriteNotePathForFolder(
         loadedNote.path,
         project.projectSlug,
         rewrite.previous.fullSlugPath,
@@ -93,9 +93,3 @@ export class UpdateProjectFolderUseCase {
   }
 }
 
-function noteInputWithPath(note: NoteRecord, path: string): NoteRecord {
-  return {
-    ...note,
-    path,
-  };
-}

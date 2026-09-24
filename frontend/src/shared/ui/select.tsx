@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { KEYBOARD_KEYS } from '../constants/keyboard.constants';
 import { UI_MESSAGES } from '../constants/ui.constants';
 
@@ -20,6 +20,22 @@ function nextEnabledOptionIndex(options: SelectOption[], startIndex: number, dir
     if (!options[nextIndex]?.disabled) return nextIndex;
   }
   return -1;
+}
+
+function getVerticalClipBounds(element: HTMLElement) {
+  let ancestor = element.parentElement;
+  while (ancestor) {
+    const styles = window.getComputedStyle(ancestor);
+    const clipsVertically = ['auto', 'clip', 'hidden', 'scroll'].includes(styles.overflowY)
+      || ['auto', 'clip', 'hidden', 'scroll'].includes(styles.overflow);
+    if (clipsVertically) {
+      const rect = ancestor.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom };
+    }
+    ancestor = ancestor.parentElement;
+  }
+
+  return { top: 0, bottom: window.innerHeight };
 }
 
 export function Select({
@@ -55,6 +71,7 @@ export function Select({
   const resolvedId = id || `${UI_MESSAGES.SELECT_PREFIX}-${reactId}`;
   const listboxId = `${resolvedId}${UI_MESSAGES.LISTBOX_SUFFIX}`;
   const rootRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const widestOption = useMemo(
     () => options.reduce<SelectOption | null>((widest, option) => {
@@ -75,6 +92,7 @@ export function Select({
   );
   const isRequired = required === true || ariaRequired === true;
   const [isOpen, setIsOpen] = useState(false);
+  const [openUp, setOpenUp] = useState(false);
   const [activeIndex, setActiveIndex] = useState(selectedIndex >= 0 ? selectedIndex : firstEnabledOptionIndex(options));
 
   useEffect(() => {
@@ -89,6 +107,33 @@ export function Select({
       activeOption.scrollIntoView({ block: 'nearest' });
     }
   }, [activeIndex, isOpen]);
+
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+
+    const updatePopoverPlacement = () => {
+      const root = rootRef.current;
+      const popover = popoverRef.current;
+      if (!root || !popover) return;
+
+      const rootRect = root.getBoundingClientRect();
+      const popoverRect = popover.getBoundingClientRect();
+      const clipBounds = getVerticalClipBounds(root);
+      const spaceBelow = clipBounds.bottom - rootRect.bottom;
+      const spaceAbove = rootRect.top - clipBounds.top;
+      const shouldOpenUp = popoverRect.height > spaceBelow && spaceAbove > spaceBelow;
+
+      setOpenUp((current) => current === shouldOpenUp ? current : shouldOpenUp);
+    };
+
+    updatePopoverPlacement();
+    window.addEventListener('resize', updatePopoverPlacement);
+    window.addEventListener('scroll', updatePopoverPlacement, true);
+    return () => {
+      window.removeEventListener('resize', updatePopoverPlacement);
+      window.removeEventListener('scroll', updatePopoverPlacement, true);
+    };
+  }, [isOpen, options.length]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -158,7 +203,7 @@ export function Select({
   };
 
   return (
-    <div className={['kb-select', className].filter(Boolean).join(' ')} data-field={dataField} ref={rootRef}>
+    <div className={['kb-select', isOpen ? 'open' : '', className].filter(Boolean).join(' ')} data-field={dataField} ref={rootRef}>
       <span aria-hidden="true" className="kb-select-sizer">
         <span
           className="kb-select-sizer-text"
@@ -189,7 +234,7 @@ export function Select({
         <span aria-hidden="true" className={`kb-select-chevron${isOpen ? ' open' : ''}`} />
       </button>
       {isOpen ? (
-        <div className="kb-select-popover">
+        <div className={`kb-select-popover${openUp ? ' open-up' : ''}`} ref={popoverRef}>
           <ul
             aria-labelledby={resolvedId}
             className="kb-select-listbox"

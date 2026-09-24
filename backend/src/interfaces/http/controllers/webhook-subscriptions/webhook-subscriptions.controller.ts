@@ -11,6 +11,7 @@ import {
 import { WEBHOOK_TRIGGER_REGISTRY } from '../../../../domain/webhook-trigger-registry.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
+import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
 import {
   createWebhookSubscriptionBodySchema,
   updateWebhookSubscriptionBodySchema,
@@ -42,6 +43,7 @@ export class WebhookSubscriptionsController {
   }
 
   @Get()
+  @UseGuards(WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List webhook subscriptions' })
   @ApiResponse({ status: 200, description: 'Subscriptions retrieved successfully' })
@@ -53,7 +55,7 @@ export class WebhookSubscriptionsController {
   }
 
   @Post()
-  @UseGuards(TrustedOriginGuard)
+  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create webhook subscription' })
   @ApiResponse({ status: 201, description: 'Subscription created successfully' })

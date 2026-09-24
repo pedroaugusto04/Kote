@@ -11,12 +11,5 @@ export const sessionHandoffBodySchema = z.object({
 
 export type SessionHandoffBody = z.infer<typeof sessionHandoffBodySchema>;
 
-export type SessionHandoffResponse = {
-  ok: true;
-  handoffMarkdown: string;
-  sourceProvider?: string;
-  sourceNoteId?: string;
-  sourceTimestamp?: string;
-  sourceTitle?: string;
-  cached?: boolean;
-};
+export type { SessionHandoffResponse } from '../../../application/models/session-handoff.models.js';
+

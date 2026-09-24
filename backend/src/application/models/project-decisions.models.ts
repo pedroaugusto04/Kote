@@ -1,5 +1,16 @@
 import type { SynthesisItemKind, SynthesisItemStatus } from './note-synthesis.models.js';
 
+export const PROJECT_DECISION_STATUS_LABELS: Record<string, string> = {
+  current: 'Accepted',
+  superseded: 'Superseded',
+  rejected: 'Rejected',
+  deprecated: 'Deprecated',
+};
+
+export function getProjectDecisionStatusLabel(status: string): string {
+  return PROJECT_DECISION_STATUS_LABELS[status] || status.toUpperCase();
+}
+
 export interface ProjectDecisionItem {
   id: string;
   noteId: string;

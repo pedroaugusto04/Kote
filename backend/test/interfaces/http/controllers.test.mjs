@@ -129,6 +129,35 @@ test('operations controller normalizes reminder dispatch and mark-sent inputs', 
   ]);
 });
 
+test('operations controller sends the global export with download headers', async () => {
+  const response = {
+    headers: {},
+    body: null,
+    setHeader(name, value) {
+      this.headers[name] = value;
+    },
+    send(body) {
+      this.body = body;
+      return body;
+    },
+  };
+  const controller = new OperationsController(
+    {},
+    {},
+    {},
+    {},
+    {},
+    { execute: async () => ({ filename: 'kote-export-2026-09-28.zip', buffer: Buffer.from('zip') }) },
+  );
+
+  await controller.exportGlobalData({ id: 'user-1' }, response);
+
+  assert.equal(response.headers['Content-Type'], 'application/zip');
+  assert.equal(response.headers['Content-Disposition'], 'attachment; filename="kote-export-2026-09-28.zip"');
+  assert.equal(response.headers['Content-Length'], '3');
+  assert.deepEqual(response.body, Buffer.from('zip'));
+});
+
 test('workspaces controller delegates workspace creation to the use case', async () => {
   const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
   const controller = new WorkspacesController({

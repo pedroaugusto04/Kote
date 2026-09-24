@@ -62,3 +62,34 @@ export function collectFolderDescendantIds(folders: ProjectFolderRecord[], folde
   }
   return ids;
 }
+
+export function collectFolderAncestorIds(folders: ProjectFolderRecord[], selectedIds: Set<string> | string[]): Set<string> {
+  const byId = new Map(folders.map((folder) => [folder.id, folder]));
+  const result = new Set<string>();
+  const ids = selectedIds instanceof Set ? selectedIds : new Set(selectedIds);
+  for (const selectedId of ids) {
+    let current = byId.get(selectedId);
+    while (current) {
+      result.add(current.id);
+      current = current.parentFolderId ? byId.get(current.parentFolderId) : undefined;
+    }
+  }
+  return result;
+}
+
+export function buildFolderSummary(
+  folders: ProjectFolderRecord[],
+  folder: ProjectFolderRecord,
+): { folderName: string; folderPath: string } {
+  const byId = new Map(folders.map((item) => [item.id, item]));
+  const names: string[] = [];
+  let current: ProjectFolderRecord | undefined = folder;
+  while (current) {
+    names.unshift(current.displayName);
+    current = current.parentFolderId ? byId.get(current.parentFolderId) : undefined;
+  }
+  return {
+    folderName: folder.displayName,
+    folderPath: names.join(' / ') || folder.displayName,
+  };
+}

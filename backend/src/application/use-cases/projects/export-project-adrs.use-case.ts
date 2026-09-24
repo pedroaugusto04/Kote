@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { NoteSynthesisRepository } from '../../ports/notes/note-synthesis.repository.js';
 import { createZipArchive, type ZipEntry } from '../../../domain/utils/zip.utils.js';
 import { sanitizeFileStem } from '../../../domain/strings.js';
-import type { ProjectDecisionItem } from '../../models/project-decisions.models.js';
+import { getProjectDecisionStatusLabel, type ProjectDecisionItem } from '../../models/project-decisions.models.js';
 
 export type ExportProjectAdrsInput = {
   projectSlug: string;
@@ -48,13 +48,7 @@ export class ExportProjectAdrsUseCase {
       const adrFilename = `${numStr}-${fileStem}.md`;
       const relativePath = `adr/${adrFilename}`;
 
-      const statusMap: Record<string, string> = {
-        current: 'Accepted',
-        superseded: 'Superseded',
-        rejected: 'Rejected',
-        deprecated: 'Deprecated',
-      };
-      const statusLabel = statusMap[item.status] || item.status.toUpperCase();
+      const statusLabel = getProjectDecisionStatusLabel(item.status);
       const kindLabel = item.kind === 'failed_attempt' ? 'Failed Attempt' : 'Decision';
       const dateStr = item.occurredAt ? item.occurredAt.split('T')[0] : 'N/A';
 

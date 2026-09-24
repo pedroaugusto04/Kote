@@ -6,7 +6,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import type { PageContext } from '../app/page-context';
 import { PageContextProvider } from '../app/page-context-provider';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, deleteNote, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite } from '../shared/api/client';
+import { ApiClientError, deleteNote, exportGlobalData, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite } from '../shared/api/client';
 import { fetchSubscriptionStatus } from '../shared/api/billing';
 import { hasQuotaWarning } from '../features/quota/quota.utils';
 import type { NoteSummary } from '../shared/api/models/note';
@@ -150,6 +150,12 @@ export function AppShell() {
   });
   const quotaStatus = quotaStatusQuery.data;
   const showQuotaWarningDot = quotaStatus ? hasQuotaWarning(quotaStatus) : false;
+
+  const exportGlobalMutation = useMutation({
+    mutationFn: exportGlobalData,
+    onSuccess: ({ filename }) => notifySuccess(`Global data export downloaded (${filename}).`),
+    onError: (error) => notifyGeneralFormError(error, 'Could not export global data.'),
+  });
 
   useEffect(() => {
     if (dashboard && activeWorkspace && !isSetupRoute) {
@@ -462,6 +468,8 @@ export function AppShell() {
               dashboardQuery.refetch();
             });
           }}
+          onExportData={() => exportGlobalMutation.mutate()}
+          isExportingData={exportGlobalMutation.isPending}
         />
         <section className="view" aria-live="polite">
           <Breadcrumbs projects={dashboard.projects} />

@@ -8,9 +8,10 @@ import {
 import { type ConversationInput } from '../../../contracts/conversation.js';
 import { IntegrationProvider, AgentConversationAction, SourceChannel } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
-import { slugify } from '../../../domain/strings.js';
+import { displayNameFromProjectSlug, slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { serializeErrorForLog } from '../../../observability/error-serializer.js';
 import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
 import { ConversationAgentGateway, type ConversationAgentResponse } from '../../ports/conversation/conversation-agent.gateway.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
@@ -170,19 +171,12 @@ export class ProcessAgentConversationUseCase {
     }
 
     const selectedProjectSlug = resolveAgentSelectedProjectSlug(decision.selectedProjectSlug, state);
-    let foldersForDecision: ProjectFolderRecord[] = [];
-    if (selectedProjectSlug && selectedProjectSlug !== 'inbox') {
-      if (selectedProjectSlug === candidateProjectSlug) {
-        foldersForDecision = candidateFolders;
-      } else {
-        const selectedScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
-          projectSlug: selectedProjectSlug,
-        });
-        if (selectedScope.project?.enabled) {
-          foldersForDecision = await this.contentRepository.listProjectFolders(userId, selectedScope.project.id);
-        }
-      }
-    }
+    const foldersForDecision = await this.resolveFoldersForDecision(
+      userId,
+      selectedProjectSlug,
+      candidateProjectSlug,
+      candidateFolders,
+    );
     const nextState = buildNextAgentConversationState({
       current: state,
       messageText,
@@ -389,47 +383,25 @@ export class ProcessAgentConversationUseCase {
       },
     };
   }
-}
 
-function displayNameFromProjectSlug(projectSlug: string) {
-  return projectSlug
-    .split('-')
-    .filter(Boolean)
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(' ');
-}
-
-function serializeErrorForLog(error: unknown) {
-  if (!(error instanceof Error)) {
-    return { error: String(error) };
+  private async resolveFoldersForDecision(
+    userId: string,
+    selectedProjectSlug: string,
+    candidateProjectSlug: string,
+    candidateFolders: ProjectFolderRecord[],
+  ): Promise<ProjectFolderRecord[]> {
+    if (!selectedProjectSlug || selectedProjectSlug === 'inbox') {
+      return [];
+    }
+    if (selectedProjectSlug === candidateProjectSlug) {
+      return candidateFolders;
+    }
+    const selectedScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+      projectSlug: selectedProjectSlug,
+    });
+    if (!selectedScope.project?.enabled) {
+      return [];
+    }
+    return this.contentRepository.listProjectFolders(userId, selectedScope.project.id);
   }
-
-  const baseFields: Record<string, unknown> = {
-    errorName: error.name,
-    error: error.message,
-    errorStack: error.stack,
-  };
-  const errorRecord = error as Error & {
-    cause?: unknown;
-    status?: number;
-    statusText?: string;
-    responseBody?: string;
-    endpoint?: string;
-    provider?: unknown;
-    model?: string;
-  };
-
-  if (errorRecord.cause instanceof Error) {
-    baseFields.errorCause = errorRecord.cause.message;
-    baseFields.errorCauseStack = errorRecord.cause.stack;
-  } else if (errorRecord.cause !== undefined) {
-    baseFields.errorCause = String(errorRecord.cause);
-  }
-  if (errorRecord.status !== undefined) baseFields.errorStatus = errorRecord.status;
-  if (errorRecord.statusText !== undefined) baseFields.errorStatusText = errorRecord.statusText;
-  if (errorRecord.responseBody !== undefined) baseFields.errorResponseBody = errorRecord.responseBody;
-  if (errorRecord.endpoint !== undefined) baseFields.errorEndpoint = errorRecord.endpoint;
-  if (errorRecord.provider !== undefined) baseFields.errorProvider = String(errorRecord.provider);
-  if (errorRecord.model !== undefined) baseFields.errorModel = errorRecord.model;
-  return baseFields;
 }

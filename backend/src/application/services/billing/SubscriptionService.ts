@@ -6,7 +6,7 @@ import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/s
 import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
 import { StripeGatewayStatusMapper } from '../../../infrastructure/billing/gateways/stripe/StripeGatewayStatusMapper.js';
 import { GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
-import { toGatewayBillingType } from '../../../infrastructure/billing/helpers/billingTypeMapper.js';
+import { toGatewayBillingType } from '../../mappers/billing.mapper.js';
 import {
   BillingCycle,
   BillingType,
@@ -30,7 +30,7 @@ import { BillingPaymentRepository, SubscriptionRepository, BillingCustomerReposi
 import { SubscriptionPlanMapper, BillingPaymentMapper } from '../../mappers/billing.mapper.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { UpdateSubscriptionStrategyFactory } from './subscriptionStrategy/UpdateSubscriptionStrategyFactory.js';
-import { canCancelPayment, isActiveSubscriptionStatus } from '../../../infrastructure/utils/billing/paymentUtils.js';
+import { canCancelPayment, isActiveSubscriptionStatus } from '../../../domain/utils/payment.utils.js';
 
 
 @Injectable()

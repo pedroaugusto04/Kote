@@ -1,4 +1,3 @@
-import { type PaymentGateway } from '../../../infrastructure/persistence/schema/index.js';
 import {
   type BillingCustomerRecord,
   type BillingPaymentRecord,
@@ -8,6 +7,7 @@ import {
   type PlanRecord,
   type UserSubscriptionRecord,
   type SubscriptionChangeRequestRecord,
+  type PaymentGateway,
 } from '../../models/billing.models.js';
 import { type SubscriptionChangeType } from '../../../domain/enums/billing.enums.js';
 

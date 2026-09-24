@@ -18,3 +18,8 @@ export function attachmentContentDisposition(fileName: string): string {
 export function paginatedResponse<T>(key: string, value: { items: T[]; pagination: unknown }) {
   return { [key]: value.items, pagination: value.pagination };
 }
+
+export function normalizeScopeId(value?: string): string | undefined {
+  return value && value !== 'all' ? value : undefined;
+}
+

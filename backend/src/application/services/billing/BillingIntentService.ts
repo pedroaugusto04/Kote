@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import crypto from 'node:crypto';
 import { BillingCycle, BillingIntentStatus, BillingIntentType } from '../../../domain/enums/billing.enums.js';
-import { buildExternalReference } from '../../../infrastructure/billing/gateways/asaas/AsaasHelpers.js';
+import { buildExternalReference, parseExternalReference } from '../../utils/billing/billing-intent.utils.js';
 import { BillingIntentRepository } from '../../ports/billing/billing-repositories.js';
 
 @Injectable()
@@ -11,17 +11,8 @@ export class BillingIntentService {
   ) {}
 
   async resolveIntentFromExternalReference(ref?: string | null) {
-    if (!ref) {
-      throw new Error('externalReference is missing');
-    }
-
-    const params = new URLSearchParams(ref);
-    const intentId = params.get('id');
-    if (!intentId) {
-      throw new Error('id not found in externalReference');
-    }
-
-    const intent = await this.billingIntentRepository.getIntentById(intentId);
+    const { billingIntentId } = parseExternalReference(ref);
+    const intent = await this.billingIntentRepository.getIntentById(billingIntentId);
 
     if (!intent) {
       return { shouldProcess: false, intent: null };

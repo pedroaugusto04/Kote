@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { QuotaService } from '../quota/quota.service.js';
 import { QuotaResourceType } from '../../../domain/enums/plans.enums.js';
-import { QuotaExceededException } from '../../../interfaces/http/quota-exceeded.exception.js';
+import { QuotaExceededException } from '../../exceptions/quota-exceeded.exception.js';
 import { EmbeddingQueuePublisher, EmbeddingJobType } from '../../ports/notes/embedding-queue.publisher.js';
 import { EmbeddingPriority } from '../../../domain/enums/knowledge.enums.js';
 import { NoteEventDispatcher } from '../webhooks/note-event-dispatcher.js';

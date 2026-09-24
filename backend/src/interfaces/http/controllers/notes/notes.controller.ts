@@ -209,6 +209,7 @@ export class NotesController {
   }
 
   @Get('by-file')
+  @UseGuards(OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find notes by file path' })
   @ApiQuery({ name: 'filePath', description: 'Relative file path to search notes for' })
@@ -221,6 +222,7 @@ export class NotesController {
   }
 
   @Get('by-file/related')
+  @UseGuards(OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find related notes by file path' })
   @ApiQuery({ name: 'filePath', description: 'Relative file path to search related notes for' })
@@ -244,6 +246,7 @@ export class NotesController {
   }
 
   @Get('by-file/summary')
+  @UseGuards(OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate AI summary of notes for a file' })
   @ApiQuery({ name: 'filePath', description: 'Relative file path to generate summary for' })
@@ -260,6 +263,7 @@ export class NotesController {
   }
 
   @Get('by-snippet')
+  @UseGuards(OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find notes and AI sessions related to a code snippet and commit' })
   @ApiResponse({ status: 200, description: 'Notes for snippet retrieved successfully' })
@@ -284,6 +288,7 @@ export class NotesController {
   }
 
   @Post('by-snippet')
+  @UseGuards(OptionalProjectResolutionGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find notes and AI sessions related to a code snippet and commit (POST)' })
   @ApiResponse({ status: 200, description: 'Notes for snippet retrieved successfully' })

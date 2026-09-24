@@ -19,6 +19,7 @@ import { FileNotesSummaryProvider } from './providers/file-notes-summary.provide
 import { NoteDetailWebviewProvider } from './providers/note-detail-webview.provider';
 import { LineContextProvider } from './providers/line-context.provider';
 import { resolveProjectSlug } from './utils/project';
+import { getKbDecisionStatusLabel } from './types';
 
 let kbClient: KbClient;
 let sidebarProvider: SidebarViewProvider;
@@ -232,13 +233,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
 
             const items: (vscode.QuickPickItem & { noteId?: string })[] = res.items.map((item) => {
-              const statusMap: Record<string, string> = {
-                current: 'Accepted',
-                superseded: 'Superseded',
-                rejected: 'Rejected',
-                deprecated: 'Deprecated',
-              };
-              const statusLabel = statusMap[item.status] || item.status.toUpperCase();
+              const statusLabel = getKbDecisionStatusLabel(item.status);
               const kindLabel = item.kind === 'failed_attempt' ? 'Failed Attempt' : 'Decision';
               const filesInfo = item.files.length > 0 ? ` • ${item.files.length} file(s)` : '';
               const dateInfo = item.occurredAt ? item.occurredAt.split('T')[0] : '';

@@ -29,7 +29,10 @@ export class AudioTranscriptionError extends Error {
       cause?: unknown;
     },
   ) {
-    super(message, { cause: details.cause });
+    const fullMessage = details.responseBody
+      ? `${message} (${details.status || 'unknown'}: ${details.responseBody})`
+      : message;
+    super(fullMessage, { cause: details.cause });
     this.name = 'AudioTranscriptionError';
     this.provider = details.provider;
     this.model = details.model;

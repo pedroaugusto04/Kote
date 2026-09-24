@@ -3,14 +3,35 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
+  align-items: start;
+}
+
+.form-grid:has(.kb-select.open) {
+  position: relative;
+  z-index: 60;
 }
 
 .form-field {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
   color: var(--muted);
   font-family: var(--mono);
   font-size: 12px;
+}
+
+.form-field:has(.kb-select.open) {
+  position: relative;
+  z-index: 60;
+}
+
+.form-field:has(.kb-tag-input) {
+  position: relative;
+}
+
+.form-field:has(.kb-tag-input):focus-within {
+  position: relative;
+  z-index: 60;
 }
 
 .form-field label {
@@ -39,6 +60,27 @@
   background: var(--input-bg);
   color: var(--text);
   padding: 10px 12px;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.form-field input:not([type="checkbox"]):not([type="radio"]),
+.form-field select {
+  min-height: 42px;
+}
+
+.form-field input[type="datetime-local"] {
+  font-family: var(--mono);
+  font-size: 12px;
+  min-height: 42px;
+  height: 42px;
+  line-height: 1.4;
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] .form-field input[type="datetime-local"] {
+  color-scheme: light;
 }
 
 .form-field select {

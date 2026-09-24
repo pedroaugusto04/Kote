@@ -1,20 +1,32 @@
 import {
-  type PaymentGateway,
-  type PaymentStatus,
-  type PaymentKind,
-  type BillingType,
-  type BillingCycle,
-  type BillingIntentStatus,
-} from '../../infrastructure/persistence/schema/index.js';
+  type PaymentGateway as PaymentGatewayEnum,
+  type PaymentStatus as PaymentStatusEnum,
+  type PaymentKind as PaymentKindEnum,
+  type BillingType as BillingTypeEnum,
+  type BillingCycle as BillingCycleEnum,
+  type BillingIntentStatus as BillingIntentStatusEnum,
+} from '../../domain/enums/billing.enums.js';
 
-export type {
-  PaymentGateway,
-  PaymentStatus,
-  PaymentKind,
-  BillingType,
-  BillingCycle,
-  BillingIntentStatus,
-};
+export type PaymentGateway = 'asaas' | 'stripe' | PaymentGatewayEnum;
+export type PaymentStatus =
+  | 'pending'
+  | 'received'
+  | 'confirmed'
+  | 'overdue'
+  | 'refunded'
+  | 'canceled'
+  | 'partially_refunded'
+  | PaymentStatusEnum;
+export type PaymentKind = 'recurring' | 'upgrade' | PaymentKindEnum;
+export type BillingType = 'credit_card' | 'pix' | 'boleto' | BillingTypeEnum;
+export type BillingCycle = 'monthly' | 'yearly' | BillingCycleEnum;
+export type BillingIntentStatus =
+  | 'pending'
+  | 'processing'
+  | 'done'
+  | 'failed'
+  | 'canceled'
+  | BillingIntentStatusEnum;
 
 export interface BillingCustomerRecord {
   id: string;

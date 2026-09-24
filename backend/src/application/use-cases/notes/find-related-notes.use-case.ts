@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../ports/notes/note-embedding.repository.js';
-import { noteSummary } from '../../../infrastructure/mappers/content-query.mappers.js';
+import { noteSummary } from '../../mappers/vault-note.mapper.js';
 
 @Injectable()
 export class FindRelatedNotesUseCase {

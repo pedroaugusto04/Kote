@@ -2,6 +2,7 @@ import type { ReminderDeliveryChannel } from '../../../contracts/enums.js';
 import type { DueReminderView, ReminderView } from '../../models/reminder.models.js';
 import type {
   AttachmentRecord,
+  NoteLinkRecord,
   NoteRecord,
   ProjectFolderRecord,
   SaveAttachmentInput,
@@ -39,6 +40,7 @@ export abstract class ContentRepository {
   abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<RepositoryRecord>;
   abstract removeProjectRepositories(projectId: string, tx?: any): Promise<void>;
   abstract listProjects(userId: string): Promise<SaveProjectInput[]>;
+  abstract listProjectsForExport(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsWithNoteCount(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
   abstract listProjectsPageWithNoteCount(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
@@ -76,6 +78,8 @@ export abstract class ContentRepository {
   abstract deleteAttachment(userId: string, noteId: string, fileName: string): Promise<void>;
   abstract listAttachments(userId: string, noteId: string, tx?: any): Promise<AttachmentRecord[]>;
   abstract listAttachmentsByNoteIds(userId: string, noteIds: string[]): Promise<AttachmentRecord[]>;
+  abstract listAttachmentsForExport(userId: string): Promise<AttachmentRecord[]>;
+  abstract listNoteLinksByNoteIds(userId: string, noteIds: string[]): Promise<NoteLinkRecord[]>;
   abstract getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw>;
 }
 

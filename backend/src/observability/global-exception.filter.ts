@@ -145,13 +145,28 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const context = getRequestContext();
     const durationMs = context ? Date.now() - context.startTime : undefined;
     const error = exception instanceof Error ? exception : undefined;
-    const fields = {
+    const fields: Record<string, unknown> = {
       statusCode: normalized.statusCode,
       errorCode: normalized.code,
       durationMs,
       stack: error?.stack,
       cause: error?.cause instanceof Error ? error.cause.message : error?.cause,
     };
+    if (error && 'responseBody' in error && (error as { responseBody?: unknown }).responseBody) {
+      fields.responseBody = (error as { responseBody?: unknown }).responseBody;
+    }
+    if (error && 'status' in error && typeof (error as { status?: unknown }).status === 'number') {
+      fields.upstreamStatus = (error as { status?: unknown }).status;
+    }
+    if (error && 'provider' in error && (error as { provider?: unknown }).provider) {
+      fields.provider = (error as { provider?: unknown }).provider;
+    }
+    if (error && 'model' in error && (error as { model?: unknown }).model) {
+      fields.model = (error as { model?: unknown }).model;
+    }
+    if (error && 'endpoint' in error && (error as { endpoint?: unknown }).endpoint) {
+      fields.endpoint = (error as { endpoint?: unknown }).endpoint;
+    }
     this.logger[normalized.logLevel as keyof AppLogger]('http.request.error', fields);
   }
 }

@@ -76,3 +76,11 @@ export function isValidCommitSha(sha: string): boolean {
 export function formatCorrelationId(type: 'push' | 'pr', repoFullName: string, identifier: string): string {
   return `${type}:${repoFullName}:${identifier}`;
 }
+
+/**
+ * Checks if any review finding has high or critical severity
+ */
+export function hasHighSeverityReviewFindings(findings: Array<{ severity?: string }>): boolean {
+  return findings.some((finding) => finding.severity === 'high' || finding.severity === 'critical');
+}
+

@@ -1,15 +1,13 @@
-import { readEnvironment } from '../../adapters/environment.js';
 import type { ReminderView } from '../../application/models/reminder.models.js';
 import type { AttachmentRecord, NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
-import type { VaultNoteDetail, VaultNoteSummary } from '../../application/models/vault-note.models.js';
+import type { VaultNoteDetail } from '../../application/models/vault-note.models.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 import { EventType, SourceChannel } from '../../contracts/enums.js';
 import type { NoteSynthesisRecord } from '../../application/models/note-synthesis.models.js';
 import crypto from 'node:crypto';
 import { NoteSynthesisStatus } from '../../application/constants/ai-session-synthesis.constants.js';
-import { isNoteAiUsage } from '../../domain/ai-usage.js';
-
+import { noteSummary } from '../../application/mappers/vault-note.mapper.js';
 
 function attachmentContentPath(noteId: string, attachmentId: string): string {
   const encodedNoteId = encodeURIComponent(noteId);
@@ -22,31 +20,6 @@ function reminderNoteText(record: Pick<NoteRecord, 'metadata' | 'summary' | 'tit
   if (rawText) return rawText;
   const summary = String(record.summary || '').trim();
   return summary || String(record.title || '').trim();
-}
-
-export function noteSummary(record: NoteRecord): VaultNoteSummary {
-  return {
-    id: record.id,
-    path: record.path,
-    categories: record.categories,
-    type: resolveCanonicalTypeFromCategories(record.categories || [], (record.categories || []).map((c) => c.id)),
-    title: record.title,
-    projectId: record.projectId,
-    workspaceId: record.workspaceId,
-    project: record.projectSlug || '',
-    workspace: record.workspaceSlug || '',
-    folderId: record.folderId,
-    tags: record.tags,
-    date: record.occurredAt || record.createdAt || '',
-    status: record.status,
-    summary: record.summary,
-    source: record.source || record.sourceChannel,
-    sourceChannel: record.sourceChannel,
-    attachmentCount: record.attachmentCount || 0,
-    isPinned: record.isPinned,
-    ftsRank: record.ftsRank,
-    aiUsage: isNoteAiUsage(record.metadata?.aiUsage) ? record.metadata.aiUsage : undefined,
-  };
 }
 
 export function noteAttachment(noteId: string, attachment: AttachmentRecord) {

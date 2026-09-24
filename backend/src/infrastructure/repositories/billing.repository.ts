@@ -36,7 +36,7 @@ import {
 import { PaymentStatus, SubscriptionStatus, SubscriptionChangeStatus, SubscriptionChangeType } from '../../domain/enums/billing.enums.js';
 import {
   pickHighestPriorityPendingPayment,
-} from '../utils/billing/paymentUtils.js';
+} from '../../domain/utils/payment.utils.js';
 
 @Injectable()
 export class PostgresBillingCustomerRepository extends BillingCustomerRepository {

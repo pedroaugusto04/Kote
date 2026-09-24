@@ -1,34 +1,19 @@
-import '@testing-library/jest-dom/vitest';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { RemindersPage } from '../../../src/pages/reminders/RemindersPage';
-import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import { NoteStatus } from '../../../src/shared/api/models/note-status';
+import { createMockDashboard, createMockProject } from '../../fixtures/dashboard.fixture';
 
-const dashboard: Dashboard = {
-  workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
+const dashboard = createMockDashboard({
   projects: [
-    {
+    createMockProject({
       projectSlug: 'n8n-automations',
       displayName: 'N8N Automations',
-      repositories: [],
-      workspaceSlug: 'default',
-      defaultTags: [],
-      enabled: true,
-      favorite: false,
-    },
+    }),
   ],
-  home: {
-    windowDays: 7,
-    metrics: [],
-    activityByDay: [],
-    activityByProject: [],
-    priorities: [],
-    recentInterestingEvents: [],
-  },
-};
+});
 
 afterEach(() => {
   vi.restoreAllMocks();

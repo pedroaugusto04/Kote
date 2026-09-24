@@ -215,7 +215,6 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
         title={tooltip}
         onClick={hasMultipleModels ? () => setIsPopoverOpen((v) => !v) : undefined}
       >
-        <span style={{ fontSize: '12px' }}>⚡</span>
         <span style={{ fontWeight: 600 }}>{displayModelName}</span>
         <span style={{ opacity: 0.6 }}>•</span>
         <span>{tokensFormatted} tok</span>

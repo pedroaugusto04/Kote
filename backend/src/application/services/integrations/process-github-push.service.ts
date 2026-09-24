@@ -3,7 +3,7 @@ import { Injectable, Optional } from '@nestjs/common';
 import { AiProvider, CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { buildWhatsappHighSeverityCodeReviewMessage } from '../../../domain/notifications.js';
 import { buildGithubReviewEvent } from './github-review.service.js';
-import { formatCorrelationId } from '../../utils/github/github-review.helpers.js';
+import { formatCorrelationId, hasHighSeverityReviewFindings } from '../../utils/github/github-review.helpers.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { NotifyHighSeverityFindingsService } from '../../use-cases/notifications/notify-high-severity-findings.use-case.js';
 import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
@@ -17,29 +17,8 @@ import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { AiEntitlementService } from '../ai/ai-entitlement.service.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
-
-type GithubPushPayload = {
-  ref?: string;
-  before?: string;
-  after?: string;
-  deleted?: boolean;
-  installation?: { id?: string | number };
-  repository?: {
-    id?: string | number;
-    full_name?: string;
-    name?: string;
-    private?: boolean;
-  };
-  pusher?: { name?: string };
-  sender?: { login?: string };
-  head_commit?: {
-    id?: string;
-    message?: string;
-    timestamp?: string;
-    url?: string;
-  };
-  commits?: Array<{ id?: string; message?: string; added?: string[]; modified?: string[]; removed?: string[] }>;
-};
+import type { GithubPushPayload } from '../../utils/github/github-audit.utils.js';
+import { SyncProjectFilesService } from '../projects/sync-project-files.service.js';
 
 export type ProcessGithubPushInput = {
   body: GithubPushPayload;
@@ -51,8 +30,6 @@ export type ProcessGithubPushInput = {
   skipWebhookVerification?: boolean;
   quotaSource?: string;
 };
-
-import { SyncProjectFilesService } from '../projects/sync-project-files.service.js';
 
 @Injectable()
 export class ProcessGithubPushService {
@@ -163,9 +140,7 @@ export class ProcessGithubPushService {
     );
 
     if (this.notifyHighSeverity) {
-      const hasHighSeverityFinding = resolvedPayload.content.sections.reviewFindings.some((finding) =>
-        ['high', 'critical'].includes(finding.severity),
-      );
+      const hasHighSeverityFinding = hasHighSeverityReviewFindings(resolvedPayload.content.sections.reviewFindings);
       if (hasHighSeverityFinding) {
         const noteLink = ingestResult.noteId && environment.publicBaseUrl
           ? absoluteUrl(environment.publicBaseUrl, `/vault/${encodeURIComponent(ingestResult.noteId)}`)
@@ -222,7 +197,7 @@ export class ProcessGithubPushService {
     noteId: string,
     noteBaseUrl: string,
   ): Promise<{ sent: boolean; skipped?: string; error?: string }> {
-    const hasHighSeverityFinding = payload.content.sections.reviewFindings.some((finding) => ['high', 'critical'].includes(finding.severity));
+    const hasHighSeverityFinding = hasHighSeverityReviewFindings(payload.content.sections.reviewFindings);
     if (!hasHighSeverityFinding) return { sent: false, skipped: 'no_high_severity_findings' };
     if (!this.credentials || !this.whatsappReplySender) return { sent: false, skipped: 'whatsapp_not_configured' };
 

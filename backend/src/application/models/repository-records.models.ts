@@ -107,6 +107,8 @@ export type ProjectRecord = {
   defaultTags: string[];
   enabled: boolean;
   favorite: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   noteCount?: number;
 };
 
@@ -174,6 +176,15 @@ export type AttachmentRecord = {
   sizeBytes: number;
   storageKey: string;
   checksumSha256: string;
+  createdAt: string;
+};
+
+export type NoteLinkRecord = {
+  id: string;
+  userId: string;
+  noteId: string;
+  target: string;
+  metadata: Record<string, unknown>;
   createdAt: string;
 };
 
@@ -286,5 +297,3 @@ export type SaveQuotaUsageEventInput = Omit<QuotaUsageEventRecord, 'id' | 'creat
   id?: string;
   metadata?: Record<string, unknown>;
 };
-
-

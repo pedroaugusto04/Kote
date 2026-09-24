@@ -1,4 +1,3 @@
-import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -8,6 +7,7 @@ import { UI_MESSAGES } from '../../../src/shared/constants/ui.constants';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import type { NoteDetail, NoteSummary } from '../../../src/shared/api/models/note';
 import { NoteStatus } from '../../../src/shared/api/models/note-status';
+import { createMockDashboard, createMockProject } from '../../fixtures/dashboard.fixture';
 
 
 const apiSpies = vi.hoisted(() => ({
@@ -20,39 +20,12 @@ vi.mock('../../../src/shared/api/client', () => ({
   fetchNotes: apiSpies.fetchNotes,
 }));
 
-const baseDashboard: Dashboard = {
-  workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
+const baseDashboard: Dashboard = createMockDashboard({
   projects: [
-    {
-      projectSlug: 'platform',
-      displayName: 'Platform',
-      repositories: [],
-      workspaceSlug: 'default',
-      defaultTags: [],
-      enabled: true,
-      favorite: false,
-    },
-    {
-      projectSlug: 'mobile',
-      displayName: 'Mobile',
-      repositories: [],
-      workspaceSlug: 'default',
-      defaultTags: [],
-      enabled: true,
-      favorite: false,
-    },
+    createMockProject({ projectSlug: 'platform', displayName: 'Platform' }),
+    createMockProject({ projectSlug: 'mobile', displayName: 'Mobile' }),
   ],
-  notes: [],
-  reminders: [],
-  home: {
-    windowDays: 7,
-    metrics: [],
-    activityByDay: [],
-    activityByProject: [],
-    priorities: [],
-    recentInterestingEvents: [],
-  },
-};
+});
 
 beforeEach(() => {
   apiSpies.fetchNote.mockReset();

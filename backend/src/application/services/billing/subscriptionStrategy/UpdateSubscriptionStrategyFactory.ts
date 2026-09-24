@@ -3,7 +3,7 @@ import { SubscriptionChangeKind } from '../../../../domain/enums/billing.enums.j
 import { FREE_PLAN_ID, SubscriptionPlan } from '../../../../domain/enums/plans.enums.js';
 import { resolvePlanPriceCentsForGateway } from '../../../../domain/utils/plan-pricing.utils.js';
 import { SubscriptionContext } from './subscriptionContext.js';
-import { compareMoney, PLAN_PRICE_SCALE } from '../../../../infrastructure/utils/money.js';
+import { compareMoney, PLAN_PRICE_SCALE } from '../../../../domain/utils/money.utils.js';
 
 @Injectable()
 export class UpdateSubscriptionStrategyFactory {

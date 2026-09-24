@@ -14,10 +14,9 @@ import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectDependenciesPanel } from './ProjectDependenciesPanel';
 import { ProjectCoverageBadge } from './components/ProjectCoverageBadge';
 import { NoteStatusFilter } from '../../shared/api/models/note-status';
-import { AiTokenAnalyticsPanel } from '../../widgets/dashboard/AiTokenAnalyticsPanel';
 import { ProjectDecisionsPanel } from './ProjectDecisionsPanel';
 
-export type ProjectBrowserView = 'timeline' | 'decisions' | 'dependencies' | 'ai-analytics';
+export type ProjectBrowserView = 'timeline' | 'decisions' | 'dependencies';
 
 type ProjectsBrowserProps = {
   dashboard: Dashboard;
@@ -228,22 +227,11 @@ export function ProjectsBrowser({
             >
               Dependencies
             </button>
-            <button
-              aria-selected={projectView === 'ai-analytics'}
-              className={projectView === 'ai-analytics' ? 'filter-chip active' : 'filter-chip'}
-              role="tab"
-              type="button"
-              onClick={() => onProjectViewChange('ai-analytics')}
-            >
-              AI Analytics
-            </button>
           </div>
           {projectView === 'decisions' ? (
             <ProjectDecisionsPanel projectSlug={project.projectSlug} onOpenNote={onOpenNote} />
           ) : projectView === 'dependencies' ? (
             <ProjectDependenciesPanel projectSlug={project.projectSlug} projectId={project.id || ''} />
-          ) : projectView === 'ai-analytics' ? (
-            <AiTokenAnalyticsPanel projectSlug={project.projectSlug} />
           ) : (
             <ProjectTimeline
               dashboard={dashboard}

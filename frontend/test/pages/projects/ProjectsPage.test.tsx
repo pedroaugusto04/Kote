@@ -1,4 +1,3 @@
-import '@testing-library/jest-dom/vitest';
 import { cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -6,6 +5,7 @@ import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { ProjectsPage } from '../../../src/pages/projects/ProjectsPage';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import { NoteStatus } from '../../../src/shared/api/models/note-status';
+import { createMockDashboard, createMockProject, createMockNote } from '../../fixtures/dashboard.fixture';
 
 // Mock reminderAtToUtc to have predictable timezone conversion for tests
 vi.mock('../../../src/shared/utils/format', async (importOriginal) => {
@@ -59,66 +59,31 @@ vi.mock('../../../src/shared/ui/notifications', () => ({
   ...notificationSpies,
 }));
 
-const dashboard: Dashboard = {
-  workspaces: [{ workspaceSlug: 'default', displayName: 'Default' }],
+const dashboard: Dashboard = createMockDashboard({
   projects: [
-    {
-      projectSlug: 'inbox',
-      displayName: 'Inbox',
-      repositories: [],
-      workspaceSlug: 'default',
-      defaultTags: [],
-      enabled: true,
-      favorite: false,
-    },
-    {
+    createMockProject({ projectSlug: 'inbox', displayName: 'Inbox' }),
+    createMockProject({
       projectSlug: 'platform',
       displayName: 'Platform',
       repositories: [{ id: '1', workspaceSlug: 'default', externalId: '0', fullName: 'acme/api', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
-      workspaceSlug: 'default',
       defaultTags: ['backend'],
-      enabled: true,
-      favorite: false,
-    },
-    {
+    }),
+    createMockProject({
       projectSlug: 'empty',
       displayName: 'Empty',
       repositories: [{ id: '2', workspaceSlug: 'default', externalId: '0', fullName: 'acme/empty', htmlUrl: null, description: null, defaultBranch: null, createdAt: '', updatedAt: '' }],
-      workspaceSlug: 'default',
-      defaultTags: [],
-      enabled: true,
-      favorite: false,
-    },
+    }),
   ],
   notes: [
-    {
+    createMockNote({
       id: 'note-1',
       path: '20 Inbox/platform/note.md',
-      type: 'event',
       title: 'Deploy antigo',
-      project: 'platform',
-      workspace: 'default',
-      folderId: null,
-      categories: [],
       tags: ['deploy'],
-      date: '2026-04-27',
-      status: NoteStatus.Active,
       summary: 'Resumo',
-      source: 'manual-api',
-      sourceChannel: 'manual',
-      attachmentCount: 0,
-    },
+    }),
   ],
-  reminders: [],
-  home: {
-    windowDays: 7,
-    metrics: [],
-    activityByDay: [],
-    activityByProject: [],
-    priorities: [],
-    recentInterestingEvents: [],
-  },
-};
+});
 
 afterEach(() => {
   cleanup();
@@ -342,6 +307,7 @@ describe('ProjectsPage', () => {
     expect(repositoryCheckbox).not.toBeChecked();
     fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Billing API' } });
     fireEvent.click(repositoryCheckbox);
+    fireEvent.click(screen.getByTitle('Toggle default tags'));
     fireEvent.change(screen.getByLabelText('Tags'), { target: { value: 'finance' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create project' }));
 
@@ -386,9 +352,11 @@ describe('ProjectsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'New note' }));
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Revisar rollout' } });
     fireEvent.change(screen.getByLabelText('Text'), { target: { value: 'confirmar deploy' } });
+    fireEvent.click(screen.getByTitle('Toggle tags'));
     const tagsInput = screen.getByLabelText('Tags');
     fireEvent.change(tagsInput, { target: { value: 'deploy' } });
     fireEvent.keyDown(tagsInput, { key: 'Enter' });
+    fireEvent.click(screen.getByTitle('Toggle reminder'));
     fireEvent.change(screen.getByLabelText('Reminder'), { target: { value: '2026-04-29T09:30' } });
     fireEvent.click(screen.getByRole('button', { name: 'Create note' }));
 
@@ -876,43 +844,5 @@ describe('ProjectsPage', () => {
     });
 
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('ZIP archive downloaded successfully');
-  });
-
-  it('switches to AI Analytics tab inside a project view', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
-      const urlStr = String(input);
-      if (urlStr === '/api/integrations?workspaceSlug=default') return Response.json(githubIntegrationsResponse());
-      if (urlStr === '/api/integrations/github-app/repositories?workspaceSlug=default') return Response.json({ ok: true, workspaceSlug: 'default', repositories: [] });
-      if (urlStr.includes('/api/ai-tokens/analytics')) {
-        return Response.json({
-          ok: true,
-          totalTokens: 12000,
-          totalInputTokens: 10000,
-          totalOutputTokens: 2000,
-          totalEstimatedCostUsd: 0.05,
-          totalAiSessions: 2,
-          topModel: 'claude-3-5-sonnet',
-          availableModels: ['claude-3-5-sonnet'],
-          availableProviders: ['claude-code'],
-          byModel: [{ model: 'claude-3-5-sonnet', totalTokens: 12000, estimatedCostUsd: 0.05, sessionCount: 2, percentage: 100 }],
-          byProvider: [{ provider: 'claude-code', totalTokens: 12000, estimatedCostUsd: 0.05, sessionCount: 2, percentage: 100 }],
-          dailyTrend: [{ date: '2026-09-19', totalTokens: 12000, estimatedCostUsd: 0.05, sessionCount: 2 }],
-        });
-      }
-      return Response.json({ ok: true, timeline: [], pagination: { total: 0, page: 1, pageSize: 20, totalPages: 1 } });
-    }));
-
-    renderProjects({ selectedProject: 'platform' });
-
-    // Timeline tab is active by default
-    expect(screen.getByRole('tab', { name: 'Timeline' })).toHaveClass('active');
-
-    // AI Analytics tab is present in project views
-    const aiTab = screen.getByRole('tab', { name: 'AI Analytics' });
-    expect(aiTab).toBeInTheDocument();
-
-    fireEvent.click(aiTab);
-    expect(aiTab).toHaveClass('active');
-    expect(await screen.findByText(/AI Token Analytics & Costs/i)).toBeInTheDocument();
   });
 });

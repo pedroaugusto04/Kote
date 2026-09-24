@@ -4,14 +4,14 @@ import { randomUUID } from 'crypto';
 import { DependencyWatcherRepository } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { RabbitMqDependencyCheckQueuePublisher } from '../../../infrastructure/queue/rabbitmq-dependency-check-queue.publisher.js';
+import { DependencyCheckQueuePublisher } from '../../ports/dependency-watcher/dependency-check-queue.publisher.js';
 
 @Injectable()
 export class CheckDependencyUseCase {
   constructor(
     private readonly dependencyWatcherRepository: DependencyWatcherRepository,
     private readonly contentRepository: ContentRepository,
-    private readonly dependencyCheckQueuePublisher: RabbitMqDependencyCheckQueuePublisher,
+    private readonly dependencyCheckQueuePublisher: DependencyCheckQueuePublisher,
     private readonly logger: AppLogger,
   ) {}
 

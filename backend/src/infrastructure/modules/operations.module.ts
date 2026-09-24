@@ -9,9 +9,11 @@ import { NotesModule } from './notes.module.js';
 import { RemindersModule } from './reminders.module.js';
 import { ProjectsModule } from './projects.module.js';
 import { QuotaModule } from './quota.module.js';
+import { StorageModule } from './storage.module.js';
 
 import {
   ProcessAgentConversationUseCase,
+  ExportGlobalUseCase,
 } from '../../application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../application/use-cases/conversation/services/conversation-folder-resolution.service.js';
@@ -29,6 +31,7 @@ import { OperationsController } from '../../interfaces/http/controllers/index.js
     RemindersModule,
     ProjectsModule,
     QuotaModule,
+    StorageModule,
   ],
   controllers: [
     OperationsController,
@@ -37,6 +40,7 @@ import { OperationsController } from '../../interfaces/http/controllers/index.js
     ProcessAgentConversationUseCase,
     ConversationAgentPresenter,
     ConversationFolderResolutionService,
+    ExportGlobalUseCase,
   ],
   exports: [
     ProcessAgentConversationUseCase,

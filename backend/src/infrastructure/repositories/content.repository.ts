@@ -12,6 +12,7 @@ import type {
   SaveProjectFolderInput,
   SaveProjectInput,
   SaveWorkspaceInput,
+  NoteLinkRecord,
 } from '../../application/models/repository-records.models.js';
 import type { RepositoryRecord } from '../../application/models/repository-records.models.js';
 import { PostgresWorkspaceRepository } from './workspace.repository.js';
@@ -90,6 +91,10 @@ export class PostgresContentRepository extends ContentRepository {
 
   async listProjects(userId: string) {
     return this.projectRepository.list(userId);
+  }
+
+  async listProjectsForExport(userId: string) {
+    return this.projectRepository.listForExport(userId);
   }
 
   async listProjectsWithNoteCount(userId: string) {
@@ -277,6 +282,14 @@ export class PostgresContentRepository extends ContentRepository {
 
   async listAttachmentsByNoteIds(userId: string, noteIds: string[]) {
     return this.attachmentRepository.listByNoteIds(userId, noteIds);
+  }
+
+  async listAttachmentsForExport(userId: string) {
+    return this.attachmentRepository.listForExport(userId);
+  }
+
+  async listNoteLinksByNoteIds(userId: string, noteIds: string[]): Promise<NoteLinkRecord[]> {
+    return this.noteRepository.listLinksByNoteIds(userId, noteIds);
   }
 
   async getProductivityInsightsRaw(userId: string): Promise<ProductivityInsightsRaw> {

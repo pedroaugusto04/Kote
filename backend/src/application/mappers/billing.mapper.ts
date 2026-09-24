@@ -1,8 +1,26 @@
 import { SubscriptionPlan } from '../../domain/enums/plans.enums.js';
+import { BillingType } from '../../domain/enums/billing.enums.js';
+import { BillingTypeEnum } from '../ports/billing/payment-gateway.port.js';
 import { PAYMENT_GATEWAY } from '../../domain/constants/billing.constants.js';
-import { canCancelPayment } from '../../infrastructure/utils/billing/paymentUtils.js';
+import { canCancelPayment } from '../../domain/utils/payment.utils.js';
 import type { PlanRecord, BillingPaymentRecord } from '../models/billing.models.js';
 import type { PlanDto, PendingPaymentSummaryDto } from '../dto/billing.dto.js';
+
+/**
+ * Maps domain BillingType enum to gateway BillingTypeEnum
+ */
+export function toGatewayBillingType(billingType: BillingType): BillingTypeEnum {
+  switch (billingType) {
+    case BillingType.CREDIT_CARD:
+      return BillingTypeEnum.CREDIT_CARD;
+    case BillingType.PIX:
+      return BillingTypeEnum.PIX;
+    case BillingType.BOLETO:
+      return BillingTypeEnum.BOLETO;
+    default:
+      return BillingTypeEnum.CREDIT_CARD;
+  }
+}
 
 export class SubscriptionPlanMapper {
   static toPlanDto(plan: PlanRecord): PlanDto {

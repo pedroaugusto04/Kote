@@ -3,8 +3,8 @@ import { SubscriptionChangeStatus, SubscriptionChangeType, SubscriptionStatus, B
 import { SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
 import { resolvePlanValueForCycle } from '../../../domain/utils/plan-pricing.utils.js';
-import { BillingTypeEnum, GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
-import { toGatewayBillingType } from '../../../infrastructure/billing/helpers/billingTypeMapper.js';
+import { BillingTypeEnum, GatewayNameEnum } from '../../ports/billing/payment-gateway.port.js';
+import { toGatewayBillingType } from '../../mappers/billing.mapper.js';
 import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
 import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
 import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';

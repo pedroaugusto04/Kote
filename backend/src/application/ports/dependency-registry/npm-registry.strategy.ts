@@ -16,16 +16,20 @@ export class NpmRegistryStrategy extends RegistryStrategy {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT_MS);
+      timeoutId.unref?.();
 
-      // Fetch full package metadata to access dist-tags and all versions
-      const response = await fetch(`https://registry.npmjs.org/${packageName}`, {
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'Kote-DependencyWatcher/1.0',
-        },
-      });
-
-      clearTimeout(timeoutId);
+      let response;
+      try {
+        // Fetch full package metadata to access dist-tags and all versions
+        response = await fetch(`https://registry.npmjs.org/${packageName}`, {
+          signal: controller.signal,
+          headers: {
+            'User-Agent': 'Kote-DependencyWatcher/1.0',
+          },
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         throw new Error(`Failed to fetch npm package: ${response.statusText}`);

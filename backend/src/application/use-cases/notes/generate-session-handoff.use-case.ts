@@ -1,4 +1,3 @@
-import crypto from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { AppLogger } from '../../../observability/logger.js';
@@ -13,23 +12,11 @@ import {
   buildSessionHandoffSystemPrompt,
   buildSessionHandoffUserPrompt,
 } from '../../../infrastructure/ai/prompts/session-handoff.prompt.js';
-import type { SessionHandoffBody, SessionHandoffResponse } from '../../../interfaces/http/dto/session-handoff.dto.js';
-
-type CachedHandoff = {
-  markdown: string;
-  sourceProvider?: string;
-  sourceNoteId?: string;
-  sourceTitle?: string;
-  sourceTimestamp?: string;
-  cachedAt: number;
-};
-
-const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+import type { SessionHandoffBody, SessionHandoffResponse } from '../../models/session-handoff.models.js';
 
 @Injectable()
 export class GenerateSessionHandoffUseCase {
   private readonly env: RuntimeEnvironment;
-  private readonly memoryCache = new Map<string, CachedHandoff>();
 
   constructor(
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
@@ -51,7 +38,7 @@ export class GenerateSessionHandoffUseCase {
     });
 
     let transcript = String(input.rawText || '').trim();
-    let sourceProvider = input.provider;
+    let sourceProvider = input.provider || 'unknown';
     let sourceNoteId = input.noteId;
     let sourceTitle: string | undefined;
     let sourceTimestamp: string | undefined;
@@ -68,7 +55,7 @@ export class GenerateSessionHandoffUseCase {
         sourceTitle = note.title;
         sourceTimestamp = note.occurredAt || note.createdAt;
       } else if (input.autoDetectPrevious) {
-        const detected = await this.findLatestSessionNote(userId, input.provider, input.projectSlug);
+        const detected = await this.findLatestSessionNote(userId, input.provider || 'unknown', input.projectSlug);
         if (detected) {
           transcript = String(detected.markdown || detected.summary || '').trim();
           sourceProvider = detected.source || 'ai-session';
@@ -84,28 +71,10 @@ export class GenerateSessionHandoffUseCase {
         ok: true,
         handoffMarkdown: '# [Kote] Session Handoff\n\nNo previous session content found to generate handoff.',
         sourceProvider,
-        cached: false,
       };
     }
 
-    // 2. Check memory cache by content hash
-    const contentHash = crypto.createHash('sha256').update(`${sourceProvider}:${transcript}`).digest('hex');
-    const cached = this.memoryCache.get(contentHash);
-    const now = Date.now();
-    if (cached && (now - cached.cachedAt) < CACHE_TTL_MS) {
-      this.logger.info('session_handoff.cache_hit', { userId, contentHash });
-      return {
-        ok: true,
-        handoffMarkdown: cached.markdown,
-        sourceProvider: cached.sourceProvider,
-        sourceNoteId: cached.sourceNoteId,
-        sourceTitle: cached.sourceTitle,
-        sourceTimestamp: cached.sourceTimestamp,
-        cached: true,
-      };
-    }
-
-    // 3. Check entitlement and consume AI credits
+    // 2. Check entitlement and consume AI credits
     const entitlement = await this.aiEntitlement.checkAndConsume({
       userId,
       workspaceSlug,
@@ -128,11 +97,10 @@ export class GenerateSessionHandoffUseCase {
         sourceNoteId,
         sourceTitle,
         sourceTimestamp,
-        cached: false,
       };
     }
 
-    // 4. Resolve AI configuration
+    // 3. Resolve AI configuration
     const config: ChatConfig = {
       provider: this.env.aiSessionSynthesisProvider || this.env.defaultChatAiProvider,
       baseUrl: this.env.aiSessionSynthesisBaseUrl || this.env.defaultChatAiBaseUrl,
@@ -148,7 +116,7 @@ export class GenerateSessionHandoffUseCase {
       projectSlug: input.projectSlug,
     });
 
-    // 5. Generate completion
+    // 4. Generate completion
     let handoffMarkdown: string;
     try {
       handoffMarkdown = await runChatCompletion(config, systemPrompt, userPrompt);
@@ -161,22 +129,6 @@ export class GenerateSessionHandoffUseCase {
         error: error instanceof Error ? error.message : String(error),
       });
       handoffMarkdown = `# [Kote] Session Handoff\n\nAI generation failed. Raw summary of previous session:\n\n${transcript.slice(0, 1500)}`;
-    }
-
-    // 6. Cache result
-    this.memoryCache.set(contentHash, {
-      markdown: handoffMarkdown,
-      sourceProvider,
-      sourceNoteId,
-      sourceTitle,
-      sourceTimestamp,
-      cachedAt: now,
-    });
-
-    // Enforce cache size limit
-    if (this.memoryCache.size > 200) {
-      const oldestKey = this.memoryCache.keys().next().value;
-      if (oldestKey) this.memoryCache.delete(oldestKey);
     }
 
     this.logger.info('session_handoff.completed', {
@@ -193,7 +145,6 @@ export class GenerateSessionHandoffUseCase {
       sourceNoteId,
       sourceTitle,
       sourceTimestamp,
-      cached: false,
     };
   }
 

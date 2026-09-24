@@ -52,6 +52,18 @@ export class PostgresProjectRepository {
     return result.map(projectFromRow);
   }
 
+  async listForExport(userId: string) {
+    const db = this.database.getDb();
+    const result = await db
+      .select(PROJECT_METADATA_SELECT)
+      .from(projects)
+      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
+      .where(eq(projects.userId, userId))
+      .orderBy(projects.workspaceId, projects.projectSlug);
+
+    return result.map(projectFromRow);
+  }
+
   async listWithNoteCount(userId: string) {
     const db = this.database.getDb();
     const result = await db

@@ -86,7 +86,7 @@ export function ProjectFolderModal({
   return (
     <>
       <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
-        <section aria-labelledby="folder-modal-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
+        <section aria-labelledby="folder-modal-title" aria-modal="true" className="modal-panel integration-modal project-folder-modal-panel" role="dialog" onClick={(event) => event.stopPropagation()}>
           <div className="modal-head">
             <div>
               <h2 id="folder-modal-title">{mode === WorkspaceModalMode.Create ? UI_MESSAGES.NEW_FOLDER : UI_MESSAGES.EDIT_FOLDER}</h2>

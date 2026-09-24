@@ -13,6 +13,8 @@ import { NoteLifecycleService } from '../../services/content/note-lifecycle.serv
 import { AppLogger } from '../../../observability/logger.js';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
 import { toProjectFromIngest, toProjectFromRecord, toIngestPayloadWithProject, toNoteInputFromIngest, toProjectSaveInput, toNotePathsFromIngest, toSaveNoteResult } from '../../mappers/ingest.mapper.js';
+import { buildFolderSummary } from '../../utils/content/project-folder.utils.js';
+import { resolveCategoryIds } from '../../utils/content/category-resolution.utils.js';
 
 
 
@@ -62,29 +64,32 @@ export interface SaveIngestedNoteParams {
   tx?: any;
 }
 
-async function resolveCategoryIds(
+async function syncNewProject(
   contentRepository: ContentRepository,
-  userId: string,
+  project: Project,
   workspaceId: string,
-  canonicalType: string | undefined,
-  providedCategoryIds?: string[],
+  workspaceSlug: string,
+  projectId: string,
+  userId: string,
   tx?: any,
-): Promise<string[]> {
-  if (providedCategoryIds !== undefined) {
-    return providedCategoryIds;
-  }
-  if (!canonicalType) {
-    return [];
-  }
-  let category = await contentRepository.findCategoryByName(userId, workspaceId, canonicalType, tx);
-  if (!category) {
-    category = await contentRepository.createCategory(userId, workspaceId, {
-      name: canonicalType,
-      color: '#9e9e9e',
-      icon: '',
+) {
+  if (project.repositories.length) {
+    const repo = project.repositories[0]!;
+    const savedRepo = await contentRepository.upsertRepository({
+      workspaceId,
+      externalId: repo.externalId,
+      fullName: repo.fullName,
+      htmlUrl: repo.htmlUrl,
+      description: repo.description,
+      defaultBranch: repo.defaultBranch,
     }, tx);
+    project.repositories[0] = {
+      ...savedRepo,
+      workspaceSlug,
+    };
   }
-  return [category.id];
+  const projectSaveInput = toProjectSaveInput(project, workspaceId, projectId);
+  await contentRepository.upsertProject(userId, projectSaveInput);
 }
 
 async function saveIngestedNote(params: SaveIngestedNoteParams): Promise<SaveNoteResult> {
@@ -119,24 +124,8 @@ async function saveIngestedNote(params: SaveIngestedNoteParams): Promise<SaveNot
     : null;
   if (options.folderId && (!folder || folder.workspaceSlug !== workspaceSlug)) throw new NotFoundException('folder_not_found');
   
-  if (!isMatchingProject && project.repositories.length) {
-    const repo = project.repositories[0]!;
-    const savedRepo = await contentRepository.upsertRepository({
-      workspaceId,
-      externalId: repo.externalId,
-      fullName: repo.fullName,
-      htmlUrl: repo.htmlUrl,
-      description: repo.description,
-      defaultBranch: repo.defaultBranch,
-    }, tx);
-    project.repositories[0] = {
-      ...savedRepo,
-      workspaceSlug: workspaceSlug,
-    };
-  }
   if (!isMatchingProject) {
-    const projectSaveInput = toProjectSaveInput(project, workspaceId, projectId);
-    await contentRepository.upsertProject(userId, projectSaveInput);
+    await syncNewProject(contentRepository, project, workspaceId, workspaceSlug, projectId, userId, tx);
   }
 
   const categoryIds = await resolveCategoryIds(
@@ -166,29 +155,13 @@ async function saveIngestedNote(params: SaveIngestedNoteParams): Promise<SaveNot
     },
     tx,
   );
-  const folderSummary = folder
-    ? await buildFolderSummary(contentRepository, userId, projectId, folder)
-    : { folderName: 'Project root', folderPath: 'Project root' };
+
+  let folderSummary = { folderName: 'Project root', folderPath: 'Project root' };
+  if (folder) {
+    const folders = await contentRepository.listProjectFolders(userId, projectId);
+    folderSummary = buildFolderSummary(folders, folder);
+  }
+
   const paths = toNotePathsFromIngest(payload, project, folder?.fullSlugPath || null);
   return toSaveNoteResult(note, attachments, project, folderSummary.folderName, folderSummary.folderPath, paths);
-}
-
-async function buildFolderSummary(
-  contentRepository: ContentRepository,
-  userId: string,
-  projectId: string,
-  folder: ProjectFolderRecord,
-) {
-  const folders = await contentRepository.listProjectFolders(userId, projectId);
-  const byId = new Map(folders.map((item) => [item.id, item]));
-  const names: string[] = [];
-  let current: ProjectFolderRecord | undefined = folder;
-  while (current) {
-    names.unshift(current.displayName);
-    current = current.parentFolderId ? byId.get(current.parentFolderId) : undefined;
-  }
-  return {
-    folderName: folder.displayName,
-    folderPath: names.join(' / ') || folder.displayName,
-  };
 }

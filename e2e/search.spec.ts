@@ -4,5 +4,6 @@ test.describe('Search Functionality', () => {
   test('should load the search page', async ({ page }) => {
     const response = await page.goto('/search');
     expect(response?.status()).toBeLessThan(400);
+    await expect(page.locator('#root')).toBeAttached();
   });
 });

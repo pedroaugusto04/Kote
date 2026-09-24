@@ -9,19 +9,17 @@ const ROUTING_KEY = 'dependency_check.run';
 const DLX_NAME = `${EXCHANGE_NAME}.dlx`;
 const DLQ_NAME = `${QUEUE_NAME}.dlq`;
 
-export type DependencyCheckJobMessage = {
-  jobId: string;
-  userId: string;
-  projectId: string;
-  projectSlug: string;
-  workspaceId: string;
-  repositoryIds: string[];
-  dependencyIds: string[];
-  retryCount?: number;
-};
+import {
+  DependencyCheckQueuePublisher,
+  type DependencyCheckJobMessage,
+} from '../../application/ports/dependency-watcher/dependency-check-queue.publisher.js';
+
+export { type DependencyCheckJobMessage };
 
 @Injectable()
-export class RabbitMqDependencyCheckQueuePublisher extends BaseRabbitMqPublisher {
+export class RabbitMqDependencyCheckQueuePublisher
+  extends BaseRabbitMqPublisher
+  implements DependencyCheckQueuePublisher {
   constructor(logger: AppLogger) {
     super(logger);
   }

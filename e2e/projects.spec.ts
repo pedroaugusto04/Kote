@@ -4,10 +4,12 @@ test.describe('Projects and Notes Management', () => {
   test('should load the projects page', async ({ page }) => {
     const response = await page.goto('/projects');
     expect(response?.status()).toBeLessThan(400);
+    await expect(page.locator('#root')).toBeAttached();
   });
 
   test('should load the vault page', async ({ page }) => {
     const response = await page.goto('/vault');
     expect(response?.status()).toBeLessThan(400);
+    await expect(page.locator('#root')).toBeAttached();
   });
 });

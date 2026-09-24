@@ -11,7 +11,7 @@ import type {
   ProjectKnowledgeMapNoteCategory,
 } from '../../models/project-knowledge-map.models.js';
 import type { NoteRecord, ProjectFolderRecord, SaveProjectInput } from '../../models/repository-records.models.js';
-import { collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
+import { collectFolderAncestorIds, collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { EventType, SourceChannel, TimelineCategory } from '../../../contracts/enums.js';
 
@@ -88,7 +88,7 @@ export function buildProjectKnowledgeMap(
   }
 
   const folderIdsWithNotes = new Set(filteredNotes.map((note) => note.folderId).filter(Boolean) as string[]);
-  const folderIdsToRender = collectAncestorFolderIds(folders, folderIdsWithNotes);
+  const folderIdsToRender = collectFolderAncestorIds(folders, folderIdsWithNotes);
   for (const folder of folders.filter((item) => folderIdsToRender.has(item.id))) {
     const nodeId = folderNode(folder.id);
     addNode(nodes, {
@@ -180,19 +180,6 @@ export function projectKnowledgeMapCategory(record: Pick<NoteRecord, 'metadata' 
   if (record.sourceChannel === SourceChannel.Cli) return TimelineCategory.Manual;
   if (record.sourceChannel === SourceChannel.Ide) return TimelineCategory.Manual;
   return TimelineCategory.Manual;
-}
-
-function collectAncestorFolderIds(folders: ProjectFolderRecord[], selectedIds: Set<string>) {
-  const byId = new Map(folders.map((folder) => [folder.id, folder]));
-  const result = new Set<string>();
-  for (const selectedId of selectedIds) {
-    let current = byId.get(selectedId);
-    while (current) {
-      result.add(current.id);
-      current = current.parentFolderId ? byId.get(current.parentFolderId) : undefined;
-    }
-  }
-  return result;
 }
 
 function hasReminder(record: Pick<NoteRecord, 'reminderAt'>) {
