@@ -43,6 +43,7 @@ export {
   exportProjectAdrsZip,
 } from './projects';
 export type { ProjectDecisionItem, ProjectDecisionsResponse, FetchProjectDecisionsParams, ExportProjectAdrsParams } from './models/project-decisions';
+export { PROJECT_DECISION_STATUS_LABELS, getProjectDecisionStatusLabel } from './models/project-decisions';
 export { fetchReminderBoard, fetchReminders, updateReminderStatus, bulkUpdateReminderStatuses } from './reminders';
 export { runQuery } from './query';
 export { fetchAskHistory, runAsk, fetchAskConversations, fetchConversationTurns } from './ask';

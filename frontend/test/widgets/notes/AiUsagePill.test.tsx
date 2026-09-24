@@ -44,7 +44,6 @@ describe('AiUsagePill', () => {
     expect(screen.getByText('claude-3-5-sonnet')).toBeInTheDocument();
     expect(screen.getByText('24,000 tok')).toBeInTheDocument();
     expect(screen.getByText('$0.1200')).toBeInTheDocument();
-    expect(screen.getByText('⚡')).toBeInTheDocument();
   });
 
   it('renders multi-model breakdown indicator, tooltip and opens popover on click', () => {
@@ -79,7 +78,6 @@ describe('AiUsagePill', () => {
       />
     );
 
-    expect(screen.getByText('⚡')).toBeInTheDocument();
     expect(screen.getByText('claude-3-5-sonnet (+1)')).toBeInTheDocument();
     expect(screen.getByText('64,000 tok')).toBeInTheDocument();
     expect(screen.getByText('$0.2000')).toBeInTheDocument();

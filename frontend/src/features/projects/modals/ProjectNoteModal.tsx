@@ -95,6 +95,7 @@ export function ProjectNoteModal({
     setError,
     setValue,
     clearErrors,
+    watch,
   } = useForm<NoteFormValues>({
     resolver: zodResolver(noteFormSchema),
     shouldFocusError: false,
@@ -109,6 +110,20 @@ export function ProjectNoteModal({
     },
   });
 
+  const watchedCategoryIds = watch('categoryIds') || [];
+  const watchedTags = watch('tags') || [];
+  const watchedReminderAt = watch('reminderAt') || '';
+
+  const [showCategories, setShowCategories] = useState(
+    Boolean(note?.categories && note.categories.length > 0)
+  );
+  const [showTags, setShowTags] = useState(
+    Boolean(note?.tags && note.tags.length > 0)
+  );
+  const [showReminder, setShowReminder] = useState(
+    Boolean(note?.editor?.reminderAt)
+  );
+
   const attachmentError = useMemo<string | undefined>(() => {
     if (!errors.attachments) return undefined;
     if (typeof errors.attachments.message === 'string') return errors.attachments.message;
@@ -120,6 +135,10 @@ export function ProjectNoteModal({
     }
     return undefined;
   }, [errors.attachments]);
+
+  const isCategoriesVisible = showCategories || watchedCategoryIds.length > 0 || Boolean(errors.categoryIds);
+  const isTagsVisible = showTags || watchedTags.length > 0 || Boolean(errors.tags);
+  const isReminderVisible = showReminder || Boolean(watchedReminderAt) || Boolean(errors.reminderAt);
 
   const closeGuard = useModalCloseGuard({
     isDirty: isDirty || hasInitialAttachments,
@@ -157,6 +176,20 @@ export function ProjectNoteModal({
     },
   });
 
+  const handleFormKeyDown = (event: React.KeyboardEvent<HTMLFormElement>) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+      event.preventDefault();
+      if (!mutation.isPending) {
+        void handleSubmit(
+          (values: NoteFormValues) => mutation.mutate(values),
+          (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
+        )();
+      }
+    }
+  };
+
+  const hasProjectSelector = Boolean(projects && projects.length > 0);
+
   return (
     <>
       <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
@@ -164,7 +197,7 @@ export function ProjectNoteModal({
           <div className="modal-head">
             <div>
               <h2 id="note-modal-title">{mode === WorkspaceModalMode.Create ? UI_MESSAGES.NEW_NOTE : UI_MESSAGES.EDIT_NOTE}</h2>
-              {!(projects && projects.length > 0) && <p>{selectedProjectSlug}</p>}
+              {!hasProjectSelector && <p>{selectedProjectSlug}</p>}
             </div>
             <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
           </div>
@@ -172,122 +205,208 @@ export function ProjectNoteModal({
             className="auth-form"
             ref={formRef}
             noValidate
+            onKeyDown={handleFormKeyDown}
             onSubmit={handleSubmit(
               (values: NoteFormValues) => mutation.mutate(values),
               (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
             )}
           >
-            {projects && projects.length > 0 && (
-              <FormField name="projectSlug" label="Project" required={mode === WorkspaceModalMode.Create}>
-                {(fieldProps) => (
-                  <Select
-                    ariaDescribedBy={fieldProps['aria-describedby']}
-                    ariaInvalid={fieldProps['aria-invalid']}
-                    ariaRequired={fieldProps['aria-required']}
-                    dataField={fieldProps['data-field']}
-                    id={fieldProps.id}
-                    options={projects.map((project) => ({
-                      value: project.projectSlug,
-                      label: project.displayName,
-                    }))}
-                    required={fieldProps.required}
-                    value={selectedProjectSlug}
-                    onChange={(val) => {
-                      setSelectedProjectSlug(val);
-                      setValue('folderId', '');
-                    }}
-                  />
-                )}
-              </FormField>
-            )}
-            <FormField name="folderId" label="Folder" error={errors.folderId?.message} optional>
+            {/* 1. Capture First: Title and Text */}
+            <FormField name="title" label="Title" error={errors.title?.message} required>
               {(fieldProps) => (
-                <Controller
-                  control={control}
-                  name="folderId"
-                  render={({ field }) => (
+                <input
+                  placeholder="Note title (e.g. Local environment setup)"
+                  autoFocus={mode === WorkspaceModalMode.Create}
+                  {...fieldProps}
+                  {...register('title')}
+                />
+              )}
+            </FormField>
+            <FormField name="rawText" label="Text" error={errors.rawText?.message} optional>
+              {(fieldProps) => <textarea placeholder="Write note content in Markdown..." rows={3} {...fieldProps} {...register('rawText')} />}
+            </FormField>
+
+            {/* 2. Context Row: Project and Folder in compact 2-column grid */}
+            <div className={hasProjectSelector ? 'form-grid' : ''}>
+              {hasProjectSelector && (
+                <FormField name="projectSlug" label="Project" required={mode === WorkspaceModalMode.Create}>
+                  {(fieldProps) => (
                     <Select
                       ariaDescribedBy={fieldProps['aria-describedby']}
                       ariaInvalid={fieldProps['aria-invalid']}
                       ariaRequired={fieldProps['aria-required']}
                       dataField={fieldProps['data-field']}
                       id={fieldProps.id}
-                      options={[
-                        { value: '', label: 'Root' },
-                        ...modalFolders.map((folder) => ({
-                          value: folder.id,
-                          label: folder.displayName,
-                          depth: folder.depth,
-                        })),
-                      ]}
+                      options={projects!.map((project) => ({
+                        value: project.projectSlug,
+                        label: project.displayName,
+                      }))}
                       required={fieldProps.required}
-                      value={field.value}
-                      onBlur={field.onBlur}
-                      onChange={field.onChange}
+                      value={selectedProjectSlug}
+                      onChange={(val) => {
+                        setSelectedProjectSlug(val);
+                        setValue('folderId', '');
+                      }}
                     />
                   )}
-                />
+                </FormField>
               )}
-            </FormField>
-            <FormField name="categoryIds" label="Categories" error={errors.categoryIds?.message} optional>
-              {(fieldProps) => (
-                <Controller
-                  control={control}
-                  name="categoryIds"
-                  render={({ field }) => (
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '4px 0' }}>
-                      {categoriesQuery.data?.map((category) => {
-                        const checked = field.value?.includes(category.id);
-                        return (
-                          <label
-                            key={category.id}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '6px 12px',
-                              borderRadius: '20px',
-                              border: checked ? '1px solid var(--text)' : '1px solid var(--border)',
-                              cursor: 'pointer',
-                              backgroundColor: checked ? 'var(--bg-accent)' : 'var(--bg)',
-                              transition: 'all 0.2s ease',
-                              userSelect: 'none',
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              value={category.id}
-                              style={{ display: 'none' }}
-                              onChange={() => {
-                                const nextValue = checked
-                                  ? (field.value || []).filter((id) => id !== category.id)
-                                  : [...(field.value || []), category.id];
-                                field.onChange(nextValue);
-                              }}
-                            />
-                            <span
-                              className="category-dot"
-                              style={{
-                                '--dot-color-light': category.color || '#94a3b8',
-                              '--dot-color-dark': category.colorDark || category.color || '#94a3b8'
-                              } as React.CSSProperties}
-                            />
-                            <span>{formatDisplayToken(category.name)}</span>
-                          </label>
-                        );
-                      })}
-                    </div>
+              <FormField name="folderId" label="Folder" error={errors.folderId?.message} optional>
+                {(fieldProps) => (
+                  <Controller
+                    control={control}
+                    name="folderId"
+                    render={({ field }) => (
+                      <Select
+                        ariaDescribedBy={fieldProps['aria-describedby']}
+                        ariaInvalid={fieldProps['aria-invalid']}
+                        ariaRequired={fieldProps['aria-required']}
+                        dataField={fieldProps['data-field']}
+                        id={fieldProps.id}
+                        options={[
+                          { value: '', label: 'Root' },
+                          ...modalFolders.map((folder) => ({
+                            value: folder.id,
+                            label: folder.displayName,
+                            depth: folder.depth,
+                          })),
+                        ]}
+                        required={fieldProps.required}
+                        value={field.value}
+                        onBlur={field.onBlur}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
+                )}
+              </FormField>
+            </div>
+
+            {/* 3. Progressive Disclosure Meta Toolbar */}
+            <div className="quick-note-meta-triggers" role="toolbar" aria-label="Add note details">
+              <button
+                type="button"
+                className={`meta-toggle-btn ${isCategoriesVisible ? 'active' : ''}`}
+                onClick={() => setShowCategories((v) => !v)}
+                aria-expanded={isCategoriesVisible}
+                title="Toggle categories"
+              >
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.3">
+                  <path d="M1.5 8.5L8.5 1.5H14.5V7.5L7.5 14.5L1.5 8.5Z" />
+                  <circle cx="11.5" cy="4.5" r="1" fill="currentColor" />
+                </svg>
+                <span>{watchedCategoryIds.length > 0 ? `${watchedCategoryIds.length} categories` : '+ Category'}</span>
+              </button>
+
+              <button
+                type="button"
+                className={`meta-toggle-btn ${isTagsVisible ? 'active' : ''}`}
+                onClick={() => setShowTags((v) => !v)}
+                aria-expanded={isTagsVisible}
+                title="Toggle tags"
+              >
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.3">
+                  <line x1="2.5" y1="6" x2="13.5" y2="6" />
+                  <line x1="2.5" y1="10" x2="13.5" y2="10" />
+                  <line x1="6" y1="2.5" x2="4.5" y2="13.5" />
+                  <line x1="11.5" y1="2.5" x2="10" y2="13.5" />
+                </svg>
+                <span>{watchedTags.length > 0 ? `${watchedTags.length} tags` : '+ Tags'}</span>
+              </button>
+
+              <button
+                type="button"
+                className={`meta-toggle-btn ${isReminderVisible ? 'active' : ''}`}
+                onClick={() => setShowReminder((v) => !v)}
+                aria-expanded={isReminderVisible}
+                title="Toggle reminder"
+              >
+                <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.3">
+                  <circle cx="8" cy="8" r="6" />
+                  <polyline points="8 4.5 8 8 10.5 9.5" />
+                </svg>
+                <span>{watchedReminderAt ? 'Reminder set' : '+ Reminder'}</span>
+              </button>
+            </div>
+
+            {/* 4. Conditionally Expanded Sections */}
+            {isCategoriesVisible && (
+              <div className="quick-note-section-card">
+                <FormField name="categoryIds" label="Categories" error={errors.categoryIds?.message} optional>
+                  {(fieldProps) => (
+                    <Controller
+                      control={control}
+                      name="categoryIds"
+                      render={({ field }) => (
+                        <div className="categories-pill-list">
+                          {categoriesQuery.data?.map((category) => {
+                            const checked = field.value?.includes(category.id);
+                            return (
+                              <label
+                                key={category.id}
+                                className={`category-chip ${checked ? 'selected' : ''}`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  value={category.id}
+                                  style={{ display: 'none' }}
+                                  onChange={() => {
+                                    const nextValue = checked
+                                      ? (field.value || []).filter((id) => id !== category.id)
+                                      : [...(field.value || []), category.id];
+                                    field.onChange(nextValue);
+                                  }}
+                                />
+                                <span
+                                  className="category-dot"
+                                  style={{
+                                    '--dot-color-light': category.color || '#94a3b8',
+                                    '--dot-color-dark': category.colorDark || category.color || '#94a3b8',
+                                  } as React.CSSProperties}
+                                />
+                                <span>{formatDisplayToken(category.name)}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    />
                   )}
-                />
-              )}
-            </FormField>
-            <FormField name="title" label="Title" error={errors.title?.message} required>
-              {(fieldProps) => <input placeholder="Note title (e.g. Local environment setup)" {...fieldProps} {...register('title')} />}
-            </FormField>
-            <FormField name="rawText" label="Text" error={errors.rawText?.message} optional>
-              {(fieldProps) => <textarea placeholder="Write note content in Markdown..." rows={4} {...fieldProps} {...register('rawText')} />}
-            </FormField>
+                </FormField>
+              </div>
+            )}
+
+            {(isTagsVisible || isReminderVisible) && (
+              <div className={isTagsVisible && isReminderVisible ? 'form-grid' : ''}>
+                {isTagsVisible && (
+                  <FormField name="tags" label="Tags" error={errors.tags?.message} optional>
+                    {(fieldProps) => (
+                      <Controller
+                        control={control}
+                        name="tags"
+                        render={({ field }) => (
+                          <TagInput
+                            {...fieldProps}
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            maxTags={MAX_TAGS}
+                            maxTagLength={MAX_TAG_LENGTH}
+                          />
+                        )}
+                      />
+                    )}
+                  </FormField>
+                )}
+                {isReminderVisible && (
+                  <FormField name="reminderAt" label="Reminder" error={errors.reminderAt?.message} optional>
+                    {(fieldProps) => <input type="datetime-local" {...fieldProps} {...register('reminderAt')} />}
+                  </FormField>
+                )}
+              </div>
+            )}
+
             <FormField name="attachments" label="Attachments" error={attachmentError} optional>
               {() => (
                 <AttachmentInput
@@ -301,29 +420,7 @@ export function ProjectNoteModal({
                 />
               )}
             </FormField>
-            <FormField name="tags" label="Tags" error={errors.tags?.message} optional>
-              {(fieldProps) => (
-                <Controller
-                  control={control}
-                  name="tags"
-                  render={({ field }) => (
-                    <TagInput
-                      {...fieldProps}
-                      value={field.value}
-                      onChange={field.onChange}
-                      onBlur={field.onBlur}
-                      maxTags={MAX_TAGS}
-                      maxTagLength={MAX_TAG_LENGTH}
-                    />
-                  )}
-                />
-              )}
-            </FormField>
-            <div className="form-grid">
-              <FormField name="reminderAt" label="Reminder" error={errors.reminderAt?.message} optional>
-                {(fieldProps) => <input type="datetime-local" {...fieldProps} {...register('reminderAt')} />}
-              </FormField>
-            </div>
+
             <FormActions disabled={mutation.isPending} onCancel={closeGuard.requestClose} submitLabel={mode === WorkspaceModalMode.Create ? 'Create note' : 'Save note'} />
           </form>
         </section>
