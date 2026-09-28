@@ -13,7 +13,6 @@ import { ProjectFolderActionsMenu } from './ProjectFolderActionsMenu';
 import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectDependenciesPanel } from './ProjectDependenciesPanel';
 import { ProjectCoverageBadge } from './components/ProjectCoverageBadge';
-import { NoteStatusFilter } from '../../shared/api/models/note-status';
 import { ProjectDecisionsPanel } from './ProjectDecisionsPanel';
 
 export type ProjectBrowserView = 'timeline' | 'decisions' | 'dependencies';
@@ -28,8 +27,6 @@ type ProjectsBrowserProps = {
   onProjectViewChange: (view: ProjectBrowserView) => void;
   timelineItems: ProjectTimelineItem[];
   timelineCategory: ProjectTimelineCategory;
-  timelineStatus: NoteStatusFilter;
-  onTimelineStatusChange: (status: NoteStatusFilter) => void;
   timelinePagination?: {
     page: number;
     pageSize: number;
@@ -66,10 +63,8 @@ export function ProjectsBrowser({
   onProjectViewChange,
   timelineItems,
   timelineCategory,
-  timelineStatus,
   timelinePagination,
   onTimelineCategoryChange,
-  onTimelineStatusChange,
   onTimelinePageChange,
   onFolderSelect,
   onCreateNote,
@@ -239,8 +234,6 @@ export function ProjectsBrowser({
               pagination={timelinePagination}
               category={timelineCategory}
               onCategoryChange={onTimelineCategoryChange}
-              status={timelineStatus}
-              onStatusChange={onTimelineStatusChange}
               onDeleteNote={onDeleteNote}
               onEditNote={onEditNote}
               onOpenNote={onOpenNote}

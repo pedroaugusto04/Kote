@@ -31,7 +31,6 @@ import { ProjectBriefPanel } from '../../widgets/projects/ProjectBriefPanel';
 import { ProjectBriefSavedSource } from '../../shared/api/models/project-brief';
 import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
-import { Select } from '../../shared/ui/select';
 import { notifyWarning } from '../../shared/ui/notifications';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
@@ -41,7 +40,7 @@ import { TypewriterMarkdown } from '../../widgets/markdown/TypewriterMarkdown';
 import './SearchPage.css';
 
 
-export function SearchPage({ dashboard, openNote }: PageContext) {
+export function SearchPage({ dashboard, openNote, projectScope = '' }: PageContext) {
   const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +52,7 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
     return tabParam === 'brief' ? 'brief' : 'ask';
   });
   const [questionInput, setQuestionInput] = useState('');
-  const [projectSlug, setProjectSlug] = useState('');
+  const projectSlug = projectScope;
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isAsking, setIsAsking] = useState(false);
@@ -82,6 +81,14 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isAsking]);
+
+  useEffect(() => {
+    setActiveConversationId(null);
+    setMessages([]);
+    setAskError(null);
+    setSelectedBrief(null);
+    setShowBriefHistory(false);
+  }, [projectSlug]);
 
   const { page: historyPage, setPage: setHistoryPage } = usePaginationState(`ask-history:${projectSlug}`);
   const { page: briefHistoryPage, setPage: setBriefHistoryPage } = usePaginationState(`brief-history:${projectSlug}`);
@@ -266,28 +273,6 @@ export function SearchPage({ dashboard, openNote }: PageContext) {
       <PageHead
         title={SEARCH_MESSAGES.PAGE_TITLE}
         subtitle={SEARCH_MESSAGES.PAGE_SUBTITLE}
-        action={
-          <Select
-            ariaLabel={SEARCH_MESSAGES.FILTER.FILTER_BY_PROJECT}
-            className="page-head-select"
-            options={[
-              { value: '', label: SEARCH_MESSAGES.FILTER.ALL_PROJECTS },
-              ...dashboard.projects.map((project) => ({
-                value: project.projectSlug,
-                label: project.displayName,
-              })),
-            ]}
-            value={projectSlug}
-            onChange={(nextProjectSlug) => {
-              setProjectSlug(nextProjectSlug);
-              setActiveConversationId(null);
-              setMessages([]);
-              setAskError(null);
-              setSelectedBrief(null);
-              setShowBriefHistory(false);
-            }}
-          />
-        }
       />
 
       <div className="segmented-control" style={{ maxWidth: '360px', marginBottom: '20px' }}>

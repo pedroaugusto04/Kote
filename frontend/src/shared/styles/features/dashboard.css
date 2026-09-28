@@ -308,21 +308,6 @@
   text-overflow: ellipsis;
 }
 
-.timeline-project-select {
-  width: auto;
-  min-width: 150px;
-  max-width: 300px;
-}
-.timeline-project-select .kb-select {
-  min-width: 0;
-}
-.timeline-project-select .kb-select-sizer,
-.timeline-project-select .kb-select-trigger {
-  min-height: 32px;
-  padding: 0 12px 0 10px;
-  font-size: 13px;
-}
-
 /* Productivity insights styles inside homepage */
 .insights-kpi-card .kpi-symbol {
   font-size: 20px;
@@ -739,4 +724,3 @@
     text-align: center;
   }
 }
-

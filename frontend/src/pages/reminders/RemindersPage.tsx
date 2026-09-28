@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
 import { formatDisplayToken, formatUsDate, formatDateInUserTimeZone } from '../../shared/utils/format';
@@ -91,16 +91,18 @@ export function RemindersPage({
   editNote,
   createNote,
   deleteNote,
+  projectScope = '',
+  setProjectScope = () => undefined,
 }: PageContext) {
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
   const [status, setStatus] = useState(StatusFilter.Open);
-  const remindersPaginationKey = `${workspaceSlug}:${status}`;
+  const remindersPaginationKey = `${workspaceSlug}:${projectScope}:${status}`;
   const { page, setPage } = usePaginationState(remindersPaginationKey);
   const remindersQuery = useQuery({
-    queryKey: ['reminders', workspaceSlug, status, page],
-    queryFn: () => fetchReminders({ page, workspaceSlug, status }),
+    queryKey: ['reminders', workspaceSlug, projectScope, status, page],
+    queryFn: () => fetchReminders({ page, workspaceSlug, projectSlug: projectScope, status }),
     placeholderData: keepPreviousData,
-    initialData: dashboard.reminders
+    initialData: dashboard.reminders && !projectScope
       ? buildInitialReminderPage(dashboard.reminders, workspaceSlug, status)
       : undefined,
   });
@@ -130,14 +132,7 @@ export function RemindersPage({
     }
     return RemindersViewMode.List;
   });
-  const [projectSlug, setProjectSlug] = useState('');
-
-  const projectOptions = useMemo(() => [
-    { value: '', label: 'All projects' },
-    ...dashboard.projects
-      .filter((project) => !workspaceSlug || project.workspaceSlug === workspaceSlug)
-      .map((project) => ({ value: project.projectSlug, label: project.displayName })),
-  ], [dashboard.projects, workspaceSlug]);
+  const projectSlug = projectScope;
 
   const handleViewModeChange = (mode: RemindersViewMode) => {
     setViewMode(mode);
@@ -151,7 +146,7 @@ export function RemindersPage({
   };
 
   const handleProjectChange = (newProjectSlug: string) => {
-    setProjectSlug(newProjectSlug);
+    setProjectScope(newProjectSlug);
   };
 
   const handleBulkUpdate = async (action: BulkReminderAction) => {
@@ -212,19 +207,7 @@ export function RemindersPage({
                   onChange={(val) => setStatus(val as StatusFilter)}
                 />
               </>
-            ) : (
-              <>
-                <label className="sr-only" htmlFor="reminders-page-project-select">Filter by project</label>
-                <Select
-                  ariaLabel="Filter by project"
-                  className="page-head-select"
-                  id="reminders-page-project-select"
-                  options={projectOptions}
-                  value={projectSlug}
-                  onChange={handleProjectChange}
-                />
-              </>
-            )}
+            ) : null}
           </div>
         )}
         subtitle=""
@@ -300,4 +283,3 @@ export function RemindersPage({
     </>
   );
 }
-

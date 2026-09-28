@@ -162,13 +162,10 @@ function savedProjectBriefResponse(brief = projectBriefResponse().brief) {
 }
 
 describe('ProjectsPage', () => {
-  it('allows selecting another project from the header select', () => {
-    const { openProject } = renderProjects();
+  it('leaves project selection to the application topbar', () => {
+    renderProjects();
 
-    fireEvent.click(screen.getByLabelText('Select project'));
-    fireEvent.click(screen.getByRole('option', { name: 'Empty' }));
-
-    expect(openProject).toHaveBeenCalledWith('empty');
+    expect(screen.queryByLabelText('Select project')).not.toBeInTheDocument();
   });
 
   it('closes the new project modal immediately when nothing changed', () => {

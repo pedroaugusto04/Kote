@@ -4,8 +4,10 @@ import type { Dashboard } from '../shared/api/models/dashboard';
 export type PageContext = {
   dashboard: Dashboard;
   selectedProject: string;
+  projectScope?: string;
   selectedNoteId: string;
   setSelectedProject: (slug: string) => void;
+  setProjectScope?: (slug: string) => void;
   openProject: (slug: string) => void;
   openNote: (id: string) => void;
   editNote: (noteId: string) => void;
@@ -19,4 +21,3 @@ export type ProjectsPageContext = Pick<
   PageContext,
   'dashboard' | 'selectedProject' | 'openProject' | 'openNote' | 'editNote' | 'deleteNote' | 'createNote'
 >;
-

@@ -201,7 +201,7 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
     <>
       <span
         ref={pillRef}
-        className={`source-tag ${theme.tagClass}`}
+        className={`source-tag ai-usage-pill ${theme.tagClass}`}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -215,15 +215,15 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
         title={tooltip}
         onClick={hasMultipleModels ? () => setIsPopoverOpen((v) => !v) : undefined}
       >
-        <span style={{ fontWeight: 600 }}>{displayModelName}</span>
-        <span style={{ opacity: 0.6 }}>•</span>
-        <span>{tokensFormatted} tok</span>
+        <span className="ai-usage-model" style={{ fontWeight: 600 }}>{displayModelName}</span>
+        <span className="ai-usage-separator" style={{ opacity: 0.6 }}>•</span>
+        <span className="ai-usage-value">{tokensFormatted} tok</span>
         {costFormatted && (
           <>
-            <span style={{ opacity: 0.6 }}>•</span>
-            <span style={{ fontWeight: 600 }}>{costFormatted}</span>
+            <span className="ai-usage-separator" style={{ opacity: 0.6 }}>•</span>
+            <span className="ai-usage-value" style={{ fontWeight: 600 }}>{costFormatted}</span>
             {!hasMultipleModels && comparisonFormatted && (
-              <span style={{ opacity: 0.75, fontSize: '10px' }}>({comparisonFormatted})</span>
+              <span className="ai-usage-comparison" style={{ opacity: 0.75, fontSize: '10px' }}>({comparisonFormatted})</span>
             )}
           </>
         )}

@@ -98,6 +98,11 @@ export function AppShell() {
 
   const view = activeView(location.pathname);
   const routeProject = routeParam(location.pathname, `${routes.projects}/`);
+  const routeMapProject = routeParam(location.pathname, `${routes.map}/`);
+  const routeProjectScope = new URLSearchParams(location.search).get('project') || '';
+  const projectScope = routeProjectScope && dashboard?.projects.some((project) => project.projectSlug === routeProjectScope)
+    ? routeProjectScope
+    : '';
   const isProjectsRoot = location.pathname === routes.projects;
   const routeNoteId = routeParam(location.pathname, `${routes.vault}/`);
   const activeWorkspace = dashboard?.workspaces[0] || null;
@@ -292,9 +297,17 @@ export function AppShell() {
     return {
       dashboard,
       selectedProject: currentProject,
+      projectScope,
       selectedNoteId: currentNote,
       setSelectedProject: (slug: string) => {
         setSelectedProjectState(slug);
+      },
+      setProjectScope: (slug: string) => {
+        const searchParams = new URLSearchParams(location.search);
+        if (slug) searchParams.set('project', slug);
+        else searchParams.delete('project');
+        const search = searchParams.toString();
+        navigate({ pathname: location.pathname, search: search ? `?${search}` : '' }, { replace: true });
       },
       openProject: (slug: string) => {
         setSelectedProjectState(slug);
@@ -334,7 +347,7 @@ export function AppShell() {
         setConfirmState({ kind: ConfirmKind.Note, note: { ...note } as NoteSummary });
       },
     };
-  }, [activeRouteNote?.project, dashboard, globalLoading, isProjectsRoot, navigate, queryClient, routeNoteId, routeProject, selectedNoteId, selectedProject, onNoteModalClose, loadNoteMutation]);
+  }, [activeRouteNote?.project, dashboard, globalLoading, isProjectsRoot, loadNoteMutation, location.pathname, location.search, navigate, onNoteModalClose, projectScope, queryClient, routeNoteId, routeProject, selectedNoteId, selectedProject]);
 
   if (isUnauthorized) {
     return (
@@ -401,6 +414,47 @@ export function AppShell() {
     }
   };
 
+  const allProjectOptions = [
+    { value: '', label: UI_MESSAGES.ALL_PROJECTS },
+    ...dashboard.projects.map((project) => ({
+      value: project.projectSlug,
+      label: project.displayName,
+    })),
+  ];
+  const projectOptions = dashboard.projects.map((project) => ({
+    value: project.projectSlug,
+    label: project.displayName,
+  }));
+  const topbarProjectSelector = (() => {
+    if (view === 'projects') {
+      return {
+        ariaLabel: UI_MESSAGES.SELECT_PROJECT,
+        options: allProjectOptions,
+        value: routeProject,
+        onChange: pageContext.openProject,
+      };
+    }
+    if (view === 'map') {
+      return {
+        ariaLabel: UI_MESSAGES.SELECT_PROJECT,
+        options: projectOptions,
+        value: routeMapProject || pageContext.selectedProject,
+        onChange: (slug: string) => {
+          if (slug) navigate(routes.projectMap(slug));
+        },
+      };
+    }
+    if (view === 'home' || view === 'search' || view === 'reminders') {
+      return {
+        ariaLabel: view === 'home' ? 'Select dashboard project context' : 'Filter by project',
+        options: allProjectOptions,
+        value: pageContext.projectScope || '',
+        onChange: pageContext.setProjectScope || (() => undefined),
+      };
+    }
+    return undefined;
+  })();
+
   return (
     <div className="app-shell">
       <OfflineBanner />
@@ -462,6 +516,7 @@ export function AppShell() {
           showQuotaWarningDot={showQuotaWarningDot}
           quotaStatus={quotaStatus}
           view={view}
+          projectSelector={topbarProjectSelector}
           onSignOut={() => {
             void globalLoading.trackPromise(logout()).finally(() => {
               queryClient.clear();

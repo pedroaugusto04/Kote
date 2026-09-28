@@ -24,6 +24,7 @@ export class ListPaginatedRemindersUseCase {
     const statusFilter = input.status || StatusFilter.Open;
     const reminders = sortRemindersForList(remindersWithStatus
       .filter((reminder) => !input.workspaceSlug || reminder.workspace === input.workspaceSlug)
+      .filter((reminder) => !input.projectSlug || reminder.project === input.projectSlug)
       .filter((reminder) => {
         if (statusFilter === StatusFilter.All) return true;
         if (statusFilter === StatusFilter.Open) {

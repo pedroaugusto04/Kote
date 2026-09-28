@@ -134,6 +134,8 @@
   
   .command-bar { width: 100%; }
   .topbar-meta { justify-content: flex-end; }
+  .topbar-project-context { flex: 1 1 auto; }
+  .topbar-project-select { width: clamp(120px, 42vw, 200px); }
   .topbar-link { margin-left: 0; }
   .view { padding: 18px 16px 28px; }
   .workspace-pill, .tree-item { min-height: 44px; }

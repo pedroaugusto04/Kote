@@ -114,7 +114,7 @@ export function NoteBody({ markdown, rawText, summary, title, source, sourceChan
   return (
     <div className="note-body">
       {(activeSource || aiUsage) && (
-        <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="note-body-meta" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           {activeSource && <SourceBadge source={activeSource} />}
           {aiUsage && <AiUsagePill usage={aiUsage} source={activeSource || source} />}
         </div>

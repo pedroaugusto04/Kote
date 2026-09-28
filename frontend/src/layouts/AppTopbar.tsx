@@ -8,6 +8,7 @@ import { QuotaUsageWidget } from '../features/quota/QuotaUsageWidget';
 import { getCleanSummary } from '../shared/utils/format';
 import { UI_MESSAGES } from '../shared/constants/ui.constants';
 import type { QuotaAndBillingStatusDTO } from '../shared/api/billing';
+import { Select, type SelectOption } from '../shared/ui/select';
 
 interface SearchMatchItem {
   id: string;
@@ -43,6 +44,12 @@ interface AppTopbarProps {
   showQuotaWarningDot: boolean;
   quotaStatus?: QuotaAndBillingStatusDTO | null;
   view: View;
+  projectSelector?: {
+    ariaLabel: string;
+    options: SelectOption[];
+    value: string;
+    onChange: (value: string) => void;
+  };
   onSignOut: () => void;
   onExportData: () => void;
   isExportingData: boolean;
@@ -71,6 +78,7 @@ export function AppTopbar({
   showQuotaWarningDot,
   quotaStatus,
   view,
+  projectSelector,
   onSignOut,
   onExportData,
   isExportingData,
@@ -146,6 +154,18 @@ export function AppTopbar({
         )}
       </div>
       <div className="topbar-meta">
+        {projectSelector ? (
+          <div className="topbar-project-context">
+            <Select
+              ariaLabel={projectSelector.ariaLabel}
+              className="topbar-project-select"
+              id="topbar-project-select"
+              onChange={projectSelector.onChange}
+              options={projectSelector.options}
+              value={projectSelector.value}
+            />
+          </div>
+        ) : null}
         <div className="profile-menu" ref={profileMenuRef}>
           <button
             aria-expanded={isProfileMenuOpen}

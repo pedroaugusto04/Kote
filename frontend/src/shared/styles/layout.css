@@ -169,6 +169,8 @@
 
 .command-bar-container {
   position: relative;
+  flex: 1 1 420px;
+  min-width: 220px;
   width: min(720px, 100%);
 }
 
@@ -229,6 +231,29 @@
   font-family: var(--mono);
   font-size: 12px;
   white-space: nowrap;
+}
+
+.topbar-project-context {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+}
+
+.topbar-project-select {
+  width: clamp(150px, 18vw, 220px);
+  min-width: 0;
+  max-width: 220px;
+}
+
+.topbar-project-select.kb-select {
+  min-width: 0;
+}
+
+.topbar-project-select .kb-select-sizer,
+.topbar-project-select .kb-select-trigger {
+  min-height: 38px;
+  padding: 0 12px;
 }
 
 .topbar-link {

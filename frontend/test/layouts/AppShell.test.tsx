@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { renderWithAppProviders } from '../../src/app/test-utils';
@@ -82,6 +83,11 @@ const dashboard = {
     ],
   },
 };
+
+function LocationProbe() {
+  const location = useLocation();
+  return <span data-testid="location">{`${location.pathname}${location.search}`}</span>;
+}
 
 function mockFetch() {
   return vi.fn(async (input: RequestInfo | URL) => {
@@ -451,7 +457,7 @@ describe('AppShell', () => {
     expect(storage.getItem(THEME_STORAGE_KEY)).toBeNull();
   });
 
-  it('renders the theme toggle immediately before the sign out button', async () => {
+  it('renders the project context before the profile controls and keeps the theme toggle before sign out', async () => {
     stubLocalStorage();
     stubMatchMedia(true);
     vi.stubGlobal('fetch', mockFetch());
@@ -464,10 +470,11 @@ describe('AppShell', () => {
     expect(topbarMeta).not.toBeNull();
 
     const buttons = topbarMeta ? Array.from(topbarMeta.querySelectorAll('button')) : [];
-    expect(buttons).toHaveLength(3);
-    expect(buttons[0]).toHaveAttribute('aria-label', 'User menu');
-    expect(buttons[1]).toHaveAttribute('aria-label', 'Enable light mode');
-    expect(buttons[2]).toHaveTextContent('Sign out');
+    expect(buttons).toHaveLength(4);
+    expect(buttons[0]).toHaveAttribute('aria-label', 'Select dashboard project context');
+    expect(buttons[1]).toHaveAttribute('aria-label', 'User menu');
+    expect(buttons[2]).toHaveAttribute('aria-label', 'Enable light mode');
+    expect(buttons[3]).toHaveTextContent('Sign out');
   });
 
   it('persists the selected theme and reapplies it on a new render', async () => {
@@ -721,6 +728,26 @@ describe('AppShell', () => {
     expect(screen.queryByRole('heading', { name: 'Matching Notes' })).not.toBeInTheDocument();
   });
 
+  it('stores the contextual project selection in the current page URL', async () => {
+    stubLocalStorage();
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(
+      <>
+        <AppShell />
+        <LocationProbe />
+      </>,
+      { route: '/search' },
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Ask AI' })).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText('Filter by project'));
+    fireEvent.click(screen.getByRole('option', { name: 'N8N Automations' }));
+
+    expect(await screen.findByTestId('location')).toHaveTextContent('/search?project=n8n-automations');
+    expect(screen.getByLabelText('Filter by project')).toHaveTextContent('N8N Automations');
+  });
+
   it('switches to the projects menu when selecting a project from another section', async () => {
     stubLocalStorage();
     vi.stubGlobal('fetch', mockFetch());
@@ -800,9 +827,9 @@ describe('AppShell', () => {
     renderWithAppProviders(<AppShell />, { route: '/projects' });
 
     expect(await screen.findByRole('heading', { name: 'Projects' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Select project')).toHaveTextContent('All');
+    expect(screen.getByLabelText('Select project')).toHaveTextContent('All projects');
     fireEvent.click(screen.getByLabelText('Select project'));
-    expect(screen.getByRole('option', { name: 'All' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'All projects' })).toBeInTheDocument();
     expect(screen.getByText('Deploy rollout')).toBeInTheDocument();
     expect(screen.getByText('Platform decision')).toBeInTheDocument();
   });

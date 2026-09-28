@@ -38,6 +38,7 @@ export const UI_MESSAGES = {
   // UI labels
   PROJECTS: 'Projects',
   ALL: 'All',
+  ALL_PROJECTS: 'All projects',
   OPEN: 'Open',
   QUICK_NOTE: 'Quick note',
   NEW_PROJECT: 'New project',

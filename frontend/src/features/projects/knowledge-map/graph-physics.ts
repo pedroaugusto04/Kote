@@ -1,19 +1,19 @@
 import * as d3 from 'd3';
 import type { KnowledgeMapLink, KnowledgeMapNode } from '../../../shared/api/models/project-knowledge-map';
-import { knowledgeMapNodeStyles, knowledgeMapReviewNodeStyle } from './knowledge-map.constants';
+import { knowledgeMapLabelLayout, knowledgeMapNodeStyles, knowledgeMapReviewNodeStyle } from './knowledge-map.constants';
 
 export type GraphNode = KnowledgeMapNode & d3.SimulationNodeDatum;
 export type GraphLink = Omit<KnowledgeMapLink, 'source' | 'target'> & d3.SimulationLinkDatum<GraphNode>;
 
 export const TOPIC_COLORS = [
-  '#a855f7',
-  '#06b6d4',
-  '#ec4899',
-  '#f59e0b',
-  '#10b981',
-  '#6366f1',
-  '#3b82f6',
-  '#14b8a6',
+  'var(--purple)',
+  'var(--cyan)',
+  'var(--green)',
+  'var(--amber)',
+  'var(--map-rose)',
+  'var(--map-blue)',
+  'var(--map-teal)',
+  'var(--map-slate)',
 ];
 
 export function hashNodeId(id: string): number {
@@ -81,7 +81,7 @@ export function chargeStrength(item: GraphNode, denseMap: boolean, hiddenChildId
 export function collisionRadius(item: GraphNode, hiddenChildIds?: Set<string> | null): number {
   if (hiddenChildIds?.has(item.id)) return 0;
   const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
-  if (item.type === 'topic') return radius + 30;
+  if (item.type === 'topic') return radius + 55;
   if (isReviewNote(item)) return radius + 16;
   const labelAllowance = item.type === 'note' ? 26 : item.type === 'tag' ? 20 : 30;
   return radius + labelAllowance;
@@ -142,10 +142,12 @@ export function computeFitTransform(
 
   nodes.forEach((n) => {
     if (n.x === undefined || n.y === undefined || hidden.has(n.id)) return;
-    minX = Math.min(minX, n.x);
-    minY = Math.min(minY, n.y);
-    maxX = Math.max(maxX, n.x);
-    maxY = Math.max(maxY, n.y);
+    const radius = n.size || knowledgeMapNodeStyles[n.type].radius;
+    const labelWidth = Math.min(n.label.length, n.type === 'topic' ? knowledgeMapLabelLayout.topicMaxLength : knowledgeMapLabelLayout.nodeMaxLength) * knowledgeMapLabelLayout.estimatedCharacterWidth;
+    minX = Math.min(minX, n.x - radius);
+    minY = Math.min(minY, n.y - radius - 12);
+    maxX = Math.max(maxX, n.x + radius + knowledgeMapLabelLayout.offset + labelWidth);
+    maxY = Math.max(maxY, n.y + radius + 20);
     validCount += 1;
   });
 
@@ -153,7 +155,7 @@ export function computeFitTransform(
     return d3.zoomIdentity;
   }
 
-  const padding = 50;
+  const padding = 30;
   const graphW = maxX - minX + padding * 2;
   const graphH = maxY - minY + padding * 2;
   const centerX = (minX + maxX) / 2;
