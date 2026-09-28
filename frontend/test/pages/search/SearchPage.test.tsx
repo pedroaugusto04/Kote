@@ -128,13 +128,11 @@ describe('SearchPage (Ask AI)', () => {
       relatedNotes: [],
     });
 
-    const view = renderSearchPage('/search');
+    const view = renderSearchPage('/search', 'platform');
 
     const input = screen.getByPlaceholderText('Ask anything about your notes...');
     fireEvent.change(input, { target: { value: 'How should I deploy?' } });
 
-    fireEvent.click(screen.getByLabelText('Filter by project'));
-    fireEvent.click(screen.getByRole('option', { name: 'Platform' }));
     fireEvent.click(screen.getByRole('button', { name: /^Ask$/ }));
 
     await waitFor(() => {
@@ -177,17 +175,8 @@ describe('SearchPage (Ask AI)', () => {
     expect(await screen.findByText('AI unavailable')).toBeInTheDocument();
   });
 
-  it('opens inline Ask AI history and filters it by selected project', async () => {
+  it('opens inline Ask AI history scoped to the selected project', async () => {
     apiSpies.fetchAskConversations.mockResolvedValueOnce({
-      ok: true,
-      conversations: [{
-        conversationId: 'conv-1',
-        title: 'How should I deploy?',
-        projectId: '',
-        createdAt: '2026-05-23T10:00:00.000Z',
-      }],
-      pagination: { page: 1, pageSize: 5, total: 6, totalPages: 2, hasNext: true, hasPrevious: false },
-    }).mockResolvedValueOnce({
       ok: true,
       conversations: [{
         conversationId: 'conv-2',
@@ -198,18 +187,13 @@ describe('SearchPage (Ask AI)', () => {
       pagination: { page: 1, pageSize: 5, total: 1, totalPages: 1, hasNext: false, hasPrevious: false },
     });
 
-    renderSearchPage('/search');
+    renderSearchPage('/search', 'platform');
 
     expect(apiSpies.fetchAskConversations).not.toHaveBeenCalled();
-    expect(screen.queryByText('How should I deploy?')).not.toBeInTheDocument();
+    expect(screen.queryByText('Platform deploy?')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /show conversations/i }));
 
-    expect(await screen.findByText('How should I deploy?')).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText('Filter by project'));
-    fireEvent.click(screen.getByRole('option', { name: 'Platform' }));
-
     expect(await screen.findByText('Platform deploy?')).toBeInTheDocument();
-    expect(apiSpies.fetchAskConversations).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: '' });
     expect(apiSpies.fetchAskConversations).toHaveBeenCalledWith({ page: 1, pageSize: 5, projectSlug: 'platform' });
   });
 
@@ -442,11 +426,12 @@ function savedProjectBriefResponse(brief = projectBriefResponse().brief) {
   } as const;
 }
 
-function renderSearchPage(route = '/search') {
+function renderSearchPage(route = '/search', projectScope = '') {
   return renderWithAppProviders(
     <>
       <SearchPage
         dashboard={dashboard}
+        projectScope={projectScope}
         selectedProject=""
         selectedNoteId=""
         setSelectedProject={vi.fn()}

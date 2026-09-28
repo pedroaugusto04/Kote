@@ -215,6 +215,43 @@ test('paginated reminders expose derived sent state and overdue flag', async (t)
   assert.deepEqual(sentOnly.items.map((item) => item.id), [sentReminder.id]);
 });
 
+test('paginated reminders can be filtered by project before pagination', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
+
+  const selectedProjectReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/selected-project/reminder.md',
+    title: 'Selected project reminder',
+    projectSlug: 'selected-project',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-31T09:00:00.000Z',
+    },
+  });
+  await insertReminder(repositories, user.id, {
+    path: '20 Inbox/other-project/reminder.md',
+    title: 'Other project reminder',
+    projectSlug: 'other-project',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '10:00',
+      reminderAt: '2099-12-31T10:00:00.000Z',
+    },
+  });
+
+  const listed = await listReminders.execute(user.id, {
+    page: 1,
+    pageSize: 1,
+    projectSlug: 'selected-project',
+    status: 'all',
+  });
+
+  assert.deepEqual(listed.items.map((item) => item.id), [selectedProjectReminder.id]);
+  assert.equal(listed.pagination.total, 1);
+});
+
 test('paginated reminders sort all statuses with overdue and pending first then date ascending', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
@@ -815,4 +852,3 @@ test('reminder dispatch emits reminder.sent event on successful delivery', async
   assert.equal(emittedEvents[0].noteTitle, 'Deploy');
   assert.equal(emittedEvents[0].noteId, '11111111-1111-1111-1111-111111111111');
 });
-

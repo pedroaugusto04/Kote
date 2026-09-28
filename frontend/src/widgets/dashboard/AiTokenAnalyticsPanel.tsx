@@ -11,6 +11,7 @@ import { CalendarIcon } from '../../shared/ui/icons';
 interface AiTokenAnalyticsPanelProps {
   workspaceSlug?: string;
   projectSlug?: string;
+  projectFilterExternal?: boolean;
 }
 
 const MODEL_PALETTE = [
@@ -140,8 +141,8 @@ function DateFilterInput({ value, onChange, placeholder, ariaLabel, title }: Dat
   );
 }
 
-export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAnalyticsPanelProps) {
-  const isDirectProjectTab = Boolean(projectSlug);
+export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug, projectFilterExternal = false }: AiTokenAnalyticsPanelProps) {
+  const isProjectExternallyControlled = projectFilterExternal || Boolean(projectSlug);
   const [activeTab, setActiveTab] = useState<AiAnalyticsTab>(AI_ANALYTICS_TAB.MODELS);
 
   const [selectedProject, setSelectedProject] = useState<string>('');
@@ -150,7 +151,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  const effectiveProjectSlug = isDirectProjectTab ? projectSlug : (selectedProject || undefined);
+  const effectiveProjectSlug = isProjectExternallyControlled ? (projectSlug || undefined) : (selectedProject || undefined);
 
   // Validated date query parameters (only send when complete YYYY-MM-DD)
   const queryStartDate = DATE_REGEX.test(startDate.trim()) ? startDate.trim() : undefined;
@@ -184,7 +185,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
       endDate ||
       selectedModel ||
       selectedProvider ||
-      (!isDirectProjectTab && selectedProject)
+      (!isProjectExternallyControlled && selectedProject)
   );
 
   const activeFilterCount =
@@ -192,7 +193,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
     (endDate ? 1 : 0) +
     (selectedModel ? 1 : 0) +
     (selectedProvider ? 1 : 0) +
-    (!isDirectProjectTab && selectedProject ? 1 : 0);
+    (!isProjectExternallyControlled && selectedProject ? 1 : 0);
 
   const handleDatePreset = (days: number | null) => {
     if (days === null) {
@@ -208,7 +209,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
   };
 
   const handleResetFilters = () => {
-    if (!isDirectProjectTab) {
+    if (!isProjectExternallyControlled) {
       setSelectedProject('');
     }
     setSelectedModel('');
@@ -323,7 +324,7 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug }: AiTokenAna
       {!showInitialEmptyState && (
         <div className="ai-token-filter-bar">
           {/* Project Filter */}
-          {!isDirectProjectTab && (
+          {!isProjectExternallyControlled && (
             <div className="ai-token-filter-item">
               <Select
                 ariaLabel="Filter by Project"

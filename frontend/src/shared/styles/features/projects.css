@@ -715,7 +715,7 @@
 
 .timeline-filters-group {
   display: flex;
-  align-items: center;
+  align-items: end;
   gap: 10px;
   flex: 1 1 auto;
   min-width: 0;
@@ -723,20 +723,21 @@
   box-sizing: border-box;
 }
 
-.timeline-status-filter-wrap {
-  flex-shrink: 0;
+.timeline-category-filter-wrap {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 6px;
   min-width: 0;
-  max-width: 100%;
-  box-sizing: border-box;
 }
 
-.timeline-status-select {
-  min-width: 120px;
-  max-width: 100%;
-  height: 38px;
-  border-radius: 8px;
-  font-size: 13px;
-  box-sizing: border-box;
+.timeline-filter-label {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .timeline-filter-row {
@@ -812,8 +813,7 @@
     width: 100%;
   }
 
-  .timeline-status-filter-wrap,
-  .timeline-status-select {
+  .timeline-category-filter-wrap {
     width: 100%;
   }
 
@@ -1081,23 +1081,23 @@
   font-size: 12px;
 }
 
-.knowledge-map-legend i {
-  width: 9px;
-  height: 9px;
+.knowledge-map-legend svg {
   flex: 0 0 auto;
-  border-radius: 999px;
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.12);
 }
 
 .knowledge-map-canvas {
+  --map-rose: #dba0b5;
+  --map-blue: #91b3e8;
+  --map-teal: #75c7bb;
+  --map-slate: #a9b5ca;
   position: relative;
   min-height: clamp(700px, calc(100vh - 210px), 860px);
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: 8px;
   background:
-    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(rgba(148, 163, 184, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.035) 1px, transparent 1px),
     var(--surface-2);
   background-size: 34px 34px;
 }
@@ -1155,20 +1155,81 @@
 }
 
 .knowledge-map-node.note,
-.knowledge-map-node.topic {
+.knowledge-map-node.topic,
+.knowledge-map-node.project {
   cursor: pointer;
 }
 
-.knowledge-map-node.note:hover circle,
-.knowledge-map-node.note:focus-visible circle,
-.knowledge-map-node.topic:hover circle,
-.knowledge-map-node.topic:focus-visible circle {
-  stroke: var(--active-text);
-  stroke-width: 2px;
+.knowledge-map-node-body {
+  fill: color-mix(in srgb, var(--node-color) 10%, var(--panel));
+  stroke: color-mix(in srgb, var(--node-color) 65%, var(--panel));
 }
 
-.knowledge-map-node.review-note circle {
-  stroke: rgba(232, 121, 249, 0.88);
+.knowledge-map-node.topic .knowledge-map-node-body,
+.knowledge-map-node.project .knowledge-map-node-body {
+  fill: color-mix(in srgb, var(--node-color) 16%, var(--panel));
+  stroke: var(--node-color);
+}
+
+.knowledge-map-node.is-active .knowledge-map-node-body,
+.knowledge-map-node:focus-visible .knowledge-map-node-body {
+  fill: color-mix(in srgb, var(--node-color) 26%, var(--panel));
+  stroke: var(--text-strong);
+  stroke-width: 2.5px;
+}
+
+.knowledge-map-node-icon {
+  fill: none;
+  stroke: var(--node-color);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.knowledge-map-count-body {
+  fill: var(--panel);
+  stroke: var(--node-color);
+}
+
+.knowledge-map-count-label,
+.knowledge-map-expand-indicator {
+  fill: var(--text);
+  pointer-events: none;
+}
+
+.knowledge-map-expand-indicator {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.knowledge-map-regions {
+  pointer-events: none;
+}
+
+.knowledge-map-regions path {
+  fill: var(--node-color);
+  fill-opacity: 0.045;
+  stroke: var(--node-color);
+  stroke-opacity: 0.2;
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.knowledge-map-links .is-active {
+  stroke: var(--accent);
+  stroke-opacity: 0.85;
+}
+
+.knowledge-map-legend small {
+  color: var(--muted);
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.knowledge-map-node.topic .knowledge-map-node-label,
+.knowledge-map-node.project .knowledge-map-node-label {
+  font-weight: 600;
 }
 
 .knowledge-map-node-label {
@@ -1179,7 +1240,7 @@
   stroke-linejoin: round;
   stroke-width: 3px;
   font-family: var(--ui);
-  font-size: 12px;
+  font-size: 16px;
   pointer-events: none;
 }
 
@@ -1418,6 +1479,7 @@
   width: 420px;
   max-width: calc(100vw - 28px);
   height: calc(100% - 28px);
+  min-height: 0;
   min-width: 0;
   overflow: hidden;
   animation: slide-in-right 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -1501,8 +1563,57 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-height: 0;
   min-width: 0;
   max-width: 100%;
+}
+
+.knowledge-map-drawer-content .note-body-meta {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Keep compact AI usage values intact while allowing the model/rate context
+   to shrink with the drawer instead of breaking numeric characters apart. */
+.knowledge-map-drawer-content .ai-usage-pill {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.knowledge-map-drawer-content .ai-usage-pill > span {
+  min-width: 0;
+  overflow-wrap: normal !important;
+  word-break: normal !important;
+  white-space: nowrap;
+}
+
+.knowledge-map-drawer-content .ai-usage-pill .ai-usage-model {
+  flex: 1 1 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.knowledge-map-drawer-content .ai-usage-pill .ai-usage-separator,
+.knowledge-map-drawer-content .ai-usage-pill .ai-usage-value {
+  flex: 0 0 auto;
+}
+
+.knowledge-map-drawer-content .ai-usage-pill .ai-usage-comparison {
+  flex: 0 1 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Long code is already scrollable horizontally; in the note preview it must
+   remain vertically complete instead of being hidden behind a fixed clamp. */
+.knowledge-map-drawer-content .markdown-code-block.collapsed {
+  max-height: none;
+}
+
+.knowledge-map-drawer-content .markdown-code-block-expand-overlay {
+  display: none;
 }
 
 .knowledge-map-drawer-meta-row {
@@ -2264,5 +2375,3 @@
 .decision-note-button:hover {
   color: var(--accent-hover, #60a5fa);
 }
-
-

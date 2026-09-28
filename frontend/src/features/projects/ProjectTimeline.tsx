@@ -11,16 +11,14 @@ import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { ResolveIcon, ArchiveIcon } from '../../shared/ui/icons';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
-import { noteStatusValues, QuickNoteStatus, StatusFilter, type NoteStatusFilter } from '../../shared/api/models/note-status';
+import { QuickNoteStatus } from '../../shared/api/models/note-status';
 import { BulkActionType, BulkStatusUpdate } from '../../shared/api/models/bulk-action';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
-import { Select } from '../../shared/ui/select';
 import { useMediaQuery } from '../../shared/ui/use-media-query';
-import { PROJECTS_WORKSPACE_MESSAGES } from './projects-ui.constants';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -38,23 +36,12 @@ const categoryOptions: Array<{ value: ProjectTimelineCategory; label: string }> 
   label: CATEGORY_LABELS[value] ?? formatDisplayToken(value),
 }));
 
-const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
-  { value: StatusFilter.Open, label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },
-  { value: '', label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.ALL },
-  ...noteStatusValues.map((value) => ({
-    value,
-    label: formatDisplayToken(value),
-  })),
-];
-
 export function ProjectTimeline({
   dashboard,
   items,
   pagination,
   category,
   onCategoryChange,
-  status,
-  onStatusChange,
   onOpenNote,
   onOpenNoteFullPage,
   onEditNote,
@@ -69,8 +56,6 @@ export function ProjectTimeline({
   pagination?: PaginationMeta;
   category: ProjectTimelineCategory;
   onCategoryChange: (category: ProjectTimelineCategory) => void;
-  status: NoteStatusFilter;
-  onStatusChange: (status: NoteStatusFilter) => void;
   onOpenNote: (noteId: string) => void;
   onOpenNoteFullPage?: (noteId: string) => void;
   onEditNote?: (note: NoteSummary) => void;
@@ -131,29 +116,21 @@ export function ProjectTimeline({
     <div className="project-timeline">
       <div className="timeline-filter-row-container">
         <div className="timeline-filters-group">
-          <div className="timeline-status-filter-wrap">
-            <label className="sr-only" htmlFor="timeline-status-select">{UI_MESSAGES.FILTER_BY_STATUS}</label>
-            <Select
-              ariaLabel={UI_MESSAGES.FILTER_BY_STATUS}
-              className="timeline-status-select"
-              id="timeline-status-select"
-              options={statusOptions}
-              value={status}
-              onChange={(nextValue) => onStatusChange(nextValue as NoteStatusFilter)}
-            />
-          </div>
-          <div className="timeline-filter-row timeline-category-chips-scroll" role="group" aria-label="Timeline category">
-            {categoryOptions.map((option) => (
-              <button
-                aria-pressed={category === option.value}
-                className={category === option.value ? 'active' : ''}
-                key={option.value}
-                type="button"
-                onClick={() => onCategoryChange(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="timeline-category-filter-wrap">
+            <span className="timeline-filter-label">Category</span>
+            <div className="timeline-filter-row timeline-category-chips-scroll" role="group" aria-label="Timeline category">
+              {categoryOptions.map((option) => (
+                <button
+                  aria-pressed={category === option.value}
+                  className={category === option.value ? 'active' : ''}
+                  key={option.value}
+                  type="button"
+                  onClick={() => onCategoryChange(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         {visibleItems.length > 0 && (

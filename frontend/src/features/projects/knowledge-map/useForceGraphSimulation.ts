@@ -1,7 +1,7 @@
 import * as d3 from 'd3';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { KnowledgeMapLink, KnowledgeMapNode } from '../../../shared/api/models/project-knowledge-map';
-import { knowledgeMapLinkStyles, knowledgeMapNodeStyles } from './knowledge-map.constants';
+import { knowledgeMapLabelLayout, knowledgeMapLinkStyles, knowledgeMapNodeStyles, knowledgeMapNodeIcons } from './knowledge-map.constants';
 import {
   type GraphNode,
   type GraphLink,
@@ -141,7 +141,7 @@ export function useForceGraphSimulation({
 
     const transform = computeFitTransform(
       graph.nodes as GraphNode[],
-      hiddenNodeIds,
+      new Set([...(hiddenNodeIds || []), ...hiddenChildIdsRef.current]),
       size.width,
       size.height,
     );
@@ -162,23 +162,8 @@ export function useForceGraphSimulation({
     svg.selectAll('*').remove();
     svg.attr('viewBox', `0 0 ${currentSize.width} ${currentSize.height}`);
 
-    // Add SVG definitions for shadows/glows
-    const defs = svg.append('defs');
-    const filter = defs
-      .append('filter')
-      .attr('id', 'node-glow')
-      .attr('x', '-50%')
-      .attr('y', '-50%')
-      .attr('width', '200%')
-      .attr('height', '200%');
-
-    filter.append('feGaussianBlur').attr('stdDeviation', '4').attr('result', 'blur');
-
-    const feMerge = filter.append('feMerge');
-    feMerge.append('feMergeNode').attr('in', 'blur');
-    feMerge.append('feMergeNode').attr('in', 'SourceGraphic');
-
     const viewport = svg.append('g').attr('class', 'knowledge-map-viewport');
+    const clusterLayer = viewport.append('g').attr('class', 'knowledge-map-regions').attr('aria-hidden', 'true');
     const linkLayer = viewport.append('g').attr('class', 'knowledge-map-links');
     const nodeLayer = viewport.append('g').attr('class', 'knowledge-map-nodes');
     const graphNodes = graph.nodes as GraphNode[];
@@ -214,7 +199,7 @@ export function useForceGraphSimulation({
       .data(graphLinks)
       .join('line')
       .attr('stroke', (item) => knowledgeMapLinkStyles[item.type].stroke)
-      .attr('stroke-opacity', 0.55)
+      .attr('stroke-opacity', 0.3)
       .attr('stroke-width', (item) => knowledgeMapLinkStyles[item.type].width)
       .style('transition', 'opacity 0.25s ease');
 
@@ -276,85 +261,66 @@ export function useForceGraphSimulation({
       }
     });
 
-    // Append luminous halo aura ring behind member notes for instant visual cluster identification
-    node
-      .filter((item) => noteToTopicColorMap.has(item.id))
-      .append('circle')
-      .attr('class', 'knowledge-map-cluster-halo')
-      .attr('r', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) + 5)
-      .attr('fill', (item) => noteToTopicColorMap.get(item.id)!)
-      .attr('opacity', 0.3)
-      .style('pointer-events', 'none');
+    node.style('--node-color', (item) => noteToTopicColorMap.get(item.id) || nodeColor(item));
+
+    const regions = clusterLayer.selectAll<SVGPathElement, GraphNode>('path')
+      .data(graphNodes.filter((item) => item.type === 'topic'))
+      .join('path')
+      .style('--node-color', nodeColor);
+    const nodesById = new Map(graphNodes.map((item) => [item.id, item]));
 
     const circles = node
       .append('circle')
+      .attr('class', 'knowledge-map-node-body')
       .attr('r', (item) => item.size || knowledgeMapNodeStyles[item.type].radius)
-      .attr('fill', nodeColor)
-      .attr('stroke', (item) => {
-        const isLight = document.documentElement.dataset.theme === 'light';
-        if (item.type === 'topic') return isLight ? '#7e22ce' : '#ffffff';
-        if (noteToTopicColorMap.has(item.id)) return noteToTopicColorMap.get(item.id)!;
-        return isLight ? 'rgba(15, 23, 42, 0.18)' : 'rgba(255,255,255,0.74)';
-      })
-      .attr('stroke-width', (item) => {
-        if (item.type === 'topic') return 2.5;
-        if (noteToTopicColorMap.has(item.id)) return 2.8;
-        return 1.2;
-      });
+      .attr('stroke-width', 1.5);
 
     // Append numeric count badge for topic hub nodes
     const topicNodes = node.filter((item) => item.type === 'topic' && Boolean(item.childCount));
 
     topicNodes
       .append('circle')
+      .attr('class', 'knowledge-map-count-body')
       .attr('cx', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) * 0.75)
       .attr('cy', (item) => -(item.size || knowledgeMapNodeStyles[item.type].radius) * 0.75)
-      .attr('r', 9)
-      .attr('fill', '#0f172a')
-      .attr('stroke', '#ffffff')
+      .attr('r', 16)
       .attr('stroke-width', 1.5);
 
     topicNodes
       .append('text')
+      .attr('class', 'knowledge-map-count-label')
       .attr('x', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) * 0.75)
       .attr('y', (item) => -(item.size || knowledgeMapNodeStyles[item.type].radius) * 0.75 + 0.5)
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'central')
-      .attr('fill', '#ffffff')
-      .attr('font-size', '10px')
+      .attr('font-size', '12px')
       .attr('font-weight', 'bold')
       .style('pointer-events', 'none')
       .text((item) => String(item.childCount || 0));
 
-    // Append text icon symbol inside node circles
+    // Vector icons share the same geometry with the legend.
     node
-      .append('text')
+      .append('path')
       .attr('class', 'knowledge-map-node-icon')
-      .attr('text-anchor', 'middle')
-      .attr('dominant-baseline', 'central')
-      .attr('fill', '#ffffff')
-      .attr('font-size', (item) => {
+      .attr('transform', (item) => {
         const radius = item.size || knowledgeMapNodeStyles[item.type].radius;
-        return `${radius * 0.95}px`;
+        const size = Math.max(12, radius);
+        return `translate(${-size / 2},${-size / 2}) scale(${size / 24})`;
       })
-      .style('pointer-events', 'none')
-      .text((item) => {
-        if (item.type === 'project') return '★';
-        if (item.type === 'repository') return '⚙';
-        if (item.type === 'folder') return '📁';
-        if (item.type === 'note') return '📄';
-        if (item.type === 'tag') return '#';
-        if (item.type === 'category') return '🗂';
-        if (item.type === 'topic') return '✦';
-        return '';
-      });
+      .attr('d', (item) => knowledgeMapNodeIcons[isReviewNote(item) ? 'review-note' : item.type]);
+
+    topicNodes.append('text')
+      .attr('class', 'knowledge-map-expand-indicator')
+      .attr('text-anchor', 'middle')
+      .attr('y', (item) => (item.size || knowledgeMapNodeStyles.topic.radius) + 25);
 
     const labels = node
       .append('text')
       .attr('class', 'knowledge-map-node-label')
-      .attr('x', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) + 6)
+      .attr('x', (item) => (item.size || knowledgeMapNodeStyles[item.type].radius) + knowledgeMapLabelLayout.offset)
       .attr('y', 4)
       .text((item) => item.label);
+    const labelWidths = new WeakMap<SVGTextElement, { text: string; width: number }>();
 
     node.append('title').text((item) => [item.label, item.subtitle, item.date].filter(Boolean).join('\n'));
 
@@ -416,8 +382,12 @@ export function useForceGraphSimulation({
       }
     }
 
+    let initialized = false;
     function updateTopicState() {
       const currentExpanded = expandedTopicIdsRef.current;
+      topicNodes.attr('aria-expanded', (item) => String(currentExpanded.has(item.id)));
+      topicNodes.select('.knowledge-map-expand-indicator')
+        .text((item) => currentExpanded.has(item.id) ? '−' : '+');
       const hiddenChildIds = new Set<string>();
 
       graphNodes.forEach((n) => {
@@ -448,10 +418,18 @@ export function useForceGraphSimulation({
 
       refreshForces();
       simulation.alpha(0.15).restart();
+      if (initialized) {
+        simulation.tick(160);
+        renderGraph(performance.now());
+        const transform = computeFitTransform(graphNodes, new Set([...hiddenChildIds, ...(hiddenNodeIdsRef.current || [])]), sizeRef.current.width, sizeRef.current.height);
+        svg.transition().duration(reducedMotion ? 0 : 350).call(zoom.transform, transform);
+        updateVisuals(activeNodeId || null, searchQueryRef.current);
+      }
     }
 
     updateTopicStateRef.current = updateTopicState;
     updateTopicState();
+    initialized = true;
 
     const drag = d3
       .drag<SVGGElement, GraphNode>()
@@ -479,16 +457,41 @@ export function useForceGraphSimulation({
     const latestSize = sizeRef.current;
     const initialTransform = computeFitTransform(
       graphNodes,
-      hiddenNodeIds,
+      new Set([...(hiddenNodeIds || []), ...hiddenChildIdsRef.current]),
       latestSize.width,
       latestSize.height,
     );
     svg.call(zoom.transform, initialTransform);
 
     function updateLabels() {
-      labels
-        .attr('opacity', (item) => (shouldShowLabel(item, zoomScale, activeNodeId, isLargeGraph) ? 1 : 0))
-        .attr('display', (item) => (shouldShowLabel(item, zoomScale, activeNodeId, isLargeGraph) ? null : 'none'));
+      const hidden = new Set([...hiddenChildIdsRef.current, ...(hiddenNodeIdsRef.current || [])]);
+      const occupied = graphNodes.filter((item) => !hidden.has(item.id)).map((item) => {
+        const radius = (item.size || knowledgeMapNodeStyles[item.type].radius) + 4;
+        return { x: (item.x || 0) - radius, y: (item.y || 0) - radius, width: radius * 2, height: radius * 2 };
+      });
+      const search = searchQueryRef.current.trim().toLowerCase();
+      const priority = (item: GraphNode) => item.id === activeNodeId ? 0 : search && item.label.toLowerCase().includes(search) ? 1 : item.type === 'project' ? 2 : item.type === 'topic' ? 3 : 4;
+      labels.nodes().sort((a, b) => priority(d3.select<SVGTextElement, GraphNode>(a).datum()) - priority(d3.select<SVGTextElement, GraphNode>(b).datum())).forEach((element) => {
+        const label = d3.select<SVGTextElement, GraphNode>(element);
+        const item = label.datum();
+        const focused = item.id === activeNodeId;
+        const matches = Boolean(search && item.label.toLowerCase().includes(search));
+        const limit = item.type === 'topic' ? knowledgeMapLabelLayout.topicMaxLength : knowledgeMapLabelLayout.nodeMaxLength;
+        const text = focused || item.label.length <= limit ? item.label : `${item.label.slice(0, limit - 1).trimEnd()}…`;
+        if (element.textContent !== text) label.text(text);
+        let measurement = labelWidths.get(element);
+        if (measurement?.text !== text) {
+          label.attr('display', null);
+          measurement = { text, width: typeof element.getComputedTextLength === 'function' ? element.getComputedTextLength() : text.length * knowledgeMapLabelLayout.estimatedCharacterWidth };
+          labelWidths.set(element, measurement);
+        }
+        const width = measurement.width;
+        const box = { x: (item.x || 0) + (item.size || knowledgeMapNodeStyles[item.type].radius) + knowledgeMapLabelLayout.offset, y: (item.y || 0) - 10, width: width + 8, height: 20 };
+        const overlaps = occupied.some((other) => box.x < other.x + other.width && box.x + box.width > other.x && box.y < other.y + other.height && box.y + box.height > other.y);
+        const visible = !hidden.has(item.id) && (focused || matches || (shouldShowLabel(item, zoomScale, activeNodeId, isLargeGraph) && !overlaps));
+        label.attr('display', visible ? null : 'none').attr('opacity', 1);
+        if (visible) occupied.push(box);
+      });
     }
 
     function updateVisuals(hoveredId: string | null, searchStr: string) {
@@ -529,7 +532,7 @@ export function useForceGraphSimulation({
         });
       }
 
-      // Update node opacity & glow (respect timeline-hidden nodes)
+      // Keep focus and search emphasis consistent with timeline visibility.
       const currentHidden = hiddenNodeIdsRef.current ?? new Set<string>();
       node.style('opacity', (d) => {
         if (currentHidden.has(d.id)) return 0;
@@ -540,12 +543,8 @@ export function useForceGraphSimulation({
         return active ? 1 : 0.15;
       });
 
+      node.classed('is-active', (d) => hoveredId === d.id || (hasSearch && matchesSearch.has(d.id)));
       circles
-        .style('filter', (d) => {
-          if (hoveredId === d.id) return 'url(#node-glow)';
-          if (hasSearch && matchesSearch.has(d.id)) return 'url(#node-glow)';
-          return null;
-        })
         .attr('stroke-width', (d) => {
           if (hoveredId === d.id || (hasSearch && matchesSearch.has(d.id))) return 2.2;
           return 1.2;
@@ -560,7 +559,7 @@ export function useForceGraphSimulation({
           // Always hide links connected to hidden nodes
           if (currentHidden.has(sId) || currentHidden.has(tId)) return 0;
 
-          if (!hasSearch && !hasHover) return 0.55;
+          if (!hasSearch && !hasHover) return 1;
 
           let active = false;
           if (hasHover && (sId === hoveredId || tId === hoveredId)) {
@@ -574,25 +573,15 @@ export function useForceGraphSimulation({
           }
           return 0.05;
         })
-        .classed('flowing-link', (l) => {
+        .classed('is-active', (l) => {
           if (!hasHover) return false;
           const sId = typeof l.source === 'object' ? l.source.id : String(l.source);
           const tId = typeof l.target === 'object' ? l.target.id : String(l.target);
           return sId === hoveredId || tId === hoveredId;
         });
 
-      // Update labels
-      labels
-        .attr('opacity', (d) => {
-          if (d.id === hoveredId) return 1;
-          if (hasSearch && matchesSearch.has(d.id)) return 1;
-          return shouldShowLabel(d, zoomScale, hoveredId || '', isLargeGraph) ? 1 : 0;
-        })
-        .attr('display', (d) => {
-          if (d.id === hoveredId) return null;
-          if (hasSearch && matchesSearch.has(d.id)) return null;
-          return shouldShowLabel(d, zoomScale, hoveredId || '', isLargeGraph) ? null : 'none';
-        });
+      regions.style('opacity', (item) => hasHover && item.id !== hoveredId && !item.childNoteIds?.includes(hoveredId!) ? 0.25 : 1);
+      updateLabels();
     }
 
     updateVisualsRef.current = updateVisuals;
@@ -601,6 +590,19 @@ export function useForceGraphSimulation({
     }
 
     function renderGraph(time: number) {
+      regions.attr('d', (topic) => {
+        if (!expandedTopicIdsRef.current.has(topic.id) || hiddenNodeIdsRef.current?.has(topic.id)) return null;
+        const members = (topic.childNoteIds || []).map((id) => nodesById.get(id))
+          .filter((item): item is GraphNode => Boolean(item && !hiddenChildIdsRef.current.has(item.id) && !hiddenNodeIdsRef.current?.has(item.id)));
+        if (!members.length) return null;
+        const corners: [number, number][] = [topic, ...members].flatMap((item) => {
+          const { x, y } = graphNodePosition(item, time, isDriftDisabled);
+          const padding = (item.size || knowledgeMapNodeStyles[item.type].radius) + 18;
+          return [[x - padding, y - padding], [x + padding, y - padding], [x + padding, y + padding], [x - padding, y + padding]] as [number, number][];
+        });
+        const hull = d3.polygonHull(corners);
+        return hull ? `M${hull.map((point) => point.join(',')).join('L')}Z` : null;
+      });
       link
         .attr('x1', (item) => graphNodePosition(graphLinkNode(item.source), time, isDriftDisabled).x)
         .attr('y1', (item) => graphNodePosition(graphLinkNode(item.source), time, isDriftDisabled).y)
@@ -610,6 +612,7 @@ export function useForceGraphSimulation({
         const position = graphNodePosition(item, time, isDriftDisabled);
         return `translate(${position.x},${position.y})`;
       });
+      updateLabels();
     }
 
     function animate(time: number) {
@@ -700,7 +703,7 @@ export function useForceGraphSimulation({
 
     const transform = computeFitTransform(
       graph.nodes as GraphNode[],
-      hiddenNodeIds,
+      new Set([...(hiddenNodeIds || []), ...hiddenChildIdsRef.current]),
       size.width,
       size.height,
     );

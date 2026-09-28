@@ -555,9 +555,13 @@
 }
 
 :root[data-theme="light"] .knowledge-map-canvas {
+  --map-rose: #a34669;
+  --map-blue: #416ba8;
+  --map-teal: #26796f;
+  --map-slate: #586982;
   background:
-    linear-gradient(rgba(15, 23, 42, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 23, 42, 0.035) 1px, transparent 1px),
+    linear-gradient(rgba(15, 23, 42, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.025) 1px, transparent 1px),
     var(--panel);
   border-color: var(--line);
 }
@@ -635,6 +639,10 @@
 :root[data-theme="light"] .knowledge-map-zoom-controls button:hover {
   background: var(--surface-3);
   color: var(--active-text);
+}
+
+:root[data-theme="light"] .knowledge-map-zoom-controls button {
+  color: var(--text);
 }
 
 /* Timeline cards */
@@ -759,4 +767,3 @@
 :root[data-theme="light"] .info-tooltip-content::after {
   border-top-color: var(--panel);
 }
-

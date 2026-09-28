@@ -24,7 +24,6 @@ import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
 import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
-import { Select } from '../../shared/ui/select';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
 import { usePaginationState } from '../../shared/ui/use-pagination-state';
@@ -65,6 +64,7 @@ import { ProjectDecisionsPanel } from './ProjectDecisionsPanel';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
 import { DownloadIcon, SearchIcon } from '../../shared/ui/icons';
 import { InfoTooltip } from '../../shared/ui/info-tooltip';
+import { Select } from '../../shared/ui/select';
 import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
 
 const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
@@ -351,21 +351,21 @@ export function ProjectsWorkspace({
         title={(
           <div className="page-head-title-row">
             <h1>{UI_MESSAGES.PROJECTS}</h1>
-            <label className="sr-only" htmlFor="projects-page-project-select">{UI_MESSAGES.SELECT_PROJECT}</label>
-            <Select
-              ariaLabel={UI_MESSAGES.SELECT_PROJECT}
-              className="page-head-select"
-              id="projects-page-project-select"
-              options={[
-                { value: '', label: UI_MESSAGES.ALL },
-                ...dashboard.projects.map((project) => ({
-                  value: project.projectSlug,
-                  label: project.displayName,
-                })),
-              ]}
-              value={selected?.projectSlug || ''}
-              onChange={openProject}
-            />
+            {projectView === 'timeline' ? (
+              <>
+                <label className="sr-only" htmlFor="projects-page-status-select">
+                  {UI_MESSAGES.FILTER_BY_STATUS}
+                </label>
+                <Select
+                  ariaLabel={UI_MESSAGES.FILTER_BY_STATUS}
+                  className="page-head-select status-select"
+                  id="projects-page-status-select"
+                  options={statusOptions}
+                  value={timelineStatus}
+                  onChange={(nextStatus) => setTimelineStatus(nextStatus as NoteStatusFilter)}
+                />
+              </>
+            ) : null}
           </div>
         )}
         subtitle=""
@@ -494,8 +494,6 @@ export function ProjectsWorkspace({
                     setTimelineCategory(category);
                     timelinePagination.setPage(1);
                   }}
-                  status={timelineStatus}
-                  onStatusChange={setTimelineStatus}
                   onDeleteNote={(note) => setConfirmState({ kind: ConfirmKind.Note, note })}
                   onEditNote={(note) => loadNoteMutation.mutate(note.id)}
                   onOpenNote={handleOpenNote}
@@ -518,13 +516,11 @@ export function ProjectsWorkspace({
               onProjectViewChange={setProjectView}
               timelineItems={timelineItems}
               timelineCategory={timelineCategory}
-              timelineStatus={timelineStatus}
               timelinePagination={timelineQuery.data?.pagination}
               onTimelineCategoryChange={(category) => {
                 setTimelineCategory(category);
                 timelinePagination.setPage(1);
               }}
-              onTimelineStatusChange={setTimelineStatus}
               onTimelinePageChange={timelinePagination.setPage}
               onFolderSelect={(folderId) => {
                 setSelectedFolderId(folderId);

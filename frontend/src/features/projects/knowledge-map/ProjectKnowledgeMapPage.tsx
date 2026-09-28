@@ -10,7 +10,6 @@ import { fetchProjectFolders, fetchProjectKnowledgeMap } from '../../../shared/a
 import type { KnowledgeMapNode, ProjectKnowledgeMapResponse } from '../../../shared/api/models/project-knowledge-map';
 import { projectTimelineCategoryValues, type ProjectTimelineCategory } from '../../../shared/api/models/project-timeline';
 import { EmptyState, InlineMessage, PageHead } from '../../../shared/ui/primitives';
-import { Select } from '../../../shared/ui/select';
 import { SideNoteDrawer } from '../../../widgets/notes/SideNoteDrawer';
 import { useMediaQuery } from '../../../shared/ui/use-media-query';
 import { flattenFolders } from '../projects.helpers';
@@ -19,8 +18,7 @@ import { KnowledgeMapLoading } from './KnowledgeMapLoading';
 import {
   defaultVisibleKnowledgeMapNodeTypes,
   knowledgeMapLimitOptions,
-  knowledgeMapNodeStyles,
-  knowledgeMapReviewNodeStyle,
+  knowledgeMapNodeIcons,
   knowledgeMapVisibleNodeLabels,
   type KnowledgeMapVisibleNodeType,
   visibleKnowledgeMapNodeTypes,
@@ -177,25 +175,7 @@ export function ProjectKnowledgeMapPage({ dashboard, openNote, selectedProject }
   return (
     <div className="knowledge-map-page">
       <PageHead
-        title={(
-          <div className="page-head-title-row">
-            <h1>Map</h1>
-            <label className="sr-only" htmlFor="knowledge-map-project-select">Select project</label>
-            <Select
-              ariaLabel="Select project"
-              className="page-head-select"
-              id="knowledge-map-project-select"
-              options={dashboard.projects.map((item) => ({
-                value: item.projectSlug,
-                label: item.displayName,
-              }))}
-              value={project.projectSlug}
-              onChange={(nextProjectSlug) => {
-                if (nextProjectSlug) navigate(routes.projectMap(nextProjectSlug));
-              }}
-            />
-          </div>
-        )}
+        title="Map"
         subtitle=""
         action={(
           <div className="knowledge-map-actions">
@@ -407,18 +387,17 @@ function KnowledgeMapLegend({ presentTypes }: { presentTypes: Set<KnowledgeMapVi
     <div className="knowledge-map-legend" aria-label="Knowledge map legend">
       {types.filter((type) => presentTypes.has(type)).map((type) => (
         <span key={type}>
-          <i style={{ background: knowledgeMapLegendStyle(type).color }} />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d={knowledgeMapNodeIcons[type]} />
+          </svg>
           {knowledgeMapVisibleNodeLabels[type]}
         </span>
       ))}
+      <small>Color connects notes in the same topic · Click a topic to expand</small>
     </div>
   );
 }
 
 function knowledgeMapVisibleTypeFromNode(node: KnowledgeMapNode): KnowledgeMapVisibleNodeType {
   return node.type === 'note' && node.isReview ? 'review-note' : node.type;
-}
-
-function knowledgeMapLegendStyle(type: KnowledgeMapVisibleNodeType) {
-  return type === 'review-note' ? knowledgeMapReviewNodeStyle : knowledgeMapNodeStyles[type];
 }

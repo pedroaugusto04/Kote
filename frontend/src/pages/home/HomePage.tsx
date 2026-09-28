@@ -10,7 +10,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchAllProjectsTimeline, fetchGithubBackfillStatus, fetchProjectTimeline, fetchProductivityInsights } from '../../shared/api/client';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
-import { Select } from '../../shared/ui/select';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { InfoTooltip } from '../../shared/ui/info-tooltip';
@@ -19,8 +18,9 @@ import { useIsMobile } from '../../shared/hooks/useIsMobile';
 
 import { ProjectCoverageBadge } from '../../features/projects/components/ProjectCoverageBadge';
 import { AiTokenAnalyticsPanel } from '../../widgets/dashboard/AiTokenAnalyticsPanel';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 
-export function HomePage({ dashboard, openNote, openProject, createNote, onNoteModalClose, setOnNoteModalClose }: PageContext) {
+export function HomePage({ dashboard, openNote, openProject, createNote, onNoteModalClose, setOnNoteModalClose, projectScope = '' }: PageContext) {
   const queryClient = useQueryClient();
   const { home } = dashboard;
   const activeWorkspace = dashboard.workspaces[0] || null;
@@ -51,7 +51,6 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
   const activityByDay = home.activityByDay.map((point) => ({ ...point, label: formatUsDate(point.date) }));
   const TIMELINE_SIZE = 5;
 
-  const [selectedTimelineProject, setSelectedTimelineProject] = useState<string>('');
   const [activeActivityTab, setActiveActivityTab] = useState<'notes' | 'ai' | 'hours'>('notes');
   const [activeDashboardTab, setActiveDashboardTab] = useState<'overview' | 'ai-analytics'>('overview');
 
@@ -172,23 +171,14 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
   }, [insightsCalendarDay, productivityQuery.data]);
 
   const timelineQuery = useQuery({
-    queryKey: ['home-project-timeline', selectedTimelineProject],
-    queryFn: () => selectedTimelineProject
-      ? fetchProjectTimeline(selectedTimelineProject, { page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '', orderByPin: false })
+    queryKey: ['home-project-timeline', projectScope],
+    queryFn: () => projectScope
+      ? fetchProjectTimeline(projectScope, { page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '', orderByPin: false })
       : fetchAllProjectsTimeline({ page: 1, pageSize: TIMELINE_SIZE, category: 'all', status: '', orderByPin: false }),
     staleTime: 0,
   });
 
   const timelineItems = timelineQuery.data?.timeline || [];
-
-  const projectOptions = [
-    { value: '', label: 'All Projects' },
-    ...dashboard.projects.map((project) => ({
-      value: project.projectSlug,
-      label: project.displayName,
-    })),
-  ];
-
 
   function openTarget(target: HomeNavigationTarget) {
     if (target.kind === 'project' && target.slug) {
@@ -457,13 +447,11 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
           <Panel className="home-panel home-panel-timeline">
             <div className="panel-head">
               <h2>Project Activity Timeline</h2>
-              <Select
-                ariaLabel="Filter timeline by project"
-                className="timeline-project-select"
-                options={projectOptions}
-                value={selectedTimelineProject}
-                onChange={setSelectedTimelineProject}
-              />
+              <span className="meta">
+                {projectScope
+                  ? dashboard.projects.find((project) => project.projectSlug === projectScope)?.displayName || projectScope
+                  : UI_MESSAGES.ALL_PROJECTS}
+              </span>
             </div>
             {timelineQuery.isPending ? (
               <div style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>Loading timeline...</div>
@@ -583,7 +571,11 @@ export function HomePage({ dashboard, openNote, openProject, createNote, onNoteM
       </section>
         ) : (
           <section aria-label="AI Token Analytics">
-            <AiTokenAnalyticsPanel workspaceSlug={workspaceSlug || undefined} />
+            <AiTokenAnalyticsPanel
+              projectFilterExternal
+              projectSlug={projectScope}
+              workspaceSlug={workspaceSlug || undefined}
+            />
           </section>
         )}
       </div>

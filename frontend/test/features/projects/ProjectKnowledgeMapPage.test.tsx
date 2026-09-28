@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { renderWithAppProviders } from '../../../src/app/test-utils';
 import { ProjectKnowledgeMapPage } from '../../../src/features/projects/knowledge-map/ProjectKnowledgeMapPage';
 import { filterKnowledgeMapDataset } from '../../../src/features/projects/knowledge-map/knowledge-map.helpers';
-import { knowledgeMapReviewNodeStyle } from '../../../src/features/projects/knowledge-map/knowledge-map.constants';
+import { computeFitTransform, type GraphNode } from '../../../src/features/projects/knowledge-map/graph-physics';
 import type { Dashboard } from '../../../src/shared/api/models/dashboard';
 import type { ProjectKnowledgeMapResponse } from '../../../src/shared/api/models/project-knowledge-map';
 import type { ProjectFolder } from '../../../src/shared/api/models/project-folder';
@@ -175,7 +175,7 @@ describe('ProjectKnowledgeMapPage', () => {
     expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
   });
 
-  it('renders review notes with their own legend color', async () => {
+  it('distinguishes review notes and repositories using matching vector icons in the legend and graph', async () => {
     stubMapFetch(graphResponse({
       nodes: [
         ...graphResponse().nodes,
@@ -196,9 +196,47 @@ describe('ProjectKnowledgeMapPage', () => {
     const reviewLegendItem = within(legend).getByText('Review notes').closest('span');
     const repositoryLegendItem = within(legend).queryByText('Repository')?.closest('span');
 
-    expect(reviewLegendItem?.querySelector('i')).toHaveStyle({ background: knowledgeMapReviewNodeStyle.color });
-    expect(reviewLegendItem?.querySelector('i')).not.toHaveStyle({ background: '#0284c7' });
-    expect(repositoryLegendItem?.querySelector('i')).not.toHaveStyle({ background: knowledgeMapReviewNodeStyle.color });
+    const reviewPath = reviewLegendItem?.querySelector('path')?.getAttribute('d');
+    const repositoryPath = repositoryLegendItem?.querySelector('path')?.getAttribute('d');
+    expect(reviewPath).toBeTruthy();
+    expect(repositoryPath).toBeTruthy();
+    expect(reviewPath).not.toBe(repositoryPath);
+    expect(screen.getByRole('button', { name: 'Open note Review' }).querySelector('.knowledge-map-node-icon')).toHaveAttribute('d', reviewPath);
+  });
+
+  it('expands and collapses topic members using the keyboard, with an accessible state and group region', async () => {
+    const dataset = graphResponse();
+    stubMapFetch(graphResponse({
+      nodes: [...dataset.nodes, { id: 'topic:deploy', type: 'topic', label: 'Deployment workflows', projectSlug: 'platform', childCount: 1, childNoteIds: ['note:note-1'] }],
+      links: [...dataset.links, { id: 'topic-member', source: 'topic:deploy', target: 'note:note-1', type: 'contains' }],
+    }));
+    renderMap();
+    const topic = await screen.findByRole('button', { name: 'Topic Deployment workflows' });
+    expect(topic).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Open note Deploy' })).not.toBeInTheDocument();
+    fireEvent.keyDown(topic, { key: 'Enter' });
+    expect(topic).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Open note Deploy' })).toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector('.knowledge-map-regions path')).toHaveAttribute('d', expect.stringContaining('M')));
+    fireEvent.keyDown(topic, { key: ' ' });
+    expect(topic).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Open note Deploy' })).not.toBeInTheDocument();
+    await waitFor(() => expect(document.querySelector('.knowledge-map-regions path')).not.toHaveAttribute('d'));
+  });
+
+  it('shortens long labels while preserving the full name for focus and assistive technology', async () => {
+    const title = 'Deployment workflow and production infrastructure documentation';
+    stubMapFetch(graphResponse({ nodes: graphResponse().nodes.map((node) => node.type === 'note' ? { ...node, label: title } : node) }));
+    renderMap();
+    const note = await screen.findByRole('button', { name: `Open note ${title}` });
+    const label = note.querySelector('.knowledge-map-node-label');
+    expect(label?.textContent).toMatch(/…$/);
+    expect(note.querySelector('title')).toHaveTextContent(title);
+    fireEvent.focus(note);
+    expect(label).toHaveTextContent(title);
+    expect(label).not.toHaveAttribute('display', 'none');
+    fireEvent.blur(note);
+    expect(label?.textContent).toMatch(/…$/);
   });
 
   it('opens note nodes from the map in a side drawer and allows full page navigation', async () => {
@@ -389,5 +427,20 @@ describe('filterKnowledgeMapDataset', () => {
     expect(filtered.nodes.map((node) => node.id)).not.toContain('note:dep-1');
     expect(filtered.links.map((link) => link.id)).not.toContain('contains:project:platform->note:dep-1');
     expect(filtered.links.map((link) => link.id)).not.toContain('classified-as:note:dep-1->category:dependency-watcher');
+  });
+});
+
+describe('knowledge map framing', () => {
+  it('reserves space for labels and excludes hidden members when fitting the map', () => {
+    const nodes: GraphNode[] = [
+      { id: 'project:p', type: 'project', label: 'Platform', x: 0, y: 0 },
+      { id: 'topic:t', type: 'topic', label: 'Deployment workflows', x: 200, y: 80 },
+      { id: 'note:hidden', type: 'note', label: 'Hidden member', x: 10000, y: 10000 },
+    ];
+    const fitted = computeFitTransform(nodes, new Set(['note:hidden']), 800, 600);
+    expect(fitted).toEqual(computeFitTransform(nodes.slice(0, 2), null, 800, 600));
+    expect(fitted.applyX(200 + 24 + 12 + 'Deployment workflows'.length * 7)).toBeLessThan(800);
+    expect(fitted.applyX(-22)).toBeGreaterThan(0);
+    expect(fitted.applyY(-34)).toBeGreaterThan(0);
   });
 });
