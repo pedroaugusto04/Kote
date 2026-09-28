@@ -142,17 +142,24 @@ export class AskKnowledgeUseCase {
         conversationHistory,
       });
     } catch (error) {
+      const err = error as Record<string, unknown>;
       this.logger.error('ask_knowledge.generation_error', {
         cause: error instanceof Error ? error.message : String(error),
+        provider: err.provider ?? this.env.conversationAiProvider,
+        model: err.model ?? this.env.conversationAiModel,
+        endpoint: err.endpoint,
+        status: err.status,
+        statusText: err.statusText,
+        responseBody: err.responseBody,
       });
     }
 
-    this.logger.info('ask_knowledge.answer_generated', {
-      confidence: result?.confidence,
-    });
-
     if (!result) {
-      this.logger.info('ask_knowledge.generation_failed');
+      this.logger.warn('ask_knowledge.generation_failed', {
+        provider: this.env.conversationAiProvider,
+        model: this.env.conversationAiModel,
+        hasApiKey: Boolean(this.env.conversationAiApiKey),
+      });
       return {
         ok: true,
         answer: 'I am unable to generate an answer at the moment because the AI service is temporarily unavailable or encountered an issue. Please check your AI provider configuration or try again in a few moments.',
@@ -162,6 +169,10 @@ export class AskKnowledgeUseCase {
         relatedNotes,
       };
     }
+
+    this.logger.info('ask_knowledge.answer_generated', {
+      confidence: result.confidence,
+    });
 
     this.logger.info('ask_knowledge.complete', {
       confidence: result.confidence,

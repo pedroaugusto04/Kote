@@ -1917,6 +1917,10 @@
   min-height: min(520px, calc(100vh - 40px));
 }
 
+.project-modal-panel .repository-picker {
+  max-height: 240px;
+}
+
 /* Quick Note: Progressive Disclosure Toolbar & Cards */
 .quick-note-meta-triggers {
   display: flex;
@@ -2260,6 +2264,5 @@
 .decision-note-button:hover {
   color: var(--accent-hover, #60a5fa);
 }
-
 
 

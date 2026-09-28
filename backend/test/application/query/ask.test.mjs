@@ -1239,13 +1239,21 @@ test('AskKnowledgeUseCase returns friendly answer and ok: true when answer gener
       conversationAiProvider: 'test', conversationAiBaseUrl: 'http://conversation', conversationAiModel: 'm', conversationAiApiKey: 'key',
     }),
   };
+  const loggedErrors = [];
   const useCase = createAskKnowledgeUseCase({
     mockNoteEmbeddingRepository: repository,
     mockContentRepository: content,
     mockAnswerGenerationGateway: answer,
     mockRuntimeEnv: env,
     dummyContentQueryRepository: { list: async () => [] },
-    dummyLogger: { info() {}, warn() {}, error() {}, debug() {} },
+    dummyLogger: {
+      info() {},
+      warn() {},
+      error(msg, payload) {
+        loggedErrors.push({ msg, payload });
+      },
+      debug() {},
+    },
     dummyAiEntitlement,
     queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[1]] },
   });
@@ -1255,5 +1263,76 @@ test('AskKnowledgeUseCase returns friendly answer and ok: true when answer gener
   assert.match(result.answer, /unable to generate an answer at the moment/i);
   assert.equal(result.confidence, 'low');
   assert.equal(result.relatedNotes.length, 1);
+  const genError = loggedErrors.find((e) => e.msg === 'ask_knowledge.generation_error');
+  assert.ok(genError);
+  assert.equal(genError.payload.cause, 'AI provider offline');
+});
+
+test('AskKnowledgeUseCase logs provider response status and body when AI gateway throws rich completion error', async () => {
+  const note = {
+    id: 'note-1',
+    title: 'Deploy Guide',
+    path: '/deploy.md',
+    workspaceSlug: 'default',
+    markdown: 'Deploy steps.',
+  };
+  const repository = {
+    findSimilar: async () => [{ noteId: 'note-1', chunkIndex: 0, chunkText: 'Deploy steps.', embedding: [1], similarity: 0.9 }],
+  };
+  const content = {
+    listWorkspaces: async () => [{ id: 'ws-1', workspaceSlug: 'default' }],
+    getNotesByIds: async () => [note],
+  };
+  const richError = Object.assign(new Error('chat_completion_request_rejected (429: quota exceeded)'), {
+    provider: 'openai',
+    model: 'gpt-4o-mini',
+    endpoint: 'https://api.openai.com/v1/chat/completions',
+    status: 429,
+    statusText: 'Too Many Requests',
+    responseBody: '{"error": {"message": "Quota exceeded, please check billing"}}',
+  });
+  const answer = {
+    generate: async () => {
+      throw richError;
+    },
+    rewriteQuery: async () => 'How to deploy?',
+  };
+  const env = {
+    read: () => ({
+      embeddingAiProvider: 'openai', embeddingAiBaseUrl: 'https://api.openai.com/v1', embeddingAiModel: 'text-embedding-3-small', embeddingAiApiKey: 'key',
+      conversationAiProvider: 'openai', conversationAiBaseUrl: 'https://api.openai.com/v1', conversationAiModel: 'gpt-4o-mini', conversationAiApiKey: 'key',
+    }),
+  };
+  const loggedErrors = [];
+  const useCase = createAskKnowledgeUseCase({
+    mockNoteEmbeddingRepository: repository,
+    mockContentRepository: content,
+    mockAnswerGenerationGateway: answer,
+    mockRuntimeEnv: env,
+    dummyContentQueryRepository: { list: async () => [] },
+    dummyLogger: {
+      info() {},
+      warn() {},
+      error(msg, payload) {
+        loggedErrors.push({ msg, payload });
+      },
+      debug() {},
+    },
+    dummyAiEntitlement,
+    queryEmbeddingPublisher: { publishQueryEmbedding: async () => [[1]] },
+  });
+
+  const result = await useCase.execute('How to deploy?', 'user-123', { workspaceId: 'ws-1' });
+  assert.equal(result.ok, true);
+  assert.match(result.answer, /unable to generate an answer at the moment/i);
+
+  const genError = loggedErrors.find((e) => e.msg === 'ask_knowledge.generation_error');
+  assert.ok(genError);
+  assert.equal(genError.payload.status, 429);
+  assert.equal(genError.payload.statusText, 'Too Many Requests');
+  assert.equal(genError.payload.responseBody, '{"error": {"message": "Quota exceeded, please check billing"}}');
+  assert.equal(genError.payload.endpoint, 'https://api.openai.com/v1/chat/completions');
+  assert.equal(genError.payload.provider, 'openai');
+  assert.equal(genError.payload.model, 'gpt-4o-mini');
 });
 
