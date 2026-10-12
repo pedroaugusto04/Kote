@@ -114,6 +114,9 @@ export const UI_MESSAGES = {
 
   // Modal labels
   CONFIRM: 'Confirm',
+  EXPORT_DATA: 'Export data',
+  EXPORT_GLOBAL_TITLE: 'Export global data',
+  EXPORT_GLOBAL_DESCRIPTION: 'Are you sure you want to export all workspace data, projects, and notes as a complete ZIP archive?',
 
   // ID prefixes
   SELECT_PREFIX: 'kb-select',

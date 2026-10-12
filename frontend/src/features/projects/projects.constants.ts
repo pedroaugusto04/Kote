@@ -22,5 +22,9 @@ export const PROJECTS_WORKSPACE_MESSAGES = {
   EXPORT_ZIP_START: 'Exporting notes to ZIP...',
   EXPORT_ZIP_SUCCESS: 'ZIP archive downloaded successfully',
   EXPORT_ZIP_ERROR: 'Could not export notes as ZIP',
+  EXPORT_ZIP_CONFIRM_TITLE: 'Export project notes',
+  EXPORT_ZIP_CONFIRM_DESCRIPTION: 'Are you sure you want to export notes as a ZIP archive?',
+  EXPORT_ADRS_CONFIRM_TITLE: 'Export ADRs (.zip)',
+  EXPORT_ADRS_CONFIRM_DESCRIPTION: 'Are you sure you want to export decisions as Architecture Decision Record (ADR) markdown files in a ZIP archive?',
 } as const;
 

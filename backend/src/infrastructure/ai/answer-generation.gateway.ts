@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { AiProvider, ConversationConfidence } from '../../contracts/enums.js';
+import { extractJsonObject, cleanAnswerText } from '../../domain/strings.js';
 import type { AskConversationTurn } from '../../contracts/ask-conversation.js';
 import {
   AnswerGenerationGateway,
@@ -51,18 +52,25 @@ export class DefaultAnswerGenerationGateway extends AnswerGenerationGateway {
     const content = await runChatCompletion(chatConfig, systemPrompt, userContent);
     if (!content) return null;
 
-    try {
-      const parsedJson = JSON.parse(content);
-      return parseAnswerGenerationResponse(parsedJson, payload.context);
-    } catch {
-      // Fallback: If parsing fails, treat the response text as the answer itself
-      return {
-        answer: content,
-        confidence: ConversationConfidence.Medium,
-        requestedAttachments: false,
-        sources: [],
-      };
+    const parsedJson = extractJsonObject(content);
+    if (parsedJson) {
+      try {
+        const response = parseAnswerGenerationResponse(parsedJson, payload.context);
+        return {
+          ...response,
+          answer: cleanAnswerText(response.answer),
+        };
+      } catch {
+        // Fall back to clean raw content if structured parsing fails
+      }
     }
+
+    return {
+      answer: cleanAnswerText(content),
+      confidence: ConversationConfidence.Medium,
+      requestedAttachments: false,
+      sources: [],
+    };
   }
 
   async rewriteQuery(

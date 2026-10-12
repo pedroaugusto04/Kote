@@ -9,6 +9,7 @@ import { AiModule } from './ai.module.js';
 import { RemindersModule } from './reminders.module.js';
 import { ProjectsModule } from './projects.module.js';
 import { QuotaModule } from './quota.module.js';
+import { WorkspacesModule } from './workspaces.module.js';
 
 import {
   ListPaginatedNotesUseCase,
@@ -55,9 +56,9 @@ import { AiSessionSynthesisOutboxRelay } from '../../application/services/conten
 import { AiSessionSynthesisScheduler } from '../../application/services/content/ai-session-synthesis-scheduler.service.js';
 import { AiSessionSynthesisWorker } from '../../application/workers/ai-session-synthesis.worker.js';
 import { AutoActionWorker } from '../../application/workers/auto-action.worker.js';
-import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
 import { SettingsRepository } from '../../application/ports/settings.repository.js';
-import { NotesController } from '../../interfaces/http/controllers/index.js';
+import { PostgresSettingsRepository } from '../repositories/settings.repository.js';
+import { NotesController, AskAiController, QueryKnowledgeController } from '../../interfaces/http/controllers/index.js';
 
 @Module({
   imports: [
@@ -71,9 +72,12 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     RemindersModule,
     ProjectsModule,
     QuotaModule,
+    WorkspacesModule,
   ],
   controllers: [
     NotesController,
+    AskAiController,
+    QueryKnowledgeController,
   ],
   providers: [
     ListPaginatedNotesUseCase,

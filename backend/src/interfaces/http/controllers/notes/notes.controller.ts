@@ -59,9 +59,9 @@ import {
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { attachmentContentDisposition, inlineContentDisposition, paginatedResponse } from '../../http-helpers.js';
 import { isZipAttachmentMimeType } from '../../../../domain/constants/attachment.constants.js';
-import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
-import { ProjectId } from '../../project.decorators.js';
-import { WorkspaceId } from '../../workspace.decorators.js';
+import { ScopeGuard } from '../../guards/scope.guard.js';
+import { Scoped, Scope } from '../../scope.decorators.js';
+import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
 import { toCreateManualNoteDto, toUpdateNoteDto } from '../../mappers/note.mapper.js';
 
 @ApiTags('Notes')
@@ -89,7 +89,8 @@ export class NotesController {
   ) { }
 
   @Post()
-  @UseGuards(BrowserExtensionGuard, ProjectResolutionGuard)
+  @UseGuards(BrowserExtensionGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a manual note' })
   @ApiResponse({ status: 201, description: 'Note created successfully' })
@@ -97,9 +98,9 @@ export class NotesController {
   create(
     @Body(new ZodValidationPipe(createNoteBodySchema, 'invalid_create_note_payload')) body: CreateNoteBody,
     @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId: string,
+    @Scope() scope?: WorkspaceScope,
   ) {
-    const dto = toCreateManualNoteDto(body, projectId);
+    const dto = toCreateManualNoteDto(body, scope?.projectId || undefined);
     return this.createManualNote.execute(dto, user.id);
   }
 
@@ -116,7 +117,8 @@ export class NotesController {
   }
 
   @Patch(':id')
-  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a note' })
   @ApiParam({ name: 'id', description: 'Note ID' })
@@ -126,9 +128,9 @@ export class NotesController {
     @Param(new ZodValidationPipe(noteIdParamSchema, 'invalid_note_id')) params: NoteIdParam,
     @Body(new ZodValidationPipe(updateNoteBodySchema, 'invalid_update_note_payload')) body: UpdateNoteBody,
     @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId?: string,
+    @Scope() scope?: WorkspaceScope,
   ) {
-    const dto = toUpdateNoteDto(body, params.id, projectId);
+    const dto = toUpdateNoteDto(body, params.id, scope?.projectId || undefined);
     return this.updateNote.execute(dto, user.id);
   }
 
@@ -146,7 +148,8 @@ export class NotesController {
   }
 
   @Post('session-handoff')
-  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate or retrieve on-demand session handoff' })
   @ApiResponse({ status: 200, description: 'Session handoff generated successfully' })
@@ -209,7 +212,8 @@ export class NotesController {
   }
 
   @Get('by-file')
-  @UseGuards(OptionalProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find notes by file path' })
   @ApiQuery({ name: 'filePath', description: 'Relative file path to search notes for' })
@@ -217,12 +221,14 @@ export class NotesController {
   async findByFile(
     @Query(new ZodValidationPipe(notesByFileQuerySchema, 'invalid_notes_by_file_query')) query: NotesByFileQuery,
     @CurrentUser() user: AuthenticatedUser,
+    @Scope() scope?: WorkspaceScope,
   ) {
-    return this.findNotesByFileUseCase.execute(user.id, query.filePath, { projectSlug: query.projectSlug });
+    return this.findNotesByFileUseCase.execute(user.id, query.filePath, { projectSlug: scope?.projectSlug || query.projectSlug });
   }
 
   @Get('by-file/related')
-  @UseGuards(OptionalProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find related notes by file path' })
   @ApiQuery({ name: 'filePath', description: 'Relative file path to search related notes for' })
@@ -233,20 +239,22 @@ export class NotesController {
   async findRelatedByFile(
     @Query(new ZodValidationPipe(relatedNotesByFileQuerySchema, 'invalid_related_notes_by_file_query')) query: RelatedNotesByFileQuery,
     @CurrentUser() user: AuthenticatedUser,
+    @Scope() scope?: WorkspaceScope,
   ) {
     return this.findRelatedNotesByFileUseCase.execute(
       user.id,
       query.filePath,
       query.excludeIds,
       query.query,
-      query.projectSlug,
+      scope?.projectSlug || query.projectSlug,
       query.limit,
       query.searchProfile,
     );
   }
 
   @Get('by-file/summary')
-  @UseGuards(OptionalProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate AI summary of notes for a file' })
   @ApiQuery({ name: 'filePath', description: 'Relative file path to generate summary for' })
@@ -254,28 +262,31 @@ export class NotesController {
   async getFileNotesSummary(
     @Query(new ZodValidationPipe(fileNotesSummaryQuerySchema, 'invalid_file_notes_summary_query')) query: FileNotesSummaryQuery,
     @CurrentUser() user: AuthenticatedUser,
+    @Scope() scope?: WorkspaceScope,
   ) {
     return this.generateFileNotesSummaryByFileUseCase.execute(user.id, {
       filePath: query.filePath,
-      workspaceSlug: query.workspaceSlug,
-      projectSlug: query.projectSlug,
+      workspaceSlug: scope?.workspaceSlug || query.workspaceSlug,
+      projectSlug: scope?.projectSlug || query.projectSlug,
     });
   }
 
   @Get('by-snippet')
-  @UseGuards(OptionalProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find notes and AI sessions related to a code snippet and commit' })
   @ApiResponse({ status: 200, description: 'Notes for snippet retrieved successfully' })
   async getBySnippet(
     @Query(new ZodValidationPipe(notesBySnippetQuerySchema, 'invalid_notes_by_snippet_query')) query: NotesBySnippetQuery,
     @CurrentUser() user: AuthenticatedUser,
+    @Scope() scope?: WorkspaceScope,
   ) {
     return this.findNotesBySnippetUseCase.execute(user.id, {
       filePath: query.filePath,
       codeSnippet: query.codeSnippet,
-      projectSlug: query.projectSlug,
-      workspaceSlug: query.workspaceSlug,
+      projectSlug: scope?.projectSlug || query.projectSlug,
+      workspaceSlug: scope?.workspaceSlug || query.workspaceSlug,
       gitContext: {
         commitHash: query.commitHash,
         commitHashes: query.commitHashes.split(',').map((hash) => hash.trim()).filter(Boolean).slice(0, 20),
@@ -288,19 +299,21 @@ export class NotesController {
   }
 
   @Post('by-snippet')
-  @UseGuards(OptionalProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Find notes and AI sessions related to a code snippet and commit (POST)' })
   @ApiResponse({ status: 200, description: 'Notes for snippet retrieved successfully' })
   async postBySnippet(
     @Body(new ZodValidationPipe(notesBySnippetBodySchema, 'invalid_notes_by_snippet_payload')) body: NotesBySnippetBody,
     @CurrentUser() user: AuthenticatedUser,
+    @Scope() scope?: WorkspaceScope,
   ) {
     return this.findNotesBySnippetUseCase.execute(user.id, {
       filePath: body.filePath,
       codeSnippet: body.codeSnippet,
-      projectSlug: body.projectSlug,
-      workspaceSlug: body.workspaceSlug,
+      projectSlug: scope?.projectSlug || body.projectSlug,
+      workspaceSlug: scope?.workspaceSlug || body.workspaceSlug,
       gitContext: {
         commitHash: body.commitHash,
         commitHashes: body.commitHashes,
@@ -331,19 +344,23 @@ export class NotesController {
   }
 
   @Get()
-  @UseGuards(OptionalProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List notes' })
   @ApiResponse({ status: 200, description: 'Notes retrieved successfully' })
   async list(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(notesListQuerySchema, 'invalid_notes_query')) query: NotesListQuery,
-    @WorkspaceId() workspaceId?: string,
-    @ProjectId() projectId?: string,
+    @Scope() scope?: WorkspaceScope,
   ) {
     return {
       ok: true,
-      ...paginatedResponse('notes', await this.listNotesUseCase.execute(user.id, { ...query, workspaceId, projectId })),
+      ...paginatedResponse('notes', await this.listNotesUseCase.execute(user.id, {
+        ...query,
+        workspaceId: scope?.workspaceId || undefined,
+        projectId: scope?.projectId || undefined,
+      })),
     };
   }
 

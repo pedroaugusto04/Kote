@@ -40,7 +40,10 @@ export function getAiProviderTheme(providerOrModel?: string, source?: string | n
 
 export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage']; source?: string | null }) {
   if (!usage || !usage.totalTokens) return null;
+  return <AiUsagePillContent usage={usage} source={source} />;
+}
 
+function AiUsagePillContent({ usage, source }: { usage: NonNullable<NoteSummary['aiUsage']>; source?: string | null }) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const pillRef = useRef<HTMLSpanElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -54,13 +57,24 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
     : null;
 
   const comparisonFormatted = formatCostComparison(usage.estimatedCostUsd, usage.totalTokens, usage.rates);
-  const tokensFormatted = usage.totalTokens.toLocaleString();
+  const tokensFormatted = usage.totalTokens.toLocaleString('en-US');
 
   let displayModelName = usage.model.split('/').pop() || usage.model;
   const additionalCount = hasMultipleModels && usage.byModel ? usage.byModel.length - 1 : 0;
   if (hasMultipleModels) {
     displayModelName = `${displayModelName} (+${additionalCount})`;
   }
+
+  const updatePopoverPosition = React.useCallback(() => {
+    const trigger = pillRef.current;
+    if (!trigger) return setPopoverCoords(null);
+    const rect = trigger.getBoundingClientRect();
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 360;
+    const popoverWidth = Math.min(360, Math.max(280, viewportWidth - 32));
+    const left = Math.max(16, Math.min(viewportWidth - popoverWidth - 16, rect.left));
+    const top = rect.bottom + 6;
+    setPopoverCoords({ left, top });
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -91,24 +105,13 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
       window.removeEventListener('resize', updatePopoverPosition);
       window.removeEventListener('scroll', updatePopoverPosition, true);
     };
-  }, [isPopoverOpen]);
+  }, [isPopoverOpen, updatePopoverPosition]);
 
-  function updatePopoverPosition() {
-    const trigger = pillRef.current;
-    if (!trigger) return setPopoverCoords(null);
-    const rect = trigger.getBoundingClientRect();
-    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 360;
-    const popoverWidth = Math.min(360, Math.max(280, viewportWidth - 32));
-    const left = Math.max(16, Math.min(viewportWidth - popoverWidth - 16, rect.left));
-    const top = rect.bottom + 6;
-    setPopoverCoords({ left, top });
-  }
-
-  let tooltip = '';
+  let tooltip: string;
   if (hasMultipleModels && usage.byModel) {
     const lines = usage.byModel.map(
       (m) =>
-        `• ${m.model}: ${m.totalTokens.toLocaleString()} tok ($${m.estimatedCostUsd.toFixed(4)})${m.cachedTokens ? ` [${m.cachedTokens.toLocaleString()} cached]` : ''}`
+        `• ${m.model}: ${m.totalTokens.toLocaleString('en-US')} tok ($${m.estimatedCostUsd.toFixed(4)})${m.cachedTokens ? ` [${m.cachedTokens.toLocaleString('en-US')} cached]` : ''}`
     );
     tooltip = [
       'Multi-Model Session Breakdown:',
@@ -119,10 +122,10 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
   } else {
     tooltip = [
       `Model: ${usage.model}`,
-      `Input: ${usage.inputTokens?.toLocaleString() || 0}`,
-      `Output: ${usage.outputTokens?.toLocaleString() || 0}`,
-      usage.reasoningTokens ? `Reasoning: ${usage.reasoningTokens.toLocaleString()}` : null,
-      usage.cachedTokens ? `Cached: ${usage.cachedTokens.toLocaleString()}` : null,
+      `Input: ${usage.inputTokens?.toLocaleString('en-US') || 0}`,
+      `Output: ${usage.outputTokens?.toLocaleString('en-US') || 0}`,
+      usage.reasoningTokens ? `Reasoning: ${usage.reasoningTokens.toLocaleString('en-US')}` : null,
+      usage.cachedTokens ? `Cached: ${usage.cachedTokens.toLocaleString('en-US')}` : null,
       costFormatted ? `Estimated Cost: ${costFormatted}${comparisonFormatted ? ` (${comparisonFormatted})` : ''}` : null,
     ].filter(Boolean).join(' • ');
   }
@@ -177,8 +180,8 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
                 <span style={{ color: itemTheme.accentColor }}>{itemCost}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--muted, #8da0ae)', marginTop: '2px' }}>
-                <span>{item.totalTokens.toLocaleString()} tok ({itemPercent}%)</span>
-                {item.cachedTokens ? <span>{item.cachedTokens.toLocaleString()} cached</span> : null}
+                <span>{item.totalTokens.toLocaleString('en-US')} tok ({itemPercent}%)</span>
+                {item.cachedTokens ? <span>{item.cachedTokens.toLocaleString('en-US')} cached</span> : null}
               </div>
               {rateStr && (
                 <div style={{ fontSize: '10px', color: 'var(--faint, #7a8f9e)', marginTop: '2px' }}>

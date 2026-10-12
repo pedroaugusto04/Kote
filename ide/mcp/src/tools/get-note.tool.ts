@@ -1,5 +1,5 @@
-import { ApiClient } from '../client/api-client.js';
-import { McpTool } from './base.tool.js';
+import { type ApiClient } from '../client/api-client.js';
+import { type McpTool } from './base.tool.js';
 import { McpToolNames } from '../constants/mcp.constants.js';
 import type { GetNoteArgs } from '../types/mcp.types.js';
 

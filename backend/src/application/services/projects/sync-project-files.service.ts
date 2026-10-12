@@ -8,6 +8,8 @@ import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-en
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { decryptConfig } from '../../utils/security/credentials-crypto.utils.js';
 import { AppLogger } from '../../../observability/logger.js';
+import { isUuid } from '../../../domain/utils/uuid.utils.js';
+import type { ProjectRecord } from '../../models/repository-records.models.js';
 
 @Injectable()
 export class SyncProjectFilesService {
@@ -20,19 +22,40 @@ export class SyncProjectFilesService {
     private readonly logger: AppLogger,
   ) {}
 
-  async syncProject(userId: string, projectId: string): Promise<number> {
-    // 1. Find project and linked repositories via ContentRepository port
-    const project = await this.contentRepository.getProjectById(userId, projectId)
-      || await this.contentRepository.getProjectBySlug(userId, projectId);
-
+  /**
+   * Sincroniza arquivos de um projeto quando o chamador possui seu ID (UUID).
+   */
+  async syncProjectById(userId: string, projectId: string): Promise<number> {
+    const project = await this.contentRepository.getProjectById(userId, projectId);
     if (!project) return 0;
+    return this.syncProjectEntity(userId, project);
+  }
 
+  /**
+   * Sincroniza arquivos de um projeto quando o chamador possui seu slug legível (ex: Webhooks).
+   */
+  async syncProjectBySlug(userId: string, projectSlug: string): Promise<number> {
+    const project = await this.contentRepository.getProjectBySlug(userId, projectSlug);
+    if (!project) return 0;
+    return this.syncProjectEntity(userId, project);
+  }
+
+  /**
+   * Ponto de entrada polimórfico para compatibilidade reversa.
+   */
+  async syncProject(userId: string, projectSlugOrId: string): Promise<number> {
+    return isUuid(projectSlugOrId)
+      ? this.syncProjectById(userId, projectSlugOrId)
+      : this.syncProjectBySlug(userId, projectSlugOrId);
+  }
+
+  private async syncProjectEntity(userId: string, project: ProjectRecord): Promise<number> {
     const workspaceSlug = project.workspaceSlug || 'default';
     const linkedRepos = project.repositories || [];
 
     if (linkedRepos.length === 0) return 0;
 
-    // 2. Resolve GitHub token
+    // Resolve GitHub token
     const environment = this.environmentProvider.read();
     let token = '';
 
@@ -61,7 +84,7 @@ export class SyncProjectFilesService {
 
     if (!token) return 0;
 
-    // 3. Fetch file trees from all linked repositories
+    // Fetch file trees from all linked repositories
     const allFilePathsSet = new Set<string>();
     let successfulRepositoryFetches = 0;
     for (const repo of linkedRepos) {

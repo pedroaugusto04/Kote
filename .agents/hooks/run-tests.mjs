@@ -143,7 +143,15 @@ if (hasPackageJsonChanges) {
 
     if (build) {
       console.log('3. Executando testes (test backend)...');
-      if (!runCommand('npm', ['run', 'test:api'])) failed = true;
+      const backendChanged = changedFiles.filter(f => f.startsWith('backend/'));
+      const testFiles = backendChanged.filter(f => f.endsWith('.test.mjs'));
+
+      if (testFiles.length > 0) {
+        console.log(`Executando testes focados do backend (${testFiles.length} arquivo(s))...`);
+        if (!runCommand('node', ['scripts/run-api-tests.mjs', ...testFiles])) failed = true;
+      } else {
+        if (!runCommand('npm', ['run', 'test:api'])) failed = true;
+      }
     } else {
       failed = true;
     }

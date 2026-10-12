@@ -28,14 +28,13 @@ export class WebhookController {
   @ApiResponse({ status: 200, description: 'Webhook processed successfully' })
   github(@Body(new ZodValidationPipe(githubPushWebhookBodySchema, 'invalid_github_webhook_payload')) body: GithubPushWebhookBody, @Req() request: Request & { rawBody?: Buffer }) {
     const eventType = String(request.headers['x-github-event'] || 'push').trim().toLowerCase();
-    const bodyAny = body as any;
     this.logger.info('github_webhook_received', {
       eventType,
-      repositoryId: bodyAny.repository?.id,
-      repositoryFullName: bodyAny.repository?.full_name,
-      ref: bodyAny.ref,
-      before: bodyAny.before,
-      after: bodyAny.after,
+      repositoryId: body.repository?.id,
+      repositoryFullName: body.repository?.full_name,
+      ref: body.ref,
+      before: body.before,
+      after: body.after,
     });
 
     if (eventType === 'pull_request') {

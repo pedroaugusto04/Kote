@@ -7,9 +7,12 @@ import {
   IngestEntryUseCase,
   ProcessAgentConversationUseCase,
   ResolveWhatsappAskAttachmentsUseCase,
+  ListPaginatedRemindersUseCase,
+  RefreshReminderStatusesUseCase,
 } from '../../../dist/application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { IngestAgentToolsService } from '../../../dist/application/services/conversation/ingest-agent-tools.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { WhatsappConversationTaskQueue } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
@@ -45,8 +48,28 @@ class StubWhatsappMediaDownloader {
 }
 
 class StubConversationAgentGateway {
-  async decide(_config, payload) {
+  constructor(knowledgeSearch) {
+    this.knowledgeSearch = knowledgeSearch;
+  }
+
+  async decide(_config, payload, tools) {
     const message = String(payload.messageText || '').trim().toLowerCase();
+    if (message.endsWith('?')) {
+      const searchTool = tools.find((tool) => tool.name === 'search_knowledge');
+      assert.ok(searchTool, 'semantic search tool must be available in the single conversation loop');
+      await searchTool.execute({ query: message });
+      return {
+        replyText: this.knowledgeSearch.result.answer,
+        resolvedDraft: { rawText: '', title: '' },
+        selectedProjectSlug: '',
+        selectedFolderId: '',
+        suggestedFolderPath: [],
+        confidence: 'high',
+        action: 'reply',
+        requestedAttachments: this.knowledgeSearch.result.requestedAttachments,
+        requestedAttachmentPattern: this.knowledgeSearch.result.requestedAttachmentPattern,
+      };
+    }
     if (message === 'corrigi timeout no webhook') {
       return {
         replyText: 'Ready to save.',
@@ -64,7 +87,7 @@ class StubConversationAgentGateway {
         selectedFolderId: '',
         suggestedFolderPath: ['Webhooks', 'Operacao'],
         confidence: 'high',
-        action: 'confirm',
+        action: 'capture',
       };
     }
     return {
@@ -83,7 +106,7 @@ class StubConversationAgentGateway {
       selectedFolderId: '',
       suggestedFolderPath: [],
       confidence: 'low',
-      action: 'ask',
+      action: 'clarify',
     };
   }
 }
@@ -102,9 +125,18 @@ class StubAskKnowledgeUseCase {
     };
   }
 
-  async execute(question, userId, options) {
-    this.calls.push({ question, userId, options });
-    return this.result;
+  buildTools(userId, scope, _embeddingConfig, _ragConfig, tracker) {
+    return [{
+      name: 'search_knowledge',
+      description: 'Search semantic knowledge',
+      parameters: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+      execute: async ({ query }) => {
+        this.calls.push({ question: query, userId, options: scope });
+        for (const source of this.result.sources) tracker.addSource(source);
+        for (const note of this.result.relatedNotes) tracker.addRelatedNote(note);
+        return { resultsCount: this.result.sources.length, chunks: this.result.sources };
+      },
+    }];
   }
 }
 
@@ -178,15 +210,27 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();
   const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
+  const reminderList = new ListPaginatedRemindersUseCase(
+    repositories.contentQueryRepository,
+    new RefreshReminderStatusesUseCase(
+      repositories.contentRepository,
+      repositories.reminderDispatchRepository,
+      repositories.runtimeEnvironmentProvider,
+    ),
+  );
+  const toolsService = new IngestAgentToolsService(repositories.contentRepository, loggerMock, reminderList);
+  const knowledgeSearch = options.askKnowledge || new StubAskKnowledgeUseCase();
   const conversation = new ProcessAgentConversationUseCase(
     repositories.contentRepository,
     repositories.conversationStateRepository,
     ingest,
     { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', conversationAiProvider: 'openrouter', conversationAiBaseUrl: 'https://example.com', conversationAiModel: 'test-model', conversationAiApiKey: 'test-key' }) },
-    new StubConversationAgentGateway(),
+    new StubConversationAgentGateway(knowledgeSearch),
+    toolsService,
     presenter,
     folderResolution,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
+    knowledgeSearch,
     loggerMock,
   );
   const whatsapp = new HandleWhatsappWebhookUseCase(
@@ -196,7 +240,6 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '', audioAiProvider: options.audioTranscription ? 'gemini' : 'none', audioAiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta', audioAiModel: 'gemini-2.5-flash', audioAiApiKey: 'dummy-key' }) },
     undefined,
     conversation,
-    options.askKnowledge,
     sender,
     mediaDownloader,
     undefined,
@@ -567,18 +610,19 @@ test('direct whatsapp webhook downloads media when Evolution payload has metadat
   assert.equal((await repositories.objectStorage.get(attachments[0].storageKey)).toString('utf8'), 'downloaded image');
 });
 
-test('whatsapp /ask command replies with semantic AI answer scoped to the workspace', async (t) => {
+test('whatsapp natural language question gets a semantic AI answer scoped to the workspace', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
 
-  const result = await whatsapp.execute(evolutionInput('/kote /ask como fazer deploy?'));
+  const result = await whatsapp.execute(evolutionInput('/kote como fazer deploy?'));
 
-  assert.equal(result.action, 'ask');
+  assert.equal(result.action, 'answer');
   assert.equal(result.replySent, true);
   assert.match(result.message, /Deploy using the staging checklist first/);
   assert.doesNotMatch(result.message, /Confidence:/);
   assert.doesNotMatch(result.message, /Source:/);
-  assert.equal(result.askResult, askKnowledge.result);
+  assert.equal(result.conversationResult.answerContext.answer, askKnowledge.result.answer);
+  assert.deepEqual(result.conversationResult.answerContext.sources, askKnowledge.result.sources);
   assert.equal(askKnowledge.calls.length, 1);
   assert.equal(askKnowledge.calls[0].question, 'como fazer deploy?');
   assert.equal(askKnowledge.calls[0].userId, user.id);
@@ -589,7 +633,7 @@ test('whatsapp /ask command replies with semantic AI answer scoped to the worksp
   assert.equal(sender.media.length, 0);
 });
 
-test('whatsapp /ask command sends related note attachments only when requested', async (t) => {
+test('whatsapp natural language question sends related note attachments when requested', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
   const { note, attachment } = await seedAskNoteWithAttachment(repositories, user.id, {
@@ -601,9 +645,9 @@ test('whatsapp /ask command sends related note attachments only when requested',
   askKnowledge.result.relatedNotes = [{ id: note.id, title: note.title, path: note.path, workspaceSlug: note.workspaceSlug }];
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o PDF do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote Pode enviar o PDF do deploy?'));
 
-  assert.equal(result.action, 'ask');
+  assert.equal(result.action, 'answer');
   assert.equal(result.replySent, true);
   assert.equal(result.mediaSent, 1);
   assert.equal(result.mediaFailed, 0);
@@ -619,7 +663,7 @@ test('whatsapp /ask command sends related note attachments only when requested',
   assert.equal(sender.media[0].fileName, attachment.fileName);
 });
 
-test('whatsapp /ask command limits media replies to 3 attachments', async (t) => {
+test('whatsapp natural language query limits media replies to 3 attachments', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
   const seeded = [];
@@ -634,14 +678,14 @@ test('whatsapp /ask command limits media replies to 3 attachments', async (t) =>
   askKnowledge.result.relatedNotes = seeded.map(({ note }) => ({ id: note.id, workspaceSlug: note.workspaceSlug }));
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kote /ask quero os anexos do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote Pode enviar os anexos do deploy?'));
 
   assert.equal(result.mediaSent, 3);
   assert.equal(sender.media.length, 3);
   assert.deepEqual(sender.media.map((item) => item.fileName), ['deploy-0.pdf', 'deploy-1.pdf', 'deploy-2.pdf']);
 });
 
-test('whatsapp /ask command filters attachments by requestedAttachmentPattern when matched', async (t) => {
+test('whatsapp natural language query filters attachments by requestedAttachmentPattern when matched', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
   const seeded = [];
@@ -661,14 +705,14 @@ test('whatsapp /ask command filters attachments by requestedAttachmentPattern wh
   askKnowledge.result.requestedAttachments = true;
   askKnowledge.result.requestedAttachmentPattern = 'resumo';
 
-  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o PDF de resumo'));
+  const result = await whatsapp.execute(evolutionInput('/kote Pode enviar o PDF de resumo?'));
 
   assert.equal(result.mediaSent, 1);
   assert.equal(sender.media.length, 1);
   assert.equal(sender.media[0].fileName, 'resumo-ciencia-dados.pdf');
 });
 
-test('whatsapp /ask command falls back to all attachments when requestedAttachmentPattern matches nothing', async (t) => {
+test('whatsapp natural language query falls back to all attachments when requestedAttachmentPattern matches nothing', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
   const seeded = [];
@@ -683,14 +727,14 @@ test('whatsapp /ask command falls back to all attachments when requestedAttachme
   askKnowledge.result.requestedAttachments = true;
   askKnowledge.result.requestedAttachmentPattern = 'nao-existente';
 
-  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o PDF de nao-existente'));
+  const result = await whatsapp.execute(evolutionInput('/kote Pode enviar o PDF de nao-existente?'));
 
   assert.equal(result.mediaSent, 1);
   assert.equal(sender.media.length, 1);
   assert.equal(sender.media[0].fileName, 'outro-doc.pdf');
 });
 
-test('whatsapp /ask command skips attachments over 15 MB and mentions the size limit', async (t) => {
+test('whatsapp natural language query skips attachments over 15 MB and mentions the size limit', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
   const { note } = await seedAskNoteWithAttachment(repositories, user.id, {
@@ -702,7 +746,7 @@ test('whatsapp /ask command skips attachments over 15 MB and mentions the size l
   askKnowledge.result.relatedNotes = [{ id: note.id, workspaceSlug: note.workspaceSlug }];
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o arquivo do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote Pode enviar o arquivo do deploy?'));
 
   assert.equal(result.mediaSent, 0);
   assert.equal(result.mediaOversized, 1);
@@ -710,7 +754,7 @@ test('whatsapp /ask command skips attachments over 15 MB and mentions the size l
   assert.match(result.message, /larger than 15 MB/);
 });
 
-test('whatsapp /ask command reports no attachments when related notes have none', async (t) => {
+test('whatsapp natural language query reports no attachments when related notes have none', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
   const { note } = await seedAskNoteWithAttachment(repositories, user.id, {
@@ -740,14 +784,14 @@ test('whatsapp /ask command reports no attachments when related notes have none'
   askKnowledge.result.relatedNotes = [{ id: emptyNote.id, workspaceSlug: emptyNote.workspaceSlug }];
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o arquivo do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote Pode enviar o arquivo do deploy?'));
 
   assert.equal(result.mediaSent, 0);
   assert.equal(sender.media.length, 0);
   assert.match(result.message, /I could not find any attached files/);
 });
 
-test('whatsapp /ask attachments stay scoped to the linked workspace', async (t) => {
+test('whatsapp natural language query attachments stay scoped to the linked workspace', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { repositories, whatsapp, sender, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
   await repositories.contentRepository.upsertWorkspace(user.id, {
@@ -770,23 +814,25 @@ test('whatsapp /ask attachments stay scoped to the linked workspace', async (t) 
   askKnowledge.result.relatedNotes = [{ id: note.id, workspaceSlug: note.workspaceSlug }];
   askKnowledge.result.requestedAttachments = true;
 
-  const result = await whatsapp.execute(evolutionInput('/kote /ask quero o arquivo do deploy'));
+  const result = await whatsapp.execute(evolutionInput('/kote Pode enviar o arquivo do deploy?'));
 
   assert.equal(result.mediaSent, 0);
   assert.equal(sender.media.length, 0);
 });
 
-test('whatsapp /ask command keeps each question isolated from previous turns', async (t) => {
+test('whatsapp natural language questions preserve conversation history across turns', async (t) => {
   const askKnowledge = new StubAskKnowledgeUseCase();
   const { whatsapp, repositories, user } = await fixture(t, new CapturingWhatsappSender(), undefined, { askKnowledge });
 
-  await whatsapp.execute(evolutionInput('/kote /ask qual é o deploy checklist?'));
-  await whatsapp.execute(evolutionInput('/kote /ask e como executa?'));
+  await whatsapp.execute(evolutionInput('/kote qual é o deploy checklist?'));
+  await whatsapp.execute(evolutionInput('/kote e como executa?'));
 
   assert.equal(askKnowledge.calls.length, 2);
   assert.ok(askKnowledge.calls[0].options.workspaceId);
   assert.ok(askKnowledge.calls[1].options.workspaceId);
-  assert.equal(await repositories.countConversationStates(), 0);
+  assert.equal(await repositories.countConversationStates(), 1);
+  const stateRecord = await repositories.conversationStateRepository.get(user.id, 'default', 'agent:120363@g.us:5511999999999@s.whatsapp.net');
+  assert.equal(stateRecord?.state?.turns?.length, 2);
 });
 
 test('whatsapp webhook ignores only bot-prefixed self messages', async (t) => {

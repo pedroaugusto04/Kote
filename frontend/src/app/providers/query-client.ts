@@ -63,6 +63,6 @@ try {
 } catch (err) {
   // If persistence integration fails (version mismatch or environment), fall back
   // to a non-persisted client instead of crashing the app.
-  // eslint-disable-next-line no-console
+   
   console.error('persistQueryClient failed, continuing without persistence', err);
 }

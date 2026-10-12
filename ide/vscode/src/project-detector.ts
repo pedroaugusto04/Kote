@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 import type { KbClient, KbProject } from './kb-client';
 import { toUrlSlug } from './utils/text.js';
 
@@ -9,7 +9,7 @@ import { toUrlSlug } from './utils/text.js';
  * Normalizes a git remote URL to extract repo and owner/repo names.
  */
 export function extractGitRepoInfo(remoteUrl: string): { fullName?: string; repoName?: string } {
-  let clean = remoteUrl.trim().replace(/\.git$/, '');
+  const clean = remoteUrl.trim().replace(/\.git$/, '');
   const match = clean.match(/(?:[:/])([a-zA-Z0-9_.-]+)\/([a-zA-Z0-9_.-]+)$/);
   if (match) {
     return {
@@ -271,7 +271,9 @@ export function resolveProjectSlugFromDir(dirPath: string): string | undefined {
       try {
         const sync = JSON.parse(fs.readFileSync(syncFile, 'utf8'));
         if (sync.defaultProject) return sync.defaultProject;
-      } catch {}
+      } catch {
+        // Fall back to manifest or git detection if .kb-sync.json cannot be parsed
+      }
     }
   }
 

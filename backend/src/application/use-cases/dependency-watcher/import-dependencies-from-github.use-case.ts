@@ -36,8 +36,9 @@ export class ImportDependenciesFromGithubUseCase {
       throw new NotFoundException('workspace_not_found');
     }
 
-    const projects = await this.contentRepository.listProjects(userId);
-    let workspaceProjects = projects.filter((p) => p.workspaceSlug === workspaceSlug);
+    let workspaceProjects = this.contentRepository.listProjectsByWorkspace
+      ? await this.contentRepository.listProjectsByWorkspace(userId, workspace.id)
+      : (await this.contentRepository.listProjects(userId)).filter((p) => p.workspaceSlug === workspaceSlug);
 
     if (projectIds && projectIds.length > 0) {
       workspaceProjects = workspaceProjects.filter((p) => projectIds.includes(p.id));

@@ -22,6 +22,8 @@ import type {
   QuotaAdjustmentRecord,
 } from '../../application/models/repository-records.models.js';
 import type { WebhookSubscriptionRecord } from '../../application/models/webhook-subscription.models.js';
+import type { DependencyWatchRecord } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
+import type { DependencyEcosystem } from '../../contracts/enums.js';
 
 type Row = Record<string, unknown>;
 
@@ -44,7 +46,12 @@ export function toIsoTimestamp(value: unknown): string {
   const s = String(value || '').trim();
   if (!s) return '';
 
-  const parsed = Date.parse(s);
+  let normalized = s;
+  if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(normalized)) {
+    normalized = normalized.replace(' ', 'T') + 'Z';
+  }
+
+  const parsed = Date.parse(normalized);
   if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();
 
   return '';
@@ -407,5 +414,26 @@ export function quotaAdjustmentFromRow(row: Row): QuotaAdjustmentRecord {
     description: row.description ? String(row.description) : null,
     expiresAt: row.expiresAt || row.expires_at ? toIsoTimestamp(row.expiresAt || row.expires_at) : null,
     createdAt: toIsoTimestamp(row.createdAt || row.created_at),
+  };
+}
+
+export function dependencyWatchFromRow(record: Row): DependencyWatchRecord {
+  return {
+    id: String(record.id),
+    userId: fieldString(record, 'user_id', 'userId'),
+    workspaceId: fieldString(record, 'workspace_id', 'workspaceId'),
+    workspaceSlug: fieldString(record, 'workspace_slug', 'workspaceSlug'),
+    ecosystem: record.ecosystem as DependencyEcosystem,
+    packageName: String(record.packageName ?? record.package_name ?? ''),
+    currentVersion: String(record.currentVersion ?? record.current_version ?? ''),
+    latestSeenVersion: String(record.latestSeenVersion ?? record.latest_seen_version ?? ''),
+    checkIntervalHours: Number(record.checkIntervalHours ?? record.check_interval_hours ?? 24),
+    lastCheckedAt: (record.lastCheckedAt ?? record.last_checked_at ?? null) as Date | null,
+    lastAlertedAt: (record.lastAlertedAt ?? record.last_alerted_at ?? null) as Date | null,
+    lastUrgency: (record.lastUrgency ?? record.last_urgency ?? null) as 'optional' | 'recommended' | 'critical' | null,
+    enabled: Boolean(record.enabled),
+    repositoryId: (record.repositoryId ?? record.repository_id ?? null) as string | null,
+    createdAt: (record.createdAt ?? record.created_at) as Date,
+    updatedAt: (record.updatedAt ?? record.updated_at) as Date,
   };
 }

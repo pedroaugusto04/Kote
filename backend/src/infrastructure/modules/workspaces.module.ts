@@ -13,8 +13,10 @@ import {
   ListWorkspaceCategoriesUseCase,
 } from '../../application/use-cases/index.js';
 import { GithubRepositoryResolutionService } from '../../application/services/integrations/github-repository-resolution.service.js';
-import { WorkspaceResolutionGuard } from '../../interfaces/http/guards/workspace-resolution.guard.js';
 import { WorkspacesController } from '../../interfaces/http/controllers/index.js';
+
+import { WorkspaceScopeResolver } from '../../application/services/content/workspace-scope-resolver.service.js';
+import { ScopeGuard } from '../../interfaces/http/guards/scope.guard.js';
 
 @Module({
   imports: [
@@ -34,7 +36,8 @@ import { WorkspacesController } from '../../interfaces/http/controllers/index.js
     ListWorkspaceRepositoriesUseCase,
     ListWorkspaceCategoriesUseCase,
     GithubRepositoryResolutionService,
-    WorkspaceResolutionGuard,
+    WorkspaceScopeResolver,
+    ScopeGuard,
   ],
   exports: [
     ListWorkspacesUseCase,
@@ -42,7 +45,8 @@ import { WorkspacesController } from '../../interfaces/http/controllers/index.js
     ListWorkspaceRepositoriesUseCase,
     ListWorkspaceCategoriesUseCase,
     GithubRepositoryResolutionService,
-    WorkspaceResolutionGuard,
+    WorkspaceScopeResolver,
+    ScopeGuard,
   ],
 })
 export class WorkspacesModule {}

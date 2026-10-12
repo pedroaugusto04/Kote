@@ -4,6 +4,7 @@ import { AgentConversationAction as AgentConversationActionEnum, CanonicalType, 
 import { conversationMediaSchema } from './conversation.js';
 
 const agentActionSchema = z.nativeEnum(AgentConversationActionEnum);
+const conversationDecisionActionSchema = z.enum(['capture', 'reply', 'clarify', 'cancel']);
 const nullishToUndefined = (value: unknown) => value == null ? undefined : value;
 const blankishToUndefined = (value: unknown) => {
   if (value == null) return undefined;
@@ -16,6 +17,7 @@ const defaultKnowledgeKindSchema = z.preprocess(nullishToUndefined, z.nativeEnum
 const defaultCanonicalTypeSchema = z.preprocess(nullishToUndefined, z.nativeEnum(CanonicalType).default(CanonicalType.Event));
 const defaultImportanceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(Importance).default(Importance.Low));
 const defaultActionSchema = z.preprocess(blankishToUndefined, agentActionSchema.default(AgentConversationActionEnum.Ask));
+const defaultDecisionActionSchema = z.preprocess(blankishToUndefined, conversationDecisionActionSchema.default('clarify'));
 const defaultConfidenceSchema = z.preprocess(nullishToUndefined, z.nativeEnum(ConversationConfidence).default(ConversationConfidence.Low));
 
 export const agentConversationDraftSchema = z.object({
@@ -65,10 +67,20 @@ export const conversationAgentDecisionSchema = z.object({
   suggestedFolderPath: defaultStringArraySchema,
   placeInRoot: z.preprocess(nullishToUndefined, z.boolean().default(false)),
   confidence: defaultConfidenceSchema,
-  action: defaultActionSchema,
+  action: defaultDecisionActionSchema,
+  requestedAttachments: z.preprocess(nullishToUndefined, z.boolean().default(false)),
+  requestedAttachmentPattern: z.preprocess(nullishToUndefined, z.string().optional()),
 });
 
+export type ConversationAgentFolderContext = {
+  id: string;
+  displayName: string;
+  fullSlugPath: string;
+  children: ConversationAgentFolderContext[];
+};
+
 export type AgentConversationAction = AgentConversationActionEnum;
+export type ConversationDecisionAction = z.infer<typeof conversationDecisionActionSchema>;
 export type AgentConversationDraft = z.infer<typeof agentConversationDraftSchema>;
 export type AgentConversationState = z.infer<typeof agentConversationStateSchema>;
 export type ConversationAgentDecision = z.infer<typeof conversationAgentDecisionSchema>;

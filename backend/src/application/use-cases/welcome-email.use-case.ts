@@ -27,7 +27,7 @@ export class WelcomeEmailService {
       `Kote centralizes your team's operational knowledge, preventing context loss and accelerating the integration of new team members.\n\n` +
       `KEY FEATURES:\n` +
       `• GitHub Push Integration: Automatically capture commits with AI analysis\n` +
-      `• WhatsApp & Telegram: Send audio/text to generate structured notes\n` +
+      `• WhatsApp & Telegram: Ask questions naturally, capture notes, and manage reminders\n` +
       `• AI-Powered Conversations: Integrated chat to ask questions about your Kote\n` +
       `• CLI Tool & VS Code: Sync files and AI sessions directly from your editor\n\n` +
       `GETTING STARTED:\n` +

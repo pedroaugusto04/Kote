@@ -22,6 +22,7 @@ import {
   ASAAS_SANDBOX_BASE_URL,
   PLAN_PRICE_SCALE,
 } from './AsaasHelpers.js';
+import { AsaasPaymentMapper } from './AsaasPaymentMapper.js';
 
 interface AsaasCreditCardTokenSource {
   creditCardToken?: string;
@@ -119,14 +120,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
   }
 
   private readCreditCardToken(payload?: AsaasPaymentLike | null): string | undefined {
-    const token =
-      payload?.creditCardToken ??
-      payload?.creditCard?.creditCardToken ??
-      payload?.creditCard?.token;
-
-    if (typeof token !== 'string') return undefined;
-    const normalized = token.trim();
-    return normalized ? normalized : undefined;
+    return AsaasPaymentMapper.readCreditCardToken(payload);
   }
 
   private shouldDisableCustomerNotifications(): boolean {
@@ -138,44 +132,19 @@ export class AsaasPaymentGateway implements IPaymentGateway {
   }
 
   private normalizeGatewayMoney(value: unknown, fallback = 0): number {
-    if (value === null || value === undefined || value === '') return fallback;
-
-    try {
-      return toMoneyNumber(value, PLAN_PRICE_SCALE);
-    } catch {
-      return fallback;
-    }
+    return AsaasPaymentMapper.normalizeGatewayMoney(value, fallback);
   }
 
   private normalizeGatewayId(value: unknown): string | undefined {
-    if (typeof value === 'string') {
-      const trimmed = value.trim();
-      return trimmed.length ? trimmed : undefined;
-    }
-
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value);
-    }
-
-    return undefined;
+    return AsaasPaymentMapper.normalizeGatewayId(value);
   }
 
   private normalizeBillingType(value: unknown): BillingTypeEnum | undefined {
-    if (typeof value !== 'string') return undefined;
-    switch (value.toUpperCase()) {
-      case 'BOLETO': return BillingTypeEnum.BOLETO;
-      case 'PIX': return BillingTypeEnum.PIX;
-      case 'CREDIT_CARD': return BillingTypeEnum.CREDIT_CARD;
-      default: return undefined;
-    }
+    return AsaasPaymentMapper.normalizeBillingType(value);
   }
 
   private normalizeOptionalDate(value: unknown): string | Date | undefined {
-    if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-    if (typeof value !== 'string') return undefined;
-
-    const trimmed = value.trim();
-    return trimmed.length ? trimmed : undefined;
+    return AsaasPaymentMapper.normalizeOptionalDate(value);
   }
 
   async createCustomer(input: CreateCustomerInput): Promise<GatewayCustomer> {
@@ -285,44 +254,17 @@ export class AsaasPaymentGateway implements IPaymentGateway {
       body: JSON.stringify(payload),
     });
 
-    const payment: GatewayPayment = {
-      id: String(data?.id ?? gatewayPaymentId),
-      status: data?.status ? String(data.status) : undefined,
-      value: this.normalizeGatewayMoney(data?.value ?? input.value),
-      dueDate: this.normalizeOptionalDate(data?.dueDate ?? input.dueDate),
-      billingType: this.normalizeBillingType(data?.billingType ?? input.billingType),
-      creditCardToken: this.readCreditCardToken(data),
-      paidAt: this.normalizeOptionalDate(
-        data?.paymentDate ?? data?.clientPaymentDate ?? data?.confirmedDate
-      ),
-      invoiceUrl: typeof data?.invoiceUrl === 'string' ? data.invoiceUrl : undefined,
-      bankSlipUrl: typeof data?.bankSlipUrl === 'string' ? data.bankSlipUrl : undefined,
-      pixQrCode: typeof data?.pixQrCode === 'string' ? data.pixQrCode : undefined,
-      pixQrCodeUrl: typeof data?.pixQrCodeUrl === 'string' ? data.pixQrCodeUrl : undefined,
-      subscription: this.normalizeGatewayId(data?.subscription),
-      description: typeof (data?.description ?? input.description) === 'string'
-        ? (data?.description ?? input.description)
-        : undefined,
-      externalReference: typeof (data?.externalReference ?? input.externalReference) === 'string'
-        ? (data?.externalReference ?? input.externalReference)
-        : undefined,
-    };
+    const payment = AsaasPaymentMapper.toGatewayPayment(data, {
+      id: gatewayPaymentId,
+      value: input.value,
+      dueDate: input.dueDate,
+      billingType: input.billingType,
+      description: input.description,
+      externalReference: input.externalReference,
+    });
 
-    if (payment?.id && !payment.pixQrCode && (input.billingType === BillingTypeEnum.PIX || data?.billingType === BillingTypeEnum.PIX)) {
-      try {
-        const pixRes = await this.request<any>(`/payments/${payment.id}/pixQrCode`, {
-          method: 'GET',
-        });
-        const payloadStr = pixRes?.payload;
-        if (isNonEmptyString(payloadStr)) {
-          payment.pixQrCode = payloadStr;
-          if (pixRes?.encodedImage) {
-            payment.pixQrCodeUrl = `data:image/png;base64,${pixRes.encodedImage}`;
-          }
-        }
-      } catch {
-        // ignore
-      }
+    if (input.billingType === BillingTypeEnum.PIX || data?.billingType === BillingTypeEnum.PIX) {
+      await this.hydratePixQrCode(payment);
     }
 
     return payment;
@@ -360,45 +302,16 @@ export class AsaasPaymentGateway implements IPaymentGateway {
       body: JSON.stringify(payload),
     });
 
-    const payment: GatewayPayment = {
-      id: String(data?.id ?? ''),
-      status: data?.status ? String(data.status) : undefined,
-      value: this.normalizeGatewayMoney(data?.value ?? input.value),
-      dueDate: this.normalizeOptionalDate(data?.dueDate ?? input.dueDate),
-      billingType: this.normalizeBillingType(data?.billingType ?? input.billingType),
-      creditCardToken: this.readCreditCardToken(data),
-      paidAt: this.normalizeOptionalDate(
-        data?.paymentDate ?? data?.clientPaymentDate ?? data?.confirmedDate
-      ),
-      invoiceUrl: typeof data?.invoiceUrl === 'string' ? data.invoiceUrl : undefined,
-      bankSlipUrl: typeof data?.bankSlipUrl === 'string' ? data.bankSlipUrl : undefined,
-      pixQrCode: typeof data?.pixQrCode === 'string' ? data.pixQrCode : undefined,
-      pixQrCodeUrl: typeof data?.pixQrCodeUrl === 'string' ? data.pixQrCodeUrl : undefined,
-      subscription: data?.subscription ? String(data.subscription) : input.subscriptionId,
-      description: typeof (data?.description ?? input.description) === 'string'
-        ? (data?.description ?? input.description)
-        : undefined,
-      externalReference: typeof (data?.externalReference ?? input.externalReference) === 'string'
-        ? (data?.externalReference ?? input.externalReference)
-        : undefined,
-    };
+    const payment = AsaasPaymentMapper.toGatewayPayment(data, {
+      value: input.value,
+      dueDate: input.dueDate,
+      billingType: input.billingType,
+      subscriptionId: input.subscriptionId,
+      description: input.description,
+      externalReference: input.externalReference,
+    });
 
-    if (payment?.id && !payment.pixQrCode) {
-      try {
-        const pixRes = await this.request<any>(`/payments/${payment.id}/pixQrCode`, {
-          method: 'GET',
-        });
-        const payloadStr = pixRes?.payload;
-        if (isNonEmptyString(payloadStr)) {
-          payment.pixQrCode = payloadStr;
-          if (pixRes?.encodedImage) {
-            payment.pixQrCodeUrl = `data:image/png;base64,${pixRes.encodedImage}`;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
+    await this.hydratePixQrCode(payment);
 
     return payment;
   }
@@ -409,27 +322,9 @@ export class AsaasPaymentGateway implements IPaymentGateway {
     });
     const items = data?.data ?? [];
 
-    const payments: GatewayPayment[] = items.flatMap((p) => {
-      const id = this.normalizeGatewayId(p?.id);
-      if (!id) return [];
-
-      return [{
-        id,
-        status: typeof p?.status === 'string' ? p.status : undefined,
-        value: this.normalizeGatewayMoney(p?.value ?? 0),
-        dueDate: this.normalizeOptionalDate(p?.dueDate),
-        billingType: this.normalizeBillingType(p?.billingType),
-        creditCardToken: this.readCreditCardToken(p),
-        paidAt: this.normalizeOptionalDate(p?.paymentDate ?? p?.clientPaymentDate ?? p?.confirmedDate),
-        invoiceUrl: typeof p?.invoiceUrl === 'string' ? p.invoiceUrl : undefined,
-        bankSlipUrl: typeof p?.bankSlipUrl === 'string' ? p.bankSlipUrl : undefined,
-        pixQrCode: typeof p?.pixQrCode === 'string' ? p.pixQrCode : undefined,
-        pixQrCodeUrl: typeof p?.pixQrCodeUrl === 'string' ? p.pixQrCodeUrl : undefined,
-        subscription: this.normalizeGatewayId(p?.subscription),
-        description: typeof p?.description === 'string' ? p.description : undefined,
-        externalReference: typeof p?.externalReference === 'string' ? p.externalReference : undefined,
-      }];
-    });
+    const payments: GatewayPayment[] = items
+      .filter((p) => Boolean(AsaasPaymentMapper.normalizeGatewayId(p?.id)))
+      .map((p) => AsaasPaymentMapper.toGatewayPayment(p));
 
     payments.sort((a, b) => String(b.dueDate ?? '').localeCompare(String(a.dueDate ?? '')));
 
@@ -460,42 +355,12 @@ export class AsaasPaymentGateway implements IPaymentGateway {
     const raw = payload;
     const eventCreatedAt = parseDateTimeInput(payload?.dateCreated) ?? undefined;
 
-    const payment = payload?.payment
-      ? (() => {
-          const paymentId = this.normalizeGatewayId(payload.payment?.id);
-          if (!paymentId) return undefined;
-
-          return {
-            id: paymentId,
-            status: payload.payment?.status ? String(payload.payment.status) : undefined,
-            value: this.normalizeGatewayMoney(payload.payment?.value ?? 0),
-            dueDate: this.normalizeOptionalDate(payload.payment?.dueDate),
-            billingType: this.normalizeBillingType(payload.payment?.billingType),
-            creditCardToken: this.readCreditCardToken(payload.payment),
-            paidAt: this.normalizeOptionalDate(
-              payload.payment?.paymentDate ??
-              payload.payment?.clientPaymentDate ??
-              payload.payment?.confirmedDate
-            ),
-            invoiceUrl: typeof payload.payment?.invoiceUrl === 'string' ? payload.payment.invoiceUrl : undefined,
-            bankSlipUrl: typeof payload.payment?.bankSlipUrl === 'string' ? payload.payment.bankSlipUrl : undefined,
-            pixQrCode: typeof payload.payment?.pixQrCode === 'string' ? payload.payment.pixQrCode : undefined,
-            pixQrCodeUrl: typeof payload.payment?.pixQrCodeUrl === 'string' ? payload.payment.pixQrCodeUrl : undefined,
-            subscription: this.normalizeGatewayId(payload.payment?.subscription),
-            description: typeof payload.payment?.description === 'string' ? payload.payment.description : undefined,
-            externalReference: typeof payload.payment?.externalReference === 'string'
-              ? payload.payment.externalReference
-              : undefined,
-          } satisfies GatewayPayment;
-        })()
+    const payment = payload?.payment && AsaasPaymentMapper.normalizeGatewayId(payload.payment?.id)
+      ? AsaasPaymentMapper.toGatewayPayment(payload.payment)
       : undefined;
 
-    const subscription = payload?.subscription
-      ? ({
-          id: String(payload.subscription.id),
-          status: payload.subscription.status ? String(payload.subscription.status) : undefined,
-          nextDueDate: payload.subscription.nextDueDate,
-        } satisfies GatewaySubscription)
+    const subscription = payload?.subscription && payload.subscription.id
+      ? AsaasPaymentMapper.toGatewaySubscription(payload.subscription)
       : undefined;
 
     return { event, eventCreatedAt, payment, subscription, raw };
@@ -508,11 +373,7 @@ export class AsaasPaymentGateway implements IPaymentGateway {
 
     if (!data?.id) return null;
 
-    return {
-      id: String(data.id),
-      status: data.status ? String(data.status) : undefined,
-      nextDueDate: this.normalizeOptionalDate(data.nextDueDate),
-    };
+    return AsaasPaymentMapper.toGatewaySubscription(data);
   }
 
   async getPaymentByGatewayId(gatewayPaymentId: string): Promise<GatewayPayment | null> {
@@ -522,44 +383,27 @@ export class AsaasPaymentGateway implements IPaymentGateway {
 
     if (!data?.id) return null;
 
-    const payment: GatewayPayment = {
-      id: String(data.id),
-      status: data.status ? String(data.status) : undefined,
-      value: this.normalizeGatewayMoney(data.value ?? 0),
-      dueDate: this.normalizeOptionalDate(data.dueDate),
-      billingType: this.normalizeBillingType(data.billingType),
-      creditCardToken: this.readCreditCardToken(data),
-      paidAt: this.normalizeOptionalDate(
-        data.paymentDate ??
-        data.clientPaymentDate ??
-        data.confirmedDate
-      ),
-      invoiceUrl: typeof data.invoiceUrl === 'string' ? data.invoiceUrl : undefined,
-      bankSlipUrl: typeof data.bankSlipUrl === 'string' ? data.bankSlipUrl : undefined,
-      pixQrCode: typeof data.pixQrCode === 'string' ? data.pixQrCode : undefined,
-      pixQrCodeUrl: typeof data.pixQrCodeUrl === 'string' ? data.pixQrCodeUrl : undefined,
-      subscription: data.subscription ? String(data.subscription) : undefined,
-      description: typeof data.description === 'string' ? data.description : undefined,
-      externalReference: typeof data.externalReference === 'string' ? data.externalReference : undefined,
-    };
-
-    if (payment?.id && !payment.pixQrCode) {
-      try {
-        const pixRes = await this.request<any>(`/payments/${payment.id}/pixQrCode`, {
-          method: 'GET',
-        });
-        const payload = pixRes?.payload;
-        if (isNonEmptyString(payload)) {
-          payment.pixQrCode = payload;
-          if (pixRes?.encodedImage) {
-            payment.pixQrCodeUrl = `data:image/png;base64,${pixRes.encodedImage}`;
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
+    const payment = AsaasPaymentMapper.toGatewayPayment(data);
+    await this.hydratePixQrCode(payment);
 
     return payment;
+  }
+
+  private async hydratePixQrCode(payment: GatewayPayment): Promise<void> {
+    if (!payment?.id || payment.pixQrCode) return;
+    try {
+      const pixRes = await this.request<any>(`/payments/${payment.id}/pixQrCode`, {
+        method: 'GET',
+      });
+      const payload = pixRes?.payload;
+      if (isNonEmptyString(payload)) {
+        payment.pixQrCode = payload;
+        if (pixRes?.encodedImage) {
+          payment.pixQrCodeUrl = `data:image/png;base64,${pixRes.encodedImage}`;
+        }
+      }
+    } catch {
+      // ignore
+    }
   }
 }

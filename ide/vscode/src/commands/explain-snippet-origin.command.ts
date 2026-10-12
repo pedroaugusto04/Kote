@@ -20,7 +20,7 @@ export function registerExplainSnippetOriginCommand(
         }
 
         const document = editor.document;
-        let selection = editor.selection;
+        const selection = editor.selection;
         let selectedText = document.getText(selection).trim();
         let startLine = selection.start.line + 1; // 1-indexed
         let endLine = selection.end.line + 1;

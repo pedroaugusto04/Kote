@@ -22,7 +22,6 @@ import { DEFAULT_PAGE_SIZE } from '../../shared/api/models/pagination';
 import { ensureNoteDetail, invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifySuccess } from '../../shared/ui/notifications';
-import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { EmptyState, InlineMessage, PageHead, Panel } from '../../shared/ui/primitives';
 import { Pagination } from '../../shared/ui/pagination';
 import { MobileInfinitePagination, useMobilePaginatedItems } from '../../shared/ui/mobile-infinite-pagination';
@@ -45,9 +44,8 @@ const CATEGORY_LABELS: Record<string, string> = {
   [SOURCE_VALUES.DEPENDENCY_WATCHER]: 'Dependencies',
 };
 
-import { ProjectFolderModal } from './modals/ProjectFolderModal';
-import { ProjectNoteModal } from './modals/ProjectNoteModal';
-import { ProjectModal } from './modals/ProjectModal';
+import { ProjectsWorkspaceModals } from './modals/ProjectsWorkspaceModals';
+import { mapSearchResultsToTimeline } from './projects-timeline.mapper';
 import { ProjectsBrowser, type ProjectBrowserView } from './ProjectsBrowser';
 import { flattenFolders } from './projects.helpers';
 import {
@@ -62,6 +60,7 @@ import { ProjectTimeline } from './ProjectTimeline';
 import { ProjectTimelineCard } from './ProjectTimelineCard';
 import { ProjectDecisionsPanel } from './ProjectDecisionsPanel';
 import { SideNoteDrawer } from '../../widgets/notes/SideNoteDrawer';
+import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
 import { DownloadIcon, SearchIcon } from '../../shared/ui/icons';
 import { InfoTooltip } from '../../shared/ui/info-tooltip';
 import { Select } from '../../shared/ui/select';
@@ -100,6 +99,7 @@ export function ProjectsWorkspace({
   const [timelineStatus, setTimelineStatus] = useState<NoteStatusFilter>(StatusFilter.Open);
   const [hiddenLatestBriefProjects, setHiddenLatestBriefProjects] = useState<Record<string, boolean>>({});
   const [sideNoteId, setSideNoteId] = useState<string | null>(null);
+  const [isExportConfirmOpen, setIsExportConfirmOpen] = useState(false);
 
   // Search state
   const [searchInput, setSearchInput] = useState('');
@@ -200,27 +200,7 @@ export function ProjectsWorkspace({
   });
 
   const searchResults: ProjectTimelineItem[] = useMemo(() => {
-    if (!searchQuery.data?.matches) return [];
-    return searchQuery.data.matches.map((match) => ({
-      id: match.id,
-      noteId: match.id,
-      title: match.title,
-      summary: match.summary,
-      project: match.project,
-      workspace: match.workspace,
-      folderId: match.folderId,
-      categories: match.categories,
-      type: match.type,
-      category: deriveTimelineCategory(match.source) as ProjectTimelineItemCategory,
-      status: match.status,
-      source: match.source,
-      sourceChannel: match.source,
-      date: match.date,
-      tags: match.tags,
-      path: match.path,
-      attachmentCount: match.attachmentCount || 0,
-      isPinned: match.isPinned,
-    }));
+    return mapSearchResultsToTimeline(searchQuery.data?.matches);
   }, [searchQuery.data?.matches]);
 
   const searchPagination = searchQuery.data?.pagination;
@@ -381,7 +361,7 @@ export function ProjectsWorkspace({
               type="button"
               title={PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP}
               aria-label={PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP}
-              onClick={() => exportZipMutation.mutate()}
+              onClick={() => setIsExportConfirmOpen(true)}
               disabled={exportZipMutation.isPending}
             >
               <DownloadIcon style={{ width: '1rem', height: '1rem', marginRight: '0.4rem' }} />
@@ -551,98 +531,49 @@ export function ProjectsWorkspace({
           />
         )}
       </div>
-      {projectModal ? (
-        <ProjectModal
-          githubConnected={githubConnected}
-          workspaceRepositories={workspaceRepositories}
-          mode={projectModal.mode}
-          project={projectModal.mode === WorkspaceModalMode.Edit ? projectModal.project : undefined}
-          onClose={() => setProjectModal(null)}
-          onSaved={async (projectSlug, mode) => {
-            setProjectModal(null);
-            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.PROJECT_CREATED : UI_MESSAGES.PROJECT_UPDATED);
-            openProject(projectSlug);
-            await refreshDashboard(queryClient);
-          }}
-        />
-      ) : null}
-      {folderModal ? (
-        <ProjectFolderModal
-          folders={flatFolders}
-          mode={folderModal.mode}
-          folder={folderModal.mode === WorkspaceModalMode.Edit ? folderModal.folder : undefined}
-          initialParentFolderId={folderModal.mode === WorkspaceModalMode.Create ? folderModal.parentFolderId : undefined}
-          onClose={() => setFolderModal(null)}
-          onSaved={async (folderId, mode) => {
-            setFolderModal(null);
-            setSelectedFolderId(folderId || ROOT_FOLDER_ID);
-            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.FOLDER_CREATED : UI_MESSAGES.FOLDER_UPDATED);
-            await refreshDashboard(queryClient);
-          }}
-          projectSlug={folderModal.projectSlug}
-        />
-      ) : null}
-       {noteModal ? (
-        <ProjectNoteModal
-          key={noteModal.mode === WorkspaceModalMode.Edit ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}-${noteModal.folderId || ''}-${noteModal.initialTitle || ''}`}
-          folders={selected?.projectSlug === (noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug) ? flatFolders : undefined}
-          mode={noteModal.mode}
-          note={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note : undefined}
-          onClose={() => {
-            if (pendingNotesQueue.length > 0) {
-              processNextNote();
-            } else {
-              setNoteModal(null);
-            }
-          }}
-          onSaved={async (noteId, mode) => {
-            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
-            await refreshDashboard(queryClient);
-
-            if (pendingNotesQueue.length > 0) {
-              processNextNote();
-            } else {
-              setNoteModal(null);
-            }
-          }}
-          projectSlug={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug}
-          initialFolderId={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.folderId || undefined : noteModal.folderId}
-          initialTitle={noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialTitle : undefined}
-          initialAttachments={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.attachments?.map(att => ({
-            fileName: att.fileName,
-            mimeType: att.mimeType,
-            sizeBytes: att.sizeBytes,
-            dataBase64: '',
-          })) : noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialAttachments : undefined}
-          projects={dashboard.projects}
-          workspaceSlug={workspaceSlug}
-        />
-      ) : null}
-      {confirmState ? (
+      <ProjectsWorkspaceModals
+        dashboard={dashboard}
+        workspaceSlug={workspaceSlug}
+        selectedProject={selected}
+        flatFolders={flatFolders}
+        githubConnected={githubConnected}
+        workspaceRepositories={workspaceRepositories}
+        projectModal={projectModal}
+        setProjectModal={setProjectModal}
+        folderModal={folderModal}
+        setFolderModal={setFolderModal}
+        noteModal={noteModal}
+        setNoteModal={setNoteModal}
+        confirmState={confirmState}
+        setConfirmState={setConfirmState}
+        pendingNotesCount={pendingNotesQueue.length}
+        processNextNote={processNextNote}
+        openProject={openProject}
+        onFolderCreatedOrUpdated={(folderId) => setSelectedFolderId(folderId)}
+        isDeleting={deleteProjectMutation.isPending || deleteFolderMutation.isPending || deleteNoteMutation.isPending}
+        onDeleteProject={(projectSlug) => deleteProjectMutation.mutate(projectSlug)}
+        onDeleteFolder={(projectSlug, folderId) => deleteFolderMutation.mutate({ projectSlug, folderId })}
+        onDeleteNote={(noteId) => deleteNoteMutation.mutate(noteId)}
+      />
+      {isExportConfirmOpen && (
         <ConfirmationModal
-          busy={deleteProjectMutation.isPending || deleteFolderMutation.isPending || deleteNoteMutation.isPending}
+          busy={exportZipMutation.isPending}
+          title={PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP_CONFIRM_TITLE}
+          description={
+            selected?.displayName
+              ? `Are you sure you want to export notes in "${selected.displayName}" as a ZIP archive?`
+              : PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP_CONFIRM_DESCRIPTION
+          }
           cancelLabel={UI_MESSAGES.CANCEL}
-          confirmLabel={UI_MESSAGES.CONFIRM_DELETION}
-          description={confirmState.kind === ConfirmKind.Project
-            ? PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_PROJECT.replace('{displayName}', confirmState.project.displayName)
-            : confirmState.kind === ConfirmKind.Folder
-              ? PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_FOLDER.replace('{displayName}', confirmState.folder.displayName)
-              : PROJECTS_WORKSPACE_MESSAGES.CONFIRMATION.DELETE_NOTE.replace('{title}', confirmState.note.title)}
-          onCancel={() => setConfirmState(null)}
+          confirmLabel={PROJECTS_WORKSPACE_MESSAGES.EXPORT_ZIP}
+          tone="default"
+          onCancel={() => setIsExportConfirmOpen(false)}
           onConfirm={() => {
-            if (confirmState.kind === ConfirmKind.Project) {
-              deleteProjectMutation.mutate(confirmState.project.projectSlug);
-              return;
-            }
-            if (confirmState.kind === ConfirmKind.Folder) {
-              deleteFolderMutation.mutate({ projectSlug: confirmState.projectSlug, folderId: confirmState.folder.id });
-              return;
-            }
-            deleteNoteMutation.mutate(confirmState.note.id);
+            setIsExportConfirmOpen(false);
+            exportZipMutation.mutate();
           }}
-          title={confirmState.kind === ConfirmKind.Project ? UI_MESSAGES.DELETE_PROJECT : confirmState.kind === ConfirmKind.Folder ? UI_MESSAGES.DELETE_FOLDER : UI_MESSAGES.DELETE_NOTE}
         />
-      ) : null}
+      )}
       </div>
     </>
   );
@@ -650,13 +581,4 @@ export function ProjectsWorkspace({
 
 async function refreshDashboard(queryClient: ReturnType<typeof useQueryClient>) {
   await invalidateNoteRelatedQueries(queryClient);
-}
-
-function deriveTimelineCategory(source: string | undefined): string {
-  if (!source) return SOURCE_VALUES.MANUAL;
-  const s = source.toLowerCase();
-  if (s.includes(SOURCE_VALUES.GITHUB)) return SOURCE_VALUES.GITHUB;
-  if (s.includes(SOURCE_VALUES.WHATSAPP) || s.includes('evolution')) return SOURCE_VALUES.WHATSAPP;
-  if (s === SOURCE_VALUES.AI_CHAT || s.includes('antigravity') || s.includes('codex') || s.includes('claude') || s.includes('opencode') || s.includes('open-code')) return SOURCE_VALUES.AI_CHAT;
-  return SOURCE_VALUES.MANUAL;
 }

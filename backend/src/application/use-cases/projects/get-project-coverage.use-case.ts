@@ -13,7 +13,7 @@ export class GetProjectCoverageUseCase {
   async execute(userId: string, input: { projectId: string; workspaceSlug?: string; forceSync?: boolean }): Promise<ProjectCoverageResult> {
     if (input.forceSync) {
       try {
-        await this.syncProjectFilesService.syncProject(userId, input.projectId);
+        await this.syncProjectFilesService.syncProjectById(userId, input.projectId);
       } catch {
         // Fallback to initial result if sync fails
       }

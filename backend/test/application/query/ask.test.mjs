@@ -8,6 +8,16 @@ import { RunAskAiUseCase } from '../../../dist/application/use-cases/query/run-a
 import { ListAskHistoryUseCase } from '../../../dist/application/use-cases/query/list-ask-history.use-case.js';
 import { AppLogger } from '../../../dist/observability/logger.js';
 import crypto from 'node:crypto';
+import {
+  toAskConversationTurns,
+  toSaveAskHistoryInput,
+  toAskChunkItems,
+  toAskNoteContentResult,
+  toAskProjectsResult,
+  toAskRecentNotesResult,
+  toAskRemindersResult,
+  toAskAttachmentsResult,
+} from '../../../dist/application/mappers/ask.mapper.js';
 
 const dummyAiEntitlement = {
   async requireAndConsume() {
@@ -207,7 +217,7 @@ test('AskKnowledgeUseCase embeds query, fetches similar chunks, and generates an
   ]);
 });
 
-test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches requested attachments via Whatsapp', async () => {
+test('RunAskAiUseCase saves only successful web Ask AI answers and returns requested attachments', async () => {
   const saved = [];
   const askKnowledge = {
     calls: [],
@@ -313,17 +323,90 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and dispatches re
   });
 
   assert.equal(resolveWhatsappAskAttachmentsUseCase.calls.length, 1);
-  assert.deepEqual(sentMedia, [{
-    chatJid: '12345@c.us',
-    mediaType: 'document',
-    mimeType: 'application/pdf',
-    fileName: 'manual.pdf',
-    mediaBase64: 'dGVzdA==',
-  }]);
+  // Web Ask AI returns media in response and decoupled from sending via WhatsApp
+  assert.equal(sentMedia.length, 0);
 
   askKnowledge.result = { ok: false, answer: 'Failed.', confidence: 'low', requestedAttachments: false, sources: [], relatedNotes: [] };
   await useCase.execute('Broken?', 'user-123');
   assert.equal(saved.length, 1);
+});
+
+test('RunAskAiUseCase loads prior conversation history when conversationId is provided', async () => {
+  const askKnowledge = {
+    calls: [],
+    async execute(question, userId, options) {
+      this.calls.push({ question, userId, options });
+      return { ok: true, answer: 'Answer 2', confidence: 'high', requestedAttachments: false, sources: [], relatedNotes: [] };
+    },
+  };
+  const repository = {
+    async save() {},
+    async getConversationTurns(convId, userId) {
+      assert.equal(convId, 'conv-1');
+      assert.equal(userId, 'user-123');
+      return [{
+        id: 'turn-1',
+        conversationId: 'conv-1',
+        question: 'First question?',
+        answer: 'First answer.',
+        confidence: 'high',
+        projectId: null,
+        sources: [],
+        relatedNotes: [],
+        createdAt: '2026-10-10T10:00:00.000Z',
+      }];
+    },
+  };
+  const useCase = new RunAskAiUseCase(
+    askKnowledge,
+    repository,
+    { async listWorkspaces() { return []; } },
+    { async execute() { return { requested: false, media: [] }; } },
+  );
+  const result = await useCase.execute('Follow-up question?', 'user-123', {}, 'conv-1');
+  assert.equal(result.ok, true);
+  assert.equal(askKnowledge.calls.length, 1);
+  assert.deepEqual(askKnowledge.calls[0].options.conversationHistory, [{
+    question: 'First question?',
+    answer: 'First answer.',
+    projectSlug: '',
+    timestamp: '2026-10-10T10:00:00.000Z',
+  }]);
+});
+
+test('ask.mapper correctly maps conversation turns, history input, and tool results', () => {
+  const turns = toAskConversationTurns([{ question: 'Q', answer: 'A', createdAt: '2026-10-10T00:00:00Z' }]);
+  assert.deepEqual(turns, [{ question: 'Q', answer: 'A', projectSlug: '', timestamp: '2026-10-10T00:00:00Z' }]);
+
+  const historyInput = toSaveAskHistoryInput({
+    userId: 'u1',
+    projectId: 'p1',
+    workspaceId: 'w1',
+    conversationId: 'c1',
+    question: 'Q',
+    result: { answer: 'Ans', confidence: 'high', sources: [], relatedNotes: [] },
+  });
+  assert.equal(historyInput.userId, 'u1');
+  assert.equal(historyInput.answer, 'Ans');
+  assert.equal(historyInput.confidence, 'high');
+
+  const chunkItems = toAskChunkItems([{ noteId: 'n1', title: 'T', path: 'p', projectSlug: 'slug', chunkText: 'txt' }]);
+  assert.deepEqual(chunkItems, [{ noteId: 'n1', title: 'T', path: 'p', project: 'slug', text: 'txt' }]);
+
+  const noteContent = toAskNoteContentResult({ id: 'n1', title: 'T', path: 'p', projectSlug: 'slug', tags: ['tag'] }, 'Body');
+  assert.deepEqual(noteContent, { id: 'n1', title: 'T', path: 'p', projectSlug: 'slug', tags: ['tag'], content: 'Body' });
+
+  const projects = toAskProjectsResult([{ id: 'p1', displayName: 'Proj', projectSlug: 'proj', defaultTags: ['d'] }]);
+  assert.deepEqual(projects, [{ id: 'p1', name: 'Proj', slug: 'proj', defaultTags: ['d'] }]);
+
+  const recent = toAskRecentNotesResult([{ id: 'n1', title: 'T', path: 'p', projectSlug: 'slug', occurredAt: '2026-10-10' }]);
+  assert.deepEqual(recent, [{ id: 'n1', title: 'T', path: 'p', projectSlug: 'slug', occurredAt: '2026-10-10' }]);
+
+  const reminders = toAskRemindersResult([{ id: 'r1', title: 'R', project: 'slug', status: 'pending', isOverdue: false, reminderAt: '2026-10-10', noteText: 'N' }]);
+  assert.deepEqual(reminders, [{ id: 'r1', title: 'R', project: 'slug', status: 'pending', isOverdue: false, reminderAt: '2026-10-10', noteText: 'N' }]);
+
+  const attachments = toAskAttachmentsResult([{ id: 'a1', fileName: 'f.pdf', sizeBytes: 100, mimeType: 'app/pdf', createdAt: '2026-10-10' }]);
+  assert.deepEqual(attachments, [{ id: 'a1', fileName: 'f.pdf', sizeBytes: 100, mimeType: 'app/pdf', createdAt: '2026-10-10' }]);
 });
 
 test('ListAskHistoryUseCase delegates pagination and project filtering to repository', async () => {

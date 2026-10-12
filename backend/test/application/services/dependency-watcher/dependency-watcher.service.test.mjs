@@ -108,6 +108,13 @@ describe('Backend: Dependency Watcher Service', () => {
           repositories: [{ id: 'repo-123', fullName: 'owner/repo' }],
         },
       ],
+      listProjectsByWorkspace: async () => [
+        {
+          projectSlug: 'my-project',
+          workspaceSlug: 'test-workspace',
+          repositories: [{ id: 'repo-123', fullName: 'owner/repo' }],
+        },
+      ],
       getWorkspaceById: async () => ({
         id: 'workspace-123',
         userId: 'user-123',

@@ -6,6 +6,7 @@ import { tokenizeQuery, getSpecialQueryIntent } from '../../application/utils/qu
 import { readEnvironment } from '../../adapters/environment.js';
 import { ReminderDeliveryChannel } from '../../contracts/enums.js';
 import type { DueReminderView, ReminderView } from '../../application/models/reminder.models.js';
+import type { ListRemindersInput } from '../../application/models/reminder-list.models.js';
 import type { NoteRecord } from '../../application/models/repository-records.models.js';
 import type { ReviewView } from '../../application/models/review.models.js';
 import { ContentQueryRepository } from '../../application/ports/notes/content.repository.js';
@@ -21,9 +22,21 @@ import { PostgresNoteRepository } from './note.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
 import { SPECIAL_PROJECT_SLUGS, isSpecialProjectSlug } from '../../domain/projects.js';
 import { PostgresNoteSynthesisRepository } from './note-synthesis.repository.js';
+import { isUuid } from '../../domain/utils/uuid.utils.js';
+import { buildPaginationMeta } from '../../contracts/pagination.js';
 
 /** Fallback cap when FTS runs without an explicit ftsLimit from the caller. */
 const DEFAULT_FTS_CANDIDATE_LIMIT = 40;
+const REMINDER_SEARCH_ACCENT_MAP = [
+  ['áàâãäå', 'aaaaaa'],
+  ['ç', 'c'],
+  ['éèêë', 'eeee'],
+  ['íìîï', 'iiii'],
+  ['óòôõö', 'ooooo'],
+  ['úùûü', 'uuuu'],
+] as const;
+const REMINDER_SEARCH_ACCENTED_CHARS = REMINDER_SEARCH_ACCENT_MAP.map(([chars]) => chars).join('');
+const REMINDER_SEARCH_ASCII_CHARS = REMINDER_SEARCH_ACCENT_MAP.map(([, chars]) => chars).join('');
 
 @Injectable()
 export class PostgresContentQueryRepository extends ContentQueryRepository {
@@ -199,6 +212,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
   }
 
   async getById(userId: string, id: string) {
+    if (!isUuid(id)) return null;
     const db = this.database.getDb();
     const result = await db
       .select({
@@ -334,6 +348,92 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
 
   async listReminders(userId: string) {
     return (await this.loadNotes(userId)).map(reminderFromNote).filter((reminder): reminder is ReminderView => Boolean(reminder));
+  }
+
+  async listRemindersPage(userId: string, input: ListRemindersInput) {
+    const db = this.database.getDb();
+    const conditions = [eq(notes.userId, userId), sql`${notes.reminderAt} IS NOT NULL`];
+
+    if (input.workspaceSlug) {
+      conditions.push(eq(workspaces.workspaceSlug, input.workspaceSlug));
+    }
+
+    if (input.projectSlug === 'inbox') {
+      conditions.push(sql`(${projects.projectSlug} = 'inbox' OR ${projects.projectSlug} IS NULL OR ${notes.projectId} IS NULL)`);
+    } else if (input.projectSlug) {
+      conditions.push(eq(projects.projectSlug, input.projectSlug));
+    }
+
+    if (input.query?.trim()) {
+      const normalizedQuery = input.query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const query = `%${normalizedQuery.replace(/[\\%_]/g, '\\$&')}%`;
+      conditions.push(sql`translate(lower(concat_ws(' ', ${notes.title}, ${notes.summary}, ${notes.metadata} ->> 'rawText')), ${REMINDER_SEARCH_ACCENTED_CHARS}, ${REMINDER_SEARCH_ASCII_CHARS}) LIKE ${query} ESCAPE '\\'`);
+    }
+
+    if (input.dueAfter) {
+      conditions.push(sql`${notes.reminderAt} >= ${new Date(input.dueAfter)}`);
+    }
+    if (input.dueBefore) {
+      conditions.push(sql`${notes.reminderAt} <= ${new Date(input.dueBefore)}`);
+    }
+
+    // These statuses depend on dispatch history and the current time.
+    // Refresh them before filtering and paginating in the use case.
+    const derivedStatusFilter = input.status === 'pending' || input.status === 'overdue' || input.status === 'sent';
+    if (input.status === StatusFilter.Open) conditions.push(notInArray(notes.status, [...terminalStatuses]));
+    else if (input.status && input.status !== StatusFilter.All && !derivedStatusFilter) {
+      conditions.push(eq(notes.status, input.status as any));
+    }
+
+    const where = and(...conditions);
+    const [{ total }] = await db
+      .select({ total: count() })
+      .from(notes)
+      .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
+      .leftJoin(projects, eq(projects.id, notes.projectId))
+      .where(where);
+
+    const pagination = buildPaginationMeta({ page: input.page, pageSize: input.pageSize }, Number(total));
+    const rowsQuery = db
+      .select({
+        id: notes.id,
+        userId: notes.userId,
+        path: notes.path,
+        title: notes.title,
+        projectId: notes.projectId,
+        workspaceId: notes.workspaceId,
+        projectSlug: projects.projectSlug,
+        workspaceSlug: workspaces.workspaceSlug,
+        folderId: notes.folderId,
+        status: notes.status,
+        tags: notes.tags,
+        occurredAt: notes.occurredAt,
+        sourceChannel: notes.sourceChannel,
+        source: notes.source,
+        summary: notes.summary,
+        markdownStorageKey: notes.markdownStorageKey,
+        metadata: notes.metadata,
+        sessionId: notes.sessionId,
+        reminderAt: notes.reminderAt,
+        isPinned: notes.isPinned,
+        createdAt: notes.createdAt,
+        updatedAt: notes.updatedAt,
+      })
+      .from(notes)
+      .innerJoin(workspaces, eq(workspaces.id, notes.workspaceId))
+      .leftJoin(projects, eq(projects.id, notes.projectId))
+      .where(where)
+      .orderBy(notes.reminderAt, notes.title, notes.id);
+
+    const rows = derivedStatusFilter
+      ? await rowsQuery
+      : await rowsQuery.limit(pagination.pageSize).offset((pagination.page - 1) * pagination.pageSize);
+
+    const items = rows
+      .map((row) => reminderFromNote(noteFromRow({ ...row, categories: [], attachmentCount: 0 })))
+      .filter((reminder): reminder is ReminderView => Boolean(reminder));
+
+    return { items, pagination };
   }
 
   /**

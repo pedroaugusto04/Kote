@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { slugify } from '../domain/strings.js';
+import { normalizeReminderAtToUtc } from '../domain/time.js';
 import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, ReviewFindingSeverity, SourceChannel } from './enums.js';
 import { parseSourceChannelString } from '../application/utils/integration/source-channel.utils.js';
 
@@ -99,8 +100,7 @@ export function withDerivedReminderAt(
   payload: IngestPayload,
   timeZone = 'America/Sao_Paulo',
 ): IngestPayload & { actions: IngestPayload['actions'] & { reminderAt: string } } {
-  // reminderAt is now expected to be a full ISO timestamp
-  const reminderAt = payload.actions.reminderAt || '';
+  const reminderAt = normalizeReminderAtToUtc(payload.actions.reminderAt, timeZone);
   return {
     ...payload,
     actions: {

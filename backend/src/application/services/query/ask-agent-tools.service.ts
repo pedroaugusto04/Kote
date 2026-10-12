@@ -8,8 +8,18 @@ import { AppLogger } from '../../../observability/logger.js';
 import type { AskAgentTool, TrackedNoteSource } from '../../ports/query/ask-agent.gateway.js';
 
 import { AgentContextTracker } from './agent-context-tracker.js';
+import {
+  toAskAttachmentsResult,
+  toAskChunkItems,
+  toAskNoteContentResult,
+  toAskProjectsResult,
+  toAskRecentNotesResult,
+  toAskRemindersResult,
+} from '../../mappers/ask.mapper.js';
 
 export { AgentContextTracker };
+
+const MAX_NOTE_CONTENT_CHARS = 15_000;
 
 @Injectable()
 export class AskAgentToolsService {
@@ -39,6 +49,10 @@ export class AskAgentToolsService {
             type: 'string',
             description: 'The search query or keywords to find relevant information in notes.',
           },
+          projectSlug: {
+            type: 'string',
+            description: 'Optional project slug to narrow down search to a specific project.',
+          },
         },
         required: ['query'],
       },
@@ -48,11 +62,23 @@ export class AskAgentToolsService {
           return { error: 'Query parameter cannot be empty' };
         }
 
-        this.logger.info('ask_agent.tool.search_knowledge', { userId, query, scope });
+        let effectiveScope: RagScope = { ...scope };
+        const requestedProjectSlug = String(args.projectSlug || '').trim().toLowerCase();
+        if (requestedProjectSlug) {
+          const allProjects = await this.contentRepository.listProjects(userId);
+          const matched = allProjects.find(
+            (p) => p.projectSlug.toLowerCase() === requestedProjectSlug && (!scope.workspaceId || p.workspaceId === scope.workspaceId),
+          );
+          if (matched) {
+            effectiveScope = { ...effectiveScope, projectId: matched.id };
+          }
+        }
+
+        this.logger.info('ask_agent.tool.search_knowledge', { userId, query, scope: effectiveScope });
         const retrieval = await this.ragRetrievalService.retrieveHybridChunks(
           userId,
           query,
-          scope,
+          effectiveScope,
           embeddingConfig,
           ragConfig,
         );
@@ -78,19 +104,13 @@ export class AskAgentToolsService {
             title: chunk.title,
             path: chunk.path,
             projectSlug: chunk.projectSlug,
-            workspaceSlug: chunk.workspaceId,
+            workspaceId: chunk.workspaceId,
           });
         }
 
         return {
           resultsCount: contextResult.contextChunks.length,
-          chunks: contextResult.contextChunks.map((c) => ({
-            noteId: c.noteId,
-            title: c.title,
-            path: c.path,
-            project: c.projectSlug,
-            text: c.chunkText,
-          })),
+          chunks: toAskChunkItems(contextResult.contextChunks),
         };
       },
     };
@@ -122,22 +142,26 @@ export class AskAgentToolsService {
         }
 
         const note = notes[0];
+        if ((scope.workspaceId && note.workspaceId !== scope.workspaceId)
+          || (scope.projectId && note.projectId !== scope.projectId)) {
+          return { error: `Note not found with id: ${noteId}` };
+        }
         tracker.addSource({
           noteId: note.id,
           title: note.title,
           path: note.path,
           projectSlug: note.projectSlug,
           workspaceSlug: note.workspaceSlug,
+          workspaceId: note.workspaceId,
         });
 
-        return {
-          id: note.id,
-          title: note.title,
-          path: note.path,
-          projectSlug: note.projectSlug,
-          tags: note.tags,
-          content: note.markdown || '',
-        };
+        const rawContent = note.markdown || '';
+        const isTruncated = rawContent.length > MAX_NOTE_CONTENT_CHARS;
+        const content = isTruncated
+          ? `${rawContent.slice(0, MAX_NOTE_CONTENT_CHARS)}\n\n[Content truncated: note exceeds maximum length]`
+          : rawContent;
+
+        return toAskNoteContentResult(note, content);
       },
     };
 
@@ -149,15 +173,13 @@ export class AskAgentToolsService {
         properties: {},
       },
       execute: async () => {
-        this.logger.info('ask_agent.tool.list_projects', { userId });
-        const projects = await this.contentRepository.listProjects(userId);
+        this.logger.info('ask_agent.tool.list_projects', { userId, scope });
+        const allProjects = await this.contentRepository.listProjects(userId);
+        const filtered = allProjects.filter(
+          (p) => p.enabled && (!scope.workspaceId || p.workspaceId === scope.workspaceId),
+        );
         return {
-          projects: projects.map((p) => ({
-            id: p.id,
-            name: p.displayName,
-            slug: p.projectSlug,
-            defaultTags: p.defaultTags || [],
-          })),
+          projects: toAskProjectsResult(filtered),
         };
       },
     };
@@ -190,17 +212,12 @@ export class AskAgentToolsService {
             path: n.path,
             projectSlug: n.projectSlug,
             workspaceSlug: n.workspaceSlug,
+            workspaceId: n.workspaceId,
           });
         }
 
         return {
-          notes: recent.map((n) => ({
-            id: n.id,
-            title: n.title,
-            path: n.path,
-            projectSlug: n.projectSlug,
-            occurredAt: n.occurredAt,
-          })),
+          notes: toAskRecentNotesResult(recent),
         };
       },
     };
@@ -219,30 +236,32 @@ export class AskAgentToolsService {
         },
       },
       execute: async (args: Record<string, any>) => {
-        this.logger.info('ask_agent.tool.list_reminders', { userId, args });
+        this.logger.info('ask_agent.tool.list_reminders', { userId, args, scope });
         if (!this.contentQueryRepository) {
           return { reminders: [] };
         }
-        const reminders = await this.contentQueryRepository.listReminders(userId);
+
+        const [reminders, workspaces, projects] = await Promise.all([
+          this.contentQueryRepository.listReminders(userId),
+          scope.workspaceId ? this.contentRepository.listWorkspaces(userId) : Promise.resolve([]),
+          scope.projectId ? this.contentRepository.listProjects(userId) : Promise.resolve([]),
+        ]);
+
+        const activeWorkspace = scope.workspaceId ? workspaces.find((w) => w.id === scope.workspaceId) : undefined;
+        const activeProject = scope.projectId ? projects.find((p) => p.id === scope.projectId) : undefined;
         const filterStatus = String(args.status || '').toLowerCase().trim();
-        const filtered = filterStatus
-          ? reminders.filter((r) => {
-              if (filterStatus === 'overdue') return r.isOverdue;
-              return r.status.toLowerCase() === filterStatus;
-            })
-          : reminders;
+
+        const filtered = reminders.filter((r) => {
+          if (activeWorkspace && r.workspace !== activeWorkspace.workspaceSlug) return false;
+          if (activeProject && r.project !== activeProject.projectSlug) return false;
+          if (filterStatus === 'overdue') return r.isOverdue;
+          if (filterStatus) return r.status.toLowerCase() === filterStatus;
+          return true;
+        });
 
         return {
           count: filtered.length,
-          reminders: filtered.slice(0, 15).map((r) => ({
-            id: r.id,
-            title: r.title,
-            project: r.project,
-            status: r.status,
-            isOverdue: r.isOverdue,
-            reminderAt: r.reminderAt,
-            noteText: r.noteText,
-          })),
+          reminders: toAskRemindersResult(filtered.slice(0, 15)),
         };
       },
     };
@@ -264,17 +283,25 @@ export class AskAgentToolsService {
         const noteId = String(args.noteId || '').trim();
         if (!noteId) return { error: 'noteId parameter is required' };
         this.logger.info('ask_agent.tool.list_note_attachments', { userId, noteId });
+        const note = await this.contentRepository.getNoteById(userId, noteId);
+        if (!note
+          || (scope.workspaceId && note.workspaceId !== scope.workspaceId)
+          || (scope.projectId && note.projectId !== scope.projectId)) {
+          return { error: `Note not found with id: ${noteId}` };
+        }
+        tracker.addSource({
+          noteId: note.id,
+          title: note.title,
+          path: note.path,
+          projectSlug: note.projectSlug,
+          workspaceSlug: note.workspaceSlug,
+          workspaceId: note.workspaceId,
+        });
         const attachments = await this.contentRepository.listAttachments(userId, noteId);
         return {
           noteId,
           attachmentsCount: attachments.length,
-          attachments: attachments.map((a) => ({
-            id: a.id,
-            fileName: a.fileName,
-            sizeBytes: a.sizeBytes,
-            mimeType: a.mimeType,
-            createdAt: a.createdAt,
-          })),
+          attachments: toAskAttachmentsResult(attachments),
         };
       },
     };

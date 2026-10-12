@@ -19,7 +19,7 @@ export function paginatedResponse<T>(key: string, value: { items: T[]; paginatio
   return { [key]: value.items, pagination: value.pagination };
 }
 
-export function normalizeScopeId(value?: string): string | undefined {
+export function normalizeScopeId(value?: string | null): string | undefined {
   return value && value !== 'all' ? value : undefined;
 }
 

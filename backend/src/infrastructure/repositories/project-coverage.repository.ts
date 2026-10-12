@@ -5,6 +5,7 @@ import { ProjectCoverageRepository } from '../../application/ports/projects/proj
 import type { ProjectCoverageResult } from '../../application/models/project-coverage.models.js';
 import { CoverageHealthStatus, COVERAGE_THRESHOLDS } from '../../domain/enums/knowledge.enums.js';
 import { isEligibleFileForCoverage, normalizeCoveragePath } from '../../application/utils/github/coverage-file-filter.utils.js';
+import { isUuid } from '../../domain/utils/uuid.utils.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { projects, projectFiles, notes, noteLinks } from '../persistence/schema/index.js';
 
@@ -17,11 +18,15 @@ export class PostgresProjectCoverageRepository extends ProjectCoverageRepository
   async getProjectCoverage(userId: string, projectId: string): Promise<ProjectCoverageResult> {
     const db = this.database.getDb();
 
-    // 1. Resolve project by id or slug using Drizzle ORM
+    // 1. Resolve project by id using Drizzle ORM
+    if (!isUuid(projectId)) {
+      throw new Error('project_not_found');
+    }
+
     const [project] = await db
       .select({ id: projects.id, slug: projects.projectSlug })
       .from(projects)
-      .where(or(eq(projects.id, projectId), eq(projects.projectSlug, projectId)))
+      .where(and(eq(projects.userId, userId), eq(projects.id, projectId)))
       .limit(1);
 
     if (!project) {
@@ -140,20 +145,21 @@ export class PostgresProjectCoverageRepository extends ProjectCoverageRepository
   }
 
   async getProjectsCoveragePercentage(_userId: string, projectIds: string[]): Promise<Map<string, number>> {
-    if (!projectIds.length) return new Map();
+    const validProjectIds = projectIds.filter(isUuid);
+    if (!validProjectIds.length) return new Map();
     const db = this.database.getDb();
 
     // 1. Fetch project files for all given project IDs
     const fileRows = await db
       .select({ projectId: projectFiles.projectId, filePath: projectFiles.filePath })
       .from(projectFiles)
-      .where(inArray(projectFiles.projectId, projectIds));
+      .where(inArray(projectFiles.projectId, validProjectIds));
 
     // 2. Fetch note paths and metadata for all given project IDs
     const noteRows = await db
       .select({ projectId: notes.projectId, path: notes.path, metadata: notes.metadata })
       .from(notes)
-      .where(inArray(notes.projectId, projectIds));
+      .where(inArray(notes.projectId, validProjectIds));
 
     // 3. Fetch note links for all given project IDs
     const noteLinkRows = await db
@@ -162,7 +168,7 @@ export class PostgresProjectCoverageRepository extends ProjectCoverageRepository
       .innerJoin(notes, eq(notes.id, noteLinks.noteId))
       .where(
         and(
-          inArray(notes.projectId, projectIds),
+          inArray(notes.projectId, validProjectIds),
           isNotNull(noteLinks.target),
           ne(noteLinks.target, ''),
         ),

@@ -57,6 +57,10 @@ export class PostgresDatabase implements OnModuleDestroy {
       idleTimeoutMillis: 30000,
     });
 
+    this.pool.on('connect', (client) => {
+      client.query("SET timezone = 'UTC'").catch(() => {});
+    });
+
     return this.pool;
   }
 

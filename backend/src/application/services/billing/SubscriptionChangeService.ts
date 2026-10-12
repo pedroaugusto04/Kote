@@ -48,13 +48,13 @@ export class SubscriptionChangeService {
       id: crypto.randomUUID(),
       userId: params.userId,
       fromSubscriptionId: params.fromSubscriptionId,
-      fromGateway: params.fromGateway as any,
+      fromGateway: params.fromGateway,
       fromGatewaySubscriptionId: params.fromGatewaySubscriptionId,
       toPlanId: params.toPlanId,
-      toBillingCycle: params.toBillingCycle as any,
-      toBillingType: params.toBillingType as any,
-      type: params.type as any,
-      status: SubscriptionChangeStatus.SCHEDULED as any,
+      toBillingCycle: params.toBillingCycle,
+      toBillingType: params.toBillingType,
+      type: params.type,
+      status: SubscriptionChangeStatus.SCHEDULED,
       effectiveAt: params.effectiveAt,
       attempts: 0,
     };
@@ -139,8 +139,8 @@ export class SubscriptionChangeService {
     // Update locally
     await this.subscriptionRepository.upsertUserSubscription(changeRequest.userId, {
       planId: changeRequest.toPlanId,
-      billingCycle: changeRequest.toBillingCycle as any,
-      billingType: changeRequest.toBillingType as any,
+      billingCycle: changeRequest.toBillingCycle as BillingCycle,
+      billingType: changeRequest.toBillingType as BillingType,
     });
 
     await this.subscriptionRepository.updateSubscriptionChangeRequestStatus(changeId, SubscriptionChangeStatus.APPLIED, { appliedAt: new Date() });

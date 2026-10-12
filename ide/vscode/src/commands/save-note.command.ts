@@ -104,9 +104,9 @@ export function registerSaveNoteCommand(
 
       if (confirm === undefined) return;
 
-      let source = providerIdParam || SOURCE_CHANNELS.IDE;
-      let sourceChannel: string | undefined = providerIdParam ? SOURCE_CHANNELS.AI_CHAT : SOURCE_CHANNELS.IDE;
-      let sessionId: string | undefined = sessionIdParam;
+      const source = providerIdParam || SOURCE_CHANNELS.IDE;
+      const sourceChannel: string | undefined = providerIdParam ? SOURCE_CHANNELS.AI_CHAT : SOURCE_CHANNELS.IDE;
+      const sessionId: string | undefined = sessionIdParam;
 
       const relativePath = vscode.workspace.asRelativePath(editor.document.uri);
 

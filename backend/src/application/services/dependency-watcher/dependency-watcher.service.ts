@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
 import { DependencyWatcherRepository, type DependencyWatchRecord } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
@@ -14,6 +14,7 @@ import { AiProvider, SourceChannel, EventType, KnowledgeKind, CanonicalType, Imp
 import { AppLogger } from '../../../observability/logger.js';
 import { DependencyCheckQueuePublisher } from '../../ports/dependency-watcher/dependency-check-queue.publisher.js';
 import { DependencyImportQueuePublisher } from '../../ports/dependency-watcher/dependency-import-queue.publisher.js';
+import { buildIngestPayload } from '../../mappers/ingest.mapper.js';
 
 
 @Injectable()
@@ -111,8 +112,9 @@ export class DependencyWatcherService {
       const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(workspace.id);
       if (!workspaceEnabled) continue;
 
-      const projects = await this.contentRepository.listProjects(workspace.userId);
-      const workspaceProjects = projects.filter((p) => p.workspaceSlug === workspace.workspaceSlug);
+      const workspaceProjects = this.contentRepository.listProjectsByWorkspace
+        ? await this.contentRepository.listProjectsByWorkspace(workspace.userId, workspace.id)
+        : (await this.contentRepository.listProjects(workspace.userId)).filter((p) => p.workspaceSlug === workspace.workspaceSlug);
 
       if (workspaceProjects.length === 0) continue;
 
@@ -238,31 +240,26 @@ export class DependencyWatcherService {
       contentPreview: content.substring(0, 500),
     });
     
-    const payload = {
+    const payload = buildIngestPayload({
       source: {
         channel: SourceChannel.DependencyWatcher,
         system: 'dependency-watcher',
         source: 'dependency-watcher',
         actor: 'system',
-        conversationId: '',
         correlationId: `dependency-${record.id}`,
         sessionId: `dependency-${record.id}`,
       },
       event: {
         type: EventType.GenericRecord,
-        occurredAt: new Date().toISOString(),
         projectSlug,
       },
       content: {
         rawText: content,
         title: `[Dependency Update] ${record.packageName}: ${record.currentVersion} → ${versionInfo.version}`,
-        attachments: [],
         sections: {
           summary: analysis.summary,
-          impact: '',
           risks: analysis.breakingChanges || [],
           nextSteps: analysis.nextSteps || [],
-          reviewFindings: [],
         },
       },
       classification: {
@@ -270,15 +267,8 @@ export class DependencyWatcherService {
         kind: KnowledgeKind.Note,
         canonicalType: CanonicalType.Knowledge,
         importance: Importance.Medium,
-        decisionFlag: false,
       },
-      actions: {
-        reminderAt: '',
-        followUpBy: '',
-      },
-      links: [],
-      metadata: {},
-    };
+    });
 
     await this.ingestEntryUseCase.execute(payload, record.userId, record.workspaceSlug, {});
   }
@@ -286,10 +276,11 @@ export class DependencyWatcherService {
   private async resolveProjectSlug(record: DependencyWatchRecord): Promise<string> {
     if (!record.repositoryId) return '';
 
-    const projects = await this.contentRepository.listProjects(record.userId);
+    const projects = record.workspaceId
+      ? await this.contentRepository.listProjectsByWorkspace(record.userId, record.workspaceId)
+      : await this.contentRepository.listProjects(record.userId);
     const project = projects.find(
-      (item) => item.workspaceSlug === record.workspaceSlug
-        && item.repositories.some((repository) => repository.id === record.repositoryId),
+      (item) => item.repositories.some((repository) => repository.id === record.repositoryId),
     );
 
     return project?.projectSlug || '';
@@ -372,5 +363,30 @@ export class DependencyWatcherService {
         frontUrl: env.apiPublicBaseUrl || '',
       },
     });
+  }
+
+  async setWorkspaceWatcherStatus(userId: string, workspaceId: string, workspaceSlug: string, enabled: boolean): Promise<boolean> {
+    const workspace = (this.contentRepository.getWorkspaceById ? await this.contentRepository.getWorkspaceById(workspaceId) : null)
+      || await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
+    if (!workspace) {
+      throw new NotFoundException('workspace_not_found');
+    }
+
+    await this.contentRepository.upsertWorkspace(userId, {
+      ...workspace,
+      dependencyWatcherEnabled: enabled,
+    });
+
+    return enabled;
+  }
+
+  async toggleDependency(userId: string, workspaceId: string, dependencyId: string, enabled: boolean): Promise<boolean> {
+    const dependency = await this.dependencyWatcherRepository.findById(userId, workspaceId, dependencyId);
+    if (!dependency) {
+      throw new NotFoundException('dependency_not_found');
+    }
+
+    await this.dependencyWatcherRepository.update(dependencyId, { enabled });
+    return enabled;
   }
 }

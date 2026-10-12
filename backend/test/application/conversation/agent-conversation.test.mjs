@@ -5,9 +5,12 @@ import {
   CreateProjectFolderUseCase,
   IngestEntryUseCase,
   ProcessAgentConversationUseCase,
+  ListPaginatedRemindersUseCase,
+  RefreshReminderStatusesUseCase,
 } from '../../../dist/application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { IngestAgentToolsService } from '../../../dist/application/services/conversation/ingest-agent-tools.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput } from '../../../dist/contracts/agent-conversation.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
@@ -17,7 +20,7 @@ class StubConversationAgentGateway {
     this.turns = turns;
   }
 
-  async decide(_config, payload) {
+  async decide(_config, payload, _tools) {
     const key = String(payload.messageText || '').trim().toLowerCase();
     const decision = this.turns.get(key);
     if (!decision) throw new Error(`missing_agent_decision:${key}`);
@@ -90,15 +93,25 @@ async function createFixture(t, turns) {
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();
   const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
+  const reminderList = new ListPaginatedRemindersUseCase(
+    repositories.contentQueryRepository,
+    new RefreshReminderStatusesUseCase(
+      repositories.contentRepository,
+      repositories.reminderDispatchRepository,
+      repositories.runtimeEnvironmentProvider,
+    ),
+  );
   const agentUseCase = new ProcessAgentConversationUseCase(
     repositories.contentRepository,
     repositories.conversationStateRepository,
     ingest,
     environment,
     new StubConversationAgentGateway(turns),
+    new IngestAgentToolsService(repositories.contentRepository, loggerMock, reminderList),
     presenter,
     folderResolution,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
+    { buildTools: () => [] },
     loggerMock,
   );
   return { repositories, user, agentUseCase };
@@ -144,7 +157,7 @@ function decision(overrides = {}) {
     selectedFolderId: '',
     suggestedFolderPath: ['Runbooks', 'API'],
     confidence: 'high',
-    action: 'confirm',
+    action: 'capture',
     ...overrides,
   };
 }
@@ -205,24 +218,22 @@ test('agent conversation asks for context when the first message is only media',
   assert.equal((await repositories.objectStorage.get(attachments[0].storageKey)).toString('utf8'), 'hello image');
 });
 
-test('agent conversation falls back to inbox when project choice is ambiguous', async (t) => {
+test('agent conversation asks for clarification when project choice is ambiguous', async (t) => {
   const turns = new Map([
-    ['ajustei a pipeline', decision({ selectedProjectSlug: '', suggestedFolderPath: [], action: 'ask', replyText: 'Qual projeto devo usar?' })],
+    ['ajustei a pipeline', decision({ selectedProjectSlug: '', suggestedFolderPath: [], action: 'clarify', replyText: 'Qual projeto devo usar?' })],
   ]);
   const { repositories, agentUseCase, user } = await createFixture(t, turns);
 
   const result = await agentUseCase.execute(input('ajustei a pipeline'), user.id, 'default');
-  assert.equal(result.action, 'submit');
-  assert.equal(result.agent.selectedProjectSlug, 'inbox');
+  assert.equal(result.action, 'ask');
   const notes = await repositories.contentRepository.listNotes(user.id);
-  assert.equal(notes.length, 1);
-  assert.equal(notes[0].projectSlug, 'inbox');
+  assert.equal(notes.length, 0);
 });
 
 test('agent conversation explains how to use it when the message is not useful to save', async (t) => {
   const turns = new Map([
     ['???', decision({
-      replyText: 'Nao entendi.',
+      replyText: 'I could not identify something useful to save yet. Ask questions about your Kote or tell me what to capture.',
       resolvedDraft: {
         rawText: '',
         title: '',
@@ -235,7 +246,7 @@ test('agent conversation explains how to use it when the message is not useful t
       selectedProjectSlug: '',
       selectedFolderId: '',
       suggestedFolderPath: [],
-      action: 'ask',
+      action: 'clarify',
       confidence: 'low',
     })],
   ]);
@@ -245,8 +256,7 @@ test('agent conversation explains how to use it when the message is not useful t
 
   assert.equal(result.action, 'ask');
   assert.match(result.replyText, /I could not identify something useful to save yet/);
-  assert.match(result.replyText, /notes, decisions, bugs, reminders, summaries, links, or media/);
-  assert.match(result.replyText, /infer the right project and folder/);
+  assert.match(result.replyText, /Ask questions about your Kote or tell me what to capture/);
 });
 
 test('agent conversation saves root placement immediately when the agent selects project root', async (t) => {
@@ -256,7 +266,7 @@ test('agent conversation saves root placement immediately when the agent selects
       selectedFolderId: '',
       suggestedFolderPath: [],
       placeInRoot: true,
-      action: 'confirm',
+      action: 'capture',
       resolvedDraft: {
         rawText: 'Documentei o checklist de deploy',
         title: '',
@@ -295,7 +305,7 @@ test('agent conversation saves separate captures without waiting for confirmatio
       selectedFolderId: '',
       suggestedFolderPath: ['Runbooks', 'API'],
       placeInRoot: false,
-      action: 'confirm',
+      action: 'capture',
       resolvedDraft: {
         rawText: 'Corrigi o timeout do webhook novo',
         title: '',
@@ -323,7 +333,7 @@ test('agent conversation keeps nonexistent project, creates it and saves the not
     ['fiz algo no projeto x', decision({
       selectedProjectSlug: 'projeto-x',
       suggestedFolderPath: [],
-      action: 'confirm',
+      action: 'capture',
       replyText: 'Pode confirmar o projeto?',
       resolvedDraft: {
         rawText: 'Fiz algo no projeto x',
@@ -356,7 +366,7 @@ test('agent conversation does not keep confirmation state after immediate save',
       selectedProjectSlug: 'platform',
       selectedFolderId: '',
       suggestedFolderPath: [],
-      action: 'confirm',
+      action: 'capture',
       replyText: 'Vamos confirmar.',
       resolvedDraft: {
         rawText: 'Resumo da reuniao',
@@ -383,7 +393,7 @@ test('agent conversation saves natural capture without waiting for approval inte
       selectedProjectSlug: 'platform',
       selectedFolderId: '',
       suggestedFolderPath: [],
-      action: 'confirm',
+      action: 'capture',
       replyText: 'Vamos confirmar.',
       resolvedDraft: {
         rawText: 'Resumo da reuniao',
@@ -399,7 +409,7 @@ test('agent conversation saves natural capture without waiting for approval inte
       selectedProjectSlug: 'platform',
       selectedFolderId: '',
       suggestedFolderPath: [],
-      action: 'submit',
+      action: 'capture',
       replyText: '',
       resolvedDraft: {
         rawText: 'Resumo da reuniao',
@@ -439,7 +449,7 @@ test('agent conversation accepts AI reminder kind alias and saves immediately', 
       selectedProjectSlug: 'platform',
       selectedFolderId: '',
       suggestedFolderPath: [],
-      action: 'confirm',
+      action: 'capture',
       resolvedDraft: {
         rawText: 'Revisar o deploy',
         title: '',
@@ -465,7 +475,7 @@ test('agent conversation saves reminders as pending immediately', async (t) => {
       selectedProjectSlug: 'platform',
       selectedFolderId: '',
       suggestedFolderPath: [],
-      action: 'confirm',
+      action: 'capture',
       resolvedDraft: {
         rawText: 'Revisar o deploy',
         title: '',

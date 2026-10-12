@@ -9,6 +9,8 @@ import { connectionSessionFromRow, credentialFromRow, identityFromRow } from '..
 import { PostgresDatabase } from '../persistence/database.js';
 import { integrationCredentials, externalIdentities, integrationConnectionSessions, workspaces } from '../persistence/schema/index.js';
 
+import { resolveWorkspaceId } from './utils/id-resolution.helpers.js';
+
 @Injectable()
 export class PostgresIntegrationRepository extends CredentialRepository implements ExternalIdentityRepository, IntegrationConnectionSessionRepository {
   constructor(private readonly database: PostgresDatabase) {
@@ -16,17 +18,7 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
   }
 
   private async resolveWorkspaceId(userId: string, workspaceSlug: string): Promise<string> {
-    const db = this.database.getDb();
-    const result = await db
-      .select({ id: workspaces.id })
-      .from(workspaces)
-      .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
-      .limit(1);
-    
-    if (result.length === 0) {
-      throw new NotFoundException('workspace_not_found');
-    }
-    return result[0].id;
+    return resolveWorkspaceId(this.database, userId, workspaceSlug);
   }
 
   async listCredentials(userId: string, workspaceSlug: string) {

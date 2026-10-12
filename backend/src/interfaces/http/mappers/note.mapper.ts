@@ -1,9 +1,9 @@
 import type { CreateNoteBody, UpdateNoteBody } from '../dto/note.dto.js';
 import type { CreateManualNoteDto, UpdateNoteDto } from '../../../application/dto/note.dto.js';
 
-export function toCreateManualNoteDto(httpBody: CreateNoteBody, projectId: string): CreateManualNoteDto {
+export function toCreateManualNoteDto(httpBody: CreateNoteBody, projectId?: string): CreateManualNoteDto {
   return {
-    projectId,
+    projectId: projectId as string,
     folderId: httpBody.folderId || undefined,
     title: httpBody.title,
     rawText: httpBody.rawText,

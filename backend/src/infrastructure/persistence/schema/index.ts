@@ -1,5 +1,8 @@
-import { pgTable, uuid, text, timestamp, jsonb, boolean, bigint, integer, index, pgEnum, unique, uniqueIndex, decimal } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp as drizzleTimestamp, jsonb, boolean, bigint, integer, index, pgEnum, unique, uniqueIndex, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+import type { PgTimestampConfig } from 'drizzle-orm/pg-core';
+
+const timestamp = (name: string, config?: PgTimestampConfig) => drizzleTimestamp(name, { withTimezone: true, ...config });
 import { pgTable as pgTableV2 } from 'drizzle-orm/pg-core';
 
 // Enums

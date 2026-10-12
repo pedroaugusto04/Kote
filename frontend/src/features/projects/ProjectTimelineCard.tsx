@@ -3,7 +3,7 @@ import type { Dashboard } from '../../shared/api/models/dashboard';
 import type { NoteSummary } from '../../shared/api/models/note';
 import type { ProjectTimelineItem } from '../../shared/api/models/project-timeline';
 import { noteDetailQueryOptions } from '../../shared/api/note-query';
-import { formatDisplayToken, formatUsDate, formatUsDateTime, getCleanSummary, getTimelineNodeColor, projectName } from '../../shared/utils/format';
+import { formatDisplayToken, formatTimeInUserTimeZone, formatUsDate, formatUsDateTime, getCleanSummary, getTimelineNodeColor, projectName } from '../../shared/utils/format';
 import { makeTitleClickable } from '../../shared/utils/text';
 import { buildNoteDisplayTags } from '../../shared/utils/note-tags';
 import { Badge, Tags } from '../../shared/ui/primitives';
@@ -77,7 +77,7 @@ export function ProjectTimelineCard({
           )}
           {displayTags.length ? <Tags items={displayTags} /> : null}
           <span className="meta meta-date">{formatUsDate(item.date)}</span>
-          <span className="meta meta-time"> {formatUsDateTime(item.date).split(' ')[1]}</span>
+          <span className="meta meta-time"> {formatTimeInUserTimeZone(item.date)}</span>
           <span className="meta meta-project">{projectName(dashboard.projects, item.project)}</span>
           <AttachmentIndicator count={item.attachmentCount || 0} />
           <Badge value={formatDisplayToken(item.status)} tone={item.status} />

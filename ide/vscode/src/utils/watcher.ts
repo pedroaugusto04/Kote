@@ -105,7 +105,9 @@ export function watchFile(
     return new vscode.Disposable(() => {
       try {
         watcher.close();
-      } catch {}
+      } catch {
+        // Watcher already closed or aborted
+      }
     });
   } catch (err) {
     console.error(`Failed to watch file: ${filePath}`, err);

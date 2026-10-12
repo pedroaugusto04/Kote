@@ -1,6 +1,6 @@
 import { normalizeManualNoteStatus } from '../../../domain/note-status.js';
 import { CanonicalType } from '../../../contracts/enums.js';
-import { buildUtcReminderFields } from '../../../domain/time.js';
+import { buildUtcReminderFields, normalizeReminderAtToUtc } from '../../../domain/time.js';
 import { renderFrontmatter } from '../../../domain/frontmatter.js';
 import { relocateNotePath } from '../../../domain/notes.js';
 import { normalizeComparableText, normalizeMultiline, trimText } from '../../../domain/strings.js';
@@ -26,17 +26,21 @@ export function buildUpdatedNote(
   projectId?: string,
   workspaceSlug?: string,
   workspaceId?: string,
+  reminderTimeZone = 'America/Sao_Paulo',
 ) {
   const title = trimText(input.title, note.title || input.rawText);
   const rawText = stripTitleHeader(normalizeMultiline(input.rawText), title);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
   const noteType = input.canonicalType || CanonicalType.Event;
-  const reminderAt = input.reminderAt !== undefined ? input.reminderAt : note.reminderAt || '';
+  const reminderAt = input.reminderAt !== undefined
+    ? (input.reminderAt ? normalizeReminderAtToUtc(input.reminderAt, reminderTimeZone) : '')
+    : note.reminderAt || '';
   const nextStatus = normalizeManualNoteStatus({
     requestedStatus: input.status,
     currentStatus: note.status,
     hadReminder: Boolean(note.reminderAt),
     hasReminder: Boolean(reminderAt),
+    reminderAt,
   });
   const structuredNote = parseStructuredNoteMarkdown(note.markdown, note.title);
   const effectiveProjectSlug = (projectSlug ?? note.projectSlug) || '';

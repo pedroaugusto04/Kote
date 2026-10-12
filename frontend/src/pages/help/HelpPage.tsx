@@ -128,7 +128,7 @@ const sections: HelpSection[] = [
       { title: 'Asking a question', body: 'Navigate to "Ask AI" in the sidebar. Type any question about your projects, past decisions, or technical context.' },
       { title: 'Filtering by project', body: 'Use the project filter at the top to scope responses to a specific project. This improves precision for project-specific queries.' },
       { title: 'Conversation history', body: 'Sessions are saved as notes in your Kote and can be re-opened from the AI history panel on the right side.' },
-      { title: 'WhatsApp /ask command', body: 'Once WhatsApp is connected, send "/ask <question>" to the Kote bot to get AI answers directly in WhatsApp.', code: '/ask what was decided about the auth architecture last week?' },
+      { title: 'Ask questions in WhatsApp', body: 'Once WhatsApp is connected, send your question in natural language.', code: 'What was decided about the auth architecture last week?' },
     ],
   },
   {
@@ -140,7 +140,7 @@ const sections: HelpSection[] = [
     items: [
       {
         title: 'WhatsApp',
-        body: 'Send audio or text messages to the Kote WhatsApp bot — audio is transcribed and structured into notes automatically. Use /ask to search your Kote directly from the chat.',
+        body: 'Send audio or text messages to the Kote WhatsApp bot — audio is transcribed and structured into notes automatically. Ask questions about your Kote directly in natural language.',
         steps: [
           'Go to Settings → Integrations → WhatsApp',
           'Copy the token command shown',
@@ -148,7 +148,7 @@ const sections: HelpSection[] = [
           'Click "Open WhatsApp" to open the chat with the message pre-filled',
         ],
         code: `/kote connect <token>   ← send this to +${import.meta.env.VITE_WHATSAPP_NUMBER || '5531992504889'}`,
-        tip: 'You can also send documents, images, and other files directly to the WhatsApp bot — they will be attached to the created note. Use /ask to ask questions and retrieve files from your Kote.',
+        tip: 'You can also send documents, images, and other files directly to the WhatsApp bot — they will be attached to the created note. Ask naturally to find information or retrieve files from your Kote.',
       },
       {
         title: 'Telegram',
@@ -469,9 +469,9 @@ Body:
       { title: 'Setting a reminder in the app', body: 'When creating or editing a note, set a reminder date and time. The system will send a WhatsApp message with the note content at the scheduled time.', tip: 'WhatsApp must be connected for reminder delivery to work.' },
       {
         title: 'Setting a reminder via WhatsApp',
-        body: 'You can create a reminder directly from WhatsApp — just like saving a regular note, but including the day and time for the reminder. Send a message to the Kote bot specifying the reminder schedule.',
+        body: 'Create a reminder by describing the task and date/time in a WhatsApp message. You can also ask the bot to move an existing reminder to a new date; this works even after the reminder was already sent.',
         code: 'Remind me to review Lucas\'s PR tomorrow at 10am\n\nTeam meeting with product on Friday at 2:30pm\n\nRemind me to update the API docs on June 20th at 9:00am',
-        tip: 'It works just like saving a regular note via WhatsApp. Include the day and time in your message and the system will automatically detect and schedule it as a reminder.',
+        tip: 'Include the day and time when creating a reminder. To reschedule one, identify it clearly (for example, by its title) and give the new date and time.',
       },
       { title: 'Viewing reminders', body: 'Navigate to "Reminders" in the sidebar to see all upcoming reminders across your projects, sorted by due date.' },
     ],
@@ -594,7 +594,7 @@ export function HelpPage() {
             <span className="help-whatsapp-callout-icon"><IconWhatsApp /></span>
             <div className="help-whatsapp-callout-content">
               <strong>Reminders via WhatsApp</strong>
-              <p>You can save reminders directly through WhatsApp! Just send a message to the bot including the day and time — it works just like saving a normal note.</p>
+              <p>Create or reschedule reminders directly through WhatsApp in natural language. A rescheduled reminder is reopened and sent at its new date and time.</p>
             </div>
           </div>
         )}

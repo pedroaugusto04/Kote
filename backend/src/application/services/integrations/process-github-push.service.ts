@@ -53,7 +53,7 @@ export class ProcessGithubPushService {
 
   async execute(input: ProcessGithubPushInput) {
     if (input.projectSlug && this.syncProjectFilesService) {
-      this.syncProjectFilesService.syncProject(input.userId, input.projectSlug).catch((err) => {
+      this.syncProjectFilesService.syncProjectBySlug(input.userId, input.projectSlug).catch((err) => {
         this.logger.warn('Failed to sync project files on push:', err);
       });
     }

@@ -78,6 +78,83 @@ export function stripMarkdownFences(value: string): string {
     .trim();
 }
 
+/**
+ * Robustly extracts a JSON object from text that may contain markdown fences,
+ * conversational preamble, or trailing commentary.
+ */
+export function extractJsonObject<T = Record<string, unknown>>(text: string): T | null {
+  if (!text || typeof text !== 'string') return null;
+  const trimmed = text.trim();
+
+  // 1. Direct parse after stripping markdown fences
+  try {
+    const direct = JSON.parse(stripMarkdownFences(trimmed));
+    if (direct && typeof direct === 'object' && !Array.isArray(direct)) {
+      return direct as T;
+    }
+  } catch {
+    // Direct parse failed, proceed to code block extraction
+  }
+
+  // 2. Search for ```json ... ``` or ``` ... ``` blocks
+  const codeBlockRegex = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+  let match: RegExpExecArray | null;
+  while ((match = codeBlockRegex.exec(trimmed)) !== null) {
+    const candidate = match[1].trim();
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as T;
+      }
+    } catch {
+      // Code block content was not valid JSON, check next match
+    }
+  }
+
+  // 3. Search for outermost { ... }
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace > firstBrace) {
+    const candidate = trimmed.slice(firstBrace, lastBrace + 1);
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as T;
+      }
+    } catch {
+      // Candidate substring was not valid JSON
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Removes any trailing or leaked JSON blocks/objects from a user-facing answer string.
+ */
+export function cleanAnswerText(value: string): string {
+  if (!value || typeof value !== 'string') return '';
+  let cleaned = value.trim();
+
+  // Strip trailing markdown code blocks containing json with answer/confidence/sources/replyText/resolvedDraft
+  cleaned = cleaned
+    .replace(
+      /```(?:json)?\s*\{[\s\S]*?(?:"answer"|"confidence"|"sources"|"replyText"|"resolvedDraft")[\s\S]*?\}\s*```\s*$/i,
+      '',
+    )
+    .trim();
+
+  // Strip trailing raw json object containing answer/confidence/sources/replyText/resolvedDraft
+  cleaned = cleaned
+    .replace(
+      /\{[\s\S]*?(?:"answer"|"confidence"|"sources"|"replyText"|"resolvedDraft")[\s\S]*?\}\s*$/i,
+      '',
+    )
+    .trim();
+
+  return cleaned || value.trim();
+}
+
 export function getBase64ByteLength(base64: string): number {
   if (!base64) return 0;
   const trimmed = base64.trim();

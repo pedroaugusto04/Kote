@@ -108,6 +108,7 @@ export interface UserSubscriptionRecord {
   startedAt?: Date | null;
   pastDueAt?: Date | null;
   canceledAt?: Date | null;
+  createdFromIntentId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

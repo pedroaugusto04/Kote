@@ -102,6 +102,13 @@ export class ApiClient {
       headers.set('Cookie', cookieParts.join('; '));
     }
 
+    if (config.workspaceSlug && !headers.has('x-workspace-slug')) {
+      headers.set('x-workspace-slug', config.workspaceSlug);
+    }
+    if (config.defaultProjectSlug && !headers.has('x-project-slug')) {
+      headers.set('x-project-slug', config.defaultProjectSlug);
+    }
+
     const response = await fetch(url, { ...options, headers });
 
     // Extract cookies from Set-Cookie headers

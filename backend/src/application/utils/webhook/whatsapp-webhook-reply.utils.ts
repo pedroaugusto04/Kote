@@ -1,8 +1,10 @@
 import type { WhatsappAskAttachmentResolution } from '../../models/whatsapp-ask-attachment.models.js';
 import { WhatsappMediaType } from '../../../contracts/enums.js';
+import { cleanAnswerText } from '../../../domain/strings.js';
 
 export function normalizeReplyText(value: unknown): string {
-  return String(value || '').trim() || 'I could not build the reply. Please try again.';
+  const cleaned = cleanAnswerText(String(value || '')).trim();
+  return cleaned || 'I could not build the reply. Please try again.';
 }
 
 export function formatAskReply(
@@ -12,8 +14,9 @@ export function formatAskReply(
   const rawAnswer = typeof resultOrAnswer === 'object' && resultOrAnswer !== null
     ? resultOrAnswer.answer
     : resultOrAnswer;
+  const cleanedAnswer = cleanAnswerText(String(rawAnswer || '')).trim();
   const lines = [
-    String(rawAnswer || '').trim() || 'I could not build the answer. Please try again.',
+    cleanedAnswer || 'I could not build the answer. Please try again.',
     ...formatAskAttachmentNotices(attachmentResolution),
   ];
   return lines.filter(Boolean).join('\n');
@@ -36,4 +39,34 @@ export function mediaTypeFromMime(mimeType: string): WhatsappMediaType {
   if (mimeType.startsWith('video/')) return WhatsappMediaType.Video;
   if (mimeType.startsWith('audio/')) return WhatsappMediaType.Audio;
   return WhatsappMediaType.Document;
+}
+
+export function toWhatsappWebhookExecutionResult(params: {
+  conversationResult: {
+    action: string;
+    payload?: any;
+    ingestResult?: any;
+    [key: string]: any;
+  };
+  replyText: string;
+  shouldReply: boolean;
+  sendResult: { ok: boolean; error?: string };
+  mediaDispatch: { sentCount: number; failedCount: number };
+  attachmentResolution?: WhatsappAskAttachmentResolution;
+}) {
+  return {
+    ok: true,
+    processed: true,
+    action: params.conversationResult.action,
+    message: params.replyText,
+    payload: params.conversationResult.payload ?? null,
+    ingestResult: 'ingestResult' in params.conversationResult ? params.conversationResult.ingestResult : undefined,
+    conversationResult: { ...params.conversationResult, replyText: params.replyText },
+    replySent: params.shouldReply ? params.sendResult.ok : false,
+    replyError: params.shouldReply && !params.sendResult.ok ? params.sendResult.error : undefined,
+    mediaSent: params.mediaDispatch.sentCount,
+    mediaFailed: params.mediaDispatch.failedCount,
+    mediaOversized: params.attachmentResolution?.oversizedCount || 0,
+    mediaMissingContent: params.attachmentResolution?.missingContentCount || 0,
+  };
 }

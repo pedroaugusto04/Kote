@@ -158,7 +158,7 @@ Log quick notes and query your context engine on the go.
 
 * **Audio Notes:** Transcribes and structures voice recordings.
 * **Image Capture:** Upload screenshots or whiteboard diagrams.
-* **Interactive Querying:** Search using the `/ask` command.
+* **Interactive Querying:** Ask questions in natural language across WhatsApp and the Kote chat.
 
 </details>
 

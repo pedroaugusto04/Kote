@@ -53,21 +53,18 @@ export function formatUsDate(value: string | null | undefined) {
     return `${month}/${day}/${year}`;
   }
 
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  const parts = dateTimePartsInUserTimeZone(value);
+  if (!parts) return value;
 
-  return buildUsDate(parsed);
+  return `${parts.month}/${parts.day}/${parts.year}`;
 }
 
 export function formatUsDateTime(value: string | null | undefined) {
   if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  const parts = dateTimePartsInUserTimeZone(value);
+  if (!parts) return value;
 
-  const datePart = buildUsDate(parsed);
-  const hours = String(parsed.getHours()).padStart(2, '0');
-  const minutes = String(parsed.getMinutes()).padStart(2, '0');
-  return `${datePart} ${hours}:${minutes}`;
+  return `${parts.month}/${parts.day}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 
 export function formatDateInUserTimeZone(value: string | null | undefined) {
@@ -367,8 +364,9 @@ export function getSourceTagClass(source: string | null | undefined): string {
 
 export function formatDateIso(dateStr?: string): string {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  const parts = dateTimePartsInUserTimeZone(dateStr);
+  if (!parts) return dateStr;
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 export function getTimelineNodeColor(category: string, type?: string) {

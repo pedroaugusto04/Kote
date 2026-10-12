@@ -16,14 +16,20 @@ export class ConversationFolderResolutionService {
 
   async resolveFolderIdForSubmission(userId: string, state: AgentConversationState) {
     if (!state.project.selectedProjectSlug || state.project.selectedProjectSlug === 'inbox') return '';
-    if (state.folder.placeInRoot || state.folder.suggestedFolderPath.length === 0) return state.folder.selectedFolderId;
-    if (state.folder.selectedFolderId) return state.folder.selectedFolderId;
+    if (state.folder.placeInRoot) return '';
 
     const scope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
       projectSlug: state.project.selectedProjectSlug,
     });
     const project = scope.project;
     if (!project) return '';
+
+    if (state.folder.selectedFolderId) {
+      const existing = await this.contentRepository.getProjectFolderById(userId, project.id, state.folder.selectedFolderId);
+      if (existing) return existing.id;
+    }
+
+    if (state.folder.suggestedFolderPath.length === 0) return '';
 
     let parentFolderId = '';
     let lastFolderId = '';

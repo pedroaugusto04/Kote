@@ -33,7 +33,9 @@ export function extractPageMetadata(doc: Document, url: string, selectedHtml?: s
   } else {
     try {
       site = new URL(url).hostname;
-    } catch {}
+    } catch {
+      // Invalid URL string
+    }
   }
 
   // Extract published time from document metadata tags

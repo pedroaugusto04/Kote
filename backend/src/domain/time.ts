@@ -190,11 +190,74 @@ export function formatDateTimeInTimeZone(date: Date, timeZone = 'UTC'): string {
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
-export function currentDateTimeInTimeZone(timeZone = 'UTC', now = new Date()): { date: string; time: string } {
+export function getTimeZoneOffsetString(date = new Date(), timeZone = 'UTC'): string {
+  const zone = normalizeTimeZone(timeZone);
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      timeZoneName: 'longOffset',
+    });
+    const parts = formatter.formatToParts(date);
+    const offsetPart = parts.find((part) => part.type === 'timeZoneName')?.value || 'GMT';
+    const match = offsetPart.match(/GMT([+-]\d{1,2}(?::\d{2})?)/);
+    if (!match) return '+00:00';
+    const raw = match[1];
+    const sign = raw.startsWith('-') ? '-' : '+';
+    const cleaned = raw.replace(/[+-]/, '');
+    const [hours, minutes = '00'] = cleaned.split(':');
+    return `${sign}${hours.padStart(2, '0')}:${minutes.padEnd(2, '0')}`;
+  } catch {
+    return '+00:00';
+  }
+}
+
+export function currentDateTimeInTimeZone(timeZone = 'UTC', now = new Date()): { date: string; time: string; offset: string } {
   return {
     date: formatDateInTimeZone(now, timeZone),
     time: formatTimeInTimeZone(now, timeZone),
+    offset: getTimeZoneOffsetString(now, timeZone),
   };
+}
+
+export function normalizeReminderAtToUtc(value: unknown, timeZone = 'UTC'): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const zone = normalizeTimeZone(timeZone);
+
+  // Check if string already contains an explicit timezone offset or Z after time
+  const hasTimeOffset = /(?:T|\s)\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?(Z|[+-]\d{2}(?::?\d{2})?)$/i.test(raw);
+  if (!hasTimeOffset) {
+    // Matches YYYY-MM-DD[T ]HH:mm[:ss]
+    const isoWithoutOffset = raw.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}:\d{2}(?::\d{2})?)(?:\.\d+)?$/);
+    if (isoWithoutOffset) {
+      const [, datePart, timePart] = isoWithoutOffset;
+      return buildReminderAt(datePart, timePart, zone);
+    }
+
+    // Matches DD/MM/YYYY[T ]HH:mm[:ss]
+    const brDateTime = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})[T ](\d{1,2}:\d{2}(?::\d{2})?)(?:\.\d+)?$/);
+    if (brDateTime) {
+      const [, day, month, year, timePart] = brDateTime;
+      return buildReminderAt(`${year}-${month}-${day}`, timePart, zone);
+    }
+
+    // Matches YYYY-MM-DD (date only, defaults to 09:00 in specified timezone)
+    const isoDateOnly = raw.match(/^(\d{4}-\d{2}-\d{2})$/);
+    if (isoDateOnly) {
+      return buildReminderAt(isoDateOnly[1], '09:00', zone);
+    }
+
+    // Matches DD/MM/YYYY (date only, defaults to 09:00 in specified timezone)
+    const brDateOnly = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (brDateOnly) {
+      const [, day, month, year] = brDateOnly;
+      return buildReminderAt(`${year}-${month}-${day}`, '09:00', zone);
+    }
+  }
+
+  const timestamp = Date.parse(raw);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : '';
 }
 
 export function shiftDateKey(dateKey: string, days: number): string {

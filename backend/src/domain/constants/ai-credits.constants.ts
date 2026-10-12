@@ -16,7 +16,7 @@
  */
 
 export const AI_CREDIT_COSTS: Record<string, number> = {
-  /** Semantic knowledge query via web UI or webhook (/ask). */
+  /** Semantic knowledge query via web UI or conversational messaging. */
   ask_knowledge: 4,
 
   /** Single agent conversation turn (WPP / Telegram). */

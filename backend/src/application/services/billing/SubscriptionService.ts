@@ -15,19 +15,37 @@ import {
   SubscriptionChangeStatus,
   SubscriptionChangeKind,
   PaymentStatus,
+  PaymentKind,
   BillingIntentType,
 } from '../../../domain/enums/billing.enums.js';
 import { FREE_PLAN_ID, SubscriptionPlan } from '../../../domain/enums/plans.enums.js';
-import { formatGatewayDueDate, getNextDueDate } from '../../../domain/utils/subscription.utils.js';
+import {
+  formatGatewayDueDate,
+  getNextDueDate,
+  resolvePastDueTimestamp,
+  resolveSubscriptionDueDate,
+  calculateSubscriptionPeriodBounds,
+} from '../../../domain/utils/subscription.utils.js';
 import { resolvePlanValueForCycle } from '../../../domain/utils/plan-pricing.utils.js';
-import { PAYMENT_GATEWAY, COUNTRY_CODE } from '../../../domain/constants/billing.constants.js';
+import { PAYMENT_GATEWAY, COUNTRY_CODE, type PaymentGateway } from '../../../domain/constants/billing.constants.js';
 import { BillingIntentService } from './BillingIntentService.js';
 import { SubscriptionUpgradeService } from './SubscriptionUpgradeService.js';
+import {
+  resolveBillingGateway,
+  validateSubscriptionPreconditions,
+  validatePaymentMethodRegistration,
+} from './subscription-registration.helpers.js';
 import { SubscriptionContext } from './subscriptionStrategy/subscriptionContext.js';
 import type { SubscriptionChangeResult, RegisterOrUpdateSubscriptionInput } from '../../models/subscription-change.models.js';
+import type { UserSubscriptionRecord } from '../../models/billing.models.js';
 import { SubscriptionChangeService } from './SubscriptionChangeService.js';
 import { BillingPaymentRepository, SubscriptionRepository, BillingCustomerRepository } from '../../ports/billing/billing-repositories.js';
-import { SubscriptionPlanMapper, BillingPaymentMapper } from '../../mappers/billing.mapper.js';
+import {
+  SubscriptionPlanMapper,
+  BillingPaymentMapper,
+  UserSubscriptionMapper,
+  SubscriptionChangeMapper,
+} from '../../mappers/billing.mapper.js';
 import { UserRepository } from '../../ports/auth/auth.repository.js';
 import { UpdateSubscriptionStrategyFactory } from './subscriptionStrategy/UpdateSubscriptionStrategyFactory.js';
 import { canCancelPayment, isActiveSubscriptionStatus } from '../../../domain/utils/payment.utils.js';
@@ -82,16 +100,11 @@ export class SubscriptionService {
 
     const currentSub = await this.subscriptionRepository.getSubscriptionByUserId(userId);
 
+    const user = await this.userRepository.findUserById(userId);
     if (!cpfCnpj) {
-      const user = await this.userRepository.findUserById(userId);
       cpfCnpj = user?.cpfCnpj || '';
-    }
-
-    if (cpfCnpj) {
-      const user = await this.userRepository.findUserById(userId);
-      if (user && user.cpfCnpj !== cpfCnpj) {
-        await this.userRepository.updateUser({ userId, cpfCnpj });
-      }
+    } else if (user && user.cpfCnpj !== cpfCnpj) {
+      await this.userRepository.updateUser({ userId, cpfCnpj });
     }
 
     const cycle = billingCycle || BillingCycle.MONTHLY;
@@ -99,40 +112,16 @@ export class SubscriptionService {
     const normalizedCreditCardToken = creditCardToken?.trim() || undefined;
     const isFreePlan = targetPlan.slug === SubscriptionPlan.FREE;
 
-    const onlyStripe = process.env.ONLY_STRIPE === 'true';
-    const isBrazil = countryCode?.toUpperCase() === COUNTRY_CODE.BRAZIL;
-    const isInternational = onlyStripe || !isBrazil;
-    const gatewayName = onlyStripe ? PAYMENT_GATEWAY.STRIPE : (isBrazil ? PAYMENT_GATEWAY.ASAAS : PAYMENT_GATEWAY.STRIPE);
-    const gateway = onlyStripe ? this.stripePaymentGateway : (isBrazil ? this.asaasPaymentGateway : this.stripePaymentGateway);
+    const { isInternational, gatewayName } = resolveBillingGateway(countryCode);
+    const gateway = gatewayName === PAYMENT_GATEWAY.ASAAS ? this.asaasPaymentGateway : this.stripePaymentGateway;
 
-    if (isInternational && (type === BillingType.PIX || type === BillingType.BOLETO)) {
-      throw new BadRequestException('PIX and Boleto payments are only available for Brazilian users. Please select Credit Card.');
-    }
-
-    if (isBrazil && !onlyStripe) {
-      const hasAsaas = Boolean(process.env.ASAAS_ACCESS_TOKEN);
-      if (!hasAsaas) {
-        throw new BadRequestException('ASAAS_ACCESS_TOKEN is not configured on the server.');
-      }
-    } else {
-      const hasStripe = Boolean(process.env.STRIPE_SECRET_KEY);
-      if (!hasStripe) {
-        throw new BadRequestException('STRIPE_SECRET_KEY is not configured on the server.');
-      }
-    }
-
-    if (currentSub?.status === SubscriptionStatus.PAST_DUE) {
-      throw new BadRequestException('Your subscription has a past due payment. Please settle the pending payment to change plan or cycle.');
-    }
-
-    if (
-      currentSub &&
-      currentSub.planId === planId &&
-      currentSub.billingCycle === cycle &&
-      currentSub.status === SubscriptionStatus.ACTIVE
-    ) {
-      throw new BadRequestException('You are already subscribed to this plan with the same billing cycle.');
-    }
+    validateSubscriptionPreconditions({
+      countryCode,
+      type,
+      cycle,
+      currentSub,
+      planId,
+    });
 
     const activeSubRow =
       currentSub && isActiveSubscriptionStatus(currentSub.status) ? currentSub : null;
@@ -144,33 +133,20 @@ export class SubscriptionService {
       }
     }
 
-    const shouldCheckCardOnFile =
-      type === BillingType.CREDIT_CARD || cycle === BillingCycle.MONTHLY;
+    const customerRow = await this.billingCustomerRepository.getCustomerByUserId(userId, gatewayName);
+    const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
 
-    const getCustomer = async () => this.billingCustomerRepository.getCustomerByUserId(userId, gatewayName as any);
-
-    if (shouldCheckCardOnFile && cycle === BillingCycle.MONTHLY && type !== BillingType.CREDIT_CARD) {
-      const customerRow = await getCustomer();
-      const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
-      if (hasCreditCardOnFile) {
-        throw new BadRequestException('With a registered card, monthly subscriptions must use credit card.');
-      }
-    }
-
-    if (isInternational && type === BillingType.CREDIT_CARD && !isFreePlan) {
-      const customerRow = await getCustomer();
-      const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
-      if (!hasCreditCardOnFile && !normalizedCreditCardToken) {
-        throw new BadRequestException('Credit card details are required for international subscriptions.');
-      }
-    }
+    validatePaymentMethodRegistration({
+      countryCode,
+      type,
+      cycle,
+      isFreePlan,
+      hasCreditCardOnFile,
+      normalizedCreditCardToken,
+    });
 
     // Create or sync the gateway customer id for the selected gateway.
-    let gatewayCustomerId = '';
-    const customerRow = await getCustomer();
-    if (customerRow?.gatewayCustomerId) {
-      gatewayCustomerId = customerRow.gatewayCustomerId;
-    }
+    let gatewayCustomerId = customerRow?.gatewayCustomerId || '';
     if (!gatewayCustomerId) {
       const customer = await gateway.createCustomer({
         name: userDisplayName || userEmail,
@@ -181,24 +157,10 @@ export class SubscriptionService {
       gatewayCustomerId = customer.id;
     }
 
-    await this.billingCustomerRepository.upsertCustomer(userId, gatewayName as any, gatewayCustomerId);
+    await this.billingCustomerRepository.upsertCustomer(userId, gatewayName, gatewayCustomerId);
 
-    let activePlanRow = null;
-    if (activeSubRow) {
-      activePlanRow = await this.subscriptionRepository.getPlanById(activeSubRow.planId);
-    }
-    const activePlan = activePlanRow ? {
-      id: activePlanRow.id,
-      slug: activePlanRow.slug,
-      displayName: activePlanRow.displayName,
-      priceCents: activePlanRow.priceCents,
-      priceUsdCents: activePlanRow.priceUsdCents,
-      maxStorageBytes: Number(activePlanRow.maxStorageBytes),
-      maxAiCreditsPerMonth: activePlanRow.maxAiCreditsPerMonth,
-      maxWorkspaces: activePlanRow.maxWorkspaces,
-      maxProjectsPerWorkspace: activePlanRow.maxProjectsPerWorkspace,
-      isActive: activePlanRow.isActive,
-    } : undefined;
+    const activePlanRow = activeSubRow ? await this.subscriptionRepository.getPlanById(activeSubRow.planId) : null;
+    const activePlan = SubscriptionPlanMapper.toSubscriptionContextPlan(activePlanRow);
 
     const newSubscriptionValue = resolvePlanValueForCycle(
       {
@@ -222,14 +184,7 @@ export class SubscriptionService {
       },
       gateway: gatewayName === PAYMENT_GATEWAY.ASAAS ? GatewayNameEnum.ASAAS : GatewayNameEnum.STRIPE,
       gatewayCustomerId,
-      activeSub: activeSubRow ? {
-        id: activeSubRow.userId,
-        planId: activeSubRow.planId,
-        billingCycle: activeSubRow.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
-        gatewaySubscriptionId: activeSubRow.gatewaySubscriptionId || '',
-        nextDueDate: activeSubRow.nextDueDate || undefined,
-        gatewayName: activeSubRow.gatewayName || gatewayName,
-      } : undefined,
+      activeSub: UserSubscriptionMapper.toSubscriptionContextActiveSub(activeSubRow, gatewayName),
       activePlan,
     };
 
@@ -258,9 +213,9 @@ export class SubscriptionService {
     activationDate?: Date;
     creditCardToken?: string;
     createdFromIntentId?: string;
-    gatewayName?: string;
+    gatewayName?: PaymentGateway;
   }): Promise<{ id: string }> {
-    const gatewayName = params.gatewayName || PAYMENT_GATEWAY.ASAAS;
+    const gatewayName: PaymentGateway = params.gatewayName || PAYMENT_GATEWAY.ASAAS;
     const gateway = gatewayName === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
 
     const targetPlan = await this.subscriptionRepository.getPlanById(params.targetPlanId);
@@ -281,7 +236,7 @@ export class SubscriptionService {
       customerId: params.gatewayCustomerId,
       billingType: toGatewayBillingType(params.billingType ?? BillingType.CREDIT_CARD),
       value: price,
-      cycle: params.billingCycle === BillingCycle.YEARLY ? 'YEARLY' as any : 'MONTHLY' as any,
+      cycle: params.billingCycle === BillingCycle.YEARLY ? 'YEARLY' : 'MONTHLY',
       nextDueDate: formatGatewayDueDate(nextDueDate),
       description: `Subscription ${targetPlan.displayName}`,
       creditCardToken: params.billingType === BillingType.CREDIT_CARD ? params.creditCardToken : undefined,
@@ -289,7 +244,7 @@ export class SubscriptionService {
       externalReference: params.createdFromIntentId || params.userId,
     });
 
-    const values = {
+    const values: Partial<UserSubscriptionRecord> = {
       userId: params.userId,
       planId: params.targetPlanId,
       status: SubscriptionStatus.ACTIVE,
@@ -297,7 +252,6 @@ export class SubscriptionService {
       currentPeriodEnd,
       gatewayName,
       gatewaySubscriptionId: gatewaySubscription.id,
-      gatewayCustomerId: params.gatewayCustomerId,
       billingCycle: params.billingCycle,
       billingType: params.billingType,
       nextDueDate,
@@ -305,7 +259,7 @@ export class SubscriptionService {
       createdFromIntentId: params.createdFromIntentId ?? null,
     };
 
-    await this.subscriptionRepository.upsertUserSubscription(params.userId, values as any);
+    await this.subscriptionRepository.upsertUserSubscription(params.userId, values);
 
     if (params.createdFromIntentId) {
       await this.billingIntentService.markDoneWithSubscription(
@@ -344,7 +298,7 @@ export class SubscriptionService {
           id: crypto.randomUUID(),
           subscriptionId: params.userId,
           userId: params.userId,
-          gateway: gatewayName as any,
+          gateway: gatewayName,
           gatewayPaymentId: autoGeneratedPayment.id,
           status: normalizedStatus,
           billingType: autoGeneratedPayment.billingType ?? params.billingType ?? null,
@@ -420,11 +374,18 @@ export class SubscriptionService {
   }): Promise<void> {
     if (!params.subscriptionId) return;
 
-    const gateway = params.gatewaySubscriptionId ? 
-      (params.gatewaySubscriptionId.includes('sub_') ? this.stripePaymentGateway : this.asaasPaymentGateway) : null;
+    const subRow = await this.subscriptionRepository.getSubscriptionByUserId(params.subscriptionId);
+    if (!subRow) {
+      this.logger.warn(`Subscription row not found in database: ${params.subscriptionId}`);
+      return;
+    }
+
+    const gateway = (subRow.gatewayName === PAYMENT_GATEWAY.STRIPE || params.gatewaySubscriptionId?.includes('sub_'))
+      ? this.stripePaymentGateway
+      : this.asaasPaymentGateway;
 
     let gatewaySubscription = null;
-    if (gateway && params.gatewaySubscriptionId) {
+    if (params.gatewaySubscriptionId) {
       try {
         gatewaySubscription = await gateway.getSubscriptionByGatewayId(params.gatewaySubscriptionId);
       } catch (err: any) {
@@ -446,13 +407,6 @@ export class SubscriptionService {
       return;
     }
 
-    const subRow = await this.subscriptionRepository.getSubscriptionByUserId(params.subscriptionId);
-
-    if (!subRow) {
-      this.logger.warn(`Subscription row not found in database: ${params.subscriptionId}`);
-      return;
-    }
-
     const latestPaymentDueDate = latestRecurringPayment?.dueDate ?? null;
     const hasRecurringPaymentInRealDebt = 
       await this.billingPaymentRepository.hasRecurringPaymentInRealDebt(params.userId, params.subscriptionId);
@@ -471,44 +425,25 @@ export class SubscriptionService {
       ? (hasRecurringPaymentInRealDebt ? SubscriptionStatus.PAST_DUE : SubscriptionStatus.ACTIVE)
       : params.status;
 
-    const wasPastDue = params.status === SubscriptionStatus.PAST_DUE;
-    let pastDueAt: Date | null | undefined = undefined;
-    if (newStatus === SubscriptionStatus.PAST_DUE) {
-      pastDueAt = wasPastDue ? undefined : new Date();
-    } else if (newStatus) {
-      pastDueAt = null;
-    }
-
+    const pastDueAt = resolvePastDueTimestamp(newStatus, params.status);
     const gatewayNextDueDate = gatewaySubscription?.nextDueDate ? new Date(gatewaySubscription.nextDueDate) : null;
+    const nextDueDate = resolveSubscriptionDueDate({
+      latestPaymentStatus: latestRecurringPayment.status,
+      latestPaymentDueDate,
+      gatewayNextDueDate,
+    });
 
-    // calculate due date based on last payment
-    // if not available, use gateway due date
-    const nextDueDate =
-      (latestRecurringPayment.status === PaymentStatus.PENDING || latestRecurringPayment.status === PaymentStatus.OVERDUE) && latestPaymentDueDate
-        ? (!gatewayNextDueDate || gatewayNextDueDate > latestPaymentDueDate ? latestPaymentDueDate : gatewayNextDueDate)
-        : (gatewayNextDueDate ?? latestPaymentDueDate);
-
-    // Calculate new currentPeriodEnd and currentPeriodStart based on nextDueDate and billingCycle
-    let currentPeriodStart: Date | undefined;
-    let currentPeriodEnd: Date | undefined;
-
-    if (nextDueDate) {
-      currentPeriodEnd = new Date(nextDueDate);
-      currentPeriodStart = new Date(nextDueDate);
-      if (subRow.billingCycle === BillingCycle.YEARLY) {
-        currentPeriodStart.setUTCFullYear(currentPeriodStart.getUTCFullYear() - 1);
-      } else {
-        currentPeriodStart.setUTCMonth(currentPeriodStart.getUTCMonth() - 1);
-      }
-    }
+    const periodBounds = nextDueDate
+      ? calculateSubscriptionPeriodBounds(nextDueDate, subRow.billingCycle)
+      : undefined;
 
     // update due date based on last payment
     await this.subscriptionRepository.upsertUserSubscription(params.subscriptionId, {
       status: newStatus ?? undefined,
       pastDueAt,
       nextDueDate: nextDueDate ?? undefined,
-      currentPeriodStart: currentPeriodStart ?? undefined,
-      currentPeriodEnd: currentPeriodEnd ?? undefined,
+      currentPeriodStart: periodBounds?.currentPeriodStart,
+      currentPeriodEnd: periodBounds?.currentPeriodEnd,
     });
   }
 
@@ -519,45 +454,19 @@ export class SubscriptionService {
   async getSubscriptionStatusSummary(userId: string) {
     const subRow = await this.subscriptionRepository.getSubscriptionByUserId(userId);
     
-    const latestSubSummary = subRow ? {
-      userId: subRow.userId,
-      planId: subRow.planId,
-      status: subRow.status,
-      currentPeriodStart: subRow.currentPeriodStart.toISOString(),
-      currentPeriodEnd: subRow.currentPeriodEnd.toISOString(),
-      billingCycle: subRow.billingCycle,
-      billingType: subRow.billingType,
-      nextDueDate: subRow.nextDueDate ? subRow.nextDueDate.toISOString() : null,
-      gatewayName: subRow.gatewayName,
-    } : null;
-
+    const latestSubSummary = UserSubscriptionMapper.toSubscriptionSummary(subRow);
     const activeSubSummary = (subRow && (subRow.status === SubscriptionStatus.ACTIVE || subRow.status === SubscriptionStatus.PAST_DUE)) ? latestSubSummary : null;
 
     const paymentRow = await this.billingPaymentRepository.getLatestPendingPaymentByUserId(userId);
-
     const latestPendingPaymentSummary = BillingPaymentMapper.toPendingPaymentSummary(paymentRow);
 
-    const customerGateway = (subRow?.gatewayName || PAYMENT_GATEWAY.ASAAS) as any;
+    const customerGateway = (subRow?.gatewayName || PAYMENT_GATEWAY.ASAAS) as PaymentGateway;
     const customerRow = await this.billingCustomerRepository.getCustomerByUserId(userId, customerGateway);
     const hasCreditCardOnFile = Boolean(customerRow?.hasCreditCardOnFile);
 
     const scheduledChange = await this.subscriptionChangeService.getScheduledChange(userId);
-    let scheduledChangeDTO = null;
-    if (scheduledChange) {
-      const targetPlan = await this.subscriptionRepository.getPlanById(scheduledChange.toPlanId);
-      scheduledChangeDTO = {
-        id: scheduledChange.id,
-        userId: scheduledChange.userId,
-        fromSubscriptionId: scheduledChange.fromSubscriptionId,
-        toPlanId: scheduledChange.toPlanId,
-        toPlan: targetPlan ? SubscriptionPlanMapper.toPlanDto(targetPlan) : null,
-        toBillingCycle: scheduledChange.toBillingCycle,
-        toBillingType: scheduledChange.toBillingType,
-        type: scheduledChange.type,
-        status: scheduledChange.status,
-        effectiveAt: scheduledChange.effectiveAt.toISOString(),
-      };
-    }
+    const targetPlan = scheduledChange ? await this.subscriptionRepository.getPlanById(scheduledChange.toPlanId) : null;
+    const scheduledChangeDTO = SubscriptionChangeMapper.toScheduledChangeDto(scheduledChange, targetPlan);
 
     return {
       latestSub: latestSubSummary,
@@ -694,7 +603,7 @@ export class SubscriptionService {
       description,
       externalReference,
       creditCardToken,
-      kind: 'upgrade' as any,
+      kind: PaymentKind.UPGRADE,
     });
 
     const normalizedStatus = mapper.normalizePaymentStatus(payment.status, null) ?? PaymentStatus.PENDING;
@@ -703,11 +612,11 @@ export class SubscriptionService {
       id: crypto.randomUUID(),
       subscriptionId: subscriptionId ?? ctx.userId,
       userId: ctx.userId,
-      gateway: ctx.gateway.toLowerCase() as any,
+      gateway: ctx.gateway.toLowerCase() as PaymentGateway,
       gatewayPaymentId: payment.id,
       status: normalizedStatus,
       billingType: ctx.newBillingType,
-      kind: 'upgrade',
+      kind: PaymentKind.UPGRADE,
       gatewayStatus: payment.status ?? undefined,
       value: paymentValue,
       dueDate,

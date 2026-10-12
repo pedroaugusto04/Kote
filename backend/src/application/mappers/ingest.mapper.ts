@@ -1,6 +1,7 @@
 import { slugify } from '../../domain/strings.js';
 import type { Project } from '../../domain/projects.js';
-import type { IngestPayload } from '../../contracts/ingest.js';
+import { ingestPayloadSchema, type IngestPayload } from '../../contracts/ingest.js';
+import { CanonicalType, EventType, Importance, KnowledgeKind, KnowledgeStatus, type SourceChannel } from '../../contracts/enums.js';
 import type { SaveProjectInput } from '../models/repository-records.models.js';
 import type { SaveNoteInput } from '../models/repository-records.models.js';
 import type { SaveNoteResult } from '../models/note-save-result.models.js';
@@ -9,8 +10,116 @@ import type { AttachmentRecord } from '../models/repository-records.models.js';
 import { buildNotePaths, renderEventNote } from '../../domain/notes.js';
 import { trimText } from '../../domain/strings.js';
 import { normalizeManualNoteStatus, hasReminder } from '../../domain/note-status.js';
-import { KnowledgeStatus } from '../../contracts/enums.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
+
+export interface BuildIngestPayloadInput {
+  source: {
+    channel?: SourceChannel | string;
+    system: string;
+    source?: string;
+    actor?: string;
+    conversationId?: string;
+    correlationId: string;
+    sessionId?: string;
+  };
+  event: {
+    type: EventType;
+    projectSlug: string;
+    occurredAt?: string;
+  };
+  content?: {
+    rawText?: string;
+    title?: string;
+    attachments?: Array<{
+      fileName: string;
+      mimeType?: string;
+      sizeBytes?: number;
+      dataBase64?: string;
+    }>;
+    sections?: {
+      summary?: string;
+      impact?: string;
+      risks?: string | string[];
+      nextSteps?: string | string[];
+      reviewFindings?: any[];
+    };
+  };
+  classification?: {
+    kind?: KnowledgeKind;
+    canonicalType?: CanonicalType;
+    importance?: Importance;
+    status?: KnowledgeStatus;
+    tags?: string[];
+    decisionFlag?: boolean;
+  };
+  actions?: {
+    reminderAt?: string;
+    reminderDate?: string;
+    reminderTime?: string;
+    followUpBy?: string;
+  };
+  links?: string[];
+  metadata?: Record<string, unknown>;
+}
+
+export function buildIngestPayload(input: BuildIngestPayloadInput): IngestPayload {
+  const risks = Array.isArray(input.content?.sections?.risks)
+    ? input.content.sections.risks
+    : (input.content?.sections?.risks ? [input.content.sections.risks] : []);
+
+  const nextSteps = Array.isArray(input.content?.sections?.nextSteps)
+    ? input.content.sections.nextSteps
+    : (input.content?.sections?.nextSteps ? [input.content.sections.nextSteps] : []);
+
+  const rawOccurredAt = input.event.occurredAt;
+  const parsedOccurredAt = rawOccurredAt ? new Date(rawOccurredAt) : new Date();
+  const occurredAt = Number.isNaN(parsedOccurredAt.getTime())
+    ? new Date().toISOString()
+    : parsedOccurredAt.toISOString();
+
+  return ingestPayloadSchema.parse({
+    source: {
+      channel: input.source.channel,
+      system: input.source.system,
+      source: input.source.source || '',
+      actor: input.source.actor || '',
+      conversationId: input.source.conversationId || '',
+      correlationId: input.source.correlationId,
+      sessionId: input.source.sessionId || '',
+    },
+    event: {
+      type: input.event.type,
+      occurredAt,
+      projectSlug: input.event.projectSlug,
+    },
+    content: {
+      rawText: input.content?.rawText || '',
+      title: input.content?.title || '',
+      attachments: input.content?.attachments || [],
+      sections: {
+        summary: input.content?.sections?.summary || '',
+        impact: input.content?.sections?.impact || '',
+        risks,
+        nextSteps,
+        reviewFindings: input.content?.sections?.reviewFindings || [],
+      },
+    },
+    classification: {
+      kind: input.classification?.kind ?? KnowledgeKind.Note,
+      canonicalType: input.classification?.canonicalType ?? CanonicalType.Knowledge,
+      importance: input.classification?.importance ?? Importance.Medium,
+      status: input.classification?.status,
+      tags: input.classification?.tags || [],
+      decisionFlag: input.classification?.decisionFlag ?? false,
+    },
+    actions: {
+      reminderAt: input.actions?.reminderAt || '',
+      followUpBy: input.actions?.followUpBy || '',
+    },
+    links: input.links || [],
+    metadata: input.metadata || {},
+  });
+}
 
 export function toProjectFromIngest(payload: IngestPayload, workspaceSlug: string): Project {
   const projectSlug = slugify(payload.event.projectSlug) || 'inbox';

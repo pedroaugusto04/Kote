@@ -8,6 +8,8 @@ import { formatUsDate } from '../../shared/utils/format';
 import { notifySuccess, notifyError } from '../../shared/ui/notifications';
 import { SourceBadge } from '../../widgets/notes/SourceBadge';
 import { useDebouncedValue } from '../../shared/ui/use-debounced-value';
+import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
+import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { PROJECTS_WORKSPACE_MESSAGES } from './projects.constants';
 
 interface ProjectDecisionsPanelProps {
@@ -21,6 +23,7 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
   const debouncedSearch = useDebouncedValue(searchInput, PROJECTS_WORKSPACE_MESSAGES.SEARCH.DEBOUNCE_MS);
   const [page, setPage] = useState<number>(1);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isExportConfirmOpen, setIsExportConfirmOpen] = useState<boolean>(false);
 
   const handleSearchChange = (value: string) => {
     setSearchInput(value);
@@ -99,7 +102,7 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
           className="icon-button"
           type="button"
           title="Export decisions as Architecture Decision Record (ADR) markdown files in a zip"
-          onClick={handleExport}
+          onClick={() => setIsExportConfirmOpen(true)}
           disabled={isExporting}
         >
           <DownloadIcon style={{ width: '0.9rem', height: '0.9rem', marginRight: '0.35rem' }} />
@@ -202,6 +205,22 @@ export function ProjectDecisionsPanel({ projectSlug, onOpenNote }: ProjectDecisi
           {/* Pagination */}
           {data.pagination && <Pagination pagination={data.pagination} onPageChange={setPage} />}
         </>
+      )}
+
+      {isExportConfirmOpen && (
+        <ConfirmationModal
+          busy={isExporting}
+          title={PROJECTS_WORKSPACE_MESSAGES.EXPORT_ADRS_CONFIRM_TITLE}
+          description={PROJECTS_WORKSPACE_MESSAGES.EXPORT_ADRS_CONFIRM_DESCRIPTION}
+          cancelLabel={UI_MESSAGES.CANCEL}
+          confirmLabel="Export ADRs (.zip)"
+          tone="default"
+          onCancel={() => setIsExportConfirmOpen(false)}
+          onConfirm={() => {
+            setIsExportConfirmOpen(false);
+            void handleExport();
+          }}
+        />
       )}
     </div>
   );

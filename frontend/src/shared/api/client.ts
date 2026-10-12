@@ -48,7 +48,7 @@ export { PROJECT_DECISION_STATUS_LABELS, getProjectDecisionStatusLabel } from '.
 export { fetchReminderBoard, fetchReminders, updateReminderStatus, bulkUpdateReminderStatuses } from './reminders';
 export { runQuery } from './query';
 export { fetchAskHistory, runAsk, fetchAskConversations, fetchConversationTurns } from './ask';
-export { ApiClientError, type AuthUser } from './request';
+export { ApiClientError, type AuthUser, setActiveWorkspaceSlug, getActiveWorkspaceSlug } from './request';
 export { getErrorMessage } from './error-message';
 export { createWorkspace, fetchWorkspaceCategories } from './workspaces';
 export {

@@ -17,6 +17,29 @@ import {
   CancelPaymentUseCase,
   CancelScheduledChangeUseCase,
 } from '../../../../application/use-cases/index.js';
+import { updateSubscriptionBodySchema, type UpdateSubscriptionBody } from '../../dto/subscription.dto.js';
+import { ZodValidationPipe } from '../../zod-validation.pipe.js';
+
+function resolveUserCountryCode(
+  customCountryCode?: string,
+  userCountryHeader?: string,
+  cfCountryHeader?: string,
+  acceptLanguageHeader?: string,
+): string {
+  if (customCountryCode && customCountryCode.trim().length > 0) {
+    return customCountryCode.trim().toUpperCase();
+  }
+  if (userCountryHeader && userCountryHeader.trim().length > 0) {
+    return userCountryHeader.trim().toUpperCase();
+  }
+  if (cfCountryHeader && cfCountryHeader.trim().length > 0) {
+    return cfCountryHeader.trim().toUpperCase();
+  }
+  if (acceptLanguageHeader && acceptLanguageHeader.toLowerCase().includes('pt-br')) {
+    return COUNTRY_CODE.BRAZIL;
+  }
+  return COUNTRY_CODE.UNITED_STATES;
+}
 
 @ApiTags('Subscription')
 @Controller('api/subscription')
@@ -81,15 +104,7 @@ export class SubscriptionController {
     @Headers('cf-ipcountry') cfCountryHeader?: string,
     @Headers('accept-language') acceptLanguageHeader?: string,
   ) {
-    let countryCode: string = COUNTRY_CODE.UNITED_STATES;
-    if (userCountryHeader && userCountryHeader.trim().length > 0) {
-      countryCode = userCountryHeader.trim().toUpperCase();
-    } else if (cfCountryHeader && cfCountryHeader.trim().length > 0) {
-      countryCode = cfCountryHeader.trim().toUpperCase();
-    } else if (acceptLanguageHeader && acceptLanguageHeader.toLowerCase().includes('pt-br')) {
-      countryCode = COUNTRY_CODE.BRAZIL;
-    }
-    return { country: countryCode };
+    return { country: resolveUserCountryCode(undefined, userCountryHeader, cfCountryHeader, acceptLanguageHeader) };
   }
 
   @Post()
@@ -98,32 +113,13 @@ export class SubscriptionController {
   @ApiResponse({ status: 200, description: 'Subscription updated successfully' })
   async updateSubscription(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: {
-      planId: string;
-      billingCycle?: BillingCycle;
-      billingType?: BillingType;
-      cpfCnpj?: string;
-      countryCode?: string;
-      creditCardToken?: string;
-    },
+    @Body(new ZodValidationPipe(updateSubscriptionBodySchema, 'invalid_subscription_payload')) body: UpdateSubscriptionBody,
     @Headers('x-user-country') userCountryHeader?: string,
     @Headers('cf-ipcountry') cfCountryHeader?: string,
     @Headers('accept-language') acceptLanguageHeader?: string,
   ) {
     const { planId, billingCycle, billingType, cpfCnpj, creditCardToken } = body;
-
-    let countryCode: string = body.countryCode || '';
-    if (!countryCode) {
-      if (userCountryHeader && userCountryHeader.trim().length > 0) {
-        countryCode = userCountryHeader.trim();
-      } else if (cfCountryHeader && cfCountryHeader.trim().length > 0) {
-        countryCode = cfCountryHeader.trim();
-      } else if (acceptLanguageHeader && acceptLanguageHeader.toLowerCase().includes('pt-br')) {
-        countryCode = COUNTRY_CODE.BRAZIL;
-      } else {
-        countryCode = COUNTRY_CODE.UNITED_STATES;
-      }
-    }
+    const countryCode = resolveUserCountryCode(body.countryCode, userCountryHeader, cfCountryHeader, acceptLanguageHeader);
 
     return this.updateSubscriptionUseCase.execute({
       userId: user.id,

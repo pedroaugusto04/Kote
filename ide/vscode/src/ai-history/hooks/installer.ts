@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import * as vscode from 'vscode';
+import type * as vscode from 'vscode';
 
 import { logInfo, toMessage } from '../../error-reporter';
 import { watchFile } from '../../utils/watcher';
@@ -145,7 +145,9 @@ function registerClaudeCodeHook(): boolean {
     if (fs.existsSync(settingsPath)) {
       try {
         settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-      } catch {}
+      } catch {
+        // Fall back to empty settings object if JSON is invalid
+      }
     }
 
     if (!settings.hooks) settings.hooks = {};
@@ -228,7 +230,9 @@ export function watchActiveSessionStarts(
     if (!fs.existsSync(ACTIVE_SESSION_START_PATH)) {
       fs.writeFileSync(ACTIVE_SESSION_START_PATH, '{}', 'utf8');
     }
-  } catch {}
+  } catch {
+    // Best-effort directory initialization
+  }
 
   let debounceTimer: NodeJS.Timeout | undefined;
 
@@ -242,7 +246,9 @@ export function watchActiveSessionStarts(
         if (info && info.targetProvider && info.timestamp) {
           callback(info);
         }
-      } catch {}
+      } catch {
+        // Ignore unparseable or transient session start file states
+      }
     }, 100);
   });
 }

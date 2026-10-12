@@ -5,5 +5,5 @@ export abstract class AskHistoryRepository {
   abstract save(input: SaveAskHistoryInput): Promise<void>;
   abstract list(input: ListAskHistoryInput): Promise<AskHistoryResult>;
   abstract listConversations(input: { userId: string; projectId?: string; page: number; pageSize: number }): Promise<PaginatedResult<AskConversationSummary>>;
-  abstract getConversationTurns(conversationId: string): Promise<AskHistoryItem[]>;
+  abstract getConversationTurns(conversationId: string, userId?: string): Promise<AskHistoryItem[]>;
 }

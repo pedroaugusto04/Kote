@@ -41,11 +41,28 @@ function readJsonFromText(text: string): unknown {
   }
 }
 
+let activeWorkspaceSlug: string | null = null;
+
+export function setActiveWorkspaceSlug(slug: string | null): void {
+  activeWorkspaceSlug = slug;
+}
+
+export function getActiveWorkspaceSlug(): string | null {
+  return activeWorkspaceSlug;
+}
+
 function buildInit(init: RequestInit = {}): RequestInit {
+  const existingHeaders = (init.headers as Record<string, string>) || {};
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+    ...(activeWorkspaceSlug && !existingHeaders['x-workspace-slug'] ? { 'x-workspace-slug': activeWorkspaceSlug } : {}),
+    ...existingHeaders,
+  };
+
   return {
     ...init,
     credentials: 'include',
-    headers: { accept: 'application/json', ...(init.headers || {}) },
+    headers,
   };
 }
 

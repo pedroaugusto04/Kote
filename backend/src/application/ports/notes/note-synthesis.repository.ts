@@ -8,5 +8,6 @@ export abstract class NoteSynthesisRepository {
   abstract markFailed(userId: string, noteId: string, sourceHash: string, errorCode: string): Promise<void>;
   abstract markSkipped(userId: string, noteId: string, sourceHash: string, errorCode: string): Promise<void>;
   abstract getByNoteId(userId: string, noteId: string): Promise<NoteSynthesisRecord | null>;
+  getByNoteIds?(userId: string, noteIds: string[]): Promise<Map<string, NoteSynthesisRecord>>;
   abstract listProjectDecisions(userId: string, input: ListProjectDecisionsInput): Promise<ListProjectDecisionsResult>;
 }

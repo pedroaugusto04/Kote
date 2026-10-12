@@ -66,6 +66,21 @@ test('AgentContextTracker accumulates sources and related notes without duplicat
 
 test('AskAgentToolsService creates all 6 agent tools and executes them', async () => {
   const mockContentRepository = {
+    getNoteById: async (userId, id) => {
+      if (id === 'note-10') {
+        return {
+          id: 'note-10',
+          title: 'Deployment Specs',
+          path: 'infra/deploy.md',
+          projectSlug: 'infra',
+          workspaceId: 'ws-1',
+          workspaceSlug: 'default',
+          tags: ['devops'],
+          markdown: 'Step 1: build image. Step 2: deploy k8s.',
+        };
+      }
+      return null;
+    },
     listWorkspaces: async () => [{ id: 'ws-1', workspaceSlug: 'default' }],
     getNotesByIds: async (userId, ids) => {
       if (ids.includes('note-10')) {
@@ -75,6 +90,7 @@ test('AskAgentToolsService creates all 6 agent tools and executes them', async (
             title: 'Deployment Specs',
             path: 'infra/deploy.md',
             projectSlug: 'infra',
+            workspaceId: 'ws-1',
             workspaceSlug: 'default',
             tags: ['devops'],
             markdown: 'Step 1: build image. Step 2: deploy k8s.',
@@ -441,4 +457,139 @@ test('AgentAskKnowledgeUseCase enriches agent-cited sources with title and path 
   assert.equal(result.sources[0].title, 'Nota Um');
   assert.equal(result.sources[0].path, 'notes/1.md');
 });
+
+test('parseAskAgentFinalResponse cleanly extracts answer when model outputs conversational text before json block', async () => {
+  const { parseAskAgentFinalResponse } = await import('../../../dist/infrastructure/ai/prompts/ask-agent.prompt.js');
+
+  const rawModelOutput = `Based on your notes, here is the answer:
+The project uses PostgreSQL 16 and NestJS 11.
+
+\`\`\`json
+{
+  "answer": "The project uses PostgreSQL 16 and NestJS 11.",
+  "confidence": "high",
+  "requestedAttachments": false,
+  "sources": [{"noteId": "note-1", "title": "Tech Stack"}]
+}
+\`\`\``;
+
+  const parsed = parseAskAgentFinalResponse(rawModelOutput);
+  assert.equal(parsed.answer, 'The project uses PostgreSQL 16 and NestJS 11.');
+  assert.equal(parsed.confidence, 'high');
+  assert.equal(parsed.sources.length, 1);
+  assert.equal(parsed.sources[0].noteId, 'note-1');
+  assert.equal(parsed.answer.includes('{'), false);
+  assert.equal(parsed.answer.includes('```'), false);
+});
+
+test('parseAskAgentFinalResponse removes redundant trailing JSON if leaked into the answer field', async () => {
+  const { parseAskAgentFinalResponse } = await import('../../../dist/infrastructure/ai/prompts/ask-agent.prompt.js');
+
+  const rawModelOutput = JSON.stringify({
+    answer: `Here is your answer.\n\n\`\`\`json\n{\n  "answer": "Here is your answer.",\n  "confidence": "high"\n}\n\`\`\``,
+    confidence: 'high',
+    sources: [],
+  });
+
+  const parsed = parseAskAgentFinalResponse(rawModelOutput);
+  assert.equal(parsed.answer, 'Here is your answer.');
+  assert.equal(parsed.answer.includes('```json'), false);
+});
+
+test('parseAskAgentFinalResponse fallback strips raw json schema when model outputs text followed by raw json', async () => {
+  const { parseAskAgentFinalResponse } = await import('../../../dist/infrastructure/ai/prompts/ask-agent.prompt.js');
+
+  const rawModelOutput = `Meeting notes: discussed Q4 goals.
+{
+  "answer": "Meeting notes: discussed Q4 goals.",
+  "confidence": "medium",
+  "sources": []
+}`;
+
+  const parsed = parseAskAgentFinalResponse(rawModelOutput);
+  assert.equal(parsed.answer, 'Meeting notes: discussed Q4 goals.');
+  assert.equal(parsed.answer.includes('{'), false);
+});
+
+test('buildAskAgentSystemPrompt includes current context when provided', async () => {
+  const { buildAskAgentSystemPrompt } = await import('../../../dist/infrastructure/ai/prompts/ask-agent.prompt.js');
+
+  const prompt = buildAskAgentSystemPrompt({
+    workspaceSlug: 'kote-workspace',
+    projectSlug: 'backend-core',
+    currentLocalDate: '2026-10-24',
+    currentLocalTime: '14:30',
+    timeZone: 'America/Sao_Paulo',
+  });
+
+  assert.ok(prompt.includes('- Workspace: kote-workspace'));
+  assert.ok(prompt.includes('- Project: backend-core'));
+  assert.ok(prompt.includes('- Local Date: 2026-10-24'));
+  assert.ok(prompt.includes('- Local Time: 14:30'));
+  assert.ok(prompt.includes('- User TimeZone: America/Sao_Paulo'));
+});
+
+test('AskAgentToolsService truncates oversized note content and narrows search with projectSlug', async () => {
+  let searchScopePassed;
+  const mockRagRetrievalService = {
+    retrieveHybridChunks: async (_userId, _query, scope) => {
+      searchScopePassed = scope;
+      return { rankedChunks: [], noteMap: new Map(), validSyntheses: new Map() };
+    },
+  };
+  const mockRagContextAssemblerService = {
+    buildAskContextResult: async () => ({ contextChunks: [], relatedNotes: [] }),
+  };
+  const oversizedText = 'A'.repeat(20_000);
+  const mockContentRepository = {
+    listProjects: async () => [
+      { id: 'proj-1', displayName: 'Project 1', projectSlug: 'proj-1', workspaceId: 'ws-1', enabled: true },
+      { id: 'proj-2', displayName: 'Project 2', projectSlug: 'proj-2', workspaceId: 'ws-2', enabled: true },
+    ],
+    getNotesByIds: async () => [
+      {
+        id: 'note-oversized',
+        title: 'Huge Log',
+        path: 'huge.md',
+        projectSlug: 'proj-1',
+        workspaceId: 'ws-1',
+        markdown: oversizedText,
+      },
+    ],
+  };
+
+  const service = new AskAgentToolsService(
+    mockRagRetrievalService,
+    mockRagContextAssemblerService,
+    mockContentRepository,
+    dummyLogger,
+  );
+
+  const tracker = new AgentContextTracker();
+  const tools = service.buildTools(
+    'user-1',
+    { workspaceId: 'ws-1' },
+    { provider: 'gemini', baseUrl: '', model: 'gemini-embedding-001', apiKey: 'key' },
+    { candidateLimit: 16, minSimilarity: 0.45, hybridVectorWeight: 0.7, hybridKeywordWeight: 0.3, topChunksLimit: 10, rrfK: 20, recencyBonusEnabled: true, recencyMaxBonus: 0.008, recencyMaxBonusDays: 180 },
+    tracker,
+  );
+
+  // 1. Test search_knowledge with projectSlug
+  const searchTool = tools.find((t) => t.name === 'search_knowledge');
+  await searchTool.execute({ query: 'database', projectSlug: 'proj-1' });
+  assert.equal(searchScopePassed.projectId, 'proj-1');
+
+  // 2. Test get_note_content truncation
+  const getNoteTool = tools.find((t) => t.name === 'get_note_content');
+  const noteResult = await getNoteTool.execute({ noteId: 'note-oversized' });
+  assert.ok(noteResult.content.length < 16_000);
+  assert.ok(noteResult.content.includes('[Content truncated: note exceeds maximum length]'));
+
+  // 3. Test list_projects workspace filtering
+  const listProjectsTool = tools.find((t) => t.name === 'list_projects');
+  const projResult = await listProjectsTool.execute({});
+  assert.equal(projResult.projects.length, 1);
+  assert.equal(projResult.projects[0].slug, 'proj-1');
+});
+
 

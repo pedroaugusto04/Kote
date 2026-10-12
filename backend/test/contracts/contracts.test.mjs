@@ -69,7 +69,7 @@ test('agent conversation contract normalizes null AI fields to safe defaults', (
     selectedFolderId: null,
     suggestedFolderPath: null,
     confidence: 'low',
-    action: 'ask',
+    action: 'clarify',
   });
 
   assert.equal(parsed.selectedFolderId, '');
@@ -99,7 +99,7 @@ test('agent conversation contract normalizes blank enum AI fields to safe defaul
     action: '',
   });
 
-  assert.equal(parsed.action, 'ask');
+  assert.equal(parsed.action, 'clarify');
 });
 
 test('agent conversation AI decision normalizer maps reminder kind to note', () => {
@@ -171,5 +171,5 @@ test('agent conversation AI decision normalizer lets unknown enum values fall to
   assert.equal(parsed.resolvedDraft.canonicalType, 'event');
   assert.equal(parsed.resolvedDraft.importance, 'low');
   assert.equal(parsed.confidence, 'low');
-  assert.equal(parsed.action, 'ask');
+  assert.equal(parsed.action, 'clarify');
 });

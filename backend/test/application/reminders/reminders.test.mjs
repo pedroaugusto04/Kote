@@ -252,7 +252,99 @@ test('paginated reminders can be filtered by project before pagination', async (
   assert.equal(listed.pagination.total, 1);
 });
 
-test('paginated reminders sort all statuses with overdue and pending first then date ascending', async (t) => {
+test('paginated reminders filter by text and due range before applying the requested page', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
+  const first = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/first.md',
+    title: 'Review certificates',
+    rawText: 'Revisão do café da produção',
+    metadata: { reminderAt: '2099-01-10T09:00:00.000Z' },
+  });
+  const second = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/second.md',
+    title: 'Review certificates again',
+    rawText: 'Revisão do café do staging',
+    metadata: { reminderAt: '2099-01-11T09:00:00.000Z' },
+  });
+  await insertReminder(repositories, user.id, {
+    path: '20 Inbox/n8n-automations/outside-range.md',
+    title: 'Review certificates later',
+    rawText: 'Revisão do café da produção',
+    metadata: { reminderAt: '2099-01-20T09:00:00.000Z' },
+  });
+
+  const listed = await listReminders.execute(user.id, {
+    page: 2,
+    pageSize: 1,
+    query: 'cafe',
+    dueAfter: '2099-01-09T00:00:00.000Z',
+    dueBefore: '2099-01-12T00:00:00.000Z',
+    status: 'all',
+  });
+
+  assert.deepEqual(listed.items.map((reminder) => reminder.id), [second.id]);
+  assert.equal(listed.pagination.total, 2);
+  assert.equal(listed.pagination.page, 2);
+  assert.equal(listed.pagination.hasPrevious, true);
+  assert.equal(listed.pagination.hasNext, false);
+  assert.notEqual(first.id, second.id);
+});
+
+test('paginated reminders include all projects when projectSlug is empty or omitted', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
+  const listBoard = new ListReminderBoardUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
+
+  const projectAReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/project-a/reminder.md',
+    title: 'Project A reminder',
+    projectSlug: 'project-a',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-31T09:00:00.000Z',
+    },
+  });
+  const projectBReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/project-b/reminder.md',
+    title: 'Project B reminder',
+    projectSlug: 'project-b',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '10:00',
+      reminderAt: '2099-12-31T10:00:00.000Z',
+    },
+  });
+
+  // Query with empty projectSlug (All projects)
+  const listed = await listReminders.execute(user.id, {
+    page: 1,
+    pageSize: 10,
+    projectSlug: '',
+    status: 'all',
+  });
+
+  const ids = listed.items.map((item) => item.id);
+  assert.ok(ids.includes(projectAReminder.id));
+  assert.ok(ids.includes(projectBReminder.id));
+
+  // Reminder board with empty projectSlug (All projects)
+  const board = await listBoard.execute(user.id, {
+    workspaceSlug: 'default',
+    projectSlug: '',
+    limitPerColumn: 10,
+    columnPage: { overdue: 1, upcoming: 1, resolved: 1, archived: 1 },
+  });
+
+  const boardUpcomingIds = board.columns.upcoming.items.map((item) => item.id);
+  assert.ok(boardUpcomingIds.includes(projectAReminder.id));
+  assert.ok(boardUpcomingIds.includes(projectBReminder.id));
+});
+
+test('paginated reminders keep a stable due-date order across pages after refreshing statuses', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();
   const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
@@ -261,20 +353,20 @@ test('paginated reminders sort all statuses with overdue and pending first then 
     path: '20 Inbox/n8n-automations/sent-later.md',
     title: 'Sent later',
     metadata: {
-      reminderDate: '2026-05-08',
+      reminderDate: '2021-05-08',
       reminderTime: '11:00',
-      reminderAt: '2026-05-08T11:00:00.000Z',
+      reminderAt: '2021-05-08T11:00:00.000Z',
     },
   });
   await repositories.reminderDispatchRepository.markSent(
     user.id,
     'default',
     ReminderDispatchMode.Exact,
-    reminderDispatchKey('2026-05-08T11:00:00.000Z'),
+    reminderDispatchKey('2021-05-08T11:00:00.000Z'),
     sentReminder.id,
   );
 
-  await insertReminder(repositories, user.id, {
+  const pendingReminder = await insertReminder(repositories, user.id, {
     path: '20 Inbox/n8n-automations/pending-earlier.md',
     title: 'Pending earlier',
     metadata: {
@@ -283,7 +375,7 @@ test('paginated reminders sort all statuses with overdue and pending first then 
       reminderAt: '2099-12-30T09:00:00.000Z',
     },
   });
-  await insertReminder(repositories, user.id, {
+  const pendingLaterReminder = await insertReminder(repositories, user.id, {
     path: '20 Inbox/n8n-automations/pending-later.md',
     title: 'Pending later',
     metadata: {
@@ -297,23 +389,18 @@ test('paginated reminders sort all statuses with overdue and pending first then 
     title: 'Archived earliest',
     status: 'archived',
     metadata: {
-      reminderDate: '2026-05-01',
+      reminderDate: '2020-05-01',
       reminderTime: '08:00',
-      reminderAt: '2026-05-01T08:00:00.000Z',
+      reminderAt: '2020-05-01T08:00:00.000Z',
     },
   });
 
-  const listed = await listReminders.execute(user.id, { page: 1, pageSize: 10, status: 'all' });
+  const firstPage = await listReminders.execute(user.id, { page: 1, pageSize: 2, status: 'all' });
+  const secondPage = await listReminders.execute(user.id, { page: 2, pageSize: 2, status: 'all' });
+  const combined = [...firstPage.items, ...secondPage.items];
 
-  assert.deepEqual(
-    listed.items.map((item) => ({ title: item.title, status: item.status })),
-    [
-      { title: 'Pending earlier', status: 'pending' },
-      { title: 'Pending later', status: 'pending' },
-      { title: sentReminder.title, status: 'sent' },
-      { title: archivedReminder.title, status: 'archived' },
-    ],
-  );
+  assert.deepEqual(combined.map((item) => item.id), [archivedReminder.id, sentReminder.id, pendingReminder.id, pendingLaterReminder.id]);
+  assert.deepEqual(combined.map((item) => item.status), ['archived', 'sent', 'pending', 'pending']);
 });
 
 test('reminder board groups reminders by due state and terminal status with per-column limits', async (t) => {

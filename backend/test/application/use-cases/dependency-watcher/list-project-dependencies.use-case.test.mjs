@@ -36,6 +36,20 @@ describe('Backend: List Project Dependencies Use Case', () => {
     };
 
     mockContentRepository = {
+      getProjectById: async (userId, projectId) => {
+        const projects = [
+          {
+            id: 'project-1',
+            projectSlug: 'backend',
+            workspaceSlug: 'acme',
+            repositories: [
+              { id: 'repo-kb-1', fullName: 'acme/backend' },
+              { id: 'repo-kb-2', fullName: 'acme/frontend' },
+            ],
+          },
+        ];
+        return projects.find((p) => p.id === projectId) || null;
+      },
       listProjects: async () => [
         {
           id: 'project-1',

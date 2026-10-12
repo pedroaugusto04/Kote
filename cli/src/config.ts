@@ -125,7 +125,9 @@ export function clearConfigAuth(): void {
     fs.writeFileSync(CONFIG_FILE, JSON.stringify(updated, null, 2), 'utf8');
     try {
       fs.chmodSync(CONFIG_FILE, 0o600);
-    } catch { }
+    } catch {
+      // Ignore chmod failures on systems that do not support POSIX permissions
+    }
   } catch (error) {
     console.error('Error clearing config auth:', error instanceof Error ? error.message : String(error));
   }
