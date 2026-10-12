@@ -37,7 +37,26 @@ export class DefaultAskAgentGateway extends AskAgentGateway {
       return null;
     }
 
-    const systemPrompt = buildAskAgentSystemPrompt();
+    const systemPrompt = buildAskAgentSystemPrompt({
+      workspaceSlug: request.workspaceSlug,
+      projectSlug: request.projectSlug,
+      currentLocalDate: request.currentLocalDate,
+      currentLocalTime: request.currentLocalTime,
+      timeZone: request.timeZone,
+    });
+
+    const retryOptions = {
+      onRetry: (info: { attempt: number; delayMs: number; status?: number; error?: unknown }) => {
+        this.logger.warn('ask_agent.request_retry', {
+          provider: config.conversationAiProvider,
+          model: config.conversationAiModel,
+          attempt: info.attempt,
+          delayMs: info.delayMs,
+          status: info.status,
+          error: info.error instanceof Error ? info.error.message : info.error ? String(info.error) : undefined,
+        });
+      },
+    };
 
     try {
       if (config.conversationAiProvider === AiProvider.Gemini) {
@@ -46,6 +65,7 @@ export class DefaultAskAgentGateway extends AskAgentGateway {
             baseUrl: config.conversationAiBaseUrl,
             model: config.conversationAiModel,
             apiKey: config.conversationAiApiKey,
+            retryOptions,
           },
           systemPrompt,
           request.question,
@@ -60,6 +80,7 @@ export class DefaultAskAgentGateway extends AskAgentGateway {
           baseUrl: config.conversationAiBaseUrl,
           model: config.conversationAiModel,
           apiKey: config.conversationAiApiKey,
+          retryOptions,
         },
         systemPrompt,
         request.question,

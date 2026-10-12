@@ -21,26 +21,76 @@ export class RefreshReminderStatusesUseCase {
     const nowMs = now.getTime();
     const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
 
-    return Promise.all(reminders.map(async (reminder) => {
+    const checkable: Array<{
+      reminder: ReminderView;
+      normalized: ReminderView;
+      scheduledAt: string;
+      workspaceSlug: string;
+    }> = [];
+
+    type PrecomputedEntry =
+      | { terminal: true; normalized: ReminderView }
+      | { terminal: false; normalized: ReminderView; scheduledAt: string; workspaceSlug: string };
+
+    const precomputed: PrecomputedEntry[] = reminders.map((reminder) => {
       const normalized = enrichReminderStatus(reminder, now);
       if (normalized.status === KnowledgeStatus.Resolved || normalized.status === KnowledgeStatus.Archived) {
-        return normalized;
+        return { terminal: true, normalized };
       }
       if (normalized.status === KnowledgeStatus.Sent) {
-        return { ...normalized, isOverdue: false };
+        return { terminal: true, normalized: { ...normalized, isOverdue: false } };
       }
 
       const scheduledAt = resolveReminderScheduledAt(normalized, reminderTimeZone);
-      if (!scheduledAt) return normalized;
+      if (!scheduledAt) {
+        return { terminal: true, normalized };
+      }
 
       const workspaceSlug = normalized.workspace || input.workspaceSlug || 'default';
-      const sent = await this.reminderDispatchRepository.hasSent(
-        userId,
-        workspaceSlug,
-        ReminderDispatchMode.Exact,
-        reminderDispatchKey(scheduledAt),
-        normalized.id,
-      );
+      const item = { reminder, normalized, scheduledAt, workspaceSlug };
+      checkable.push(item);
+      return { terminal: false, normalized, scheduledAt, workspaceSlug };
+    });
+
+    // Batch check if supported by repository
+    const sentSetByWorkspace = new Map<string, Set<string>>();
+    if (this.reminderDispatchRepository.getSentReminderKeys && checkable.length > 0) {
+      const byWorkspace = new Map<string, Array<{ reminderId: string; dispatchKey: string }>>();
+      for (const item of checkable) {
+        const items = byWorkspace.get(item.workspaceSlug) || [];
+        items.push({ reminderId: item.normalized.id, dispatchKey: reminderDispatchKey(item.scheduledAt) });
+        byWorkspace.set(item.workspaceSlug, items);
+      }
+
+      for (const [wsSlug, items] of byWorkspace.entries()) {
+        const sentKeys = await this.reminderDispatchRepository.getSentReminderKeys(
+          userId,
+          wsSlug,
+          ReminderDispatchMode.Exact,
+          items,
+        );
+        sentSetByWorkspace.set(wsSlug, sentKeys);
+      }
+    }
+
+    return Promise.all(precomputed.map(async (entry) => {
+      if (entry.terminal) {
+        return entry.normalized;
+      }
+
+      const { normalized, scheduledAt, workspaceSlug } = entry;
+      const dispatchKey = reminderDispatchKey(scheduledAt);
+      const sentKeys = sentSetByWorkspace.get(workspaceSlug);
+      const sent = sentKeys !== undefined
+        ? sentKeys.has(`${normalized.id}:${dispatchKey}`)
+        : await this.reminderDispatchRepository.hasSent(
+            userId,
+            workspaceSlug,
+            ReminderDispatchMode.Exact,
+            dispatchKey,
+            normalized.id,
+          );
+
       const scheduledAtMs = Date.parse(scheduledAt);
       const nextStatus = sent
         ? KnowledgeStatus.Sent

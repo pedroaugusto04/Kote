@@ -8,6 +8,8 @@ export type GithubPullRequestPayload = {
     base?: { sha?: string; ref?: string };
     head?: { sha?: string; ref?: string };
     html_url?: string;
+    created_at?: string;
+    updated_at?: string;
   };
   installation?: {
     id?: string | number;

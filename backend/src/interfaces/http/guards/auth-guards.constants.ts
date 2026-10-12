@@ -5,9 +5,9 @@ export const RATE_LIMIT_NAMESPACES = {
 } as const;
 
 export const RATE_LIMIT_CONFIG = {
-  AUTH: { limit: 10, windowMs: 60_000 },
-  GLOBAL: { limit: 300, windowMs: 60_000 },
-  WEBHOOK: { limit: 60, windowMs: 60_000 },
+  AUTH: { limit: 120, windowMs: 60_000 },
+  GLOBAL: { limit: 2400, windowMs: 60_000 },
+  WEBHOOK: { limit: 300, windowMs: 60_000 },
 } as const;
 
 export const AUTH_ERROR_MESSAGES = {

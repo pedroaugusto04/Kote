@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { KbClient } from '../kb-client';
+import { type KbClient } from '../kb-client';
 
 export class KoteNoteContentProvider implements vscode.TextDocumentContentProvider {
   private _onDidChange = new vscode.EventEmitter<vscode.Uri>();

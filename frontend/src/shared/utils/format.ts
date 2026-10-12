@@ -1,20 +1,70 @@
 import type { Project } from '../api/models/project';
 import { stripSourceHeader } from './text';
 
-const DEFAULT_USER_TIME_ZONE = 'America/Sao_Paulo';
+export const DEFAULT_USER_TIME_ZONE = 'America/Sao_Paulo';
 
 export function projectName(projects: Project[], slug: string) {
   return projects.find((project) => project.projectSlug === slug)?.displayName || slug;
 }
 
-function userTimeZone() {
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_USER_TIME_ZONE;
+let configuredTimeZone: string | null = null;
+
+export function setAppTimeZone(tz: string | null): void {
+  configuredTimeZone = tz;
 }
 
-function dateTimePartsInUserTimeZone(value: string | null | undefined, timeZone = userTimeZone()) {
+export function getUserTimeZone(): string {
+  if (configuredTimeZone) return configuredTimeZone;
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || DEFAULT_USER_TIME_ZONE;
+  } catch {
+    return DEFAULT_USER_TIME_ZONE;
+  }
+}
+
+/**
+ * Parses a date or timestamp value, ensuring naive date-time strings without timezone
+ * offsets are consistently treated as UTC (preventing local-timezone interpretation shifts).
+ */
+export function parseUtcDate(value: string | number | Date | null | undefined): Date | null {
   if (!value) return null;
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value === 'number') {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const str = String(value).trim();
+  if (!str) return null;
+
+  // Date-only: YYYY-MM-DD -> anchor to UTC noon to avoid day boundary drifts across zones
+  const dateOnlyMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return new Date(Date.UTC(Number(year), Number(month) - 1, Number(day), 12, 0, 0));
+  }
+
+  // Naive date-time: YYYY-MM-DD[T ]HH:mm(:ss(.sss)?) without trailing Z or +/-offset
+  // Treat as UTC by appending 'Z'
+  if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(str)) {
+    const normalized = str.replace(' ', 'T') + 'Z';
+    const d = new Date(normalized);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
+  // Standard date parsing (handles ISO with 'Z', offsets, etc.)
+  const parsed = new Date(str);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+export function dateTimePartsInUserTimeZone(
+  value: string | number | Date | null | undefined,
+  timeZone = getUserTimeZone()
+) {
+  if (!value) return null;
+  const parsed = parseUtcDate(value);
+  if (!parsed) return null;
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone,
     year: 'numeric',
@@ -53,21 +103,18 @@ export function formatUsDate(value: string | null | undefined) {
     return `${month}/${day}/${year}`;
   }
 
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  const parts = dateTimePartsInUserTimeZone(value);
+  if (!parts) return value;
 
-  return buildUsDate(parsed);
+  return `${parts.month}/${parts.day}/${parts.year}`;
 }
 
 export function formatUsDateTime(value: string | null | undefined) {
   if (!value) return '';
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
+  const parts = dateTimePartsInUserTimeZone(value);
+  if (!parts) return value;
 
-  const datePart = buildUsDate(parsed);
-  const hours = String(parsed.getHours()).padStart(2, '0');
-  const minutes = String(parsed.getMinutes()).padStart(2, '0');
-  return `${datePart} ${hours}:${minutes}`;
+  return `${parts.month}/${parts.day}/${parts.year} ${parts.hour}:${parts.minute}`;
 }
 
 export function formatDateInUserTimeZone(value: string | null | undefined) {
@@ -88,14 +135,22 @@ export function reminderDisplayDateTime(input: { reminderAt?: string }) {
 }
 
 export function reminderInputDate(input: { reminderAt?: string }) {
-  return input.reminderAt ? formatDateInUserTimeZone(input.reminderAt) : '';
+  if (!input.reminderAt) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input.reminderAt.trim())) return input.reminderAt.trim();
+  return formatDateInUserTimeZone(input.reminderAt);
 }
 
 export function reminderInputTime(input: { reminderAt?: string }) {
-  return input.reminderAt ? formatTimeInUserTimeZone(input.reminderAt) : '';
+  if (!input.reminderAt) return '';
+  if (/^\d{2}:\d{2}$/.test(input.reminderAt.trim())) return input.reminderAt.trim();
+  return formatTimeInUserTimeZone(input.reminderAt);
 }
 
 export function reminderInputDateTime(input: { reminderAt?: string }) {
+  if (!input.reminderAt) return '';
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input.reminderAt.trim())) {
+    return input.reminderAt.trim();
+  }
   const parts = dateTimePartsInUserTimeZone(input.reminderAt);
   if (!parts) return '';
   return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
@@ -110,9 +165,9 @@ export function reminderAtToUtc(input: string | undefined): string | undefined {
   return date.toISOString();
 }
 
-function formatDateTimeInUserTimeZone(value: string | null | undefined) {
+export function formatDateTimeInUserTimeZone(value: string | number | Date | null | undefined) {
   const parts = dateTimePartsInUserTimeZone(value);
-  if (!parts) return value || '';
+  if (!parts) return typeof value === 'string' ? value : '';
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
 }
 
@@ -367,8 +422,9 @@ export function getSourceTagClass(source: string | null | undefined): string {
 
 export function formatDateIso(dateStr?: string): string {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? '' : d.toISOString().slice(0, 10);
+  const parts = dateTimePartsInUserTimeZone(dateStr);
+  if (!parts) return dateStr;
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 export function getTimelineNodeColor(category: string, type?: string) {
@@ -393,8 +449,8 @@ export function formatRelativeTimeUntil(
   now: Date = new Date()
 ): string {
   if (!targetIsoDate) return '';
-  const target = new Date(targetIsoDate);
-  if (Number.isNaN(target.getTime())) return '';
+  const target = parseUtcDate(targetIsoDate);
+  if (!target) return '';
   const diffMs = target.getTime() - now.getTime();
   if (diffMs <= 0) return RELATIVE_TIME_UNITS.SHORTLY;
   const diffMinutes = Math.round(diffMs / 60_000);

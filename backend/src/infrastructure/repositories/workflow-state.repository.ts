@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/reminders/workflow-state.repository.js';
 import { ReminderDispatchMode } from '../../contracts/enums.js';
@@ -82,6 +82,51 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
       .limit(1);
     
     return Boolean(result[0]);
+  }
+
+  async getSentReminderKeys(
+    userId: string,
+    workspaceSlug: string,
+    mode: ReminderDispatchMode,
+    items: Array<{ reminderId: string; dispatchKey: string }>,
+  ): Promise<Set<string>> {
+    if (items.length === 0) return new Set();
+    const db = this.database.getDb();
+    const workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
+    const reminderIds = [...new Set(items.map((i) => i.reminderId))];
+    const dispatchKeys = [...new Set(items.map((i) => i.dispatchKey))];
+    const result = await db
+      .select({
+        reminderId: reminderDispatchState.reminderId,
+        dispatchKey: reminderDispatchState.dispatchKey,
+      })
+      .from(reminderDispatchState)
+      .where(and(
+        eq(reminderDispatchState.userId, userId),
+        eq(reminderDispatchState.workspaceId, workspaceId),
+        eq(reminderDispatchState.mode, mode as ReminderDispatchMode),
+        inArray(reminderDispatchState.reminderId, reminderIds),
+        inArray(reminderDispatchState.dispatchKey, dispatchKeys),
+      ));
+
+    return new Set(result.map((row) => `${row.reminderId}:${row.dispatchKey}`));
+  }
+
+  async getSentReminderIds(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, reminderIds: string[]): Promise<Set<string>> {
+    if (reminderIds.length === 0) return new Set();
+    const db = this.database.getDb();
+    const workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
+    const result = await db
+      .select({ reminderId: reminderDispatchState.reminderId })
+      .from(reminderDispatchState)
+      .where(and(
+        eq(reminderDispatchState.userId, userId),
+        eq(reminderDispatchState.workspaceId, workspaceId),
+        eq(reminderDispatchState.mode, mode as ReminderDispatchMode),
+        inArray(reminderDispatchState.reminderId, reminderIds),
+      ));
+    
+    return new Set(result.map((row) => row.reminderId));
   }
 
   async markSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string) {

@@ -28,6 +28,9 @@ import { TelegramMessageSender } from '../../application/ports/integrations/tele
 import { ReminderDeliveryGateway } from '../../application/ports/reminders/reminder-delivery.gateway.js';
 import { EvolutionWhatsappReplySender, EvolutionReminderDeliveryGateway, EvolutionWhatsappMediaDownloader } from '../../adapters/evolution.js';
 import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../../adapters/telegram.js';
+import { RemindersController } from '../../interfaces/http/controllers/reminders/reminders.controller.js';
+
+import { AuthModule } from './auth.module.js';
 
 @Module({
   imports: [
@@ -35,6 +38,10 @@ import { TelegramHttpMessageSender, TelegramReminderDeliveryGateway } from '../.
     EnvModule,
     DatabaseModule,
     EmailModule,
+    AuthModule,
+  ],
+  controllers: [
+    RemindersController,
   ],
   providers: [
     BuildReminderDispatchUseCase,

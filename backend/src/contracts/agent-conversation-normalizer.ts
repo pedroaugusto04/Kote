@@ -1,6 +1,6 @@
 import { CanonicalType, ConversationConfidence, Importance, KnowledgeKind } from './enums.js';
 
-const actionValues = new Set(['ask', 'confirm', 'cancel', 'submit']);
+const actionValues = new Set(['capture', 'reply', 'clarify', 'cancel']);
 const canonicalTypeValues = new Set(Object.values(CanonicalType));
 const confidenceValues = new Set(Object.values(ConversationConfidence));
 const importanceValues = new Set(Object.values(Importance));

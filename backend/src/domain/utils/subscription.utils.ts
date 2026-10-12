@@ -1,4 +1,4 @@
-import { BillingCycle } from '../enums/billing.enums.js';
+import { BillingCycle, SubscriptionStatus, PaymentStatus } from '../enums/billing.enums.js';
 
 function getDaysInMonthUtc(year: number, month0: number): number {
   return new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
@@ -94,4 +94,49 @@ export function addMonths(date: Date, months: number): Date {
   }
   return result;
 }
+
+export function resolvePastDueTimestamp(
+  newStatus?: SubscriptionStatus | string | null,
+  previousStatus?: SubscriptionStatus | string | null,
+): Date | null | undefined {
+  if (newStatus === SubscriptionStatus.PAST_DUE) {
+    return previousStatus === SubscriptionStatus.PAST_DUE ? undefined : new Date();
+  }
+  if (newStatus) {
+    return null;
+  }
+  return undefined;
+}
+
+export function resolveSubscriptionDueDate(params: {
+  latestPaymentStatus?: PaymentStatus | string;
+  latestPaymentDueDate?: Date | null;
+  gatewayNextDueDate?: Date | null;
+}): Date | null {
+  const { latestPaymentStatus, latestPaymentDueDate, gatewayNextDueDate } = params;
+  const isPendingOrOverdue =
+    latestPaymentStatus === PaymentStatus.PENDING || latestPaymentStatus === PaymentStatus.OVERDUE;
+
+  if (isPendingOrOverdue && latestPaymentDueDate) {
+    return !gatewayNextDueDate || gatewayNextDueDate > latestPaymentDueDate
+      ? latestPaymentDueDate
+      : gatewayNextDueDate;
+  }
+  return gatewayNextDueDate ?? latestPaymentDueDate ?? null;
+}
+
+export function calculateSubscriptionPeriodBounds(
+  nextDueDate: Date,
+  billingCycle: BillingCycle | string,
+): { currentPeriodStart: Date; currentPeriodEnd: Date } {
+  const currentPeriodEnd = new Date(nextDueDate);
+  const currentPeriodStart = new Date(nextDueDate);
+  if (billingCycle === BillingCycle.YEARLY) {
+    currentPeriodStart.setUTCFullYear(currentPeriodStart.getUTCFullYear() - 1);
+  } else {
+    currentPeriodStart.setUTCMonth(currentPeriodStart.getUTCMonth() - 1);
+  }
+  return { currentPeriodStart, currentPeriodEnd };
+}
+
 

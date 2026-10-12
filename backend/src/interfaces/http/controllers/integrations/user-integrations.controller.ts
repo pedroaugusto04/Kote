@@ -7,7 +7,9 @@ import { IntegrationCredentialService } from '../../../../application/services/i
 import { GithubBackfillUseCase } from '../../../../application/use-cases/integrations/github-backfill.use-case.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
-import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
+import { ScopeGuard } from '../../guards/scope.guard.js';
+import { Scoped, Scope } from '../../scope.decorators.js';
+import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
 import {
   connectIntegrationBodySchema,
   githubBackfillBodySchema,
@@ -17,7 +19,6 @@ import {
   guidedProviderParamSchema,
   aiProviderParamSchema,
   sessionParamSchema,
-  workspaceQuerySchema,
   type AiProviderParam,
   type ConnectIntegrationBody,
   type GithubBackfillBody,
@@ -26,7 +27,6 @@ import {
   type GithubRepositoriesBody,
   type GuidedProviderParam,
   type SessionParam,
-  type WorkspaceQuery,
 } from '../../dto/integration-credentials.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
@@ -41,44 +41,49 @@ export class UserIntegrationsController {
   ) {}
 
   @Get()
-  @UseGuards(WorkspaceResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List user integrations' })
   @ApiResponse({ status: 200, description: 'Integrations retrieved successfully' })
   async list(
     @CurrentUser() currentUser: AuthenticatedUser,
-    @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
+    @Scope() scope: WorkspaceScope,
   ) {
-    return this.credentials.list(currentUser.id, query.workspaceSlug);
+    return this.credentials.list(currentUser.id, scope.workspaceSlug);
   }
 
   @Post('github-app/backfill')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Import recent GitHub commits as code reviews' })
   @ApiResponse({ status: 200, description: 'Backfill started successfully' })
   async startGithubBackfill(
     @Body(new ZodValidationPipe(githubBackfillBodySchema, 'invalid_github_backfill_payload')) body: GithubBackfillBody,
     @CurrentUser() currentUser: AuthenticatedUser,
+    @Scope() scope: WorkspaceScope,
   ) {
     return this.githubBackfill.start({
       userId: currentUser.id,
-      workspaceSlug: body.workspaceSlug,
+      workspaceSlug: scope.workspaceSlug,
       repositories: body.repositories,
     });
   }
 
   @Get('github-app/backfill/status')
-  @UseGuards(WorkspaceResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get GitHub backfill job status' })
   @ApiResponse({ status: 200, description: 'Backfill status retrieved successfully' })
   async getGithubBackfillStatus(
     @Query(new ZodValidationPipe(githubBackfillStatusQuerySchema, 'invalid_github_backfill_status_query')) query: GithubBackfillStatusQuery,
     @CurrentUser() currentUser: AuthenticatedUser,
+    @Scope() scope: WorkspaceScope,
   ) {
     const job = await this.githubBackfill.getJob(query.jobId, currentUser.id);
-    if (!job || job.workspaceSlug !== query.workspaceSlug) {
+    if (!job || job.workspaceSlug !== scope.workspaceSlug) {
       return { ok: false as const, status: 'not_found' as const };
     }
     return {
@@ -101,7 +106,8 @@ export class UserIntegrationsController {
   }
 
   @Post('github-app/backfill/cancel')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Cancel running GitHub backfill job' })
   @ApiResponse({ status: 200, description: 'Backfill cancelled successfully' })
@@ -114,7 +120,8 @@ export class UserIntegrationsController {
   }
 
   @Post(':provider/connect')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Connect to an integration provider' })
   @ApiParam({ name: 'provider', description: 'Integration provider' })
@@ -124,52 +131,58 @@ export class UserIntegrationsController {
     @Body(new ZodValidationPipe(connectIntegrationBodySchema, 'invalid_integration_connection_payload')) body: ConnectIntegrationBody,
     @CurrentUser() currentUser: AuthenticatedUser,
     @Req() request: { headers: { origin?: string } },
+    @Scope() scope?: WorkspaceScope,
   ) {
+    const workspaceSlug = scope?.workspaceSlug || body.workspaceSlug;
     return this.connections.connect({
       userId: currentUser.id,
-      workspaceSlug: body.workspaceSlug,
+      workspaceSlug,
       provider: params.provider,
       returnToPath: body.returnToPath,
-      browserOrigin: request.headers.origin,
+      browserOrigin: request?.headers?.origin,
     });
   }
 
   @Post(':provider/test')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Test an integration connection' })
   @ApiParam({ name: 'provider', description: 'Integration provider' })
   @ApiResponse({ status: 200, description: 'Connection test successful' })
   async test(
     @Param(new ZodValidationPipe(aiProviderParamSchema, 'provider_not_supported')) params: AiProviderParam,
-    @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
     @CurrentUser() currentUser: AuthenticatedUser,
+    @Scope() scope: WorkspaceScope,
   ) {
-    return this.credentials.test(currentUser.id, query.workspaceSlug, params.provider);
+    return this.credentials.test(currentUser.id, scope.workspaceSlug, params.provider);
   }
 
   @Get('github-app/repositories')
-  @UseGuards(WorkspaceResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List GitHub App repositories' })
   @ApiResponse({ status: 200, description: 'Repositories retrieved successfully' })
   async listGithubRepositories(
-    @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
     @CurrentUser() currentUser: AuthenticatedUser,
+    @Scope() scope: WorkspaceScope,
   ) {
-    return this.connections.listGithubRepositories({ userId: currentUser.id, workspaceSlug: query.workspaceSlug });
+    return this.connections.listGithubRepositories({ userId: currentUser.id, workspaceSlug: scope.workspaceSlug });
   }
 
   @Post('github-app/repositories')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Save GitHub App repositories' })
   @ApiResponse({ status: 200, description: 'Repositories saved successfully' })
   async saveGithubRepositories(
     @Body(new ZodValidationPipe(githubRepositoriesBodySchema, 'invalid_github_repositories_payload')) body: GithubRepositoriesBody,
     @CurrentUser() currentUser: AuthenticatedUser,
+    @Scope() scope: WorkspaceScope,
   ) {
-    return this.connections.saveGithubRepositories({ userId: currentUser.id, workspaceSlug: body.workspaceSlug, repositories: body.repositories });
+    return this.connections.saveGithubRepositories({ userId: currentUser.id, workspaceSlug: scope.workspaceSlug, repositories: body.repositories });
   }
 
   @Get(':provider/sessions/:sessionId')
@@ -186,16 +199,17 @@ export class UserIntegrationsController {
   }
 
   @Delete(':provider')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke integration connection' })
   @ApiParam({ name: 'provider', description: 'Integration provider' })
   @ApiResponse({ status: 200, description: 'Connection revoked successfully' })
   async revoke(
     @Param(new ZodValidationPipe(guidedProviderParamSchema, 'provider_not_supported')) params: GuidedProviderParam,
-    @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
     @CurrentUser() currentUser: AuthenticatedUser,
+    @Scope() scope: WorkspaceScope,
   ) {
-    return this.credentials.revoke(currentUser.id, query.workspaceSlug, params.provider);
+    return this.credentials.revoke(currentUser.id, scope.workspaceSlug, params.provider);
   }
 }

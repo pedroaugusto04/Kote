@@ -62,6 +62,13 @@ export class ApiClient {
       headers.set('Cookie', cookieHeader);
     }
 
+    if (this.config.workspaceSlug && !headers.has('x-workspace-slug')) {
+      headers.set('x-workspace-slug', this.config.workspaceSlug);
+    }
+    if (this.config.defaultProjectSlug && !headers.has('x-project-slug')) {
+      headers.set('x-project-slug', this.config.defaultProjectSlug);
+    }
+
     // Set common headers
     if (options.body && !headers.has('Content-Type')) {
       headers.set('Content-Type', 'application/json');
@@ -150,7 +157,7 @@ export class ApiClient {
     urlParams.set('limit', '10');
 
     // Add workspace and project headers/query values if applicable
-    let path = `query?${urlParams.toString()}`;
+    const path = `query?${urlParams.toString()}`;
     const headers = new Headers();
     headers.set('x-workspace-slug', this.config.workspaceSlug);
     if (activeProject) {
@@ -185,6 +192,7 @@ export class ApiClient {
       projectSlug: activeProject,
       sourceChannel: 'mcp',
       source: 'mcp-server',
+      occurredAt: new Date().toISOString(),
     };
 
     const headers = new Headers();

@@ -410,7 +410,7 @@ export function OnboardingChecklist({
     } else {
       globalLoading.setBackgroundTask(null);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [backfillRunning, backfillJob, globalLoading, workspaceSlug, queryClient]);
 
   const isHiddenByShowLater = storage.showLaterAt

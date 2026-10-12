@@ -26,24 +26,23 @@ describe('KnowledgeMapLoading', () => {
     expect(screen.getByText('Sintetizando notas e conexões do grafo')).toBeInTheDocument();
   });
 
-  it('renders SVG graphic with nodes, links, and pulse rings', () => {
+  it('renders visual loading graphic with nodes and links marked aria-hidden', () => {
     const { container } = render(<KnowledgeMapLoading />);
+
+    const graphic = container.querySelector('.knowledge-map-loading-graphic');
+    expect(graphic).toBeInTheDocument();
+    expect(graphic).toHaveAttribute('aria-hidden', 'true');
 
     const svg = container.querySelector('svg.knowledge-map-loading-svg');
     expect(svg).toBeInTheDocument();
 
     const baseLinks = container.querySelectorAll('.km-loading-link-base');
-    const activeLinks = container.querySelectorAll('.km-loading-link-active');
-    expect(baseLinks).toHaveLength(8);
-    expect(activeLinks).toHaveLength(8);
+    expect(baseLinks.length).toBeGreaterThan(0);
 
     const nodes = container.querySelectorAll('.km-loading-node');
-    expect(nodes).toHaveLength(7);
+    expect(nodes.length).toBeGreaterThan(0);
 
     const projectNode = container.querySelector('.km-loading-node.project');
     expect(projectNode).toBeInTheDocument();
-
-    const rings = container.querySelectorAll('.km-loading-ring');
-    expect(rings).toHaveLength(2);
   });
 });

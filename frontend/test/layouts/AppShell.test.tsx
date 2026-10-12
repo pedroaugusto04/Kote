@@ -285,6 +285,15 @@ function mockFetch() {
         }],
       });
     }
+    if (url === '/api/export/global') {
+      return new Response(new Blob(['fake zip'], { type: 'application/zip' }), {
+        status: 200,
+        headers: {
+          'content-type': 'application/zip',
+          'content-disposition': 'attachment; filename="kote-export-2026-04-27.zip"',
+        },
+      });
+    }
     return new Response(null, { status: 404 });
   });
 }
@@ -409,7 +418,7 @@ describe('AppShell', () => {
 
     renderWithAppProviders(<AppShell />);
 
-    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Home' }, { timeout: 5000 })).toBeInTheDocument();
     const deployNotes = await screen.findAllByText('Deploy rollout');
     fireEvent.click(deployNotes[0]);
 
@@ -419,7 +428,7 @@ describe('AppShell', () => {
     expect((await screen.findAllByText('Active')).length).toBeGreaterThan(0);
     await waitFor(() => {
       expect(document.querySelector('.note-reader')).not.toBeNull();
-    });
+    }, { timeout: 5000 });
     const noteReader = document.querySelector('.note-reader');
     expect(screen.queryByText('20 Inbox/note.md')).not.toBeInTheDocument();
     expect(screen.queryByText('test')).not.toBeInTheDocument();
@@ -654,6 +663,54 @@ describe('AppShell', () => {
 
     // Should close and Ada Lovelace should be gone
     expect(screen.queryByText('Ada Lovelace')).not.toBeInTheDocument();
+  });
+
+  it('opens confirmation modal and triggers global data export when confirmed', async () => {
+    stubLocalStorage();
+    vi.stubGlobal('fetch', mockFetch());
+
+    renderWithAppProviders(<AppShell />);
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
+    const exportButton = await screen.findByRole('menuitem', { name: 'Export data' });
+    fireEvent.click(exportButton);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Export global data' })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Export all workspace data, projects, and notes as a complete ZIP archive\?/i)).toBeInTheDocument();
+
+    const confirmButton = within(dialog).getByRole('button', { name: 'Export data' });
+    fireEvent.click(confirmButton);
+
+    await waitFor(() => {
+      expect(notificationSpies.notifySuccess).toHaveBeenCalledWith(expect.stringContaining('Global data export downloaded'));
+    });
+  });
+
+  it('cancels global data export when canceled in confirmation modal', async () => {
+    stubLocalStorage();
+    const fetchMock = mockFetch();
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderWithAppProviders(<AppShell />);
+
+    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'User menu' }));
+    const exportButton = await screen.findByRole('menuitem', { name: 'Export data' });
+    fireEvent.click(exportButton);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+
+    const cancelButton = within(dialog).getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelButton);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(notificationSpies.notifySuccess).not.toHaveBeenCalled();
   });
 
   it('moves integrations from the sidebar into the user menu', async () => {

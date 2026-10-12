@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { LoggerModule } from './logger.module.js';
 import { EnvModule } from './env.module.js';
 
-import { ConversationAgentGateway } from '../../application/ports/conversation/conversation-agent.gateway.js';
+import { IngestAgentGateway } from '../../application/ports/conversation/ingest-agent.gateway.js';
 import { ProjectBriefAiGateway } from '../../application/ports/projects/project-brief-ai.gateway.js';
 import { EmbeddingGateway } from '../../application/ports/notes/embedding.gateway.js';
 import { AnswerGenerationGateway } from '../../application/ports/query/answer-generation.gateway.js';
@@ -13,7 +13,7 @@ import { GithubIntegrationGateway } from '../../application/ports/integrations/g
 import { WeeklySummaryGateway } from '../../application/ports/weekly-summary/weekly-summary.port.js';
 import { AiSessionSynthesisGateway } from '../../application/ports/notes/ai-session-synthesis.gateway.js';
 
-import { DefaultConversationAgentGateway } from '../ai/conversation-agent.gateway.js';
+import { DefaultIngestAgentGateway } from '../ai/ingest-agent.gateway.js';
 import { DefaultProjectBriefAiGateway } from '../ai/project-brief.gateway.js';
 import { DefaultReviewAnalysisGateway } from '../ai/review-analysis.gateway.js';
 import { DefaultEmbeddingGateway } from '../ai/embedding.gateway.js';
@@ -28,7 +28,7 @@ import { Gemini2EmbeddingStrategy } from '../ai/strategies/gemini-2-embedding.st
 import { OpenAiEmbeddingStrategy } from '../ai/strategies/openai-embedding.strategy.js';
 
 const gateways = [
-  DefaultConversationAgentGateway,
+  DefaultIngestAgentGateway,
   DefaultProjectBriefAiGateway,
   DefaultReviewAnalysisGateway,
   DefaultEmbeddingGateway,
@@ -41,7 +41,7 @@ const gateways = [
   Gemini001EmbeddingStrategy,
   Gemini2EmbeddingStrategy,
   OpenAiEmbeddingStrategy,
-  { provide: ConversationAgentGateway, useExisting: DefaultConversationAgentGateway },
+  { provide: IngestAgentGateway, useExisting: DefaultIngestAgentGateway },
   { provide: ProjectBriefAiGateway, useExisting: DefaultProjectBriefAiGateway },
   { provide: ReviewAnalysisGateway, useExisting: DefaultReviewAnalysisGateway },
   { provide: EmbeddingGateway, useExisting: DefaultEmbeddingGateway },

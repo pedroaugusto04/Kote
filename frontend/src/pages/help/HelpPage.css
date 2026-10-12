@@ -2,9 +2,13 @@
 
 .help-page {
   display: grid;
-  grid-template-columns: 228px 1fr;
-  height: 100%;
-  min-height: 0;
+  grid-template-columns: 240px minmax(0, 1fr);
+  max-width: 100%;
+  min-height: calc(100vh - 150px);
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: var(--surface-1);
+  box-shadow: var(--shadow);
   overflow: hidden;
 }
 
@@ -13,10 +17,8 @@
 .help-sidebar {
   display: flex;
   flex-direction: column;
-  border-right: 1px solid var(--line);
-  background: var(--surface-1);
-  overflow-y: auto;
-  overflow-x: hidden;
+  border-right: 1px solid var(--line-soft);
+  background: var(--surface-2);
 }
 
 .help-sidebar-header {
@@ -176,9 +178,9 @@
 .help-content {
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
   padding: 32px 40px 48px;
   gap: 24px;
+  background: var(--surface-1);
 }
 
 .help-content-header {
@@ -500,15 +502,27 @@
 
 /* ─── Responsive ────────────────────────────────────────────────────────────── */
 
-@media (max-width: 768px) {
+@media (max-width: 860px) {
   .help-page {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    display: flex;
+    flex-direction: column;
+    min-height: auto;
+    border-radius: 10px;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
   }
 
   .help-sidebar {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     border-right: none;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--surface-2);
+    position: sticky;
+    top: 0;
+    z-index: 5;
   }
 
   .help-sidebar-header {
@@ -516,15 +530,40 @@
   }
 
   .help-nav {
+    display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     overflow-x: auto;
-    padding: 8px;
+    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    padding: 8px 10px;
+    scrollbar-width: none;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .help-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .help-nav-item {
     white-space: nowrap;
     min-width: max-content;
+    flex-shrink: 0;
+    padding: 6px 12px;
+    font-size: 12.5px;
+    height: 34px;
+    min-height: 34px;
+    border-radius: 20px;
+    background: var(--surface-3, var(--surface-1));
+    border: 1px solid var(--line-soft);
+  }
+
+  .help-nav-item.active {
+    background: var(--surface-active);
+    border-color: var(--accent-border);
+    color: var(--active-text);
+    font-weight: 600;
   }
 
   .help-nav-arrow {
@@ -536,11 +575,26 @@
   }
 
   .help-content {
-    padding: 20px 18px 32px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 18px 14px 28px;
+    gap: 18px;
+    overflow-x: hidden;
   }
 
   .help-content-header {
     gap: 12px;
+    padding-bottom: 16px;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .help-content-header > div:last-child {
+    min-width: 0;
+    flex: 1;
   }
 
   .help-section-icon {
@@ -556,19 +610,147 @@
 
   .help-section-title {
     font-size: 18px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+
+  .help-section-description {
+    font-size: 13px;
+    line-height: 1.6;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+
+  .help-doc-list {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .help-doc-item {
+    padding: 16px 0;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .help-doc-item-header {
+    gap: 10px;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .help-doc-title {
+    font-size: 14px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    min-width: 0;
+    flex: 1;
   }
 
   .help-doc-body {
     padding-left: 0;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
   }
 
-  .help-doc-item {
-    padding: 18px 0;
+  .help-item-body {
+    font-size: 13px;
+    line-height: 1.65;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+  }
+
+  .help-steps {
+    padding-left: 16px;
+    font-size: 12.5px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .help-code-block {
+    padding: 10px 12px;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+  }
+
+  .help-code-block code {
+    font-size: 11.5px;
+    line-height: 1.6;
+  }
+
+  .help-tip {
+    padding: 10px 12px;
+    gap: 8px;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .help-tip span {
+    font-size: 12px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    min-width: 0;
   }
 
   .help-whatsapp-callout {
     flex-direction: column;
     gap: 10px;
-    padding: 14px 16px;
+    padding: 12px 14px;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0;
+  }
+
+  .help-whatsapp-callout-content {
+    min-width: 0;
+    word-break: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .help-footer-nav {
+    flex-direction: column;
+    gap: 8px;
+    padding-top: 16px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .help-page-nav-btn {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 10px 14px;
+    min-height: 48px;
+    justify-content: flex-start;
+  }
+
+  .help-page-nav-btn.next {
+    margin-left: 0;
+    text-align: left;
+    justify-content: flex-start;
+    flex-direction: row-reverse;
+  }
+
+  .help-page-nav-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .help-page-nav-text span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
   }
 }

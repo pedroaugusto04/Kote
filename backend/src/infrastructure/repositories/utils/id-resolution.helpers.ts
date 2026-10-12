@@ -1,18 +1,23 @@
 import { eq, and } from 'drizzle-orm';
 import { NotFoundException } from '@nestjs/common';
+import { isUuid } from '../../../domain/utils/uuid.utils.js';
 import { PostgresDatabase } from '../../persistence/database.js';
 import { workspaces, projects } from '../../persistence/schema/index.js';
 
 export async function resolveWorkspaceId(
   database: PostgresDatabase,
   userId: string,
-  workspaceSlug: string,
+  workspaceSlugOrId: string,
 ): Promise<string> {
+  if (isUuid(workspaceSlugOrId)) {
+    return workspaceSlugOrId;
+  }
+
   const db = database.getDb();
   const result = await db
     .select({ id: workspaces.id })
     .from(workspaces)
-    .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlug)))
+    .where(and(eq(workspaces.userId, userId), eq(workspaces.workspaceSlug, workspaceSlugOrId)))
     .limit(1);
 
   if (result.length === 0) {
@@ -24,13 +29,17 @@ export async function resolveWorkspaceId(
 export async function resolveProjectId(
   database: PostgresDatabase,
   userId: string,
-  projectSlug: string,
+  projectSlugOrId: string,
 ): Promise<string> {
+  if (isUuid(projectSlugOrId)) {
+    return projectSlugOrId;
+  }
+
   const db = database.getDb();
   const result = await db
     .select({ id: projects.id })
     .from(projects)
-    .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
+    .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlugOrId)))
     .limit(1);
 
   if (result.length === 0) {

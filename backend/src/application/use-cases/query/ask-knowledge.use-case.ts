@@ -29,4 +29,12 @@ export abstract class AskKnowledgeUseCase {
     userId: string,
     options?: AskKnowledgeOptions,
   ): Promise<AskKnowledgeResult>;
+
+  protected resolveWorkspaceSlug(
+    workspaces: Array<{ id: string; workspaceSlug: string }>,
+    workspaceId?: string,
+  ): string {
+    const matched = workspaceId ? workspaces.find((w) => w.id === workspaceId) : undefined;
+    return matched?.workspaceSlug || workspaces[0]?.workspaceSlug || 'default';
+  }
 }

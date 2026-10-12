@@ -1,5 +1,4 @@
 import { KnowledgeStatus, ReminderBoardColumnKey } from '../../../contracts/enums.js';
-import { StatusFilter } from '../../../contracts/status-filters.js';
 import { reminderBoardColumnKeys } from '../../models/reminder-board.models.js';
 import type { ReminderBoardCard, ReminderBoardResponse } from '../../models/reminder.models.js';
 
@@ -33,23 +32,6 @@ export function sortRemindersBySchedule<T extends { id: string; title: string; s
     || left.id.localeCompare(right.id));
 }
 
-export function sortRemindersForList<T extends { id: string; title: string; status: string; reminderAt?: string; reminderDate?: string; reminderTime?: string }>(
-  reminders: T[],
-  statusFilter?: string,
-) {
-  if (statusFilter && statusFilter !== KnowledgeStatus.Active && statusFilter !== StatusFilter.Open && statusFilter !== StatusFilter.All) return reminders;
-  return [...reminders].sort((left, right) => {
-    const leftStatusRank = reminderStatusRank(left.status);
-    const rightStatusRank = reminderStatusRank(right.status);
-    return leftStatusRank - rightStatusRank
-      || (reminderIsFuture(left) 
-          ? reminderTimestamp(left) - reminderTimestamp(right) 
-          : reminderTimestamp(right) - reminderTimestamp(left))
-      || left.title.localeCompare(right.title)
-      || left.id.localeCompare(right.id);
-  });
-}
-
 export function emptyColumns(limitPerColumn: number): ReminderBoardResponse['columns'] {
   return reminderBoardColumnKeys.reduce((acc, key) => {
     acc[key] = { items: [], total: 0, page: 1, pageSize: limitPerColumn, totalPages: 1, hasNext: false };
@@ -62,3 +44,12 @@ export function boardColumnKey(reminder: Pick<ReminderBoardCard, 'status' | 'isO
   if (reminder.status === KnowledgeStatus.Archived) return ReminderBoardColumnKey.Archived;
   return reminder.status === KnowledgeStatus.Overdue || reminder.isOverdue ? ReminderBoardColumnKey.Overdue : ReminderBoardColumnKey.Upcoming;
 }
+
+export function matchesReminderProject(reminderProject: string, filterProjectSlug?: string): boolean {
+  if (!filterProjectSlug) return true;
+  if (filterProjectSlug === 'inbox') {
+    return reminderProject === 'inbox' || !reminderProject;
+  }
+  return reminderProject === filterProjectSlug;
+}
+

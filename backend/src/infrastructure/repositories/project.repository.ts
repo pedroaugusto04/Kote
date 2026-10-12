@@ -3,6 +3,8 @@ import crypto from 'node:crypto';
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { eq, and, desc, sql, gt, lte, or, count } from 'drizzle-orm';
 
+import { isUuid } from '../../domain/utils/uuid.utils.js';
+
 import type { ListProjectsInput } from '../../application/models/project-list.models.js';
 import type { RepositoryRecord, SaveProjectInput } from '../../application/models/repository-records.models.js';
 import { buildPaginationMeta } from '../../contracts/pagination.js';
@@ -47,6 +49,18 @@ export class PostgresProjectRepository {
       .from(projects)
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
       .where(and(eq(projects.userId, userId), eq(projects.enabled, true)))
+      .orderBy(desc(projects.isFavorite), projects.displayName);
+
+    return result.map(projectFromRow);
+  }
+
+  async listByWorkspace(userId: string, workspaceId: string) {
+    const db = this.database.getDb();
+    const result = await db
+      .select(PROJECT_METADATA_SELECT)
+      .from(projects)
+      .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
+      .where(and(eq(projects.userId, userId), eq(projects.workspaceId, workspaceId), eq(projects.enabled, true)))
       .orderBy(desc(projects.isFavorite), projects.displayName);
 
     return result.map(projectFromRow);
@@ -130,19 +144,27 @@ export class PostgresProjectRepository {
     return { items: result.map(projectFromRow), pagination };
   }
 
-  async getBySlug(userId: string, projectSlug: string) {
+  async getBySlug(userId: string, projectSlug: string, workspaceId?: string) {
     const db = this.database.getDb();
+    const conditions = [
+      eq(projects.userId, userId),
+      eq(projects.projectSlug, projectSlug),
+    ];
+    if (workspaceId) {
+      conditions.push(eq(projects.workspaceId, workspaceId));
+    }
     const result = await db
       .select(PROJECT_METADATA_SELECT)
       .from(projects)
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
-      .where(and(eq(projects.userId, userId), eq(projects.projectSlug, projectSlug)))
+      .where(and(...conditions))
       .limit(1);
 
     return result[0] ? projectFromRow(result[0]) : null;
   }
 
   async getById(userId: string, id: string) {
+    if (!isUuid(id)) return null;
     const db = this.database.getDb();
     const result = await db
       .select(PROJECT_METADATA_SELECT)
@@ -155,6 +177,9 @@ export class PostgresProjectRepository {
   }
 
   async getByIdOrThrow(userId: string, id: string) {
+    if (!isUuid(id)) {
+      throw new NotFoundException('project_not_found');
+    }
     const project = await this.getById(userId, id);
     if (!project) {
       throw new NotFoundException('project_not_found');
@@ -239,6 +264,7 @@ export class PostgresProjectRepository {
   }
 
   async setFavorite(userId: string, id: string, favorite: boolean) {
+    if (!isUuid(id)) return null;
     const db = this.database.getDb();
     const result = await db
       .update(projects)
@@ -250,6 +276,7 @@ export class PostgresProjectRepository {
   }
 
   async delete(userId: string, id: string) {
+    if (!isUuid(id)) return false;
     const db = this.database.getDb();
     const result = await db
       .delete(projects)

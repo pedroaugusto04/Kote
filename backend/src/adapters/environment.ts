@@ -1,9 +1,9 @@
 import { AiProvider } from '../contracts/enums.js';
 import type { RuntimeEnvironment } from '../application/ports/observability/runtime-environment.port.js';
-import { normalizeTimeZone } from '../domain/time.js';
+import { DEFAULT_APP_TIMEZONE, normalizeTimeZone, setDefaultAppTimeZone } from '../domain/time.js';
 
 export const defaultGithubAppCallbackPath = '/api/integrations/github-app/callback';
-export const defaultReminderTimeZone = 'America/Sao_Paulo';
+export const defaultReminderTimeZone = DEFAULT_APP_TIMEZONE;
 
 export function normalizeGithubBackfillLimit(value: string | undefined): number {
   const parsed = Number.parseInt(String(value ?? '5').trim(), 10);
@@ -60,8 +60,11 @@ export function readEnvironment(env = process.env): RuntimeEnvironment {
   const defaultAudioModel = String(env.KB_DEFAULT_AUDIO_AI_MODEL || 'gemini-2.5-flash').trim();
   const defaultAudioApiKey = String(env.KB_DEFAULT_AUDIO_AI_API_KEY || '').trim();
 
+  const reminderTimeZone = normalizeTimeZone(String(env.KB_REMINDER_TIMEZONE || defaultReminderTimeZone));
+  setDefaultAppTimeZone(reminderTimeZone);
+
   return {
-    reminderTimeZone: normalizeTimeZone(String(env.KB_REMINDER_TIMEZONE || defaultReminderTimeZone)),
+    reminderTimeZone,
     webhookSecret: String(env.KB_WEBHOOK_SECRET || '').trim(),
     githubWebhookSecret: String(env.KB_GITHUB_APP_WEBHOOK_SECRET || '').trim(),
     conversationTimeoutMs: Number(env.WPP_CONVERSATION_TIMEOUT_MS || 600_000),

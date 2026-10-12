@@ -33,10 +33,9 @@ import {
 import { ListProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/list-project-dependencies.use-case.js';
 import { DependencyWatcherRepository } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { PostgresDependencyWatcherRepository } from '../repositories/dependency-watcher.repository.js';
-import { ProjectsController } from '../../interfaces/http/controllers/index.js';
+import { ProjectsController, ReviewsController } from '../../interfaces/http/controllers/index.js';
 import { ProjectCoverageRepository } from '../../application/ports/projects/project-coverage.repository.js';
 import { PostgresProjectCoverageRepository } from '../repositories/project-coverage.repository.js';
-import { ProjectResolutionGuard, OptionalProjectResolutionGuard } from '../../interfaces/http/guards/project-resolution.guard.js';
 
 import { SyncProjectFilesService } from '../../application/services/projects/sync-project-files.service.js';
 import { SemanticClusteringService } from '../../application/services/query/semantic-clustering.service.js';
@@ -55,6 +54,7 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
   ],
   controllers: [
     ProjectsController,
+    ReviewsController,
   ],
   providers: [
     ListPaginatedProjectsUseCase,
@@ -85,8 +85,6 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     PostgresDependencyWatcherRepository,
     { provide: ProjectCoverageRepository, useExisting: PostgresProjectCoverageRepository },
     { provide: DependencyWatcherRepository, useExisting: PostgresDependencyWatcherRepository },
-    ProjectResolutionGuard,
-    OptionalProjectResolutionGuard,
   ],
   exports: [
     GenerateProjectBriefUseCase,
@@ -105,8 +103,6 @@ import { ProjectMapClusterRepository } from '../repositories/project-map-cluster
     ListPaginatedProjectsUseCase,
     ListPaginatedReviewsUseCase,
     GetReviewDetailUseCase,
-    ProjectResolutionGuard,
-    OptionalProjectResolutionGuard,
   ],
 })
 export class ProjectsModule {}

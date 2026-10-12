@@ -112,6 +112,47 @@ test('Sync AI sessions command integration', async (t) => {
     ]);
   });
 
+  await t.test('provider session cache invalidates immediately on file update and isolates mutations', async () => {
+    const { ClaudeCodeHistoryProvider } = await import('../../cli/dist/ai-history/providers/claude-code.provider.js');
+    const cacheDir = path.join(TEST_DIR, '.claude', 'projects', 'cache-test-proj');
+    fs.mkdirSync(cacheDir, { recursive: true });
+    const sessionFile = path.join(cacheDir, 'cached-sess.jsonl');
+
+    fs.writeFileSync(
+      sessionFile,
+      `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"First question"}]}}\n` +
+      `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"First answer"}]}}\n`,
+      'utf8'
+    );
+
+    const provider = new ClaudeCodeHistoryProvider();
+    const firstRead = (await provider.getRecentSessions()).find(s => s.sessionId === 'cached-sess');
+    assert.ok(firstRead);
+    assert.equal(firstRead.turns.length, 2);
+
+    // Mutate returned session object and verify cached copy is not corrupted
+    firstRead.turns.push({ role: 'user', content: 'mutated externally' });
+    const cachedRead = (await provider.getRecentSessions()).find(s => s.sessionId === 'cached-sess');
+    assert.ok(cachedRead);
+    assert.equal(cachedRead.turns.length, 2, 'Cached session must be defensively cloned');
+
+    // Append a new turn to the file on disk and verify cache invalidates immediately
+    fs.appendFileSync(
+      sessionFile,
+      `{"type":"user","message":{"role":"user","content":[{"type":"text","text":"Second question"}]}}\n` +
+      `{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Second answer"}]}}\n`,
+      'utf8'
+    );
+
+    const updatedRead = (await provider.getRecentSessions()).find(s => s.sessionId === 'cached-sess');
+    assert.ok(updatedRead);
+    assert.equal(updatedRead.turns.length, 4, 'Appended turns must invalidate cache and be parsed immediately');
+    assert.equal(updatedRead.turns[2].content, 'Second question');
+    assert.equal(updatedRead.turns[3].content, 'Second answer');
+
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+  });
+
   await t.test('provider strategies correctly extract multi-model token usage into byModel array', async () => {
     const { ClaudeCodeHistoryProvider } = await import('../../cli/dist/ai-history/providers/claude-code.provider.js');
 

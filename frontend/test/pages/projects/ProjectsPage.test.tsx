@@ -834,6 +834,14 @@ describe('ProjectsPage', () => {
 
     fireEvent.click(exportBtn);
 
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText('Export project notes')).toBeInTheDocument();
+
+    // Confirm the export in the modal
+    const confirmBtn = within(dialog).getByRole('button', { name: 'Export (.zip)' });
+    fireEvent.click(confirmBtn);
+
     await waitFor(() => {
       expect(requestedExportUrl).toContain('/api/projects/export/zip');
       expect(requestedExportUrl).toContain('projectSlug=platform');
@@ -841,5 +849,38 @@ describe('ProjectsPage', () => {
     });
 
     expect(notificationSpies.notifySuccess).toHaveBeenCalledWith('ZIP archive downloaded successfully');
+  });
+
+  it('cancels export zip when cancel button in confirmation modal is clicked', async () => {
+    let requestedExportUrl = '';
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL) => {
+      const urlStr = String(input);
+      if (urlStr.startsWith('/api/projects/export/zip')) {
+        requestedExportUrl = urlStr;
+        return new Response(new Blob(['fake zip content'], { type: 'application/zip' }), {
+          status: 200,
+          headers: {
+            'content-type': 'application/zip',
+            'content-disposition': 'attachment; filename="kote-platform-2026-09-08.zip"',
+          },
+        });
+      }
+      return Response.json({ ok: true, timeline: [], pagination: { total: 0, page: 1, pageSize: 20, totalPages: 1 } });
+    }));
+
+    renderProjects({ selectedProject: 'platform' });
+
+    const exportBtn = screen.getByRole('button', { name: 'Export (.zip)' });
+    fireEvent.click(exportBtn);
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+
+    const cancelBtn = within(dialog).getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelBtn);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(requestedExportUrl).toBe('');
+    expect(notificationSpies.notifySuccess).not.toHaveBeenCalled();
   });
 });

@@ -7,6 +7,9 @@ export type ListRemindersInput = {
   workspaceSlug?: string;
   projectSlug?: string;
   status?: string;
+  query?: string;
+  dueAfter?: string;
+  dueBefore?: string;
 };
 
 export type PaginatedReminders = {

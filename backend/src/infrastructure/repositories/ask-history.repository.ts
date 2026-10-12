@@ -167,12 +167,19 @@ export class PostgresAskHistoryRepository extends AskHistoryRepository {
     };
   }
 
-  async getConversationTurns(conversationId: string): Promise<AskHistoryItem[]> {
+  async getConversationTurns(conversationId: string, userId?: string): Promise<AskHistoryItem[]> {
     const db = this.database.getDb();
+    const conditions = [eq(askHistory.conversationId, conversationId)];
+
+    if (userId) {
+      conditions.push(eq(askHistory.userId, userId));
+    }
+
+    const whereCondition = conditions.length > 1 ? and(...conditions) : conditions[0];
     const result = await db
       .select()
       .from(askHistory)
-      .where(eq(askHistory.conversationId, conversationId))
+      .where(whereCondition)
       .orderBy(askHistory.createdAt);
     return result.map(askHistoryFromRow);
   }

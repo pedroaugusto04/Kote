@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { normalizeGithubAppCallbackPath } from '../../../dist/adapters/environment.js';
-import { ApplicationAccessController, DashboardController, GithubAppCallbackController, HealthController, NotesController, OperationsController, ProjectsController, WorkspacesController } from '../../../dist/interfaces/http/controllers/index.js';
+import { ApplicationAccessController, DashboardController, GithubAppCallbackController, HealthController, NotesController, OperationsController, ProjectsController, WorkspacesController, RemindersController, ReviewsController, AskAiController, QueryKnowledgeController } from '../../../dist/interfaces/http/controllers/index.js';
 
 test('health controller exposes service status', () => {
   const controller = new HealthController();
@@ -85,24 +85,95 @@ test('dashboard controller delegates project, workspace and note reads to use ca
     { execute: async () => dashboard },
     { execute: async () => ({ items: dashboard.projects, pagination: {} }) },
     { execute: async () => dashboard.workspaces },
-    { execute: async () => ({ items: [], pagination: {} }) },
-    { execute: async () => ({ items: [], pagination: {} }) },
-    { execute: async () => ({ items: [], pagination: {} }) },
-    { execute: async (_userId, query) => ({ columns: { overdue: { items: [query], total: 1 }, upcoming: { items: [], total: 0 }, resolved: { items: [], total: 0 }, archived: { items: [], total: 0 } } }) },
-    { execute: async (_userId, input) => ({ ok: true, ...input }) },
-    { execute: async (_userId, id) => ({ id, title: 'Review detail' }) },
-    { execute: async (query, userId) => ({ ok: true, query, userId }) },
-    { execute: async (question, userId, options) => ({ ok: true, question, userId, options }) },
-    { execute: async (userId, query) => ({ items: [{ id: 'ask-1', userId, ...query }], pagination: { page: query.page } }) },
-    { execute: async (conversationId) => ({ turns: [] }) },
-    { execute: async (userId, ids, status) => ({ ok: true }) },
     { execute: async (userId) => ({ activities: [] }) },
+    { execute: async () => ({}) },
   );
 
   assert.deepEqual(await controller.projects(user, {}), { ok: true, projects: dashboard.projects, pagination: {} });
   assert.deepEqual(await controller.workspaces(user), { ok: true, workspaces: dashboard.workspaces });
   assert.deepEqual(await controller.getProductivityInsights(user), { activities: [] });
 });
+
+test('query knowledge controller delegates GET and POST queries to use case', async () => {
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  let captured = null;
+  const controller = new QueryKnowledgeController({
+    execute: async (input, userId) => {
+      captured = { input, userId };
+      return { ok: true, hits: [] };
+    },
+  });
+
+  const getResult = await controller.query({ query: 'search text', page: 1, pageSize: 10 }, user, { projectId: 'proj-1', workspaceId: 'ws-1' });
+  assert.deepEqual(getResult, { ok: true, hits: [] });
+  assert.deepEqual(captured, {
+    input: {
+      query: 'search text',
+      status: 'open',
+      limit: 5,
+      page: 1,
+      pageSize: 10,
+      projectId: 'proj-1',
+      workspaceId: 'ws-1',
+    },
+    userId: 'user-1',
+  });
+
+  const postResult = await controller.queryPost({ query: 'post query' }, user, {});
+  assert.deepEqual(postResult, { ok: true, hits: [] });
+  assert.equal(captured.input.query, 'post query');
+});
+
+test('ask ai controller delegates ask, conversations and history to use cases', async () => {
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  const controller = new AskAiController(
+    { execute: async (question, userId, options, convId, history) => ({ ok: true, answer: '42' }) },
+    { execute: async (userId, query) => ({ items: [{ id: 'conv-1' }], pagination: {} }) },
+    { execute: async (id) => [{ turnId: '1', role: 'user' }] },
+    { execute: async (userId, query) => ({ items: [{ id: 'hist-1' }], pagination: {} }) },
+  );
+
+  const askResult = await controller.ask({ question: 'hello' }, user, { projectId: 'p1' });
+  assert.deepEqual(askResult, { ok: true, answer: '42' });
+
+  const convsResult = await controller.askConversations({}, user, { projectId: 'p1' });
+  assert.deepEqual(convsResult, { ok: true, conversations: [{ id: 'conv-1' }], pagination: {} });
+
+  const turnsResult = await controller.askConversationTurns({ id: '123e4567-e89b-12d3-a456-426614174000' }, user);
+  assert.deepEqual(turnsResult, { ok: true, turns: [{ turnId: '1', role: 'user' }] });
+
+  const histResult = await controller.askHistory({}, user, { projectId: 'p1' });
+  assert.deepEqual(histResult, { ok: true, history: [{ id: 'hist-1' }], pagination: {} });
+});
+
+test('reviews controller delegates review queries and detail to use cases', async () => {
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  const mockReviews = [{ id: 'rev-1', title: 'Review 1' }];
+  const controller = new ReviewsController(
+    { execute: async () => ({ items: mockReviews, pagination: {} }) },
+    { execute: async (_userId, id) => ({ id, title: 'Review 1 detail' }) },
+  );
+
+  assert.deepEqual(await controller.reviews(user, {}), { ok: true, reviews: mockReviews, pagination: {} });
+  assert.deepEqual(await controller.review({ id: 'rev-1' }, user), { ok: true, review: { id: 'rev-1', title: 'Review 1 detail' } });
+});
+
+test('reminders controller delegates reminder queries and mutations to use cases', async () => {
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  const mockReminders = [{ id: 'rem-1', title: 'Reminder 1' }];
+  const controller = new RemindersController(
+    { execute: async () => ({ items: mockReminders, pagination: {} }) },
+    { execute: async (_userId, query) => ({ columns: { overdue: { items: [query], total: 1 } } }) },
+    { execute: async (_userId, input) => ({ ok: true, ...input }) },
+    { execute: async (_userId, ids, status) => ({ ok: true, ids, status }) },
+  );
+
+  assert.deepEqual(await controller.reminders(user, {}), { ok: true, reminders: mockReminders, pagination: {} });
+  assert.deepEqual(await controller.reminderBoard(user, {}), { ok: true, columns: { overdue: { items: [{}], total: 1 } } });
+  assert.deepEqual(await controller.updateReminderStatus({ id: 'rem-1' }, { status: 'resolved' }, user), { ok: true, id: 'rem-1', status: 'resolved' });
+  assert.deepEqual(await controller.bulkUpdateReminderStatus({ ids: ['rem-1'], status: 'resolved' }, user), { ok: true, ids: ['rem-1'], status: 'resolved' });
+});
+
 
 test('operations controller normalizes reminder dispatch and mark-sent inputs', async () => {
   const calls = [];
@@ -213,13 +284,20 @@ test('projects and notes controllers delegate create requests to use cases', asy
     await notes.create({ projectSlug: 'acme-api', title: 'Deploy', rawText: 'texto', tags: [], reminderDate: '', reminderTime: '' }, user),
     { ok: true, noteId: 'note-1', body: { projectId: undefined, folderId: undefined, title: 'Deploy', rawText: 'texto', tags: [], status: undefined, categoryIds: [], reminderAt: '', sourceChannel: undefined, source: undefined, sessionId: '', occurredAt: undefined, path: undefined, metadata: {}, attachments: [] }, userId: 'user-1' },
   );
+  const projectScope = {
+    projectId: 'acme-api',
+    projectSlug: 'acme-api',
+    workspaceId: 'ws-1',
+    workspaceSlug: 'ws-1',
+    userId: 'user-1',
+  };
   assert.deepEqual(
-    await projects.update('acme-api', { displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, user),
+    await projects.update(projectScope, { displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, user),
     { ok: true, project: { projectId: 'acme-api', displayName: 'Acme API', repositoryIds: [], defaultTags: [] }, userId: 'user-1' },
   );
-  assert.deepEqual(await projects.remove('acme-api', user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
-  assert.deepEqual(await projects.generateBrief('acme-api', user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1' } });
-  assert.deepEqual(await projects.getBrief('acme-api', user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true } });
+  assert.deepEqual(await projects.remove(projectScope, user), { ok: true, projectSlug: 'acme-api', userId: 'user-1' });
+  assert.deepEqual(await projects.generateBrief(projectScope, user), { ok: true, fallback: false, brief: { projectSlug: 'acme-api', userId: 'user-1', workspaceId: 'ws-1' } });
+  assert.deepEqual(await projects.getBrief(projectScope, user), { ok: true, source: 'history', brief: { projectSlug: 'acme-api', userId: 'user-1', saved: true, workspaceId: 'ws-1' } });
   assert.deepEqual( 
     await notes.update({ id: 'note-1' }, { title: 'Deploy', rawText: 'texto', tags: [], reminderAt: ''}, user, undefined),
     { ok: true, noteId: 'note-1', body: { id: 'note-1', folderId: undefined, status: undefined, categoryIds: undefined, title: 'Deploy', rawText: 'texto', tags: [], reminderAt: '', projectId: undefined, attachments: undefined }, userId: 'user-1' },
@@ -274,4 +352,56 @@ test('notes controller forces ZIP attachment downloads', async () => {
 
   await notes.attachmentContent({ noteId: 'note-1', attachmentId: 'att-1' }, user, response);
   assert.match(response.headers['Content-Disposition'], /^attachment; filename="archive\.zip"/);
+});
+
+test('projects controller routes that support the "all" project slug allow all-projects scope', async () => {
+  const { Reflector } = await import('@nestjs/core');
+  const { SCOPED_METADATA_KEY } = await import('../../../dist/interfaces/http/scope.decorators.js');
+  const reflector = new Reflector();
+
+  for (const handler of ['listDecisions', 'exportAdrsZip', 'generateBrief', 'getBrief', 'getBriefHistory']) {
+    const options = reflector.get(SCOPED_METADATA_KEY, ProjectsController.prototype[handler]);
+    assert.equal(options?.allowAllProjects, true, `${handler} must allow the "all" project slug`);
+  }
+});
+
+test('dependency watcher controller delegates enable, disable and toggle to service', async () => {
+  const { DependencyWatcherController } = await import('../../../dist/interfaces/http/controllers/integrations/dependency-watcher.controller.js');
+  const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
+  const scope = { userId: 'user-1', workspaceId: 'ws-1', workspaceSlug: 'ws-slug', projectId: null, projectSlug: null };
+  const calls = [];
+  const mockService = {
+    async setWorkspaceWatcherStatus(userId, workspaceId, workspaceSlug, enabled) {
+      calls.push({ action: 'setStatus', userId, workspaceId, workspaceSlug, enabled });
+      return enabled;
+    },
+    async toggleDependency(userId, workspaceId, dependencyId, enabled) {
+      calls.push({ action: 'toggle', userId, workspaceId, dependencyId, enabled });
+      return enabled;
+    },
+  };
+
+  const controller = new DependencyWatcherController(
+    { execute: async () => null },
+    { execute: async () => null },
+    { execute: async () => null },
+    { execute: async () => null },
+    { execute: async () => null },
+    mockService,
+  );
+
+  const enableRes = await controller.enable(user, scope);
+  assert.deepEqual(enableRes, { ok: true, data: { enabled: true } });
+
+  const disableRes = await controller.disable(user, scope);
+  assert.deepEqual(disableRes, { ok: true, data: { enabled: false } });
+
+  const toggleRes = await controller.toggleDependency(user, scope, 'dep-1', { enabled: true });
+  assert.deepEqual(toggleRes, { ok: true, data: { enabled: true } });
+
+  assert.deepEqual(calls, [
+    { action: 'setStatus', userId: 'user-1', workspaceId: 'ws-1', workspaceSlug: 'ws-slug', enabled: true },
+    { action: 'setStatus', userId: 'user-1', workspaceId: 'ws-1', workspaceSlug: 'ws-slug', enabled: false },
+    { action: 'toggle', userId: 'user-1', workspaceId: 'ws-1', dependencyId: 'dep-1', enabled: true },
+  ]);
 });

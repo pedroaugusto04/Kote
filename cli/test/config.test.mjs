@@ -117,7 +117,7 @@ test('CLI config', async (t) => {
     assert.deepEqual(config.cookies, {}, 'cookies should be empty after clearConfigAuth');
   });
 
-  await t.test('saveConfig sets file permissions to 0o600', () => {
+  await t.test('saveConfig sets file permissions to 0o600', { skip: process.platform === 'win32' }, () => {
     if (fs.existsSync(TEST_DIR)) fs.rmSync(TEST_DIR, { recursive: true });
 
     saveConfig({ workspaceSlug: 'perm-test' });

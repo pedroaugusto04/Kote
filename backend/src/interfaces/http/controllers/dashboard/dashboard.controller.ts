@@ -1,71 +1,27 @@
-import { Body, Controller, Get, NotFoundException, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiBody, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
-import { queryInputSchema } from '../../../../contracts/query.js';
 import {
   BuildDashboardUseCase,
-  GetReviewDetailUseCase,
-  ListReminderBoardUseCase,
   ListPaginatedProjectsUseCase,
-  ListPaginatedRemindersUseCase,
-  ListPaginatedReviewsUseCase,
   ListWorkspacesUseCase,
-  QueryKnowledgeUseCase,
-  UpdateReminderStatusUseCase,
-  BulkUpdateReminderStatusUseCase,
-  RunAskAiUseCase,
-  ListAskHistoryUseCase,
-  ListAskConversationsUseCase,
-  GetAskConversationTurnsUseCase,
   GetProductivityInsightsRawUseCase,
   GetAiTokenAnalyticsUseCase,
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
-import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
-import { OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
-import { ProjectId } from '../../project.decorators.js';
-import { WorkspaceId } from '../../workspace.decorators.js';
+import { AccessTokenAuthGuard } from '../../guards/auth.guards.js';
+import { ScopeGuard } from '../../guards/scope.guard.js';
+import { Scoped, Scope } from '../../scope.decorators.js';
+import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
 import {
   projectsListQuerySchema,
-  reminderBoardQuerySchema,
-  reminderIdParamSchema,
-  remindersListQuerySchema,
-  reviewIdParamSchema,
-  reviewsListQuerySchema,
-  updateReminderStatusBodySchema,
-  bulkUpdateReminderStatusBodySchema,
   aiAnalyticsQuerySchema,
-  type ReminderBoardQuery,
-  type ReminderIdParam,
   type ProjectsListQuery,
-  type RemindersListQuery,
-  type ReviewIdParam,
-  type ReviewsListQuery,
-  type UpdateReminderStatusBody,
-  type BulkUpdateReminderStatusBody,
   type AiAnalyticsQuery,
 } from '../../dto/dashboard.dto.js';
-import { queryRequestSchema, type QueryRequest } from '../../dto/query.dto.js';
-import { askHistoryQuerySchema, askRequestSchema, conversationIdParamSchema, type AskHistoryQuery, type AskRequest, type ConversationIdParam } from '../../dto/ask.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { paginatedResponse, normalizeScopeId } from '../../http-helpers.js';
-
-function buildQueryUseCaseInput(
-  query: QueryRequest,
-  projectId?: string,
-  workspaceId?: string,
-) {
-  return queryInputSchema.parse({
-    query: query.query,
-    status: query.status,
-    limit: query.limit,
-    page: query.page,
-    pageSize: query.pageSize,
-    projectId: normalizeScopeId(projectId),
-    workspaceId: normalizeScopeId(workspaceId),
-  });
-}
 
 @ApiTags('Dashboard')
 @Controller('api')
@@ -75,17 +31,6 @@ export class DashboardController {
     private readonly buildDashboard: BuildDashboardUseCase,
     private readonly listProjectsUseCase: ListPaginatedProjectsUseCase,
     private readonly listWorkspacesUseCase: ListWorkspacesUseCase,
-    private readonly listReviewsUseCase: ListPaginatedReviewsUseCase,
-    private readonly listRemindersUseCase: ListPaginatedRemindersUseCase,
-    private readonly listReminderBoardUseCase: ListReminderBoardUseCase,
-    private readonly updateReminderStatusUseCase: UpdateReminderStatusUseCase,
-    private readonly getReviewDetail: GetReviewDetailUseCase,
-    private readonly queryKnowledge: QueryKnowledgeUseCase,
-    private readonly runAskAiUseCase: RunAskAiUseCase,
-    private readonly listAskHistoryUseCase: ListAskHistoryUseCase,
-    private readonly listAskConversationsUseCase: ListAskConversationsUseCase,
-    private readonly getAskConversationTurnsUseCase: GetAskConversationTurnsUseCase,
-    private readonly bulkUpdateReminderStatusUseCase: BulkUpdateReminderStatusUseCase,
     private readonly getProductivityInsightsUseCase: GetProductivityInsightsRawUseCase,
     private readonly getAiTokenAnalyticsUseCase: GetAiTokenAnalyticsUseCase,
   ) {}
@@ -102,16 +47,16 @@ export class DashboardController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get AI token usage analytics and cost metrics' })
   @ApiResponse({ status: 200, description: 'AI token analytics retrieved successfully' })
-  @UseGuards(OptionalProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional', allowAllProjects: true })
   async getAiAnalytics(
     @CurrentUser() user: AuthenticatedUser,
-    @WorkspaceId() workspaceId?: string,
-    @ProjectId() projectId?: string,
+    @Scope() scope?: WorkspaceScope,
     @Query(new ZodValidationPipe(aiAnalyticsQuerySchema, 'invalid_ai_analytics_query')) query?: AiAnalyticsQuery,
   ) {
     return this.getAiTokenAnalyticsUseCase.execute(user.id, {
-      workspaceId: normalizeScopeId(workspaceId),
-      projectId: normalizeScopeId(projectId),
+      workspaceId: normalizeScopeId(scope?.workspaceId),
+      projectId: normalizeScopeId(scope?.projectId),
       startDate: query?.startDate,
       endDate: query?.endDate,
       model: query?.model,
@@ -145,184 +90,5 @@ export class DashboardController {
   async workspaces(@CurrentUser() user: AuthenticatedUser) {
     return { ok: true, workspaces: await this.listWorkspacesUseCase.execute(user.id) };
   }
-
-  @Get('reviews')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'List reviews' })
-  @ApiResponse({ status: 200, description: 'Reviews retrieved successfully' })
-  async reviews(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query(new ZodValidationPipe(reviewsListQuerySchema, 'invalid_reviews_query')) query: ReviewsListQuery,
-  ) {
-    return { ok: true, ...paginatedResponse('reviews', await this.listReviewsUseCase.execute(user.id, query)) };
-  }
-
-  @Get('reviews/:id')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get review detail' })
-  @ApiParam({ name: 'id', description: 'Review ID' })
-  @ApiResponse({ status: 200, description: 'Review detail retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Review not found' })
-  async review(@Param(new ZodValidationPipe(reviewIdParamSchema, 'invalid_review_id')) params: ReviewIdParam, @CurrentUser() user: AuthenticatedUser) {
-    const review = await this.getReviewDetail.execute(user.id, params.id);
-    if (!review) throw new NotFoundException('review_not_found');
-    return { ok: true, review };
-  }
-
-  @Get('reminders')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'List reminders' })
-  @ApiResponse({ status: 200, description: 'Reminders retrieved successfully' })
-  async reminders(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query(new ZodValidationPipe(remindersListQuerySchema, 'invalid_reminders_query')) query: RemindersListQuery,
-  ) {
-    return { ok: true, ...paginatedResponse('reminders', await this.listRemindersUseCase.execute(user.id, query)) };
-  }
-
-  @Get('reminders/board')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get reminder board' })
-  @ApiResponse({ status: 200, description: 'Reminder board retrieved successfully' })
-  async reminderBoard(
-    @CurrentUser() user: AuthenticatedUser,
-    @Query(new ZodValidationPipe(reminderBoardQuerySchema, 'invalid_reminder_board_query')) query: ReminderBoardQuery,
-  ) {
-    return { ok: true, ...(await this.listReminderBoardUseCase.execute(user.id, query)) };
-  }
-
-  @Patch('reminders/bulk/status')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Bulk update reminder statuses' })
-  @ApiResponse({ status: 200, description: 'Reminder statuses updated successfully' })
-  async bulkUpdateReminderStatus(
-    @Body(new ZodValidationPipe(bulkUpdateReminderStatusBodySchema, 'invalid_bulk_update_reminder_status_payload')) body: BulkUpdateReminderStatusBody,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    const result = await this.bulkUpdateReminderStatusUseCase.execute(user.id, body.ids, body.status);
-    return result;
-  }
-
-  @Patch('reminders/:id/status')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update reminder status' })
-  @ApiParam({ name: 'id', description: 'Reminder ID' })
-  @ApiResponse({ status: 200, description: 'Reminder status updated' })
-  @ApiResponse({ status: 404, description: 'Reminder not found' })
-  async updateReminderStatus(
-    @Param(new ZodValidationPipe(reminderIdParamSchema, 'invalid_reminder_id')) params: ReminderIdParam,
-    @Body(new ZodValidationPipe(updateReminderStatusBodySchema, 'invalid_reminder_status_payload')) body: UpdateReminderStatusBody,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    const result = await this.updateReminderStatusUseCase.execute(user.id, { id: params.id, status: body.status });
-    if (!result.ok) throw new NotFoundException(result.reason);
-    return result;
-  }
-
-  @Get('query')
-  @UseGuards(OptionalProjectResolutionGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Query Kote (GET)' })
-  @ApiResponse({ status: 200, description: 'Query results retrieved successfully' })
-  query(
-    @Query(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) query: QueryRequest,
-    @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId?: string,
-    @WorkspaceId() workspaceId?: string,
-  ) {
-    return this.queryKnowledge.execute(buildQueryUseCaseInput(query, projectId, workspaceId), user.id);
-  }
-
-  @Post('query')
-  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Query Kote (POST)' })
-  @ApiResponse({ status: 200, description: 'Query results retrieved successfully' })
-  queryPost(
-    @Body(new ZodValidationPipe(queryRequestSchema, 'invalid_query_payload')) body: QueryRequest,
-    @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId?: string,
-    @WorkspaceId() workspaceId?: string,
-  ) {
-    return this.queryKnowledge.execute(buildQueryUseCaseInput(body, projectId, workspaceId), user.id);
-  }
-
-  @Post('ask')
-  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Ask AI a question' })
-  @ApiResponse({ status: 200, description: 'AI response retrieved successfully' })
-  ask(
-    @Body(new ZodValidationPipe(askRequestSchema, 'invalid_ask_payload')) body: AskRequest,
-    @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId?: string,
-    @WorkspaceId() workspaceId?: string,
-  ) {
-    return this.runAskAiUseCase.execute(
-      body.question,
-      user.id,
-      {
-        projectId: normalizeScopeId(projectId),
-        workspaceId: normalizeScopeId(workspaceId),
-      },
-      body.conversationId,
-      body.conversationHistory,
-    );
-  }
-
-  @Get('ask/conversations')
-  @UseGuards(OptionalProjectResolutionGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get AI conversation list' })
-  @ApiResponse({ status: 200, description: 'Conversations retrieved successfully' })
-  async askConversations(
-    @Query(new ZodValidationPipe(askHistoryQuerySchema, 'invalid_ask_conversations_query')) query: AskHistoryQuery,
-    @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId?: string,
-  ) {
-    return {
-      ok: true,
-      ...paginatedResponse('conversations', await this.listAskConversationsUseCase.execute(user.id, {
-        page: query.page,
-        pageSize: query.pageSize,
-        projectId: normalizeScopeId(projectId),
-      })),
-    };
-  }
-
-  @Get('ask/conversations/:id')
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get turns for a single AI conversation' })
-  @ApiParam({ name: 'id', description: 'Conversation ID (UUID)' })
-  @ApiResponse({ status: 200, description: 'Conversation turns retrieved successfully' })
-  async askConversationTurns(
-    @Param(new ZodValidationPipe(conversationIdParamSchema, 'invalid_conversation_id')) params: ConversationIdParam,
-    @CurrentUser() user: AuthenticatedUser,
-  ) {
-    const turns = await this.getAskConversationTurnsUseCase.execute(params.id);
-    return {
-      ok: true,
-      turns,
-    };
-  }
-
-  @Get('ask/history')
-  @UseGuards(OptionalProjectResolutionGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get AI conversation history' })
-  @ApiResponse({ status: 200, description: 'Conversation history retrieved successfully' })
-  async askHistory(
-    @Query(new ZodValidationPipe(askHistoryQuerySchema, 'invalid_ask_history_query')) query: AskHistoryQuery,
-    @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId?: string,
-  ) {
-    return {
-      ok: true,
-      ...paginatedResponse('history', await this.listAskHistoryUseCase.execute(user.id, {
-        page: query.page,
-        pageSize: query.pageSize,
-        projectId: normalizeScopeId(projectId),
-      })),
-    };
-  }
 }
+

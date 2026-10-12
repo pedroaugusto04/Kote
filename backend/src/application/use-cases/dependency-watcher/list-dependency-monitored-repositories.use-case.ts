@@ -20,8 +20,9 @@ export class ListDependencyMonitoredRepositoriesUseCase {
       throw new NotFoundException('workspace_not_found');
     }
 
-    const projects = await this.contentRepository.listProjects(userId);
-    const workspaceProjects = projects.filter((project) => project.workspaceSlug === workspaceSlug);
+    const workspaceProjects = this.contentRepository.listProjectsByWorkspace
+      ? await this.contentRepository.listProjectsByWorkspace(userId, workspace.id)
+      : (await this.contentRepository.listProjects(userId)).filter((project) => project.workspaceSlug === workspaceSlug);
     const linkedRepositories = new Map<string, { fullName: string; projectNames: string[] }>();
 
     for (const project of workspaceProjects) {

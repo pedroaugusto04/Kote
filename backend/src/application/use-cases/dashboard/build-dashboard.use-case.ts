@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ContentQueryRepository, ContentRepository } from '../../ports/notes/content.repository.js';
 import { buildDashboardHome } from '../../utils/dashboard/dashboard-home.utils.js';
 import { RefreshReminderStatusesUseCase } from '../reminders/refresh-reminder-statuses.use-case.js';
-import { formatDateInTimeZone, shiftDateKey } from '../../../domain/time.js';
+import { formatDateInTimeZone, shiftDateKey, getDefaultAppTimeZone } from '../../../domain/time.js';
 import { AskHistoryRepository } from '../../ports/query/ask-history.repository.js';
 import { ProjectBriefHistoryRepository } from '../../ports/projects/project-brief-history.repository.js';
 import { ProjectCoverageRepository } from '../../ports/projects/project-coverage.repository.js';
@@ -43,7 +43,7 @@ export class BuildDashboardUseCase {
     const totalAskQueries = askHistoryResult?.pagination?.total ?? 0;
     const totalProjectBriefs = projectBriefsCount ?? 0;
 
-    const zone = 'UTC';
+    const zone = getDefaultAppTimeZone();
     const now = new Date();
     const end = formatDateInTimeZone(now, zone);
     const start = shiftDateKey(end, -(7 - 1));

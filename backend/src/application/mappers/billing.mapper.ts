@@ -1,9 +1,14 @@
 import { SubscriptionPlan } from '../../domain/enums/plans.enums.js';
-import { BillingType } from '../../domain/enums/billing.enums.js';
+import { BillingType, BillingCycle } from '../../domain/enums/billing.enums.js';
 import { BillingTypeEnum } from '../ports/billing/payment-gateway.port.js';
 import { PAYMENT_GATEWAY } from '../../domain/constants/billing.constants.js';
 import { canCancelPayment } from '../../domain/utils/payment.utils.js';
-import type { PlanRecord, BillingPaymentRecord } from '../models/billing.models.js';
+import type {
+  PlanRecord,
+  BillingPaymentRecord,
+  UserSubscriptionRecord,
+  SubscriptionChangeRequestRecord,
+} from '../models/billing.models.js';
 import type { PlanDto, PendingPaymentSummaryDto } from '../dto/billing.dto.js';
 
 /**
@@ -40,6 +45,75 @@ export class SubscriptionPlanMapper {
       isVisible: plan.isActive,
     };
   }
+
+  static toSubscriptionContextPlan(plan: PlanRecord | null | undefined) {
+    if (!plan) return undefined;
+    return {
+      id: plan.id,
+      slug: plan.slug,
+      displayName: plan.displayName,
+      priceCents: plan.priceCents,
+      priceUsdCents: plan.priceUsdCents,
+      maxStorageBytes: Number(plan.maxStorageBytes),
+      maxAiCreditsPerMonth: plan.maxAiCreditsPerMonth,
+      maxWorkspaces: plan.maxWorkspaces,
+      maxProjectsPerWorkspace: plan.maxProjectsPerWorkspace,
+      isActive: plan.isActive,
+    };
+  }
+}
+
+export class UserSubscriptionMapper {
+  static toSubscriptionSummary(subRow: UserSubscriptionRecord | null) {
+    if (!subRow) return null;
+    return {
+      userId: subRow.userId,
+      planId: subRow.planId,
+      status: subRow.status,
+      currentPeriodStart: subRow.currentPeriodStart.toISOString(),
+      currentPeriodEnd: subRow.currentPeriodEnd.toISOString(),
+      billingCycle: subRow.billingCycle,
+      billingType: subRow.billingType,
+      nextDueDate: subRow.nextDueDate ? subRow.nextDueDate.toISOString() : null,
+      gatewayName: subRow.gatewayName,
+    };
+  }
+
+  static toSubscriptionContextActiveSub(
+    activeSubRow: UserSubscriptionRecord | null | undefined,
+    fallbackGatewayName: string,
+  ) {
+    if (!activeSubRow) return undefined;
+    return {
+      id: activeSubRow.userId,
+      planId: activeSubRow.planId,
+      billingCycle: activeSubRow.billingCycle === 'monthly' ? BillingCycle.MONTHLY : BillingCycle.YEARLY,
+      gatewaySubscriptionId: activeSubRow.gatewaySubscriptionId || '',
+      nextDueDate: activeSubRow.nextDueDate || undefined,
+      gatewayName: activeSubRow.gatewayName || fallbackGatewayName,
+    };
+  }
+}
+
+export class SubscriptionChangeMapper {
+  static toScheduledChangeDto(
+    scheduledChange: SubscriptionChangeRequestRecord | null | undefined,
+    targetPlan: PlanRecord | null | undefined,
+  ) {
+    if (!scheduledChange) return null;
+    return {
+      id: scheduledChange.id,
+      userId: scheduledChange.userId,
+      fromSubscriptionId: scheduledChange.fromSubscriptionId ?? undefined,
+      toPlanId: scheduledChange.toPlanId,
+      toPlan: targetPlan ? SubscriptionPlanMapper.toPlanDto(targetPlan) : null,
+      toBillingCycle: scheduledChange.toBillingCycle,
+      toBillingType: scheduledChange.toBillingType,
+      type: scheduledChange.type,
+      status: scheduledChange.status,
+      effectiveAt: scheduledChange.effectiveAt.toISOString(),
+    };
+  }
 }
 
 export class BillingPaymentMapper {
@@ -54,7 +128,7 @@ export class BillingPaymentMapper {
       gatewayPaymentId: paymentRow.gatewayPaymentId,
       status: paymentRow.status,
       billingType: paymentRow.billingType,
-      kind: paymentRow.kind,
+      kind: paymentKindMapper(paymentRow.kind),
       value: Number(paymentRow.value),
       dueDate: paymentRow.dueDate.toISOString(),
       bankSlipUrl: paymentRow.bankSlipUrl,
@@ -65,4 +139,8 @@ export class BillingPaymentMapper {
       canCancel: canCancelPayment(paymentRow),
     };
   }
+}
+
+function paymentKindMapper(kind: string): string {
+  return kind;
 }

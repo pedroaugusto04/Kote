@@ -15,5 +15,9 @@ export { WorkspacesController } from './workspaces/workspaces.controller.js';
 export { PushSubscriptionsController } from './push/push-subscriptions.controller.js';
 export { SubscriptionController } from './subscription/subscription.controller.js';
 export { TestEmailController } from './test-email/test-email.controller.js';
+export { RemindersController } from './reminders/reminders.controller.js';
+export { ReviewsController } from './reviews/reviews.controller.js';
+export { AskAiController } from './ask/ask.controller.js';
+export { QueryKnowledgeController } from './query/query.controller.js';
 
 

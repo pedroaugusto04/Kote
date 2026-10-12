@@ -10,6 +10,7 @@ import { RemindersModule } from './reminders.module.js';
 import { ProjectsModule } from './projects.module.js';
 import { QuotaModule } from './quota.module.js';
 import { StorageModule } from './storage.module.js';
+import { WorkspacesModule } from './workspaces.module.js';
 
 import {
   ProcessAgentConversationUseCase,
@@ -17,6 +18,7 @@ import {
 } from '../../application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { IngestAgentToolsService } from '../../application/services/conversation/ingest-agent-tools.service.js';
 import { OperationsController } from '../../interfaces/http/controllers/index.js';
 
 @Module({
@@ -32,11 +34,13 @@ import { OperationsController } from '../../interfaces/http/controllers/index.js
     ProjectsModule,
     QuotaModule,
     StorageModule,
+    WorkspacesModule,
   ],
   controllers: [
     OperationsController,
   ],
   providers: [
+    IngestAgentToolsService,
     ProcessAgentConversationUseCase,
     ConversationAgentPresenter,
     ConversationFolderResolutionService,
@@ -44,6 +48,7 @@ import { OperationsController } from '../../interfaces/http/controllers/index.js
   ],
   exports: [
     ProcessAgentConversationUseCase,
+    IngestAgentToolsService,
   ],
 })
 export class OperationsModule {}

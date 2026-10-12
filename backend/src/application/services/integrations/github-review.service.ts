@@ -1,8 +1,10 @@
 import { GithubReviewMapper } from '../../mappers/github-review.mapper.js';
+import { buildIngestPayload } from '../../mappers/ingest.mapper.js';
 import { CanonicalType, EventType, KnowledgeKind, KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
 import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { defaultImportance } from '../../../domain/classification.js';
 import { trimText } from '../../../domain/strings.js';
+import { normalizeOccurredAtToUtc } from '../../../domain/time.js';
 import { GithubIntegrationGateway } from '../../ports/integrations/github-integration.port.js';
 import { ReviewAnalysisGateway } from '../../ports/projects/review-analysis.port.js';
 import type { RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
@@ -88,7 +90,7 @@ export async function buildGithubReviewEvent(
 
   const projectSlug = normalizeProjectSlug(repoInfo.name, repoInfo.fullName);
 
-  return ingestPayloadSchema.parse({
+  return buildIngestPayload({
     source: {
       channel: SourceChannel.Github,
       system: 'github',
@@ -99,13 +101,12 @@ export async function buildGithubReviewEvent(
     },
     event: {
       type: EventType.CodeReview,
-      occurredAt: String(body.head_commit?.timestamp || new Date().toISOString()),
+      occurredAt: normalizeOccurredAtToUtc(body.head_commit?.timestamp),
       projectSlug,
     },
     content: {
       rawText: trimText(String(body.head_commit?.message || ''), 'Push without detailed message'),
       title: `[${repoInfo.name || repoInfo.fullName.split('/').pop() || 'inbox'}] ${String(body.head_commit?.message || 'Push without detailed message').split('\n')[0]}`,
-      attachments: [],
       sections: {
         summary: analysis.summary,
         impact: analysis.impact,
@@ -118,14 +119,7 @@ export async function buildGithubReviewEvent(
       kind: KnowledgeKind.Summary,
       canonicalType: CanonicalType.Knowledge,
       importance: defaultImportance(KnowledgeKind.Summary),
-      status: KnowledgeStatus.Active,
       tags: ['code-review', projectSlug],
-      decisionFlag: false,
-    },
-    actions: {
-      reminderDate: '',
-      reminderTime: '',
-      followUpBy: '',
     },
     metadata: {
       repoFullName: repoInfo.fullName,
@@ -205,6 +199,7 @@ export async function buildGithubPrReviewEvent(
     analysis,
     changedFiles,
     eventType: 'pr',
+    occurredAt: normalizeOccurredAtToUtc(body.pull_request?.updated_at || body.pull_request?.created_at),
   });
 }
 
@@ -331,7 +326,7 @@ export function buildGithubPrContextNoteEvent(
   const projectSlug = normalizeProjectSlug(repoInfo.name, repoInfo.fullName);
   const rawText = buildPrRawText(prNumber, String(body.pull_request?.title || ''), String(body.pull_request?.body || ''), contextSummary);
 
-  return ingestPayloadSchema.parse({
+  return buildIngestPayload({
     source: {
       channel: SourceChannel.Github,
       system: 'github',
@@ -342,33 +337,20 @@ export function buildGithubPrContextNoteEvent(
     },
     event: {
       type: EventType.CodeReview,
-      occurredAt: new Date().toISOString(),
       projectSlug,
     },
     content: {
       rawText: trimText(rawText, 'PR without description'),
       title: `[PR #${prNumber}] ${String(body.pull_request?.title || '')}`,
-      attachments: [],
       sections: {
         summary: commentText,
-        impact: '',
-        risks: [],
-        nextSteps: [],
-        reviewFindings: [],
       },
     },
     classification: {
       kind: KnowledgeKind.Summary,
       canonicalType: CanonicalType.Knowledge,
       importance: defaultImportance(KnowledgeKind.Summary),
-      status: KnowledgeStatus.Active,
       tags: ['code-review', 'pull-request', projectSlug],
-      decisionFlag: false,
-    },
-    actions: {
-      reminderDate: '',
-      reminderTime: '',
-      followUpBy: '',
     },
     metadata: {
       repoFullName: repoInfo.fullName,
@@ -380,6 +362,6 @@ export function buildGithubPrContextNoteEvent(
       baseSha: String(body.pull_request?.base?.sha || ''),
       headSha: String(body.pull_request?.head?.sha || ''),
     },
-    links: changedFiles.map(f => f.filename),
+    links: changedFiles.map((f) => f.filename),
   });
 }

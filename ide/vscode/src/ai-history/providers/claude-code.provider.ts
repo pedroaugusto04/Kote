@@ -16,13 +16,27 @@ import {
   JSONL_EXTENSION,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types';
-import { asRecord, buildSessionTitle, extractTextContent, keepFinalAssistantTurns, latestRecordTimestamp, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
+import {
+  asRecord,
+  buildSessionTitle,
+  extractTextContent,
+  FileSessionCache,
+  keepFinalAssistantTurns,
+  latestRecordTimestamp,
+  latestTreeMtime,
+  parseAiRole,
+  readJsonLines,
+  recentFiles,
+  safeFileSignature,
+} from './provider.utils';
 import { calculateTokenUsageCost } from '../token-accounting';
 
 const CLAUDE_RECORD_TYPE = {
   USER: 'user',
   ASSISTANT: 'assistant',
 } as const;
+
+const sessionCache = new FileSessionCache();
 
 function cleanContent(raw: string): string {
   return raw
@@ -154,25 +168,28 @@ function extractClaudeTokenUsage(records: unknown[]): AiTokenUsage | undefined {
 }
 
 function parseFile(filePath: string): AiSession | null {
-  try {
-    const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
-    const turns = parseTurns(records);
-    if (turns.length === 0) return null;
-    const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
+  const fileSig = safeFileSignature(filePath);
+  return sessionCache.getOrParse(filePath, fileSig?.signature ?? null, () => {
+    try {
+      const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
+      const turns = parseTurns(records);
+      if (turns.length === 0) return null;
+      const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
 
-    return {
-      providerId: AI_PROVIDER.CLAUDE_CODE,
-      sessionId: path.basename(filePath, JSONL_EXTENSION),
-      title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.CLAUDE_CODE], turns),
-      turns,
-      timestamp: internalTimestamp ?? safeMtime(filePath),
-      timestampIsInternal: internalTimestamp !== null,
-      projectSlug: resolveProjectSlug(filePath),
-      tokenUsage: extractClaudeTokenUsage(records),
-    };
-  } catch {
-    return null;
-  }
+      return {
+        providerId: AI_PROVIDER.CLAUDE_CODE,
+        sessionId: path.basename(filePath, JSONL_EXTENSION),
+        title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.CLAUDE_CODE], turns),
+        turns,
+        timestamp: internalTimestamp ?? (fileSig?.mtimeMs ?? 0),
+        timestampIsInternal: internalTimestamp !== null,
+        projectSlug: resolveProjectSlug(filePath),
+        tokenUsage: extractClaudeTokenUsage(records),
+      };
+    } catch {
+      return null;
+    }
+  });
 }
 
 export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
@@ -189,7 +206,7 @@ export class ClaudeCodeHistoryProvider implements AiHistoryProvider {
   }
 
   getSourceMtime(): number {
-    return safeMtime(this.getHistoryDir());
+    return latestTreeMtime(this.getHistoryDir(), (filePath) => filePath.endsWith(JSONL_EXTENSION));
   }
 
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {

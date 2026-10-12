@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import type { PoolClient } from 'pg';
 import { eq, and } from 'drizzle-orm';
 
+import { isUuid } from '../../domain/utils/uuid.utils.js';
 import type { SaveProjectFolderInput } from '../../application/models/repository-records.models.js';
 import { projectFolderFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -14,6 +15,7 @@ export class PostgresFolderRepository {
   constructor(private readonly database: PostgresDatabase) {}
 
   async list(userId: string, projectId: string) {
+    if (!isUuid(projectId)) return [];
     const db = this.database.getDb();
     const result = await db
       .select({
@@ -38,6 +40,7 @@ export class PostgresFolderRepository {
   }
 
   async getById(userId: string, projectId: string, folderId: string) {
+    if (!isUuid(projectId) || !isUuid(folderId)) return null;
     const db = this.database.getDb();
     const result = await db
       .select({

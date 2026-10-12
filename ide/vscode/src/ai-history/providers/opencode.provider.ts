@@ -16,7 +16,7 @@ import {
   OPEN_CODE_FINAL_FINISH,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiTurn, ModelUsageDetail } from '../types';
-import { asRecord, keepFinalAssistantTurns, parseAiRole, safeMtime } from './provider.utils';
+import { asRecord, cloneSession, keepFinalAssistantTurns, parseAiRole, safeFileSignature, safeMtime } from './provider.utils';
 import { calculateTokenUsageCost } from '../token-accounting';
 
 interface OpenCodeRow {
@@ -45,6 +45,16 @@ interface SessionAccumulator {
   usageMessageIds: Set<string>;
   models: Map<string, ModelTokenAccumulator>;
   lastModelID?: string;
+}
+
+let cachedQueryKey = '';
+let cachedSessions: AiSession[] = [];
+
+function buildDbSignature(dbPath: string, limit: number): string | null {
+  const mainSig = safeFileSignature(dbPath);
+  if (!mainSig) return null;
+  const walSig = safeFileSignature(`${dbPath}-wal`);
+  return `${dbPath}|${limit}|${mainSig.signature}|${walSig ? walSig.signature : 'nowal'}`;
 }
 
 function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): void {
@@ -78,7 +88,7 @@ function addRow(sessions: Map<string, SessionAccumulator>, row: OpenCodeRow): vo
     const rawModelID = typeof message?.modelID === 'string' ? message.modelID.trim() : '';
     const modelID = (rawModelID && !rawModelID.includes('<') && !rawModelID.includes('>')) ? rawModelID : (accumulator.lastModelID || 'unknown');
     accumulator.lastModelID = modelID;
-    const providerID = typeof message?.providerID === 'string' ? message.providerID : undefined;
+    const providerID = typeof message?.providerID === 'string' ? message?.providerID : undefined;
 
     let mAcc = accumulator.models.get(modelID);
     if (!mAcc) {
@@ -220,18 +230,24 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
   }
 
   getSourceMtime(): number {
-    return safeMtime(this.getDbPath());
+    const dbPath = this.getDbPath();
+    return Math.max(safeMtime(dbPath), safeMtime(`${dbPath}-wal`));
   }
 
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {
     const dbPath = this.getDbPath();
     if (!fs.existsSync(dbPath)) return [];
 
+    const safeLimit = Math.max(0, Math.floor(limit));
+    const sig = buildDbSignature(dbPath, safeLimit);
+    if (sig && sig === cachedQueryKey) {
+      return cachedSessions.map(cloneSession);
+    }
+
     try {
       const { DatabaseSync } = await import('node:sqlite');
       if (!DatabaseSync) return [];
       const db = new DatabaseSync(dbPath, { readOnly: true });
-      const safeLimit = Math.max(0, Math.floor(limit));
       const rows = db.prepare(`
         SELECT
           s.id as sessionId,
@@ -256,7 +272,12 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
           // Ignore malformed message or part JSON without losing the session.
         }
       }
-      return finalizeSessions(accumulators);
+      const sessions = finalizeSessions(accumulators);
+      if (sig) {
+        cachedQueryKey = sig;
+        cachedSessions = sessions.map(cloneSession);
+      }
+      return sessions;
     } catch {
       return [];
     }
@@ -264,19 +285,49 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
 
   watchSessions(callback: (session: AiSession) => void): vscode.Disposable {
     const dbPath = this.getDbPath();
+    const dbDir = path.dirname(dbPath);
+    const dbFileName = path.basename(dbPath);
+    const walFileName = `${dbFileName}-wal`;
+
     let timeout: NodeJS.Timeout | undefined;
-    const watcher = watchFile(dbPath, () => {
+    const trigger = () => {
       if (timeout) clearTimeout(timeout);
       timeout = setTimeout(async () => {
         timeout = undefined;
         const [session] = await this.getRecentSessions(1);
         if (session) callback(session);
       }, AI_SESSION_DATABASE_DEBOUNCE_MS);
-    });
+    };
+
+    const fileWatcher = watchFile(dbPath, trigger);
+    let dirWatcher: fs.FSWatcher | undefined;
+    try {
+      if (fs.existsSync(dbDir)) {
+        // Also watch the parent directory so SQLite WAL writes (opencode.db-wal) on Linux
+        // trigger immediate updates even before WAL checkpointing into opencode.db.
+        dirWatcher = fs.watch(dbDir, { recursive: false }, (_eventType, filename) => {
+          if (!filename) return;
+          const name = String(filename);
+          if (name === dbFileName || name === walFileName) {
+            trigger();
+          }
+        });
+        dirWatcher.on('error', () => {
+          // ignore transient directory watcher errors
+        });
+      }
+    } catch {
+      // ignore if directory cannot be watched
+    }
 
     return new vscode.Disposable(() => {
       if (timeout) clearTimeout(timeout);
-      watcher.dispose();
+      fileWatcher.dispose();
+      try {
+        dirWatcher?.close();
+      } catch {
+        // ignore close errors
+      }
     });
   }
 }

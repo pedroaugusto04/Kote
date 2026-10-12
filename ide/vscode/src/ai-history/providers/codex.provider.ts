@@ -18,7 +18,17 @@ import {
   JSONL_EXTENSION,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types';
-import { asRecord, buildSessionTitle, latestRecordTimestamp, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils';
+import {
+  asRecord,
+  buildSessionTitle,
+  FileSessionCache,
+  latestRecordTimestamp,
+  latestTreeMtime,
+  parseAiRole,
+  readJsonLines,
+  recentFiles,
+  safeFileSignature,
+} from './provider.utils';
 import { calculateTokenUsageCost } from '../token-accounting';
 
 const CODEX_RECORD_TYPE = {
@@ -26,6 +36,8 @@ const CODEX_RECORD_TYPE = {
   RESPONSE_ITEM: 'response_item',
   MESSAGE: 'message',
 } as const;
+
+const sessionCache = new FileSessionCache();
 
 function textBlocks(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -327,30 +339,33 @@ function extractCodexTokenUsage(records: unknown[]): AiTokenUsage | undefined {
 }
 
 function parseFile(filePath: string): AiSession | null {
-  try {
-    const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
-    const turns = records.map(parseTurn).filter((turn): turn is AiTurn => turn !== null);
-    if (turns.length === 0) return null;
+  const fileSig = safeFileSignature(filePath);
+  return sessionCache.getOrParse(filePath, fileSig?.signature ?? null, () => {
+    try {
+      const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
+      const turns = records.map(parseTurn).filter((turn): turn is AiTurn => turn !== null);
+      if (turns.length === 0) return null;
 
-    const metadata = sessionMetadata(records);
-    const cwd = typeof metadata?.cwd === 'string' ? metadata.cwd : '';
-    const sessionId = typeof metadata?.id === 'string' ? metadata.id : path.basename(filePath, JSONL_EXTENSION);
-    const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
-    const timestamp = internalTimestamp ?? safeMtime(filePath);
+      const metadata = sessionMetadata(records);
+      const cwd = typeof metadata?.cwd === 'string' ? metadata.cwd : '';
+      const sessionId = typeof metadata?.id === 'string' ? metadata.id : path.basename(filePath, JSONL_EXTENSION);
+      const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
+      const timestamp = internalTimestamp ?? (fileSig?.mtimeMs ?? 0);
 
-    return {
-      providerId: AI_PROVIDER.CODEX_CLI,
-      sessionId,
-      title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.CODEX_CLI], turns),
-      turns,
-      timestamp,
-      timestampIsInternal: internalTimestamp !== null,
-      projectSlug: cwd ? resolveProjectSlugFromDir(cwd) : undefined,
-      tokenUsage: extractCodexTokenUsage(records),
-    };
-  } catch {
-    return null;
-  }
+      return {
+        providerId: AI_PROVIDER.CODEX_CLI,
+        sessionId,
+        title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.CODEX_CLI], turns),
+        turns,
+        timestamp,
+        timestampIsInternal: internalTimestamp !== null,
+        projectSlug: cwd ? resolveProjectSlugFromDir(cwd) : undefined,
+        tokenUsage: extractCodexTokenUsage(records),
+      };
+    } catch {
+      return null;
+    }
+  });
 }
 
 export class CodexHistoryProvider implements AiHistoryProvider {
@@ -367,13 +382,7 @@ export class CodexHistoryProvider implements AiHistoryProvider {
   }
 
   getSourceMtime(): number {
-    const historyDir = this.getHistoryDir();
-    // Codex stores rollouts under date directories. Updating a rollout changes
-    // the JSONL file's mtime, but not the root sessions directory's mtime.
-    // Tracking that root directory therefore makes the poller permanently skip
-    // new turns after its first scan.
-    const latestRollout = recentFiles(historyDir, (filePath) => filePath.endsWith(JSONL_EXTENSION), 1)[0];
-    return Math.max(safeMtime(historyDir), safeMtime(latestRollout || historyDir));
+    return latestTreeMtime(this.getHistoryDir(), (filePath) => filePath.endsWith(JSONL_EXTENSION));
   }
 
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {

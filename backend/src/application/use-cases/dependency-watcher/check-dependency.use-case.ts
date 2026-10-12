@@ -15,31 +15,28 @@ export class CheckDependencyUseCase {
     private readonly logger: AppLogger,
   ) {}
 
-  async execute(userId: string, dependencyId: string, projectId: string, projectSlug: string): Promise<{ jobId: string; queued: number }> {
-    const projects = await this.contentRepository.listProjects(userId);
-    const project = projects.find((item) => item.id === projectId);
+  async execute(userId: string, dependencyId: string, projectId: string, projectSlug: string, workspaceId?: string): Promise<{ jobId: string; queued: number }> {
+    const project = await this.contentRepository.getProjectById(userId, projectId);
     if (!project) {
       throw new NotFoundException('project_not_found');
     }
 
     const workspaceSlug = project.workspaceSlug;
-    if (!workspaceSlug) {
+    const resolvedWorkspaceId = workspaceId
+      || project.workspaceId
+      || (workspaceSlug ? (await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug))?.id : undefined);
+    if (!resolvedWorkspaceId) {
       throw new NotFoundException('workspace_not_found');
     }
 
-    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-    if (!workspace) {
-      throw new NotFoundException('workspace_not_found');
-    }
-
-    const dependency = await this.dependencyWatcherRepository.findById(userId, workspace.id, dependencyId);
+    const dependency = await this.dependencyWatcherRepository.findById(userId, resolvedWorkspaceId, dependencyId);
     if (!dependency) {
       throw new NotFoundException('dependency_not_found');
     }
 
-    const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(workspace.id);
+    const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(resolvedWorkspaceId);
     if (!workspaceEnabled) {
-      this.logger.warn('dependency_check.workspace_disabled', { workspaceId: workspace.id });
+      this.logger.warn('dependency_check.workspace_disabled', { workspaceId: resolvedWorkspaceId });
       return { jobId: randomUUID(), queued: 0 };
     }
 
@@ -51,7 +48,7 @@ export class CheckDependencyUseCase {
       userId,
       projectId,
       projectSlug,
-      workspaceId: workspace.id,
+      workspaceId: resolvedWorkspaceId,
       repositoryIds: dependency.repositoryId ? [dependency.repositoryId] : [],
       dependencyIds: [dependency.id],
     });

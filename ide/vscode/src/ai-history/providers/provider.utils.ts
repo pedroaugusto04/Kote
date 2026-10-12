@@ -3,10 +3,12 @@ import * as path from 'path';
 
 import { AI_ROLE, AI_TEXT_CONTENT_TYPE } from '../constants';
 import type { AiRole } from '../constants';
-import type { AiTurn } from '../types';
+import type { AiSession, AiTurn } from '../types';
 import { collapseWhitespace } from '../../utils/text.js';
 
 export type JsonRecord = Record<string, unknown>;
+
+const MAX_SESSION_CACHE_ENTRIES = 250;
 
 export function asRecord(value: unknown): JsonRecord | null {
   return value !== null && typeof value === 'object' ? value as JsonRecord : null;
@@ -102,11 +104,108 @@ export function recentFiles(dir: string, predicate: (filePath: string) => boolea
     .map(({ filePath }) => filePath);
 }
 
+export function latestTreeMtime(dir: string, predicate: (filePath: string) => boolean): number {
+  let maxMtime = safeMtime(dir);
+  if (maxMtime === 0) return 0;
+
+  const walk = (currentDir: string) => {
+    try {
+      for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
+        const entryPath = path.join(currentDir, entry.name);
+        if (entry.isDirectory()) {
+          walk(entryPath);
+        } else if (entry.isFile() && predicate(entryPath)) {
+          const mtime = safeMtime(entryPath);
+          if (mtime > maxMtime) {
+            maxMtime = mtime;
+          }
+        }
+      }
+    } catch {
+      // Ignore transient permission or removal errors during traversal
+    }
+  };
+
+  walk(dir);
+  return maxMtime;
+}
+
 export function safeMtime(filePath: string): number {
   try {
     return fs.statSync(filePath).mtimeMs;
   } catch {
     return 0;
+  }
+}
+
+export function safeFileSignature(filePath: string): { signature: string; mtimeMs: number } | null {
+  try {
+    const stat = fs.statSync(filePath);
+    return {
+      signature: `${stat.mtimeMs}:${stat.ctimeMs}:${stat.size}`,
+      mtimeMs: stat.mtimeMs,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function cloneSession(session: AiSession): AiSession {
+  return {
+    ...session,
+    turns: session.turns.map((turn) => ({ ...turn })),
+    attachments: session.attachments
+      ? session.attachments.map((att) => ({ ...att }))
+      : undefined,
+    tokenUsage: session.tokenUsage
+      ? {
+          ...session.tokenUsage,
+          rates: session.tokenUsage.rates ? { ...session.tokenUsage.rates } : undefined,
+          byModel: session.tokenUsage.byModel
+            ? session.tokenUsage.byModel.map((m) => ({
+                ...m,
+                rates: m.rates ? { ...m.rates } : undefined,
+              }))
+            : undefined,
+        }
+      : undefined,
+  };
+}
+
+export class FileSessionCache {
+  private readonly cache = new Map<string, { signature: string; session: AiSession | null }>();
+
+  getOrParse(
+    key: string,
+    signature: string | null,
+    parser: () => AiSession | null,
+  ): AiSession | null {
+    if (!signature) {
+      this.cache.delete(key);
+      return null;
+    }
+
+    const existing = this.cache.get(key);
+    if (existing && existing.signature === signature) {
+      this.cache.delete(key);
+      this.cache.set(key, existing);
+      return existing.session ? cloneSession(existing.session) : null;
+    }
+
+    const parsed = parser();
+    if (this.cache.size >= MAX_SESSION_CACHE_ENTRIES) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.cache.delete(oldestKey);
+      }
+    }
+
+    this.cache.set(key, {
+      signature,
+      session: parsed ? cloneSession(parsed) : null,
+    });
+
+    return parsed;
   }
 }
 

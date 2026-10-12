@@ -217,13 +217,8 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
       return;
     }
 
-    // Resolve userId using helper
-    const rawPayload = webhookRecord.payload as any;
-    const gatewayCustomerId =
-      rawPayload?.payment?.customer ||
-      rawPayload?.customer ||
-      rawPayload?.data?.object?.customer ||
-      rawPayload?.object?.customer;
+    // Resolve userId using payment customerId or fallback payload helper
+    const gatewayCustomerId = payment.customerId || this.extractGatewayCustomerId(webhookRecord.payload);
     const userId = await this.resolveUserId(gateway, gatewayCustomerId, payment.externalReference);
 
     if (!userId) {
@@ -568,5 +563,19 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
     const parsed = Number(rawValue);
     if (!Number.isFinite(parsed) || parsed < 0) return 0;
     return Math.floor(parsed);
+  }
+
+  private extractGatewayCustomerId(payload: unknown): string | undefined {
+    if (!payload || typeof payload !== 'object') return undefined;
+    const record = payload as Record<string, unknown>;
+    const asaasPayment = record.payment as Record<string, unknown> | undefined;
+    if (typeof asaasPayment?.customer === 'string') return asaasPayment.customer;
+    if (typeof record.customer === 'string') return record.customer;
+
+    const stripeData = record.data as Record<string, unknown> | undefined;
+    const stripeObj = (stripeData?.object || record.object) as Record<string, unknown> | undefined;
+    if (typeof stripeObj?.customer === 'string') return stripeObj.customer;
+
+    return undefined;
   }
 }

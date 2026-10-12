@@ -16,7 +16,16 @@ import {
   DEFAULT_AI_SESSION_LIMIT,
 } from '../constants';
 import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types';
-import { asRecord, buildSessionTitle, keepFinalAssistantTurns, latestRecordTimestamp, readJsonLines, safeMtime } from './provider.utils';
+import {
+  asRecord,
+  buildSessionTitle,
+  FileSessionCache,
+  keepFinalAssistantTurns,
+  latestRecordTimestamp,
+  readJsonLines,
+  safeFileSignature,
+  safeMtime,
+} from './provider.utils';
 import { calculateTokenUsageCost } from '../token-accounting';
 
 const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
@@ -27,6 +36,8 @@ const ANTIGRAVITY_RECORD = {
   MODEL_SOURCE: 'MODEL',
   PLANNER_RESPONSE: 'PLANNER_RESPONSE',
 } as const;
+
+const sessionCache = new FileSessionCache();
 
 function cleanContent(raw: string): string {
   return raw
@@ -94,11 +105,9 @@ function findLogFile(sessionDir: string): string | null {
   for (const fileName of ANTIGRAVITY_LOG_FILES) {
     const filePath = path.join(sessionDir, '.system_generated', 'logs', fileName);
     try {
-      if (fs.existsSync(filePath)) {
-        const stat = fs.statSync(filePath);
-        if (stat.size > 0) {
-          candidates.push({ filePath, mtimeMs: stat.mtimeMs });
-        }
+      const stat = fs.statSync(filePath);
+      if (stat.size > 0) {
+        candidates.push({ filePath, mtimeMs: stat.mtimeMs });
       }
     } catch {
       // ignore transient stat errors
@@ -112,19 +121,18 @@ function findLogFile(sessionDir: string): string | null {
 
 function loadAttachments(sessionDir: string): AiSessionAttachment[] {
   try {
-    return fs.readdirSync(sessionDir)
-      .filter((fileName) => fileName.endsWith('.md'))
-      .map((fileName) => {
-        const filePath = path.join(sessionDir, fileName);
+    return fs.readdirSync(sessionDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+      .map((entry) => {
+        const filePath = path.join(sessionDir, entry.name);
         const stat = fs.statSync(filePath);
-        return stat.isFile() ? {
-          fileName,
+        return {
+          fileName: entry.name,
           mimeType: 'text/markdown',
           sizeBytes: stat.size,
           dataBase64: fs.readFileSync(filePath).toString('base64'),
-        } : null;
-      })
-      .filter((attachment): attachment is AiSessionAttachment => attachment !== null);
+        };
+      });
   } catch {
     return [];
   }
@@ -329,6 +337,16 @@ function allocateTokensByWeight(
   }));
 }
 
+function tokenCandidateFiles(sessionDir: string): string[] {
+  return [
+    path.join(sessionDir, 'token_usage.json'),
+    path.join(sessionDir, 'statusline.json'),
+    path.join(sessionDir, '.system_generated', 'token_usage.json'),
+    path.join(os.homedir(), '.gemini', 'antigravity-cli', 'last_statusline.json'),
+    path.join(os.homedir(), '.gemini', 'antigravity-ide', 'last_statusline.json'),
+  ];
+}
+
 function extractAntigravityTokenUsage(
   sessionDir: string,
   content: string,
@@ -339,15 +357,7 @@ function extractAntigravityTokenUsage(
   let outputTokens = 0;
   let cachedTokens = 0;
 
-  const candidateFiles = [
-    path.join(sessionDir, 'token_usage.json'),
-    path.join(sessionDir, 'statusline.json'),
-    path.join(sessionDir, '.system_generated', 'token_usage.json'),
-    path.join(os.homedir(), '.gemini', 'antigravity-cli', 'last_statusline.json'),
-    path.join(os.homedir(), '.gemini', 'antigravity-ide', 'last_statusline.json'),
-  ];
-
-  for (const candidate of candidateFiles) {
+  for (const candidate of tokenCandidateFiles(sessionDir)) {
     try {
       if (fs.existsSync(candidate)) {
         const data = JSON.parse(fs.readFileSync(candidate, 'utf8'));
@@ -366,7 +376,9 @@ function extractAntigravityTokenUsage(
           break;
         }
       }
-    } catch {}
+    } catch {
+      // Ignore record parsing errors and proceed with available tokens
+    }
   }
 
   if (inputTokens === 0 && outputTokens === 0) return undefined;
@@ -419,34 +431,55 @@ function extractAntigravityTokenUsage(
   };
 }
 
+function buildSessionSignature(sessionDir: string, logFile: string): { signature: string; logMtimeMs: number } | null {
+  const logSig = safeFileSignature(logFile);
+  if (!logSig) return null;
+  const dirMtime = safeMtime(sessionDir);
+  let tokenSigPart = 'notok';
+  for (const candidate of tokenCandidateFiles(sessionDir)) {
+    const sig = safeFileSignature(candidate);
+    if (sig) {
+      tokenSigPart = `${candidate}:${sig.signature}`;
+      break;
+    }
+  }
+  return {
+    signature: `${logFile}|${logSig.signature}|dir:${dirMtime}|${tokenSigPart}`,
+    logMtimeMs: logSig.mtimeMs,
+  };
+}
+
 function parseSession(sessionDir: string, sessionId: string): AiSession | null {
   const logFile = findLogFile(sessionDir);
   if (!logFile) return null;
 
-  try {
-    const content = fs.readFileSync(logFile, 'utf8');
-    const records = readJsonLines(content);
-    const turns = parseTurns(records);
-    if (turns.length === 0) return null;
-    const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
+  const sigInfo = buildSessionSignature(sessionDir, logFile);
+  return sessionCache.getOrParse(sessionDir, sigInfo?.signature ?? null, () => {
+    try {
+      const content = fs.readFileSync(logFile, 'utf8');
+      const records = readJsonLines(content);
+      const turns = parseTurns(records);
+      if (turns.length === 0) return null;
+      const internalTimestamp = latestRecordTimestamp(records, ['timestamp', 'created_at', 'updated_at']);
 
-    const workspace = extractWorkspace(content);
-    const tokenUsage = extractAntigravityTokenUsage(sessionDir, content, records);
+      const workspace = extractWorkspace(content);
+      const tokenUsage = extractAntigravityTokenUsage(sessionDir, content, records);
 
-    return {
-      providerId: AI_PROVIDER.ANTIGRAVITY,
-      sessionId,
-      title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.ANTIGRAVITY], turns),
-      turns,
-      timestamp: internalTimestamp ?? safeMtime(logFile),
-      timestampIsInternal: internalTimestamp !== null,
-      projectSlug: workspace ? resolveProjectSlugFromDir(workspace) : undefined,
-      attachments: loadAttachments(sessionDir),
-      tokenUsage,
-    };
-  } catch {
-    return null;
-  }
+      return {
+        providerId: AI_PROVIDER.ANTIGRAVITY,
+        sessionId,
+        title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.ANTIGRAVITY], turns),
+        turns,
+        timestamp: internalTimestamp ?? (sigInfo?.logMtimeMs ?? 0),
+        timestampIsInternal: internalTimestamp !== null,
+        projectSlug: workspace ? resolveProjectSlugFromDir(workspace) : undefined,
+        attachments: loadAttachments(sessionDir),
+        tokenUsage,
+      };
+    } catch {
+      return null;
+    }
+  });
 }
 
 function sessionIdFromLogPath(filePath: string): string {
@@ -474,7 +507,29 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
   }
 
   getSourceMtime(): number {
-    return Math.max(0, ...this.getHistoryDirs().map(safeMtime));
+    let maxMtime = 0;
+    for (const historyDir of this.getHistoryDirs()) {
+      const rootMtime = safeMtime(historyDir);
+      if (rootMtime === 0) continue;
+      if (rootMtime > maxMtime) maxMtime = rootMtime;
+
+      try {
+        for (const entry of fs.readdirSync(historyDir, { withFileTypes: true })) {
+          if (!entry.isDirectory()) continue;
+          const sessionDir = path.join(historyDir, entry.name);
+          const dirMtime = safeMtime(sessionDir);
+          if (dirMtime > maxMtime) maxMtime = dirMtime;
+
+          for (const fileName of ANTIGRAVITY_LOG_FILES) {
+            const logMtime = safeMtime(path.join(sessionDir, '.system_generated', 'logs', fileName));
+            if (logMtime > maxMtime) maxMtime = logMtime;
+          }
+        }
+      } catch {
+        // ignore transient directory read errors
+      }
+    }
+    return maxMtime;
   }
 
   async getRecentSessions(limit = DEFAULT_AI_SESSION_LIMIT): Promise<AiSession[]> {
@@ -482,29 +537,23 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
     for (const historyDir of this.getHistoryDirs()) {
       if (!fs.existsSync(historyDir)) continue;
-      let sessionIds: string[];
+      let entries: fs.Dirent[];
       try {
-        sessionIds = fs.readdirSync(historyDir);
+        entries = fs.readdirSync(historyDir, { withFileTypes: true });
       } catch {
         continue;
       }
-      for (const sessionId of sessionIds) {
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const sessionId = entry.name;
         const sessionDir = path.join(historyDir, sessionId);
         try {
-          const stat = fs.statSync(sessionDir);
-          if (!stat.isDirectory()) continue;
-          let mtime = stat.mtimeMs;
+          let mtime = safeMtime(sessionDir);
           for (const fileName of ANTIGRAVITY_LOG_FILES) {
             const logPath = path.join(sessionDir, '.system_generated', 'logs', fileName);
-            try {
-              if (fs.existsSync(logPath)) {
-                const logStat = fs.statSync(logPath);
-                if (logStat.mtimeMs > mtime) {
-                  mtime = logStat.mtimeMs;
-                }
-              }
-            } catch {
-              // ignore stat errors
+            const logMtime = safeMtime(logPath);
+            if (logMtime > mtime) {
+              mtime = logMtime;
             }
           }
           candidateDirs.push({ sessionDir, sessionId, mtime });
@@ -552,6 +601,17 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
             const session = parseSession(sessionDir, sessionIdFromLogPath(filePath));
             if (session) callback(session);
           }, AI_SESSION_FILE_DEBOUNCE_MS));
+        },
+        {
+          // On Linux (inotify), only watch brain/<sessionId>, .system_generated, and logs.
+          // Skip deep folders like .system_generated/steps/1..N, tasks/, scratch/, etc.
+          shouldWatchDir: (dirPath, dirName) => {
+            const parentDir = path.dirname(dirPath);
+            if (parentDir === historyDir) return true;
+            if (dirName === '.system_generated' && path.dirname(parentDir) === historyDir) return true;
+            if (dirName === 'logs' && path.basename(parentDir) === '.system_generated') return true;
+            return false;
+          },
         },
       ));
 

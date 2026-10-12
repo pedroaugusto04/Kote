@@ -112,6 +112,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
     const config = loadConfig();
     const localDetected = resolveProjectSlugFromDir(process.cwd());
     const targetProject = options.project || session.projectSlug || localDetected || config.defaultProjectSlug || 'inbox';
+    const occurredAt = session.timestamp ? new Date(session.timestamp).toISOString() : new Date().toISOString();
     await client.createNote({
       title: titleWithDate,
       rawText,
@@ -119,6 +120,7 @@ export async function runSyncAi(options: { project?: string }): Promise<void> {
       sourceChannel: AI_CHAT_SOURCE_CHANNEL,
       source: session.providerId,
       sessionId: session.sessionId,
+      occurredAt,
       attachments: session.attachments,
       metadata: session.tokenUsage ? { aiUsage: session.tokenUsage } : {},
     });

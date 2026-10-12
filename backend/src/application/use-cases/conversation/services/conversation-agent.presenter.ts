@@ -2,10 +2,10 @@ import { Injectable } from '@nestjs/common';
 
 import type { AgentConversationState } from '../../../../contracts/agent-conversation.js';
 import { formatDisplayToken } from '../../../../domain/strings.js';
-import { formatDateTimeInTimeZone } from '../../../../domain/time.js';
+import { formatDateTimeInTimeZone, DEFAULT_APP_TIMEZONE } from '../../../../domain/time.js';
 import type { SaveNoteResult } from '../../../models/note-save-result.models.js';
 
-const REMINDER_DISPLAY_TIME_ZONE = 'America/Sao_Paulo';
+const REMINDER_DISPLAY_TIME_ZONE = DEFAULT_APP_TIMEZONE;
 
 @Injectable()
 export class ConversationAgentPresenter {
@@ -21,7 +21,7 @@ export class ConversationAgentPresenter {
     return 'Conversation context cleared successfully. You can start fresh with a new note or command.';
   }
 
-  noteSaved(result: SaveNoteResult) {
+  noteSaved(result: SaveNoteResult, timeZone = REMINDER_DISPLAY_TIME_ZONE) {
     const note = result.note;
     return [
       'Note saved successfully:',
@@ -30,7 +30,7 @@ export class ConversationAgentPresenter {
       `Project: ${note.projectName}`,
       `Folder: ${note.folderPath}`,
       `Status: ${formatDisplayToken(note.status)}`,
-      note.hasReminder ? `Reminder: ${formatReminder(note)}` : '',
+      note.hasReminder ? `Reminder: ${formatReminder(note, timeZone)}` : '',
       note.attachmentCount > 0 ? `Attachments: ${note.attachmentCount}` : '',
     ].filter(Boolean).join('\n');
   }
@@ -38,8 +38,8 @@ export class ConversationAgentPresenter {
   couldNotUnderstand() {
     return [
       'I could not identify something useful to save yet.',
-      'Use this chat to capture notes, decisions, bugs, reminders, summaries, links, or media with context. I will infer the right project and folder, using inbox only when there is not enough context.',
-      'Examples: "fixed the webhook timeout" or "remind me tomorrow to review the deploy".',
+      'Use this chat to ask questions about your Kote, capture notes, decisions, bugs, reminders, summaries, links, or media, and reschedule existing reminders.',
+      'Examples: "what did we decide about the API?", "fixed the webhook timeout", or "move my deploy reminder to tomorrow".',
     ].join('\n');
   }
 
@@ -70,11 +70,11 @@ export class ConversationAgentPresenter {
   }
 }
 
-function formatReminder(note: SaveNoteResult['note']) {
+function formatReminder(note: SaveNoteResult['note'], timeZone = REMINDER_DISPLAY_TIME_ZONE) {
   if (note.reminderAt) {
     const timestamp = Date.parse(note.reminderAt);
     if (Number.isFinite(timestamp)) {
-      return formatDateTimeInTimeZone(new Date(timestamp), REMINDER_DISPLAY_TIME_ZONE);
+      return formatDateTimeInTimeZone(new Date(timestamp), timeZone);
     }
   }
   return '';

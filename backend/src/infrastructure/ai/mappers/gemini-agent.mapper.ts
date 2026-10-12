@@ -1,5 +1,5 @@
 import { AiProvider } from '../../../contracts/enums.js';
-import type { AskAgentTool } from '../../../application/ports/query/ask-agent.gateway.js';
+import type { AgentTool } from '../../../contracts/agent-tool.js';
 
 export class GeminiAgentExecutionError extends Error {
   readonly provider = AiProvider.Gemini;
@@ -49,7 +49,7 @@ export function mapJsonSchemaTypeToGemini(type: string): string {
   }
 }
 
-export function buildGeminiFunctionDeclarations(tools: AskAgentTool[]) {
+export function buildGeminiFunctionDeclarations(tools: AgentTool[]) {
   return tools.map((tool) => {
     const properties: Record<string, { type: string; description: string }> = {};
     for (const [key, param] of Object.entries(tool.parameters.properties || {})) {

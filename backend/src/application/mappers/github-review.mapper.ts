@@ -2,7 +2,7 @@ import { SourceChannel, EventType, KnowledgeKind, CanonicalType, KnowledgeStatus
 import { formatCorrelationId } from '../utils/github/github-review.helpers.js';
 import { defaultImportance } from '../../domain/classification.js';
 import { trimText } from '../../domain/strings.js';
-import { ingestPayloadSchema } from '../../contracts/ingest.js';
+import { buildIngestPayload } from './ingest.mapper.js';
 
 export interface GithubReviewMapperParams {
   actor: string;
@@ -27,6 +27,7 @@ export interface GithubReviewMapperParams {
   };
   changedFiles: Array<{ filename: string }>;
   eventType?: 'pr' | 'push';
+  occurredAt?: string;
 }
 
 export class GithubReviewMapper {
@@ -34,7 +35,7 @@ export class GithubReviewMapper {
     const correlationKey = params.eventType === 'push' ? params.headSha : `${params.prNumber}:${params.headSha}`;
     const correlationType = params.eventType === 'push' ? 'push' : 'pr';
 
-    return ingestPayloadSchema.parse({
+    return buildIngestPayload({
       source: {
         channel: SourceChannel.Github,
         system: 'github',
@@ -45,13 +46,12 @@ export class GithubReviewMapper {
       },
       event: {
         type: EventType.CodeReview,
-        occurredAt: new Date().toISOString(),
         projectSlug: params.projectSlug,
+        occurredAt: params.occurredAt,
       },
       content: {
         rawText: trimText(params.rawText, 'PR without description'),
         title: params.prNumber ? `[PR #${params.prNumber}] ${params.prTitle}` : `[Push] ${params.repoName}`,
-        attachments: [],
         sections: {
           summary: params.analysis.summary,
           impact: params.analysis.impact,
@@ -66,12 +66,6 @@ export class GithubReviewMapper {
         importance: defaultImportance(KnowledgeKind.Summary),
         status: KnowledgeStatus.Active,
         tags: ['code-review', params.eventType === 'push' ? 'push' : 'pull-request', params.projectSlug],
-        decisionFlag: false,
-      },
-      actions: {
-        reminderDate: '',
-        reminderTime: '',
-        followUpBy: '',
       },
       metadata: {
         repoFullName: params.repoFullName,
@@ -83,7 +77,7 @@ export class GithubReviewMapper {
         baseSha: params.baseSha,
         headSha: params.headSha,
       },
-      links: params.changedFiles.map(f => f.filename),
+      links: params.changedFiles.map((f) => f.filename),
     });
   }
 }

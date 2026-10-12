@@ -51,63 +51,20 @@ export class NoteChunkingService {
     const { title, body, projectSlug, path = '', attachments = [] } = params;
 
     const rawChunks: string[] = [];
-    const notePrefix = this.buildPrefix(title, projectSlug, path, attachments);
+    const notePrefix = this.buildPrefix(title, projectSlug, path, { attachments });
 
     // 1. Process main note body
-    const trimmedBody = (body || '').trim();
-    if (trimmedBody.length >= this.MIN_CHUNK_CHARS) {
-      const segments: string[] = [];
-      const parts = trimmedBody.split(/(\`\`\`[\s\S]*?\`\`\`)/g);
-      for (let i = 0; i < parts.length; i++) {
-        const part = parts[i];
-        if (!part) continue;
-        if (i % 2 === 1) {
-          segments.push(part);
-        } else {
-          const paras = part.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-          segments.push(...paras);
-        }
-      }
-      rawChunks.push(...this.mergeParagraphs(segments, notePrefix));
-    } else if (trimmedBody.length > 0) {
-      const text = notePrefix + trimmedBody;
-      if (text.trim().length >= this.MIN_CHUNK_CHARS) {
-        rawChunks.push(text);
-      }
-    }
+    rawChunks.push(...this.chunkText(body, notePrefix));
 
     // 2. Process attachments with text content
     for (const attachment of attachments) {
-      const attContent = (attachment.content || '').trim();
-      if (!attContent) continue;
-
-      const attPrefix = this.buildAttachmentPrefix(title, projectSlug, path, attachment.fileName);
-
-      if (attContent.length >= this.MIN_CHUNK_CHARS) {
-        const segments: string[] = [];
-        const parts = attContent.split(/(\`\`\`[\s\S]*?\`\`\`)/g);
-        for (let i = 0; i < parts.length; i++) {
-          const part = parts[i];
-          if (!part) continue;
-          if (i % 2 === 1) {
-            segments.push(part);
-          } else {
-            const paras = part.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-            segments.push(...paras);
-          }
-        }
-        rawChunks.push(...this.mergeParagraphs(segments, attPrefix));
-      } else {
-        const text = attPrefix + attContent;
-        if (text.trim().length >= this.MIN_CHUNK_CHARS) {
-          rawChunks.push(text);
-        }
-      }
+      const attPrefix = this.buildPrefix(title, projectSlug, path, { fileName: attachment.fileName });
+      rawChunks.push(...this.chunkText(attachment.content || '', attPrefix));
     }
 
     // 3. Fallback: if no chunks were generated at all
     if (rawChunks.length === 0) {
-      const fallbackText = notePrefix + trimmedBody;
+      const fallbackText = notePrefix + (body || '').trim();
       if (fallbackText.trim().length >= this.MIN_CHUNK_CHARS) {
         rawChunks.push(fallbackText);
       }
@@ -121,20 +78,29 @@ export class NoteChunkingService {
 
   // ---------------------------------------------------------------------------
 
-  private buildPrefix(title: string, projectSlug: string, path: string, attachments: NoteChunkAttachment[] = []): string {
-    const parts: string[] = [];
-    if (title) parts.push(`Title: ${title}`);
-    if (projectSlug) parts.push(`Project: ${projectSlug}`);
-    if (path) {
-      const shortPath = formatShortPath(path);
-      if (shortPath) parts.push(`Path: ${shortPath}`);
+  private chunkText(content: string, prefix: string): string[] {
+    const trimmed = (content || '').trim();
+    if (!trimmed) return [];
+
+    if (trimmed.length >= this.MIN_CHUNK_CHARS) {
+      const segments = splitMarkdownSegments(trimmed);
+      return this.mergeParagraphs(segments, prefix);
     }
-    const attachmentSummary = formatAttachmentSummary(attachments);
-    if (attachmentSummary) parts.push(`Attachments: ${attachmentSummary}`);
-    return parts.length ? parts.join(' | ') + '\n\n' : '';
+
+    const text = prefix + trimmed;
+    if (text.trim().length >= this.MIN_CHUNK_CHARS) {
+      return [text];
+    }
+
+    return [];
   }
 
-  private buildAttachmentPrefix(title: string, projectSlug: string, path: string, fileName: string): string {
+  private buildPrefix(
+    title: string,
+    projectSlug: string,
+    path: string,
+    extra?: { attachments?: NoteChunkAttachment[]; fileName?: string },
+  ): string {
     const parts: string[] = [];
     if (title) parts.push(`Title: ${title}`);
     if (projectSlug) parts.push(`Project: ${projectSlug}`);
@@ -142,7 +108,12 @@ export class NoteChunkingService {
       const shortPath = formatShortPath(path);
       if (shortPath) parts.push(`Path: ${shortPath}`);
     }
-    if (fileName) parts.push(`Attachment: ${fileName}`);
+    if (extra?.fileName) {
+      parts.push(`Attachment: ${extra.fileName}`);
+    } else if (extra?.attachments && extra.attachments.length > 0) {
+      const attachmentSummary = formatAttachmentSummary(extra.attachments);
+      if (attachmentSummary) parts.push(`Attachments: ${attachmentSummary}`);
+    }
     return parts.length ? parts.join(' | ') + '\n\n' : '';
   }
 
@@ -337,4 +308,20 @@ function formatShortPath(path: string): string {
     return segments.slice(-2).join('/');
   }
   return path;
+}
+
+function splitMarkdownSegments(text: string): string[] {
+  const segments: string[] = [];
+  const parts = text.split(/(\`\`\`[\s\S]*?\`\`\`)/g);
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part) continue;
+    if (i % 2 === 1) {
+      segments.push(part);
+    } else {
+      const paras = part.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+      segments.push(...paras);
+    }
+  }
+  return segments;
 }

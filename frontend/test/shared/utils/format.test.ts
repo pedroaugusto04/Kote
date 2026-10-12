@@ -1,8 +1,76 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { formatCostComparison, formatCostPerMillion, formatModelRate, formatProviderName, formatRelativeTimeUntil, formatUsDate, reminderDisplayDateTime } from '../../../src/shared/utils/format';
+import {
+  formatCostComparison,
+  formatCostPerMillion,
+  formatDateTimeInUserTimeZone,
+  formatModelRate,
+  formatProviderName,
+  formatRelativeTimeUntil,
+  formatTimeInUserTimeZone,
+  formatUsDate,
+  formatUsDateTime,
+  getUserTimeZone,
+  parseUtcDate,
+  reminderDisplayDateTime,
+  setAppTimeZone,
+} from '../../../src/shared/utils/format';
 
 afterEach(() => {
   vi.restoreAllMocks();
+  setAppTimeZone(null);
+});
+
+describe('parseUtcDate & TimeZone handling', () => {
+  it('parses naive datetime strings as UTC to prevent local-shift bugs', () => {
+    // 17:00 UTC = 14:00 America/Sao_Paulo (UTC-3)
+    const naiveSpace = parseUtcDate('2026-10-24 17:00:00');
+    expect(naiveSpace?.toISOString()).toBe('2026-10-24T17:00:00.000Z');
+
+    const naiveT = parseUtcDate('2026-10-24T17:00:00');
+    expect(naiveT?.toISOString()).toBe('2026-10-24T17:00:00.000Z');
+
+    const naiveMinutes = parseUtcDate('2026-10-24T17:00');
+    expect(naiveMinutes?.toISOString()).toBe('2026-10-24T17:00:00.000Z');
+  });
+
+  it('correctly parses dates with explicit UTC "Z" and offsets', () => {
+    const withZ = parseUtcDate('2026-10-24T17:00:00.000Z');
+    expect(withZ?.toISOString()).toBe('2026-10-24T17:00:00.000Z');
+
+    const withOffset = parseUtcDate('2026-10-24T14:00:00-03:00');
+    expect(withOffset?.toISOString()).toBe('2026-10-24T17:00:00.000Z');
+  });
+
+  it('formats naive backend dates into the user timezone without 3-hour shift', () => {
+    setAppTimeZone('America/Sao_Paulo');
+
+    // 17:00 UTC formatted in Sao Paulo must display as 14:00
+    expect(formatTimeInUserTimeZone('2026-10-24 17:00:00')).toBe('14:00');
+    expect(formatTimeInUserTimeZone('2026-10-24T17:00:00')).toBe('14:00');
+    expect(formatTimeInUserTimeZone('2026-10-24T17:00:00Z')).toBe('14:00');
+    expect(formatDateTimeInUserTimeZone('2026-10-24 17:00:00')).toBe('2026-10-24 14:00:00');
+    expect(formatUsDateTime('2026-10-24 17:00:00')).toBe('10/24/2026 14:00');
+  });
+
+  it('supports overriding app timezone globally', () => {
+    setAppTimeZone('UTC');
+    expect(getUserTimeZone()).toBe('UTC');
+    expect(formatTimeInUserTimeZone('2026-10-24T17:00:00Z')).toBe('17:00');
+
+    setAppTimeZone('Asia/Tokyo'); // UTC+9
+    expect(getUserTimeZone()).toBe('Asia/Tokyo');
+    expect(formatTimeInUserTimeZone('2026-10-24T17:00:00Z')).toBe('02:00');
+  });
+
+  it('gracefully handles invalid date strings and numbers', () => {
+    expect(parseUtcDate('')).toBeNull();
+    expect(parseUtcDate(null)).toBeNull();
+    expect(parseUtcDate(undefined)).toBeNull();
+    expect(parseUtcDate('invalid-date')).toBeNull();
+
+    const timestampMs = 1792861200000;
+    expect(parseUtcDate(timestampMs)?.getTime()).toBe(timestampMs);
+  });
 });
 
 describe('formatUsDate', () => {

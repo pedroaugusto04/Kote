@@ -1,8 +1,8 @@
-import { formatDateTimeInTimeZone } from '../../../domain/time.js';
+import { DEFAULT_APP_TIMEZONE, formatDateTimeInTimeZone } from '../../../domain/time.js';
 
 export function resolveReminderScheduledAt(
   input: { reminderAt?: unknown },
-  timeZone = 'America/Sao_Paulo',
+  timeZone = DEFAULT_APP_TIMEZONE,
 ): string {
   const reminderAt = String(input.reminderAt || '').trim();
   if (!reminderAt) return '';
@@ -20,5 +20,5 @@ export function formatReminderScheduledAtLabel(scheduledAt: string): string {
   if (!value) return '';
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return '';
-  return formatDateTimeInTimeZone(new Date(timestamp), 'America/Sao_Paulo');
+  return formatDateTimeInTimeZone(new Date(timestamp), DEFAULT_APP_TIMEZONE);
 }

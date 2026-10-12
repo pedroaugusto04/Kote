@@ -62,7 +62,7 @@ export class UpdateNoteUseCase {
     const nextFolder = await requireProjectFolderOptional(this.contentRepository, userId, projectId, sanitizedInput.folderId);
 
     const updatedNoteInput = {
-      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...sanitizedInput, canonicalType }, projectSlug, projectId, workspaceSlug, workspaceId),
+      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...sanitizedInput, canonicalType }, projectSlug, projectId, workspaceSlug, workspaceId, reminderTimeZone),
       categoryIds: sanitizedInput.categoryIds,
     };
 

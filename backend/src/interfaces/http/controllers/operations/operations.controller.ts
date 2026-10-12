@@ -13,17 +13,16 @@ import {
 } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
-import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
-import { OptionalProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
+import { ScopeGuard } from '../../guards/scope.guard.js';
+import { Scoped, Scope } from '../../scope.decorators.js';
+import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
 import {
   agentConversationBodySchema,
   ingestBodySchema,
   reminderDispatchQuerySchema,
-  workspaceQuerySchema,
   type AgentConversationBody,
   type IngestBody,
   type ReminderDispatchQuery,
-  type WorkspaceQuery,
 } from '../../dto/operations.dto.js';
 import { markRemindersBodySchema, type MarkRemindersBody } from '../../dto/query.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
@@ -51,41 +50,51 @@ export class OperationsController {
   }
 
   @Post('conversation/agent')
-  @UseGuards(TrustedOriginGuard, OptionalProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Process agent conversation' })
   @ApiResponse({ status: 200, description: 'Conversation processed successfully' })
   processAgentConversation(
     @Body(new ZodValidationPipe(agentConversationBodySchema, 'invalid_agent_conversation_payload')) body: AgentConversationBody,
     @CurrentUser() user: AuthenticatedUser,
-    @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
+    @Scope() scope?: WorkspaceScope,
   ) {
-    return this.agentConversation.execute(body, user.id, query.workspaceSlug, query.projectSlug);
+    return this.agentConversation.execute(
+      body,
+      user.id,
+      scope?.workspaceSlug || 'default',
+      scope?.projectSlug || undefined,
+    );
   }
 
   @Get('reminders/dispatch')
-  @UseGuards(WorkspaceResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get reminder dispatch' })
   @ApiResponse({ status: 200, description: 'Reminder dispatch retrieved successfully' })
   remindersDispatch(
     @CurrentUser() user: AuthenticatedUser,
     @Query(new ZodValidationPipe(reminderDispatchQuerySchema, 'invalid_reminder_dispatch_query')) query: ReminderDispatchQuery,
+    @Scope() scope?: WorkspaceScope,
   ) {
-    return this.reminderDispatch.execute(query.mode, user.id, query.workspaceSlug);
+    const workspaceSlug = scope?.workspaceSlug ?? query.workspaceSlug ?? 'default';
+    return this.reminderDispatch.execute(query.mode, user.id, workspaceSlug);
   }
 
   @Post('reminders/mark-sent')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark reminders as sent' })
   @ApiResponse({ status: 200, description: 'Reminders marked as sent' })
   remindersMarkSent(
     @Body(new ZodValidationPipe(markRemindersBodySchema, 'invalid_mark_reminders_payload')) body: MarkRemindersBody,
     @CurrentUser() user: AuthenticatedUser,
-    @Query(new ZodValidationPipe(workspaceQuerySchema, 'invalid_workspace_query')) query: WorkspaceQuery,
+    @Scope() scope: WorkspaceScope,
   ) {
-    return this.markReminders.execute(body.ids, user.id, query.workspaceSlug);
+    return this.markReminders.execute(body.ids, user.id, scope.workspaceSlug);
   }
 
   @Post('operations/reindex-embeddings')

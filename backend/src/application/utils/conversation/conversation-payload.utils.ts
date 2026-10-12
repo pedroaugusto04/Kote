@@ -7,8 +7,9 @@ import {
   KnowledgeStatus,
   SourceChannel,
 } from '../../../contracts/enums.js';
-import { ingestPayloadSchema, type IngestPayload } from '../../../contracts/ingest.js';
-import { buildReminderAt, nowIso } from '../../../domain/time.js';
+import type { IngestPayload } from '../../../contracts/ingest.js';
+import { buildIngestPayload } from '../../mappers/ingest.mapper.js';
+import { nowIso } from '../../../domain/time.js';
 
 type ConversationPayloadInput = {
   input: ConversationInput;
@@ -30,11 +31,10 @@ type ConversationPayloadInput = {
 };
 
 export function buildConversationIngestPayload(payload: ConversationPayloadInput): IngestPayload {
-  return ingestPayloadSchema.parse({
+  return buildIngestPayload({
     source: {
       channel: payload.sourceChannel || SourceChannel.External,
       system: payload.sourceSystem || 'external',
-      source: '',
       actor: payload.input.senderId,
       conversationId: payload.input.chatId,
       correlationId: `${payload.correlationPrefix}:${payload.input.messageId || Date.now().toString()}`,
@@ -50,10 +50,6 @@ export function buildConversationIngestPayload(payload: ConversationPayloadInput
       attachments: payload.media?.fileName ? [payload.media] : [],
       sections: {
         summary: payload.rawText,
-        impact: '',
-        risks: [],
-        nextSteps: [],
-        reviewFindings: [],
       },
     },
     classification: {
@@ -66,7 +62,6 @@ export function buildConversationIngestPayload(payload: ConversationPayloadInput
     },
     actions: {
       reminderAt: payload.reminderAt,
-      followUpBy: '',
     },
     metadata: payload.metadata || {},
   });

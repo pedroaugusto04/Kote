@@ -15,13 +15,25 @@ import {
 } from '../constants.js';
 import type { AiHistoryProvider, AiSession, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types.js';
 import { calculateTokenUsageCost } from '../token-accounting.js';
-import { asRecord, buildSessionTitle, isSession, parseAiRole, readJsonLines, recentFiles, safeMtime } from './provider.utils.js';
+import {
+  asRecord,
+  buildSessionTitle,
+  FileSessionCache,
+  isSession,
+  latestRecordTimestamp,
+  parseAiRole,
+  readJsonLines,
+  recentFiles,
+  safeFileSignature,
+} from './provider.utils.js';
 
 const CODEX_RECORD_TYPE = {
   SESSION_META: 'session_meta',
   RESPONSE_ITEM: 'response_item',
   MESSAGE: 'message',
 } as const;
+
+const sessionCache = new FileSessionCache();
 
 function textBlocks(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
@@ -323,28 +335,31 @@ function extractCodexTokenUsage(records: unknown[]): AiTokenUsage | undefined {
 }
 
 function parseFile(filePath: string): AiSession | null {
-  try {
-    const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
-    const turns = records.map(parseTurn).filter((turn): turn is AiTurn => turn !== null);
-    if (turns.length === 0) return null;
+  const fileSig = safeFileSignature(filePath);
+  return sessionCache.getOrParse(filePath, fileSig?.signature ?? null, () => {
+    try {
+      const records = readJsonLines(fs.readFileSync(filePath, 'utf8'));
+      const turns = records.map(parseTurn).filter((turn): turn is AiTurn => turn !== null);
+      if (turns.length === 0) return null;
 
-    const metadata = sessionMetadata(records);
-    const cwd = typeof metadata?.cwd === 'string' ? metadata.cwd : '';
-    const sessionId = typeof metadata?.id === 'string' ? metadata.id : path.basename(filePath, JSONL_EXTENSION);
-    const tokenUsage = extractCodexTokenUsage(records);
+      const metadata = sessionMetadata(records);
+      const cwd = typeof metadata?.cwd === 'string' ? metadata.cwd : '';
+      const sessionId = typeof metadata?.id === 'string' ? metadata.id : path.basename(filePath, JSONL_EXTENSION);
+      const tokenUsage = extractCodexTokenUsage(records);
 
-    return {
-      providerId: AI_PROVIDER.CODEX_CLI,
-      sessionId,
-      title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.CODEX_CLI], turns),
-      turns,
-      timestamp: safeMtime(filePath),
-      projectSlug: cwd ? resolveProjectSlugFromDir(cwd) : undefined,
-      tokenUsage,
-    };
-  } catch {
-    return null;
-  }
+      return {
+        providerId: AI_PROVIDER.CODEX_CLI,
+        sessionId,
+        title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.CODEX_CLI], turns),
+        turns,
+        timestamp: latestRecordTimestamp(records, fileSig?.mtimeMs ?? 0),
+        projectSlug: cwd ? resolveProjectSlugFromDir(cwd) : undefined,
+        tokenUsage,
+      };
+    } catch {
+      return null;
+    }
+  });
 }
 
 export class CodexHistoryProvider implements AiHistoryProvider {

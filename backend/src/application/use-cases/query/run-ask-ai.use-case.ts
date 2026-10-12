@@ -5,9 +5,9 @@ import { AskHistoryRepository } from '../../ports/query/ask-history.repository.j
 import { AskKnowledgeUseCase } from './ask-knowledge.use-case.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ResolveWhatsappAskAttachmentsUseCase } from './resolve-whatsapp-ask-attachments.use-case.js';
-import { WhatsappReplySender } from '../../ports/integrations/whatsapp-reply.sender.js';
-import { ConversationConfidence } from '../../../contracts/enums.js';
+import type { WhatsappAskAttachmentMedia } from '../../models/whatsapp-ask-attachment.models.js';
 import type { AskConversationTurn } from '../../../contracts/ask-conversation.js';
+import { toAskConversationTurns, toSaveAskHistoryInput } from '../../mappers/ask.mapper.js';
 
 export type RunAskAiScope = {
   projectId?: string;
@@ -21,7 +21,6 @@ export class RunAskAiUseCase {
     private readonly askHistoryRepository: AskHistoryRepository,
     private readonly contentRepository: ContentRepository,
     private readonly resolveWhatsappAskAttachmentsUseCase: ResolveWhatsappAskAttachmentsUseCase,
-    private readonly whatsappReplySender: WhatsappReplySender,
   ) {}
 
   async execute(
@@ -35,31 +34,37 @@ export class RunAskAiUseCase {
     const workspaceId = scope.workspaceId || null;
     const resolvedConversationId = conversationId || crypto.randomUUID();
 
+    let resolvedHistory = conversationHistory;
+    if ((!resolvedHistory || resolvedHistory.length === 0) && conversationId) {
+      const turns = await this.askHistoryRepository.getConversationTurns(conversationId, userId);
+      if (turns && turns.length > 0) {
+        resolvedHistory = toAskConversationTurns(turns);
+      }
+    }
+
     const result = await this.askKnowledge.execute(question, userId, {
       projectId: projectId || undefined,
       workspaceId: workspaceId || undefined,
-      conversationHistory,
+      conversationHistory: resolvedHistory,
     });
-    const media: any[] = [];
+    const media: WhatsappAskAttachmentMedia[] = [];
     if (result.ok) {
-      await this.askHistoryRepository.save({
-        userId,
-        projectId,
-        workspaceId,
-        conversationId: resolvedConversationId,
-        question,
-        answer: result.answer,
-        confidence: result.confidence as ConversationConfidence,
-        sources: result.sources,
-        relatedNotes: result.relatedNotes,
-      });
+      await this.askHistoryRepository.save(
+        toSaveAskHistoryInput({
+          userId,
+          projectId,
+          workspaceId,
+          conversationId: resolvedConversationId,
+          question,
+          result,
+        }),
+      );
 
       if (result.requestedAttachments) {
         const workspaces = await this.contentRepository.listWorkspaces(userId);
         const workspace = (workspaceId
           ? workspaces.find((item) => item.id === workspaceId)
           : workspaces.find((item) => item.workspaceSlug === 'default')) || workspaces[0];
-        const chatJid = String(workspace?.whatsappChatJid || '').trim();
         const resolvedWorkspaceId = workspace?.id || '';
 
         const attachmentResolution = await this.resolveWhatsappAskAttachmentsUseCase.execute({
@@ -73,18 +78,6 @@ export class RunAskAiUseCase {
 
         if (attachmentResolution.requested && attachmentResolution.media.length > 0) {
           media.push(...attachmentResolution.media);
-
-          if (chatJid) {
-            for (const item of attachmentResolution.media) {
-              await this.whatsappReplySender.sendMedia({
-                chatJid,
-                mediaType: item.mediaType,
-                mimeType: item.mimeType,
-                fileName: item.fileName,
-                mediaBase64: item.mediaBase64,
-              });
-            }
-          }
         }
       }
     }

@@ -1,40 +1,35 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
 
 import { formatDisplayToken } from '../../shared/utils/format';
+import { urlBase64ToUint8Array } from '../../shared/utils/push.utils';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
-import { INTEGRATION_LOGOS, INTEGRATION_MESSAGES, IntegrationProvider } from './integrations.constants';
+import {
+  INTEGRATION_MESSAGES,
+  INTEGRATION_STATUS_TONE,
+  IntegrationProvider,
+} from './integrations.constants';
 import {
   connectIntegration,
-  fetchGithubRepositories,
   fetchIntegrations,
-  fetchIntegrationSession,
   getErrorMessage,
   revokeIntegration,
-  saveGithubRepositories,
   fetchPushPublicKey,
   subscribePush,
   unsubscribePush,
   enableDependencyWatcher,
   disableDependencyWatcher,
 } from '../../shared/api/client';
-import { githubRepositoriesFormSchema, type DisplayStatus, type GithubRepositoriesFormValues } from './guided-integrations.forms';
-import type { GithubIntegrationRepository, IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
-import { applyBackendFieldErrors, fieldNamesFromErrors, focusFirstFormError, notifyGeneralFormError } from '../../shared/forms/errors';
-import { FormActions } from '../../shared/forms/fields';
+import type { IntegrationConnectionResponse, UserIntegration } from '../../shared/api/models/integration';
 import { notifySuccess } from '../../shared/ui/notifications';
-import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
-import { discardChangesConfirmationCopy, useModalCloseGuard } from '../../shared/ui/use-modal-close-guard';
+import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { Badge, EmptyState, InlineMessage, Panel } from '../../shared/ui/primitives';
 import { useGlobalLoading } from '../../app/global-loading';
 import { withFrontendBasePath } from '../../app/base-path';
 import { StoredIntegrationStatus } from '../../shared/api/enums';
-import { CDNImage } from '../../shared/ui/CDNImage';
-import { GitHubIcon } from '../../shared/ui/icons';
 import { BrandMark } from '../../shared/ui/brand-mark';
+import { GitHubIcon } from '../../shared/ui/icons';
 import { GithubBackfillOptInModal } from './GithubBackfillOptInModal';
 import {
   markBackfillDeclined,
@@ -42,35 +37,9 @@ import {
 } from './backfill-storage';
 import { GithubPrivacyModal } from './GithubPrivacyModal';
 import { DependencyMonitoredRepositoriesModal } from './DependencyMonitoredRepositoriesModal';
-
-const statusTone: Record<DisplayStatus | string, string> = {
-  [StoredIntegrationStatus.Connected]: 'low',
-  [StoredIntegrationStatus.Missing]: 'high',
-  [StoredIntegrationStatus.Revoked]: 'medium',
-  [StoredIntegrationStatus.Pending]: 'medium',
-  [StoredIntegrationStatus.Error]: 'high',
-  [StoredIntegrationStatus.Disabled]: 'medium',
-  expired: 'high',
-};
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-function integrationId(integration: UserIntegration) {
-  return integration.provider;
-}
+import { CodeConnectionModal } from './CodeConnectionModal';
+import { GithubRepositoriesModal } from './GithubRepositoriesModal';
+import { IntegrationLogo } from './IntegrationLogo';
 
 function openExternalIntegration(url: string, target: '_self' | '_blank' = '_blank') {
   if (target === '_self') {
@@ -80,297 +49,12 @@ function openExternalIntegration(url: string, target: '_self' | '_blank' = '_bla
   window.open(url, target, 'noopener,noreferrer');
 }
 
-const WHATSAPP_NUMBER = INTEGRATION_MESSAGES.WHATSAPP_NUMBER;
-const TELEGRAM_BOT_USERNAME = INTEGRATION_MESSAGES.TELEGRAM_BOT_USERNAME;
-
-function buildChatComposeUrl(connection: IntegrationConnectionResponse): string {
-  const text = (connection.instruction || '').trim();
-  if (!text) return '';
-  const encoded = encodeURIComponent(text);
-  if (connection.provider === IntegrationProvider.Whatsapp) return `${INTEGRATION_MESSAGES.WHATSAPP_BASE_URL}${WHATSAPP_NUMBER}?text=${encoded}`;
-  if (connection.provider === IntegrationProvider.Telegram) return `${INTEGRATION_MESSAGES.TELEGRAM_BASE_URL}${TELEGRAM_BOT_USERNAME}`;
-  return '';
-}
-
-function IntegrationLogo({ integration }: { integration: UserIntegration }) {
-  if (integration.provider === IntegrationProvider.PushNotifications) {
-    return (
-      <div
-        className="integration-logo"
-        style={{
-          display: 'grid',
-          placeItems: 'center',
-          background: 'var(--surface-6)',
-          padding: '9px',
-        }}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          width="24"
-          height="24"
-          fill="none"
-          stroke="var(--cyan)"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-        </svg>
-      </div>
-    );
-  }
-  const logo = INTEGRATION_LOGOS[integrationId(integration)];
-  if (!logo) return <div className="integration-logo-fallback">{integration.name.slice(0, 2).toUpperCase()}</div>;
-  const logoClassName = integration.provider === IntegrationProvider.GithubApp
-    ? 'integration-logo integration-logo-github-app'
-    : 'integration-logo';
-
-  const fallback = <div className="integration-logo-fallback">{integration.name.slice(0, 2).toUpperCase()}</div>;
-
-  return (
-    <CDNImage
-      alt={`${logo.label} logo`}
-      className={logoClassName}
-      src={logo.src}
-      fallback={fallback}
-    />
-  );
-}
-
 function IntegrationSteps({ integration }: { integration: UserIntegration }) {
   const steps = integration.steps?.length ? integration.steps : [INTEGRATION_MESSAGES.DEFAULT_STEP];
   return (
     <ol className="integration-steps">
       {steps.map((step) => <li key={step}>{step}</li>)}
     </ol>
-  );
-}
-
-function CodeConnectionModal({ connection, onClose, workspaceSlug }: { connection: IntegrationConnectionResponse; onClose: () => void; workspaceSlug: string }) {
-  const queryClient = useQueryClient();
-  const session = connection.session;
-  const composeUrl = buildChatComposeUrl(connection);
-  const sessionQuery = useQuery({
-    queryKey: ['integration-session', workspaceSlug, connection.provider, session?.id],
-    queryFn: () => fetchIntegrationSession({ provider: connection.provider, sessionId: session?.id || '' }),
-    enabled: session?.status === StoredIntegrationStatus.Pending,
-    refetchInterval: (query) => query.state.data?.session.status === StoredIntegrationStatus.Pending ? 2500 : false,
-  });
-  const currentSession = sessionQuery.data?.session || session;
-  const providerLabel = connection.provider === IntegrationProvider.Telegram ? INTEGRATION_MESSAGES.PROVIDER_LABELS[IntegrationProvider.Telegram] : INTEGRATION_MESSAGES.PROVIDER_LABELS[IntegrationProvider.Whatsapp];
-
-  useEffect(() => {
-    if (currentSession?.status === StoredIntegrationStatus.Connected) {
-      queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    }
-  }, [currentSession?.status, queryClient, workspaceSlug]);
-
-  const isWhatsApp = connection.provider === IntegrationProvider.Whatsapp;
-
-  return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section aria-labelledby="connection-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
-        <div className="modal-head">
-          <div>
-            <div className="card-kicker">{connection.provider}</div>
-            <div className="integration-modal-title">
-              <h2 id="connection-title">{INTEGRATION_MESSAGES.CONNECTION.TITLE.replace('{provider}', providerLabel)}</h2>
-              {currentSession ? <Badge value={formatDisplayToken(currentSession.status)} tone={statusTone[currentSession.status] || 'medium'} /> : null}
-            </div>
-          </div>
-          <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={onClose}>x</button>
-        </div>
-
-        {isWhatsApp ? (
-          <>
-            <p className="meta" style={{ marginBottom: '8px' }}>{INTEGRATION_MESSAGES.CONNECTION.WHATSAPP_INSTRUCTION}</p>
-            <div className="connection-code" aria-label="Connection code">{connection.verificationCode}</div>
-            <p>
-              {INTEGRATION_MESSAGES.CONNECTION.SEND_TO_WHATSAPP.replace('{instruction}', connection.instruction || '').replace('{number}', WHATSAPP_NUMBER)}
-            </p>
-            <div className="integration-actions">
-              {composeUrl ? (
-                <a
-                  className="icon-button"
-                  href={composeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {INTEGRATION_MESSAGES.CONNECTION.OPEN_WHATSAPP}
-                </a>
-              ) : null}
-              {connection.instruction ? (
-                <button
-                  className="filter-chip"
-                  type="button"
-                  onClick={() => { void navigator.clipboard?.writeText(connection.instruction || ''); }}
-                >
-                  {INTEGRATION_MESSAGES.CONNECTION.COPY_COMMAND}
-                </button>
-              ) : null}
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="meta" style={{ marginBottom: '8px' }}>{INTEGRATION_MESSAGES.CONNECTION.TELEGRAM_INSTRUCTION}</p>
-            <div className="connection-code" aria-label="Connection code">{connection.verificationCode}</div>
-            <p>
-              {INTEGRATION_MESSAGES.CONNECTION.SEND_TO_TELEGRAM.replace('{instruction}', connection.instruction || '').replace('{username}', TELEGRAM_BOT_USERNAME)}
-            </p>
-            <div className="integration-actions">
-              {composeUrl ? (
-                <a
-                  className="icon-button"
-                  href={composeUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {INTEGRATION_MESSAGES.CONNECTION.OPEN_TELEGRAM_BOT}
-                </a>
-              ) : null}
-              {connection.instruction ? (
-                <button
-                  className="filter-chip"
-                  type="button"
-                  onClick={() => { void navigator.clipboard?.writeText(connection.instruction || ''); }}
-                >
-                  {INTEGRATION_MESSAGES.CONNECTION.COPY_COMMAND}
-                </button>
-              ) : null}
-            </div>
-          </>
-        )}
-        {currentSession?.connectedAccount ? <p className="meta">{INTEGRATION_MESSAGES.CONNECTION.CONNECTED_AS.replace('{account}', currentSession.connectedAccount)}</p> : null}
-        {currentSession?.lastError ? <InlineMessage tone="error">{currentSession.lastError}</InlineMessage> : null}
-      </section>
-    </div>
-  );
-}
-
-function GithubRepositoriesModal({ workspaceSlug, onClose, onSaved }: { workspaceSlug: string; onClose: () => void; onSaved?: (repositories: string[]) => void }) {
-  const queryClient = useQueryClient();
-  const globalLoading = useGlobalLoading();
-  const formRef = useRef<HTMLFormElement>(null);
-  const repositoriesQuery = useQuery({ queryKey: ['github-repositories', workspaceSlug], queryFn: () => fetchGithubRepositories(workspaceSlug) });
-  const {
-    formState: { errors, isDirty },
-    handleSubmit,
-    reset,
-    setError,
-    setValue,
-    watch,
-  } = useForm<GithubRepositoriesFormValues>({
-    resolver: zodResolver(githubRepositoriesFormSchema),
-    shouldFocusError: false,
-    defaultValues: { repositories: [] },
-  });
-  const selected = watch('repositories');
-  const repositories = repositoriesQuery.data?.repositories || [];
-  const closeGuard = useModalCloseGuard({ isDirty, onClose });
-
-  useEffect(() => {
-    if (repositoriesQuery.data) {
-      reset({
-        repositories: repositoriesQuery.data.repositories.filter((repo) => repo.selected).map((repo) => repo.id),
-      });
-    }
-  }, [repositoriesQuery.data, reset]);
-
-  const saveMutation = useMutation({
-    mutationFn: (values: GithubRepositoriesFormValues) => globalLoading.trackPromise(saveGithubRepositories(
-      workspaceSlug,
-      repositories.filter((repo) => values.repositories.includes(repo.id)).map((repo) => ({ id: repo.id, fullName: repo.fullName })),
-    )),
-    onSuccess: (_result, values) => {
-      queryClient.invalidateQueries({ queryKey: ['integrations', workspaceSlug] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      notifySuccess(INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SUCCESS);
-      closeGuard.resetCloseGuard();
-      const savedRepositories = repositories
-        .filter((repo) => values.repositories.includes(repo.id))
-        .map((repo) => repo.fullName);
-      onSaved?.(savedRepositories);
-      onClose();
-    },
-    onError: (error) => {
-      const fieldNames = applyBackendFieldErrors<GithubRepositoriesFormValues>(error, setError);
-      if (fieldNames.length > 0) {
-        window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNames));
-        return;
-      }
-      notifyGeneralFormError(error, INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.ERROR_SAVE);
-    },
-  });
-
-  const toggle = (repository: GithubIntegrationRepository) => {
-    setValue('repositories', selected.includes(repository.id)
-      ? selected.filter((item) => item !== repository.id)
-      : [...selected, repository.id], { shouldDirty: true, shouldValidate: true });
-  };
-
-  return (
-    <>
-      <div className="modal-backdrop" role="presentation" onClick={closeGuard.requestClose}>
-        <section aria-labelledby="github-repositories-title" aria-modal="true" className="modal-panel integration-modal" role="dialog" onClick={(event) => event.stopPropagation()}>
-          <div className="modal-head">
-            <div>
-              <div className="card-kicker">{IntegrationProvider.GithubApp}</div>
-              <h2 id="github-repositories-title">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.TITLE}</h2>
-            </div>
-            <button aria-label={UI_MESSAGES.CLOSE_DETAILS} className="modal-close" type="button" onClick={closeGuard.requestClose}>x</button>
-          </div>
-
-          {repositoriesQuery.isLoading ? <p className="meta">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.LOADING}</p> : null}
-          {repositoriesQuery.isError ? <InlineMessage tone="error">{getErrorMessage(repositoriesQuery.error, INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.ERROR)}</InlineMessage> : null}
-          <form
-            className="auth-form"
-            ref={formRef}
-            noValidate
-            onSubmit={handleSubmit(
-              (values) => saveMutation.mutate(values),
-              (invalidErrors) => window.requestAnimationFrame(() => focusFirstFormError(formRef.current, fieldNamesFromErrors(invalidErrors))),
-            )}
-          >
-            <div className="repository-picker" data-field="repositories" aria-label={INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORY_LIST_ARIA}>
-              {repositories.map((repository) => (
-                <label className="repository-option" key={repository.id}>
-                  <input
-                    checked={selected.includes(repository.id)}
-                    disabled={saveMutation.isPending}
-                    name="repositories"
-                    type="checkbox"
-                    value={repository.id}
-                    onChange={() => toggle(repository)}
-                  />
-                  <span>
-                    <strong>{repository.fullName}</strong>
-                    <small>{repository.private ? UI_MESSAGES.PRIVATE : UI_MESSAGES.PUBLIC}</small>
-                  </span>
-                </label>
-              ))}
-            </div>
-            {errors.repositories?.message ? <p className="form-error" role="alert">{errors.repositories.message}</p> : null}
-            <div className="integration-card-foot">
-              <span className="meta">{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SELECTED.replace('{count}', String(selected.length))}</span>
-              <FormActions disabled={saveMutation.isPending} onCancel={closeGuard.requestClose} submitLabel={INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.SAVE} />
-            </div>
-          </form>
-        </section>
-      </div>
-      {closeGuard.isDiscardConfirmationOpen ? (
-        <ConfirmationModal
-          cancelLabel={discardChangesConfirmationCopy.cancelLabel}
-          confirmLabel={discardChangesConfirmationCopy.confirmLabel}
-          description={discardChangesConfirmationCopy.description}
-          onCancel={closeGuard.cancelClose}
-          onConfirm={closeGuard.confirmClose}
-          title={discardChangesConfirmationCopy.title}
-          tone="default"
-        />
-      ) : null}
-    </>
   );
 }
 
@@ -543,7 +227,7 @@ function IntegrationCard({
         {actionError ? <InlineMessage tone="error">{actionError}</InlineMessage> : null}
       </div>
       <div className="integration-card-foot">
-        <Badge value={formatDisplayToken(integration.status)} tone={statusTone[integration.status] || 'medium'} />
+        <Badge value={formatDisplayToken(integration.status)} tone={INTEGRATION_STATUS_TONE[integration.status] || 'medium'} />
         <div className="integration-actions">
           {integration.provider === IntegrationProvider.GithubApp && connected ? (
             <button className="filter-chip" type="button" onClick={onGithubRepositories}>{INTEGRATION_MESSAGES.GITHUB_REPOSITORIES.REPOSITORIES_BUTTON}</button>
@@ -814,7 +498,7 @@ export function GuidedIntegrationsSection({
   const cards = integrations.map((integration) => (
     <IntegrationCard
       integration={integration}
-      key={integrationId(integration)}
+      key={integration.provider}
       workspaceSlug={workspaceSlug}
       returnToPath={returnToPath}
       githubConnected={githubConnected}

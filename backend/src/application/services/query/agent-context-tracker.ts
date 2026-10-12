@@ -10,6 +10,7 @@ export type AgentRelatedNoteItem = {
   path: string;
   projectSlug?: string;
   workspaceSlug?: string;
+  workspaceId?: string;
 };
 
 export class AgentContextTracker {
@@ -22,6 +23,7 @@ export class AgentContextTracker {
     path: string;
     projectSlug?: string;
     workspaceSlug?: string;
+    workspaceId?: string;
   }) {
     if (!this.sourcesMap.has(note.noteId)) {
       this.sourcesMap.set(note.noteId, {
@@ -36,6 +38,7 @@ export class AgentContextTracker {
       path: note.path,
       projectSlug: note.projectSlug,
       workspaceSlug: note.workspaceSlug,
+      workspaceId: note.workspaceId,
     });
   }
 

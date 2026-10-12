@@ -1,5 +1,8 @@
-import { pgTable, uuid, text, timestamp, jsonb, boolean, bigint, integer, index, pgEnum, unique, uniqueIndex, decimal } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp as drizzleTimestamp, jsonb, boolean, bigint, integer, index, pgEnum, unique, uniqueIndex, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+import type { PgTimestampConfig } from 'drizzle-orm/pg-core';
+
+const timestamp = (name: string, config?: PgTimestampConfig) => drizzleTimestamp(name, { withTimezone: true, ...config });
 import { pgTable as pgTableV2 } from 'drizzle-orm/pg-core';
 
 // Enums
@@ -21,9 +24,9 @@ export const users = pgTable('kb_users', {
   role: text('role').notNull().default('user'),
   avatar: text('avatar').default(''),
   cpfCnpj: text('cpf_cnpj').default(''),
-  vsCodeInstalledAt: timestamp('vscode_installed_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  vsCodeInstalledAt: timestamp('vscode_installed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   emailIdx: index('kb_users_email_lower_idx').on(table.email),
 }));
@@ -37,9 +40,9 @@ export const integrationCredentials = pgTable('kb_integration_credentials', {
   status: credentialStatusEnum('status').notNull().default('connected'),
   encryptedConfig: jsonb('encrypted_config').notNull().default('{}'),
   publicMetadata: jsonb('public_metadata').notNull().default('{}'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  revokedAt: timestamp('revoked_at'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
 }, (table) => ({
   scopeIdx: uniqueIndex('kb_integration_credentials_scope_idx').on(table.userId, table.workspaceId, table.provider),
 }));
@@ -53,9 +56,9 @@ export const externalIdentities = pgTable('kb_external_identities', {
   identityType: text('identity_type').notNull().default('external_id'),
   externalId: text('external_id').notNull(),
   credentialId: uuid('credential_id').references(() => integrationCredentials.id, { onDelete: 'set null' }),
-  verifiedAt: timestamp('verified_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  verifiedAt: timestamp('verified_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   providerTypeExternalIdx: index('kb_external_identities_provider_type_external_idx').on(table.provider, table.identityType, table.externalId),
 }));
@@ -70,10 +73,10 @@ export const integrationConnectionSessions = pgTable('kb_integration_connection_
   verificationCodeHash: text('verification_code_hash').notNull(),
   status: text('status').notNull().default('pending'),
   metadata: jsonb('metadata').notNull().default('{}'),
-  expiresAt: timestamp('expires_at'),
-  consumedAt: timestamp('consumed_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  consumedAt: timestamp('consumed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   stateIdx: index('kb_integration_connection_sessions_state_idx').on(table.provider, table.stateHash, table.status, table.expiresAt),
   codeIdx: index('kb_integration_connection_sessions_code_idx').on(table.provider, table.verificationCodeHash, table.status, table.expiresAt),
@@ -89,8 +92,8 @@ export const workspaces = pgTable('kb_workspaces', {
   whatsappChatJid: text('whatsapp_chat_jid').notNull().default(''),
   telegramChatId: text('telegram_chat_id').notNull().default(''),
   dependencyWatcherEnabled: boolean('dependency_watcher_enabled').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userSlugIdx: index('kb_workspaces_user_slug_idx').on(table.userId, table.workspaceSlug),
   userSlugUnique: unique('kb_workspaces_user_slug_unique').on(table.userId, table.workspaceSlug),
@@ -102,7 +105,7 @@ export const autoActionGlobal = pgTable('kb_auto_action_global', {
   enabled: boolean('enabled').notNull().default(false),
   action: text('action').notNull().default('none'),
   afterHours: integer('after_hours'),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('kb_auto_action_global_user_idx').on(table.userId),
 }));
@@ -116,8 +119,8 @@ export const projects = pgTable('kb_projects', {
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   enabled: boolean('enabled').notNull().default(true),
   isFavorite: boolean('is_favorite').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userSlugIdx: index('kb_projects_user_slug_idx').on(table.userId, table.projectSlug),
   userSlugUnique: unique('kb_projects_user_slug_unique').on(table.userId, table.projectSlug),
@@ -134,7 +137,7 @@ export const notes = pgTable('kb_notes', {
   folderId: uuid('folder_id'),
   status: noteStatusEnum('status').notNull().default('active'),
   tags: jsonb('tags').notNull().default('[]'),
-  occurredAt: timestamp('occurred_at').notNull().defaultNow(),
+  occurredAt: timestamp('occurred_at', { withTimezone: true }).notNull().defaultNow(),
   sourceChannel: text('source_channel').notNull().default(''),
   summary: text('summary').notNull().default(''),
   bodySearchText: text('body_search_text').notNull().default(''),
@@ -142,11 +145,11 @@ export const notes = pgTable('kb_notes', {
   metadata: jsonb('metadata').notNull().default('{}'),
   source: text('source').notNull().default(''),
   sessionId: text('session_id').notNull().default(''),
-  reminderAt: timestamp('reminder_at'),
+  reminderAt: timestamp('reminder_at', { withTimezone: true }),
   isPinned: boolean('is_pinned').default(false),
   sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userProjectIdx: index('kb_notes_user_project_idx').on(table.userId, table.projectId),
   userWorkspaceIdx: index('kb_notes_user_workspace_idx').on(table.userId, table.workspaceId),
@@ -162,7 +165,7 @@ export const noteLinks = pgTable('kb_note_links', {
   noteId: uuid('note_id').notNull().references(() => notes.id, { onDelete: 'cascade' }),
   target: text('target').notNull(),
   metadata: jsonb('metadata').notNull().default('{}'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userNoteIdx: index('kb_note_links_user_note_idx').on(table.userId, table.noteId),
 }));
@@ -177,7 +180,7 @@ export const attachments = pgTable('kb_attachments', {
   sizeBytes: bigint('size_bytes', { mode: 'number' }).notNull().default(0),
   storageKey: text('storage_key').notNull().default(''),
   checksumSha256: text('checksum_sha256').notNull().default(''),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userNoteIdx: index('kb_attachments_user_note_idx').on(table.userId, table.noteId),
 }));
@@ -188,7 +191,7 @@ export const conversationStates = pgTable('kb_conversation_states', {
   workspaceId: uuid('workspace_id').notNull().references(() => workspaces.id, { onDelete: 'cascade' }),
   conversationKey: text('conversation_key').notNull(),
   state: jsonb('state').notNull().default('{}'),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   pk: index('kb_conversation_states_pk').on(table.userId, table.workspaceId, table.conversationKey),
 }));
@@ -200,7 +203,7 @@ export const reminderDispatchState = pgTable('kb_reminder_dispatch_state', {
   mode: text('mode').notNull(),
   dispatchKey: text('dispatch_key').notNull(),
   reminderId: uuid('reminder_id').notNull(),
-  sentAt: timestamp('sent_at').notNull().defaultNow(),
+  sentAt: timestamp('sent_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   pk: index('kb_reminder_dispatch_state_pk').on(table.userId, table.workspaceId, table.mode, table.dispatchKey, table.reminderId),
 }));
@@ -214,9 +217,9 @@ export const reminderDispatchFailures = pgTable('kb_reminder_dispatch_failures',
   reminderId: uuid('reminder_id').notNull(),
   channel: text('channel').notNull(),
   attemptCount: integer('attempt_count').notNull().default(1),
-  nextRetryAt: timestamp('next_retry_at'),
+  nextRetryAt: timestamp('next_retry_at', { withTimezone: true }),
   lastError: text('last_error').notNull().default(''),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   pk: index('kb_reminder_dispatch_failures_pk').on(table.userId, table.workspaceId, table.mode, table.dispatchKey, table.reminderId, table.channel),
 }));
@@ -233,8 +236,8 @@ export const projectBriefHistory = pgTable('kb_project_brief_history', {
   contextWindow: integer('context_window').notNull().default(30),
   provider: text('provider').notNull(),
   model: text('model').notNull(),
-  generatedAt: timestamp('generated_at').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  generatedAt: timestamp('generated_at', { withTimezone: true }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('idx_project_brief_history_user').on(table.userId),
   projectIdx: index('idx_project_brief_history_project').on(table.userId, table.projectId),
@@ -252,8 +255,8 @@ export const webhookEvents = pgTable('kb_webhook_events', {
   rawHeaders: jsonb('raw_headers').notNull().default('{}'),
   rawPayload: jsonb('raw_payload').notNull().default('{}'),
   error: text('error').notNull().default(''),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   providerStatusIdx: index('kb_webhook_events_provider_status_idx').on(table.provider, table.status, table.createdAt),
 }));
@@ -267,8 +270,8 @@ export const repositories = pgTable('kb_repositories', {
   htmlUrl: text('html_url'),
   description: text('description'),
   defaultBranch: text('default_branch'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   workspaceExternalIdx: uniqueIndex('kb_repositories_workspace_id_external_id_idx').on(table.workspaceId, table.externalId),
 }));
@@ -294,7 +297,7 @@ export const projectFiles = pgTable('kb_project_files', {
   id: uuid('id').primaryKey().defaultRandom(),
   projectId: uuid('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   filePath: text('file_path').notNull(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   projPathUnique: uniqueIndex('uq_kb_project_files_proj_path').on(table.projectId, table.filePath),
   projIdx: index('kb_project_files_proj_idx').on(table.projectId),
@@ -309,8 +312,8 @@ export const projectFolders = pgTable('kb_project_folders', {
   displayName: text('display_name').notNull(),
   folderSlug: text('folder_slug').notNull(),
   fullSlugPath: text('full_slug_path').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   siblingSlugIdx: index('kb_project_folders_sibling_slug_idx').on(table.userId, table.projectId, table.parentFolderId, table.folderSlug),
   fullPathIdx: index('kb_project_folders_full_path_idx').on(table.userId, table.projectId, table.fullSlugPath),
@@ -338,8 +341,8 @@ export const pushSubscriptions = pgTable('kb_push_subscriptions', {
   endpoint: text('endpoint').notNull().unique(),
   p256dh: text('p256dh').notNull(),
   auth: text('auth').notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('idx_push_subs_user').on(table.userId),
 }));
@@ -356,7 +359,7 @@ export const askHistory = pgTable('kb_ask_history', {
   confidence: askConfidenceEnum('confidence').notNull().default('low'),
   sources: jsonb('sources').notNull().default('[]'),
   relatedNotes: jsonb('related_notes').notNull().default('[]'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userCreatedIdx: index('kb_ask_history_user_created_idx').on(table.userId, table.createdAt),
   userProjectCreatedIdx: index('kb_ask_history_user_project_created_idx').on(table.userId, table.projectId, table.createdAt),
@@ -373,8 +376,8 @@ export const webhookSubscriptions = pgTable('kb_webhook_subscriptions', {
   secret: text('secret'),
   events: text('events').array().notNull().default([]),
   enabled: boolean('enabled').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('idx_webhook_subs_user').on(table.userId),
   eventsIdx: index('idx_webhook_subs_events').using('gin', table.events),
@@ -386,7 +389,7 @@ export const webhookIdempotencyKeys = pgTable('kb_webhook_idempotency_keys', {
   eventType: text('event_type').notNull(),
   idempotencyKey: text('idempotency_key').notNull(),
   resolvedUserId: uuid('resolved_user_id'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   pk: index('kb_webhook_idempotency_keys_pk').on(table.provider, table.eventType, table.idempotencyKey),
 }));
@@ -401,8 +404,8 @@ export const authIdentities = pgTable('kb_auth_identities', {
   emailVerified: boolean('email_verified').notNull().default(false),
   displayName: text('display_name').notNull().default(''),
   metadata: jsonb('metadata').notNull().default('{}'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   providerProviderUserIdIdx: index('kb_auth_identities_provider_provider_user_id_idx').on(table.provider, table.providerUserId),
   userIdProviderIdx: index('kb_auth_identities_user_id_provider_idx').on(table.userId, table.provider),
@@ -418,8 +421,8 @@ export const categories = pgTable('kb_categories', {
   colorDark: text('color_dark'),
   icon: text('icon').notNull().default(''),
   isSystem: boolean('is_system').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   workspaceNameIdx: index('kb_categories_workspace_name_idx').on(table.workspaceId, table.name),
 }));
@@ -531,8 +534,8 @@ export const plans = pgTable('kb_plans', {
   priceUsdCents: integer('price_usd_cents').notNull().default(0),
   billingPeriod: text('billing_period').notNull().default('monthly'),
   isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   slugUniqueIdx: uniqueIndex('kb_plans_slug_idx').on(table.slug),
 }));
@@ -542,19 +545,19 @@ export const userSubscriptions = pgTable('kb_user_subscriptions', {
   userId: uuid('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
   planId: uuid('plan_id').notNull().references(() => plans.id),
   status: text('status').notNull().default('active'), // active, pending, past_due, canceled, inactive
-  currentPeriodStart: timestamp('current_period_start').notNull().defaultNow(),
-  currentPeriodEnd: timestamp('current_period_end').notNull().defaultNow(),
+  currentPeriodStart: timestamp('current_period_start', { withTimezone: true }).notNull().defaultNow(),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }).notNull().defaultNow(),
   gatewayName: text('gateway_name').notNull().default('asaas'), // 'asaas', 'stripe', etc.
   gatewaySubscriptionId: text('gateway_subscription_id'),
   billingCycle: billingCycleEnum('billing_cycle').notNull().default('monthly'),
   billingType: billingTypeEnum('billing_type'),
-  nextDueDate: timestamp('next_due_date'),
-  startedAt: timestamp('started_at'),
-  pastDueAt: timestamp('past_due_at'),
-  canceledAt: timestamp('canceled_at'),
+  nextDueDate: timestamp('next_due_date', { withTimezone: true }),
+  startedAt: timestamp('started_at', { withTimezone: true }),
+  pastDueAt: timestamp('past_due_at', { withTimezone: true }),
+  canceledAt: timestamp('canceled_at', { withTimezone: true }),
   createdFromIntentId: uuid('created_from_intent_id'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
 // Billing Customers table
@@ -565,8 +568,8 @@ export const billingCustomers = pgTable('kb_billing_customers', {
   gatewayCustomerId: text('gateway_customer_id').notNull(),
   hasCreditCardOnFile: boolean('has_credit_card_on_file').notNull().default(false),
   creditCardToken: text('credit_card_token'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userGatewayUniqueIdx: uniqueIndex('uq_billing_user_gateway').on(table.userId, table.gateway),
   gatewayCustomerUniqueIdx: uniqueIndex('uq_gateway_customer_id').on(table.gateway, table.gatewayCustomerId),
@@ -584,17 +587,17 @@ export const billingPayments = pgTable('kb_billing_payments', {
   kind: paymentKindEnum('kind').notNull().default('recurring'),
   gatewayStatus: text('gateway_status'),
   value: decimal('value', { precision: 10, scale: 2 }).notNull(),
-  dueDate: timestamp('due_date').notNull(),
-  paidAt: timestamp('paid_at'),
+  dueDate: timestamp('due_date', { withTimezone: true }).notNull(),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
   invoiceUrl: text('invoice_url'),
   bankSlipUrl: text('bank_slip_url'),
   pixQrCode: text('pix_qr_code'),
   pixQrCodeUrl: text('pix_qr_code_url'),
   description: text('description'),
   stripeClientSecret: text('stripe_client_secret'),
-  lastGatewayEventAt: timestamp('last_gateway_event_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  lastGatewayEventAt: timestamp('last_gateway_event_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userGatewayPaymentUniqueIdx: uniqueIndex('uq_user_gateway_payment').on(table.userId, table.gateway, table.gatewayPaymentId),
   userIdx: index('idx_billing_payments_user').on(table.userId),
@@ -610,8 +613,8 @@ export const billingIntents = pgTable('kb_billing_intents', {
   subscriptionId: uuid('subscription_id').references(() => userSubscriptions.userId, { onDelete: 'set null' }),
   billingCycle: billingCycleEnum('billing_cycle'),
   creditCardToken: text('credit_card_token'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('idx_billing_intents_user').on(table.userId),
   statusIdx: index('idx_billing_intents_status').on(table.status),
@@ -629,10 +632,10 @@ export const subscriptionChangeRequests = pgTable('kb_subscription_change_reques
   toBillingType: billingTypeEnum('to_billing_type').notNull().default('credit_card'),
   type: subscriptionChangeTypeEnum('type').notNull().default('change_cycle'),
   status: subscriptionChangeStatusEnum('status').notNull().default('scheduled'),
-  effectiveAt: timestamp('effective_at').notNull(),
+  effectiveAt: timestamp('effective_at', { withTimezone: true }).notNull(),
   attempts: integer('attempts').notNull().default(0),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdx: index('idx_sub_change_user').on(table.userId),
   statusEffectiveIdx: index('idx_sub_change_status_effective').on(table.status, table.effectiveAt),
@@ -651,10 +654,10 @@ export const gatewayWebhookEvents = pgTable('kb_gateway_webhook_events', {
   status: webhookProcessStatusEnum('status').notNull().default('pending'),
   attempts: integer('attempts').notNull().default(0),
   lastError: text('last_error'),
-  lastDispatchedAt: timestamp('last_dispatched_at'),
-  processedAt: timestamp('processed_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  lastDispatchedAt: timestamp('last_dispatched_at', { withTimezone: true }),
+  processedAt: timestamp('processed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   gatewayDedupUniqueIdx: uniqueIndex('uq_gateway_webhook_dedup').on(table.gateway, table.dedupKey),
   statusCreatedIdx: index('idx_webhook_status_created').on(table.status, table.createdAt),
@@ -668,7 +671,7 @@ export const quotaUsageEvents = pgTable('kb_quota_usage_events', {
   amount: integer('amount').notNull().default(1),
   description: text('description'),
   metadata: jsonb('metadata').notNull().default('{}'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdTypeCreatedIdx: index('kb_quota_usage_events_user_type_created_idx').on(table.userId, table.type, table.createdAt),
 }));
@@ -680,8 +683,8 @@ export const quotaAdjustments = pgTable('kb_quota_adjustments', {
   type: text('type').notNull(), // 'storage', 'ai_request', etc.
   amount: bigint('amount', { mode: 'number' }).notNull(), // positive for additions, negative for reductions
   description: text('description'),
-  expiresAt: timestamp('expires_at'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   userIdTypeIdx: index('kb_quota_adjustments_user_type_idx').on(table.userId, table.type),
 }));

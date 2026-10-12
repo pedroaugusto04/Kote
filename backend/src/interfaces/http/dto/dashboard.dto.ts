@@ -13,7 +13,7 @@ export const projectsListQuerySchema = paginationInputSchema.extend({
   selectedSlug: z.string().default(''),
 }).transform((input) => ({
   ...input,
-  selectedSlug: slugifyProjectName(input.selectedSlug),
+  selectedSlug: input.selectedSlug.trim() ? slugifyProjectName(input.selectedSlug) : '',
 }));
 
 export const reviewsListQuerySchema = paginationInputSchema.extend({
@@ -23,14 +23,31 @@ export const reviewsListQuerySchema = paginationInputSchema.extend({
   selectedId: input.selectedId.trim(),
 }));
 
+function normalizeProjectFilter(projectSlug: string): string {
+  const rawProject = projectSlug.trim().toLowerCase();
+  const isAllProjects = !rawProject || rawProject === 'all' || rawProject === 'all-projects' || rawProject === 'all projects';
+  return isAllProjects ? '' : slugifyProjectName(rawProject);
+}
+
 export const remindersListQuerySchema = paginationInputSchema.extend({
   workspaceSlug: z.string().default(''),
   projectSlug: z.string().default(''),
   status: z.enum(reminderListStatusFilterValues).default(StatusFilter.Open),
+  query: z.string().trim().max(160).optional(),
+  dueAfter: z.string().datetime({ offset: true }).optional(),
+  dueBefore: z.string().datetime({ offset: true }).optional(),
+}).superRefine((input, context) => {
+  if (input.dueAfter && input.dueBefore && Date.parse(input.dueAfter) > Date.parse(input.dueBefore)) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['dueBefore'],
+      message: 'dueBefore must be greater than or equal to dueAfter',
+    });
+  }
 }).transform((input) => ({
   ...input,
   workspaceSlug: slugifyWorkspaceName(input.workspaceSlug),
-  projectSlug: slugifyProjectName(input.projectSlug),
+  projectSlug: normalizeProjectFilter(input.projectSlug),
   status: input.status.trim().toLowerCase(),
 }));
 
@@ -44,7 +61,7 @@ export const reminderBoardQuerySchema = z.object({
   archivedPage: z.coerce.number().int().min(1).default(1),
 }).transform((input) => ({
   workspaceSlug: slugifyWorkspaceName(input.workspaceSlug),
-  projectSlug: slugifyProjectName(input.projectSlug),
+  projectSlug: normalizeProjectFilter(input.projectSlug),
   limitPerColumn: input.limitPerColumn,
   columnPage: {
     overdue: input.overduePage,

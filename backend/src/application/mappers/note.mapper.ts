@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 
 import { EventType, Importance, KnowledgeKind, SourceChannel } from '../../contracts/enums.js';
 import type { IngestPayload } from '../../contracts/ingest.js';
+import { buildIngestPayload } from './ingest.mapper.js';
 import { hasReminder, normalizeManualNoteStatus } from '../../domain/note-status.js';
 import { isAiSource } from '../../domain/notes.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
@@ -31,6 +32,7 @@ export function toIngestPayload(
     currentStatus: 'active',
     hadReminder: false,
     hasReminder: hasReminder({ reminderAt }),
+    reminderAt,
   });
   const occurredAt = dto.occurredAt || new Date().toISOString();
   const cleanedRawText = stripTitleHeader(dto.rawText, dto.title);
@@ -45,12 +47,10 @@ export function toIngestPayload(
       .filter(Boolean),
   ));
 
-  return {
+  return buildIngestPayload({
     source: {
       channel: parseSourceChannelString(dto.sourceChannel),
       system: activeSource || 'manual-api',
-      source: '',
-      actor: '',
       conversationId: context.workspaceSlug,
       correlationId: existingNoteId || `manual:${crypto.randomUUID()}`,
       sessionId: dto.sessionId || '',
@@ -66,10 +66,6 @@ export function toIngestPayload(
       attachments: dto.attachments || [],
       sections: {
         summary: cleanedRawText,
-        impact: '',
-        risks: [],
-        nextSteps: [],
-        reviewFindings: [],
       },
     },
     classification: {
@@ -82,7 +78,6 @@ export function toIngestPayload(
     },
     actions: {
       reminderAt,
-      followUpBy: '',
     },
     metadata: {
       rawText: dto.rawText,
@@ -92,5 +87,5 @@ export function toIngestPayload(
     // still receives its generated vault path later in the ingest pipeline;
     // source files belong in the explicit note-link relation.
     links,
-  };
+  });
 }

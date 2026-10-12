@@ -24,8 +24,8 @@ export function useMobileSwipe({ enabled = true, onNext, onPrev }: UseMobileSwip
         if (!node) return false;
         const tag = node.tagName?.toLowerCase();
         if (!tag) return false;
-        if (['input', 'textarea', 'select', 'button', 'a'].includes(tag)) return true;
-        if (node.closest && node.closest('button, a, input, textarea, select')) return true;
+        if (['input', 'textarea', 'select', 'button', 'a', 'pre', 'code'].includes(tag)) return true;
+        if (node.closest && node.closest('button, a, input, textarea, select, pre, code, .help-nav, [data-no-swipe]')) return true;
         return false;
       } catch (err) {
         return false;

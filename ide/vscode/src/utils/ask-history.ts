@@ -66,5 +66,7 @@ export function clearAskHistory(): void {
   try {
     ensureDir();
     fs.writeFileSync(HISTORY_PATH, '[]', 'utf8');
-  } catch {}
+  } catch {
+    // Best-effort clear history file
+  }
 }

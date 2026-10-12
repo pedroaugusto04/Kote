@@ -8,6 +8,8 @@ import { WeeklySummaryModule } from './weekly-summary.module.js';
 
 import { TestEmailController } from '../../interfaces/http/controllers/test-email/test-email.controller.js';
 
+import { AuthModule } from './auth.module.js';
+
 @Module({
   imports: [
     LoggerModule,
@@ -15,6 +17,7 @@ import { TestEmailController } from '../../interfaces/http/controllers/test-emai
     DatabaseModule,
     EmailModule,
     WeeklySummaryModule,
+    AuthModule,
   ],
   controllers: [TestEmailController],
 })

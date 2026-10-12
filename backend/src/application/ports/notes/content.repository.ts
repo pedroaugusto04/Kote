@@ -20,6 +20,7 @@ import type { ListProjectsInput, PaginatedProjects } from '../../models/project-
 import type { ReviewView } from '../../models/review.models.js';
 import type { VaultNoteDetail, VaultNoteSummary } from '../../models/vault-note.models.js';
 import type { ProductivityInsightsRaw } from '../../models/productivity.models.js';
+import type { ListRemindersInput, PaginatedReminders } from '../../models/reminder-list.models.js';
 
 export abstract class ContentRepository {
   abstract listCategories(userId: string, workspaceId: string): Promise<CategoryRecord[]>;
@@ -40,11 +41,12 @@ export abstract class ContentRepository {
   abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<RepositoryRecord>;
   abstract removeProjectRepositories(projectId: string, tx?: any): Promise<void>;
   abstract listProjects(userId: string): Promise<SaveProjectInput[]>;
+  abstract listProjectsByWorkspace(userId: string, workspaceId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsForExport(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsWithNoteCount(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
   abstract listProjectsPageWithNoteCount(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
-  abstract getProjectBySlug(userId: string, projectSlug: string): Promise<SaveProjectInput | null>;
+  abstract getProjectBySlug(userId: string, projectSlug: string, workspaceId?: string): Promise<SaveProjectInput | null>;
   abstract getProjectById(userId: string, projectId: string): Promise<SaveProjectInput | null>;
   abstract upsertProject(userId: string, input: SaveProjectInput): Promise<SaveProjectInput>;
   abstract deleteProject(userId: string, projectId: string): Promise<boolean>;
@@ -102,6 +104,7 @@ export abstract class ContentQueryRepository {
   abstract listReviews(userId: string): Promise<ReviewView[]>;
   abstract getReviewById(userId: string, id: string): Promise<ReviewView | null>;
   abstract listReminders(userId: string): Promise<ReminderView[]>;
+  abstract listRemindersPage(userId: string, input: ListRemindersInput): Promise<PaginatedReminders>;
   abstract listDueRemindersByChannel(channel: ReminderDeliveryChannel, nowIso: string): Promise<DueReminderView[]>;
   abstract listDashboardBundle?(userId: string): Promise<{
     notes: VaultNoteSummary[];

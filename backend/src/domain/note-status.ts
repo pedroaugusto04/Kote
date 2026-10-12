@@ -34,6 +34,7 @@ export function normalizeManualNoteStatus(input: {
   currentStatus?: string | null | undefined;
   hadReminder: boolean;
   hasReminder: boolean;
+  reminderAt?: string | null | undefined;
 }): NoteStatus {
   const requestedStatus = String(input.requestedStatus || '').trim().toLowerCase();
   const currentStatus = String(input.currentStatus || '').trim().toLowerCase();
@@ -49,6 +50,13 @@ export function normalizeManualNoteStatus(input: {
   if (input.hasReminder) {
     if (requestedStatus === KnowledgeStatus.Pending || requestedStatus === KnowledgeStatus.Overdue || requestedStatus === KnowledgeStatus.Sent) return requestedStatus;
     if (!input.hadReminder) return KnowledgeStatus.Pending;
+
+    const reminderAt = String(input.reminderAt || '').trim();
+    const reminderTimestamp = reminderAt ? Date.parse(reminderAt) : NaN;
+    if (Number.isFinite(reminderTimestamp) && reminderTimestamp > Date.now()) {
+      return KnowledgeStatus.Pending;
+    }
+
     if (currentStatus === KnowledgeStatus.Sent) return KnowledgeStatus.Sent;
     if (currentStatus === KnowledgeStatus.Overdue) return KnowledgeStatus.Overdue;
     return KnowledgeStatus.Pending;

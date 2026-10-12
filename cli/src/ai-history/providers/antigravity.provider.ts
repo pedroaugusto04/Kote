@@ -7,7 +7,16 @@ import { resolveProjectSlugFromDir } from '../../utils/project-detector.js';
 import { AI_PROVIDER, AI_PROVIDER_NAME, AI_ROLE, AI_SESSION_PATH, ANTIGRAVITY_LOG_FILES } from '../constants.js';
 import type { AiHistoryProvider, AiSession, AiSessionAttachment, AiTurn, AiTokenUsage, ModelUsageDetail } from '../types.js';
 import { calculateTokenUsageCost } from '../token-accounting.js';
-import { asRecord, buildSessionTitle, keepFinalAssistantTurns, readJsonLines, safeMtime } from './provider.utils.js';
+import {
+  asRecord,
+  buildSessionTitle,
+  FileSessionCache,
+  keepFinalAssistantTurns,
+  latestRecordTimestamp,
+  readJsonLines,
+  safeFileSignature,
+  safeMtime,
+} from './provider.utils.js';
 
 const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
 
@@ -17,6 +26,8 @@ const ANTIGRAVITY_RECORD = {
   MODEL_SOURCE: 'MODEL',
   PLANNER_RESPONSE: 'PLANNER_RESPONSE',
 } as const;
+
+const sessionCache = new FileSessionCache();
 
 function cleanContent(raw: string): string {
   return raw
@@ -81,19 +92,18 @@ function extractWorkspace(content: string): string | null {
 
 function loadAttachments(sessionDir: string): AiSessionAttachment[] {
   try {
-    return fs.readdirSync(sessionDir)
-      .filter((fileName) => fileName.endsWith('.md'))
-      .map((fileName) => {
-        const filePath = path.join(sessionDir, fileName);
+    return fs.readdirSync(sessionDir, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+      .map((entry) => {
+        const filePath = path.join(sessionDir, entry.name);
         const stat = fs.statSync(filePath);
-        return stat.isFile() ? {
-          fileName,
+        return {
+          fileName: entry.name,
           mimeType: 'text/markdown',
           sizeBytes: stat.size,
           dataBase64: fs.readFileSync(filePath).toString('base64'),
-        } : null;
-      })
-      .filter((attachment): attachment is AiSessionAttachment => attachment !== null);
+        };
+      });
   } catch {
     return [];
   }
@@ -104,11 +114,9 @@ function findLogFile(sessionDir: string): string | null {
   for (const fileName of ANTIGRAVITY_LOG_FILES) {
     const filePath = path.join(sessionDir, '.system_generated', 'logs', fileName);
     try {
-      if (fs.existsSync(filePath)) {
-        const stat = fs.statSync(filePath);
-        if (stat.size > 0) {
-          candidates.push({ filePath, mtimeMs: stat.mtimeMs });
-        }
+      const stat = fs.statSync(filePath);
+      if (stat.size > 0) {
+        candidates.push({ filePath, mtimeMs: stat.mtimeMs });
       }
     } catch {
       // ignore transient stat errors
@@ -319,6 +327,16 @@ function allocateTokensByWeight(
   }));
 }
 
+function tokenCandidateFiles(sessionDir: string): string[] {
+  return [
+    path.join(sessionDir, 'token_usage.json'),
+    path.join(sessionDir, 'statusline.json'),
+    path.join(sessionDir, '.system_generated', 'token_usage.json'),
+    path.join(os.homedir(), '.gemini', 'antigravity-cli', 'last_statusline.json'),
+    path.join(os.homedir(), '.gemini', 'antigravity-ide', 'last_statusline.json'),
+  ];
+}
+
 function extractAntigravityTokenUsage(
   sessionDir: string,
   content: string,
@@ -329,15 +347,7 @@ function extractAntigravityTokenUsage(
   let outputTokens = 0;
   let cachedTokens = 0;
 
-  const candidateFiles = [
-    path.join(sessionDir, 'token_usage.json'),
-    path.join(sessionDir, 'statusline.json'),
-    path.join(sessionDir, '.system_generated', 'token_usage.json'),
-    path.join(os.homedir(), '.gemini', 'antigravity-cli', 'last_statusline.json'),
-    path.join(os.homedir(), '.gemini', 'antigravity-ide', 'last_statusline.json'),
-  ];
-
-  for (const candidate of candidateFiles) {
+  for (const candidate of tokenCandidateFiles(sessionDir)) {
     try {
       if (fs.existsSync(candidate)) {
         const data = JSON.parse(fs.readFileSync(candidate, 'utf8'));
@@ -356,7 +366,9 @@ function extractAntigravityTokenUsage(
           break;
         }
       }
-    } catch {}
+    } catch {
+      // Ignore record parsing errors and proceed with available tokens
+    }
   }
 
   if (inputTokens === 0 && outputTokens === 0) return undefined;
@@ -409,32 +421,53 @@ function extractAntigravityTokenUsage(
   };
 }
 
+function buildSessionSignature(sessionDir: string, logFile: string): { signature: string; logMtimeMs: number } | null {
+  const logSig = safeFileSignature(logFile);
+  if (!logSig) return null;
+  const dirMtime = safeMtime(sessionDir);
+  let tokenSigPart = 'notok';
+  for (const candidate of tokenCandidateFiles(sessionDir)) {
+    const sig = safeFileSignature(candidate);
+    if (sig) {
+      tokenSigPart = `${candidate}:${sig.signature}`;
+      break;
+    }
+  }
+  return {
+    signature: `${logFile}|${logSig.signature}|dir:${dirMtime}|${tokenSigPart}`,
+    logMtimeMs: logSig.mtimeMs,
+  };
+}
+
 function parseSession(sessionDir: string, sessionId: string): AiSession | null {
   const logFile = findLogFile(sessionDir);
   if (!logFile) return null;
 
-  try {
-    const content = fs.readFileSync(logFile, 'utf8');
-    const records = readJsonLines(content);
-    const turns = parseTurns(records);
-    if (turns.length === 0) return null;
+  const sigInfo = buildSessionSignature(sessionDir, logFile);
+  return sessionCache.getOrParse(sessionDir, sigInfo?.signature ?? null, () => {
+    try {
+      const content = fs.readFileSync(logFile, 'utf8');
+      const records = readJsonLines(content);
+      const turns = parseTurns(records);
+      if (turns.length === 0) return null;
 
-    const workspace = extractWorkspace(content);
-    const tokenUsage = extractAntigravityTokenUsage(sessionDir, content, records);
+      const workspace = extractWorkspace(content);
+      const tokenUsage = extractAntigravityTokenUsage(sessionDir, content, records);
 
-    return {
-      providerId: AI_PROVIDER.ANTIGRAVITY,
-      sessionId,
-      title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.ANTIGRAVITY], turns),
-      turns,
-      timestamp: safeMtime(logFile),
-      projectSlug: workspace ? resolveProjectSlugFromDir(workspace) : undefined,
-      attachments: loadAttachments(sessionDir),
-      tokenUsage,
-    };
-  } catch {
-    return null;
-  }
+      return {
+        providerId: AI_PROVIDER.ANTIGRAVITY,
+        sessionId,
+        title: buildSessionTitle(AI_PROVIDER_NAME[AI_PROVIDER.ANTIGRAVITY], turns),
+        turns,
+        timestamp: latestRecordTimestamp(records, sigInfo?.logMtimeMs ?? 0),
+        projectSlug: workspace ? resolveProjectSlugFromDir(workspace) : undefined,
+        attachments: loadAttachments(sessionDir),
+        tokenUsage,
+      };
+    } catch {
+      return null;
+    }
+  });
 }
 
 function historyDirectories(): string[] {
@@ -455,29 +488,23 @@ export class AntigravityHistoryProvider implements AiHistoryProvider {
 
     for (const historyDir of historyDirectories()) {
       if (!fs.existsSync(historyDir)) continue;
-      let sessionIds: string[];
+      let entries: fs.Dirent[];
       try {
-        sessionIds = fs.readdirSync(historyDir);
+        entries = fs.readdirSync(historyDir, { withFileTypes: true });
       } catch {
         continue;
       }
-      for (const sessionId of sessionIds) {
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const sessionId = entry.name;
         const sessionDir = path.join(historyDir, sessionId);
         try {
-          const stat = fs.statSync(sessionDir);
-          if (!stat.isDirectory()) continue;
-          let mtime = stat.mtimeMs;
+          let mtime = safeMtime(sessionDir);
           for (const fileName of ANTIGRAVITY_LOG_FILES) {
             const logPath = path.join(sessionDir, '.system_generated', 'logs', fileName);
-            try {
-              if (fs.existsSync(logPath)) {
-                const logStat = fs.statSync(logPath);
-                if (logStat.mtimeMs > mtime) {
-                  mtime = logStat.mtimeMs;
-                }
-              }
-            } catch {
-              // ignore stat errors
+            const logMtime = safeMtime(logPath);
+            if (logMtime > mtime) {
+              mtime = logMtime;
             }
           }
           candidateDirs.push({ sessionDir, sessionId, mtime });

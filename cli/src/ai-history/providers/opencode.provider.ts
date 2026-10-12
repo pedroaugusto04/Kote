@@ -6,7 +6,7 @@ import { loadConfig } from '../../config.js';
 import { AI_PROVIDER, AI_PROVIDER_NAME, AI_ROLE, AI_SESSION_PATH, AI_TEXT_CONTENT_TYPE, OPEN_CODE_FINAL_FINISH } from '../constants.js';
 import type { AiHistoryProvider, AiSession, AiTurn, ModelUsageDetail } from '../types.js';
 import { calculateTokenUsageCost } from '../token-accounting.js';
-import { asRecord, keepFinalAssistantTurns, parseAiRole } from './provider.utils.js';
+import { asRecord, cloneSession, keepFinalAssistantTurns, parseAiRole, safeFileSignature } from './provider.utils.js';
 
 interface OpenCodeRow {
   sessionId: string;
@@ -34,6 +34,16 @@ interface SessionAccumulator {
   usageMessageIds: Set<string>;
   models: Map<string, ModelTokenAccumulator>;
   lastModelID?: string;
+}
+
+let cachedQueryKey = '';
+let cachedSessions: AiSession[] = [];
+
+function buildDbSignature(dbPath: string, limit: number | null): string | null {
+  const mainSig = safeFileSignature(dbPath);
+  if (!mainSig) return null;
+  const walSig = safeFileSignature(`${dbPath}-wal`);
+  return `${dbPath}|${limit ?? 'all'}|${mainSig.signature}|${walSig ? walSig.signature : 'nowal'}`;
 }
 
 function databasePath(): string {
@@ -200,11 +210,16 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
     const dbPath = databasePath();
     if (!fs.existsSync(dbPath)) return [];
 
+    const safeLimit = typeof limit === 'number' ? Math.max(0, Math.floor(limit)) : null;
+    const sig = buildDbSignature(dbPath, safeLimit);
+    if (sig && sig === cachedQueryKey) {
+      return cachedSessions.map(cloneSession);
+    }
+
     try {
       const { DatabaseSync } = await import('node:sqlite');
       if (!DatabaseSync) return [];
       const db = new DatabaseSync(dbPath, { readOnly: true });
-      const safeLimit = typeof limit === 'number' ? Math.max(0, Math.floor(limit)) : null;
       const sessionSource = safeLimit === null
         ? 'session'
         : `(SELECT * FROM session ORDER BY time_updated DESC LIMIT ${safeLimit})`;
@@ -232,7 +247,12 @@ export class OpenCodeHistoryProvider implements AiHistoryProvider {
           // Ignore malformed message or part JSON without losing the session.
         }
       }
-      return finalizeSessions(accumulators);
+      const sessions = finalizeSessions(accumulators);
+      if (sig) {
+        cachedQueryKey = sig;
+        cachedSessions = sessions.map(cloneSession);
+      }
+      return sessions;
     } catch {
       return [];
     }

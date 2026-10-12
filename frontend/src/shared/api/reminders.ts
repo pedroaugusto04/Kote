@@ -3,7 +3,16 @@ import type { Reminder, ReminderBoardResponse } from './models/reminder';
 import { request } from './request';
 import { API_PATHS, buildApiPath } from './api-paths.constants';
 
-export function fetchReminders(params: { page?: number; pageSize?: number; workspaceSlug?: string; projectSlug?: string; status?: string }) {
+export function fetchReminders(params: {
+  page?: number;
+  pageSize?: number;
+  workspaceSlug?: string;
+  projectSlug?: string;
+  status?: string;
+  query?: string;
+  dueAfter?: string;
+  dueBefore?: string;
+}) {
   const search = new URLSearchParams({
     page: String(params.page || 1),
     pageSize: String(params.pageSize || DEFAULT_PAGE_SIZE),
@@ -11,6 +20,9 @@ export function fetchReminders(params: { page?: number; pageSize?: number; works
     projectSlug: params.projectSlug || '',
     status: params.status || '',
   });
+  if (params.query?.trim()) search.set('query', params.query.trim());
+  if (params.dueAfter) search.set('dueAfter', params.dueAfter);
+  if (params.dueBefore) search.set('dueBefore', params.dueBefore);
   return request<PaginatedResponse<Reminder, 'reminders'>>(`${API_PATHS.REMINDERS}?${search.toString()}`);
 }
 
