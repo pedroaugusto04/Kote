@@ -6,20 +6,44 @@ import { BillingCycle, BillingType } from '../../../dist/domain/enums/billing.en
 import { GatewayNameEnum } from '../../../dist/infrastructure/billing/gateways/IPaymentGateway.js';
 
 test('createNewSubscriptionPayment creates a pending charge without activating the subscription', async () => {
-  let createSubscriptionCalled = false;
-  let paymentCreated = false;
+  let subscriptionUpserted = false;
+  let savedPayment = null;
 
   const mockGateway = {
     createPayment: async () => ({
       id: 'pay-1',
       status: 'PENDING',
+      netValue: 20,
+      dueDate: new Date(),
     }),
   };
 
   const mockBillingPaymentRepository = {
-    async upsertSubscriptionPayment() {
-      paymentCreated = true;
+    async upsertSubscriptionPayment(payment) {
+      savedPayment = payment;
     },
+    async getLatestPendingPaymentByUserId() {
+      return savedPayment ? {
+        id: savedPayment.id,
+        value: savedPayment.value,
+        status: savedPayment.status,
+        billingType: savedPayment.billingType,
+        dueDate: savedPayment.dueDate,
+      } : null;
+    },
+  };
+
+  const mockSubscriptionRepository = {
+    async getSubscriptionByUserId() { return null; },
+    async upsertUserSubscription() { subscriptionUpserted = true; },
+  };
+
+  const mockBillingCustomerRepository = {
+    async getCustomerByUserId() { return null; },
+  };
+
+  const mockSubscriptionChangeService = {
+    async getScheduledChange() { return null; },
   };
 
   const service = new SubscriptionService(
@@ -28,26 +52,17 @@ test('createNewSubscriptionPayment creates a pending charge without activating t
       createIntentAndExternalReference: async () => ({ externalReference: 'intent=1' }),
     },
     null,
-    null,
+    mockSubscriptionChangeService,
     mockGateway,
     null,
     { normalizePaymentStatus: () => 'pending' },
     null,
     mockBillingPaymentRepository,
     { getChangeKind: () => SubscriptionChangeKind.NEW },
-    null,
-    null,
+    mockSubscriptionRepository,
+    mockBillingCustomerRepository,
     null,
   );
-
-  service.createNewSubscription = async () => {
-    createSubscriptionCalled = true;
-    return { id: 'sub-1' };
-  };
-  service.getSubscriptionStatusSummary = async () => ({
-    entitledPlanId: 'free-plan-id',
-    latestPendingPayment: { id: 'pay-1', value: 20 },
-  });
 
   const result = await service.createNewSubscriptionPayment({
     userId: 'user-1',
@@ -70,8 +85,10 @@ test('createNewSubscriptionPayment creates a pending charge without activating t
     gatewayCustomerId: 'cust-1',
   });
 
-  assert.equal(createSubscriptionCalled, false);
-  assert.equal(paymentCreated, true);
+  assert.equal(subscriptionUpserted, false);
+  assert.ok(savedPayment);
+  assert.equal(savedPayment.gatewayPaymentId, 'pay-1');
+  assert.equal(savedPayment.status, 'pending');
   assert.equal(result.changeKind, SubscriptionChangeKind.NEW);
   assert.ok(result.summary?.latestPendingPayment);
 });

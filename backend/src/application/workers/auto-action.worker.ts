@@ -2,8 +2,6 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { schedule } from 'node-cron';
 import { PostgresDatabase } from '../../infrastructure/persistence/database.js';
 import { AppLogger } from '../../observability/logger.js';
-import { eq, and, lt, sql } from 'drizzle-orm';
-import { AUTO_ACTION_NONE } from '../../domain/auto-action.constants.js';
 
 const AUTO_ACTION_CRON = process.env.AUTO_ACTION_CRON ?? '0 */1 * * *'; // every hour by default
 const AUTO_ACTION_TIMEZONE = process.env.AUTO_ACTION_TIMEZONE ?? 'UTC';

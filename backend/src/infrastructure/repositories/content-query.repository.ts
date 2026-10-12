@@ -21,6 +21,7 @@ import { PostgresNoteRepository } from './note.repository.js';
 import { PostgresAttachmentRepository } from './attachment.repository.js';
 import { SPECIAL_PROJECT_SLUGS, isSpecialProjectSlug } from '../../domain/projects.js';
 import { PostgresNoteSynthesisRepository } from './note-synthesis.repository.js';
+import { isUuid } from '../../domain/utils/uuid.utils.js';
 
 /** Fallback cap when FTS runs without an explicit ftsLimit from the caller. */
 const DEFAULT_FTS_CANDIDATE_LIMIT = 40;
@@ -199,6 +200,7 @@ export class PostgresContentQueryRepository extends ContentQueryRepository {
   }
 
   async getById(userId: string, id: string) {
+    if (!isUuid(id)) return null;
     const db = this.database.getDb();
     const result = await db
       .select({

@@ -1,23 +1,11 @@
 import { BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import { toMoneyNumber as domainToMoneyNumber, PLAN_PRICE_SCALE } from '../../../../domain/utils/money.utils.js';
 
 export const ASAAS_SANDBOX_BASE_URL = 'https://api-sandbox.asaas.com/v3';
-export const PLAN_PRICE_SCALE = 2;
+export { PLAN_PRICE_SCALE };
 
 export function toMoneyNumber(value: unknown, scale = PLAN_PRICE_SCALE): number {
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) {
-      throw new Error('Invalid monetary value.');
-    }
-    return Number(value.toFixed(scale));
-  }
-  if (typeof value === 'string') {
-    const cleaned = value.replace(',', '.').trim();
-    const num = parseFloat(cleaned);
-    if (!Number.isNaN(num)) {
-      return Number(num.toFixed(scale));
-    }
-  }
-  throw new Error('Invalid monetary value.');
+  return domainToMoneyNumber(value, scale);
 }
 
 export function parseDateTimeInput(value?: string | Date | null): Date | null {

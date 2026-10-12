@@ -15,7 +15,9 @@ export function persistLastHandoffFile(markdown: string): void {
     }
     const lastHandoffPath = path.join(koteDir, 'last-handoff.md');
     fs.writeFileSync(lastHandoffPath, markdown, 'utf8');
-  } catch {}
+  } catch {
+    // Best-effort cache write for last handoff
+  }
 }
 
 export function injectHandoffIntoActiveTerminal(markdown: string): boolean {

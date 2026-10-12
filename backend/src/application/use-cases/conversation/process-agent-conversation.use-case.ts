@@ -1,28 +1,25 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import crypto from 'node:crypto';
 
 import {
   agentConversationStateSchema,
   type AgentConversationState,
+  type ConversationAgentDecision,
 } from '../../../contracts/agent-conversation.js';
 import { type ConversationInput } from '../../../contracts/conversation.js';
 import { IntegrationProvider, AgentConversationAction, SourceChannel } from '../../../contracts/enums.js';
-import { ingestPayloadSchema } from '../../../contracts/ingest.js';
 import { displayNameFromProjectSlug, slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
 import { AppLogger } from '../../../observability/logger.js';
-import { serializeErrorForLog } from '../../../observability/error-serializer.js';
-import type { ProjectFolderRecord } from '../../models/repository-records.models.js';
-import { ConversationAgentGateway, type ConversationAgentResponse } from '../../ports/conversation/conversation-agent.gateway.js';
+import { IngestAgentGateway } from '../../ports/conversation/ingest-agent.gateway.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { ConversationStateRepository } from '../../ports/reminders/workflow-state.repository.js';
 import { isCancel } from '../../utils/conversation/conversation-command.utils.js';
 import { isConversationStateExpired } from '../../utils/conversation/conversation-state.utils.js';
-import { buildProjectFolderTree } from '../../utils/content/project-folder.utils.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { ConversationAgentPresenter } from './services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from './services/conversation-folder-resolution.service.js';
+import { IngestAgentToolsService } from '../../services/conversation/ingest-agent-tools.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
 import { resolveSourceChannel } from '../../utils/integration/source-channel.utils.js';
@@ -30,15 +27,13 @@ import { resolveContentScopeFromSlugs } from '../../utils/content/content-scope.
 import { toProjectRecord } from '../../mappers/project.mapper.js';
 import {
   buildAgentConversationPayload as buildAgentPayload,
-  buildNextAgentConversationState,
   emptyAgentConversationState as EMPTY_AGENT_CONVERSATION_STATE,
   mediaFromInput as mediaFromConversationInput,
   resolveSelectedProjectSlug as resolveAgentSelectedProjectSlug,
-  sanitizeExistingProjectSlug as sanitizeExistingAgentProjectSlug,
-  serializeFolderTreeNode as serializeAgentFolderTreeNode,
 } from './services/conversation-agent-state-machine.js';
+import type { ingestPayloadSchema } from '../../../contracts/ingest.js';
 
-type AgentConversationResult = {
+export type AgentConversationResult = {
   action: AgentConversationAction;
   replyText: string;
   payload: ReturnType<typeof ingestPayloadSchema.parse> | null;
@@ -52,12 +47,6 @@ type AgentConversationResult = {
   };
 };
 
-type AgentDecisionTurn = {
-  candidateProjectSlug: string;
-  candidateFolders: ProjectFolderRecord[];
-  decision: ConversationAgentResponse;
-};
-
 @Injectable()
 export class ProcessAgentConversationUseCase {
   constructor(
@@ -65,14 +54,20 @@ export class ProcessAgentConversationUseCase {
     private readonly conversationStates: ConversationStateRepository,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly conversationAgentGateway: ConversationAgentGateway,
+    private readonly ingestAgentGateway: IngestAgentGateway,
+    private readonly toolsService: IngestAgentToolsService,
     private readonly presenter: ConversationAgentPresenter,
     private readonly folderResolutionService: ConversationFolderResolutionService,
     private readonly aiEntitlement: AiEntitlementService,
     private readonly logger?: AppLogger,
-  ) { }
+  ) {}
 
-  async execute(input: ConversationInput, userId: string, workspaceSlug = 'default', projectSlug?: string): Promise<AgentConversationResult> {
+  async execute(
+    input: ConversationInput,
+    userId: string,
+    workspaceSlug = 'default',
+    projectSlug?: string,
+  ): Promise<AgentConversationResult> {
     const normalizedWorkspaceSlug = slugify(workspaceSlug) || 'default';
     const aiEnabled = await this.aiEntitlement.isEnabled(userId, normalizedWorkspaceSlug, IntegrationProvider.AiConversation);
     if (!aiEnabled) throw new NotFoundException('ai_conversation_not_enabled');
@@ -101,6 +96,7 @@ export class ProcessAgentConversationUseCase {
       messageId: input.messageId,
       messageLength: messageText.length,
       hasMedia: input.hasMedia,
+      mode: 'react_agent',
     });
 
     if (!messageText && !input.hasMedia) {
@@ -132,7 +128,7 @@ export class ProcessAgentConversationUseCase {
     workspaceSlug: string,
     key: string,
     state: AgentConversationState,
-    sourceChannel: SourceChannel,
+    _sourceChannel: SourceChannel,
   ): Promise<AgentConversationResult> {
     const messageText = String(input.messageText || '').trim();
     const environment = this.environmentProvider.read();
@@ -159,148 +155,83 @@ export class ProcessAgentConversationUseCase {
       );
     }
 
-    const { candidateProjectSlug, candidateFolders, decision } = await this.requestAgentDecision(
-      input,
-      userId,
-      workspaceSlug,
-      state,
+    const localDateTime = currentDateTimeInTimeZone(environment.reminderTimeZone);
+    const tools = this.toolsService.buildTools(userId, workspaceSlug);
+
+    const decision = await this.ingestAgentGateway.decide(
+      {
+        conversationAiProvider: environment.conversationAiProvider,
+        conversationAiBaseUrl: environment.conversationAiBaseUrl,
+        conversationAiModel: environment.conversationAiModel,
+        conversationAiApiKey: environment.conversationAiApiKey,
+      },
+      {
+        messageText,
+        workspaceSlug,
+        candidateProjectSlug: state.project.selectedProjectSlug || undefined,
+        timeZone: environment.reminderTimeZone,
+        currentLocalDate: localDateTime.date,
+        currentLocalTime: localDateTime.time,
+      },
+      tools,
     );
+
+    if (!decision) {
+      throw new BadRequestException('conversation_agent_unavailable');
+    }
 
     if (this.isEmptyAgentDraftAsk(decision)) {
       return this.reply(AgentConversationAction.Ask, this.presenter.couldNotUnderstand(), null, state);
     }
 
-    const selectedProjectSlug = resolveAgentSelectedProjectSlug(decision.selectedProjectSlug, state);
-    const foldersForDecision = await this.resolveFoldersForDecision(
-      userId,
-      selectedProjectSlug,
-      candidateProjectSlug,
-      candidateFolders,
-    );
-    const nextState = buildNextAgentConversationState({
-      current: state,
-      messageText,
-      media: mediaFromConversationInput(input, state),
-      decision,
-      candidateFolders: foldersForDecision,
-      reminderTimeZone: environment.reminderTimeZone,
-    });
-    await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
-    this.logger?.info('conversation.agent.state.updated', {
-      userId,
-      workspaceSlug,
-      conversationKey: key,
-      action: decision.action,
-      selectedProjectSlug: nextState.project.selectedProjectSlug,
-      selectedFolderId: nextState.folder.selectedFolderId,
-      suggestedFolderPath: nextState.folder.suggestedFolderPath,
-      rawTextLength: nextState.draft.rawText.length,
-      confidence: nextState.confidence,
-    });
-
-    if (!nextState.draft.rawText) {
-      return this.reply(AgentConversationAction.Ask, this.presenter.couldNotUnderstand(), null, nextState);
-    }
-    if (decision.action !== 'cancel') {
-      return this.submitState(input, userId, workspaceSlug, key, nextState);
-    }
-
-    return this.reply(AgentConversationAction.Ask, decision.replyText || this.presenter.needsOneMoreDetail(), null, nextState);
-  }
-
-  private async loadState(userId: string, workspaceSlug: string, key: string) {
-    const saved = await this.conversationStates.get(userId, workspaceSlug, key);
-    const parsed = saved ? agentConversationStateSchema.safeParse(saved.state) : null;
-    if (!parsed?.success) return EMPTY_AGENT_CONVERSATION_STATE;
-    if (this.isExpiredState(parsed.data, saved?.updatedAt || '')) {
+    if (decision.action === 'cancel') {
       await this.conversationStates.clear(userId, workspaceSlug, key);
-      this.logger?.info('conversation.agent.state.expired', {
-        userId,
-        workspaceSlug,
-        conversationKey: key,
-        updatedAt: parsed.data.updatedAt || saved?.updatedAt || '',
-      });
-      return EMPTY_AGENT_CONVERSATION_STATE;
+      return this.reply(AgentConversationAction.Cancel, this.presenter.captureCanceled(), null, EMPTY_AGENT_CONVERSATION_STATE);
     }
-    return parsed.data;
-  }
 
-  private isExpiredState(state: AgentConversationState, recordUpdatedAt: string) {
-    return isConversationStateExpired(state.updatedAt, recordUpdatedAt);
-  }
+    const rawText = String(decision.resolvedDraft?.rawText || messageText).trim() || messageText;
+    const selectedProjectSlug = resolveAgentSelectedProjectSlug(decision.selectedProjectSlug, state) || (rawText ? 'inbox' : '');
 
-  private isEmptyAgentDraftAsk(decision: ConversationAgentResponse) {
-    return decision.action === 'ask'
-      && !String(decision.resolvedDraft.rawText || '').trim()
-      && !String(decision.selectedProjectSlug || '').trim();
-  }
-
-  private async requestAgentDecision(
-    input: ConversationInput,
-    userId: string,
-    workspaceSlug: string,
-    state: AgentConversationState,
-  ): Promise<AgentDecisionTurn> {
-    const projects = (await this.contentRepository.listProjects(userId))
-      .filter((project) => project.enabled && project.workspaceSlug === workspaceSlug);
-    const candidateProjectSlug = sanitizeExistingAgentProjectSlug(state.project.selectedProjectSlug, projects);
-    let candidateFolders: ProjectFolderRecord[] = [];
-    if (candidateProjectSlug && candidateProjectSlug !== 'inbox') {
-      const candidateScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
-        projectSlug: candidateProjectSlug,
+    if (decision.action === 'ask' && !rawText) {
+      const nextState = agentConversationStateSchema.parse({
+        ...state,
+        lastQuestion: decision.replyText || this.presenter.couldNotUnderstand(),
+        lastUserMessage: messageText,
+        lastAgentAction: 'ask',
+        updatedAt: nowIso(),
       });
-      if (candidateScope.project?.enabled) {
-        candidateFolders = await this.contentRepository.listProjectFolders(userId, candidateScope.project.id);
-      }
+      await this.conversationStates.upsert(userId, workspaceSlug, key, nextState);
+      return this.reply(AgentConversationAction.Ask, decision.replyText || this.presenter.couldNotUnderstand(), null, nextState);
     }
-    const environment = this.environmentProvider.read();
-    const localDateTime = currentDateTimeInTimeZone(environment.reminderTimeZone);
 
-    try {
-      const decision = await this.conversationAgentGateway.decide(
-        {
-          conversationAiProvider: environment.conversationAiProvider,
-          conversationAiBaseUrl: environment.conversationAiBaseUrl,
-          conversationAiModel: environment.conversationAiModel,
-          conversationAiApiKey: environment.conversationAiApiKey,
-        },
-        {
-          messageText: String(input.messageText || '').trim(),
-          currentState: state,
-          availableProjects: projects.map((project) => ({
-            projectSlug: project.projectSlug,
-            displayName: project.displayName,
-            defaultTags: project.defaultTags,
-          })),
-          candidateProjectSlug,
-          candidateFolders: buildProjectFolderTree(candidateFolders).map(serializeAgentFolderTreeNode),
-          timeZone: environment.reminderTimeZone,
-          currentLocalDate: localDateTime.date,
-          currentLocalTime: localDateTime.time,
-        },
-      );
-      if (!decision) throw new BadRequestException('conversation_agent_unavailable');
-      this.logger?.info('conversation.agent.decision', {
-        userId,
-        workspaceSlug,
-        action: decision.action,
-        selectedProjectSlug: decision.selectedProjectSlug,
-        selectedFolderId: decision.selectedFolderId,
-        suggestedFolderPath: decision.suggestedFolderPath,
-        placeInRoot: decision.placeInRoot,
-        rawTextLength: decision.resolvedDraft.rawText.length,
-        confidence: decision.confidence,
-      });
-      return { candidateProjectSlug, candidateFolders, decision };
-    } catch (error) {
-      this.logger?.error('conversation.agent.decision_failed', {
-        userId,
-        workspaceSlug,
-        messageId: input.messageId,
-        ...serializeErrorForLog(error),
-      });
-      throw error;
-    }
+    const isInbox = !selectedProjectSlug || selectedProjectSlug === 'inbox';
+    const nextState = agentConversationStateSchema.parse({
+      ...state,
+      media: mediaFromConversationInput(input, state),
+      project: {
+        selectedProjectSlug,
+      },
+      folder: {
+        selectedFolderId: isInbox ? '' : (decision.selectedFolderId || ''),
+        suggestedFolderPath: isInbox ? [] : (decision.suggestedFolderPath || []),
+        placeInRoot: isInbox ? true : Boolean(decision.placeInRoot),
+      },
+      draft: {
+        rawText,
+        title: decision.resolvedDraft?.title || '',
+        kind: decision.resolvedDraft?.kind || state.draft.kind || 'note',
+        canonicalType: decision.resolvedDraft?.canonicalType || state.draft.canonicalType || 'knowledge',
+        importance: decision.resolvedDraft?.importance || state.draft.importance || 'normal',
+        tags: decision.resolvedDraft?.tags || state.draft.tags || [],
+        reminderAt: decision.resolvedDraft?.reminderAt || state.draft.reminderAt || null,
+      },
+      confidence: decision.confidence,
+      lastUserMessage: messageText,
+      lastAgentAction: decision.action,
+      updatedAt: nowIso(),
+    });
+
+    return this.submitState(input, userId, workspaceSlug, key, nextState, decision.replyText);
   }
 
   private async submitState(
@@ -309,12 +240,14 @@ export class ProcessAgentConversationUseCase {
     workspaceSlug: string,
     key: string,
     state: AgentConversationState,
+    agentReplyText?: string,
   ): Promise<AgentConversationResult> {
     await this.ensureProjectExistsForSubmission(userId, workspaceSlug, state.project.selectedProjectSlug);
     const folderId = await this.folderResolutionService.resolveFolderIdForSubmission(userId, state);
     const payload = buildAgentPayload(input, state, this.environmentProvider.read().reminderTimeZone);
     const ingestResult = await this.ingestEntryUseCase.execute(payload, userId, workspaceSlug, { folderId: folderId || undefined });
     await this.conversationStates.clear(userId, workspaceSlug, key);
+
     this.logger?.info('conversation.agent.submit.saved', {
       userId,
       workspaceSlug,
@@ -323,10 +256,14 @@ export class ProcessAgentConversationUseCase {
       projectSlug: ingestResult.project,
       folderId,
       eventPath: ingestResult.eventPath,
+      mode: 'react_agent',
     });
+
+    const replyText = this.presenter.noteSaved(ingestResult);
+
     return this.reply(
       AgentConversationAction.Submit,
-      this.presenter.noteSaved(ingestResult),
+      replyText,
       payload,
       EMPTY_AGENT_CONVERSATION_STATE,
       ingestResult,
@@ -361,6 +298,33 @@ export class ProcessAgentConversationUseCase {
     await this.contentRepository.upsertProject(userId, projectRecord);
   }
 
+  private async loadState(userId: string, workspaceSlug: string, key: string) {
+    const saved = await this.conversationStates.get(userId, workspaceSlug, key);
+    const parsed = saved ? agentConversationStateSchema.safeParse(saved.state) : null;
+    if (!parsed?.success) return EMPTY_AGENT_CONVERSATION_STATE;
+    if (this.isExpiredState(parsed.data, saved?.updatedAt || '')) {
+      await this.conversationStates.clear(userId, workspaceSlug, key);
+      this.logger?.info('conversation.agent.state.expired', {
+        userId,
+        workspaceSlug,
+        conversationKey: key,
+        updatedAt: parsed.data.updatedAt || saved?.updatedAt || '',
+      });
+      return EMPTY_AGENT_CONVERSATION_STATE;
+    }
+    return parsed.data;
+  }
+
+  private isExpiredState(state: AgentConversationState, recordUpdatedAt: string) {
+    return isConversationStateExpired(state.updatedAt, recordUpdatedAt);
+  }
+
+  private isEmptyAgentDraftAsk(decision: ConversationAgentDecision) {
+    return decision.action === 'ask'
+      && !String(decision.resolvedDraft?.rawText || '').trim()
+      && !String(decision.selectedProjectSlug || '').trim();
+  }
+
   private reply(
     action: AgentConversationResult['action'],
     replyText: string,
@@ -382,26 +346,5 @@ export class ProcessAgentConversationUseCase {
         confidence: overrides?.confidence || state.confidence,
       },
     };
-  }
-
-  private async resolveFoldersForDecision(
-    userId: string,
-    selectedProjectSlug: string,
-    candidateProjectSlug: string,
-    candidateFolders: ProjectFolderRecord[],
-  ): Promise<ProjectFolderRecord[]> {
-    if (!selectedProjectSlug || selectedProjectSlug === 'inbox') {
-      return [];
-    }
-    if (selectedProjectSlug === candidateProjectSlug) {
-      return candidateFolders;
-    }
-    const selectedScope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
-      projectSlug: selectedProjectSlug,
-    });
-    if (!selectedScope.project?.enabled) {
-      return [];
-    }
-    return this.contentRepository.listProjectFolders(userId, selectedScope.project.id);
   }
 }

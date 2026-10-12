@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { updateNote } from '../../shared/api/client';
 import type { NoteDetail, NoteSummary } from '../../shared/api/models/note';
@@ -89,12 +89,17 @@ export function QuickNoteStatusActions({
   compact?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const [prevId, setPrevId] = useState(note.id);
+  const [prevStatus, setPrevStatus] = useState(note.status);
   const [displayStatus, setDisplayStatus] = useState<string>(note.status);
-  const actions = resolveQuickStatusActions(displayStatus);
 
-  useEffect(() => {
+  if (prevId !== note.id || prevStatus !== note.status) {
+    setPrevId(note.id);
+    setPrevStatus(note.status);
     setDisplayStatus(note.status);
-  }, [note.id, note.status]);
+  }
+
+  const actions = resolveQuickStatusActions(displayStatus);
 
   const mutation = useMutation({
     mutationFn: async (action: QuickStatusAction) => {

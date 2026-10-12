@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import '@testing-library/jest-dom/vitest';
@@ -109,16 +109,39 @@ describe('ProjectDecisionsPanel', () => {
     expect(handleOpenNote).toHaveBeenCalledWith('note-1');
   });
 
-  it('triggers exportProjectAdrsZip when clicking Export ADRs button', async () => {
+  it('opens confirmation modal and triggers exportProjectAdrsZip when confirmed', async () => {
     renderWithClient(<ProjectDecisionsPanel projectSlug="kote-app" />);
 
     const exportButton = screen.getByRole('button', { name: /Export ADRs/i });
     fireEvent.click(exportButton);
 
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByRole('heading', { name: 'Export ADRs (.zip)' })).toBeInTheDocument();
+    expect(within(dialog).getByText(/Export decisions as Architecture Decision Record \(ADR\) markdown files in a ZIP archive\?/i)).toBeInTheDocument();
+
+    const confirmButton = within(dialog).getByRole('button', { name: 'Export ADRs (.zip)' });
+    fireEvent.click(confirmButton);
+
     await screen.findByRole('button', { name: /Export ADRs/i });
     expect(client.exportProjectAdrsZip).toHaveBeenCalledWith('kote-app', expect.objectContaining({
       kind: 'all',
     }));
+  });
+
+  it('cancels ADR export when canceling the confirmation modal', async () => {
+    renderWithClient(<ProjectDecisionsPanel projectSlug="kote-app" />);
+
+    const exportButton = screen.getByRole('button', { name: /Export ADRs/i });
+    fireEvent.click(exportButton);
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+    fireEvent.click(cancelButton);
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(client.exportProjectAdrsZip).not.toHaveBeenCalled();
   });
 
   it('debounces search input before triggering search request', async () => {

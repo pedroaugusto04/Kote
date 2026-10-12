@@ -11,16 +11,16 @@ import {
 import { WEBHOOK_TRIGGER_REGISTRY } from '../../../../domain/webhook-trigger-registry.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
-import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
+import { ScopeGuard } from '../../guards/scope.guard.js';
+import { Scoped, Scope } from '../../scope.decorators.js';
+import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
 import {
   createWebhookSubscriptionBodySchema,
   updateWebhookSubscriptionBodySchema,
   webhookSubscriptionIdParamSchema,
-  webhookSubscriptionQuerySchema,
   type CreateWebhookSubscriptionBody,
   type UpdateWebhookSubscriptionBody,
   type WebhookSubscriptionIdParam,
-  type WebhookSubscriptionQuery,
 } from '../../dto/webhook-subscription.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
@@ -43,27 +43,33 @@ export class WebhookSubscriptionsController {
   }
 
   @Get()
-  @UseGuards(WorkspaceResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List webhook subscriptions' })
   @ApiResponse({ status: 200, description: 'Subscriptions retrieved successfully' })
   list(
-    @Query(new ZodValidationPipe(webhookSubscriptionQuerySchema, 'invalid_webhook_subscription_query')) query: WebhookSubscriptionQuery,
+    @Scope() scope: WorkspaceScope,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.listSubscriptions.execute(user.id, query.workspaceSlug);
+    return this.listSubscriptions.execute(user.id, scope.workspaceSlug);
   }
 
   @Post()
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create webhook subscription' })
   @ApiResponse({ status: 201, description: 'Subscription created successfully' })
   create(
+    @Scope() scope: WorkspaceScope,
     @Body(new ZodValidationPipe(createWebhookSubscriptionBodySchema, 'invalid_create_webhook_subscription_payload')) body: CreateWebhookSubscriptionBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.createSubscription.execute(user.id, body);
+    return this.createSubscription.execute(user.id, {
+      ...body,
+      workspaceSlug: scope.workspaceSlug,
+    });
   }
 
   @Patch(':id')

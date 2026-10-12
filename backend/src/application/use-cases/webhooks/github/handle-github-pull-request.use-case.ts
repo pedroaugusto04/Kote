@@ -1,28 +1,32 @@
 import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 
-import { AiProvider, ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus, EmbeddingTaskType } from '../../../../contracts/enums.js';
-import { buildGithubPrReviewEvent, buildGithubPrContextNoteEvent } from '../../../services/integrations/github-review.service.js';
+import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
+import { buildGithubPrContextNoteEvent } from '../../../services/integrations/github-review.service.js';
 import type { GithubPullRequestWebhookRequest } from '../../../models/webhook-request.models.js';
-import type { ChangedFile } from '../../../models/github-webhook.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
 import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
-import { resolveContentScopeFromSlugs } from '../../../utils/content/content-scope.utils.js';
 import { AiOperationType } from '../../../../domain/enums/plans.enums.js';
 import { AiEntitlementService } from '../../../services/ai/ai-entitlement.service.js';
-import { EmbeddingGateway } from '../../../ports/notes/embedding.gateway.js';
-import { EmbeddingRepresentation, NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
+import { NoteEmbeddingRepository } from '../../../ports/notes/note-embedding.repository.js';
 import { EmbeddingQueuePublisher } from '../../../ports/notes/embedding-queue.publisher.js';
 import { AnswerGenerationGateway } from '../../../ports/query/answer-generation.gateway.js';
-import { ReviewAnalysisGateway } from '../../../ports/projects/review-analysis.port.js';
 import { IngestEntryUseCase } from '../../ingest/ingest-entry.use-case.js';
 import { GithubRepositoryResolutionService } from '../../../services/integrations/github-repository-resolution.service.js';
 import { AppLogger } from '../../../../observability/logger.js';
 import { githubPrAuditPayload, type GithubPullRequestPayload } from '../../../utils/github/github-audit.utils.js';
 import { filterAndTruncateChangedFiles } from '../../../utils/github/github-diff-filter.utils.js';
+import {
+  isCommentForShaAlreadyPosted,
+  isRelevantAiComment,
+  formatPullRequestCommentWithSha,
+  buildPrContextSummary,
+  searchSemanticPrContextChunks,
+  ingestPrReviewNote,
+} from '../../../utils/github/github-review.helpers.js';
 
 @Injectable()
 export class HandleGithubPullRequestUseCase {
@@ -33,11 +37,9 @@ export class HandleGithubPullRequestUseCase {
     private readonly webhookEvents: WebhookEventRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
-    private readonly embeddingGateway: EmbeddingGateway,
     private readonly noteEmbeddingRepository: NoteEmbeddingRepository,
     private readonly answerGenerationGateway: AnswerGenerationGateway,
     private readonly aiEntitlement: AiEntitlementService,
-    private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
     private readonly embeddingQueue: EmbeddingQueuePublisher,
@@ -102,21 +104,13 @@ export class HandleGithubPullRequestUseCase {
         repository: body.repository?.full_name,
         title: prTitle,
       });
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'pull_request'),
-        status: WebhookEventStatus.Ignored,
-        resolvedUserId: identity.userId,
+      return this.recordIgnored({
+        userId: identity.userId,
         externalIdentity,
-        rawHeaders: headers,
+        headers,
         rawPayload,
-        error: 'skipped_by_title_keyword',
+        reason: 'skipped_by_title_keyword',
       });
-      return {
-        ok: true,
-        processed: false,
-        ignored: 'skipped_by_title_keyword',
-      };
     }
 
     const action = String(body.action || '').trim().toLowerCase();
@@ -133,14 +127,12 @@ export class HandleGithubPullRequestUseCase {
       };
     }
 
-    await this.webhookEvents.recordWebhookEvent({
-      provider: IntegrationProvider.GithubApp,
-      eventType: String(headers['x-github-event'] || 'pull_request'),
-      status: WebhookEventStatus.Resolved,
-      resolvedUserId: identity.userId,
+    await this.recordEvent({
+      userId: identity.userId,
       externalIdentity,
-      rawHeaders: headers,
+      headers,
       rawPayload,
+      status: WebhookEventStatus.Resolved,
     });
 
     const repoFullName = String(body.repository?.full_name || '').trim();
@@ -162,21 +154,13 @@ export class HandleGithubPullRequestUseCase {
         repository: repoFullName,
         userId: identity.userId,
       });
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'pull_request'),
-        status: WebhookEventStatus.Ignored,
-        resolvedUserId: identity.userId,
+      return this.recordIgnored({
+        userId: identity.userId,
         externalIdentity,
-        rawHeaders: headers,
+        headers,
         rawPayload,
-        error: 'github_repository_not_selected',
+        reason: 'github_repository_not_selected',
       });
-      return {
-        ok: true,
-        processed: false,
-        ignored: 'github_repository_not_selected',
-      };
     }
 
     if (options?.synchronous) {
@@ -228,21 +212,13 @@ export class HandleGithubPullRequestUseCase {
           projectSlug,
           userId: identity.userId,
         });
-        await this.webhookEvents.recordWebhookEvent({
-          provider: IntegrationProvider.GithubApp,
-          eventType: String(headers['x-github-event'] || 'pull_request'),
-          status: WebhookEventStatus.Ignored,
-          resolvedUserId: identity.userId,
+        return this.recordIgnored({
+          userId: identity.userId,
           externalIdentity,
-          rawHeaders: headers,
+          headers,
           rawPayload,
-          error: 'pr_context_ai_disabled',
+          reason: 'pr_context_ai_disabled',
         });
-        return {
-          ok: true,
-          processed: false,
-          ignored: 'pr_context_ai_disabled',
-        };
       }
 
       const quotaOk = entitlement.enabled && entitlement.quota.allowed;
@@ -260,21 +236,13 @@ export class HandleGithubPullRequestUseCase {
           projectSlug,
           userId: identity.userId,
         });
-        await this.webhookEvents.recordWebhookEvent({
-          provider: IntegrationProvider.GithubApp,
-          eventType: String(headers['x-github-event'] || 'pull_request'),
-          status: WebhookEventStatus.Ignored,
-          resolvedUserId: identity.userId,
+        return this.recordIgnored({
+          userId: identity.userId,
           externalIdentity,
-          rawHeaders: headers,
+          headers,
           rawPayload,
-          error: 'quota_exceeded',
+          reason: 'quota_exceeded',
         });
-        return {
-          ok: true,
-          processed: false,
-          ignored: 'quota_exceeded',
-        };
       }
 
       const token = await this.githubIntegrationGateway.fetchInstallationToken({
@@ -332,29 +300,19 @@ export class HandleGithubPullRequestUseCase {
       // Check if we have already posted a comment for the current headSha
       const prNumber = Number(body.pull_request?.number || 0);
       const existingComments = await this.githubIntegrationGateway.fetchPullRequestComments(repoFullName, prNumber, token);
-      const duplicateMarker = `<!-- sha: ${headSha} -->`;
-      const alreadyCommented = existingComments.some(comment => comment.body.includes(duplicateMarker));
-      if (alreadyCommented) {
+      if (isCommentForShaAlreadyPosted(existingComments, headSha)) {
         this.logger.info('github_pr_comment_already_exists_for_sha', {
           repository: repoFullName,
           prNumber,
           headSha,
         });
-        await this.webhookEvents.recordWebhookEvent({
-          provider: IntegrationProvider.GithubApp,
-          eventType: String(headers['x-github-event'] || 'pull_request'),
-          status: WebhookEventStatus.Ignored,
-          resolvedUserId: identity.userId,
+        return this.recordIgnored({
+          userId: identity.userId,
           externalIdentity,
-          rawHeaders: headers,
+          headers,
           rawPayload,
-          error: 'comment_already_exists_for_sha',
+          reason: 'comment_already_exists_for_sha',
         });
-        return {
-          ok: true,
-          processed: false,
-          ignored: 'comment_already_exists_for_sha',
-        };
       }
 
       const comparePayload = await this.githubIntegrationGateway.fetchComparePayload(repoFullName, baseSha, headSha, token);
@@ -372,61 +330,23 @@ export class HandleGithubPullRequestUseCase {
         hasSearchTerms: Boolean(searchTerms),
       });
 
-      let contextChunks: any[] = [];
-      const scope = identity.workspaceSlug
-        ? await resolveContentScopeFromSlugs(this.contentRepository, identity.userId, { workspaceSlug: identity.workspaceSlug })
-        : null;
-      const workspaceId = scope?.workspaceId || '';
-
-      if (searchTerms) {
-        try {
-          const embeddings = await this.embeddingQueue.publishQueryEmbedding({
-            userId: identity.userId,
-            queryText: searchTerms,
-          });
-          const prEmbedding = embeddings[0];
-
-          if (prEmbedding && prEmbedding.length > 0) {
-            const similarChunks = await this.noteEmbeddingRepository.findSimilar(identity.userId, prEmbedding, {
-              limit: 8,
-              workspaceId: workspaceId || undefined,
-              minSimilarity: environment.ragMinSimilarity ?? 0.45,
-              representation: EmbeddingRepresentation.Raw,
-            });
-
-            this.logger.info('github_pr_semantic_search_results', {
-              repository: repoFullName,
-              projectSlug,
-              prNumber: body.pull_request?.number,
-              similarChunksCount: similarChunks.length,
-            });
-
-            if (similarChunks.length > 0) {
-              const noteIds = Array.from(new Set(similarChunks.map((c) => c.noteId)));
-              const notes = await this.contentRepository.getNotesByIds(identity.userId, noteIds);
-              const noteMap = new Map(notes.map((n) => [n.id, n]));
-              contextChunks = similarChunks
-                .map((chunk) => {
-                  const note = noteMap.get(chunk.noteId);
-                  if (!note) return null;
-                  return {
-                    noteId: chunk.noteId,
-                    title: note.title,
-                    path: note.path,
-                    projectSlug: note.projectSlug,
-                    workspaceId: note.workspaceId,
-                    chunkText: chunk.chunkText,
-                  };
-                })
-                .filter((c) => c !== null);
-            }
-          }
-        } catch (error) {
-          this.logger.warn('github_pr_rpc_embedding_failed', {
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }
+      const contextChunks = await searchSemanticPrContextChunks(
+        {
+          embeddingQueue: this.embeddingQueue,
+          noteEmbeddingRepository: this.noteEmbeddingRepository,
+          contentRepository: this.contentRepository,
+          logger: this.logger,
+        },
+        {
+          userId: identity.userId,
+          workspaceSlug: identity.workspaceSlug,
+          searchTerms,
+          minSimilarity: environment.ragMinSimilarity ?? 0.45,
+          repository: repoFullName,
+          projectSlug,
+          prNumber: body.pull_request?.number,
+        },
+      );
 
       if (contextChunks.length === 0) {
         this.logger.info('github_pr_no_context', {
@@ -434,14 +354,12 @@ export class HandleGithubPullRequestUseCase {
           projectSlug,
           prNumber: body.pull_request?.number,
         });
-        await this.webhookEvents.recordWebhookEvent({
-          provider: IntegrationProvider.GithubApp,
-          eventType: String(headers['x-github-event'] || 'pull_request'),
-          status: WebhookEventStatus.Processed,
-          resolvedUserId: identity.userId,
+        await this.recordEvent({
+          userId: identity.userId,
           externalIdentity,
-          rawHeaders: headers,
+          headers,
           rawPayload,
+          status: WebhookEventStatus.Processed,
         });
         return {
           ok: true,
@@ -503,20 +421,18 @@ export class HandleGithubPullRequestUseCase {
         commentTrimmedUpper: commentText?.trim().toUpperCase(),
       });
 
-      if (!commentText || commentText.trim() === 'NONE' || commentText.trim().toUpperCase() === 'NONE') {
+      if (!isRelevantAiComment(commentText)) {
         this.logger.info('github_pr_no_relevant_context', {
           repository: repoFullName,
           projectSlug,
           prNumber: body.pull_request?.number,
         });
-        await this.webhookEvents.recordWebhookEvent({
-          provider: IntegrationProvider.GithubApp,
-          eventType: String(headers['x-github-event'] || 'pull_request'),
-          status: WebhookEventStatus.Processed,
-          resolvedUserId: identity.userId,
+        await this.recordEvent({
+          userId: identity.userId,
           externalIdentity,
-          rawHeaders: headers,
+          headers,
           rawPayload,
+          status: WebhookEventStatus.Processed,
         });
         return {
           ok: true,
@@ -527,17 +443,13 @@ export class HandleGithubPullRequestUseCase {
       }
 
       // Post the comment to the PR
-      const commentWithSha = `${commentText}\n\n<!-- sha: ${headSha} -->`;
-      
-      const GITHUB_COMMENT_LIMIT = 65000;
-      let finalComment = commentWithSha;
-      if (finalComment.length > GITHUB_COMMENT_LIMIT) {
+      const { comment: finalComment, isTruncated } = formatPullRequestCommentWithSha(commentText, headSha);
+      if (isTruncated) {
         this.logger.warn('github_pr_comment_exceeded_limit', {
           repository: repoFullName,
           prNumber,
-          originalLength: finalComment.length,
+          originalLength: (commentText?.length || 0) + headSha.length,
         });
-        finalComment = finalComment.substring(0, GITHUB_COMMENT_LIMIT - 150) + '\n\n... [Comment truncated due to GitHub character limit] \n\n' + `<!-- sha: ${headSha} -->`;
       }
 
       this.logger.info('github_pr_posting_comment', {
@@ -557,19 +469,31 @@ export class HandleGithubPullRequestUseCase {
       });
 
       // Generate and ingest a review note based on the first AI analysis (commentText)
-      const contextSummary = contextChunks.length > 0
-        ? contextChunks.map(c => `- ${c.title}: ${c.chunkText.substring(0, 200)}...`).join('\n')
-        : undefined;
-      const noteId = await this.tryIngestPrNote(input, commentText, changedFiles, contextSummary, projectSlug, identity, repoFullName, prNumber);
+      const contextSummary = buildPrContextSummary(contextChunks);
+      const noteId = await ingestPrReviewNote(
+        {
+          ingestEntryUseCase: this.ingestEntryUseCase,
+          logger: this.logger,
+        },
+        {
+          input,
+          commentText,
+          changedFiles,
+          contextSummary,
+          projectSlug,
+          identity,
+          repoFullName,
+          prNumber,
+          buildPrContextNoteEvent: buildGithubPrContextNoteEvent,
+        },
+      );
 
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'pull_request'),
-        status: WebhookEventStatus.Processed,
-        resolvedUserId: identity.userId,
+      await this.recordEvent({
+        userId: identity.userId,
         externalIdentity,
-        rawHeaders: headers,
+        headers,
         rawPayload,
+        status: WebhookEventStatus.Processed,
       });
 
       return {
@@ -579,14 +503,12 @@ export class HandleGithubPullRequestUseCase {
         noteId,
       };
     } catch (error) {
-      await this.webhookEvents.recordWebhookEvent({
-        provider: IntegrationProvider.GithubApp,
-        eventType: String(headers['x-github-event'] || 'pull_request'),
-        status: WebhookEventStatus.Failed,
-        resolvedUserId: identity.userId,
+      await this.recordEvent({
+        userId: identity.userId,
         externalIdentity,
-        rawHeaders: headers,
+        headers,
         rawPayload,
+        status: WebhookEventStatus.Failed,
         error: error instanceof Error ? error.message : String(error),
       });
       throw error;
@@ -594,68 +516,39 @@ export class HandleGithubPullRequestUseCase {
   }
 
 
-  private resolvePayloadProject<T extends Awaited<ReturnType<typeof buildGithubPrReviewEvent>>>(payload: T, projectSlug: string): T {
+  private async recordEvent(params: {
+    userId: string;
+    externalIdentity: { provider: ExternalIdentityProvider; identityType: string; externalId: string };
+    headers: Record<string, string>;
+    rawPayload: Record<string, unknown>;
+    status: WebhookEventStatus;
+    error?: string;
+  }) {
+    await this.webhookEvents.recordWebhookEvent({
+      provider: IntegrationProvider.GithubApp,
+      eventType: String(params.headers['x-github-event'] || 'pull_request'),
+      status: params.status,
+      resolvedUserId: params.userId,
+      externalIdentity: params.externalIdentity,
+      rawHeaders: params.headers,
+      rawPayload: params.rawPayload,
+      ...(params.error ? { error: params.error } : {}),
+    });
+  }
+
+  private async recordIgnored(params: {
+    userId: string;
+    externalIdentity: { provider: ExternalIdentityProvider; identityType: string; externalId: string };
+    headers: Record<string, string>;
+    rawPayload: Record<string, unknown>;
+    reason: string;
+  }) {
+    await this.recordEvent({ ...params, status: WebhookEventStatus.Ignored, error: params.reason });
     return {
-      ...payload,
-      event: {
-        ...payload.event,
-        projectSlug,
-      },
-      classification: {
-        ...payload.classification,
-        tags: [...new Set(['code-review', ...payload.classification.tags.filter((tag) => tag !== payload.event.projectSlug)])],
-      },
+      ok: true as const,
+      processed: false as const,
+      ignored: params.reason,
     };
   }
-
-  private async tryIngestPrNote(
-    input: GithubPullRequestWebhookRequest,
-    commentText: string,
-    changedFiles: ChangedFile[],
-    contextSummary: string | undefined,
-    projectSlug: string,
-    identity: { userId: string; workspaceSlug?: string | null },
-    repoFullName: string,
-    prNumber: number,
-  ): Promise<string | undefined> {
-    this.logger.info('github_pr_review_note_ingest_start', {
-      repository: repoFullName,
-      projectSlug,
-      prNumber,
-      commentLength: commentText?.length ?? 0,
-      contextChunksCount: contextSummary ? contextSummary.split('\n').length : 0,
-    });
-
-    if (!this.ingestEntryUseCase) {
-      this.logger.warn('github_pr_review_note_skipped', {
-        repository: repoFullName,
-        projectSlug,
-        reason: 'ingest_use_case_not_available',
-      });
-      return undefined;
-    }
-
-    try {
-      const reviewPayload = buildGithubPrContextNoteEvent(input, commentText, changedFiles, contextSummary);
-      const resolvedPayload = this.resolvePayloadProject(reviewPayload, projectSlug);
-      const ingestResult = await this.ingestEntryUseCase.execute(resolvedPayload, identity.userId, identity.workspaceSlug || '');
-
-      this.logger.info('github_pr_review_note_ingested', {
-        repository: repoFullName,
-        projectSlug,
-        prNumber,
-        noteId: ingestResult.noteId,
-      });
-
-      return ingestResult.noteId;
-    } catch (error) {
-      this.logger.error('github_pr_review_note_failed', {
-        repository: repoFullName,
-        projectSlug,
-        prNumber,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      return undefined;
-    }
-  }
 }
+

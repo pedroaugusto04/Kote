@@ -3,9 +3,6 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { BillingWebhookEventRepository } from '../ports/billing/billing-repositories.js';
 import { BillingQueuePublisher } from '../ports/billing/billing-queue.publisher.js';
 import { AppLogger } from '../../observability/logger.js';
-import { eq, and, lt, or, isNull } from 'drizzle-orm';
-import { PostgresDatabase } from '../../infrastructure/persistence/database.js';
-import { gatewayWebhookEvents } from '../../infrastructure/persistence/schema/index.js';
 
 const WEBHOOK_OUTBOX_RELAY_AUTORUN = (() => {
   const raw = process.env.WEBHOOK_OUTBOX_RELAY_AUTORUN;
@@ -28,7 +25,6 @@ export class WebhookOutboxRelayWorker implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly billingWebhookEventRepository: BillingWebhookEventRepository,
     private readonly billingQueuePublisher: BillingQueuePublisher,
-    private readonly database: PostgresDatabase,
     private readonly logger: AppLogger,
   ) {}
 
@@ -95,36 +91,15 @@ export class WebhookOutboxRelayWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async listWebhookEventsForReplay() {
-    const db = this.database.getDb();
-    const minAgeDate = new Date();
-    minAgeDate.setSeconds(minAgeDate.getSeconds() - WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS);
-
-    return await db
-      .select()
-      .from(gatewayWebhookEvents)
-      .where(and(
-        or(
-          eq(gatewayWebhookEvents.status, 'pending'),
-          eq(gatewayWebhookEvents.status, 'failed')
-        ),
-        lt(gatewayWebhookEvents.attempts, WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS),
-        or(
-          isNull(gatewayWebhookEvents.lastDispatchedAt),
-          lt(gatewayWebhookEvents.lastDispatchedAt, minAgeDate)
-        )
-      ))
-      .limit(WEBHOOK_OUTBOX_RELAY_BATCH_SIZE);
+    return this.billingWebhookEventRepository.listWebhookEventsForReplay({
+      minAgeSeconds: WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS,
+      maxAttempts: WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS,
+      batchSize: WEBHOOK_OUTBOX_RELAY_BATCH_SIZE,
+    });
   }
 
   private async markWebhookEventDispatched(eventId: string) {
-    const db = this.database.getDb();
-    await db
-      .update(gatewayWebhookEvents)
-      .set({
-        lastDispatchedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(gatewayWebhookEvents.id, eventId));
+    await this.billingWebhookEventRepository.markWebhookEventDispatched(eventId);
   }
 
   private async notifyAttemptLimitReached() {
@@ -153,32 +128,14 @@ export class WebhookOutboxRelayWorker implements OnModuleInit, OnModuleDestroy {
   }
 
   private async listWebhookEventsAtAttemptLimit() {
-    const db = this.database.getDb();
-    const minAgeDate = new Date();
-    minAgeDate.setSeconds(minAgeDate.getSeconds() - WEBHOOK_OUTBOX_RELAY_MIN_AGE_SECONDS);
-
-    return await db
-      .select()
-      .from(gatewayWebhookEvents)
-      .where(and(
-        eq(gatewayWebhookEvents.status, 'failed'),
-        eq(gatewayWebhookEvents.attempts, WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS),
-        or(
-          isNull(gatewayWebhookEvents.lastError),
-          // lastError não contém o marcador de alerta
-        )
-      ))
-      .limit(WEBHOOK_OUTBOX_RELAY_BATCH_SIZE);
+    return this.billingWebhookEventRepository.listWebhookEventsAtAttemptLimit({
+      maxAttempts: WEBHOOK_OUTBOX_RELAY_MAX_ATTEMPTS,
+      batchSize: WEBHOOK_OUTBOX_RELAY_BATCH_SIZE,
+      alertMarker: OUTBOX_ALERT_MARKER,
+    });
   }
 
   private async markWebhookEventAlerted(eventId: string) {
-    const db = this.database.getDb();
-    await db
-      .update(gatewayWebhookEvents)
-      .set({
-        lastError: OUTBOX_ALERT_MARKER,
-        updatedAt: new Date(),
-      })
-      .where(eq(gatewayWebhookEvents.id, eventId));
+    await this.billingWebhookEventRepository.markWebhookEventAlerted(eventId, OUTBOX_ALERT_MARKER);
   }
 }

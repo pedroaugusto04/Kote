@@ -6,7 +6,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import type { PageContext } from '../app/page-context';
 import { PageContextProvider } from '../app/page-context-provider';
 import { navItems, routes, type View } from '../app/routing/routes';
-import { ApiClientError, deleteNote, exportGlobalData, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite } from '../shared/api/client';
+import { ApiClientError, deleteNote, exportGlobalData, fetchCurrentUser, fetchDashboard, fetchNote, fetchProjectFolders, logout, runQuery, setProjectFavorite, setActiveWorkspaceSlug } from '../shared/api/client';
 import { fetchSubscriptionStatus } from '../shared/api/billing';
 import { hasQuotaWarning } from '../features/quota/quota.utils';
 import type { NoteSummary } from '../shared/api/models/note';
@@ -29,11 +29,9 @@ const VaultPage = lazy(() => import('../pages/vault/VaultPage').then((m) => ({ d
 const LandingPage = lazy(() => import('../pages/landing/LandingPage').then((m) => ({ default: m.LandingPage })));
 
 import { flattenFolders } from '../features/projects/projects.helpers';
-import { ProjectNoteModal } from '../features/projects/modals/ProjectNoteModal';
 import { ConfirmKind, WorkspaceModalMode, type ConfirmState, type NoteModalState } from '../features/projects/projects.types';
 import { notifyGeneralFormError } from '../shared/forms/errors';
-import { ConfirmationModal } from '../shared/ui/confirmation-modal';
-import { QuotaExceededModal } from '../shared/ui/QuotaExceededModal';
+import { AppModals } from './AppModals';
 import { QUERY_KEYS } from '../shared/constants/query-keys.constants';
 import { UI_MESSAGES } from '../shared/constants/ui.constants';
 import { KEYBOARD_KEYS } from '../shared/constants/keyboard.constants';
@@ -42,6 +40,7 @@ import { useGlobalLoading } from '../app/global-loading';
 import { useDebouncedValue } from '../shared/ui/use-debounced-value';
 import { OfflineBanner } from '../shared/ui/offline-banner';
 import { Breadcrumbs } from '../shared/ui/Breadcrumbs';
+import { ConfirmationModal } from '../shared/ui/confirmation-modal';
 import { AppSidebar } from './AppSidebar';
 import { AppTopbar } from './AppTopbar';
 import { Link } from 'react-router-dom';
@@ -109,6 +108,10 @@ export function AppShell() {
   const workspaceSlug = activeWorkspace?.workspaceSlug || '';
   const isSetupRoute = location.pathname.startsWith(routes.setup);
 
+  useEffect(() => {
+    setActiveWorkspaceSlug(workspaceSlug || null);
+  }, [workspaceSlug]);
+
   const searchQuery = useQuery({
     queryKey: QUERY_KEYS.GLOBAL_SEARCH(debouncedSearchValue, workspaceSlug),
     queryFn: () =>
@@ -156,6 +159,7 @@ export function AppShell() {
   const quotaStatus = quotaStatusQuery.data;
   const showQuotaWarningDot = quotaStatus ? hasQuotaWarning(quotaStatus) : false;
 
+  const [isExportGlobalConfirmOpen, setIsExportGlobalConfirmOpen] = useState(false);
   const exportGlobalMutation = useMutation({
     mutationFn: exportGlobalData,
     onSuccess: ({ filename }) => notifySuccess(`Global data export downloaded (${filename}).`),
@@ -523,7 +527,10 @@ export function AppShell() {
               dashboardQuery.refetch();
             });
           }}
-          onExportData={() => exportGlobalMutation.mutate()}
+          onExportData={() => {
+            setIsProfileMenuOpen(false);
+            setIsExportGlobalConfirmOpen(true);
+          }}
           isExportingData={exportGlobalMutation.isPending}
         />
         <section className="view" aria-live="polite">
@@ -569,61 +576,49 @@ export function AppShell() {
           </PageContextProvider>
         </section>
       </main>
-      {noteModal ? (
-        <ProjectNoteModal
-          key={noteModal.mode === WorkspaceModalMode.Edit ? `edit-${noteModal.note.id}` : `create-${noteModal.projectSlug}`}
-          folders={noteModal.mode === WorkspaceModalMode.Edit ? noteModalFolders : undefined}
-          mode={noteModal.mode}
-          note={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note : undefined}
-          onClose={() => {
-            setNoteModal(null);
-            if (onNoteModalClose) {
-              onNoteModalClose();
-              setOnNoteModalClose(undefined);
-            }
-          }}
-          onSaved={async (_noteId, mode) => {
-            setNoteModal(null);
-            notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
-            await refreshDashboard(queryClient);
-            if (onNoteModalClose) {
-              onNoteModalClose();
-              setOnNoteModalClose(undefined);
-            }
-          }}
-          projectSlug={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.project : noteModal.projectSlug}
-          initialFolderId={noteModal.mode === WorkspaceModalMode.Edit ? noteModal.note.folderId || undefined : undefined}
-          initialTitle={noteModal.mode === WorkspaceModalMode.Create ? noteModal.initialTitle : undefined}
-          initialAttachments={
-            noteModal.mode === WorkspaceModalMode.Edit
-              ? noteModal.note.attachments?.map((att) => ({
-                  fileName: att.fileName,
-                  mimeType: att.mimeType,
-                  sizeBytes: att.sizeBytes,
-                  dataBase64: '',
-                }))
-              : noteModal.mode === WorkspaceModalMode.Create
-                ? noteModal.initialAttachments
-                : undefined
+      <AppModals
+        noteModal={noteModal}
+        noteModalFolders={noteModalFolders}
+        onCloseNoteModal={() => {
+          setNoteModal(null);
+          if (onNoteModalClose) {
+            onNoteModalClose();
+            setOnNoteModalClose(undefined);
           }
-          projects={dashboard.projects}
-          workspaceSlug={workspaceSlug}
-        />
-      ) : null}
-      {confirmState?.kind === ConfirmKind.Note ? (
+        }}
+        onSavedNoteModal={async (_noteId, mode) => {
+          setNoteModal(null);
+          notifySuccess(mode === WorkspaceModalMode.Create ? UI_MESSAGES.NOTE_CREATED : UI_MESSAGES.NOTE_UPDATED);
+          await refreshDashboard(queryClient);
+          if (onNoteModalClose) {
+            onNoteModalClose();
+            setOnNoteModalClose(undefined);
+          }
+        }}
+        projects={dashboard.projects}
+        workspaceSlug={workspaceSlug}
+        confirmState={confirmState}
+        isDeletingNote={deleteNoteMutation.isPending}
+        onCancelConfirm={() => setConfirmState(null)}
+        onConfirmDeleteNote={(noteId) => deleteNoteMutation.mutate(noteId)}
+        quotaExceededError={quotaExceededError}
+        onCloseQuotaModal={() => setQuotaExceededError(null)}
+      />
+      {isExportGlobalConfirmOpen && (
         <ConfirmationModal
-          busy={deleteNoteMutation.isPending}
+          busy={exportGlobalMutation.isPending}
+          title={UI_MESSAGES.EXPORT_GLOBAL_TITLE}
+          description={UI_MESSAGES.EXPORT_GLOBAL_DESCRIPTION}
           cancelLabel={UI_MESSAGES.CANCEL}
-          confirmLabel={UI_MESSAGES.CONFIRM_DELETION}
-          description={`Deleting note ${confirmState.note.title} also removes its linked reminder, when present.`}
-          onCancel={() => setConfirmState(null)}
-          onConfirm={() => deleteNoteMutation.mutate(confirmState.note.id)}
-          title={UI_MESSAGES.DELETE_NOTE}
+          confirmLabel={UI_MESSAGES.EXPORT_DATA}
+          tone="default"
+          onCancel={() => setIsExportGlobalConfirmOpen(false)}
+          onConfirm={() => {
+            setIsExportGlobalConfirmOpen(false);
+            exportGlobalMutation.mutate();
+          }}
         />
-      ) : null}
-      {quotaExceededError ? (
-        <QuotaExceededModal error={quotaExceededError} onClose={() => setQuotaExceededError(null)} />
-      ) : null}
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Patch, Param, Get, Put, Query, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Patch, Param, Get, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { ImportDependenciesFromGithubUseCase } from '../../../../application/use-cases/dependency-watcher/import-dependencies-from-github.use-case.js';
@@ -6,14 +6,24 @@ import { ListDependencyMonitoredRepositoriesUseCase } from '../../../../applicat
 import { SaveDependencyMonitoredRepositoriesUseCase } from '../../../../application/use-cases/dependency-watcher/save-dependency-monitored-repositories.use-case.js';
 import { CheckProjectDependenciesUseCase } from '../../../../application/use-cases/dependency-watcher/check-project-dependencies.use-case.js';
 import { CheckDependencyUseCase } from '../../../../application/use-cases/dependency-watcher/check-dependency.use-case.js';
+import { DependencyWatcherService } from '../../../../application/services/dependency-watcher/dependency-watcher.service.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import type { AuthenticatedUser } from '../../../../application/services/auth/auth.service.js';
-import { ContentRepository } from '../../../../application/ports/notes/content.repository.js';
-import { DependencyWatcherRepository } from '../../../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
-import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
-import { ProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
-import { WorkspaceId } from '../../workspace.decorators.js';
+import { ScopeGuard } from '../../guards/scope.guard.js';
+import { Scoped, Scope } from '../../scope.decorators.js';
+import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
+import {
+  saveMonitoredRepositoriesBodySchema,
+  importDependenciesBodySchema,
+  checkDependencyBodySchema,
+  toggleDependencyBodySchema,
+  type SaveMonitoredRepositoriesBody,
+  type ImportDependenciesBody,
+  type CheckDependencyBody,
+  type ToggleDependencyBody,
+} from '../../dto/dependency-watcher.dto.js';
+import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
 @ApiTags('Integrations')
 @Controller('api/integrations/dependency-watch')
@@ -25,18 +35,18 @@ export class DependencyWatcherController {
     private readonly saveDependencyMonitoredRepositoriesUseCase: SaveDependencyMonitoredRepositoriesUseCase,
     private readonly checkProjectDependenciesUseCase: CheckProjectDependenciesUseCase,
     private readonly checkDependencyUseCase: CheckDependencyUseCase,
-    private readonly contentRepository: ContentRepository,
-    private readonly dependencyWatcherRepository: DependencyWatcherRepository,
+    private readonly dependencyWatcherService: DependencyWatcherService,
   ) {}
 
   @Get('repositories')
-  @UseGuards(WorkspaceResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   async listMonitoredRepositories(
     @CurrentUser() user: AuthenticatedUser,
-    @Query('workspaceSlug') workspaceSlug: string,
+    @Scope() scope: WorkspaceScope,
   ) {
-    const result = await this.listDependencyMonitoredRepositoriesUseCase.execute(user.id, workspaceSlug);
+    const result = await this.listDependencyMonitoredRepositoriesUseCase.execute(user.id, scope.workspaceSlug);
     return {
       ok: true,
       ...result,
@@ -44,16 +54,18 @@ export class DependencyWatcherController {
   }
 
   @Put('repositories')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async saveMonitoredRepositories(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { workspaceSlug: string; repositoryIds: string[] },
+    @Scope() scope: WorkspaceScope,
+    @Body(new ZodValidationPipe(saveMonitoredRepositoriesBodySchema, 'invalid_save_monitored_repositories_payload')) body: SaveMonitoredRepositoriesBody,
   ) {
     const result = await this.saveDependencyMonitoredRepositoriesUseCase.execute(
       user.id,
-      body.workspaceSlug,
+      scope.workspaceSlug,
       body.repositoryIds || [],
     );
     return {
@@ -63,16 +75,18 @@ export class DependencyWatcherController {
   }
 
   @Post('import')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async importDependencies(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { workspaceSlug: string; projectIds?: string[]; repositoryIds?: string[] },
+    @Scope() scope: WorkspaceScope,
+    @Body(new ZodValidationPipe(importDependenciesBodySchema, 'invalid_import_dependencies_payload')) body: ImportDependenciesBody,
   ) {
     const result = await this.importDependenciesFromGithubUseCase.execute(
       user.id,
-      body.workspaceSlug,
+      scope.workspaceSlug,
       {
         projectIds: body.projectIds,
         repositoryIds: body.repositoryIds,
@@ -85,22 +99,15 @@ export class DependencyWatcherController {
   }
 
   @Patch(':workspaceSlug/enable')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async enable(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('workspaceSlug') workspaceSlug: string,
+    @Scope() scope: WorkspaceScope,
   ) {
-    const workspace = await this.contentRepository.getWorkspaceBySlug(user.id, workspaceSlug);
-    if (!workspace) {
-      throw new NotFoundException('workspace_not_found');
-    }
-
-    await this.contentRepository.upsertWorkspace(user.id, {
-      ...workspace,
-      dependencyWatcherEnabled: true,
-    });
+    await this.dependencyWatcherService.setWorkspaceWatcherStatus(user.id, scope.workspaceId, scope.workspaceSlug, true);
 
     return {
       ok: true,
@@ -109,22 +116,15 @@ export class DependencyWatcherController {
   }
 
   @Patch(':workspaceSlug/disable')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async disable(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('workspaceSlug') workspaceSlug: string,
+    @Scope() scope: WorkspaceScope,
   ) {
-    const workspace = await this.contentRepository.getWorkspaceBySlug(user.id, workspaceSlug);
-    if (!workspace) {
-      throw new NotFoundException('workspace_not_found');
-    }
-
-    await this.contentRepository.upsertWorkspace(user.id, {
-      ...workspace,
-      dependencyWatcherEnabled: false,
-    });
+    await this.dependencyWatcherService.setWorkspaceWatcherStatus(user.id, scope.workspaceId, scope.workspaceSlug, false);
 
     return {
       ok: true,
@@ -133,14 +133,15 @@ export class DependencyWatcherController {
   }
 
   @Post('check-project')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async checkProject(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { projectId: string; projectSlug: string },
+    @Scope() scope: WorkspaceScope,
   ) {
-    const result = await this.checkProjectDependenciesUseCase.execute(user.id, body.projectId, body.projectSlug);
+    const result = await this.checkProjectDependenciesUseCase.execute(user.id, scope.projectId!, scope.projectSlug!, scope.workspaceId);
     return {
       ok: true,
       data: result,
@@ -148,14 +149,16 @@ export class DependencyWatcherController {
   }
 
   @Post('check-dependency')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async checkDependency(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() body: { dependencyId: string; projectId: string; projectSlug: string },
+    @Scope() scope: WorkspaceScope,
+    @Body(new ZodValidationPipe(checkDependencyBodySchema, 'invalid_check_dependency_payload')) body: CheckDependencyBody,
   ) {
-    const result = await this.checkDependencyUseCase.execute(user.id, body.dependencyId, body.projectId, body.projectSlug);
+    const result = await this.checkDependencyUseCase.execute(user.id, body.dependencyId, scope.projectId!, scope.projectSlug!, scope.workspaceId);
     return {
       ok: true,
       data: result,
@@ -163,21 +166,17 @@ export class DependencyWatcherController {
   }
 
   @Patch('dependency/:dependencyId/toggle')
-  @UseGuards(TrustedOriginGuard, WorkspaceResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   async toggleDependency(
     @CurrentUser() user: AuthenticatedUser,
-    @WorkspaceId() workspaceId: string,
+    @Scope() scope: WorkspaceScope,
     @Param('dependencyId') dependencyId: string,
-    @Body() body: { workspaceSlug: string; enabled: boolean },
+    @Body(new ZodValidationPipe(toggleDependencyBodySchema, 'invalid_toggle_dependency_payload')) body: ToggleDependencyBody,
   ) {
-    const dependency = await this.dependencyWatcherRepository.findById(user.id, workspaceId, dependencyId);
-    if (!dependency) {
-      throw new NotFoundException('dependency_not_found');
-    }
-
-    await this.dependencyWatcherRepository.update(dependencyId, { enabled: body.enabled });
+    await this.dependencyWatcherService.toggleDependency(user.id, scope.workspaceId, dependencyId, body.enabled);
 
     return {
       ok: true,

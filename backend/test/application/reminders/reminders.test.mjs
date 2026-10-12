@@ -252,6 +252,58 @@ test('paginated reminders can be filtered by project before pagination', async (
   assert.equal(listed.pagination.total, 1);
 });
 
+test('paginated reminders include all projects when projectSlug is empty or omitted', async (t) => {
+  const repositories = await createPostgresTestRepositories(t);
+  const user = await repositories.createTestUser();
+  const listReminders = new ListPaginatedRemindersUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
+  const listBoard = new ListReminderBoardUseCase(repositories.contentQueryRepository, createRefreshReminderStatuses(repositories));
+
+  const projectAReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/project-a/reminder.md',
+    title: 'Project A reminder',
+    projectSlug: 'project-a',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '09:00',
+      reminderAt: '2099-12-31T09:00:00.000Z',
+    },
+  });
+  const projectBReminder = await insertReminder(repositories, user.id, {
+    path: '20 Inbox/project-b/reminder.md',
+    title: 'Project B reminder',
+    projectSlug: 'project-b',
+    metadata: {
+      reminderDate: '2099-12-31',
+      reminderTime: '10:00',
+      reminderAt: '2099-12-31T10:00:00.000Z',
+    },
+  });
+
+  // Query with empty projectSlug (All projects)
+  const listed = await listReminders.execute(user.id, {
+    page: 1,
+    pageSize: 10,
+    projectSlug: '',
+    status: 'all',
+  });
+
+  const ids = listed.items.map((item) => item.id);
+  assert.ok(ids.includes(projectAReminder.id));
+  assert.ok(ids.includes(projectBReminder.id));
+
+  // Reminder board with empty projectSlug (All projects)
+  const board = await listBoard.execute(user.id, {
+    workspaceSlug: 'default',
+    projectSlug: '',
+    limitPerColumn: 10,
+    columnPage: { overdue: 1, upcoming: 1, resolved: 1, archived: 1 },
+  });
+
+  const boardUpcomingIds = board.columns.upcoming.items.map((item) => item.id);
+  assert.ok(boardUpcomingIds.includes(projectAReminder.id));
+  assert.ok(boardUpcomingIds.includes(projectBReminder.id));
+});
+
 test('paginated reminders sort all statuses with overdue and pending first then date ascending', async (t) => {
   const repositories = await createPostgresTestRepositories(t);
   const user = await repositories.createTestUser();

@@ -204,6 +204,7 @@ export const KB_DECISION_STATUS_LABELS: Record<string, string> = {
 };
 
 export function getKbDecisionStatusLabel(status: string): string {
+  if (!status || status === 'unknown') return 'Accepted';
   return KB_DECISION_STATUS_LABELS[status] || status.toUpperCase();
 }
 

@@ -12,7 +12,9 @@ function TurnCopyButton({ content, role }: { content: string; role: 'user' | 'as
       await navigator.clipboard.writeText(content);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    } catch {
+      // Clipboard write failed (e.g. permission denied or unsupported environment)
+    }
   };
 
   const label = copied ? 'Copied!' : role === 'assistant' ? 'Copy response' : 'Copy prompt';

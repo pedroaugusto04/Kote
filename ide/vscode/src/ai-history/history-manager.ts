@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { AiHistoryProvider, AiSession } from './types';
+import { type AiHistoryProvider, type AiSession } from './types';
 import { getLiveOrCachedPricingTable } from './pricing';
-import { KbClient, isConfigured } from '../kb-client';
+import { type KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import { resolveProjectSlug } from '../utils/project';
 import { SessionHandoffManager } from './handoff/session-handoff.manager';

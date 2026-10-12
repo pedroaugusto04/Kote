@@ -40,11 +40,12 @@ export abstract class ContentRepository {
   abstract upsertRepository(input: Omit<RepositoryRecord, 'id' | 'createdAt' | 'updatedAt'> & { id?: string }, tx?: any): Promise<RepositoryRecord>;
   abstract removeProjectRepositories(projectId: string, tx?: any): Promise<void>;
   abstract listProjects(userId: string): Promise<SaveProjectInput[]>;
+  abstract listProjectsByWorkspace(userId: string, workspaceId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsForExport(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsWithNoteCount(userId: string): Promise<SaveProjectInput[]>;
   abstract listProjectsPage(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
   abstract listProjectsPageWithNoteCount(userId: string, input: ListProjectsInput): Promise<PaginatedProjects>;
-  abstract getProjectBySlug(userId: string, projectSlug: string): Promise<SaveProjectInput | null>;
+  abstract getProjectBySlug(userId: string, projectSlug: string, workspaceId?: string): Promise<SaveProjectInput | null>;
   abstract getProjectById(userId: string, projectId: string): Promise<SaveProjectInput | null>;
   abstract upsertProject(userId: string, input: SaveProjectInput): Promise<SaveProjectInput>;
   abstract deleteProject(userId: string, projectId: string): Promise<boolean>;

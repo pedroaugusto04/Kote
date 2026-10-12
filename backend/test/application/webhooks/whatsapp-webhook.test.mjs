@@ -10,6 +10,7 @@ import {
 } from '../../../dist/application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { IngestAgentToolsService } from '../../../dist/application/services/conversation/ingest-agent-tools.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { WhatsappConversationTaskQueue } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
@@ -178,12 +179,14 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();
   const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
+  const toolsService = new IngestAgentToolsService(repositories.contentRepository, loggerMock);
   const conversation = new ProcessAgentConversationUseCase(
     repositories.contentRepository,
     repositories.conversationStateRepository,
     ingest,
     { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', conversationAiProvider: 'openrouter', conversationAiBaseUrl: 'https://example.com', conversationAiModel: 'test-model', conversationAiApiKey: 'test-key' }) },
     new StubConversationAgentGateway(),
+    toolsService,
     presenter,
     folderResolution,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),

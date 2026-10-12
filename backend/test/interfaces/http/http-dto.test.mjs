@@ -3,13 +3,20 @@ import assert from 'node:assert/strict';
 
 import { agentConversationBodySchema } from '../../../dist/interfaces/http/dto/operations.dto.js';
 import { connectIntegrationBodySchema, githubAppCallbackQuerySchema, githubRepositoriesBodySchema, guidedIntegrationProviderSchema, integrationProviderSchema, resolveIntegrationCredentialBodySchema, sessionParamSchema } from '../../../dist/interfaces/http/dto/integration-credentials.dto.js';
-import { reminderBoardQuerySchema, updateReminderStatusBodySchema } from '../../../dist/interfaces/http/dto/dashboard.dto.js';
+import { projectsListQuerySchema, reminderBoardQuerySchema, remindersListQuerySchema, updateReminderStatusBodySchema } from '../../../dist/interfaces/http/dto/dashboard.dto.js';
 import { markRemindersBodySchema, queryRequestSchema } from '../../../dist/interfaces/http/dto/query.dto.js';
 import { createNoteBodySchema, noteIdParamSchema, updateNoteBodySchema } from '../../../dist/interfaces/http/dto/note.dto.js';
 import { createProjectBodySchema, projectKnowledgeMapQuerySchema, projectSlugParamSchema, projectTimelineQuerySchema, updateProjectBodySchema } from '../../../dist/interfaces/http/dto/project.dto.js';
 import { whatsappWebhookBodySchema } from '../../../dist/interfaces/http/dto/webhook.dto.js';
 import { createWorkspaceBodySchema } from '../../../dist/interfaces/http/dto/workspace.dto.js';
 import { askHistoryQuerySchema } from '../../../dist/interfaces/http/dto/ask.dto.js';
+import { updateSubscriptionBodySchema } from '../../../dist/interfaces/http/dto/subscription.dto.js';
+import {
+  saveMonitoredRepositoriesBodySchema,
+  importDependenciesBodySchema,
+  checkDependencyBodySchema,
+  toggleDependencyBodySchema,
+} from '../../../dist/interfaces/http/dto/dependency-watcher.dto.js';
 
 test('query dto normalizes limit', () => {
   const parsed = queryRequestSchema.parse({
@@ -72,6 +79,24 @@ test('reminder board dto normalizes filters and status updates', () => {
     limitPerColumn: 25,
     columnPage: { overdue: 2, upcoming: 1, resolved: 3, archived: 1 },
   });
+  // Empty or 'all' projects should not default to 'inbox'
+  assert.equal(reminderBoardQuerySchema.parse({}).projectSlug, '');
+  assert.equal(reminderBoardQuerySchema.parse({ projectSlug: '' }).projectSlug, '');
+  assert.equal(reminderBoardQuerySchema.parse({ projectSlug: 'all' }).projectSlug, '');
+  assert.equal(reminderBoardQuerySchema.parse({ projectSlug: 'all projects' }).projectSlug, '');
+  assert.equal(reminderBoardQuerySchema.parse({ projectSlug: 'inbox' }).projectSlug, 'inbox');
+
+  assert.equal(remindersListQuerySchema.parse({}).projectSlug, '');
+  assert.equal(remindersListQuerySchema.parse({ projectSlug: '' }).projectSlug, '');
+  assert.equal(remindersListQuerySchema.parse({ projectSlug: 'all' }).projectSlug, '');
+  assert.equal(remindersListQuerySchema.parse({ projectSlug: 'all-projects' }).projectSlug, '');
+  assert.equal(remindersListQuerySchema.parse({ projectSlug: 'My Project' }).projectSlug, 'my-project');
+  assert.equal(remindersListQuerySchema.parse({ projectSlug: 'inbox' }).projectSlug, 'inbox');
+
+  assert.equal(projectsListQuerySchema.parse({}).selectedSlug, '');
+  assert.equal(projectsListQuerySchema.parse({ selectedSlug: '' }).selectedSlug, '');
+  assert.equal(projectsListQuerySchema.parse({ selectedSlug: 'My Project' }).selectedSlug, 'my-project');
+
   assert.deepEqual(updateReminderStatusBodySchema.parse({ status: 'overdue' }), { status: 'overdue' });
   assert.deepEqual(updateReminderStatusBodySchema.parse({ status: 'resolved' }), { status: 'resolved' });
 });
@@ -242,3 +267,25 @@ test('integration dto accepts guided connection payloads', () => {
   assert.equal(sessionParamSchema.parse({ provider: 'whatsapp', sessionId: '00000000-0000-4000-8000-000000000000' }).provider, 'whatsapp');
   assert.deepEqual(githubRepositoriesBodySchema.parse({ workspaceSlug: 'team_1', repositories: [{ id: '1', fullName: 'acme/api' }] }), { workspaceSlug: 'team_1', repositories: [{ id: '1', fullName: 'acme/api' }] });
 });
+
+test('subscription dto validates planId and optional billing attributes', () => {
+  assert.throws(() => updateSubscriptionBodySchema.parse({}));
+  assert.throws(() => updateSubscriptionBodySchema.parse({ planId: '' }));
+  assert.deepEqual(updateSubscriptionBodySchema.parse({ planId: 'pro', billingCycle: 'monthly', billingType: 'credit_card' }), {
+    planId: 'pro',
+    billingCycle: 'monthly',
+    billingType: 'credit_card',
+  });
+});
+
+test('dependency watcher dto validates repository IDs and toggle payload', () => {
+  assert.deepEqual(saveMonitoredRepositoriesBodySchema.parse({}), { repositoryIds: [] });
+  assert.deepEqual(saveMonitoredRepositoriesBodySchema.parse({ repositoryIds: ['repo-1'] }), { repositoryIds: ['repo-1'] });
+  assert.deepEqual(importDependenciesBodySchema.parse({ projectIds: ['p-1'] }), { projectIds: ['p-1'] });
+  assert.throws(() => checkDependencyBodySchema.parse({}));
+  assert.throws(() => checkDependencyBodySchema.parse({ dependencyId: '' }));
+  assert.equal(checkDependencyBodySchema.parse({ dependencyId: 'dep-1' }).dependencyId, 'dep-1');
+  assert.deepEqual(toggleDependencyBodySchema.parse({ enabled: true }), { enabled: true });
+  assert.throws(() => toggleDependencyBodySchema.parse({}));
+});
+

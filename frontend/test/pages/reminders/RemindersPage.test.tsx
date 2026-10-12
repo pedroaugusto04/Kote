@@ -175,4 +175,60 @@ describe('RemindersPage', () => {
     expect(pendingEarlier.compareDocumentPosition(pendingLater) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(pendingLater.compareDocumentPosition(sentEarlier) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it('renders reminders from multiple projects when in all projects scope', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({
+        ok: true,
+        reminders: [
+          {
+            id: 'r1',
+            title: 'Project A Reminder',
+            project: 'project-a',
+            workspace: 'default',
+            status: 'pending',
+            isOverdue: false,
+            reminderDate: '2026-05-07',
+            reminderTime: '09:00',
+            reminderAt: '2026-05-07T09:00:00.000Z',
+            relativePath: '20 Inbox/project-a/r1.md',
+          },
+          {
+            id: 'r2',
+            title: 'Project B Reminder',
+            project: 'project-b',
+            workspace: 'default',
+            status: 'pending',
+            isOverdue: false,
+            reminderDate: '2026-05-08',
+            reminderTime: '10:00',
+            reminderAt: '2026-05-08T10:00:00.000Z',
+            relativePath: '20 Inbox/project-b/r2.md',
+          },
+        ],
+        pagination: { page: 1, pageSize: 10, total: 2, totalPages: 1, hasNext: false, hasPrevious: false },
+      }), { status: 200 }),
+    );
+
+    renderWithAppProviders(
+      <RemindersPage
+        dashboard={dashboard}
+        projectScope=""
+        selectedProject=""
+        selectedNoteId=""
+        setSelectedProject={() => undefined}
+        openProject={() => undefined}
+        openNote={() => undefined}
+        editNote={() => undefined}
+        deleteNote={() => undefined}
+      />,
+    );
+
+    expect(await screen.findByText('Project A Reminder')).toBeInTheDocument();
+    expect(await screen.findByText('Project B Reminder')).toBeInTheDocument();
+    expect(fetchSpy).toHaveBeenCalledWith(
+      '/api/reminders?page=1&pageSize=10&workspaceSlug=default&projectSlug=&status=open',
+      expect.any(Object),
+    );
+  });
 });

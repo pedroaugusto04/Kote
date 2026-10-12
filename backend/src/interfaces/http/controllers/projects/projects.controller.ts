@@ -52,9 +52,9 @@ import {
   type PaginationInput,
 } from '../../dto/project.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
-import { ProjectResolutionGuard } from '../../guards/project-resolution.guard.js';
-import { ProjectId } from '../../project.decorators.js';
-import { WorkspaceId } from '../../workspace.decorators.js';
+import { ScopeGuard } from '../../guards/scope.guard.js';
+import { Scoped, Scope } from '../../scope.decorators.js';
+import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
 import { toCreateProjectDto, toUpdateProjectDto } from '../../mappers/project.mapper.js';
 
 @ApiTags('Projects')
@@ -97,50 +97,55 @@ export class ProjectsController {
   }
 
   @Patch(':projectSlug')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a project' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Project updated successfully' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   update(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Body(new ZodValidationPipe(updateProjectBodySchema, 'invalid_update_project_payload')) body: UpdateProjectBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const dto = toUpdateProjectDto(body, projectId);
+    const dto = toUpdateProjectDto(body, scope.projectId!);
     return this.updateProject.execute(dto, user.id);
   }
 
   @Delete(':projectSlug')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a project' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Project deleted successfully' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   remove(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.deleteProjectUseCase.execute(projectId, user.id);
+    return this.deleteProjectUseCase.execute(scope.projectId!, user.id);
   }
 
   @Patch(':projectSlug/favorite')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Set project favorite status' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Favorite status updated' })
   setFavorite(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Body(new ZodValidationPipe(setProjectFavoriteBodySchema, 'invalid_set_favorite_payload')) body: SetProjectFavoriteBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.setProjectFavoriteUseCase.execute(user.id, projectId, body.favorite);
+    return this.setProjectFavoriteUseCase.execute(user.id, scope.projectId!, body.favorite);
   }
 
   @Get('export/zip')
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional', allowAllProjects: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Export project notes as a ZIP file containing markdown files and an index' })
   @ApiResponse({ status: 200, description: 'ZIP file containing markdown notes and INDEX.md' })
@@ -148,9 +153,11 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(exportProjectNotesZipQuerySchema, 'invalid_export_zip_query')) query: ExportProjectNotesZipQuery,
     @CurrentUser() user: AuthenticatedUser,
     @Res() res: Response,
+    @Scope() scope?: WorkspaceScope,
   ) {
     const result = await this.exportProjectNotesZipUseCase.execute(user.id, {
-      projectSlug: query.projectSlug,
+      projectSlug: scope?.projectSlug ?? query.projectSlug,
+      projectId: scope?.projectId || undefined,
       folderId: query.folderId,
       category: query.category,
       status: query.status,
@@ -164,6 +171,8 @@ export class ProjectsController {
   }
 
   @Get('timeline')
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'optional' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get timeline for all projects' })
   @ApiResponse({ status: 200, description: 'Timeline retrieved successfully' })
@@ -176,114 +185,119 @@ export class ProjectsController {
   }
 
   @Get(':projectSlug/timeline')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get timeline for a specific project' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Timeline retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   async timeline(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId, orderByPin: query.orderByPin ?? true });
+    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId: scope.projectId!, orderByPin: query.orderByPin ?? true });
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 
   @Get(':projectSlug/knowledge-map')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get knowledge map for a project' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Knowledge map retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Project not found' })
   async knowledgeMap(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Query(new ZodValidationPipe(projectKnowledgeMapQuerySchema, 'invalid_project_knowledge_map_query')) query: ProjectKnowledgeMapQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.listProjectKnowledgeMapUseCase.execute(user.id, { ...query, projectId });
+    return this.listProjectKnowledgeMapUseCase.execute(user.id, { ...query, projectId: scope.projectId! });
   }
 
   @Post(':projectSlug/brief')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required', allowAllProjects: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Generate project brief' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Brief generated successfully' })
   generateBrief(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @CurrentUser() user: AuthenticatedUser,
-    @WorkspaceId() workspaceId?: string,
   ) {
-    return this.generateProjectBriefUseCase.execute(user.id, projectId, workspaceId);
+    return this.generateProjectBriefUseCase.execute(user.id, scope.projectId!, scope.workspaceId);
   }
 
   @Get(':projectSlug/brief')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required', allowAllProjects: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get project brief' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Brief retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Brief not found' })
   getBrief(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @CurrentUser() user: AuthenticatedUser,
-    @WorkspaceId() workspaceId?: string,
   ) {
-    return this.getProjectBriefUseCase.execute(user.id, projectId, workspaceId);
+    return this.getProjectBriefUseCase.execute(user.id, scope.projectId!, scope.workspaceId);
   }
 
   @Get(':projectSlug/brief/history')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required', allowAllProjects: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get history of project briefs' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Brief history retrieved successfully' })
   getBriefHistory(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Query(new ZodValidationPipe(paginationInputSchema, 'invalid_pagination_input')) query: PaginationInput,
     @CurrentUser() user: AuthenticatedUser,
-    @WorkspaceId() workspaceId?: string,
   ) {
     return this.listProjectBriefHistoryUseCase.execute(user.id, {
-      projectId,
-      workspaceId,
+      projectId: scope.projectId!,
+      workspaceId: scope.workspaceId,
       page: query.page,
       pageSize: query.pageSize,
     });
   }
 
   @Get(':projectSlug/folders')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List project folders' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Folders retrieved successfully' })
   listFolders(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.listProjectFoldersUseCase.execute(projectId, user.id);
+    return this.listProjectFoldersUseCase.execute(scope.projectId!, user.id);
   }
 
   @Post(':projectSlug/folders')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a project folder' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 201, description: 'Folder created successfully' })
   createFolder(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Body(new ZodValidationPipe(createProjectFolderBodySchema, 'invalid_create_folder_payload')) body: CreateProjectFolderBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.createProjectFolderUseCase.execute({ ...body, projectId }, user.id);
+    return this.createProjectFolderUseCase.execute({ ...body, projectId: scope.projectId! }, user.id);
   }
 
   @Patch(':projectSlug/folders/:folderId')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a project folder' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
@@ -291,16 +305,17 @@ export class ProjectsController {
   @ApiResponse({ status: 200, description: 'Folder updated successfully' })
   @ApiResponse({ status: 404, description: 'Folder not found' })
   updateFolder(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Param('folderId') folderId: string,
     @Body(new ZodValidationPipe(updateProjectFolderBodySchema, 'invalid_update_folder_payload')) body: UpdateProjectFolderBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.updateProjectFolderUseCase.execute({ ...body, projectId, folderId }, user.id);
+    return this.updateProjectFolderUseCase.execute({ ...body, projectId: scope.projectId!, folderId }, user.id);
   }
 
   @Delete(':projectSlug/folders/:folderId')
-  @UseGuards(TrustedOriginGuard, ProjectResolutionGuard)
+  @UseGuards(TrustedOriginGuard, ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a project folder' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
@@ -308,30 +323,32 @@ export class ProjectsController {
   @ApiResponse({ status: 200, description: 'Folder deleted successfully' })
   @ApiResponse({ status: 404, description: 'Folder not found' })
   deleteFolder(
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Param('folderId') folderId: string,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.deleteProjectFolderUseCase.execute(projectId, folderId, user.id);
+    return this.deleteProjectFolderUseCase.execute(scope.projectId!, folderId, user.id);
   }
 
   @Get(':projectSlug/dependencies')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List monitored dependencies for a project' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Project dependencies retrieved successfully' })
   async listDependencies(
     @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId: string,
-    @Param('projectSlug') projectSlug: string,
+    @Scope() scope: WorkspaceScope,
+    @Param('projectSlug') _projectSlug: string,
   ) {
-    const result = await this.listProjectDependenciesUseCase.execute(user.id, projectId, projectSlug);
+    const result = await this.listProjectDependenciesUseCase.execute(user.id, scope.projectId!, scope.projectSlug!, scope.workspaceId);
     return { ok: true, ...result };
   }
 
   @Get(':projectSlug/coverage')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get project knowledge coverage' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
@@ -339,29 +356,31 @@ export class ProjectsController {
   @ApiResponse({ status: 200, description: 'Project coverage retrieved successfully' })
   async getCoverage(
     @CurrentUser() user: AuthenticatedUser,
-    @ProjectId() projectId: string,
+    @Scope() scope: WorkspaceScope,
     @Query('forceSync') forceSync?: string,
   ) {
     const result = await this.getProjectCoverageUseCase.execute(user.id, {
-      projectId,
+      projectId: scope.projectId!,
       forceSync: forceSync === 'true',
     });
     return { ok: true, ...result, coverage: result };
   }
 
   @Get(':projectSlug/decisions')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required', allowAllProjects: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List architecture and code decisions for a project' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'Project decisions retrieved successfully' })
   async listDecisions(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('projectSlug') projectSlug: string,
+    @Scope() scope: WorkspaceScope,
+    @Param('projectSlug') _projectSlug: string,
     @Query(new ZodValidationPipe(projectDecisionsQuerySchema, 'invalid_project_decisions_query')) query: ProjectDecisionsQuery,
   ) {
     const result = await this.listProjectDecisionsUseCase.execute(user.id, {
-      projectSlug,
+      projectSlug: scope.projectSlug!,
       status: query.status,
       file: query.file,
       search: query.search,
@@ -373,19 +392,21 @@ export class ProjectsController {
   }
 
   @Get(':projectSlug/decisions/export-adr')
-  @UseGuards(ProjectResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'required', allowAllProjects: true })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Export project decisions as Architecture Decision Record (ADR) markdown files in a ZIP archive' })
   @ApiParam({ name: 'projectSlug', description: 'Project slug' })
   @ApiResponse({ status: 200, description: 'ZIP file containing ADR markdown files and INDEX.md' })
   async exportAdrsZip(
     @CurrentUser() user: AuthenticatedUser,
-    @Param('projectSlug') projectSlug: string,
+    @Scope() scope: WorkspaceScope,
+    @Param('projectSlug') _projectSlug: string,
     @Query(new ZodValidationPipe(exportProjectAdrsQuerySchema, 'invalid_export_adr_query')) query: ExportProjectAdrsQuery,
     @Res() res: Response,
   ) {
     const result = await this.exportProjectAdrsUseCase.execute(user.id, {
-      projectSlug,
+      projectSlug: scope.projectSlug!,
       status: query.status,
       file: query.file,
       search: query.search,

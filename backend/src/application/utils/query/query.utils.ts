@@ -110,6 +110,14 @@ export function matchesIntent(note: VaultNoteSummary, intent: SpecialQueryIntent
   return false;
 }
 
+import {
+  toSearchResultNote,
+  type SearchResultNote,
+  compareSearchResults,
+} from '../../mappers/search-result.mapper.js';
+
+export { toSearchResultNote, type SearchResultNote, compareSearchResults };
+
 export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: KnowledgeRankingQuery) {
   const intent = getSpecialQueryIntent(query.query);
 
@@ -132,39 +140,10 @@ export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: Knowledge
       } else {
         score = (note.ftsRank !== undefined && note.ftsRank > 0) ? note.ftsRank : 0;
       }
-      return {
-        id: note.id,
-        path: note.path,
-        title: note.title,
-        type: note.type,
-        project: note.project,
-        workspace: note.workspace,
-        folderId: note.folderId,
-        categories: note.categories,
-        tags: note.tags,
-        date: note.date,
-        status: note.status,
-        summary: note.summary,
-        source: note.source,
-        projectSlug: note.project,
-        score,
-        snippet: note.summary || note.title,
-        attachmentCount: note.attachmentCount,
-        isPinned: note.isPinned,
-      };
+      return toSearchResultNote(note, score);
     })
     .filter((match) => match.score > 0)
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-      const leftTime = new Date(left.date || 0).getTime();
-      const rightTime = new Date(right.date || 0).getTime();
-      if (leftTime !== rightTime) {
-        return rightTime - leftTime;
-      }
-      return left.path.localeCompare(right.path);
-    });
+    .sort(compareSearchResults);
 }
 
 export function rankHybridKnowledgeMatches(
@@ -232,7 +211,6 @@ export function rankHybridKnowledgeMatches(
     keywordRankMap.set(sn.note.id, index + 1);
   });
 
-  // k parameter is passed as argument
   const mappedMatches = scoredNotes.map(({ note }) => {
     const vectorRank = vectorRankMap.get(note.id);
     const keywordRank = keywordRankMap.get(note.id);
@@ -241,41 +219,12 @@ export function rankHybridKnowledgeMatches(
     const rrfKeyword = keywordRank ? (weights.keyword / (k + keywordRank)) : 0;
     const hybridScore = rrfVector + rrfKeyword;
 
-    return {
-      id: note.id,
-      path: note.path,
-      title: note.title,
-      type: note.type,
-      project: note.project,
-      workspace: note.workspace,
-      folderId: note.folderId,
-      categories: note.categories,
-      tags: note.tags,
-      date: note.date,
-      status: note.status,
-      summary: note.summary,
-      source: note.source,
-      projectSlug: note.project,
-      score: hybridScore,
-      snippet: note.summary || note.title,
-      attachmentCount: note.attachmentCount,
-      isPinned: note.isPinned,
-    };
+    return toSearchResultNote(note, hybridScore);
   });
 
   return mappedMatches
     .filter((match) => match.score > 0)
-    .sort((left, right) => {
-      if (right.score !== left.score) {
-        return right.score - left.score;
-      }
-      const leftTime = new Date(left.date || 0).getTime();
-      const rightTime = new Date(right.date || 0).getTime();
-      if (leftTime !== rightTime) {
-        return rightTime - leftTime;
-      }
-      return left.path.localeCompare(right.path);
-    });
+    .sort(compareSearchResults);
 }
 
 export const DEFAULT_FTS_ONLY_CHUNKS_PER_NOTE = 3;

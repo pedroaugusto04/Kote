@@ -26,7 +26,7 @@ export class GenerateProjectBriefUseCase {
     private readonly aiGateway: ProjectBriefAiGateway,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly aiEntitlement: AiEntitlementService,
-    private readonly synthesisRepository: NoteSynthesisRepository,
+    private readonly synthesisRepository?: NoteSynthesisRepository,
   ) {}
 
   async execute(userId: string, projectId: string, workspaceIdInput?: string) {
@@ -47,13 +47,29 @@ export class GenerateProjectBriefUseCase {
     });
 
     const generatedAt = new Date().toISOString();
-    const candidateNotes = (await this.contentRepository.listNotes(userId))
+    const candidateNotes = (await this.contentRepository.listNotes(userId, {
+      workspaceId,
+      projectId: isAll ? undefined : projectId,
+    }))
       .filter((note) => !isDependencyNote(note) && note.workspaceId === workspaceId && (isAll || (note.projectId && note.projectId === projectId)))
       .sort((left, right) => right.occurredAt.localeCompare(left.occurredAt) || left.title.localeCompare(right.title))
       .slice(0, CONTEXT_WINDOW);
+
+    const aiChatNotes = candidateNotes.filter(
+      (note) => note.sourceChannel === SourceChannel.AiChat || note.source === SourceChannel.AiChat,
+    );
+
+    let synthesisMap = new Map<string, any>();
+    if (this.synthesisRepository?.getByNoteIds && aiChatNotes.length > 0) {
+      synthesisMap = await this.synthesisRepository.getByNoteIds(userId, aiChatNotes.map((n) => n.id));
+    }
+
     const enrichedNotes = await Promise.all(candidateNotes.map(async (note) => {
       if (note.sourceChannel !== SourceChannel.AiChat && note.source !== SourceChannel.AiChat) return note;
-      const synthesis = await this.synthesisRepository.getByNoteId(userId, note.id);
+      if (!this.synthesisRepository) return note;
+      const synthesis = synthesisMap.has(note.id)
+        ? synthesisMap.get(note.id)
+        : await this.synthesisRepository.getByNoteId(userId, note.id);
       if (!synthesis || synthesis.status !== NoteSynthesisStatus.Completed || synthesis.sourceHash !== crypto.createHash('sha256').update(note.markdown || '').digest('hex')) return note;
       return { ...note, summary: synthesis.overview, metadata: { ...note.metadata, rawText: formatSynthesisForRetrieval(synthesis.overview, synthesis.memory) } };
     }));

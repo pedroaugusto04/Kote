@@ -5,7 +5,7 @@ import type { ReminderBoardInput } from '../../models/reminder-board.models.js';
 import { reminderBoardColumnKeys } from '../../models/reminder-board.models.js';
 import type { ReminderBoardCard, ReminderBoardResponse } from '../../models/reminder.models.js';
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import { boardColumnKey, emptyColumns, sortRemindersBySchedule } from './reminder-list.helpers.js';
+import { boardColumnKey, emptyColumns, matchesReminderProject, sortRemindersBySchedule } from './reminder-list.helpers.js';
 import { RefreshReminderStatusesUseCase } from './refresh-reminder-statuses.use-case.js';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class ListReminderBoardUseCase {
     const columns = emptyColumns(input.limitPerColumn);
     const reminders = await this.refreshReminderStatuses.execute(userId, (await this.contentQueryRepository.listReminders(userId))
       .filter((reminder) => !input.workspaceSlug || reminder.workspace === input.workspaceSlug)
-      .filter((reminder) => !input.projectSlug || reminder.project === input.projectSlug), { workspaceSlug: input.workspaceSlug });
+      .filter((reminder) => matchesReminderProject(reminder.project, input.projectSlug)), { workspaceSlug: input.workspaceSlug });
 
     const columnItems: Record<ReminderBoardColumnKey, ReminderBoardCard[]> = {
       [ReminderBoardColumnKey.Overdue]: [],

@@ -442,3 +442,57 @@ test('AgentAskKnowledgeUseCase enriches agent-cited sources with title and path 
   assert.equal(result.sources[0].path, 'notes/1.md');
 });
 
+test('parseAskAgentFinalResponse cleanly extracts answer when model outputs conversational text before json block', async () => {
+  const { parseAskAgentFinalResponse } = await import('../../../dist/infrastructure/ai/prompts/ask-agent.prompt.js');
+
+  const rawModelOutput = `Based on your notes, here is the answer:
+The project uses PostgreSQL 16 and NestJS 11.
+
+\`\`\`json
+{
+  "answer": "The project uses PostgreSQL 16 and NestJS 11.",
+  "confidence": "high",
+  "requestedAttachments": false,
+  "sources": [{"noteId": "note-1", "title": "Tech Stack"}]
+}
+\`\`\``;
+
+  const parsed = parseAskAgentFinalResponse(rawModelOutput);
+  assert.equal(parsed.answer, 'The project uses PostgreSQL 16 and NestJS 11.');
+  assert.equal(parsed.confidence, 'high');
+  assert.equal(parsed.sources.length, 1);
+  assert.equal(parsed.sources[0].noteId, 'note-1');
+  assert.equal(parsed.answer.includes('{'), false);
+  assert.equal(parsed.answer.includes('```'), false);
+});
+
+test('parseAskAgentFinalResponse removes redundant trailing JSON if leaked into the answer field', async () => {
+  const { parseAskAgentFinalResponse } = await import('../../../dist/infrastructure/ai/prompts/ask-agent.prompt.js');
+
+  const rawModelOutput = JSON.stringify({
+    answer: `Here is your answer.\n\n\`\`\`json\n{\n  "answer": "Here is your answer.",\n  "confidence": "high"\n}\n\`\`\``,
+    confidence: 'high',
+    sources: [],
+  });
+
+  const parsed = parseAskAgentFinalResponse(rawModelOutput);
+  assert.equal(parsed.answer, 'Here is your answer.');
+  assert.equal(parsed.answer.includes('```json'), false);
+});
+
+test('parseAskAgentFinalResponse fallback strips raw json schema when model outputs text followed by raw json', async () => {
+  const { parseAskAgentFinalResponse } = await import('../../../dist/infrastructure/ai/prompts/ask-agent.prompt.js');
+
+  const rawModelOutput = `Meeting notes: discussed Q4 goals.
+{
+  "answer": "Meeting notes: discussed Q4 goals.",
+  "confidence": "medium",
+  "sources": []
+}`;
+
+  const parsed = parseAskAgentFinalResponse(rawModelOutput);
+  assert.equal(parsed.answer, 'Meeting notes: discussed Q4 goals.');
+  assert.equal(parsed.answer.includes('{'), false);
+});
+
+

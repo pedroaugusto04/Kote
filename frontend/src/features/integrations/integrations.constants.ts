@@ -1,3 +1,5 @@
+import { StoredIntegrationStatus } from '../../shared/api/enums';
+
 export enum IntegrationProvider {
   GithubApp = 'github-app',
   Whatsapp = 'whatsapp',
@@ -98,3 +100,14 @@ export const INTEGRATION_MESSAGES = {
     ACCOUNT_LABEL: 'Account: {account}',
   },
 } as const;
+
+export const INTEGRATION_STATUS_TONE: Record<string, string> = {
+  [StoredIntegrationStatus.Connected]: 'low',
+  [StoredIntegrationStatus.Missing]: 'high',
+  [StoredIntegrationStatus.Revoked]: 'medium',
+  [StoredIntegrationStatus.Pending]: 'medium',
+  [StoredIntegrationStatus.Error]: 'high',
+  [StoredIntegrationStatus.Disabled]: 'medium',
+  expired: 'high',
+};
+

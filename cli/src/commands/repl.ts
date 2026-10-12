@@ -23,7 +23,7 @@ const COMMANDS = [
 ];
 
 function stripAnsi(str: string): string {
-  // eslint-disable-next-line no-control-regex
+   
   return str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
 }
 
@@ -341,7 +341,7 @@ export async function runRepl(): Promise<void> {
       const rawSync = trimmed.substring(6).trim();
       const dryRun = rawSync.includes('--dry-run');
       const watch = rawSync.includes('--watch') || rawSync.includes(' -w');
-      let cleaned = rawSync.replace('--dry-run', '').replace('--watch', '').replace(' -w', '').trim();
+      const cleaned = rawSync.replace('--dry-run', '').replace('--watch', '').replace(' -w', '').trim();
       const { text: dirPath, options } = parseReplOptions(cleaned);
 
       if (!dirPath) {

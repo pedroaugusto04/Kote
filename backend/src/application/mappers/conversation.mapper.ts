@@ -2,13 +2,14 @@ import {
   agentConversationDraftSchema,
   agentConversationStateSchema,
   type AgentConversationState,
+  type ConversationAgentDecision,
+  type ConversationAgentFolderContext,
 } from '../../contracts/agent-conversation.js';
 import type { ConversationInput } from '../../contracts/conversation.js';
 import { SourceChannel } from '../../contracts/enums.js';
 import { normalizeMultiline, slugify, trimText } from '../../domain/strings.js';
 import { nowIso } from '../../domain/time.js';
 import type { ProjectFolderRecord, ProjectRecord } from '../models/repository-records.models.js';
-import type { ConversationAgentFolderContext, ConversationAgentResponse } from '../ports/conversation/conversation-agent.gateway.js';
 import { buildConversationIngestPayload } from '../utils/conversation/conversation-payload.utils.js';
 import { folderSlugFromDisplayName } from '../utils/content/project-folder.utils.js';
 import { getCorrelationPrefix, getSourceSystem, resolveSourceChannel } from '../utils/integration/source-channel.utils.js';
@@ -17,7 +18,7 @@ export function toNextAgentConversationState(input: {
   current: AgentConversationState;
   messageText: string;
   media: AgentConversationState['media'];
-  decision: ConversationAgentResponse;
+  decision: ConversationAgentDecision;
   candidateFolders: ProjectFolderRecord[];
   reminderTimeZone: string;
 }): AgentConversationState {
@@ -169,14 +170,14 @@ function resolveFolderSelection(input: {
   return { selectedFolderId: '', suggestedFolderPath: path, placeInRoot: false };
 }
 
-function resolveSelectedFolderId(decision: ConversationAgentResponse, current: AgentConversationState, selectedProjectSlug: string): string {
+function resolveSelectedFolderId(decision: ConversationAgentDecision, current: AgentConversationState, selectedProjectSlug: string): string {
   if (decision.selectedFolderId || decision.placeInRoot) return decision.selectedFolderId;
   if (selectedProjectSlug !== current.project.selectedProjectSlug) return '';
   if (decision.suggestedFolderPath.length > 0) return '';
   return current.folder.selectedFolderId;
 }
 
-function resolveSuggestedFolderPath(decision: ConversationAgentResponse, current: AgentConversationState, selectedProjectSlug: string): string[] {
+function resolveSuggestedFolderPath(decision: ConversationAgentDecision, current: AgentConversationState, selectedProjectSlug: string): string[] {
   if (decision.placeInRoot) return [];
   if (decision.suggestedFolderPath.length > 0) return decision.suggestedFolderPath;
   if (selectedProjectSlug !== current.project.selectedProjectSlug) return [];

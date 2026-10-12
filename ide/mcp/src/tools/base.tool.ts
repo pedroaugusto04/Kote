@@ -1,4 +1,4 @@
-import { ApiClient } from '../client/api-client.js';
+import { type ApiClient } from '../client/api-client.js';
 
 export interface McpTool {
   name: string;

@@ -14,3 +14,10 @@ export const RESOLUTION_PARAM_LOCATIONS = {
   QUERY: 'query',
   BODY: 'body',
 } as const;
+
+export const SCOPE_HEADERS = {
+  WORKSPACE_SLUG: 'x-workspace-slug',
+  WORKSPACE_SLUG_ALT: 'x-kote-workspace',
+  PROJECT_SLUG: 'x-project-slug',
+} as const;
+

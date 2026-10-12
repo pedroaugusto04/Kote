@@ -8,7 +8,7 @@ export const webhookSubscriptionIdParamSchema = z.object({
 
 export const createWebhookSubscriptionBodySchema = z
   .object({
-    workspaceSlug: z.string().trim().min(1, 'Enter the workspace.'),
+    workspaceSlug: z.string().trim().min(1, 'Enter the workspace.').optional(),
     label: z.string().trim().max(100, 'Use at most 100 characters.').optional().default(''),
     url: z.string().trim().url('Enter a valid URL.'),
     secret: z.string().trim().max(256, 'Use at most 256 characters.').optional(),

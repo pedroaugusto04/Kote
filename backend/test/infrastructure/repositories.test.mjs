@@ -194,6 +194,7 @@ test('app module resolves repository providers without KnowledgeStore wiring', a
   delete process.env.KB_ADMIN_PASSWORD;
 
   const app = await NestFactory.createApplicationContext(AppModule, { logger: false });
+  app.enableShutdownHooks();
 
   try {
     assert.ok(app.get(SchemaMigrator));

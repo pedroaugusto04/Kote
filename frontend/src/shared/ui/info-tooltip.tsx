@@ -39,7 +39,7 @@ export function InfoTooltip({ content, className = '', iconClassName = '' }: Inf
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [isVisible]);
 
   function updatePosition() {

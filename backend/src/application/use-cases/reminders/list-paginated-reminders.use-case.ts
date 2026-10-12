@@ -5,7 +5,7 @@ import { buildPaginationMeta } from '../../../contracts/pagination.js';
 import { StatusFilter } from '../../../contracts/status-filters.js';
 import type { ListRemindersInput } from '../../models/reminder-list.models.js';
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
-import { sortRemindersForList } from './reminder-list.helpers.js';
+import { matchesReminderProject, sortRemindersForList } from './reminder-list.helpers.js';
 import { RefreshReminderStatusesUseCase } from './refresh-reminder-statuses.use-case.js';
 
 @Injectable()
@@ -24,7 +24,7 @@ export class ListPaginatedRemindersUseCase {
     const statusFilter = input.status || StatusFilter.Open;
     const reminders = sortRemindersForList(remindersWithStatus
       .filter((reminder) => !input.workspaceSlug || reminder.workspace === input.workspaceSlug)
-      .filter((reminder) => !input.projectSlug || reminder.project === input.projectSlug)
+      .filter((reminder) => matchesReminderProject(reminder.project, input.projectSlug))
       .filter((reminder) => {
         if (statusFilter === StatusFilter.All) return true;
         if (statusFilter === StatusFilter.Open) {

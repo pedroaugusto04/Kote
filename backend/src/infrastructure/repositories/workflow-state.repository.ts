@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, inArray } from 'drizzle-orm';
 
 import { ConversationStateRepository, ReminderDispatchRepository } from '../../application/ports/reminders/workflow-state.repository.js';
 import { ReminderDispatchMode } from '../../contracts/enums.js';
@@ -82,6 +82,23 @@ export class PostgresWorkflowStateRepository extends ConversationStateRepository
       .limit(1);
     
     return Boolean(result[0]);
+  }
+
+  async getSentReminderIds(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, reminderIds: string[]): Promise<Set<string>> {
+    if (reminderIds.length === 0) return new Set();
+    const db = this.database.getDb();
+    const workspaceId = await resolveWorkspaceId(this.database, userId, workspaceSlug);
+    const result = await db
+      .select({ reminderId: reminderDispatchState.reminderId })
+      .from(reminderDispatchState)
+      .where(and(
+        eq(reminderDispatchState.userId, userId),
+        eq(reminderDispatchState.workspaceId, workspaceId),
+        eq(reminderDispatchState.mode, mode as ReminderDispatchMode),
+        inArray(reminderDispatchState.reminderId, reminderIds),
+      ));
+    
+    return new Set(result.map((row) => row.reminderId));
   }
 
   async markSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string) {

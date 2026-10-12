@@ -18,7 +18,7 @@ export class DeleteProjectUseCase {
     await this.contentRepository.deleteProject(userId, projectId);
 
     const workspace = project.workspaceId
-      ? await this.contentRepository.listWorkspaces(userId).then(ws => ws.find(w => w.id === project.workspaceId))
+      ? await this.contentRepository.getWorkspaceById(project.workspaceId)
       : null;
 
     return { ok: true as const, projectSlug: project.projectSlug, workspace };

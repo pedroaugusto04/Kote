@@ -42,18 +42,11 @@ export class AgentAskKnowledgeUseCase extends AskKnowledgeUseCase {
       hasConversationHistory: Boolean(options.conversationHistory?.length),
     });
 
-    let workspaceSlug = '';
-    if (options.workspaceId) {
-      const workspaces = await this.contentRepository.listWorkspaces(userId);
-      const ws = workspaces.find((w) => w.id === options.workspaceId);
-      if (ws) {
-        workspaceSlug = ws.workspaceSlug;
-      }
-    }
-    if (!workspaceSlug) {
-      const workspaces = await this.contentRepository.listWorkspaces(userId);
-      workspaceSlug = workspaces.length > 0 ? workspaces[0].workspaceSlug : 'default';
-    }
+    const workspaces = await this.contentRepository.listWorkspaces(userId);
+    const matchedWorkspace = options.workspaceId
+      ? workspaces.find((w) => w.id === options.workspaceId)
+      : undefined;
+    const workspaceSlug = matchedWorkspace?.workspaceSlug || workspaces[0]?.workspaceSlug || 'default';
 
     await this.aiEntitlement.requireAndConsume({
       userId,

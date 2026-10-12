@@ -7,6 +7,17 @@ import { InfoTooltip } from '../../shared/ui/info-tooltip';
 
 type AutoActionGlobal = { enabled: boolean; action: 'none' | 'resolved' | 'archived'; afterHours: number | null };
 
+const MIN_AFTER_HOURS = 1;
+const MAX_AFTER_HOURS = 999999;
+
+function validateAfterHours(val: number | ''): string | null {
+    if (val === '') return null;
+    if (!Number.isFinite(val) || val < MIN_AFTER_HOURS || val > MAX_AFTER_HOURS) {
+        return `Enter a number between ${MIN_AFTER_HOURS} and ${MAX_AFTER_HOURS}`;
+    }
+    return null;
+}
+
 export function AutomationsPage() {
     const [data, setData] = useState<AutoActionGlobal | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -125,26 +136,14 @@ export function AutomationsPage() {
                                             min={1}
                                             max={999999}
                                             inputMode="numeric"
-                                            value={afterHours as any}
+                                            value={afterHours}
                                             onChange={(e) => {
                                                 const val = e.target.value === '' ? '' : Number(e.target.value);
                                                 setAfterHours(val);
-                                                if (val === '') {
-                                                    setAfterHoursError(null);
-                                                } else if (!Number.isFinite(val) || val < 1 || val > 999999) {
-                                                    setAfterHoursError('Enter a number between 1 and 999999');
-                                                } else {
-                                                    setAfterHoursError(null);
-                                                }
+                                                setAfterHoursError(validateAfterHours(val));
                                             }}
                                             onBlur={() => {
-                                                if (afterHours === '') {
-                                                    setAfterHoursError(null);
-                                                } else if (!Number.isFinite(afterHours as number) || (afterHours as number) < 1 || (afterHours as number) > 999999) {
-                                                    setAfterHoursError('Enter a number between 1 and 999999');
-                                                } else {
-                                                    setAfterHoursError(null);
-                                                }
+                                                setAfterHoursError(validateAfterHours(afterHours));
                                             }}
                                             className="w-32"
                                         />
@@ -157,8 +156,9 @@ export function AutomationsPage() {
                                     <button
                                         type="button"
                                         onClick={async () => {
-                                            if (afterHours !== '' && (!Number.isFinite(afterHours as number) || (afterHours as number) < 1 || (afterHours as number) > 999999)) {
-                                                setAfterHoursError('Enter a number between 1 and 999999');
+                                            const error = validateAfterHours(afterHours);
+                                            if (error) {
+                                                setAfterHoursError(error);
                                                 return;
                                             }
                                             await onSave();

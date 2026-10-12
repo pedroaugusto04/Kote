@@ -5,6 +5,26 @@ import { dependencyWatch, dependencyMonitoredRepositories, workspaces } from '..
 import { PostgresDatabase } from '../persistence/database.js';
 import { DependencyWatcherRepository, type DependencyWatchRecord, type CreateDependencyWatchInput, type UpdateDependencyWatchInput, type EnabledWorkspace } from '../../application/ports/dependency-watcher/dependency-watcher.repository.js';
 import { DependencyEcosystem } from '../../domain/enums/dependency.enums.js';
+import { dependencyWatchFromRow } from '../mappers/row.mappers.js';
+
+export const DEPENDENCY_WATCH_BASE_SELECT_FIELDS = {
+  id: dependencyWatch.id,
+  userId: dependencyWatch.userId,
+  workspaceId: dependencyWatch.workspaceId,
+  workspaceSlug: workspaces.workspaceSlug,
+  ecosystem: dependencyWatch.ecosystem,
+  packageName: dependencyWatch.packageName,
+  currentVersion: dependencyWatch.currentVersion,
+  latestSeenVersion: dependencyWatch.latestSeenVersion,
+  checkIntervalHours: dependencyWatch.checkIntervalHours,
+  lastCheckedAt: dependencyWatch.lastCheckedAt,
+  lastAlertedAt: dependencyWatch.lastAlertedAt,
+  lastUrgency: dependencyWatch.lastUrgency,
+  enabled: dependencyWatch.enabled,
+  repositoryId: dependencyWatch.repositoryId,
+  createdAt: dependencyWatch.createdAt,
+  updatedAt: dependencyWatch.updatedAt,
+};
 
 @Injectable()
 export class PostgresDependencyWatcherRepository extends DependencyWatcherRepository {
@@ -49,7 +69,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         .where(eq(dependencyWatch.id, existing[0].id))
         .returning();
 
-      return this.mapToRecord(updated);
+      return dependencyWatchFromRow(updated);
     }
 
     const [inserted] = await db
@@ -66,7 +86,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       })
       .returning();
 
-    return this.mapToRecord(inserted);
+    return dependencyWatchFromRow(inserted);
   }
 
   async batchUpsert(inputs: CreateDependencyWatchInput[]): Promise<void> {
@@ -171,7 +191,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         ),
       );
 
-    return records.map(this.mapToRecord);
+    return records.map(dependencyWatchFromRow);
   }
 
   async findByRepositoryIds(userId: string, workspaceId: string, repositoryIds: string[]): Promise<DependencyWatchRecord[]> {
@@ -179,24 +199,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
 
     const db = this.getDb();
     const records = await db
-      .select({
-        id: dependencyWatch.id,
-        userId: dependencyWatch.userId,
-        workspaceId: dependencyWatch.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        ecosystem: dependencyWatch.ecosystem,
-        packageName: dependencyWatch.packageName,
-        currentVersion: dependencyWatch.currentVersion,
-        latestSeenVersion: dependencyWatch.latestSeenVersion,
-        checkIntervalHours: dependencyWatch.checkIntervalHours,
-        lastCheckedAt: dependencyWatch.lastCheckedAt,
-        lastAlertedAt: dependencyWatch.lastAlertedAt,
-        lastUrgency: dependencyWatch.lastUrgency,
-        enabled: dependencyWatch.enabled,
-        repositoryId: dependencyWatch.repositoryId,
-        createdAt: dependencyWatch.createdAt,
-        updatedAt: dependencyWatch.updatedAt,
-      })
+      .select(DEPENDENCY_WATCH_BASE_SELECT_FIELDS)
       .from(dependencyWatch)
       .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
       .where(
@@ -207,7 +210,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         ),
       );
 
-    return records.map(this.mapToRecord);
+    return records.map(dependencyWatchFromRow);
   }
 
   async findByRepositoryIdsEnabled(userId: string, workspaceId: string, repositoryIds: string[]): Promise<DependencyWatchRecord[]> {
@@ -215,24 +218,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
 
     const db = this.getDb();
     const records = await db
-      .select({
-        id: dependencyWatch.id,
-        userId: dependencyWatch.userId,
-        workspaceId: dependencyWatch.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        ecosystem: dependencyWatch.ecosystem,
-        packageName: dependencyWatch.packageName,
-        currentVersion: dependencyWatch.currentVersion,
-        latestSeenVersion: dependencyWatch.latestSeenVersion,
-        checkIntervalHours: dependencyWatch.checkIntervalHours,
-        lastCheckedAt: dependencyWatch.lastCheckedAt,
-        lastAlertedAt: dependencyWatch.lastAlertedAt,
-        lastUrgency: dependencyWatch.lastUrgency,
-        enabled: dependencyWatch.enabled,
-        repositoryId: dependencyWatch.repositoryId,
-        createdAt: dependencyWatch.createdAt,
-        updatedAt: dependencyWatch.updatedAt,
-      })
+      .select(DEPENDENCY_WATCH_BASE_SELECT_FIELDS)
       .from(dependencyWatch)
       .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
       .where(
@@ -244,30 +230,13 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         ),
       );
 
-    return records.map(this.mapToRecord);
+    return records.map(dependencyWatchFromRow);
   }
 
   async findById(userId: string, workspaceId: string, dependencyId: string): Promise<DependencyWatchRecord | null> {
     const db = this.getDb();
     const records = await db
-      .select({
-        id: dependencyWatch.id,
-        userId: dependencyWatch.userId,
-        workspaceId: dependencyWatch.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        ecosystem: dependencyWatch.ecosystem,
-        packageName: dependencyWatch.packageName,
-        currentVersion: dependencyWatch.currentVersion,
-        latestSeenVersion: dependencyWatch.latestSeenVersion,
-        checkIntervalHours: dependencyWatch.checkIntervalHours,
-        lastCheckedAt: dependencyWatch.lastCheckedAt,
-        lastAlertedAt: dependencyWatch.lastAlertedAt,
-        lastUrgency: dependencyWatch.lastUrgency,
-        enabled: dependencyWatch.enabled,
-        repositoryId: dependencyWatch.repositoryId,
-        createdAt: dependencyWatch.createdAt,
-        updatedAt: dependencyWatch.updatedAt,
-      })
+      .select(DEPENDENCY_WATCH_BASE_SELECT_FIELDS)
       .from(dependencyWatch)
       .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
       .where(
@@ -280,7 +249,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       .limit(1);
 
     if (records.length === 0) return null;
-    return this.mapToRecord(records[0]);
+    return dependencyWatchFromRow(records[0]);
   }
 
   async findDueForCheck(hours: number): Promise<DependencyWatchRecord[]> {
@@ -288,24 +257,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
     const cutoffDate = new Date(Date.now() - hours * 60 * 60 * 1000);
 
     const records = await db
-      .select({
-        id: dependencyWatch.id,
-        userId: dependencyWatch.userId,
-        workspaceId: dependencyWatch.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        ecosystem: dependencyWatch.ecosystem,
-        packageName: dependencyWatch.packageName,
-        currentVersion: dependencyWatch.currentVersion,
-        latestSeenVersion: dependencyWatch.latestSeenVersion,
-        checkIntervalHours: dependencyWatch.checkIntervalHours,
-        lastCheckedAt: dependencyWatch.lastCheckedAt,
-        lastAlertedAt: dependencyWatch.lastAlertedAt,
-        lastUrgency: dependencyWatch.lastUrgency,
-        enabled: dependencyWatch.enabled,
-        repositoryId: dependencyWatch.repositoryId,
-        createdAt: dependencyWatch.createdAt,
-        updatedAt: dependencyWatch.updatedAt,
-      })
+      .select(DEPENDENCY_WATCH_BASE_SELECT_FIELDS)
       .from(dependencyWatch)
       .innerJoin(workspaces, eq(workspaces.id, dependencyWatch.workspaceId))
       .innerJoin(dependencyMonitoredRepositories, and(
@@ -323,7 +275,7 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
         ),
       );
 
-    return records.map(this.mapToRecord);
+    return records.map(dependencyWatchFromRow);
   }
 
   async update(id: string, input: UpdateDependencyWatchInput): Promise<void> {
@@ -451,26 +403,5 @@ export class PostgresDependencyWatcherRepository extends DependencyWatcherReposi
       userId: record.userId,
       workspaceSlug: record.workspaceSlug,
     }));
-  }
-
-  private mapToRecord(record: any): DependencyWatchRecord {
-    return {
-      id: record.id,
-      userId: record.userId,
-      workspaceId: record.workspaceId,
-      workspaceSlug: record.workspaceSlug || '',
-      ecosystem: record.ecosystem,
-      packageName: record.packageName,
-      currentVersion: record.currentVersion,
-      latestSeenVersion: record.latestSeenVersion || '',
-      checkIntervalHours: record.checkIntervalHours,
-      lastCheckedAt: record.lastCheckedAt || null,
-      lastAlertedAt: record.lastAlertedAt || null,
-      lastUrgency: record.lastUrgency || null,
-      enabled: record.enabled,
-      repositoryId: record.repositoryId || null,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-    };
   }
 }

@@ -1,4 +1,4 @@
-import { stripMarkdownFences } from '../../../domain/strings.js';
+import { extractJsonObject, cleanAnswerText } from '../../../domain/strings.js';
 import { ConversationConfidence } from '../../../contracts/enums.js';
 
 export type AskAgentFinalResponse = {
@@ -21,7 +21,7 @@ export function buildAskAgentSystemPrompt(): string {
     '4. When asked about pending tasks, deadlines, or reminders, use list_reminders.',
     '5. When asked about files, documents, or attachments, use list_note_attachments or search_knowledge.',
     '6. Base your answer strictly on the information found in the notes. If no notes contain relevant information, state that clearly.',
-    '7. Conclude your final answer as a valid JSON object matching this schema:',
+    '7. CRITICAL OUTPUT FORMAT: Output ONLY a valid JSON object matching this schema. Never output conversational preamble, explanation, or text outside the JSON object:',
     '{',
     '  "answer": "Your detailed Markdown answer here.",',
     '  "confidence": "high" | "medium" | "low",',
@@ -29,16 +29,19 @@ export function buildAskAgentSystemPrompt(): string {
     '  "requestedAttachmentPattern": "",',
     '  "sources": [{"noteId": "...", "title": "..."}]',
     '}',
-    'In sources, cite the notes you used to answer the question (using their noteId and title from the tools).',
-    'If the user is asking to download or receive a file (e.g. pdf, invoice, attachment), set requestedAttachments to true and requestedAttachmentPattern to the search term.',
+    'IMPORTANT:',
+    '- Place your entire response to the user inside the "answer" field.',
+    '- Never repeat the JSON structure or print any JSON code block inside the "answer" field.',
+    '- In sources, cite the notes you used to answer the question (using their noteId and title from the tools).',
+    '- If the user is asking to download or receive a file (e.g. pdf, invoice, attachment), set requestedAttachments to true and requestedAttachmentPattern to the search term.',
   ].join('\n');
 }
 
 export function parseAskAgentFinalResponse(rawText: string): AskAgentFinalResponse {
-  const cleaned = stripMarkdownFences(rawText.trim());
-  try {
-    const parsed = JSON.parse(cleaned);
-    const answer = String(parsed.answer || cleaned).trim();
+  const parsed = extractJsonObject<Record<string, unknown>>(rawText);
+  if (parsed) {
+    const rawAnswer = typeof parsed.answer === 'string' ? parsed.answer : '';
+    const answer = cleanAnswerText(rawAnswer).trim() || cleanAnswerText(rawText).trim();
     let confidence = ConversationConfidence.Medium;
     if (parsed.confidence === 'high') confidence = ConversationConfidence.High;
     if (parsed.confidence === 'low') confidence = ConversationConfidence.Low;
@@ -55,7 +58,7 @@ export function parseAskAgentFinalResponse(rawText: string): AskAgentFinalRespon
     }
 
     return {
-      answer: answer || rawText,
+      answer: answer || rawText.trim(),
       confidence,
       requestedAttachments: Boolean(parsed.requestedAttachments),
       requestedAttachmentPattern: parsed.requestedAttachmentPattern
@@ -63,12 +66,13 @@ export function parseAskAgentFinalResponse(rawText: string): AskAgentFinalRespon
         : undefined,
       sources,
     };
-  } catch {
-    return {
-      answer: rawText.trim(),
-      confidence: ConversationConfidence.Medium,
-      requestedAttachments: false,
-      sources: [],
-    };
   }
+
+  return {
+    answer: cleanAnswerText(rawText).trim() || rawText.trim(),
+    confidence: ConversationConfidence.Medium,
+    requestedAttachments: false,
+    sources: [],
+  };
 }
+

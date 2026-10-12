@@ -356,7 +356,9 @@ function extractAntigravityTokenUsage(
           break;
         }
       }
-    } catch {}
+    } catch {
+      // Ignore record parsing errors and proceed with available tokens
+    }
   }
 
   if (inputTokens === 0 && outputTokens === 0) return undefined;

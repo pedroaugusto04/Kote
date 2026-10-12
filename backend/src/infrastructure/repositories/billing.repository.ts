@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { eq, and, or, isNull, lte, lt, sql, inArray, ne, desc } from 'drizzle-orm';
+import { eq, and, or, isNull, lte, lt, notLike, sql, inArray, ne, desc } from 'drizzle-orm';
 
 import {
   BillingCustomerRepository,
@@ -481,10 +481,77 @@ export class PostgresBillingWebhookEventRepository extends BillingWebhookEventRe
     await db
       .update(gatewayWebhookEvents)
       .set({
-        lastError: sql`concat(${gatewayWebhookEvents.lastError}, ' ', ${alertMarker})`,
+        lastError: sql`concat(${gatewayWebhookEvents.lastError}, ' ', ${alertMarker}::text)`,
         updatedAt: new Date(),
       })
       .where(eq(gatewayWebhookEvents.id, id));
+  }
+
+  async listWebhookEventsForReplay(options: {
+    minAgeSeconds: number;
+    maxAttempts: number;
+    batchSize: number;
+  }): Promise<GatewayWebhookEventRecord[]> {
+    const db = this.database.getDb();
+    const minAgeDate = new Date();
+    minAgeDate.setSeconds(minAgeDate.getSeconds() - options.minAgeSeconds);
+
+    const rows = await db
+      .select()
+      .from(gatewayWebhookEvents)
+      .where(and(
+        or(
+          eq(gatewayWebhookEvents.status, 'pending'),
+          eq(gatewayWebhookEvents.status, 'failed')
+        ),
+        lt(gatewayWebhookEvents.attempts, options.maxAttempts),
+        or(
+          isNull(gatewayWebhookEvents.lastDispatchedAt),
+          lt(gatewayWebhookEvents.lastDispatchedAt, minAgeDate)
+        )
+      ))
+      .limit(options.batchSize);
+
+    return rows.map((row) => ({
+      ...row,
+      payload: (row.payload || {}) as Record<string, unknown>,
+    }));
+  }
+
+  async markWebhookEventDispatched(id: string): Promise<void> {
+    const db = this.database.getDb();
+    await db
+      .update(gatewayWebhookEvents)
+      .set({
+        lastDispatchedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(gatewayWebhookEvents.id, id));
+  }
+
+  async listWebhookEventsAtAttemptLimit(options: {
+    maxAttempts: number;
+    batchSize: number;
+    alertMarker: string;
+  }): Promise<GatewayWebhookEventRecord[]> {
+    const db = this.database.getDb();
+    const rows = await db
+      .select()
+      .from(gatewayWebhookEvents)
+      .where(and(
+        eq(gatewayWebhookEvents.status, 'failed'),
+        eq(gatewayWebhookEvents.attempts, options.maxAttempts),
+        or(
+          isNull(gatewayWebhookEvents.lastError),
+          notLike(gatewayWebhookEvents.lastError, `%${options.alertMarker}%`)
+        )
+      ))
+      .limit(options.batchSize);
+
+    return rows.map((row) => ({
+      ...row,
+      payload: (row.payload || {}) as Record<string, unknown>,
+    }));
   }
 }
 
@@ -560,6 +627,7 @@ export class PostgresSubscriptionRepository extends SubscriptionRepository {
         startedAt: data.startedAt,
         pastDueAt: data.pastDueAt,
         canceledAt: data.canceledAt,
+        createdFromIntentId: data.createdFromIntentId,
       })
       .returning();
     return inserted;
