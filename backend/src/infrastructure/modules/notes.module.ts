@@ -20,6 +20,8 @@ import {
   GetNoteDetailUseCase,
   ReindexAllEmbeddingsUseCase,
   AskKnowledgeUseCase,
+  AgentAskKnowledgeUseCase,
+  StandardRagAskKnowledgeUseCase,
   ResolveWhatsappAskAttachmentsUseCase,
   RunAskAiUseCase,
   ListAskHistoryUseCase,
@@ -41,6 +43,7 @@ import {
 } from '../../application/use-cases/index.js';
 import { RagRetrievalService } from '../../application/services/query/rag-retrieval.service.js';
 import { RagContextAssemblerService } from '../../application/services/query/rag-context-assembler.service.js';
+import { AskAgentToolsService } from '../../application/services/query/ask-agent-tools.service.js';
 import { EmbeddingJobProcessorService } from '../../application/services/notes/embedding-job-processor.service.js';
 import { HighPriorityEmbeddingWorker } from '../../application/workers/high-priority-embedding.worker.js';
 import { LowPriorityEmbeddingWorker } from '../../application/workers/low-priority-embedding.worker.js';
@@ -97,7 +100,10 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     
     GetAutoActionGlobalUseCase,
     SetAutoActionGlobalUseCase,
-    AskKnowledgeUseCase,
+    AskAgentToolsService,
+    StandardRagAskKnowledgeUseCase,
+    AgentAskKnowledgeUseCase,
+    { provide: AskKnowledgeUseCase, useExisting: AgentAskKnowledgeUseCase },
     ResolveWhatsappAskAttachmentsUseCase,
     RunAskAiUseCase,
     ListAskHistoryUseCase,
@@ -123,6 +129,9 @@ import { NotesController } from '../../interfaces/http/controllers/index.js';
     NoteChunkingService,
     NoteEventDispatcher,
     NoteLifecycleService,
+    AskAgentToolsService,
+    StandardRagAskKnowledgeUseCase,
+    AgentAskKnowledgeUseCase,
     AskKnowledgeUseCase,
     ResolveWhatsappAskAttachmentsUseCase,
     RunAskAiUseCase,

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { AskKnowledgeUseCase } from '../../../dist/application/use-cases/query/ask-knowledge.use-case.js';
+import { StandardRagAskKnowledgeUseCase as AskKnowledgeUseCase } from '../../../dist/application/use-cases/query/standard-rag-ask-knowledge.use-case.js';
 import { RagRetrievalService } from '../../../dist/application/services/query/rag-retrieval.service.js';
 import { RagContextAssemblerService } from '../../../dist/application/services/query/rag-context-assembler.service.js';
 import { RunAskAiUseCase } from '../../../dist/application/use-cases/query/run-ask-ai.use-case.js';
