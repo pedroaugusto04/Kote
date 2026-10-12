@@ -39,6 +39,19 @@ export class DefaultAskAgentGateway extends AskAgentGateway {
 
     const systemPrompt = buildAskAgentSystemPrompt();
 
+    const retryOptions = {
+      onRetry: (info: { attempt: number; delayMs: number; status?: number; error?: unknown }) => {
+        this.logger.warn('ask_agent.request_retry', {
+          provider: config.conversationAiProvider,
+          model: config.conversationAiModel,
+          attempt: info.attempt,
+          delayMs: info.delayMs,
+          status: info.status,
+          error: info.error instanceof Error ? info.error.message : info.error ? String(info.error) : undefined,
+        });
+      },
+    };
+
     try {
       if (config.conversationAiProvider === AiProvider.Gemini) {
         return await runGeminiAgentLoop(
@@ -46,6 +59,7 @@ export class DefaultAskAgentGateway extends AskAgentGateway {
             baseUrl: config.conversationAiBaseUrl,
             model: config.conversationAiModel,
             apiKey: config.conversationAiApiKey,
+            retryOptions,
           },
           systemPrompt,
           request.question,
@@ -60,6 +74,7 @@ export class DefaultAskAgentGateway extends AskAgentGateway {
           baseUrl: config.conversationAiBaseUrl,
           model: config.conversationAiModel,
           apiKey: config.conversationAiApiKey,
+          retryOptions,
         },
         systemPrompt,
         request.question,

@@ -548,7 +548,7 @@ test('guided credentials are encrypted, never returned, and resolved internally 
   const listed = await userController.list(login.user, { workspaceSlug: 'default' });
   assert.equal(JSON.stringify(listed).includes('encryptedConfig'), false);
 
-  const revoked = await userController.revoke({ provider: 'whatsapp' }, { workspaceSlug: 'default' }, login.user);
+  const revoked = await userController.revoke({ provider: 'whatsapp' }, login.user, { workspaceSlug: 'default' });
   assert.equal(revoked.integration.status, 'revoked');
   const revokedStored = await repositories.credentialRepository.findCredential(login.user.id, 'default', 'whatsapp');
   assert.equal(JSON.stringify(revokedStored.encryptedConfig).includes('120363@g.us'), false);
@@ -580,7 +580,7 @@ test('telegram can reconnect after revoke because revoke clears the previous bin
   );
   await connections.completeTelegramFromWebhook({ code: firstSetup.verificationCode, chatId: '987654321' });
 
-  const revoked = await userController.revoke({ provider: 'telegram' }, { workspaceSlug: 'default' }, login.user);
+  const revoked = await userController.revoke({ provider: 'telegram' }, login.user, { workspaceSlug: 'default' });
   assert.equal(revoked.integration.status, 'revoked');
   assert.equal(await repositories.externalIdentityRepository.findExternalIdentity('telegram', 'chat_id', '987654321'), null);
   const revokedWorkspaces = await repositories.contentRepository.listWorkspaces(login.user.id);

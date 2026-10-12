@@ -49,22 +49,15 @@ export function buildIntegrationStatuses(input: {
     KB_GITHUB_APP_ID: Boolean(environment.githubAppId),
     KB_GITHUB_APP_PRIVATE_KEY: secretConfigured(environment.githubAppPrivateKey),
   };
-  const githubFlags = [...Object.values(githubEnv), repos.length > 0];
 
+  const apiBaseUrl = environment.apiPublicBaseUrl || environment.publicBaseUrl;
   const webhookEnv = {
-    KB_API_PUBLIC_BASE_URL: Boolean(environment.apiPublicBaseUrl || environment.publicBaseUrl),
+    KB_API_PUBLIC_BASE_URL: Boolean(apiBaseUrl),
     KB_GITHUB_WEBHOOK_PATH: Boolean(environment.githubPushWebhookPath),
     KB_INGEST_WEBHOOK_PATH: Boolean(environment.ingestWebhookPath),
     KB_WPP_WEBHOOK_PATH: Boolean(environment.whatsappWebhookPath),
     KB_QUERY_WEBHOOK_PATH: Boolean(environment.queryWebhookPath),
   };
-  const apiBaseUrl = environment.apiPublicBaseUrl || environment.publicBaseUrl;
-  const webhookLinks = [
-    link('GitHub push webhook', absoluteUrl(apiBaseUrl, environment.githubPushWebhookPath), Boolean(apiBaseUrl)),
-    link('Ingest webhook', absoluteUrl(apiBaseUrl, environment.ingestWebhookPath), Boolean(apiBaseUrl)),
-    link('WhatsApp webhook', absoluteUrl(apiBaseUrl, environment.whatsappWebhookPath), Boolean(apiBaseUrl)),
-    link('Query webhook', absoluteUrl(apiBaseUrl, environment.queryWebhookPath), Boolean(apiBaseUrl)),
-  ];
 
   const evolutionTransportConfigured = Boolean(
     environment.evolutionApiUrl &&
@@ -78,7 +71,6 @@ export function buildIntegrationStatuses(input: {
     EVOLUTION_API_KEY: secretConfigured(environment.evolutionApiKey),
     EVOLUTION_API_PUBLIC_URL: Boolean(environment.evolutionApiPublicUrl),
   };
-  const whatsappChat = workspaceWhatsappChat;
 
   const telegramEnv = {
     KB_TELEGRAM_BOT_TOKEN: secretConfigured(environment.telegramBotToken),
@@ -86,42 +78,7 @@ export function buildIntegrationStatuses(input: {
   };
   const telegramChat = Boolean(environment.telegramChatId) || workspaceTelegramChat;
 
-  const reviewAiActive = environment.reviewAiProvider !== AiProvider.None;
-  const conversationAiActive = environment.conversationAiProvider !== AiProvider.None;
-  const projectBriefAiActive = environment.projectBriefAiProvider !== AiProvider.None;
-  const fileNotesSummaryAiActive = environment.fileNotesSummaryAiProvider !== AiProvider.None;
-  const aiSessionSynthesisActive = environment.aiSessionSynthesisProvider !== AiProvider.None;
   const dependencyWatcherAiActive = environment.dependencyWatcherAiProvider !== AiProvider.None;
-  const reviewAiEnv = {
-    KB_REVIEW_AI_PROVIDER: reviewAiActive,
-    KB_REVIEW_AI_BASE_URL: reviewAiActive ? Boolean(environment.reviewAiBaseUrl) : true,
-    KB_REVIEW_AI_MODEL: reviewAiActive ? Boolean(environment.reviewAiModel) : true,
-    KB_REVIEW_AI_API_KEY: reviewAiActive ? secretConfigured(environment.reviewAiApiKey) : true,
-  };
-  const conversationAiEnv = {
-    KB_CONVERSATION_AI_PROVIDER: conversationAiActive,
-    KB_CONVERSATION_AI_BASE_URL: conversationAiActive ? Boolean(environment.conversationAiBaseUrl) : true,
-    KB_CONVERSATION_AI_MODEL: conversationAiActive ? Boolean(environment.conversationAiModel) : true,
-    KB_CONVERSATION_AI_API_KEY: conversationAiActive ? secretConfigured(environment.conversationAiApiKey) : true,
-  };
-  const projectBriefAiEnv = {
-    KB_PROJECT_BRIEF_AI_PROVIDER: projectBriefAiActive,
-    KB_PROJECT_BRIEF_AI_BASE_URL: projectBriefAiActive ? Boolean(environment.projectBriefAiBaseUrl) : true,
-    KB_PROJECT_BRIEF_AI_MODEL: projectBriefAiActive ? Boolean(environment.projectBriefAiModel) : true,
-    KB_PROJECT_BRIEF_AI_API_KEY: projectBriefAiActive ? secretConfigured(environment.projectBriefAiApiKey) : true,
-  };
-  const fileNotesSummaryAiEnv = {
-    KB_FILE_NOTES_SUMMARY_AI_PROVIDER: fileNotesSummaryAiActive,
-    KB_FILE_NOTES_SUMMARY_AI_BASE_URL: fileNotesSummaryAiActive ? Boolean(environment.fileNotesSummaryAiBaseUrl) : true,
-    KB_FILE_NOTES_SUMMARY_AI_MODEL: fileNotesSummaryAiActive ? Boolean(environment.fileNotesSummaryAiModel) : true,
-    KB_FILE_NOTES_SUMMARY_AI_API_KEY: fileNotesSummaryAiActive ? secretConfigured(environment.fileNotesSummaryAiApiKey) : true,
-  };
-  const aiSessionSynthesisEnv = {
-    KB_AI_SESSION_SYNTHESIS_PROVIDER: aiSessionSynthesisActive,
-    KB_AI_SESSION_SYNTHESIS_BASE_URL: aiSessionSynthesisActive ? Boolean(environment.aiSessionSynthesisBaseUrl) : true,
-    KB_AI_SESSION_SYNTHESIS_MODEL: aiSessionSynthesisActive ? Boolean(environment.aiSessionSynthesisModel) : true,
-    KB_AI_SESSION_SYNTHESIS_API_KEY: aiSessionSynthesisActive ? secretConfigured(environment.aiSessionSynthesisApiKey) : true,
-  };
   const dependencyWatcherEnv = {
     KB_DEPENDENCY_WATCHER_CRON: Boolean(environment.dependencyWatcherCron),
     KB_DEPENDENCY_WATCHER_CHECK_INTERVAL_HOURS: Boolean(environment.dependencyWatcherCheckIntervalHours),
@@ -135,14 +92,12 @@ export function buildIntegrationStatuses(input: {
     ok: true,
     workspaceSlug,
     integrations: [
-      {
+      createIntegration({
         id: IntegrationProvider.GithubApp,
         name: 'GitHub App',
         description: 'App installation, signed webhook, and installation token for push reviews.',
-        status: statusFromFlags(githubFlags),
-        requiredEnv: Object.keys(githubEnv),
-        configuredEnv: configuredEnv(githubEnv),
-        missingEnv: missingEnv(githubEnv),
+        env: githubEnv,
+        flags: [...Object.values(githubEnv), repos.length > 0],
         links: environment.githubAppInstallUrl ? [link('Instalar GitHub App', environment.githubAppInstallUrl)] : [],
         checklist: [
           'Install the GitHub App in the workspace repositories.',
@@ -153,32 +108,32 @@ export function buildIntegrationStatuses(input: {
           !environment.githubWebhookSecret ? 'GitHub webhook secret is not configured.' : '',
           !environment.githubAppId || !environment.githubAppPrivateKey ? 'GitHub App credentials are missing for installation token generation.' : '',
           repos.length === 0 ? 'Workspace has no linked repository.' : '',
-        ].filter(Boolean),
-      },
-      {
+        ],
+      }),
+      createIntegration({
         id: 'webhooks',
         name: 'Webhooks',
         description: 'Public URLs used by n8n, GitHub, WhatsApp, and query flows.',
-        status: statusFromFlags(Object.values(webhookEnv)),
-        requiredEnv: Object.keys(webhookEnv),
-        configuredEnv: configuredEnv(webhookEnv),
-        missingEnv: missingEnv(webhookEnv),
-        links: webhookLinks,
+        env: webhookEnv,
+        links: [
+          link('GitHub push webhook', absoluteUrl(apiBaseUrl, environment.githubPushWebhookPath), Boolean(apiBaseUrl)),
+          link('Ingest webhook', absoluteUrl(apiBaseUrl, environment.ingestWebhookPath), Boolean(apiBaseUrl)),
+          link('WhatsApp webhook', absoluteUrl(apiBaseUrl, environment.whatsappWebhookPath), Boolean(apiBaseUrl)),
+          link('Query webhook', absoluteUrl(apiBaseUrl, environment.queryWebhookPath), Boolean(apiBaseUrl)),
+        ],
         checklist: [
           'Publish the API behind a stable HTTPS URL.',
           'Point workflows and adapters to the displayed paths.',
           'Use the same base URL in external providers.',
         ],
         warnings: !apiBaseUrl ? ['KB_API_PUBLIC_BASE_URL is missing: showing relative paths instead of absolute URLs.'] : [],
-      },
-      {
+      }),
+      createIntegration({
         id: IntegrationProvider.Whatsapp,
         name: 'WhatsApp',
         description: 'Global Evolution API transport with a workspace-linked chat to capture notes for the correct user.',
-        status: statusFromFlags([evolutionTransportConfigured, whatsappChat]),
-        requiredEnv: Object.keys(whatsappEnv),
-        configuredEnv: configuredEnv(whatsappEnv),
-        missingEnv: missingEnv(whatsappEnv),
+        env: whatsappEnv,
+        flags: [evolutionTransportConfigured, workspaceWhatsappChat],
         links: [
           environment.evolutionApiPublicUrl ? link('Evolution API', environment.evolutionApiPublicUrl) : null,
         ].filter(Boolean) as IntegrationLink[],
@@ -189,18 +144,15 @@ export function buildIntegrationStatuses(input: {
         ],
         warnings: [
           !evolutionTransportConfigured ? 'Evolution API is incomplete: URL, instance name, API key, or public URL is missing.' : '',
-          !whatsappChat ? 'No WhatsApp chat is connected for this workspace.' : '',
-        ].filter(Boolean),
-      },
-      {
+          !workspaceWhatsappChat ? 'No WhatsApp chat is connected for this workspace.' : '',
+        ],
+      }),
+      createIntegration({
         id: IntegrationProvider.Telegram,
         name: 'Telegram',
         description: 'Bot and chat used for ingest notifications, reviews, and operational failures.',
-        status: statusFromFlags([telegramEnv.KB_TELEGRAM_BOT_TOKEN, telegramChat]),
-        requiredEnv: Object.keys(telegramEnv),
-        configuredEnv: configuredEnv(telegramEnv),
-        missingEnv: missingEnv(telegramEnv),
-        links: [],
+        env: telegramEnv,
+        flags: [telegramEnv.KB_TELEGRAM_BOT_TOKEN, telegramChat],
         checklist: [
           'Create or reuse a Telegram bot.',
           'Add the bot to the operational chat.',
@@ -209,123 +161,100 @@ export function buildIntegrationStatuses(input: {
         warnings: [
           !environment.telegramBotToken ? 'Telegram bot token is missing.' : '',
           !telegramChat ? 'Telegram chat ID is missing both in env and workspace.' : '',
-        ].filter(Boolean),
-      },
-      {
+        ],
+      }),
+      createAiIntegration({
         id: IntegrationProvider.AiReview,
         name: 'Review AI',
         description: 'Server-managed provider and model for code reviews.',
-        status: statusFromFlags([reviewAiActive, ...Object.values(reviewAiEnv)]),
-        requiredEnv: Object.keys(reviewAiEnv),
-        configuredEnv: configuredEnv(reviewAiEnv),
-        missingEnv: missingEnv(reviewAiEnv),
-        links: [],
+        envPrefix: 'KB_REVIEW_AI',
+        provider: environment.reviewAiProvider,
+        baseUrl: environment.reviewAiBaseUrl,
+        model: environment.reviewAiModel,
+        apiKey: environment.reviewAiApiKey,
         checklist: [
           'Choose a provider other than none when AI review is enabled.',
           'Define the review model and base URL.',
           'Configure the corresponding API key.',
         ],
-        warnings: [
-          !reviewAiActive ? 'Review provider is set to none.' : '',
-          reviewAiActive && !environment.reviewAiApiKey ? 'Review AI is active without an API key.' : '',
-        ].filter(Boolean),
-      },
-      {
+      }),
+      createAiIntegration({
         id: IntegrationProvider.AiConversation,
         name: 'Conversation AI',
         description: 'Server-managed provider and model for conversation extraction.',
-        status: statusFromFlags([conversationAiActive, ...Object.values(conversationAiEnv)]),
-        requiredEnv: Object.keys(conversationAiEnv),
-        configuredEnv: configuredEnv(conversationAiEnv),
-        missingEnv: missingEnv(conversationAiEnv),
-        links: [],
+        envPrefix: 'KB_CONVERSATION_AI',
+        provider: environment.conversationAiProvider,
+        baseUrl: environment.conversationAiBaseUrl,
+        model: environment.conversationAiModel,
+        apiKey: environment.conversationAiApiKey,
         checklist: [
           'Choose a provider other than none when conversation AI is enabled.',
           'Define the conversation model and base URL.',
           'Configure the corresponding API key.',
         ],
-        warnings: [
-          !conversationAiActive ? 'Conversation provider is set to none.' : '',
-          conversationAiActive && !environment.conversationAiApiKey ? 'Conversation AI is active without an API key.' : '',
-        ].filter(Boolean),
-      },
-      {
+      }),
+      createAiIntegration({
         id: IntegrationProvider.ProjectBriefAi,
         name: 'Project Brief AI',
         description: 'Server-managed provider and model for manual project brief generation.',
-        status: statusFromFlags([projectBriefAiActive, ...Object.values(projectBriefAiEnv)]),
-        requiredEnv: Object.keys(projectBriefAiEnv),
-        configuredEnv: configuredEnv(projectBriefAiEnv),
-        missingEnv: missingEnv(projectBriefAiEnv),
-        links: [],
+        envPrefix: 'KB_PROJECT_BRIEF_AI',
+        provider: environment.projectBriefAiProvider,
+        baseUrl: environment.projectBriefAiBaseUrl,
+        model: environment.projectBriefAiModel,
+        apiKey: environment.projectBriefAiApiKey,
         checklist: [
           'Choose a provider other than none when project brief AI is enabled.',
           'Define the project brief model and base URL, or inherit Conversation AI settings.',
           'Configure the corresponding API key.',
         ],
-        warnings: [
-          !projectBriefAiActive ? 'Project Brief provider is set to none.' : '',
-          projectBriefAiActive && !environment.projectBriefAiApiKey ? 'Project Brief AI is active without an API key.' : '',
-        ].filter(Boolean),
-      },
-      {
+      }),
+      createAiIntegration({
         id: IntegrationProvider.FileNotesSummaryAi,
         name: 'File Notes Summary AI',
         description: 'Server-managed provider and model for AI-powered file notes summary in VS Code.',
-        status: statusFromFlags([fileNotesSummaryAiActive, ...Object.values(fileNotesSummaryAiEnv)]),
-        requiredEnv: Object.keys(fileNotesSummaryAiEnv),
-        configuredEnv: configuredEnv(fileNotesSummaryAiEnv),
-        missingEnv: missingEnv(fileNotesSummaryAiEnv),
-        links: [],
+        envPrefix: 'KB_FILE_NOTES_SUMMARY_AI',
+        provider: environment.fileNotesSummaryAiProvider,
+        baseUrl: environment.fileNotesSummaryAiBaseUrl,
+        model: environment.fileNotesSummaryAiModel,
+        apiKey: environment.fileNotesSummaryAiApiKey,
         checklist: [
           'Choose a provider other than none when file notes summary AI is enabled.',
           'Define the file notes summary model and base URL, or inherit Conversation AI settings.',
           'Configure the corresponding API key.',
         ],
-        warnings: [
-          !fileNotesSummaryAiActive ? 'File Notes Summary provider is set to none.' : '',
-          fileNotesSummaryAiActive && !environment.fileNotesSummaryAiApiKey ? 'File Notes Summary AI is active without an API key.' : '',
-        ].filter(Boolean),
-      },
-      {
+      }),
+      createAiIntegration({
         id: IntegrationProvider.AiSessionSynthesis,
         name: 'AI Session Synthesis',
         description: 'Summarizes new AI session notes into structured, searchable memory while preserving the raw transcript.',
-        status: statusFromFlags([aiSessionSynthesisActive, ...Object.values(aiSessionSynthesisEnv)]),
-        requiredEnv: Object.keys(aiSessionSynthesisEnv),
-        configuredEnv: configuredEnv(aiSessionSynthesisEnv),
-        missingEnv: missingEnv(aiSessionSynthesisEnv),
-        links: [],
-        checklist: ['Choose a provider other than none.', 'Define the synthesis model and base URL.', 'Configure the corresponding API key.'],
-        warnings: [
-          !aiSessionSynthesisActive ? 'AI Session Synthesis provider is set to none.' : '',
-          aiSessionSynthesisActive && !environment.aiSessionSynthesisApiKey ? 'AI Session Synthesis is active without an API key.' : '',
-        ].filter(Boolean),
-      },
-      {
+        envPrefix: 'KB_AI_SESSION_SYNTHESIS',
+        provider: environment.aiSessionSynthesisProvider,
+        baseUrl: environment.aiSessionSynthesisBaseUrl,
+        model: environment.aiSessionSynthesisModel,
+        apiKey: environment.aiSessionSynthesisApiKey,
+        checklist: [
+          'Choose a provider other than none.',
+          'Define the synthesis model and base URL.',
+          'Configure the corresponding API key.',
+        ],
+        warningPrefix: 'AI Session Synthesis',
+      }),
+      createIntegration({
         id: IntegrationProvider.PushNotifications,
         name: 'Push Notifications',
         description: 'Receive browser push notifications for reminders and updates.',
         status: hasPushSubscription ? IntegrationSetupStatus.Connected : IntegrationSetupStatus.Missing,
-        requiredEnv: [],
-        configuredEnv: [],
-        missingEnv: [],
-        links: [],
         checklist: [
           'Allow browser notifications when prompted.',
           'Keep the push notifications card active to receive updates.',
         ],
-        warnings: [],
-      },
-      {
+      }),
+      createIntegration({
         id: IntegrationProvider.DependencyWatcher,
         name: 'Dependency Watcher',
         description: 'Automatically check for new dependency versions, create notes with changelogs, and send email alerts for critical updates.',
-        status: statusFromFlags([repos.length > 0, ...Object.values(dependencyWatcherEnv)]),
-        requiredEnv: Object.keys(dependencyWatcherEnv),
-        configuredEnv: configuredEnv(dependencyWatcherEnv),
-        missingEnv: missingEnv(dependencyWatcherEnv),
-        links: [],
+        env: dependencyWatcherEnv,
+        flags: [repos.length > 0, ...Object.values(dependencyWatcherEnv)],
         checklist: [
           'Connect GitHub App and select workspace repositories.',
           'Enable Dependency Watcher integration.',
@@ -335,10 +264,70 @@ export function buildIntegrationStatuses(input: {
         warnings: [
           repos.length === 0 ? 'Workspace has no linked repository. Connect GitHub and select repositories first.' : '',
           !dependencyWatcherAiActive ? 'AI provider is set to none. Changelog analysis will be skipped.' : '',
-        ].filter(Boolean),
-      },
+        ],
+      }),
     ],
   };
+}
+
+function createIntegration(input: {
+  id: string;
+  name: string;
+  description: string;
+  env?: Record<string, boolean>;
+  flags?: boolean[];
+  status?: IntegrationStatusValue;
+  links?: IntegrationLink[];
+  checklist: string[];
+  warnings?: string[];
+}): IntegrationStatus {
+  const env = input.env ?? {};
+  return {
+    id: input.id,
+    name: input.name,
+    description: input.description,
+    status: input.status ?? statusFromFlags(input.flags ?? Object.values(env)),
+    requiredEnv: Object.keys(env),
+    configuredEnv: configuredEnv(env),
+    missingEnv: missingEnv(env),
+    links: input.links ?? [],
+    checklist: input.checklist,
+    warnings: (input.warnings ?? []).filter(Boolean),
+  };
+}
+
+function createAiIntegration(config: {
+  id: IntegrationProvider;
+  name: string;
+  description: string;
+  envPrefix: string;
+  provider: AiProvider | string;
+  baseUrl?: string;
+  model?: string;
+  apiKey?: string;
+  checklist: string[];
+  warningPrefix?: string;
+}): IntegrationStatus {
+  const active = config.provider !== AiProvider.None;
+  const env: Record<string, boolean> = {
+    [`${config.envPrefix}_PROVIDER`]: active,
+    [`${config.envPrefix}_BASE_URL`]: active ? Boolean(config.baseUrl) : true,
+    [`${config.envPrefix}_MODEL`]: active ? Boolean(config.model) : true,
+    [`${config.envPrefix}_API_KEY`]: active ? secretConfigured(config.apiKey || '') : true,
+  };
+  const label = config.warningPrefix ?? config.name.replace(/ AI$/, '');
+  return createIntegration({
+    id: config.id,
+    name: config.name,
+    description: config.description,
+    env,
+    flags: [active, ...Object.values(env)],
+    checklist: config.checklist,
+    warnings: [
+      !active ? `${label} provider is set to none.` : '',
+      active && !config.apiKey ? `${config.name} is active without an API key.` : '',
+    ],
+  });
 }
 
 @Injectable()

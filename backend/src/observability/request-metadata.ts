@@ -18,7 +18,9 @@ function requestPath(request: Request): string {
 }
 
 function extractWorkspaceSlug(request: Request): string | undefined {
+  const headerWorkspace = request.headers?.['x-workspace-slug'] || request.headers?.['x-workspace'];
   const candidates = [
+    typeof headerWorkspace === 'string' ? headerWorkspace : Array.isArray(headerWorkspace) ? headerWorkspace[0] : undefined,
     readRecordValue(request.query, 'workspaceSlug'),
     readRecordValue(request.body, 'workspaceSlug'),
     readRecordValue(readRecordValue(request.body, 'payload'), 'workspaceSlug'),

@@ -5,8 +5,9 @@ import type { AuthenticatedUser } from '../../../../application/services/auth/au
 import { CreateWorkspaceUseCase, ListWorkspaceRepositoriesUseCase, ListWorkspaceCategoriesUseCase } from '../../../../application/use-cases/index.js';
 import { CurrentUser } from '../../auth.decorators.js';
 import { AccessTokenAuthGuard, TrustedOriginGuard } from '../../guards/auth.guards.js';
-import { WorkspaceResolutionGuard } from '../../guards/workspace-resolution.guard.js';
-import { WorkspaceId } from '../../workspace.decorators.js';
+import { ScopeGuard } from '../../guards/scope.guard.js';
+import { Scoped, Scope } from '../../scope.decorators.js';
+import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
 import { createWorkspaceBodySchema, type CreateWorkspaceBody } from '../../dto/workspace.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 
@@ -34,28 +35,30 @@ export class WorkspacesController {
   }
 
   @Get(':workspaceSlug/repositories')
-  @UseGuards(WorkspaceResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List workspace repositories' })
   @ApiParam({ name: 'workspaceSlug', description: 'Workspace slug' })
   @ApiResponse({ status: 200, description: 'Repositories retrieved successfully' })
   repositories(
-    @WorkspaceId() workspaceId: string,
+    @Scope() scope: WorkspaceScope,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.listRepositories.execute(user.id, workspaceId);
+    return this.listRepositories.execute(user.id, scope.workspaceId);
   }
 
   @Get(':workspaceSlug/categories')
-  @UseGuards(WorkspaceResolutionGuard)
+  @UseGuards(ScopeGuard)
+  @Scoped({ project: 'none' })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List workspace categories' })
   @ApiParam({ name: 'workspaceSlug', description: 'Workspace slug' })
   @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
   categories(
-    @WorkspaceId() workspaceId: string,
+    @Scope() scope: WorkspaceScope,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.listCategories.execute(user.id, workspaceId);
+    return this.listCategories.execute(user.id, scope.workspaceId);
   }
 }

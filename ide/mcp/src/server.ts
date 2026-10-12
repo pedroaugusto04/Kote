@@ -10,7 +10,7 @@ import { loadCliConfig } from './config/env.config.js';
 import { maybeExchangeConnectionToken } from './config/connection-token.js';
 import { ApiClient } from './client/api-client.js';
 import { StderrLogger } from './logger/stderr.logger.js';
-import { McpTool } from './tools/base.tool.js';
+import { type McpTool } from './tools/base.tool.js';
 import { SearchNotesTool } from './tools/search-notes.tool.js';
 import { GetNoteTool } from './tools/get-note.tool.js';
 import { CreateNoteTool } from './tools/create-note.tool.js';

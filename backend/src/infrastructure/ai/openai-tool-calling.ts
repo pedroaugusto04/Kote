@@ -1,8 +1,10 @@
 import { AiProvider, ConversationConfidence } from '../../contracts/enums.js';
 import { stripMarkdownFences } from '../../domain/strings.js';
 import { truncateForLog } from '../utils/logging.js';
-import type { AskAgentTool } from '../../application/ports/query/ask-agent.gateway.js';
+import type { AgentTool } from '../../contracts/agent-tool.js';
 import type { AnswerGenerationResponse } from '../../application/ports/query/answer-generation.gateway.js';
+
+import { fetchWithAiRetry, type AiRetryOptions } from './ai-retry.js';
 
 export type OpenAiAgentConfig = {
   provider: AiProvider;
@@ -10,6 +12,7 @@ export type OpenAiAgentConfig = {
   model: string;
   apiKey: string;
   maxTurns?: number;
+  retryOptions?: AiRetryOptions;
 };
 
 import {
@@ -21,26 +24,21 @@ import type { AskConversationTurn } from '../../contracts/ask-conversation.js';
 
 export { OpenAiAgentExecutionError };
 
-export async function runOpenAiAgentLoop(
+export async function runOpenAiLoop<T>(
   config: OpenAiAgentConfig,
   systemPrompt: string,
-  userQuestion: string,
-  tools: AskAgentTool[],
+  userMessage: string,
+  tools: AgentTool[],
+  parser: (rawText: string) => T,
+  fallback: () => T,
   history?: AskConversationTurn[],
-): Promise<AnswerGenerationResponse> {
+): Promise<T> {
   const maxTurns = config.maxTurns ?? 5;
   const baseUrl = config.baseUrl.replace(/\/$/, '');
   const endpoint = `${baseUrl}/chat/completions`;
 
-  const toolMap = new Map<string, AskAgentTool>(tools.map((t) => [t.name, t]));
-  const openAiTools = tools.map((t) => ({
-    type: 'function',
-    function: {
-      name: t.name,
-      description: t.description,
-      parameters: t.parameters,
-    },
-  }));
+  const toolMap = new Map<string, AgentTool>(tools.map((t) => [t.name, t]));
+  const openAiTools = buildOpenAiTools(tools);
 
   const messages: Array<Record<string, unknown>> = [
     { role: 'system', content: systemPrompt },
@@ -57,7 +55,7 @@ export async function runOpenAiAgentLoop(
     }
   }
 
-  messages.push({ role: 'user', content: userQuestion });
+  messages.push({ role: 'user', content: userMessage });
 
   for (let turn = 0; turn < maxTurns; turn++) {
     const isLastTurn = turn === maxTurns - 1;
@@ -70,7 +68,7 @@ export async function runOpenAiAgentLoop(
             {
               role: 'system',
               content:
-                'This is your final reasoning turn. Please synthesize and output your final answer now based on all information gathered.',
+                'This is your final reasoning turn. Please synthesize your final answer now and output ONLY the JSON object matching the schema, with no preamble or text outside the JSON.',
             },
           ]
         : messages,
@@ -79,15 +77,19 @@ export async function runOpenAiAgentLoop(
 
     let response: Response;
     try {
-      response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${config.apiKey}`,
-        },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(45_000),
-      });
+      response = await fetchWithAiRetry(
+        () =>
+          fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${config.apiKey}`,
+            },
+            body: JSON.stringify(requestBody),
+            signal: AbortSignal.timeout(45_000),
+          }),
+        config.retryOptions,
+      );
     } catch (error) {
       throw new OpenAiAgentExecutionError('openai_agent_request_failed', {
         provider: config.provider,
@@ -160,21 +162,31 @@ export async function runOpenAiAgentLoop(
 
     // Model returned final content
     const rawContent = message?.content || '';
-    const parsed = parseAskAgentFinalResponse(rawContent);
-
-    return {
-      answer: parsed.answer,
-      confidence: parsed.confidence,
-      requestedAttachments: parsed.requestedAttachments,
-      requestedAttachmentPattern: parsed.requestedAttachmentPattern,
-      sources: parsed.sources || [],
-    };
+    return parser(rawContent);
   }
 
-  return {
-    answer: 'I gathered relevant information from your notes, but reached the maximum reasoning steps.',
-    confidence: ConversationConfidence.Low,
-    requestedAttachments: false,
-    sources: [],
-  };
+  return fallback();
+}
+
+export async function runOpenAiAgentLoop(
+  config: OpenAiAgentConfig,
+  systemPrompt: string,
+  userQuestion: string,
+  tools: AgentTool[],
+  history?: AskConversationTurn[],
+): Promise<AnswerGenerationResponse> {
+  return runOpenAiLoop(
+    config,
+    systemPrompt,
+    userQuestion,
+    tools,
+    parseAskAgentFinalResponse,
+    () => ({
+      answer: 'I gathered relevant information from your notes, but reached the maximum reasoning steps.',
+      confidence: ConversationConfidence.Low,
+      requestedAttachments: false,
+      sources: [],
+    }),
+    history,
+  );
 }

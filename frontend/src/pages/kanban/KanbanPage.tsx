@@ -2,19 +2,16 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useMemo, useState } from 'react';
 
 import type { PageContext } from '../../app/page-context';
-import { KEYBOARD_KEYS } from '../../shared/constants/keyboard.constants';
-import { formatDisplayToken, projectName, reminderDisplayDateTime } from '../../shared/utils/format';
 import { fetchReminderBoard, updateReminderStatus } from '../../shared/api/client';
 import { invalidateNoteRelatedQueries } from '../../shared/api/note-query';
 import { ReminderBoardColumnKey } from '../../shared/api/models/reminder';
-import type { ReminderBoardCard, ReminderBoardColumn } from '../../shared/api/models/reminder';
-import type { Project } from '../../shared/api/models/project';
+import type { ReminderBoardColumn } from '../../shared/api/models/reminder';
 import { notifyGeneralFormError } from '../../shared/forms/errors';
 import { notifyWarning } from '../../shared/ui/notifications';
-import { Badge, PageHead } from '../../shared/ui/primitives';
+import { PageHead } from '../../shared/ui/primitives';
 import { Select } from '../../shared/ui/select';
-import { KanbanColumnInfinitePagination } from '../../shared/ui/kanban-column-infinite-pagination';
 import { kanbanBoardColumns, type ReminderBoardTargetStatus } from './kanban-board.columns';
+import { KanbanColumn } from './KanbanColumn';
 
 const BOARD_LIMIT = 5;
 
@@ -149,118 +146,4 @@ export function KanbanPage({
   );
 }
 
-interface KanbanColumnProps {
-  column: typeof kanbanBoardColumns[number];
-  data: ReminderBoardColumn;
-  isFetching: boolean;
-  draggedId: string;
-  setDraggedId: (id: string) => void;
-  statusMutationPending: boolean;
-  handleDrop: (columnKey: ReminderBoardColumnKey) => void;
-  handleColumnPageChange: (columnKey: ReminderBoardColumnKey, page: number) => void;
-  openNote: (id: string) => void;
-  projects: Project[];
-}
-
-function KanbanColumn({
-  column,
-  data,
-  isFetching,
-  draggedId,
-  setDraggedId,
-  statusMutationPending,
-  handleDrop,
-  handleColumnPageChange,
-  openNote,
-  projects,
-}: KanbanColumnProps) {
-  return (
-    <section
-      aria-label={column.title}
-      aria-disabled={!column.targetStatus}
-      className={`kanban-column${column.targetStatus ? '' : ' kanban-column-blocked-drop'}`}
-      key={column.key}
-      onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => {
-        event.preventDefault();
-        handleDrop(column.key);
-      }}
-    >
-      <header className="kanban-column-header">
-        <h2>{column.title}</h2>
-        <span>{data.total}</span>
-      </header>
-      <div className="kanban-column-list">
-        {data.items.map((card: ReminderBoardCard) => (
-          <KanbanCard
-            card={card}
-            disabled={statusMutationPending}
-            isDragging={card.id === draggedId}
-            key={card.id}
-            onDragStart={setDraggedId}
-            onDragEnd={() => setDraggedId('')}
-            onOpen={openNote}
-            projectLabel={projectName(projects, card.project)}
-          />
-        ))}
-        {data.items.length === 0 ? <p className="kanban-empty">{column.empty}</p> : null}
-        <KanbanColumnInfinitePagination
-          columnKey={column.key}
-          pagination={data}
-          isLoading={isFetching}
-          onPageChange={handleColumnPageChange}
-        />
-      </div>
-    </section>
-  );
-}
-
-function KanbanCard({
-  card,
-  disabled,
-  isDragging,
-  onDragStart,
-  onDragEnd,
-  onOpen,
-  projectLabel,
-}: {
-  card: ReminderBoardCard;
-  disabled: boolean;
-  isDragging: boolean;
-  onDragStart: (id: string) => void;
-  onDragEnd: () => void;
-  onOpen: (id: string) => void;
-  projectLabel: string;
-}) {
-  const schedule = reminderDisplayDateTime(card);
-  return (
-    <article
-      className={`kanban-card${isDragging ? ' dragging' : ''}`}
-      draggable={!disabled}
-      onClick={() => onOpen(card.id)}
-      onDragEnd={onDragEnd}
-      onDragStart={(event) => {
-        event.dataTransfer.effectAllowed = 'move';
-        event.dataTransfer.setData('text/plain', card.id);
-        onDragStart(card.id);
-      }}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === KEYBOARD_KEYS.ENTER || event.key === KEYBOARD_KEYS.SPACE) {
-          event.preventDefault();
-          onOpen(card.id);
-        }
-      }}
-    >
-      <div className="meta-row">
-        <Badge value={formatDisplayToken(card.status)} tone={card.isOverdue ? 'high' : card.status} />
-        <span className="meta">{projectLabel}</span>
-      </div>
-      <h3>{card.title}</h3>
-      {card.noteText ? <p>{card.noteText}</p> : null}
-      <span className="kanban-card-date">{schedule}</span>
-    </article>
-  );
-}
 

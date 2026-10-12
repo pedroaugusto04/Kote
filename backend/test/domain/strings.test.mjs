@@ -1,7 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { calculateAttachmentSize, displayNameFromSlug, formatDisplayToken, extractAppNameFromEmail } from '../../dist/domain/strings.js';
+import { calculateAttachmentSize, displayNameFromSlug, formatDisplayToken, extractAppNameFromEmail, slugify } from '../../dist/domain/strings.js';
+
+test('slugify normalizes accented characters, trims, replaces spaces/underscores with hyphens, and removes invalid characters', () => {
+  assert.equal(slugify('Café App'), 'cafe-app');
+  assert.equal(slugify('my.app'), 'myapp');
+  assert.equal(slugify('next.js-blog'), 'nextjs-blog');
+  assert.equal(slugify('  My_Project  Name  '), 'my-project-name');
+  assert.equal(slugify(''), '');
+  assert.equal(slugify(null), '');
+});
+
 
 test('calculateAttachmentSize returns sizeBytes if it is positive and provided', () => {
   const size = calculateAttachmentSize(123, 'some base64');

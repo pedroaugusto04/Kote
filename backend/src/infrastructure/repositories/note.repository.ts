@@ -23,6 +23,7 @@ import { PostgresDatabase } from '../persistence/database.js';
 import { notes, attachments, NoteStatus, projects, workspaces, categories, noteCategories, askHistory, noteLinks } from '../persistence/schema/index.js';
 import { resolveIds } from './utils/id-resolution.helpers.js';
 import { isAiSource } from '../../domain/notes.js';
+import { isUuid } from '../../domain/utils/uuid.utils.js';
 import { resolveNoteBodySearchText } from '../../domain/utils/note-search-text.utils.js';
 import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
 import type { ProductivityInsightsRaw } from '../../application/models/productivity.models.js';
@@ -73,6 +74,28 @@ export const NOTE_FULL_SELECT_FIELDS = {
   ...NOTE_BASE_SELECT_FIELDS,
   attachmentCount: count(attachments.id).as('attachment_count'),
 };
+
+export {
+  RAW_CATEGORIES_JSON_AGG_SQL,
+  projectTimelineItem,
+  projectTimelineCategory,
+  hasTimelineReminder,
+  appendTimelineFolderClause,
+  appendTimelineCategoryClause,
+  appendTimelineStatusClause,
+  appendTimelineSearchClause,
+  appendKnowledgeMapFilters,
+} from './utils/project-timeline.helpers.js';
+import {
+  RAW_CATEGORIES_JSON_AGG_SQL,
+  projectTimelineItem,
+  appendTimelineFolderClause,
+  appendTimelineCategoryClause,
+  appendTimelineStatusClause,
+  appendTimelineSearchClause,
+  appendKnowledgeMapFilters,
+} from './utils/project-timeline.helpers.js';
+
 
 @Injectable()
 export class PostgresNoteRepository {
@@ -319,15 +342,7 @@ export class PostgresNoteRepository {
 
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, values, input.category);
-    if (input.status) {
-      if (input.status === StatusFilter.Open) {
-        values.push(terminalStatuses);
-        clauses.push(`(n.status is null or n.status != all($${values.length}::note_status_enum[]))`);
-      } else {
-        values.push(input.status);
-        clauses.push(`n.status::text = $${values.length}`);
-      }
-    }
+    appendTimelineStatusClause(clauses, values, input.status, terminalStatuses);
     const where = clauses.join(' and ');
     const totalResult = await this.database.getPool().query(
       `select count(*)::int as total 
@@ -341,22 +356,7 @@ export class PostgresNoteRepository {
 
     const result = await this.database.getPool().query(
       `select n.*, count(distinct a.id)::int as attachment_count,
-              coalesce(
-                json_agg(
-                  json_build_object(
-                    'id', cat.id,
-                    'user_id', cat.user_id,
-                    'workspace_id', cat.workspace_id,
-                    'name', cat.name,
-                    'color', cat.color,
-                    'icon', cat.icon,
-                    'is_system', cat.is_system,
-                    'created_at', cat.created_at,
-                    'updated_at', cat.updated_at
-                  )
-                ) filter (where cat.id is not null),
-                '[]'::json
-              ) as categories
+              ${RAW_CATEGORIES_JSON_AGG_SQL}
        from kb_notes n
        ${joinSql}
        left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
@@ -390,24 +390,8 @@ export class PostgresNoteRepository {
 
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, values, input.category);
-    if (input.status) {
-      if (input.status === StatusFilter.Open) {
-        values.push(terminalStatuses);
-        clauses.push(`(n.status is null or n.status != all($${values.length}::note_status_enum[]))`);
-      } else {
-        values.push(input.status);
-        clauses.push(`n.status::text = $${values.length}`);
-      }
-    }
-
-    if (input.query && input.query.trim()) {
-      values.push(`%${input.query.trim().toLowerCase()}%`);
-      clauses.push(`(
-        lower(n.title) like $${values.length} or 
-        lower(coalesce(n.summary, '')) like $${values.length} or 
-        lower(coalesce(n.body_search_text, '')) like $${values.length}
-      )`);
-    }
+    appendTimelineStatusClause(clauses, values, input.status, terminalStatuses);
+    appendTimelineSearchClause(clauses, values, input.query);
 
     const where = clauses.join(' and ');
 
@@ -433,34 +417,12 @@ export class PostgresNoteRepository {
     }
     appendTimelineFolderClause(clauses, values, input.folderId, input.folderIds);
     appendTimelineCategoryClause(clauses, values, input.category);
-    if (input.category !== TimelineCategory.DependencyWatcher) {
-      values.push(SourceChannel.DependencyWatcher, 'dependency_watcher');
-      clauses.push(`n.source_channel <> $${values.length - 1} and n.source_channel <> $${values.length} and n.source <> $${values.length - 1} and n.source <> $${values.length}`);
-    }
-    if (input.excludeReviewNotes) {
-      values.push(SourceChannel.Github, EventType.CodeReview);
-      clauses.push(`NOT (n.source_channel = $${values.length - 1} OR (n.metadata->>'eventType') = $${values.length})`);
-    }
+    appendKnowledgeMapFilters(clauses, values, input.category, input.excludeReviewNotes);
     const where = clauses.join(' and ');
 
     const result = await this.database.getPool().query(
       `select n.*, count(distinct a.id)::int as attachment_count,
-              coalesce(
-                json_agg(
-                  json_build_object(
-                    'id', cat.id,
-                    'user_id', cat.user_id,
-                    'workspace_id', cat.workspace_id,
-                    'name', cat.name,
-                    'color', cat.color,
-                    'icon', cat.icon,
-                    'is_system', cat.is_system,
-                    'created_at', cat.created_at,
-                    'updated_at', cat.updated_at
-                  )
-                ) filter (where cat.id is not null),
-                '[]'::json
-              ) as categories
+              ${RAW_CATEGORIES_JSON_AGG_SQL}
        from kb_notes n
        left join kb_projects p on p.id = n.project_id
        left join kb_attachments a on a.user_id = n.user_id and a.note_id = n.id
@@ -477,48 +439,10 @@ export class PostgresNoteRepository {
   }
 
   async getById(userId: string, id: string, tx?: any) {
+    if (!isUuid(id)) return null;
     const db = tx || this.database.getDb();
     const result = await db
-      .select({
-        id: notes.id,
-        userId: notes.userId,
-        path: notes.path,
-        title: notes.title,
-        projectId: notes.projectId,
-        workspaceId: notes.workspaceId,
-        workspaceSlug: workspaces.workspaceSlug,
-        projectSlug: projects.projectSlug,
-        folderId: notes.folderId,
-        status: notes.status,
-        tags: notes.tags,
-        occurredAt: notes.occurredAt,
-        sourceChannel: notes.sourceChannel,
-        source: notes.source,
-        summary: notes.summary,
-        markdownStorageKey: notes.markdownStorageKey,
-        metadata: notes.metadata,
-        sessionId: notes.sessionId,
-        reminderAt: notes.reminderAt,
-        isPinned: notes.isPinned,
-        createdAt: notes.createdAt,
-        updatedAt: notes.updatedAt,
-        categories: sql<unknown[]>`COALESCE(
-          json_agg(
-            json_build_object(
-              'id', ${categories.id},
-              'user_id', ${categories.userId},
-              'workspace_id', ${categories.workspaceId},
-              'name', ${categories.name},
-              'color', ${categories.color},
-              'icon', ${categories.icon},
-              'is_system', ${categories.isSystem},
-              'created_at', ${categories.createdAt},
-              'updated_at', ${categories.updatedAt}
-            )
-          ) FILTER (WHERE ${categories.id} IS NOT NULL),
-          '[]'::json
-        )`.as('categories'),
-      })
+      .select(NOTE_BASE_SELECT_FIELDS)
       .from(notes)
       .leftJoin(projects, eq(projects.id, notes.projectId))
       .leftJoin(workspaces, eq(workspaces.id, notes.workspaceId))
@@ -532,6 +456,7 @@ export class PostgresNoteRepository {
   }
 
   async getByIdLite(userId: string, id: string, tx?: any) {
+    if (!isUuid(id)) return null;
     const db = tx || this.database.getDb();
     const result = await db
       .select({
@@ -801,6 +726,7 @@ export class PostgresNoteRepository {
   }
 
   async delete(userId: string, id: string, markdownStorageKey: string | null) {
+    if (!isUuid(id)) return false;
     const db = this.database.getDb();
     const result = await db
       .delete(notes)
@@ -1024,84 +950,3 @@ export class PostgresNoteRepository {
   }
 }
 
-
-function projectTimelineItem(record: NoteRecord) {
-  const summary = noteSummary(record);
-  return {
-    ...summary,
-    noteId: record.id,
-    category: projectTimelineCategory(record),
-    sourceChannel: record.sourceChannel,
-  };
-}
-
-function projectTimelineCategory(record: Pick<NoteRecord, 'metadata' | 'source' | 'sourceChannel' | 'reminderAt'>): ProjectTimelineFilterCategory {
-  if (hasTimelineReminder(record)) return TimelineCategory.Reminder;
-  if (record.sourceChannel === SourceChannel.Github || record.sourceChannel === 'github-push') return TimelineCategory.Github;
-  if (record.sourceChannel === SourceChannel.Whatsapp) return TimelineCategory.Whatsapp;
-  if (record.sourceChannel === SourceChannel.AiChat) return TimelineCategory.AiChat;
-  if (record.sourceChannel === SourceChannel.DependencyWatcher) return TimelineCategory.DependencyWatcher;
-  if (record.sourceChannel === SourceChannel.Cli) return TimelineCategory.Manual;
-  if (record.sourceChannel === SourceChannel.Ide) return TimelineCategory.Manual;
-  return TimelineCategory.Manual;
-}
-
-function hasTimelineReminder(record: Pick<NoteRecord, 'reminderAt'>) {
-  return Boolean(record.reminderAt);
-}
-
-function appendTimelineFolderClause(
-  clauses: string[],
-  values: unknown[],
-  folderId: ListProjectTimelineInput['folderId'],
-  folderIds: ListProjectTimelineInput['folderIds'],
-) {
-  if (folderIds && folderIds.length > 0) {
-    const placeholders = folderIds.map((id) => {
-      values.push(id);
-      return `$${values.length}`;
-    });
-    clauses.push(`n.folder_id in (${placeholders.join(', ')})`);
-    return;
-  }
-  if (folderId === undefined) return;
-  const normalizedFolderId = folderId.trim();
-  if (!normalizedFolderId) return;
-  values.push(normalizedFolderId);
-  clauses.push(`n.folder_id = $${values.length}`);
-}
-
-function appendTimelineCategoryClause(clauses: string[], values: unknown[], category: ListProjectTimelineInput['category']) {
-  const noReminder = "(n.reminder_at IS NULL)";
-  if (category === TimelineCategory.All) return;
-  if (category === TimelineCategory.Reminder) {
-    clauses.push("(n.reminder_at IS NOT NULL)");
-    return;
-  }
-  clauses.push(noReminder);
-  if (category === TimelineCategory.Github) {
-    values.push(SourceChannel.Github);
-    clauses.push(`n.source_channel = $${values.length}`);
-    return;
-  }
-  if (category === TimelineCategory.Whatsapp) {
-    values.push(SourceChannel.Whatsapp);
-    clauses.push(`n.source_channel = $${values.length}`);
-    return;
-  }
-  if (category === TimelineCategory.AiChat) {
-    values.push(SourceChannel.AiChat);
-    clauses.push(`n.source_channel = $${values.length}`);
-    return;
-  }
-  if (category === TimelineCategory.DependencyWatcher) {
-    values.push(SourceChannel.DependencyWatcher);
-    clauses.push(`n.source_channel = $${values.length}`);
-    return;
-  }
-  values.push(SourceChannel.Github, SourceChannel.Whatsapp, SourceChannel.AiChat, SourceChannel.DependencyWatcher);
-  clauses.push(`n.source_channel <> $${values.length - 3}`);
-  clauses.push(`n.source_channel <> $${values.length - 2}`);
-  clauses.push(`n.source_channel <> $${values.length - 1}`);
-  clauses.push(`n.source_channel <> $${values.length}`);
-}

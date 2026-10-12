@@ -63,7 +63,9 @@ export function saveKbConfig(config: Partial<KbConfig>): void {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2), 'utf8');
     try {
       fs.chmodSync(CONFIG_PATH, 0o600);
-    } catch {}
+    } catch {
+      // Ignore chmod failures on non-POSIX filesystems
+    }
   } catch (error) {
     // ignore
   }
@@ -409,7 +411,9 @@ export class KbClient {
       try {
         const parsed = JSON.parse(response.body);
         errorMsg = parsed?.message ?? errorMsg;
-      } catch {}
+      } catch {
+        // Failed to parse response body as JSON
+      }
       throw new Error(errorMsg);
     }
 
@@ -429,8 +433,12 @@ export class KbClient {
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(updated, null, 2), 'utf8');
       try {
         fs.chmodSync(CONFIG_PATH, 0o600);
-      } catch {}
-    } catch {}
+      } catch {
+        // Ignore chmod failures on non-POSIX filesystems
+      }
+    } catch {
+      // Best-effort config wipe
+    }
   }
 
   async exchangeConnectionToken(token: string): Promise<{ accessToken: string; refreshToken: string }> {
@@ -443,7 +451,9 @@ export class KbClient {
       try {
         const parsed = JSON.parse(response.body);
         errorMsg = parsed?.message ?? errorMsg;
-      } catch {}
+      } catch {
+        // Failed to parse response body as JSON
+      }
       throw new Error(errorMsg);
     }
     return JSON.parse(response.body);

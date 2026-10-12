@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 
+import { isUuid } from '../../domain/utils/uuid.utils.js';
 import type { SaveWorkspaceInput } from '../../application/models/repository-records.models.js';
 import { workspaceFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -61,6 +62,7 @@ export class PostgresWorkspaceRepository {
   }
 
   async getById(workspaceId: string) {
+    if (!isUuid(workspaceId)) return null;
     const db = this.database.getDb();
     const result = await db
       .select()
@@ -72,6 +74,7 @@ export class PostgresWorkspaceRepository {
   }
 
   async update(id: string, input: { dependencyWatcherEnabled?: boolean }) {
+    if (!isUuid(id)) return;
     const db = this.database.getDb();
     await db
       .update(workspaces)

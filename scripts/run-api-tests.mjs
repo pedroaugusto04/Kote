@@ -26,10 +26,44 @@ function findTestFiles(dir) {
   return results;
 }
 
-const testFiles = findTestFiles('backend/test');
+const cliArgs = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
+
+function resolveTestFiles() {
+  if (cliArgs.length > 0) {
+    const files = [];
+    for (const arg of cliArgs) {
+      try {
+        const stat = statSync(arg);
+        if (stat.isDirectory()) {
+          files.push(...findTestFiles(arg));
+        } else {
+          files.push(arg);
+        }
+      } catch {
+        const nested = join('backend/test', arg);
+        try {
+          const nestedStat = statSync(nested);
+          if (nestedStat.isDirectory()) {
+            files.push(...findTestFiles(nested));
+          } else {
+            files.push(nested);
+          }
+        } catch {
+          files.push(arg);
+        }
+      }
+    }
+    return files;
+  }
+  return findTestFiles('backend/test');
+}
+
+const testFiles = resolveTestFiles();
+
+console.log(`Running ${testFiles.length} API test file(s)...`);
 
 const commands = [
-  ['npm', ['run', 'clean']],
+  ...(cliArgs.length === 0 ? [['npm', ['run', 'clean']]] : []),
   ['npm', ['run', 'build:api']],
   ['node', ['--test', '--test-concurrency=1', ...testFiles]]
 ];

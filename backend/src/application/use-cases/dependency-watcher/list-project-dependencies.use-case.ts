@@ -11,39 +11,36 @@ export class ListProjectDependenciesUseCase {
     private readonly contentRepository: ContentRepository,
   ) {}
 
-  async execute(userId: string, projectId: string, projectSlug: string): Promise<ListProjectDependenciesResult> {
-    const projects = await this.contentRepository.listProjects(userId);
-    const project = projects.find((item) => item.id === projectId);
+  async execute(userId: string, projectId: string, projectSlug: string, workspaceId?: string): Promise<ListProjectDependenciesResult> {
+    const project = await this.contentRepository.getProjectById(userId, projectId);
     if (!project) {
       throw new NotFoundException('project_not_found');
     }
 
     const workspaceSlug = project.workspaceSlug;
-    if (!workspaceSlug) {
-      throw new NotFoundException('workspace_not_found');
-    }
-
-    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-    if (!workspace) {
+    const resolvedWorkspaceId = workspaceId
+      || project.workspaceId
+      || (workspaceSlug ? (await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug))?.id : undefined);
+    if (!resolvedWorkspaceId) {
       throw new NotFoundException('workspace_not_found');
     }
 
     const projectRepositoryIds = project.repositories.map((repository) => repository.id);
     if (projectRepositoryIds.length === 0) {
-      return { projectSlug, workspaceSlug, groups: [], total: 0 };
+      return { projectSlug, workspaceSlug: workspaceSlug ?? '', groups: [], total: 0 };
     }
 
     const monitoredRepositoryIds = new Set(
-      await this.dependencyWatcherRepository.listMonitoredRepositoryIds(userId, workspace.id),
+      await this.dependencyWatcherRepository.listMonitoredRepositoryIds(userId, resolvedWorkspaceId),
     );
     const scopedRepositoryIds = projectRepositoryIds.filter((repositoryId) => monitoredRepositoryIds.has(repositoryId));
     if (scopedRepositoryIds.length === 0) {
-      return { projectSlug, workspaceSlug, groups: [], total: 0 };
+      return { projectSlug, workspaceSlug: workspaceSlug ?? '', groups: [], total: 0 };
     }
 
     const dependencies = await this.dependencyWatcherRepository.findByRepositoryIds(
       userId,
-      workspace.id,
+      resolvedWorkspaceId,
       scopedRepositoryIds,
     );
 
@@ -84,7 +81,7 @@ export class ListProjectDependenciesUseCase {
 
     return {
       projectSlug,
-      workspaceSlug,
+      workspaceSlug: workspaceSlug ?? '',
       groups,
       total: dependencies.length,
     };

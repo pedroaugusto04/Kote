@@ -1,5 +1,5 @@
 import { AiProvider } from '../../../contracts/enums.js';
-import type { AskAgentTool } from '../../../application/ports/query/ask-agent.gateway.js';
+import type { AgentTool } from '../../../contracts/agent-tool.js';
 
 export class OpenAiAgentExecutionError extends Error {
   readonly provider: AiProvider;
@@ -32,7 +32,7 @@ export class OpenAiAgentExecutionError extends Error {
   }
 }
 
-export function buildOpenAiTools(tools: AskAgentTool[]) {
+export function buildOpenAiTools(tools: AgentTool[]) {
   return tools.map((tool) => ({
     type: 'function' as const,
     function: {

@@ -82,6 +82,23 @@ export class PostgresNoteSynthesisRepository extends NoteSynthesisRepository {
     return result.rows[0] ? map(result.rows[0]) : null;
   }
 
+  async getByNoteIds(userId: string, noteIds: string[]): Promise<Map<string, NoteSynthesisRecord>> {
+    if (noteIds.length === 0) return new Map();
+    const result = await this.database.getPool().query(
+      `SELECT s.*, o.available_at
+       FROM kb_note_syntheses s
+       LEFT JOIN kb_ai_session_synthesis_outbox o
+         ON o.note_id = s.note_id AND o.source_hash = s.source_hash
+       WHERE s.user_id = $1 AND s.note_id::text = ANY($2::text[])`,
+      [userId, noteIds],
+    );
+    const mapResult = new Map<string, NoteSynthesisRecord>();
+    for (const row of result.rows) {
+      mapResult.set(row.note_id, map(row));
+    }
+    return mapResult;
+  }
+
   async listProjectDecisions(userId: string, input: ListProjectDecisionsInput): Promise<ListProjectDecisionsResult> {
     const page = Math.max(1, input.page || 1);
     const pageSize = Math.min(5000, Math.max(1, input.pageSize || 20));

@@ -8,6 +8,7 @@ import {
 } from '../../../dist/application/use-cases/index.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { IngestAgentToolsService } from '../../../dist/application/services/conversation/ingest-agent-tools.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput } from '../../../dist/contracts/agent-conversation.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
@@ -17,7 +18,7 @@ class StubConversationAgentGateway {
     this.turns = turns;
   }
 
-  async decide(_config, payload) {
+  async decide(_config, payload, _tools) {
     const key = String(payload.messageText || '').trim().toLowerCase();
     const decision = this.turns.get(key);
     if (!decision) throw new Error(`missing_agent_decision:${key}`);
@@ -96,6 +97,7 @@ async function createFixture(t, turns) {
     ingest,
     environment,
     new StubConversationAgentGateway(turns),
+    new IngestAgentToolsService(repositories.contentRepository, loggerMock),
     presenter,
     folderResolution,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),

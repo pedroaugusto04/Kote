@@ -48,7 +48,9 @@ function CodeBlockView({ code, language }: { code: string; language: string }) {
       await navigator.clipboard.writeText(code);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch {}
+    } catch {
+      // Clipboard write failed (e.g. permission denied or unsupported environment)
+    }
   };
 
   const highlightedHtml = useMemo(() => {
@@ -139,34 +141,36 @@ export function MarkdownView({ markdown }: { markdown: string }) {
               {children}
             </PreContext.Provider>
           ),
-          code({
-            children,
-            className,
-            node,
-            ...rest
-          }: React.ComponentPropsWithoutRef<'code'> & { node?: unknown }) {
-            const isInsidePre = useContext(PreContext);
-            const match = /language-(\w+)/.exec(className || '');
-
-            if (isInsidePre) {
-              return (
-                <CodeBlockView
-                  code={String(children).replace(/\n$/, '')}
-                  language={match ? match[1] : 'code'}
-                />
-              );
-            }
-
-            return (
-              <code {...rest} className={className}>
-                {children}
-              </code>
-            );
-          }
+          code: CodeRenderer,
         }}
       >
         {processedMarkdown}
       </ReactMarkdown>
     </div>
+  );
+}
+
+function CodeRenderer({
+  children,
+  className,
+  node: _node,
+  ...rest
+}: React.ComponentPropsWithoutRef<'code'> & { node?: unknown }) {
+  const isInsidePre = useContext(PreContext);
+  const match = /language-(\w+)/.exec(className || '');
+
+  if (isInsidePre) {
+    return (
+      <CodeBlockView
+        code={String(children).replace(/\n$/, '')}
+        language={match ? match[1] : 'code'}
+      />
+    );
+  }
+
+  return (
+    <code {...rest} className={className}>
+      {children}
+    </code>
   );
 }

@@ -118,7 +118,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
           } else {
             activeProject = await detectActiveProject(kbClient, folders);
           }
-        } catch {}
+        } catch {
+          // Project detection failed, continue with fallback
+        }
         void setProjectWithCoverage(resolveProjectSlug(activeProject, kbClient.defaultProjectSlug));
         // Fire-and-forget: notify the backend that the VS Code extension is installed
         kbClient.reportVscodeInstalled().catch(() => { /* silent — best effort */ });
@@ -233,14 +235,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
             }
 
             const items: (vscode.QuickPickItem & { noteId?: string })[] = res.items.map((item) => {
-              const statusLabel = getKbDecisionStatusLabel(item.status);
               const kindLabel = item.kind === 'failed_attempt' ? 'Failed Attempt' : 'Decision';
               const filesInfo = item.files.length > 0 ? ` • ${item.files.length} file(s)` : '';
               const dateInfo = item.occurredAt ? item.occurredAt.split('T')[0] : '';
 
               return {
-                label: `[${statusLabel}] ${item.text.split('\n')[0].replace(/^#+\s*/, '').slice(0, 80)}`,
-                description: `${kindLabel} • ${dateInfo}${filesInfo}`,
+                label: `[${kindLabel}] ${item.text.split('\n')[0].replace(/^#+\s*/, '').slice(0, 80)}`,
+                description: `${dateInfo}${filesInfo}`,
                 detail: item.text,
                 noteId: item.noteId,
               };

@@ -8,6 +8,7 @@ export const PROJECT_DECISION_STATUS_LABELS: Record<string, string> = {
 };
 
 export function getProjectDecisionStatusLabel(status: string): string {
+  if (!status || status === 'unknown') return 'Accepted';
   return PROJECT_DECISION_STATUS_LABELS[status] || status.toUpperCase();
 }
 

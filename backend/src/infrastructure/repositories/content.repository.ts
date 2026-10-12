@@ -93,6 +93,10 @@ export class PostgresContentRepository extends ContentRepository {
     return this.projectRepository.list(userId);
   }
 
+  async listProjectsByWorkspace(userId: string, workspaceId: string) {
+    return this.projectRepository.listByWorkspace(userId, workspaceId);
+  }
+
   async listProjectsForExport(userId: string) {
     return this.projectRepository.listForExport(userId);
   }
@@ -111,8 +115,8 @@ export class PostgresContentRepository extends ContentRepository {
     return pageResult as PaginatedProjects;
   }
 
-  async getProjectBySlug(userId: string, projectSlug: string) {
-    return this.projectRepository.getBySlug(userId, projectSlug);
+  async getProjectBySlug(userId: string, projectSlug: string, workspaceId?: string) {
+    return this.projectRepository.getBySlug(userId, projectSlug, workspaceId);
   }
 
   async getProjectById(userId: string, projectId: string) {

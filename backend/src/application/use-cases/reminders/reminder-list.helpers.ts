@@ -62,3 +62,12 @@ export function boardColumnKey(reminder: Pick<ReminderBoardCard, 'status' | 'isO
   if (reminder.status === KnowledgeStatus.Archived) return ReminderBoardColumnKey.Archived;
   return reminder.status === KnowledgeStatus.Overdue || reminder.isOverdue ? ReminderBoardColumnKey.Overdue : ReminderBoardColumnKey.Upcoming;
 }
+
+export function matchesReminderProject(reminderProject: string, filterProjectSlug?: string): boolean {
+  if (!filterProjectSlug) return true;
+  if (filterProjectSlug === 'inbox') {
+    return reminderProject === 'inbox' || !reminderProject;
+  }
+  return reminderProject === filterProjectSlug;
+}
+

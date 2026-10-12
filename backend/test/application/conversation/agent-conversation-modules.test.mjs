@@ -4,40 +4,27 @@ import assert from 'node:assert/strict';
 import { ProcessAgentConversationUseCase } from '../../../dist/application/use-cases/conversation/process-agent-conversation.use-case.js';
 import { ConversationAgentPresenter } from '../../../dist/application/use-cases/conversation/services/conversation-agent.presenter.js';
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
+import { IngestAgentToolsService } from '../../../dist/application/services/conversation/ingest-agent-tools.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
 import {
   buildNextAgentConversationState,
   emptyAgentConversationState,
 } from '../../../dist/application/use-cases/conversation/services/conversation-agent-state-machine.js';
 import {
-  buildConversationAgentSystemPrompt,
-  buildConversationAgentTurnPrompt,
-} from '../../../dist/infrastructure/ai/prompts/conversation-agent.prompt.js';
+  buildIngestAgentSystemPrompt,
+} from '../../../dist/infrastructure/ai/prompts/ingest-agent.prompt.js';
 
-test('conversation agent prompt prefers organized folders over project root fallback', () => {
-  const prompt = buildConversationAgentSystemPrompt();
-
-  assert.match(prompt, /prefer the most sensible existing folder/);
-  assert.match(prompt, /suggest a short new folder path/);
-  assert.match(prompt, /Use placeInRoot=true only when the user explicitly chooses the project root/);
-});
-
-test('conversation agent prompt prioritizes explicit new project requests', () => {
-  const prompt = buildConversationAgentSystemPrompt();
-  const turnPrompt = buildConversationAgentTurnPrompt({
-    messageText: 'crie um projeto novo chamado Projeto X e salve esta nota',
-    currentState: {},
-    availableProjects: [{ projectSlug: 'platform', displayName: 'Platform', defaultTags: [] }],
-    candidateProjectSlug: '',
-    candidateFolders: [],
+test('ingest agent prompt instructs LLM to preserve raw text and handle project folders', () => {
+  const prompt = buildIngestAgentSystemPrompt({
+    workspaceSlug: 'default',
     timeZone: 'UTC',
     currentLocalDate: '2026-05-20',
     currentLocalTime: '12:00',
   });
 
-  assert.match(prompt, /explicitly asks to create\/use a new project/);
-  assert.match(prompt, /prefer the new project over existing projects and over "inbox"/);
-  assert.match(turnPrompt, /use the requested new project slug instead of falling back to an existing project or inbox/);
+  assert.match(prompt, /list_project_folders/);
+  assert.match(prompt, /Content Preservation Rule \(CRITICAL\)/);
+  assert.match(prompt, /selectedProjectSlug/);
 });
 
 test('conversation agent presenter formats save summary in English', () => {
@@ -336,6 +323,7 @@ test('process agent conversation auto-creates a missing project before submittin
         };
       },
     },
+    new IngestAgentToolsService(contentRepository, { info() {}, warn() {}, error() {}, debug() {} }),
     presenter,
     {
       async resolveFolderIdForSubmission() {
@@ -375,21 +363,16 @@ test('process agent conversation auto-creates a missing project before submittin
   assert.equal(ingested[0].event.projectSlug, 'projeto-x');
 });
 
-test('conversation agent prompt instructs LLM to preserve raw text without summarizing', () => {
-  const prompt = buildConversationAgentSystemPrompt();
-  const turnPrompt = buildConversationAgentTurnPrompt({
-    messageText: 'test note',
-    currentState: {},
-    availableProjects: [],
-    candidateProjectSlug: '',
-    candidateFolders: [],
+test('ingest agent prompt instructs LLM to preserve raw text without summarizing', () => {
+  const prompt = buildIngestAgentSystemPrompt({
+    workspaceSlug: 'default',
     timeZone: 'UTC',
     currentLocalDate: '2026-05-20',
     currentLocalTime: '12:00',
   });
 
-  assert.match(prompt, /preserve the user's message\/note exactly as sent/i);
-  assert.match(turnPrompt, /preserve the user's message\/note exactly as sent/i);
+  assert.match(prompt, /Content Preservation Rule \(CRITICAL\)/);
+  assert.match(prompt, /MUST preserve the user's original note text verbatim/);
 });
 
 test('conversation agent state machine resolves to nested folder by leaf folder slug fallback', () => {

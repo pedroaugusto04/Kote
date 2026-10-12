@@ -40,7 +40,10 @@ export function getAiProviderTheme(providerOrModel?: string, source?: string | n
 
 export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage']; source?: string | null }) {
   if (!usage || !usage.totalTokens) return null;
+  return <AiUsagePillContent usage={usage} source={source} />;
+}
 
+function AiUsagePillContent({ usage, source }: { usage: NonNullable<NoteSummary['aiUsage']>; source?: string | null }) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const pillRef = useRef<HTMLSpanElement | null>(null);
   const popoverRef = useRef<HTMLDivElement | null>(null);
@@ -61,6 +64,17 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
   if (hasMultipleModels) {
     displayModelName = `${displayModelName} (+${additionalCount})`;
   }
+
+  const updatePopoverPosition = React.useCallback(() => {
+    const trigger = pillRef.current;
+    if (!trigger) return setPopoverCoords(null);
+    const rect = trigger.getBoundingClientRect();
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 360;
+    const popoverWidth = Math.min(360, Math.max(280, viewportWidth - 32));
+    const left = Math.max(16, Math.min(viewportWidth - popoverWidth - 16, rect.left));
+    const top = rect.bottom + 6;
+    setPopoverCoords({ left, top });
+  }, []);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -91,20 +105,9 @@ export function AiUsagePill({ usage, source }: { usage?: NoteSummary['aiUsage'];
       window.removeEventListener('resize', updatePopoverPosition);
       window.removeEventListener('scroll', updatePopoverPosition, true);
     };
-  }, [isPopoverOpen]);
+  }, [isPopoverOpen, updatePopoverPosition]);
 
-  function updatePopoverPosition() {
-    const trigger = pillRef.current;
-    if (!trigger) return setPopoverCoords(null);
-    const rect = trigger.getBoundingClientRect();
-    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 360;
-    const popoverWidth = Math.min(360, Math.max(280, viewportWidth - 32));
-    const left = Math.max(16, Math.min(viewportWidth - popoverWidth - 16, rect.left));
-    const top = rect.bottom + 6;
-    setPopoverCoords({ left, top });
-  }
-
-  let tooltip = '';
+  let tooltip: string;
   if (hasMultipleModels && usage.byModel) {
     const lines = usage.byModel.map(
       (m) =>

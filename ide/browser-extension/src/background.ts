@@ -347,7 +347,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // Helper function to save note via backend API
 async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSlugOverride?: string): Promise<any> {
-  let { apiUrl, connectionToken, defaultProject, authMethod, accessToken: storedAccessToken } = await chrome.storage.local.get([
+  const { apiUrl, connectionToken, defaultProject, authMethod, accessToken: storedAccessToken } = await chrome.storage.local.get([
     'apiUrl',
     'connectionToken',
     'defaultProject',
@@ -436,7 +436,9 @@ async function saveClippedNote(clip: ClipPayload, tags: string[] = [], projectSl
     try {
       const errData = await response.json();
       errorMsg = errData.message || errorMsg;
-    } catch { }
+    } catch {
+      // Failed to parse response body as JSON
+    }
     
     // Check for auth errors in response
     if (response.status === 401) {

@@ -68,6 +68,13 @@ export const conversationAgentDecisionSchema = z.object({
   action: defaultActionSchema,
 });
 
+export type ConversationAgentFolderContext = {
+  id: string;
+  displayName: string;
+  fullSlugPath: string;
+  children: ConversationAgentFolderContext[];
+};
+
 export type AgentConversationAction = AgentConversationActionEnum;
 export type AgentConversationDraft = z.infer<typeof agentConversationDraftSchema>;
 export type AgentConversationState = z.infer<typeof agentConversationStateSchema>;

@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { eq, and } from 'drizzle-orm';
 
+import { isUuid } from '../../domain/utils/uuid.utils.js';
 import type { CategoryRecord } from '../../application/models/repository-records.models.js';
 import { categoryFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
@@ -35,6 +36,7 @@ export class PostgresCategoryRepository {
   }
 
   async getById(userId: string, categoryId: string, tx?: any): Promise<CategoryRecord | null> {
+    if (!isUuid(categoryId)) return null;
     const db = tx || this.database.getDb();
     const result = await db
       .select({

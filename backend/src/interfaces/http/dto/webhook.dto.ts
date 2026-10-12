@@ -21,6 +21,16 @@ export const githubPushWebhookBodySchema = z
       })
       .passthrough()
       .optional(),
+    repository: z
+      .object({
+        id: z.union([z.string(), z.number()]).optional(),
+        full_name: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+    ref: z.string().optional(),
+    before: z.string().optional(),
+    after: z.string().optional(),
   })
   .passthrough()
   .transform((body) => ({

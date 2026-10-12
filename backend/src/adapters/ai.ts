@@ -1,14 +1,12 @@
 import { AiProvider } from '../contracts/enums.js';
-import { conversationAgentDecisionSchema, normalizeConversationAgentDecisionInput, type ConversationAgentDecision } from '../contracts/agent-conversation.js';
-import { runChatCompletion, runStructuredChatCompletion, type ChatConfig } from '../infrastructure/ai/openai-compatible-chat.js';
-import { buildConversationAgentSystemPrompt, buildConversationAgentTurnPrompt, type ConversationAgentTurnPayload } from '../infrastructure/ai/prompts/conversation-agent.prompt.js';
+import { runChatCompletion, type ChatConfig } from '../infrastructure/ai/openai-compatible-chat.js';
 import { buildReviewAnalysisSystemPrompt, parseReviewAnalysis, reviewAnalysisFallback, type ReviewAnalysis } from '../infrastructure/ai/prompts/review-analysis.prompt.js';
 import { buildWeeklySummarySystemPrompt, parseWeeklySummary, weeklySummaryFallback } from '../infrastructure/ai/prompts/weekly-summary.prompt.js';
 import { buildDependencyAlertSystemPrompt, parseDependencyAlert, dependencyAlertFallback } from '../infrastructure/ai/prompts/dependency-alert.prompt.js';
 import type { WeeklySummaryAnalysis } from '../contracts/weekly-summary.js';
 import type { DependencyAlertResult } from '../application/ports/dependency-watcher/dependency-alert.port.js';
 
-export type { ChatConfig, ConversationAgentTurnPayload, ReviewAnalysis, WeeklySummaryAnalysis, DependencyAlertResult };
+export type { ChatConfig, ReviewAnalysis, WeeklySummaryAnalysis, DependencyAlertResult };
 
 export async function generateReviewAnalysis(
   config: ChatConfig,
@@ -23,18 +21,6 @@ export async function generateReviewAnalysis(
   );
   if (!content) return reviewAnalysisFallback;
   return parseReviewAnalysis(JSON.parse(content));
-}
-
-export async function decideConversationAgentTurn(
-  config: ChatConfig,
-  payload: ConversationAgentTurnPayload,
-): Promise<ConversationAgentDecision | null> {
-  return runStructuredChatCompletion(
-    config,
-    buildConversationAgentSystemPrompt(),
-    buildConversationAgentTurnPrompt(payload),
-    (parsed) => conversationAgentDecisionSchema.parse(normalizeConversationAgentDecisionInput(parsed)),
-  );
 }
 
 export async function generateWeeklySummary(

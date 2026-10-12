@@ -10,6 +10,7 @@ export abstract class ConversationStateRepository {
 
 export abstract class ReminderDispatchRepository {
   abstract hasSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string): Promise<boolean>;
+  getSentReminderIds?(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, reminderIds: string[]): Promise<Set<string>>;
   abstract markSent(userId: string, workspaceSlug: string, mode: ReminderDispatchMode, dispatchKey: string, reminderId: string): Promise<void>;
   abstract getRetryState(input: ReminderDispatchRetryKey): Promise<ReminderDispatchRetryState | null>;
   abstract recordFailure(input: RecordReminderDispatchFailureInput): Promise<ReminderDispatchRetryState>;

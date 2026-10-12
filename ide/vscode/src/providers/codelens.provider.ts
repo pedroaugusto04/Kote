@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { KbClient, isConfigured } from '../kb-client';
+import { type KbClient, isConfigured } from '../kb-client';
 import { logInfo } from '../error-reporter';
 
 export class KoteCodeLensProvider implements vscode.CodeLensProvider {

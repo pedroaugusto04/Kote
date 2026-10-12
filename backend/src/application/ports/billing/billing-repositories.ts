@@ -63,6 +63,17 @@ export abstract class BillingWebhookEventRepository {
   abstract markWebhookEventDone(id: string): Promise<void>;
   abstract markWebhookEventFailed(id: string, error: string): Promise<void>;
   abstract markWebhookEventAlerted(id: string, alertMarker: string): Promise<void>;
+  abstract listWebhookEventsForReplay(options: {
+    minAgeSeconds: number;
+    maxAttempts: number;
+    batchSize: number;
+  }): Promise<GatewayWebhookEventRecord[]>;
+  abstract markWebhookEventDispatched(id: string): Promise<void>;
+  abstract listWebhookEventsAtAttemptLimit(options: {
+    maxAttempts: number;
+    batchSize: number;
+    alertMarker: string;
+  }): Promise<GatewayWebhookEventRecord[]>;
 }
 
 export interface BillingIntentRecord {

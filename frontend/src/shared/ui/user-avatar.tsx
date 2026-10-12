@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { getUserInitials } from '../utils/user';
 
@@ -10,17 +10,14 @@ type UserAvatarProps = {
 };
 
 export function UserAvatar({ avatarUrl, className = '', displayName, email }: UserAvatarProps) {
-  const [imageFailed, setImageFailed] = useState(false);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
   const initials = getUserInitials({ displayName, email });
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [avatarUrl]);
+  const imageFailed = Boolean(avatarUrl && failedUrl === avatarUrl);
 
   if (avatarUrl && !imageFailed) {
     return (
       <span className={`user-avatar ${className}`.trim()} aria-label={`${displayName || email || 'User'} avatar`}>
-        <img alt="" draggable={false} src={avatarUrl} onError={() => setImageFailed(true)} />
+        <img alt="" draggable={false} src={avatarUrl} onError={() => setFailedUrl(avatarUrl)} />
       </span>
     );
   }

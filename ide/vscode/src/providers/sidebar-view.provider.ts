@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import * as vscode from 'vscode';
-import { KbClient, isConfigured } from '../kb-client';
+import { type KbClient, isConfigured } from '../kb-client';
 import type { AskHistoryEntry } from '../types';
 import { toMessage, logInfo } from '../error-reporter';
 import { loadAskHistory, clearAskHistory, addAskEntry } from '../utils/ask-history';
-import { AiHistoryManager } from '../ai-history/history-manager';
+import { type AiHistoryManager } from '../ai-history/history-manager';
 import { resolveProjectSlug } from '../utils/project';
 import { detectActiveProject } from '../project-detector.js';
 

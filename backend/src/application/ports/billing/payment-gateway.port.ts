@@ -30,7 +30,7 @@ export interface GatewaySubscription {
 export interface CreateSubscriptionInput {
   customerId: string;
   value: number;
-  cycle: BillingCycle;
+  cycle: BillingCycle | 'MONTHLY' | 'YEARLY';
   nextDueDate: Date | string; // YYYY-MM-DD
   billingType: BillingTypeEnum;
   creditCardToken?: string;
@@ -41,7 +41,7 @@ export interface CreateSubscriptionInput {
 
 export interface UpdateSubscriptionInput {
   value?: number;
-  cycle?: BillingCycle;
+  cycle?: BillingCycle | 'MONTHLY' | 'YEARLY';
   nextDueDate?: Date | string; // YYYY-MM-DD
   billingType?: BillingTypeEnum;
   description?: string;
@@ -68,6 +68,7 @@ export interface GatewayPayment {
   description?: string;
   externalReference?: string;
   stripeClientSecret?: string;
+  customerId?: string;
 }
 
 export interface CreatePaymentInput {

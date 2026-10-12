@@ -23,7 +23,7 @@ export function runConfigSet(key: string, value: string, isRepl = false): void {
     process.exit(1);
   }
 
-  let formattedValue = value.trim();
+  const formattedValue = value.trim();
 
   saveConfig({ [key]: formattedValue });
   console.log(pc.green(`Updated configuration: ${key} = ${formattedValue}`));

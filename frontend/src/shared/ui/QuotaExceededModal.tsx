@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { routes } from '../../app/routing/routes';
-import { ApiClientError } from '../api/request';
+import { type ApiClientError } from '../api/request';
 
 interface QuotaExceededModalProps {
   error: ApiClientError;

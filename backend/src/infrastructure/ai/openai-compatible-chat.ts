@@ -2,12 +2,15 @@ import { AiProvider } from '../../contracts/enums.js';
 import { stripMarkdownFences } from '../../domain/strings.js';
 import { truncateForLog } from '../utils/logging.js';
 
+import { fetchWithAiRetry, type AiRetryOptions } from './ai-retry.js';
+
 export type ChatConfig = {
   provider: AiProvider;
   baseUrl: string;
   model: string;
   apiKey: string;
   responseFormat?: { type: 'json_object' | 'text' };
+  retryOptions?: AiRetryOptions;
 };
 
 export class AiChatCompletionError extends Error {
@@ -63,14 +66,19 @@ export async function runChatCompletion(
 
   let response: Response;
   try {
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${config.apiKey}`,
-      },
-      body: requestBody,
-    });
+    response = await fetchWithAiRetry(
+      () =>
+        fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            authorization: `Bearer ${config.apiKey}`,
+          },
+          body: requestBody,
+          signal: AbortSignal.timeout(45_000),
+        }),
+      config.retryOptions,
+    );
   } catch (error) {
     throw new AiChatCompletionError('chat_completion_request_failed', {
       provider: config.provider,

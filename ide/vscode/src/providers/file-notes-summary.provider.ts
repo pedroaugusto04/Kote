@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { FILE_NOTES_SUMMARY_FALLBACK_REASON, KbClient } from '../kb-client';
+import { FILE_NOTES_SUMMARY_FALLBACK_REASON, type KbClient } from '../kb-client';
 import { resolveSourceBadge } from '../utils/source-channel';
 import { NoteDetailWebviewProvider } from './note-detail-webview.provider';
 import { KOTE_WEBVIEW_FOUNDATION_STYLES } from './kote-webview-design';

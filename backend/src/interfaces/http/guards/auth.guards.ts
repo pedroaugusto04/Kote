@@ -6,6 +6,7 @@ import { AuthService } from '../../../application/services/auth/auth.service.js'
 import type { AuthenticatedRequest } from '../auth.decorators.js';
 import { accessTokenFromRequest, assertTrustedBrowserOrigin } from '../http-security.js';
 import { requestIp } from '../request-ip.js';
+import { updateRequestContext } from '../../../observability/request-context.js';
 import { AUTH_ERROR_MESSAGES, AUTH_HEADERS, RATE_LIMIT_CONFIG, RATE_LIMIT_NAMESPACES } from './auth-guards.constants.js';
 
 type RateLimitBucket = { 
@@ -14,9 +15,24 @@ type RateLimitBucket = {
 };
 
 const rateLimitBuckets = new Map<string, RateLimitBucket>();
+let lastPruneAt = 0;
+const PRUNE_INTERVAL_MS = 60_000;
+
+function pruneExpiredRateLimits(now: number) {
+  if (now - lastPruneAt < PRUNE_INTERVAL_MS && rateLimitBuckets.size < 1000) {
+    return;
+  }
+  lastPruneAt = now;
+  for (const [key, bucket] of rateLimitBuckets.entries()) {
+    if (bucket.resetAt <= now) {
+      rateLimitBuckets.delete(key);
+    }
+  }
+}
 
 function assertRateLimit(request: Request, namespace: string, limit: number, windowMs: number) {
   const now = Date.now();
+  pruneExpiredRateLimits(now);
   const key = `${namespace}:${requestIp(request)}`;
   const current = rateLimitBuckets.get(key);
   if (!current || current.resetAt <= now) {
@@ -33,7 +49,11 @@ export class AccessTokenAuthGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    request.user = await this.auth.authenticateAccessToken(accessTokenFromRequest(request));
+    const user = await this.auth.authenticateAccessToken(accessTokenFromRequest(request));
+    request.user = user;
+    if (user?.id) {
+      updateRequestContext({ userId: user.id });
+    }
     return true;
   }
 }
