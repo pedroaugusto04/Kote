@@ -22,6 +22,7 @@ import {
 } from '../../dto/dashboard.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { paginatedResponse, normalizeScopeId } from '../../http-helpers.js';
+import { toAiTokenAnalyticsFilter } from '../../mappers/dashboard.mapper.js';
 
 @ApiTags('Dashboard')
 @Controller('api')
@@ -54,14 +55,8 @@ export class DashboardController {
     @Scope() scope?: WorkspaceScope,
     @Query(new ZodValidationPipe(aiAnalyticsQuerySchema, 'invalid_ai_analytics_query')) query?: AiAnalyticsQuery,
   ) {
-    return this.getAiTokenAnalyticsUseCase.execute(user.id, {
-      workspaceId: normalizeScopeId(scope?.workspaceId),
-      projectId: normalizeScopeId(scope?.projectId),
-      startDate: query?.startDate,
-      endDate: query?.endDate,
-      model: query?.model,
-      provider: query?.provider,
-    });
+    const filter = toAiTokenAnalyticsFilter(query, scope);
+    return this.getAiTokenAnalyticsUseCase.execute(user.id, filter);
   }
 
   @Get('productivity/insights')

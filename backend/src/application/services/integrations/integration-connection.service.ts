@@ -76,8 +76,6 @@ export function extractTelegramChatId(body: Record<string, unknown>): string {
 
 @Injectable()
 export class IntegrationConnectionService {
-  private readonly logger: AppLogger;
-
   constructor(
     private readonly credentials: CredentialRepository,
     private readonly externalIdentities: ExternalIdentityRepository,
@@ -88,10 +86,8 @@ export class IntegrationConnectionService {
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
     @Optional() private readonly whatsappReplySender?: WhatsappReplySender,
     @Optional() private readonly telegramMessageSender?: TelegramMessageSender,
-    @Optional() logger?: AppLogger,
-  ) {
-    this.logger = logger || AppLogger.create();
-  }
+    private readonly logger: AppLogger = AppLogger.create(),
+  ) {}
 
   private environment() {
     return this.environmentProvider.read();

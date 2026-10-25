@@ -16,9 +16,18 @@ import {
   readJsonLines,
   safeFileSignature,
   safeMtime,
+  stripCustomXmlTags,
 } from './provider.utils.js';
 
 const USER_REQUEST_REGEX = /<USER_REQUEST>([\s\S]*?)<\/USER_REQUEST>/;
+
+const ANTIGRAVITY_TAGS_TO_STRIP = [
+  'ADDITIONAL_METADATA',
+  'USER_SETTINGS_CHANGE',
+  'EPHEMERAL_MESSAGE',
+  'SYSTEM_MESSAGE',
+  'thought',
+] as const;
 
 const ANTIGRAVITY_RECORD = {
   USER_SOURCE: 'USER_EXPLICIT',
@@ -30,12 +39,7 @@ const ANTIGRAVITY_RECORD = {
 const sessionCache = new FileSessionCache();
 
 function cleanContent(raw: string): string {
-  return raw
-    .replace(/<ADDITIONAL_METADATA>[\s\S]*?(<\/ADDITIONAL_METADATA>|$)/gi, '')
-    .replace(/<USER_SETTINGS_CHANGE>[\s\S]*?(<\/USER_SETTINGS_CHANGE>|$)/gi, '')
-    .replace(/<EPHEMERAL_MESSAGE>[\s\S]*?(<\/EPHEMERAL_MESSAGE>|$)/gi, '')
-    .replace(/<SYSTEM_MESSAGE>[\s\S]*?(<\/SYSTEM_MESSAGE>|$)/gi, '')
-    .replace(/<thought>[\s\S]*?(<\/thought>|$)/gi, '')
+  return stripCustomXmlTags(raw, ANTIGRAVITY_TAGS_TO_STRIP)
     .replace(/<truncated \d+ bytes?>/gi, '\n…')
     .trim();
 }

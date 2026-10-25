@@ -141,7 +141,8 @@ test('list project knowledge map expands selected folder to descendants', async 
     },
   };
 
-  await new ListProjectKnowledgeMapUseCase(repository).execute('user-1', {
+  const dummyClustering = { clusterKnowledgeMap: async (_userId, baseMap) => baseMap };
+  await new ListProjectKnowledgeMapUseCase(repository, dummyClustering).execute('user-1', {
     projectId: 'platform',
     category: 'all',
     folderId: 'folder-1',

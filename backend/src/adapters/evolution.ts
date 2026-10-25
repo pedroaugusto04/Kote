@@ -16,7 +16,7 @@ import {
 
 @Injectable()
 export class EvolutionWhatsappReplySender extends WhatsappReplySender {
-  constructor(private readonly logger?: AppLogger) {
+  constructor(private readonly logger: AppLogger) {
     super();
   }
   async sendText(input: { chatJid: string; text: string }): Promise<WhatsappSendTextResult> {
@@ -103,7 +103,7 @@ export class EvolutionWhatsappReplySender extends WhatsappReplySender {
       });
       if (!response.ok) {
         const errorBody = await response.text().catch(() => '');
-        this.logger?.error('whatsapp.send_media.failed', {
+        this.logger.error('whatsapp.send_media.failed', {
           status: response.status,
           errorBody,
           chatJid: input.chatJid,

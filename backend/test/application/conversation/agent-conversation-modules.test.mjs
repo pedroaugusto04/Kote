@@ -336,6 +336,7 @@ test('process agent conversation auto-creates a missing project before submittin
       },
     }),
     { buildTools: () => [] },
+    { info() {}, warn() {}, error() {}, debug() {} },
   );
 
   const result = await useCaseWithDecision.execute({

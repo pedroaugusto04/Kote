@@ -4,6 +4,18 @@ import { SubscriptionService } from '../../services/billing/SubscriptionService.
 import { BillingCycle, BillingType } from '../../../domain/enums/billing.enums.js';
 import { BillingEventBus } from '../../event-buses/billing-event.bus.js';
 
+export interface UpdateSubscriptionInput {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  planId: string;
+  billingCycle?: BillingCycle;
+  billingType?: BillingType;
+  cpfCnpj?: string;
+  countryCode?: string;
+  creditCardToken?: string;
+}
+
 @Injectable()
 export class UpdateSubscriptionUseCase {
   constructor(
@@ -12,17 +24,7 @@ export class UpdateSubscriptionUseCase {
     private readonly billingEventBus: BillingEventBus,
   ) {}
 
-  async execute(params: {
-    userId: string;
-    email: string;
-    displayName: string | null;
-    planId: string;
-    billingCycle?: BillingCycle;
-    billingType?: BillingType;
-    cpfCnpj?: string;
-    countryCode?: string;
-    creditCardToken?: string;
-  }) {
+  async execute(params: UpdateSubscriptionInput) {
     const result = await this.subscriptionService.registerOrUpdateSubscription({
       userId: params.userId,
       userEmail: params.email,

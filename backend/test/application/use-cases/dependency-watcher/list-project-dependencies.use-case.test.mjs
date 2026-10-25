@@ -1,3 +1,4 @@
+import { WorkspaceScopeResolver } from '../../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { NotFoundException } from '@nestjs/common';
@@ -67,20 +68,21 @@ describe('Backend: List Project Dependencies Use Case', () => {
     useCase = new ListProjectDependenciesUseCase(
       mockDependencyWatcherRepository,
       mockContentRepository,
+      new WorkspaceScopeResolver(mockContentRepository),
     );
   });
 
   it('throws when project does not exist', async () => {
     await assert.rejects(
       async () => {
-        await useCase.execute('user-1', 'missing', 'backend');
+        await useCase.execute({ userId: 'user-1', projectId: 'missing', projectSlug: 'backend' });
       },
       (err) => err instanceof NotFoundException,
     );
   });
 
   it('returns dependencies grouped by monitored repository', async () => {
-    const result = await useCase.execute('user-1', 'project-1', 'backend');
+    const result = await useCase.execute({ userId: 'user-1', projectId: 'project-1', projectSlug: 'backend' });
 
     assert.deepEqual(calls.findByRepositoryIds[0], ['user-1', 'workspace-1', ['repo-kb-1']]);
     assert.equal(result.total, 1);
@@ -98,7 +100,7 @@ describe('Backend: List Project Dependencies Use Case', () => {
   it('returns empty groups when project repositories are not monitored', async () => {
     mockDependencyWatcherRepository.listMonitoredRepositoryIds = async () => [];
 
-    const result = await useCase.execute('user-1', 'project-1', 'backend');
+    const result = await useCase.execute({ userId: 'user-1', projectId: 'project-1', projectSlug: 'backend' });
 
     assert.deepEqual(result, { projectSlug: 'backend', workspaceSlug: 'acme', groups: [], total: 0 });
     assert.equal(calls.findByRepositoryIds.length, 0);

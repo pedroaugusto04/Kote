@@ -288,7 +288,11 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and returns reque
     resolveWhatsappAskAttachmentsUseCase,
     whatsappReplySender,
   );
-  const result = await useCase.execute('How to deploy?', 'user-123', { projectSlug: 'platform' });
+  const result = await useCase.execute({
+    question: 'How to deploy?',
+    userId: 'user-123',
+    scope: { projectId: undefined, workspaceId: undefined },
+  });
 
   assert.equal(typeof result.conversationId, 'string');
   const { conversationId: resConvId, ...resRest } = result;
@@ -327,7 +331,7 @@ test('RunAskAiUseCase saves only successful web Ask AI answers and returns reque
   assert.equal(sentMedia.length, 0);
 
   askKnowledge.result = { ok: false, answer: 'Failed.', confidence: 'low', requestedAttachments: false, sources: [], relatedNotes: [] };
-  await useCase.execute('Broken?', 'user-123');
+  await useCase.execute({ question: 'Broken?', userId: 'user-123' });
   assert.equal(saved.length, 1);
 });
 
@@ -363,7 +367,11 @@ test('RunAskAiUseCase loads prior conversation history when conversationId is pr
     { async listWorkspaces() { return []; } },
     { async execute() { return { requested: false, media: [] }; } },
   );
-  const result = await useCase.execute('Follow-up question?', 'user-123', {}, 'conv-1');
+  const result = await useCase.execute({
+    question: 'Follow-up question?',
+    userId: 'user-123',
+    conversationId: 'conv-1',
+  });
   assert.equal(result.ok, true);
   assert.equal(askKnowledge.calls.length, 1);
   assert.deepEqual(askKnowledge.calls[0].options.conversationHistory, [{

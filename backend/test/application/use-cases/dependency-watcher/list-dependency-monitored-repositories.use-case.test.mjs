@@ -1,3 +1,4 @@
+import { WorkspaceScopeResolver } from '../../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { NotFoundException } from '@nestjs/common';
@@ -22,6 +23,7 @@ describe('Backend: List Dependency Monitored Repositories Use Case', () => {
         if (slug === 'missing') return null;
         return { id: 'workspace-1', workspaceSlug: 'acme' };
       },
+      listProjectsByWorkspace: async (...args) => mockContentRepository.listProjects(...args),
       listProjects: async () => [
         {
           displayName: 'Backend',
@@ -51,6 +53,7 @@ describe('Backend: List Dependency Monitored Repositories Use Case', () => {
       mockDependencyWatcherRepository,
       mockContentRepository,
       mockGithubRepositoryResolution,
+      new WorkspaceScopeResolver(mockContentRepository),
     );
   });
 

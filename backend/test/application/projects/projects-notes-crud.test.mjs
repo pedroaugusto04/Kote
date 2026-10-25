@@ -147,6 +147,7 @@ test('updates existing manual note when matching sessionId and source instead of
     repositories.noteLifecycleService,
     loggerMock,
     repositories.database,
+    repositories.scopeResolver,
   );
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
@@ -218,7 +219,8 @@ test('resolves the primary note type from selected categories by priority', asyn
   });
 
   const loggerMock = { info(){}, warn(){}, error(){}, debug(){} };
-  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database);
+  const ingest = new IngestEntryUseCase(repositories.contentRepository, repositories.runtimeEnvironmentProvider, repositories.noteLifecycleService, loggerMock, repositories.database,
+    repositories.scopeResolver,);
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
     repositories.contentRepository,
@@ -857,6 +859,7 @@ test('manages uncategorized notes creation and updates', async (t) => {
     repositories.noteLifecycleService,
     loggerMock,
     repositories.database,
+    repositories.scopeResolver,
   );
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(
@@ -939,6 +942,7 @@ test('manages manual note creation with title but empty/missing rawText', async 
     repositories.noteLifecycleService,
     loggerMock,
     repositories.database,
+    repositories.scopeResolver,
   );
   const noopDispatcher = { dispatch: async () => {} };
   const createNote = new CreateManualNoteUseCase(

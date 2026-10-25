@@ -14,7 +14,7 @@ import { ConversationAgentPresenter } from '../../../dist/application/use-cases/
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
 import { IngestAgentToolsService } from '../../../dist/application/services/conversation/ingest-agent-tools.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
-import { WhatsappConversationTaskQueue } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
+import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
 import { createPostgresTestRepositories } from '../../helpers/postgres-test-repositories.mjs';
 
 class CapturingWhatsappSender {
@@ -206,6 +206,7 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     repositories.noteLifecycleService,
     loggerMock,
     repositories.database,
+    repositories.scopeResolver,
   );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();
@@ -233,19 +234,28 @@ async function fixture(t, sender = new CapturingWhatsappSender(), mediaDownloade
     knowledgeSearch,
     loggerMock,
   );
+  const dummyConnections = {
+    completeWhatsappFromWebhook: async () => ({ resolvedUserId: 'dummy-user', workspaceSlug: 'default' }),
+  };
+  const dummyAudioGateway = options.audioTranscription || {
+    transcribe: async () => null,
+  };
+  const askAttachmentsUseCase = new ResolveWhatsappAskAttachmentsUseCase(repositories.contentRepository, repositories.objectStorage);
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
     repositories.credentialRepository,
     repositories.webhookEventRepository,
     { read: () => ({ reminderTimeZone: 'America/Sao_Paulo', webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '', audioAiProvider: options.audioTranscription ? 'gemini' : 'none', audioAiBaseUrl: 'https://generativelanguage.googleapis.com/v1beta', audioAiModel: 'gemini-2.5-flash', audioAiApiKey: 'dummy-key' }) },
-    undefined,
+    dummyConnections,
     conversation,
     sender,
     mediaDownloader,
-    undefined,
-    options.askAttachments === false ? undefined : new ResolveWhatsappAskAttachmentsUseCase(repositories.contentRepository, repositories.objectStorage),
-    options.audioTranscription,
-    repositories.contentRepository,
+    loggerMock,
+    askAttachmentsUseCase,
+    dummyAudioGateway,
+    repositories.scopeResolver,
+    new WhatsappWebhookRateLimiter(),
+    new WhatsappConversationTaskQueue(),
   );
   return { repositories, whatsapp, sender, user, mediaDownloader };
 }

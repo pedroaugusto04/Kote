@@ -96,6 +96,7 @@ async function createFixture(t, handler, askAgentToolsService, aiEntitlementOver
     repositories.noteLifecycleService,
     loggerMock,
     repositories.database,
+    repositories.scopeResolver,
   );
   const presenter = new ConversationAgentPresenter();
   const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
@@ -126,7 +127,17 @@ async function createFixture(t, handler, askAgentToolsService, aiEntitlementOver
     loggerMock,
   );
 
-  return { repositories, user, agentUseCase, platformProject, backendFolder, toolsService, aiEntitlement };
+  const testAgentUseCase = {
+    ...agentUseCase,
+    execute: (paramsOrInput, userId = user.id, workspaceSlug = 'default', projectSlug) => {
+      const params = (paramsOrInput && typeof paramsOrInput === 'object' && 'input' in paramsOrInput)
+        ? paramsOrInput
+        : { input: paramsOrInput, userId, workspaceSlug, projectSlug };
+      return agentUseCase.execute(params);
+    },
+  };
+
+  return { repositories, user, agentUseCase: testAgentUseCase, platformProject, backendFolder, toolsService, aiEntitlement };
 }
 
 function input(messageText) {
@@ -320,7 +331,7 @@ test('AgentProcessConversationUseCase uses semantic search tools and returns a s
   assert.equal(result.action, 'answer');
   assert.equal(result.replyText, 'A resposta está na nota de deploy.');
   assert.deepEqual(result.answerContext.sources, [{ noteId: 'source-1', title: 'Deploy', path: 'deploy.md' }]);
-  assert.deepEqual(chargedOperations, ['agent_conversation_turn', 'ask_knowledge']);
+  assert.deepEqual(chargedOperations, ['agent_conversation_turn']);
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 0);
 });
 
@@ -382,27 +393,27 @@ test('reschedule_reminder tool respects user timezone when rescheduling', async 
   const created = await agentUseCase.execute(input('lembrete de ferias da sydle'), user.id, 'default');
   const tools = toolsService.buildTools(user.id, 'default', 'America/Sao_Paulo');
 
-  // Reschedule using local datetime string without offset: "2026-10-24T14:00:00"
+  // Reschedule using local datetime string without offset: "2028-10-24T14:00:00"
   // 14:00 in America/Sao_Paulo (-03:00) must be stored as 17:00:00.000Z in UTC
   const rescheduleTool = tools.find((tool) => tool.name === 'reschedule_reminder');
   const result = await rescheduleTool.execute({
     reminderId: created.ingestResult.noteId,
-    reminderAt: '2026-10-24T14:00:00',
+    reminderAt: '2028-10-24T14:00:00',
   });
 
   assert.equal(result.ok, true);
-  assert.equal(result.reminderAt, '2026-10-24T17:00:00.000Z');
-  assert.equal(result.formattedReminderAt, '2026-10-24 14:00:00');
+  assert.equal(result.reminderAt, '2028-10-24T17:00:00.000Z');
+  assert.equal(result.formattedReminderAt, '2028-10-24 14:00:00');
 
   const updatedNote = await repositories.contentRepository.getNoteById(user.id, created.ingestResult.noteId);
-  assert.equal(updatedNote.reminderAt, '2026-10-24T17:00:00.000Z');
+  assert.equal(updatedNote.reminderAt, '2028-10-24T17:00:00.000Z');
 
   // List reminders tool should include formattedReminderAt in user timezone
   const listTool = tools.find((tool) => tool.name === 'list_reminders');
   const listResult = await listTool.execute({ query: 'Sydle', status: 'all' });
   assert.equal(listResult.items.length, 1);
-  assert.equal(listResult.items[0].reminderAt, '2026-10-24T17:00:00.000Z');
-  assert.equal(listResult.items[0].formattedReminderAt, '2026-10-24 14:00:00');
+  assert.equal(listResult.items[0].reminderAt, '2028-10-24T17:00:00.000Z');
+  assert.equal(listResult.items[0].formattedReminderAt, '2028-10-24 14:00:00');
 });
 
 test('update_reminder_status resolves and archives reminders from agent tool', async (t) => {

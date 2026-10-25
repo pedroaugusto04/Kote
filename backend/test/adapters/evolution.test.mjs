@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 
 import { ReminderDeliveryChannel } from '../../dist/contracts/enums.js';
 import { EvolutionReminderDeliveryGateway, EvolutionWhatsappMediaDownloader, EvolutionWhatsappReplySender } from '../../dist/adapters/evolution.js';
+import { AppLogger } from '../../dist/observability/logger.js';
+
+const testLogger = AppLogger.create();
 
 test('evolution whatsapp sender posts plain text without bot prefix', async () => {
   process.env.EVOLUTION_API_URL = 'https://evolution.example';
@@ -17,7 +20,7 @@ test('evolution whatsapp sender posts plain text without bot prefix', async () =
   };
 
   try {
-    const sender = new EvolutionWhatsappReplySender();
+    const sender = new EvolutionWhatsappReplySender(testLogger);
     const result = await sender.sendText({ chatJid: '120363@g.us', text: 'Resposta final' });
 
     assert.equal(result.ok, true);
@@ -48,7 +51,7 @@ test('evolution whatsapp sender posts media payload', async () => {
   };
 
   try {
-    const sender = new EvolutionWhatsappReplySender();
+    const sender = new EvolutionWhatsappReplySender(testLogger);
     const result = await sender.sendMedia({
       chatJid: '120363@g.us',
       mediaType: 'document',
@@ -150,7 +153,7 @@ test('evolution whatsapp sender normalizes generic or missing filename extension
   };
 
   try {
-    const sender = new EvolutionWhatsappReplySender();
+    const sender = new EvolutionWhatsappReplySender(testLogger);
     
     // Test case 1: Generic extension '.image'
     await sender.sendMedia({
@@ -192,7 +195,7 @@ test('evolution whatsapp sender posts audio payload to sendWhatsAppAudio endpoin
   };
 
   try {
-    const sender = new EvolutionWhatsappReplySender();
+    const sender = new EvolutionWhatsappReplySender(testLogger);
     
     // Test case: Sending audio as base64
     const result = await sender.sendMedia({

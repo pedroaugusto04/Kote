@@ -37,6 +37,23 @@ function fieldString(row: Row, snake: string, camel: string, fallback = ''): str
   return value == null ? fallback : String(value);
 }
 
+function fieldNullableString(row: Row, snake: string, camel: string): string | null {
+  const value = field(row, snake, camel);
+  return value == null ? null : String(value);
+}
+
+function fieldNumber(row: Row, snake: string, camel: string, fallback = 0): number {
+  const value = field(row, snake, camel);
+  if (value == null) return fallback;
+  const parsed = Number(value);
+  return Number.isNaN(parsed) ? fallback : parsed;
+}
+
+function fieldBoolean(row: Row, snake: string, camel: string, fallback = false): boolean {
+  const value = field(row, snake, camel);
+  return value === undefined ? fallback : Boolean(value);
+}
+
 export function toIsoTimestamp(value: unknown): string {
   if (value instanceof Date) {
     if (isNaN(value.getTime())) return '';
@@ -57,6 +74,11 @@ export function toIsoTimestamp(value: unknown): string {
   return '';
 }
 
+function toNullableIsoTimestamp(value: unknown): string | null {
+  const ts = toIsoTimestamp(value);
+  return ts || null;
+}
+
 function stringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.map((entry) => String(entry || '').trim()).filter(Boolean) : [];
 }
@@ -66,13 +88,11 @@ export function userFromRow(row: Row): KbUser {
     id: String(row.id),
     email: String(row.email),
     displayName: String(field(row, 'display_name', 'displayName') || row.email),
-    passwordHash: !field(row, 'password_hash', 'passwordHash') ? null : String(field(row, 'password_hash', 'passwordHash')),
+    passwordHash: fieldNullableString(row, 'password_hash', 'passwordHash'),
     role: String(row.role),
     avatar: fieldString(row, 'avatar', 'avatar'),
     cpfCnpj: fieldString(row, 'cpf_cnpj', 'cpfCnpj', ''),
-    vsCodeInstalledAt: field(row, 'vscode_installed_at', 'vsCodeInstalledAt')
-      ? toIsoTimestamp(field(row, 'vscode_installed_at', 'vsCodeInstalledAt'))
-      : null,
+    vsCodeInstalledAt: toNullableIsoTimestamp(field(row, 'vscode_installed_at', 'vsCodeInstalledAt')),
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };
@@ -106,7 +126,7 @@ export function credentialFromRow(row: Row): IntegrationCredentialRecord {
     publicMetadata: (field(row, 'public_metadata', 'publicMetadata') || {}) as Record<string, unknown>,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
-    revokedAt: field(row, 'revoked_at', 'revokedAt') ? toIsoTimestamp(field(row, 'revoked_at', 'revokedAt')) : null,
+    revokedAt: toNullableIsoTimestamp(field(row, 'revoked_at', 'revokedAt')),
   };
 }
 
@@ -120,8 +140,8 @@ export function identityFromRow(row: Row): ExternalIdentityRecord {
     provider: String(row.provider),
     identityType: fieldString(row, 'identity_type', 'identityType', 'external_id'),
     externalId: fieldString(row, 'external_id', 'externalId'),
-    credentialId: field(row, 'credential_id', 'credentialId') ? String(field(row, 'credential_id', 'credentialId')) : null,
-    verifiedAt: field(row, 'verified_at', 'verifiedAt') ? toIsoTimestamp(field(row, 'verified_at', 'verifiedAt')) : null,
+    credentialId: fieldNullableString(row, 'credential_id', 'credentialId'),
+    verifiedAt: toNullableIsoTimestamp(field(row, 'verified_at', 'verifiedAt')),
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };
@@ -140,7 +160,7 @@ export function connectionSessionFromRow(row: Row): IntegrationConnectionSession
     status: fieldString(row, 'status', 'status', 'pending'),
     metadata: (row.metadata || {}) as Record<string, unknown>,
     expiresAt: toIsoTimestamp(field(row, 'expires_at', 'expiresAt')),
-    consumedAt: field(row, 'consumed_at', 'consumedAt') ? toIsoTimestamp(field(row, 'consumed_at', 'consumedAt')) : null,
+    consumedAt: toNullableIsoTimestamp(field(row, 'consumed_at', 'consumedAt')),
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };
@@ -165,11 +185,12 @@ export function repositoryFromRow(row: Row): RepositoryRecord {
   return {
     id: String(row.id),
     workspaceId: fieldString(row, 'workspace_id', 'workspaceId'),
-    externalId: String(field(row, 'external_id', 'externalId') ?? '0'),
+    workspaceSlug: fieldString(row, 'workspace_slug', 'workspaceSlug'),
+    externalId: fieldString(row, 'external_id', 'externalId'),
     fullName: fieldString(row, 'full_name', 'fullName'),
-    htmlUrl: field(row, 'html_url', 'htmlUrl') ? String(field(row, 'html_url', 'htmlUrl')) : null,
+    htmlUrl: fieldNullableString(row, 'html_url', 'htmlUrl'),
     description: row.description ? String(row.description) : null,
-    defaultBranch: field(row, 'default_branch', 'defaultBranch') ? String(field(row, 'default_branch', 'defaultBranch')) : null,
+    defaultBranch: fieldNullableString(row, 'default_branch', 'defaultBranch'),
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
   };
@@ -186,22 +207,22 @@ export function projectFromRow(row: Row): ProjectRecord {
     ...(workspaceSlug ? { workspaceSlug } : {}),
     repositories: (Array.isArray(row.repositories) ? row.repositories : []).map((r: Row) => ({
       id: String(r.id),
-      workspaceId: String(r.workspace_id || r.workspaceId || workspaceId),
-      workspaceSlug: String(r.workspace_slug || r.workspaceSlug || workspaceSlug || ''),
-      externalId: String(r.external_id ?? r.externalId ?? '0'),
-      fullName: String(r.full_name ?? r.fullName ?? ''),
-      htmlUrl: (r.html_url || r.htmlUrl) ? String(r.html_url || r.htmlUrl) : null,
+      workspaceId: fieldString(r, 'workspace_id', 'workspaceId', workspaceId),
+      workspaceSlug: fieldString(r, 'workspace_slug', 'workspaceSlug', workspaceSlug),
+      externalId: fieldString(r, 'external_id', 'externalId', '0'),
+      fullName: fieldString(r, 'full_name', 'fullName'),
+      htmlUrl: fieldNullableString(r, 'html_url', 'htmlUrl'),
       description: r.description ? String(r.description) : null,
-      defaultBranch: (r.default_branch || r.defaultBranch) ? String(r.default_branch || r.defaultBranch) : null,
-      createdAt: toIsoTimestamp(r.created_at || r.createdAt || new Date().toISOString()),
-      updatedAt: toIsoTimestamp(r.updated_at || r.updatedAt || new Date().toISOString()),
+      defaultBranch: fieldNullableString(r, 'default_branch', 'defaultBranch'),
+      createdAt: toIsoTimestamp(field(r, 'created_at', 'createdAt') || new Date().toISOString()),
+      updatedAt: toIsoTimestamp(field(r, 'updated_at', 'updatedAt') || new Date().toISOString()),
     })),
     defaultTags: stringArray(field(row, 'default_tags', 'defaultTags')),
     enabled: row.enabled !== false,
     favorite: field(row, 'is_favorite', 'isFavorite') === true,
-    createdAt: field(row, 'created_at', 'createdAt') ? toIsoTimestamp(field(row, 'created_at', 'createdAt')) : '',
-    updatedAt: field(row, 'updated_at', 'updatedAt') ? toIsoTimestamp(field(row, 'updated_at', 'updatedAt')) : '',
-    noteCount: field(row, 'note_count', 'noteCount') != null ? Number(field(row, 'note_count', 'noteCount')) : undefined,
+    createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
+    updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
+    noteCount: field(row, 'note_count', 'noteCount') != null ? fieldNumber(row, 'note_count', 'noteCount') : undefined,
   };
 }
 
@@ -213,7 +234,7 @@ export function projectFolderFromRow(row: Row): ProjectFolderRecord {
     projectId: fieldString(row, 'project_id', 'projectId'),
     ...(projectSlug ? { projectSlug } : {}),
     ...(workspaceSlug ? { workspaceSlug } : {}),
-    parentFolderId: field(row, 'parent_folder_id', 'parentFolderId') ? String(field(row, 'parent_folder_id', 'parentFolderId')) : null,
+    parentFolderId: fieldNullableString(row, 'parent_folder_id', 'parentFolderId'),
     displayName: fieldString(row, 'display_name', 'displayName'),
     folderSlug: fieldString(row, 'folder_slug', 'folderSlug'),
     fullSlugPath: fieldString(row, 'full_slug_path', 'fullSlugPath'),
@@ -229,7 +250,7 @@ export function categoryFromRow(row: Row): CategoryRecord {
     workspaceId: fieldString(row, 'workspace_id', 'workspaceId'),
     name: fieldString(row, 'name', 'name'),
     color: fieldString(row, 'color', 'color', '#9e9e9e'),
-    colorDark: field(row, 'color_dark', 'colorDark') == null ? null : String(field(row, 'color_dark', 'colorDark')),
+    colorDark: fieldNullableString(row, 'color_dark', 'colorDark'),
     icon: fieldString(row, 'icon', 'icon', ''),
     isSystem: field(row, 'is_system', 'isSystem') === true,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
@@ -243,6 +264,10 @@ export function noteFromRow(row: Row): NoteRecord {
   const categoriesList = Array.isArray(row.categories)
     ? row.categories.map((c: Row) => categoryFromRow(c))
     : [];
+
+  const createdAt = toIsoTimestamp(field(row, 'created_at', 'createdAt'));
+  const occurredAt = toIsoTimestamp(field(row, 'occurred_at', 'occurredAt')) || createdAt;
+
   return {
     id: String(row.id),
     path: fieldString(row, 'path', 'path'),
@@ -252,17 +277,11 @@ export function noteFromRow(row: Row): NoteRecord {
     workspaceId: fieldString(row, 'workspace_id', 'workspaceId'),
     ...(projectSlug ? { projectSlug } : {}),
     ...(workspaceSlug ? { workspaceSlug } : {}),
-    folderId: field(row, 'folder_id', 'folderId') ? String(field(row, 'folder_id', 'folderId')) : null,
+    folderId: fieldNullableString(row, 'folder_id', 'folderId'),
     status: fieldString(row, 'status', 'status', 'active'),
     tags: stringArray(row.tags),
-    // Preserve `occurred_at` semantics (business/event date). If it's
-    // missing, fall back to `created_at` (DB insertion timestamp)
-    occurredAt: field(row, 'occurred_at', 'occurredAt')
-      ? toIsoTimestamp(field(row, 'occurred_at', 'occurredAt'))
-      : field(row, 'created_at', 'createdAt')
-      ? toIsoTimestamp(field(row, 'created_at', 'createdAt'))
-      : '',
-    createdAt: field(row, 'created_at', 'createdAt') ? toIsoTimestamp(field(row, 'created_at', 'createdAt')) : '',
+    occurredAt,
+    createdAt,
     sourceChannel: fieldString(row, 'source_channel', 'sourceChannel'),
     summary: fieldString(row, 'summary', 'summary'),
     markdown: fieldString(row, 'markdown', 'markdown'),
@@ -271,10 +290,10 @@ export function noteFromRow(row: Row): NoteRecord {
     source: String(field(row, 'source', 'source') || field(row, 'source_channel', 'sourceChannel') || ''),
     sessionId: fieldString(row, 'session_id', 'sessionId'),
     reminderAt: toIsoTimestamp(field(row, 'reminder_at', 'reminderAt')),
-    attachmentCount: Number(field(row, 'attachment_count', 'attachmentCount') || 0),
+    attachmentCount: fieldNumber(row, 'attachment_count', 'attachmentCount', 0),
     isPinned: field(row, 'is_pinned', 'isPinned') === true,
-    sizeBytes: Number(field(row, 'size_bytes', 'sizeBytes') || 0),
-    ftsRank: field(row, 'ts_rank', 'tsRank') != null ? Number(field(row, 'ts_rank', 'tsRank')) : undefined,
+    sizeBytes: fieldNumber(row, 'size_bytes', 'sizeBytes', 0),
+    ftsRank: field(row, 'ts_rank', 'tsRank') != null ? fieldNumber(row, 'ts_rank', 'tsRank') : undefined,
   };
 }
 
@@ -284,7 +303,7 @@ export function webhookEventFromRow(row: Row): WebhookEventRecord {
     provider: String(row.provider),
     eventType: fieldString(row, 'event_type', 'eventType'),
     status: row.status as WebhookEventRecord['status'],
-    resolvedUserId: field(row, 'resolved_user_id', 'resolvedUserId') ? String(field(row, 'resolved_user_id', 'resolvedUserId')) : null,
+    resolvedUserId: fieldNullableString(row, 'resolved_user_id', 'resolvedUserId'),
     externalIdentity: (field(row, 'external_identity', 'externalIdentity') || {}) as Record<string, unknown>,
     rawHeaders: (field(row, 'raw_headers', 'rawHeaders') || {}) as Record<string, unknown>,
     rawPayload: field(row, 'raw_payload', 'rawPayload') || {},
@@ -301,7 +320,7 @@ export function attachmentFromRow(row: Row): AttachmentRecord {
     noteId: fieldString(row, 'note_id', 'noteId'),
     fileName: fieldString(row, 'file_name', 'fileName'),
     mimeType: fieldString(row, 'mime_type', 'mimeType', 'application/octet-stream'),
-    sizeBytes: Number(field(row, 'size_bytes', 'sizeBytes') || 0),
+    sizeBytes: fieldNumber(row, 'size_bytes', 'sizeBytes', 0),
     storageKey: fieldString(row, 'storage_key', 'storageKey'),
     checksumSha256: fieldString(row, 'checksum_sha256', 'checksumSha256'),
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
@@ -357,11 +376,11 @@ export function planFromRow(row: Row): PlanRecord {
     slug: String(row.slug),
     displayName: fieldString(row, 'display_name', 'displayName'),
     description: fieldString(row, 'description', 'description'),
-    maxStorageBytes: Number(field(row, 'max_storage_bytes', 'maxStorageBytes') || 0),
-    maxAiCreditsPerMonth: Number(field(row, 'max_ai_credits_per_month', 'maxAiCreditsPerMonth') || 0),
-    maxWorkspaces: Number(field(row, 'max_workspaces', 'maxWorkspaces') || 0),
-    maxProjectsPerWorkspace: Number(field(row, 'max_projects_per_workspace', 'maxProjectsPerWorkspace') || 0),
-    priceCents: Number(field(row, 'price_cents', 'priceCents') || 0),
+    maxStorageBytes: fieldNumber(row, 'max_storage_bytes', 'maxStorageBytes', 0),
+    maxAiCreditsPerMonth: fieldNumber(row, 'max_ai_credits_per_month', 'maxAiCreditsPerMonth', 0),
+    maxWorkspaces: fieldNumber(row, 'max_workspaces', 'maxWorkspaces', 0),
+    maxProjectsPerWorkspace: fieldNumber(row, 'max_projects_per_workspace', 'maxProjectsPerWorkspace', 0),
+    priceCents: fieldNumber(row, 'price_cents', 'priceCents', 0),
     billingPeriod: fieldString(row, 'billing_period', 'billingPeriod', 'monthly'),
     isActive: field(row, 'is_active', 'isActive') !== false,
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
@@ -377,7 +396,7 @@ export function userSubscriptionFromRow(row: Row): UserSubscriptionRecord {
     currentPeriodStart: toIsoTimestamp(field(row, 'current_period_start', 'currentPeriodStart')),
     currentPeriodEnd: toIsoTimestamp(field(row, 'current_period_end', 'currentPeriodEnd')),
     gatewayName: fieldString(row, 'gateway_name', 'gatewayName', 'asaas'),
-    gatewaySubscriptionId: field(row, 'gateway_subscription_id', 'gatewaySubscriptionId') ? String(field(row, 'gateway_subscription_id', 'gatewaySubscriptionId')) : null,
+    gatewaySubscriptionId: fieldNullableString(row, 'gateway_subscription_id', 'gatewaySubscriptionId'),
     billingCycle: fieldString(row, 'billing_cycle', 'billingCycle', 'monthly'),
     createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
     updatedAt: toIsoTimestamp(field(row, 'updated_at', 'updatedAt')),
@@ -398,10 +417,10 @@ export function quotaUsageEventFromRow(row: Row): QuotaUsageEventRecord {
     id: String(row.id),
     userId: fieldString(row, 'user_id', 'userId'),
     type: String(row.type),
-    amount: Number(row.amount || 1),
+    amount: fieldNumber(row, 'amount', 'amount', 1),
     description: row.description ? String(row.description) : null,
     metadata: (row.metadata || {}) as Record<string, unknown>,
-    createdAt: toIsoTimestamp(row.createdAt || row.created_at),
+    createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
   };
 }
 
@@ -410,10 +429,10 @@ export function quotaAdjustmentFromRow(row: Row): QuotaAdjustmentRecord {
     id: String(row.id),
     userId: fieldString(row, 'user_id', 'userId'),
     type: String(row.type),
-    amount: Number(row.amount || 0),
+    amount: fieldNumber(row, 'amount', 'amount', 0),
     description: row.description ? String(row.description) : null,
-    expiresAt: row.expiresAt || row.expires_at ? toIsoTimestamp(row.expiresAt || row.expires_at) : null,
-    createdAt: toIsoTimestamp(row.createdAt || row.created_at),
+    expiresAt: toNullableIsoTimestamp(field(row, 'expires_at', 'expiresAt')),
+    createdAt: toIsoTimestamp(field(row, 'created_at', 'createdAt')),
   };
 }
 
@@ -424,16 +443,16 @@ export function dependencyWatchFromRow(record: Row): DependencyWatchRecord {
     workspaceId: fieldString(record, 'workspace_id', 'workspaceId'),
     workspaceSlug: fieldString(record, 'workspace_slug', 'workspaceSlug'),
     ecosystem: record.ecosystem as DependencyEcosystem,
-    packageName: String(record.packageName ?? record.package_name ?? ''),
-    currentVersion: String(record.currentVersion ?? record.current_version ?? ''),
-    latestSeenVersion: String(record.latestSeenVersion ?? record.latest_seen_version ?? ''),
-    checkIntervalHours: Number(record.checkIntervalHours ?? record.check_interval_hours ?? 24),
-    lastCheckedAt: (record.lastCheckedAt ?? record.last_checked_at ?? null) as Date | null,
-    lastAlertedAt: (record.lastAlertedAt ?? record.last_alerted_at ?? null) as Date | null,
-    lastUrgency: (record.lastUrgency ?? record.last_urgency ?? null) as 'optional' | 'recommended' | 'critical' | null,
-    enabled: Boolean(record.enabled),
-    repositoryId: (record.repositoryId ?? record.repository_id ?? null) as string | null,
-    createdAt: (record.createdAt ?? record.created_at) as Date,
-    updatedAt: (record.updatedAt ?? record.updated_at) as Date,
+    packageName: fieldString(record, 'package_name', 'packageName'),
+    currentVersion: fieldString(record, 'current_version', 'currentVersion'),
+    latestSeenVersion: fieldString(record, 'latest_seen_version', 'latestSeenVersion'),
+    checkIntervalHours: fieldNumber(record, 'check_interval_hours', 'checkIntervalHours', 24),
+    lastCheckedAt: (field(record, 'last_checked_at', 'lastCheckedAt') ?? null) as Date | null,
+    lastAlertedAt: (field(record, 'last_alerted_at', 'lastAlertedAt') ?? null) as Date | null,
+    lastUrgency: (field(record, 'last_urgency', 'lastUrgency') ?? null) as 'optional' | 'recommended' | 'critical' | null,
+    enabled: fieldBoolean(record, 'enabled', 'enabled'),
+    repositoryId: fieldNullableString(record, 'repository_id', 'repositoryId'),
+    createdAt: (field(record, 'created_at', 'createdAt') ?? new Date()) as Date,
+    updatedAt: (field(record, 'updated_at', 'updatedAt') ?? new Date()) as Date,
   };
 }

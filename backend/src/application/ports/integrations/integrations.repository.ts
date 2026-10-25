@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import type { ExternalIdentityRecord, IntegrationConnectionSessionRecord, IntegrationCredentialRecord } from '../../models/repository-records.models.js';
 
 export abstract class CredentialRepository {
@@ -11,8 +12,28 @@ export abstract class CredentialRepository {
   abstract findCredential(userId: string, workspaceSlug: string, provider: string): Promise<IntegrationCredentialRecord | null>;
 }
 
+export async function resolveExternalIdentity(
+  repository: ExternalIdentityRepository,
+  provider: string,
+  identityType: string,
+  externalId: string,
+): Promise<ExternalIdentityRecord> {
+  const identity = await repository.findExternalIdentity(provider, identityType, externalId);
+  if (!identity) {
+    throw new NotFoundException('identity_not_found');
+  }
+  return identity;
+}
+
 export abstract class ExternalIdentityRepository {
   abstract findExternalIdentity(provider: string, identityType: string, externalId: string): Promise<ExternalIdentityRecord | null>;
+  async resolveExternalIdentity(
+    provider: string,
+    identityType: string,
+    externalId: string,
+  ): Promise<ExternalIdentityRecord> {
+    return resolveExternalIdentity(this, provider, identityType, externalId);
+  }
   abstract deleteExternalIdentities(input: {
     userId: string;
     workspaceSlug: string;

@@ -9,6 +9,19 @@ import { categoryFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { categories, workspaces } from '../persistence/schema/index.js';
 
+const CATEGORY_SELECT_FIELDS = {
+  id: categories.id,
+  userId: categories.userId,
+  workspaceId: categories.workspaceId,
+  name: categories.name,
+  color: categories.color,
+  colorDark: categories.colorDark,
+  icon: categories.icon,
+  isSystem: categories.isSystem,
+  createdAt: categories.createdAt,
+  updatedAt: categories.updatedAt,
+};
+
 @Injectable()
 export class PostgresCategoryRepository {
   constructor(private readonly database: PostgresDatabase) {}
@@ -16,18 +29,7 @@ export class PostgresCategoryRepository {
   async list(userId: string, workspaceId: string): Promise<CategoryRecord[]> {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: categories.id,
-        userId: categories.userId,
-        workspaceId: categories.workspaceId,
-        name: categories.name,
-        color: categories.color,
-        colorDark: categories.colorDark,
-        icon: categories.icon,
-        isSystem: categories.isSystem,
-        createdAt: categories.createdAt,
-        updatedAt: categories.updatedAt,
-      })
+      .select(CATEGORY_SELECT_FIELDS)
       .from(categories)
       .where(and(eq(categories.userId, userId), eq(categories.workspaceId, workspaceId)))
       .orderBy(categories.name);
@@ -39,18 +41,7 @@ export class PostgresCategoryRepository {
     if (!isUuid(categoryId)) return null;
     const db = tx || this.database.getDb();
     const result = await db
-      .select({
-        id: categories.id,
-        userId: categories.userId,
-        workspaceId: categories.workspaceId,
-        name: categories.name,
-        color: categories.color,
-        colorDark: categories.colorDark,
-        icon: categories.icon,
-        isSystem: categories.isSystem,
-        createdAt: categories.createdAt,
-        updatedAt: categories.updatedAt,
-      })
+      .select(CATEGORY_SELECT_FIELDS)
       .from(categories)
       .where(and(eq(categories.userId, userId), eq(categories.id, categoryId)))
       .limit(1);
@@ -86,17 +77,7 @@ export class PostgresCategoryRepository {
   async findByName(userId: string, workspaceId: string, name: string, tx?: any): Promise<CategoryRecord | null> {
     const db = tx || this.database.getDb();
     const result = await db
-      .select({
-        id: categories.id,
-        userId: categories.userId,
-        workspaceId: categories.workspaceId,
-        name: categories.name,
-        color: categories.color,
-        icon: categories.icon,
-        isSystem: categories.isSystem,
-        createdAt: categories.createdAt,
-        updatedAt: categories.updatedAt,
-      })
+      .select(CATEGORY_SELECT_FIELDS)
       .from(categories)
       .where(and(
         eq(categories.userId, userId),

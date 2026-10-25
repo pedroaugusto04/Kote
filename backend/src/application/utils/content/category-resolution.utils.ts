@@ -1,3 +1,4 @@
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import type { ContentRepository } from '../../ports/notes/content.repository.js';
 
 export async function resolveCategoryIds(
@@ -8,19 +9,11 @@ export async function resolveCategoryIds(
   providedCategoryIds?: string[],
   tx?: any,
 ): Promise<string[]> {
-  if (providedCategoryIds !== undefined) {
-    return providedCategoryIds;
-  }
-  if (!canonicalType) {
-    return [];
-  }
-  let category = await contentRepository.findCategoryByName(userId, workspaceId, canonicalType, tx);
-  if (!category) {
-    category = await contentRepository.createCategory(userId, workspaceId, {
-      name: canonicalType,
-      color: '#9e9e9e',
-      icon: '',
-    }, tx);
-  }
-  return [category.id];
+  return new WorkspaceScopeResolver(contentRepository).resolveOrCreateCategoryIds(
+    userId,
+    workspaceId,
+    canonicalType,
+    providedCategoryIds,
+    tx,
+  );
 }

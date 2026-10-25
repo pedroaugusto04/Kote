@@ -34,6 +34,7 @@ import {
   IngestEntryUseCase,
 } from '../../application/use-cases/index.js';
 import { ImportDependenciesFromGithubUseCase } from '../../application/use-cases/dependency-watcher/import-dependencies-from-github.use-case.js';
+import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from '../../application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
 import { ListDependencyMonitoredRepositoriesUseCase } from '../../application/use-cases/dependency-watcher/list-dependency-monitored-repositories.use-case.js';
 import { SaveDependencyMonitoredRepositoriesUseCase } from '../../application/use-cases/dependency-watcher/save-dependency-monitored-repositories.use-case.js';
 import { CheckProjectDependenciesUseCase } from '../../application/use-cases/dependency-watcher/check-project-dependencies.use-case.js';
@@ -96,6 +97,8 @@ import { NotifyHighSeverityFindingsService } from '../../application/use-cases/n
     HandleGithubPushUseCase,
     HandleGithubPullRequestUseCase,
     HandleWhatsappWebhookUseCase,
+    WhatsappWebhookRateLimiter,
+    WhatsappConversationTaskQueue,
     HandleTelegramWebhookUseCase,
     GithubBackfillUseCase,
     GithubBackfillRunnerService,

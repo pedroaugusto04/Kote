@@ -118,21 +118,26 @@ import {
 
 export { toSearchResultNote, type SearchResultNote, compareSearchResults };
 
+function matchesStatusFilter(noteStatus: string, status?: string): boolean {
+  if (!status) return true;
+  if (status === StatusFilter.Open) {
+    return !terminalStatuses.includes(noteStatus.toLowerCase() as (typeof terminalStatuses)[number]);
+  }
+  return noteStatus.toLowerCase() === status;
+}
+
+function filterKnowledgeNotes(notes: VaultNoteSummary[], query: KnowledgeRankingQuery): VaultNoteSummary[] {
+  return notes.filter((note) =>
+    (!query.projectId || note.projectId === query.projectId)
+    && (!query.workspaceId || note.workspaceId === query.workspaceId)
+    && matchesStatusFilter(note.status, query.status),
+  );
+}
+
 export function rankKnowledgeMatches(notes: VaultNoteSummary[], query: KnowledgeRankingQuery) {
   const intent = getSpecialQueryIntent(query.query);
 
-  return notes
-    .filter((note) =>
-      (!query.projectId || note.projectId === query.projectId)
-      && (!query.workspaceId || note.workspaceId === query.workspaceId)
-      && (
-        !('status' in query) || !query.status || (
-          query.status === StatusFilter.Open
-            ? !terminalStatuses.includes(note.status.toLowerCase() as (typeof terminalStatuses)[number])
-            : note.status.toLowerCase() === query.status
-        )
-      ),
-    )
+  return filterKnowledgeNotes(notes, query)
     .map((note) => {
       let score = 0;
       if (intent) {
@@ -164,17 +169,7 @@ export function rankHybridKnowledgeMatches(
     }
   }
 
-  const filteredNotes = notes.filter((note) =>
-    (!query.projectId || note.projectId === query.projectId)
-    && (!query.workspaceId || note.workspaceId === query.workspaceId)
-    && (
-      !('status' in query) || !query.status || (
-        query.status === StatusFilter.Open
-          ? !terminalStatuses.includes(note.status.toLowerCase() as (typeof terminalStatuses)[number])
-          : note.status.toLowerCase() === query.status
-      )
-    ),
-  );
+  const filteredNotes = filterKnowledgeNotes(notes, query);
 
   const scoredNotes = filteredNotes.map((note) => {
     const vectorScore = similarityMap.get(note.id) || 0;

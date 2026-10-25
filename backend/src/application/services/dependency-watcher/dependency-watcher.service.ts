@@ -112,9 +112,7 @@ export class DependencyWatcherService {
       const workspaceEnabled = await this.dependencyWatcherRepository.isWorkspaceEnabled(workspace.id);
       if (!workspaceEnabled) continue;
 
-      const workspaceProjects = this.contentRepository.listProjectsByWorkspace
-        ? await this.contentRepository.listProjectsByWorkspace(workspace.userId, workspace.id)
-        : (await this.contentRepository.listProjects(workspace.userId)).filter((p) => p.workspaceSlug === workspace.workspaceSlug);
+      const workspaceProjects = await this.contentRepository.listProjectsByWorkspace(workspace.userId, workspace.id);
 
       if (workspaceProjects.length === 0) continue;
 
@@ -273,16 +271,16 @@ export class DependencyWatcherService {
     await this.ingestEntryUseCase.execute(payload, record.userId, record.workspaceSlug, {});
   }
 
-  private async resolveProjectSlug(record: DependencyWatchRecord): Promise<string> {
-    if (!record.repositoryId) return '';
-
+  private async findProjectByRepository(record: DependencyWatchRecord) {
+    if (!record.repositoryId) return null;
     const projects = record.workspaceId
       ? await this.contentRepository.listProjectsByWorkspace(record.userId, record.workspaceId)
       : await this.contentRepository.listProjects(record.userId);
-    const project = projects.find(
-      (item) => item.repositories.some((repository) => repository.id === record.repositoryId),
-    );
+    return projects.find((item) => item.repositories.some((repository) => repository.id === record.repositoryId)) ?? null;
+  }
 
+  private async resolveProjectSlug(record: DependencyWatchRecord): Promise<string> {
+    const project = await this.findProjectByRepository(record);
     return project?.projectSlug || '';
   }
 
@@ -334,17 +332,8 @@ export class DependencyWatcherService {
       return;
     }
 
-    // Get project name from repository
-    let projectName = 'Unknown Project';
-    if (record.repositoryId) {
-      const projects = await this.contentRepository.listProjects(record.userId);
-      for (const project of projects) {
-        if (project.repositories.some(repo => repo.id === record.repositoryId)) {
-          projectName = project.displayName;
-          break;
-        }
-      }
-    }
+    const project = await this.findProjectByRepository(record);
+    const projectName = project?.displayName || 'Unknown Project';
 
     await this.emailService.sendEmail({
       to: user.email,
@@ -366,8 +355,8 @@ export class DependencyWatcherService {
   }
 
   async setWorkspaceWatcherStatus(userId: string, workspaceId: string, workspaceSlug: string, enabled: boolean): Promise<boolean> {
-    const workspace = (this.contentRepository.getWorkspaceById ? await this.contentRepository.getWorkspaceById(workspaceId) : null)
-      || await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
+    const workspace = (await this.contentRepository.getWorkspaceById(workspaceId))
+      || (await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug));
     if (!workspace) {
       throw new NotFoundException('workspace_not_found');
     }

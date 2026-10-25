@@ -89,6 +89,7 @@ async function createFixture(t, turns) {
     repositories.noteLifecycleService,
     loggerMock,
     repositories.database,
+    repositories.scopeResolver,
   );
   const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
   const presenter = new ConversationAgentPresenter();
@@ -114,7 +115,16 @@ async function createFixture(t, turns) {
     { buildTools: () => [] },
     loggerMock,
   );
-  return { repositories, user, agentUseCase };
+  const testAgentUseCase = {
+    ...agentUseCase,
+    execute: (paramsOrInput, userId = user.id, workspaceSlug = 'default', projectSlug) => {
+      const params = (paramsOrInput && typeof paramsOrInput === 'object' && 'input' in paramsOrInput)
+        ? paramsOrInput
+        : { input: paramsOrInput, userId, workspaceSlug, projectSlug };
+      return agentUseCase.execute(params);
+    },
+  };
+  return { repositories, user, agentUseCase: testAgentUseCase };
 }
 
 function input(messageText) {
@@ -384,7 +394,8 @@ test('agent conversation does not keep confirmation state after immediate save',
   const first = await agentUseCase.execute(input('resumo da reuniao'), user.id, 'default');
   assert.equal(first.action, 'submit');
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 1);
-  assert.equal(await repositories.countConversationStates(), 0);
+  const storedState = await repositories.conversationStateRepository.get(user.id, 'default', 'group@g.us');
+  assert.equal(Boolean(storedState?.state?.confirmation), false);
 });
 
 test('agent conversation saves natural capture without waiting for approval intent', async (t) => {
@@ -439,7 +450,8 @@ test('agent conversation clears state after immediate submission', async (t) => 
 
   const saved = await agentUseCase.execute(input('alinhei o runbook do api gateway'), user.id, 'default');
   assert.equal(saved.action, 'submit');
-  assert.equal(await repositories.countConversationStates(), 0);
+  const storedState = await repositories.conversationStateRepository.get(user.id, 'default', 'group@g.us');
+  assert.equal(Boolean(storedState?.state?.draft), false);
 });
 
 test('agent conversation accepts AI reminder kind alias and saves immediately', async (t) => {

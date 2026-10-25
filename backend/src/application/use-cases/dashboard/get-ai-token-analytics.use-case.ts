@@ -14,7 +14,7 @@ import type {
 export class GetAiTokenAnalyticsUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
-    private readonly logger?: AppLogger,
+    private readonly logger: AppLogger,
   ) {}
 
   async execute(
@@ -188,7 +188,7 @@ export class GetAiTokenAnalyticsUseCase {
       availableProjects: Array.from(availableProjectsSet).sort(),
     };
 
-    this.logger?.info('ai.token_analytics.computed', {
+    this.logger.info('ai.token_analytics.computed', {
       userId,
       workspaceId: filters?.workspaceId,
       projectId: filters?.projectId,

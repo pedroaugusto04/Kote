@@ -108,13 +108,13 @@ export class DispatchDueRemindersUseCase {
         continue;
       }
 
-      await this.markReminderAsSent.execute(
-        [reminder.reminderId],
-        reminder.userId,
-        reminder.workspaceSlug,
-        ReminderDispatchMode.Exact,
+      await this.markReminderAsSent.execute({
+        ids: [reminder.reminderId],
+        userId: reminder.userId,
+        workspaceSlug: reminder.workspaceSlug,
+        mode: ReminderDispatchMode.Exact,
         dispatchKey,
-      );
+      });
       await this.reminderDispatchRepository.clearFailure(retryKey);
       sent += 1;
 

@@ -141,7 +141,12 @@ export class DependencyWatcherController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope: WorkspaceScope,
   ) {
-    const result = await this.checkProjectDependenciesUseCase.execute(user.id, scope.projectId!, scope.projectSlug!, scope.workspaceId);
+    const result = await this.checkProjectDependenciesUseCase.execute({
+      userId: user.id,
+      projectId: scope.projectId!,
+      projectSlug: scope.projectSlug!,
+      workspaceId: scope.workspaceId,
+    });
     return {
       ok: true,
       data: result,
@@ -158,7 +163,13 @@ export class DependencyWatcherController {
     @Scope() scope: WorkspaceScope,
     @Body(new ZodValidationPipe(checkDependencyBodySchema, 'invalid_check_dependency_payload')) body: CheckDependencyBody,
   ) {
-    const result = await this.checkDependencyUseCase.execute(user.id, body.dependencyId, scope.projectId!, scope.projectSlug!, scope.workspaceId);
+    const result = await this.checkDependencyUseCase.execute({
+      userId: user.id,
+      dependencyId: body.dependencyId,
+      projectId: scope.projectId!,
+      projectSlug: scope.projectSlug!,
+      workspaceId: scope.workspaceId,
+    });
     return {
       ok: true,
       data: result,

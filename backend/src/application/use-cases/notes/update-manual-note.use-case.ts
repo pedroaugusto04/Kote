@@ -42,27 +42,31 @@ export class UpdateNoteUseCase {
       : [];
     const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
 
-    let projectSlug = note.projectSlug || '';
-    let projectId = note.projectId;
-    let workspaceSlug = note.workspaceSlug || '';
-    let workspaceId = note.workspaceId;
+    const targetProject = (sanitizedInput.projectId && sanitizedInput.projectId !== note.projectId)
+      ? await requireProject(this.contentRepository, userId, sanitizedInput.projectId)
+      : null;
 
-    if (sanitizedInput.projectId && sanitizedInput.projectId !== note.projectId) {
-      const project = await requireProject(this.contentRepository, userId, sanitizedInput.projectId);
-      projectSlug = project.projectSlug;
-      projectId = project.id;
-      workspaceSlug = project.workspaceSlug || '';
-      workspaceId = project.workspaceId;
-    }
+    const scope = {
+      projectId: targetProject?.id ?? note.projectId,
+      projectSlug: targetProject?.projectSlug ?? (note.projectSlug || ''),
+      workspaceId: targetProject?.workspaceId ?? note.workspaceId,
+      workspaceSlug: targetProject?.workspaceSlug ?? (note.workspaceSlug || ''),
+      reminderTimeZone,
+    };
 
-    const project = await this.contentRepository.getProjectById(userId, projectId);
     const previousFolder = note.folderId
       ? await requireProjectFolderOptional(this.contentRepository, userId, note.projectId, note.folderId)
       : null;
-    const nextFolder = await requireProjectFolderOptional(this.contentRepository, userId, projectId, sanitizedInput.folderId);
+    const nextFolder = await requireProjectFolderOptional(this.contentRepository, userId, scope.projectId, sanitizedInput.folderId);
 
     const updatedNoteInput = {
-      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...sanitizedInput, canonicalType }, projectSlug, projectId, workspaceSlug, workspaceId, reminderTimeZone),
+      ...buildUpdatedNote({
+        note,
+        previousFolder,
+        nextFolder,
+        input: { ...sanitizedInput, canonicalType },
+        scope,
+      }),
       categoryIds: sanitizedInput.categoryIds,
     };
 

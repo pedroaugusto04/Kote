@@ -38,6 +38,13 @@ const PROJECT_METADATA_SELECT = {
   )) FROM kb_project_repositories pr JOIN kb_repositories r ON r.id = pr.repository_id JOIN kb_workspaces w2 ON w2.id = r.workspace_id WHERE pr.project_id = ${projects.id}), '[]'::jsonb)`
 };
 
+const NOTE_COUNT_SUBQUERY = sql<number>`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`;
+
+const PROJECT_WITH_NOTE_COUNT_SELECT = {
+  ...PROJECT_METADATA_SELECT,
+  noteCount: NOTE_COUNT_SUBQUERY.as('noteCount'),
+};
+
 @Injectable()
 export class PostgresProjectRepository {
   constructor(private readonly database: PostgresDatabase) {}
@@ -81,14 +88,11 @@ export class PostgresProjectRepository {
   async listWithNoteCount(userId: string) {
     const db = this.database.getDb();
     const result = await db
-      .select({
-        ...PROJECT_METADATA_SELECT,
-        noteCount: sql<number>`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`.as('noteCount'),
-      })
+      .select(PROJECT_WITH_NOTE_COUNT_SELECT)
       .from(projects)
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
       .where(and(eq(projects.userId, userId), eq(projects.enabled, true)))
-      .orderBy(desc(projects.isFavorite), desc(sql`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`), projects.displayName);
+      .orderBy(desc(projects.isFavorite), desc(NOTE_COUNT_SUBQUERY), projects.displayName);
 
     return result.map(projectFromRow);
   }
@@ -130,14 +134,11 @@ export class PostgresProjectRepository {
     const offset = (pagination.page - 1) * pagination.pageSize;
 
     const result = await db
-      .select({
-        ...PROJECT_METADATA_SELECT,
-        noteCount: sql<number>`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`.as('noteCount'),
-      })
+      .select(PROJECT_WITH_NOTE_COUNT_SELECT)
       .from(projects)
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
       .where(and(eq(projects.userId, userId), eq(projects.enabled, true)))
-      .orderBy(desc(projects.isFavorite), desc(sql`(SELECT COUNT(*) FROM kb_notes WHERE kb_notes.project_id = kb_projects.id)`), projects.displayName)
+      .orderBy(desc(projects.isFavorite), desc(NOTE_COUNT_SUBQUERY), projects.displayName)
       .limit(pagination.pageSize)
       .offset(offset);
 

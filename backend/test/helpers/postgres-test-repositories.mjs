@@ -7,6 +7,7 @@ import { PostgresContentRepository } from '../../dist/infrastructure/repositorie
 import { PostgresContentQueryRepository } from '../../dist/infrastructure/repositories/content-query.repository.js';
 import { PostgresIntegrationRepository } from '../../dist/infrastructure/repositories/integrations.repository.js';
 import { PostgresProjectBriefHistoryRepository } from '../../dist/infrastructure/repositories/project-brief-history.repository.js';
+import { PostgresProjectCoverageRepository } from '../../dist/infrastructure/repositories/project-coverage.repository.js';
 import { PostgresAskHistoryRepository } from '../../dist/infrastructure/repositories/ask-history.repository.js';
 import { PostgresWebhookEventRepository } from '../../dist/infrastructure/repositories/webhook-events.repository.js';
 import { PostgresPushSubscriptionRepository } from '../../dist/infrastructure/repositories/push-subscription.repository.js';
@@ -25,6 +26,7 @@ import { PostgresAttachmentRepository } from '../../dist/infrastructure/reposito
 import { PostgresCategoryRepository } from '../../dist/infrastructure/repositories/category.repository.js';
 import { PostgresNoteSynthesisRepository } from '../../dist/infrastructure/repositories/note-synthesis.repository.js';
 import { NoteLifecycleService } from '../../dist/application/services/content/note-lifecycle.service.js';
+import { WorkspaceScopeResolver } from '../../dist/application/services/content/workspace-scope-resolver.service.js';
 
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '../../dist/infrastructure/persistence/schema/index.js';
@@ -232,6 +234,7 @@ export async function createPostgresTestRepositories(t) {
   const userRepository = new PostgresUserRepository(database);
   const integrationRepository = new PostgresIntegrationRepository(database);
   const projectBriefHistoryRepository = new PostgresProjectBriefHistoryRepository(database);
+  const projectCoverageRepository = new PostgresProjectCoverageRepository(database);
   const askHistoryRepository = new PostgresAskHistoryRepository(database);
   const objectStorage = new InMemoryObjectStorage();
   const contentObjectStorage = new ContentObjectStorageService(objectStorage);
@@ -334,6 +337,7 @@ export async function createPostgresTestRepositories(t) {
   };
 
   const noteLifecycleService = new NoteLifecycleService(
+
     contentRepository,
     quotaService,
     embeddingQueuePublisher,
@@ -355,9 +359,11 @@ export async function createPostgresTestRepositories(t) {
     userRepository,
     credentialRepository: integrationRepository,
     projectBriefHistoryRepository,
+    projectCoverageRepository,
     askHistoryRepository,
     externalIdentityRepository: integrationRepository,
     connectionSessionRepository: integrationRepository,
+    scopeResolver: new WorkspaceScopeResolver(contentRepository),
     contentRepository,
     contentQueryRepository,
     conversationStateRepository: workflowStateRepository,

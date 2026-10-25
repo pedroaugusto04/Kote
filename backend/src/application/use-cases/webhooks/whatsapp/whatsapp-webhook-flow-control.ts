@@ -1,3 +1,5 @@
+import { Injectable } from '@nestjs/common';
+
 const SECOND_MS = 1000;
 const MINUTE_MS = 60 * SECOND_MS;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -27,6 +29,7 @@ export type WhatsappRateLimitResult =
   | { allowed: true }
   | { allowed: false; retryAfterSeconds: number; noticeAllowed: boolean };
 
+@Injectable()
 export class WhatsappWebhookRateLimiter {
   private readonly buckets = new Map<string, RateLimitBucket>();
   private readonly notices = new Map<string, number>();
@@ -92,6 +95,7 @@ export class WhatsappWebhookRateLimiter {
   }
 }
 
+@Injectable()
 export class WhatsappConversationTaskQueue {
   private readonly tails = new Map<string, Promise<unknown>>();
 

@@ -14,8 +14,6 @@ import { AppLogger } from '../../../observability/logger.js';
 
 @Injectable()
 export class GithubBackfillRunnerService {
-  private readonly logger: AppLogger;
-
   constructor(
     private readonly processGithubPushService: ProcessGithubPushService,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
@@ -23,9 +21,8 @@ export class GithubBackfillRunnerService {
     private readonly credentialRepository: CredentialRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubBackfillJobRepository: GithubBackfillJobRepository,
-  ) {
-    this.logger = AppLogger.create();
-  }
+    private readonly logger: AppLogger,
+  ) {}
 
   async run(jobId: string, userId: string): Promise<void> {
     const job = await this.githubBackfillJobRepository.findById(jobId, userId);

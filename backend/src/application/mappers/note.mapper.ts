@@ -4,7 +4,6 @@ import { EventType, Importance, KnowledgeKind, SourceChannel } from '../../contr
 import type { IngestPayload } from '../../contracts/ingest.js';
 import { buildIngestPayload } from './ingest.mapper.js';
 import { hasReminder, normalizeManualNoteStatus } from '../../domain/note-status.js';
-import { isAiSource } from '../../domain/notes.js';
 import { resolveCanonicalTypeFromCategories } from '../../domain/note-classification.js';
 import { normalizeFilePath } from '../../domain/utils/file-path.utils.js';
 import type { CategoryRecord } from '../models/repository-records.models.js';
@@ -37,7 +36,6 @@ export function toIngestPayload(
   const occurredAt = dto.occurredAt || new Date().toISOString();
   const cleanedRawText = stripTitleHeader(dto.rawText, dto.title);
   const activeSource = dto.source?.trim();
-  const isAiChat = isAiSource(activeSource);
   const changedFiles = Array.isArray(dto.metadata?.changedFiles)
     ? dto.metadata.changedFiles.filter((file): file is string => typeof file === 'string')
     : [];

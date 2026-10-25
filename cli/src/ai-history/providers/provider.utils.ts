@@ -32,6 +32,15 @@ export function extractTextContent(value: unknown): string {
   return parts.join('\n\n');
 }
 
+export function stripCustomXmlTags(raw: string, tagNames: readonly string[]): string {
+  let cleaned = raw;
+  for (const tag of tagNames) {
+    const pattern = new RegExp(`<${tag}>[\\s\\S]*?(<\\/${tag}>|$)`, 'gi');
+    cleaned = cleaned.replace(pattern, '');
+  }
+  return cleaned;
+}
+
 export function readJsonLines(content: string): unknown[] {
   const records: unknown[] = [];
   for (const line of content.split('\n')) {

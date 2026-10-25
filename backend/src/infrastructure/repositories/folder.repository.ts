@@ -10,6 +10,19 @@ import { projectFolderFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { projectFolders, projects, workspaces } from '../persistence/schema/index.js';
 
+const FOLDER_SELECT_FIELDS = {
+  id: projectFolders.id,
+  projectId: projectFolders.projectId,
+  parentFolderId: projectFolders.parentFolderId,
+  displayName: projectFolders.displayName,
+  folderSlug: projectFolders.folderSlug,
+  fullSlugPath: projectFolders.fullSlugPath,
+  createdAt: projectFolders.createdAt,
+  updatedAt: projectFolders.updatedAt,
+  projectSlug: projects.projectSlug,
+  workspaceSlug: workspaces.workspaceSlug,
+};
+
 @Injectable()
 export class PostgresFolderRepository {
   constructor(private readonly database: PostgresDatabase) {}
@@ -18,18 +31,7 @@ export class PostgresFolderRepository {
     if (!isUuid(projectId)) return [];
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: projectFolders.id,
-        projectId: projectFolders.projectId,
-        parentFolderId: projectFolders.parentFolderId,
-        displayName: projectFolders.displayName,
-        folderSlug: projectFolders.folderSlug,
-        fullSlugPath: projectFolders.fullSlugPath,
-        createdAt: projectFolders.createdAt,
-        updatedAt: projectFolders.updatedAt,
-        projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(FOLDER_SELECT_FIELDS)
       .from(projectFolders)
       .innerJoin(projects, and(eq(projects.id, projectFolders.projectId), eq(projects.userId, userId)))
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
@@ -43,18 +45,7 @@ export class PostgresFolderRepository {
     if (!isUuid(projectId) || !isUuid(folderId)) return null;
     const db = this.database.getDb();
     const result = await db
-      .select({
-        id: projectFolders.id,
-        projectId: projectFolders.projectId,
-        parentFolderId: projectFolders.parentFolderId,
-        displayName: projectFolders.displayName,
-        folderSlug: projectFolders.folderSlug,
-        fullSlugPath: projectFolders.fullSlugPath,
-        createdAt: projectFolders.createdAt,
-        updatedAt: projectFolders.updatedAt,
-        projectSlug: projects.projectSlug,
-        workspaceSlug: workspaces.workspaceSlug,
-      })
+      .select(FOLDER_SELECT_FIELDS)
       .from(projectFolders)
       .innerJoin(projects, and(eq(projects.id, projectFolders.projectId), eq(projects.userId, userId)))
       .innerJoin(workspaces, eq(workspaces.id, projects.workspaceId))
@@ -69,37 +60,11 @@ export class PostgresFolderRepository {
   }
 
   async upsert(userId: string, input: SaveProjectFolderInput) {
-    const db = this.database.getDb();
-    
-    const projectId = input.projectId;
-    const result = await db
-      .insert(projectFolders)
-      .values({
-        id: input.id || crypto.randomUUID(),
-        userId,
-        projectId,
-        parentFolderId: input.parentFolderId,
-        displayName: input.displayName,
-        folderSlug: input.folderSlug,
-        fullSlugPath: input.fullSlugPath,
-      })
-      .onConflictDoUpdate({
-        target: projectFolders.id,
-        set: {
-          projectId,
-          parentFolderId: input.parentFolderId,
-          displayName: input.displayName,
-          folderSlug: input.folderSlug,
-          fullSlugPath: input.fullSlugPath,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    
+    const row = await this.upsertWithClient(this.database.getDb(), userId, input);
     return projectFolderFromRow({
-      ...result[0],
+      ...row,
       projectSlug: input.projectSlug,
-      workspaceSlug: input.workspaceSlug
+      workspaceSlug: input.workspaceSlug,
     });
   }
 

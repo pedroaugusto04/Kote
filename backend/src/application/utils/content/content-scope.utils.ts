@@ -1,5 +1,6 @@
 import type { SaveProjectInput, SaveWorkspaceInput } from '../../models/repository-records.models.js';
 import type { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 
 export type ContentScopeSlugs = {
   projectSlug?: string;
@@ -29,37 +30,7 @@ export async function resolveContentScopeFromSlugs(
   userId: string,
   input: ContentScopeSlugs,
 ): Promise<ResolvedContentScope> {
-  const projectSlug = String(input.projectSlug || '').trim();
-  if (projectSlug) {
-    const project = await contentRepository.getProjectBySlug(userId, projectSlug);
-    if (!project) {
-      return emptyScope;
-    }
-
-    return {
-      projectId: project.id,
-      workspaceId: project.workspaceId ?? null,
-      project,
-      workspace: null,
-    };
-  }
-
-  const workspaceSlug = String(input.workspaceSlug || '').trim();
-  if (workspaceSlug) {
-    const workspace = await contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-    if (!workspace) {
-      return emptyScope;
-    }
-
-    return {
-      projectId: null,
-      workspaceId: workspace.id,
-      project: null,
-      workspace,
-    };
-  }
-
-  return emptyScope;
+  return new WorkspaceScopeResolver(contentRepository).resolveContentScopeFromSlugs(userId, input);
 }
 
 export async function resolveWorkspaceIdFromSlug(
@@ -67,6 +38,5 @@ export async function resolveWorkspaceIdFromSlug(
   userId: string,
   workspaceSlug: string,
 ): Promise<string | null> {
-  const scope = await resolveContentScopeFromSlugs(contentRepository, userId, { workspaceSlug });
-  return scope.workspaceId;
+  return new WorkspaceScopeResolver(contentRepository).findWorkspaceId(userId, workspaceSlug);
 }

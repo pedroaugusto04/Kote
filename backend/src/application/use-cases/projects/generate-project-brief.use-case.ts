@@ -8,7 +8,8 @@ import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-en
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { isDependencyNote } from '../../../domain/utils/note-embedding.utils.js';
 import { AiEntitlementService } from '../../services/ai/ai-entitlement.service.js';
-import { toProjectBriefContextItem, toEmptyProjectBrief, toNormalizedBrief, toSha256, resolveProjectBriefScope } from '../../mappers/project-brief.mapper.js';
+import { toProjectBriefContextItem, toEmptyProjectBrief, toNormalizedBrief, toSha256 } from '../../mappers/project-brief.mapper.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { NoteSynthesisRepository } from '../../ports/notes/note-synthesis.repository.js';
 import crypto from 'node:crypto';
 import { SourceChannel } from '../../../domain/enums/knowledge.enums.js';
@@ -26,12 +27,12 @@ export class GenerateProjectBriefUseCase {
     private readonly aiGateway: ProjectBriefAiGateway,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly aiEntitlement: AiEntitlementService,
+    private readonly scopeResolver: WorkspaceScopeResolver,
     private readonly synthesisRepository?: NoteSynthesisRepository,
   ) {}
 
   async execute(userId: string, projectId: string, workspaceIdInput?: string) {
-    const { isAll, projectSlug, workspaceId, workspaceSlug } = await resolveProjectBriefScope(
-      this.contentRepository,
+    const { isAll, projectSlug, workspaceId, workspaceSlug } = await this.scopeResolver.resolveProjectBriefScope(
       userId,
       projectId,
       workspaceIdInput,

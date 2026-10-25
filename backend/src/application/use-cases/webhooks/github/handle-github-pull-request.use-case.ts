@@ -5,7 +5,7 @@ import { buildGithubPrContextNoteEvent } from '../../../services/integrations/gi
 import type { GithubPullRequestWebhookRequest } from '../../../models/webhook-request.models.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
-import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
+import { ExternalIdentityRepository, resolveExternalIdentity } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
@@ -30,8 +30,6 @@ import {
 
 @Injectable()
 export class HandleGithubPullRequestUseCase {
-  private readonly logger: AppLogger;
-
   constructor(
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
@@ -44,9 +42,8 @@ export class HandleGithubPullRequestUseCase {
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
     private readonly embeddingQueue: EmbeddingQueuePublisher,
     private readonly contentRepository: ContentRepository,
-  ) {
-    this.logger = AppLogger.create();
-  }
+    private readonly logger: AppLogger,
+  ) {}
 
   async execute(input: GithubPullRequestWebhookRequest, options?: { synchronous?: boolean }) {
     const environment = this.environmentProvider.read();
@@ -197,16 +194,7 @@ export class HandleGithubPullRequestUseCase {
         operation: AiOperationType.GITHUB_PR_CONTEXT,
         metadata: { repoFullName, prNumber: body.pull_request?.number, source: 'github_pr_webhook' },
       });
-      const aiEnabled = entitlement.enabled;
-
-      this.logger.info('github_pr_ai_check', {
-        repository: repoFullName,
-        projectSlug,
-        aiEnabled,
-        userId: identity.userId,
-      });
-
-      if (!aiEnabled) {
+      if (!entitlement.enabled) {
         this.logger.warn('github_pr_ai_disabled', {
           repository: repoFullName,
           projectSlug,
@@ -221,16 +209,7 @@ export class HandleGithubPullRequestUseCase {
         });
       }
 
-      const quotaOk = entitlement.enabled && entitlement.quota.allowed;
-
-      this.logger.info('github_pr_quota_check', {
-        repository: repoFullName,
-        projectSlug,
-        quotaOk,
-        userId: identity.userId,
-      });
-
-      if (!quotaOk) {
+      if (!entitlement.quota.allowed) {
         this.logger.warn('github_pr_quota_exceeded', {
           repository: repoFullName,
           projectSlug,
@@ -411,15 +390,6 @@ export class HandleGithubPullRequestUseCase {
         throw error;
       }
 
-      this.logger.info('github_pr_ai_comment_raw_response', {
-        repository: repoFullName,
-        projectSlug,
-        prNumber: body.pull_request?.number,
-        commentText,
-        commentLength: commentText?.length || 0,
-        commentTrimmed: commentText?.trim(),
-        commentTrimmedUpper: commentText?.trim().toUpperCase(),
-      });
 
       if (!isRelevantAiComment(commentText)) {
         this.logger.info('github_pr_no_relevant_context', {

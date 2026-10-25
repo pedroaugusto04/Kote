@@ -14,6 +14,14 @@ export type RunAskAiScope = {
   workspaceId?: string;
 };
 
+export interface RunAskAiInput {
+  question: string;
+  userId: string;
+  scope?: RunAskAiScope;
+  conversationId?: string | null;
+  conversationHistory?: AskConversationTurn[];
+}
+
 @Injectable()
 export class RunAskAiUseCase {
   constructor(
@@ -23,13 +31,8 @@ export class RunAskAiUseCase {
     private readonly resolveWhatsappAskAttachmentsUseCase: ResolveWhatsappAskAttachmentsUseCase,
   ) {}
 
-  async execute(
-    question: string,
-    userId: string,
-    scope: RunAskAiScope = {},
-    conversationId?: string | null,
-    conversationHistory?: AskConversationTurn[],
-  ) {
+  async execute(input: RunAskAiInput) {
+    const { question, userId, scope = {}, conversationId, conversationHistory } = input;
     const projectId = scope.projectId || null;
     const workspaceId = scope.workspaceId || null;
     const resolvedConversationId = conversationId || crypto.randomUUID();

@@ -1,9 +1,8 @@
 import { z } from 'zod';
 
-import { KnowledgeStatus, SourceChannel } from '../../../contracts/enums.js';
+import { KnowledgeStatus } from '../../../contracts/enums.js';
 import { noteStatusValues } from '../../../domain/note-status.js';
 import { slugifyProjectName } from '../../../domain/strings.js';
-import { normalizeTime } from '../../../domain/time.js';
 import { AUTO_ACTION_NONE, AUTO_ACTION_RESOLVED, AUTO_ACTION_ARCHIVED } from '../../../domain/auto-action.constants.js';
 import { isAttachmentMimeTypeSupported } from '../../../domain/constants/attachment.constants.js';
 import { decodeBase64, isValidZipArchive, isZipAttachment, isZipFileName } from '../../../domain/utils/attachment-validation.utils.js';
@@ -47,41 +46,35 @@ const noteAttachmentSchema = z.object({
   return decoded ? { ...attachment, sizeBytes: decoded.length } : attachment;
 });
 
+const commonNoteFields = {
+  title: z.string().trim().max(160, 'Use at most 160 characters.').default(''),
+  rawText: z.string().trim().max(500000, 'Use at most 500000 characters.').optional().default(''),
+  tags: optionalStringArraySchema(60, 'Use at most 60 characters.'),
+  folderId: z.string().trim().optional().default(''),
+  reminderAt: z.string().trim().optional().default(''),
+  attachments: z.array(noteAttachmentSchema).optional().default([]),
+};
+
 export const createNoteBodySchema = z
   .object({
-    projectSlug: z.string().trim().min(1, 'Enter the project.'),
-    folderId: z.string().trim().optional().default(''),
+    ...commonNoteFields,
     title: z.string().trim().min(1, 'Enter the note title.').max(160, 'Use at most 160 characters.'),
-    rawText: z.string().trim().max(500000, 'Use at most 500000 characters.').optional().default(''),
-    tags: optionalStringArraySchema(60, 'Use at most 60 characters.'),
+    projectSlug: z.string().trim().min(1, 'Enter the project.'),
     status: noteStatusSchema,
     categoryIds: z.array(z.string()).optional().default([]),
-    reminderAt: z.string().trim().optional().default(''),
     sourceChannel: z.string().trim().optional(),
     source: z.string().trim().optional(),
     sessionId: z.string().trim().optional(),
     occurredAt: z.string().trim().optional(),
     path: z.string().trim().optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
-    attachments: z.array(noteAttachmentSchema).optional().default([]),
   })
   .strict()
   .transform((body) => ({
+    ...body,
     projectSlug: slugifyProjectName(body.projectSlug),
     folderId: body.folderId.trim() || undefined,
-    title: body.title,
-    rawText: body.rawText,
     tags: normalizedSlugList(body.tags),
-    status: body.status,
-    categoryIds: body.categoryIds,
-    reminderAt: body.reminderAt,
-    sourceChannel: body.sourceChannel,
-    source: body.source,
-    sessionId: body.sessionId,
-    occurredAt: body.occurredAt,
-    path: body.path,
-    metadata: body.metadata,
-    attachments: body.attachments,
   }));
 
 export type CreateNoteBody = z.infer<typeof createNoteBodySchema>;
@@ -97,26 +90,16 @@ export const noteAttachmentContentParamSchema = z.object({
 
 export const updateNoteBodySchema = z
   .object({
-    projectSlug: z.string().trim().optional(),
-    folderId: z.string().trim().optional().default(''),
-    title: z.string().trim().max(160, 'Use at most 160 characters.').optional().default(''),
-    rawText: z.string().trim().max(500000, 'Use at most 500000 characters.').optional().default(''),
-    tags: optionalStringArraySchema(60, 'Use at most 60 characters.'),
+    ...commonNoteFields,
     status: editableNoteStatusSchema,
     categoryIds: z.array(z.string()).optional(),
-    reminderAt: z.string().trim().optional().default(''),
     attachments: z.array(noteAttachmentSchema).optional(),
   })
   .strict()
   .transform((body) => ({
+    ...body,
     folderId: body.folderId.trim() || undefined,
-    title: body.title,
-    rawText: body.rawText,
     tags: normalizedSlugList(body.tags),
-    status: body.status,
-    categoryIds: body.categoryIds,
-    reminderAt: body.reminderAt,
-    attachments: body.attachments,
   }));
 
 export type NoteIdParam = z.infer<typeof noteIdParamSchema>;
@@ -185,31 +168,32 @@ export const relatedNotesByFileQuerySchema = z.object({
 }));
 export type RelatedNotesByFileQuery = z.infer<typeof relatedNotesByFileQuerySchema>;
 
-export const notesBySnippetQuerySchema = z.object({
+const baseSnippetFields = {
   filePath: z.string().trim().min(1, 'filePath is required'),
   codeSnippet: z.string().optional().default(''),
   commitHash: z.string().trim().optional().default(''),
-  commitHashes: z.string().trim().optional().default(''),
   commitDate: z.string().trim().optional().default(''),
   author: z.string().trim().optional().default(''),
   commitMessage: z.string().trim().optional().default(''),
   projectSlug: z.string().trim().optional(),
   workspaceSlug: z.string().trim().optional(),
+};
+
+export const notesBySnippetQuerySchema = z.object({
+  ...baseSnippetFields,
+  commitHashes: z.string().trim().optional().default(''),
   limit: z.coerce.number().int().min(1).max(50).optional().default(20),
-});
+}).transform((input) => ({
+  ...input,
+  commitHashes: input.commitHashes
+    ? input.commitHashes.split(',').map((hash) => hash.trim()).filter(Boolean).slice(0, 20)
+    : [],
+}));
 export type NotesBySnippetQuery = z.infer<typeof notesBySnippetQuerySchema>;
 
 export const notesBySnippetBodySchema = z.object({
-  filePath: z.string().trim().min(1, 'filePath is required'),
-  codeSnippet: z.string().optional().default(''),
-  commitHash: z.string().trim().optional().default(''),
+  ...baseSnippetFields,
   commitHashes: z.array(z.string().trim().min(1)).max(20).optional().default([]),
-  commitDate: z.string().trim().optional().default(''),
-  author: z.string().trim().optional().default(''),
-  commitMessage: z.string().trim().optional().default(''),
-  projectSlug: z.string().trim().optional(),
-  workspaceSlug: z.string().trim().optional(),
   limit: z.number().int().min(1).max(50).optional().default(20),
 });
 export type NotesBySnippetBody = z.infer<typeof notesBySnippetBodySchema>;
-

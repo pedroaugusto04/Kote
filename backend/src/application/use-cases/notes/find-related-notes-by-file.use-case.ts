@@ -12,7 +12,17 @@ import type { NoteRecord } from '../../models/repository-records.models.js';
 import { extractCodeTokens } from '../../utils/notes/snippet-notes.utils.js';
 import { CODE_LINEAGE_RELEVANCE_THRESHOLDS } from '../../utils/notes/code-lineage.utils.js';
 
-type RelatedNotesSearchProfile = 'file' | 'snippet';
+export type RelatedNotesSearchProfile = 'file' | 'snippet';
+
+export interface FindRelatedNotesByFileInput {
+  userId: string;
+  filePath: string;
+  excludeIds?: string[];
+  customQuery?: string;
+  projectSlug?: string;
+  requestedLimit?: number;
+  searchProfile?: RelatedNotesSearchProfile;
+}
 
 type RelatedNotesSearchConfig = {
   minSimilarity: number;
@@ -34,15 +44,17 @@ export class FindRelatedNotesByFileUseCase {
     private readonly embeddingQueue: EmbeddingQueuePublisher,
   ) {}
 
-  async execute(
-    userId: string,
-    filePath: string,
-    excludeIds: string[] = [],
-    customQuery?: string,
-    projectSlug?: string,
-    requestedLimit?: number,
-    searchProfile: RelatedNotesSearchProfile = 'file',
-  ): Promise<ReturnType<typeof noteSummary>[]> {
+  async execute(input: FindRelatedNotesByFileInput): Promise<ReturnType<typeof noteSummary>[]> {
+    const {
+      userId,
+      filePath,
+      excludeIds = [],
+      customQuery,
+      projectSlug,
+      requestedLimit,
+      searchProfile = 'file',
+    } = input;
+
     const env = this.runtimeEnv.read();
     const searchConfig = this.resolveSearchConfig(env, searchProfile);
     const resultLimit = Math.min(requestedLimit || searchConfig.resultLimit, searchConfig.resultLimit);

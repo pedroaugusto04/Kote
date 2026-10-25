@@ -75,17 +75,6 @@ export const NOTE_FULL_SELECT_FIELDS = {
   attachmentCount: count(attachments.id).as('attachment_count'),
 };
 
-export {
-  RAW_CATEGORIES_JSON_AGG_SQL,
-  projectTimelineItem,
-  projectTimelineCategory,
-  hasTimelineReminder,
-  appendTimelineFolderClause,
-  appendTimelineCategoryClause,
-  appendTimelineStatusClause,
-  appendTimelineSearchClause,
-  appendKnowledgeMapFilters,
-} from './utils/project-timeline.helpers.js';
 import {
   RAW_CATEGORIES_JSON_AGG_SQL,
   projectTimelineItem,

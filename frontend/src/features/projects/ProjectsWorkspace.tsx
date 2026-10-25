@@ -33,17 +33,6 @@ import { ROOT_FOLDER_ID } from './projects.constants';
 import { PROJECTS_WORKSPACE_MESSAGES } from './projects-ui.constants';
 import { UI_MESSAGES } from '../../shared/constants/ui.constants';
 import { QUERY_KEYS } from '../../shared/constants/query-keys.constants';
-
-const CATEGORY_LABELS: Record<string, string> = {
-  all: 'All',
-  [SOURCE_VALUES.WHATSAPP]: 'WhatsApp',
-  [SOURCE_VALUES.GITHUB]: 'GitHub',
-  [SOURCE_VALUES.MANUAL]: 'Manual',
-  reminder: 'Reminder',
-  [SOURCE_VALUES.AI_CHAT]: 'AI Chat',
-  [SOURCE_VALUES.DEPENDENCY_WATCHER]: 'Dependencies',
-};
-
 import { ProjectsWorkspaceModals } from './modals/ProjectsWorkspaceModals';
 import { mapSearchResultsToTimeline } from './projects-timeline.mapper';
 import { ProjectsBrowser, type ProjectBrowserView } from './ProjectsBrowser';
@@ -65,6 +54,16 @@ import { DownloadIcon, SearchIcon } from '../../shared/ui/icons';
 import { InfoTooltip } from '../../shared/ui/info-tooltip';
 import { Select } from '../../shared/ui/select';
 import { useDragAndDropFiles } from '../../shared/hooks/useDragAndDropFiles';
+
+const CATEGORY_LABELS: Record<string, string> = {
+  all: 'All',
+  [SOURCE_VALUES.WHATSAPP]: 'WhatsApp',
+  [SOURCE_VALUES.GITHUB]: 'GitHub',
+  [SOURCE_VALUES.MANUAL]: 'Manual',
+  reminder: 'Reminder',
+  [SOURCE_VALUES.AI_CHAT]: 'AI Chat',
+  [SOURCE_VALUES.DEPENDENCY_WATCHER]: 'Dependencies',
+};
 
 const statusOptions: Array<{ value: NoteStatusFilter; label: string }> = [
   { value: StatusFilter.Open, label: PROJECTS_WORKSPACE_MESSAGES.STATUS_OPTIONS.OPEN },

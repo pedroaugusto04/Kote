@@ -1,4 +1,6 @@
 import crypto from 'node:crypto';
+import { SubscriptionService } from '../../dist/application/services/billing/SubscriptionService.js';
+import { FindRelatedNotesByFileUseCase } from '../../dist/application/use-cases/notes/find-related-notes-by-file.use-case.js';
 
 export function createTestUser(overrides = {}) {
   const id = overrides.id || crypto.randomUUID();
@@ -87,4 +89,36 @@ export function createTestReminder(overrides = {}) {
     updatedAt: new Date().toISOString(),
     ...overrides,
   };
+}
+
+export function createTestSubscriptionService(deps = {}) {
+  const noopLogger = { info() {}, warn() {}, error() {}, debug() {} };
+  const mockGatewayFactory = deps.paymentGatewayFactory ?? {
+    getGateway: () => deps.asaasPaymentGateway ?? deps.stripePaymentGateway ?? deps.gateway ?? null,
+    getStatusMapper: () => deps.asaasGatewayStatusMapper ?? deps.stripeGatewayStatusMapper ?? deps.statusMapper ?? { normalizePaymentStatus: () => 'pending', normalizeSubscriptionStatus: () => 'active' },
+  };
+  return new SubscriptionService(
+    deps.logger ?? noopLogger,
+    deps.billingIntentService ?? null,
+    deps.subscriptionUpgradeService ?? null,
+    deps.subscriptionChangeService ?? null,
+    mockGatewayFactory,
+    deps.billingPaymentRepository ?? null,
+    deps.updateSubscriptionStrategyFactory ?? null,
+    deps.subscriptionRepository ?? null,
+    deps.billingCustomerRepository ?? null,
+    deps.userRepository ?? null,
+  );
+}
+
+export function createTestFindRelatedNotesByFileUseCase(deps = {}) {
+  const noopLogger = { info() {}, warn() {}, error() {}, debug() {} };
+  return new FindRelatedNotesByFileUseCase(
+    deps.contentRepository ?? null,
+    deps.contentQueryRepository ?? null,
+    deps.noteEmbeddingRepository ?? null,
+    deps.runtimeEnv ?? { read: () => ({}) },
+    deps.logger ?? noopLogger,
+    deps.embeddingQueue ?? null,
+  );
 }

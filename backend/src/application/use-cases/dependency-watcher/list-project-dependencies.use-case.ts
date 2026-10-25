@@ -1,33 +1,34 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
-import type { ListProjectDependenciesResult, ProjectDependencyGroup } from '../../models/dependency-watcher.models.js';
+import type {
+  ListProjectDependenciesResult,
+  ProjectDependencyGroup,
+  ProjectDependencyScopeInput,
+} from '../../models/dependency-watcher.models.js';
 import { DependencyWatcherRepository } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 
 @Injectable()
 export class ListProjectDependenciesUseCase {
   constructor(
     private readonly dependencyWatcherRepository: DependencyWatcherRepository,
     private readonly contentRepository: ContentRepository,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
-  async execute(userId: string, projectId: string, projectSlug: string, workspaceId?: string): Promise<ListProjectDependenciesResult> {
-    const project = await this.contentRepository.getProjectById(userId, projectId);
-    if (!project) {
-      throw new NotFoundException('project_not_found');
-    }
+  async execute(input: ProjectDependencyScopeInput): Promise<ListProjectDependenciesResult> {
+    const { userId, projectId, projectSlug, workspaceId } = input;
 
-    const workspaceSlug = project.workspaceSlug;
-    const resolvedWorkspaceId = workspaceId
-      || project.workspaceId
-      || (workspaceSlug ? (await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug))?.id : undefined);
-    if (!resolvedWorkspaceId) {
-      throw new NotFoundException('workspace_not_found');
-    }
+    const { project, workspaceId: resolvedWorkspaceId, workspaceSlug } = await this.scopeResolver.resolveProjectWorkspace(
+      userId,
+      projectId,
+      workspaceId,
+    );
 
     const projectRepositoryIds = project.repositories.map((repository) => repository.id);
     if (projectRepositoryIds.length === 0) {
-      return { projectSlug, workspaceSlug: workspaceSlug ?? '', groups: [], total: 0 };
+      return { projectSlug, workspaceSlug, groups: [], total: 0 };
     }
 
     const monitoredRepositoryIds = new Set(
@@ -35,7 +36,7 @@ export class ListProjectDependenciesUseCase {
     );
     const scopedRepositoryIds = projectRepositoryIds.filter((repositoryId) => monitoredRepositoryIds.has(repositoryId));
     if (scopedRepositoryIds.length === 0) {
-      return { projectSlug, workspaceSlug: workspaceSlug ?? '', groups: [], total: 0 };
+      return { projectSlug, workspaceSlug, groups: [], total: 0 };
     }
 
     const dependencies = await this.dependencyWatcherRepository.findByRepositoryIds(
@@ -81,7 +82,7 @@ export class ListProjectDependenciesUseCase {
 
     return {
       projectSlug,
-      workspaceSlug: workspaceSlug ?? '',
+      workspaceSlug,
       groups,
       total: dependencies.length,
     };

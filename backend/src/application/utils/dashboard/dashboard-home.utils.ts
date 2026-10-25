@@ -87,16 +87,48 @@ function homeEventCategory(note: VaultNoteSummary) {
   return TimelineCategory.Manual;
 }
 
+export interface BuildDashboardHomeParams {
+  projects: Project[];
+  notes: VaultNoteSummary[];
+  reviews: ReviewView[];
+  reminders: ReminderView[];
+  now?: Date;
+  timeZone?: string;
+  totalAskQueries?: number;
+  totalProjectBriefs?: number;
+}
+
+export function buildDashboardHome(params: BuildDashboardHomeParams): DashboardHomeSummary;
 export function buildDashboardHome(
   projects: Project[],
   notes: VaultNoteSummary[],
   reviews: ReviewView[],
   reminders: ReminderView[],
-  now = new Date(),
-  timeZone = 'UTC',
-  totalAskQueries = 0,
-  totalProjectBriefs = 0,
+  now?: Date,
+  timeZone?: string,
+  totalAskQueries?: number,
+  totalProjectBriefs?: number,
+): DashboardHomeSummary;
+export function buildDashboardHome(
+  projectsOrParams: Project[] | BuildDashboardHomeParams,
+  notesArg?: VaultNoteSummary[],
+  reviewsArg?: ReviewView[],
+  remindersArg?: ReminderView[],
+  nowArg = new Date(),
+  timeZoneArg = 'UTC',
+  totalAskQueriesArg = 0,
+  totalProjectBriefsArg = 0,
 ): DashboardHomeSummary {
+  const isParams = !Array.isArray(projectsOrParams);
+  const projects = isParams ? projectsOrParams.projects : projectsOrParams;
+  const notes = isParams ? projectsOrParams.notes : notesArg!;
+  const reviews = isParams ? projectsOrParams.reviews : reviewsArg!;
+  const reminders = isParams ? projectsOrParams.reminders : remindersArg!;
+  const now = isParams ? (projectsOrParams.now ?? new Date()) : nowArg;
+  const timeZone = isParams ? (projectsOrParams.timeZone ?? 'UTC') : timeZoneArg;
+  const totalAskQueries = isParams ? (projectsOrParams.totalAskQueries ?? 0) : totalAskQueriesArg;
+  const totalProjectBriefs = isParams ? (projectsOrParams.totalProjectBriefs ?? 0) : totalProjectBriefsArg;
+
   const zone = normalizeTimeZone(timeZone);
   const { start, end } = recentWindow(now, HOME_WINDOW_DAYS, zone);
   const recentNotes = notes.filter((note) => isWithinWindow(note.date, start, end, zone));

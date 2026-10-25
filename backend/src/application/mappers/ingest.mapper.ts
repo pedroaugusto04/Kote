@@ -191,28 +191,46 @@ export function toIngestPayloadWithProject(parsed: IngestPayload, projectSlug: s
   };
 }
 
+export interface IngestNoteMappingContext {
+  project: Project;
+  workspaceId: string;
+  workspaceSlug: string;
+  folderFullSlugPath?: string | null;
+  folderId?: string | null;
+  existingNoteId?: string;
+  existingNotePath?: string;
+  categoryIds?: string[];
+}
+
 export function toNoteInputFromIngest(
   payload: IngestPayload,
-  project: Project,
-  workspaceId: string,
-  workspaceSlug: string,
-  folderFullSlugPath: string | null,
-  options: { existingNoteId?: string; existingNotePath?: string; categoryIds?: string[]; folderId?: string | null }
+  context: IngestNoteMappingContext,
 ): SaveNoteInput {
+  const {
+    project,
+    workspaceId,
+    workspaceSlug,
+    folderFullSlugPath,
+    existingNoteId,
+    existingNotePath,
+    categoryIds,
+    folderId = null,
+  } = context;
+
   const paths = buildNotePaths(project, payload, folderFullSlugPath || '');
   const markdown = renderEventNote(project, payload, paths);
   const title = trimText(payload.content.title, payload.content.rawText);
   
   return {
-    id: options.existingNoteId,
+    id: existingNoteId,
     projectId: '',
     workspaceId,
-    path: options.existingNotePath || paths.eventRelativePath.replace(/\\/g, '/'),
-    categoryIds: options.categoryIds,
+    path: existingNotePath || paths.eventRelativePath.replace(/\\/g, '/'),
+    categoryIds,
     title,
     projectSlug: project.projectSlug,
     workspaceSlug,
-    folderId: options.folderId || null,
+    folderId,
     status: payload.classification.status || KnowledgeStatus.Active,
     tags: payload.classification.tags,
     occurredAt: payload.event.occurredAt,
@@ -265,40 +283,44 @@ export function toNotePathsFromIngest(
   return buildNotePaths(project, payload, folderFullSlugPath || '');
 }
 
-export function toSaveNoteResult(
-  note: NoteRecord,
-  attachments: AttachmentRecord[],
-  project: Project,
-  folderName: string,
-  folderPath: string,
-  paths: ReturnType<typeof buildNotePaths>
-): SaveNoteResult {
+export interface SaveNoteResultParams {
+  note: NoteRecord;
+  attachments: AttachmentRecord[];
+  project: Project;
+  folderName: string;
+  folderPath: string;
+  paths: ReturnType<typeof buildNotePaths>;
+}
+
+export function toSaveNoteResult(params: SaveNoteResultParams): SaveNoteResult {
+  const { note, attachments: atts, project: proj, folderName, folderPath, paths } = params;
   const reminderAt = String(note.reminderAt || '');
+
   return {
     ok: true,
-    project: project.projectSlug,
+    project: proj.projectSlug,
     noteId: note.id,
     eventPath: note.path,
     canonicalPath: paths.canonicalRelativePath.replace(/\\/g, '/'),
     followupPath: paths.followupRelativePath.replace(/\\/g, '/'),
     dailyPath: paths.dailyRelativePath.replace(/\\/g, '/'),
-    attachmentIds: attachments.map((attachment) => attachment.id),
+    attachmentIds: atts.map((attachment) => attachment.id),
     assetPaths: [],
     note: {
       id: note.id,
       title: note.title,
       type: hasReminder({ reminderAt }) ? 'reminder' : resolveCanonicalTypeFromCategories(note.categories || [], (note.categories || []).map((c) => c.id)),
       status: note.status,
-      projectSlug: project.projectSlug,
-      projectName: project.displayName || project.projectSlug,
-      workspaceSlug: project.workspaceSlug,
+      projectSlug: proj.projectSlug,
+      projectName: proj.displayName || proj.projectSlug,
+      workspaceSlug: proj.workspaceSlug,
       folderId: note.folderId,
       folderName,
       folderPath,
       eventPath: note.path,
       reminderAt,
       hasReminder: hasReminder({ reminderAt }),
-      attachmentCount: attachments.length,
+      attachmentCount: atts.length,
     },
   };
 }

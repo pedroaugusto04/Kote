@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SubscriptionService } from '../../../dist/application/services/billing/SubscriptionService.js';
 import { SubscriptionChangeKind } from '../../../dist/domain/enums/billing.enums.js';
 import { BillingCycle, BillingType } from '../../../dist/domain/enums/billing.enums.js';
 import { GatewayNameEnum } from '../../../dist/infrastructure/billing/gateways/IPaymentGateway.js';
+import { createTestSubscriptionService } from '../../helpers/factories.mjs';
 
 test('createNewSubscriptionPayment creates a pending charge without activating the subscription', async () => {
   let subscriptionUpserted = false;
@@ -46,23 +46,18 @@ test('createNewSubscriptionPayment creates a pending charge without activating t
     async getScheduledChange() { return null; },
   };
 
-  const service = new SubscriptionService(
-    { info: () => {}, warn: () => {}, error: () => {} },
-    {
+  const service = createTestSubscriptionService({
+    billingIntentService: {
       createIntentAndExternalReference: async () => ({ externalReference: 'intent=1' }),
     },
-    null,
-    mockSubscriptionChangeService,
-    mockGateway,
-    null,
-    { normalizePaymentStatus: () => 'pending' },
-    null,
-    mockBillingPaymentRepository,
-    { getChangeKind: () => SubscriptionChangeKind.NEW },
-    mockSubscriptionRepository,
-    mockBillingCustomerRepository,
-    null,
-  );
+    subscriptionChangeService: mockSubscriptionChangeService,
+    asaasPaymentGateway: mockGateway,
+    asaasGatewayStatusMapper: { normalizePaymentStatus: () => 'pending' },
+    billingPaymentRepository: mockBillingPaymentRepository,
+    updateSubscriptionStrategyFactory: { getChangeKind: () => SubscriptionChangeKind.NEW },
+    subscriptionRepository: mockSubscriptionRepository,
+    billingCustomerRepository: mockBillingCustomerRepository,
+  });
 
   const result = await service.createNewSubscriptionPayment({
     userId: 'user-1',

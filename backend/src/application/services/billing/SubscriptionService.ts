@@ -1,11 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import crypto from 'node:crypto';
 import { AppLogger } from '../../../observability/logger.js';
-import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
-import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
-import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
-import { StripeGatewayStatusMapper } from '../../../infrastructure/billing/gateways/stripe/StripeGatewayStatusMapper.js';
 import { GatewayNameEnum } from '../../../infrastructure/billing/gateways/IPaymentGateway.js';
+import { PaymentGatewayFactory } from './payment-gateway.factory.js';
 import { toGatewayBillingType } from '../../mappers/billing.mapper.js';
 import {
   BillingCycle,
@@ -58,10 +55,7 @@ export class SubscriptionService {
     private readonly billingIntentService: BillingIntentService,
     private readonly subscriptionUpgradeService: SubscriptionUpgradeService,
     private readonly subscriptionChangeService: SubscriptionChangeService,
-    private readonly asaasPaymentGateway: AsaasPaymentGateway,
-    private readonly stripePaymentGateway: StripePaymentGateway,
-    private readonly asaasGatewayStatusMapper: AsaasGatewayStatusMapper,
-    private readonly stripeGatewayStatusMapper: StripeGatewayStatusMapper,
+    private readonly paymentGatewayFactory: PaymentGatewayFactory,
     private readonly billingPaymentRepository: BillingPaymentRepository,
     private readonly updateSubscriptionStrategyFactory: UpdateSubscriptionStrategyFactory,
     private readonly subscriptionRepository: SubscriptionRepository,
@@ -113,7 +107,7 @@ export class SubscriptionService {
     const isFreePlan = targetPlan.slug === SubscriptionPlan.FREE;
 
     const { isInternational, gatewayName } = resolveBillingGateway(countryCode);
-    const gateway = gatewayName === PAYMENT_GATEWAY.ASAAS ? this.asaasPaymentGateway : this.stripePaymentGateway;
+    const gateway = this.paymentGatewayFactory.getGateway(gatewayName);
 
     validateSubscriptionPreconditions({
       countryCode,
@@ -216,7 +210,7 @@ export class SubscriptionService {
     gatewayName?: PaymentGateway;
   }): Promise<{ id: string }> {
     const gatewayName: PaymentGateway = params.gatewayName || PAYMENT_GATEWAY.ASAAS;
-    const gateway = gatewayName === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
+    const gateway = this.paymentGatewayFactory.getGateway(gatewayName);
 
     const targetPlan = await this.subscriptionRepository.getPlanById(params.targetPlanId);
     if (!targetPlan) {
@@ -273,9 +267,7 @@ export class SubscriptionService {
       const subscriptionPayments = await gateway.getSubscriptionPayments(gatewaySubscription.id);
       const dueDateReference = currentPeriodEnd.toISOString().split('T')[0];
 
-      const paymentMapper = gatewayName === PAYMENT_GATEWAY.ASAAS 
-        ? this.asaasGatewayStatusMapper 
-        : this.stripeGatewayStatusMapper;
+      const paymentMapper = this.paymentGatewayFactory.getStatusMapper(gatewayName);
 
       const pendingPayments = (subscriptionPayments ?? []).filter((payment: any) => {
         if (!payment?.id) return false;
@@ -334,7 +326,7 @@ export class SubscriptionService {
       throw new BadRequestException('Plan not found');
     }
 
-    const paymentGateway = sub.gatewayName === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
+    const paymentGateway = this.paymentGatewayFactory.getGateway(sub.gatewayName);
     const billingCycle = (sub.billingCycle as string) === 'yearly' ? BillingCycle.YEARLY : BillingCycle.MONTHLY;
     const gatewayEnum = sub.gatewayName === PAYMENT_GATEWAY.STRIPE ? GatewayNameEnum.STRIPE : GatewayNameEnum.ASAAS;
     const targetRecurringValue = resolvePlanValueForCycle(plan, billingCycle, gatewayEnum);
@@ -380,9 +372,10 @@ export class SubscriptionService {
       return;
     }
 
-    const gateway = (subRow.gatewayName === PAYMENT_GATEWAY.STRIPE || params.gatewaySubscriptionId?.includes('sub_'))
-      ? this.stripePaymentGateway
-      : this.asaasPaymentGateway;
+    const gatewayName = (subRow.gatewayName === PAYMENT_GATEWAY.STRIPE || params.gatewaySubscriptionId?.includes('sub_'))
+      ? PAYMENT_GATEWAY.STRIPE
+      : PAYMENT_GATEWAY.ASAAS;
+    const gateway = this.paymentGatewayFactory.getGateway(gatewayName);
 
     let gatewaySubscription = null;
     if (params.gatewaySubscriptionId) {
@@ -516,31 +509,20 @@ export class SubscriptionService {
   }
 
   async downgradeSubscription(ctx: SubscriptionContext): Promise<SubscriptionChangeResult> {
-    if (!ctx.activeSub) {
-      throw new BadRequestException('Cannot perform downgrade without an active subscription');
-    }
-
-    const effectiveAt = new Date(ctx.activeSub.nextDueDate || Date.now());
-    effectiveAt.setDate(effectiveAt.getDate() - 1);
-
-    await this.subscriptionChangeService.scheduleChange({
-      userId: ctx.userId,
-      fromSubscriptionId: ctx.activeSub.id,
-      fromGateway: ctx.activeSub.gatewayName,
-      fromGatewaySubscriptionId: ctx.activeSub.gatewaySubscriptionId,
-      toPlanId: ctx.newPlan.id,
-      toBillingCycle: ctx.newBillingCycle,
-      toBillingType: ctx.newBillingType,
-      type: SubscriptionChangeType.DOWNGRADE,
-      effectiveAt,
-    });
-
-    return this.buildSubscriptionChangeResult(ctx.userId, SubscriptionChangeKind.DOWNGRADE);
+    return this.scheduleSubscriptionChange(ctx, SubscriptionChangeType.DOWNGRADE, SubscriptionChangeKind.DOWNGRADE);
   }
 
   async changeCycleSubscription(ctx: SubscriptionContext): Promise<SubscriptionChangeResult> {
+    return this.scheduleSubscriptionChange(ctx, SubscriptionChangeType.CHANGE_CYCLE, SubscriptionChangeKind.CHANGE_CYCLE);
+  }
+
+  private async scheduleSubscriptionChange(
+    ctx: SubscriptionContext,
+    changeType: SubscriptionChangeType,
+    changeKind: SubscriptionChangeKind,
+  ): Promise<SubscriptionChangeResult> {
     if (!ctx.activeSub) {
-      throw new BadRequestException('Cannot perform cycle change without an active subscription');
+      throw new BadRequestException(`Cannot perform ${changeKind.toLowerCase()} without an active subscription`);
     }
 
     const effectiveAt = new Date(ctx.activeSub.nextDueDate || Date.now());
@@ -554,11 +536,11 @@ export class SubscriptionService {
       toPlanId: ctx.newPlan.id,
       toBillingCycle: ctx.newBillingCycle,
       toBillingType: ctx.newBillingType,
-      type: SubscriptionChangeType.CHANGE_CYCLE,
+      type: changeType,
       effectiveAt,
     });
 
-    return this.buildSubscriptionChangeResult(ctx.userId, SubscriptionChangeKind.CHANGE_CYCLE);
+    return this.buildSubscriptionChangeResult(ctx.userId, changeKind);
   }
 
   private async buildSubscriptionChangeResult(
@@ -578,8 +560,8 @@ export class SubscriptionService {
     subscriptionId?: string;
   }): Promise<void> {
     const { ctx, intentType, paymentValue, paymentDescription, description, subscriptionId } = params;
-    const gateway = ctx.gateway === GatewayNameEnum.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
-    const mapper = ctx.gateway === GatewayNameEnum.STRIPE ? this.stripeGatewayStatusMapper : this.asaasGatewayStatusMapper;
+    const gateway = this.paymentGatewayFactory.getGateway(ctx.gateway);
+    const mapper = this.paymentGatewayFactory.getStatusMapper(ctx.gateway);
     const creditCardToken = ctx.newBillingType === BillingType.CREDIT_CARD ? ctx.newCreditCardToken : undefined;
 
     const { externalReference } = await this.billingIntentService.createIntentAndExternalReference({

@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 
+import type { CheckDependencyInput } from '../../models/dependency-watcher.models.js';
 import { DependencyWatcherRepository } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { DependencyCheckQueuePublisher } from '../../ports/dependency-watcher/dependency-check-queue.publisher.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 
 @Injectable()
 export class CheckDependencyUseCase {
@@ -13,21 +15,17 @@ export class CheckDependencyUseCase {
     private readonly contentRepository: ContentRepository,
     private readonly dependencyCheckQueuePublisher: DependencyCheckQueuePublisher,
     private readonly logger: AppLogger,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
-  async execute(userId: string, dependencyId: string, projectId: string, projectSlug: string, workspaceId?: string): Promise<{ jobId: string; queued: number }> {
-    const project = await this.contentRepository.getProjectById(userId, projectId);
-    if (!project) {
-      throw new NotFoundException('project_not_found');
-    }
+  async execute(input: CheckDependencyInput): Promise<{ jobId: string; queued: number }> {
+    const { userId, dependencyId, projectId, projectSlug, workspaceId } = input;
 
-    const workspaceSlug = project.workspaceSlug;
-    const resolvedWorkspaceId = workspaceId
-      || project.workspaceId
-      || (workspaceSlug ? (await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug))?.id : undefined);
-    if (!resolvedWorkspaceId) {
-      throw new NotFoundException('workspace_not_found');
-    }
+    const { workspaceId: resolvedWorkspaceId } = await this.scopeResolver.resolveProjectWorkspace(
+      userId,
+      projectId,
+      workspaceId,
+    );
 
     const dependency = await this.dependencyWatcherRepository.findById(userId, resolvedWorkspaceId, dependencyId);
     if (!dependency) {

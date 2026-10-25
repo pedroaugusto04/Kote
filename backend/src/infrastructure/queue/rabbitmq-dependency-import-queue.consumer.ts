@@ -101,8 +101,7 @@ export class RabbitMqDependencyImportQueueConsumer extends BaseRabbitMqConsumer 
         return;
       }
 
-      const projects = await this.contentRepository.listProjects(userId);
-      let workspaceProjects = projects.filter((p) => p.workspaceSlug === workspaceSlug);
+      let workspaceProjects = await this.contentRepository.listProjectsByWorkspace(userId, workspace.id);
 
       if (projectIds && projectIds.length > 0) {
         workspaceProjects = workspaceProjects.filter((p) => projectIds.includes(p.id));

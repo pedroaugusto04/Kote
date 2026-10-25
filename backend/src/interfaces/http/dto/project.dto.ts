@@ -59,20 +59,17 @@ export const exportProjectNotesZipQuerySchema = z.object({
 });
 export type ExportProjectNotesZipQuery = z.infer<typeof exportProjectNotesZipQuerySchema>;
 
-export const projectDecisionsQuerySchema = paginationInputSchema.extend({
+const decisionFilterFields = {
   status: z.string().trim().optional(),
   file: z.string().trim().optional(),
   search: z.string().trim().optional(),
   kind: z.enum(['decision', 'failed_attempt', 'all']).optional().default('all'),
-});
+};
+
+export const projectDecisionsQuerySchema = paginationInputSchema.extend(decisionFilterFields);
 export type ProjectDecisionsQuery = z.infer<typeof projectDecisionsQuerySchema>;
 
-export const exportProjectAdrsQuerySchema = z.object({
-  status: z.string().trim().optional(),
-  file: z.string().trim().optional(),
-  search: z.string().trim().optional(),
-  kind: z.enum(['decision', 'failed_attempt', 'all']).optional().default('all'),
-});
+export const exportProjectAdrsQuerySchema = z.object(decisionFilterFields);
 export type ExportProjectAdrsQuery = z.infer<typeof exportProjectAdrsQuerySchema>;
 
 export const updateProjectBodySchema = z

@@ -6,7 +6,7 @@ import {
 } from '../../../contracts/agent-conversation.js';
 import { type ConversationInput } from '../../../contracts/conversation.js';
 import { IntegrationProvider, AgentConversationAction } from '../../../contracts/enums.js';
-import { displayNameFromProjectSlug, slugify } from '../../../domain/strings.js';
+import { displayNameFromProjectSlug, normalizeWorkspaceSlug, slugify } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone, nowIso } from '../../../domain/time.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { IngestAgentGateway } from '../../ports/conversation/ingest-agent.gateway.js';
@@ -59,6 +59,13 @@ export type AgentConversationResult = {
   };
 };
 
+export interface ProcessAgentConversationInput {
+  input: ConversationInput;
+  userId: string;
+  workspaceSlug?: string;
+  projectSlug?: string;
+}
+
 @Injectable()
 export class ProcessAgentConversationUseCase {
   constructor(
@@ -72,32 +79,33 @@ export class ProcessAgentConversationUseCase {
     private readonly folderResolutionService: ConversationFolderResolutionService,
     private readonly aiEntitlement: AiEntitlementService,
     private readonly askAgentToolsService: AskAgentToolsService,
-    private readonly logger?: AppLogger,
+    private readonly logger: AppLogger,
   ) {}
 
   async execute(
-    input: ConversationInput,
-    userId: string,
-    workspaceSlug = 'default',
-    projectSlug?: string,
+    paramsOrInput: ProcessAgentConversationInput | ConversationInput,
+    userIdInput?: string,
+    workspaceSlugInput?: string,
+    projectSlugInput?: string,
   ): Promise<AgentConversationResult> {
-    const normalizedWorkspaceSlug = slugify(workspaceSlug) || 'default';
+    const params: ProcessAgentConversationInput =
+      paramsOrInput && typeof paramsOrInput === 'object' && 'input' in paramsOrInput
+        ? (paramsOrInput as ProcessAgentConversationInput)
+        : {
+            input: paramsOrInput as ConversationInput,
+            userId: userIdInput || '',
+            workspaceSlug: workspaceSlugInput || 'default',
+            projectSlug: projectSlugInput,
+          };
+    const { input, userId, workspaceSlug = 'default', projectSlug } = params;
+    const normalizedWorkspaceSlug = normalizeWorkspaceSlug(workspaceSlug);
     const aiEnabled = await this.aiEntitlement.isEnabled(userId, normalizedWorkspaceSlug, IntegrationProvider.AiConversation);
     if (!aiEnabled) throw new NotFoundException('ai_conversation_not_enabled');
 
     const key = `agent:${input.chatId}:${input.senderId}`;
-    let state = await this.loadState(userId, normalizedWorkspaceSlug, key);
-    if (projectSlug) {
-      state = {
-        ...state,
-        project: {
-          ...state.project,
-          selectedProjectSlug: projectSlug,
-        },
-      };
-    }
+    const state = await this.loadState(userId, normalizedWorkspaceSlug, key, projectSlug);
     const messageText = String(input.messageText || '').trim();
-    this.logger?.info('conversation.agent.turn.start', {
+    this.logger.info('conversation.agent.turn.start', {
       userId,
       workspaceSlug: normalizedWorkspaceSlug,
       conversationKey: key,
@@ -148,7 +156,7 @@ export class ProcessAgentConversationUseCase {
       metadata: { workspaceSlug, source: 'agent_conversation' },
     });
     if (!entitlement.enabled || !entitlement.quota.allowed) {
-      this.logger?.warn('conversation.agent.quota_exceeded', {
+      this.logger.warn('conversation.agent.quota_exceeded', {
         userId,
         workspaceSlug,
         limit: entitlement.enabled ? entitlement.quota.limit : undefined,
@@ -247,7 +255,7 @@ export class ProcessAgentConversationUseCase {
     const payload = buildAgentPayload(input, state, this.environmentProvider.read().reminderTimeZone);
     const ingestResult = await this.ingestEntryUseCase.execute(payload, userId, workspaceSlug, { folderId: folderId || undefined });
 
-    this.logger?.info('conversation.agent.submit.saved', {
+    this.logger.info('conversation.agent.submit.saved', {
       userId,
       workspaceSlug,
       conversationKey: key,
@@ -312,25 +320,35 @@ export class ProcessAgentConversationUseCase {
     await this.contentRepository.upsertProject(userId, projectRecord);
   }
 
-  private async loadState(userId: string, workspaceSlug: string, key: string) {
+  private async loadState(userId: string, workspaceSlug: string, key: string, projectSlug?: string): Promise<AgentConversationState> {
     const saved = await this.conversationStates.get(userId, workspaceSlug, key);
     const parsed = saved ? agentConversationStateSchema.safeParse(saved.state) : null;
-    if (!parsed?.success) return EMPTY_AGENT_CONVERSATION_STATE;
-    if (this.isExpiredState(parsed.data, saved?.updatedAt || '')) {
-      // State persistence handled below
-      this.logger?.info('conversation.agent.state.expired', {
-        userId,
-        workspaceSlug,
-        conversationKey: key,
-        updatedAt: parsed.data.updatedAt || saved?.updatedAt || '',
-      });
-      return EMPTY_AGENT_CONVERSATION_STATE;
-    }
-    return parsed.data;
-  }
+    let state = EMPTY_AGENT_CONVERSATION_STATE;
 
-  private isExpiredState(state: AgentConversationState, recordUpdatedAt: string) {
-    return isConversationStateExpired(state.updatedAt, recordUpdatedAt);
+    if (parsed?.success) {
+      if (isConversationStateExpired(parsed.data.updatedAt, saved?.updatedAt || '')) {
+        this.logger.info('conversation.agent.state.expired', {
+          userId,
+          workspaceSlug,
+          conversationKey: key,
+          updatedAt: parsed.data.updatedAt || saved?.updatedAt || '',
+        });
+      } else {
+        state = parsed.data;
+      }
+    }
+
+    if (projectSlug) {
+      return {
+        ...state,
+        project: {
+          ...state.project,
+          selectedProjectSlug: projectSlug,
+        },
+      };
+    }
+
+    return state;
   }
 
   private buildTools(

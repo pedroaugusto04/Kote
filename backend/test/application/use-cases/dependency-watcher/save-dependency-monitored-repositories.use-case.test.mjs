@@ -1,3 +1,4 @@
+import { WorkspaceScopeResolver } from '../../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -34,6 +35,7 @@ describe('Backend: Save Dependency Monitored Repositories Use Case', () => {
         if (slug === 'missing') return null;
         return { id: 'workspace-1', workspaceSlug: 'acme' };
       },
+      listProjectsByWorkspace: async (...args) => mockContentRepository.listProjects(...args),
       listProjects: async () => [
         {
           workspaceSlug: 'acme',
@@ -63,6 +65,7 @@ describe('Backend: Save Dependency Monitored Repositories Use Case', () => {
       mockContentRepository,
       mockGithubRepositoryResolution,
       mockImportUseCase,
+      new WorkspaceScopeResolver(mockContentRepository),
     );
   });
 

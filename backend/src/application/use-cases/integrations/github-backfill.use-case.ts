@@ -37,17 +37,14 @@ type StartGithubBackfillInput = {
 
 @Injectable()
 export class GithubBackfillUseCase {
-  private readonly logger: AppLogger;
-
   constructor(
     private readonly processGithubPushService: ProcessGithubPushService,
     private readonly credentialRepository: CredentialRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubBackfillJobRepository: GithubBackfillJobRepository,
     private readonly backfillQueuePublisher: BackfillQueuePublisher,
-  ) {
-    this.logger = AppLogger.create();
-  }
+    private readonly logger: AppLogger,
+  ) {}
 
   readConfig() {
     const environment = this.environmentProvider.read();

@@ -154,6 +154,7 @@ import { NotesController, AskAiController, QueryKnowledgeController } from '../.
     FindNotesByFileUseCase,
     FindNotesBySnippetUseCase,
     FindRelatedNotesByFileUseCase,
+    WorkspacesModule,
   ],
 })
 export class NotesModule {}

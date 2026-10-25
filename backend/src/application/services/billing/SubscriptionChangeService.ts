@@ -5,10 +5,7 @@ import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js'
 import { resolvePlanValueForCycle } from '../../../domain/utils/plan-pricing.utils.js';
 import { BillingTypeEnum, GatewayNameEnum } from '../../ports/billing/payment-gateway.port.js';
 import { toGatewayBillingType } from '../../mappers/billing.mapper.js';
-import { AsaasPaymentGateway } from '../../../infrastructure/billing/gateways/asaas/AsaasPaymentGateway.js';
-import { StripePaymentGateway } from '../../../infrastructure/billing/gateways/stripe/StripePaymentGateway.js';
-import { AsaasGatewayStatusMapper } from '../../../infrastructure/billing/gateways/asaas/AsaasGatewayStatusMapper.js';
-import { StripeGatewayStatusMapper } from '../../../infrastructure/billing/gateways/stripe/StripeGatewayStatusMapper.js';
+import { PaymentGatewayFactory } from './payment-gateway.factory.js';
 import { BillingPaymentRepository, SubscriptionRepository } from '../../ports/billing/billing-repositories.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { SubscriptionCancellationService } from './SubscriptionCancellationService.js';
@@ -17,10 +14,7 @@ import crypto from 'node:crypto';
 @Injectable()
 export class SubscriptionChangeService {
   constructor(
-    private readonly asaasPaymentGateway: AsaasPaymentGateway,
-    private readonly stripePaymentGateway: StripePaymentGateway,
-    private readonly asaasGatewayStatusMapper: AsaasGatewayStatusMapper,
-    private readonly stripeGatewayStatusMapper: StripeGatewayStatusMapper,
+    private readonly paymentGatewayFactory: PaymentGatewayFactory,
     private readonly billingPaymentRepository: BillingPaymentRepository,
     private readonly subscriptionRepository: SubscriptionRepository,
     private readonly logger: AppLogger,
@@ -105,7 +99,7 @@ export class SubscriptionChangeService {
     }
 
     // Update subscription in gateway
-    const gateway = changeRequest.fromGateway === 'stripe' ? this.stripePaymentGateway : this.asaasPaymentGateway;
+    const gateway = this.paymentGatewayFactory.getGateway(changeRequest.fromGateway);
     const billingCycle = (changeRequest.toBillingCycle as string) === 'yearly' ? BillingCycle.YEARLY : BillingCycle.MONTHLY;
     const gatewayEnum = changeRequest.fromGateway === PAYMENT_GATEWAY.STRIPE
       ? GatewayNameEnum.STRIPE
@@ -173,7 +167,8 @@ export class SubscriptionChangeService {
     sub: { id: string; userId: string; gatewaySubscriptionId: string; gatewayName: string },
     newRecurringValue: number
   ) {
-    const gateway = sub.gatewayName === GatewayNameEnum.STRIPE ? this.stripePaymentGateway : this.asaasPaymentGateway;
+    const gateway = this.paymentGatewayFactory.getGateway(sub.gatewayName);
+    const mapper = this.paymentGatewayFactory.getStatusMapper(sub.gatewayName);
     const normalizedRecurringValue = newRecurringValue;
 
     let gatewayPayments: Awaited<ReturnType<typeof gateway.getSubscriptionPayments>> = [];
@@ -188,9 +183,7 @@ export class SubscriptionChangeService {
     for (const payment of gatewayPayments ?? []) {
       if (!payment?.id) continue;
 
-      const normalizedStatus = gateway === this.asaasPaymentGateway
-        ? this.asaasGatewayStatusMapper.normalizePaymentStatus(payment.status, null)
-        : this.stripeGatewayStatusMapper.normalizePaymentStatus(payment.status, null);
+      const normalizedStatus = mapper.normalizePaymentStatus(payment.status, null);
 
       if (normalizedStatus !== PaymentStatus.PENDING && normalizedStatus !== PaymentStatus.OVERDUE) continue;
 
@@ -212,16 +205,14 @@ export class SubscriptionChangeService {
 
       const syncedDueDate = syncedPayment.dueDate ? new Date(syncedPayment.dueDate) : dueDate;
       const syncedPaidAt = syncedPayment.paidAt ? new Date(syncedPayment.paidAt) : null;
-      const syncedStatus = gateway === this.asaasPaymentGateway
-        ? this.asaasGatewayStatusMapper.normalizePaymentStatus(syncedPayment.status, null) ?? normalizedStatus ?? PaymentStatus.PENDING
-        : this.stripeGatewayStatusMapper.normalizePaymentStatus(syncedPayment.status, null) ?? normalizedStatus ?? PaymentStatus.PENDING;
+      const syncedStatus = mapper.normalizePaymentStatus(syncedPayment.status, null) ?? normalizedStatus ?? PaymentStatus.PENDING;
 
       const billingType = syncedPayment.billingType ?? payment.billingType ?? null;
 
       await this.billingPaymentRepository.upsertSubscriptionPayment({
         subscriptionId: sub.id,
         userId: sub.userId,
-        gateway: gateway === this.asaasPaymentGateway ? 'asaas' : 'stripe',
+        gateway: sub.gatewayName.toLowerCase() === 'stripe' ? 'stripe' : 'asaas',
         gatewayPaymentId: payment.id,
         status: syncedStatus,
         billingType: billingType,

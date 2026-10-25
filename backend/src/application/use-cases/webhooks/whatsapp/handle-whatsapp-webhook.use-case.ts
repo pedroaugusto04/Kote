@@ -5,7 +5,7 @@ import { CredentialRecordStatus, ExternalIdentityProvider, IntegrationProvider, 
 import type { ConversationInput } from '../../../../contracts/conversation.js';
 import { IntegrationConnectionService } from '../../../services/integrations/integration-connection.service.js';
 import type { WhatsappWebhookRequest } from '../../../models/webhook-request.models.js';
-import { CredentialRepository, ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
+import { CredentialRepository, ExternalIdentityRepository, resolveExternalIdentity } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { WhatsappMediaDownloader } from '../../../ports/integrations/whatsapp-media.downloader.js';
@@ -20,8 +20,8 @@ import { AppLogger } from '../../../../observability/logger.js';
 import { parseWhatsappEvolutionMessage } from '../../../utils/webhook/webhook.utils.js';
 import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from './whatsapp-webhook-flow-control.js';
 import type { WhatsappAskAttachmentResolution } from '../../../models/whatsapp-ask-attachment.models.js';
-import { ContentRepository } from '../../../ports/notes/content.repository.js';
-import { resolveWorkspaceIdFromSlug } from '../../../utils/content/content-scope.utils.js';
+import { WorkspaceScopeResolver } from '../../../services/content/workspace-scope-resolver.service.js';
+
 import { formatAskReply, normalizeReplyText, toWhatsappWebhookExecutionResult } from '../../../utils/webhook/whatsapp-webhook-reply.utils.js';
 
 type WhatsappWebhookContext = {
@@ -32,22 +32,21 @@ type WhatsappWebhookContext = {
 
 @Injectable()
 export class HandleWhatsappWebhookUseCase {
-  private readonly rateLimiter = new WhatsappWebhookRateLimiter();
-  private readonly conversationQueue = new WhatsappConversationTaskQueue();
-
   constructor(
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly credentials: CredentialRepository,
     private readonly webhookEvents: WebhookEventRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly connections?: IntegrationConnectionService,
-    private readonly processAgentConversationUseCase?: ProcessAgentConversationUseCase,
-    private readonly whatsappReplySender?: WhatsappReplySender,
-    private readonly whatsappMediaDownloader?: WhatsappMediaDownloader,
-    private readonly logger?: AppLogger,
-    private readonly resolveWhatsappAskAttachmentsUseCase?: ResolveWhatsappAskAttachmentsUseCase,
-    private readonly audioTranscriptionGateway?: AudioTranscriptionGateway,
-    private readonly contentRepository?: ContentRepository,
+    private readonly connections: IntegrationConnectionService,
+    private readonly processAgentConversationUseCase: ProcessAgentConversationUseCase,
+    private readonly whatsappReplySender: WhatsappReplySender,
+    private readonly whatsappMediaDownloader: WhatsappMediaDownloader,
+    private readonly logger: AppLogger,
+    private readonly resolveWhatsappAskAttachmentsUseCase: ResolveWhatsappAskAttachmentsUseCase,
+    private readonly audioTranscriptionGateway: AudioTranscriptionGateway,
+    private readonly scopeResolver: WorkspaceScopeResolver,
+    private readonly rateLimiter: WhatsappWebhookRateLimiter,
+    private readonly conversationQueue: WhatsappConversationTaskQueue,
   ) {}
 
   async execute(input: WhatsappWebhookRequest) {
@@ -78,9 +77,7 @@ export class HandleWhatsappWebhookUseCase {
     if (!claimed) {
       return { ok: true, processed: false, ignored: 'duplicate_message' };
     }
-    if (!this.connections) {
-      return { ok: true, processed: false, ignored: 'connection_service_unavailable' };
-    }
+
     const result = await this.connections.completeWhatsappFromWebhook({
       code: command.code,
       chatJid: command.externalId,
@@ -102,18 +99,16 @@ export class HandleWhatsappWebhookUseCase {
     context: WhatsappWebhookContext,
     command: Extract<WhatsappWebhookCommand, { kind: 'conversation' }>,
   ) {
-    const identity = await this.externalIdentities.findExternalIdentity(
+    const identity = await resolveExternalIdentity(
+      this.externalIdentities,
       ExternalIdentityProvider.Whatsapp,
       'jid',
       command.externalId,
     );
-    if (!identity) {
-      throw new NotFoundException('identity_not_found');
-    }
 
     const active = await this.isWhatsappIntegrationActive(identity.userId, identity.workspaceSlug || '');
     if (!active) {
-      this.logger?.info('whatsapp.webhook.integration_inactive', {
+      this.logger.info('whatsapp.webhook.integration_inactive', {
         externalId: context.externalIdentity.externalId,
         resolvedUserId: identity.userId,
         workspaceSlug: identity.workspaceSlug || '',
@@ -182,8 +177,7 @@ export class HandleWhatsappWebhookUseCase {
       input.messageText ||
       !input.hasMedia ||
       !input.media.dataBase64 ||
-      !input.media.mimeType.startsWith('audio/') ||
-      !this.audioTranscriptionGateway
+      !input.media.mimeType.startsWith('audio/')
     ) {
       return input;
     }
@@ -208,7 +202,7 @@ export class HandleWhatsappWebhookUseCase {
         },
       );
       if (transcription) {
-        this.logger?.info('whatsapp.audio.transcribed', {
+        this.logger.info('whatsapp.audio.transcribed', {
           messageId: input.messageId,
           textLength: transcription.length,
         });
@@ -218,7 +212,7 @@ export class HandleWhatsappWebhookUseCase {
         };
       }
     } catch (transcriptionError) {
-      this.logger?.error('whatsapp.audio.transcription_failed', {
+      this.logger.error('whatsapp.audio.transcription_failed', {
         messageId: input.messageId,
         error: transcriptionError instanceof Error ? transcriptionError.message : String(transcriptionError),
       });
@@ -236,9 +230,6 @@ export class HandleWhatsappWebhookUseCase {
     const downloadedInput = await this.withDownloadedMedia(context, input);
     const enrichedInput = await this.transcribeAudioMessageIfNeeded(downloadedInput);
 
-    if (!this.processAgentConversationUseCase) {
-      return this.processed(context, { ok: true, resolvedUserId: userId, processed: false }, userId);
-    }
 
     return this.handleAgentConversation(context, userId, workspaceSlug, enrichedInput);
   }
@@ -249,27 +240,23 @@ export class HandleWhatsappWebhookUseCase {
     workspaceSlug: string,
     input: ConversationInput,
   ) {
-    const conversationResult = await this.processAgentConversationUseCase!.execute(
+    const conversationResult = await this.processAgentConversationUseCase.execute({
       input,
       userId,
       workspaceSlug,
-    );
+    });
 
-    const attachmentResolution = conversationResult.answerContext
-      ? await this.resolveAskAttachments(
-          userId,
-          (this.contentRepository
-            ? (await resolveWorkspaceIdFromSlug(this.contentRepository, userId, workspaceSlug)) || ''
-            : ''),
-          conversationResult.answerContext,
-        )
-      : undefined;
+    let attachmentResolution: WhatsappAskAttachmentResolution | undefined;
+    if (conversationResult.answerContext) {
+      const workspaceId = (await this.scopeResolver.findWorkspaceId(userId, workspaceSlug)) ?? '';
+      attachmentResolution = await this.resolveAskAttachments(userId, workspaceId, conversationResult.answerContext);
+    }
 
     const replyText = conversationResult.answerContext
       ? formatAskReply(conversationResult.answerContext, attachmentResolution!)
       : normalizeReplyText(conversationResult.replyText);
 
-    this.logger?.info('whatsapp.conversation.result', {
+    this.logger.info('whatsapp.conversation.result', {
       externalId: context.externalIdentity.externalId,
       senderId: input.senderId,
       chatId: input.chatId,
@@ -279,9 +266,7 @@ export class HandleWhatsappWebhookUseCase {
       replyText,
     });
 
-    const shouldReply = conversationResult.action !== 'cancel' || (
-      conversationResult.action === 'cancel' && String(conversationResult.replyText || '').trim().length > 0
-    );
+    const shouldReply = conversationResult.action !== 'cancel' || Boolean(conversationResult.replyText?.trim());
     const sendResult = shouldReply
       ? await this.sendReply(input.chatId, replyText)
       : { ok: false as const, error: 'reply_not_needed' };
@@ -290,7 +275,7 @@ export class HandleWhatsappWebhookUseCase {
       ? await this.sendAskAttachments(input.chatId, attachmentResolution)
       : { sentCount: 0, failedCount: 0 };
 
-    this.logger?.info('whatsapp.reply.dispatch', {
+    this.logger.info('whatsapp.reply.dispatch', {
       externalId: context.externalIdentity.externalId,
       chatId: input.chatId,
       shouldReply,
@@ -310,13 +295,6 @@ export class HandleWhatsappWebhookUseCase {
   }
 
   private async sendReply(chatJid: string, text: string) {
-    if (!this.whatsappReplySender) {
-      return {
-        ok: false as const,
-        error: 'whatsapp_reply_sender_not_configured',
-      };
-    }
-
     return this.whatsappReplySender.sendText({ chatJid, text });
   }
 
@@ -325,16 +303,6 @@ export class HandleWhatsappWebhookUseCase {
     workspaceId: string,
     result: Pick<Awaited<ReturnType<AskKnowledgeUseCase['execute']>>, 'requestedAttachments' | 'requestedAttachmentPattern' | 'sources' | 'relatedNotes'>,
   ): Promise<WhatsappAskAttachmentResolution> {
-    if (!this.resolveWhatsappAskAttachmentsUseCase) {
-      return {
-        requested: false,
-        noteCount: 0,
-        attachmentCount: 0,
-        media: [],
-        oversizedCount: 0,
-        missingContentCount: 0,
-      };
-    }
     return this.resolveWhatsappAskAttachmentsUseCase.execute({
       userId,
       workspaceId,
@@ -349,7 +317,7 @@ export class HandleWhatsappWebhookUseCase {
     let sentCount = 0;
     let failedCount = 0;
 
-    if (!attachmentResolution.requested || !this.whatsappReplySender) {
+    if (!attachmentResolution.requested) {
       return { sentCount, failedCount };
     }
 
@@ -366,7 +334,7 @@ export class HandleWhatsappWebhookUseCase {
         sentCount += 1;
       } else {
         failedCount += 1;
-        this.logger?.warn('whatsapp.query.media_send_failed', {
+        this.logger.warn('whatsapp.query.media_send_failed', {
           chatJid,
           noteId: media.noteId,
           attachmentId: media.attachmentId,
@@ -389,7 +357,7 @@ export class HandleWhatsappWebhookUseCase {
     const sendResult = rateLimit.noticeAllowed
       ? await this.sendReply(chatId, message)
       : { ok: false as const, error: 'rate_limit_notice_suppressed' };
-    this.logger?.info('whatsapp.webhook.rate_limited', {
+    this.logger.info('whatsapp.webhook.rate_limited', {
       externalId: context.externalIdentity.externalId,
       chatId,
       retryAfterSeconds: rateLimit.retryAfterSeconds,
@@ -430,7 +398,7 @@ export class HandleWhatsappWebhookUseCase {
       resolvedUserId,
     });
     if (!claimed) {
-      this.logger?.info('whatsapp.webhook.duplicate', {
+      this.logger.info('whatsapp.webhook.duplicate', {
         externalId: context.externalIdentity.externalId,
         eventType,
         idempotencyKey,
@@ -448,10 +416,9 @@ export class HandleWhatsappWebhookUseCase {
 
   private async withDownloadedMedia(context: WhatsappWebhookContext, input: ConversationInput): Promise<ConversationInput> {
     if (!input.hasMedia || input.media.dataBase64) return input;
-    if (!this.whatsappMediaDownloader) return input;
     const result = await this.whatsappMediaDownloader.downloadBase64({ body: context.body });
     if (!result.ok) {
-      this.logger?.warn('whatsapp.media.download_failed', {
+      this.logger.warn('whatsapp.media.download_failed', {
         externalId: context.externalIdentity.externalId,
         chatId: input.chatId,
         messageId: input.messageId,
@@ -480,7 +447,7 @@ export class HandleWhatsappWebhookUseCase {
   }
 
   private async failed(context: WhatsappWebhookContext, resolvedUserId: string, error: unknown) {
-    this.logger?.error('whatsapp.webhook.failed', {
+    this.logger.error('whatsapp.webhook.failed', {
       externalId: context.externalIdentity.externalId,
       resolvedUserId,
       error: error instanceof Error ? error.message : String(error),

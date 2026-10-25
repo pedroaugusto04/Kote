@@ -1,10 +1,18 @@
 import { Injectable } from '@nestjs/common';
 
 import { KnowledgeStatus, ReminderDispatchMode } from '../../../contracts/enums.js';
-import { slugify } from '../../../domain/strings.js';
+import { normalizeWorkspaceSlug } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone } from '../../../domain/time.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { ReminderDispatchRepository } from '../../ports/reminders/workflow-state.repository.js';
+
+export interface MarkReminderAsSentInput {
+  ids: string[];
+  userId: string;
+  workspaceSlug?: string;
+  mode?: ReminderDispatchMode;
+  dispatchKey?: string;
+}
 
 @Injectable()
 export class MarkReminderAsSentUseCase {
@@ -13,8 +21,16 @@ export class MarkReminderAsSentUseCase {
     private readonly contentRepository: ContentRepository,
   ) {}
 
-  async execute(ids: string[], userId: string, workspaceSlug = 'default', mode: ReminderDispatchMode = ReminderDispatchMode.Exact, dispatchKey = currentDateTimeInTimeZone('UTC').date) {
-    const workspace = slugify(workspaceSlug) || 'default';
+  async execute(input: MarkReminderAsSentInput): Promise<{ ok: true; marked: number }> {
+    const {
+      ids,
+      userId,
+      workspaceSlug = 'default',
+      mode = ReminderDispatchMode.Exact,
+      dispatchKey = currentDateTimeInTimeZone('UTC').date,
+    } = input;
+
+    const workspace = normalizeWorkspaceSlug(workspaceSlug);
     const uniqueIds = Array.from(new Set(ids.map((id) => String(id || '').trim()).filter(Boolean)));
     
     // Batch fetch all notes

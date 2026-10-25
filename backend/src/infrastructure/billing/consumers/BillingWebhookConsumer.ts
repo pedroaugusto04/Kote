@@ -6,10 +6,7 @@ import {
   BillingPaymentRepository,
   BillingWebhookEventRepository,
 } from '../../../application/ports/billing/billing-repositories.js';
-import { AsaasPaymentGateway } from '../gateways/asaas/AsaasPaymentGateway.js';
-import { StripePaymentGateway } from '../gateways/stripe/StripePaymentGateway.js';
-import { AsaasGatewayStatusMapper } from '../gateways/asaas/AsaasGatewayStatusMapper.js';
-import { StripeGatewayStatusMapper } from '../gateways/stripe/StripeGatewayStatusMapper.js';
+import { PaymentGatewayFactory } from '../../../application/services/billing/payment-gateway.factory.js';
 import { SubscriptionService } from '../../../application/services/billing/SubscriptionService.js';
 import { BillingIntentService } from '../../../application/services/billing/BillingIntentService.js';
 import { PAYMENT_GATEWAY } from '../../../domain/constants/billing.constants.js';
@@ -53,10 +50,7 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
     private readonly customerRepository: BillingCustomerRepository,
     private readonly paymentRepository: BillingPaymentRepository,
     private readonly webhookEventRepository: BillingWebhookEventRepository,
-    private readonly paymentGateway: AsaasPaymentGateway,
-    private readonly stripePaymentGateway: StripePaymentGateway,
-    private readonly asaasGatewayStatusMapper: AsaasGatewayStatusMapper,
-    private readonly stripeGatewayStatusMapper: StripeGatewayStatusMapper,
+    private readonly paymentGatewayFactory: PaymentGatewayFactory,
     private readonly subscriptionService: SubscriptionService,
     private readonly billingIntentService: BillingIntentService,
     private readonly billingEventBus: BillingEventBus,
@@ -192,7 +186,7 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
     }
 
     const gateway = webhookRecord.gateway;
-    const paymentGateway = gateway === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.paymentGateway;
+    const paymentGateway = this.paymentGatewayFactory.getGateway(gateway);
     const event = paymentGateway.parseWebhook(webhookRecord.payload as Record<string, unknown>);
     const payment = event.payment;
 
@@ -203,11 +197,8 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
 
     const gatewayPaymentId = String(payment.id);
 
-    let payStatus: SchemaPaymentStatus | null = null;
-    const mapper = gateway === PAYMENT_GATEWAY.STRIPE
-      ? this.stripeGatewayStatusMapper
-      : this.asaasGatewayStatusMapper;
-    payStatus = mapper.normalizePaymentStatus(payment.status, event.event);
+    const mapper = this.paymentGatewayFactory.getStatusMapper(gateway);
+    const payStatus: SchemaPaymentStatus | null = mapper.normalizePaymentStatus(payment.status, event.event);
 
     if (!payStatus) {
       this.logger.warn('billing_webhook_consumer.ignored_unknown_status', {
@@ -403,7 +394,7 @@ export class BillingWebhookConsumer extends BaseRabbitMqConsumer {
     let creditCardToken = payment.creditCardToken || intent?.creditCardToken;
     if (!creditCardToken) {
       try {
-        const paymentGateway = gateway === PAYMENT_GATEWAY.STRIPE ? this.stripePaymentGateway : this.paymentGateway;
+        const paymentGateway = this.paymentGatewayFactory.getGateway(gateway);
         const gatewayPayment = await paymentGateway.getPaymentByGatewayId(gatewayPaymentId);
         creditCardToken = gatewayPayment?.creditCardToken;
       } catch (err) {

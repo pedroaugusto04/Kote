@@ -21,7 +21,7 @@ import { SemanticClusteringService } from '../../services/query/semantic-cluster
 export class ListProjectKnowledgeMapUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
-    private readonly semanticClusteringService?: SemanticClusteringService,
+    private readonly semanticClusteringService: SemanticClusteringService,
   ) {}
 
   async execute(userId: string, input: ListProjectKnowledgeMapInput): Promise<ProjectKnowledgeMapResponse> {
@@ -45,11 +45,7 @@ export class ListProjectKnowledgeMapUseCase {
     const notes = await this.contentRepository.listProjectKnowledgeMapItems(userId, queryInput);
     const baseMap = buildProjectKnowledgeMap(project, folders, notes);
 
-    if (this.semanticClusteringService) {
-      return this.semanticClusteringService.clusterKnowledgeMap(userId, baseMap);
-    }
-
-    return baseMap;
+    return this.semanticClusteringService.clusterKnowledgeMap(userId, baseMap);
   }
 }
 

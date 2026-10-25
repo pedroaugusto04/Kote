@@ -4,7 +4,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 
 import { CredentialRecordStatus } from '../../contracts/enums.js';
-import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository } from '../../application/ports/integrations/integrations.repository.js';
+import { CredentialRepository, ExternalIdentityRepository, IntegrationConnectionSessionRepository, resolveExternalIdentity } from '../../application/ports/integrations/integrations.repository.js';
 import { connectionSessionFromRow, credentialFromRow, identityFromRow } from '../mappers/row.mappers.js';
 import { PostgresDatabase } from '../persistence/database.js';
 import { integrationCredentials, externalIdentities, integrationConnectionSessions, workspaces } from '../persistence/schema/index.js';
@@ -122,6 +122,10 @@ export class PostgresIntegrationRepository extends CredentialRepository implemen
       .limit(1);
     
     return result[0] ? credentialFromRow(result[0]) : null;
+  }
+
+  async resolveExternalIdentity(provider: string, identityType: string, externalId: string) {
+    return resolveExternalIdentity(this, provider, identityType, externalId);
   }
 
   async findExternalIdentity(provider: string, identityType: string, externalId: string) {

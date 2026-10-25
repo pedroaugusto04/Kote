@@ -115,33 +115,7 @@ function githubHandlerFixture(projects = []) {
         return project?.projectSlug || null;
       }
     },
-    {
-      async generate() {
-        calls.review += 1;
-        return {
-          summary: 'review summary',
-          impact: '',
-          risks: [],
-          nextSteps: [],
-          reviewFindings: [],
-        };
-      },
-    },
-    {
-      async checkAndIncrementAiUsage() {
-        return { allowed: true };
-      },
-    },
-    {
-      async listProjects() {
-        return projects;
-      },
-    },
-    {
-      async findCredential() {
-        return null;
-      },
-    },
+    { info() {}, warn() {}, error() {}, debug() {} },
   );
   return { handler, events, calls };
 }
@@ -413,88 +387,7 @@ test('github app push sends whatsapp alert for high severity AI review findings'
         return project?.projectSlug || null;
       }
     },
-    {
-      async generate() {
-        return {
-          summary: 'The push introduces a risky permission change.',
-          impact: 'Private data can be exposed.',
-          risks: ['permission regression'],
-          nextSteps: ['Fix the authorization check'],
-          reviewFindings: [
-            {
-              severity: 'high',
-              file: 'src/private.ts',
-              summary: 'Authorization is bypassed for private records',
-              recommendation: 'Restore the user ownership filter before returning records',
-            },
-          ],
-        };
-      },
-    },
-    {
-      async checkAndIncrementAiUsage() {
-        return { allowed: true };
-      },
-    },
-    {
-      async listProjects() {
-        return [
-          {
-            projectSlug: 'platform',
-            displayName: 'Platform',
-            workspaceSlug: 'default',
-            enabled: true,
-            defaultTags: [],
-            repositories: [{ fullName: 'acme/api' }],
-          },
-        ];
-      },
-      async listWorkspaces() {
-        return [
-          {
-            workspaceSlug: 'default',
-            displayName: 'Default',
-            whatsappChatJid: '5511999999999@s.whatsapp.net',
-            telegramChatId: '',
-            createdAt: '2026-04-27T10:00:00.000Z',
-            updatedAt: '2026-04-27T10:00:00.000Z',
-          },
-        ];
-      },
-      async getWorkspaceBySlug(userId, workspaceSlug) {
-        return {
-          id: 'workspace-id-1',
-          workspaceSlug: 'default',
-          displayName: 'Default',
-          whatsappChatJid: '5511999999999@s.whatsapp.net',
-          telegramChatId: '',
-          createdAt: '2026-04-27T10:00:00.000Z',
-          updatedAt: '2026-04-27T10:00:00.000Z',
-        };
-      },
-    },
-    {
-      async findCredential(_userId, _workspaceSlug, provider) {
-        return {
-          id: `credential-${provider}`,
-          userId: 'user-1',
-          workspaceSlug: 'default',
-          provider,
-          status: 'connected',
-          encryptedConfig: {},
-          publicMetadata: {},
-          createdAt: '2026-04-27T10:00:00.000Z',
-          updatedAt: '2026-04-27T10:00:00.000Z',
-          revokedAt: null,
-        };
-      },
-    },
-    {
-      async sendText(input) {
-        whatsappMessages.push(input);
-        return { ok: true };
-      },
-    },
+    { info() {}, warn() {}, error() {}, debug() {} },
   );
 
   const result = await handler.execute(githubWebhookInput(body), { synchronous: true });

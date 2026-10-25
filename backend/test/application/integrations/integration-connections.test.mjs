@@ -1,3 +1,4 @@
+import { WhatsappConversationTaskQueue, WhatsappWebhookRateLimiter } from '../../../dist/application/use-cases/webhooks/whatsapp/whatsapp-webhook-flow-control.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
@@ -109,13 +110,28 @@ async function fixture(t) {
     environmentProvider,
     githubGateway,
   );
+  const dummyConversation = { execute: async () => ({}) };
+  const dummyReplySender = { sendText: async () => ({ ok: true }), sendMedia: async () => ({ ok: true }) };
+  const dummyMediaDownloader = { downloadBase64: async () => ({ ok: true }) };
+  const dummyLogger = { info() {}, warn() {}, error() {}, debug() {} };
+  const dummyAttachmentsUseCase = { execute: async () => ({ requested: false, attachments: [] }) };
+  const dummyAudioGateway = { transcribe: async () => null };
+
   const whatsapp = new HandleWhatsappWebhookUseCase(
     repositories.externalIdentityRepository,
     repositories.credentialRepository,
     repositories.webhookEventRepository,
     { read: () => ({ webhookSecret: process.env.KB_WEBHOOK_SECRET || '', whatsappWebhookApiKey: process.env.KB_WPP_WEBHOOK_API_KEY || '', evolutionApiKey: process.env.EVOLUTION_API_KEY || '' }) },
     connections,
-    undefined,
+    dummyConversation,
+    dummyReplySender,
+    dummyMediaDownloader,
+    dummyLogger,
+    dummyAttachmentsUseCase,
+    dummyAudioGateway,
+    repositories.scopeResolver,
+    new WhatsappWebhookRateLimiter(),
+    new WhatsappConversationTaskQueue(),
   );
   const telegram = new HandleTelegramWebhookUseCase(
     repositories.externalIdentityRepository,

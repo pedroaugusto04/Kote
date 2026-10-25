@@ -17,16 +17,20 @@ const noteAttachmentSchema = z.object({
   dataBase64: z.string().default(''),
 });
 
+const commonNoteDtoFields = {
+  folderId: z.string().optional(),
+  title: z.string().min(1, 'title is required').max(160, 'title must be at most 160 characters'),
+  rawText: z.string().max(500000, 'rawText must be at most 500000 characters').optional().default(''),
+  tags: z.array(z.string()).default([]),
+  reminderAt: z.string().optional().default(''),
+};
+
 export const createManualNoteSchema = z
   .object({
+    ...commonNoteDtoFields,
     projectId: z.string().min(1, 'projectId is required'),
-    folderId: z.string().optional(),
-    title: z.string().min(1, 'title is required').max(160, 'title must be at most 160 characters'),
-    rawText: z.string().max(500000, 'rawText must be at most 500000 characters').optional().default(''),
-    tags: z.array(z.string()).default([]),
     status: noteStatusSchema,
     categoryIds: z.array(z.string()).optional().default([]),
-    reminderAt: z.string().optional().default(''),
     sourceChannel: z.string().optional(),
     source: z.string().optional(),
     sessionId: z.string().optional().default(''),
@@ -41,15 +45,11 @@ export type CreateManualNoteDto = z.infer<typeof createManualNoteSchema>;
 
 export const updateNoteSchema = z
   .object({
+    ...commonNoteDtoFields,
     id: z.string().min(1, 'id is required'),
     projectId: z.string().optional(),
-    folderId: z.string().optional(),
-    title: z.string().min(1, 'title is required').max(160, 'title must be at most 160 characters'),
-    rawText: z.string().max(500000, 'rawText must be at most 500000 characters').optional().default(''),
-    tags: z.array(z.string()).default([]),
     status: editableNoteStatusSchema,
     categoryIds: z.array(z.string()).optional(),
-    reminderAt: z.string().optional().default(''),
     attachments: z.array(noteAttachmentSchema).optional(),
   })
   .strict();

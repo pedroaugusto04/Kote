@@ -216,7 +216,7 @@ test('GetAiTokenAnalyticsUseCase', async (t) => {
       },
     ];
 
-    const useCase = new GetAiTokenAnalyticsUseCase({ listNotes: async () => mockNotes });
+    const useCase = new GetAiTokenAnalyticsUseCase({ listNotes: async () => mockNotes }, fakeLogger);
     const result = await useCase.execute('user-1', {
       startDate: '2026-03-12',
       endDate: '2026-03-18',
