@@ -216,9 +216,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
     }
 
     const gitCommit = lineBlame.commit;
-    if (!gitCommit || !gitCommit.commitHash || gitCommit.commitHash.startsWith('00000000')) {
-      return null;
-    }
+    const hasValidGitCommit = Boolean(gitCommit && gitCommit.commitHash && !gitCommit.commitHash.startsWith('00000000'));
 
     // Extract enclosing context window (3 lines before and 3 lines after, up to 7 lines)
     const startCtxLine = Math.max(0, line - 4);
@@ -233,58 +231,65 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
 
     // 2. Fetch Kote Notes for this commit / line
     let matches: SnippetNoteMatch[];
-    const commitHash = gitCommit.commitHash;
-    const cachedNotes = this.commitNotesCache.get(commitHash);
+    const requestKey = hasValidGitCommit && gitCommit
+      ? gitCommit.commitHash
+      : `file:${relativePath}:${startCtxLine}:${endCtxLine}`;
+    const cachedNotes = this.commitNotesCache.get(requestKey);
     const now = Date.now();
 
     // Cache valid for 5 minutes
     if (cachedNotes && now - cachedNotes.timestamp < 300_000) {
       matches = cachedNotes.matches;
-    } else if (this.inFlightCommitRequests.has(commitHash)) {
-      // Re-use currently in-flight request for this commit hash to avoid duplicate calls
-      matches = (await this.inFlightCommitRequests.get(commitHash)) || [];
+    } else if (this.inFlightCommitRequests.has(requestKey)) {
+      // Re-use currently in-flight request for this commit/snippet to avoid duplicate calls
+      matches = (await this.inFlightCommitRequests.get(requestKey)) || [];
     } else {
       const fetchPromise = (async () => {
         try {
-          const response = await this.kbClient.findNotesBySnippet(
-            {
-              filePath: relativePath,
-              codeSnippet,
-              commitHash: gitCommit.commitHash,
-              commitHashes: gitCommit.commits?.map((c) => c.commitHash) || [gitCommit.commitHash],
-              commitDate: gitCommit.commitDate,
-              author: gitCommit.author,
-              commitMessage: gitCommit.commitMessage,
-              projectSlug: this.getProjectSlug(),
-              limit: 5,
-            },
-            { signal },
-          );
+          const payload: any = {
+            filePath: relativePath,
+            codeSnippet,
+            projectSlug: this.getProjectSlug(),
+            limit: 5,
+          };
+          if (hasValidGitCommit && gitCommit) {
+            payload.commitHash = gitCommit.commitHash;
+            payload.commitHashes = gitCommit.commits?.map((c) => c.commitHash) || [gitCommit.commitHash];
+            payload.commitDate = gitCommit.commitDate;
+            payload.author = gitCommit.author;
+            payload.commitMessage = gitCommit.commitMessage;
+          }
+
+          const response = await this.kbClient.findNotesBySnippet(payload, { signal });
 
           if (signal?.aborted) return [];
           const resMatches = response.matches || [];
-          this.commitNotesCache.set(commitHash, { matches: resMatches, timestamp: Date.now() });
+          this.commitNotesCache.set(requestKey, { matches: resMatches, timestamp: Date.now() });
           return resMatches;
         } catch {
           logInfo('LineContext', `Failed to find notes for snippet at ${relativePath}:${line}`);
           return [];
         } finally {
-          this.inFlightCommitRequests.delete(commitHash);
+          this.inFlightCommitRequests.delete(requestKey);
         }
       })();
 
-      this.inFlightCommitRequests.set(commitHash, fetchPromise);
+      this.inFlightCommitRequests.set(requestKey, fetchPromise);
       matches = await fetchPromise;
     }
 
     if (signal?.aborted) return null;
 
     const bestMatch = matches.length > 0 ? matches[0] : null;
-    const formatted = this.formatInlineText(gitCommit, bestMatch, matches.length);
+    const formatted = this.formatInlineText(hasValidGitCommit ? gitCommit : null, bestMatch, matches.length);
+
+    if (!formatted) {
+      return null;
+    }
 
     return {
       line,
-      commit: gitCommit,
+      commit: hasValidGitCommit ? gitCommit : null,
       bestMatch,
       allMatches: matches,
       formattedText: formatted,
@@ -292,27 +297,29 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
   }
 
   private formatInlineText(
-    gitCommit: GitSnippetOriginInfo,
+    gitCommit: GitSnippetOriginInfo | null,
     bestMatch: SnippetNoteMatch | null,
     totalMatches = 0,
   ): string {
-    const timeAgo = this.formatRelativeTime(gitCommit.commitDate);
     const extraCountSuffix = totalMatches > 1 ? ` (+${totalMatches - 1})` : '';
 
     if (bestMatch?.note) {
       const note = bestMatch.note;
       const source = this.formatSourceLabel(note.sourceChannel, note.metadata);
       const decisionOrTitle = this.extractShortSummary(note);
+      const timeAgo = this.formatRelativeTime(note.occurredAt || note.createdAt || gitCommit?.commitDate);
+      const timeStr = timeAgo ? ` (${timeAgo})` : '';
       if (decisionOrTitle) {
-        return `Kote: ${source} (${timeAgo}) - ${decisionOrTitle}${extraCountSuffix}`;
+        return `Kote: ${source}${timeStr} - ${decisionOrTitle}${extraCountSuffix}`;
       }
-      return `Kote: ${source} (${timeAgo})${extraCountSuffix}`;
+      return `Kote: ${source}${timeStr}${extraCountSuffix}`;
     }
 
     // If no note found, fallback to commit summary if recent or relevant
-    if (gitCommit.commitMessage) {
+    if (gitCommit?.commitMessage) {
       const cleanMsg = gitCommit.commitMessage.split('\n')[0].trim();
       const author = gitCommit.author ? `${gitCommit.author}, ` : '';
+      const timeAgo = this.formatRelativeTime(gitCommit.commitDate);
       return `Kote: ${author}${timeAgo} - ${this.truncate(cleanMsg, 45)}`;
     }
 
@@ -376,7 +383,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
     const targetLine = position.line + 1;
 
     // Only open the card if hovering over the active line that has the annotation
-    if (!activeContext || activeContext.line !== targetLine || !activeContext.commit) {
+    if (!activeContext || activeContext.line !== targetLine || (!activeContext.commit && !activeContext.bestMatch)) {
       return null;
     }
 
@@ -397,11 +404,12 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
     if (bestMatch?.note) {
       const note = bestMatch.note;
       const source = this.formatSourceLabel(note.sourceChannel, note.metadata);
-      const time = this.formatRelativeTime(commit.commitDate);
+      const time = this.formatRelativeTime(commit?.commitDate || note.occurredAt || note.createdAt);
+      const timeStr = time ? ` *(${time})*` : '';
 
-      md.appendMarkdown(`**Source:** ${source} *(${time})*\n\n`);
+      md.appendMarkdown(`**Source:** ${source}${timeStr}\n\n`);
 
-      if (commit.commitHash) {
+      if (commit?.commitHash) {
         const shortHash = commit.commitHash.substring(0, 7);
         const author = commit.author || 'Author';
         const msg = commit.commitMessage ? ` - *${commit.commitMessage.split('\n')[0]}*` : '';
@@ -435,7 +443,7 @@ export class LineContextProvider implements vscode.HoverProvider, vscode.Disposa
           md.appendMarkdown(`- [${extraTitle}](command:${EXTENSION_COMMANDS.OPEN_NOTE_DETAIL}?${extraEncodedArg}) *(${extraSource})*\n`);
         }
       }
-    } else {
+    } else if (commit) {
       const time = this.formatRelativeTime(commit.commitDate);
       const shortHash = commit.commitHash.substring(0, 7);
       const author = commit.author || 'Author';

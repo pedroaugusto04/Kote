@@ -210,6 +210,9 @@ test('dashboard home normalizes reminder statuses with the same model used by re
     contentRepository,
     contentQueryRepository,
     { execute: async (_userId, reminders) => reminders },
+    { getProjectsCoveragePercentage: async () => new Map() },
+    { list: async () => ({ pagination: { total: 0 } }) },
+    { countByUser: async () => 0 },
   );
   const dashboard = await useCase.execute(userId);
   const statuses = dashboard.home.priorities
@@ -258,6 +261,8 @@ test('builds dashboard using listDashboardBundle and getProjectsCoveragePercenta
     contentQueryRepository,
     { execute: async (_userId, reminders) => reminders },
     projectCoverageRepository,
+    { list: async () => ({ pagination: { total: 0 } }) },
+    { countByUser: async () => 0 },
   );
 
   const dashboard = await useCase.execute(userId);

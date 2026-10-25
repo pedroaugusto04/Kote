@@ -11,7 +11,7 @@ import { WhatsappReplySender } from '../../ports/integrations/whatsapp-reply.sen
 import { ReviewAnalysisGateway } from '../../ports/projects/review-analysis.port.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { absoluteUrl } from '../../utils/integration/integration-status.utils.js';
-import { resolveContentScopeFromSlugs } from '../../utils/content/content-scope.utils.js';
+import { WorkspaceScopeResolver } from '../content/workspace-scope-resolver.service.js';
 import { IngestEntryUseCase } from '../../use-cases/ingest/ingest-entry.use-case.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { AiEntitlementService } from '../ai/ai-entitlement.service.js';
@@ -33,8 +33,6 @@ export type ProcessGithubPushInput = {
 
 @Injectable()
 export class ProcessGithubPushService {
-  private readonly logger: AppLogger;
-
   constructor(
     private readonly ingestEntryUseCase: IngestEntryUseCase,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
@@ -42,14 +40,13 @@ export class ProcessGithubPushService {
     private readonly reviewAnalysisGateway: ReviewAnalysisGateway,
     private readonly aiEntitlement: AiEntitlementService,
     private readonly contentRepository: ContentRepository,
-    private readonly syncProjectFilesService: SyncProjectFilesService,
+    private readonly logger: AppLogger,
+    private readonly scopeResolver: WorkspaceScopeResolver,
+    @Optional() private readonly syncProjectFilesService?: SyncProjectFilesService,
     @Optional() private readonly credentials?: CredentialRepository,
     @Optional() private readonly whatsappReplySender?: WhatsappReplySender,
     @Optional() private readonly notifyHighSeverity?: NotifyHighSeverityFindingsService,
-    @Optional() logger?: AppLogger,
-  ) {
-    this.logger = logger || AppLogger.create();
-  }
+  ) {}
 
   async execute(input: ProcessGithubPushInput) {
     if (input.projectSlug && this.syncProjectFilesService) {
@@ -205,7 +202,7 @@ export class ProcessGithubPushService {
     const connected = Boolean(credential && credential.status === CredentialRecordStatus.Connected && !credential.revokedAt);
     if (!connected) return { sent: false, skipped: 'whatsapp_not_connected' };
 
-    const { workspace } = await resolveContentScopeFromSlugs(this.contentRepository, userId, { workspaceSlug });
+    const workspace = await this.scopeResolver.findWorkspace(userId, workspaceSlug);
     const chatJid = String(workspace?.whatsappChatJid || '').trim();
     if (!chatJid) return { sent: false, skipped: 'whatsapp_chat_not_bound' };
     const noteLink = noteId && noteBaseUrl ? absoluteUrl(noteBaseUrl, `/vault/${encodeURIComponent(noteId)}`) : '';

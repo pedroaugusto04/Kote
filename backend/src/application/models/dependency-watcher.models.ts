@@ -43,3 +43,15 @@ export type ListProjectDependenciesResult = {
   groups: ProjectDependencyGroup[];
   total: number;
 };
+
+export interface ProjectDependencyScopeInput {
+  userId: string;
+  projectId: string;
+  projectSlug: string;
+  workspaceId?: string;
+}
+
+export interface CheckDependencyInput extends ProjectDependencyScopeInput {
+  dependencyId: string;
+}
+

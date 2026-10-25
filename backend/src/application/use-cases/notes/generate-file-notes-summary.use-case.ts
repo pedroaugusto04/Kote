@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { AppLogger } from '../../../observability/logger.js';
-import { RuntimeEnvironmentProvider, type RuntimeEnvironment } from '../../ports/observability/runtime-environment.port.js';
+import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { FileNotesSummaryCacheService } from '../../services/content/file-notes-summary-cache.service.js';
 import { AiOperationType } from '../../../domain/enums/plans.enums.js';
 import { AiProvider, IntegrationProvider } from '../../../contracts/enums.js';
@@ -14,21 +14,18 @@ import {
 
 @Injectable()
 export class GenerateFileNotesSummaryUseCase {
-  private readonly env: RuntimeEnvironment;
-
   constructor(
     private readonly runtimeEnv: RuntimeEnvironmentProvider,
     private readonly cacheService: FileNotesSummaryCacheService,
     private readonly logger: AppLogger,
     private readonly aiEntitlement: AiEntitlementService,
-  ) {
-    this.env = this.runtimeEnv.read();
-  }
+  ) {}
 
   async execute(
     userId: string,
     request: FileNotesSummaryRequest,
   ): Promise<FileNotesSummaryResponse> {
+    const env = this.runtimeEnv.read();
     this.logger.info('generate_file_notes_summary.start', {
       userId,
       filePath: request.filePath,
@@ -55,10 +52,10 @@ export class GenerateFileNotesSummaryUseCase {
     };
     const noteVersions = request.notes.map((note) => ({ id: note.id, date: note.date, revision: note.revision }));
     const config = {
-      conversationAiProvider: this.env.fileNotesSummaryAiProvider,
-      conversationAiBaseUrl: this.env.fileNotesSummaryAiBaseUrl,
-      conversationAiModel: this.env.fileNotesSummaryAiModel,
-      conversationAiApiKey: this.env.fileNotesSummaryAiApiKey,
+      conversationAiProvider: env.fileNotesSummaryAiProvider,
+      conversationAiBaseUrl: env.fileNotesSummaryAiBaseUrl,
+      conversationAiModel: env.fileNotesSummaryAiModel,
+      conversationAiApiKey: env.fileNotesSummaryAiApiKey,
     };
 
     if (config.conversationAiProvider === AiProvider.None || !config.conversationAiBaseUrl || !config.conversationAiModel || !config.conversationAiApiKey) {

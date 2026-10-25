@@ -3,7 +3,7 @@ import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/co
 import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } from '../../../../contracts/enums.js';
 import { extractTelegramChatId, extractTelegramConnectionCode, IntegrationConnectionService } from '../../../services/integrations/integration-connection.service.js';
 import type { TelegramWebhookRequest } from '../../../models/webhook-request.models.js';
-import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
+import { ExternalIdentityRepository, resolveExternalIdentity } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { normalizeHeaders } from '../../../utils/webhook/webhook.utils.js';
@@ -14,7 +14,7 @@ export class HandleTelegramWebhookUseCase {
     private readonly externalIdentities: ExternalIdentityRepository,
     private readonly webhookEvents: WebhookEventRepository,
     private readonly environmentProvider: RuntimeEnvironmentProvider,
-    private readonly connections?: IntegrationConnectionService,
+    private readonly connections: IntegrationConnectionService,
   ) {}
 
   async execute(input: TelegramWebhookRequest) {
@@ -31,7 +31,7 @@ export class HandleTelegramWebhookUseCase {
       throw new UnauthorizedException('external_identity_required');
     }
     const connectionCode = extractTelegramConnectionCode(body);
-    if (connectionCode && this.connections) {
+    if (connectionCode) {
       const result = await this.connections.completeTelegramFromWebhook({ code: connectionCode, chatId: externalId });
       await this.webhookEvents.recordWebhookEvent({
         provider: IntegrationProvider.Telegram,
@@ -44,10 +44,7 @@ export class HandleTelegramWebhookUseCase {
       });
       return { ok: true, connected: true, resolvedUserId: result.resolvedUserId, workspaceSlug: result.workspaceSlug };
     }
-    const identity = await this.externalIdentities.findExternalIdentity(ExternalIdentityProvider.Telegram, 'chat_id', externalId);
-    if (!identity) {
-      throw new NotFoundException('identity_not_found');
-    }
+    const identity = await resolveExternalIdentity(this.externalIdentities, ExternalIdentityProvider.Telegram, 'chat_id', externalId);
     await this.webhookEvents.recordWebhookEvent({
       provider: IntegrationProvider.Telegram,
       eventType: 'message',

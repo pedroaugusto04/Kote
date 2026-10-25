@@ -1,9 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  FindRelatedNotesByFileUseCase
-} from '../../../dist/application/use-cases/notes/find-related-notes-by-file.use-case.js';
+import { createTestFindRelatedNotesByFileUseCase } from '../../helpers/factories.mjs';
 import {
   filePathToQuery,
   isGenericFile
@@ -24,10 +22,8 @@ test('isGenericFile detects generic file names', () => {
 });
 
 test('FindRelatedNotesByFileUseCase skips generic files', async () => {
-  const logger = { info: () => {}, warn: () => {} };
-  const mockRuntimeEnv = { read: () => ({}) };
-  const useCase = new FindRelatedNotesByFileUseCase(null, null, null, mockRuntimeEnv, logger, null);
-  const result = await useCase.execute('user-1', 'src/index.ts');
+  const useCase = createTestFindRelatedNotesByFileUseCase();
+  const result = await useCase.execute({ userId: 'user-1', filePath: 'src/index.ts' });
   assert.deepEqual(result, []);
 });
 
@@ -120,17 +116,16 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
     }),
   };
 
-  const useCase = new FindRelatedNotesByFileUseCase(
-    mockContentRepository,
-    mockContentQueryRepository,
-    mockNoteEmbeddingRepository,
-    mockRuntimeEnv,
-    logger,
-    mockEmbeddingQueue,
-  );
+  const useCase = createTestFindRelatedNotesByFileUseCase({
+    contentRepository: mockContentRepository,
+    contentQueryRepository: mockContentQueryRepository,
+    noteEmbeddingRepository: mockNoteEmbeddingRepository,
+    runtimeEnv: mockRuntimeEnv,
+    embeddingQueue: mockEmbeddingQueue,
+  });
 
   // Exclude note-B (simulates note already found in direct notes query)
-  const result = await useCase.execute('user-1', 'auth.service.ts', ['note-B']);
+  const result = await useCase.execute({ userId: 'user-1', filePath: 'auth.service.ts', excludeIds: ['note-B'] });
 
   // Assertions: Limit is 3, note-B is excluded, so C, D and A remain.
   // C and D rank above A because they have both vector and keyword evidence.
@@ -142,15 +137,14 @@ test('FindRelatedNotesByFileUseCase returns related notes sorted by score with R
   assert.equal(result[1].semanticSimilarity, 0.75);
   assert.equal(result[2].semanticSimilarity, undefined);
 
-  const snippetResult = await useCase.execute(
-    'user-1',
-    'auth.service.ts',
-    [],
-    'selectedSnippetIdentifier()',
-    undefined,
-    1,
-    'snippet',
-  );
+  const snippetResult = await useCase.execute({
+    userId: 'user-1',
+    filePath: 'auth.service.ts',
+    excludeIds: [],
+    customQuery: 'selectedSnippetIdentifier()',
+    requestedLimit: 1,
+    searchProfile: 'snippet',
+  });
 
   assert.equal(snippetResult.length, 1);
   assert.equal(snippetResult[0].lineageCategory, 'cross-file-related');
@@ -181,12 +175,12 @@ test('FindRelatedNotesByFileUseCase keeps vector-only notes in the result set', 
     updatedAt: now,
   };
   const vectorOptions = [];
-  const useCase = new FindRelatedNotesByFileUseCase(
-    {
+  const useCase = createTestFindRelatedNotesByFileUseCase({
+    contentRepository: {
       getNotesByIds: async (_userId, ids) => ids.includes(noteRecord.id) ? [noteRecord] : [],
     },
-    { list: async () => [] },
-    {
+    contentQueryRepository: { list: async () => [] },
+    noteEmbeddingRepository: {
       findSimilar: async (_userId, _embedding, options) => {
         vectorOptions.push(options);
         return [
@@ -195,7 +189,7 @@ test('FindRelatedNotesByFileUseCase keeps vector-only notes in the result set', 
         ];
       },
     },
-    {
+    runtimeEnv: {
       read: () => ({
         embeddingAiProvider: 'openai',
         embeddingAiModel: 'text-embedding-3-small',
@@ -208,19 +202,17 @@ test('FindRelatedNotesByFileUseCase keeps vector-only notes in the result set', 
         codeLensSnippetSearchResultLimit: 10,
       }),
     },
-    { info: () => {}, warn: () => {} },
-    { publishQueryEmbedding: async () => [[0.1, 0.2]] },
-  );
+    embeddingQueue: { publishQueryEmbedding: async () => [[0.1, 0.2]] },
+  });
 
-  const result = await useCase.execute(
-    'user-1',
-    'src/billing/retry.ts',
-    [],
-    'reconcileInvoiceWithIdempotencyGuard()',
-    undefined,
-    10,
-    'snippet',
-  );
+  const result = await useCase.execute({
+    userId: 'user-1',
+    filePath: 'src/billing/retry.ts',
+    excludeIds: [],
+    customQuery: 'reconcileInvoiceWithIdempotencyGuard()',
+    requestedLimit: 10,
+    searchProfile: 'snippet',
+  });
 
   assert.equal(result.length, 1);
   assert.equal(result[0].id, 'semantic-only');
@@ -231,8 +223,8 @@ test('FindRelatedNotesByFileUseCase keeps vector-only notes in the result set', 
 
 test('snippet profile removes candidates below the backend lineage threshold', async () => {
   const now = new Date().toISOString();
-  const useCase = new FindRelatedNotesByFileUseCase(
-    {
+  const useCase = createTestFindRelatedNotesByFileUseCase({
+    contentRepository: {
       getNotesByIds: async (_userId, ids) => ids.map((id) => ({
         id,
         title: id,
@@ -249,9 +241,9 @@ test('snippet profile removes candidates below the backend lineage threshold', a
         updatedAt: now,
       })),
     },
-    { list: async () => [] },
-    { findSimilar: async () => [{ noteId: 'below-threshold', similarity: 0.47 }] },
-    {
+    contentQueryRepository: { list: async () => [] },
+    noteEmbeddingRepository: { findSimilar: async () => [{ noteId: 'below-threshold', similarity: 0.47 }] },
+    runtimeEnv: {
       read: () => ({
         embeddingAiProvider: 'openai',
         embeddingAiModel: 'embedding-model',
@@ -264,19 +256,17 @@ test('snippet profile removes candidates below the backend lineage threshold', a
         codeLensSnippetSearchResultLimit: 10,
       }),
     },
-    { info: () => {}, warn: () => {} },
-    { publishQueryEmbedding: async () => [[0.1, 0.2]] },
-  );
+    embeddingQueue: { publishQueryEmbedding: async () => [[0.1, 0.2]] },
+  });
 
-  const result = await useCase.execute(
-    'user-1',
-    'src/billing/retry.ts',
-    [],
-    'retryInvoice()',
-    undefined,
-    10,
-    'snippet',
-  );
+  const result = await useCase.execute({
+    userId: 'user-1',
+    filePath: 'src/billing/retry.ts',
+    excludeIds: [],
+    customQuery: 'retryInvoice()',
+    requestedLimit: 10,
+    searchProfile: 'snippet',
+  });
 
   assert.deepEqual(result, []);
 });

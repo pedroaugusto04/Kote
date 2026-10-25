@@ -1,9 +1,9 @@
-import { Injectable, Optional } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
 import type { AgentTool } from '../../../contracts/agent-tool.js';
-import { resolveContentScopeFromSlugs } from '../../utils/content/content-scope.utils.js';
+import { WorkspaceScopeResolver } from '../content/workspace-scope-resolver.service.js';
 import { buildProjectFolderTree } from '../../utils/content/project-folder.utils.js';
 import { serializeFolderTreeNode } from '../../use-cases/conversation/services/conversation-agent-state-machine.js';
 import { KnowledgeStatus } from '../../../contracts/enums.js';
@@ -20,16 +20,13 @@ import {
 
 @Injectable()
 export class IngestAgentToolsService {
-  private readonly folderCreator: CreateProjectFolderUseCase;
-
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly logger: AppLogger,
     private readonly listPaginatedReminders: ListPaginatedRemindersUseCase,
-    @Optional() createProjectFolderUseCase?: CreateProjectFolderUseCase,
-  ) {
-    this.folderCreator = createProjectFolderUseCase || new CreateProjectFolderUseCase(this.contentRepository);
-  }
+    private readonly folderCreator: CreateProjectFolderUseCase,
+    private readonly scopeResolver: WorkspaceScopeResolver,
+  ) {}
 
   buildTools(userId: string, workspaceSlug: string, reminderTimeZone = DEFAULT_APP_TIMEZONE): AgentTool[] {
     const zone = normalizeTimeZone(reminderTimeZone);
@@ -82,7 +79,7 @@ export class IngestAgentToolsService {
           return { projectSlug: 'inbox', folders: [] };
         }
 
-        const scope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+        const scope = await this.scopeResolver.resolveContentScopeFromSlugs(userId, {
           workspaceSlug,
           projectSlug,
         });
@@ -147,7 +144,7 @@ export class IngestAgentToolsService {
           return { error: 'Folders cannot be created in the inbox project.' };
         }
 
-        const scope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+        const scope = await this.scopeResolver.resolveContentScopeFromSlugs(userId, {
           workspaceSlug,
           projectSlug,
         });
@@ -416,7 +413,7 @@ export class IngestAgentToolsService {
       return { error: 'Reminder not found.' };
     }
 
-    const scope = await resolveContentScopeFromSlugs(this.contentRepository, userId, { workspaceSlug });
+    const scope = await this.scopeResolver.resolveContentScopeFromSlugs(userId, { workspaceSlug });
     if (!scope.workspace || note.workspaceId !== scope.workspace.id) {
       return { error: 'Reminder not found in the connected workspace.' };
     }

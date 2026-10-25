@@ -29,9 +29,20 @@ function normalizeProjectFilter(projectSlug: string): string {
   return isAllProjects ? '' : slugifyProjectName(rawProject);
 }
 
-export const remindersListQuerySchema = paginationInputSchema.extend({
+const workspaceProjectScopeFields = {
   workspaceSlug: z.string().default(''),
   projectSlug: z.string().default(''),
+};
+
+function normalizeWorkspaceProjectScope(input: { workspaceSlug: string; projectSlug: string }) {
+  return {
+    workspaceSlug: slugifyWorkspaceName(input.workspaceSlug),
+    projectSlug: normalizeProjectFilter(input.projectSlug),
+  };
+}
+
+export const remindersListQuerySchema = paginationInputSchema.extend({
+  ...workspaceProjectScopeFields,
   status: z.enum(reminderListStatusFilterValues).default(StatusFilter.Open),
   query: z.string().trim().max(160).optional(),
   dueAfter: z.string().datetime({ offset: true }).optional(),
@@ -46,22 +57,19 @@ export const remindersListQuerySchema = paginationInputSchema.extend({
   }
 }).transform((input) => ({
   ...input,
-  workspaceSlug: slugifyWorkspaceName(input.workspaceSlug),
-  projectSlug: normalizeProjectFilter(input.projectSlug),
+  ...normalizeWorkspaceProjectScope(input),
   status: input.status.trim().toLowerCase(),
 }));
 
 export const reminderBoardQuerySchema = z.object({
-  workspaceSlug: z.string().default(''),
-  projectSlug: z.string().default(''),
+  ...workspaceProjectScopeFields,
   limitPerColumn: z.coerce.number().int().min(1).max(50).default(50),
   overduePage: z.coerce.number().int().min(1).default(1),
   upcomingPage: z.coerce.number().int().min(1).default(1),
   resolvedPage: z.coerce.number().int().min(1).default(1),
   archivedPage: z.coerce.number().int().min(1).default(1),
 }).transform((input) => ({
-  workspaceSlug: slugifyWorkspaceName(input.workspaceSlug),
-  projectSlug: normalizeProjectFilter(input.projectSlug),
+  ...normalizeWorkspaceProjectScope(input),
   limitPerColumn: input.limitPerColumn,
   columnPage: {
     overdue: input.overduePage,

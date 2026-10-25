@@ -119,3 +119,36 @@ test('auto-detects previous session from a different provider', async () => {
   assert.equal(result.sourceNoteId, 'note-1');
   assert.equal(result.sourceTitle, 'Antigravity session on auth');
 });
+
+test('auto-detects previous session even from the same provider', async () => {
+  const notes = [
+    {
+      id: 'note-claude-latest',
+      title: 'Claude Code latest session',
+      source: 'claude-code',
+      sourceChannel: 'ai-chat',
+      markdown: 'User: Refactor payment\nAssistant: Finished.',
+      createdAt: '2026-09-11T15:00:00.000Z',
+    },
+    {
+      id: 'note-ag-older',
+      title: 'Antigravity earlier session',
+      source: 'antigravity',
+      sourceChannel: 'ai-chat',
+      markdown: 'User: Fix typo\nAssistant: Fixed.',
+      createdAt: '2026-09-11T12:00:00.000Z',
+    },
+  ];
+
+  const { useCase } = createUseCase({ notes, enabled: false });
+
+  const result = await useCase.execute('user-1', {
+    provider: 'claude-code',
+    autoDetectPrevious: true,
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.sourceProvider, 'claude-code');
+  assert.equal(result.sourceNoteId, 'note-claude-latest');
+  assert.equal(result.sourceTitle, 'Claude Code latest session');
+});

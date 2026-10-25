@@ -71,6 +71,7 @@ test('ingest fails when the target workspace does not exist', async (t) => {
       repositories.noteLifecycleService,
       loggerMock,
       repositories.database,
+    repositories.scopeResolver,
     ).execute(payload(), user.id, 'default'),
     /workspace_not_found/,
   );

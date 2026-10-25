@@ -148,8 +148,18 @@ test('daily reminders are aggregated once per date by user and workspace', async
   const { repositories, user } = await createStoreWithReminder(t);
   const useCase = new BuildReminderDispatchUseCase(repositories.contentQueryRepository, repositories.reminderDispatchRepository, environmentProvider());
 
-  const first = await useCase.execute('daily', user.id, 'default', new Date('2099-12-31T12:00:00.000Z'));
-  const second = await useCase.execute('daily', user.id, 'default', new Date('2099-12-31T12:00:00.000Z'));
+  const first = await useCase.execute({
+    mode: 'daily',
+    userId: user.id,
+    workspaceSlug: 'default',
+    nowDate: new Date('2099-12-31T12:00:00.000Z'),
+  });
+  const second = await useCase.execute({
+    mode: 'daily',
+    userId: user.id,
+    workspaceSlug: 'default',
+    nowDate: new Date('2099-12-31T12:00:00.000Z'),
+  });
 
   assert.equal(first.ok, true);
   assert.equal(first.shouldSend, true);
@@ -159,7 +169,13 @@ test('daily reminders are aggregated once per date by user and workspace', async
 test('markRemindersAsSent updates exact reminder state', async (t) => {
   const { repositories, user } = await createStoreWithReminder(t);
   const marker = new MarkReminderAsSentUseCase(repositories.reminderDispatchRepository, repositories.contentRepository);
-  const result = await marker.execute(['11111111-1111-1111-1111-111111111111'], user.id, 'default', 'exact', '2099-12-31T12:00');
+  const result = await marker.execute({
+    ids: ['11111111-1111-1111-1111-111111111111'],
+    userId: user.id,
+    workspaceSlug: 'default',
+    mode: 'exact',
+    dispatchKey: '2099-12-31T12:00',
+  });
 
   assert.equal(result.ok, true);
   assert.equal(result.marked, 1);
@@ -696,7 +712,12 @@ test('daily reminder dispatch ignores resolved and archived reminders even when 
     repositories.reminderDispatchRepository,
     environmentProvider(),
   );
-  const result = await useCase.execute('daily', user.id, 'default', new Date('2026-05-05T12:00:00.000Z'));
+  const result = await useCase.execute({
+    mode: 'daily',
+    userId: user.id,
+    workspaceSlug: 'default',
+    nowDate: new Date('2026-05-05T12:00:00.000Z'),
+  });
 
   assert.equal(result.ok, true);
   assert.equal(result.shouldSend, true);

@@ -116,6 +116,9 @@ export interface IPaymentGateway {
   updatePayment(gatewayPaymentId: string, input: UpdatePaymentInput): Promise<GatewayPayment>;
   getSubscriptionPayments(gatewaySubscriptionId: string): Promise<GatewayPayment[]>;
 
+  getPaymentByGatewayId(gatewayPaymentId: string): Promise<GatewayPayment | null>;
+  parseWebhook(body: Record<string, unknown>): GatewayWebhookEvent;
+
   getSubscriptionByGatewayId(gatewaySubscriptionId: string): Promise<GatewaySubscription | null>;
   tokenizeCreditCard?(params: {
     customer: string;

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { buildProjectKnowledgeMap, ListProjectKnowledgeMapUseCase } from '../../../dist/application/use-cases/projects/list-project-knowledge-map.use-case.js';
+import { WorkspaceScopeResolver } from '../../../dist/application/services/content/workspace-scope-resolver.service.js';
 
 const project = {
   projectSlug: 'platform',
@@ -107,7 +108,7 @@ test('list project knowledge map rejects projects outside the user scope', async
   };
 
   await assert.rejects(
-    () => new ListProjectKnowledgeMapUseCase(repository).execute('user-1', {
+    () => new ListProjectKnowledgeMapUseCase(repository, { clusterKnowledgeMap: async (_, m) => m }, new WorkspaceScopeResolver(repository)).execute('user-1', {
       projectId: 'other-project',
       category: 'all',
       limit: 80,
@@ -141,7 +142,8 @@ test('list project knowledge map expands selected folder to descendants', async 
     },
   };
 
-  await new ListProjectKnowledgeMapUseCase(repository).execute('user-1', {
+  const dummyClustering = { clusterKnowledgeMap: async (_userId, baseMap) => baseMap };
+  await new ListProjectKnowledgeMapUseCase(repository, dummyClustering, new WorkspaceScopeResolver(repository)).execute('user-1', {
     projectId: 'platform',
     category: 'all',
     folderId: 'folder-1',

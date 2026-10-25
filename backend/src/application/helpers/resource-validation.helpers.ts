@@ -1,3 +1,4 @@
+
 import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 
 import type { ContentRepository } from '../ports/notes/content.repository.js';
@@ -9,7 +10,7 @@ export async function requireProject(
   projectId: string,
 ): Promise<ProjectRecord> {
   const project = await repository.getProjectById(userId, projectId);
-  if (!project || !project.enabled) {
+  if (!project) {
     throw new NotFoundException('project_not_found');
   }
   return project;
@@ -47,7 +48,7 @@ export async function requireProjectFolder(
 ): Promise<ProjectFolderRecord> {
   const folder = await repository.getProjectFolderById(userId, projectId, folderId);
   if (!folder) {
-    throw new NotFoundException('folder_not_found');
+    throw new NotFoundException('project_folder_not_found');
   }
   return folder;
 }

@@ -5,6 +5,12 @@ import { type KbClient, isConfigured } from '../kb-client';
 import { logInfo, toMessage } from '../error-reporter';
 import { resolveProjectSlug } from '../utils/project';
 import { SessionHandoffManager } from './handoff/session-handoff.manager';
+import {
+  buildUnifiedSessionQuickPickItems,
+  type UnifiedSessionQuickPickItem,
+  fetchWithTimeout,
+  CLOUD_SESSION_FETCH_TIMEOUT_MS,
+} from './handoff/session-handoff.utils';
 import { watchActiveSessionStarts } from './hooks/installer';
 import {
   EXTENSION_COMMANDS,
@@ -201,7 +207,8 @@ export class AiHistoryManager {
     // Watch for immediate harness session start events (triggered before the first user message)
     const hookStartDisposable = watchActiveSessionStarts((info) => {
       if (info.targetProvider) {
-        this.handoff.onHarnessLaunched(info.targetProvider, this.recentSessions);
+        const projectSlug = this.getActiveProjectSelection?.()?.projectSlug || undefined;
+        void this.handoff.onHarnessLaunched(info.targetProvider, this.recentSessions, projectSlug);
       }
     });
     this.activeDisposables.push(hookStartDisposable);
@@ -211,7 +218,8 @@ export class AiHistoryManager {
     const terminalDisposable = vscode.window.onDidOpenTerminal((terminal) => {
       const matchedProvider = matchProviderFromHarnessName(terminal.name);
       if (matchedProvider) {
-        this.handoff.onHarnessLaunched(matchedProvider, this.recentSessions);
+        const projectSlug = this.getActiveProjectSelection?.()?.projectSlug || undefined;
+        void this.handoff.onHarnessLaunched(matchedProvider, this.recentSessions, projectSlug);
       }
     });
     this.activeDisposables.push(terminalDisposable);
@@ -224,7 +232,8 @@ export class AiHistoryManager {
           const command = (e.execution?.commandLine?.value || '').trim();
           const matchedProvider = matchProviderFromHarnessName(command);
           if (matchedProvider) {
-            this.handoff.onHarnessLaunched(matchedProvider, this.recentSessions);
+            const projectSlug = this.getActiveProjectSelection?.()?.projectSlug || undefined;
+            void this.handoff.onHarnessLaunched(matchedProvider, this.recentSessions, projectSlug);
           }
         },
       );
@@ -454,7 +463,8 @@ export class AiHistoryManager {
 
     const isNewSession = !lastHash;
     if (isNewSession) {
-      this.handoff.onNewSessionDetected(provider, session, this.recentSessions);
+      const projectSlug = this.getActiveProjectSelection?.()?.projectSlug || undefined;
+      void this.handoff.onNewSessionDetected(provider, session, this.recentSessions, projectSlug);
     }
 
     this.addOrUpdateRecentSession(session);
@@ -576,9 +586,9 @@ export class AiHistoryManager {
     await this.handleChangedSession(client, provider, pendingSession);
   }
 
-  async showRecentSessions(client: KbClient) {
-    // 1. Scan all sessions dynamically from all active providers
-    const allSessions: AiSession[] = [];
+  async showRecentSessions(client: KbClient, projectSlug?: string) {
+    // 1. Scan all local sessions dynamically from all active providers
+    const localSessions: AiSession[] = [];
     await vscode.window.withProgress({
       location: vscode.ProgressLocation.Notification,
       title: 'Scanning AI session logs...',
@@ -590,57 +600,51 @@ export class AiHistoryManager {
           const enabled = await provider.isEnabled();
           if (!enabled) continue;
           const sessions = await provider.getRecentSessions();
-          allSessions.push(...sessions);
+          localSessions.push(...sessions);
         } catch (err) {
           console.error(`Failed to load sessions for ${provider.id}:`, err);
         }
       }
     });
 
-    // Sort all sessions by timestamp descending (newest first)
-    allSessions.sort((a, b) => b.timestamp - a.timestamp);
+    localSessions.sort((a, b) => b.timestamp - a.timestamp);
 
-    if (allSessions.length === 0) {
-      vscode.window.showInformationMessage('No recent AI sessions detected from Claude Code or Codex.');
+    const canFetchCloud = isConfigured();
+    let unifiedItems: UnifiedSessionQuickPickItem[] = buildUnifiedSessionQuickPickItems(localSessions, [], this.providers);
+
+    if (unifiedItems.length === 0 && !canFetchCloud) {
+      vscode.window.showInformationMessage('No recent AI sessions detected from Claude Code, Codex, Antigravity, or OpenCode.');
       return;
     }
 
-    interface SessionQuickPickItem extends vscode.QuickPickItem {
-      session?: AiSession;
-      isLoadMore?: boolean;
-    }
-
-    // 2. Set up QuickPick for pagination / infinite scroll
-    const quickPick = vscode.window.createQuickPick<SessionQuickPickItem>();
-    quickPick.title = 'Select a recent AI session to import';
-    quickPick.placeholder = 'Search by title...';
+    const quickPick = vscode.window.createQuickPick<UnifiedSessionQuickPickItem>();
+    quickPick.title = 'Recent AI Sessions (Local & Cloud)';
+    quickPick.placeholder = unifiedItems.length > 0
+      ? 'Search by title...'
+      : 'Loading recent AI sessions from Kote cloud...';
     quickPick.matchOnDescription = true;
     quickPick.matchOnDetail = true;
 
     const PAGE_SIZE = 20;
     let displayedCount = PAGE_SIZE;
 
-    // Helper to build list of items
     const getItems = (filterQuery = '') => {
-      const filtered = filterQuery
-        ? allSessions.filter(s => s.title.toLowerCase().includes(filterQuery.toLowerCase()))
-        : allSessions;
+      const q = filterQuery.toLowerCase().trim();
+      const filtered = q
+        ? unifiedItems.filter(s => s.label.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q)))
+        : unifiedItems;
 
       const slice = filtered.slice(0, displayedCount);
-      const items: SessionQuickPickItem[] = slice.map(session => ({
-        label: session.title,
-        description: this.providers.get(session.providerId)?.name || session.providerId,
-        detail: `Modified: ${new Date(session.timestamp).toLocaleString()}`,
-        session
-      }));
+      const items: UnifiedSessionQuickPickItem[] = [...slice];
 
-      // Add "Load More" indicator if there are remaining sessions
       if (filtered.length > displayedCount) {
         items.push({
           label: '$(arrow-down) Load More...',
           description: `Showing ${displayedCount} of ${filtered.length} sessions`,
           detail: 'Select this item or scroll down to load more',
-          isLoadMore: true
+          timestamp: 0,
+          isLoadMore: true,
+          target: { kind: 'local', session: localSessions[0] } as any,
         });
       }
 
@@ -649,7 +653,35 @@ export class AiHistoryManager {
 
     quickPick.items = getItems();
 
-    // 3. Handle infinite scroll / selection change (throttled)
+    let isDisposed = false;
+    if (canFetchCloud) {
+      quickPick.busy = true;
+      void (async () => {
+        try {
+          const cloudNotes = await fetchWithTimeout(
+            client.listRecentNotes(projectSlug, 50),
+            CLOUD_SESSION_FETCH_TIMEOUT_MS,
+          );
+          if (isDisposed) return;
+          quickPick.busy = false;
+
+          unifiedItems = buildUnifiedSessionQuickPickItems(localSessions, cloudNotes, this.providers);
+          if (unifiedItems.length === 0) {
+            quickPick.hide();
+            vscode.window.showInformationMessage('No recent AI sessions detected locally or in Kote cloud.');
+            return;
+          }
+          quickPick.placeholder = 'Search by title...';
+          quickPick.items = getItems(quickPick.value);
+        } catch {
+          if (!isDisposed) {
+            quickPick.busy = false;
+          }
+        }
+      })();
+    }
+
+    // Handle infinite scroll / selection change (throttled)
     let isHandlingActiveChange = false;
     quickPick.onDidChangeActive(active => {
       if (isHandlingActiveChange) return;
@@ -659,32 +691,26 @@ export class AiHistoryManager {
       const items = quickPick.items;
       const activeIndex = items.indexOf(activeItem);
 
-      // Trigger if active item is "Load More..." or is in the last 2 positions and "Load More" exists
       if (activeItem.isLoadMore || (activeIndex >= items.length - 2 && items[items.length - 1].isLoadMore)) {
         isHandlingActiveChange = true;
 
         setTimeout(() => {
           displayedCount += PAGE_SIZE;
-
           const query = quickPick.value;
           quickPick.items = getItems(query);
 
-          // Re-focus near the previous position
           const newIndex = Math.min(activeIndex, quickPick.items.length - 1);
           quickPick.activeItems = [quickPick.items[newIndex]];
-
           isHandlingActiveChange = false;
         }, 150);
       }
     });
 
-    // Reset page count on filter query change
     quickPick.onDidChangeValue(value => {
       displayedCount = PAGE_SIZE;
       quickPick.items = getItems(value);
     });
 
-    // Handle item acceptance
     quickPick.onDidAccept(async () => {
       const selected = quickPick.selectedItems[0];
       if (!selected) return;
@@ -698,9 +724,9 @@ export class AiHistoryManager {
       quickPick.hide();
       quickPick.dispose();
 
-      if (selected.session) {
+      if (selected.target?.kind === 'local' && selected.session) {
         const action = await vscode.window.showInformationMessage(
-          `Selected session: "${selected.label}"`,
+          `Selected local session: "${selected.label}"`,
           SESSION_PROMPT_ACTIONS.AUTO_SAVE,
           SESSION_PROMPT_ACTIONS.PREVIEW_EDIT
         );
@@ -712,10 +738,41 @@ export class AiHistoryManager {
         } else if (action === SESSION_PROMPT_ACTIONS.PREVIEW_EDIT) {
           await this.openPreview(selected.session);
         }
+      } else if (selected.target?.kind === 'cloud') {
+        const note = selected.target.note;
+        const action = await vscode.window.showInformationMessage(
+          `Selected cloud session: "${selected.label}"`,
+          'Preview Session',
+          'Generate Handoff',
+          'Open Note Detail',
+          'Copy Content'
+        );
+        if (action === 'Preview Session') {
+          const doc = await vscode.workspace.openTextDocument({
+            content: note.markdown || note.summary || note.content || '',
+            language: 'markdown',
+          });
+          await vscode.window.showTextDocument(doc);
+        } else if (action === 'Generate Handoff') {
+          await this.handoff.generateAndReviewHandoff({
+            noteId: note.id,
+            title: note.title,
+            providerId: selected.target.providerId,
+            projectSlug: note.projectSlug,
+            timestamp: note.createdAt || note.date,
+            rawText: note.markdown || note.summary || note.content,
+          });
+        } else if (action === 'Open Note Detail') {
+          await vscode.commands.executeCommand(EXTENSION_COMMANDS.OPEN_NOTE_DETAIL, note.id);
+        } else if (action === 'Copy Content') {
+          await vscode.env.clipboard.writeText(note.markdown || note.summary || note.content || '');
+          vscode.window.showInformationMessage('Kote: Session content copied to clipboard.');
+        }
       }
     });
 
     quickPick.onDidHide(() => {
+      isDisposed = true;
       quickPick.dispose();
     });
 

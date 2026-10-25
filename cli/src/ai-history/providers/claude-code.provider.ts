@@ -20,7 +20,10 @@ import {
   readJsonLines,
   recentFiles,
   safeFileSignature,
+  stripCustomXmlTags,
 } from './provider.utils.js';
+
+const CLAUDE_TAGS_TO_STRIP = ['system-reminder', 'local-command-caveat'] as const;
 
 const CLAUDE_RECORD_TYPE = {
   USER: 'user',
@@ -30,10 +33,7 @@ const CLAUDE_RECORD_TYPE = {
 const sessionCache = new FileSessionCache();
 
 function cleanContent(raw: string): string {
-  return raw
-    .replace(/<system-reminder>[\s\S]*?(<\/system-reminder>|$)/gi, '')
-    .replace(/<local-command-caveat>[\s\S]*?(<\/local-command-caveat>|$)/gi, '')
-    .trim();
+  return stripCustomXmlTags(raw, CLAUDE_TAGS_TO_STRIP).trim();
 }
 
 function parseTurn(value: unknown): AiTurn | null {

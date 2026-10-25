@@ -19,6 +19,7 @@ import { EnvModule } from './env.module.js';
 import { LoggerModule } from './logger.module.js';
 import { EmailModule } from './email.module.js';
 import { AiModule } from './ai.module.js';
+import { WorkspacesModule } from './workspaces.module.js';
 import { CheckDependencyUseCase } from '../../application/use-cases/dependency-watcher/check-dependency.use-case.js';
 
 @Module({
@@ -30,6 +31,7 @@ import { CheckDependencyUseCase } from '../../application/use-cases/dependency-w
     LoggerModule,
     EmailModule,
     AiModule,
+    WorkspacesModule,
   ],
   providers: [
     RegistryStrategyProvider,

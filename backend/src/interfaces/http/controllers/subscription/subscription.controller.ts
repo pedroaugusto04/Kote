@@ -19,27 +19,8 @@ import {
 } from '../../../../application/use-cases/index.js';
 import { updateSubscriptionBodySchema, type UpdateSubscriptionBody } from '../../dto/subscription.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
-
-function resolveUserCountryCode(
-  customCountryCode?: string,
-  userCountryHeader?: string,
-  cfCountryHeader?: string,
-  acceptLanguageHeader?: string,
-): string {
-  if (customCountryCode && customCountryCode.trim().length > 0) {
-    return customCountryCode.trim().toUpperCase();
-  }
-  if (userCountryHeader && userCountryHeader.trim().length > 0) {
-    return userCountryHeader.trim().toUpperCase();
-  }
-  if (cfCountryHeader && cfCountryHeader.trim().length > 0) {
-    return cfCountryHeader.trim().toUpperCase();
-  }
-  if (acceptLanguageHeader && acceptLanguageHeader.toLowerCase().includes('pt-br')) {
-    return COUNTRY_CODE.BRAZIL;
-  }
-  return COUNTRY_CODE.UNITED_STATES;
-}
+import { resolveUserCountryCode } from '../../helpers/country-resolver.js';
+import { toUpdateSubscriptionInput } from '../../mappers/subscription.mapper.js';
 
 @ApiTags('Subscription')
 @Controller('api/subscription')
@@ -104,7 +85,7 @@ export class SubscriptionController {
     @Headers('cf-ipcountry') cfCountryHeader?: string,
     @Headers('accept-language') acceptLanguageHeader?: string,
   ) {
-    return { country: resolveUserCountryCode(undefined, userCountryHeader, cfCountryHeader, acceptLanguageHeader) };
+    return { country: resolveUserCountryCode({ userCountryHeader, cfCountryHeader, acceptLanguageHeader }) };
   }
 
   @Post()
@@ -118,20 +99,8 @@ export class SubscriptionController {
     @Headers('cf-ipcountry') cfCountryHeader?: string,
     @Headers('accept-language') acceptLanguageHeader?: string,
   ) {
-    const { planId, billingCycle, billingType, cpfCnpj, creditCardToken } = body;
-    const countryCode = resolveUserCountryCode(body.countryCode, userCountryHeader, cfCountryHeader, acceptLanguageHeader);
-
-    return this.updateSubscriptionUseCase.execute({
-      userId: user.id,
-      email: user.email,
-      displayName: user.displayName || null,
-      planId,
-      billingCycle,
-      billingType,
-      cpfCnpj,
-      countryCode,
-      creditCardToken,
-    });
+    const input = toUpdateSubscriptionInput(body, user, { userCountryHeader, cfCountryHeader, acceptLanguageHeader });
+    return this.updateSubscriptionUseCase.execute(input);
   }
 
   @Delete('payment/:paymentId')

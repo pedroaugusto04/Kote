@@ -66,7 +66,11 @@ export class RemindersController {
     @Body(new ZodValidationPipe(bulkUpdateReminderStatusBodySchema, 'invalid_bulk_update_reminder_status_payload')) body: BulkUpdateReminderStatusBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.bulkUpdateReminderStatusUseCase.execute(user.id, body.ids, body.status);
+    return this.bulkUpdateReminderStatusUseCase.execute({
+      userId: user.id,
+      ids: body.ids,
+      status: body.status,
+    });
   }
 
   @Patch(':id/status')

@@ -131,15 +131,13 @@ export const githubBackfillBodySchema = z
     repositories: [...new Set(body.repositories.map((repo) => repo.trim()).filter(Boolean))],
   }));
 
-export const githubBackfillStatusQuerySchema = z.object({
+export const githubBackfillJobParamSchema = z.object({
   workspaceSlug: requiredWorkspaceSlugSchema,
   jobId: z.string().uuid('Invalid job ID.'),
 });
 
-export const githubBackfillCancelBodySchema = z.object({
-  workspaceSlug: requiredWorkspaceSlugSchema,
-  jobId: z.string().uuid('Invalid job ID.'),
-});
+export const githubBackfillStatusQuerySchema = githubBackfillJobParamSchema;
+export const githubBackfillCancelBodySchema = githubBackfillJobParamSchema;
 
 export type GithubBackfillBody = z.infer<typeof githubBackfillBodySchema>;
 export type GithubBackfillStatusQuery = z.infer<typeof githubBackfillStatusQuerySchema>;

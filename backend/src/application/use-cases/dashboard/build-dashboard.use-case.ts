@@ -16,9 +16,9 @@ export class BuildDashboardUseCase {
     private readonly contentQueryRepository: ContentQueryRepository,
     private readonly refreshReminderStatuses: RefreshReminderStatusesUseCase,
     private readonly projectCoverageRepository: ProjectCoverageRepository,
-    private readonly askHistoryRepository?: AskHistoryRepository,
-    private readonly projectBriefHistoryRepository?: ProjectBriefHistoryRepository,
-  ) { }
+    private readonly askHistoryRepository: AskHistoryRepository,
+    private readonly projectBriefHistoryRepository: ProjectBriefHistoryRepository,
+  ) {}
 
   async execute(userId: string) {
     const [workspaces, projects, bundle, askHistoryResult, projectBriefsCount] = await Promise.all([
@@ -31,12 +31,8 @@ export class BuildDashboardUseCase {
             this.contentQueryRepository.listReviews(userId),
             this.contentQueryRepository.listReminders(userId),
           ]).then(([notes, reviews, reminders]) => ({ notes, reviews, reminders })),
-      this.askHistoryRepository
-        ? this.askHistoryRepository.list({ userId, page: 1, pageSize: 1 }).catch(() => null)
-        : null,
-      this.projectBriefHistoryRepository
-        ? this.projectBriefHistoryRepository.countByUser(userId).catch(() => 0)
-        : 0,
+      this.askHistoryRepository.list({ userId, page: 1, pageSize: 1 }).catch(() => null),
+      this.projectBriefHistoryRepository.countByUser(userId).catch(() => 0),
     ]);
 
     const { notes, reviews, reminders: rawReminders } = bundle;
@@ -87,16 +83,16 @@ export class BuildDashboardUseCase {
     return {
       workspaces,
       projects: enrichedProjects,
-      home: buildDashboardHome(
-        enrichedProjects,
+      home: buildDashboardHome({
+        projects: enrichedProjects,
         notes,
         reviews,
         reminders,
         now,
-        zone,
+        timeZone: zone,
         totalAskQueries,
         totalProjectBriefs,
-      ),
+      }),
     };
   }
 
@@ -105,7 +101,7 @@ export class BuildDashboardUseCase {
     projects: { id: string; projectSlug: string }[],
   ): Promise<Map<string, number>> {
     const coverageMap = new Map<string, number>();
-    if (!this.projectCoverageRepository || projects.length === 0) {
+    if (projects.length === 0) {
       return coverageMap;
     }
 
@@ -127,7 +123,7 @@ export class BuildDashboardUseCase {
     const coverageResults = await Promise.all(
       projects.map(async (project) => {
         try {
-          const res = await this.projectCoverageRepository!.getProjectCoverage(userId, project.id);
+          const res = await this.projectCoverageRepository.getProjectCoverage(userId, project.id);
           return { projectSlug: project.projectSlug, coveragePercentage: res.coveragePercentage };
         } catch {
           return { projectSlug: project.projectSlug, coveragePercentage: 0 };

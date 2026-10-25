@@ -4,6 +4,8 @@ import { GithubBackfillUseCase } from '../../../dist/application/use-cases/integ
 import { GithubBackfillRunnerService } from '../../../dist/application/services/integrations/github-backfill-runner.service.js';
 import { encryptConfig } from '../../../dist/application/utils/security/credentials-crypto.utils.js';
 
+const mockLogger = { info() {}, warn() {}, error() {}, debug() {} };
+
 test('GithubBackfillUseCase - start and cancel', async () => {
   const jobs = new Map();
   const mockJobRepo = {
@@ -69,7 +71,8 @@ test('GithubBackfillUseCase - start and cancel', async () => {
     mockCredRepo,
     mockEnvProvider,
     mockJobRepo,
-    mockQueuePublisher
+    mockQueuePublisher,
+    mockLogger,
   );
 
   const startRes = await useCase.start({
@@ -194,7 +197,8 @@ test('GithubBackfillRunnerService - global limits and cancellation', async () =>
     mockIntegrationGateway,
     mockCredRepo,
     mockEnvProvider,
-    mockJobRepo
+    mockJobRepo,
+    mockLogger,
   );
 
   await runner.run('job-1', 'user-123');
@@ -243,7 +247,8 @@ test('GithubBackfillRunnerService - global limits and cancellation', async () =>
     mockIntegrationGateway,
     mockCredRepo,
     mockEnvProvider,
-    mockJobRepo
+    mockJobRepo,
+    mockLogger,
   );
 
   await runnerCancel.run('job-2', 'user-123');

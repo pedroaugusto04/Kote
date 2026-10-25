@@ -165,7 +165,7 @@ test('reminders controller delegates reminder queries and mutations to use cases
     { execute: async () => ({ items: mockReminders, pagination: {} }) },
     { execute: async (_userId, query) => ({ columns: { overdue: { items: [query], total: 1 } } }) },
     { execute: async (_userId, input) => ({ ok: true, ...input }) },
-    { execute: async (_userId, ids, status) => ({ ok: true, ids, status }) },
+    { execute: async (input) => ({ ok: true, ids: input.ids, status: input.status }) },
   );
 
   assert.deepEqual(await controller.reminders(user, {}), { ok: true, reminders: mockReminders, pagination: {} });
@@ -180,9 +180,9 @@ test('operations controller normalizes reminder dispatch and mark-sent inputs', 
   const user = { id: 'user-1', email: 'user@example.com', displayName: 'User', role: 'user' };
   const controller = new OperationsController(
     { execute: async (body, userId) => ({ op: 'ingest', body, userId }) },
-    { execute: async (body, userId) => ({ op: 'agent-conversation', body, userId }) },
-    { execute: async (mode, userId, workspaceSlug) => { calls.push(['dispatch', mode, userId, workspaceSlug]); return { mode }; } },
-    { execute: async (ids, userId, workspaceSlug) => { calls.push(['mark', ids, userId, workspaceSlug]); return { ids }; } },
+    { execute: async (input) => ({ op: 'agent-conversation', body: input.input, userId: input.userId }) },
+    { execute: async (input) => { calls.push(['dispatch', input.mode, input.userId, input.workspaceSlug]); return { mode: input.mode }; } },
+    { execute: async (input) => { calls.push(['mark', input.ids, input.userId, input.workspaceSlug]); return { ids: input.ids }; } },
   );
 
   assert.deepEqual(await controller.ingest({ source: { correlationId: 'corr-1' } }, user), { op: 'ingest', body: { source: { correlationId: 'corr-1' } }, userId: 'user-1' });

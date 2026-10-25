@@ -72,11 +72,9 @@ test('extracts only the original text from structured notes', () => {
 
 test('preserves structured markdown sections when updating a structured note', () => {
   const note = structuredReviewNote();
-  const updated = buildUpdatedNote(
+  const updated = buildUpdatedNote({
     note,
-    null,
-    null,
-    {
+    input: {
       id: note.id,
       title: 'Review pedroaugusto04/Kote 3882c230',
       rawText: 'Push revisado manualmente pelo editor.',
@@ -84,8 +82,8 @@ test('preserves structured markdown sections when updating a structured note', (
       reminderDate: '',
       reminderTime: '',
     },
-    'America/Sao_Paulo',
-  );
+    scope: { reminderTimeZone: 'America/Sao_Paulo' },
+  });
 
   assert.equal(updated.summary, 'Push recebido sem analise de IA configurada.');
   assert.match(updated.markdown, /## Original text/);
@@ -99,11 +97,9 @@ test('preserves structured markdown sections when updating a structured note', (
 test('can reopen resolved or archived notes back to active status', () => {
   const note = structuredReviewNote();
 
-  const reopenedFromResolved = buildUpdatedNote(
-    { ...note, status: 'resolved' },
-    null,
-    null,
-    {
+  const reopenedFromResolved = buildUpdatedNote({
+    note: { ...note, status: 'resolved' },
+    input: {
       id: note.id,
       title: note.title,
       rawText: 'Push revisado manualmente pelo editor.',
@@ -112,14 +108,12 @@ test('can reopen resolved or archived notes back to active status', () => {
       reminderDate: '',
       reminderTime: '',
     },
-    'America/Sao_Paulo',
-  );
+    scope: { reminderTimeZone: 'America/Sao_Paulo' },
+  });
 
-  const reopenedFromArchived = buildUpdatedNote(
-    { ...note, status: 'archived' },
-    null,
-    null,
-    {
+  const reopenedFromArchived = buildUpdatedNote({
+    note: { ...note, status: 'archived' },
+    input: {
       id: note.id,
       title: note.title,
       rawText: 'Push revisado manualmente pelo editor.',
@@ -128,8 +122,8 @@ test('can reopen resolved or archived notes back to active status', () => {
       reminderDate: '',
       reminderTime: '',
     },
-    'America/Sao_Paulo',
-  );
+    scope: { reminderTimeZone: 'America/Sao_Paulo' },
+  });
 
   assert.equal(reopenedFromResolved.status, 'active');
   assert.equal(reopenedFromArchived.status, 'active');
@@ -180,11 +174,9 @@ test('buildUpdatedNote strips duplicate title header from new rawText', () => {
     links: [],
   };
 
-  const updated = buildUpdatedNote(
+  const updated = buildUpdatedNote({
     note,
-    null,
-    null,
-    {
+    input: {
       id: note.id,
       title: 'My Custom Note',
       rawText: '# My Custom Note\n\nSome updated content.',
@@ -192,8 +184,8 @@ test('buildUpdatedNote strips duplicate title header from new rawText', () => {
       reminderDate: '',
       reminderTime: '',
     },
-    'America/Sao_Paulo',
-  );
+    scope: { reminderTimeZone: 'America/Sao_Paulo' },
+  });
 
   assert.equal(updated.metadata.rawText, 'Some updated content.');
 });

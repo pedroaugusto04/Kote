@@ -60,7 +60,7 @@ export function toWhatsappWebhookExecutionResult(params: {
     action: params.conversationResult.action,
     message: params.replyText,
     payload: params.conversationResult.payload ?? null,
-    ingestResult: 'ingestResult' in params.conversationResult ? params.conversationResult.ingestResult : undefined,
+    ingestResult: params.conversationResult.ingestResult,
     conversationResult: { ...params.conversationResult, replyText: params.replyText },
     replySent: params.shouldReply ? params.sendResult.ok : false,
     replyError: params.shouldReply && !params.sendResult.ok ? params.sendResult.error : undefined,

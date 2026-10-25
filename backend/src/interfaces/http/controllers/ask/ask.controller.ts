@@ -23,6 +23,7 @@ import {
 } from '../../dto/ask.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { paginatedResponse, normalizeScopeId } from '../../http-helpers.js';
+import { toRunAskAiInput } from '../../mappers/ask.mapper.js';
 
 @ApiTags('Ask AI')
 @Controller('api/ask')
@@ -46,16 +47,7 @@ export class AskAiController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope?: WorkspaceScope,
   ) {
-    return this.runAskAiUseCase.execute(
-      body.question,
-      user.id,
-      {
-        projectId: normalizeScopeId(scope?.projectId),
-        workspaceId: normalizeScopeId(scope?.workspaceId),
-      },
-      body.conversationId,
-      body.conversationHistory,
-    );
+    return this.runAskAiUseCase.execute(toRunAskAiInput(body, user.id, scope));
   }
 
   @Get('conversations')

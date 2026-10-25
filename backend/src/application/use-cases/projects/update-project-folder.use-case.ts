@@ -4,6 +4,7 @@ import { rewriteNotePathForFolder } from '../../../domain/notes.js';
 import type { UpdateProjectFolderInput } from '../../models/project-folder-input.models.js';
 import type { NoteRecord, ProjectFolderRecord } from '../../models/repository-records.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { buildFolderFullSlugPath, collectFolderDescendantIds, folderSlugFromDisplayName } from '../../utils/content/project-folder.utils.js';
 import { toFolderUpdateRewrite, toNoteWithRewrittenPath } from '../../mappers/project-folder.mapper.js';
 
@@ -14,15 +15,15 @@ type FolderRewrite = {
 
 @Injectable()
 export class UpdateProjectFolderUseCase {
-  constructor(private readonly contentRepository: ContentRepository) {}
+  constructor(
+    private readonly contentRepository: ContentRepository,
+    private readonly scopeResolver: WorkspaceScopeResolver,
+  ) {}
 
   async execute(input: UpdateProjectFolderInput, userId: string) {
-    const project = await this.contentRepository.getProjectById(userId, input.projectId);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
-
+    const project = await this.scopeResolver.resolveProject(userId, input.projectId);
+    const currentFolder = await this.scopeResolver.resolveProjectFolder(userId, input.projectId, input.folderId);
     const folders = await this.contentRepository.listProjectFolders(userId, project.id);
-    const currentFolder = folders.find((folder) => folder.id === input.folderId);
-    if (!currentFolder) throw new NotFoundException('folder_not_found');
 
     const descendantIds = new Set(collectFolderDescendantIds(folders, currentFolder.id));
     if (input.parentFolderId && descendantIds.has(input.parentFolderId)) {
@@ -92,4 +93,3 @@ export class UpdateProjectFolderUseCase {
     return { ok: true as const, folder: rewrites[0]?.next || currentFolder };
   }
 }
-

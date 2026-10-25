@@ -2,12 +2,19 @@ import { Injectable } from '@nestjs/common';
 
 import { ReminderDispatchMode } from '../../../contracts/enums.js';
 import { isReminderDispatchEligibleStatus } from '../../../domain/note-status.js';
-import { slugify } from '../../../domain/strings.js';
+import { normalizeWorkspaceSlug } from '../../../domain/strings.js';
 import { currentDateTimeInTimeZone } from '../../../domain/time.js';
 import { ContentQueryRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { ReminderDispatchRepository } from '../../ports/reminders/workflow-state.repository.js';
 import { formatReminderScheduledAtLabel, resolveReminderScheduledAt } from './reminder-schedule.js';
+
+export interface BuildReminderDispatchInput {
+  mode: ReminderDispatchMode;
+  userId: string;
+  workspaceSlug?: string;
+  nowDate?: Date;
+}
 
 @Injectable()
 export class BuildReminderDispatchUseCase {
@@ -17,8 +24,9 @@ export class BuildReminderDispatchUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
   ) {}
 
-  async execute(mode: ReminderDispatchMode, userId: string, workspaceSlug = 'default', nowDate = new Date()) {
-    const workspace = slugify(workspaceSlug) || 'default';
+  async execute(input: BuildReminderDispatchInput) {
+    const { mode, userId, workspaceSlug = 'default', nowDate = new Date() } = input;
+    const workspace = normalizeWorkspaceSlug(workspaceSlug);
     const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
     const reminders = (await this.contentQueryRepository.listReminders(userId)).filter(
       (reminder) => reminder.workspace === workspace && isReminderDispatchEligibleStatus(reminder.status),

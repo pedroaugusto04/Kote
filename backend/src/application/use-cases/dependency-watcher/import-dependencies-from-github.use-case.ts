@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto';
 import { CredentialRecordStatus, IntegrationProvider } from '../../../contracts/enums.js';
 import { DependencyWatcherRepository } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { CredentialRepository } from '../../ports/integrations/integrations.repository.js';
 import { AppLogger } from '../../../observability/logger.js';
 import { DependencyImportQueuePublisher } from '../../ports/dependency-watcher/dependency-import-queue.publisher.js';
@@ -27,18 +28,13 @@ export class ImportDependenciesFromGithubUseCase {
     private readonly credentialRepository: CredentialRepository,
     private readonly dependencyImportQueuePublisher: DependencyImportQueuePublisher,
     private readonly logger: AppLogger,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
   async execute(userId: string, workspaceSlug: string, options: ImportOptions = {}): Promise<ImportResult> {
     const { projectIds, repositoryIds } = options;
-    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-    if (!workspace) {
-      throw new NotFoundException('workspace_not_found');
-    }
-
-    let workspaceProjects = this.contentRepository.listProjectsByWorkspace
-      ? await this.contentRepository.listProjectsByWorkspace(userId, workspace.id)
-      : (await this.contentRepository.listProjects(userId)).filter((p) => p.workspaceSlug === workspaceSlug);
+    const workspace = await this.scopeResolver.resolveWorkspace(userId, workspaceSlug);
+    let workspaceProjects = await this.contentRepository.listProjectsByWorkspace(userId, workspace.id);
 
     if (projectIds && projectIds.length > 0) {
       workspaceProjects = workspaceProjects.filter((p) => projectIds.includes(p.id));

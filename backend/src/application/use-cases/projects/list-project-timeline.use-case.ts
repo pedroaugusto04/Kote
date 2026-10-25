@@ -1,29 +1,33 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import type { ListProjectTimelineInput } from '../../models/project-timeline.models.js';
-import { collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 
 @Injectable()
 export class ListProjectTimelineUseCase {
-  constructor(private readonly contentRepository: ContentRepository) { }
+  constructor(
+    private readonly contentRepository: ContentRepository,
+    private readonly scopeResolver: WorkspaceScopeResolver,
+  ) { }
 
   async execute(userId: string, input: ListProjectTimelineInput) {
     if (input.projectId) {
-      const project = await this.contentRepository.getProjectById(userId, input.projectId);
-      if (!project || !project.enabled) throw new NotFoundException('project_not_found');
+      const project = await this.scopeResolver.resolveProject(userId, input.projectId);
 
       const normalizedFolderId = input.folderId?.trim() || '';
       if (normalizedFolderId) {
-        const folders = await this.contentRepository.listProjectFolders(userId, project.id);
-        const selectedFolder = folders.find((folder) => folder.id === normalizedFolderId);
-        if (!selectedFolder) throw new NotFoundException('folder_not_found');
+        const folderIds = await this.scopeResolver.resolveFolderDescendantIds(
+          userId,
+          project.id,
+          normalizedFolderId,
+        );
 
         return this.contentRepository.listProjectTimeline(userId, {
           ...input,
           projectId: project.id,
           folderId: undefined,
-          folderIds: collectFolderDescendantIds(folders, normalizedFolderId),
+          folderIds,
         });
       }
     }

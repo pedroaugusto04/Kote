@@ -32,10 +32,7 @@ export async function resolveContentScopeFromSlugs(
   const projectSlug = String(input.projectSlug || '').trim();
   if (projectSlug) {
     const project = await contentRepository.getProjectBySlug(userId, projectSlug);
-    if (!project) {
-      return emptyScope;
-    }
-
+    if (!project) return emptyScope;
     return {
       projectId: project.id,
       workspaceId: project.workspaceId ?? null,
@@ -47,10 +44,7 @@ export async function resolveContentScopeFromSlugs(
   const workspaceSlug = String(input.workspaceSlug || '').trim();
   if (workspaceSlug) {
     const workspace = await contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-    if (!workspace) {
-      return emptyScope;
-    }
-
+    if (!workspace) return emptyScope;
     return {
       projectId: null,
       workspaceId: workspace.id,
@@ -67,6 +61,6 @@ export async function resolveWorkspaceIdFromSlug(
   userId: string,
   workspaceSlug: string,
 ): Promise<string | null> {
-  const scope = await resolveContentScopeFromSlugs(contentRepository, userId, { workspaceSlug });
-  return scope.workspaceId;
+  const workspace = await contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
+  return workspace?.id ?? null;
 }

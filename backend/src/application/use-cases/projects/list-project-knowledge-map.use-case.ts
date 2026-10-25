@@ -13,6 +13,7 @@ import type {
 import type { NoteRecord, ProjectFolderRecord, SaveProjectInput } from '../../models/repository-records.models.js';
 import { collectFolderAncestorIds, collectFolderDescendantIds } from '../../utils/content/project-folder.utils.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { EventType, SourceChannel, TimelineCategory } from '../../../contracts/enums.js';
 
 import { SemanticClusteringService } from '../../services/query/semantic-clustering.service.js';
@@ -21,12 +22,12 @@ import { SemanticClusteringService } from '../../services/query/semantic-cluster
 export class ListProjectKnowledgeMapUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
-    private readonly semanticClusteringService?: SemanticClusteringService,
+    private readonly semanticClusteringService: SemanticClusteringService,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
   async execute(userId: string, input: ListProjectKnowledgeMapInput): Promise<ProjectKnowledgeMapResponse> {
-    const project = await this.contentRepository.getProjectById(userId, input.projectId);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
+    const project = await this.scopeResolver.resolveProject(userId, input.projectId);
 
     const folders = await this.contentRepository.listProjectFolders(userId, project.id);
     const normalizedFolderId = input.folderId?.trim() || '';
@@ -45,11 +46,7 @@ export class ListProjectKnowledgeMapUseCase {
     const notes = await this.contentRepository.listProjectKnowledgeMapItems(userId, queryInput);
     const baseMap = buildProjectKnowledgeMap(project, folders, notes);
 
-    if (this.semanticClusteringService) {
-      return this.semanticClusteringService.clusterKnowledgeMap(userId, baseMap);
-    }
-
-    return baseMap;
+    return this.semanticClusteringService.clusterKnowledgeMap(userId, baseMap);
   }
 }
 

@@ -1,6 +1,6 @@
 import { normalizeManualNoteStatus } from '../../../domain/note-status.js';
 import { CanonicalType } from '../../../contracts/enums.js';
-import { buildUtcReminderFields, normalizeReminderAtToUtc, DEFAULT_APP_TIMEZONE } from '../../../domain/time.js';
+import { normalizeReminderAtToUtc, DEFAULT_APP_TIMEZONE } from '../../../domain/time.js';
 import { renderFrontmatter } from '../../../domain/frontmatter.js';
 import { relocateNotePath } from '../../../domain/notes.js';
 import { normalizeComparableText, normalizeMultiline, trimText } from '../../../domain/strings.js';
@@ -17,23 +17,42 @@ export function buildNoteEditorState(note: NoteRecord) {
   };
 }
 
-export function buildUpdatedNote(
-  note: NoteRecord,
-  previousFolder: ProjectFolderRecord | null,
-  nextFolder: ProjectFolderRecord | null,
-  input: UpdatedNoteInput,
-  projectSlug?: string,
-  projectId?: string,
-  workspaceSlug?: string,
-  workspaceId?: string,
-  reminderTimeZone = DEFAULT_APP_TIMEZONE,
-) {
+export interface BuildUpdatedNoteScopeOptions {
+  projectSlug?: string;
+  projectId?: string;
+  workspaceSlug?: string;
+  workspaceId?: string;
+  reminderTimeZone?: string;
+}
+
+export interface BuildUpdatedNoteCommand {
+  note: NoteRecord;
+  input: UpdatedNoteInput;
+  previousFolder?: ProjectFolderRecord | null;
+  nextFolder?: ProjectFolderRecord | null;
+  scope?: BuildUpdatedNoteScopeOptions;
+}
+
+function resolveEffectiveScope(note: NoteRecord, scope?: BuildUpdatedNoteScopeOptions) {
+  return {
+    projectSlug: scope?.projectSlug ?? note.projectSlug ?? '',
+    projectId: scope?.projectId ?? note.projectId,
+    workspaceSlug: scope?.workspaceSlug ?? note.workspaceSlug ?? '',
+    workspaceId: scope?.workspaceId ?? note.workspaceId,
+    reminderTimeZone: scope?.reminderTimeZone || DEFAULT_APP_TIMEZONE,
+  };
+}
+
+export function buildUpdatedNote(command: BuildUpdatedNoteCommand) {
+  const { note, input, previousFolder = null, nextFolder = null, scope } = command;
+  const effectiveScope = resolveEffectiveScope(note, scope);
+
   const title = trimText(input.title, note.title || input.rawText);
   const rawText = stripTitleHeader(normalizeMultiline(input.rawText), title);
   const tags = [...new Set(input.tags.map((tag) => tag.trim()).filter(Boolean))];
   const noteType = input.canonicalType || CanonicalType.Event;
   const reminderAt = input.reminderAt !== undefined
-    ? (input.reminderAt ? normalizeReminderAtToUtc(input.reminderAt, reminderTimeZone) : '')
+    ? (input.reminderAt ? normalizeReminderAtToUtc(input.reminderAt, effectiveScope.reminderTimeZone) : '')
     : note.reminderAt || '';
   const nextStatus = normalizeManualNoteStatus({
     requestedStatus: input.status,
@@ -43,14 +62,10 @@ export function buildUpdatedNote(
     reminderAt,
   });
   const structuredNote = parseStructuredNoteMarkdown(note.markdown, note.title);
-  const effectiveProjectSlug = (projectSlug ?? note.projectSlug) || '';
-  const effectiveProjectId = projectId ?? note.projectId;
-  const effectiveWorkspaceSlug = (workspaceSlug ?? note.workspaceSlug) || '';
-  const effectiveWorkspaceId = workspaceId ?? note.workspaceId;
   const frontmatter = {
     type: noteType,
-    workspace: effectiveWorkspaceSlug,
-    project: effectiveProjectSlug,
+    workspace: effectiveScope.workspaceSlug,
+    project: effectiveScope.projectSlug,
     status: nextStatus,
     tags,
     occurred_at: note.occurredAt,
@@ -62,13 +77,13 @@ export function buildUpdatedNote(
 
   return {
     id: note.id,
-    projectId: effectiveProjectId,
-    workspaceId: effectiveWorkspaceId,
-    path: relocateNotePath(note.path, effectiveProjectSlug, previousFolder?.fullSlugPath || '', nextFolder?.fullSlugPath || ''),
+    projectId: effectiveScope.projectId,
+    workspaceId: effectiveScope.workspaceId,
+    path: relocateNotePath(note.path, effectiveScope.projectSlug, previousFolder?.fullSlugPath || '', nextFolder?.fullSlugPath || ''),
     type: noteType,
     title,
-    projectSlug: effectiveProjectSlug,
-    workspaceSlug: effectiveWorkspaceSlug,
+    projectSlug: effectiveScope.projectSlug,
+    workspaceSlug: effectiveScope.workspaceSlug,
     folderId: nextFolder?.id || null,
     status: nextStatus,
     tags,

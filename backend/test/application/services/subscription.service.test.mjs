@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { SubscriptionService } from '../../../dist/application/services/billing/SubscriptionService.js';
 import { BillingCycle, BillingType, SubscriptionStatus, PaymentStatus } from '../../../dist/domain/enums/billing.enums.js';
+import { createTestSubscriptionService } from '../../helpers/factories.mjs';
 
 // Setup environment variables for test execution
 process.env.STRIPE_SECRET_KEY = 'sk_test_mock';
@@ -39,21 +39,12 @@ test('SubscriptionService throws when trying to subscribe to the same active pla
     async upsertCustomer() {},
   };
 
-  const service = new SubscriptionService(
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    { getChangeKind: () => 'NEW' },
-    mockSubscriptionRepository,
-    mockBillingCustomerRepository,
-    mockUserRepository,
-  );
+  const service = createTestSubscriptionService({
+    updateSubscriptionStrategyFactory: { getChangeKind: () => 'NEW' },
+    subscriptionRepository: mockSubscriptionRepository,
+    billingCustomerRepository: mockBillingCustomerRepository,
+    userRepository: mockUserRepository,
+  });
 
   await assert.rejects(
     service.registerOrUpdateSubscription({

@@ -62,7 +62,15 @@ import { isZipAttachmentMimeType } from '../../../../domain/constants/attachment
 import { ScopeGuard } from '../../guards/scope.guard.js';
 import { Scoped, Scope } from '../../scope.decorators.js';
 import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
-import { toCreateManualNoteDto, toUpdateNoteDto } from '../../mappers/note.mapper.js';
+import {
+  toCreateManualNoteDto,
+  toUpdateNoteDto,
+  toFindNotesBySnippetInput,
+  toFindRelatedNotesByFileInput,
+  toGenerateFileNotesSummaryInput,
+  toFindNotesByFileOptions,
+  toSetAutoActionGlobalInput,
+} from '../../mappers/note.mapper.js';
 
 @ApiTags('Notes')
 @Controller('api/notes')
@@ -113,7 +121,11 @@ export class NotesController {
     @Body(new ZodValidationPipe(bulkUpdateNoteStatusBodySchema, 'invalid_bulk_update_note_status_payload')) body: BulkUpdateNoteStatusBody,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.bulkUpdateNoteStatus.execute(user.id, body.ids, body.status);
+    return this.bulkUpdateNoteStatus.execute({
+      userId: user.id,
+      ids: body.ids,
+      status: body.status,
+    });
   }
 
   @Patch(':id')
@@ -223,7 +235,8 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope?: WorkspaceScope,
   ) {
-    return this.findNotesByFileUseCase.execute(user.id, query.filePath, { projectSlug: scope?.projectSlug || query.projectSlug });
+    const options = toFindNotesByFileOptions(query, scope);
+    return this.findNotesByFileUseCase.execute(user.id, query.filePath, options);
   }
 
   @Get('by-file/related')
@@ -241,15 +254,8 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope?: WorkspaceScope,
   ) {
-    return this.findRelatedNotesByFileUseCase.execute(
-      user.id,
-      query.filePath,
-      query.excludeIds,
-      query.query,
-      scope?.projectSlug || query.projectSlug,
-      query.limit,
-      query.searchProfile,
-    );
+    const input = toFindRelatedNotesByFileInput(query, user.id, scope);
+    return this.findRelatedNotesByFileUseCase.execute(input);
   }
 
   @Get('by-file/summary')
@@ -264,11 +270,8 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope?: WorkspaceScope,
   ) {
-    return this.generateFileNotesSummaryByFileUseCase.execute(user.id, {
-      filePath: query.filePath,
-      workspaceSlug: scope?.workspaceSlug || query.workspaceSlug,
-      projectSlug: scope?.projectSlug || query.projectSlug,
-    });
+    const input = toGenerateFileNotesSummaryInput(query, scope);
+    return this.generateFileNotesSummaryByFileUseCase.execute(user.id, input);
   }
 
   @Get('by-snippet')
@@ -282,20 +285,8 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope?: WorkspaceScope,
   ) {
-    return this.findNotesBySnippetUseCase.execute(user.id, {
-      filePath: query.filePath,
-      codeSnippet: query.codeSnippet,
-      projectSlug: scope?.projectSlug || query.projectSlug,
-      workspaceSlug: scope?.workspaceSlug || query.workspaceSlug,
-      gitContext: {
-        commitHash: query.commitHash,
-        commitHashes: query.commitHashes.split(',').map((hash) => hash.trim()).filter(Boolean).slice(0, 20),
-        author: query.author,
-        commitDate: query.commitDate,
-        commitMessage: query.commitMessage,
-      },
-      limit: query.limit,
-    });
+    const input = toFindNotesBySnippetInput(query, scope?.projectSlug, scope?.workspaceSlug);
+    return this.findNotesBySnippetUseCase.execute(user.id, input);
   }
 
   @Post('by-snippet')
@@ -309,20 +300,8 @@ export class NotesController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope?: WorkspaceScope,
   ) {
-    return this.findNotesBySnippetUseCase.execute(user.id, {
-      filePath: body.filePath,
-      codeSnippet: body.codeSnippet,
-      projectSlug: scope?.projectSlug || body.projectSlug,
-      workspaceSlug: scope?.workspaceSlug || body.workspaceSlug,
-      gitContext: {
-        commitHash: body.commitHash,
-        commitHashes: body.commitHashes,
-        author: body.author,
-        commitDate: body.commitDate,
-        commitMessage: body.commitMessage,
-      },
-      limit: body.limit,
-    });
+    const input = toFindNotesBySnippetInput(body, scope?.projectSlug, scope?.workspaceSlug);
+    return this.findNotesBySnippetUseCase.execute(user.id, input);
   }
 
   @Get('auto/global')
@@ -340,7 +319,8 @@ export class NotesController {
     @Body(new ZodValidationPipe(autoActionGlobalSchema, 'invalid_auto_action_global_payload')) body: import('../../dto/note.dto.js').AutoActionGlobal,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return await this.setAutoActionGlobalUseCase.execute(user.id, { enabled: body.enabled, action: body.action, afterHours: body.afterHours ?? null });
+    const input = toSetAutoActionGlobalInput(body);
+    return await this.setAutoActionGlobalUseCase.execute(user.id, input);
   }
 
   @Get()

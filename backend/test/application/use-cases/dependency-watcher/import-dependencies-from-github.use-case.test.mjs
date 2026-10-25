@@ -1,3 +1,4 @@
+import { WorkspaceScopeResolver } from '../../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import test, { describe, it, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { NotFoundException } from '@nestjs/common';
@@ -26,6 +27,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
         if (slug === 'nonexistent-workspace') return null;
         return { id: 'workspace-123', workspaceSlug: slug };
       },
+      listProjectsByWorkspace: async (...args) => mockContentRepository.listProjects(...args),
       listProjects: async () => [
         {
           id: 'project-1',
@@ -68,6 +70,7 @@ describe('Backend: Import Dependencies From GitHub Use Case', () => {
       mockCredentialRepository,
       mockDependencyImportQueuePublisher,
       mockLogger,
+      new WorkspaceScopeResolver(mockContentRepository),
     );
   });
 

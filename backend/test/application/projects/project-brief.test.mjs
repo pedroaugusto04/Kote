@@ -42,6 +42,7 @@ function useCase(repositories, gateway) {
     gateway,
     repositories.runtimeEnvironmentProvider,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
+    repositories.scopeResolver,
   );
 }
 
@@ -197,6 +198,7 @@ test('get project brief returns latest saved brief without calling AI', async (t
   const result = await new GetProjectBriefUseCase(
     repositories.contentRepository,
     repositories.projectBriefHistoryRepository,
+    repositories.scopeResolver,
   ).execute(user.id, project.id);
 
   assert.equal(result.ok, true);
@@ -210,6 +212,7 @@ test('get project brief returns null when no saved brief exists', async (t) => {
   const result = await new GetProjectBriefUseCase(
     repositories.contentRepository,
     repositories.projectBriefHistoryRepository,
+    repositories.scopeResolver,
   ).execute(user.id, project.id);
 
   assert.deepEqual(result, { ok: true, source: 'none', brief: null });

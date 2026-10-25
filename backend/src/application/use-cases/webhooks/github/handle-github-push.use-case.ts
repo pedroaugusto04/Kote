@@ -4,7 +4,7 @@ import { ExternalIdentityProvider, IntegrationProvider, WebhookEventStatus } fro
 import { buildTelegramCodeReviewMessage } from '../../../../domain/notifications.js';
 import type { GithubPushWebhookRequest } from '../../../models/webhook-request.models.js';
 import { GithubIntegrationGateway } from '../../../ports/integrations/github-integration.port.js';
-import { ExternalIdentityRepository } from '../../../ports/integrations/integrations.repository.js';
+import { ExternalIdentityRepository, resolveExternalIdentity } from '../../../ports/integrations/integrations.repository.js';
 import { RuntimeEnvironmentProvider } from '../../../ports/observability/runtime-environment.port.js';
 import { WebhookEventRepository } from '../../../ports/webhooks/webhook-events.repository.js';
 import { ProcessGithubPushService } from '../../../services/integrations/process-github-push.service.js';
@@ -15,8 +15,6 @@ import { githubAuditPayload, type GithubPushPayload } from '../../../utils/githu
 
 @Injectable()
 export class HandleGithubPushUseCase {
-  private readonly logger: AppLogger;
-
   constructor(
     private readonly processGithubPushService: ProcessGithubPushService,
     private readonly externalIdentities: ExternalIdentityRepository,
@@ -24,9 +22,8 @@ export class HandleGithubPushUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly githubIntegrationGateway: GithubIntegrationGateway,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
-  ) {
-    this.logger = AppLogger.create();
-  }
+    private readonly logger: AppLogger,
+  ) {}
 
   async execute(input: GithubPushWebhookRequest, options?: { synchronous?: boolean }) {
     const environment = this.environmentProvider.read();

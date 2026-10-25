@@ -1,3 +1,6 @@
+export const DEFAULT_WORKSPACE_SLUG = 'default';
+export const DEFAULT_PROJECT_SLUG = 'inbox';
+
 export function slugify(value: string): string {
   return String(value || '')
     .normalize('NFKD')
@@ -8,18 +11,26 @@ export function slugify(value: string): string {
     .replace(/-+/g, '-');
 }
 
+export function normalizeWorkspaceSlug(value?: unknown): string {
+  return slugify(String(value || '').trim()) || DEFAULT_WORKSPACE_SLUG;
+}
+
+export function normalizeProjectSlug(value?: unknown): string {
+  return slugify(String(value || '').trim()) || DEFAULT_PROJECT_SLUG;
+}
+
 /**
  * Slugifies a project name with fallback to 'inbox'
  */
 export function slugifyProjectName(value: string): string {
-  return slugify(value) || 'inbox';
+  return normalizeProjectSlug(value);
 }
 
 /**
- * Slugifies a workspace name
+ * Slugifies a workspace name with fallback to 'default'
  */
 export function slugifyWorkspaceName(value: string): string {
-  return slugify(value);
+  return normalizeWorkspaceSlug(value);
 }
 
 /**

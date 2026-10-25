@@ -12,16 +12,13 @@ import { AppLogger } from '../../../../observability/logger.js';
 @Controller('api/webhooks')
 @UseGuards(WebhookRateLimitGuard)
 export class WebhookController {
-  private readonly logger: AppLogger;
-
   constructor(
     private readonly githubPush: HandleGithubPushUseCase,
     private readonly githubPr: HandleGithubPullRequestUseCase,
     private readonly whatsappWebhook: HandleWhatsappWebhookUseCase,
     private readonly telegramWebhook: HandleTelegramWebhookUseCase,
-  ) {
-    this.logger = AppLogger.create();
-  }
+    private readonly logger: AppLogger,
+  ) {}
 
   @Post('github/push')
   @ApiOperation({ summary: 'Handle GitHub webhook events' })
@@ -37,18 +34,13 @@ export class WebhookController {
       after: body.after,
     });
 
+    const rawBody = request.rawBody?.toString('utf8') || JSON.stringify(body || {});
+    const webhookRequest = { headers: request.headers, body, rawBody };
+
     if (eventType === 'pull_request') {
-      return this.githubPr.execute({
-        headers: request.headers,
-        body,
-        rawBody: request.rawBody?.toString('utf8') || JSON.stringify(body || {}),
-      });
+      return this.githubPr.execute(webhookRequest);
     }
-    return this.githubPush.execute({
-      headers: request.headers,
-      body,
-      rawBody: request.rawBody?.toString('utf8') || JSON.stringify(body || {}),
-    });
+    return this.githubPush.execute(webhookRequest);
   }
 
   @Post('whatsapp')

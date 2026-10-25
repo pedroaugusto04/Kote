@@ -55,7 +55,15 @@ import { ZodValidationPipe } from '../../zod-validation.pipe.js';
 import { ScopeGuard } from '../../guards/scope.guard.js';
 import { Scoped, Scope } from '../../scope.decorators.js';
 import type { WorkspaceScope } from '../../../../application/models/workspace-scope.models.js';
-import { toCreateProjectDto, toUpdateProjectDto } from '../../mappers/project.mapper.js';
+import {
+  toCreateProjectDto,
+  toUpdateProjectDto,
+  toExportProjectNotesZipInput,
+  toListProjectTimelineInput,
+  toListProjectKnowledgeMapInput,
+  toListProjectDecisionsInput,
+  toExportProjectAdrsInput,
+} from '../../mappers/project.mapper.js';
 
 @ApiTags('Projects')
 @Controller('api/projects')
@@ -155,14 +163,8 @@ export class ProjectsController {
     @Res() res: Response,
     @Scope() scope?: WorkspaceScope,
   ) {
-    const result = await this.exportProjectNotesZipUseCase.execute(user.id, {
-      projectSlug: scope?.projectSlug ?? query.projectSlug,
-      projectId: scope?.projectId || undefined,
-      folderId: query.folderId,
-      category: query.category,
-      status: query.status,
-      query: query.query,
-    });
+    const input = toExportProjectNotesZipInput(query, scope);
+    const result = await this.exportProjectNotesZipUseCase.execute(user.id, input);
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);
@@ -180,7 +182,8 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, orderByPin: query.orderByPin ?? true });
+    const input = toListProjectTimelineInput(query);
+    const result = await this.listProjectTimelineUseCase.execute(user.id, input);
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 
@@ -197,7 +200,8 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectTimelineQuerySchema, 'invalid_project_timeline_query')) query: ProjectTimelineQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    const result = await this.listProjectTimelineUseCase.execute(user.id, { ...query, projectId: scope.projectId!, orderByPin: query.orderByPin ?? true });
+    const input = toListProjectTimelineInput(query, scope);
+    const result = await this.listProjectTimelineUseCase.execute(user.id, input);
     return { ok: true, timeline: result.items, pagination: result.pagination };
   }
 
@@ -214,7 +218,8 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(projectKnowledgeMapQuerySchema, 'invalid_project_knowledge_map_query')) query: ProjectKnowledgeMapQuery,
     @CurrentUser() user: AuthenticatedUser,
   ) {
-    return this.listProjectKnowledgeMapUseCase.execute(user.id, { ...query, projectId: scope.projectId! });
+    const input = toListProjectKnowledgeMapInput(query, scope);
+    return this.listProjectKnowledgeMapUseCase.execute(user.id, input);
   }
 
   @Post(':projectSlug/brief')
@@ -342,7 +347,12 @@ export class ProjectsController {
     @Scope() scope: WorkspaceScope,
     @Param('projectSlug') _projectSlug: string,
   ) {
-    const result = await this.listProjectDependenciesUseCase.execute(user.id, scope.projectId!, scope.projectSlug!, scope.workspaceId);
+    const result = await this.listProjectDependenciesUseCase.execute({
+      userId: user.id,
+      projectId: scope.projectId!,
+      projectSlug: scope.projectSlug!,
+      workspaceId: scope.workspaceId,
+    });
     return { ok: true, ...result };
   }
 
@@ -379,15 +389,8 @@ export class ProjectsController {
     @Param('projectSlug') _projectSlug: string,
     @Query(new ZodValidationPipe(projectDecisionsQuerySchema, 'invalid_project_decisions_query')) query: ProjectDecisionsQuery,
   ) {
-    const result = await this.listProjectDecisionsUseCase.execute(user.id, {
-      projectSlug: scope.projectSlug!,
-      status: query.status,
-      file: query.file,
-      search: query.search,
-      kind: query.kind,
-      page: query.page,
-      pageSize: query.pageSize,
-    });
+    const input = toListProjectDecisionsInput(query, scope);
+    const result = await this.listProjectDecisionsUseCase.execute(user.id, input);
     return { ok: true, ...result };
   }
 
@@ -405,13 +408,8 @@ export class ProjectsController {
     @Query(new ZodValidationPipe(exportProjectAdrsQuerySchema, 'invalid_export_adr_query')) query: ExportProjectAdrsQuery,
     @Res() res: Response,
   ) {
-    const result = await this.exportProjectAdrsUseCase.execute(user.id, {
-      projectSlug: scope.projectSlug!,
-      status: query.status,
-      file: query.file,
-      search: query.search,
-      kind: query.kind,
-    });
+    const input = toExportProjectAdrsInput(query, scope);
+    const result = await this.exportProjectAdrsUseCase.execute(user.id, input);
 
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${result.filename}"`);

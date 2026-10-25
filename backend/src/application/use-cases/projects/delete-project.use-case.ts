@@ -1,14 +1,16 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 
 @Injectable()
 export class DeleteProjectUseCase {
-  constructor(private readonly contentRepository: ContentRepository) { }
+  constructor(
+    private readonly contentRepository: ContentRepository,
+    private readonly scopeResolver: WorkspaceScopeResolver,
+  ) { }
 
   async execute(projectId: string, userId: string) {
-
-    const project = await this.contentRepository.getProjectById(userId, projectId);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
+    const project = await this.scopeResolver.resolveProject(userId, projectId);
 
     const notes = await this.contentRepository.listNotesLite(userId);
     if (notes.some((note) => note.projectId === projectId)) {

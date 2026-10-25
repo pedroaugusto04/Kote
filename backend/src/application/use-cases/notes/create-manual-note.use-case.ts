@@ -8,7 +8,7 @@ import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-en
 import { NoteEventDispatcher } from '../../services/webhooks/note-event-dispatcher.js';
 import { IngestEntryUseCase } from '../ingest/ingest-entry.use-case.js';
 import { toIngestPayload, type NoteMapperContext } from '../../mappers/note.mapper.js';
-import { requireProject } from '../../helpers/resource-validation.helpers.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
 import { isNoteAiUsage } from '../../../domain/ai-usage.js';
 import { AppLogger } from '../../../observability/logger.js';
@@ -21,6 +21,7 @@ export class CreateManualNoteUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly noteEventDispatcher: NoteEventDispatcher,
     private readonly logger: AppLogger,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) { }
 
   async execute(input: CreateManualNoteDto, userId: string) {
@@ -37,7 +38,7 @@ export class CreateManualNoteUseCase {
       title: sanitizedTitle,
     };
 
-    const project = await requireProject(this.contentRepository, userId, sanitizedInput.projectId);
+    const project = await this.scopeResolver.resolveProject(userId, sanitizedInput.projectId);
     const workspaceSlug = project.workspaceSlug || 'default';
     const reminderTimeZone = this.environmentProvider.read().reminderTimeZone;
 

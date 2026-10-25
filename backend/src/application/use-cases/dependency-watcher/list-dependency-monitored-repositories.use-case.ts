@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 import type { ListDependencyMonitoredRepositoriesResult, MonitoredRepositoryItem } from '../../models/dependency-watcher.models.js';
 import { DependencyWatcherRepository } from '../../ports/dependency-watcher/dependency-watcher.repository.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { GithubRepositoryResolutionService } from '../../services/integrations/github-repository-resolution.service.js';
 import { MissingCredentialError } from '../../../contracts/enums.js';
 
@@ -12,17 +13,12 @@ export class ListDependencyMonitoredRepositoriesUseCase {
     private readonly dependencyWatcherRepository: DependencyWatcherRepository,
     private readonly contentRepository: ContentRepository,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
   async execute(userId: string, workspaceSlug: string): Promise<ListDependencyMonitoredRepositoriesResult> {
-    const workspace = await this.contentRepository.getWorkspaceBySlug(userId, workspaceSlug);
-    if (!workspace) {
-      throw new NotFoundException('workspace_not_found');
-    }
-
-    const workspaceProjects = this.contentRepository.listProjectsByWorkspace
-      ? await this.contentRepository.listProjectsByWorkspace(userId, workspace.id)
-      : (await this.contentRepository.listProjects(userId)).filter((project) => project.workspaceSlug === workspaceSlug);
+    const workspace = await this.scopeResolver.resolveWorkspace(userId, workspaceSlug);
+    const workspaceProjects = await this.contentRepository.listProjectsByWorkspace(userId, workspace.id);
     const linkedRepositories = new Map<string, { fullName: string; projectNames: string[] }>();
 
     for (const project of workspaceProjects) {

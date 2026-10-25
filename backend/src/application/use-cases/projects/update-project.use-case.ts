@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { UpdateProjectInput } from '../../models/project-input.models.js';
 import { ContentRepository } from '../../ports/notes/content.repository.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { GithubRepositoryResolutionService } from '../../services/integrations/github-repository-resolution.service.js';
 import { toProjectUpdateInput } from '../../mappers/project-update.mapper.js';
 
@@ -9,11 +10,11 @@ export class UpdateProjectUseCase {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly githubRepositoryResolution: GithubRepositoryResolutionService,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) { }
 
   async execute(input: UpdateProjectInput, userId: string) {
-    const project = await this.contentRepository.getProjectById(userId, input.projectId);
-    if (!project || !project.enabled) throw new NotFoundException('project_not_found');
+    const project = await this.scopeResolver.resolveProject(userId, input.projectId);
 
     const selectedRepositories = await this.githubRepositoryResolution.resolveSelectedRepositories({
       userId,

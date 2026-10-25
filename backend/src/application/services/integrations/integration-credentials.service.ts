@@ -64,9 +64,34 @@ function isGuidedProvider(value: string): value is GuidedIntegrationProvider {
   return guidedProviders.includes(value as GuidedIntegrationProvider);
 }
 
+function isManagedAiProvider(provider: string): boolean {
+  return provider.startsWith('ai-') || provider.endsWith('-ai') || provider === IntegrationProvider.AiSessionSynthesis;
+}
+
+function buildToggleableIntegration(
+  provider: GuidedIntegrationProvider,
+  isConnected: boolean,
+  workspaceSlug: string,
+): StoredIntegration {
+  return {
+    provider,
+    name: providerLabels[provider].name,
+    description: providerLabels[provider].description,
+    status: isConnected ? StoredIntegrationStatus.Connected : StoredIntegrationStatus.Missing,
+    workspaceSlug,
+    publicMetadata: {},
+    primaryAction: { type: IntegrationActionType.Connect, label: isConnected ? 'Disable' : 'Enable' },
+    steps: isConnected ? connectedSteps(provider) : defaultSteps(provider),
+    lastError: null,
+    connectedAccount: null,
+    updatedAt: null,
+    revokedAt: null,
+  };
+}
+
 function publicCredential(record: IntegrationCredentialRecord | null, provider: GuidedIntegrationProvider, workspaceSlug: string): StoredIntegration {
   const label = providerLabels[provider];
-  const isAiProvider = provider.startsWith('ai-') || provider.endsWith('-ai') || provider === IntegrationProvider.AiSessionSynthesis;
+  const isAiProvider = isManagedAiProvider(provider);
   const connectAction = { type: IntegrationActionType.Connect, label: provider === IntegrationProvider.GithubApp ? 'Connect GitHub' : isAiProvider ? 'Enable' : `Connect ${label.name}` };
   if (!record) {
     return {
@@ -130,7 +155,7 @@ function connectedSteps(provider: GuidedIntegrationProvider): string[] {
   if (provider === IntegrationProvider.Telegram) return ['Telegram chat connected.'];
   if (provider === IntegrationProvider.PushNotifications) return ['Push notifications are active on this browser/device.'];
   if (provider === IntegrationProvider.DependencyWatcher) return ['Dependency Watcher enabled.', 'Dependencies are being monitored for updates.'];
-  if (provider.startsWith('ai-') || provider.endsWith('-ai') || provider === IntegrationProvider.AiSessionSynthesis) return ['Feature active for this workspace.'];
+  if (isManagedAiProvider(provider)) return ['Feature active for this workspace.'];
   return ['Integration connected.'];
 }
 
@@ -170,43 +195,13 @@ export class IntegrationCredentialService {
     const workspace = workspaces.find((w) => w.workspaceSlug === workspaceSlug);
     const integrations = guidedProviders.map((provider) => {
       if (provider === IntegrationProvider.PushNotifications) {
-        const hasSub = pushSubs.length > 0;
-        return {
-          provider,
-          name: providerLabels[provider].name,
-          description: providerLabels[provider].description,
-          status: hasSub ? StoredIntegrationStatus.Connected : StoredIntegrationStatus.Missing,
-          workspaceSlug,
-          publicMetadata: {},
-          primaryAction: { type: 'connect' as const, label: hasSub ? 'Disable' : 'Enable' },
-          steps: hasSub ? connectedSteps(provider) : defaultSteps(provider),
-          lastError: null,
-          connectedAccount: null,
-          updatedAt: null,
-          revokedAt: null,
-        };
+        return buildToggleableIntegration(provider, pushSubs.length > 0, workspaceSlug);
       }
       if (provider === IntegrationProvider.DependencyWatcher) {
-        const enabled = workspace?.dependencyWatcherEnabled || false;
-        return {
-          provider,
-          name: providerLabels[provider].name,
-          description: providerLabels[provider].description,
-          status: enabled ? StoredIntegrationStatus.Connected : StoredIntegrationStatus.Missing,
-          workspaceSlug,
-          publicMetadata: {},
-          primaryAction: { type: 'connect' as const, label: enabled ? 'Disable' : 'Enable' },
-          steps: enabled ? connectedSteps(provider) : defaultSteps(provider),
-          lastError: null,
-          connectedAccount: null,
-          updatedAt: null,
-          revokedAt: null,
-        };
+        return buildToggleableIntegration(provider, Boolean(workspace?.dependencyWatcherEnabled), workspaceSlug);
       }
       const integration = publicCredential(records.find((record) => record.provider === provider) || null, provider, workspaceSlug);
-      if (
-        provider.startsWith('ai-') || provider.endsWith('-ai') || provider === IntegrationProvider.AiSessionSynthesis
-      ) {
+      if (isManagedAiProvider(provider)) {
         const configuration = aiEnvStatus(provider, this.environmentProvider);
         if (integration.status === StoredIntegrationStatus.Connected && !configuration.configured) {
           return {

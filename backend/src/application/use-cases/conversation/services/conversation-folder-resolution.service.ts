@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { trimText } from '../../../../domain/strings.js';
 import type { AgentConversationState } from '../../../../contracts/agent-conversation.js';
 import { ContentRepository } from '../../../ports/notes/content.repository.js';
-import { resolveContentScopeFromSlugs } from '../../../utils/content/content-scope.utils.js';
+import { WorkspaceScopeResolver } from '../../../services/content/workspace-scope-resolver.service.js';
 import { folderSlugFromDisplayName } from '../../../utils/content/project-folder.utils.js';
 import { CreateProjectFolderUseCase } from '../../projects/create-project-folder.use-case.js';
 
@@ -12,13 +12,14 @@ export class ConversationFolderResolutionService {
   constructor(
     private readonly contentRepository: ContentRepository,
     private readonly createProjectFolderUseCase: CreateProjectFolderUseCase,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
   async resolveFolderIdForSubmission(userId: string, state: AgentConversationState) {
     if (!state.project.selectedProjectSlug || state.project.selectedProjectSlug === 'inbox') return '';
     if (state.folder.placeInRoot) return '';
 
-    const scope = await resolveContentScopeFromSlugs(this.contentRepository, userId, {
+    const scope = await this.scopeResolver.resolveContentScopeFromSlugs(userId, {
       projectSlug: state.project.selectedProjectSlug,
     });
     const project = scope.project;

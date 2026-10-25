@@ -4,7 +4,8 @@ import { ContentRepository } from '../../ports/notes/content.repository.js';
 import { RuntimeEnvironmentProvider } from '../../ports/observability/runtime-environment.port.js';
 import { buildUpdatedNote } from './note-editor.helpers.js';
 import { NoteLifecycleService } from '../../services/content/note-lifecycle.service.js';
-import { requireProject, requireNote, requireProjectFolderOptional } from '../../helpers/resource-validation.helpers.js';
+import { requireNote } from '../../helpers/resource-validation.helpers.js';
+import { WorkspaceScopeResolver } from '../../services/content/workspace-scope-resolver.service.js';
 import { resolveCanonicalTypeFromCategories } from '../../../domain/note-classification.js';
 import { sanitizeManualNoteContent } from '../../helpers/sensitive-data-redaction.helpers.js';
 import { PostgresDatabase } from '../../../infrastructure/persistence/database.js';
@@ -16,6 +17,7 @@ export class UpdateNoteUseCase {
     private readonly environmentProvider: RuntimeEnvironmentProvider,
     private readonly noteLifecycleService: NoteLifecycleService,
     private readonly database: PostgresDatabase,
+    private readonly scopeResolver: WorkspaceScopeResolver,
   ) {}
 
   async execute(input: UpdateNoteDto, userId: string, tx?: any) {
@@ -42,27 +44,33 @@ export class UpdateNoteUseCase {
       : [];
     const canonicalType = resolveCanonicalTypeFromCategories(categories, categoryIds);
 
-    let projectSlug = note.projectSlug || '';
-    let projectId = note.projectId;
-    let workspaceSlug = note.workspaceSlug || '';
-    let workspaceId = note.workspaceId;
-
-    if (sanitizedInput.projectId && sanitizedInput.projectId !== note.projectId) {
-      const project = await requireProject(this.contentRepository, userId, sanitizedInput.projectId);
-      projectSlug = project.projectSlug;
-      projectId = project.id;
-      workspaceSlug = project.workspaceSlug || '';
-      workspaceId = project.workspaceId;
-    }
-
-    const project = await this.contentRepository.getProjectById(userId, projectId);
-    const previousFolder = note.folderId
-      ? await requireProjectFolderOptional(this.contentRepository, userId, note.projectId, note.folderId)
+    const targetProject = (sanitizedInput.projectId && sanitizedInput.projectId !== note.projectId)
+      ? await this.scopeResolver.resolveProject(userId, sanitizedInput.projectId)
       : null;
-    const nextFolder = await requireProjectFolderOptional(this.contentRepository, userId, projectId, sanitizedInput.folderId);
+
+    const scope = {
+      projectId: targetProject?.id ?? note.projectId,
+      projectSlug: targetProject?.projectSlug ?? (note.projectSlug || ''),
+      workspaceId: targetProject?.workspaceId ?? note.workspaceId,
+      workspaceSlug: targetProject?.workspaceSlug ?? (note.workspaceSlug || ''),
+      reminderTimeZone,
+    };
+
+    const previousFolder = note.folderId
+      ? await this.scopeResolver.resolveProjectFolder(userId, note.projectId, note.folderId)
+      : null;
+    const nextFolder = sanitizedInput.folderId
+      ? await this.scopeResolver.resolveProjectFolder(userId, scope.projectId, sanitizedInput.folderId)
+      : null;
 
     const updatedNoteInput = {
-      ...buildUpdatedNote(note, previousFolder, nextFolder, { ...sanitizedInput, canonicalType }, projectSlug, projectId, workspaceSlug, workspaceId, reminderTimeZone),
+      ...buildUpdatedNote({
+        note,
+        previousFolder,
+        nextFolder,
+        input: { ...sanitizedInput, canonicalType },
+        scope,
+      }),
       categoryIds: sanitizedInput.categoryIds,
     };
 

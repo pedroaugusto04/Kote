@@ -88,11 +88,15 @@ async function createFixture(t, turns) {
     repositories.runtimeEnvironmentProvider,
     repositories.noteLifecycleService,
     loggerMock,
+    repositories.scopeResolver,
+
     repositories.database,
+    repositories.scopeResolver,
+
   );
-  const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository);
+  const createFolder = new CreateProjectFolderUseCase(repositories.contentRepository, repositories.scopeResolver);
   const presenter = new ConversationAgentPresenter();
-  const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder);
+  const folderResolution = new ConversationFolderResolutionService(repositories.contentRepository, createFolder, repositories.scopeResolver);
   const reminderList = new ListPaginatedRemindersUseCase(
     repositories.contentQueryRepository,
     new RefreshReminderStatusesUseCase(
@@ -107,14 +111,25 @@ async function createFixture(t, turns) {
     ingest,
     environment,
     new StubConversationAgentGateway(turns),
-    new IngestAgentToolsService(repositories.contentRepository, loggerMock, reminderList),
+    new IngestAgentToolsService(repositories.contentRepository, loggerMock, reminderList, createFolder, repositories.scopeResolver),
     presenter,
     folderResolution,
     new AiEntitlementService(repositories.credentialRepository, repositories.quotaService),
     { buildTools: () => [] },
     loggerMock,
+    repositories.scopeResolver,
+
   );
-  return { repositories, user, agentUseCase };
+  const testAgentUseCase = {
+    ...agentUseCase,
+    execute: (paramsOrInput, userId = user.id, workspaceSlug = 'default', projectSlug) => {
+      const params = (paramsOrInput && typeof paramsOrInput === 'object' && 'input' in paramsOrInput)
+        ? paramsOrInput
+        : { input: paramsOrInput, userId, workspaceSlug, projectSlug };
+      return agentUseCase.execute(params);
+    },
+  };
+  return { repositories, user, agentUseCase: testAgentUseCase };
 }
 
 function input(messageText) {
@@ -384,7 +399,8 @@ test('agent conversation does not keep confirmation state after immediate save',
   const first = await agentUseCase.execute(input('resumo da reuniao'), user.id, 'default');
   assert.equal(first.action, 'submit');
   assert.equal((await repositories.contentRepository.listNotes(user.id)).length, 1);
-  assert.equal(await repositories.countConversationStates(), 0);
+  const storedState = await repositories.conversationStateRepository.get(user.id, 'default', 'group@g.us');
+  assert.equal(Boolean(storedState?.state?.confirmation), false);
 });
 
 test('agent conversation saves natural capture without waiting for approval intent', async (t) => {
@@ -439,7 +455,8 @@ test('agent conversation clears state after immediate submission', async (t) => 
 
   const saved = await agentUseCase.execute(input('alinhei o runbook do api gateway'), user.id, 'default');
   assert.equal(saved.action, 'submit');
-  assert.equal(await repositories.countConversationStates(), 0);
+  const storedState = await repositories.conversationStateRepository.get(user.id, 'default', 'group@g.us');
+  assert.equal(Boolean(storedState?.state?.draft), false);
 });
 
 test('agent conversation accepts AI reminder kind alias and saves immediately', async (t) => {

@@ -6,6 +6,7 @@ import { ConversationAgentPresenter } from '../../../dist/application/use-cases/
 import { ConversationFolderResolutionService } from '../../../dist/application/use-cases/conversation/services/conversation-folder-resolution.service.js';
 import { IngestAgentToolsService } from '../../../dist/application/services/conversation/ingest-agent-tools.service.js';
 import { AiEntitlementService } from '../../../dist/application/services/ai/ai-entitlement.service.js';
+import { WorkspaceScopeResolver } from '../../../dist/application/services/content/workspace-scope-resolver.service.js';
 import {
   buildNextAgentConversationState,
   emptyAgentConversationState,
@@ -202,7 +203,11 @@ test('conversation folder resolution creates missing nested folders in order', a
       return { folder };
     },
   };
-  const service = new ConversationFolderResolutionService(contentRepository, createProjectFolderUseCase);
+  const service = new ConversationFolderResolutionService(
+    contentRepository,
+    createProjectFolderUseCase,
+    new WorkspaceScopeResolver(contentRepository),
+  );
   const state = {
     ...emptyAgentConversationState,
     project: { selectedProjectSlug: 'platform' },
@@ -323,7 +328,13 @@ test('process agent conversation auto-creates a missing project before submittin
         };
       },
     },
-    new IngestAgentToolsService(contentRepository, { info() {}, warn() {}, error() {}, debug() {} }, { async execute() { return { items: [], pagination: {} }; } }),
+    new IngestAgentToolsService(
+      contentRepository,
+      { info() {}, warn() {}, error() {}, debug() {} },
+      { async execute() { return { items: [], pagination: {} }; } },
+      { execute: async () => ({}) },
+      new WorkspaceScopeResolver(contentRepository),
+    ),
     presenter,
     {
       async resolveFolderIdForSubmission() {
@@ -336,6 +347,8 @@ test('process agent conversation auto-creates a missing project before submittin
       },
     }),
     { buildTools: () => [] },
+    { info() {}, warn() {}, error() {}, debug() {} },
+    new WorkspaceScopeResolver(contentRepository),
   );
 
   const result = await useCaseWithDecision.execute({

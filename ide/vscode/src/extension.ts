@@ -88,6 +88,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
   );
 
+  const getActiveProjectSlug = () => resolveProjectSlug(sidebarProvider?.activeProject ?? activeProject, kbClient.defaultProjectSlug);
+  const getActiveProjectSelection = () => ({
+    projectSlug: sidebarProvider?.activeProject ?? activeProject,
+    isManuallySelected: (() => {
+      const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
+      return savedProject !== null && savedProject !== 'auto';
+    })(),
+  });
+
   // -------------------------------------------------------------------------
   // Commands
   // -------------------------------------------------------------------------
@@ -143,7 +152,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     vscode.commands.registerCommand('kote.showRecentAiSessions', () => {
-      historyManager.showRecentSessions(kbClient);
+      historyManager.showRecentSessions(kbClient, getActiveProjectSlug());
     }),
 
     vscode.commands.registerCommand('kote.configureAiSessionMode', () => {
@@ -155,16 +164,40 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
 
     vscode.commands.registerCommand('kote.viewActiveSessionHandoff', async () => {
-      const markdown = historyManager.handoff.getActiveHandoffMarkdown();
+      let markdown = historyManager.handoff.getActiveHandoffMarkdown();
       if (!markdown) {
-        vscode.window.showInformationMessage('Kote: No active session handoff context available yet.');
+        markdown = historyManager.handoff.loadLastHandoffFromFile();
+        if (markdown) {
+          historyManager.handoff.setActiveHandoffMarkdown(markdown);
+        }
+      }
+
+      if (!markdown && isConfigured()) {
+        const projectSlug = getActiveProjectSlug();
+        markdown = await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Kote: Fetching latest session handoff from cloud...',
+            cancellable: false,
+          },
+          async () => {
+            return historyManager.handoff.generateHandoffFromLatestCloudSession(projectSlug);
+          },
+        );
+      }
+
+      if (!markdown) {
+        vscode.window.showInformationMessage('Kote: No active or recent session handoff available.');
         return;
       }
       await historyManager.handoff.openHandoffPreview(markdown, 'active chat');
     }),
 
     vscode.commands.registerCommand('kote.copySessionHandoff', async () => {
-      await historyManager.handoff.showHandoffQuickPick(historyManager.getRecentSessionsList());
+      await historyManager.handoff.showHandoffQuickPick(
+        historyManager.getRecentSessionsList(),
+        getActiveProjectSlug(),
+      );
     })
   );
 
@@ -172,14 +205,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     logInfo('Hooks', `Auto-registration of harness hooks skipped: ${toMessage(err)}`);
   });
 
-  const getActiveProjectSlug = () => resolveProjectSlug(sidebarProvider?.activeProject ?? activeProject, kbClient.defaultProjectSlug);
-  const getActiveProjectSelection = () => ({
-    projectSlug: sidebarProvider?.activeProject ?? activeProject,
-    isManuallySelected: (() => {
-      const savedProject = context.workspaceState.get<string | null>('kote.activeProjectSlug', null);
-      return savedProject !== null && savedProject !== 'auto';
-    })(),
-  });
   historyManager.startWatching(kbClient, context, getActiveProjectSelection);
 
   registerAskCommand(context, kbClient, getActiveProjectSlug);

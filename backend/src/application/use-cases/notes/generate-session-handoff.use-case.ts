@@ -161,8 +161,7 @@ export class GenerateSessionHandoffUseCase {
 
     if (aiNotes.length === 0) return null;
 
-    // Prefer a note from a different provider if available, otherwise latest AI note
-    const differentProviderNote = aiNotes.find((n) => n.source && n.source !== currentProvider);
-    return differentProviderNote || aiNotes[0];
+    // Return the latest AI session note regardless of provider
+    return aiNotes[0];
   }
 }

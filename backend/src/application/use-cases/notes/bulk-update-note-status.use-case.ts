@@ -10,6 +10,12 @@ import { ContentObjectStorageService } from '../../services/content/content-obje
 import { buildUpdatedNote, extractEditableRawText } from './note-editor.helpers.js';
 import { NoteEventDispatcher } from '../../services/webhooks/note-event-dispatcher.js';
 
+export interface BulkUpdateNoteStatusInput {
+  userId: string;
+  ids: string[];
+  status: any;
+}
+
 @Injectable()
 export class BulkUpdateNoteStatusUseCase {
   constructor(
@@ -20,7 +26,9 @@ export class BulkUpdateNoteStatusUseCase {
     private readonly contentObjectStorage: ContentObjectStorageService,
   ) {}
 
-  async execute(userId: string, ids: string[], status: any) {
+  async execute(input: BulkUpdateNoteStatusInput): Promise<{ ok: true; updatedCount: number }> {
+    const { userId, ids, status } = input;
+
     if (ids.length === 0) {
       return { ok: true as const, updatedCount: 0 };
     }
@@ -42,16 +50,17 @@ export class BulkUpdateNoteStatusUseCase {
           reminderAt: note.reminderAt,
         };
 
-        const updatedFields = buildUpdatedNote(
+        const updatedFields = buildUpdatedNote({
           note,
-          null,
-          null,
           input,
-          note.projectSlug || undefined,
-          note.projectId || undefined,
-          note.workspaceSlug || undefined,
-          note.workspaceId || undefined,
-        );
+          scope: {
+            projectSlug: note.projectSlug || undefined,
+            projectId: note.projectId || undefined,
+            workspaceSlug: note.workspaceSlug || undefined,
+            workspaceId: note.workspaceId || undefined,
+            reminderTimeZone,
+          },
+        });
 
         // Update markdown in storage directly (no DB query here)
         await this.contentObjectStorage.saveNoteMarkdown(userId, {

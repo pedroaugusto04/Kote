@@ -44,9 +44,13 @@ export interface KbNote {
   status: string;
   createdAt?: string;
   updatedAt?: string;
+  occurredAt?: string;
   date?: string;
   sourceChannel?: string;
+  source?: string;
+  sessionId?: string;
   content?: string;
+  markdown?: string;
   summary?: string;
   metadata?: Record<string, unknown>;
   relevanceScore?: number;

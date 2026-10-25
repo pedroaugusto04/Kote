@@ -26,6 +26,7 @@ import {
 } from '../../dto/operations.dto.js';
 import { markRemindersBodySchema, type MarkRemindersBody } from '../../dto/query.dto.js';
 import { ZodValidationPipe } from '../../zod-validation.pipe.js';
+import { toProcessAgentConversationInput } from '../../mappers/operations.mapper.js';
 
 @ApiTags('Operations')
 @Controller('api')
@@ -60,12 +61,7 @@ export class OperationsController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope?: WorkspaceScope,
   ) {
-    return this.agentConversation.execute(
-      body,
-      user.id,
-      scope?.workspaceSlug || 'default',
-      scope?.projectSlug || undefined,
-    );
+    return this.agentConversation.execute(toProcessAgentConversationInput(body, user.id, scope));
   }
 
   @Get('reminders/dispatch')
@@ -80,7 +76,11 @@ export class OperationsController {
     @Scope() scope?: WorkspaceScope,
   ) {
     const workspaceSlug = scope?.workspaceSlug ?? query.workspaceSlug ?? 'default';
-    return this.reminderDispatch.execute(query.mode, user.id, workspaceSlug);
+    return this.reminderDispatch.execute({
+      mode: query.mode,
+      userId: user.id,
+      workspaceSlug,
+    });
   }
 
   @Post('reminders/mark-sent')
@@ -94,7 +94,11 @@ export class OperationsController {
     @CurrentUser() user: AuthenticatedUser,
     @Scope() scope: WorkspaceScope,
   ) {
-    return this.markReminders.execute(body.ids, user.id, scope.workspaceSlug);
+    return this.markReminders.execute({
+      ids: body.ids,
+      userId: user.id,
+      workspaceSlug: scope.workspaceSlug,
+    });
   }
 
   @Post('operations/reindex-embeddings')
