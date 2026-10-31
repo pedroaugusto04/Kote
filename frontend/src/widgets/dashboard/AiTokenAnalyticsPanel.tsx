@@ -221,8 +221,8 @@ export function AiTokenAnalyticsPanel({ workspaceSlug, projectSlug, projectFilte
   const projectOptions = useMemo(() => {
     const list = data?.availableProjects || [];
     return [
-      { value: '', label: FILTER_LABELS.ALL_PROJECTS },
-      ...list.map((p) => ({ value: p, label: p })),
+      { value: '', label: FILTER_LABELS.ALL_PROJECTS, iconType: 'project' as const },
+      ...list.map((p) => ({ value: p, label: p, iconType: 'project' as const })),
     ];
   }, [data?.availableProjects]);
 

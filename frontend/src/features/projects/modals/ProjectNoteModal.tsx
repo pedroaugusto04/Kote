@@ -240,6 +240,7 @@ export function ProjectNoteModal({
                       options={projects!.map((project) => ({
                         value: project.projectSlug,
                         label: project.displayName,
+                        iconType: 'project' as const,
                       }))}
                       required={fieldProps.required}
                       value={selectedProjectSlug}

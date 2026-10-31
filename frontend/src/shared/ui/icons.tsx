@@ -298,6 +298,16 @@ export function FileIcon({ className, style }: { className?: string; style?: Rea
   );
 }
 
+export function LayersIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <svg aria-hidden="true" className={className} style={{ width: '1em', height: '1em', ...style }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 2 7 12 12 22 7 12 2" />
+      <polyline points="2 17 12 22 22 17" />
+      <polyline points="2 12 12 17 22 12" />
+    </svg>
+  );
+}
+
 export function ProjectsIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
     <svg className={className} style={style} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">

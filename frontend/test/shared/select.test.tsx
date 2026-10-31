@@ -127,13 +127,14 @@ describe('Select', () => {
     rectSpy.mockRestore();
   });
 
-  it('renderiza icones de folder e file nos itens e no trigger selecionado', () => {
+  it('renderiza icones de folder, file e project nos itens e no trigger selecionado', () => {
     function IconSelectHarness() {
       const [value, setValue] = useState('folder-1');
       return (
         <Select
           ariaLabel="Selecionar item"
           options={[
+            { value: 'proj-1', label: 'Kote Core', iconType: 'project' },
             { value: 'root', label: 'Root', iconType: 'folder' },
             { value: 'folder-1', label: 'Docs', iconType: 'folder' },
             { value: 'file-1', label: 'readme.md', iconType: 'file' },
@@ -153,15 +154,23 @@ describe('Select', () => {
     // Open dropdown
     fireEvent.click(trigger);
 
-    // List should show folder icon for Root and Docs, and file icon for readme.md
+    // List should show icons for all options
     const options = screen.getAllByRole('option');
-    expect(options).toHaveLength(3);
+    expect(options).toHaveLength(4);
 
     options.forEach((opt) => {
       expect(opt.querySelector('.kb-select-option-icon svg')).toBeInTheDocument();
     });
 
-    // Select the file option
+    // Select the project option
+    fireEvent.click(screen.getByRole('option', { name: 'Kote Core' }));
+
+    // Trigger should now show the project icon and label Kote Core
+    expect(trigger).toHaveTextContent('Kote Core');
+    expect(trigger.querySelector('.kb-select-option-icon svg')).toBeInTheDocument();
+
+    // Reopen and select the file option
+    fireEvent.click(trigger);
     fireEvent.click(screen.getByRole('option', { name: 'readme.md' }));
 
     // Trigger should now show the file icon and label readme.md

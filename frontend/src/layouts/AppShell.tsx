@@ -419,15 +419,17 @@ export function AppShell() {
   };
 
   const allProjectOptions = [
-    { value: '', label: UI_MESSAGES.ALL_PROJECTS },
+    { value: '', label: UI_MESSAGES.ALL_PROJECTS, iconType: 'project' as const },
     ...dashboard.projects.map((project) => ({
       value: project.projectSlug,
       label: project.displayName,
+      iconType: 'project' as const,
     })),
   ];
   const projectOptions = dashboard.projects.map((project) => ({
     value: project.projectSlug,
     label: project.displayName,
+    iconType: 'project' as const,
   }));
   const topbarProjectSelector = (() => {
     if (view === 'projects') {

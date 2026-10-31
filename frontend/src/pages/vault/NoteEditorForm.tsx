@@ -109,6 +109,7 @@ export function NoteEditorForm({
               options={projects!.map((p) => ({
                 value: p.projectSlug,
                 label: p.displayName,
+                iconType: 'project' as const,
               }))}
               value={editProjectSlug}
               onChange={setEditProjectSlug}

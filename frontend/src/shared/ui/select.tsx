@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { KEYBOARD_KEYS } from '../constants/keyboard.constants';
 import { UI_MESSAGES } from '../constants/ui.constants';
-import { FolderIcon, FileIcon } from './icons';
+import { FolderIcon, FileIcon, LayersIcon } from './icons';
 
 export type SelectOption = {
   value: string;
@@ -9,7 +9,7 @@ export type SelectOption = {
   disabled?: boolean;
   depth?: number;
   icon?: ReactNode;
-  iconType?: 'folder' | 'file';
+  iconType?: 'folder' | 'file' | 'project';
 };
 
 function resolveOptionIcon(option?: SelectOption | null): ReactNode {
@@ -17,6 +17,7 @@ function resolveOptionIcon(option?: SelectOption | null): ReactNode {
   if (option.icon) return option.icon;
   if (option.iconType === 'folder') return <FolderIcon />;
   if (option.iconType === 'file') return <FileIcon />;
+  if (option.iconType === 'project') return <LayersIcon />;
   return null;
 }
 
