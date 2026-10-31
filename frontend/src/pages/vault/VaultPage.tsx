@@ -20,6 +20,8 @@ import { downloadNoteAsFile } from '../../shared/utils/note-export';
 import { NoteBody, NoteAttachments } from '../../widgets/notes/NoteReaderContent';
 import { RelatedNotesSection } from '../../widgets/notes/RelatedNotesSection';
 import { FloatingNoteNavigation } from '../../widgets/notes/FloatingNoteNavigation';
+import { ConfirmationModal } from '../../shared/ui/confirmation-modal';
+import { discardChangesConfirmationCopy } from '../../shared/ui/use-modal-close-guard';
 import { useNoteEditor } from './useNoteEditor';
 import { NoteEditorForm } from './NoteEditorForm';
 
@@ -48,7 +50,12 @@ export function VaultPage({
   const [contentOpacity, setContentOpacity] = useState(1);
   const [manuallyRequestedSynthesisHash, setManuallyRequestedSynthesisHash] = useState<string | null>(null);
   const workspaceSlug = dashboard.workspaces[0]?.workspaceSlug || '';
-  const noteEditor = useNoteEditor(noteQuery.data || null, workspaceSlug);
+  const noteEditor = useNoteEditor(noteQuery.data || null, workspaceSlug, {
+    projects: dashboard.projects,
+    onProjectMoved: (newProjectSlug) => {
+      setSelectedProject(newProjectSlug);
+    },
+  });
   const requestSynthesisMutation = useMutation({
     mutationFn: () => requestNoteSynthesis(noteId),
     onSuccess: async ({ sourceHash }) => {
@@ -180,7 +187,7 @@ export function VaultPage({
             </div>
           );
         })()}
-        subtitle={selectedProjectDetails?.displayName || ''}
+        subtitle={noteEditor.isEditing ? 'Editing note' : (selectedProjectDetails?.displayName || '')}
         onBack={() => navigate(-1)}
         action={
           noteQuery.data ? (
@@ -256,30 +263,43 @@ export function VaultPage({
 
         {noteQuery.data ? (
           <>
-            <header className="note-reader-head" style={{ borderBottom: 'none', paddingBottom: 0 }}>
-              <div className="note-meta-row" style={{ marginTop: 0 }}>
-                <span className="meta">{formatDateInUserTimeZone(noteQuery.data.date)} {formatTimeInUserTimeZone(noteQuery.data.date)}</span>
-                <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
-                {noteEditor.isEditing ? null : (
-                  <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
-                )}
-              </div>
-              {noteEditor.isEditing ? null : visibleTags.length ? (
-                <Tags items={visibleTags} />
-              ) : null}
-            </header>
-            <NoteAttachments attachments={noteQuery.data.attachments} />
+            {noteEditor.isEditing ? null : (
+              <>
+                <header className="note-reader-head" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                  <div className="note-meta-row" style={{ marginTop: 0 }}>
+                    <span className="meta">{formatDateInUserTimeZone(noteQuery.data.date)} {formatTimeInUserTimeZone(noteQuery.data.date)}</span>
+                    <AttachmentIndicator count={noteQuery.data.attachmentCount || 0} />
+                    <Badge value={formatDisplayToken(noteQuery.data.status)} tone={noteQuery.data.status} />
+                  </div>
+                  {visibleTags.length ? (
+                    <Tags items={visibleTags} />
+                  ) : null}
+                </header>
+                <NoteAttachments attachments={noteQuery.data.attachments} />
+              </>
+            )}
             {noteEditor.isEditing ? (
               <NoteEditorForm
                 editTitle={noteEditor.editTitle}
                 setEditTitle={noteEditor.setEditTitle}
                 editRawText={noteEditor.editRawText}
                 setEditRawText={noteEditor.setEditRawText}
+                projects={dashboard.projects}
+                editProjectSlug={noteEditor.editProjectSlug}
+                setEditProjectSlug={noteEditor.setEditProjectSlug}
+                folders={noteEditor.folders}
+                editFolderId={noteEditor.editFolderId}
+                setEditFolderId={noteEditor.setEditFolderId}
                 editTags={noteEditor.editTags}
                 setEditTags={noteEditor.setEditTags}
                 editCategoryIds={noteEditor.editCategoryIds}
                 setEditCategoryIds={noteEditor.setEditCategoryIds}
                 categories={noteEditor.categoriesQuery.data}
+                editReminderAt={noteEditor.editReminderAt}
+                setEditReminderAt={noteEditor.setEditReminderAt}
+                existingAttachments={noteQuery.data.attachments}
+                editAttachments={noteEditor.editAttachments}
+                setEditAttachments={noteEditor.setEditAttachments}
                 isSaving={noteEditor.isSaving}
                 onSave={noteEditor.handleSave}
               />
@@ -312,6 +332,18 @@ export function VaultPage({
         onNext={() => nextNote && openNote(nextNote.id)}
         isMobile={isMobile}
       />
+
+      {noteEditor.isDiscardConfirmationOpen ? (
+        <ConfirmationModal
+          cancelLabel={discardChangesConfirmationCopy.cancelLabel}
+          confirmLabel={discardChangesConfirmationCopy.confirmLabel}
+          description={discardChangesConfirmationCopy.description}
+          onCancel={noteEditor.handleCancelDiscard}
+          onConfirm={noteEditor.handleConfirmDiscard}
+          title={discardChangesConfirmationCopy.title}
+          tone="default"
+        />
+      ) : null}
     </div>
   );
 }

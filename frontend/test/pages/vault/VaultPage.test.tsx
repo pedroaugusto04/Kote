@@ -13,11 +13,17 @@ import { createMockDashboard, createMockProject } from '../../fixtures/dashboard
 const apiSpies = vi.hoisted(() => ({
   fetchNote: vi.fn(),
   fetchNotes: vi.fn(),
+  updateNote: vi.fn(),
+  fetchProjectFolders: vi.fn(),
+  fetchWorkspaceCategories: vi.fn(),
 }));
 
 vi.mock('../../../src/shared/api/client', () => ({
   fetchNote: apiSpies.fetchNote,
   fetchNotes: apiSpies.fetchNotes,
+  updateNote: apiSpies.updateNote,
+  fetchProjectFolders: apiSpies.fetchProjectFolders,
+  fetchWorkspaceCategories: apiSpies.fetchWorkspaceCategories,
 }));
 
 const baseDashboard: Dashboard = createMockDashboard({
@@ -30,6 +36,9 @@ const baseDashboard: Dashboard = createMockDashboard({
 beforeEach(() => {
   apiSpies.fetchNote.mockReset();
   apiSpies.fetchNotes.mockReset();
+  apiSpies.updateNote.mockReset();
+  apiSpies.fetchProjectFolders.mockReset().mockResolvedValue({ folders: [] });
+  apiSpies.fetchWorkspaceCategories.mockReset().mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -389,6 +398,112 @@ describe('VaultPage', () => {
 
     expect(await screen.findByRole('heading', { name: note.title })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'AI summary' })).not.toBeInTheDocument();
+  });
+
+  it('enters inline editing mode and renders compact context row (project/folder) and metadata triggers', async () => {
+    const note = buildNoteSummary({ id: 'note-inline-edit', title: 'Original Title' });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(note),
+      editor: { canDelete: true, rawText: 'Original Body Text', reminderAt: '' },
+    });
+    apiSpies.fetchProjectFolders.mockResolvedValue({
+      folders: [{ id: 'f-1', name: 'docs', displayName: 'Docs', slug: 'docs', children: [] }],
+    });
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: 'Original Title' })).toBeInTheDocument();
+
+    const editBtn = screen.getByRole('button', { name: `${UI_MESSAGES.EDIT_NOTE} ${note.title}` });
+    fireEvent.click(editBtn);
+
+    // Save and Cancel buttons appear in the top action bar
+    expect(screen.getByRole('button', { name: 'Save changes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancel editing' })).toBeInTheDocument();
+
+    // In-place title input and content textarea are available
+    expect(screen.getByLabelText('Note title')).toHaveValue('Original Title');
+    expect(screen.getByLabelText('Note content in Markdown')).toHaveValue('Original Body Text');
+
+    // Context selectors (Project & Folder) are available
+    expect(screen.getByRole('button', { name: 'Select project' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select folder' })).toBeInTheDocument();
+
+    // Metadata progressive triggers are present
+    expect(screen.getByTitle('Toggle categories')).toBeInTheDocument();
+    expect(screen.getByTitle('Toggle tags')).toBeInTheDocument();
+    expect(screen.getByTitle('Toggle reminder')).toBeInTheDocument();
+    expect(screen.getByTitle('Toggle attachments')).toBeInTheDocument();
+  });
+
+  it('allows editing title, content, reminder and saving the note', async () => {
+    const note = buildNoteSummary({ id: 'note-save-test', title: 'Edit Test' });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(note),
+      editor: { canDelete: true, rawText: 'Old text', reminderAt: '' },
+    });
+    apiSpies.updateNote.mockResolvedValue({ ok: true, noteId: note.id });
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: 'Edit Test' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: `${UI_MESSAGES.EDIT_NOTE} ${note.title}` }));
+
+    // Change title and content
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Updated Title' } });
+    fireEvent.change(screen.getByLabelText('Note content in Markdown'), { target: { value: 'Updated text content' } });
+
+    // Open reminder and set date
+    fireEvent.click(screen.getByTitle('Toggle reminder'));
+    const reminderInput = screen.getByLabelText('Reminder');
+    fireEvent.change(reminderInput, { target: { value: '2026-11-05T14:30' } });
+
+    // Save
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    await waitFor(() => {
+      expect(apiSpies.updateNote).toHaveBeenCalledWith(
+        note.id,
+        expect.objectContaining({
+          title: 'Updated Title',
+          rawText: 'Updated text content',
+          projectSlug: 'platform',
+        }),
+      );
+    });
+  });
+
+  it('shows discard confirmation modal when canceling with unsaved changes', async () => {
+    const note = buildNoteSummary({ id: 'note-discard-test', title: 'Discard Test' });
+    apiSpies.fetchNotes.mockResolvedValue(pageResult([note], { total: 1 }));
+    apiSpies.fetchNote.mockResolvedValue({
+      ...buildNoteDetail(note),
+      editor: { canDelete: true, rawText: 'Initial text', reminderAt: '' },
+    });
+
+    renderVaultPage({ notes: [note], selectedNoteId: note.id });
+
+    expect(await screen.findByRole('heading', { name: 'Discard Test' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: `${UI_MESSAGES.EDIT_NOTE} ${note.title}` }));
+
+    // Dirty the form
+    fireEvent.change(screen.getByLabelText('Note title'), { target: { value: 'Changed Title But Want To Discard' } });
+
+    // Click Cancel
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel editing' }));
+
+    // Discard confirmation modal should appear
+    expect(screen.getByText('Discard changes?')).toBeInTheDocument();
+
+    // Confirm discard
+    fireEvent.click(screen.getByRole('button', { name: 'Close without saving' }));
+
+    // Returns to read mode with original title
+    expect(await screen.findByRole('heading', { name: 'Discard Test' })).toBeInTheDocument();
   });
 });
 

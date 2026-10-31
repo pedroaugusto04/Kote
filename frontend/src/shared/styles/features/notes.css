@@ -173,6 +173,134 @@
   max-width: 100%;
 }
 
+/* Vault Inline Note Editor */
+.vault-note-editor-form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.vault-edit-context-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+@media (max-width: 640px) {
+  .vault-edit-context-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vault-edit-context-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vault-edit-label {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 500;
+}
+
+.vault-note-title-input {
+  font-size: clamp(1.25rem, 2vw, 1.55rem);
+  font-weight: 700;
+  border: 1px solid var(--line);
+  padding: 10px 14px;
+  border-radius: 8px;
+  width: 100%;
+  background-color: var(--input-bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  margin-bottom: 12px;
+}
+
+.vault-note-title-input:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--surface-active);
+}
+
+.vault-meta-triggers {
+  margin-bottom: 14px;
+}
+
+.vault-edit-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.vault-edit-card {
+  background: var(--surface-3);
+  border: 1px solid var(--line-soft);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.vault-reminder-input {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: var(--input-bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.vault-reminder-input:focus {
+  border-color: var(--accent-border);
+}
+
+.vault-edit-clear-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 11px;
+  font-family: var(--mono);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.vault-edit-clear-btn:hover {
+  color: var(--text);
+}
+
+.vault-raw-text-editor {
+  width: 100%;
+  min-height: 380px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: var(--mono);
+  line-height: 1.6;
+  resize: vertical;
+  background-color: var(--input-bg);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vault-raw-text-editor:focus {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--surface-active);
+}
+
 .note-reader-actions-bar {
   display: flex;
   align-items: center;
