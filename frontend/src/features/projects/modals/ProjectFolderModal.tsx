@@ -119,11 +119,12 @@ export function ProjectFolderModal({
                       dataField={fieldProps['data-field']}
                       id={fieldProps.id}
                       options={[
-                        { value: '', label: 'Root' },
+                        { value: '', label: 'Root', iconType: 'folder' },
                         ...parentOptions.map((option) => ({
                           value: option.id,
                           label: option.displayName,
                           depth: option.depth,
+                          iconType: 'folder' as const,
                         })),
                       ]}
                       required={fieldProps.required}

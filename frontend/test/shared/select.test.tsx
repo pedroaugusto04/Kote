@@ -126,4 +126,46 @@ describe('Select', () => {
     expect(container.querySelector('.kb-select-popover')).toHaveClass('open-up');
     rectSpy.mockRestore();
   });
+
+  it('renderiza icones de folder e file nos itens e no trigger selecionado', () => {
+    function IconSelectHarness() {
+      const [value, setValue] = useState('folder-1');
+      return (
+        <Select
+          ariaLabel="Selecionar item"
+          options={[
+            { value: 'root', label: 'Root', iconType: 'folder' },
+            { value: 'folder-1', label: 'Docs', iconType: 'folder' },
+            { value: 'file-1', label: 'readme.md', iconType: 'file' },
+          ]}
+          value={value}
+          onChange={setValue}
+        />
+      );
+    }
+
+    const { container } = render(<IconSelectHarness />);
+    const trigger = screen.getByRole('button', { name: 'Selecionar item' });
+
+    // Selected option is 'Docs' which has folder icon
+    expect(trigger.querySelector('.kb-select-option-icon svg')).toBeInTheDocument();
+
+    // Open dropdown
+    fireEvent.click(trigger);
+
+    // List should show folder icon for Root and Docs, and file icon for readme.md
+    const options = screen.getAllByRole('option');
+    expect(options).toHaveLength(3);
+
+    options.forEach((opt) => {
+      expect(opt.querySelector('.kb-select-option-icon svg')).toBeInTheDocument();
+    });
+
+    // Select the file option
+    fireEvent.click(screen.getByRole('option', { name: 'readme.md' }));
+
+    // Trigger should now show the file icon and label readme.md
+    expect(trigger).toHaveTextContent('readme.md');
+    expect(trigger.querySelector('.kb-select-option-icon svg')).toBeInTheDocument();
+  });
 });

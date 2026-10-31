@@ -1,13 +1,24 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { KEYBOARD_KEYS } from '../constants/keyboard.constants';
 import { UI_MESSAGES } from '../constants/ui.constants';
+import { FolderIcon, FileIcon } from './icons';
 
 export type SelectOption = {
   value: string;
   label: string;
   disabled?: boolean;
   depth?: number;
+  icon?: ReactNode;
+  iconType?: 'folder' | 'file';
 };
+
+function resolveOptionIcon(option?: SelectOption | null): ReactNode {
+  if (!option) return null;
+  if (option.icon) return option.icon;
+  if (option.iconType === 'folder') return <FolderIcon />;
+  if (option.iconType === 'file') return <FileIcon />;
+  return null;
+}
 
 function firstEnabledOptionIndex(options: SelectOption[]) {
   return options.findIndex((option) => !option.disabled);
@@ -76,8 +87,10 @@ export function Select({
   const widestOption = useMemo(
     () => options.reduce<SelectOption | null>((widest, option) => {
       if (!widest) return option;
-      const widestScore = widest.label.length + (widest.depth || 0);
-      const optionScore = option.label.length + (option.depth || 0);
+      const widestHasIcon = Boolean(widest.icon || widest.iconType);
+      const optionHasIcon = Boolean(option.icon || option.iconType);
+      const widestScore = widest.label.length + (widest.depth || 0) + (widestHasIcon ? 3 : 0);
+      const optionScore = option.label.length + (option.depth || 0) + (optionHasIcon ? 3 : 0);
       return optionScore > widestScore ? option : widest;
     }, null),
     [options],
@@ -209,7 +222,12 @@ export function Select({
           className="kb-select-sizer-text"
           style={widestOption?.depth ? { paddingLeft: `${widestOption.depth * 16}px` } : undefined}
         >
-          {widestOption?.label || ''}
+          {resolveOptionIcon(widestOption) && (
+            <span aria-hidden="true" className="kb-select-option-icon">
+              {resolveOptionIcon(widestOption)}
+            </span>
+          )}
+          <span>{widestOption?.label || ''}</span>
         </span>
         <span className="kb-select-chevron-space" />
       </span>
@@ -230,7 +248,14 @@ export function Select({
         onClick={() => setIsOpen((open) => !open)}
         onKeyDown={handleTriggerKeyDown}
       >
-        <span className="kb-select-trigger-text">{selectedOption?.label || ''}</span>
+        <span className="kb-select-trigger-text">
+          {resolveOptionIcon(selectedOption) && (
+            <span aria-hidden="true" className="kb-select-option-icon">
+              {resolveOptionIcon(selectedOption)}
+            </span>
+          )}
+          <span className="kb-select-trigger-label">{selectedOption?.label || ''}</span>
+        </span>
         <span aria-hidden="true" className={`kb-select-chevron${isOpen ? ' open' : ''}`} />
       </button>
       {isOpen ? (
@@ -249,6 +274,7 @@ export function Select({
                 isSelected ? 'selected' : '',
                 isActive ? 'active' : '',
               ].filter(Boolean).join(' ');
+              const optionIcon = resolveOptionIcon(option);
               return (
                 <li key={`${option.value}-${option.label}`} role="presentation">
                   <button
@@ -267,7 +293,12 @@ export function Select({
                       className="kb-select-option-label"
                       style={option.depth ? { paddingLeft: `${option.depth * 16}px` } : undefined}
                     >
-                      {option.label}
+                      {optionIcon && (
+                        <span aria-hidden="true" className="kb-select-option-icon">
+                          {optionIcon}
+                        </span>
+                      )}
+                      <span className="kb-select-option-text">{option.label}</span>
                     </span>
                   </button>
                 </li>

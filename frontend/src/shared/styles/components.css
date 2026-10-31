@@ -25,7 +25,9 @@
 }
 
 .kb-select-sizer-text {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .kb-select-chevron-space {
@@ -75,6 +77,16 @@
 }
 
 .kb-select-trigger-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kb-select-trigger-label {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -160,10 +172,37 @@
 }
 
 .kb-select-option-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.kb-select-option-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kb-select-option-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.kb-select-option:hover .kb-select-option-icon,
+.kb-select-option.active .kb-select-option-icon,
+.kb-select-option.selected .kb-select-option-icon,
+.kb-select-trigger:hover .kb-select-option-icon {
+  color: inherit;
 }
 
 .page-head-select {

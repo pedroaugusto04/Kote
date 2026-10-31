@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { ProjectFolder } from '../../shared/api/models/project-folder';
 import { ROOT_FOLDER_ID } from './projects.constants';
+import { FolderIcon } from '../../shared/ui/icons';
 
 type FolderTreeProps = {
   folders: ProjectFolder[];
@@ -39,7 +40,8 @@ export function FolderTree({ folders, selectedFolderId, onSelect }: FolderTreePr
           type="button"
           onClick={() => onSelect(ROOT_FOLDER_ID)}
         >
-          Root
+          <FolderIcon className="folder-item-icon" />
+          <span>Root</span>
         </button>
       </div>
       {folders.map((folder) => (
@@ -112,7 +114,8 @@ function FolderTreeNode({
           }}
           title={folder.displayName}
         >
-          {folder.displayName}
+          <FolderIcon className="folder-item-icon" />
+          <span>{folder.displayName}</span>
         </button>
       </div>
       {!isCollapsed &&

@@ -435,10 +435,25 @@
   font-family: inherit;
   font-size: inherit;
   font-weight: inherit;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.folder-item-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.folder-tree-row.active .folder-item-icon,
+.folder-tree-row:hover .folder-item-icon {
+  color: inherit;
 }
 
 .chevron-icon {

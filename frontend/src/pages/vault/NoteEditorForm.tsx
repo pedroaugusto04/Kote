@@ -123,11 +123,12 @@ export function NoteEditorForm({
             id="vault-edit-folder"
             ariaLabel="Select folder"
             options={[
-              { value: '', label: 'Root' },
+              { value: '', label: 'Root', iconType: 'folder' },
               ...folders.map((f) => ({
                 value: f.id,
                 label: f.displayName,
                 depth: f.depth,
+                iconType: 'folder' as const,
               })),
             ]}
             value={editFolderId}

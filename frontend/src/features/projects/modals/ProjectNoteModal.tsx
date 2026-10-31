@@ -264,11 +264,12 @@ export function ProjectNoteModal({
                         dataField={fieldProps['data-field']}
                         id={fieldProps.id}
                         options={[
-                          { value: '', label: 'Root' },
+                          { value: '', label: 'Root', iconType: 'folder' },
                           ...modalFolders.map((folder) => ({
                             value: folder.id,
                             label: folder.displayName,
                             depth: folder.depth,
+                            iconType: 'folder' as const,
                           })),
                         ]}
                         required={fieldProps.required}
