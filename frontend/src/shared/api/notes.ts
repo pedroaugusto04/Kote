@@ -91,10 +91,15 @@ export type UpdateNoteParams = {
 };
 
 export function updateNote(id: string, params: UpdateNoteParams) {
+  const { projectSlug, ...body } = params;
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (projectSlug) {
+    headers['x-project-slug'] = projectSlug;
+  }
   return request<{ ok: true; noteId: string }>(buildApiPath(API_PATHS.NOTE_DETAIL, { id }), {
     method: 'PATCH',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(params),
+    headers,
+    body: JSON.stringify(body),
   });
 }
 

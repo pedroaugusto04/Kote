@@ -26,8 +26,9 @@ export function toCreateManualNoteDto(httpBody: CreateNoteBody, projectId?: stri
 }
 
 export function toUpdateNoteDto(httpBody: UpdateNoteBody, noteId: string, projectId?: string): UpdateNoteDto {
+  const { projectSlug: _projectSlug, ...rest } = httpBody;
   return {
-    ...httpBody,
+    ...rest,
     id: noteId,
     projectId,
     reminderAt: httpBody.reminderAt || '',

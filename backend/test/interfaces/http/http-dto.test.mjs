@@ -149,20 +149,17 @@ test('create note dto normalizes project, tags and keeps reminderAt as transport
     rawText: 'texto',
     tags: ['deploy'],
     reminderAt: '2026-04-29T09:30:00Z',
-    status: undefined,
-    categoryIds: undefined,
+    projectSlug: undefined,
     folderId: undefined,
-    attachments: undefined,
   });
-  assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', status: 'active' }), {
+  assert.deepEqual(updateNoteBodySchema.parse({ title: 'Deploy', rawText: 'texto', status: 'active', projectSlug: 'My Project' }), {
     title: 'Deploy',
     rawText: 'texto',
     tags: [],
     reminderAt: '',
+    projectSlug: 'my-project',
     status: 'active',
-    categoryIds: undefined,
     folderId: undefined,
-    attachments: undefined,
   });
   assert.deepEqual(createNoteBodySchema.parse({ projectSlug: 'acme', title: 'Test', rawText: 'texto' }).categoryIds, []);
 });

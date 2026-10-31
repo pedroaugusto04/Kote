@@ -91,6 +91,7 @@ export const noteAttachmentContentParamSchema = z.object({
 export const updateNoteBodySchema = z
   .object({
     ...commonNoteFields,
+    projectSlug: z.string().trim().optional(),
     status: editableNoteStatusSchema,
     categoryIds: z.array(z.string()).optional(),
     attachments: z.array(noteAttachmentSchema).optional(),
@@ -98,6 +99,7 @@ export const updateNoteBodySchema = z
   .strict()
   .transform((body) => ({
     ...body,
+    projectSlug: body.projectSlug ? slugifyProjectName(body.projectSlug) : undefined,
     folderId: body.folderId.trim() || undefined,
     tags: normalizedSlugList(body.tags),
   }));
